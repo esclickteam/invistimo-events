@@ -38,10 +38,10 @@ type FieldItem = {
 
 type DragState = {
   key: string;
-  offsetX: number;
-  offsetY: number;
-  groupKeys?: string[];
-  originalPositions?: Record<string, { x: number; y: number }>;
+  keys: string[];
+  startClientX: number;
+  startClientY: number;
+  originalPositions: Record<string, { x: number; y: number }>;
 } | null;
 
 const PDF_URL = "/forms/tofes-101.pdf";
@@ -1317,6 +1317,8 @@ export default function Form101MapperPage() {
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [childrenRowOrdersInput, setChildrenRowOrdersInput] = useState("");
+  const [childrenRowGap, setChildrenRowGap] = useState(32);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1342,17 +1344,8 @@ export default function Form101MapperPage() {
 
     if (showAllFields) return allowed;
 
-    const selectedChildRow = parseChildFieldKey(selectedKey)?.row || null;
-
-    if (selectedSection === "children" && selectedChildRow) {
-      return allowed.filter((field) => {
-        const parsed = parseChildFieldKey(field.key);
-        return parsed?.row === selectedChildRow;
-      });
-    }
-
     return allowed.filter((field) => field.key === selectedKey);
-  }, [sectionFields, selectedKey, selectedSection, showAllFields, showDisabledFields]);
+  }, [sectionFields, selectedKey, showAllFields, showDisabledFields]);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
@@ -1505,6 +1498,59 @@ export default function Form101MapperPage() {
     );
   }
 
+  function parseChildFieldKey(key: string) {
+    const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+
+    if (!match) return null;
+
+    return {
+      row: Number(match[1]),
+      suffix: match[2],
+    };
+  }
+
+  function getChildFieldLabel(row: number, suffix: string) {
+    if (suffix === "Name") return `ילד ${row} שם`;
+    if (suffix === "Id") return `ילד ${row} ת.ז`;
+    if (suffix === "BirthDate") return `ילד ${row} תאריך לידה`;
+    if (suffix === "Mark1") return `ילד ${row} סימון 1`;
+    if (suffix === "Mark2") return `ילד ${row} סימון 2`;
+
+    return `ילד ${row}`;
+  }
+
+  function getSelectedChildRowNumber() {
+    const parsed = selectedField ? parseChildFieldKey(selectedField.key) : null;
+
+    return parsed?.row || null;
+  }
+
+  function getChildRowFields(row: number, sourceFields = fields) {
+    return sourceFields
+      .filter((field) => parseChildFieldKey(field.key)?.row === row)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  function getChildRowKeys(row: number, sourceFields = fields) {
+    return getChildRowFields(row, sourceFields).map((field) => field.key);
+  }
+
+  function getDragGroupKeys(field: FieldItem) {
+    const parsed = parseChildFieldKey(field.key);
+
+    if (!parsed) return [field.key];
+
+    const rowKeys = getChildRowKeys(parsed.row);
+    return rowKeys.length ? rowKeys : [field.key];
+  }
+
+  function isFieldInSelectedChildRow(field: FieldItem) {
+    const selectedRow = getSelectedChildRowNumber();
+    if (!selectedRow) return false;
+
+    return parseChildFieldKey(field.key)?.row === selectedRow;
+  }
+
   function startDrag(
     event: React.PointerEvent<HTMLButtonElement>,
     field: FieldItem
@@ -1512,23 +1558,23 @@ export default function Form101MapperPage() {
     const rect = pageRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const parsedChild = parseChildFieldKey(field.key);
-    const groupFields = parsedChild
-      ? fields.filter((item) => parseChildFieldKey(item.key)?.row === parsedChild.row)
-      : [field];
+    const keys = getDragGroupKeys(field);
+    const originalPositions = fields.reduce<Record<string, { x: number; y: number }>>(
+      (acc, item) => {
+        if (keys.includes(item.key)) {
+          acc[item.key] = { x: item.x, y: item.y };
+        }
 
-    const originalPositions = groupFields.reduce<
-      Record<string, { x: number; y: number }>
-    >((acc, item) => {
-      acc[item.key] = { x: item.x, y: item.y };
-      return acc;
-    }, {});
+        return acc;
+      },
+      {}
+    );
 
     dragRef.current = {
       key: field.key,
-      offsetX: event.clientX - rect.left - field.x,
-      offsetY: event.clientY - rect.top - field.y,
-      groupKeys: parsedChild ? groupFields.map((item) => item.key) : undefined,
+      keys,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
       originalPositions,
     };
 
@@ -1539,49 +1585,27 @@ export default function Form101MapperPage() {
 
   function moveDrag(event: React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
-    const rect = pageRef.current?.getBoundingClientRect();
 
-    if (!drag || !rect) return;
+    if (!drag) return;
 
-    const x = Math.round(
-      Math.max(0, Math.min(PAGE_WIDTH, event.clientX - rect.left - drag.offsetX))
+    const dx = Math.round(event.clientX - drag.startClientX);
+    const dy = Math.round(event.clientY - drag.startClientY);
+
+    markTemplateChanged();
+
+    setFields((prev) =>
+      prev.map((field) => {
+        const original = drag.originalPositions[field.key];
+
+        if (!original) return field;
+
+        return {
+          ...field,
+          x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, original.x + dx))),
+          y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, original.y + dy))),
+        };
+      })
     );
-    const y = Math.round(
-      Math.max(0, Math.min(PAGE_HEIGHT, event.clientY - rect.top - drag.offsetY))
-    );
-
-    const originalSelected = drag.originalPositions?.[drag.key];
-    const groupKeys = drag.groupKeys || [];
-
-    if (groupKeys.length > 1 && originalSelected && drag.originalPositions) {
-      const dx = x - originalSelected.x;
-      const dy = y - originalSelected.y;
-      const groupSet = new Set(groupKeys);
-
-      markTemplateChanged();
-
-      setFields((prev) =>
-        prev.map((field) => {
-          if (!groupSet.has(field.key)) return field;
-
-          const original = drag.originalPositions?.[field.key];
-          if (!original) return field;
-
-          return {
-            ...field,
-            x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, original.x + dx))),
-            y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, original.y + dy))),
-          };
-        })
-      );
-
-      return;
-    }
-
-    updateField(drag.key, {
-      x,
-      y,
-    });
   }
 
   function stopDrag() {
@@ -1591,32 +1615,21 @@ export default function Form101MapperPage() {
   function nudge(dx: number, dy: number) {
     if (!selectedField) return;
 
-    const parsedChild = parseChildFieldKey(selectedField.key);
+    const keys = getDragGroupKeys(selectedField);
 
-    if (parsedChild) {
-      markTemplateChanged();
+    markTemplateChanged();
 
-      setFields((prev) =>
-        prev.map((field) => {
-          const parsed = parseChildFieldKey(field.key);
-
-          if (parsed?.row !== parsedChild.row) return field;
-
-          return {
-            ...field,
-            x: field.x + dx,
-            y: field.y + dy,
-          };
-        })
-      );
-
-      return;
-    }
-
-    updateField(selectedField.key, {
-      x: selectedField.x + dx,
-      y: selectedField.y + dy,
-    });
+    setFields((prev) =>
+      prev.map((field) =>
+        keys.includes(field.key)
+          ? {
+              ...field,
+              x: field.x + dx,
+              y: field.y + dy,
+            }
+          : field
+      )
+    );
   }
 
   async function save() {
@@ -1784,97 +1797,120 @@ export default function Form101MapperPage() {
     setShowAllFields(false);
   }
 
-  function parseChildFieldKey(key: string) {
-    const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
-
-    if (!match) return null;
-
-    return {
-      row: Number(match[1]),
-      suffix: match[2],
-    };
+  function parseChildRowOrdersInput(value: string) {
+    return value
+      .split(/[,\s|]+/)
+      .map((item) => Number(item.trim()))
+      .filter((num) => Number.isFinite(num) && num > 0)
+      .map((num) => Math.round(num));
   }
 
-  function getChildFieldLabel(row: number, suffix: string) {
-    if (suffix === "Name") return `ילד ${row} שם`;
-    if (suffix === "Id") return `ילד ${row} ת.ז`;
-    if (suffix === "BirthDate") return `ילד ${row} לידה`;
-    if (suffix === "Mark1") return `ילד ${row} סימון 1`;
-    if (suffix === "Mark2") return `ילד ${row} סימון 2`;
+  function getSelectedRowFieldsFromInput() {
+    const orders = parseChildRowOrdersInput(childrenRowOrdersInput);
 
-    return `ילד ${row}`;
+    if (orders.length) {
+      const byOrder = fields
+        .filter(
+          (field) =>
+            field.page === page &&
+            field.section === "children" &&
+            orders.includes(field.order)
+        )
+        .sort((a, b) => orders.indexOf(a.order) - orders.indexOf(b.order));
+
+      return byOrder;
+    }
+
+    const selectedRow = getSelectedChildRowNumber();
+
+    if (selectedRow) {
+      return getChildRowFields(selectedRow);
+    }
+
+    return [];
   }
 
-  function getSelectedChildRowNumber() {
-    const parsed = selectedField ? parseChildFieldKey(selectedField.key) : null;
+  function inferChildSuffix(field: FieldItem, index: number) {
+    const parsed = parseChildFieldKey(field.key);
+    if (parsed?.suffix) return parsed.suffix;
 
-    return parsed?.row || 1;
-  }
+    if (field.label.includes("שם")) return "Name";
+    if (field.label.includes("ת.ז") || field.label.includes("זהות")) return "Id";
+    if (field.label.includes("לידה") || field.label.includes("תאריך")) return "BirthDate";
 
-  function getChildRowFields(row: number) {
-    return fields
-      .filter((field) => parseChildFieldKey(field.key)?.row === row)
-      .sort((a, b) => {
-        const suffixOrder: Record<string, number> = {
-          Mark1: 1,
-          Mark2: 2,
-          Name: 3,
-          Id: 4,
-          BirthDate: 5,
-        };
+    if (field.type === "check") {
+      return index === 3 ? "Mark1" : "Mark2";
+    }
 
-        const first = parseChildFieldKey(a.key);
-        const second = parseChildFieldKey(b.key);
-
-        return (suffixOrder[first?.suffix || ""] || 99) - (suffixOrder[second?.suffix || ""] || 99);
-      });
-  }
-
-  function getAllChildRows() {
-    const rows = new Set<number>();
-
-    fields.forEach((field) => {
-      const parsed = parseChildFieldKey(field.key);
-      if (parsed?.row) rows.add(parsed.row);
-    });
-
-    return Array.from(rows).sort((a, b) => a - b);
+    const fallbackByIndex = ["Name", "Id", "BirthDate", "Mark1", "Mark2"];
+    return fallbackByIndex[index] || `Custom${index + 1}`;
   }
 
   function getNextChildRowNumber() {
-    const rows = getAllChildRows();
-    return rows.length ? Math.max(...rows) + 1 : 1;
+    const maxRow = fields.reduce((max, field) => {
+      const parsed = parseChildFieldKey(field.key);
+      return parsed ? Math.max(max, parsed.row) : max;
+    }, 0);
+
+    return maxRow + 1;
   }
 
-  function duplicateSelectedChildRow() {
-    const sourceRow = getSelectedChildRowNumber();
-    const sourceFields = getChildRowFields(sourceRow);
+  function fillChildRowOrdersFromSelectedRow() {
+    const selectedRow = getSelectedChildRowNumber();
+
+    if (!selectedRow) {
+      alert("צריך לבחור שדה מתוך שורת ילד קיימת");
+      return;
+    }
+
+    const rowFields = getChildRowFields(selectedRow);
+
+    if (!rowFields.length) {
+      alert("לא נמצאו שדות לשורת הילד הנבחרת");
+      return;
+    }
+
+    setChildrenRowOrdersInput(rowFields.map((field) => field.order).join(","));
+  }
+
+  function duplicateSelectedChildrenRowToNext() {
+    const sourceFields = getSelectedRowFieldsFromInput();
 
     if (!sourceFields.length) {
-      alert("צריך לבחור שדה מתוך שורת ילד קיימת, למשל ילד 1 שם");
+      alert("צריך להכניס מספרי שדות של השורה, למשל: 34,35,36,37,38");
+      return;
+    }
+
+    if (sourceFields.length < 2) {
+      alert("צריך לבחור לפחות שני שדות לשכפול שורה");
       return;
     }
 
     const targetRow = getNextChildRowNumber();
+    const rowGap = Math.max(1, Number(childrenRowGap) || 32);
+    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
+
+    const sourceSummary = sourceFields
+      .map((field) => `${field.order} - ${field.label}`)
+      .join("\n");
 
     if (
       !confirm(
-        `לשכפל את כל שורת ילד ${sourceRow} לילד ${targetRow}?\n\nייווצרו כל שדות השורה: שם, ת.ז, תאריך לידה וסימוני 1/2. אחרי השכפול אפשר לגרור את כל השורה יחד למיקום הנכון.`
+        `לשכפל את השדות הבאים לילד ${targetRow}?\n\n${sourceSummary}\n\nהשורה החדשה תיווצר ${rowGap}px מתחת, ואז אפשר לגרור אותה יחד למיקום הנכון.`
       )
     ) {
       return;
     }
 
-    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
-
     const newFields = sourceFields.map((sourceField, index) => {
-      const parsed = parseChildFieldKey(sourceField.key);
-      const suffix = parsed?.suffix || `Field${index + 1}`;
+      const suffix = inferChildSuffix(sourceField, index);
+      const key = `child${targetRow}${suffix}`;
 
       return {
         ...sourceField,
-        key: `child${targetRow}${suffix}`,
+        key,
         label: getChildFieldLabel(targetRow, suffix),
+        y: sourceField.y + rowGap,
         order: maxOrder + index + 1,
         sample: "",
         fixedValue: "",
@@ -1887,44 +1923,46 @@ export default function Form101MapperPage() {
 
     setFields((prev) => [...prev, ...newFields].sort((a, b) => a.order - b.order));
 
-    const firstNewField =
-      newFields.find((field) => field.key === `child${targetRow}Name`) ||
-      newFields[0];
-
-    if (firstNewField) {
-      setSelectedKey(firstNewField.key);
-      setSelectedSection(firstNewField.section);
-      setPage(firstNewField.page);
-    }
-
-    setShowAllFields(false);
+    const firstNewField = newFields[0];
+    setSelectedKey(firstNewField.key);
+    setSelectedSection("children");
+    setPage(firstNewField.page);
+    setShowAllFields(true);
+    setChildrenRowOrdersInput(newFields.map((field) => String(field.order)).join(","));
   }
 
   function deleteSelectedChildRow() {
-    const sourceRow = getSelectedChildRowNumber();
-    const rowFields = getChildRowFields(sourceRow);
+    const selectedRow = getSelectedChildRowNumber();
 
-    if (!rowFields.length) {
+    if (!selectedRow) {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת");
       return;
     }
 
-    if (!confirm(`למחוק את כל שדות ילד ${sourceRow}?`)) return;
+    const rowFields = getChildRowFields(selectedRow);
+
+    if (!rowFields.length) {
+      alert("לא נמצאו שדות למחיקה בשורת הילד הנבחרת");
+      return;
+    }
+
+    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ילד ${selectedRow}?`)) {
+      return;
+    }
+
+    const keysToDelete = new Set(rowFields.map((field) => field.key));
 
     markTemplateChanged();
 
     setFields((prev) => {
-      const next = prev.filter((field) => parseChildFieldKey(field.key)?.row !== sourceRow);
+      const next = prev.filter((field) => !keysToDelete.has(field.key));
       selectFallbackField(next);
       return next;
     });
 
-    setShowAllFields(false);
+    setShowAllFields(true);
   }
 
-  function duplicateChildrenRows() {
-    duplicateSelectedChildRow();
-  }
 
   return (
     <main
@@ -2231,13 +2269,7 @@ export default function Form101MapperPage() {
               />
 
               {visibleFields.map((field) => {
-                const selectedChildRow = parseChildFieldKey(selectedKey)?.row || null;
-                const currentChildRow = parseChildFieldKey(field.key)?.row || null;
-                const selected =
-                  field.key === selectedKey ||
-                  (selectedSection === "children" &&
-                    selectedChildRow !== null &&
-                    currentChildRow === selectedChildRow);
+                const selected = field.key === selectedKey || isFieldInSelectedChildRow(field);
 
                 return (
                   <button
@@ -2333,17 +2365,47 @@ export default function Form101MapperPage() {
                       שכפול וגרירת שורת ילדים
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
-                      בחרי שדה אחד מתוך השורה. המערכת מסמנת את כל 5 השדות של אותו ילד יחד: שם, ת.ז, תאריך לידה וסימוני 1/2. גרירה של אחד מהם מזיזה את כל השורה.
+                      מכניסים את מספרי השדות ששייכים לאותה שורה, למשל: 34,35,36,37,38.
+                      לחיצה על שכפול תיצור ילד הבא עם אותם 5 שדות. אחרי השכפול גוררים שדה אחד והשורה כולה זזה יחד.
                     </p>
 
-                    <div className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-black text-amber-900">
-                      שורה נבחרת: ילד {getSelectedChildRowNumber()} · {getChildRowFields(getSelectedChildRowNumber()).length} שדות
+                    <label className="mt-3 block text-xs font-black text-amber-800">
+                      מספרי השדות בשורה
+                      <input
+                        value={childrenRowOrdersInput}
+                        onChange={(event) => setChildrenRowOrdersInput(event.target.value)}
+                        placeholder="לדוגמה: 34,35,36,37,38"
+                        className="mt-1 h-11 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
+                      />
+                    </label>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={fillChildRowOrdersFromSelectedRow}
+                        className="rounded-xl bg-white py-3 text-xs font-black text-amber-800 ring-1 ring-amber-200"
+                      >
+                        מלא לפי השורה הנבחרת
+                      </button>
+
+                      <label className="text-xs font-black text-amber-800">
+                        מרחק פתיחה לשורה החדשה
+                        <input
+                          type="number"
+                          min={1}
+                          value={childrenRowGap}
+                          onChange={(event) =>
+                            setChildrenRowGap(Math.max(1, Number(event.target.value) || 32))
+                          }
+                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
+                        />
+                      </label>
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={duplicateSelectedChildRow}
+                        onClick={duplicateSelectedChildrenRowToNext}
                         className="rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
                       >
                         שכפל שורה לילד הבא
@@ -2352,14 +2414,14 @@ export default function Form101MapperPage() {
                       <button
                         type="button"
                         onClick={deleteSelectedChildRow}
-                        className="rounded-2xl bg-rose-600 py-3 text-sm font-black text-white"
+                        className="rounded-2xl bg-red-600 py-3 text-sm font-black text-white"
                       >
                         מחק שורת ילד
                       </button>
                     </div>
 
                     <p className="mt-3 text-[11px] font-bold leading-5 text-amber-700">
-                      אחרי שכפול: הילד הבא נבחר אוטומטית. גררי כל שדה מהשורה החדשה, וכל השורה תזוז יחד למיקום הנכון.
+                      אחרי השכפול: בחרי כל אחד מהשדות של הילד החדש וגררי אותו — כל השדות של אותה שורה יזוזו יחד.
                     </p>
                   </div>
                 )}
