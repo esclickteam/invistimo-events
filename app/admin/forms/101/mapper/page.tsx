@@ -34,6 +34,7 @@ type FieldItem = {
   enabled: boolean;
   isFixed?: boolean;
   fixedValue?: string;
+  rowGroupId?: string;
 };
 
 type DragState = {
@@ -966,6 +967,7 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     enabled: typeof field.enabled === "boolean" ? field.enabled : true,
     isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
     fixedValue: String(field.fixedValue || ""),
+    rowGroupId: String(field.rowGroupId || ""),
     digitSpacingMode:
       field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
         ? "group"
@@ -1005,6 +1007,14 @@ function loadApproved() {
 
 function onlyDigits(value: unknown) {
   return String(value || "").replace(/\D/g, "");
+}
+
+function createLocalId(prefix: string) {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return `${prefix}_${window.crypto.randomUUID()}`;
+  }
+
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function alignToJustify(align?: TextAlign) {
@@ -1173,6 +1183,7 @@ function fieldToMap(field: FieldItem) {
     enabled: field.enabled,
     isFixed: Boolean(field.isFixed),
     fixedValue: field.fixedValue || "",
+    rowGroupId: field.rowGroupId || "",
     x: field.x,
     y: field.y,
     width: field.width,
@@ -1255,6 +1266,7 @@ function templateFieldsToFields(templateFields: any) {
       enabled: typeof value?.enabled === "boolean" ? value.enabled : true,
       isFixed: typeof value?.isFixed === "boolean" ? value.isFixed : false,
       fixedValue: String(value?.fixedValue || ""),
+      rowGroupId: String(value?.rowGroupId || base?.rowGroupId || ""),
     } as FieldItem;
   });
 
@@ -1499,7 +1511,7 @@ export default function Form101MapperPage() {
   }
 
   function parseChildFieldKey(key: string) {
-    const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+    const match = key.match(/^child(\d+)([A-Za-z0-9_]+)$/);
 
     if (!match) return null;
 
@@ -1535,20 +1547,47 @@ export default function Form101MapperPage() {
     return getChildRowFields(row, sourceFields).map((field) => field.key);
   }
 
-  function getDragGroupKeys(field: FieldItem) {
+  function getChildFieldGroupId(field: FieldItem) {
+    if (field.section !== "children") return "";
+
     const parsed = parseChildFieldKey(field.key);
 
-    if (!parsed) return [field.key];
+    if (field.rowGroupId) return field.rowGroupId;
+    if (parsed) return `child-row-${parsed.row}`;
 
-    const rowKeys = getChildRowKeys(parsed.row);
+    return "";
+  }
+
+  function getChildGroupFields(field: FieldItem, sourceFields = fields) {
+    const groupId = getChildFieldGroupId(field);
+
+    if (!groupId) return [field];
+
+    return sourceFields
+      .filter(
+        (item) =>
+          item.page === field.page &&
+          item.section === field.section &&
+          getChildFieldGroupId(item) === groupId
+      )
+      .sort((a, b) => a.order - b.order);
+  }
+
+  function getDragGroupKeys(field: FieldItem) {
+    if (field.section !== "children") return [field.key];
+
+    const rowKeys = getChildGroupFields(field).map((item) => item.key);
     return rowKeys.length ? rowKeys : [field.key];
   }
 
   function isFieldInSelectedChildRow(field: FieldItem) {
-    const selectedRow = getSelectedChildRowNumber();
-    if (!selectedRow) return false;
+    if (!selectedField) return false;
+    if (field.section !== "children" || selectedField.section !== "children") return false;
 
-    return parseChildFieldKey(field.key)?.row === selectedRow;
+    const selectedGroupId = getChildFieldGroupId(selectedField);
+    const fieldGroupId = getChildFieldGroupId(field);
+
+    return Boolean(selectedGroupId && fieldGroupId && selectedGroupId === fieldGroupId);
   }
 
   function startDrag(
@@ -1580,6 +1619,13 @@ export default function Form101MapperPage() {
 
     setSelectedKey(field.key);
     setSelectedSection(field.section);
+
+    if (field.section === "children") {
+      const rowFields = getChildGroupFields(field);
+      setShowAllFields(true);
+      setChildrenRowOrdersInput(rowFields.map((item) => String(item.order)).join(","));
+    }
+
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -1856,21 +1902,20 @@ export default function Form101MapperPage() {
   }
 
   function fillChildRowOrdersFromSelectedRow() {
-    const selectedRow = getSelectedChildRowNumber();
-
-    if (!selectedRow) {
+    if (!selectedField || selectedField.section !== "children") {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת");
       return;
     }
 
-    const rowFields = getChildRowFields(selectedRow);
+    const rowFields = getChildGroupFields(selectedField);
 
     if (!rowFields.length) {
       alert("לא נמצאו שדות לשורת הילד הנבחרת");
       return;
     }
 
-    setChildrenRowOrdersInput(rowFields.map((field) => field.order).join(","));
+    setChildrenRowOrdersInput(rowFields.map((field) => String(field.order)).join(","));
+    setShowAllFields(true);
   }
 
   function duplicateSelectedChildrenRowToNext() {
@@ -1886,9 +1931,25 @@ export default function Form101MapperPage() {
       return;
     }
 
+    const sourcePage = sourceFields[0].page;
+    const sourceSection = sourceFields[0].section;
+
+    const sameSectionAndPage = sourceFields.every(
+      (field) => field.page === sourcePage && field.section === sourceSection
+    );
+
+    if (!sameSectionAndPage) {
+      alert("כל השדות בשורה חייבים להיות מאותו עמוד ומאותו סעיף");
+      return;
+    }
+
     const targetRow = getNextChildRowNumber();
     const rowGap = Math.max(1, Number(childrenRowGap) || 32);
-    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
+    const maxOrderInSameSection = fields
+      .filter((field) => field.page === sourcePage && field.section === sourceSection)
+      .reduce((max, field) => Math.max(max, field.order), 0);
+
+    const newRowGroupId = createLocalId(`children-row-${targetRow}`);
 
     const sourceSummary = sourceFields
       .map((field) => `${field.order} - ${field.label}`)
@@ -1910,8 +1971,11 @@ export default function Form101MapperPage() {
         ...sourceField,
         key,
         label: getChildFieldLabel(targetRow, suffix),
+        section: sourceSection,
+        page: sourcePage,
+        rowGroupId: newRowGroupId,
         y: sourceField.y + rowGap,
-        order: maxOrder + index + 1,
+        order: maxOrderInSameSection + index + 1,
         sample: "",
         fixedValue: "",
         isFixed: false,
@@ -1925,28 +1989,29 @@ export default function Form101MapperPage() {
 
     const firstNewField = newFields[0];
     setSelectedKey(firstNewField.key);
-    setSelectedSection("children");
-    setPage(firstNewField.page);
+    setSelectedSection(sourceSection);
+    setPage(sourcePage);
     setShowAllFields(true);
     setChildrenRowOrdersInput(newFields.map((field) => String(field.order)).join(","));
   }
 
   function deleteSelectedChildRow() {
-    const selectedRow = getSelectedChildRowNumber();
-
-    if (!selectedRow) {
+    if (!selectedField || selectedField.section !== "children") {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת");
       return;
     }
 
-    const rowFields = getChildRowFields(selectedRow);
+    const rowFields = getChildGroupFields(selectedField);
 
     if (!rowFields.length) {
       alert("לא נמצאו שדות למחיקה בשורת הילד הנבחרת");
       return;
     }
 
-    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ילד ${selectedRow}?`)) {
+    const selectedRow = parseChildFieldKey(selectedField.key)?.row;
+    const rowLabel = selectedRow ? `ילד ${selectedRow}` : "השורה הנבחרת";
+
+    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ${rowLabel}?`)) {
       return;
     }
 
@@ -2205,7 +2270,16 @@ export default function Form101MapperPage() {
                         onClick={() => {
                           setSelectedKey(field.key);
                           setSelectedSection(field.section);
-                          setShowAllFields(false);
+
+                          if (field.section === "children") {
+                            const rowFields = getChildGroupFields(field);
+                            setShowAllFields(true);
+                            setChildrenRowOrdersInput(
+                              rowFields.map((item) => String(item.order)).join(",")
+                            );
+                          } else {
+                            setShowAllFields(false);
+                          }
                         }}
                         className={`w-full rounded-2xl border px-3 py-3 text-right transition ${
                           active
@@ -2279,7 +2353,16 @@ export default function Form101MapperPage() {
                     onClick={() => {
                       setSelectedKey(field.key);
                       setSelectedSection(field.section);
-                      setShowAllFields(false);
+
+                      if (field.section === "children") {
+                        const rowFields = getChildGroupFields(field);
+                        setShowAllFields(true);
+                        setChildrenRowOrdersInput(
+                          rowFields.map((item) => String(item.order)).join(",")
+                        );
+                      } else {
+                        setShowAllFields(false);
+                      }
                     }}
                     className={`absolute z-20 cursor-grab bg-transparent p-0 active:cursor-grabbing ${
                       selected ? "ring-2 ring-fuchsia-500" : ""
