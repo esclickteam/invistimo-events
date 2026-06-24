@@ -1563,30 +1563,125 @@ function FieldControl({
   const stringValue = clean(value);
   const inputValue = field.type === "digits" ? onlyDigits(stringValue) : stringValue;
 
+  function alignToJustify(align: TextAlign) {
+    if (align === "center") return "center";
+    if (align === "right") return "flex-end";
+    return "flex-start";
+  }
+
+  function alignToText(align: TextAlign) {
+    if (align === "center") return "center";
+    if (align === "left") return "left";
+    return "right";
+  }
+
+  if (field.type === "digits") {
+    const digits = onlyDigits(inputValue);
+    const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
+    const digitGap = field.digitGap || 13;
+
+    return (
+      <div
+        className="absolute z-20"
+        style={{
+          left: field.x,
+          top: field.y,
+          width: field.width,
+          height: field.height,
+        }}
+      >
+        <div
+          className={`relative h-full w-full border ${
+            selected
+              ? "border-fuchsia-500 bg-fuchsia-500/10 ring-2 ring-fuchsia-400"
+              : "border-blue-400/60 bg-white/20"
+          } ${field.isFixed ? "bg-slate-100/50 text-slate-700" : ""}`}
+        >
+          <span
+            dir="ltr"
+            className="pointer-events-none flex h-full w-full items-center text-blue-900"
+            style={{
+              justifyContent: alignToJustify(field.align),
+              fontSize: field.fontSize,
+              lineHeight: `${field.height}px`,
+            }}
+          >
+            {sliced.split("").map((digit, index) => (
+              <span
+                key={`${fieldKey}-${index}`}
+                className="inline-block text-center font-semibold"
+                style={{ width: digitGap }}
+              >
+                {digit}
+              </span>
+            ))}
+          </span>
+
+          <input
+            value={inputValue}
+            disabled={field.isFixed}
+            maxLength={field.maxDigits || undefined}
+            onFocus={onSelect}
+            onClick={onSelect}
+            onChange={(event) => onChange(onlyDigits(event.target.value))}
+            className="absolute inset-0 h-full w-full border-0 bg-transparent p-0 text-transparent caret-blue-700 outline-none"
+            style={{
+              fontSize: Math.max(10, field.fontSize),
+              direction: "ltr",
+            }}
+            placeholder=""
+            title={getFieldLabel(fieldKey, field)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="absolute z-20"
-      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+      style={{
+        left: field.x,
+        top: field.y,
+        width: field.width,
+        height: field.height,
+      }}
     >
-      <input
-        value={inputValue}
-        disabled={field.isFixed}
-        maxLength={field.maxDigits || undefined}
-        onFocus={onSelect}
-        onClick={onSelect}
-        onChange={(event) =>
-          onChange(field.type === "digits" ? onlyDigits(event.target.value) : event.target.value)
-        }
-        className={`h-full w-full border bg-white/45 px-1 font-semibold text-blue-900 outline-none transition placeholder:text-blue-300 ${
-          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
-        } ${field.isFixed ? "cursor-not-allowed bg-slate-100/60 text-slate-700" : "focus:bg-white/80"}`}
-        style={{
-          fontSize: Math.max(10, field.fontSize),
-          textAlign: field.align,
-          direction: field.type === "digits" ? "ltr" : "rtl",
-        }}
-        placeholder={field.isFixed ? "קבוע" : getFieldLabel(fieldKey, field)}
-      />
+      <div
+        className={`relative h-full w-full border ${
+          selected
+            ? "border-fuchsia-500 bg-fuchsia-500/10 ring-2 ring-fuchsia-400"
+            : "border-blue-400/60 bg-white/20"
+        } ${field.isFixed ? "bg-slate-100/50 text-slate-700" : ""}`}
+      >
+        <span
+          className="pointer-events-none block h-full w-full overflow-hidden whitespace-nowrap text-blue-900"
+          style={{
+            fontSize: field.fontSize,
+            lineHeight: `${field.height}px`,
+            textAlign: alignToText(field.align),
+          }}
+        >
+          {inputValue}
+        </span>
+
+        <input
+          value={inputValue}
+          disabled={field.isFixed}
+          maxLength={field.maxDigits || undefined}
+          onFocus={onSelect}
+          onClick={onSelect}
+          onChange={(event) => onChange(event.target.value)}
+          className="absolute inset-0 h-full w-full border-0 bg-transparent p-0 text-transparent caret-blue-700 outline-none"
+          style={{
+            fontSize: Math.max(10, field.fontSize),
+            direction: "rtl",
+            textAlign: field.align,
+          }}
+          placeholder=""
+          title={getFieldLabel(fieldKey, field)}
+        />
+      </div>
     </div>
   );
 }
