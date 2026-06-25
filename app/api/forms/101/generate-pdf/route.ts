@@ -1516,49 +1516,54 @@ function normalizeFieldMap(rawFields: any): FieldMap {
   return normalized;
 }
 
-function fallbackTemplateConfig(): Form101TemplateConfig {
+function normalizeTemplateSize(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function templateConfigFromSnapshot(snapshot: any): Form101TemplateConfig | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+
+  const fields = normalizeFieldMap(snapshot.fields);
+  if (!Object.keys(fields).length) return null;
+
   return {
-    fields: normalizeFieldMap(FORM101_FIELD_MAP),
-    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
+    fields,
+    pageWidth: normalizeTemplateSize(snapshot.pageWidth, DEFAULT_MAPPER_PAGE_WIDTH),
+    pageHeight: normalizeTemplateSize(snapshot.pageHeight, DEFAULT_MAPPER_PAGE_HEIGHT),
   };
 }
 
 async function loadForm101TemplateConfig(): Promise<Form101TemplateConfig> {
-  const fallback = fallbackTemplateConfig();
+  const template = await Form101Template.findOne({
+    name: "default",
+    isActive: true,
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
 
-  try {
-    const template = await Form101Template.findOne({
-      name: "default",
-      isActive: true,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+  const fields = normalizeFieldMap((template as any)?.fields);
 
-    const fields = normalizeFieldMap((template as any)?.fields);
-
-    if (!template || !Object.keys(fields).length) {
-      return fallback;
-    }
-
-    const pageWidth = Number((template as any).pageWidth);
-    const pageHeight = Number((template as any).pageHeight);
-
-    return {
-      fields,
-      pageWidth:
-        Number.isFinite(pageWidth) && pageWidth > 0
-          ? pageWidth
-          : DEFAULT_MAPPER_PAGE_WIDTH,
-      pageHeight:
-        Number.isFinite(pageHeight) && pageHeight > 0
-          ? pageHeight
-          : DEFAULT_MAPPER_PAGE_HEIGHT,
-    };
-  } catch (error) {
-    console.error("LOAD FORM 101 TEMPLATE CONFIG FAILED:", error);
-    return fallback;
+  if (!template || !Object.keys(fields).length) {
+    throw new Error("FORM101_TEMPLATE_NOT_FOUND_OR_EMPTY: לא נמצאה תבנית 101 פעילה מהאדמין");
   }
+
+  return {
+    fields,
+    pageWidth: normalizeTemplateSize((template as any).pageWidth, DEFAULT_MAPPER_PAGE_WIDTH),
+    pageHeight: normalizeTemplateSize((template as any).pageHeight, DEFAULT_MAPPER_PAGE_HEIGHT),
+  };
+}
+
+async function resolveForm101TemplateConfig(body: Form101Payload): Promise<Form101TemplateConfig> {
+  // קודם משתמשים בדיוק בתבנית שהעובד טען מהאדמין במסך המילוי.
+  // זה מונע מצב שבו ה-PDF נוצר ממפה ישנה/ברירת מחדל בזמן שהמסך מציג מפה אחרת.
+  const snapshotConfig = templateConfigFromSnapshot(body.__form101TemplateConfig);
+  if (snapshotConfig) return snapshotConfig;
+
+  // אם מסיבה כלשהי לא נשלח snapshot, טוענים מה-DB של האדמין.
+  // אין fallback למפה קשיחה, כדי לא לייצר PDF במיקומים שגויים.
+  return loadForm101TemplateConfig();
 }
 
 function splitPhoneParts(value: unknown) {
@@ -1570,46 +1575,12 @@ function splitPhoneParts(value: unknown) {
   };
 }
 
-function getPdfVisibleBox(page: any) {
-  const size = page.getSize();
-
-  try {
-    if (typeof page.getCropBox === "function") {
-      const cropBox = page.getCropBox();
-
-      if (
-        cropBox &&
-        Number.isFinite(Number(cropBox.width)) &&
-        Number.isFinite(Number(cropBox.height)) &&
-        Number(cropBox.width) > 0 &&
-        Number(cropBox.height) > 0
-      ) {
-        return {
-          x: Number(cropBox.x || 0),
-          y: Number(cropBox.y || 0),
-          width: Number(cropBox.width),
-          height: Number(cropBox.height),
-        };
-      }
-    }
-  } catch {
-    // Some pdf-lib versions/templates do not expose a crop box.
-  }
-
-  return {
-    x: 0,
-    y: 0,
-    width: Number(size.width),
-    height: Number(size.height),
-  };
-}
-
 function getMappedRect(
   page: any,
   field: FieldMapItem,
   templateConfig: Form101TemplateConfig
 ) {
-  const visibleBox = getPdfVisibleBox(page);
+  const { width: pdfWidth, height: pdfHeight } = page.getSize();
 
   const mapperPageWidth =
     templateConfig.pageWidth > 0
@@ -1621,16 +1592,16 @@ function getMappedRect(
       ? templateConfig.pageHeight
       : DEFAULT_MAPPER_PAGE_HEIGHT;
 
-  const scaleX = visibleBox.width / mapperPageWidth;
-  const scaleY = visibleBox.height / mapperPageHeight;
+  const scaleX = pdfWidth / mapperPageWidth;
+  const scaleY = pdfHeight / mapperPageHeight;
 
-  const x = visibleBox.x + field.x * scaleX;
+  const x = field.x * scaleX;
   const width = field.width * scaleX;
   const height = field.height * scaleY;
 
   return {
     x,
-    y: visibleBox.y + visibleBox.height - (field.y + field.height) * scaleY,
+    y: pdfHeight - (field.y + field.height) * scaleY,
     width,
     height,
     scaleX,
@@ -1832,29 +1803,6 @@ function hasValue(value: unknown, type: FieldType) {
   return Boolean(clean(value));
 }
 
-function cleanPdfText(value: unknown) {
-  return String(value ?? "")
-    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
-    .replace(/[\t\r\n]+/g, " ")
-    .replace(/ {2,}/g, " ")
-    .trim();
-}
-
-function getCenteredTextY(rect: { y: number; height: number; fontSize: number }, font: any) {
-  const size = rect.fontSize;
-
-  try {
-    if (typeof font.heightAtSize === "function") {
-      const textHeight = font.heightAtSize(size);
-      return rect.y + Math.max((rect.height - textHeight) / 2, 0) + 1;
-    }
-  } catch {
-    // Fallback below.
-  }
-
-  return rect.y + Math.max((rect.height - size) / 2, 0) + 1;
-}
-
 function drawTextInRect(
   page: any,
   text: unknown,
@@ -1862,7 +1810,7 @@ function drawTextInRect(
   field: FieldMapItem,
   font: any
 ) {
-  const value = cleanPdfText(text);
+  const value = clean(text);
   if (!value) return;
 
   const padding = 2;
@@ -1880,7 +1828,7 @@ function drawTextInRect(
     x = Math.max(maxX - textWidth, rect.x + padding);
   }
 
-  const y = getCenteredTextY(rect, font);
+  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
 
   page.drawText(value, {
     x,
@@ -1983,7 +1931,7 @@ function drawDigitsInRect(
     startX = rect.x + Math.max(rect.width - totalWidth, 0);
   }
 
-  const y = getCenteredTextY(rect, font);
+  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
 
   let cursorX = startX;
 
@@ -2099,7 +2047,7 @@ async function generateForm101Pdf(body: Form101Payload) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const templateConfig = await loadForm101TemplateConfig();
+  const templateConfig = await resolveForm101TemplateConfig(body);
 
   const fields = Object.entries(templateConfig.fields)
     .filter(([, field]) => field.enabled)

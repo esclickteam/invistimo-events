@@ -44,1082 +44,1081 @@ type ActiveSignatureField = string | null;
 const PDF_URL = "/forms/tofes-101.pdf";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
-const DRAFT_STORAGE_KEY =
-  "invistimo_employee_form101_template_draft_v2_no_samples";
+const DRAFT_STORAGE_KEY = "invistimo_employee_form101_template_draft_v2_no_samples";
 const OLD_DRAFT_STORAGE_KEYS = ["invistimo_employee_form101_template_draft_v1"];
 
 const FORM101_FIELD_MAP: Record<string, FieldConfig> = {
-  taxYear: {
-    page: 1,
-    section: "year",
-    order: 1,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "2026",
-    x: 323,
-    y: 111,
-    width: 120,
-    height: 30,
-    type: "digits",
-    fontSize: 20,
-    digitGap: 21,
-    maxDigits: 4,
-    align: "center",
+  "taxYear": {
+    "page": 1,
+    "section": "year",
+    "order": 1,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "2026",
+    "x": 323,
+    "y": 111,
+    "width": 120,
+    "height": 30,
+    "type": "digits",
+    "fontSize": 20,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
   },
-  employerName: {
-    page: 1,
-    section: "employer",
-    order: 2,
-    enabled: true,
-    isFixed: true,
-    fixedValue: "בן עשת",
-    x: 603,
-    y: 221,
-    width: 150,
-    height: 24,
-    type: "text",
-    fontSize: 16,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "employerName": {
+    "page": 1,
+    "section": "employer",
+    "order": 2,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "בן עשת",
+    "x": 603,
+    "y": 221,
+    "width": 150,
+    "height": 24,
+    "type": "text",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  employerAddress: {
-    page: 1,
-    section: "employer",
-    order: 3,
-    enabled: true,
-    isFixed: true,
-    fixedValue: "העצמאות 41 קרית אתא",
-    x: 401,
-    y: 223,
-    width: 175,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "right",
+  "employerAddress": {
+    "page": 1,
+    "section": "employer",
+    "order": 3,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "העצמאות 41 קרית אתא",
+    "x": 401,
+    "y": 223,
+    "width": 175,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
   },
-  employerPhone: {
-    page: 1,
-    section: "employer",
-    order: 4,
-    enabled: true,
-    isFixed: true,
-    fixedValue: "0526850711",
-    x: 224,
-    y: 224,
-    width: 98,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 10,
-    align: "left",
+  "employerPhone": {
+    "page": 1,
+    "section": "employer",
+    "order": 4,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "0526850711",
+    "x": 224,
+    "y": 224,
+    "width": 98,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
   },
-  employerFileNumber: {
-    page: 1,
-    section: "employer",
-    order: 5,
-    enabled: true,
-    isFixed: true,
-    fixedValue: "05790028",
-    x: 98,
-    y: 226,
-    width: 124,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 9,
-    align: "right",
+  "employerFileNumber": {
+    "page": 1,
+    "section": "employer",
+    "order": 5,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "05790028",
+    "x": 98,
+    "y": 226,
+    "width": 124,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "right"
   },
-  idNumber: {
-    page: 1,
-    section: "employee",
-    order: 6,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 631,
-    y: 283,
-    width: 136,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 9,
-    align: "center",
+  "idNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 6,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 631,
+    "y": 283,
+    "width": 136,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "center"
   },
-  lastName: {
-    page: 1,
-    section: "employee",
-    order: 7,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 504,
-    y: 283,
-    width: 95,
-    height: 24,
-    type: "text",
-    fontSize: 15,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "lastName": {
+    "page": 1,
+    "section": "employee",
+    "order": 7,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 504,
+    "y": 283,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  firstName: {
-    page: 1,
-    section: "employee",
-    order: 8,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 356,
-    y: 282,
-    width: 85,
-    height: 24,
-    type: "text",
-    fontSize: 15,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "firstName": {
+    "page": 1,
+    "section": "employee",
+    "order": 8,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 356,
+    "y": 282,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  birthDate: {
-    page: 1,
-    section: "employee",
-    order: 9,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 204,
-    y: 284,
-    width: 123,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 8,
-    align: "center",
+  "birthDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 9,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 204,
+    "y": 284,
+    "width": 123,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
   },
-  immigrationDate: {
-    page: 1,
-    section: "employee",
-    order: 10,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 85,
-    y: 285,
-    width: 120,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 8,
-    align: "center",
+  "immigrationDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 10,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 85,
+    "y": 285,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
   },
-  street: {
-    page: 1,
-    section: "employee",
-    order: 11,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 607,
-    y: 311,
-    width: 143,
-    height: 24,
-    type: "text",
-    fontSize: 15,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "street": {
+    "page": 1,
+    "section": "employee",
+    "order": 11,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 607,
+    "y": 311,
+    "width": 143,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  houseNumber: {
-    page: 1,
-    section: "employee",
-    order: 12,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 558,
-    y: 311,
-    width: 52,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 4,
-    align: "center",
+  "houseNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 12,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 558,
+    "y": 311,
+    "width": 52,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
   },
-  city: {
-    page: 1,
-    section: "employee",
-    order: 13,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 465,
-    y: 311,
-    width: 100,
-    height: 24,
-    type: "text",
-    fontSize: 15,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "city": {
+    "page": 1,
+    "section": "employee",
+    "order": 13,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 465,
+    "y": 311,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  postalCode: {
-    page: 1,
-    section: "employee",
-    order: 14,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 360,
-    y: 312,
-    width: 103,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 7,
-    align: "left",
+  "postalCode": {
+    "page": 1,
+    "section": "employee",
+    "order": 14,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 360,
+    "y": 312,
+    "width": 103,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 7,
+    "align": "left"
   },
-  phone: {
-    page: 1,
-    section: "employee",
-    order: 15,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 221,
-    y: 312,
-    width: 30,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 10,
-    align: "center",
+  "phone": {
+    "page": 1,
+    "section": "employee",
+    "order": 15,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 221,
+    "y": 312,
+    "width": 30,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "center"
   },
-  customField1782075538085: {
-    page: 1,
-    section: "employee",
-    order: 16,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 250,
-    y: 312,
-    width: 76,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "customField1782075538085": {
+    "page": 1,
+    "section": "employee",
+    "order": 16,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 250,
+    "y": 312,
+    "width": 76,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  mobile: {
-    page: 1,
-    section: "employee",
-    order: 17,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 86,
-    y: 313,
-    width: 28,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 10,
-    align: "left",
+  "mobile": {
+    "page": 1,
+    "section": "employee",
+    "order": 17,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 86,
+    "y": 313,
+    "width": 28,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
   },
-  customField1782075699673: {
-    page: 1,
-    section: "employee",
-    order: 18,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 104,
-    y: 312,
-    width: 95,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "customField1782075699673": {
+    "page": 1,
+    "section": "employee",
+    "order": 18,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 104,
+    "y": 312,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  email: {
-    page: 1,
-    section: "employee",
-    order: 19,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 426,
-    y: 522,
-    width: 230,
-    height: 24,
-    type: "text",
-    fontSize: 15,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "email": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 426,
+    "y": 522,
+    "width": 230,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  genderMale: {
-    page: 1,
-    section: "employee",
-    order: 19,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 740,
-    y: 357,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "genderMale": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  genderFemale: {
-    page: 1,
-    section: "employee",
-    order: 20,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 740,
-    y: 374,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "genderFemale": {
+    "page": 1,
+    "section": "employee",
+    "order": 20,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  maritalSingle: {
-    page: 1,
-    section: "employee",
-    order: 21,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 674,
-    y: 355,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "maritalSingle": {
+    "page": 1,
+    "section": "employee",
+    "order": 21,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  maritalMarried: {
-    page: 1,
-    section: "employee",
-    order: 22,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 590,
-    y: 355,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "maritalMarried": {
+    "page": 1,
+    "section": "employee",
+    "order": 22,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 590,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  maritalDivorced: {
-    page: 1,
-    section: "employee",
-    order: 23,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 500,
-    y: 355,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "maritalDivorced": {
+    "page": 1,
+    "section": "employee",
+    "order": 23,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 500,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  maritalWidowed: {
-    page: 1,
-    section: "employee",
-    order: 24,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 674,
-    y: 373,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "maritalWidowed": {
+    "page": 1,
+    "section": "employee",
+    "order": 24,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 373,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  customField1782075946735: {
-    page: 1,
-    section: "employee",
-    order: 25,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 601,
-    y: 371,
-    width: 29,
-    height: 24,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "customField1782075946735": {
+    "page": 1,
+    "section": "employee",
+    "order": 25,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 601,
+    "y": 371,
+    "width": 29,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  residentYes: {
-    page: 1,
-    section: "employee",
-    order: 26,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 412,
-    y: 357,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "residentYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 26,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  residentNo: {
-    page: 1,
-    section: "employee",
-    order: 27,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 412,
-    y: 374,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "residentNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 27,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  kibbutzYes: {
-    page: 1,
-    section: "employee",
-    order: 28,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 306,
-    y: 356,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "kibbutzYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 28,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 356,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  kibbutzNo: {
-    page: 1,
-    section: "employee",
-    order: 29,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 306,
-    y: 374,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "kibbutzNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 29,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  healthFundYes: {
-    page: 1,
-    section: "employee",
-    order: 30,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 213,
-    y: 371,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "healthFundYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 213,
+    "y": 371,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  child1Name: {
-    page: 1,
-    section: "children",
-    order: 30,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 540,
-    y: 685,
-    width: 95,
-    height: 22,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "child1Name": {
+    "page": 1,
+    "section": "children",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 540,
+    "y": 685,
+    "width": 95,
+    "height": 22,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  healthFundName: {
-    page: 1,
-    section: "employee",
-    order: 31,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 78,
-    y: 371,
-    width: 85,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "healthFundName": {
+    "page": 1,
+    "section": "employee",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 78,
+    "y": 371,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  child1Id: {
-    page: 1,
-    section: "children",
-    order: 31,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 405,
-    y: 685,
-    width: 110,
-    height: 22,
-    type: "digits",
-    fontSize: 14,
-    digitGap: 21,
-    maxDigits: 9,
-    align: "left",
+  "child1Id": {
+    "page": 1,
+    "section": "children",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 405,
+    "y": 685,
+    "width": 110,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
   },
-  child1BirthDate: {
-    page: 1,
-    section: "children",
-    order: 32,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 285,
-    y: 685,
-    width: 100,
-    height: 22,
-    type: "digits",
-    fontSize: 14,
-    digitGap: 21,
-    maxDigits: 8,
-    align: "left",
+  "child1BirthDate": {
+    "page": 1,
+    "section": "children",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 285,
+    "y": 685,
+    "width": 100,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
   },
-  customField1782076968515: {
-    page: 1,
-    section: "employee",
-    order: 32,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 199,
-    y: 352,
-    width: 47,
-    height: 24,
-    type: "check",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "right",
+  "customField1782076968515": {
+    "page": 1,
+    "section": "employee",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 199,
+    "y": 352,
+    "width": 47,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
   },
-  child1Mark1: {
-    page: 1,
-    section: "children",
-    order: 33,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 745,
-    y: 685,
-    width: 18,
-    height: 18,
-    type: "check",
-    fontSize: 16,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "child1Mark1": {
+    "page": 1,
+    "section": "children",
+    "order": 33,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 745,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  child1Mark2: {
-    page: 1,
-    section: "children",
-    order: 34,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 720,
-    y: 685,
-    width: 18,
-    height: 18,
-    type: "check",
-    fontSize: 16,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "child1Mark2": {
+    "page": 1,
+    "section": "children",
+    "order": 34,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 720,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  workStartDate: {
-    page: 1,
-    section: "income",
-    order: 35,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 95,
-    y: 710,
-    width: 105,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 8,
-    align: "left",
+  "workStartDate": {
+    "page": 1,
+    "section": "income",
+    "order": 35,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 95,
+    "y": 710,
+    "width": 105,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
   },
-  incomeMonthlySalary: {
-    page: 1,
-    section: "income",
-    order: 36,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 700,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomeMonthlySalary": {
+    "page": 1,
+    "section": "income",
+    "order": 36,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 700,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  incomeExtraSalary: {
-    page: 1,
-    section: "income",
-    order: 37,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 730,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomeExtraSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 37,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 730,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  incomePartialSalary: {
-    page: 1,
-    section: "income",
-    order: 38,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 760,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomePartialSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 38,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 760,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  incomeDailyWage: {
-    page: 1,
-    section: "income",
-    order: 39,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 790,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomeDailyWage": {
+    "page": 1,
+    "section": "income",
+    "order": 39,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 790,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  incomeAllowance: {
-    page: 1,
-    section: "income",
-    order: 40,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 820,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomeAllowance": {
+    "page": 1,
+    "section": "income",
+    "order": 40,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 820,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  incomeScholarship: {
-    page: 1,
-    section: "income",
-    order: 41,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 318,
-    y: 850,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "incomeScholarship": {
+    "page": 1,
+    "section": "income",
+    "order": 41,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 850,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  otherNoIncome: {
-    page: 1,
-    section: "otherIncome",
-    order: 42,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 335,
-    y: 940,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "otherNoIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 42,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 940,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  otherHasIncome: {
-    page: 1,
-    section: "otherIncome",
-    order: 43,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 335,
-    y: 975,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "otherHasIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 43,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 975,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  spouseId: {
-    page: 1,
-    section: "spouse",
-    order: 44,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 650,
-    y: 1180,
-    width: 115,
-    height: 24,
-    type: "digits",
-    fontSize: 14,
-    digitGap: 21,
-    maxDigits: 9,
-    align: "left",
+  "spouseId": {
+    "page": 1,
+    "section": "spouse",
+    "order": 44,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 650,
+    "y": 1180,
+    "width": 115,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
   },
-  spouseLastName: {
-    page: 1,
-    section: "spouse",
-    order: 45,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 520,
-    y: 1180,
-    width: 100,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "spouseLastName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 45,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 520,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  spouseFirstName: {
-    page: 1,
-    section: "spouse",
-    order: 46,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 395,
-    y: 1180,
-    width: 100,
-    height: 24,
-    type: "text",
-    fontSize: 14,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "spouseFirstName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 46,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 395,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  page2IdNumber: {
-    page: 2,
-    section: "credits",
-    order: 47,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 128,
-    y: 45,
-    width: 120,
-    height: 24,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 9,
-    align: "left",
+  "page2IdNumber": {
+    "page": 2,
+    "section": "credits",
+    "order": 47,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 128,
+    "y": 45,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
   },
-  creditResident: {
-    page: 2,
-    section: "credits",
-    order: 48,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 100,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditResident": {
+    "page": 2,
+    "section": "credits",
+    "order": 48,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 100,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditDisabled: {
-    page: 2,
-    section: "credits",
-    order: 49,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 145,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditDisabled": {
+    "page": 2,
+    "section": "credits",
+    "order": 49,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 145,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditSettlement: {
-    page: 2,
-    section: "credits",
-    order: 50,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 210,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditSettlement": {
+    "page": 2,
+    "section": "credits",
+    "order": 50,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 210,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditNewImmigrant: {
-    page: 2,
-    section: "credits",
-    order: 51,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 285,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditNewImmigrant": {
+    "page": 2,
+    "section": "credits",
+    "order": 51,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 285,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditSingleParent: {
-    page: 2,
-    section: "credits",
-    order: 52,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 420,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditSingleParent": {
+    "page": 2,
+    "section": "credits",
+    "order": 52,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 420,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditChildrenCustody: {
-    page: 2,
-    section: "credits",
-    order: 53,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 500,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditChildrenCustody": {
+    "page": 2,
+    "section": "credits",
+    "order": 53,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 500,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditSoldier: {
-    page: 2,
-    section: "credits",
-    order: 54,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 845,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditSoldier": {
+    "page": 2,
+    "section": "credits",
+    "order": 54,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 845,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  creditAcademic: {
-    page: 2,
-    section: "credits",
-    order: 55,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 895,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "creditAcademic": {
+    "page": 2,
+    "section": "credits",
+    "order": 55,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 895,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  taxNoIncome: {
-    page: 2,
-    section: "taxCoordination",
-    order: 56,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 970,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "taxNoIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 56,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 970,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  taxHasOtherIncome: {
-    page: 2,
-    section: "taxCoordination",
-    order: 57,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 742,
-    y: 1040,
-    width: 20,
-    height: 20,
-    type: "check",
-    fontSize: 18,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
+  "taxHasOtherIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 57,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 1040,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-  signatureDate: {
-    page: 2,
-    section: "declaration",
-    order: 58,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 260,
-    y: 1180,
-    width: 115,
-    height: 26,
-    type: "digits",
-    fontSize: 15,
-    digitGap: 21,
-    maxDigits: 8,
-    align: "left",
+  "signatureDate": {
+    "page": 2,
+    "section": "declaration",
+    "order": 58,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 260,
+    "y": 1180,
+    "width": 115,
+    "height": 26,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
   },
-  signature: {
-    page: 2,
-    section: "declaration",
-    order: 59,
-    enabled: true,
-    isFixed: false,
-    fixedValue: "",
-    x: 80,
-    y: 1170,
-    width: 140,
-    height: 42,
-    type: "signature",
-    fontSize: 16,
-    digitGap: null,
-    maxDigits: null,
-    align: "center",
-  },
+  "signature": {
+    "page": 2,
+    "section": "declaration",
+    "order": 59,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 80,
+    "y": 1170,
+    "width": 140,
+    "height": 42,
+    "type": "signature",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  }
 };
 
 const SECTION_TITLES: Record<string, string> = {
@@ -1203,13 +1202,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 const EXCLUSIVE_GROUPS: string[][] = [
   ["genderMale", "genderFemale"],
-  [
-    "maritalSingle",
-    "maritalMarried",
-    "maritalDivorced",
-    "maritalWidowed",
-    "customField1782075946735",
-  ],
+  ["maritalSingle", "maritalMarried", "maritalDivorced", "maritalWidowed", "customField1782075946735"],
   ["residentYes", "residentNo"],
   ["kibbutzYes", "kibbutzNo"],
   ["healthFundYes", "customField1782076968515"],
@@ -1259,13 +1252,13 @@ function normalizeTemplateFields(input: unknown) {
 
     const page: PageNumber = Number(field.page) === 2 ? 2 : 1;
     const type = ["text", "digits", "check", "signature"].includes(
-      String(field.type || ""),
+      String(field.type || "")
     )
       ? (field.type as FieldType)
       : "text";
 
     const align = ["right", "left", "center"].includes(
-      String(field.align || ""),
+      String(field.align || "")
     )
       ? (field.align as TextAlign)
       : "right";
@@ -1289,8 +1282,7 @@ function normalizeTemplateFields(input: unknown) {
           ? null
           : Math.max(1, Number(field.digitGap || 13)),
       digitSpacingMode:
-        field.digitSpacingMode === "group" ||
-        field.digitSpacingMode === "custom"
+        field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
           ? "group"
           : "equal",
       digitGaps: Array.isArray(field.digitGaps)
@@ -1302,8 +1294,7 @@ function normalizeTemplateFields(input: unknown) {
         field.digitGroupSize === null || field.digitGroupSize === undefined
           ? null
           : Math.max(1, Number(field.digitGroupSize || 3)),
-      digitGroupSizeMode:
-        field.digitGroupSizeMode === "manual" ? "manual" : "auto",
+      digitGroupSizeMode: field.digitGroupSizeMode === "manual" ? "manual" : "auto",
       digitGroupGap:
         field.digitGroupGap === null || field.digitGroupGap === undefined
           ? null
@@ -1328,7 +1319,7 @@ function getFixedValues(fieldMap: Record<string, FieldConfig>) {
         field.type === "check"
           ? field.fixedValue === "true" || field.fixedValue === "✓"
           : field.fixedValue || "",
-      ]),
+      ])
   ) as ValuesMap;
 }
 
@@ -1340,7 +1331,7 @@ function normalizeValueByField(value: unknown, field: FieldConfig): FieldValue {
 
 function mergeValuesForTemplate(
   currentValues: ValuesMap,
-  fieldMap: Record<string, FieldConfig>,
+  fieldMap: Record<string, FieldConfig>
 ) {
   const initial = getInitialValues(fieldMap);
   const next: ValuesMap = { ...initial };
@@ -1408,19 +1399,13 @@ function loadDraftValues(fieldMap: Record<string, FieldConfig>) {
   }
 }
 
-function getPageFields(
-  fieldMap: Record<string, FieldConfig>,
-  page: PageNumber,
-) {
+function getPageFields(fieldMap: Record<string, FieldConfig>, page: PageNumber) {
   return Object.entries(fieldMap)
     .filter(([, field]) => field.enabled && field.page === page)
     .sort(([, a], [, b]) => a.order - b.order);
 }
 
-function getSectionFields(
-  fieldMap: Record<string, FieldConfig>,
-  section: string,
-) {
+function getSectionFields(fieldMap: Record<string, FieldConfig>, section: string) {
   return Object.entries(fieldMap)
     .filter(([, field]) => field.enabled && field.section === section)
     .sort(([, a], [, b]) => a.order - b.order);
@@ -1432,10 +1417,7 @@ function valueForPdf(value: FieldValue, field: FieldConfig) {
   return value;
 }
 
-function collectChildrenPayload(
-  values: ValuesMap,
-  fieldMap: Record<string, FieldConfig>,
-) {
+function collectChildrenPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
   const rows = new Map<number, ChildPayload>();
 
   Object.keys(fieldMap).forEach((key) => {
@@ -1463,14 +1445,11 @@ function collectChildrenPayload(
     .map(([, child]) => child)
     .filter(
       (child) =>
-        clean(child.name) || clean(child.idNumber) || clean(child.birthDate),
+        clean(child.name) || clean(child.idNumber) || clean(child.birthDate)
     );
 }
 
-function buildStructuredPayload(
-  values: ValuesMap,
-  fieldMap: Record<string, FieldConfig>,
-) {
+function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
   const fieldValue = (key: string) => values[key];
   const text = (key: string) => clean(fieldValue(key));
   const checked = (key: string) => Boolean(fieldValue(key));
@@ -1500,43 +1479,25 @@ function buildStructuredPayload(
     mobilePrefix: text("mobilePrefix") || text("mobile"),
     mobileNumber: text("mobileNumber") || text("customField1782075699673"),
 
-    phone:
-      `${text("phonePrefix") || text("phone")}${text("phoneNumber") || text("customField1782075538085")}`.trim(),
-    mobile:
-      `${text("mobilePrefix") || text("mobile")}${text("mobileNumber") || text("customField1782075699673")}`.trim(),
+    phone: `${text("phonePrefix") || text("phone")}${text("phoneNumber") || text("customField1782075538085")}`.trim(),
+    mobile: `${text("mobilePrefix") || text("mobile")}${text("mobileNumber") || text("customField1782075699673")}`.trim(),
     email: text("email"),
 
-    gender: checked("genderMale")
-      ? "male"
-      : checked("genderFemale")
-        ? "female"
-        : "",
+    gender: checked("genderMale") ? "male" : checked("genderFemale") ? "female" : "",
     maritalStatus: checked("maritalSingle")
       ? "single"
       : checked("maritalMarried")
-        ? "married"
-        : checked("maritalDivorced")
-          ? "divorced"
-          : checked("maritalWidowed")
-            ? "widowed"
-            : checked("customField1782075946735")
-              ? "separated"
-              : "",
-    residentIsrael: checked("residentYes")
-      ? "yes"
-      : checked("residentNo")
-        ? "no"
-        : "",
-    kibbutzMember: checked("kibbutzYes")
-      ? "yes"
-      : checked("kibbutzNo")
-        ? "no"
-        : "",
-    healthFundMember: checked("healthFundYes")
-      ? "yes"
-      : checked("customField1782076968515")
-        ? "no"
-        : "",
+      ? "married"
+      : checked("maritalDivorced")
+      ? "divorced"
+      : checked("maritalWidowed")
+      ? "widowed"
+      : checked("customField1782075946735")
+      ? "separated"
+      : "",
+    residentIsrael: checked("residentYes") ? "yes" : checked("residentNo") ? "no" : "",
+    kibbutzMember: checked("kibbutzYes") ? "yes" : checked("kibbutzNo") ? "no" : "",
+    healthFundMember: checked("healthFundYes") ? "yes" : checked("customField1782076968515") ? "no" : "",
     healthFundName: text("healthFundName"),
 
     workStartDate: text("workStartDate"),
@@ -1611,7 +1572,7 @@ function buildStructuredPayload(
   payload.formFieldValues = Object.fromEntries(
     Object.entries(fieldMap)
       .filter(([, field]) => field.enabled)
-      .map(([key, field]) => [key, valueForPdf(values[key], field)]),
+      .map(([key, field]) => [key, valueForPdf(values[key], field)])
   );
 
   if (idNumber && !payload.page2IdNumber) {
@@ -1659,11 +1620,7 @@ function getResolvedDigitGroupSize(field: FieldConfig, value: unknown) {
   return getAutoDigitGroupSize(value, fallback);
 }
 
-function getGroupGapAfterDigit(
-  field: FieldConfig,
-  index: number,
-  value: unknown,
-) {
+function getGroupGapAfterDigit(field: FieldConfig, index: number, value: unknown) {
   if (field.digitSpacingMode !== "group") return 0;
 
   const groupSize = getResolvedDigitGroupSize(field, value);
@@ -1708,9 +1665,7 @@ function FieldControl({
           if (!field.isFixed) onChange(!Boolean(value));
         }}
         className={`absolute z-20 flex items-center justify-center border bg-white/20 font-black text-blue-700 transition ${
-          selected
-            ? "border-fuchsia-500 ring-2 ring-fuchsia-400"
-            : "border-blue-400/60"
+          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
         } ${field.isFixed ? "cursor-default opacity-80" : "cursor-pointer hover:bg-blue-50/70"}`}
         style={commonStyle}
         title={getFieldLabel(fieldKey, field)}
@@ -1729,19 +1684,13 @@ function FieldControl({
           if (!field.isFixed) onOpenSignature();
         }}
         className={`absolute z-20 overflow-hidden border bg-white/30 text-center text-xs font-black transition ${
-          selected
-            ? "border-fuchsia-500 ring-2 ring-fuchsia-400"
-            : "border-blue-400/60"
+          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
         }`}
         style={commonStyle}
         title={getFieldLabel(fieldKey, field)}
       >
         {typeof value === "string" && value.startsWith("data:image") ? (
-          <img
-            src={value}
-            alt="חתימה"
-            className="h-full w-full object-contain"
-          />
+          <img src={value} alt="חתימה" className="h-full w-full object-contain" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-blue-700">
             לחתימה
@@ -1752,8 +1701,7 @@ function FieldControl({
   }
 
   const stringValue = clean(value);
-  const inputValue =
-    field.type === "digits" ? onlyDigits(stringValue) : stringValue;
+  const inputValue = field.type === "digits" ? onlyDigits(stringValue) : stringValue;
 
   function alignToJustify(align: TextAlign) {
     if (align === "center") return "center";
@@ -1977,24 +1925,13 @@ function SignatureModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-      <div
-        dir="rtl"
-        className="w-full max-w-2xl rounded-[32px] bg-white p-5 shadow-2xl"
-      >
+      <div dir="rtl" className="w-full max-w-2xl rounded-[32px] bg-white p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-black text-slate-950">
-              חתימה דיגיטלית
-            </h2>
-            <p className="mt-1 text-sm font-bold text-slate-500">
-              חתמי בתוך המסגרת ושמרי.
-            </p>
+            <h2 className="text-xl font-black text-slate-950">חתימה דיגיטלית</h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">חתמי בתוך המסגרת ושמרי.</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black"
-          >
+          <button type="button" onClick={onClose} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black">
             סגירה
           </button>
         </div>
@@ -2010,18 +1947,10 @@ function SignatureModal({
         />
 
         <div className="mt-4 flex flex-wrap justify-between gap-3">
-          <button
-            type="button"
-            onClick={clear}
-            className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black"
-          >
+          <button type="button" onClick={clear} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black">
             ניקוי חתימה
           </button>
-          <button
-            type="button"
-            onClick={save}
-            className="rounded-2xl bg-sky-600 px-8 py-3 text-sm font-black text-white"
-          >
+          <button type="button" onClick={save} className="rounded-2xl bg-sky-600 px-8 py-3 text-sm font-black text-white">
             שמירת חתימה
           </button>
         </div>
@@ -2031,32 +1960,21 @@ function SignatureModal({
 }
 
 export default function OnlineForm101() {
-  const [fieldMap, setFieldMap] =
-    useState<Record<string, FieldConfig>>(FORM101_FIELD_MAP);
+  const [fieldMap, setFieldMap] = useState<Record<string, FieldConfig>>(FORM101_FIELD_MAP);
   const [pageWidth, setPageWidth] = useState(PAGE_WIDTH);
   const [pageHeight, setPageHeight] = useState(PAGE_HEIGHT);
   const [loadingTemplate, setLoadingTemplate] = useState(true);
   const [templateError, setTemplateError] = useState("");
-  const [values, setValues] = useState<ValuesMap>(() =>
-    loadDraftValues(FORM101_FIELD_MAP),
-  );
+  const [values, setValues] = useState<ValuesMap>(() => loadDraftValues(FORM101_FIELD_MAP));
   const [page, setPage] = useState<PageNumber>(1);
   const [selectedKey, setSelectedKey] = useState<string>("idNumber");
   const [submitting, setSubmitting] = useState(false);
-  const [activeSignatureField, setActiveSignatureField] =
-    useState<ActiveSignatureField>(null);
-  const [pdfReloadKey, setPdfReloadKey] = useState(1);
-  const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeSignatureField, setActiveSignatureField] = useState<ActiveSignatureField>(null);
 
-  const pageFields = useMemo(
-    () => getPageFields(fieldMap, page),
-    [fieldMap, page],
-  );
+  const pageFields = useMemo(() => getPageFields(fieldMap, page), [fieldMap, page]);
 
   const sections = useMemo(() => {
-    return Array.from(
-      new Set(pageFields.map(([, field]) => field.section)),
-    ).map((section) => ({
+    return Array.from(new Set(pageFields.map(([, field]) => field.section))).map((section) => ({
       key: section,
       title: SECTION_TITLES[section] || section,
       fields: getSectionFields(fieldMap, section),
@@ -2073,14 +1991,11 @@ export default function OnlineForm101() {
         setLoadingTemplate(true);
         setTemplateError("");
 
-        const response = await fetch(
-          "/api/admin/forms/101/template?public=true",
-          {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch("/api/admin/forms/101/template?public=true", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
 
         const data = await response.json().catch(() => null);
 
@@ -2116,7 +2031,7 @@ export default function OnlineForm101() {
           setTemplateError(
             error instanceof Error
               ? error.message
-              : "לא הצלחתי לטעון את תבנית טופס 101",
+              : "לא הצלחתי לטעון את תבנית טופס 101"
           );
           setFieldMap(FORM101_FIELD_MAP);
           setValues((prev) => mergeValuesForTemplate(prev, FORM101_FIELD_MAP));
@@ -2187,7 +2102,14 @@ export default function OnlineForm101() {
     try {
       setSubmitting(true);
 
-      const payload = buildStructuredPayload(values, fieldMap);
+      const payload = {
+        ...buildStructuredPayload(values, fieldMap),
+        __form101TemplateConfig: {
+          fields: fieldMap,
+          pageWidth,
+          pageHeight,
+        },
+      };
 
       const response = await fetch("/api/forms/101/generate-pdf", {
         method: "POST",
@@ -2216,20 +2138,6 @@ export default function OnlineForm101() {
     }
   }
 
-  function changePage(nextPage: PageNumber) {
-    setPage(nextPage);
-    setPdfReloadKey((prev) => prev + 1);
-
-    const firstFieldInPage = getPageFields(fieldMap, nextPage)[0];
-    if (firstFieldInPage) {
-      setSelectedKey(firstFieldInPage[0]);
-    }
-
-    requestAnimationFrame(() => {
-      previewScrollRef.current?.scrollTo({ top: 0, left: 0 });
-    });
-  }
-
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto max-w-[1700px] space-y-4 p-4">
@@ -2239,12 +2147,9 @@ export default function OnlineForm101() {
               <span className="inline-flex rounded-full bg-sky-50 px-4 py-2 text-xs font-black text-sky-700">
                 טופס 101 מקוון
               </span>
-              <h1 className="mt-3 text-3xl font-black">
-                מילוי טופס 101 על גבי התבנית
-              </h1>
+              <h1 className="mt-3 text-3xl font-black">מילוי טופס 101 על גבי התבנית</h1>
               <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-slate-500">
-                השדות מוצגים בדיוק על התבנית שהוגדרה באדמין. שדות קבועים מופיעים
-                אוטומטית לכל העובדים, ושדות רגילים ניתנים למילוי.
+                השדות מוצגים בדיוק על התבנית שהוגדרה באדמין. שדות קבועים מופיעים אוטומטית לכל העובדים, ושדות רגילים ניתנים למילוי.
               </p>
 
               {loadingTemplate && (
@@ -2260,25 +2165,22 @@ export default function OnlineForm101() {
               )}
             </div>
 
+
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => changePage(1)}
+                onClick={() => setPage(1)}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
-                  page === 1
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white"
+                  page === 1 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
                 }`}
               >
                 עמוד 1
               </button>
               <button
                 type="button"
-                onClick={() => changePage(2)}
+                onClick={() => setPage(2)}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
-                  page === 2
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white"
+                  page === 2 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
                 }`}
               >
                 עמוד 2
@@ -2308,9 +2210,7 @@ export default function OnlineForm101() {
             <div className="mt-4 max-h-[calc(100vh-210px)] space-y-4 overflow-auto pr-1">
               {sections.map((section) => (
                 <div key={section.key} className="rounded-2xl bg-slate-50 p-3">
-                  <p className="mb-2 text-sm font-black text-slate-700">
-                    {section.title}
-                  </p>
+                  <p className="mb-2 text-sm font-black text-slate-700">{section.title}</p>
                   <div className="space-y-2">
                     {section.fields.map(([key, field]) => (
                       <button
@@ -2326,12 +2226,8 @@ export default function OnlineForm101() {
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="block">
-                          {field.order}. {getFieldLabel(key, field)}
-                        </span>
-                        <span
-                          className={`mt-1 block text-[10px] ${field.isFixed ? "text-indigo-600" : "text-emerald-600"}`}
-                        >
+                        <span className="block">{field.order}. {getFieldLabel(key, field)}</span>
+                        <span className={`mt-1 block text-[10px] ${field.isFixed ? "text-indigo-600" : "text-emerald-600"}`}>
                           {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                         </span>
                       </button>
@@ -2342,16 +2238,12 @@ export default function OnlineForm101() {
             </div>
           </aside>
 
-          <section
-            ref={previewScrollRef}
-            className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm"
-          >
+          <section className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <div
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
               <iframe
-                key={`${page}-${pdfReloadKey}`}
                 src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
                 title="טופס 101"
                 scrolling="no"
@@ -2381,28 +2273,21 @@ export default function OnlineForm101() {
               <div className="mt-4 space-y-3">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-base font-black text-slate-950">
-                    {selectedField.order}.{" "}
-                    {getFieldLabel(selectedKey, selectedField)}
+                    {selectedField.order}. {getFieldLabel(selectedKey, selectedField)}
                   </p>
-                  <p className="mt-1 text-xs font-bold text-slate-400">
-                    {selectedKey}
-                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-400">{selectedKey}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600">
                       {selectedField.type === "check"
                         ? "סימון"
                         : selectedField.type === "digits"
-                          ? "ספרות"
-                          : selectedField.type === "signature"
-                            ? "חתימה"
-                            : "טקסט"}
+                        ? "ספרות"
+                        : selectedField.type === "signature"
+                        ? "חתימה"
+                        : "טקסט"}
                     </span>
-                    <span
-                      className={`rounded-full bg-white px-3 py-1 text-xs font-black ${selectedField.isFixed ? "text-indigo-700" : "text-emerald-700"}`}
-                    >
-                      {selectedField.isFixed
-                        ? "קבוע לכל העובדים"
-                        : "העובד ממלא"}
+                    <span className={`rounded-full bg-white px-3 py-1 text-xs font-black ${selectedField.isFixed ? "text-indigo-700" : "text-emerald-700"}`}>
+                      {selectedField.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                     </span>
                   </div>
                 </div>
@@ -2417,9 +2302,7 @@ export default function OnlineForm101() {
                 ) : selectedField.type === "check" ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      updateValue(selectedKey, !Boolean(values[selectedKey]))
-                    }
+                    onClick={() => updateValue(selectedKey, !Boolean(values[selectedKey]))}
                     className={`w-full rounded-2xl border px-4 py-4 text-sm font-black ${
                       Boolean(values[selectedKey])
                         ? "border-sky-300 bg-sky-50 text-sky-700"
@@ -2445,9 +2328,7 @@ export default function OnlineForm101() {
                       onChange={(event) =>
                         updateValue(
                           selectedKey,
-                          selectedField.type === "digits"
-                            ? onlyDigits(event.target.value)
-                            : event.target.value,
+                          selectedField.type === "digits" ? onlyDigits(event.target.value) : event.target.value,
                         )
                       }
                       className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-right text-sm font-bold outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
@@ -2456,9 +2337,7 @@ export default function OnlineForm101() {
                 )}
               </div>
             ) : (
-              <p className="mt-4 text-sm font-bold text-slate-500">
-                לא נבחר שדה
-              </p>
+              <p className="mt-4 text-sm font-bold text-slate-500">לא נבחר שדה</p>
             )}
           </aside>
         </section>
