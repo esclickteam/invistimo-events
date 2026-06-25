@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
@@ -1254,6 +1254,38 @@ function getFieldLabel(key: string, field?: FieldConfig | null) {
   return field?.label || FIELD_LABELS[key] || getDynamicChildLabel(key) || key;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getValueForScreenRender(
+  values: ValuesMap,
+  fieldKey: string,
+  field: FieldConfig,
+) {
+  if (field.isFixed) {
+    if (field.type === "check") {
+      return field.fixedValue === "true" || field.fixedValue === "✓";
+    }
+
+    return field.fixedValue || "";
+  }
+
+  return values[fieldKey] ?? "";
+}
+
+function alignToJustify(align: TextAlign) {
+  if (align === "center") return "center";
+  if (align === "right") return "flex-end";
+  return "flex-start";
+}
+
+function alignToText(align: TextAlign) {
+  if (align === "center") return "center";
+  if (align === "left") return "left";
+  return "right";
+}
+
 function normalizeTemplateFields(input: unknown) {
   const raw =
     input && typeof input === "object"
@@ -1682,6 +1714,284 @@ function getGroupGapAfterDigit(
   return Math.max(0, Number(field.digitGroupGap || 0));
 }
 
+
+function PdfCanvasBackground({
+  page,
+  width,
+  height,
+  onReady,
+}: {
+  page: PageNumber;
+  width: number;
+  height: number;
+  onReady?: (page: PageNumber) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let loadingTask: any = null;
+    let renderTask: any = null;
+
+    async function renderPdfPage() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        const pdfjsAny = pdfjs as any;
+
+        if (pdfjsAny.GlobalWorkerOptions) {
+          pdfjsAny.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        }
+
+        const ratio = Math.max(2, window.devicePixelRatio || 1);
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        loadingTask = pdfjsAny.getDocument({
+          url: PDF_URL,
+          disableAutoFetch: true,
+          disableStream: true,
+        });
+
+        const pdf = await loadingTask.promise;
+        if (cancelled) return;
+
+        const pdfPage = await pdf.getPage(page);
+        if (cancelled) return;
+
+        const baseViewport = pdfPage.getViewport({ scale: 1 });
+        const scale = Math.min(width / baseViewport.width, height / baseViewport.height);
+        const viewport = pdfPage.getViewport({ scale });
+        const offsetX = Math.max((width - viewport.width) / 2, 0);
+        const offsetY = Math.max((height - viewport.height) / 2, 0);
+
+        renderTask = pdfPage.render({
+          canvasContext: ctx,
+          viewport,
+          transform: [ratio, 0, 0, ratio, offsetX * ratio, offsetY * ratio],
+          background: "#ffffff",
+        });
+
+        await renderTask.promise;
+
+        if (!cancelled) {
+          onReady?.(page);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("FORM 101 PDF CANVAS RENDER ERROR:", error);
+          onReady?.(page);
+        }
+      }
+    }
+
+    void renderPdfPage();
+
+    return () => {
+      cancelled = true;
+      try {
+        renderTask?.cancel?.();
+      } catch {
+        // ignore
+      }
+      try {
+        loadingTask?.destroy?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, [height, onReady, page, width]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 h-full w-full bg-white"
+      style={{ width, height, pointerEvents: "none" }}
+    />
+  );
+}
+
+function PrintField({
+  fieldKey,
+  field,
+  value,
+}: {
+  fieldKey: string;
+  field: FieldConfig;
+  value: FieldValue;
+}) {
+  const commonStyle: React.CSSProperties = {
+    position: "absolute",
+    left: field.x,
+    top: field.y,
+    width: field.width,
+    height: field.height,
+    fontSize: field.fontSize,
+    color: "#000000",
+    zIndex: 20,
+    overflow: "hidden",
+  };
+
+  if (field.type === "check") {
+    if (!Boolean(value)) return null;
+
+    return (
+      <div
+        style={{
+          ...commonStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 900,
+          lineHeight: `${field.height}px`,
+        }}
+        title={getFieldLabel(fieldKey, field)}
+      >
+        ✓
+      </div>
+    );
+  }
+
+  if (field.type === "signature") {
+    const signatureValue = typeof value === "string" ? value : "";
+
+    if (signatureValue.startsWith("data:image")) {
+      return (
+        <img
+          src={signatureValue}
+          alt="חתימה"
+          style={{
+            ...commonStyle,
+            objectFit: "contain",
+          }}
+        />
+      );
+    }
+
+    if (!clean(signatureValue)) return null;
+
+    return (
+      <div
+        style={{
+          ...commonStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: alignToJustify(field.align),
+          fontWeight: 600,
+          lineHeight: `${field.height}px`,
+          textAlign: alignToText(field.align),
+          whiteSpace: "nowrap",
+        }}
+      >
+        {signatureValue}
+      </div>
+    );
+  }
+
+  if (field.type === "digits") {
+    const digits = onlyDigits(value).slice(0, field.maxDigits || undefined);
+    if (!digits) return null;
+
+    return (
+      <div
+        dir="ltr"
+        style={{
+          ...commonStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: alignToJustify(field.align),
+          lineHeight: `${field.height}px`,
+          whiteSpace: "nowrap",
+          fontWeight: 600,
+        }}
+        title={getFieldLabel(fieldKey, field)}
+      >
+        {digits.split("").map((digit, index) => (
+          <span
+            key={`${fieldKey}-print-${index}`}
+            style={{
+              display: "inline-block",
+              width: getBaseDigitCellWidth(field),
+              marginRight: getGroupGapAfterDigit(field, index, digits),
+              textAlign: "center",
+            }}
+          >
+            {digit}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const textValue = String(value ?? "");
+  if (!textValue) return null;
+
+  return (
+    <div
+      style={{
+        ...commonStyle,
+        display: "block",
+        lineHeight: `${field.height}px`,
+        textAlign: alignToText(field.align),
+        whiteSpace: "pre",
+        fontWeight: 500,
+        direction: "rtl",
+      }}
+      title={getFieldLabel(fieldKey, field)}
+    >
+      {textValue}
+    </div>
+  );
+}
+
+function PdfCapturePage({
+  page,
+  width,
+  height,
+  fieldMap,
+  values,
+  onReady,
+}: {
+  page: PageNumber;
+  width: number;
+  height: number;
+  fieldMap: Record<string, FieldConfig>;
+  values: ValuesMap;
+  onReady?: (page: PageNumber) => void;
+}) {
+  const fields = useMemo(() => getPageFields(fieldMap, page), [fieldMap, page]);
+
+  return (
+    <div
+      data-form101-capture-page={page}
+      className="relative overflow-hidden bg-white"
+      style={{ width, height }}
+    >
+      <PdfCanvasBackground page={page} width={width} height={height} onReady={onReady} />
+
+      {fields.map(([key, field]) => (
+        <PrintField
+          key={key}
+          fieldKey={key}
+          field={field}
+          value={getValueForScreenRender(values, key, field)}
+        />
+      ))}
+    </div>
+  );
+}
+
 function FieldControl({
   fieldKey,
   field,
@@ -2063,6 +2373,12 @@ export default function OnlineForm101() {
     useState<ActiveSignatureField>(null);
   const [pdfReloadKey, setPdfReloadKey] = useState(1);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const capturePage1Ref = useRef<HTMLDivElement | null>(null);
+  const capturePage2Ref = useRef<HTMLDivElement | null>(null);
+  const [captureReady, setCaptureReady] = useState<Record<PageNumber, boolean>>({
+    1: false,
+    2: false,
+  });
 
   const pageFields = useMemo(
     () => getPageFields(fieldMap, page),
@@ -2080,6 +2396,14 @@ export default function OnlineForm101() {
   }, [fieldMap, pageFields]);
 
   const selectedField = selectedKey ? fieldMap[selectedKey] || null : null;
+
+  const markCapturePageReady = useCallback((readyPage: PageNumber) => {
+    setCaptureReady((prev) => ({ ...prev, [readyPage]: true }));
+  }, []);
+
+  useEffect(() => {
+    setCaptureReady({ 1: false, 2: false });
+  }, [fieldMap, pageWidth, pageHeight]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2209,12 +2533,73 @@ export default function OnlineForm101() {
     setSelectedKey("idNumber");
   }
 
+  async function waitForCaptureReady() {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < 7000) {
+      const page1Ready =
+        captureReady[1] ||
+        capturePage1Ref.current?.querySelector("canvas")?.getAttribute("width");
+      const page2Ready =
+        captureReady[2] ||
+        capturePage2Ref.current?.querySelector("canvas")?.getAttribute("width");
+
+      if (page1Ready && page2Ready) {
+        await wait(250);
+        return;
+      }
+
+      await wait(150);
+    }
+
+    throw new Error("לא הצלחתי להכין צילום מסך של הטופס. רענני את הדף ונסי שוב.");
+  }
+
+  async function capturePageAsImage(pageToCapture: PageNumber) {
+    const node =
+      pageToCapture === 1 ? capturePage1Ref.current : capturePage2Ref.current;
+
+    if (!node) {
+      throw new Error(`חסר עמוד ${pageToCapture} לצילום הטופס`);
+    }
+
+    const html2canvas = (await import("html2canvas")).default;
+
+    const canvas = await html2canvas(node, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width: pageWidth,
+      height: pageHeight,
+      windowWidth: pageWidth,
+      windowHeight: pageHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    return canvas.toDataURL("image/jpeg", 0.96);
+  }
+
+  async function buildRenderedPageImages() {
+    await waitForCaptureReady();
+
+    return {
+      1: await capturePageAsImage(1),
+      2: await capturePageAsImage(2),
+    };
+  }
+
   async function submitForm101() {
     try {
       setSubmitting(true);
 
+      const renderedPageImages = await buildRenderedPageImages();
+
       const payload = {
         ...buildStructuredPayload(values, fieldMap),
+        __renderedPageImages: renderedPageImages,
         __form101TemplateConfig: {
           id: templateMeta.id,
           _id: templateMeta.id,
@@ -2395,13 +2780,11 @@ export default function OnlineForm101() {
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
-              <iframe
+              <PdfCanvasBackground
                 key={`${page}-${pdfReloadKey}`}
-                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
-                title="טופס 101"
-                scrolling="no"
-                className="absolute inset-0 h-full w-full border-0"
-                style={{ pointerEvents: "none", background: "white" }}
+                page={page}
+                width={pageWidth}
+                height={pageHeight}
               />
 
               {pageFields.map(([key, field]) => (
@@ -2507,6 +2890,33 @@ export default function OnlineForm101() {
             )}
           </aside>
         </section>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed top-0 -left-[20000px] bg-white"
+        style={{ width: pageWidth, height: pageHeight * 2 + 80 }}
+      >
+        <div ref={capturePage1Ref}>
+          <PdfCapturePage
+            page={1}
+            width={pageWidth}
+            height={pageHeight}
+            fieldMap={fieldMap}
+            values={values}
+            onReady={markCapturePageReady}
+          />
+        </div>
+        <div ref={capturePage2Ref} style={{ marginTop: 40 }}>
+          <PdfCapturePage
+            page={2}
+            width={pageWidth}
+            height={pageHeight}
+            fieldMap={fieldMap}
+            values={values}
+            onReady={markCapturePageReady}
+          />
+        </div>
       </div>
 
       {activeSignatureField && (

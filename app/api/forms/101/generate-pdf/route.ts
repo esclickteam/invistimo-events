@@ -123,6 +123,12 @@ type Form101Payload = {
     pageHeight?: number;
   };
 
+  /**
+   * צילום סופי של עמוד 1 ועמוד 2 מהמסך של העובד.
+   * כשזה קיים, ה-PDF נוצר מהצילום הזה ולא מציור מחדש של שדות.
+   */
+  __renderedPageImages?: Record<string, string> | string[];
+
   [key: string]: any;
 };
 
@@ -2185,7 +2191,75 @@ async function drawField(
 }
 
 
+
+function getRenderedPageImageValues(body: Form101Payload) {
+  const source = body.__renderedPageImages;
+
+  if (!source) return [];
+
+  const list = Array.isArray(source)
+    ? source
+    : [source["1"], source["2"]];
+
+  return list
+    .map((item) => clean(item))
+    .filter((item) => item.startsWith("data:image/"));
+}
+
+async function generatePdfFromRenderedPageImages(body: Form101Payload) {
+  const renderedImages = getRenderedPageImageValues(body);
+
+  if (!renderedImages.length) return null;
+
+  const templateConfig = await resolveForm101TemplateConfig(body);
+
+  const pageWidth = Math.max(
+    1,
+    Number(templateConfig.pageWidth || DEFAULT_MAPPER_PAGE_WIDTH)
+  );
+  const pageHeight = Math.max(
+    1,
+    Number(templateConfig.pageHeight || DEFAULT_MAPPER_PAGE_HEIGHT)
+  );
+
+  const pdfDoc = await PDFDocument.create();
+
+  for (const dataUrl of renderedImages.slice(0, 2)) {
+    const imageData = extractImageDataUrl(dataUrl);
+    if (!imageData) continue;
+
+    const imageBytes = Buffer.from(imageData.base64, "base64");
+    const image =
+      imageData.imageType === "png"
+        ? await pdfDoc.embedPng(imageBytes)
+        : await pdfDoc.embedJpg(imageBytes);
+
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: pageWidth,
+      height: pageHeight,
+    });
+  }
+
+  if (pdfDoc.getPageCount() === 0) return null;
+
+  const pdfBytes = await pdfDoc.save();
+
+  return {
+    pdfBuffer: Buffer.from(pdfBytes),
+    templateConfig,
+  };
+}
+
 async function generateForm101Pdf(body: Form101Payload) {
+  const renderedPdf = await generatePdfFromRenderedPageImages(body);
+
+  if (renderedPdf) {
+    return renderedPdf;
+  }
+
   const templatePath = path.join(
     process.cwd(),
     "public",
