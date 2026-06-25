@@ -53,7 +53,7 @@ type EmployeeAgreement = {
 
 type Form101CardProps = {
   employeeId: string;
-  businessId: string;
+  businessId?: string;
 };
 
 const FORM101_ONLINE_URL =
@@ -291,6 +291,7 @@ export default function Form101Card({
 }: Form101CardProps) {
   const [open, setOpen] = useState(false);
 
+  const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [accountManagementFile, setAccountManagementFile] =
     useState<File | null>(null);
@@ -337,9 +338,12 @@ export default function Form101Card({
   async function loadDocument(documentType: EmployeeDocumentType) {
     const params = new URLSearchParams({
       employeeId,
-      businessId,
       documentType,
     });
+
+    if (businessId) {
+      params.set("businessId", businessId);
+    }
 
     const res = await fetch(`/api/forms/101/current?${params.toString()}`, {
       method: "GET",
@@ -401,7 +405,7 @@ export default function Form101Card({
       setError("");
       setLoading(true);
 
-      if (!employeeId || !businessId) {
+      if (!employeeId) {
         setCurrentForm101(null);
         setCurrentIdCard(null);
         setCurrentAccountManagement(null);
@@ -444,21 +448,26 @@ export default function Form101Card({
   async function uploadDocument(documentType: EmployeeDocumentType) {
     try {
       const selectedFile =
-        documentType === "idCard" ? idCardFile : accountManagementFile;
+        documentType === "form101"
+          ? form101File
+          : documentType === "idCard"
+            ? idCardFile
+            : accountManagementFile;
 
       const currentDocument =
-        documentType === "idCard"
-          ? currentIdCard
-          : currentAccountManagement;
+        documentType === "form101"
+          ? currentForm101
+          : documentType === "idCard"
+            ? currentIdCard
+            : currentAccountManagement;
 
       const isLocked = isDocumentLocked(currentDocument);
       const label =
-        documentType === "idCard" ? "תעודת זהות" : "אישור ניהול חשבון";
-
-      if (documentType === "form101") {
-        setError("טופס 101 נשלח דרך הטופס המקוון בלבד. אין העלאה ידנית מכאן.");
-        return;
-      }
+        documentType === "form101"
+          ? "טופס 101"
+          : documentType === "idCard"
+            ? "תעודת זהות"
+            : "אישור ניהול חשבון";
 
       if (isLocked) {
         setError(lockedMessage(label, currentDocument?.status));
@@ -470,8 +479,8 @@ export default function Form101Card({
         return;
       }
 
-      if (!employeeId || !businessId) {
-        setError("חסר מזהה עובד או עסק");
+      if (!employeeId) {
+        setError("חסר מזהה עובד");
         return;
       }
 
@@ -481,8 +490,11 @@ export default function Form101Card({
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("employeeId", employeeId);
-      formData.append("businessId", businessId);
       formData.append("documentType", documentType);
+
+      if (businessId) {
+        formData.append("businessId", businessId);
+      }
 
       const res = await fetch("/api/forms/101/upload", {
         method: "POST",
@@ -505,7 +517,11 @@ export default function Form101Card({
 
       const uploadedDocument = getDocumentFromResponse(data, documentType);
 
-      if (documentType === "idCard") {
+      if (documentType === "form101") {
+        setForm101File(null);
+        setCurrentForm101(uploadedDocument);
+        alert("טופס 101 הועלה בהצלחה");
+      } else if (documentType === "idCard") {
         setIdCardFile(null);
         setCurrentIdCard(uploadedDocument);
         alert("תעודת זהות הועלתה בהצלחה");
@@ -529,7 +545,7 @@ export default function Form101Card({
       void loadAgreement();
     }
 
-    if (employeeId && businessId) {
+    if (employeeId) {
       void loadCurrentDocuments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -850,6 +866,41 @@ export default function Form101Card({
                     >
                       פתיחת טופס 101 מקוון
                     </a>
+
+                    <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                      <p className="text-sm font-black text-slate-900">
+                        העלאת PDF טופס 101 מהמייל
+                      </p>
+
+                      <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+                        אם קיבלת את ה-PDF מהטופס החיצוני במייל, העלי אותו כאן והוא יישמר בתיק העובד לאישור/דחייה.
+                      </p>
+
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg"
+                        disabled={uploadingType === "form101"}
+                        onChange={(event) => {
+                          setForm101File(event.target.files?.[0] || null);
+                        }}
+                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {form101File && (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {form101File.name} · {formatFileSize(form101File.size)}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocument("form101")}
+                        disabled={uploadingType === "form101" || !form101File}
+                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploadingType === "form101" ? "מעלה..." : "העלאת טופס 101"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">

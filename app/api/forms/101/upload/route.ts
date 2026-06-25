@@ -35,6 +35,17 @@ function extractUserId(authResult: any) {
   );
 }
 
+function isAdminUser(user: any) {
+  const role = String(user?.role || "").toLowerCase();
+
+  return (
+    role === "admin" ||
+    role === "super_admin" ||
+    role === "owner" ||
+    user?.isAdmin === true
+  );
+}
+
 function getSafeExtension(fileName: string) {
   const ext = path.extname(fileName || "").toLowerCase();
 
@@ -55,7 +66,6 @@ function normalizeDocumentType(
   if (raw === "accountManagement") return "accountManagement";
   if (raw === "form101") return "form101";
 
-  // ברירת מחדל לשמירה על תאימות אחורה
   return "form101";
 }
 
@@ -113,10 +123,6 @@ function buildExistingDocumentQuery({
   taxYear: number;
   documentType: EmployeeDocumentType;
 }) {
-  /**
-   * תמיכה במסמכים ישנים:
-   * לפני שהוספנו documentType, כל הרשומות הישנות הן בעצם טופס 101.
-   */
   if (documentType === "form101") {
     return {
       employeeId,
@@ -136,22 +142,81 @@ function buildExistingDocumentQuery({
   };
 }
 
+function getRequestedEmployeeId({
+  formDataEmployeeId,
+  loggedInUserId,
+  admin,
+}: {
+  formDataEmployeeId: string;
+  loggedInUserId: string;
+  admin: boolean;
+}) {
+  /**
+   * באדמין:
+   * לוקחים את employeeId שהגיע מהעמוד של העובד.
+   *
+   * עובד רגיל:
+   * תמיד מעלה לעצמו בלבד לפי המשתמש המחובר.
+   */
+  if (admin && formDataEmployeeId) {
+    return formDataEmployeeId;
+  }
+
+  return loggedInUserId;
+}
+
+function getRequestedBusinessId({
+  formDataBusinessId,
+  userBusinessId,
+}: {
+  formDataBusinessId: string;
+  userBusinessId: unknown;
+}) {
+  /**
+   * businessId לא חובה.
+   * אם יש — נשמור.
+   * אם אין — המסמך עדיין נשמר לפי employeeId.
+   */
+  if (
+    formDataBusinessId &&
+    mongoose.Types.ObjectId.isValid(formDataBusinessId)
+  ) {
+    return new mongoose.Types.ObjectId(formDataBusinessId);
+  }
+
+  const userBusinessIdString = String(userBusinessId || "");
+
+  if (
+    userBusinessIdString &&
+    mongoose.Types.ObjectId.isValid(userBusinessIdString)
+  ) {
+    return new mongoose.Types.ObjectId(userBusinessIdString);
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     await db();
 
     const authResult = await getUserIdFromRequest(req);
-    const userId = extractUserId(authResult);
+    const loggedInUserId = extractUserId(authResult);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (
+      !loggedInUserId ||
+      !mongoose.Types.ObjectId.isValid(loggedInUserId)
+    ) {
       return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     }
 
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(loggedInUserId).lean();
 
     if (!user) {
       return NextResponse.json({ error: "משתמש לא נמצא" }, { status: 404 });
     }
+
+    const admin = isAdminUser(user);
 
     const formData = await req.formData();
 
@@ -161,10 +226,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "לא נשלח קובץ" }, { status: 400 });
     }
 
-    /**
-     * תומך גם ב-documentType וגם ב-type
-     * כדי שלא יישבר אם כבר כתבת בצד לקוח formData.append("type", ...)
-     */
     const documentType = normalizeDocumentType(
       formData.get("documentType") || formData.get("type")
     );
@@ -192,13 +253,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const employeeId = new mongoose.Types.ObjectId(userId);
+    const formDataEmployeeId = String(formData.get("employeeId") || "").trim();
+    const formDataBusinessId = String(formData.get("businessId") || "").trim();
 
-    const businessId =
-      (user as any).businessId &&
-      mongoose.Types.ObjectId.isValid(String((user as any).businessId))
-        ? new mongoose.Types.ObjectId(String((user as any).businessId))
-        : null;
+    const finalEmployeeIdString = getRequestedEmployeeId({
+      formDataEmployeeId,
+      loggedInUserId,
+      admin,
+    });
+
+    if (
+      !finalEmployeeIdString ||
+      !mongoose.Types.ObjectId.isValid(finalEmployeeIdString)
+    ) {
+      return NextResponse.json(
+        { error: "חסר מזהה עובד תקין" },
+        { status: 400 }
+      );
+    }
+
+    const employeeId = new mongoose.Types.ObjectId(finalEmployeeIdString);
+
+    /**
+     * אבטחה:
+     * אם זה לא אדמין, העובד לא יכול להעלות עבור עובד אחר.
+     */
+    if (!admin && String(employeeId) !== String(loggedInUserId)) {
+      return NextResponse.json(
+        { error: "אין הרשאה להעלות מסמך לעובד אחר" },
+        { status: 403 }
+      );
+    }
+
+    const businessId = getRequestedBusinessId({
+      formDataBusinessId,
+      userBusinessId: (user as any).businessId,
+    });
 
     const taxYearFromForm = Number(formData.get("taxYear"));
     const taxYear =
@@ -206,13 +296,6 @@ export async function POST(req: NextRequest) {
         ? taxYearFromForm
         : new Date().getFullYear();
 
-    /**
-     * חסימת העלאה חוזרת:
-     * אם כבר קיים מסמך מאותו סוג לאותה שנת מס בסטטוס uploaded/approved,
-     * העובד לא יכול להחליף אותו.
-     *
-     * רק rejected מאפשר העלאה מחדש.
-     */
     const existingDocument = await EmployeeForm101.findOne(
       buildExistingDocumentQuery({
         employeeId,
@@ -225,7 +308,15 @@ export async function POST(req: NextRequest) {
 
     const existingStatus = String((existingDocument as any)?.status || "");
 
-    if (existingDocument && existingStatus !== "rejected") {
+    /**
+     * עובד רגיל לא יכול להחליף מסמך uploaded/approved.
+     * אדמין כן יכול להעלות מסמך לתיק עובד גם בלי businessId.
+     *
+     * אם את רוצה שגם אדמין יהיה חסום כשקיים מסמך,
+     * תחליפי את התנאי ל:
+     * if (existingDocument && existingStatus !== "rejected") { ... }
+     */
+    if (!admin && existingDocument && existingStatus !== "rejected") {
       const label = getDocumentLabel(documentType);
 
       return NextResponse.json(
@@ -237,7 +328,6 @@ export async function POST(req: NextRequest) {
           status: existingStatus || "uploaded",
           document: serializeEmployeeDocument(existingDocument),
 
-          // תאימות אחורה
           form101:
             documentType === "form101"
               ? serializeEmployeeDocument(existingDocument)
@@ -256,7 +346,6 @@ export async function POST(req: NextRequest) {
     }
 
     const storedFileName = `${crypto.randomUUID()}${ext}`;
-
     const documentFolder = getDocumentFolder(documentType);
 
     const r2Key = [
@@ -284,16 +373,19 @@ export async function POST(req: NextRequest) {
           documentType,
           taxYear: String(taxYear),
           originalFileName: encodeURIComponent(file.name),
+          uploadedBy: String(loggedInUserId),
+          uploadedFromAdmin: admin ? "true" : "false",
         },
       })
     );
 
-    /**
-     * נשארים עם אותו endpoint צפייה.
-     * route הצפייה כבר עודכן לחפש לפי storedFileName בכל סוגי המסמכים.
-     */
     const fileUrl = `/api/forms/101/file/${storedFileName}`;
 
+    /**
+     * אם אדמין מעלה מחדש ויש כבר מסמך ישן,
+     * ניצור רשומה חדשה. בגלל שהטעינה באדמין ממיינת לפי createdAt,
+     * יוצג האחרון שנשמר.
+     */
     const saved = await EmployeeForm101.create({
       employeeId,
       businessId,
@@ -319,12 +411,11 @@ export async function POST(req: NextRequest) {
 
     const serialized = serializeEmployeeDocument(saved);
 
-        return NextResponse.json({
+    return NextResponse.json({
       success: true,
       message: `${getDocumentLabel(documentType)} הועלה בהצלחה`,
       document: serialized,
 
-      // תאימות אחורה לקוד קיים שמצפה ל-form101
       form101: documentType === "form101" ? serialized : null,
       idCard: documentType === "idCard" ? serialized : null,
       accountManagement:
