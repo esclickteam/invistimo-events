@@ -103,6 +103,26 @@ type Form101Payload = {
   signatureText?: string;
   signatureDataUrl?: string;
 
+  /**
+   * הערכים המדויקים שהעובד מילא לפי ה-key של כל שדה בתבנית.
+   * זה המקור הראשי לציור ה-PDF.
+   */
+  formFieldValues?: Record<string, any>;
+
+  /**
+   * snapshot של התבנית שהעובד ראה בזמן המילוי.
+   * מגיע מקובץ העובד, כדי שה-PDF לא ייפול לתבנית ישנה.
+   */
+  __form101TemplateConfig?: {
+    id?: string;
+    _id?: string;
+    updatedAt?: string | Date | null;
+    approvedAt?: string | Date | null;
+    fields?: any;
+    pageWidth?: number;
+    pageHeight?: number;
+  };
+
   [key: string]: any;
 };
 
@@ -146,1079 +166,6 @@ type Form101TemplateConfig = {
 const DEFAULT_MAPPER_PAGE_WIDTH = 900;
 const DEFAULT_MAPPER_PAGE_HEIGHT = 1280;
 
-const FORM101_FIELD_MAP = {
-  "taxYear": {
-    "page": 1,
-    "section": "year",
-    "order": 1,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "2026",
-    "x": 323,
-    "y": 111,
-    "width": 120,
-    "height": 30,
-    "type": "digits",
-    "fontSize": 20,
-    "digitGap": 21,
-    "maxDigits": 4,
-    "align": "center"
-  },
-  "employerName": {
-    "page": 1,
-    "section": "employer",
-    "order": 2,
-    "enabled": true,
-    "isFixed": true,
-    "fixedValue": "בן עשת",
-    "x": 603,
-    "y": 221,
-    "width": 150,
-    "height": 24,
-    "type": "text",
-    "fontSize": 16,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "employerAddress": {
-    "page": 1,
-    "section": "employer",
-    "order": 3,
-    "enabled": true,
-    "isFixed": true,
-    "fixedValue": "העצמאות 41 קרית אתא",
-    "x": 401,
-    "y": 223,
-    "width": 175,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "right"
-  },
-  "employerPhone": {
-    "page": 1,
-    "section": "employer",
-    "order": 4,
-    "enabled": true,
-    "isFixed": true,
-    "fixedValue": "0526850711",
-    "x": 224,
-    "y": 224,
-    "width": 98,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 10,
-    "align": "left"
-  },
-  "employerFileNumber": {
-    "page": 1,
-    "section": "employer",
-    "order": 5,
-    "enabled": true,
-    "isFixed": true,
-    "fixedValue": "05790028",
-    "x": 98,
-    "y": 226,
-    "width": 124,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 9,
-    "align": "right"
-  },
-  "idNumber": {
-    "page": 1,
-    "section": "employee",
-    "order": 6,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 631,
-    "y": 283,
-    "width": 136,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 9,
-    "align": "center"
-  },
-  "lastName": {
-    "page": 1,
-    "section": "employee",
-    "order": 7,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 504,
-    "y": 283,
-    "width": 95,
-    "height": 24,
-    "type": "text",
-    "fontSize": 15,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "firstName": {
-    "page": 1,
-    "section": "employee",
-    "order": 8,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 356,
-    "y": 282,
-    "width": 85,
-    "height": 24,
-    "type": "text",
-    "fontSize": 15,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "birthDate": {
-    "page": 1,
-    "section": "employee",
-    "order": 9,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 204,
-    "y": 284,
-    "width": 123,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 8,
-    "align": "center"
-  },
-  "immigrationDate": {
-    "page": 1,
-    "section": "employee",
-    "order": 10,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 85,
-    "y": 285,
-    "width": 120,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 8,
-    "align": "center"
-  },
-  "street": {
-    "page": 1,
-    "section": "employee",
-    "order": 11,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 607,
-    "y": 311,
-    "width": 143,
-    "height": 24,
-    "type": "text",
-    "fontSize": 15,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "houseNumber": {
-    "page": 1,
-    "section": "employee",
-    "order": 12,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 558,
-    "y": 311,
-    "width": 52,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 4,
-    "align": "center"
-  },
-  "city": {
-    "page": 1,
-    "section": "employee",
-    "order": 13,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 465,
-    "y": 311,
-    "width": 100,
-    "height": 24,
-    "type": "text",
-    "fontSize": 15,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "postalCode": {
-    "page": 1,
-    "section": "employee",
-    "order": 14,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 360,
-    "y": 312,
-    "width": 103,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 7,
-    "align": "left"
-  },
-  "phone": {
-    "page": 1,
-    "section": "employee",
-    "order": 15,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 221,
-    "y": 312,
-    "width": 30,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 10,
-    "align": "center"
-  },
-  "customField1782075538085": {
-    "page": 1,
-    "section": "employee",
-    "order": 16,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 250,
-    "y": 312,
-    "width": 76,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "mobile": {
-    "page": 1,
-    "section": "employee",
-    "order": 17,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 86,
-    "y": 313,
-    "width": 28,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 10,
-    "align": "left"
-  },
-  "customField1782075699673": {
-    "page": 1,
-    "section": "employee",
-    "order": 18,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 104,
-    "y": 312,
-    "width": 95,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "email": {
-    "page": 1,
-    "section": "employee",
-    "order": 19,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 426,
-    "y": 522,
-    "width": 230,
-    "height": 24,
-    "type": "text",
-    "fontSize": 15,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "genderMale": {
-    "page": 1,
-    "section": "employee",
-    "order": 19,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 740,
-    "y": 357,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "genderFemale": {
-    "page": 1,
-    "section": "employee",
-    "order": 20,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 740,
-    "y": 374,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "maritalSingle": {
-    "page": 1,
-    "section": "employee",
-    "order": 21,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 674,
-    "y": 355,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "maritalMarried": {
-    "page": 1,
-    "section": "employee",
-    "order": 22,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 590,
-    "y": 355,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "maritalDivorced": {
-    "page": 1,
-    "section": "employee",
-    "order": 23,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 500,
-    "y": 355,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "maritalWidowed": {
-    "page": 1,
-    "section": "employee",
-    "order": 24,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 674,
-    "y": 373,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "customField1782075946735": {
-    "page": 1,
-    "section": "employee",
-    "order": 25,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 601,
-    "y": 371,
-    "width": 29,
-    "height": 24,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "residentYes": {
-    "page": 1,
-    "section": "employee",
-    "order": 26,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 412,
-    "y": 357,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "residentNo": {
-    "page": 1,
-    "section": "employee",
-    "order": 27,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 412,
-    "y": 374,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "kibbutzYes": {
-    "page": 1,
-    "section": "employee",
-    "order": 28,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 306,
-    "y": 356,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "kibbutzNo": {
-    "page": 1,
-    "section": "employee",
-    "order": 29,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 306,
-    "y": 374,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "healthFundYes": {
-    "page": 1,
-    "section": "employee",
-    "order": 30,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 213,
-    "y": 371,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "child1Name": {
-    "page": 1,
-    "section": "children",
-    "order": 30,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 540,
-    "y": 685,
-    "width": 95,
-    "height": 22,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "healthFundName": {
-    "page": 1,
-    "section": "employee",
-    "order": 31,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 78,
-    "y": 371,
-    "width": 85,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "child1Id": {
-    "page": 1,
-    "section": "children",
-    "order": 31,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 405,
-    "y": 685,
-    "width": 110,
-    "height": 22,
-    "type": "digits",
-    "fontSize": 14,
-    "digitGap": 21,
-    "maxDigits": 9,
-    "align": "left"
-  },
-  "child1BirthDate": {
-    "page": 1,
-    "section": "children",
-    "order": 32,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 285,
-    "y": 685,
-    "width": 100,
-    "height": 22,
-    "type": "digits",
-    "fontSize": 14,
-    "digitGap": 21,
-    "maxDigits": 8,
-    "align": "left"
-  },
-  "customField1782076968515": {
-    "page": 1,
-    "section": "employee",
-    "order": 32,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 199,
-    "y": 352,
-    "width": 47,
-    "height": 24,
-    "type": "check",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "right"
-  },
-  "child1Mark1": {
-    "page": 1,
-    "section": "children",
-    "order": 33,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 745,
-    "y": 685,
-    "width": 18,
-    "height": 18,
-    "type": "check",
-    "fontSize": 16,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "child1Mark2": {
-    "page": 1,
-    "section": "children",
-    "order": 34,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 720,
-    "y": 685,
-    "width": 18,
-    "height": 18,
-    "type": "check",
-    "fontSize": 16,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "workStartDate": {
-    "page": 1,
-    "section": "income",
-    "order": 35,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 95,
-    "y": 710,
-    "width": 105,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 8,
-    "align": "left"
-  },
-  "incomeMonthlySalary": {
-    "page": 1,
-    "section": "income",
-    "order": 36,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 700,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "incomeExtraSalary": {
-    "page": 1,
-    "section": "income",
-    "order": 37,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 730,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "incomePartialSalary": {
-    "page": 1,
-    "section": "income",
-    "order": 38,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 760,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "incomeDailyWage": {
-    "page": 1,
-    "section": "income",
-    "order": 39,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 790,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "incomeAllowance": {
-    "page": 1,
-    "section": "income",
-    "order": 40,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 820,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "incomeScholarship": {
-    "page": 1,
-    "section": "income",
-    "order": 41,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 318,
-    "y": 850,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "otherNoIncome": {
-    "page": 1,
-    "section": "otherIncome",
-    "order": 42,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 335,
-    "y": 940,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "otherHasIncome": {
-    "page": 1,
-    "section": "otherIncome",
-    "order": 43,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 335,
-    "y": 975,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "spouseId": {
-    "page": 1,
-    "section": "spouse",
-    "order": 44,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 650,
-    "y": 1180,
-    "width": 115,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 14,
-    "digitGap": 21,
-    "maxDigits": 9,
-    "align": "left"
-  },
-  "spouseLastName": {
-    "page": 1,
-    "section": "spouse",
-    "order": 45,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 520,
-    "y": 1180,
-    "width": 100,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "spouseFirstName": {
-    "page": 1,
-    "section": "spouse",
-    "order": 46,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 395,
-    "y": 1180,
-    "width": 100,
-    "height": 24,
-    "type": "text",
-    "fontSize": 14,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "page2IdNumber": {
-    "page": 2,
-    "section": "credits",
-    "order": 47,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 128,
-    "y": 45,
-    "width": 120,
-    "height": 24,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 9,
-    "align": "left"
-  },
-  "creditResident": {
-    "page": 2,
-    "section": "credits",
-    "order": 48,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 100,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditDisabled": {
-    "page": 2,
-    "section": "credits",
-    "order": 49,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 145,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditSettlement": {
-    "page": 2,
-    "section": "credits",
-    "order": 50,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 210,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditNewImmigrant": {
-    "page": 2,
-    "section": "credits",
-    "order": 51,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 285,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditSingleParent": {
-    "page": 2,
-    "section": "credits",
-    "order": 52,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 420,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditChildrenCustody": {
-    "page": 2,
-    "section": "credits",
-    "order": 53,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 500,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditSoldier": {
-    "page": 2,
-    "section": "credits",
-    "order": 54,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 845,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "creditAcademic": {
-    "page": 2,
-    "section": "credits",
-    "order": 55,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 895,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "taxNoIncome": {
-    "page": 2,
-    "section": "taxCoordination",
-    "order": 56,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 970,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "taxHasOtherIncome": {
-    "page": 2,
-    "section": "taxCoordination",
-    "order": 57,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 742,
-    "y": 1040,
-    "width": 20,
-    "height": 20,
-    "type": "check",
-    "fontSize": 18,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  },
-  "signatureDate": {
-    "page": 2,
-    "section": "declaration",
-    "order": 58,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 260,
-    "y": 1180,
-    "width": 115,
-    "height": 26,
-    "type": "digits",
-    "fontSize": 15,
-    "digitGap": 21,
-    "maxDigits": 8,
-    "align": "left"
-  },
-  "signature": {
-    "page": 2,
-    "section": "declaration",
-    "order": 59,
-    "enabled": true,
-    "isFixed": false,
-    "fixedValue": "",
-    "x": 80,
-    "y": 1170,
-    "width": 140,
-    "height": 42,
-    "type": "signature",
-    "fontSize": 16,
-    "digitGap": null,
-    "maxDigits": null,
-    "align": "center"
-  }
-} as const;
 
 function clean(value: unknown) {
   return String(value || "").trim();
@@ -1516,101 +463,111 @@ function normalizeFieldMap(rawFields: any): FieldMap {
   return normalized;
 }
 
-function fallbackTemplateConfig(): Form101TemplateConfig {
-  return {
-    fields: normalizeFieldMap(FORM101_FIELD_MAP),
-    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
-  };
+function normalizeTemplateSize(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function buildTemplateConfigFromRaw(raw: any): Form101TemplateConfig | null {
-  const source = raw && typeof raw === "object" ? raw : null;
-  if (!source) return null;
+function templateConfigFromSnapshot(snapshot: any): Form101TemplateConfig | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
 
-  const rawFields =
-    source.fields ||
-    source.fieldMap ||
-    source.formFieldMap ||
-    source.templateFields ||
-    null;
-
-  const fields = normalizeFieldMap(rawFields);
+  const fields = normalizeFieldMap(snapshot.fields);
   if (!Object.keys(fields).length) return null;
-
-  const pageWidth = Number(source.pageWidth);
-  const pageHeight = Number(source.pageHeight);
 
   return {
     fields,
-    pageWidth:
-      Number.isFinite(pageWidth) && pageWidth > 0
-        ? pageWidth
-        : DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight:
-      Number.isFinite(pageHeight) && pageHeight > 0
-        ? pageHeight
-        : DEFAULT_MAPPER_PAGE_HEIGHT,
+    pageWidth: normalizeTemplateSize(snapshot.pageWidth, DEFAULT_MAPPER_PAGE_WIDTH),
+    pageHeight: normalizeTemplateSize(snapshot.pageHeight, DEFAULT_MAPPER_PAGE_HEIGHT),
   };
 }
 
-function getTemplateConfigFromRequestBody(body: Form101Payload): Form101TemplateConfig | null {
-  return (
-    buildTemplateConfigFromRaw(body.templateConfig) ||
-    buildTemplateConfigFromRaw(body.templateSnapshot) ||
-    buildTemplateConfigFromRaw(body.template) ||
-    buildTemplateConfigFromRaw({
-      fields: body.fields || body.fieldMap || body.formFieldMap,
-      pageWidth: body.pageWidth,
-      pageHeight: body.pageHeight,
-    })
-  );
+async function loadForm101TemplateConfig(): Promise<Form101TemplateConfig> {
+  const template = await Form101Template.findOne({
+    name: "default",
+    isActive: true,
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const fields = normalizeFieldMap((template as any)?.fields);
+
+  if (!template || !Object.keys(fields).length) {
+    throw new Error("FORM101_TEMPLATE_NOT_FOUND_OR_EMPTY: לא נמצאה תבנית 101 פעילה מהאדמין");
+  }
+
+  return {
+    fields,
+    pageWidth: normalizeTemplateSize((template as any).pageWidth, DEFAULT_MAPPER_PAGE_WIDTH),
+    pageHeight: normalizeTemplateSize((template as any).pageHeight, DEFAULT_MAPPER_PAGE_HEIGHT),
+  };
 }
 
-async function loadForm101TemplateConfig(body?: Form101Payload): Promise<Form101TemplateConfig> {
-  const fromRequest = body ? getTemplateConfigFromRequestBody(body) : null;
+async function resolveForm101TemplateConfig(body: Form101Payload): Promise<Form101TemplateConfig> {
+  // קודם משתמשים בדיוק בתבנית שהעובד טען מהאדמין במסך המילוי.
+  // זה מונע מצב שבו ה-PDF נוצר ממפה ישנה/ברירת מחדל בזמן שהמסך מציג מפה אחרת.
+  const snapshotConfig = templateConfigFromSnapshot(body.__form101TemplateConfig);
+  if (snapshotConfig) return snapshotConfig;
 
-  // הכי חשוב: אם מסך העובד שלח את התבנית שהוא מציג, משתמשים בה קודם.
-  // זה מונע מצב שבו ה-PDF נוצר ממפה ישנה/קשיחה ולא ממה שהעובד מילא בפועל.
-  if (fromRequest) {
-    return fromRequest;
+  // אם מסיבה כלשהי לא נשלח snapshot, טוענים מה-DB של האדמין.
+  // אין fallback למפה קשיחה, כדי לא לייצר PDF במיקומים שגויים.
+  return loadForm101TemplateConfig();
+}
+
+function getTemplateSnapshotMeta(body: Form101Payload) {
+  const snapshot = body.__form101TemplateConfig;
+
+  const rawId = clean(snapshot?.id || snapshot?._id || "");
+  const templateId =
+    rawId && mongoose.Types.ObjectId.isValid(rawId)
+      ? new mongoose.Types.ObjectId(rawId)
+      : null;
+
+  const rawUpdatedAt = snapshot?.updatedAt || snapshot?.approvedAt || null;
+  const parsedUpdatedAt = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
+
+  return {
+    templateId,
+    templateUpdatedAt:
+      parsedUpdatedAt && !Number.isNaN(parsedUpdatedAt.getTime())
+        ? parsedUpdatedAt
+        : null,
+  };
+}
+
+function buildTemplateSnapshotForStorage(templateConfig: Form101TemplateConfig) {
+  return {
+    fields: templateConfig.fields,
+    pageWidth: templateConfig.pageWidth,
+    pageHeight: templateConfig.pageHeight,
+  };
+}
+
+function buildFormFieldValuesForStorage(body: Form101Payload) {
+  if (body.formFieldValues && typeof body.formFieldValues === "object") {
+    return body.formFieldValues;
   }
 
-  try {
-    const template = await Form101Template.findOne({
-      name: "default",
-      isActive: true,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+  const values: Record<string, any> = {};
 
-    const fields = normalizeFieldMap((template as any)?.fields);
+  Object.entries(body).forEach(([key, value]) => {
+    if (key.startsWith("__")) return;
 
-    if (!template || !Object.keys(fields).length) {
-      throw new Error("FORM101_TEMPLATE_FIELDS_MISSING");
+    if (
+      [
+        "incomeType",
+        "otherIncome",
+        "spouse",
+        "children",
+        "taxCredits",
+      ].includes(key)
+    ) {
+      return;
     }
 
-    const pageWidth = Number((template as any).pageWidth);
-    const pageHeight = Number((template as any).pageHeight);
+    values[key] = value;
+  });
 
-    return {
-      fields,
-      pageWidth:
-        Number.isFinite(pageWidth) && pageWidth > 0
-          ? pageWidth
-          : DEFAULT_MAPPER_PAGE_WIDTH,
-      pageHeight:
-        Number.isFinite(pageHeight) && pageHeight > 0
-          ? pageHeight
-          : DEFAULT_MAPPER_PAGE_HEIGHT,
-    };
-  } catch (error) {
-    console.error("LOAD FORM 101 TEMPLATE CONFIG FAILED:", error);
-
-    // משאירים fallback רק כדי שהשרת לא יקרוס אם אין תבנית בכלל,
-    // אבל במצב תקין הוא חייב לקחת את התבנית מהאדמין/מהבקשה.
-    return fallbackTemplateConfig();
-  }
+  return values;
 }
 
 function splitPhoneParts(value: unknown) {
@@ -1622,12 +579,46 @@ function splitPhoneParts(value: unknown) {
   };
 }
 
+function getPdfVisibleBox(page: any) {
+  const size = page.getSize();
+
+  try {
+    const cropBox = typeof page.getCropBox === "function" ? page.getCropBox() : null;
+
+    if (
+      cropBox &&
+      Number.isFinite(Number(cropBox.x)) &&
+      Number.isFinite(Number(cropBox.y)) &&
+      Number.isFinite(Number(cropBox.width)) &&
+      Number.isFinite(Number(cropBox.height)) &&
+      Number(cropBox.width) > 0 &&
+      Number(cropBox.height) > 0
+    ) {
+      return {
+        x: Number(cropBox.x),
+        y: Number(cropBox.y),
+        width: Number(cropBox.width),
+        height: Number(cropBox.height),
+      };
+    }
+  } catch {
+    // אם אין CropBox ממשיכים לפי גודל העמוד הרגיל.
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: size.width,
+    height: size.height,
+  };
+}
+
 function getMappedRect(
   page: any,
   field: FieldMapItem,
   templateConfig: Form101TemplateConfig
 ) {
-  const { width: pdfWidth, height: pdfHeight } = page.getSize();
+  const visibleBox = getPdfVisibleBox(page);
 
   const mapperPageWidth =
     templateConfig.pageWidth > 0
@@ -1639,16 +630,16 @@ function getMappedRect(
       ? templateConfig.pageHeight
       : DEFAULT_MAPPER_PAGE_HEIGHT;
 
-  const scaleX = pdfWidth / mapperPageWidth;
-  const scaleY = pdfHeight / mapperPageHeight;
+  const scaleX = visibleBox.width / mapperPageWidth;
+  const scaleY = visibleBox.height / mapperPageHeight;
 
-  const x = field.x * scaleX;
+  const x = visibleBox.x + field.x * scaleX;
   const width = field.width * scaleX;
   const height = field.height * scaleY;
 
   return {
     x,
-    y: pdfHeight - (field.y + field.height) * scaleY,
+    y: visibleBox.y + visibleBox.height - (field.y + field.height) * scaleY,
     width,
     height,
     scaleX,
@@ -1658,6 +649,21 @@ function getMappedRect(
 }
 
 function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
+  const directValues =
+    body.formFieldValues && typeof body.formFieldValues === "object"
+      ? body.formFieldValues
+      : null;
+
+  // חשוב: ה-PDF חייב לצייר את הערך המדויק שהעובד רואה וממלא במסך.
+  // לכן קודם כל משתמשים ב-formFieldValues לפי key, ורק אם אין ערך כזה
+  // נופלים למבנה הישן/הקשיח של payload.
+  if (
+    directValues &&
+    Object.prototype.hasOwnProperty.call(directValues, fieldKey)
+  ) {
+    return directValues[fieldKey];
+  }
+
   const children = Array.isArray(body.children) ? body.children : [];
   const childMatch = fieldKey.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
 
@@ -1837,36 +843,9 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
   }
 }
 
-function hasOwnValue(source: any, key: string) {
-  return Boolean(
-    source &&
-      typeof source === "object" &&
-      Object.prototype.hasOwnProperty.call(source, key)
-  );
-}
-
-function normalizeSubmittedValueForField(value: unknown, field: FieldMapItem) {
-  if (field.type === "check") return Boolean(value);
-  if (field.type === "digits") return onlyDigits(value);
-
-  // לא מוחקים רווחים פנימיים בטקסט.
-  // לדוגמה: קרית אתא חייב להישאר קרית אתא ולא קריתאתא.
-  return String(value ?? "")
-    .replace(/[\u200e\u200f\u202a-\u202e]/g, "")
-    .trim();
-}
-
 function getFieldValue(body: Form101Payload, fieldKey: string, field: FieldMapItem) {
   if (field.isFixed) {
-    return field.type === "check"
-      ? field.fixedValue === "true" || field.fixedValue === "✓"
-      : field.fixedValue || "";
-  }
-
-  // קודם כל לוקחים את מה שהעובד מילא בפועל על השדה במסך.
-  // זה כולל שדות מותאמים, שדות חדשים, סעיף ז׳, ילדים 1-13 וכל תת-שדה שנוצר באדמין.
-  if (hasOwnValue(body.formFieldValues, fieldKey)) {
-    return normalizeSubmittedValueForField(body.formFieldValues[fieldKey], field);
+    return field.fixedValue || "";
   }
 
   return getValueFromBody(body, fieldKey);
@@ -1884,14 +863,11 @@ function drawTextInRect(
   field: FieldMapItem,
   font: any
 ) {
-  const value = String(text ?? "")
-    .replace(/[\u200e\u200f\u202a-\u202e]/g, "")
-    .trim();
-
+  const value = clean(text);
   if (!value) return;
 
-  const padding = 1.5;
-  const size = Math.max(6, rect.fontSize);
+  const padding = 2;
+  const size = rect.fontSize;
   const textWidth = font.widthOfTextAtSize(value, size);
   const maxX = rect.x + rect.width - padding;
 
@@ -1913,7 +889,6 @@ function drawTextInRect(
     size,
     font,
     color: rgb(0, 0, 0),
-    opacity: 1,
   });
 }
 
@@ -2099,7 +1074,10 @@ async function drawField(
   drawTextInRect(page, value, rect, field, font);
 }
 
-async function generateForm101Pdf(body: Form101Payload) {
+async function generateForm101Pdf(
+  body: Form101Payload,
+  templateConfig: Form101TemplateConfig
+) {
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -2114,24 +1092,34 @@ async function generateForm101Pdf(body: Form101Payload) {
   }
 
   const templateBytes = await fs.readFile(templatePath);
+
+  /**
+   * חשוב:
+   * לא יוצרים PDF חדש ולא משנים גודל עמוד.
+   * טוענים את טופס 101 המקורי, ומציירים עליו את כל השדות שהוגדרו באדמין.
+   */
   const pdfDoc = await PDFDocument.load(templateBytes);
-
   const font = await loadHebrewFont(pdfDoc);
-
   const pages = pdfDoc.getPages();
 
   if (!pages.length) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const templateConfig = await loadForm101TemplateConfig(body);
-
   const fields = Object.entries(templateConfig.fields)
     .filter(([, field]) => field.enabled)
     .sort(([, a], [, b]) => a.order - b.order) as [string, FieldMapItem][];
 
   for (const [fieldKey, field] of fields) {
-    await drawField(pdfDoc, pages, fieldKey, field, body, font, templateConfig);
+    await drawField(
+      pdfDoc,
+      pages,
+      fieldKey,
+      field,
+      body,
+      font,
+      templateConfig
+    );
   }
 
   const pdfBytes = await pdfDoc.save();
@@ -2211,10 +1199,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pdfBuffer = await generateForm101Pdf({
+    const bodyForPdf: Form101Payload = {
       ...body,
       taxYear: String(taxYear),
-    });
+    };
+
+    const templateConfig = await resolveForm101TemplateConfig(bodyForPdf);
+    const templateSnapshot = buildTemplateSnapshotForStorage(templateConfig);
+    const templateMeta = getTemplateSnapshotMeta(bodyForPdf);
+    const formFieldValues = buildFormFieldValuesForStorage(bodyForPdf);
+
+    const pdfBuffer = await generateForm101Pdf(bodyForPdf, templateConfig);
 
     const now = new Date();
     const timestamp = now.getTime();
@@ -2258,6 +1253,16 @@ export async function POST(req: NextRequest) {
       fileSize: pdfBuffer.length,
 
       taxYear,
+
+      /**
+       * שומרים את מה שהעובד מילא ואת התבנית המדויקת של אותו רגע.
+       * כך צפייה/ייצוא בעתיד לא יזוזו גם אם האדמין משנה תבנית.
+       */
+      formFieldValues,
+      templateSnapshot,
+      templateId: templateMeta.templateId,
+      templateUpdatedAt: templateMeta.templateUpdatedAt,
+
       status: "uploaded",
       rejectionReason: "",
 

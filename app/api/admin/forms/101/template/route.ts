@@ -30,7 +30,7 @@ type FieldConfig = {
   fontSize: number;
   digitGap?: number | null;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[]; // legacy only
+  digitGaps?: number[];
   digitGroupSize?: number | null;
   digitGroupSizeMode?: DigitGroupSizeMode;
   digitGroupGap?: number | null;
@@ -40,6 +40,7 @@ type FieldConfig = {
 
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
+const DEFAULT_TEMPLATE_NAME = "default";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -53,33 +54,18 @@ function extractUserId(authResult: any) {
       authResult.id ||
       authResult._id ||
       authResult.sub ||
+      authResult.user?._id ||
+      authResult.user?.id ||
       ""
   );
 }
 
-async function requireAdmin(req: NextRequest) {
-  const authResult = await getUserIdFromRequest(req);
-  const userId = extractUserId(authResult);
-
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    return null;
-  }
-
-  const user = await User.findById(userId).lean();
-
-  if (!user) return null;
-
-  const role = String((user as any).role || "").toLowerCase();
-
-  if (role !== "admin") {
-    return null;
-  }
-
-  return user;
-}
-
+/**
+ * trim רק בקצוות.
+ * לא מוחק רווחים פנימיים, כדי ש"קרית אתא" לא יהפוך ל"קריתאתא".
+ */
 function cleanString(value: unknown) {
-  return String(value || "").trim();
+  return String(value ?? "").trim();
 }
 
 function cleanNumber(value: unknown, fallback: number) {
@@ -98,7 +84,9 @@ function normalizeAlign(value: unknown): TextAlign {
 
 function normalizeDigitSpacingMode(value: unknown): DigitSpacingMode {
   const raw = cleanString(value);
+
   if (raw === "group" || raw === "custom") return "group";
+
   return "equal";
 }
 
@@ -124,51 +112,99 @@ function normalizePage(value: unknown): 1 | 2 {
   return Number(value) === 2 ? 2 : 1;
 }
 
+async function requireAdmin(req: NextRequest) {
+  const authResult = await getUserIdFromRequest(req);
+  const userId = extractUserId(authResult);
+
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    return null;
+  }
+
+  const user = await User.findById(userId).lean();
+
+  if (!user) return null;
+
+  const role = String((user as any).role || "").toLowerCase();
+
+  if (role !== "admin") {
+    return null;
+  }
+
+  return user;
+}
+
 function normalizeField(field: any): FieldConfig {
+  const type = normalizeType(field?.type);
+
   return {
     page: normalizePage(field?.page),
     section: cleanString(field?.section) || "employee",
     order: Math.max(1, cleanNumber(field?.order, 1)),
     enabled: typeof field?.enabled === "boolean" ? field.enabled : true,
+
     isFixed: Boolean(field?.isFixed),
     fixedValue: cleanString(field?.fixedValue),
     label: cleanString(field?.label),
+
     x: cleanNumber(field?.x, 0),
     y: cleanNumber(field?.y, 0),
     width: Math.max(1, cleanNumber(field?.width, 20)),
     height: Math.max(1, cleanNumber(field?.height, 20)),
-    type: normalizeType(field?.type),
+
+    type,
     fontSize: Math.max(6, cleanNumber(field?.fontSize, 14)),
+
     digitGap:
       field?.digitGap === null || field?.digitGap === undefined
         ? null
         : Math.max(1, cleanNumber(field?.digitGap, 13)),
-    digitSpacingMode: normalizeDigitSpacingMode(field?.digitSpacingMode),
-    digitGaps: normalizeDigitGaps(field?.digitGaps),
+
+    digitSpacingMode:
+      type === "digits"
+        ? normalizeDigitSpacingMode(field?.digitSpacingMode)
+        : undefined,
+
+    digitGaps: type === "digits" ? normalizeDigitGaps(field?.digitGaps) : [],
+
     digitGroupSize:
-      field?.digitGroupSize === null || field?.digitGroupSize === undefined
+      type !== "digits" ||
+      field?.digitGroupSize === null ||
+      field?.digitGroupSize === undefined
         ? null
         : Math.max(1, cleanNumber(field?.digitGroupSize, 3)),
-    digitGroupSizeMode: field?.digitGroupSizeMode === "manual" ? "manual" : "auto",
+
+    digitGroupSizeMode:
+      type === "digits" && field?.digitGroupSizeMode === "manual"
+        ? "manual"
+        : "auto",
+
     digitGroupGap:
-      field?.digitGroupGap === null || field?.digitGroupGap === undefined
+      type !== "digits" ||
+      field?.digitGroupGap === null ||
+      field?.digitGroupGap === undefined
         ? null
         : Math.max(0, cleanNumber(field?.digitGroupGap, 0)),
+
     maxDigits:
       field?.maxDigits === null || field?.maxDigits === undefined
         ? null
         : Math.max(1, cleanNumber(field?.maxDigits, 1)),
+
     align: normalizeAlign(field?.align),
   };
 }
 
 function normalizeFieldsMap(fieldsInput: any) {
-  const fields =
-    fieldsInput && typeof fieldsInput === "object" ? fieldsInput : {};
+  const source =
+    fieldsInput instanceof Map
+      ? Object.fromEntries(fieldsInput)
+      : fieldsInput && typeof fieldsInput === "object"
+      ? fieldsInput
+      : {};
 
   const normalized: Record<string, FieldConfig> = {};
 
-  Object.entries(fields).forEach(([key, value]) => {
+  Object.entries(source).forEach(([key, value]) => {
     const cleanKey = cleanString(key);
 
     if (!cleanKey) return;
@@ -179,13 +215,24 @@ function normalizeFieldsMap(fieldsInput: any) {
   return normalized;
 }
 
+function serializeFields(fieldsInput: any) {
+  return normalizeFieldsMap(fieldsInput);
+}
+
 function serializeTemplate(template: any) {
   if (!template) {
     return {
+      _id: "",
+      id: "",
+      name: DEFAULT_TEMPLATE_NAME,
+      taxYear: null,
       fields: {},
       pageWidth: PAGE_WIDTH,
       pageHeight: PAGE_HEIGHT,
+      isActive: false,
       approvedAt: null,
+      approvedBy: "",
+      createdAt: null,
       updatedAt: null,
     };
   }
@@ -196,19 +243,34 @@ function serializeTemplate(template: any) {
       : template.fields || {};
 
   return {
-    _id: String(template._id),
-    id: String(template._id),
-    name: template.name || "default",
+    _id: String(template._id || ""),
+    id: String(template._id || ""),
+    name: template.name || DEFAULT_TEMPLATE_NAME,
     taxYear: template.taxYear || null,
-    fields: rawFields,
-    pageWidth: Number(template.pageWidth || PAGE_WIDTH),
-    pageHeight: Number(template.pageHeight || PAGE_HEIGHT),
+
+    fields: serializeFields(rawFields),
+
+    pageWidth: Math.max(1, Number(template.pageWidth || PAGE_WIDTH)),
+    pageHeight: Math.max(1, Number(template.pageHeight || PAGE_HEIGHT)),
+
     isActive: Boolean(template.isActive),
     approvedAt: template.approvedAt || null,
     approvedBy: template.approvedBy ? String(template.approvedBy) : "",
-    createdAt: template.createdAt,
-    updatedAt: template.updatedAt,
+
+    createdAt: template.createdAt || null,
+    updatedAt: template.updatedAt || null,
   };
+}
+
+function jsonError(message: string, status = 400, extra: Record<string, any> = {}) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: message,
+      ...extra,
+    },
+    { status }
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -222,17 +284,24 @@ export async function GET(req: NextRequest) {
       const admin = await requireAdmin(req);
 
       if (!admin) {
-        return NextResponse.json(
-          { success: false, error: "אין הרשאת אדמין" },
-          { status: 403 }
-        );
+        return jsonError("אין הרשאת אדמין", 403);
       }
     }
 
-    const template = await Form101Template.findOne({
-      name: "default",
+    const query: Record<string, any> = {
+      name: DEFAULT_TEMPLATE_NAME,
       isActive: true,
-    })
+    };
+
+    /**
+     * עובד צריך לקבל רק תבנית מאושרת.
+     * אדמין יכול לראות גם אם עדיין אין approvedAt.
+     */
+    if (publicRead) {
+      query.approvedAt = { $ne: null };
+    }
+
+    const template = await Form101Template.findOne(query)
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -243,13 +312,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("GET FORM 101 TEMPLATE FAILED:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "שגיאה בטעינת תבנית טופס 101",
-      },
-      { status: 500 }
-    );
+    return jsonError("שגיאה בטעינת תבנית טופס 101", 500);
   }
 }
 
@@ -260,47 +323,52 @@ export async function PUT(req: NextRequest) {
     const admin = await requireAdmin(req);
 
     if (!admin) {
-      return NextResponse.json(
-        { success: false, error: "אין הרשאת אדמין" },
-        { status: 403 }
-      );
+      return jsonError("אין הרשאת אדמין", 403);
     }
 
     const body = await req.json().catch(() => null);
 
-    const fields = normalizeFieldsMap(body?.fields);
-    const pageWidth = Math.max(1, cleanNumber(body?.pageWidth, PAGE_WIDTH));
-    const pageHeight = Math.max(1, cleanNumber(body?.pageHeight, PAGE_HEIGHT));
-
-    if (!Object.keys(fields).length) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "לא התקבלו שדות לשמירה",
-        },
-        { status: 400 }
-      );
+    if (!body || typeof body !== "object") {
+      return jsonError("הבקשה לא תקינה", 400);
     }
 
+    const fields = normalizeFieldsMap(body.fields);
+    const pageWidth = Math.max(1, cleanNumber(body.pageWidth, PAGE_WIDTH));
+    const pageHeight = Math.max(1, cleanNumber(body.pageHeight, PAGE_HEIGHT));
+
+    if (!Object.keys(fields).length) {
+      return jsonError("לא התקבלו שדות לשמירה", 400);
+    }
+
+    const now = new Date();
+
+    /**
+     * יש תמיד תבנית אחת פעילה בשם default.
+     * כל שמירה של האדמין גם מאשרת אותה לשימוש העובדים.
+     */
     const updated = await Form101Template.findOneAndUpdate(
       {
-        name: "default",
+        name: DEFAULT_TEMPLATE_NAME,
         isActive: true,
       },
       {
         $set: {
-          name: "default",
+          name: DEFAULT_TEMPLATE_NAME,
           fields,
           pageWidth,
           pageHeight,
           isActive: true,
-          approvedAt: new Date(),
+          approvedAt: now,
           approvedBy: (admin as any)._id,
+        },
+        $setOnInsert: {
+          taxYear: null,
         },
       },
       {
         new: true,
         upsert: true,
+        setDefaultsOnInsert: true,
       }
     ).lean();
 
@@ -312,12 +380,6 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     console.error("SAVE FORM 101 TEMPLATE FAILED:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "שגיאה בשמירת תבנית טופס 101",
-      },
-      { status: 500 }
-    );
+    return jsonError("שגיאה בשמירת תבנית טופס 101", 500);
   }
 }

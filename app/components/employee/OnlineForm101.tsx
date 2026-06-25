@@ -41,6 +41,12 @@ type ChildPayload = {
 };
 type ActiveSignatureField = string | null;
 
+type TemplateMeta = {
+  id: string;
+  updatedAt: string | null;
+  approvedAt: string | null;
+};
+
 const PDF_URL = "/forms/tofes-101.pdf";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
@@ -1214,6 +1220,12 @@ function clean(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function preserveTextValue(value: unknown) {
+  // שומר רווחים פנימיים בדיוק כמו שהעובד הקליד/כמו שהוגדר בתבנית.
+  // trim רק בקצוות כדי לא לשמור רווחים מיותרים לפני/אחרי.
+  return String(value ?? "").replace(/[\u200E\u200F\u202A-\u202E]/g, "").trim();
+}
+
 function onlyDigits(value: unknown) {
   return clean(value).replace(/\D/g, "");
 }
@@ -1326,7 +1338,7 @@ function getFixedValues(fieldMap: Record<string, FieldConfig>) {
 function normalizeValueByField(value: unknown, field: FieldConfig): FieldValue {
   if (field.type === "check") return Boolean(value);
   if (field.type === "digits") return onlyDigits(value);
-  return clean(value);
+  return preserveTextValue(value);
 }
 
 function mergeValuesForTemplate(
@@ -1414,7 +1426,8 @@ function getSectionFields(fieldMap: Record<string, FieldConfig>, section: string
 function valueForPdf(value: FieldValue, field: FieldConfig) {
   if (field.isFixed) return field.fixedValue || "";
   if (field.type === "digits") return onlyDigits(value);
-  return value;
+  if (field.type === "check") return Boolean(value);
+  return preserveTextValue(value);
 }
 
 function collectChildrenPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
@@ -1700,7 +1713,7 @@ function FieldControl({
     );
   }
 
-  const stringValue = clean(value);
+  const stringValue = field.type === "digits" ? clean(value) : preserveTextValue(value);
   const inputValue = field.type === "digits" ? onlyDigits(stringValue) : stringValue;
 
   function alignToJustify(align: TextAlign) {
@@ -1802,6 +1815,7 @@ function FieldControl({
             fontSize: field.fontSize,
             lineHeight: `${field.height}px`,
             textAlign: alignToText(field.align),
+            whiteSpace: "pre",
           }}
         >
           {inputValue}
@@ -1963,6 +1977,11 @@ export default function OnlineForm101() {
   const [fieldMap, setFieldMap] = useState<Record<string, FieldConfig>>(FORM101_FIELD_MAP);
   const [pageWidth, setPageWidth] = useState(PAGE_WIDTH);
   const [pageHeight, setPageHeight] = useState(PAGE_HEIGHT);
+  const [templateMeta, setTemplateMeta] = useState<TemplateMeta>({
+    id: "",
+    updatedAt: null,
+    approvedAt: null,
+  });
   const [loadingTemplate, setLoadingTemplate] = useState(true);
   const [templateError, setTemplateError] = useState("");
   const [values, setValues] = useState<ValuesMap>(() => loadDraftValues(FORM101_FIELD_MAP));
@@ -1970,6 +1989,8 @@ export default function OnlineForm101() {
   const [selectedKey, setSelectedKey] = useState<string>("idNumber");
   const [submitting, setSubmitting] = useState(false);
   const [activeSignatureField, setActiveSignatureField] = useState<ActiveSignatureField>(null);
+  const [pdfReloadKey, setPdfReloadKey] = useState(1);
+  const previewScrollRef = useRef<HTMLDivElement | null>(null);
 
   const pageFields = useMemo(() => getPageFields(fieldMap, page), [fieldMap, page]);
 
@@ -2006,11 +2027,23 @@ export default function OnlineForm101() {
         const template = data.template || {};
         const normalizedFields = normalizeTemplateFields(template.fields);
 
+        if (!Object.keys(normalizedFields).length) {
+          throw new Error("לא נמצאה תבנית מאושרת מהאדמין");
+        }
+
+        const nextPageWidth = Math.max(1, Number(template.pageWidth || PAGE_WIDTH));
+        const nextPageHeight = Math.max(1, Number(template.pageHeight || PAGE_HEIGHT));
+
         if (cancelled) return;
 
         setFieldMap(normalizedFields);
-        setPageWidth(Math.max(1, Number(template.pageWidth || PAGE_WIDTH)));
-        setPageHeight(Math.max(1, Number(template.pageHeight || PAGE_HEIGHT)));
+        setPageWidth(nextPageWidth);
+        setPageHeight(nextPageHeight);
+        setTemplateMeta({
+          id: String(template.id || template._id || ""),
+          updatedAt: template.updatedAt ? String(template.updatedAt) : null,
+          approvedAt: template.approvedAt ? String(template.approvedAt) : null,
+        });
 
         setValues((prev) => mergeValuesForTemplate(prev, normalizedFields));
 
@@ -2033,6 +2066,7 @@ export default function OnlineForm101() {
               ? error.message
               : "לא הצלחתי לטעון את תבנית טופס 101"
           );
+          setTemplateMeta({ id: "", updatedAt: null, approvedAt: null });
           setFieldMap(FORM101_FIELD_MAP);
           setValues((prev) => mergeValuesForTemplate(prev, FORM101_FIELD_MAP));
         }
@@ -2095,6 +2129,7 @@ export default function OnlineForm101() {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     setValues(getInitialValues(fieldMap));
     setPage(1);
+    setPdfReloadKey((prev) => prev + 1);
     setSelectedKey("idNumber");
   }
 
@@ -2102,12 +2137,20 @@ export default function OnlineForm101() {
     try {
       setSubmitting(true);
 
+      if (loadingTemplate) {
+        alert("התבנית עדיין נטענת, נסי שוב בעוד רגע");
+        return;
+      }
+
       const payload = {
         ...buildStructuredPayload(values, fieldMap),
         __form101TemplateConfig: {
           fields: fieldMap,
           pageWidth,
           pageHeight,
+          templateId: templateMeta.id,
+          templateUpdatedAt: templateMeta.updatedAt,
+          templateApprovedAt: templateMeta.approvedAt,
         },
       };
 
@@ -2138,6 +2181,24 @@ export default function OnlineForm101() {
     }
   }
 
+  function changePage(nextPage: PageNumber, nextSelectedKey?: string) {
+    setPage(nextPage);
+    setPdfReloadKey((prev) => prev + 1);
+
+    if (nextSelectedKey) {
+      setSelectedKey(nextSelectedKey);
+    } else {
+      const firstFieldInPage = getPageFields(fieldMap, nextPage)[0];
+      if (firstFieldInPage) {
+        setSelectedKey(firstFieldInPage[0]);
+      }
+    }
+
+    requestAnimationFrame(() => {
+      previewScrollRef.current?.scrollTo({ top: 0, left: 0 });
+    });
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto max-w-[1700px] space-y-4 p-4">
@@ -2160,7 +2221,7 @@ export default function OnlineForm101() {
 
               {templateError && (
                 <p className="mt-2 rounded-2xl bg-amber-50 px-4 py-2 text-sm font-black text-amber-700">
-                  {templateError} — מוצגת תבנית ברירת מחדל.
+                  {templateError}. ודאי שהתבנית נשמרה ואושרה באדמין.
                 </p>
               )}
             </div>
@@ -2169,7 +2230,7 @@ export default function OnlineForm101() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setPage(1)}
+                onClick={() => changePage(1)}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 1 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
                 }`}
@@ -2178,7 +2239,7 @@ export default function OnlineForm101() {
               </button>
               <button
                 type="button"
-                onClick={() => setPage(2)}
+                onClick={() => changePage(2)}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 2 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
                 }`}
@@ -2195,7 +2256,7 @@ export default function OnlineForm101() {
               <button
                 type="button"
                 onClick={submitForm101}
-                disabled={submitting}
+                disabled={submitting || loadingTemplate || Boolean(templateError)}
                 className="h-11 rounded-2xl bg-sky-600 px-8 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? "מייצר PDF..." : "שליחת טופס ויצירת PDF"}
@@ -2217,8 +2278,11 @@ export default function OnlineForm101() {
                         key={key}
                         type="button"
                         onClick={() => {
-                          setPage(field.page);
-                          setSelectedKey(key);
+                          if (field.page !== page) {
+                            changePage(field.page, key);
+                          } else {
+                            setSelectedKey(key);
+                          }
                         }}
                         className={`w-full rounded-xl border px-3 py-2 text-right text-xs font-black transition ${
                           selectedKey === key
@@ -2238,12 +2302,16 @@ export default function OnlineForm101() {
             </div>
           </aside>
 
-          <section className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <section
+            ref={previewScrollRef}
+            className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm"
+          >
             <div
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
               <iframe
+                key={`${page}-${pdfReloadKey}`}
                 src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
                 title="טופס 101"
                 scrolling="no"

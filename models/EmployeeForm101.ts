@@ -66,12 +66,57 @@ const EmployeeForm101Schema = new Schema(
     /**
      * שנת מס.
      * לטופס 101 זה חובה לוגית.
-     * לתעודת זהות נשמור גם את אותה שנה כדי שיהיה קל לשלוף לפי שנה.
+     * לתעודת זהות / אישור ניהול חשבון נשמור גם שנה כדי שיהיה קל לשלוף לפי שנה.
      */
     taxYear: {
       type: Number,
       required: true,
       index: true,
+    },
+
+    /**
+     * הערכים שהעובד מילא בפועל בטופס.
+     * זה המקור לצפייה חוזרת בתיק עובד ולייצוא מחדש.
+     */
+    formFieldValues: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+
+    /**
+     * צילום מצב של התבנית בזמן שהעובד שלח את הטופס.
+     * חשוב מאוד: אם האדמין משנה תבנית בעתיד,
+     * טפסים ישנים לא יזוזו ולא ישתנו.
+     */
+    templateSnapshot: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    /**
+     * מזהה התבנית המקורית מהאדמין.
+     */
+    templateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Form101Template",
+      default: null,
+      index: true,
+    },
+
+    /**
+     * מתי התבנית עודכנה בזמן השליחה.
+     */
+    templateUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /**
+     * מתי התבנית אושרה בזמן השליחה.
+     */
+    templateApprovedAt: {
+      type: Date,
+      default: null,
     },
 
     status: {
@@ -128,8 +173,15 @@ EmployeeForm101Schema.index({
 });
 
 /**
- * שלא יהיו כפילויות פעילות אם תרצי בעתיד להשתמש בזה.
- * כרגע אני לא שם unique כדי לא לשבור העלאות קודמות.
+ * שליפה לפי תבנית טופס 101
+ */
+EmployeeForm101Schema.index({
+  templateId: 1,
+  createdAt: -1,
+});
+
+/**
+ * לא שמים unique כדי לא לשבור העלאות / מסמכים קיימים.
  */
 
 export default models.EmployeeForm101 ||
