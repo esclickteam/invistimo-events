@@ -124,10 +124,13 @@ type Form101Payload = {
   };
 
   /**
-   * צילום סופי של עמוד 1 ועמוד 2 מהמסך של העובד.
-   * כשזה קיים, ה-PDF נוצר מהצילום הזה ולא מציור מחדש של שדות.
+   * תמונות שקופות של השדות כפי שהדפדפן צילם אותם.
+   * השרת מדביק אותן על ה-PDF המקורי, ולכן אין ציור עברית מחדש בצד שרת.
    */
-  __renderedPageImages?: Record<string, string> | string[];
+  __renderedPageImages?:
+    | Record<string, string>
+    | Array<{ page?: number | string; dataUrl?: string; image?: string }>;
+  __renderedPageImagesMode?: string;
 
   [key: string]: any;
 };
@@ -2192,60 +2195,113 @@ async function drawField(
 
 
 
-function getRenderedPageImageValues(body: Form101Payload) {
-  const source = body.__renderedPageImages;
+type RenderedPageImage = {
+  page: 1 | 2;
+  dataUrl: string;
+};
 
-  if (!source) return [];
-
-  const list = Array.isArray(source)
-    ? source
-    : [source["1"], source["2"]];
-
-  return list
-    .map((item) => clean(item))
-    .filter((item) => item.startsWith("data:image/"));
+function cleanDataUrl(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text.startsWith("data:image/")) return "";
+  if (!text.includes(",")) return "";
+  return text;
 }
 
-async function generatePdfFromRenderedPageImages(body: Form101Payload) {
-  const renderedImages = getRenderedPageImageValues(body);
+function getRenderedPageImages(body: Form101Payload): RenderedPageImage[] {
+  const source = body.__renderedPageImages;
+  const result: RenderedPageImage[] = [];
 
-  if (!renderedImages.length) return null;
+  if (Array.isArray(source)) {
+    for (const item of source) {
+      const page = Number(item?.page) === 2 ? 2 : 1;
+      const dataUrl = cleanDataUrl(item?.dataUrl || item?.image);
+      if (dataUrl) result.push({ page, dataUrl });
+    }
+  } else if (source && typeof source === "object") {
+    for (const [rawPage, rawValue] of Object.entries(source)) {
+      const page = Number(rawPage) === 2 ? 2 : 1;
+      const dataUrl = cleanDataUrl(rawValue);
+      if (dataUrl) result.push({ page, dataUrl });
+    }
+  }
 
-  const templateConfig = await resolveForm101TemplateConfig(body);
+  const byPage = new Map<1 | 2, RenderedPageImage>();
+  for (const item of result) {
+    byPage.set(item.page, item);
+  }
 
-  const pageWidth = Math.max(
-    1,
-    Number(templateConfig.pageWidth || DEFAULT_MAPPER_PAGE_WIDTH)
-  );
-  const pageHeight = Math.max(
-    1,
-    Number(templateConfig.pageHeight || DEFAULT_MAPPER_PAGE_HEIGHT)
-  );
+  return Array.from(byPage.values()).sort((a, b) => a.page - b.page);
+}
 
-  const pdfDoc = await PDFDocument.create();
+function dataUrlToBuffer(dataUrl: string) {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex < 0) {
+    throw new Error("INVALID_RENDERED_PAGE_IMAGE");
+  }
 
-  for (const dataUrl of renderedImages.slice(0, 2)) {
-    const imageData = extractImageDataUrl(dataUrl);
-    if (!imageData) continue;
+  const header = dataUrl.slice(0, commaIndex).toLowerCase();
+  const base64 = dataUrl.slice(commaIndex + 1);
+  const buffer = Buffer.from(base64, "base64");
 
-    const imageBytes = Buffer.from(imageData.base64, "base64");
+  if (!buffer.length) {
+    throw new Error("EMPTY_RENDERED_PAGE_IMAGE");
+  }
+
+  return {
+    buffer,
+    mime: header.includes("image/jpeg") || header.includes("image/jpg")
+      ? "image/jpeg"
+      : "image/png",
+  };
+}
+
+async function generatePdfFromRenderedOverlays(
+  body: Form101Payload,
+  templatePath: string,
+  renderedImages: RenderedPageImage[]
+) {
+  const templateBytes = await fs.readFile(templatePath);
+  const sourcePdf = await PDFDocument.load(templateBytes);
+  const outputPdf = await PDFDocument.create();
+
+  const sourcePages = sourcePdf.getPages();
+  if (!sourcePages.length) {
+    throw new Error("INVALID_TEMPLATE_PDF");
+  }
+
+  const pageIndexes = sourcePages.length >= 2 ? [0, 1] : [0];
+  const copiedPages = await outputPdf.copyPages(sourcePdf, pageIndexes);
+
+  copiedPages.forEach((copiedPage) => outputPdf.addPage(copiedPage));
+
+  for (const rendered of renderedImages) {
+    const pageIndex = rendered.page - 1;
+    const targetPage = outputPdf.getPages()[pageIndex];
+    if (!targetPage) continue;
+
+    const { buffer, mime } = dataUrlToBuffer(rendered.dataUrl);
     const image =
-      imageData.imageType === "png"
-        ? await pdfDoc.embedPng(imageBytes)
-        : await pdfDoc.embedJpg(imageBytes);
+      mime === "image/jpeg"
+        ? await outputPdf.embedJpg(buffer)
+        : await outputPdf.embedPng(buffer);
 
-    const page = pdfDoc.addPage([pageWidth, pageHeight]);
-    page.drawImage(image, {
+    const { width, height } = targetPage.getSize();
+
+    targetPage.drawImage(image, {
       x: 0,
       y: 0,
-      width: pageWidth,
-      height: pageHeight,
+      width,
+      height,
     });
   }
 
-  if (pdfDoc.getPageCount() === 0) return null;
+  const templateConfig = await resolveForm101TemplateConfig(body).catch(() => ({
+    fields: FORM101_FIELD_MAP as unknown as FieldMap,
+    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
+    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
+  }));
 
-  const pdfBytes = await pdfDoc.save();
+  const pdfBytes = await outputPdf.save();
 
   return {
     pdfBuffer: Buffer.from(pdfBytes),
@@ -2254,12 +2310,6 @@ async function generatePdfFromRenderedPageImages(body: Form101Payload) {
 }
 
 async function generateForm101Pdf(body: Form101Payload) {
-  const renderedPdf = await generatePdfFromRenderedPageImages(body);
-
-  if (renderedPdf) {
-    return renderedPdf;
-  }
-
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -2271,6 +2321,12 @@ async function generateForm101Pdf(body: Form101Payload) {
 
   if (!templateExists) {
     throw new Error("חסר קובץ public/forms/tofes-101.pdf");
+  }
+
+  const renderedImages = getRenderedPageImages(body);
+
+  if (renderedImages.length > 0) {
+    return generatePdfFromRenderedOverlays(body, templatePath, renderedImages);
   }
 
   const templateBytes = await fs.readFile(templatePath);
