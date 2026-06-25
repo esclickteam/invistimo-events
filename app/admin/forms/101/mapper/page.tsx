@@ -34,6 +34,8 @@ type FieldItem = {
   enabled: boolean;
   isFixed?: boolean;
   fixedValue?: string;
+  dependsOnKey?: string;
+  showWhenValue?: string;
 };
 
 type DragState = {
@@ -54,6 +56,9 @@ const TEMPLATE_API_URL = "/api/admin/forms/101/template";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
+
+const OTHER_INCOME_PARENT_KEY = "otherHasIncome";
+const OTHER_INCOME_SHOW_WHEN_CHECKED = "checked";
 
 const CHILDREN_ROW_COUNT = 13;
 const CHILDREN_FIRST_ORDER = 32;
@@ -844,6 +849,118 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     fontSize: 18,
     align: "center",
   },
+  {
+    key: "otherIncomeMonthlySalary",
+    label: "משכורת חודש",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1008,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomeExtraSalary",
+    label: "משכורת בעד משרה נוספת",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1038,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomePartialSalary",
+    label: "משכורת חלקית",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1068,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomeDailyWage",
+    label: "שכר עבודה / עובד יומי",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1098,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomeAllowance",
+    label: "קצבה",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1128,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomeScholarship",
+    label: "מלגה",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1158,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
+  {
+    key: "otherIncomeOtherSource",
+    label: "מקור אחר",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 1188,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+    dependsOnKey: OTHER_INCOME_PARENT_KEY,
+    showWhenValue: OTHER_INCOME_SHOW_WHEN_CHECKED,
+  },
 
   {
     key: "spouseId",
@@ -1324,6 +1441,8 @@ function fieldToMap(field: FieldItem) {
     digitGroupGap: field.digitGroupGap || null,
     maxDigits: field.maxDigits || null,
     align: field.align || "right",
+    dependsOnKey: field.dependsOnKey || null,
+    showWhenValue: field.showWhenValue || null,
   };
 }
 
@@ -1404,6 +1523,8 @@ function templateFieldsToFields(templateFields: any) {
       enabled: typeof value?.enabled === "boolean" ? value.enabled : true,
       isFixed: typeof value?.isFixed === "boolean" ? value.isFixed : false,
       fixedValue: String(value?.fixedValue || ""),
+      dependsOnKey: value?.dependsOnKey ? String(value.dependsOnKey) : base?.dependsOnKey,
+      showWhenValue: value?.showWhenValue ? String(value.showWhenValue) : base?.showWhenValue,
     } as FieldItem;
   });
 
