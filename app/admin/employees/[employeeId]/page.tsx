@@ -23,6 +23,7 @@ type DocumentType =
 
 type EmployeeProfile = {
   id: string;
+  businessId: string;
   name: string;
   email: string;
   phone: string;
@@ -35,6 +36,7 @@ type EmployeeProfile = {
 
 type AdminEmployeeDocument = {
   _id: string;
+  businessId?: string;
   id?: string;
   source: "form" | "agreement";
   employeeId?: string;
@@ -126,6 +128,7 @@ const API = {
   updateFormStatus: (formId: string) => `/api/admin/forms/101/${formId}/status`,
   updateAgreementStatus: (agreementId: string) =>
     `/api/admin/employee-agreements/${agreementId}/status`,
+  uploadForm101: "/api/forms/101/upload",
   hours: (employeeId: string, month: string) =>
     `/api/admin/employees/${encodeURIComponent(
       employeeId,
@@ -388,7 +391,8 @@ function Icon({
     | "money"
     | "calendar"
     | "sparkles"
-    | "sales";
+    | "sales"
+    | "upload";
   className?: string;
 }) {
   const common = {
@@ -454,6 +458,16 @@ function Icon({
         <path d="M12 3v12" />
         <path d="m7 10 5 5 5-5" />
         <path d="M5 21h14" />
+      </svg>
+    );
+  }
+
+  if (name === "upload") {
+    return (
+      <svg {...common}>
+        <path d="M12 16V4" />
+        <path d="m6 10 6-6 6 6" />
+        <path d="M20 16v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" />
       </svg>
     );
   }
@@ -556,6 +570,7 @@ export default function AdminEmployeeFilePage() {
 
   const [employee, setEmployee] = useState<EmployeeProfile>({
     id: employeeId,
+    businessId: "",
     name: "",
     email: "",
     phone: "",
@@ -594,6 +609,8 @@ export default function AdminEmployeeFilePage() {
   const [salesLoading, setSalesLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [updatingDocId, setUpdatingDocId] = useState<string | null>(null);
+  const [form101UploadFile, setForm101UploadFile] = useState<File | null>(null);
+  const [uploadingForm101, setUploadingForm101] = useState(false);
   const [error, setError] = useState("");
   const [salesError, setSalesError] = useState("");
 
@@ -791,6 +808,7 @@ export default function AdminEmployeeFilePage() {
         mergedDocs.push({
           ...form,
           source: "form",
+          businessId: cleanStr(form.businessId),
           documentType: form.documentType || "form101",
           fileUrl,
           startDate:
@@ -839,6 +857,10 @@ export default function AdminEmployeeFilePage() {
 
       setEmployee({
         id: employeeId,
+        businessId:
+          cleanStr(profile.businessId) ||
+          cleanStr(firstDoc?.businessId) ||
+          cleanStr(forms.find((form) => String(form.employeeId || "") === employeeId)?.businessId),
         name:
           cleanStr(profile.name) ||
           cleanStr(firstDoc?.employeeName) ||
@@ -966,6 +988,70 @@ export default function AdminEmployeeFilePage() {
       );
     } finally {
       setUpdatingDocId(null);
+    }
+  }
+
+
+  async function uploadForm101ForEmployee() {
+    if (uploadingForm101) return;
+
+    try {
+      if (!form101UploadFile) {
+        alert("בחרי קובץ PDF של טופס 101 קודם");
+        return;
+      }
+
+      if (!employeeId) {
+        alert("חסר מזהה עובד");
+        return;
+      }
+
+      const effectiveBusinessId =
+        cleanStr(employee.businessId) ||
+        cleanStr(form101?.businessId) ||
+        cleanStr(idCard?.businessId) ||
+        cleanStr(accountManagement?.businessId) ||
+        cleanStr(agreement?.businessId) ||
+        cleanStr(documents.find((item) => item.businessId)?.businessId);
+
+      if (!effectiveBusinessId) {
+        alert("חסר מזהה עסק לעובד. שמרי קודם את פרטי העובד או ודאי שהעובד משויך לעסק.");
+        return;
+      }
+
+      setUploadingForm101(true);
+
+      const formData = new FormData();
+      formData.append("file", form101UploadFile);
+      formData.append("employeeId", employeeId);
+      formData.append("businessId", effectiveBusinessId);
+      formData.append("documentType", "form101");
+      formData.append("taxYear", String(new Date().getFullYear()));
+
+      const response = await fetch(API.uploadForm101, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error || data?.message || "שגיאה בהעלאת טופס 101");
+      }
+
+      setForm101UploadFile(null);
+      await loadEmployee();
+      alert("טופס 101 הועלה לתיק העובד בהצלחה");
+    } catch (uploadError) {
+      console.error("ADMIN UPLOAD FORM 101 FAILED:", uploadError);
+      alert(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "שגיאה בהעלאת טופס 101",
+      );
+    } finally {
+      setUploadingForm101(false);
     }
   }
 
@@ -1844,6 +1930,47 @@ export default function AdminEmployeeFilePage() {
                       </button>
                     )}
                   </div>
+
+                  {String(type) === "form101" ? (
+                    <div className="mt-4 rounded-3xl border border-dashed border-sky-200 bg-white p-4">
+                      <p className="text-sm font-black text-slate-900">
+                        העלאת טופס 101 מהמייל
+                      </p>
+                      <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                        הורידי מהמייל את קובץ ה-PDF שהתקבל מהטופס החיצוני,
+                        העלי אותו כאן, והוא יישמר בתיק העובד ויופיע לאישור/דחייה.
+                      </p>
+
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf,image/png,image/jpeg"
+                        disabled={uploadingForm101}
+                        onChange={(event) => {
+                          setForm101UploadFile(event.target.files?.[0] || null);
+                        }}
+                        className="mt-3 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-xs file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {form101UploadFile ? (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {form101UploadFile.name} · {formatFileSize(form101UploadFile.size)}
+                        </p>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => void uploadForm101ForEmployee()}
+                        disabled={uploadingForm101 || !form101UploadFile}
+                        className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-xs font-black text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Icon
+                          name={uploadingForm101 ? "refresh" : "upload"}
+                          className={`h-3.5 w-3.5 ${uploadingForm101 ? "animate-spin" : ""}`}
+                        />
+                        {uploadingForm101 ? "מעלה טופס..." : "העלאת טופס 101"}
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
