@@ -1006,7 +1006,7 @@ export default function AdminEmployeeFilePage() {
         return;
       }
 
-      const effectiveBusinessId =
+      const optionalBusinessId =
         cleanStr(employee.businessId) ||
         cleanStr(form101?.businessId) ||
         cleanStr(idCard?.businessId) ||
@@ -1014,19 +1014,17 @@ export default function AdminEmployeeFilePage() {
         cleanStr(agreement?.businessId) ||
         cleanStr(documents.find((item) => item.businessId)?.businessId);
 
-      if (!effectiveBusinessId) {
-        alert("חסר מזהה עסק לעובד. שמרי קודם את פרטי העובד או ודאי שהעובד משויך לעסק.");
-        return;
-      }
-
       setUploadingForm101(true);
 
       const formData = new FormData();
       formData.append("file", form101UploadFile);
       formData.append("employeeId", employeeId);
-      formData.append("businessId", effectiveBusinessId);
       formData.append("documentType", "form101");
       formData.append("taxYear", String(new Date().getFullYear()));
+
+      if (optionalBusinessId) {
+        formData.append("businessId", optionalBusinessId);
+      }
 
       const response = await fetch(API.uploadForm101, {
         method: "POST",
