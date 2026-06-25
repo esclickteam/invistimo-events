@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom" | "date";
 type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldItem = {
@@ -257,6 +257,47 @@ function ensure13ChildrenRowsWithoutChangingExistingPositions(
 
 function buildInitialChildrenFields() {
   return buildExactChildrenFields();
+}
+
+
+const CHANGES_SECTION_START_ORDER = 155;
+const CHANGES_SECTION_ORDER_KEYS = [
+  "change1Date",
+  "change1Details",
+  "change1NoticeDate",
+  "change1Signature",
+  "change2Date",
+  "change2Details",
+  "change2NoticeDate",
+  "change2Signature",
+  "change3Date",
+  "change3Details",
+  "change3NoticeDate",
+  "change3Signature",
+] as const;
+
+function forceChangesSectionOrderFrom155(sourceFields: FieldItem[]) {
+  const changesOrderMap = new Map<string, number>(
+    CHANGES_SECTION_ORDER_KEYS.map((key, index) => [
+      key,
+      CHANGES_SECTION_START_ORDER + index,
+    ]),
+  );
+
+  return sourceFields.map((field) => {
+    const forcedOrder = changesOrderMap.get(field.key);
+
+    if (forcedOrder) {
+      return {
+        ...field,
+        section: "changes",
+        page: 1 as PageNumber,
+        order: forcedOrder,
+      };
+    }
+
+    return field;
+  });
 }
 
 const SECTIONS = [
@@ -1027,7 +1068,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     sample: "",
     fontSize: 14,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    digitSpacingMode: "equal",
+    digitSpacingMode: "date",
     digitGroupGap: 0,
     maxDigits: 8,
     align: "left",
@@ -1059,7 +1100,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     sample: "",
     fontSize: 14,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    digitSpacingMode: "equal",
+    digitSpacingMode: "date",
     digitGroupGap: 0,
     maxDigits: 8,
     align: "left",
@@ -1091,7 +1132,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     sample: "",
     fontSize: 14,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    digitSpacingMode: "equal",
+    digitSpacingMode: "date",
     digitGroupGap: 0,
     maxDigits: 8,
     align: "left",
@@ -1123,7 +1164,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     sample: "",
     fontSize: 14,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    digitSpacingMode: "equal",
+    digitSpacingMode: "date",
     digitGroupGap: 0,
     maxDigits: 8,
     align: "left",
@@ -1135,6 +1176,71 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     page: 1,
     x: 70,
     y: 1250,
+    width: 85,
+    height: 22,
+    type: "signature",
+    sample: "חתימה",
+    fontSize: 13,
+    align: "center",
+  },
+
+  {
+    key: "change3Date",
+    label: "שינוי 3 תאריך השינוי",
+    section: "changes",
+    page: 1,
+    x: 720,
+    y: 1276,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "date",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change3Details",
+    label: "שינוי 3 פרטי השינוי",
+    section: "changes",
+    page: 1,
+    x: 310,
+    y: 1276,
+    width: 390,
+    height: 22,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "right",
+  },
+  {
+    key: "change3NoticeDate",
+    label: "שינוי 3 תאריך הודעה",
+    section: "changes",
+    page: 1,
+    x: 175,
+    y: 1276,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "date",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change3Signature",
+    label: "שינוי 3 חתימת העובד/ת",
+    section: "changes",
+    page: 1,
+    x: 70,
+    y: 1276,
     width: 85,
     height: 22,
     type: "signature",
@@ -1341,9 +1447,11 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
     fixedValue: String(field.fixedValue || ""),
     digitSpacingMode:
-      field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
-        ? "group"
-        : "equal",
+      field.digitSpacingMode === "date"
+        ? "date"
+        : field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
+          ? "group"
+          : "equal",
     digitGaps: Array.isArray(field.digitGaps)
       ? field.digitGaps
           .map((gap) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
@@ -1356,8 +1464,10 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
   })) as FieldItem[];
 }
 
-const INITIAL_FIELDS = ensure13ChildrenRowsWithoutChangingExistingPositions(
-  normalizeFields(INITIAL_FIELDS_RAW),
+const INITIAL_FIELDS = forceChangesSectionOrderFrom155(
+  ensure13ChildrenRowsWithoutChangingExistingPositions(
+    normalizeFields(INITIAL_FIELDS_RAW),
+  ),
 );
 
 function loadFields() {
@@ -1369,8 +1479,10 @@ function loadFields() {
 
     const parsed = JSON.parse(saved);
     return Array.isArray(parsed)
-      ? ensure13ChildrenRowsWithoutChangingExistingPositions(
-          normalizeFields(parsed),
+      ? forceChangesSectionOrderFrom155(
+          ensure13ChildrenRowsWithoutChangingExistingPositions(
+            normalizeFields(parsed),
+          ),
         )
       : INITIAL_FIELDS;
   } catch {
@@ -1481,6 +1593,15 @@ function getFieldTypeLabel(type: FieldType) {
   return type;
 }
 
+function formatDateDigits(value: unknown) {
+  const digits = onlyDigits(value).slice(0, 8);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 function renderValue(field: FieldItem, showValues: boolean) {
   if (!showValues) return null;
 
@@ -1513,6 +1634,23 @@ function renderValue(field: FieldItem, showValues: boolean) {
   if (field.type === "digits") {
     const digits = onlyDigits(displayValue);
     const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
+
+    if (field.digitSpacingMode === "date") {
+      return (
+        <span
+          dir="ltr"
+          className="block h-full w-full overflow-hidden whitespace-nowrap text-blue-900"
+          style={{
+            fontSize: field.fontSize,
+            lineHeight: `${field.height}px`,
+            textAlign: alignToText(field.align),
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {formatDateDigits(sliced)}
+        </span>
+      );
+    }
 
     return (
       <span
@@ -1622,10 +1760,12 @@ function templateFieldsToFields(templateFields: any) {
           ? base?.digitGap
           : Number(value.digitGap),
       digitSpacingMode:
-        value?.digitSpacingMode === "group" ||
-        value?.digitSpacingMode === "custom"
-          ? "group"
-          : "equal",
+        value?.digitSpacingMode === "date"
+          ? "date"
+          : value?.digitSpacingMode === "group" ||
+              value?.digitSpacingMode === "custom"
+            ? "group"
+            : "equal",
       digitGaps: Array.isArray(value?.digitGaps)
         ? value.digitGaps
             .map((gap: any) =>
@@ -1675,8 +1815,10 @@ function templateFieldsToFields(templateFields: any) {
     (field) => !existingKeys.has(field.key),
   );
 
-  return ensure13ChildrenRowsWithoutChangingExistingPositions(
-    normalizeFields([...fromServer, ...missingDefaults]),
+  return forceChangesSectionOrderFrom155(
+    ensure13ChildrenRowsWithoutChangingExistingPositions(
+      normalizeFields([...fromServer, ...missingDefaults]),
+    ),
   ).sort((a, b) => a.order - b.order);
 }
 
@@ -2829,6 +2971,7 @@ export default function Form101MapperPage() {
                     >
                       <option value="equal">מרווח שווה בין כל הספרות</option>
                       <option value="group">קידומת + מספר עם רווח באמצע</option>
+                      <option value="date">תאריך DD/MM/YYYY</option>
                     </select>
                   </label>
 
@@ -2896,10 +3039,8 @@ export default function Form101MapperPage() {
                   </label>
 
                   <div className="col-span-2 rounded-2xl bg-sky-50 px-4 py-3 text-[11px] font-bold leading-5 text-sky-800">
-                    לטלפון/נייד: בוחרים “קידומת + מספר”. באורך קידומת אפשר לבחור
-                    אוטומטי לפי המספר: 05/073/077 או כל מספר באורך 10 = קידומת 3
-                    ספרות, 02/03/04/08/09 באורך 9 = קידומת 2 ספרות. את הרווח
-                    אחרי הקידומת את מגדירה בעצמך, והעובד מקליד את המספר ברצף.
+                    לטלפון/נייד: בוחרים “קידומת + מספר”. לתאריכים בוחרים “תאריך DD/MM/YYYY”,
+                    והעובד יכול להקליד רק ספרות, למשל 04032022, והמערכת מציגה 04/03/2022.
                   </div>
 
                   <label className="text-xs font-black text-slate-500">
