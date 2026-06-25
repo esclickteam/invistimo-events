@@ -116,8 +116,11 @@ type Form101Payload = {
   __form101TemplateConfig?: {
     id?: string;
     _id?: string;
+    templateId?: string;
     updatedAt?: string | Date | null;
     approvedAt?: string | Date | null;
+    templateUpdatedAt?: string | Date | null;
+    templateApprovedAt?: string | Date | null;
     fields?: any;
     pageWidth?: number;
     pageHeight?: number;
@@ -357,6 +360,52 @@ function sanitizeFilePart(value: unknown, fallback: string) {
   return cleaned;
 }
 
+async function loadForm101BackgroundImage(pdfDoc: PDFDocument, pageNumber: 1 | 2) {
+  const candidates = [
+    {
+      filePath: path.join(
+        process.cwd(),
+        "public",
+        "forms",
+        `tofes-101-page-${pageNumber}.png`
+      ),
+      type: "png" as const,
+    },
+    {
+      filePath: path.join(
+        process.cwd(),
+        "public",
+        "forms",
+        `tofes-101-page-${pageNumber}.jpg`
+      ),
+      type: "jpg" as const,
+    },
+    {
+      filePath: path.join(
+        process.cwd(),
+        "public",
+        "forms",
+        `tofes-101-page-${pageNumber}.jpeg`
+      ),
+      type: "jpg" as const,
+    },
+  ];
+
+  for (const candidate of candidates) {
+    if (!(await fileExists(candidate.filePath))) continue;
+
+    const bytes = await fs.readFile(candidate.filePath);
+
+    return candidate.type === "png"
+      ? pdfDoc.embedPng(bytes)
+      : pdfDoc.embedJpg(bytes);
+  }
+
+  throw new Error(
+    `FORM101_BACKGROUND_IMAGE_MISSING: חסרה תמונת רקע public/forms/tofes-101-page-${pageNumber}.png`
+  );
+}
+
 function normalizeFieldType(value: unknown): FieldType {
   const raw = clean(value);
 
@@ -516,20 +565,28 @@ async function resolveForm101TemplateConfig(body: Form101Payload): Promise<Form1
 function getTemplateSnapshotMeta(body: Form101Payload) {
   const snapshot = body.__form101TemplateConfig;
 
-  const rawId = clean(snapshot?.id || snapshot?._id || "");
+  const rawId = clean(snapshot?.templateId || snapshot?.id || snapshot?._id || "");
   const templateId =
     rawId && mongoose.Types.ObjectId.isValid(rawId)
       ? new mongoose.Types.ObjectId(rawId)
       : null;
 
-  const rawUpdatedAt = snapshot?.updatedAt || snapshot?.approvedAt || null;
+  const rawUpdatedAt =
+    snapshot?.templateUpdatedAt || snapshot?.updatedAt || snapshot?.approvedAt || null;
   const parsedUpdatedAt = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
+
+  const rawApprovedAt = snapshot?.templateApprovedAt || snapshot?.approvedAt || null;
+  const parsedApprovedAt = rawApprovedAt ? new Date(rawApprovedAt) : null;
 
   return {
     templateId,
     templateUpdatedAt:
       parsedUpdatedAt && !Number.isNaN(parsedUpdatedAt.getTime())
         ? parsedUpdatedAt
+        : null,
+    templateApprovedAt:
+      parsedApprovedAt && !Number.isNaN(parsedApprovedAt.getTime())
+        ? parsedApprovedAt
         : null,
   };
 }
@@ -579,46 +636,12 @@ function splitPhoneParts(value: unknown) {
   };
 }
 
-function getPdfVisibleBox(page: any) {
-  const size = page.getSize();
-
-  try {
-    const cropBox = typeof page.getCropBox === "function" ? page.getCropBox() : null;
-
-    if (
-      cropBox &&
-      Number.isFinite(Number(cropBox.x)) &&
-      Number.isFinite(Number(cropBox.y)) &&
-      Number.isFinite(Number(cropBox.width)) &&
-      Number.isFinite(Number(cropBox.height)) &&
-      Number(cropBox.width) > 0 &&
-      Number(cropBox.height) > 0
-    ) {
-      return {
-        x: Number(cropBox.x),
-        y: Number(cropBox.y),
-        width: Number(cropBox.width),
-        height: Number(cropBox.height),
-      };
-    }
-  } catch {
-    // אם אין CropBox ממשיכים לפי גודל העמוד הרגיל.
-  }
-
-  return {
-    x: 0,
-    y: 0,
-    width: size.width,
-    height: size.height,
-  };
-}
-
 function getMappedRect(
   page: any,
   field: FieldMapItem,
   templateConfig: Form101TemplateConfig
 ) {
-  const visibleBox = getPdfVisibleBox(page);
+  const { width: pdfWidth, height: pdfHeight } = page.getSize();
 
   const mapperPageWidth =
     templateConfig.pageWidth > 0
@@ -630,16 +653,21 @@ function getMappedRect(
       ? templateConfig.pageHeight
       : DEFAULT_MAPPER_PAGE_HEIGHT;
 
-  const scaleX = visibleBox.width / mapperPageWidth;
-  const scaleY = visibleBox.height / mapperPageHeight;
+  /**
+   * חשוב:
+   * כל המערכת עובדת עכשיו על אותו קנבס בדיוק.
+   * אדמין + עובד + PDF = אותו רקע PNG באותו גודל.
+   * לכן אין CropBox / offset / ניחוש.
+   */
+  const scaleX = pdfWidth / mapperPageWidth;
+  const scaleY = pdfHeight / mapperPageHeight;
 
-  const x = visibleBox.x + field.x * scaleX;
   const width = field.width * scaleX;
   const height = field.height * scaleY;
 
   return {
-    x,
-    y: visibleBox.y + visibleBox.height - (field.y + field.height) * scaleY,
+    x: field.x * scaleX,
+    y: pdfHeight - (field.y + field.height) * scaleY,
     width,
     height,
     scaleX,
@@ -1078,35 +1106,56 @@ async function generateForm101Pdf(
   body: Form101Payload,
   templateConfig: Form101TemplateConfig
 ) {
-  const templatePath = path.join(
-    process.cwd(),
-    "public",
-    "forms",
-    "tofes-101.pdf"
-  );
+  const mapperPageWidth =
+    templateConfig.pageWidth > 0
+      ? templateConfig.pageWidth
+      : DEFAULT_MAPPER_PAGE_WIDTH;
 
-  const templateExists = await fileExists(templatePath);
-
-  if (!templateExists) {
-    throw new Error("חסר קובץ public/forms/tofes-101.pdf");
-  }
-
-  const templateBytes = await fs.readFile(templatePath);
+  const mapperPageHeight =
+    templateConfig.pageHeight > 0
+      ? templateConfig.pageHeight
+      : DEFAULT_MAPPER_PAGE_HEIGHT;
 
   /**
    * חשוב:
-   * לא יוצרים PDF חדש ולא משנים גודל עמוד.
-   * טוענים את טופס 101 המקורי, ומציירים עליו את כל השדות שהוגדרו באדמין.
+   * לא משתמשים יותר ב-PDF המקורי כרקע לציור, כי הדפדפן והשרת
+   * מפרשים PDF בצורה שונה ואז המיקומים זזים.
+   * כולם עובדים על אותו מקור בדיוק:
+   * public/forms/tofes-101-page-1.png
+   * public/forms/tofes-101-page-2.png
+   * באותו גודל של התבנית מהאדמין.
    */
-  const pdfDoc = await PDFDocument.load(templateBytes);
+  const pdfDoc = await PDFDocument.create();
   const font = await loadHebrewFont(pdfDoc);
-  const pages = pdfDoc.getPages();
 
-  if (!pages.length) {
-    throw new Error("INVALID_TEMPLATE_PDF");
-  }
+  const page1Background = await loadForm101BackgroundImage(pdfDoc, 1);
+  const page2Background = await loadForm101BackgroundImage(pdfDoc, 2);
 
-  const fields = Object.entries(templateConfig.fields)
+  const page1 = pdfDoc.addPage([mapperPageWidth, mapperPageHeight]);
+  page1.drawImage(page1Background, {
+    x: 0,
+    y: 0,
+    width: mapperPageWidth,
+    height: mapperPageHeight,
+  });
+
+  const page2 = pdfDoc.addPage([mapperPageWidth, mapperPageHeight]);
+  page2.drawImage(page2Background, {
+    x: 0,
+    y: 0,
+    width: mapperPageWidth,
+    height: mapperPageHeight,
+  });
+
+  const pages = [page1, page2];
+
+  const outputTemplateConfig: Form101TemplateConfig = {
+    ...templateConfig,
+    pageWidth: mapperPageWidth,
+    pageHeight: mapperPageHeight,
+  };
+
+  const fields = Object.entries(outputTemplateConfig.fields)
     .filter(([, field]) => field.enabled)
     .sort(([, a], [, b]) => a.order - b.order) as [string, FieldMapItem][];
 
@@ -1118,7 +1167,7 @@ async function generateForm101Pdf(
       field,
       body,
       font,
-      templateConfig
+      outputTemplateConfig
     );
   }
 
@@ -1262,6 +1311,7 @@ export async function POST(req: NextRequest) {
       templateSnapshot,
       templateId: templateMeta.templateId,
       templateUpdatedAt: templateMeta.templateUpdatedAt,
+      templateApprovedAt: templateMeta.templateApprovedAt,
 
       status: "uploaded",
       rejectionReason: "",

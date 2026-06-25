@@ -47,7 +47,10 @@ type TemplateMeta = {
   approvedAt: string | null;
 };
 
-const PDF_URL = "/forms/tofes-101.pdf";
+const FORM101_PAGE_IMAGES: Record<PageNumber, string> = {
+  1: "/forms/tofes-101-page-1.png",
+  2: "/forms/tofes-101-page-2.png",
+};
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
 const DRAFT_STORAGE_KEY = "invistimo_employee_form101_template_draft_v2_no_samples";
@@ -2310,12 +2313,12 @@ export default function OnlineForm101() {
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
-              <iframe
+              <img
                 key={`${page}-${pdfReloadKey}`}
-                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
-                title="טופס 101"
-                scrolling="no"
-                className="absolute inset-0 h-full w-full border-0"
+                src={FORM101_PAGE_IMAGES[page]}
+                alt={`טופס 101 עמוד ${page}`}
+                draggable={false}
+                className="absolute inset-0 h-full w-full select-none object-fill"
                 style={{ pointerEvents: "none", background: "white" }}
               />
 
