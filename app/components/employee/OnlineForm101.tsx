@@ -1214,8 +1214,18 @@ function clean(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function preserveTextSpaces(value: unknown) {
+  return String(value ?? "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ");
+}
+
+function cleanTextForPayload(value: unknown) {
+  return preserveTextSpaces(value).trim();
+}
+
 function onlyDigits(value: unknown) {
-  return clean(value).replace(/\D/g, "");
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 function getDynamicChildLabel(key: string) {
@@ -1326,7 +1336,7 @@ function getFixedValues(fieldMap: Record<string, FieldConfig>) {
 function normalizeValueByField(value: unknown, field: FieldConfig): FieldValue {
   if (field.type === "check") return Boolean(value);
   if (field.type === "digits") return onlyDigits(value);
-  return clean(value);
+  return cleanTextForPayload(value);
 }
 
 function mergeValuesForTemplate(
@@ -1412,8 +1422,15 @@ function getSectionFields(fieldMap: Record<string, FieldConfig>, section: string
 }
 
 function valueForPdf(value: FieldValue, field: FieldConfig) {
-  if (field.isFixed) return field.fixedValue || "";
+  if (field.isFixed) {
+    return field.type === "digits"
+      ? onlyDigits(field.fixedValue)
+      : cleanTextForPayload(field.fixedValue);
+  }
+
   if (field.type === "digits") return onlyDigits(value);
+  if (field.type === "text") return cleanTextForPayload(value);
+
   return value;
 }
 
@@ -1431,7 +1448,7 @@ function collectChildrenPayload(values: ValuesMap, fieldMap: Record<string, Fiel
     if (!Number.isFinite(row) || row < 1) return;
 
     const current = rows.get(row) || {};
-    const value = clean(values[key]);
+    const value = cleanTextForPayload(values[key]);
 
     if (suffix === "Name") current.name = value;
     if (suffix === "Id") current.idNumber = value;
@@ -1451,7 +1468,7 @@ function collectChildrenPayload(values: ValuesMap, fieldMap: Record<string, Fiel
 
 function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
   const fieldValue = (key: string) => values[key];
-  const text = (key: string) => clean(fieldValue(key));
+  const text = (key: string) => cleanTextForPayload(fieldValue(key));
   const checked = (key: string) => Boolean(fieldValue(key));
   const idNumber = text("idNumber");
 
@@ -1700,7 +1717,7 @@ function FieldControl({
     );
   }
 
-  const stringValue = clean(value);
+  const stringValue = field.type === "text" ? preserveTextSpaces(value) : clean(value);
   const inputValue = field.type === "digits" ? onlyDigits(stringValue) : stringValue;
 
   function alignToJustify(align: TextAlign) {
@@ -1802,6 +1819,7 @@ function FieldControl({
             fontSize: field.fontSize,
             lineHeight: `${field.height}px`,
             textAlign: alignToText(field.align),
+            whiteSpace: "pre",
           }}
         >
           {inputValue}
@@ -1813,7 +1831,7 @@ function FieldControl({
           maxLength={field.maxDigits || undefined}
           onFocus={onSelect}
           onClick={onSelect}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(preserveTextSpaces(event.target.value))}
           className="absolute inset-0 h-full w-full border-0 bg-transparent p-0 text-transparent caret-blue-700 outline-none"
           style={{
             fontSize: Math.max(10, field.fontSize),
