@@ -114,21 +114,6 @@ const Form101FieldSchema = new Schema(
       enum: ["right", "left", "center"],
       default: "right",
     },
-
-    /**
-     * שדות אופציונליים לפתיחה/הסתרה לפי שדה אחר,
-     * למשל תתי-סעיפים של הכנסות אחרות אחרי סימון "יש הכנסות אחרות".
-     */
-    dependsOnKey: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    showWhenValue: {
-      type: Schema.Types.Mixed,
-      default: null,
-    },
   },
   {
     _id: false,

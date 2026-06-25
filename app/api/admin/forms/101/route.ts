@@ -23,8 +23,6 @@ function extractUserId(authResult: any) {
       authResult.id ||
       authResult._id ||
       authResult.sub ||
-      authResult.user?._id ||
-      authResult.user?.id ||
       ""
   );
 }
@@ -50,12 +48,8 @@ async function requireAdmin(req: NextRequest) {
   return user;
 }
 
-function cleanString(value: unknown) {
-  return String(value ?? "").trim();
-}
-
 function normalizeDocumentType(value: string | null) {
-  const raw = cleanString(value);
+  const raw = String(value || "").trim();
 
   if (raw === "form101") return "form101";
   if (raw === "idCard") return "idCard";
@@ -72,38 +66,10 @@ function documentTypeLabel(documentType?: string) {
   return "טופס 101";
 }
 
-function normalizeFormFieldValues(value: any) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, item])
-  );
-}
-
-function normalizeTemplateSnapshot(value: any) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-
-  const fieldsSource =
-    value.fields instanceof Map
-      ? Object.fromEntries(value.fields)
-      : value.fields && typeof value.fields === "object"
-      ? value.fields
-      : {};
-
-  return {
-    ...value,
-    fields: fieldsSource,
-    pageWidth: Number(value.pageWidth || 900),
-    pageHeight: Number(value.pageHeight || 1280),
-  };
-}
-
 function serializeForm(form: any, employee?: any) {
   const documentType = String(
     form.documentType || "form101"
   ) as EmployeeDocumentType;
-
-  const templateSnapshot = normalizeTemplateSnapshot(form.templateSnapshot);
 
   return {
     _id: String(form._id),
@@ -143,18 +109,6 @@ function serializeForm(form: any, employee?: any) {
 
     createdAt: form.createdAt,
     updatedAt: form.updatedAt,
-
-    // חשוב לתיק עובד / צפייה חוזרת / ייצוא חוזר לפי אותה תבנית בדיוק
-    formFieldValues: normalizeFormFieldValues(form.formFieldValues),
-    templateSnapshot,
-    templateId: form.templateId ? String(form.templateId) : "",
-    templateUpdatedAt: form.templateUpdatedAt || null,
-    templateApprovedAt: form.templateApprovedAt || null,
-
-    hasTemplateSnapshot: Boolean(templateSnapshot?.fields),
-    hasFormFieldValues: Boolean(
-      form.formFieldValues && Object.keys(form.formFieldValues || {}).length
-    ),
   };
 }
 
@@ -166,17 +120,18 @@ export async function GET(req: NextRequest) {
 
     if (!admin) {
       return NextResponse.json(
-        { success: false, error: "אין הרשאת אדמין" },
+        { error: "אין הרשאת אדמין" },
         { status: 403 }
       );
     }
 
     const { searchParams } = new URL(req.url);
 
-    const status = cleanString(searchParams.get("status"));
-    const taxYear = cleanString(searchParams.get("taxYear"));
+    const status = String(searchParams.get("status") || "").trim();
+    const taxYear = String(searchParams.get("taxYear") || "").trim();
 
     /**
+     * חדש:
      * documentType=form101
      * documentType=idCard
      * documentType=accountManagement
@@ -255,18 +210,20 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+
       forms: data,
+
+      
+      // שם נוסף אם תרצי בהמשך לקרוא לזה documents
       documents: data,
+
       stats,
     });
   } catch (error) {
     console.error("ADMIN GET EMPLOYEE DOCUMENTS FAILED:", error);
 
     return NextResponse.json(
-      {
-        success: false,
-        error: "שגיאה בטעינת מסמכי עובדים",
-      },
+      { error: "שגיאה בטעינת מסמכי עובדים" },
       { status: 500 }
     );
   }

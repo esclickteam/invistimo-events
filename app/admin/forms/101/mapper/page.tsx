@@ -46,10 +46,7 @@ type DragState = {
   originalPositions: Record<string, { x: number; y: number }>;
 } | null;
 
-const FORM101_PAGE_IMAGES: Record<PageNumber, string> = {
-  1: "/forms/tofes-101-page-1.png",
-  2: "/forms/tofes-101-page-2.png",
-};
+const PDF_URL = "/forms/tofes-101.pdf";
 
 const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v4";
 const APPROVED_STORAGE_KEY =
@@ -2459,7 +2456,7 @@ export default function Form101MapperPage() {
               </h1>
 
               <p className="mt-2 text-sm font-bold text-slate-500">
-                מוצגות כאן תמונות הרקע המדויקות: public/forms/tofes-101-page-1.png ו-public/forms/tofes-101-page-2.png. ניתן לשנות
+                מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ניתן לשנות
                 מספר שדה, להפעיל/לכבות שדות, להגדיר שדה קבוע לכל העובדים או שדה
                 שהעובד ממלא, למחוק שדות חדשים, ולאשר תבנית לפני שימוש.
               </p>
@@ -2705,12 +2702,12 @@ export default function Form101MapperPage() {
               onPointerCancel={stopDrag}
               onPointerLeave={stopDrag}
             >
-              <img
+              <iframe
                 key={`${page}-${pdfReloadKey}`}
-                src={FORM101_PAGE_IMAGES[page]}
-                alt={`טופס 101 עמוד ${page}`}
-                draggable={false}
-                className="absolute inset-0 h-full w-full select-none object-fill"
+                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
+                title="טופס 101 מקורי"
+                scrolling="no"
+                className="absolute inset-0 h-full w-full border-0"
                 style={{
                   pointerEvents: "none",
                   background: "white",
