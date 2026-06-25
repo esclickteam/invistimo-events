@@ -38,7 +38,6 @@ const Form101FieldSchema = new Schema(
     label: {
       type: String,
       default: "",
-      trim: true,
     },
 
     x: {
@@ -80,7 +79,7 @@ const Form101FieldSchema = new Schema(
 
     digitSpacingMode: {
       type: String,
-      enum: ["equal", "group", "custom", "date"],
+      enum: ["equal", "group", "custom"],
       default: "equal",
     },
 
@@ -115,61 +114,6 @@ const Form101FieldSchema = new Schema(
       enum: ["right", "left", "center"],
       default: "right",
     },
-
-    dependsOnKey: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    showWhenValue: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-  },
-  {
-    _id: false,
-  }
-);
-
-const Form101TemplatePageSchema = new Schema(
-  {
-    pageIndex: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
-    pageNumber: {
-      type: Number,
-      required: true,
-      enum: [1, 2],
-    },
-
-    url: {
-      type: String,
-      default: "/forms/tofes-101.pdf",
-      trim: true,
-    },
-
-    imageUrl: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    name: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
-    type: {
-      type: String,
-      enum: ["image", "pdf"],
-      default: "image",
-    },
   },
   {
     _id: false,
@@ -189,42 +133,6 @@ const Form101TemplateSchema = new Schema(
       type: Number,
       default: null,
       index: true,
-    },
-
-    fileUrl: {
-      type: String,
-      default: "/forms/tofes-101.pdf",
-      trim: true,
-    },
-
-    originalFileName: {
-      type: String,
-      default: "tofes-101.pdf",
-      trim: true,
-    },
-
-    originalFileType: {
-      type: String,
-      enum: ["pdf", "image"],
-      default: "pdf",
-    },
-
-    pageCount: {
-      type: Number,
-      default: 2,
-      min: 1,
-      max: 2,
-    },
-
-    pages: {
-      type: [Form101TemplatePageSchema],
-      default: [],
-    },
-
-    coordinateMode: {
-      type: String,
-      enum: ["pixels", "percent"],
-      default: "pixels",
     },
 
     fields: {
@@ -269,12 +177,6 @@ Form101TemplateSchema.index({
   name: 1,
   isActive: 1,
   createdAt: -1,
-});
-
-Form101TemplateSchema.index({
-  taxYear: 1,
-  isActive: 1,
-  updatedAt: -1,
 });
 
 export default models.Form101Template ||

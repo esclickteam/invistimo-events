@@ -123,15 +123,6 @@ type Form101Payload = {
     pageHeight?: number;
   };
 
-  /**
-   * תמונות שקופות של השדות כפי שהדפדפן צילם אותם.
-   * השרת מדביק אותן על ה-PDF המקורי, ולכן אין ציור עברית מחדש בצד שרת.
-   */
-  __renderedPageImages?:
-    | Record<string, string>
-    | Array<{ page?: number | string; dataUrl?: string; image?: string }>;
-  __renderedPageImagesMode?: string;
-
   [key: string]: any;
 };
 
@@ -2194,132 +2185,6 @@ async function drawField(
 }
 
 
-
-type RenderedPageImage = {
-  page: 1 | 2;
-  dataUrl: string;
-};
-
-function cleanDataUrl(value: unknown) {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!text.startsWith("data:image/")) return "";
-  if (!text.includes(",")) return "";
-  return text;
-}
-
-function getRenderedPageImages(body: Form101Payload): RenderedPageImage[] {
-  const source = body.__renderedPageImages;
-  const result: RenderedPageImage[] = [];
-
-  if (Array.isArray(source)) {
-    for (const item of source) {
-      const page = Number(item?.page) === 2 ? 2 : 1;
-      const dataUrl = cleanDataUrl(item?.dataUrl || item?.image);
-      if (dataUrl) result.push({ page, dataUrl });
-    }
-  } else if (source && typeof source === "object") {
-    for (const [rawPage, rawValue] of Object.entries(source)) {
-      const page = Number(rawPage) === 2 ? 2 : 1;
-      const dataUrl = cleanDataUrl(rawValue);
-      if (dataUrl) result.push({ page, dataUrl });
-    }
-  }
-
-  const byPage = new Map<1 | 2, RenderedPageImage>();
-  for (const item of result) {
-    byPage.set(item.page, item);
-  }
-
-  return Array.from(byPage.values()).sort((a, b) => a.page - b.page);
-}
-
-function dataUrlToBuffer(dataUrl: string) {
-  const commaIndex = dataUrl.indexOf(",");
-  if (commaIndex < 0) {
-    throw new Error("INVALID_RENDERED_PAGE_IMAGE");
-  }
-
-  const header = dataUrl.slice(0, commaIndex).toLowerCase();
-  const base64 = dataUrl.slice(commaIndex + 1);
-  const buffer = Buffer.from(base64, "base64");
-
-  if (!buffer.length) {
-    throw new Error("EMPTY_RENDERED_PAGE_IMAGE");
-  }
-
-  return {
-    buffer,
-    mime: header.includes("image/jpeg") || header.includes("image/jpg")
-      ? "image/jpeg"
-      : "image/png",
-  };
-}
-
-async function generatePdfFromRenderedOverlays(
-  body: Form101Payload,
-  templatePath: string,
-  renderedImages: RenderedPageImage[]
-) {
-  const templateBytes = await fs.readFile(templatePath);
-  const sourcePdf = await PDFDocument.load(templateBytes);
-  const outputPdf = await PDFDocument.create();
-
-  const sourcePages = sourcePdf.getPages();
-  if (!sourcePages.length) {
-    throw new Error("INVALID_TEMPLATE_PDF");
-  }
-
-  const templateConfig = await resolveForm101TemplateConfig(body).catch(() => ({
-    fields: FORM101_FIELD_MAP as unknown as FieldMap,
-    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
-  }));
-
-  const byPage = new Map<1 | 2, RenderedPageImage>();
-  for (const rendered of renderedImages) {
-    byPage.set(rendered.page, rendered);
-  }
-
-  const pageNumbers: Array<1 | 2> = [1, 2];
-
-  for (const pageNumber of pageNumbers) {
-    const sourcePage = sourcePages[Math.min(pageNumber - 1, sourcePages.length - 1)];
-    const { width, height } = sourcePage.getSize();
-    const page = outputPdf.addPage([width, height]);
-    const rendered = byPage.get(pageNumber);
-
-    if (!rendered) {
-      const [copiedPage] = await outputPdf.copyPages(
-        sourcePdf,
-        [Math.min(pageNumber - 1, sourcePages.length - 1)]
-      );
-      outputPdf.removePage(outputPdf.getPageCount() - 1);
-      outputPdf.addPage(copiedPage);
-      continue;
-    }
-
-    const { buffer, mime } = dataUrlToBuffer(rendered.dataUrl);
-    const image =
-      mime === "image/jpeg"
-        ? await outputPdf.embedJpg(buffer)
-        : await outputPdf.embedPng(buffer);
-
-    page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width,
-      height,
-    });
-  }
-
-  const pdfBytes = await outputPdf.save();
-
-  return {
-    pdfBuffer: Buffer.from(pdfBytes),
-    templateConfig,
-  };
-}
-
 async function generateForm101Pdf(body: Form101Payload) {
   const templatePath = path.join(
     process.cwd(),
@@ -2332,12 +2197,6 @@ async function generateForm101Pdf(body: Form101Payload) {
 
   if (!templateExists) {
     throw new Error("חסר קובץ public/forms/tofes-101.pdf");
-  }
-
-  const renderedImages = getRenderedPageImages(body);
-
-  if (renderedImages.length > 0) {
-    return generatePdfFromRenderedOverlays(body, templatePath, renderedImages);
   }
 
   const templateBytes = await fs.readFile(templatePath);

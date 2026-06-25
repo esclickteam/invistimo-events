@@ -57,134 +57,6 @@ const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
 
-
-type PdfPageCanvasProps = {
-  pageNumber: PageNumber;
-  width: number;
-  height: number;
-  className?: string;
-};
-
-async function loadPdfJs() {
-  const pdfjsLib = await import("pdfjs-dist");
-
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }
-
-  return pdfjsLib;
-}
-
-function PdfPageCanvas({
-  pageNumber,
-  width,
-  height,
-  className = "",
-}: PdfPageCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let renderTask: any = null;
-
-    async function renderPdfPage() {
-      try {
-        setReady(false);
-        setFailed(false);
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const pdfjsLib = await loadPdfJs();
-        const loadingTask = pdfjsLib.getDocument({
-          url: PDF_URL,
-          disableAutoFetch: true,
-          disableStream: true,
-        });
-
-        const pdf = await loadingTask.promise;
-        const pdfPage = await pdf.getPage(pageNumber);
-        const viewport = pdfPage.getViewport({ scale: 1 });
-        const scale = Math.max(width / viewport.width, height / viewport.height);
-        const scaledViewport = pdfPage.getViewport({ scale });
-        const outputScale = Math.max(2, Math.min(3, window.devicePixelRatio || 2));
-
-        canvas.width = Math.round(width * outputScale);
-        canvas.height = Math.round(height * outputScale);
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-
-        const context = canvas.getContext("2d", { alpha: false });
-        if (!context) throw new Error("NO_CANVAS_CONTEXT");
-
-        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, width, height);
-
-        const offsetX = (width - scaledViewport.width) / 2;
-        const offsetY = (height - scaledViewport.height) / 2;
-
-        context.save();
-        context.translate(offsetX, offsetY);
-        renderTask = pdfPage.render({
-          canvas,
-          canvasContext: context,
-          viewport: scaledViewport,
-          intent: "display",
-        });
-
-        await renderTask.promise;
-        context.restore();
-
-        if (!cancelled) setReady(true);
-      } catch (error: any) {
-        if (String(error?.name || "") === "RenderingCancelledException") return;
-        console.error("FORM 101 PDF PAGE RENDER ERROR:", error);
-        if (!cancelled) setFailed(true);
-      }
-    }
-
-    void renderPdfPage();
-
-    return () => {
-      cancelled = true;
-      try {
-        renderTask?.cancel?.();
-      } catch {}
-    };
-  }, [pageNumber, width, height]);
-
-  return (
-    <div
-      className={`absolute inset-0 bg-white ${className}`}
-      data-form101-pdf-page={pageNumber}
-      data-ready={ready ? "true" : "false"}
-      style={{ width, height }}
-    >
-      <canvas
-        ref={canvasRef}
-        className="block h-full w-full bg-white"
-        aria-label={`עמוד ${pageNumber} של טופס 101`}
-      />
-
-      {!ready && !failed && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white text-sm font-black text-slate-400">
-          טוען עמוד {pageNumber}...
-        </div>
-      )}
-
-      {failed && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white text-sm font-black text-rose-600">
-          לא ניתן להציג את עמוד {pageNumber}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 const OTHER_INCOME_PARENT_KEY = "otherHasIncome";
 const OTHER_INCOME_SHOW_WHEN_CHECKED = "checked";
 
@@ -1989,27 +1861,6 @@ async function saveTemplateToServer(fields: FieldItem[]) {
     },
     credentials: "include",
     body: JSON.stringify({
-      fileUrl: PDF_URL,
-      pageCount: 2,
-      coordinateMode: "pixels",
-      pages: [
-        {
-          pageIndex: 0,
-          pageNumber: 1,
-          url: PDF_URL,
-          imageUrl: "",
-          name: "טופס 101 - עמוד 1",
-          type: "pdf",
-        },
-        {
-          pageIndex: 1,
-          pageNumber: 2,
-          url: PDF_URL,
-          imageUrl: "",
-          name: "טופס 101 - עמוד 2",
-          type: "pdf",
-        },
-      ],
       fields: fieldsToMap(fields),
       pageWidth: PAGE_WIDTH,
       pageHeight: PAGE_HEIGHT,
@@ -2851,12 +2702,16 @@ export default function Form101MapperPage() {
               onPointerCancel={stopDrag}
               onPointerLeave={stopDrag}
             >
-              <PdfPageCanvas
+              <iframe
                 key={`${page}-${pdfReloadKey}`}
-                pageNumber={page}
-                width={PAGE_WIDTH}
-                height={PAGE_HEIGHT}
-                className="pointer-events-none"
+                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
+                title="טופס 101 מקורי"
+                scrolling="no"
+                className="absolute inset-0 h-full w-full border-0"
+                style={{
+                  pointerEvents: "none",
+                  background: "white",
+                }}
               />
 
               {visibleFields.map((field) => {

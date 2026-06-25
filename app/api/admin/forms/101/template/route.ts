@@ -11,10 +11,8 @@ export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "group" | "custom" | "date";
+type DigitSpacingMode = "equal" | "group" | "custom";
 type DigitGroupSizeMode = "auto" | "manual";
-type PageFileType = "image" | "pdf";
-type CoordinateMode = "pixels" | "percent";
 
 type FieldConfig = {
   page: 1 | 2;
@@ -32,30 +30,16 @@ type FieldConfig = {
   fontSize: number;
   digitGap?: number | null;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[];
+  digitGaps?: number[]; // legacy only
   digitGroupSize?: number | null;
   digitGroupSizeMode?: DigitGroupSizeMode;
   digitGroupGap?: number | null;
   maxDigits?: number | null;
   align?: TextAlign;
-  dependsOnKey?: string;
-  showWhenValue?: string;
 };
 
-type TemplatePage = {
-  pageIndex: number;
-  pageNumber: 1 | 2;
-  url: string;
-  imageUrl: string;
-  name: string;
-  type: PageFileType;
-};
-
-const DEFAULT_FILE_URL = "/forms/tofes-101.pdf";
-const DEFAULT_FILE_NAME = "tofes-101.pdf";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
-const PAGE_COUNT = 2;
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -103,14 +87,6 @@ function cleanNumber(value: unknown, fallback: number) {
   return Number.isFinite(num) ? num : fallback;
 }
 
-function normalizeCoordinateMode(value: unknown): CoordinateMode {
-  return cleanString(value) === "percent" ? "percent" : "pixels";
-}
-
-function normalizePageFileType(value: unknown): PageFileType {
-  return cleanString(value) === "pdf" ? "pdf" : "image";
-}
-
 function normalizeAlign(value: unknown): TextAlign {
   const raw = cleanString(value);
 
@@ -122,11 +98,7 @@ function normalizeAlign(value: unknown): TextAlign {
 
 function normalizeDigitSpacingMode(value: unknown): DigitSpacingMode {
   const raw = cleanString(value);
-
-  if (raw === "group") return "group";
-  if (raw === "custom") return "custom";
-  if (raw === "date") return "date";
-
+  if (raw === "group" || raw === "custom") return "group";
   return "equal";
 }
 
@@ -134,7 +106,7 @@ function normalizeDigitGaps(value: unknown) {
   if (!Array.isArray(value)) return [];
 
   return value
-    .map((item) => Math.max(0, cleanNumber(item, 0)))
+    .map((item) => Math.max(1, cleanNumber(item, 13)))
     .filter((item) => Number.isFinite(item));
 }
 
@@ -170,7 +142,7 @@ function normalizeField(field: any): FieldConfig {
     digitGap:
       field?.digitGap === null || field?.digitGap === undefined
         ? null
-        : Math.max(0, cleanNumber(field?.digitGap, 13)),
+        : Math.max(1, cleanNumber(field?.digitGap, 13)),
     digitSpacingMode: normalizeDigitSpacingMode(field?.digitSpacingMode),
     digitGaps: normalizeDigitGaps(field?.digitGaps),
     digitGroupSize:
@@ -187,13 +159,13 @@ function normalizeField(field: any): FieldConfig {
         ? null
         : Math.max(1, cleanNumber(field?.maxDigits, 1)),
     align: normalizeAlign(field?.align),
-    dependsOnKey: cleanString(field?.dependsOnKey),
-    showWhenValue: cleanString(field?.showWhenValue),
   };
 }
 
 function normalizeFieldsMap(fieldsInput: any) {
-  const fields = fieldsInput && typeof fieldsInput === "object" ? fieldsInput : {};
+  const fields =
+    fieldsInput && typeof fieldsInput === "object" ? fieldsInput : {};
+
   const normalized: Record<string, FieldConfig> = {};
 
   Object.entries(fields).forEach(([key, value]) => {
@@ -207,91 +179,10 @@ function normalizeFieldsMap(fieldsInput: any) {
   return normalized;
 }
 
-function buildDefaultPages(fileUrl = DEFAULT_FILE_URL): TemplatePage[] {
-  return [1, 2].map((pageNumber) => ({
-    pageIndex: pageNumber - 1,
-    pageNumber: pageNumber as 1 | 2,
-    url: fileUrl,
-    imageUrl: "",
-    name: `עמוד ${pageNumber}`,
-    type: "pdf" as PageFileType,
-  }));
-}
-
-function normalizePages(pagesInput: any, fileUrl: string): TemplatePage[] {
-  const rawPages = Array.isArray(pagesInput) ? pagesInput : [];
-
-  if (!rawPages.length) {
-    return buildDefaultPages(fileUrl);
-  }
-
-  const normalized = rawPages
-    .map((page: any, index: number): TemplatePage => {
-      const rawPageNumber =
-        page?.pageNumber !== undefined
-          ? page.pageNumber
-          : page?.pageIndex !== undefined
-            ? Number(page.pageIndex) + 1
-            : index + 1;
-
-      const pageNumber = normalizePage(rawPageNumber);
-
-      return {
-        pageIndex: pageNumber - 1,
-        pageNumber,
-        url: cleanString(page?.url) || fileUrl || DEFAULT_FILE_URL,
-        imageUrl: cleanString(page?.imageUrl),
-        name: cleanString(page?.name) || `עמוד ${pageNumber}`,
-        type: normalizePageFileType(page?.type),
-      };
-    })
-    .filter((page) => page.pageNumber === 1 || page.pageNumber === 2);
-
-  const byPage = new Map<number, TemplatePage>();
-  normalized.forEach((page) => byPage.set(page.pageNumber, page));
-
-  [1, 2].forEach((pageNumber) => {
-    if (!byPage.has(pageNumber)) {
-      byPage.set(pageNumber, {
-        pageIndex: pageNumber - 1,
-        pageNumber: pageNumber as 1 | 2,
-        url: fileUrl || DEFAULT_FILE_URL,
-        imageUrl: "",
-        name: `עמוד ${pageNumber}`,
-        type: "pdf",
-      });
-    }
-  });
-
-  return Array.from(byPage.values()).sort((a, b) => a.pageNumber - b.pageNumber);
-}
-
-function mapToPlainObject(value: any) {
-  if (!value) return {};
-
-  if (value instanceof Map) {
-    return Object.fromEntries(value);
-  }
-
-  if (typeof value.toObject === "function") {
-    return value.toObject();
-  }
-
-  return value;
-}
-
 function serializeTemplate(template: any) {
   if (!template) {
-    const fileUrl = DEFAULT_FILE_URL;
-
     return {
       fields: {},
-      fileUrl,
-      originalFileName: DEFAULT_FILE_NAME,
-      originalFileType: "pdf",
-      pageCount: PAGE_COUNT,
-      pages: buildDefaultPages(fileUrl),
-      coordinateMode: "pixels",
       pageWidth: PAGE_WIDTH,
       pageHeight: PAGE_HEIGHT,
       approvedAt: null,
@@ -299,21 +190,16 @@ function serializeTemplate(template: any) {
     };
   }
 
-  const rawFields = mapToPlainObject(template.fields);
-  const fileUrl = cleanString(template.fileUrl) || DEFAULT_FILE_URL;
-  const pages = normalizePages(template.pages, fileUrl);
+  const rawFields =
+    template.fields instanceof Map
+      ? Object.fromEntries(template.fields)
+      : template.fields || {};
 
   return {
     _id: String(template._id),
     id: String(template._id),
     name: template.name || "default",
     taxYear: template.taxYear || null,
-    fileUrl,
-    originalFileName: cleanString(template.originalFileName) || DEFAULT_FILE_NAME,
-    originalFileType: cleanString(template.originalFileType) === "image" ? "image" : "pdf",
-    pageCount: Math.max(1, Math.min(PAGE_COUNT, cleanNumber(template.pageCount, PAGE_COUNT))),
-    pages,
-    coordinateMode: normalizeCoordinateMode(template.coordinateMode),
     fields: rawFields,
     pageWidth: Number(template.pageWidth || PAGE_WIDTH),
     pageHeight: Number(template.pageHeight || PAGE_HEIGHT),
@@ -322,73 +208,6 @@ function serializeTemplate(template: any) {
     approvedBy: template.approvedBy ? String(template.approvedBy) : "",
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
-  };
-}
-
-async function readRequestBody(req: NextRequest) {
-  const contentType = req.headers.get("content-type") || "";
-
-  if (contentType.includes("multipart/form-data")) {
-    const formData = await req.formData();
-    const body: Record<string, any> = {};
-
-    formData.forEach((value, key) => {
-      if (value instanceof File) {
-        body[key] = value;
-        return;
-      }
-
-      const stringValue = String(value || "");
-
-      if (["fields", "pages"].includes(key)) {
-        try {
-          const fallbackJson = key === "fields" ? "{}" : "[]";
-          body[key] = JSON.parse(stringValue || fallbackJson);
-        } catch {
-          body[key] = key === "fields" ? {} : [];
-        }
-        return;
-      }
-
-      body[key] = stringValue;
-    });
-
-    return body;
-  }
-
-  return req.json().catch(() => null);
-}
-
-function buildUpdatePayload(body: any, admin: any) {
-  const fields = normalizeFieldsMap(body?.fields);
-  const pageWidth = Math.max(1, cleanNumber(body?.pageWidth, PAGE_WIDTH));
-  const pageHeight = Math.max(1, cleanNumber(body?.pageHeight, PAGE_HEIGHT));
-  const fileUrl = cleanString(body?.fileUrl) || DEFAULT_FILE_URL;
-  const pages = normalizePages(body?.pages, fileUrl);
-  const coordinateMode = normalizeCoordinateMode(body?.coordinateMode);
-
-  return {
-    fields,
-    $set: {
-      name: "default",
-      taxYear:
-        body?.taxYear === null || body?.taxYear === undefined || body?.taxYear === ""
-          ? null
-          : Math.max(1900, cleanNumber(body?.taxYear, new Date().getFullYear())),
-      fileUrl,
-      originalFileName: cleanString(body?.originalFileName) || DEFAULT_FILE_NAME,
-      originalFileType:
-        cleanString(body?.originalFileType) === "image" ? "image" : "pdf",
-      pageCount: PAGE_COUNT,
-      pages,
-      coordinateMode,
-      fields,
-      pageWidth,
-      pageHeight,
-      isActive: true,
-      approvedAt: new Date(),
-      approvedBy: (admin as any)._id,
-    },
   };
 }
 
@@ -447,8 +266,11 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const body = await readRequestBody(req);
-    const { fields, $set } = buildUpdatePayload(body, admin);
+    const body = await req.json().catch(() => null);
+
+    const fields = normalizeFieldsMap(body?.fields);
+    const pageWidth = Math.max(1, cleanNumber(body?.pageWidth, PAGE_WIDTH));
+    const pageHeight = Math.max(1, cleanNumber(body?.pageHeight, PAGE_HEIGHT));
 
     if (!Object.keys(fields).length) {
       return NextResponse.json(
@@ -466,7 +288,15 @@ export async function PUT(req: NextRequest) {
         isActive: true,
       },
       {
-        $set,
+        $set: {
+          name: "default",
+          fields,
+          pageWidth,
+          pageHeight,
+          isActive: true,
+          approvedAt: new Date(),
+          approvedBy: (admin as any)._id,
+        },
       },
       {
         new: true,
@@ -490,8 +320,4 @@ export async function PUT(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-export async function POST(req: NextRequest) {
-  return PUT(req);
 }
