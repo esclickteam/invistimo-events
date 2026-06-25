@@ -1602,12 +1602,24 @@ function formatDateDigits(value: unknown) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
+
+function preserveTextSpaces(value: unknown) {
+  return String(value ?? "")
+    .replace(/\u00A0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
 function renderValue(field: FieldItem, showValues: boolean) {
   if (!showValues) return null;
 
-  const displayValue = field.isFixed
+  const rawDisplayValue = field.isFixed
     ? field.fixedValue || field.sample
     : field.sample;
+
+  const displayValue =
+    field.type === "text" || field.type === "signature"
+      ? preserveTextSpaces(rawDisplayValue)
+      : rawDisplayValue;
 
   if (field.type === "check") {
     return (
@@ -1680,11 +1692,14 @@ function renderValue(field: FieldItem, showValues: boolean) {
 
   return (
     <span
-      className="block h-full w-full overflow-hidden whitespace-nowrap text-blue-900"
+      className="block h-full w-full overflow-hidden text-blue-900"
       style={{
         fontSize: field.fontSize,
         lineHeight: `${field.height}px`,
         textAlign: alignToText(field.align),
+        whiteSpace: "pre",
+        unicodeBidi: "plaintext",
+        direction: field.align === "left" ? "ltr" : "rtl",
       }}
     >
       {displayValue}
@@ -3082,7 +3097,7 @@ export default function Form101MapperPage() {
                     value={selectedField.sample}
                     onChange={(event) =>
                       updateField(selectedField.key, {
-                        sample: event.target.value,
+                        sample: event.target.value.replace(/\u00A0/g, " "),
                       })
                     }
                     className="mt-1 h-11 w-full rounded-xl border px-3 text-sm font-bold"
@@ -3096,7 +3111,7 @@ export default function Form101MapperPage() {
                     disabled={!selectedField.isFixed}
                     onChange={(event) =>
                       updateField(selectedField.key, {
-                        fixedValue: event.target.value,
+                        fixedValue: event.target.value.replace(/\u00A0/g, " "),
                       })
                     }
                     placeholder="מופיע אוטומטית לכל העובדים"
