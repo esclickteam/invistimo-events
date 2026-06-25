@@ -2038,7 +2038,7 @@ function CaptureField({
     fontSize: Math.max(10, field.fontSize),
     lineHeight: `${field.height}px`,
     color: "#111827",
-    fontFamily: "Arial, Helvetica, sans-serif",
+    fontFamily: "Arial, 'Noto Sans Hebrew', Helvetica, sans-serif",
     fontWeight: 700,
     overflow: "hidden",
     boxSizing: "border-box",
@@ -2135,6 +2135,8 @@ function CaptureField({
         display: "block",
         textAlign: field.align,
         whiteSpace: "pre",
+        unicodeBidi: "plaintext",
+        direction: field.align === "left" ? "ltr" : "rtl",
       }}
     >
       {rawValue}
@@ -2536,10 +2538,12 @@ export default function OnlineForm101() {
 
     const canvas = await html2canvas(node, {
       backgroundColor: "#ffffff",
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       logging: false,
+      imageTimeout: 15000,
+      removeContainer: true,
       width: pageWidth,
       height: pageHeight,
       scrollX: 0,
@@ -2554,11 +2558,20 @@ export default function OnlineForm101() {
         if (clonedNode) {
           clonedNode.style.background = "#ffffff";
           clonedNode.style.opacity = "1";
+          clonedNode.style.visibility = "visible";
+          clonedNode.style.transform = "none";
         }
+
+        clonedDocument
+          .querySelectorAll("[data-form101-capture-page]")
+          .forEach((item) => {
+            const element = item as HTMLElement;
+            element.style.color = "#111827";
+          });
       },
     });
 
-    return canvas.toDataURL("image/png", 1);
+    return canvas.toDataURL("image/jpeg", 0.92);
   }
 
   async function captureFinalRenderedPages() {
@@ -2875,12 +2888,13 @@ export default function OnlineForm101() {
         aria-hidden="true"
         className="pointer-events-none fixed top-0"
         style={{
-          left: -100000,
+          left: -10000,
           width: pageWidth,
           height: pageHeight * 2 + 40,
           overflow: "hidden",
           background: "transparent",
           opacity: 1,
+          zIndex: -1,
         }}
       >
         <div
