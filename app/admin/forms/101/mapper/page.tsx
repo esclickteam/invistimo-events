@@ -185,7 +185,9 @@ function buildDefaultChildField(row: number, suffix: ChildSuffix): FieldItem {
     fontSize: definition.fontSize,
     digitGap: "digitGap" in definition ? definition.digitGap : undefined,
     digitSpacingMode:
-      "digitSpacingMode" in definition ? definition.digitSpacingMode : undefined,
+      "digitSpacingMode" in definition
+        ? definition.digitSpacingMode
+        : undefined,
     digitGaps: [],
     digitGroupSize:
       "digitGroupSize" in definition ? definition.digitGroupSize : undefined,
@@ -221,14 +223,18 @@ function ensure13ChildrenRowsWithoutChangingExistingPositions(
 ) {
   const sortedFields = [...sourceFields].sort((a, b) => a.order - b.order);
   const childrenLastOrder =
-    CHILDREN_FIRST_ORDER + CHILDREN_ROW_COUNT * CHILDREN_ROW_FIELD_DEFS.length - 1;
+    CHILDREN_FIRST_ORDER +
+    CHILDREN_ROW_COUNT * CHILDREN_ROW_FIELD_DEFS.length -
+    1;
 
   const beforeChildren = sortedFields.filter(
-    (field) => field.section !== "children" && field.order < CHILDREN_FIRST_ORDER,
+    (field) =>
+      field.section !== "children" && field.order < CHILDREN_FIRST_ORDER,
   );
 
   const afterChildren = sortedFields.filter(
-    (field) => field.section !== "children" && field.order >= CHILDREN_FIRST_ORDER,
+    (field) =>
+      field.section !== "children" && field.order >= CHILDREN_FIRST_ORDER,
   );
 
   let nextOrder = 1;
@@ -261,6 +267,7 @@ const SECTIONS = [
   { key: "income", title: "ד. הכנסות ממעסיק זה", page: 1 },
   { key: "otherIncome", title: "ה. הכנסות אחרות", page: 1 },
   { key: "spouse", title: "ו. בן/בת זוג", page: 1 },
+  { key: "changes", title: "ז. שינויים במהלך השנה", page: 1 },
   { key: "credits", title: "ח. פטור / זיכוי ממס", page: 2 },
   { key: "taxCoordination", title: "ט. תיאום מס", page: 2 },
   { key: "declaration", title: "י. הצהרה וחתימה", page: 2 },
@@ -1008,6 +1015,135 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
   },
 
   {
+    key: "change1Date",
+    label: "שינוי 1 תאריך השינוי",
+    section: "changes",
+    page: 1,
+    x: 720,
+    y: 1224,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "equal",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change1Details",
+    label: "שינוי 1 פרטי השינוי",
+    section: "changes",
+    page: 1,
+    x: 310,
+    y: 1224,
+    width: 390,
+    height: 22,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "right",
+  },
+  {
+    key: "change1NoticeDate",
+    label: "שינוי 1 תאריך הודעה",
+    section: "changes",
+    page: 1,
+    x: 175,
+    y: 1224,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "equal",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change1Signature",
+    label: "שינוי 1 חתימת העובד/ת",
+    section: "changes",
+    page: 1,
+    x: 70,
+    y: 1224,
+    width: 85,
+    height: 22,
+    type: "signature",
+    sample: "חתימה",
+    fontSize: 13,
+    align: "center",
+  },
+  {
+    key: "change2Date",
+    label: "שינוי 2 תאריך השינוי",
+    section: "changes",
+    page: 1,
+    x: 720,
+    y: 1250,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "equal",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change2Details",
+    label: "שינוי 2 פרטי השינוי",
+    section: "changes",
+    page: 1,
+    x: 310,
+    y: 1250,
+    width: 390,
+    height: 22,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "right",
+  },
+  {
+    key: "change2NoticeDate",
+    label: "שינוי 2 תאריך הודעה",
+    section: "changes",
+    page: 1,
+    x: 175,
+    y: 1250,
+    width: 95,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    digitSpacingMode: "equal",
+    digitGroupGap: 0,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "change2Signature",
+    label: "שינוי 2 חתימת העובד/ת",
+    section: "changes",
+    page: 1,
+    x: 70,
+    y: 1250,
+    width: 85,
+    height: 22,
+    type: "signature",
+    sample: "חתימה",
+    fontSize: 13,
+    align: "center",
+  },
+
+  {
     key: "page2IdNumber",
     label: "ת.ז עמוד 2",
     section: "credits",
@@ -1523,15 +1659,24 @@ function templateFieldsToFields(templateFields: any) {
       enabled: typeof value?.enabled === "boolean" ? value.enabled : true,
       isFixed: typeof value?.isFixed === "boolean" ? value.isFixed : false,
       fixedValue: String(value?.fixedValue || ""),
-      dependsOnKey: value?.dependsOnKey ? String(value.dependsOnKey) : base?.dependsOnKey,
-      showWhenValue: value?.showWhenValue ? String(value.showWhenValue) : base?.showWhenValue,
+      dependsOnKey: value?.dependsOnKey
+        ? String(value.dependsOnKey)
+        : base?.dependsOnKey,
+      showWhenValue: value?.showWhenValue
+        ? String(value.showWhenValue)
+        : base?.showWhenValue,
     } as FieldItem;
   });
 
   if (!fromServer.length) return INITIAL_FIELDS;
 
+  const existingKeys = new Set(fromServer.map((field) => field.key));
+  const missingDefaults = INITIAL_FIELDS.filter(
+    (field) => !existingKeys.has(field.key),
+  );
+
   return ensure13ChildrenRowsWithoutChangingExistingPositions(
-    normalizeFields(fromServer),
+    normalizeFields([...fromServer, ...missingDefaults]),
   ).sort((a, b) => a.order - b.order);
 }
 
