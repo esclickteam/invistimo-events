@@ -103,12 +103,32 @@ type Form101Payload = {
   signatureText?: string;
   signatureDataUrl?: string;
 
+  /**
+   * כל הערכים שהעובד מילא בפועל לפי key של שדה.
+   * זה המקור הראשי לציור ה-PDF.
+   */
+  formFieldValues?: Record<string, any>;
+
+  /**
+   * צילום מצב של התבנית שהעובד ראה בזמן המילוי.
+   * חייב להגיע מה-OnlineForm101 כדי שהייצוא יהיה לפי אותה תבנית בדיוק.
+   */
+  __form101TemplateConfig?: {
+    id?: string;
+    _id?: string;
+    updatedAt?: string | Date | null;
+    approvedAt?: string | Date | null;
+    fields?: any;
+    pageWidth?: number;
+    pageHeight?: number;
+  };
+
   [key: string]: any;
 };
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom" | "date";
 type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldMapItem = {
@@ -1221,7 +1241,7 @@ const FORM101_FIELD_MAP = {
 } as const;
 
 function clean(value: unknown) {
-  return String(value || "").trim();
+  return String(value ?? "").trim();
 }
 
 function onlyDigits(value: unknown) {
@@ -1468,8 +1488,10 @@ function normalizeFieldMapItem(rawField: any): FieldMapItem | null {
         ? null
         : Math.max(1, Number(rawField.digitGap) || 13),
     digitSpacingMode:
-      rawField.digitSpacingMode === "group" || rawField.digitSpacingMode === "custom"
-        ? "group"
+      rawField.digitSpacingMode === "group" ||
+      rawField.digitSpacingMode === "custom" ||
+      rawField.digitSpacingMode === "date"
+        ? rawField.digitSpacingMode
         : "equal",
     digitGaps: Array.isArray(rawField.digitGaps)
       ? rawField.digitGaps
@@ -1516,49 +1538,151 @@ function normalizeFieldMap(rawFields: any): FieldMap {
   return normalized;
 }
 
-function fallbackTemplateConfig(): Form101TemplateConfig {
+
+function normalizeTemplateSize(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function templateConfigFromSnapshot(snapshot: any): Form101TemplateConfig | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+
+  const fields = normalizeFieldMap(snapshot.fields);
+
+  if (!Object.keys(fields).length) {
+    return null;
+  }
+
   return {
-    fields: normalizeFieldMap(FORM101_FIELD_MAP),
-    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
+    fields,
+    pageWidth: normalizeTemplateSize(
+      snapshot.pageWidth,
+      DEFAULT_MAPPER_PAGE_WIDTH
+    ),
+    pageHeight: normalizeTemplateSize(
+      snapshot.pageHeight,
+      DEFAULT_MAPPER_PAGE_HEIGHT
+    ),
   };
 }
 
 async function loadForm101TemplateConfig(): Promise<Form101TemplateConfig> {
-  const fallback = fallbackTemplateConfig();
+  const template = await Form101Template.findOne({
+    name: "default",
+    isActive: true,
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
 
-  try {
-    const template = await Form101Template.findOne({
-      name: "default",
-      isActive: true,
-    })
-      .sort({ updatedAt: -1 })
-      .lean();
+  const fields = normalizeFieldMap((template as any)?.fields);
 
-    const fields = normalizeFieldMap((template as any)?.fields);
+  if (!template || !Object.keys(fields).length) {
+    throw new Error(
+      "FORM101_TEMPLATE_NOT_FOUND_OR_EMPTY: לא נמצאה תבנית 101 פעילה מהאדמין"
+    );
+  }
 
-    if (!template || !Object.keys(fields).length) {
-      return fallback;
+  return {
+    fields,
+    pageWidth: normalizeTemplateSize(
+      (template as any).pageWidth,
+      DEFAULT_MAPPER_PAGE_WIDTH
+    ),
+    pageHeight: normalizeTemplateSize(
+      (template as any).pageHeight,
+      DEFAULT_MAPPER_PAGE_HEIGHT
+    ),
+  };
+}
+
+async function resolveForm101TemplateConfig(
+  body: Form101Payload
+): Promise<Form101TemplateConfig> {
+  /**
+   * הכי חשוב:
+   * קודם משתמשים ב-snapshot שהעובד שלח מהמסך.
+   * זה אומר שה-PDF נוצר לפי אותה תבנית בדיוק שהעובד מילא:
+   * fields, x, y, width, height, fontSize, digitGap, digitSpacingMode וכו'.
+   */
+  const snapshotConfig = templateConfigFromSnapshot(
+    body.__form101TemplateConfig
+  );
+
+  if (snapshotConfig) {
+    return snapshotConfig;
+  }
+
+  /**
+   * רק אם לא הגיע snapshot בכלל, טוענים את התבנית הפעילה מהאדמין.
+   * אין fallback קשיח למפה ישנה, כדי לא לייצר PDF במיקומים לא נכונים.
+   */
+  return loadForm101TemplateConfig();
+}
+
+function getTemplateSnapshotMeta(body: Form101Payload) {
+  const snapshot = body.__form101TemplateConfig;
+
+  const rawId = clean(snapshot?.id || snapshot?._id || "");
+  const templateId =
+    rawId && mongoose.Types.ObjectId.isValid(rawId)
+      ? new mongoose.Types.ObjectId(rawId)
+      : null;
+
+  const rawUpdatedAt = snapshot?.updatedAt || null;
+  const rawApprovedAt = snapshot?.approvedAt || null;
+
+  const updatedAt = rawUpdatedAt ? new Date(rawUpdatedAt) : null;
+  const approvedAt = rawApprovedAt ? new Date(rawApprovedAt) : null;
+
+  return {
+    templateId,
+    templateUpdatedAt:
+      updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
+    templateApprovedAt:
+      approvedAt && !Number.isNaN(approvedAt.getTime()) ? approvedAt : null,
+  };
+}
+
+function buildTemplateSnapshotForStorage(
+  templateConfig: Form101TemplateConfig,
+  body: Form101Payload
+) {
+  return {
+    id: clean(body.__form101TemplateConfig?.id || body.__form101TemplateConfig?._id || ""),
+    updatedAt: body.__form101TemplateConfig?.updatedAt || null,
+    approvedAt: body.__form101TemplateConfig?.approvedAt || null,
+    fields: templateConfig.fields,
+    pageWidth: templateConfig.pageWidth,
+    pageHeight: templateConfig.pageHeight,
+  };
+}
+
+function buildFormFieldValuesForStorage(body: Form101Payload) {
+  if (body.formFieldValues && typeof body.formFieldValues === "object") {
+    return body.formFieldValues;
+  }
+
+  const values: Record<string, any> = {};
+
+  Object.entries(body).forEach(([key, value]) => {
+    if (key.startsWith("__")) return;
+
+    if (
+      [
+        "incomeType",
+        "otherIncome",
+        "spouse",
+        "children",
+        "taxCredits",
+      ].includes(key)
+    ) {
+      return;
     }
 
-    const pageWidth = Number((template as any).pageWidth);
-    const pageHeight = Number((template as any).pageHeight);
+    values[key] = value;
+  });
 
-    return {
-      fields,
-      pageWidth:
-        Number.isFinite(pageWidth) && pageWidth > 0
-          ? pageWidth
-          : DEFAULT_MAPPER_PAGE_WIDTH,
-      pageHeight:
-        Number.isFinite(pageHeight) && pageHeight > 0
-          ? pageHeight
-          : DEFAULT_MAPPER_PAGE_HEIGHT,
-    };
-  } catch (error) {
-    console.error("LOAD FORM 101 TEMPLATE CONFIG FAILED:", error);
-    return fallback;
-  }
+  return values;
 }
 
 function splitPhoneParts(value: unknown) {
@@ -1605,28 +1729,40 @@ function getMappedRect(
   };
 }
 
+
 function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
+  const directValues =
+    body.formFieldValues && typeof body.formFieldValues === "object"
+      ? body.formFieldValues
+      : null;
+
+  /**
+   * הכי חשוב:
+   * הייצוא חייב לקחת קודם את הערך שהעובד מילא בפועל לפי אותו key של השדה.
+   * ככה גם שדות מותאמים, שדות ילדים, שדות שהאדמין הוסיף וכו' יוצאים ל-PDF.
+   */
+  if (
+    directValues &&
+    Object.prototype.hasOwnProperty.call(directValues, fieldKey)
+  ) {
+    return directValues[fieldKey];
+  }
+
   const children = Array.isArray(body.children) ? body.children : [];
-  const childMatch = fieldKey.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+  const childMatch = fieldKey.match(
+    /^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/
+  );
 
   if (childMatch) {
     const childIndex = Number(childMatch[1]) - 1;
     const suffix = childMatch[2];
     const child = children[childIndex] || {};
 
-    if (suffix === "Name") {
-      return body.formFieldValues?.[fieldKey] ?? child.name;
-    }
+    if (suffix === "Name") return child.name;
+    if (suffix === "Id") return splitId(child.idNumber);
+    if (suffix === "BirthDate") return formatDateDigits(child.birthDate);
 
-    if (suffix === "Id") {
-      return splitId(body.formFieldValues?.[fieldKey] ?? child.idNumber);
-    }
-
-    if (suffix === "BirthDate") {
-      return formatDateDigits(body.formFieldValues?.[fieldKey] ?? child.birthDate);
-    }
-
-    return Boolean(body.formFieldValues?.[fieldKey] ?? body[fieldKey]);
+    return Boolean(body[fieldKey]);
   }
 
   switch (fieldKey) {
@@ -1710,13 +1846,6 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
     case "healthFundName":
       return body.healthFundName;
 
-    case "child1Name":
-      return children[0]?.name;
-    case "child1Id":
-      return splitId(children[0]?.idNumber);
-    case "child1BirthDate":
-      return formatDateDigits(children[0]?.birthDate);
-
     case "workStartDate":
       return formatDateDigits(body.workStartDate);
 
@@ -1736,14 +1865,17 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
     case "otherNoIncome":
       return Boolean(body.otherIncome?.noOtherIncome);
     case "otherHasIncome":
-      return !body.otherIncome?.noOtherIncome && Boolean(
-        body.otherIncome?.monthlySalary ||
-          body.otherIncome?.extraSalary ||
-          body.otherIncome?.partialSalary ||
-          body.otherIncome?.dailyWage ||
-          body.otherIncome?.allowance ||
-          body.otherIncome?.pension ||
-          body.otherIncome?.scholarship
+      return (
+        !body.otherIncome?.noOtherIncome &&
+        Boolean(
+          body.otherIncome?.monthlySalary ||
+            body.otherIncome?.extraSalary ||
+            body.otherIncome?.partialSalary ||
+            body.otherIncome?.dailyWage ||
+            body.otherIncome?.allowance ||
+            body.otherIncome?.pension ||
+            body.otherIncome?.scholarship
+        )
       );
 
     case "spouseId":
@@ -1781,7 +1913,7 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
       return body.signatureDataUrl || body.signatureText;
 
     default:
-      return body.formFieldValues?.[fieldKey] ?? body[fieldKey];
+      return body[fieldKey];
   }
 }
 
@@ -1872,12 +2004,47 @@ function getResolvedDigitGroupSize(field: FieldMapItem, value: unknown) {
   return getAutoDigitGroupSize(value, fallback);
 }
 
+
+function getCustomDigitGapAfterIndex(
+  field: FieldMapItem,
+  index: number,
+  scaleX: number
+) {
+  if (!Array.isArray(field.digitGaps) || !field.digitGaps.length) return 0;
+
+  const rawGap = Number(field.digitGaps[index]);
+
+  if (!Number.isFinite(rawGap)) return 0;
+
+  return Math.max(0, rawGap) * scaleX;
+}
+
 function getGroupGapAfterDigit(
   field: FieldMapItem,
   index: number,
   scaleX: number,
   value: unknown
 ) {
+  /**
+   * custom = המרווחים המדויקים שהוגדרו בתבנית.
+   * לא ממירים את זה ל-group כדי לא להרוס מרווחים.
+   */
+  if (field.digitSpacingMode === "custom") {
+    return getCustomDigitGapAfterIndex(field, index, scaleX);
+  }
+
+  /**
+   * date = פורמט תאריך: DDMMYYYY.
+   * מוסיף רווח אחרי היום ואחרי החודש אם לא הוגדר custom.
+   */
+  if (field.digitSpacingMode === "date") {
+    if (index === 1 || index === 3) {
+      return Math.max(0, Number(field.digitGroupGap || 6)) * scaleX;
+    }
+
+    return 0;
+  }
+
   if (field.digitSpacingMode !== "group") return 0;
 
   const groupSize = getResolvedDigitGroupSize(field, value);
@@ -2017,6 +2184,7 @@ async function drawField(
   drawTextInRect(page, value, rect, field, font);
 }
 
+
 async function generateForm101Pdf(body: Form101Payload) {
   const templatePath = path.join(
     process.cwd(),
@@ -2042,7 +2210,11 @@ async function generateForm101Pdf(body: Form101Payload) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const templateConfig = await loadForm101TemplateConfig();
+  /**
+   * ייצוא לפי אותה תבנית שהעובד ראה במסך:
+   * קודם snapshot מהמסך, ורק אם אין — התבנית הפעילה מהאדמין.
+   */
+  const templateConfig = await resolveForm101TemplateConfig(body);
 
   const fields = Object.entries(templateConfig.fields)
     .filter(([, field]) => field.enabled)
@@ -2053,7 +2225,11 @@ async function generateForm101Pdf(body: Form101Payload) {
   }
 
   const pdfBytes = await pdfDoc.save();
-  return Buffer.from(pdfBytes);
+
+  return {
+    pdfBuffer: Buffer.from(pdfBytes),
+    templateConfig,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -2129,10 +2305,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pdfBuffer = await generateForm101Pdf({
+    const normalizedBody: Form101Payload = {
       ...body,
       taxYear: String(taxYear),
-    });
+    };
+
+    const { pdfBuffer, templateConfig } = await generateForm101Pdf(normalizedBody);
+
+    const templateMeta = getTemplateSnapshotMeta(normalizedBody);
+    const formFieldValues = buildFormFieldValuesForStorage(normalizedBody);
+    const templateSnapshot = buildTemplateSnapshotForStorage(
+      templateConfig,
+      normalizedBody
+    );
 
     const now = new Date();
     const timestamp = now.getTime();
@@ -2176,6 +2361,13 @@ export async function POST(req: NextRequest) {
       fileSize: pdfBuffer.length,
 
       taxYear,
+
+      formFieldValues,
+      templateSnapshot,
+      templateId: templateMeta.templateId,
+      templateUpdatedAt: templateMeta.templateUpdatedAt,
+      templateApprovedAt: templateMeta.templateApprovedAt,
+
       status: "uploaded",
       rejectionReason: "",
 

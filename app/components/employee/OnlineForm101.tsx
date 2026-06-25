@@ -30,6 +30,8 @@ type FieldConfig = {
   digitGroupGap?: number | null;
   maxDigits: number | null;
   align: TextAlign;
+  dependsOnKey?: string;
+  showWhenValue?: string;
 };
 
 type FieldValue = string | boolean;
@@ -40,6 +42,12 @@ type ChildPayload = {
   birthDate?: string;
 };
 type ActiveSignatureField = string | null;
+
+type TemplateMeta = {
+  id: string;
+  updatedAt: string | null;
+  approvedAt: string | null;
+};
 
 const PDF_URL = "/forms/tofes-101.pdf";
 const PAGE_WIDTH = 900;
@@ -1313,6 +1321,8 @@ function normalizeTemplateFields(input: unknown) {
           ? null
           : Math.max(1, Number(field.maxDigits || 1)),
       align,
+      dependsOnKey: clean((field as any).dependsOnKey) || undefined,
+      showWhenValue: clean((field as any).showWhenValue) || undefined,
     };
   });
 
@@ -1854,6 +1864,7 @@ function FieldControl({
             fontSize: field.fontSize,
             lineHeight: `${field.height}px`,
             textAlign: alignToText(field.align),
+            whiteSpace: "pre",
           }}
         >
           {inputValue}
@@ -2035,6 +2046,11 @@ export default function OnlineForm101() {
     useState<Record<string, FieldConfig>>(FORM101_FIELD_MAP);
   const [pageWidth, setPageWidth] = useState(PAGE_WIDTH);
   const [pageHeight, setPageHeight] = useState(PAGE_HEIGHT);
+  const [templateMeta, setTemplateMeta] = useState<TemplateMeta>({
+    id: "",
+    updatedAt: null,
+    approvedAt: null,
+  });
   const [loadingTemplate, setLoadingTemplate] = useState(true);
   const [templateError, setTemplateError] = useState("");
   const [values, setValues] = useState<ValuesMap>(() =>
@@ -2096,6 +2112,11 @@ export default function OnlineForm101() {
         setFieldMap(normalizedFields);
         setPageWidth(Math.max(1, Number(template.pageWidth || PAGE_WIDTH)));
         setPageHeight(Math.max(1, Number(template.pageHeight || PAGE_HEIGHT)));
+        setTemplateMeta({
+          id: String(template.id || template._id || ""),
+          updatedAt: template.updatedAt || null,
+          approvedAt: template.approvedAt || null,
+        });
 
         setValues((prev) => mergeValuesForTemplate(prev, normalizedFields));
 
@@ -2119,6 +2140,11 @@ export default function OnlineForm101() {
               : "לא הצלחתי לטעון את תבנית טופס 101",
           );
           setFieldMap(FORM101_FIELD_MAP);
+          setTemplateMeta({
+            id: "",
+            updatedAt: null,
+            approvedAt: null,
+          });
           setValues((prev) => mergeValuesForTemplate(prev, FORM101_FIELD_MAP));
         }
       } finally {
@@ -2187,7 +2213,18 @@ export default function OnlineForm101() {
     try {
       setSubmitting(true);
 
-      const payload = buildStructuredPayload(values, fieldMap);
+      const payload = {
+        ...buildStructuredPayload(values, fieldMap),
+        __form101TemplateConfig: {
+          id: templateMeta.id,
+          _id: templateMeta.id,
+          updatedAt: templateMeta.updatedAt,
+          approvedAt: templateMeta.approvedAt,
+          fields: fieldMap,
+          pageWidth,
+          pageHeight,
+        },
+      };
 
       const response = await fetch("/api/forms/101/generate-pdf", {
         method: "POST",
@@ -2216,13 +2253,17 @@ export default function OnlineForm101() {
     }
   }
 
-  function changePage(nextPage: PageNumber) {
+  function changePage(nextPage: PageNumber, nextSelectedKey?: string) {
     setPage(nextPage);
     setPdfReloadKey((prev) => prev + 1);
 
-    const firstFieldInPage = getPageFields(fieldMap, nextPage)[0];
-    if (firstFieldInPage) {
-      setSelectedKey(firstFieldInPage[0]);
+    if (nextSelectedKey) {
+      setSelectedKey(nextSelectedKey);
+    } else {
+      const firstFieldInPage = getPageFields(fieldMap, nextPage)[0];
+      if (firstFieldInPage) {
+        setSelectedKey(firstFieldInPage[0]);
+      }
     }
 
     requestAnimationFrame(() => {
@@ -2317,7 +2358,11 @@ export default function OnlineForm101() {
                         key={key}
                         type="button"
                         onClick={() => {
-                          setPage(field.page);
+                          if (field.page !== page) {
+                            changePage(field.page, key);
+                            return;
+                          }
+
                           setSelectedKey(key);
                         }}
                         className={`w-full rounded-xl border px-3 py-2 text-right text-xs font-black transition ${
