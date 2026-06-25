@@ -1575,12 +1575,46 @@ function splitPhoneParts(value: unknown) {
   };
 }
 
+function getPdfVisibleBox(page: any) {
+  const size = page.getSize();
+
+  try {
+    const cropBox = typeof page.getCropBox === "function" ? page.getCropBox() : null;
+
+    if (
+      cropBox &&
+      Number.isFinite(Number(cropBox.x)) &&
+      Number.isFinite(Number(cropBox.y)) &&
+      Number.isFinite(Number(cropBox.width)) &&
+      Number.isFinite(Number(cropBox.height)) &&
+      Number(cropBox.width) > 0 &&
+      Number(cropBox.height) > 0
+    ) {
+      return {
+        x: Number(cropBox.x),
+        y: Number(cropBox.y),
+        width: Number(cropBox.width),
+        height: Number(cropBox.height),
+      };
+    }
+  } catch {
+    // אם אין CropBox ממשיכים לפי גודל העמוד הרגיל.
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: size.width,
+    height: size.height,
+  };
+}
+
 function getMappedRect(
   page: any,
   field: FieldMapItem,
   templateConfig: Form101TemplateConfig
 ) {
-  const { width: pdfWidth, height: pdfHeight } = page.getSize();
+  const visibleBox = getPdfVisibleBox(page);
 
   const mapperPageWidth =
     templateConfig.pageWidth > 0
@@ -1592,16 +1626,16 @@ function getMappedRect(
       ? templateConfig.pageHeight
       : DEFAULT_MAPPER_PAGE_HEIGHT;
 
-  const scaleX = pdfWidth / mapperPageWidth;
-  const scaleY = pdfHeight / mapperPageHeight;
+  const scaleX = visibleBox.width / mapperPageWidth;
+  const scaleY = visibleBox.height / mapperPageHeight;
 
-  const x = field.x * scaleX;
+  const x = visibleBox.x + field.x * scaleX;
   const width = field.width * scaleX;
   const height = field.height * scaleY;
 
   return {
     x,
-    y: pdfHeight - (field.y + field.height) * scaleY,
+    y: visibleBox.y + visibleBox.height - (field.y + field.height) * scaleY,
     width,
     height,
     scaleX,
@@ -1611,6 +1645,21 @@ function getMappedRect(
 }
 
 function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
+  const directValues =
+    body.formFieldValues && typeof body.formFieldValues === "object"
+      ? body.formFieldValues
+      : null;
+
+  // חשוב: ה-PDF חייב לצייר את הערך המדויק שהעובד רואה וממלא במסך.
+  // לכן קודם כל משתמשים ב-formFieldValues לפי key, ורק אם אין ערך כזה
+  // נופלים למבנה הישן/הקשיח של payload.
+  if (
+    directValues &&
+    Object.prototype.hasOwnProperty.call(directValues, fieldKey)
+  ) {
+    return directValues[fieldKey];
+  }
+
   const children = Array.isArray(body.children) ? body.children : [];
   const childMatch = fieldKey.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
 
@@ -1836,7 +1885,6 @@ function drawTextInRect(
     size,
     font,
     color: rgb(0, 0, 0),
-    maxWidth: Math.max(rect.width - padding * 2, 5),
   });
 }
 
@@ -2037,24 +2085,68 @@ async function generateForm101Pdf(body: Form101Payload) {
   }
 
   const templateBytes = await fs.readFile(templatePath);
-  const pdfDoc = await PDFDocument.load(templateBytes);
+  const sourcePdfDoc = await PDFDocument.load(templateBytes);
 
-  const font = await loadHebrewFont(pdfDoc);
+  const sourcePages = sourcePdfDoc.getPages();
 
-  const pages = pdfDoc.getPages();
-
-  if (!pages.length) {
+  if (!sourcePages.length) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
   const templateConfig = await resolveForm101TemplateConfig(body);
 
-  const fields = Object.entries(templateConfig.fields)
+  const mapperPageWidth =
+    templateConfig.pageWidth > 0
+      ? templateConfig.pageWidth
+      : DEFAULT_MAPPER_PAGE_WIDTH;
+
+  const mapperPageHeight =
+    templateConfig.pageHeight > 0
+      ? templateConfig.pageHeight
+      : DEFAULT_MAPPER_PAGE_HEIGHT;
+
+  // יוצרים PDF חדש בגודל המדויק של המפה באדמין/עובד.
+  // קודם מציירים את דפי התבנית כרקע בגודל 900x1280 (או לפי pageWidth/pageHeight מהאדמין),
+  // ואז מציירים את השדות בדיוק באותם x/y של המסך. ככה אין סטייה בין HTML ל-PDF.
+  const pdfDoc = await PDFDocument.create();
+  const font = await loadHebrewFont(pdfDoc);
+
+  const pages: any[] = [];
+
+  for (const sourcePage of sourcePages) {
+    const embeddedPage = await pdfDoc.embedPage(sourcePage);
+    const page = pdfDoc.addPage([mapperPageWidth, mapperPageHeight]);
+
+    page.drawPage(embeddedPage, {
+      x: 0,
+      y: 0,
+      width: mapperPageWidth,
+      height: mapperPageHeight,
+    });
+
+    pages.push(page);
+  }
+
+  const outputTemplateConfig: Form101TemplateConfig = {
+    ...templateConfig,
+    pageWidth: mapperPageWidth,
+    pageHeight: mapperPageHeight,
+  };
+
+  const fields = Object.entries(outputTemplateConfig.fields)
     .filter(([, field]) => field.enabled)
     .sort(([, a], [, b]) => a.order - b.order) as [string, FieldMapItem][];
 
   for (const [fieldKey, field] of fields) {
-    await drawField(pdfDoc, pages, fieldKey, field, body, font, templateConfig);
+    await drawField(
+      pdfDoc,
+      pages,
+      fieldKey,
+      field,
+      body,
+      font,
+      outputTemplateConfig
+    );
   }
 
   const pdfBytes = await pdfDoc.save();
