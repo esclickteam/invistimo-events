@@ -110,12 +110,6 @@ type Form101Payload = {
   formFieldValues?: Record<string, any>;
 
   /**
-   * עמודים מצולמים מהמסך של העובד אחרי המילוי.
-   * כשזה קיים — זה המקור היחיד ל-PDF הסופי כדי שהקובץ השמור יהיה זהה למסך.
-   */
-  __renderedPageImages?: Record<string, string> | string[];
-
-  /**
    * צילום מצב של התבנית שהעובד ראה בזמן המילוי.
    * חייב להגיע מה-OnlineForm101 כדי שהייצוא יהיה לפי אותה תבנית בדיוק.
    */
@@ -1387,71 +1381,6 @@ function extractImageDataUrl(value: unknown) {
   };
 }
 
-function getRenderedPageImages(body: Form101Payload) {
-  const source = body.__renderedPageImages;
-  if (!source) return [] as { pageNumber: number; dataUrl: string }[];
-
-  if (Array.isArray(source)) {
-    return source
-      .map((dataUrl, index) => ({ pageNumber: index + 1, dataUrl: clean(dataUrl) }))
-      .filter((item) => item.dataUrl);
-  }
-
-  if (typeof source === "object") {
-    return Object.entries(source)
-      .map(([pageNumber, dataUrl]) => ({
-        pageNumber: Number(pageNumber),
-        dataUrl: clean(dataUrl),
-      }))
-      .filter((item) => Number.isFinite(item.pageNumber) && item.dataUrl)
-      .sort((a, b) => a.pageNumber - b.pageNumber);
-  }
-
-  return [] as { pageNumber: number; dataUrl: string }[];
-}
-
-async function generatePdfFromRenderedPages(
-  body: Form101Payload,
-  templateConfig: Form101TemplateConfig
-) {
-  const renderedPages = getRenderedPageImages(body);
-  if (!renderedPages.length) return null;
-
-  const pdfDoc = await PDFDocument.create();
-  const pageWidth = Math.max(
-    1,
-    Number(templateConfig.pageWidth || DEFAULT_MAPPER_PAGE_WIDTH)
-  );
-  const pageHeight = Math.max(
-    1,
-    Number(templateConfig.pageHeight || DEFAULT_MAPPER_PAGE_HEIGHT)
-  );
-
-  for (const renderedPage of renderedPages) {
-    const imageData = extractImageDataUrl(renderedPage.dataUrl);
-    if (!imageData) continue;
-
-    const imageBytes = Buffer.from(imageData.base64, "base64");
-    const image =
-      imageData.imageType === "png"
-        ? await pdfDoc.embedPng(imageBytes)
-        : await pdfDoc.embedJpg(imageBytes);
-
-    const page = pdfDoc.addPage([pageWidth, pageHeight]);
-    page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width: pageWidth,
-      height: pageHeight,
-    });
-  }
-
-  if (pdfDoc.getPageCount() === 0) return null;
-
-  const pdfBytes = await pdfDoc.save();
-  return Buffer.from(pdfBytes);
-}
-
 async function drawSignatureImage(
   pdfDoc: PDFDocument,
   page: any,
@@ -2257,27 +2186,6 @@ async function drawField(
 
 
 async function generateForm101Pdf(body: Form101Payload) {
-  /**
-   * קודם כל משתמשים בצילום העמודים מהמסך של העובד.
-   * זה הנתיב היחיד שמבטיח: מה שרואים במסך = מה שנשמר = מה שהאדמין רואה.
-   */
-  const templateConfig = await resolveForm101TemplateConfig(body);
-  const renderedPdfBuffer = await generatePdfFromRenderedPages(
-    body,
-    templateConfig
-  );
-
-  if (renderedPdfBuffer) {
-    return {
-      pdfBuffer: renderedPdfBuffer,
-      templateConfig,
-    };
-  }
-
-  /**
-   * fallback בלבד למסמכים/לקוחות ישנים שלא שולחים __renderedPageImages.
-   * בטופס החדש לא אמורים להגיע לכאן.
-   */
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -2301,6 +2209,12 @@ async function generateForm101Pdf(body: Form101Payload) {
   if (!pages.length) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
+
+  /**
+   * ייצוא לפי אותה תבנית שהעובד ראה במסך:
+   * קודם snapshot מהמסך, ורק אם אין — התבנית הפעילה מהאדמין.
+   */
+  const templateConfig = await resolveForm101TemplateConfig(body);
 
   const fields = Object.entries(templateConfig.fields)
     .filter(([, field]) => field.enabled)

@@ -1690,7 +1690,6 @@ function FieldControl({
   onSelect,
   onChange,
   onOpenSignature,
-  printMode = false,
 }: {
   fieldKey: string;
   field: FieldConfig;
@@ -1699,7 +1698,6 @@ function FieldControl({
   onSelect: () => void;
   onChange: (value: FieldValue) => void;
   onOpenSignature: () => void;
-  printMode?: boolean;
 }) {
   const commonStyle: React.CSSProperties = {
     left: field.x,
@@ -1710,30 +1708,7 @@ function FieldControl({
     textAlign: field.align,
   };
 
-  function alignToJustify(align: TextAlign) {
-    if (align === "center") return "center";
-    if (align === "right") return "flex-end";
-    return "flex-start";
-  }
-
-  function alignToText(align: TextAlign) {
-    if (align === "center") return "center";
-    if (align === "left") return "left";
-    return "right";
-  }
-
   if (field.type === "check") {
-    if (printMode) {
-      return (
-        <div
-          className="absolute z-20 flex items-center justify-center font-black text-black"
-          style={commonStyle}
-        >
-          {Boolean(value) ? "✓" : ""}
-        </div>
-      );
-    }
-
     return (
       <button
         type="button"
@@ -1756,16 +1731,6 @@ function FieldControl({
   }
 
   if (field.type === "signature") {
-    if (printMode) {
-      return (
-        <div className="absolute z-20 overflow-hidden" style={commonStyle}>
-          {typeof value === "string" && value.startsWith("data:image") ? (
-            <img src={value} alt="חתימה" className="h-full w-full object-contain" />
-          ) : null}
-        </div>
-      );
-    }
-
     return (
       <button
         type="button"
@@ -1800,50 +1765,21 @@ function FieldControl({
   const inputValue =
     field.type === "digits" ? onlyDigits(stringValue) : stringValue;
 
+  function alignToJustify(align: TextAlign) {
+    if (align === "center") return "center";
+    if (align === "right") return "flex-end";
+    return "flex-start";
+  }
+
+  function alignToText(align: TextAlign) {
+    if (align === "center") return "center";
+    if (align === "left") return "left";
+    return "right";
+  }
+
   if (field.type === "digits") {
     const digits = onlyDigits(inputValue);
     const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
-
-    const digitContent = (
-      <span
-        dir="ltr"
-        className={`pointer-events-none flex h-full w-full items-center ${printMode ? "text-black" : "text-blue-900"}`}
-        style={{
-          justifyContent: alignToJustify(field.align),
-          fontSize: field.fontSize,
-          lineHeight: `${field.height}px`,
-        }}
-      >
-        {sliced.split("").map((digit, index) => (
-          <span
-            key={`${fieldKey}-${index}`}
-            className="inline-block text-center font-semibold"
-            style={{
-              width: getBaseDigitCellWidth(field),
-              marginRight: getGroupGapAfterDigit(field, index, sliced),
-            }}
-          >
-            {digit}
-          </span>
-        ))}
-      </span>
-    );
-
-    if (printMode) {
-      return (
-        <div
-          className="absolute z-20"
-          style={{
-            left: field.x,
-            top: field.y,
-            width: field.width,
-            height: field.height,
-          }}
-        >
-          {digitContent}
-        </div>
-      );
-    }
 
     return (
       <div
@@ -1862,7 +1798,28 @@ function FieldControl({
               : "border-blue-400/60 bg-white/20"
           } ${field.isFixed ? "bg-slate-100/50 text-slate-700" : ""}`}
         >
-          {digitContent}
+          <span
+            dir="ltr"
+            className="pointer-events-none flex h-full w-full items-center text-blue-900"
+            style={{
+              justifyContent: alignToJustify(field.align),
+              fontSize: field.fontSize,
+              lineHeight: `${field.height}px`,
+            }}
+          >
+            {sliced.split("").map((digit, index) => (
+              <span
+                key={`${fieldKey}-${index}`}
+                className="inline-block text-center font-semibold"
+                style={{
+                  width: getBaseDigitCellWidth(field),
+                  marginRight: getGroupGapAfterDigit(field, index, sliced),
+                }}
+              >
+                {digit}
+              </span>
+            ))}
+          </span>
 
           <input
             value={inputValue}
@@ -1880,25 +1837,6 @@ function FieldControl({
             title={getFieldLabel(fieldKey, field)}
           />
         </div>
-      </div>
-    );
-  }
-
-  if (printMode) {
-    return (
-      <div
-        className="absolute z-20 overflow-hidden whitespace-nowrap text-black"
-        style={{
-          left: field.x,
-          top: field.y,
-          width: field.width,
-          height: field.height,
-          fontSize: field.fontSize,
-          lineHeight: `${field.height}px`,
-          textAlign: alignToText(field.align),
-        }}
-      >
-        {inputValue}
       </div>
     );
   }
@@ -1926,6 +1864,7 @@ function FieldControl({
             fontSize: field.fontSize,
             lineHeight: `${field.height}px`,
             textAlign: alignToText(field.align),
+            whiteSpace: "pre",
           }}
         >
           {inputValue}
@@ -1948,150 +1887,6 @@ function FieldControl({
           title={getFieldLabel(fieldKey, field)}
         />
       </div>
-    </div>
-  );
-}
-
-function PdfCanvasBackground({
-  pdfUrl,
-  page,
-  width,
-  height,
-  reloadKey,
-}: {
-  pdfUrl: string;
-  page: PageNumber;
-  width: number;
-  height: number;
-  reloadKey: number;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let renderTask: any = null;
-
-    async function renderPdfPage() {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const context = canvas.getContext("2d");
-      if (!context) return;
-
-      const ratio = Math.max(1, window.devicePixelRatio || 1);
-      canvas.width = Math.max(1, Math.floor(width * ratio));
-      canvas.height = Math.max(1, Math.floor(height * ratio));
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      context.save();
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.restore();
-
-      try {
-        const pdfjsLib: any = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
-        const loadingTask = pdfjsLib.getDocument({
-          url: pdfUrl,
-          disableFontFace: false,
-          useSystemFonts: true,
-        });
-
-        const pdf = await loadingTask.promise;
-        if (cancelled) return;
-
-        const pdfPage = await pdf.getPage(page);
-        if (cancelled) return;
-
-        const viewport = pdfPage.getViewport({ scale: 1 });
-        const scaleX = (width * ratio) / viewport.width;
-        const scaleY = (height * ratio) / viewport.height;
-
-        renderTask = pdfPage.render({
-          canvasContext: context,
-          viewport,
-          transform: [scaleX, 0, 0, scaleY, 0, 0],
-          background: "#ffffff",
-        });
-
-        await renderTask.promise;
-      } catch (error: any) {
-        if (error?.name !== "RenderingCancelledException") {
-          console.error("FORM 101 PDF CANVAS RENDER ERROR:", error);
-        }
-      }
-    }
-
-    void renderPdfPage();
-
-    return () => {
-      cancelled = true;
-      try {
-        renderTask?.cancel?.();
-      } catch {
-        // ignore
-      }
-    };
-  }, [height, page, pdfUrl, reloadKey, width]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 z-0 h-full w-full bg-white"
-      style={{ pointerEvents: "none" }}
-    />
-  );
-}
-
-function Form101PageForCapture({
-  page,
-  pageWidth,
-  pageHeight,
-  fieldMap,
-  values,
-  captureKey,
-  setRef,
-}: {
-  page: PageNumber;
-  pageWidth: number;
-  pageHeight: number;
-  fieldMap: Record<string, FieldConfig>;
-  values: ValuesMap;
-  captureKey: number;
-  setRef: (node: HTMLDivElement | null) => void;
-}) {
-  const fields = useMemo(() => getPageFields(fieldMap, page), [fieldMap, page]);
-
-  return (
-    <div
-      ref={setRef}
-      className="relative overflow-hidden bg-white"
-      style={{ width: pageWidth, height: pageHeight }}
-    >
-      <PdfCanvasBackground
-        pdfUrl={PDF_URL}
-        page={page}
-        width={pageWidth}
-        height={pageHeight}
-        reloadKey={captureKey}
-      />
-
-      {fields.map(([key, field]) => (
-        <FieldControl
-          key={key}
-          fieldKey={key}
-          field={field}
-          value={values[key] ?? ""}
-          selected={false}
-          printMode
-          onSelect={() => undefined}
-          onChange={() => undefined}
-          onOpenSignature={() => undefined}
-        />
-      ))}
     </div>
   );
 }
@@ -2267,13 +2062,7 @@ export default function OnlineForm101() {
   const [activeSignatureField, setActiveSignatureField] =
     useState<ActiveSignatureField>(null);
   const [pdfReloadKey, setPdfReloadKey] = useState(1);
-  const [renderCapturePages, setRenderCapturePages] = useState(false);
-  const [captureRenderKey, setCaptureRenderKey] = useState(1);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
-  const capturePageRefs = useRef<Record<PageNumber, HTMLDivElement | null>>({
-    1: null,
-    2: null,
-  });
 
   const pageFields = useMemo(
     () => getPageFields(fieldMap, page),
@@ -2420,53 +2209,12 @@ export default function OnlineForm101() {
     setSelectedKey("idNumber");
   }
 
-  function wait(ms: number) {
-    return new Promise((resolve) => window.setTimeout(resolve, ms));
-  }
-
-  async function captureFilledPagesForPdf() {
-    setRenderCapturePages(true);
-    setCaptureRenderKey((prev) => prev + 1);
-
-    await wait(1400);
-
-    const html2canvas = (await import("html2canvas")).default;
-    const images: Record<PageNumber, string> = { 1: "", 2: "" };
-
-    for (const pageNumber of [1, 2] as PageNumber[]) {
-      const node = capturePageRefs.current[pageNumber];
-      if (!node) {
-        throw new Error(`לא נמצא עמוד ${pageNumber} לצילום טופס 101`);
-      }
-
-      const canvas = await html2canvas(node, {
-        backgroundColor: "#ffffff",
-        logging: false,
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        width: pageWidth,
-        height: pageHeight,
-        windowWidth: pageWidth,
-        windowHeight: pageHeight,
-      });
-
-      images[pageNumber] = canvas.toDataURL("image/jpeg", 0.97);
-    }
-
-    setRenderCapturePages(false);
-    return images;
-  }
-
   async function submitForm101() {
     try {
       setSubmitting(true);
 
-      const renderedPageImages = await captureFilledPagesForPdf();
-
       const payload = {
         ...buildStructuredPayload(values, fieldMap),
-        __renderedPageImages: renderedPageImages,
         __form101TemplateConfig: {
           id: templateMeta.id,
           _id: templateMeta.id,
@@ -2501,7 +2249,6 @@ export default function OnlineForm101() {
       console.error("SUBMIT FORM 101 ERROR:", error);
       alert("שגיאה בשליחת טופס 101");
     } finally {
-      setRenderCapturePages(false);
       setSubmitting(false);
     }
   }
@@ -2648,12 +2395,13 @@ export default function OnlineForm101() {
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
-              <PdfCanvasBackground
-                pdfUrl={PDF_URL}
-                page={page}
-                width={pageWidth}
-                height={pageHeight}
-                reloadKey={pdfReloadKey}
+              <iframe
+                key={`${page}-${pdfReloadKey}`}
+                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
+                title="טופס 101"
+                scrolling="no"
+                className="absolute inset-0 h-full w-full border-0"
+                style={{ pointerEvents: "none", background: "white" }}
               />
 
               {pageFields.map(([key, field]) => (
@@ -2760,37 +2508,6 @@ export default function OnlineForm101() {
           </aside>
         </section>
       </div>
-
-      {renderCapturePages && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed top-0 bg-white"
-          style={{ left: -20000, width: pageWidth, height: pageHeight * 2, zIndex: 99999 }}
-        >
-          <Form101PageForCapture
-            page={1}
-            pageWidth={pageWidth}
-            pageHeight={pageHeight}
-            fieldMap={fieldMap}
-            values={values}
-            captureKey={captureRenderKey}
-            setRef={(node) => {
-              capturePageRefs.current[1] = node;
-            }}
-          />
-          <Form101PageForCapture
-            page={2}
-            pageWidth={pageWidth}
-            pageHeight={pageHeight}
-            fieldMap={fieldMap}
-            values={values}
-            captureKey={captureRenderKey}
-            setRef={(node) => {
-              capturePageRefs.current[2] = node;
-            }}
-          />
-        </div>
-      )}
 
       {activeSignatureField && (
         <SignatureModal
