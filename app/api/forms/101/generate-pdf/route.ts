@@ -1570,12 +1570,46 @@ function splitPhoneParts(value: unknown) {
   };
 }
 
+function getPdfVisibleBox(page: any) {
+  const size = page.getSize();
+
+  try {
+    if (typeof page.getCropBox === "function") {
+      const cropBox = page.getCropBox();
+
+      if (
+        cropBox &&
+        Number.isFinite(Number(cropBox.width)) &&
+        Number.isFinite(Number(cropBox.height)) &&
+        Number(cropBox.width) > 0 &&
+        Number(cropBox.height) > 0
+      ) {
+        return {
+          x: Number(cropBox.x || 0),
+          y: Number(cropBox.y || 0),
+          width: Number(cropBox.width),
+          height: Number(cropBox.height),
+        };
+      }
+    }
+  } catch {
+    // Some pdf-lib versions/templates do not expose a crop box.
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: Number(size.width),
+    height: Number(size.height),
+  };
+}
+
 function getMappedRect(
   page: any,
   field: FieldMapItem,
   templateConfig: Form101TemplateConfig
 ) {
-  const { width: pdfWidth, height: pdfHeight } = page.getSize();
+  const visibleBox = getPdfVisibleBox(page);
 
   const mapperPageWidth =
     templateConfig.pageWidth > 0
@@ -1587,16 +1621,16 @@ function getMappedRect(
       ? templateConfig.pageHeight
       : DEFAULT_MAPPER_PAGE_HEIGHT;
 
-  const scaleX = pdfWidth / mapperPageWidth;
-  const scaleY = pdfHeight / mapperPageHeight;
+  const scaleX = visibleBox.width / mapperPageWidth;
+  const scaleY = visibleBox.height / mapperPageHeight;
 
-  const x = field.x * scaleX;
+  const x = visibleBox.x + field.x * scaleX;
   const width = field.width * scaleX;
   const height = field.height * scaleY;
 
   return {
     x,
-    y: pdfHeight - (field.y + field.height) * scaleY,
+    y: visibleBox.y + visibleBox.height - (field.y + field.height) * scaleY,
     width,
     height,
     scaleX,
@@ -1798,6 +1832,29 @@ function hasValue(value: unknown, type: FieldType) {
   return Boolean(clean(value));
 }
 
+function cleanPdfText(value: unknown) {
+  return String(value ?? "")
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
+function getCenteredTextY(rect: { y: number; height: number; fontSize: number }, font: any) {
+  const size = rect.fontSize;
+
+  try {
+    if (typeof font.heightAtSize === "function") {
+      const textHeight = font.heightAtSize(size);
+      return rect.y + Math.max((rect.height - textHeight) / 2, 0) + 1;
+    }
+  } catch {
+    // Fallback below.
+  }
+
+  return rect.y + Math.max((rect.height - size) / 2, 0) + 1;
+}
+
 function drawTextInRect(
   page: any,
   text: unknown,
@@ -1805,7 +1862,7 @@ function drawTextInRect(
   field: FieldMapItem,
   font: any
 ) {
-  const value = clean(text);
+  const value = cleanPdfText(text);
   if (!value) return;
 
   const padding = 2;
@@ -1823,7 +1880,7 @@ function drawTextInRect(
     x = Math.max(maxX - textWidth, rect.x + padding);
   }
 
-  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
+  const y = getCenteredTextY(rect, font);
 
   page.drawText(value, {
     x,
@@ -1926,7 +1983,7 @@ function drawDigitsInRect(
     startX = rect.x + Math.max(rect.width - totalWidth, 0);
   }
 
-  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
+  const y = getCenteredTextY(rect, font);
 
   let cursorX = startX;
 
