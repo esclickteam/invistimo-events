@@ -128,11 +128,11 @@ const API = {
     `/api/admin/employee-agreements/${agreementId}/status`,
   hours: (employeeId: string, month: string) =>
     `/api/admin/employees/${encodeURIComponent(
-      employeeId
+      employeeId,
     )}/hours?month=${encodeURIComponent(month)}`,
   sales: (employeeId: string, month: string) =>
     `/api/admin/employees/${encodeURIComponent(
-      employeeId
+      employeeId,
     )}/sales?month=${encodeURIComponent(month)}&status=all`,
 };
 
@@ -184,14 +184,13 @@ async function fetchJson(url: string, optional = false) {
 
 function toDateInput(value?: string | null) {
   if (!value) return "";
-
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate()
+    date.getDate(),
   )}`;
 }
 
@@ -254,6 +253,15 @@ function formatMoney(value: number) {
     currency: "ILS",
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
+}
+
+function formatFileSize(size?: number) {
+  if (!size) return "—";
+
+  const mb = Number(size) / 1024 / 1024;
+  if (mb >= 1) return `${mb.toFixed(1)}MB`;
+
+  return `${Math.round(Number(size) / 1024)}KB`;
 }
 
 function statusLabel(status?: string) {
@@ -343,6 +351,24 @@ function initials(name: string) {
   );
 }
 
+function safeDocumentUrl(doc?: AdminEmployeeDocument | null) {
+  return cleanStr(doc?.fileUrl);
+}
+
+function isForm101Document(doc?: AdminEmployeeDocument | null) {
+  return String(doc?.documentType || "") === "form101";
+}
+
+function documentViewLabel(doc?: AdminEmployeeDocument | null) {
+  if (isForm101Document(doc)) return "צפייה בטופס השמור";
+  return "צפייה";
+}
+
+function documentExportLabel(doc?: AdminEmployeeDocument | null) {
+  if (isForm101Document(doc)) return "ייצוא PDF שמור";
+  return "הורדה";
+}
+
 function Icon({
   name,
   className = "h-5 w-5",
@@ -354,6 +380,7 @@ function Icon({
     | "check"
     | "x"
     | "open"
+    | "download"
     | "clock"
     | "save"
     | "warning"
@@ -417,6 +444,16 @@ function Icon({
         <path d="M14 3h7v7" />
         <path d="M10 14 21 3" />
         <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+      </svg>
+    );
+  }
+
+  if (name === "download") {
+    return (
+      <svg {...common}>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
       </svg>
     );
   }
@@ -574,24 +611,24 @@ export default function AdminEmployeeFilePage() {
       { type: "accountManagement", doc: accountManagement },
       { type: "agreement", doc: agreement },
     ],
-    [form101, idCard, accountManagement, agreement]
+    [form101, idCard, accountManagement, agreement],
   );
 
   const totalMinutes = useMemo(
     () => hoursRows.reduce((sum, row) => sum + Number(row.totalMinutes || 0), 0),
-    [hoursRows]
+    [hoursRows],
   );
 
   const totalHoursDecimal = useMemo(() => totalMinutes / 60, [totalMinutes]);
 
   const estimatedMonthlyPayment = useMemo(
     () => totalHoursDecimal * Number(employee.hourlyRate || 0),
-    [employee.hourlyRate, totalHoursDecimal]
+    [employee.hourlyRate, totalHoursDecimal],
   );
 
   const estimatedMonthlyPaymentWithCommissions = useMemo(
     () => estimatedMonthlyPayment + Number(salesTotals.paidCommission || 0),
-    [estimatedMonthlyPayment, salesTotals.paidCommission]
+    [estimatedMonthlyPayment, salesTotals.paidCommission],
   );
 
   const loadSalesSummary = useCallback(async () => {
@@ -631,7 +668,7 @@ export default function AdminEmployeeFilePage() {
           paidAt: cleanStr(sale.paidAt),
           createdAt: cleanStr(sale.createdAt),
           notes: cleanStr(sale.notes),
-        }))
+        })),
       );
 
       setSalesTotals({
@@ -658,7 +695,7 @@ export default function AdminEmployeeFilePage() {
         paidCommission: 0,
       });
       setSalesError(
-        loadError instanceof Error ? loadError.message : "שגיאה בטעינת מכירות"
+        loadError instanceof Error ? loadError.message : "שגיאה בטעינת מכירות",
       );
     } finally {
       setSalesLoading(false);
@@ -690,7 +727,7 @@ export default function AdminEmployeeFilePage() {
           totalMinutes: Number(row.totalMinutes || 0),
           note: cleanStr(row.note),
           status: cleanStr(row.status) || "draft",
-        }))
+        })),
       );
 
       setHoursSummary({
@@ -749,11 +786,13 @@ export default function AdminEmployeeFilePage() {
       forms.forEach((form) => {
         if (String(form.employeeId || "") !== employeeId) return;
 
+        const fileUrl = cleanStr(form.fileUrl);
+
         mergedDocs.push({
           ...form,
           source: "form",
           documentType: form.documentType || "form101",
-          fileUrl: form.fileUrl,
+          fileUrl,
           startDate:
             form.startDate || form.employeeStartDate || form.employmentStartDate,
         });
@@ -761,6 +800,13 @@ export default function AdminEmployeeFilePage() {
 
       agreements.forEach((agreementItem) => {
         if (String(agreementItem.employeeId || "") !== employeeId) return;
+
+        const fileUrl = cleanStr(
+          agreementItem.signedFileUrl ||
+            agreementItem.signedPdfUrl ||
+            agreementItem.fileUrl ||
+            agreementItem.pdfUrl,
+        );
 
         mergedDocs.push({
           _id: agreementItem._id,
@@ -772,11 +818,7 @@ export default function AdminEmployeeFilePage() {
           employeePhone: agreementItem.employeePhone || agreementItem.phone,
           documentType: "agreement",
           originalFileName: "הסכם עבודה חתום",
-          fileUrl:
-            agreementItem.signedFileUrl ||
-            agreementItem.signedPdfUrl ||
-            agreementItem.fileUrl ||
-            agreementItem.pdfUrl,
+          fileUrl,
           fileType: "application/pdf",
           status: agreementItem.status || "signed",
           uploadedAt: agreementItem.signedAt,
@@ -814,7 +856,7 @@ export default function AdminEmployeeFilePage() {
     } catch (loadError) {
       console.error("LOAD ADMIN EMPLOYEE FILE FAILED:", loadError);
       setError(
-        loadError instanceof Error ? loadError.message : "שגיאה בטעינת תיק עובד"
+        loadError instanceof Error ? loadError.message : "שגיאה בטעינת תיק עובד",
       );
     } finally {
       setLoading(false);
@@ -871,7 +913,7 @@ export default function AdminEmployeeFilePage() {
       alert(
         saveError instanceof Error
           ? saveError.message
-          : "שגיאה בשמירת פרטי עובד"
+          : "שגיאה בשמירת פרטי עובד",
       );
     } finally {
       setSavingProfile(false);
@@ -880,7 +922,7 @@ export default function AdminEmployeeFilePage() {
 
   async function updateDocumentStatus(
     doc: AdminEmployeeDocument,
-    status: "approved" | "rejected"
+    status: "approved" | "rejected",
   ) {
     const documentId = getDocumentId(doc);
     if (!documentId || updatingDocId) return;
@@ -912,22 +954,20 @@ export default function AdminEmployeeFilePage() {
         prev.map((item) =>
           getDocumentId(item) === documentId && item.source === doc.source
             ? { ...item, status, updatedAt: new Date().toISOString() }
-            : item
-        )
+            : item,
+        ),
       );
     } catch (updateError) {
       console.error("UPDATE DOCUMENT STATUS FAILED:", updateError);
       alert(
         updateError instanceof Error
           ? updateError.message
-          : "שגיאה בעדכון סטטוס מסמך"
+          : "שגיאה בעדכון סטטוס מסמך",
       );
     } finally {
       setUpdatingDocId(null);
     }
   }
-
-
 
   function excelSafe(value: unknown) {
     return String(value ?? "")
@@ -988,7 +1028,7 @@ export default function AdminEmployeeFilePage() {
     const hoursAmount = Number(estimatedMonthlyPayment || 0);
     const paidCommissionAmount = Number(salesTotals.paidCommission || 0);
     const grossTotalToPay = Number(
-      (hoursAmount + paidCommissionAmount).toFixed(2)
+      (hoursAmount + paidCommissionAmount).toFixed(2),
     );
 
     const hoursRowsHtml = hoursRows
@@ -1016,7 +1056,8 @@ export default function AdminEmployeeFilePage() {
       .join("");
 
     const salesRowsHtml = salesRows
-      .map((sale, index) => `<tr class="${index % 2 ? "alt" : ""}">
+      .map(
+        (sale, index) => `<tr class="${index % 2 ? "alt" : ""}">
         ${buildExcelCell(formatDate(sale.paidAt || sale.saleDate || sale.createdAt))}
         ${buildExcelCell(sale.saleTitle || "מכירה")}
         ${buildExcelCell(sale.clientName || "—")}
@@ -1028,7 +1069,8 @@ export default function AdminEmployeeFilePage() {
         ${buildExcelCell(paymentModeLabel(sale.paymentMode))}
         ${buildExcelCell(statusLabel(sale.status))}
         ${buildExcelCell(sale.notes || "")}
-      </tr>`)
+      </tr>`,
+      )
       .join("");
 
     const html = `
@@ -1037,122 +1079,27 @@ export default function AdminEmployeeFilePage() {
         <head>
           <meta charSet="utf-8" />
           <style>
-            body {
-              direction: rtl;
-              font-family: Arial, sans-serif;
-              color: #111827;
-              background: #ffffff;
-            }
-            .sheet {
-              width: 100%;
-            }
-            .title {
-              background: #312e81;
-              color: #ffffff;
-              font-size: 24px;
-              font-weight: 800;
-              padding: 18px;
-              border: 1px solid #312e81;
-              text-align: center;
-            }
-            .subtitle {
-              background: #eef2ff;
-              color: #3730a3;
-              font-size: 14px;
-              font-weight: 700;
-              padding: 10px;
-              border: 1px solid #c7d2fe;
-              text-align: center;
-            }
-            .section {
-              background: #0f766e;
-              color: #ffffff;
-              font-size: 16px;
-              font-weight: 800;
-              padding: 10px;
-              border: 1px solid #0f766e;
-              text-align: right;
-            }
-            .summary-label {
-              background: #f8fafc;
-              color: #475569;
-              font-weight: 800;
-              border: 1px solid #cbd5e1;
-              padding: 8px;
-            }
-            .summary-value {
-              background: #ffffff;
-              color: #111827;
-              font-weight: 800;
-              border: 1px solid #cbd5e1;
-              padding: 8px;
-            }
-            .total-label {
-              background: #fef3c7;
-              color: #92400e;
-              font-weight: 900;
-              border: 1px solid #f59e0b;
-              padding: 10px;
-            }
-            .total-value {
-              background: #fffbeb;
-              color: #78350f;
-              font-weight: 900;
-              border: 1px solid #f59e0b;
-              padding: 10px;
-              font-size: 15px;
-            }
-            table {
-              border-collapse: collapse;
-              width: 100%;
-              direction: rtl;
-            }
-            th {
-              background: #1e293b;
-              color: #ffffff;
-              font-weight: 800;
-              border: 1px solid #94a3b8;
-              padding: 9px;
-              text-align: right;
-              white-space: nowrap;
-            }
-            td {
-              border: 1px solid #cbd5e1;
-              padding: 8px;
-              text-align: right;
-              vertical-align: middle;
-              mso-number-format: "\\@";
-            }
-            .alt td {
-              background: #f8fafc;
-            }
-            .num,
-            .money,
-            .ltr {
-              direction: ltr;
-              text-align: left;
-            }
-            .num {
-              mso-number-format: "0.00";
-            }
-            .money {
-              mso-number-format: "#,##0.00";
-              font-weight: 700;
-            }
-            .highlight {
-              color: #047857;
-              background: #ecfdf5;
-              font-weight: 900;
-            }
-            .spacer td {
-              border: none;
-              height: 14px;
-              background: #ffffff;
-            }
+            body { direction: rtl; font-family: Arial, sans-serif; color: #111827; background: #ffffff; }
+            table { border-collapse: collapse; width: 100%; direction: rtl; }
+            th { background: #1e293b; color: #ffffff; font-weight: 800; border: 1px solid #94a3b8; padding: 9px; text-align: right; white-space: nowrap; }
+            td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; vertical-align: middle; mso-number-format: "\\@"; }
+            .title { background: #312e81; color: #ffffff; font-size: 24px; font-weight: 800; padding: 18px; text-align: center; }
+            .subtitle { background: #eef2ff; color: #3730a3; font-size: 14px; font-weight: 700; padding: 10px; text-align: center; }
+            .section { background: #0f766e; color: #ffffff; font-size: 16px; font-weight: 800; padding: 10px; text-align: right; }
+            .summary-label { background: #f8fafc; color: #475569; font-weight: 800; }
+            .summary-value { background: #ffffff; color: #111827; font-weight: 800; }
+            .total-label { background: #fef3c7; color: #92400e; font-weight: 900; }
+            .total-value { background: #fffbeb; color: #78350f; font-weight: 900; font-size: 15px; }
+            .alt td { background: #f8fafc; }
+            .num, .money, .ltr { direction: ltr; text-align: left; }
+            .num { mso-number-format: "0.00"; }
+            .money { mso-number-format: "#,##0.00"; font-weight: 700; }
+            .highlight { color: #047857; background: #ecfdf5; font-weight: 900; }
+            .spacer td { border: none; height: 14px; background: #ffffff; }
           </style>
         </head>
         <body>
-          <table class="sheet">
+          <table>
             <tr><td class="title" colspan="14">דוח שעות ומכירות לרואה חשבון</td></tr>
             <tr><td class="subtitle" colspan="14">${excelSafe(employeeFullNameForReport)} · ${excelSafe(monthLabel(month))}</td></tr>
             <tr class="spacer"><td colspan="14"></td></tr>
@@ -1169,9 +1116,7 @@ export default function AdminEmployeeFilePage() {
               <td class="summary-label">סיום העסקה</td><td class="summary-value" colspan="2">${excelSafe(formatDate(employee.endDate))}</td>
               <td class="summary-label">חודש דוח</td><td class="summary-value" colspan="2">${excelSafe(monthLabel(month))}</td>
             </tr>
-            <tr>
-              <td class="summary-label">מזהה עובד במערכת</td><td class="summary-value ltr" colspan="13">${excelSafe(employeeSystemIdForReport)}</td>
-            </tr>
+            <tr><td class="summary-label">מזהה עובד במערכת</td><td class="summary-value ltr" colspan="13">${excelSafe(employeeSystemIdForReport)}</td></tr>
             <tr class="spacer"><td colspan="14"></td></tr>
             <tr><td class="section" colspan="14">סיכום לתשלום ברוטו</td></tr>
             <tr>
@@ -1207,7 +1152,7 @@ export default function AdminEmployeeFilePage() {
             ${hoursRowsHtml || `<tr><td colspan="14">אין נתוני שעות לחודש הזה</td></tr>`}
           </table>
 
-          <table class="sheet">
+          <table>
             <tr class="spacer"><td colspan="11"></td></tr>
             <tr><td class="section" colspan="11">פירוט מכירות ועמלות</td></tr>
           </table>
@@ -1234,7 +1179,7 @@ export default function AdminEmployeeFilePage() {
 
     downloadExcelHtml(
       excelFileName(`דוח-שעות-ומכירות-${employee.name || "עובד"}-${month}`),
-      html
+      html,
     );
   }
 
@@ -1792,7 +1737,7 @@ export default function AdminEmployeeFilePage() {
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                            sale.status
+                            sale.status,
                           )}`}
                         >
                           {statusLabel(sale.status)}
@@ -1811,8 +1756,8 @@ export default function AdminEmployeeFilePage() {
             <div>
               <h2 className="text-xl font-black text-slate-900">מסמכי עובד</h2>
               <p className="mt-1 text-sm font-semibold text-slate-500">
-                המסמכים נשארים בתוך תיק העובד בלבד. כאן אפשר לצפות, לאשר או
-                לדחות.
+                המסמכים נשמרים בתיק העובד. צפייה וייצוא פותחים את הקובץ השמור
+                בלבד, בלי יצירת PDF מחדש.
               </p>
             </div>
 
@@ -1825,6 +1770,7 @@ export default function AdminEmployeeFilePage() {
             {documentCards.map(({ type, doc }) => {
               const documentId = doc ? getDocumentId(doc) : "";
               const isUpdating = updatingDocId === documentId;
+              const documentUrl = safeDocumentUrl(doc);
 
               return (
                 <article
@@ -1834,7 +1780,7 @@ export default function AdminEmployeeFilePage() {
                   <div className="flex items-start justify-between gap-4">
                     <span
                       className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                        doc?.status
+                        doc?.status,
                       )}`}
                     >
                       {statusLabel(doc?.status)}
@@ -1850,34 +1796,56 @@ export default function AdminEmployeeFilePage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 text-sm font-semibold text-slate-600">
+                  <div className="mt-4 space-y-1 text-sm font-semibold text-slate-600">
                     <p>
                       תאריך: {formatDateTime(doc?.uploadedAt || doc?.createdAt)}
                     </p>
                     {doc?.taxYear ? <p>שנת מס: {doc.taxYear}</p> : null}
+                    {doc?.fileSize ? <p>גודל: {formatFileSize(doc.fileSize)}</p> : null}
+                    {isForm101Document(doc) && documentUrl ? (
+                      <p className="rounded-2xl bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">
+                        זהו קובץ טופס 101 הסופי שנשמר בזמן שליחת העובד. צפייה
+                        וייצוא משתמשים באותו קובץ בדיוק.
+                      </p>
+                    ) : null}
                   </div>
 
-                  <div className="mt-5 grid grid-cols-3 gap-2">
-                    {doc?.fileUrl ? (
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-10 items-center justify-center gap-1 rounded-2xl bg-indigo-600 px-3 text-xs font-black text-white transition hover:bg-indigo-700"
-                      >
-                        <Icon name="open" className="h-3.5 w-3.5" />
-                        צפייה
-                      </a>
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    {documentUrl ? (
+                      <>
+                        <a
+                          href={documentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-10 items-center justify-center gap-1 rounded-2xl bg-indigo-600 px-3 text-xs font-black text-white transition hover:bg-indigo-700"
+                        >
+                          <Icon name="open" className="h-3.5 w-3.5" />
+                          {documentViewLabel(doc)}
+                        </a>
+
+                        <a
+                          href={documentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          download
+                          className="inline-flex h-10 items-center justify-center gap-1 rounded-2xl border border-indigo-200 bg-white px-3 text-xs font-black text-indigo-700 transition hover:bg-indigo-50"
+                        >
+                          <Icon name="download" className="h-3.5 w-3.5" />
+                          {documentExportLabel(doc)}
+                        </a>
+                      </>
                     ) : (
                       <button
                         type="button"
                         disabled
-                        className="h-10 rounded-2xl bg-slate-200 text-xs font-black text-slate-400"
+                        className="col-span-2 h-10 rounded-2xl bg-slate-200 text-xs font-black text-slate-400"
                       >
                         אין קובץ
                       </button>
                     )}
+                  </div>
 
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       disabled={!doc || isUpdating}

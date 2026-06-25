@@ -56,6 +56,8 @@ type Form101CardProps = {
   businessId: string;
 };
 
+const FORM101_ONLINE_URL = "/employee/form101";
+
 function statusLabel(status: EmployeeDocumentStatus) {
   switch (status) {
     case "uploaded":
@@ -63,7 +65,7 @@ function statusLabel(status: EmployeeDocumentStatus) {
     case "approved":
       return "מאושר";
     case "rejected":
-      return "נדחה — אפשר להעלות מחדש";
+      return "נדחה — אפשר לשלוח מחדש";
     default:
       return "לא הועלה";
   }
@@ -186,11 +188,7 @@ function normalizeAgreementFromResponse(data: any): EmployeeAgreement | null {
     normalizedStatus = "rejected";
   } else if (rawStatus === "approved" || rawAgreement.approvedAt) {
     normalizedStatus = "approved";
-  } else if (
-    rawStatus === "signed" ||
-    signedFileUrl ||
-    rawAgreement.signedAt
-  ) {
+  } else if (rawStatus === "signed" || signedFileUrl || rawAgreement.signedAt) {
     normalizedStatus = "signed";
   }
 
@@ -238,6 +236,11 @@ function isDocumentLocked(document: EmployeeDocument | null) {
   return document.status === "uploaded" || document.status === "approved";
 }
 
+function canFillForm101(document: EmployeeDocument | null) {
+  if (!document) return true;
+  return document.status === "rejected";
+}
+
 function lockedMessage(label: string, status?: EmployeeDocumentStatus) {
   if (status === "approved") {
     return `${label} כבר אושר וננעל. לא ניתן להעלות קובץ חדש אלא אם האדמין יפתח מחדש.`;
@@ -246,13 +249,47 @@ function lockedMessage(label: string, status?: EmployeeDocumentStatus) {
   return `${label} כבר הועלה וננעל לבדיקה. ניתן להעלות מחדש רק לאחר פתיחה על ידי האדמין.`;
 }
 
+function DocumentSavedActions({
+  fileUrl,
+  viewLabel,
+  downloadLabel,
+}: {
+  fileUrl: string;
+  viewLabel: string;
+  downloadLabel: string;
+}) {
+  if (!fileUrl) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+      >
+        {viewLabel}
+      </a>
+
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        download
+        className="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-black"
+      >
+        {downloadLabel}
+      </a>
+    </div>
+  );
+}
+
 export default function Form101Card({
   employeeId,
   businessId,
 }: Form101CardProps) {
   const [open, setOpen] = useState(false);
 
-  const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [accountManagementFile, setAccountManagementFile] =
     useState<File | null>(null);
@@ -274,9 +311,9 @@ export default function Form101Card({
     useState<EmployeeDocumentType | null>(null);
   const [error, setError] = useState("");
 
-  const isForm101Locked = isDocumentLocked(currentForm101);
   const isIdCardLocked = isDocumentLocked(currentIdCard);
   const isAccountManagementLocked = isDocumentLocked(currentAccountManagement);
+  const canOpenForm101 = canFillForm101(currentForm101);
 
   const signAgreementUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -406,24 +443,21 @@ export default function Form101Card({
   async function uploadDocument(documentType: EmployeeDocumentType) {
     try {
       const selectedFile =
-        documentType === "form101"
-          ? form101File
-          : documentType === "idCard"
-            ? idCardFile
-            : accountManagementFile;
+        documentType === "idCard" ? idCardFile : accountManagementFile;
+
       const currentDocument =
-        documentType === "form101"
-          ? currentForm101
-          : documentType === "idCard"
-            ? currentIdCard
-            : currentAccountManagement;
+        documentType === "idCard"
+          ? currentIdCard
+          : currentAccountManagement;
+
       const isLocked = isDocumentLocked(currentDocument);
       const label =
-        documentType === "form101"
-          ? "טופס 101"
-          : documentType === "idCard"
-            ? "תעודת זהות"
-            : "אישור ניהול חשבון";
+        documentType === "idCard" ? "תעודת זהות" : "אישור ניהול חשבון";
+
+      if (documentType === "form101") {
+        setError("טופס 101 נשלח דרך הטופס המקוון בלבד. אין העלאה ידנית מכאן.");
+        return;
+      }
 
       if (isLocked) {
         setError(lockedMessage(label, currentDocument?.status));
@@ -470,11 +504,7 @@ export default function Form101Card({
 
       const uploadedDocument = getDocumentFromResponse(data, documentType);
 
-      if (documentType === "form101") {
-        setForm101File(null);
-        setCurrentForm101(uploadedDocument);
-        alert("טופס 101 הועלה בהצלחה");
-      } else if (documentType === "idCard") {
+      if (documentType === "idCard") {
         setIdCardFile(null);
         setCurrentIdCard(uploadedDocument);
         alert("תעודת זהות הועלתה בהצלחה");
@@ -501,6 +531,7 @@ export default function Form101Card({
     if (employeeId && businessId) {
       void loadCurrentDocuments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, businessId]);
 
   const mainStatus = getMainStatus(
@@ -553,8 +584,8 @@ export default function Form101Card({
 
             <p className="mt-2 text-sm font-semibold text-slate-500">
               {currentForm101
-                ? `הועלה: ${currentForm101.originalFileName}`
-                : "עדיין לא הועלה טופס 101."}
+                ? `נשמר: ${currentForm101.originalFileName}`
+                : "עדיין לא נשלח טופס 101."}
             </p>
 
             <span
@@ -564,6 +595,14 @@ export default function Form101Card({
             >
               {statusLabel(currentForm101?.status || "missing")}
             </span>
+
+            {currentForm101?.fileUrl && (
+              <DocumentSavedActions
+                fileUrl={currentForm101.fileUrl}
+                viewLabel="צפייה"
+                downloadLabel="ייצוא PDF"
+              />
+            )}
           </div>
 
           <div className="rounded-3xl bg-slate-50 p-4">
@@ -648,9 +687,8 @@ export default function Form101Card({
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                  יש להוריד את טופס 101, למלא ולחתום, ואז להעלות אותו יחד עם
-                  צילום תעודת זהות ואישור ניהול חשבון. בנוסף ניתן לחתום על
-                  הסכם העבודה באתר. ניתן להעלות קובץ PDF, JPG או PNG.
+                  טופס 101 ממולא דרך הטופס המקוון ונשמר כקובץ PDF סופי בתיק העובד.
+                  אחרי השליחה ניתן לצפות או לייצא את אותו קובץ שנשמר בלבד.
                 </p>
               </div>
 
@@ -726,49 +764,34 @@ export default function Form101Card({
                   <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
                     {agreement?.fullName && (
                       <span>
-                        שם:{" "}
-                        <b className="text-slate-950">
-                          {agreement.fullName}
-                        </b>
+                        שם: <b className="text-slate-950">{agreement.fullName}</b>
                       </span>
                     )}
 
                     {agreement?.idNumber && (
                       <span>
-                        ת.ז:{" "}
-                        <b className="text-slate-950">
-                          {agreement.idNumber}
-                        </b>
+                        ת.ז: <b className="text-slate-950">{agreement.idNumber}</b>
                       </span>
                     )}
 
                     {agreement?.signedAt && (
                       <span>
-                        תאריך חתימה:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(agreement.signedAt)}
-                        </b>
+                        תאריך חתימה: <b className="text-slate-950">{formatDate(agreement.signedAt)}</b>
                       </span>
                     )}
 
                     {agreement?.approvedAt && (
                       <span>
-                        תאריך אישור:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(agreement.approvedAt)}
-                        </b>
+                        תאריך אישור: <b className="text-slate-950">{formatDate(agreement.approvedAt)}</b>
                       </span>
                     )}
                   </div>
 
-                  <a
-                    href={agreementFileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                  >
-                    צפייה בהסכם חתום
-                  </a>
+                  <DocumentSavedActions
+                    fileUrl={agreementFileUrl}
+                    viewLabel="צפייה בהסכם חתום"
+                    downloadLabel="ייצוא הסכם"
+                  />
                 </div>
               )}
 
@@ -788,7 +811,7 @@ export default function Form101Card({
                     </h3>
 
                     <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                      הורידו טופס ריק, מלאו אותו, חתמו והעלו לכאן.
+                      הטופס ממולא אונליין. לאחר השליחה נשמר PDF סופי בתיק העובד לצפייה וייצוא בלבד.
                     </p>
                   </div>
 
@@ -801,115 +824,67 @@ export default function Form101Card({
                   </span>
                 </div>
 
-                <a
-                  href="/api/forms/101/download"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-5 inline-flex h-11 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
-                >
-                  הורדת טופס 101
-                </a>
+                {canOpenForm101 ? (
+                  <div className="mt-5 rounded-3xl border border-dashed border-sky-200 bg-white p-4">
+                    <p className="text-sm font-black text-slate-900">
+                      מילוי טופס 101 מקוון
+                    </p>
 
-                <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white p-4">
-                  <p className="text-sm font-black text-slate-900">
-                    העלאת טופס חתום
-                  </p>
+                    {currentForm101?.status === "rejected" && (
+                      <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                        הטופס נדחה על ידי האדמין. ניתן למלא ולשלוח מחדש.
+                        {currentForm101.rejectionReason && (
+                          <div className="mt-2">
+                            סיבה: {currentForm101.rejectionReason}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                  {isForm101Locked ? (
-                    <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
-                      {lockedMessage("טופס 101", currentForm101?.status)}
-                    </div>
-                  ) : (
-                    <>
-                      {currentForm101?.status === "rejected" && (
-                        <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
-                          הטופס נדחה על ידי האדמין. ניתן להעלות טופס מתוקן.
-                          {currentForm101.rejectionReason && (
-                            <div className="mt-2">
-                              סיבה: {currentForm101.rejectionReason}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <input
-                        type="file"
-                        accept=".pdf,image/png,image/jpeg"
-                        disabled={uploadingType === "form101"}
-                        onChange={(event) => {
-                          setForm101File(event.target.files?.[0] || null);
-                        }}
-                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      />
-
-                      {form101File && (
-                        <p className="mt-2 text-xs font-bold text-slate-500">
-                          נבחר: {form101File.name} ·{" "}
-                          {formatFileSize(form101File.size)}
-                        </p>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => uploadDocument("form101")}
-                        disabled={uploadingType === "form101" || !form101File}
-                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {uploadingType === "form101"
-                          ? "מעלה..."
-                          : "העלאת טופס חתום"}
-                      </button>
-                    </>
-                  )}
-                </div>
+                    <a
+                      href={FORM101_ONLINE_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-sky-600 px-5 text-sm font-black text-white transition hover:bg-sky-700"
+                    >
+                      פתיחת טופס 101 מקוון
+                    </a>
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+                    טופס 101 כבר נשלח ונשמר בתיק העובד. ניתן לצפות או לייצא את הקובץ השמור בלבד, ללא יצירה מחדש.
+                  </div>
+                )}
 
                 {currentForm101 && (
                   <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
                     <p className="text-sm font-black text-slate-900">
-                      הטופס האחרון שהועלה
+                      הטופס האחרון שנשמר
                     </p>
 
                     <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
                       <span>
-                        קובץ:{" "}
-                        <b className="text-slate-950">
-                          {currentForm101.originalFileName}
-                        </b>
+                        קובץ: <b className="text-slate-950">{currentForm101.originalFileName}</b>
                       </span>
 
                       <span>
-                        שנת מס:{" "}
-                        <b className="text-slate-950">
-                          {currentForm101.taxYear}
-                        </b>
+                        שנת מס: <b className="text-slate-950">{currentForm101.taxYear}</b>
                       </span>
 
                       <span>
-                        גודל:{" "}
-                        <b className="text-slate-950">
-                          {formatFileSize(currentForm101.fileSize)}
-                        </b>
+                        גודל: <b className="text-slate-950">{formatFileSize(currentForm101.fileSize)}</b>
                       </span>
 
                       <span>
-                        תאריך העלאה:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(
-                            currentForm101.uploadedAt ||
-                              currentForm101.createdAt
-                          )}
-                        </b>
+                        תאריך שליחה: <b className="text-slate-950">{formatDate(currentForm101.uploadedAt || currentForm101.createdAt)}</b>
                       </span>
                     </div>
 
-                    <a
-                      href={currentForm101.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      צפייה בטופס שהועלה
-                    </a>
+                    <DocumentSavedActions
+                      fileUrl={currentForm101.fileUrl}
+                      viewLabel="צפייה בטופס השמור"
+                      downloadLabel="ייצוא PDF"
+                    />
                   </div>
                 )}
               </div>
@@ -949,8 +924,7 @@ export default function Form101Card({
                     <>
                       {currentIdCard?.status === "rejected" && (
                         <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
-                          תעודת הזהות נדחתה על ידי האדמין. ניתן להעלות קובץ
-                          מתוקן.
+                          תעודת הזהות נדחתה על ידי האדמין. ניתן להעלות קובץ מתוקן.
                           {currentIdCard.rejectionReason && (
                             <div className="mt-2">
                               סיבה: {currentIdCard.rejectionReason}
@@ -971,8 +945,7 @@ export default function Form101Card({
 
                       {idCardFile && (
                         <p className="mt-2 text-xs font-bold text-slate-500">
-                          נבחר: {idCardFile.name} ·{" "}
-                          {formatFileSize(idCardFile.size)}
+                          נבחר: {idCardFile.name} · {formatFileSize(idCardFile.size)}
                         </p>
                       )}
 
@@ -982,9 +955,7 @@ export default function Form101Card({
                         disabled={uploadingType === "idCard" || !idCardFile}
                         className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {uploadingType === "idCard"
-                          ? "מעלה..."
-                          : "העלאת תעודת זהות"}
+                        {uploadingType === "idCard" ? "מעלה..." : "העלאת תעודת זהות"}
                       </button>
                     </>
                   )}
@@ -998,37 +969,23 @@ export default function Form101Card({
 
                     <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
                       <span>
-                        קובץ:{" "}
-                        <b className="text-slate-950">
-                          {currentIdCard.originalFileName}
-                        </b>
+                        קובץ: <b className="text-slate-950">{currentIdCard.originalFileName}</b>
                       </span>
 
                       <span>
-                        גודל:{" "}
-                        <b className="text-slate-950">
-                          {formatFileSize(currentIdCard.fileSize)}
-                        </b>
+                        גודל: <b className="text-slate-950">{formatFileSize(currentIdCard.fileSize)}</b>
                       </span>
 
                       <span>
-                        תאריך העלאה:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(
-                            currentIdCard.uploadedAt || currentIdCard.createdAt
-                          )}
-                        </b>
+                        תאריך העלאה: <b className="text-slate-950">{formatDate(currentIdCard.uploadedAt || currentIdCard.createdAt)}</b>
                       </span>
                     </div>
 
-                    <a
-                      href={currentIdCard.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      צפייה בתעודת זהות שהועלתה
-                    </a>
+                    <DocumentSavedActions
+                      fileUrl={currentIdCard.fileUrl}
+                      viewLabel="צפייה בתעודת זהות"
+                      downloadLabel="הורדה"
+                    />
                   </div>
                 )}
 
@@ -1076,8 +1033,7 @@ export default function Form101Card({
                     <>
                       {currentAccountManagement?.status === "rejected" && (
                         <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
-                          אישור ניהול החשבון נדחה על ידי האדמין. ניתן להעלות
-                          קובץ מתוקן.
+                          אישור ניהול החשבון נדחה על ידי האדמין. ניתן להעלות קובץ מתוקן.
                           {currentAccountManagement.rejectionReason && (
                             <div className="mt-2">
                               סיבה: {currentAccountManagement.rejectionReason}
@@ -1091,17 +1047,14 @@ export default function Form101Card({
                         accept=".pdf,image/png,image/jpeg"
                         disabled={uploadingType === "accountManagement"}
                         onChange={(event) => {
-                          setAccountManagementFile(
-                            event.target.files?.[0] || null
-                          );
+                          setAccountManagementFile(event.target.files?.[0] || null);
                         }}
                         className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       />
 
                       {accountManagementFile && (
                         <p className="mt-2 text-xs font-bold text-slate-500">
-                          נבחר: {accountManagementFile.name} ·{" "}
-                          {formatFileSize(accountManagementFile.size)}
+                          נבחר: {accountManagementFile.name} · {formatFileSize(accountManagementFile.size)}
                         </p>
                       )}
 
@@ -1130,38 +1083,23 @@ export default function Form101Card({
 
                     <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
                       <span>
-                        קובץ:{" "}
-                        <b className="text-slate-950">
-                          {currentAccountManagement.originalFileName}
-                        </b>
+                        קובץ: <b className="text-slate-950">{currentAccountManagement.originalFileName}</b>
                       </span>
 
                       <span>
-                        גודל:{" "}
-                        <b className="text-slate-950">
-                          {formatFileSize(currentAccountManagement.fileSize)}
-                        </b>
+                        גודל: <b className="text-slate-950">{formatFileSize(currentAccountManagement.fileSize)}</b>
                       </span>
 
                       <span>
-                        תאריך העלאה:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(
-                            currentAccountManagement.uploadedAt ||
-                              currentAccountManagement.createdAt
-                          )}
-                        </b>
+                        תאריך העלאה: <b className="text-slate-950">{formatDate(currentAccountManagement.uploadedAt || currentAccountManagement.createdAt)}</b>
                       </span>
                     </div>
 
-                    <a
-                      href={currentAccountManagement.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      צפייה באישור ניהול חשבון שהועלה
-                    </a>
+                    <DocumentSavedActions
+                      fileUrl={currentAccountManagement.fileUrl}
+                      viewLabel="צפייה באישור"
+                      downloadLabel="הורדה"
+                    />
                   </div>
                 )}
 

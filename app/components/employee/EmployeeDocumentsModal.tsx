@@ -965,6 +965,9 @@ function DocumentDetailsCard({
   document: ApiEmployeeDocument;
   viewLabel: string;
 }) {
+  const fileUrl = cleanString(document.fileUrl);
+  const downloadFileName = cleanString(document.originalFileName) || "document.pdf";
+
   return (
     <div className="rounded-[26px] border border-slate-200 bg-white p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1013,16 +1016,33 @@ function DocumentDetailsCard({
         </Badge>
       </div>
 
-      {document.fileUrl && (
-        <a
-          href={document.fileUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-        >
-          <Icon name="open" className="h-4 w-4" />
-          {viewLabel}
-        </a>
+      {fileUrl ? (
+        <div className="mt-5 flex flex-wrap gap-3">
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+          >
+            <Icon name="open" className="h-4 w-4" />
+            {viewLabel}
+          </a>
+
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            download={downloadFileName}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 text-sm font-black text-white transition hover:bg-slate-800"
+          >
+            <Icon name="file" className="h-4 w-4" />
+            ייצוא / הורדת הקובץ שנשמר
+          </a>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+          לא נמצא קישור לקובץ השמור. צריך לרענן את תיק העובד או לבדוק שהרשומה כוללת fileUrl.
+        </div>
       )}
     </div>
   );
@@ -1270,8 +1290,7 @@ export default function EmployeeDocumentsModal({
   onReload,
 
   signAgreementUrl,
-  form101DownloadUrl,
-  form101OnlineUrl = "/form-101",
+  form101OnlineUrl = "/employee/form101",
 
   hoursUpdates = [],
   payslips = [],
@@ -1661,7 +1680,7 @@ export default function EmployeeDocumentsModal({
                     </p>
 
                     <a
-                      href="/employee/form101"
+                      href={form101OnlineUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white transition hover:bg-sky-700"
