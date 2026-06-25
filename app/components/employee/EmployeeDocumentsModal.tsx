@@ -1290,7 +1290,7 @@ export default function EmployeeDocumentsModal({
   onReload,
 
   signAgreementUrl,
-  form101OnlineUrl = "/employee/form101",
+  form101OnlineUrl = "https://forms.tofes101.co.il/c/6a3d55d9ec8b1c429bcd74f7/run/",
 
   hoursUpdates = [],
   payslips = [],
