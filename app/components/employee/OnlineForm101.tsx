@@ -56,6 +56,134 @@ const DRAFT_STORAGE_KEY =
   "invistimo_employee_form101_template_draft_v2_no_samples";
 const OLD_DRAFT_STORAGE_KEYS = ["invistimo_employee_form101_template_draft_v1"];
 
+
+type PdfPageCanvasProps = {
+  pageNumber: PageNumber;
+  width: number;
+  height: number;
+  className?: string;
+};
+
+async function loadPdfJs() {
+  const pdfjsLib = await import("pdfjs-dist");
+
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  }
+
+  return pdfjsLib;
+}
+
+function PdfPageCanvas({
+  pageNumber,
+  width,
+  height,
+  className = "",
+}: PdfPageCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let renderTask: any = null;
+
+    async function renderPdfPage() {
+      try {
+        setReady(false);
+        setFailed(false);
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const pdfjsLib = await loadPdfJs();
+        const loadingTask = pdfjsLib.getDocument({
+          url: PDF_URL,
+          disableAutoFetch: true,
+          disableStream: true,
+        });
+
+        const pdf = await loadingTask.promise;
+        const pdfPage = await pdf.getPage(pageNumber);
+        const viewport = pdfPage.getViewport({ scale: 1 });
+        const scale = Math.max(width / viewport.width, height / viewport.height);
+        const scaledViewport = pdfPage.getViewport({ scale });
+        const outputScale = Math.max(2, Math.min(3, window.devicePixelRatio || 2));
+
+        canvas.width = Math.round(width * outputScale);
+        canvas.height = Math.round(height * outputScale);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) throw new Error("NO_CANVAS_CONTEXT");
+
+        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+
+        const offsetX = (width - scaledViewport.width) / 2;
+        const offsetY = (height - scaledViewport.height) / 2;
+
+        context.save();
+        context.translate(offsetX, offsetY);
+        renderTask = pdfPage.render({
+          canvas,
+          canvasContext: context,
+          viewport: scaledViewport,
+          intent: "display",
+        });
+
+        await renderTask.promise;
+        context.restore();
+
+        if (!cancelled) setReady(true);
+      } catch (error: any) {
+        if (String(error?.name || "") === "RenderingCancelledException") return;
+        console.error("FORM 101 PDF PAGE RENDER ERROR:", error);
+        if (!cancelled) setFailed(true);
+      }
+    }
+
+    void renderPdfPage();
+
+    return () => {
+      cancelled = true;
+      try {
+        renderTask?.cancel?.();
+      } catch {}
+    };
+  }, [pageNumber, width, height]);
+
+  return (
+    <div
+      className={`absolute inset-0 bg-white ${className}`}
+      data-form101-pdf-page={pageNumber}
+      data-ready={ready ? "true" : "false"}
+      style={{ width, height }}
+    >
+      <canvas
+        ref={canvasRef}
+        className="block h-full w-full bg-white"
+        aria-label={`עמוד ${pageNumber} של טופס 101`}
+      />
+
+      {!ready && !failed && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white text-sm font-black text-slate-400">
+          טוען עמוד {pageNumber}...
+        </div>
+      )}
+
+      {failed && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white text-sm font-black text-rose-600">
+          לא ניתן להציג את עמוד {pageNumber}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const FORM101_FIELD_MAP: Record<string, FieldConfig> = {
   taxYear: {
     page: 1,
@@ -1909,7 +2037,7 @@ function CaptureField({
     height: field.height,
     fontSize: Math.max(10, field.fontSize),
     lineHeight: `${field.height}px`,
-    color: "#1d4ed8",
+    color: "#111827",
     fontFamily: "Arial, Helvetica, sans-serif",
     fontWeight: 700,
     overflow: "hidden",
@@ -1928,7 +2056,7 @@ function CaptureField({
           justifyContent: "center",
           fontSize: Math.max(15, field.fontSize),
           lineHeight: 1,
-          color: "#1d4ed8",
+          color: "#111827",
         }}
       >
         ✓
@@ -2034,7 +2162,9 @@ function CapturePageOverlay({
       dir="rtl"
       data-form101-capture-page={capturePage}
       style={{
-        position: "relative",
+        position: "absolute",
+        inset: 0,
+        zIndex: 5,
         width: pageWidth,
         height: pageHeight,
         overflow: "hidden",
@@ -2373,7 +2503,23 @@ export default function OnlineForm101() {
     setSelectedKey("idNumber");
   }
 
-  async function captureSingleOverlayPage(
+  async function waitForPdfPageReady(node: HTMLDivElement | null, capturePage: PageNumber) {
+    if (!node) return;
+
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < 8000) {
+      const readyNode = node.querySelector(
+        `[data-form101-pdf-page="${capturePage}"][data-ready="true"]`,
+      );
+
+      if (readyNode) return;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    }
+  }
+
+  async function captureSingleFinalPage(
     node: HTMLDivElement | null,
     capturePage: PageNumber,
   ) {
@@ -2381,12 +2527,15 @@ export default function OnlineForm101() {
       throw new Error(`לא נמצא אזור צילום לעמוד ${capturePage}`);
     }
 
+    await waitForPdfPageReady(node, capturePage);
+
     const html2canvas = (await import("html2canvas")).default;
 
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
 
     const canvas = await html2canvas(node, {
-      backgroundColor: null,
+      backgroundColor: "#ffffff",
       scale: 3,
       useCORS: true,
       allowTaint: true,
@@ -2399,11 +2548,11 @@ export default function OnlineForm101() {
       windowHeight: Math.max(document.documentElement.clientHeight, pageHeight),
       onclone: (clonedDocument) => {
         const clonedNode = clonedDocument.querySelector(
-          `[data-form101-capture-page="${capturePage}"]`,
+          `[data-form101-final-capture-page="${capturePage}"]`,
         ) as HTMLElement | null;
 
         if (clonedNode) {
-          clonedNode.style.background = "transparent";
+          clonedNode.style.background = "#ffffff";
           clonedNode.style.opacity = "1";
         }
       },
@@ -2412,10 +2561,10 @@ export default function OnlineForm101() {
     return canvas.toDataURL("image/png", 1);
   }
 
-  async function captureRenderedPageOverlays() {
+  async function captureFinalRenderedPages() {
     return {
-      1: await captureSingleOverlayPage(capturePage1Ref.current, 1),
-      2: await captureSingleOverlayPage(capturePage2Ref.current, 2),
+      1: await captureSingleFinalPage(capturePage1Ref.current, 1),
+      2: await captureSingleFinalPage(capturePage2Ref.current, 2),
     };
   }
 
@@ -2423,12 +2572,12 @@ export default function OnlineForm101() {
     try {
       setSubmitting(true);
 
-      const renderedPageImages = await captureRenderedPageOverlays();
+      const renderedPageImages = await captureFinalRenderedPages();
 
       const payload = {
         ...buildStructuredPayload(values, fieldMap),
         __renderedPageImages: renderedPageImages,
-        __renderedPageImagesMode: "transparentOverlayOnOriginalPdf",
+        __renderedPageImagesMode: "fullPageScreenshot",
         __form101TemplateConfig: {
           id: templateMeta.id,
           _id: templateMeta.id,
@@ -2609,13 +2758,12 @@ export default function OnlineForm101() {
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{ width: pageWidth, height: pageHeight }}
             >
-              <iframe
+              <PdfPageCanvas
                 key={`${page}-${pdfReloadKey}`}
-                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
-                title="טופס 101"
-                scrolling="no"
-                className="absolute inset-0 h-full w-full border-0"
-                style={{ pointerEvents: "none", background: "white" }}
+                pageNumber={page}
+                width={pageWidth}
+                height={pageHeight}
+                className="pointer-events-none"
               />
 
               {pageFields.map(([key, field]) => (
@@ -2735,7 +2883,12 @@ export default function OnlineForm101() {
           opacity: 1,
         }}
       >
-        <div ref={capturePage1Ref} style={{ width: pageWidth, height: pageHeight, background: "transparent" }}>
+        <div
+          ref={capturePage1Ref}
+          data-form101-final-capture-page="1"
+          style={{ position: "relative", width: pageWidth, height: pageHeight, background: "#ffffff", overflow: "hidden" }}
+        >
+          <PdfPageCanvas pageNumber={1} width={pageWidth} height={pageHeight} />
           <CapturePageOverlay
             capturePage={1}
             fieldMap={fieldMap}
@@ -2745,7 +2898,12 @@ export default function OnlineForm101() {
           />
         </div>
 
-        <div ref={capturePage2Ref} style={{ marginTop: 20, width: pageWidth, height: pageHeight, background: "transparent" }}>
+        <div
+          ref={capturePage2Ref}
+          data-form101-final-capture-page="2"
+          style={{ position: "relative", marginTop: 20, width: pageWidth, height: pageHeight, background: "#ffffff", overflow: "hidden" }}
+        >
+          <PdfPageCanvas pageNumber={2} width={pageWidth} height={pageHeight} />
           <CapturePageOverlay
             capturePage={2}
             fieldMap={fieldMap}

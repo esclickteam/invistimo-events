@@ -2269,15 +2269,34 @@ async function generatePdfFromRenderedOverlays(
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const pageIndexes = sourcePages.length >= 2 ? [0, 1] : [0];
-  const copiedPages = await outputPdf.copyPages(sourcePdf, pageIndexes);
+  const templateConfig = await resolveForm101TemplateConfig(body).catch(() => ({
+    fields: FORM101_FIELD_MAP as unknown as FieldMap,
+    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
+    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
+  }));
 
-  copiedPages.forEach((copiedPage) => outputPdf.addPage(copiedPage));
-
+  const byPage = new Map<1 | 2, RenderedPageImage>();
   for (const rendered of renderedImages) {
-    const pageIndex = rendered.page - 1;
-    const targetPage = outputPdf.getPages()[pageIndex];
-    if (!targetPage) continue;
+    byPage.set(rendered.page, rendered);
+  }
+
+  const pageNumbers: Array<1 | 2> = [1, 2];
+
+  for (const pageNumber of pageNumbers) {
+    const sourcePage = sourcePages[Math.min(pageNumber - 1, sourcePages.length - 1)];
+    const { width, height } = sourcePage.getSize();
+    const page = outputPdf.addPage([width, height]);
+    const rendered = byPage.get(pageNumber);
+
+    if (!rendered) {
+      const [copiedPage] = await outputPdf.copyPages(
+        sourcePdf,
+        [Math.min(pageNumber - 1, sourcePages.length - 1)]
+      );
+      outputPdf.removePage(outputPdf.getPageCount() - 1);
+      outputPdf.addPage(copiedPage);
+      continue;
+    }
 
     const { buffer, mime } = dataUrlToBuffer(rendered.dataUrl);
     const image =
@@ -2285,21 +2304,13 @@ async function generatePdfFromRenderedOverlays(
         ? await outputPdf.embedJpg(buffer)
         : await outputPdf.embedPng(buffer);
 
-    const { width, height } = targetPage.getSize();
-
-    targetPage.drawImage(image, {
+    page.drawImage(image, {
       x: 0,
       y: 0,
       width,
       height,
     });
   }
-
-  const templateConfig = await resolveForm101TemplateConfig(body).catch(() => ({
-    fields: FORM101_FIELD_MAP as unknown as FieldMap,
-    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
-    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
-  }));
 
   const pdfBytes = await outputPdf.save();
 
