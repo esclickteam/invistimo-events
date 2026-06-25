@@ -17,7 +17,11 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const ALLOWED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -63,6 +67,7 @@ function normalizeDocumentType(
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
+  if (raw === "idCardAppendix") return "idCardAppendix";
   if (raw === "accountManagement") return "accountManagement";
   if (raw === "form101") return "form101";
 
@@ -71,12 +76,14 @@ function normalizeDocumentType(
 
 function getDocumentFolder(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "id-card";
+  if (documentType === "idCardAppendix") return "id-card-appendix";
   if (documentType === "accountManagement") return "account-management";
   return "101";
 }
 
 function getDocumentLabel(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "idCardAppendix") return "ספח תעודת זהות";
   if (documentType === "accountManagement") return "אישור ניהול חשבון";
   return "טופס 101";
 }
@@ -336,6 +343,10 @@ export async function POST(req: NextRequest) {
             documentType === "idCard"
               ? serializeEmployeeDocument(existingDocument)
               : null,
+          idCardAppendix:
+            documentType === "idCardAppendix"
+              ? serializeEmployeeDocument(existingDocument)
+              : null,
           accountManagement:
             documentType === "accountManagement"
               ? serializeEmployeeDocument(existingDocument)
@@ -408,6 +419,7 @@ export async function POST(req: NextRequest) {
       rejectedAt: null,
       rejectionReason: "",
     });
+    
 
     const serialized = serializeEmployeeDocument(saved);
 
@@ -418,6 +430,7 @@ export async function POST(req: NextRequest) {
 
       form101: documentType === "form101" ? serialized : null,
       idCard: documentType === "idCard" ? serialized : null,
+      idCardAppendix: documentType === "idCardAppendix" ? serialized : null,
       accountManagement:
         documentType === "accountManagement" ? serialized : null,
     });

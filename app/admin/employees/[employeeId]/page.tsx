@@ -17,6 +17,7 @@ type DocumentStatus =
 type DocumentType =
   | "form101"
   | "idCard"
+  | "idCardAppendix"
   | "accountManagement"
   | "agreement"
   | string;
@@ -319,6 +320,8 @@ function documentTypeLabel(type?: string) {
       return "טופס 101";
     case "idCard":
       return "תעודת זהות";
+    case "idCardAppendix":
+      return "ספח תעודת זהות";
     case "accountManagement":
       return "אישור ניהול חשבון";
     case "agreement":
@@ -616,6 +619,8 @@ export default function AdminEmployeeFilePage() {
 
   const form101 = documents.find((doc) => doc.documentType === "form101") || null;
   const idCard = documents.find((doc) => doc.documentType === "idCard") || null;
+  const idCardAppendix =
+    documents.find((doc) => doc.documentType === "idCardAppendix") || null;
   const accountManagement =
     documents.find((doc) => doc.documentType === "accountManagement") || null;
   const agreement =
@@ -625,10 +630,11 @@ export default function AdminEmployeeFilePage() {
     () => [
       { type: "form101", doc: form101 },
       { type: "idCard", doc: idCard },
+      { type: "idCardAppendix", doc: idCardAppendix },
       { type: "accountManagement", doc: accountManagement },
       { type: "agreement", doc: agreement },
     ],
-    [form101, idCard, accountManagement, agreement],
+    [form101, idCard, idCardAppendix, accountManagement, agreement],
   );
 
   const totalMinutes = useMemo(
@@ -1850,7 +1856,7 @@ export default function AdminEmployeeFilePage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="mt-5 grid gap-4 lg:grid-cols-4">
             {documentCards.map(({ type, doc }) => {
               const documentId = doc ? getDocumentId(doc) : "";
               const isUpdating = updatingDocId === documentId;

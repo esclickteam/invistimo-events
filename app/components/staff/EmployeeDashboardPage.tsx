@@ -28,7 +28,11 @@ type EventProgress =
   | string;
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -1093,13 +1097,17 @@ function LoadingPanel() {
 function getCombinedDocumentsStatus(
   form101: ApiEmployeeDocument | null,
   idCard: ApiEmployeeDocument | null,
+  idCardAppendix: ApiEmployeeDocument | null,
   accountManagement: ApiEmployeeDocument | null,
 ): EmployeeDocumentStatus {
-  if (!form101 && !idCard && !accountManagement) return "missing";
+  if (!form101 && !idCard && !idCardAppendix && !accountManagement) {
+    return "missing";
+  }
 
   if (
     form101?.status === "rejected" ||
     idCard?.status === "rejected" ||
+    idCardAppendix?.status === "rejected" ||
     accountManagement?.status === "rejected"
   ) {
     return "rejected";
@@ -1108,6 +1116,7 @@ function getCombinedDocumentsStatus(
   if (
     form101?.status === "approved" &&
     idCard?.status === "approved" &&
+    idCardAppendix?.status === "approved" &&
     accountManagement?.status === "approved"
   ) {
     return "approved";
@@ -1234,6 +1243,7 @@ function isFacebookLead(lead: EmployeeLead) {
 function EmployeeFileSummaryPanel({
   form101,
   idCard,
+  idCardAppendix,
   accountManagement,
   agreement,
   loading,
@@ -1244,6 +1254,7 @@ function EmployeeFileSummaryPanel({
 }: {
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
+  idCardAppendix: ApiEmployeeDocument | null;
   accountManagement: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
   loading: boolean;
@@ -1255,6 +1266,7 @@ function EmployeeFileSummaryPanel({
   const combinedStatus = getCombinedDocumentsStatus(
     form101,
     idCard,
+    idCardAppendix,
     accountManagement,
   );
   const agreementStatus = getAgreementEffectiveStatus(agreement);
@@ -1353,6 +1365,20 @@ function EmployeeFileSummaryPanel({
             />
 
             <MiniDocumentStatusCard
+              title="ספח תעודת זהות"
+              subtitle={
+                idCardAppendix
+                  ? `הועלה: ${idCardAppendix.originalFileName || "קובץ"} · ${getUploadedDate(idCardAppendix)}`
+                  : "לא הועלה עדיין"
+              }
+              statusLabel={documentStatusLabel(idCardAppendix?.status || "missing")}
+              statusClass={documentStatusClass(
+                idCardAppendix?.status || "missing",
+              )}
+              icon={<Icon name="shield" className="h-5 w-5" />}
+            />
+
+            <MiniDocumentStatusCard
               title="אישור ניהול חשבון"
               subtitle={
                 accountManagement
@@ -1434,12 +1460,16 @@ export default function EmployeeDashboardPage() {
 
   const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
   const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
+  const [idCardAppendix, setIdCardAppendix] =
+    useState<ApiEmployeeDocument | null>(null);
   const [accountManagement, setAccountManagement] =
     useState<ApiEmployeeDocument | null>(null);
   const [agreement, setAgreement] = useState<ApiEmployeeAgreement | null>(null);
   const [agreementLoading, setAgreementLoading] = useState(true);
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [idCardAppendixFile, setIdCardAppendixFile] =
+    useState<File | null>(null);
   const [accountManagementFile, setAccountManagementFile] =
     useState<File | null>(null);
   const [documentsLoading, setDocumentsLoading] = useState(true);
@@ -1730,7 +1760,9 @@ export default function EmployeeDashboardPage() {
           ? data?.form101
           : documentType === "idCard"
             ? data?.idCard
-            : data?.accountManagement) ||
+            : documentType === "idCardAppendix"
+              ? data?.idCardAppendix
+              : data?.accountManagement) ||
         null) as ApiEmployeeDocument | null;
     },
     [],
@@ -1741,14 +1773,22 @@ export default function EmployeeDashboardPage() {
       setDocumentsError("");
       setDocumentsLoading(true);
 
-      const [form101Document, idCardDocument, accountManagementDocument] =
-        await Promise.all([
+      const [
+        form101Document,
+        idCardDocument,
+        idCardAppendixDocument,
+        accountManagementDocument,
+      ] = await Promise.all([
           loadEmployeeDocument("form101").catch((loadError) => {
             console.error("LOAD FORM 101 FAILED:", loadError);
             return null;
           }),
           loadEmployeeDocument("idCard").catch((loadError) => {
             console.error("LOAD ID CARD FAILED:", loadError);
+            return null;
+          }),
+          loadEmployeeDocument("idCardAppendix").catch((loadError) => {
+            console.error("LOAD ID CARD APPENDIX FAILED:", loadError);
             return null;
           }),
           loadEmployeeDocument("accountManagement").catch((loadError) => {
@@ -1759,11 +1799,13 @@ export default function EmployeeDashboardPage() {
 
       setForm101(form101Document);
       setIdCard(idCardDocument);
+      setIdCardAppendix(idCardAppendixDocument);
       setAccountManagement(accountManagementDocument);
     } catch (loadError) {
       console.error("LOAD EMPLOYEE DOCUMENTS FAILED:", loadError);
       setForm101(null);
       setIdCard(null);
+      setIdCardAppendix(null);
       setAccountManagement(null);
       setDocumentsError(
         loadError instanceof Error
@@ -1822,7 +1864,9 @@ export default function EmployeeDashboardPage() {
           ? form101File
           : documentType === "idCard"
             ? idCardFile
-            : accountManagementFile;
+            : documentType === "idCardAppendix"
+              ? idCardAppendixFile
+              : accountManagementFile;
 
       if (!selectedFile || uploadingDocumentType) return;
 
@@ -1851,7 +1895,9 @@ export default function EmployeeDashboardPage() {
             ? data?.form101
             : documentType === "idCard"
               ? data?.idCard
-              : data?.accountManagement) ||
+              : documentType === "idCardAppendix"
+                ? data?.idCardAppendix
+                : data?.accountManagement) ||
           null) as ApiEmployeeDocument | null;
 
         if (documentType === "form101") {
@@ -1862,6 +1908,10 @@ export default function EmployeeDashboardPage() {
           setIdCardFile(null);
           setIdCard(uploadedDocument);
           alert("תעודת זהות הועלתה בהצלחה");
+        } else if (documentType === "idCardAppendix") {
+          setIdCardAppendixFile(null);
+          setIdCardAppendix(uploadedDocument);
+          alert("ספח תעודת זהות הועלה בהצלחה");
         } else {
           setAccountManagementFile(null);
           setAccountManagement(uploadedDocument);
@@ -1883,6 +1933,7 @@ export default function EmployeeDashboardPage() {
     [
       form101File,
       idCardFile,
+      idCardAppendixFile,
       accountManagementFile,
       loadEmployeeDocuments,
       uploadingDocumentType,
@@ -2301,13 +2352,16 @@ export default function EmployeeDashboardPage() {
             onClose={() => setDocumentsModalOpen(false)}
             form101={form101}
             idCard={idCard}
+            idCardAppendix={idCardAppendix}
             accountManagement={accountManagement}
             agreement={agreement}
             form101File={form101File}
             idCardFile={idCardFile}
+            idCardAppendixFile={idCardAppendixFile}
             accountManagementFile={accountManagementFile}
             setForm101File={setForm101File}
             setIdCardFile={setIdCardFile}
+            setIdCardAppendixFile={setIdCardAppendixFile}
             setAccountManagementFile={setAccountManagementFile}
             loading={documentsLoading}
             agreementLoading={agreementLoading}

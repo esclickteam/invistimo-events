@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement";
 
 type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
 
@@ -24,6 +28,7 @@ type EmployeeDocument = {
   createdAt?: string;
   updatedAt?: string;
 };
+
 
 type EmployeeAgreement = {
   _id?: string;
@@ -150,6 +155,10 @@ function getDocumentFromResponse(data: any, documentType: EmployeeDocumentType) 
     return data.idCard || null;
   }
 
+  if (documentType === "idCardAppendix") {
+    return data.idCardAppendix || null;
+  }
+
   if (documentType === "accountManagement") {
     return data.accountManagement || null;
   }
@@ -208,13 +217,15 @@ function normalizeAgreementFromResponse(data: any): EmployeeAgreement | null {
 function getMainStatus(
   form101: EmployeeDocument | null,
   idCard: EmployeeDocument | null,
+  idCardAppendix: EmployeeDocument | null,
   accountManagement: EmployeeDocument | null
 ): EmployeeDocumentStatus {
-  if (!form101 && !idCard && !accountManagement) return "missing";
+  if (!form101 && !idCard && !idCardAppendix && !accountManagement) return "missing";
 
   if (
     form101?.status === "rejected" ||
     idCard?.status === "rejected" ||
+    idCardAppendix?.status === "rejected" ||
     accountManagement?.status === "rejected"
   ) {
     return "rejected";
@@ -223,6 +234,7 @@ function getMainStatus(
   if (
     form101?.status === "approved" &&
     idCard?.status === "approved" &&
+    idCardAppendix?.status === "approved" &&
     accountManagement?.status === "approved"
   ) {
     return "approved";
@@ -293,6 +305,8 @@ export default function Form101Card({
 
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [idCardAppendixFile, setIdCardAppendixFile] =
+    useState<File | null>(null);
   const [accountManagementFile, setAccountManagementFile] =
     useState<File | null>(null);
 
@@ -302,6 +316,8 @@ export default function Form101Card({
   const [currentIdCard, setCurrentIdCard] = useState<EmployeeDocument | null>(
     null
   );
+  const [currentIdCardAppendix, setCurrentIdCardAppendix] =
+    useState<EmployeeDocument | null>(null);
   const [currentAccountManagement, setCurrentAccountManagement] =
     useState<EmployeeDocument | null>(null);
 
@@ -314,6 +330,7 @@ export default function Form101Card({
   const [error, setError] = useState("");
 
   const isIdCardLocked = isDocumentLocked(currentIdCard);
+  const isIdCardAppendixLocked = isDocumentLocked(currentIdCardAppendix);
   const isAccountManagementLocked = isDocumentLocked(currentAccountManagement);
   const canOpenForm101 = canFillForm101(currentForm101);
 
@@ -408,17 +425,22 @@ export default function Form101Card({
       if (!employeeId) {
         setCurrentForm101(null);
         setCurrentIdCard(null);
+        setCurrentIdCardAppendix(null);
         setCurrentAccountManagement(null);
         return;
       }
 
-      const [form101, idCard, accountManagement] = await Promise.all([
+      const [form101, idCard, idCardAppendix, accountManagement] = await Promise.all([
         loadDocument("form101").catch((err) => {
           console.error("LOAD FORM 101 FAILED:", err);
           return null;
         }),
         loadDocument("idCard").catch((err) => {
           console.error("LOAD ID CARD FAILED:", err);
+          return null;
+        }),
+        loadDocument("idCardAppendix").catch((err) => {
+          console.error("LOAD ID CARD APPENDIX FAILED:", err);
           return null;
         }),
         loadDocument("accountManagement").catch((err) => {
@@ -429,12 +451,14 @@ export default function Form101Card({
 
       setCurrentForm101(form101);
       setCurrentIdCard(idCard);
+      setCurrentIdCardAppendix(idCardAppendix);
       setCurrentAccountManagement(accountManagement);
     } catch (err) {
       console.error("LOAD EMPLOYEE DOCUMENTS FAILED:", err);
       setError(err instanceof Error ? err.message : "שגיאה בטעינת מסמכים");
       setCurrentForm101(null);
       setCurrentIdCard(null);
+      setCurrentIdCardAppendix(null);
       setCurrentAccountManagement(null);
     } finally {
       setLoading(false);
@@ -452,14 +476,18 @@ export default function Form101Card({
           ? form101File
           : documentType === "idCard"
             ? idCardFile
-            : accountManagementFile;
+            : documentType === "idCardAppendix"
+              ? idCardAppendixFile
+              : accountManagementFile;
 
       const currentDocument =
         documentType === "form101"
           ? currentForm101
           : documentType === "idCard"
             ? currentIdCard
-            : currentAccountManagement;
+            : documentType === "idCardAppendix"
+              ? currentIdCardAppendix
+              : currentAccountManagement;
 
       const isLocked = isDocumentLocked(currentDocument);
       const label =
@@ -467,7 +495,9 @@ export default function Form101Card({
           ? "טופס 101"
           : documentType === "idCard"
             ? "תעודת זהות"
-            : "אישור ניהול חשבון";
+            : documentType === "idCardAppendix"
+              ? "ספח תעודת זהות"
+              : "אישור ניהול חשבון";
 
       if (isLocked) {
         setError(lockedMessage(label, currentDocument?.status));
@@ -525,6 +555,10 @@ export default function Form101Card({
         setIdCardFile(null);
         setCurrentIdCard(uploadedDocument);
         alert("תעודת זהות הועלתה בהצלחה");
+      } else if (documentType === "idCardAppendix") {
+        setIdCardAppendixFile(null);
+        setCurrentIdCardAppendix(uploadedDocument);
+        alert("ספח תעודת זהות הועלה בהצלחה");
       } else {
         setAccountManagementFile(null);
         setCurrentAccountManagement(uploadedDocument);
@@ -554,6 +588,7 @@ export default function Form101Card({
   const mainStatus = getMainStatus(
     currentForm101,
     currentIdCard,
+    currentIdCardAppendix,
     currentAccountManagement
   );
 
@@ -595,7 +630,7 @@ export default function Form101Card({
           </span>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-4">
           <div className="rounded-3xl bg-slate-50 p-4">
             <p className="text-sm font-black text-slate-900">טופס 101</p>
 
@@ -638,6 +673,32 @@ export default function Form101Card({
             >
               {statusLabel(currentIdCard?.status || "missing")}
             </span>
+          </div>
+
+          <div className="rounded-3xl bg-slate-50 p-4">
+            <p className="text-sm font-black text-slate-900">ספח תעודת זהות</p>
+
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              {currentIdCardAppendix
+                ? `הועלה: ${currentIdCardAppendix.originalFileName}`
+                : "עדיין לא הועלה ספח תעודת זהות."}
+            </p>
+
+            <span
+              className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
+                currentIdCardAppendix?.status || "missing"
+              )}`}
+            >
+              {statusLabel(currentIdCardAppendix?.status || "missing")}
+            </span>
+
+            {currentIdCardAppendix?.fileUrl && (
+              <DocumentSavedActions
+                fileUrl={currentIdCardAppendix.fileUrl}
+                viewLabel="צפייה"
+                downloadLabel="הורדה"
+              />
+            )}
           </div>
 
           <div className="rounded-3xl bg-slate-50 p-4">
@@ -1013,6 +1074,61 @@ export default function Form101Card({
                   )}
                 </div>
 
+                <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white p-4">
+                  <p className="text-sm font-black text-slate-900">
+                    העלאת ספח תעודת זהות
+                  </p>
+
+                  {isIdCardAppendixLocked ? (
+                    <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+                      {lockedMessage("ספח תעודת זהות", currentIdCardAppendix?.status)}
+                    </div>
+                  ) : (
+                    <>
+                      {currentIdCardAppendix?.status === "rejected" && (
+                        <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                          ספח תעודת הזהות נדחה על ידי האדמין. ניתן להעלות קובץ מתוקן.
+                          {currentIdCardAppendix.rejectionReason && (
+                            <div className="mt-2">
+                              סיבה: {currentIdCardAppendix.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg"
+                        disabled={uploadingType === "idCardAppendix"}
+                        onChange={(event) => {
+                          setIdCardAppendixFile(event.target.files?.[0] || null);
+                        }}
+                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {idCardAppendixFile && (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {idCardAppendixFile.name} · {formatFileSize(idCardAppendixFile.size)}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocument("idCardAppendix")}
+                        disabled={
+                          uploadingType === "idCardAppendix" ||
+                          !idCardAppendixFile
+                        }
+                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploadingType === "idCardAppendix"
+                          ? "מעלה..."
+                          : "העלאת ספח תעודת זהות"}
+                      </button>
+                    </>
+                  )}
+                </div>
+
                 {currentIdCard && (
                   <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
                     <p className="text-sm font-black text-slate-900">
@@ -1036,6 +1152,34 @@ export default function Form101Card({
                     <DocumentSavedActions
                       fileUrl={currentIdCard.fileUrl}
                       viewLabel="צפייה בתעודת זהות"
+                      downloadLabel="הורדה"
+                    />
+                  </div>
+                )}
+
+                {currentIdCardAppendix && (
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-black text-slate-900">
+                      ספח תעודת הזהות האחרון שהועלה
+                    </p>
+
+                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                      <span>
+                        קובץ: <b className="text-slate-950">{currentIdCardAppendix.originalFileName}</b>
+                      </span>
+
+                      <span>
+                        גודל: <b className="text-slate-950">{formatFileSize(currentIdCardAppendix.fileSize)}</b>
+                      </span>
+
+                      <span>
+                        תאריך העלאה: <b className="text-slate-950">{formatDate(currentIdCardAppendix.uploadedAt || currentIdCardAppendix.createdAt)}</b>
+                      </span>
+                    </div>
+
+                    <DocumentSavedActions
+                      fileUrl={currentIdCardAppendix.fileUrl}
+                      viewLabel="צפייה בספח תעודת זהות"
                       downloadLabel="הורדה"
                     />
                   </div>

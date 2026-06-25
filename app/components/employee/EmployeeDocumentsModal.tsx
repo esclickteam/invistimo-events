@@ -3,7 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -22,6 +26,7 @@ type ApiEmployeeDocument = {
   createdAt?: string;
   updatedAt?: string;
 };
+
 
 type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
 
@@ -171,14 +176,17 @@ type EmployeeDocumentsModalProps = {
 
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
+  idCardAppendix?: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
   accountManagement?: ApiEmployeeDocument | null;
 
   form101File: File | null;
   idCardFile: File | null;
+  idCardAppendixFile?: File | null;
   accountManagementFile?: File | null;
   setForm101File: (file: File | null) => void;
   setIdCardFile: (file: File | null) => void;
+  setIdCardAppendixFile?: (file: File | null) => void;
   setAccountManagementFile?: (file: File | null) => void;
 
   loading: boolean;
@@ -1271,14 +1279,17 @@ export default function EmployeeDocumentsModal({
 
   form101,
   idCard,
+  idCardAppendix = null,
   agreement,
   accountManagement = null,
 
   form101File,
   idCardFile,
+  idCardAppendixFile = null,
   accountManagementFile = null,
   setForm101File,
   setIdCardFile,
+  setIdCardAppendixFile = () => undefined,
   setAccountManagementFile = () => undefined,
 
   loading,
@@ -1320,6 +1331,7 @@ export default function EmployeeDocumentsModal({
 
   const form101Status = form101?.status || "missing";
   const idCardStatus = idCard?.status || "missing";
+  const idCardAppendixStatus = idCardAppendix?.status || "missing";
   const accountManagementStatus = accountManagement?.status || "missing";
 
   const agreementStatus = getAgreementEffectiveStatus(agreement);
@@ -1330,6 +1342,7 @@ export default function EmployeeDocumentsModal({
 
   const canUploadForm101 = canUploadDocument(form101);
   const canUploadIdCard = canUploadDocument(idCard);
+  const canUploadIdCardAppendix = canUploadDocument(idCardAppendix);
   const canUploadAccountManagement = canUploadDocument(accountManagement);
   const canEditHoursNotes = hoursStatusAllowsEditing(hoursSummary.status);
 
@@ -1755,9 +1768,35 @@ export default function EmployeeDocumentsModal({
                     />
                   </div>
                 )}
+
+                {idCardAppendixStatus === "rejected" && (
+                  <div className="mt-5">
+                    <RejectionBox reason={idCardAppendix?.rejectionReason} />
+                  </div>
+                )}
+
+                {!canUploadIdCardAppendix && (
+                  <div className="mt-5">
+                    <ReadonlyNotice text="ספח תעודת הזהות כבר נשלח ונשמר במערכת. ניתן לצפות בספח בלבד, ללא עריכה מתוך תיק העובד." />
+                  </div>
+                )}
+
+                {canUploadIdCardAppendix && (
+                  <div className="mt-5">
+                    <UploadDocumentBox
+                      documentType="idCardAppendix"
+                      title="שליחת ספח תעודת זהות"
+                      description="ניתן לשלוח PDF, JPG או PNG של ספח תעודת הזהות. הספח נשמר כמסמך נפרד בתיק העובד."
+                      selectedFile={idCardAppendixFile}
+                      setSelectedFile={setIdCardAppendixFile}
+                      uploadingType={uploadingType}
+                      onUpload={onUpload}
+                    />
+                  </div>
+                )}
               </div>
 
-              <div>
+              <div className="space-y-5">
                 {idCard ? (
                   <DocumentDetailsCard
                     title="תעודת הזהות האחרונה שנשלחה"
@@ -1769,6 +1808,21 @@ export default function EmployeeDocumentsModal({
                     <EmptyTabState
                       title="עדיין לא נשלחה תעודת זהות"
                       subtitle="לאחר שליחת תעודת זהות, היא תופיע כאן לצפייה בלבד עם סטטוס בדיקה."
+                    />
+                  )
+                )}
+
+                {idCardAppendix ? (
+                  <DocumentDetailsCard
+                    title="ספח תעודת הזהות האחרון שנשלח"
+                    document={idCardAppendix}
+                    viewLabel="צפייה בספח תעודת זהות"
+                  />
+                ) : (
+                  !loading && (
+                    <EmptyTabState
+                      title="עדיין לא נשלח ספח תעודת זהות"
+                      subtitle="לאחר שליחת ספח תעודת זהות, הוא יופיע כאן כמסמך נפרד עם סטטוס בדיקה."
                     />
                   )
                 )}

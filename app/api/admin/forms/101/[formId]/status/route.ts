@@ -47,7 +47,12 @@ async function requireAdmin(req: NextRequest) {
 
   const role = String((user as any).role || "").toLowerCase();
 
-  if (role !== "admin") {
+  if (
+    role !== "admin" &&
+    role !== "super_admin" &&
+    role !== "owner" &&
+    (user as any).isAdmin !== true
+  ) {
     return null;
   }
 
@@ -56,6 +61,7 @@ async function requireAdmin(req: NextRequest) {
 
 function documentTypeLabel(documentType?: string) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "idCardAppendix") return "ספח תעודת זהות";
   if (documentType === "accountManagement") return "אישור ניהול חשבון";
   if (documentType === "form101") return "טופס 101";
 
@@ -170,7 +176,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         { status: 404 }
       );
     }
-    
 
     const serialized = serializeEmployeeDocument(updated);
 
@@ -179,7 +184,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
       document: serialized,
 
-      // תאימות אחורה לקוד קיים באדמין שמצפה ל-form
       form: serialized,
     });
   } catch (error) {

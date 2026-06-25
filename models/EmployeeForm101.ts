@@ -23,12 +23,12 @@ const EmployeeForm101Schema = new Schema(
      * accountManagement = אישור ניהול חשבון
      */
     documentType: {
-      type: String,
-      enum: ["form101", "idCard", "accountManagement"],
-      default: "form101",
-      required: true,
-      index: true,
-    },
+  type: String,
+  enum: ["form101", "idCard", "idCardAppendix", "accountManagement"],
+  default: "form101",
+  required: true,
+  index: true,
+},
 
     originalFileName: {
       type: String,

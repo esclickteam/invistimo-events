@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import db from "@/lib/db";
+import User from "@/models/User";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -26,10 +31,22 @@ function extractUserId(authResult: any) {
   );
 }
 
+function isAdminUser(user: any) {
+  const role = String(user?.role || "").toLowerCase();
+
+  return (
+    role === "admin" ||
+    role === "super_admin" ||
+    role === "owner" ||
+    user?.isAdmin === true
+  );
+}
+
 function normalizeDocumentType(value: string | null): EmployeeDocumentType {
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
+  if (raw === "idCardAppendix") return "idCardAppendix";
   if (raw === "accountManagement") return "accountManagement";
   if (raw === "form101") return "form101";
 
@@ -69,6 +86,34 @@ function serializeEmployeeDocument(document: any) {
   };
 }
 
+function buildCurrentDocumentQuery({
+  employeeObjectId,
+  taxYear,
+  documentType,
+}: {
+  employeeObjectId: mongoose.Types.ObjectId;
+  taxYear: number;
+  documentType: EmployeeDocumentType;
+}) {
+  if (documentType === "form101") {
+    return {
+      employeeId: employeeObjectId,
+      taxYear,
+      $or: [
+        { documentType: "form101" },
+        { documentType: { $exists: false } },
+        { documentType: null },
+      ],
+    };
+  }
+
+  return {
+    employeeId: employeeObjectId,
+    taxYear,
+    documentType,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     await db();
@@ -80,11 +125,33 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     }
 
+    const user = await User.findById(userId).lean();
+
+    if (!user) {
+      return NextResponse.json({ error: "משתמש לא נמצא" }, { status: 404 });
+    }
+
+    const admin = isAdminUser(user);
+
     const { searchParams } = new URL(req.url);
 
     const documentType = normalizeDocumentType(
       searchParams.get("documentType") || searchParams.get("type")
     );
+
+    const requestedEmployeeId = String(
+      searchParams.get("employeeId") || ""
+    ).trim();
+
+    const finalEmployeeId =
+      admin && requestedEmployeeId ? requestedEmployeeId : userId;
+
+    if (!mongoose.Types.ObjectId.isValid(finalEmployeeId)) {
+      return NextResponse.json(
+        { error: "מזהה עובד לא תקין" },
+        { status: 400 }
+      );
+    }
 
     const taxYearFromQuery = Number(searchParams.get("taxYear"));
     const taxYear =
@@ -92,33 +159,13 @@ export async function GET(req: NextRequest) {
         ? taxYearFromQuery
         : new Date().getFullYear();
 
-    /**
-     * כרגע מקור האמת הוא המשתמש המחובר.
-     * גם אם הפרונט שולח employeeId, לא נסמוך עליו כדי שעובד לא יוכל לשלוף מסמך של עובד אחר.
-     */
-    const employeeObjectId = new mongoose.Types.ObjectId(userId);
+    const employeeObjectId = new mongoose.Types.ObjectId(finalEmployeeId);
 
-    /**
-     * לטופס 101:
-     * תומך גם במסמכים ישנים שאין להם documentType,
-     * כי לפני העדכון כל הרשומות היו בעצם form101.
-     */
-    const query =
-      documentType === "form101"
-        ? {
-            employeeId: employeeObjectId,
-            taxYear,
-            $or: [
-              { documentType: "form101" },
-              { documentType: { $exists: false } },
-              { documentType: null },
-            ],
-          }
-        : {
-            employeeId: employeeObjectId,
-            taxYear,
-            documentType,
-          };
+    const query = buildCurrentDocumentQuery({
+      employeeObjectId,
+      taxYear,
+      documentType,
+    });
 
     const document = await EmployeeForm101.findOne(query)
       .sort({ createdAt: -1 })
@@ -131,9 +178,9 @@ export async function GET(req: NextRequest) {
 
       document: serialized,
 
-      // תאימות לקומפוננטות ישנות
       form101: documentType === "form101" ? serialized : null,
       idCard: documentType === "idCard" ? serialized : null,
+      idCardAppendix: documentType === "idCardAppendix" ? serialized : null,
       accountManagement:
         documentType === "accountManagement" ? serialized : null,
     });
