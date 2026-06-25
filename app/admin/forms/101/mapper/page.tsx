@@ -56,60 +56,80 @@ const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
 
 const CHILDREN_ROW_COUNT = 13;
-const CHILDREN_PLACEHOLDER_X = 0;
-const CHILDREN_PLACEHOLDER_Y = 0;
+const CHILDREN_FIRST_ORDER = 32;
+const CHILDREN_ROW_Y_GAP = 30;
 
 const CHILDREN_ROW_FIELD_DEFS = [
   {
     suffix: "Mark1",
     label: "סימון 1",
-    x: 745,
+    x: 751,
+    y: 504,
     width: 18,
     height: 18,
     type: "check" as FieldType,
+    sample: "✓",
     fontSize: 16,
     align: "center" as TextAlign,
   },
   {
     suffix: "Mark2",
     label: "סימון 2",
-    x: 720,
+    x: 737,
+    y: 503,
     width: 18,
     height: 18,
     type: "check" as FieldType,
+    sample: "✓",
     fontSize: 16,
     align: "center" as TextAlign,
   },
   {
     suffix: "Name",
     label: "שם",
-    x: 540,
-    width: 95,
+    x: 646,
+    y: 503,
+    width: 90,
     height: 22,
     type: "text" as FieldType,
+    sample: "",
     fontSize: 14,
     align: "center" as TextAlign,
   },
   {
     suffix: "Id",
     label: "ת.ז",
-    x: 405,
-    width: 110,
+    x: 508,
+    y: 506,
+    width: 135,
     height: 22,
     type: "digits" as FieldType,
+    sample: "316576578",
     fontSize: 14,
     align: "left" as TextAlign,
+    digitGap: 23,
+    digitSpacingMode: "group" as DigitSpacingMode,
+    digitGroupSizeMode: "manual" as DigitGroupSizeMode,
+    digitGroupSize: 3,
+    digitGroupGap: 20,
     maxDigits: 9,
   },
   {
     suffix: "BirthDate",
     label: "תאריך לידה",
-    x: 285,
-    width: 100,
+    x: 384,
+    y: 506,
+    width: 125,
     height: 22,
     type: "digits" as FieldType,
+    sample: "04032022",
     fontSize: 14,
     align: "left" as TextAlign,
+    digitGap: 17,
+    digitSpacingMode: "group" as DigitSpacingMode,
+    digitGroupSizeMode: "manual" as DigitGroupSizeMode,
+    digitGroupSize: 3,
+    digitGroupGap: 20,
     maxDigits: 8,
   },
 ] as const;
@@ -138,107 +158,73 @@ function getChildFieldLabelBySuffix(row: number, suffix: string) {
   return definition ? `ילד ${row} ${definition.label}` : `ילד ${row}`;
 }
 
-function buildDefaultChildField(
-  row: number,
-  suffix: ChildSuffix,
-  order: number,
-  childMap: Map<string, FieldItem>,
-): FieldItem {
+function buildDefaultChildField(row: number, suffix: ChildSuffix): FieldItem {
   const definition = getChildDefinition(suffix)!;
-
-  const sameSuffixFields = Array.from(childMap.values())
-    .map((field) => ({ field, parsed: parseChildFieldKeyOutside(field.key) }))
-    .filter((item) => item.parsed?.suffix === suffix) as Array<{
-    field: FieldItem;
-    parsed: { row: number; suffix: ChildSuffix };
-  }>;
-
-  const reference =
-    childMap.get(`1:${suffix}`) ||
-    sameSuffixFields.sort((a, b) => a.parsed.row - b.parsed.row)[0]?.field;
+  const rowOffsetY = (row - 1) * CHILDREN_ROW_Y_GAP;
+  const rowOffsetOrder = (row - 1) * CHILDREN_ROW_FIELD_DEFS.length;
+  const fieldIndex = CHILDREN_ROW_FIELD_DEFS.findIndex(
+    (item) => item.suffix === suffix,
+  );
 
   return {
     key: `child${row}${suffix}`,
     label: getChildFieldLabelBySuffix(row, suffix),
     section: "children",
     page: 1,
-
-    // לא קובעים מיקום אוטומטי לשורות ילדים.
-    // זה רק ערך טכני כדי שהשדה יופיע בעורך, ואת קובעת ידנית כל שדה/שורה.
-    x: CHILDREN_PLACEHOLDER_X,
-    y: CHILDREN_PLACEHOLDER_Y,
-
-    width: reference?.width ?? definition.width,
-    height: reference?.height ?? definition.height,
+    x: definition.x,
+    y: definition.y + rowOffsetY,
+    width: definition.width,
+    height: definition.height,
     type: definition.type,
-    sample: definition.type === "check" ? "✓" : "",
-    fontSize: reference?.fontSize ?? definition.fontSize,
-    digitGap:
-      definition.type === "digits"
-        ? (reference?.digitGap ?? DEFAULT_GLOBAL_DIGIT_GAP)
-        : undefined,
+    sample: definition.sample,
+    fontSize: definition.fontSize,
+    digitGap: "digitGap" in definition ? definition.digitGap : undefined,
     digitSpacingMode:
-      definition.type === "digits"
-        ? (reference?.digitSpacingMode ?? "equal")
-        : undefined,
-    digitGaps: Array.isArray(reference?.digitGaps) ? reference?.digitGaps : [],
+      "digitSpacingMode" in definition ? definition.digitSpacingMode : undefined,
+    digitGaps: [],
     digitGroupSize:
-      definition.type === "digits"
-        ? (reference?.digitGroupSize ?? 3)
-        : undefined,
+      "digitGroupSize" in definition ? definition.digitGroupSize : undefined,
     digitGroupSizeMode:
-      definition.type === "digits"
-        ? (reference?.digitGroupSizeMode ?? "manual")
+      "digitGroupSizeMode" in definition
+        ? definition.digitGroupSizeMode
         : undefined,
     digitGroupGap:
-      definition.type === "digits"
-        ? (reference?.digitGroupGap ?? 0)
-        : undefined,
+      "digitGroupGap" in definition ? definition.digitGroupGap : undefined,
     maxDigits: "maxDigits" in definition ? definition.maxDigits : undefined,
-    align: reference?.align ?? definition.align,
-    order,
+    align: definition.align,
+    order: CHILDREN_FIRST_ORDER + rowOffsetOrder + fieldIndex,
     enabled: true,
     isFixed: false,
     fixedValue: "",
   };
 }
 
+function buildExactChildrenFields() {
+  const rows: FieldItem[] = [];
+
+  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
+    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
+      rows.push(buildDefaultChildField(row, definition.suffix));
+    });
+  }
+
+  return rows;
+}
+
 function ensure13ChildrenRowsWithoutChangingExistingPositions(
   sourceFields: FieldItem[],
 ) {
   const sortedFields = [...sourceFields].sort((a, b) => a.order - b.order);
-  const existingChildren = sortedFields.filter(
-    (field) => field.section === "children",
-  );
-
-  const childrenStartOrder = existingChildren.length
-    ? Math.min(...existingChildren.map((field) => field.order))
-    : 34;
+  const childrenLastOrder =
+    CHILDREN_FIRST_ORDER + CHILDREN_ROW_COUNT * CHILDREN_ROW_FIELD_DEFS.length - 1;
 
   const beforeChildren = sortedFields.filter(
-    (field) => field.section !== "children" && field.order < childrenStartOrder,
+    (field) => field.section !== "children" && field.order < CHILDREN_FIRST_ORDER,
   );
 
   const afterChildren = sortedFields.filter(
-    (field) =>
-      field.section !== "children" && field.order >= childrenStartOrder,
+    (field) => field.section !== "children" && field.order >= CHILDREN_FIRST_ORDER,
   );
-
-  const childMap = new Map<string, FieldItem>();
-
-  existingChildren
-    .sort((a, b) => a.order - b.order)
-    .forEach((field) => {
-      const parsed = parseChildFieldKeyOutside(field.key);
-
-      if (!parsed) return;
-      if (parsed.row < 1 || parsed.row > CHILDREN_ROW_COUNT) return;
-
-      const mapKey = `${parsed.row}:${parsed.suffix}`;
-      if (childMap.has(mapKey)) return;
-
-      childMap.set(mapKey, field);
-    });
 
   let nextOrder = 1;
 
@@ -247,33 +233,8 @@ function ensure13ChildrenRowsWithoutChangingExistingPositions(
     order: nextOrder++,
   }));
 
-  const children: FieldItem[] = [];
-
-  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
-    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
-      const existing = childMap.get(`${row}:${definition.suffix}`);
-
-      if (existing) {
-        children.push({
-          ...existing,
-          key: `child${row}${definition.suffix}`,
-          label: getChildFieldLabelBySuffix(row, definition.suffix),
-          section: "children",
-          page: 1,
-          order: nextOrder++,
-          enabled:
-            typeof existing.enabled === "boolean" ? existing.enabled : true,
-          isFixed: false,
-          fixedValue: "",
-        });
-        return;
-      }
-
-      children.push(
-        buildDefaultChildField(row, definition.suffix, nextOrder++, childMap),
-      );
-    });
-  }
+  const children = buildExactChildrenFields();
+  nextOrder = childrenLastOrder + 1;
 
   const normalizedAfter = afterChildren.map((field) => ({
     ...field,
@@ -283,20 +244,8 @@ function ensure13ChildrenRowsWithoutChangingExistingPositions(
   return [...normalizedBefore, ...children, ...normalizedAfter];
 }
 
-function buildInitialChildrenFields(startOrder = 34) {
-  const emptyMap = new Map<string, FieldItem>();
-  const rows: FieldItem[] = [];
-  let nextOrder = startOrder;
-
-  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
-    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
-      rows.push(
-        buildDefaultChildField(row, definition.suffix, nextOrder++, emptyMap),
-      );
-    });
-  }
-
-  return rows;
+function buildInitialChildrenFields() {
+  return buildExactChildrenFields();
 }
 
 const SECTIONS = [
@@ -1519,8 +1468,6 @@ export default function Form101MapperPage() {
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
-  const [childrenRowOrdersInput, setChildrenRowOrdersInput] = useState("");
-  const [childrenRowGap, setChildrenRowGap] = useState(32);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1544,10 +1491,26 @@ export default function Form101MapperPage() {
       (field) => field.enabled || showDisabledFields,
     );
 
+    if (selectedSection === "children" && showAllFields) {
+      const selectedRow = parseChildFieldKey(selectedKey)?.row || null;
+
+      if (selectedRow) {
+        return allowed.filter(
+          (field) => parseChildFieldKey(field.key)?.row === selectedRow,
+        );
+      }
+    }
+
     if (showAllFields) return allowed;
 
     return allowed.filter((field) => field.key === selectedKey);
-  }, [sectionFields, selectedKey, showAllFields, showDisabledFields]);
+  }, [
+    sectionFields,
+    selectedKey,
+    selectedSection,
+    showAllFields,
+    showDisabledFields,
+  ]);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
@@ -2004,162 +1967,6 @@ export default function Form101MapperPage() {
     setShowAllFields(false);
   }
 
-  function parseChildRowOrdersInput(value: string) {
-    return value
-      .split(/[,\s|]+/)
-      .map((item) => Number(item.trim()))
-      .filter((num) => Number.isFinite(num) && num > 0)
-      .map((num) => Math.round(num));
-  }
-
-  function getSelectedRowFieldsFromInput() {
-    const orders = parseChildRowOrdersInput(childrenRowOrdersInput);
-
-    if (orders.length) {
-      const byOrder = fields
-        .filter(
-          (field) =>
-            field.page === page &&
-            field.section === "children" &&
-            orders.includes(field.order),
-        )
-        .sort((a, b) => orders.indexOf(a.order) - orders.indexOf(b.order));
-
-      return byOrder;
-    }
-
-    const selectedRow = getSelectedChildRowNumber();
-
-    if (selectedRow) {
-      return getChildRowFields(selectedRow);
-    }
-
-    return [];
-  }
-
-  function inferChildSuffix(field: FieldItem, index: number) {
-    const parsed = parseChildFieldKey(field.key);
-    if (parsed?.suffix) return parsed.suffix;
-
-    if (field.label.includes("שם")) return "Name";
-    if (field.label.includes("ת.ז") || field.label.includes("זהות"))
-      return "Id";
-    if (field.label.includes("לידה") || field.label.includes("תאריך"))
-      return "BirthDate";
-
-    if (field.type === "check") {
-      return index === 3 ? "Mark1" : "Mark2";
-    }
-
-    const fallbackByIndex = ["Name", "Id", "BirthDate", "Mark1", "Mark2"];
-    return fallbackByIndex[index] || `Custom${index + 1}`;
-  }
-
-  function getNextChildRowNumber() {
-    const maxRow = fields.reduce((max, field) => {
-      const parsed = parseChildFieldKey(field.key);
-      return parsed ? Math.max(max, parsed.row) : max;
-    }, 0);
-
-    return maxRow + 1;
-  }
-
-  function fillChildRowOrdersFromSelectedRow() {
-    const selectedRow = getSelectedChildRowNumber();
-
-    if (!selectedRow) {
-      alert("צריך לבחור שדה מתוך שורת ילד קיימת");
-      return;
-    }
-
-    const rowFields = getChildRowFields(selectedRow);
-
-    if (!rowFields.length) {
-      alert("לא נמצאו שדות לשורת הילד הנבחרת");
-      return;
-    }
-
-    setChildrenRowOrdersInput(rowFields.map((field) => field.order).join(","));
-  }
-
-  function duplicateSelectedChildrenRowToNext() {
-    const sourceFields = getSelectedRowFieldsFromInput();
-
-    if (!sourceFields.length) {
-      alert("צריך להכניס מספרי שדות של השורה, למשל: 34,35,36,37,38");
-      return;
-    }
-
-    if (sourceFields.length < 2) {
-      alert("צריך לבחור לפחות שני שדות לשכפול שורה");
-      return;
-    }
-
-    const targetRow = getNextChildRowNumber();
-    const rowGap = Math.max(1, Number(childrenRowGap) || 32);
-    const maxOrder = fields.reduce(
-      (max, field) => Math.max(max, field.order),
-      0,
-    );
-
-    const sourceSummary = sourceFields
-      .map((field) => `${field.order} - ${field.label}`)
-      .join("\n");
-
-    if (
-      !confirm(
-        `לשכפל את השדות הבאים לילד ${targetRow}?\n\n${sourceSummary}\n\nהשורה החדשה תיווצר ${rowGap}px מתחת, ואז אפשר לגרור אותה יחד למיקום הנכון.`,
-      )
-    ) {
-      return;
-    }
-
-    const newFields = sourceFields.map((sourceField, index) => {
-      const suffix = inferChildSuffix(sourceField, index);
-      const key = `child${targetRow}${suffix}`;
-
-      return {
-        ...sourceField,
-        key,
-        label: getChildFieldLabel(targetRow, suffix),
-        y: sourceField.y + rowGap,
-        order: maxOrder + index + 1,
-        sample: "",
-        fixedValue: "",
-        isFixed: false,
-        enabled: true,
-      };
-    });
-
-    markTemplateChanged();
-
-    setFields((prev) =>
-      [...prev, ...newFields].sort((a, b) => a.order - b.order),
-    );
-
-    const firstNewField = newFields[0];
-    setSelectedKey(firstNewField.key);
-    setSelectedSection("children");
-    setPage(firstNewField.page);
-    setShowAllFields(true);
-    setChildrenRowOrdersInput(
-      newFields.map((field) => String(field.order)).join(","),
-    );
-  }
-
-  function completeChildrenRowsTo13() {
-    markTemplateChanged();
-
-    setFields((prev) =>
-      ensure13ChildrenRowsWithoutChangingExistingPositions(prev),
-    );
-    setPage(1);
-    setSelectedSection("children");
-    setSelectedKey("child1Mark1");
-    setShowAllFields(true);
-    setChildrenRowOrdersInput("");
-  }
-
   function deleteSelectedChildRow() {
     const selectedRow = getSelectedChildRowNumber();
 
@@ -2313,14 +2120,6 @@ export default function Form101MapperPage() {
                 className="h-11 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white"
               >
                 הוספת שדה
-              </button>
-
-              <button
-                type="button"
-                onClick={completeChildrenRowsTo13}
-                className="h-11 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white"
-              >
-                השלמת 13 שורות ילדים
               </button>
 
               <button
@@ -2594,32 +2393,14 @@ export default function Form101MapperPage() {
                 {selectedField.section === "children" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm font-black text-amber-800">
-                      13 שורות ילדים ללא מיקום אוטומטי
+                      13 שורות ילדים מוגדרות בקוד
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
-                      המערכת רק דואגת שיהיו 13 שורות עם 5 שדות בכל שורה: סימון
-                      1, סימון 2, שם, ת.ז, תאריך לידה. היא לא מאפסת מיקומים שכבר
-                      הגדרת ולא מאפסת מרווחי ספרות. כל שורה אפשר למקם ידנית,
-                      וגרירה של שדה מתוך שורת ילד מזיזה את כל השורה יחד.
+                      אין שכפול ואין השלמה ידנית. כל 13 השורות מוגדרות קבוע בקוד
+                      לפי שורת ילד 1 והמרחק לילד 2: סימון 1, סימון 2, שם, ת.ז,
+                      תאריך לידה. במצב "הצג כל השדות בסעיף" מוצגים רק 5 השדות של
+                      הילד הנבחר כדי שלא תהיה חפיפה של כל הילדים על המסך.
                     </p>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={completeChildrenRowsTo13}
-                        className="rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
-                      >
-                        השלם ל-13 שורות
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={deleteSelectedChildRow}
-                        className="rounded-2xl bg-red-600 py-3 text-sm font-black text-white"
-                      >
-                        מחק שורת ילד
-                      </button>
-                    </div>
                   </div>
                 )}
 
