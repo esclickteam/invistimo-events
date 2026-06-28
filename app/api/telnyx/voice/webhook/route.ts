@@ -194,9 +194,10 @@ function getTelnyxApiKey() {
   return process.env.TELNYX_API_KEY || "";
 }
 
+
 function getSystemPhoneNumber() {
   return normalizePhoneForCompare(
-    process.env.TELNYX_FROM_NUMBER || "+97283761556"
+    process.env.TELNYX_FROM_NUMBER || "+972555172720"
   );
 }
 

@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.TELNYX_API_KEY;
     const connectionId = process.env.TELNYX_CONNECTION_ID;
-    const defaultFrom = process.env.TELNYX_FROM_NUMBER || "+97283761556";
+    const defaultFrom = process.env.TELNYX_FROM_NUMBER || "+972555172720";
 
     if (!apiKey) {
       return jsonError("TELNYX_API_KEY is missing", 500);
@@ -710,6 +710,7 @@ export async function POST(req: NextRequest) {
         console.error("FAILED TO UPDATE CALL RECORDING AFTER ROUTE ERROR:", mongoError);
       }
     }
+
 
     return NextResponse.json(
       {
