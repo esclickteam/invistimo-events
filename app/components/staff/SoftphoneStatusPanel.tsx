@@ -147,7 +147,7 @@ type IconName =
   | "message"
   | "activity";
 
-const TELNYX_DEFAULT_CALLER_NUMBER = "+97283761556";
+const TELNYX_DEFAULT_CALLER_NUMBER = "+972555172720";
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
   available: "פנוי",
