@@ -967,7 +967,7 @@ export default function EmployeeWorkOrderTasksPage() {
         body.attendingCount = input.attendingCount;
         body.confirmedCount = input.attendingCount;
         body.arrivedCount = input.attendingCount;
-        body.actualArrivedCount = input.attendingCount;
+        // לא שולחים actualArrivedCount מכאן — זה שייך רק ללייב/צ׳ק-אין.
       }
 
       if (input.status === "confirmed") {
@@ -984,7 +984,7 @@ export default function EmployeeWorkOrderTasksPage() {
         body.attendingCount = 0;
         body.confirmedCount = 0;
         body.arrivedCount = 0;
-        body.actualArrivedCount = 0;
+        // לא מאפסים actualArrivedCount מכאן — זה שייך רק ללייב/צ׳ק-אין.
         body.keepRsvpOpen = false;
       }
 

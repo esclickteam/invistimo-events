@@ -1019,7 +1019,7 @@ async function syncDuplicateGuestRoundTasks(input: {
 
   if (input.attendingCount !== undefined) {
     set.arrivedCount = input.attendingCount;
-    set.actualArrivedCount = input.attendingCount;
+    // actualArrivedCount לא מתעדכן משיחות/RSVP. רק מסך הלייב מעדכן מגיעים בפועל.
 
     set.attendingCount = input.attendingCount;
     set.confirmedCount = input.attendingCount;
@@ -1504,7 +1504,7 @@ async function syncInvitationGuest(input: {
     set.isAttending = true;
 
     set.arrivedCount = count;
-    set.actualArrivedCount = count;
+    // actualArrivedCount לא מתעדכן מאישור טלפוני.
 
     set.attendingCount = count;
     set.confirmedCount = count;
@@ -1531,7 +1531,7 @@ async function syncInvitationGuest(input: {
     set.isAttending = false;
 
     set.arrivedCount = 0;
-    set.actualArrivedCount = 0;
+    // לא מאפסים actualArrivedCount מתוך שיחות, כדי לא למחוק נתוני לייב אמיתיים.
 
     set.attendingCount = 0;
     set.confirmedCount = 0;
@@ -1569,7 +1569,7 @@ async function syncInvitationGuest(input: {
     set.isAttending = false;
 
     set.arrivedCount = 0;
-    set.actualArrivedCount = 0;
+    // לא מאפסים actualArrivedCount מתוך שיחות, כדי לא למחוק נתוני לייב אמיתיים.
 
     set.attendingCount = 0;
     set.confirmedCount = 0;
@@ -1800,7 +1800,6 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       body?.attendingCount ??
         body?.confirmedCount ??
         body?.arrivedCount ??
-        body?.actualArrivedCount ??
         body?.count ??
         callDocumentation?.attendingCount
     );
@@ -1992,7 +1991,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     if (attendingCount !== undefined) {
       $set.arrivedCount = attendingCount;
-      $set.actualArrivedCount = attendingCount;
+      // actualArrivedCount לא מתעדכן ממשימות שיחה. רק מסך הלייב/צ׳ק-אין מעדכן אותו.
 
       $set.attendingCount = attendingCount;
       $set.confirmedCount = attendingCount;
