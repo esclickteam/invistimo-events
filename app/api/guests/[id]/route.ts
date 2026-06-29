@@ -8,6 +8,8 @@ import User from "@/models/User";
 import Group from "@/models/Group";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
+import CallTask from "@/models/CallTask";
+import CallWorkOrder from "@/models/CallWorkOrder";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
@@ -26,6 +28,380 @@ const CALL_RESULT_VALUES = new Set([
   "will_reply",
   "needs_correction",
 ]);
+
+
+const CALL_TASK_FINAL_STATUSES = [
+  "confirmed",
+  "declined",
+  "no_answer",
+  "callback",
+  "undecided",
+  "will_reply_message",
+  "needs_fix",
+  "wrong_number",
+  "completed",
+  "cancelled",
+];
+
+const CALL_TASK_RESULT_STATUSES = [
+  "confirmed",
+  "declined",
+  "no_answer",
+  "callback",
+  "undecided",
+  "will_reply_message",
+  "needs_fix",
+  "wrong_number",
+  "completed",
+];
+
+const CALL_TASK_OPEN_STATUSES = [
+  "pending",
+  "in_progress",
+  "open",
+  "assigned",
+  "active",
+];
+
+function normalizeIdForCallTask(value: any) {
+  if (!value) return "";
+
+  if (typeof value === "string") return value.trim();
+
+  if (value instanceof mongoose.Types.ObjectId) {
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return String(value._id || value.id || value.toString?.() || "").trim();
+  }
+
+  return String(value).trim();
+}
+
+function objectIdOrStringConditions(field: string, value: any) {
+  const clean = normalizeIdForCallTask(value);
+  if (!clean) return [];
+
+  const conditions: any[] = [{ [field]: clean }];
+
+  if (mongoose.Types.ObjectId.isValid(clean)) {
+    conditions.push({ [field]: new mongoose.Types.ObjectId(clean) });
+  }
+
+  return conditions;
+}
+
+function buildCallTaskGuestMatch(guest: any) {
+  const invitationId = normalizeIdForCallTask(guest?.invitationId);
+  const guestId = normalizeIdForCallTask(guest?._id);
+
+  const or: any[] = [];
+
+  if (invitationId) {
+    or.push(...objectIdOrStringConditions("invitationId", invitationId));
+  }
+
+  if (guestId) {
+    or.push(...objectIdOrStringConditions("guestId", guestId));
+  }
+
+  const and: any[] = [];
+
+  if (invitationId) {
+    and.push({
+      $or: objectIdOrStringConditions("invitationId", invitationId),
+    });
+  }
+
+  if (guestId) {
+    and.push({
+      $or: objectIdOrStringConditions("guestId", guestId),
+    });
+  }
+
+  if (and.length) {
+    return { $and: and };
+  }
+
+  if (or.length) {
+    return { $or: or };
+  }
+
+  return null;
+}
+
+function getGuestGroupLabelForCallTask(guest: any) {
+  return String(
+    guest?.relation ||
+      guest?.groupName ||
+      guest?.group ||
+      guest?.groupLabel ||
+      guest?.side ||
+      ""
+  ).trim();
+}
+
+function getGuestTableLabelForCallTask(guest: any) {
+  const tableName = String(guest?.tableName || "").trim();
+  if (tableName) return tableName;
+
+  const tableNumber = String(guest?.tableNumber || "").trim();
+  if (tableNumber) return `שולחן ${tableNumber}`;
+
+  return "";
+}
+
+function buildCallTaskGuestSyncSet(guest: any) {
+  const guestName = String(guest?.name || "").trim();
+  const guestPhone = String(guest?.phone || "").trim();
+  const guestEmail = String(guest?.email || "").trim();
+  const guestNotes = String(
+    guest?.notes || guest?.guestNotes || guest?.note || ""
+  ).trim();
+
+  const arrivedCount = Math.max(0, Number(guest?.arrivedCount || 0));
+  const guestsCount = Math.max(1, Number(guest?.guestsCount || 1));
+
+  return {
+    guestName,
+    guestPhone,
+    guestEmail,
+    guestGroup: getGuestGroupLabelForCallTask(guest),
+    guestSide: String(guest?.side || "").trim(),
+    guestTable: getGuestTableLabelForCallTask(guest),
+    guestNotes,
+    rsvpStatus: String(guest?.rsvp || guest?.status || "pending"),
+    attendingCount: arrivedCount,
+    arrivedCount,
+    confirmedCount: arrivedCount,
+    confirmedGuests: arrivedCount,
+    arrivingGuests: arrivedCount,
+    attendeesCount: arrivedCount,
+    guestsCount,
+    updatedAt: new Date(),
+
+    /*
+      חשוב:
+      לא מסנכרנים actualArrivedCount ממשימות שיחה.
+      actualArrivedCount שייך רק למסך לייב / צ׳ק-אין.
+    */
+  };
+}
+
+async function getAffectedCallWorkOrderIdsFromTasks(match: any): Promise<string[]> {
+  if (!match) return [];
+
+  const tasks = await (CallTask as any)
+    .find(match)
+    .select("workOrderId")
+    .lean();
+
+  const ids = (tasks || [])
+    .map((task: any) => normalizeIdForCallTask(task?.workOrderId))
+    .filter((id: string): id is string => Boolean(id));
+
+  return Array.from(new Set<string>(ids));
+}
+
+async function syncCallWorkOrderCounters(workOrderId: string) {
+  if (!workOrderId) return null;
+
+  const workOrderConditions = objectIdOrStringConditions("_id", workOrderId);
+  const workOrderMatch =
+    workOrderConditions.length === 1
+      ? workOrderConditions[0]
+      : { $or: workOrderConditions };
+
+  const taskWorkOrderOr = objectIdOrStringConditions("workOrderId", workOrderId);
+  const taskMatch =
+    taskWorkOrderOr.length === 1 ? taskWorkOrderOr[0] : { $or: taskWorkOrderOr };
+
+  const rows = await (CallTask as any).aggregate([
+    {
+      $match: taskMatch,
+    },
+    {
+      $group: {
+        _id: "$status",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+  ]);
+
+  const counts: Record<string, number> = {
+    total: 0,
+    pending: 0,
+    in_progress: 0,
+    confirmed: 0,
+    declined: 0,
+    no_answer: 0,
+    callback: 0,
+    undecided: 0,
+    will_reply_message: 0,
+    needs_fix: 0,
+    wrong_number: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+
+  for (const row of rows || []) {
+    const status = String(row?._id || "pending");
+    const count = Number(row?.count || 0);
+
+    counts.total += count;
+
+    if (status in counts) {
+      counts[status] += count;
+    }
+  }
+
+  const completedTasks = CALL_TASK_FINAL_STATUSES.reduce(
+    (sum, status) => sum + Number(counts[status] || 0),
+    0
+  );
+
+  const activeTotalTasks = Math.max(0, counts.total - counts.cancelled);
+  const activeCompletedTasks = CALL_TASK_RESULT_STATUSES.reduce(
+    (sum, status) => sum + Number(counts[status] || 0),
+    0
+  );
+  const activeRemainingTasks = Math.max(
+    0,
+    activeTotalTasks - activeCompletedTasks
+  );
+
+  let nextStatus: "open" | "in_progress" | "completed" = "open";
+
+  if (activeTotalTasks > 0 && activeCompletedTasks >= activeTotalTasks) {
+    nextStatus = "completed";
+  } else if (activeCompletedTasks > 0 || counts.in_progress > 0) {
+    nextStatus = "in_progress";
+  }
+
+  const update: any = {
+    status: activeTotalTasks === 0 ? "completed" : nextStatus,
+
+    totalTasks: activeTotalTasks,
+    completedTasks: activeCompletedTasks,
+    remainingTasks: activeRemainingTasks,
+
+    pendingTasks: counts.pending,
+    inProgressTasks: counts.in_progress,
+    confirmedTasks: counts.confirmed,
+    declinedTasks: counts.declined,
+    noAnswerTasks: counts.no_answer,
+    callbackTasks: counts.callback,
+    undecidedTasks: counts.undecided,
+    willReplyMessageTasks: counts.will_reply_message,
+    needsFixTasks: counts.needs_fix,
+    wrongNumberTasks: counts.wrong_number,
+    cancelledTasks: counts.cancelled,
+
+    progressPercent:
+      activeTotalTasks > 0
+        ? Math.round((activeCompletedTasks / activeTotalTasks) * 100)
+        : 100,
+
+    lastStatusSyncAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  if (update.status === "completed") {
+    update.completedAt = new Date();
+  } else {
+    update.completedAt = null;
+  }
+
+  return (CallWorkOrder as any).findOneAndUpdate(
+    workOrderMatch,
+    {
+      $set: update,
+    },
+    {
+      new: true,
+    }
+  );
+}
+
+async function syncCallWorkOrdersByIds(workOrderIds: string[]) {
+  const uniqueIds = Array.from(
+    new Set<string>((workOrderIds || []).filter((id: string): id is string => Boolean(id)))
+  );
+
+  for (const workOrderId of uniqueIds) {
+    await syncCallWorkOrderCounters(workOrderId);
+  }
+}
+
+async function syncCallTasksFromGuest(guest: any) {
+  const match = buildCallTaskGuestMatch(guest);
+  if (!match) return { matchedCount: 0, modifiedCount: 0 };
+
+  const workOrderIds = await getAffectedCallWorkOrderIdsFromTasks(match);
+
+  const result = await (CallTask as any).updateMany(
+    {
+      ...match,
+      status: {
+        $nin: ["cancelled"],
+      },
+    },
+    {
+      $set: buildCallTaskGuestSyncSet(guest),
+    }
+  );
+
+  await syncCallWorkOrdersByIds(workOrderIds);
+
+  return result;
+}
+
+async function cancelCallTasksForDeletedGuest(guest: any) {
+  const match = buildCallTaskGuestMatch(guest);
+  if (!match) {
+    return {
+      matchedCount: 0,
+      modifiedCount: 0,
+      workOrderIds: [] as string[],
+    };
+  }
+
+  const workOrderIds = await getAffectedCallWorkOrderIdsFromTasks(match);
+  const now = new Date();
+
+  const result = await (CallTask as any).updateMany(
+    {
+      ...match,
+      status: {
+        $nin: ["completed", "cancelled"],
+      },
+    },
+    {
+      $set: {
+        status: "cancelled",
+        result: "cancelled",
+        isCompleted: true,
+        cancelReason: "guest_deleted_by_client",
+        cancellationReason: "guest_deleted_by_client",
+        cancelledAt: now,
+        completedAt: now,
+        updatedAt: now,
+      },
+    }
+  );
+
+  await syncCallWorkOrdersByIds(workOrderIds);
+
+  return {
+    matchedCount: Number(result?.matchedCount || result?.n || 0),
+    modifiedCount: Number(result?.modifiedCount || result?.nModified || 0),
+    workOrderIds,
+  };
+}
+
 
 /* ============================================
    Helpers
@@ -1219,6 +1595,14 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     await guest.save();
 
+    /*
+      סנכרון לצד העובדים:
+      אם הלקוח עדכן שם / טלפון / קבוצה / הערות / כמות RSVP,
+      המשימות הפתוחות של העובדים מתעדכנות מיד.
+      לא מעדכנים מכאן actualArrivedCount.
+    */
+    await syncCallTasksFromGuest(guest);
+
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
     const affected = new Set<string>();
 
@@ -1363,13 +1747,18 @@ if (seatingScopeQuery.length) {
   ]);
 }
 
+const cancelledCallTasks = await cancelCallTasksForDeletedGuest(guest);
+
 await guest.deleteOne();
 
     if (groupId) {
       await recalcGroupExpectedCount(groupId);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      cancelledCallTasks,
+    });
   } catch (error: any) {
     console.error("❌ DELETE /guests/[id] error:", error);
 
