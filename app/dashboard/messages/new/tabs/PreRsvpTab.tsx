@@ -171,12 +171,6 @@ function getModeTitle(mode: PreRsvpType) {
 }
 
 function getPreRsvpAccess(preRsvpMessages?: PreRsvpAccess | null) {
-  /*
-    אם הקומפוננטה עדיין לא קיבלה הרשאות מהשרת,
-    משאירים תאימות לאחור ולא שוברים את המסך הקיים.
-    ברגע שהפרונט יעביר preRsvpMessages מה-User,
-    ההרשאות ייאכפו לפי המצב שנשמר ביוזר.
-  */
   if (!preRsvpMessages) {
     return {
       enabled: true,
@@ -189,27 +183,51 @@ function getPreRsvpAccess(preRsvpMessages?: PreRsvpAccess | null) {
     };
   }
 
-  const mode = cleanString(preRsvpMessages.mode) as PreRsvpUpsellMode;
-  const safeMode: PreRsvpUpsellMode =
-    mode === "save_the_date_only" ||
-    mode === "invitation_only" ||
-    mode === "both"
-      ? mode
-      : "none";
+  const rawMode = cleanString(preRsvpMessages.mode) as PreRsvpUpsellMode;
 
-  const enabled = Boolean(preRsvpMessages.enabled) && safeMode !== "none";
+  const hasSaveTheDateAccess =
+    preRsvpMessages.saveTheDateEnabled !== false &&
+    (preRsvpMessages.saveTheDateEnabled === true ||
+      rawMode === "save_the_date_only" ||
+      rawMode === "both" ||
+      !rawMode);
 
-  const saveTheDateEnabled = Boolean(
-    preRsvpMessages.saveTheDateEnabled ||
-      safeMode === "save_the_date_only" ||
-      safeMode === "both"
-  );
+  const hasInvitationOnlyAccess =
+    preRsvpMessages.invitationOnlyEnabled !== false &&
+    (preRsvpMessages.invitationOnlyEnabled === true ||
+      rawMode === "invitation_only" ||
+      rawMode === "both" ||
+      !rawMode);
 
-  const invitationOnlyEnabled = Boolean(
-    preRsvpMessages.invitationOnlyEnabled ||
-      safeMode === "invitation_only" ||
-      safeMode === "both"
-  );
+  let safeMode: PreRsvpUpsellMode = "none";
+
+  if (
+    rawMode === "save_the_date_only" ||
+    rawMode === "invitation_only" ||
+    rawMode === "both" ||
+    rawMode === "none"
+  ) {
+    safeMode = rawMode;
+  } else if (hasSaveTheDateAccess && hasInvitationOnlyAccess) {
+    safeMode = "both";
+  } else if (hasSaveTheDateAccess) {
+    safeMode = "save_the_date_only";
+  } else if (hasInvitationOnlyAccess) {
+    safeMode = "invitation_only";
+  }
+
+  const enabled =
+    preRsvpMessages.enabled === false ? false : safeMode !== "none";
+
+  const saveTheDateEnabled =
+    enabled &&
+    (safeMode === "save_the_date_only" || safeMode === "both") &&
+    hasSaveTheDateAccess;
+
+  const invitationOnlyEnabled =
+    enabled &&
+    (safeMode === "invitation_only" || safeMode === "both") &&
+    hasInvitationOnlyAccess;
 
   const legacyUsed =
     Number(preRsvpMessages.sentCount || 0) >= 1 ||
@@ -223,13 +241,25 @@ function getPreRsvpAccess(preRsvpMessages?: PreRsvpAccess | null) {
     Number(preRsvpMessages.invitationOnlySentCount || 0) >= 1 ||
     Boolean(preRsvpMessages.invitationOnlySentAt);
 
+  const hasSpecificUsageFields =
+    "saveTheDateSentCount" in preRsvpMessages ||
+    "saveTheDateSentAt" in preRsvpMessages ||
+    "invitationOnlySentCount" in preRsvpMessages ||
+    "invitationOnlySentAt" in preRsvpMessages;
+
   return {
     enabled,
     mode: safeMode,
-    saveTheDateEnabled: enabled && saveTheDateEnabled,
-    invitationOnlyEnabled: enabled && invitationOnlyEnabled,
-    saveTheDateUsed: legacyUsed || saveTheDateUsed,
-    invitationOnlyUsed: legacyUsed || invitationOnlyUsed,
+    saveTheDateEnabled,
+    invitationOnlyEnabled,
+
+    // חשוב:
+    // אם יש שדות ספציפיים ל־Save The Date, לא נועלים לפי sentAt/sentCount הכללי
+    saveTheDateUsed: hasSpecificUsageFields ? saveTheDateUsed : legacyUsed,
+    invitationOnlyUsed: hasSpecificUsageFields
+      ? invitationOnlyUsed
+      : legacyUsed,
+
     legacyUsed,
   };
 }
