@@ -271,7 +271,7 @@ function canUsePreRsvpType(
   */
   if (!access) return true;
 
-  if (!access.enabled) return false;
+  if (access.enabled === false) return false;
 
   const mode = normalizePreRsvpMode(access.mode);
 
@@ -294,9 +294,9 @@ function getBlockedPreRsvpMessage(
 ) {
   if (!access) return "";
 
-  if (!access.enabled) {
-    return "השירות לא פתוח בחבילה הנוכחית.";
-  }
+  if (access.enabled === false) {
+  return "השירות לא פתוח בחבילה הנוכחית.";
+}
 
   if (hasUsedPreRsvpType(access, type)) {
     return "השליחה הזאת כבר נוצלה וננעלה לאחר שליחה בפועל.";
@@ -346,15 +346,18 @@ export default function NewMessagesPage() {
           "";
 
         const loadedPreRsvpMessages =
-          data?.preRsvpMessages ||
-          data?.user?.salesUpsells?.preRsvpMessages ||
-          data?.currentUser?.salesUpsells?.preRsvpMessages ||
-          data?.authUser?.salesUpsells?.preRsvpMessages ||
-          invitation?.owner?.salesUpsells?.preRsvpMessages ||
-          invitation?.preRsvpMessages ||
-          null;
+  invitation?.preRsvpMessages ||
+  data?.invitation?.preRsvpMessages ||
+  data?.preRsvpMessages ||
+  data?.user?.salesUpsells?.preRsvpMessages ||
+  data?.currentUser?.salesUpsells?.preRsvpMessages ||
+  data?.authUser?.salesUpsells?.preRsvpMessages ||
+  invitation?.owner?.salesUpsells?.preRsvpMessages ||
+  null;
 
-        setPreRsvpMessages(loadedPreRsvpMessages);
+console.log("LOADED PRE RSVP MESSAGES:", loadedPreRsvpMessages);
+
+setPreRsvpMessages(loadedPreRsvpMessages);
 
         setIsAdmin(
           userRole === "admin" ||
