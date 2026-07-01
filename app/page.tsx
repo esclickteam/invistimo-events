@@ -1193,7 +1193,7 @@ export default function HomePage() {
               <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
             </div>
 
-            <p
+           <p
   className="
     mx-auto mt-6 max-w-[620px]
     text-[17px]
@@ -1205,7 +1205,7 @@ export default function HomePage() {
 >
   Invistimo אישורי הגעה היא מערכת חכמה לניהול אישורי הגעה לאירועים,
   הזמנות דיגיטליות, סידורי הושבה, תזכורות וניהול אורחים
-  <br className="hidden md:block" />
+  <br />
   בקלות, בסטייל וביעילות.
 </p>
 
