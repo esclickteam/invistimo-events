@@ -293,6 +293,7 @@ function getBlockedPreRsvpMessage(
   type: PreRsvpType
 ) {
   if (!access) return "";
+  
 
   if (access.enabled === false) {
   return "השירות לא פתוח בחבילה הנוכחית.";
