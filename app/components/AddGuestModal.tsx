@@ -234,6 +234,7 @@ export default function AddGuestModal({
         justify-center
         bg-black/45
         px-4
+        py-4
         backdrop-blur-[2px]
       "
       dir="rtl"
@@ -241,9 +242,11 @@ export default function AddGuestModal({
       <div
         className="
           relative
+          flex
           w-[980px]
           max-w-[96vw]
-          max-h-[92vh]
+          max-h-[92dvh]
+          flex-col
           overflow-hidden
           rounded-[34px]
           border
@@ -284,6 +287,7 @@ export default function AddGuestModal({
           className="
             relative
             z-10
+            shrink-0
             border-b
             border-[#EFE4D6]
             bg-gradient-to-l
@@ -432,7 +436,7 @@ export default function AddGuestModal({
           )}
         </div>
 
-        <div className="relative z-10 max-h-[58vh] overflow-y-auto px-7 py-6">
+        <div className="relative z-10 flex-1 overflow-y-auto px-7 py-6">
           <div
             className="
               hidden
@@ -619,6 +623,7 @@ export default function AddGuestModal({
           className="
             relative
             z-10
+            shrink-0
             flex
             flex-col-reverse
             gap-4
@@ -627,6 +632,7 @@ export default function AddGuestModal({
             bg-[#FCFAF6]
             px-7
             py-5
+            pb-[calc(20px+env(safe-area-inset-bottom))]
             md:flex-row
             md:items-center
             md:justify-between
