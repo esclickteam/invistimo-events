@@ -32,7 +32,8 @@ type EmployeeDocumentType =
   | "form101"
   | "idCard"
   | "idCardAppendix"
-  | "accountManagement";
+  | "accountManagement"
+  | "payslip";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -43,11 +44,33 @@ type ApiEmployeeDocument = {
   fileType?: string;
   fileSize?: number;
   taxYear?: number;
+  payrollMonth?: string;
   status?: EmployeeDocumentStatus;
   rejectionReason?: string;
   uploadedAt?: string;
   approvedAt?: string | null;
   rejectedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ApiEmployeePayslip = {
+  _id?: string;
+  id?: string;
+  documentType?: "payslip" | string;
+  title?: string;
+  month?: number | string;
+  year?: number | string;
+  period?: string;
+  payrollMonth?: string;
+  netSalary?: number | string;
+  grossSalary?: number | string;
+  status?: string;
+  fileUrl?: string;
+  originalFileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  uploadedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -366,6 +389,11 @@ function getTodayKey() {
   )}`;
 }
 
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+}
+
 function asNumber(value: unknown) {
   const n = Number(value || 0);
 
@@ -530,6 +558,60 @@ function normalizeEmployeeAgreementFromResponse(data: any) {
   normalized.status = getAgreementEffectiveStatus(normalized);
 
   return normalized;
+}
+
+function normalizePayslipFromDocument(document: any): ApiEmployeePayslip | null {
+  if (!document || typeof document !== "object" || Array.isArray(document)) {
+    return null;
+  }
+
+  const documentType = String(document.documentType || "").trim();
+
+  if (documentType && documentType !== "payslip") {
+    return null;
+  }
+
+  const payrollMonth = String(
+    document.payrollMonth ||
+      document.period ||
+      (document.year && document.month
+        ? `${document.year}-${pad2(Number(document.month))}`
+        : ""),
+  ).trim();
+
+  return {
+    _id: document._id ? String(document._id) : undefined,
+    id: String(document.id || document._id || ""),
+    documentType: "payslip",
+    title: document.title || "תלוש שכר",
+    month: document.month,
+    year: document.year,
+    period: document.period || payrollMonth,
+    payrollMonth,
+    netSalary: document.netSalary,
+    grossSalary: document.grossSalary,
+    status: document.status || "uploaded",
+    fileUrl: document.fileUrl || "",
+    originalFileName: document.originalFileName || "",
+    fileType: document.fileType || "",
+    fileSize: Number(document.fileSize || 0),
+    uploadedAt: document.uploadedAt,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
+  };
+}
+
+function sortPayslipsByDate(items: ApiEmployeePayslip[]) {
+  return [...items].sort((a, b) => {
+    const aTime = new Date(
+      a.uploadedAt || a.createdAt || a.updatedAt || 0,
+    ).getTime();
+    const bTime = new Date(
+      b.uploadedAt || b.createdAt || b.updatedAt || 0,
+    ).getTime();
+
+    return bTime - aTime;
+  });
 }
 
 function agreementStatusLabel(status?: EmployeeAgreementStatus) {
@@ -1464,6 +1546,8 @@ export default function EmployeeDashboardPage() {
     useState<ApiEmployeeDocument | null>(null);
   const [accountManagement, setAccountManagement] =
     useState<ApiEmployeeDocument | null>(null);
+  const [payslips, setPayslips] = useState<ApiEmployeePayslip[]>([]);
+  const [payslipsLoading, setPayslipsLoading] = useState(true);
   const [agreement, setAgreement] = useState<ApiEmployeeAgreement | null>(null);
   const [agreementLoading, setAgreementLoading] = useState(true);
   const [form101File, setForm101File] = useState<File | null>(null);
@@ -1762,7 +1846,9 @@ export default function EmployeeDashboardPage() {
             ? data?.idCard
             : documentType === "idCardAppendix"
               ? data?.idCardAppendix
-              : data?.accountManagement) ||
+              : documentType === "payslip"
+                ? data?.payslip
+                : data?.accountManagement) ||
         null) as ApiEmployeeDocument | null;
     },
     [],
@@ -1816,6 +1902,76 @@ export default function EmployeeDashboardPage() {
       setDocumentsLoading(false);
     }
   }, [loadEmployeeDocument]);
+
+  const loadEmployeePayslips = useCallback(async () => {
+    try {
+      setPayslipsLoading(true);
+
+      const params = new URLSearchParams({
+        documentType: "payslip",
+        type: "payslip",
+        month: getCurrentMonthKey(),
+      });
+
+      const response = await fetch(
+        `${API.form101Current}?${params.toString()}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "שגיאה בטעינת תלושי שכר");
+      }
+
+      const rawItems = getArrayFromResponse<any>(data, [
+        "payslips",
+        "documents",
+        "forms",
+        "items",
+      ]);
+
+      const singleItem =
+        data?.payslip ||
+        data?.document ||
+        data?.data?.payslip ||
+        data?.data?.document ||
+        null;
+
+      const normalizedItems = rawItems
+        .map((item) => normalizePayslipFromDocument(item))
+        .filter(Boolean) as ApiEmployeePayslip[];
+
+      const normalizedSingle = normalizePayslipFromDocument(singleItem);
+
+      const merged = normalizedSingle
+        ? [normalizedSingle, ...normalizedItems]
+        : normalizedItems;
+
+      const uniqueByIdOrFile = new Map<string, ApiEmployeePayslip>();
+
+      for (const item of merged) {
+        const key =
+          String(item.id || item._id || "") ||
+          `${item.fileUrl || ""}-${item.uploadedAt || item.createdAt || ""}`;
+
+        if (key && !uniqueByIdOrFile.has(key)) {
+          uniqueByIdOrFile.set(key, item);
+        }
+      }
+
+      setPayslips(sortPayslipsByDate(Array.from(uniqueByIdOrFile.values())));
+    } catch (loadError) {
+      console.error("LOAD EMPLOYEE PAYSLIPS FAILED:", loadError);
+      setPayslips([]);
+    } finally {
+      setPayslipsLoading(false);
+    }
+  }, []);
 
   const loadEmployeeAgreement = useCallback(async () => {
     try {
@@ -1897,7 +2053,9 @@ export default function EmployeeDashboardPage() {
               ? data?.idCard
               : documentType === "idCardAppendix"
                 ? data?.idCardAppendix
-                : data?.accountManagement) ||
+                : documentType === "payslip"
+                  ? data?.payslip
+                  : data?.accountManagement) ||
           null) as ApiEmployeeDocument | null;
 
         if (documentType === "form101") {
@@ -1987,6 +2145,7 @@ export default function EmployeeDashboardPage() {
   useEffect(() => {
     void loadDashboard();
     void loadEmployeeDocuments();
+    void loadEmployeePayslips();
     void loadEmployeeAgreement();
 
     if (canSeeLeadsAndWorkOrders) {
@@ -2004,6 +2163,7 @@ export default function EmployeeDashboardPage() {
   }, [
     loadDashboard,
     loadEmployeeDocuments,
+    loadEmployeePayslips,
     loadEmployeeAgreement,
     loadEmployeeWorkOrders,
     loadEmployeeLeads,
@@ -2188,6 +2348,7 @@ export default function EmployeeDashboardPage() {
                   onClick={() => {
                     void loadDashboard();
                     void loadEmployeeDocuments();
+                    void loadEmployeePayslips();
                     void loadEmployeeAgreement();
 
                     if (canSeeLeadsAndWorkOrders) {
@@ -2198,6 +2359,7 @@ export default function EmployeeDashboardPage() {
                   disabled={
                     refreshing ||
                     documentsLoading ||
+                    payslipsLoading ||
                     agreementLoading ||
                     (canSeeLeadsAndWorkOrders &&
                       (workOrdersDashboard.loading || employeeLeadsLoading))
@@ -2209,6 +2371,7 @@ export default function EmployeeDashboardPage() {
                     className={`h-4 w-4 ${
                       refreshing ||
                       documentsLoading ||
+                      payslipsLoading ||
                       agreementLoading ||
                       (canSeeLeadsAndWorkOrders &&
                         (workOrdersDashboard.loading || employeeLeadsLoading))
@@ -2372,10 +2535,13 @@ export default function EmployeeDashboardPage() {
             }
             onReload={() => {
               void loadEmployeeDocuments();
+              void loadEmployeePayslips();
               void loadEmployeeAgreement();
             }}
             signAgreementUrl={signAgreementUrl}
             form101DownloadUrl={API.form101Download}
+            payslips={payslips}
+            payslipsLoading={payslipsLoading}
           />
 
           {loading ? (

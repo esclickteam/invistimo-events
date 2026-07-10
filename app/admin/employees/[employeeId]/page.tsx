@@ -20,6 +20,7 @@ type DocumentType =
   | "idCardAppendix"
   | "accountManagement"
   | "agreement"
+  | "payslip"
   | string;
 
 type EmployeeProfile = {
@@ -50,6 +51,8 @@ type AdminEmployeeDocument = {
   fileType?: string;
   fileSize?: number;
   taxYear?: number;
+  month?: string;
+  payrollMonth?: string;
   status?: DocumentStatus;
   uploadedAt?: string;
   createdAt?: string;
@@ -130,6 +133,7 @@ const API = {
   updateAgreementStatus: (agreementId: string) =>
     `/api/admin/employee-agreements/${agreementId}/status`,
   uploadForm101: "/api/forms/101/upload",
+  uploadPayslip: "/api/forms/101/upload",
   hours: (employeeId: string, month: string) =>
     `/api/admin/employees/${encodeURIComponent(
       employeeId,
@@ -326,6 +330,8 @@ function documentTypeLabel(type?: string) {
       return "אישור ניהול חשבון";
     case "agreement":
       return "הסכם עבודה";
+    case "payslip":
+      return "תלוש שכר";
     default:
       return "מסמך עובד";
   }
@@ -365,13 +371,19 @@ function isForm101Document(doc?: AdminEmployeeDocument | null) {
   return String(doc?.documentType || "") === "form101";
 }
 
+function isPayslipDocument(doc?: AdminEmployeeDocument | null) {
+  return String(doc?.documentType || "") === "payslip";
+}
+
 function documentViewLabel(doc?: AdminEmployeeDocument | null) {
   if (isForm101Document(doc)) return "צפייה בטופס השמור";
+  if (isPayslipDocument(doc)) return "צפייה בתלוש";
   return "צפייה";
 }
 
 function documentExportLabel(doc?: AdminEmployeeDocument | null) {
   if (isForm101Document(doc)) return "ייצוא PDF שמור";
+  if (isPayslipDocument(doc)) return "הורדת תלוש";
   return "הורדה";
 }
 
@@ -614,6 +626,8 @@ export default function AdminEmployeeFilePage() {
   const [updatingDocId, setUpdatingDocId] = useState<string | null>(null);
   const [form101UploadFile, setForm101UploadFile] = useState<File | null>(null);
   const [uploadingForm101, setUploadingForm101] = useState(false);
+  const [payslipUploadFiles, setPayslipUploadFiles] = useState<File[]>([]);
+  const [uploadingPayslips, setUploadingPayslips] = useState(false);
   const [error, setError] = useState("");
   const [salesError, setSalesError] = useState("");
 
@@ -625,6 +639,31 @@ export default function AdminEmployeeFilePage() {
     documents.find((doc) => doc.documentType === "accountManagement") || null;
   const agreement =
     documents.find((doc) => doc.documentType === "agreement") || null;
+
+  const payslips = useMemo(
+    () =>
+      documents
+        .filter((doc) => String(doc.documentType || "") === "payslip")
+        .sort((a, b) => {
+          const aDate = new Date(a.uploadedAt || a.createdAt || 0).getTime();
+          const bDate = new Date(b.uploadedAt || b.createdAt || 0).getTime();
+          return bDate - aDate;
+        }),
+    [documents],
+  );
+
+  const payslipsForMonth = useMemo(
+    () =>
+      payslips.filter((doc) => {
+        const docMonth =
+          cleanStr(doc.payrollMonth) ||
+          cleanStr(doc.month) ||
+          cleanStr(doc.uploadedAt || doc.createdAt).slice(0, 7);
+
+        return docMonth === month;
+      }),
+    [payslips, month],
+  );
 
   const documentCards = useMemo(
     () => [
@@ -817,6 +856,8 @@ export default function AdminEmployeeFilePage() {
           businessId: cleanStr(form.businessId),
           documentType: form.documentType || "form101",
           fileUrl,
+          month: cleanStr(form.month),
+          payrollMonth: cleanStr(form.payrollMonth),
           startDate:
             form.startDate || form.employeeStartDate || form.employmentStartDate,
         });
@@ -1018,6 +1059,7 @@ export default function AdminEmployeeFilePage() {
         cleanStr(idCard?.businessId) ||
         cleanStr(accountManagement?.businessId) ||
         cleanStr(agreement?.businessId) ||
+        cleanStr(payslips.find((item) => item.businessId)?.businessId) ||
         cleanStr(documents.find((item) => item.businessId)?.businessId);
 
       setUploadingForm101(true);
@@ -1056,6 +1098,76 @@ export default function AdminEmployeeFilePage() {
       );
     } finally {
       setUploadingForm101(false);
+    }
+  }
+
+  async function uploadPayslipsForEmployee() {
+    if (uploadingPayslips) return;
+
+    try {
+      if (payslipUploadFiles.length === 0) {
+        alert("בחרי לפחות קובץ אחד של תלוש שכר");
+        return;
+      }
+
+      if (!employeeId) {
+        alert("חסר מזהה עובד");
+        return;
+      }
+
+      const optionalBusinessId =
+        cleanStr(employee.businessId) ||
+        cleanStr(form101?.businessId) ||
+        cleanStr(idCard?.businessId) ||
+        cleanStr(accountManagement?.businessId) ||
+        cleanStr(agreement?.businessId) ||
+        cleanStr(payslips.find((item) => item.businessId)?.businessId) ||
+        cleanStr(documents.find((item) => item.businessId)?.businessId);
+
+      setUploadingPayslips(true);
+
+      for (const file of payslipUploadFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("employeeId", employeeId);
+        formData.append("documentType", "payslip");
+        formData.append("taxYear", String(Number(month.slice(0, 4)) || new Date().getFullYear()));
+        formData.append("month", month);
+        formData.append("payrollMonth", month);
+
+        if (optionalBusinessId) {
+          formData.append("businessId", optionalBusinessId);
+        }
+
+        const response = await fetch(API.uploadPayslip, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || data?.success === false) {
+          throw new Error(
+            data?.error ||
+              data?.message ||
+              `שגיאה בהעלאת תלוש שכר: ${file.name}`,
+          );
+        }
+      }
+
+      setPayslipUploadFiles([]);
+      await loadEmployee();
+      alert("תלושי השכר הועלו לתיק העובד בהצלחה");
+    } catch (uploadError) {
+      console.error("ADMIN UPLOAD PAYSLIPS FAILED:", uploadError);
+      alert(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "שגיאה בהעלאת תלושי שכר",
+      );
+    } finally {
+      setUploadingPayslips(false);
     }
   }
 
@@ -1856,7 +1968,7 @@ export default function AdminEmployeeFilePage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-4">
+          <div className="mt-5 grid gap-4 lg:grid-cols-5">
             {documentCards.map(({ type, doc }) => {
               const documentId = doc ? getDocumentId(doc) : "";
               const isUpdating = updatingDocId === documentId;
@@ -2002,6 +2114,168 @@ export default function AdminEmployeeFilePage() {
                 </article>
               );
             })}
+
+            <article className="rounded-[28px] border border-purple-200 bg-purple-50 p-5 transition hover:border-purple-300 hover:bg-white">
+              <div className="flex items-start justify-between gap-4">
+                <span className="rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-black text-purple-700">
+                  {payslipsForMonth.length} קבצים
+                </span>
+
+                <div className="text-right">
+                  <h3 className="text-lg font-black text-slate-900">תלושי שכר</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    העלאה חודשית חופשית · {monthLabel(month)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-dashed border-purple-200 bg-white p-4">
+                <p className="text-sm font-black text-slate-900">
+                  העלאת תלושי שכר לחודש
+                </p>
+
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                  אפשר לבחור כמה קבצים יחד. כל קובץ יישמר כתלוש שכר נפרד תחת החודש שנבחר למעלה.
+                </p>
+
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,application/pdf,image/png,image/jpeg"
+                  disabled={uploadingPayslips}
+                  onChange={(event) => {
+                    setPayslipUploadFiles(Array.from(event.target.files || []));
+                  }}
+                  className="mt-3 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-purple-600 file:px-4 file:py-2 file:text-xs file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                />
+
+                {payslipUploadFiles.length > 0 ? (
+                  <div className="mt-2 space-y-1 text-xs font-bold text-slate-500">
+                    {payslipUploadFiles.map((file) => (
+                      <p key={`${file.name}-${file.size}`}>
+                        נבחר: {file.name} · {formatFileSize(file.size)}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => void uploadPayslipsForEmployee()}
+                  disabled={uploadingPayslips || payslipUploadFiles.length === 0}
+                  className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-2xl bg-purple-600 px-4 text-xs font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon
+                    name={uploadingPayslips ? "refresh" : "upload"}
+                    className={`h-3.5 w-3.5 ${uploadingPayslips ? "animate-spin" : ""}`}
+                  />
+                  {uploadingPayslips
+                    ? "מעלה תלושים..."
+                    : `העלאת ${payslipUploadFiles.length || ""} תלושי שכר`}
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-black text-slate-500">
+                  תלושים שמורים לחודש הזה
+                </p>
+
+                {payslipsForMonth.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs font-black text-slate-400">
+                    עדיין לא הועלו תלושי שכר לחודש הזה.
+                  </div>
+                ) : (
+                  <div className="max-h-64 space-y-2 overflow-auto pr-1">
+                    {payslipsForMonth.map((doc) => {
+                      const documentId = getDocumentId(doc);
+                      const documentUrl = safeDocumentUrl(doc);
+                      const isUpdating = updatingDocId === documentId;
+
+                      return (
+                        <div
+                          key={`${doc.source}-${documentId}`}
+                          className="rounded-2xl border border-slate-200 bg-white p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <span
+                              className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-black ${statusClass(
+                                doc.status,
+                              )}`}
+                            >
+                              {statusLabel(doc.status)}
+                            </span>
+
+                            <div className="min-w-0 text-right">
+                              <p className="truncate text-xs font-black text-slate-900">
+                                {doc.originalFileName || "תלוש שכר"}
+                              </p>
+                              <p className="mt-1 text-[11px] font-bold text-slate-400">
+                                {formatDateTime(doc.uploadedAt || doc.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            {documentUrl ? (
+                              <>
+                                <a
+                                  href={documentUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-indigo-600 px-3 text-[11px] font-black text-white transition hover:bg-indigo-700"
+                                >
+                                  <Icon name="open" className="h-3 w-3" />
+                                  צפייה
+                                </a>
+
+                                <a
+                                  href={documentUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download
+                                  className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-white px-3 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-50"
+                                >
+                                  <Icon name="download" className="h-3 w-3" />
+                                  הורדה
+                                </a>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="col-span-2 h-9 rounded-xl bg-slate-100 text-[11px] font-black text-slate-400"
+                              >
+                                אין קובץ
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              disabled={!documentId || isUpdating}
+                              onClick={() => void updateDocumentStatus(doc, "approved")}
+                              className="h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              אשר
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={!documentId || isUpdating}
+                              onClick={() => void updateDocumentStatus(doc, "rejected")}
+                              className="h-8 rounded-xl border border-rose-200 bg-rose-50 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              דחה
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </article>
           </div>
         </section>
       </div>

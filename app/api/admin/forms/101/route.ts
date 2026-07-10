@@ -9,7 +9,12 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
+type EmployeeDocumentType =
+  | "form101"
+  | "idCard"
+  | "idCardAppendix"
+  | "accountManagement"
+  | "payslip";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -23,7 +28,7 @@ function extractUserId(authResult: any) {
       authResult.id ||
       authResult._id ||
       authResult.sub ||
-      ""
+      "",
   );
 }
 
@@ -53,22 +58,26 @@ function normalizeDocumentType(value: string | null) {
 
   if (raw === "form101") return "form101";
   if (raw === "idCard") return "idCard";
+  if (raw === "idCardAppendix") return "idCardAppendix";
   if (raw === "accountManagement") return "accountManagement";
+  if (raw === "payslip") return "payslip";
 
   return "";
 }
 
 function documentTypeLabel(documentType?: string) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "idCardAppendix") return "ספח תעודת זהות";
   if (documentType === "accountManagement") return "אישור ניהול חשבון";
+  if (documentType === "payslip") return "תלוש שכר";
   if (documentType === "form101") return "טופס 101";
 
-  return "טופס 101";
+  return "מסמך עובד";
 }
 
 function serializeForm(form: any, employee?: any) {
   const documentType = String(
-    form.documentType || "form101"
+    form.documentType || "form101",
   ) as EmployeeDocumentType;
 
   return {
@@ -99,6 +108,13 @@ function serializeForm(form: any, employee?: any) {
     fileSize: Number(form.fileSize || 0),
 
     taxYear: Number(form.taxYear || new Date().getFullYear()),
+
+    /**
+     * רלוונטי לתלושי שכר.
+     * פורמט: YYYY-MM
+     */
+    payrollMonth: form.payrollMonth || "",
+
     status: form.status || "uploaded",
 
     rejectionReason: form.rejectionReason || "",
@@ -121,7 +137,7 @@ export async function GET(req: NextRequest) {
     if (!admin) {
       return NextResponse.json(
         { error: "אין הרשאת אדמין" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -131,15 +147,28 @@ export async function GET(req: NextRequest) {
     const taxYear = String(searchParams.get("taxYear") || "").trim();
 
     /**
-     * חדש:
+     * אפשרויות:
      * documentType=form101
      * documentType=idCard
+     * documentType=idCardAppendix
      * documentType=accountManagement
+     * documentType=payslip
+     *
      * אם לא נשלח documentType — מחזיר את כל המסמכים.
      */
     const documentType = normalizeDocumentType(
-      searchParams.get("documentType") || searchParams.get("type")
+      searchParams.get("documentType") || searchParams.get("type"),
     );
+
+    /**
+     * לתלושי שכר.
+     * פורמט מומלץ: 2026-07
+     */
+    const payrollMonth = String(
+      searchParams.get("payrollMonth") ||
+        searchParams.get("month") ||
+        "",
+    ).trim();
 
     const query: Record<string, any> = {};
 
@@ -151,12 +180,24 @@ export async function GET(req: NextRequest) {
       query.taxYear = Number(taxYear);
     }
 
+    if (payrollMonth) {
+      query.payrollMonth = payrollMonth;
+    }
+
     if (documentType === "idCard") {
       query.documentType = "idCard";
     }
 
+    if (documentType === "idCardAppendix") {
+      query.documentType = "idCardAppendix";
+    }
+
     if (documentType === "accountManagement") {
       query.documentType = "accountManagement";
+    }
+
+    if (documentType === "payslip") {
+      query.documentType = "payslip";
     }
 
     /**
@@ -186,7 +227,7 @@ export async function GET(req: NextRequest) {
       .lean();
 
     const employeeMap = new Map(
-      employees.map((employee: any) => [String(employee._id), employee])
+      employees.map((employee: any) => [String(employee._id), employee]),
     );
 
     const data = forms.map((form: any) => {
@@ -196,13 +237,24 @@ export async function GET(req: NextRequest) {
 
     const stats = {
       total: data.length,
+
       form101: data.filter((item: any) => item.documentType === "form101")
         .length,
+
       idCard: data.filter((item: any) => item.documentType === "idCard")
         .length,
-      accountManagement: data.filter(
-        (item: any) => item.documentType === "accountManagement"
+
+      idCardAppendix: data.filter(
+        (item: any) => item.documentType === "idCardAppendix",
       ).length,
+
+      accountManagement: data.filter(
+        (item: any) => item.documentType === "accountManagement",
+      ).length,
+
+      payslip: data.filter((item: any) => item.documentType === "payslip")
+        .length,
+
       uploaded: data.filter((item: any) => item.status === "uploaded").length,
       approved: data.filter((item: any) => item.status === "approved").length,
       rejected: data.filter((item: any) => item.status === "rejected").length,
@@ -213,7 +265,6 @@ export async function GET(req: NextRequest) {
 
       forms: data,
 
-      
       // שם נוסף אם תרצי בהמשך לקרוא לזה documents
       documents: data,
 
@@ -224,7 +275,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { error: "שגיאה בטעינת מסמכי עובדים" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

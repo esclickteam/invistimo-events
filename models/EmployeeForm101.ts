@@ -20,15 +20,36 @@ const EmployeeForm101Schema = new Schema(
      * סוג המסמך:
      * form101 = טופס 101
      * idCard = תעודת זהות
+     * idCardAppendix = ספח תעודת זהות
      * accountManagement = אישור ניהול חשבון
+     * payslip = תלוש שכר
      */
     documentType: {
-  type: String,
-  enum: ["form101", "idCard", "idCardAppendix", "accountManagement"],
-  default: "form101",
-  required: true,
-  index: true,
-},
+      type: String,
+      enum: [
+        "form101",
+        "idCard",
+        "idCardAppendix",
+        "accountManagement",
+        "payslip",
+      ],
+      default: "form101",
+      required: true,
+      index: true,
+    },
+
+    /**
+     * חודש תלוש שכר.
+     * רלוונטי בעיקר למסמכים מסוג payslip.
+     * פורמט מומלץ: YYYY-MM
+     * לדוגמה: 2026-07
+     */
+    payrollMonth: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
 
     originalFileName: {
       type: String,
@@ -66,7 +87,7 @@ const EmployeeForm101Schema = new Schema(
     /**
      * שנת מס.
      * לטופס 101 זה חובה לוגית.
-     * לתעודת זהות נשמור גם את אותה שנה כדי שיהיה קל לשלוף לפי שנה.
+     * לתעודת זהות/אישור ניהול חשבון/תלוש שכר נשמור גם שנה כדי שיהיה קל לשלוף.
      */
     taxYear: {
       type: Number,
@@ -104,16 +125,27 @@ const EmployeeForm101Schema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 /**
- * שליפה מהירה של כל המסמכים של עובד לפי שנה
+ * שליפה מהירה של כל המסמכים של עובד לפי שנה וסוג מסמך
  */
 EmployeeForm101Schema.index({
   employeeId: 1,
   taxYear: 1,
   documentType: 1,
+  createdAt: -1,
+});
+
+/**
+ * שליפה מהירה של תלושי שכר לפי עובד וחודש
+ * מאפשר כמה תלושים באותו חודש, בלי unique.
+ */
+EmployeeForm101Schema.index({
+  employeeId: 1,
+  documentType: 1,
+  payrollMonth: 1,
   createdAt: -1,
 });
 
@@ -128,8 +160,19 @@ EmployeeForm101Schema.index({
 });
 
 /**
+ * שליפה מהירה של תלושים לפי עסק וחודש
+ */
+EmployeeForm101Schema.index({
+  businessId: 1,
+  documentType: 1,
+  payrollMonth: 1,
+  createdAt: -1,
+});
+
+/**
  * שלא יהיו כפילויות פעילות אם תרצי בעתיד להשתמש בזה.
- * כרגע אני לא שם unique כדי לא לשבור העלאות קודמות.
+ * כרגע אין unique כדי לאפשר כמה תלושי שכר באותו חודש
+ * וגם כדי לא לשבור העלאות קודמות.
  */
 
 export default models.EmployeeForm101 ||

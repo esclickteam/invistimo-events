@@ -21,7 +21,8 @@ type EmployeeDocumentType =
   | "form101"
   | "idCard"
   | "idCardAppendix"
-  | "accountManagement";
+  | "accountManagement"
+  | "payslip";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -35,7 +36,7 @@ function extractUserId(authResult: any) {
       authResult.id ||
       authResult._id ||
       authResult.sub ||
-      ""
+      "",
   );
 }
 
@@ -62,22 +63,39 @@ function getSafeExtension(fileName: string) {
 }
 
 function normalizeDocumentType(
-  value: FormDataEntryValue | null
+  value: FormDataEntryValue | null,
 ): EmployeeDocumentType {
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
   if (raw === "idCardAppendix") return "idCardAppendix";
   if (raw === "accountManagement") return "accountManagement";
+  if (raw === "payslip") return "payslip";
   if (raw === "form101") return "form101";
 
   return "form101";
+}
+
+function normalizePayrollMonth(value: FormDataEntryValue | null) {
+  const raw = String(value || "").trim();
+
+  /**
+   * פורמט תקין:
+   * 2026-07
+   */
+  if (/^\d{4}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  return "";
 }
 
 function getDocumentFolder(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "id-card";
   if (documentType === "idCardAppendix") return "id-card-appendix";
   if (documentType === "accountManagement") return "account-management";
+  if (documentType === "payslip") return "payslips";
+
   return "101";
 }
 
@@ -85,6 +103,8 @@ function getDocumentLabel(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "תעודת זהות";
   if (documentType === "idCardAppendix") return "ספח תעודת זהות";
   if (documentType === "accountManagement") return "אישור ניהול חשבון";
+  if (documentType === "payslip") return "תלוש שכר";
+
   return "טופס 101";
 }
 
@@ -108,6 +128,7 @@ function serializeEmployeeDocument(document: any) {
     fileSize: Number(document.fileSize || 0),
 
     taxYear: Number(document.taxYear || new Date().getFullYear()),
+    payrollMonth: document.payrollMonth || "",
 
     status: document.status || "uploaded",
     rejectionReason: document.rejectionReason || "",
@@ -210,10 +231,7 @@ export async function POST(req: NextRequest) {
     const authResult = await getUserIdFromRequest(req);
     const loggedInUserId = extractUserId(authResult);
 
-    if (
-      !loggedInUserId ||
-      !mongoose.Types.ObjectId.isValid(loggedInUserId)
-    ) {
+    if (!loggedInUserId || !mongoose.Types.ObjectId.isValid(loggedInUserId)) {
       return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     }
 
@@ -234,20 +252,32 @@ export async function POST(req: NextRequest) {
     }
 
     const documentType = normalizeDocumentType(
-      formData.get("documentType") || formData.get("type")
+      formData.get("documentType") || formData.get("type"),
     );
+
+    /**
+     * אבטחה:
+     * תלושי שכר רק אדמין יכול להעלות.
+     * עובד רגיל לא יכול להעלות לעצמו תלוש שכר.
+     */
+    if (documentType === "payslip" && !admin) {
+      return NextResponse.json(
+        { error: "רק אדמין יכול להעלות תלושי שכר" },
+        { status: 403 },
+      );
+    }
 
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: "אפשר להעלות רק PDF, JPG או PNG" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "הקובץ גדול מדי. מקסימום 10MB" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -256,7 +286,7 @@ export async function POST(req: NextRequest) {
     if (!ext) {
       return NextResponse.json(
         { error: "סיומת קובץ לא תקינה" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -275,7 +305,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "חסר מזהה עובד תקין" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -288,7 +318,7 @@ export async function POST(req: NextRequest) {
     if (!admin && String(employeeId) !== String(loggedInUserId)) {
       return NextResponse.json(
         { error: "אין הרשאה להעלות מסמך לעובד אחר" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -303,27 +333,55 @@ export async function POST(req: NextRequest) {
         ? taxYearFromForm
         : new Date().getFullYear();
 
-    const existingDocument = await EmployeeForm101.findOne(
-      buildExistingDocumentQuery({
-        employeeId,
-        taxYear,
-        documentType,
-      })
-    )
-      .sort({ createdAt: -1 })
-      .lean();
+    /**
+     * חודש תלוש שכר.
+     * חובה רק אם מעלים payslip.
+     */
+    const payrollMonth = normalizePayrollMonth(
+      formData.get("payrollMonth") || formData.get("month"),
+    );
 
-    const existingStatus = String((existingDocument as any)?.status || "");
+    if (documentType === "payslip" && !payrollMonth) {
+      return NextResponse.json(
+        { error: "חסר חודש תלוש שכר תקין. פורמט נדרש: YYYY-MM" },
+        { status: 400 },
+      );
+    }
+
+    /**
+     * למסמכים רגילים נשארת בדיקת כפילות.
+     * לתלושי שכר לא בודקים כפילות,
+     * כדי שאדמין יוכל להעלות כמה תלושים שהוא רוצה בכל חודש.
+     */
+    let existingDocument: any = null;
+
+    if (documentType !== "payslip") {
+      existingDocument = await EmployeeForm101.findOne(
+        buildExistingDocumentQuery({
+          employeeId,
+          taxYear,
+          documentType,
+        }),
+      )
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+
+    const existingStatus = String(existingDocument?.status || "");
 
     /**
      * עובד רגיל לא יכול להחליף מסמך uploaded/approved.
      * אדמין כן יכול להעלות מסמך לתיק עובד גם בלי businessId.
      *
-     * אם את רוצה שגם אדמין יהיה חסום כשקיים מסמך,
-     * תחליפי את התנאי ל:
-     * if (existingDocument && existingStatus !== "rejected") { ... }
+     * לתלושי שכר זה לא רלוונטי כי רק אדמין מעלה אותם,
+     * ומותר כמה תלושים באותו חודש.
      */
-    if (!admin && existingDocument && existingStatus !== "rejected") {
+    if (
+      documentType !== "payslip" &&
+      !admin &&
+      existingDocument &&
+      existingStatus !== "rejected"
+    ) {
       const label = getDocumentLabel(documentType);
 
       return NextResponse.json(
@@ -339,34 +397,46 @@ export async function POST(req: NextRequest) {
             documentType === "form101"
               ? serializeEmployeeDocument(existingDocument)
               : null,
+
           idCard:
             documentType === "idCard"
               ? serializeEmployeeDocument(existingDocument)
               : null,
+
           idCardAppendix:
             documentType === "idCardAppendix"
               ? serializeEmployeeDocument(existingDocument)
               : null,
+
           accountManagement:
             documentType === "accountManagement"
               ? serializeEmployeeDocument(existingDocument)
               : null,
+
+          payslip: null,
         },
-        { status: 423 }
+        { status: 423 },
       );
     }
 
     const storedFileName = `${crypto.randomUUID()}${ext}`;
     const documentFolder = getDocumentFolder(documentType);
 
-    const r2Key = [
+    const r2KeyParts = [
       "employees",
       "documents",
       documentFolder,
       String(employeeId),
       String(taxYear),
-      storedFileName,
-    ].join("/");
+    ];
+
+    if (documentType === "payslip") {
+      r2KeyParts.push(payrollMonth);
+    }
+
+    r2KeyParts.push(storedFileName);
+
+    const r2Key = r2KeyParts.join("/");
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -383,25 +453,29 @@ export async function POST(req: NextRequest) {
           businessId: businessId ? String(businessId) : "",
           documentType,
           taxYear: String(taxYear),
+          payrollMonth,
           originalFileName: encodeURIComponent(file.name),
           uploadedBy: String(loggedInUserId),
           uploadedFromAdmin: admin ? "true" : "false",
         },
-      })
+      }),
     );
 
     const fileUrl = `/api/forms/101/file/${storedFileName}`;
 
     /**
-     * אם אדמין מעלה מחדש ויש כבר מסמך ישן,
+     * אם אדמין מעלה מחדש מסמך רגיל ויש כבר מסמך ישן,
      * ניצור רשומה חדשה. בגלל שהטעינה באדמין ממיינת לפי createdAt,
      * יוצג האחרון שנשמר.
+     *
+     * בתלושי שכר תמיד יוצרים רשומה חדשה כדי לאפשר כמה תלושים בחודש.
      */
     const saved = await EmployeeForm101.create({
       employeeId,
       businessId,
 
       documentType,
+      payrollMonth: documentType === "payslip" ? payrollMonth : "",
 
       originalFileName: file.name,
       storedFileName,
@@ -419,7 +493,6 @@ export async function POST(req: NextRequest) {
       rejectedAt: null,
       rejectionReason: "",
     });
-    
 
     const serialized = serializeEmployeeDocument(saved);
 
@@ -433,13 +506,14 @@ export async function POST(req: NextRequest) {
       idCardAppendix: documentType === "idCardAppendix" ? serialized : null,
       accountManagement:
         documentType === "accountManagement" ? serialized : null,
+      payslip: documentType === "payslip" ? serialized : null,
     });
   } catch (error) {
     console.error("UPLOAD EMPLOYEE DOCUMENT TO R2 FAILED:", error);
 
     return NextResponse.json(
       { error: "שגיאה בהעלאת המסמך" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -13,7 +13,8 @@ type EmployeeDocumentType =
   | "form101"
   | "idCard"
   | "idCardAppendix"
-  | "accountManagement";
+  | "accountManagement"
+  | "payslip";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -27,7 +28,7 @@ function extractUserId(authResult: any) {
       authResult.id ||
       authResult._id ||
       authResult.sub ||
-      ""
+      "",
   );
 }
 
@@ -48,9 +49,20 @@ function normalizeDocumentType(value: string | null): EmployeeDocumentType {
   if (raw === "idCard") return "idCard";
   if (raw === "idCardAppendix") return "idCardAppendix";
   if (raw === "accountManagement") return "accountManagement";
+  if (raw === "payslip") return "payslip";
   if (raw === "form101") return "form101";
 
   return "form101";
+}
+
+function normalizePayrollMonth(value: string | null) {
+  const raw = String(value || "").trim();
+
+  if (/^\d{4}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  return "";
 }
 
 function serializeEmployeeDocument(document: any) {
@@ -74,6 +86,11 @@ function serializeEmployeeDocument(document: any) {
 
     taxYear: Number(document.taxYear || new Date().getFullYear()),
 
+    /**
+     * חשוב לתלושי שכר
+     */
+    payrollMonth: document.payrollMonth || "",
+
     status: document.status || "uploaded",
     rejectionReason: document.rejectionReason || "",
 
@@ -90,10 +107,12 @@ function buildCurrentDocumentQuery({
   employeeObjectId,
   taxYear,
   documentType,
+  payrollMonth,
 }: {
   employeeObjectId: mongoose.Types.ObjectId;
   taxYear: number;
   documentType: EmployeeDocumentType;
+  payrollMonth?: string;
 }) {
   if (documentType === "form101") {
     return {
@@ -105,6 +124,23 @@ function buildCurrentDocumentQuery({
         { documentType: null },
       ],
     };
+  }
+
+  if (documentType === "payslip") {
+    const query: Record<string, any> = {
+      employeeId: employeeObjectId,
+      documentType: "payslip",
+    };
+
+    /**
+     * אם נשלח חודש — מחזיר תלושים של אותו חודש.
+     * אם לא נשלח חודש — מחזיר את כל התלושים של העובד.
+     */
+    if (payrollMonth) {
+      query.payrollMonth = payrollMonth;
+    }
+
+    return query;
   }
 
   return {
@@ -136,11 +172,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const documentType = normalizeDocumentType(
-      searchParams.get("documentType") || searchParams.get("type")
+      searchParams.get("documentType") || searchParams.get("type"),
     );
 
     const requestedEmployeeId = String(
-      searchParams.get("employeeId") || ""
+      searchParams.get("employeeId") || "",
     ).trim();
 
     const finalEmployeeId =
@@ -149,7 +185,7 @@ export async function GET(req: NextRequest) {
     if (!mongoose.Types.ObjectId.isValid(finalEmployeeId)) {
       return NextResponse.json(
         { error: "מזהה עובד לא תקין" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -159,14 +195,51 @@ export async function GET(req: NextRequest) {
         ? taxYearFromQuery
         : new Date().getFullYear();
 
+    const payrollMonth = normalizePayrollMonth(
+      searchParams.get("payrollMonth") || searchParams.get("month"),
+    );
+
     const employeeObjectId = new mongoose.Types.ObjectId(finalEmployeeId);
 
     const query = buildCurrentDocumentQuery({
       employeeObjectId,
       taxYear,
       documentType,
+      payrollMonth,
     });
 
+    /**
+     * תלושי שכר:
+     * מחזירים רשימה, כי אדמין יכול להעלות כמה תלושים שרוצה.
+     */
+    if (documentType === "payslip") {
+      const payslips = await EmployeeForm101.find(query)
+        .sort({ payrollMonth: -1, createdAt: -1 })
+        .lean();
+
+      const serializedPayslips = payslips.map((item: any) =>
+        serializeEmployeeDocument(item),
+      );
+
+      return NextResponse.json({
+        success: true,
+
+        document: serializedPayslips[0] || null,
+
+        payslip: serializedPayslips[0] || null,
+        payslips: serializedPayslips,
+
+        form101: null,
+        idCard: null,
+        idCardAppendix: null,
+        accountManagement: null,
+      });
+    }
+
+    /**
+     * מסמכים רגילים:
+     * מחזירים רק את האחרון.
+     */
     const document = await EmployeeForm101.findOne(query)
       .sort({ createdAt: -1 })
       .lean();
@@ -183,13 +256,16 @@ export async function GET(req: NextRequest) {
       idCardAppendix: documentType === "idCardAppendix" ? serialized : null,
       accountManagement:
         documentType === "accountManagement" ? serialized : null,
+
+      payslip: null,
+      payslips: [],
     });
   } catch (error) {
     console.error("GET CURRENT EMPLOYEE DOCUMENT FAILED:", error);
 
     return NextResponse.json(
       { error: "שגיאה בטעינת המסמך" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

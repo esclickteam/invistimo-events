@@ -7,7 +7,8 @@ type EmployeeDocumentType =
   | "form101"
   | "idCard"
   | "idCardAppendix"
-  | "accountManagement";
+  | "accountManagement"
+  | "payslip";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -18,6 +19,7 @@ type ApiEmployeeDocument = {
   fileType?: string;
   fileSize?: number;
   taxYear?: number;
+  payrollMonth?: string;
   status?: EmployeeDocumentStatus;
   rejectionReason?: string;
   uploadedAt?: string;
@@ -79,16 +81,27 @@ type ApiEmployeeHoursUpdate = {
 type ApiEmployeePayslip = {
   _id?: string;
   id?: string;
+  employeeId?: string;
+  businessId?: string;
+  documentType?: "payslip" | string;
   title?: string;
   month?: number | string;
   year?: number | string;
   period?: string;
+  payrollMonth?: string;
+  taxYear?: number;
   netSalary?: number | string;
   grossSalary?: number | string;
   status?: string;
+  rejectionReason?: string;
   fileUrl?: string;
   originalFileName?: string;
+  storedFileName?: string;
+  fileType?: string;
+  fileSize?: number;
   uploadedAt?: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -277,6 +290,27 @@ function monthInputToLabel(monthKey: string) {
     month: "long",
     year: "numeric",
   });
+}
+
+function getPayslipPeriodLabel(item: ApiEmployeePayslip) {
+  const payrollMonth = cleanString(item.payrollMonth);
+
+  if (payrollMonth) {
+    return monthInputToLabel(payrollMonth);
+  }
+
+  if (item.period) {
+    return String(item.period);
+  }
+
+  const monthLabel = monthName(item.month);
+  const yearLabel = item.year ? String(item.year) : "";
+
+  return [monthLabel, yearLabel].filter(Boolean).join(" ");
+}
+
+function getPayslipUploadedDate(item: ApiEmployeePayslip) {
+  return formatDate(item.uploadedAt || item.createdAt || item.updatedAt);
 }
 
 function getDaysInMonth(monthKey: string) {
@@ -1346,6 +1380,46 @@ export default function EmployeeDocumentsModal({
   const canUploadAccountManagement = canUploadDocument(accountManagement);
   const canEditHoursNotes = hoursStatusAllowsEditing(hoursSummary.status);
 
+  const displayedPayslips = useMemo(() => {
+    const uniquePayslips = new Map<string, ApiEmployeePayslip>();
+
+    for (const item of payslips || []) {
+      const id =
+        cleanString(item.id) ||
+        cleanString(item._id) ||
+        [
+          cleanString(item.fileUrl),
+          cleanString(item.originalFileName),
+          cleanString(item.payrollMonth),
+          cleanString(item.createdAt),
+        ]
+          .filter(Boolean)
+          .join("-");
+
+      if (!id) continue;
+
+      uniquePayslips.set(id, {
+        ...item,
+        documentType: item.documentType || "payslip",
+        status: item.status || "uploaded",
+      });
+    }
+
+    return Array.from(uniquePayslips.values()).sort((a, b) => {
+      const aMonth = cleanString(a.payrollMonth);
+      const bMonth = cleanString(b.payrollMonth);
+
+      if (aMonth || bMonth) {
+        return bMonth.localeCompare(aMonth);
+      }
+
+      const aDate = new Date(a.uploadedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.uploadedAt || b.createdAt || 0).getTime();
+
+      return bDate - aDate;
+    });
+  }, [payslips]);
+
   const loadEmployeeHours = useCallback(
     async (monthKey: string) => {
       try {
@@ -1562,7 +1636,7 @@ export default function EmployeeDocumentsModal({
         icon: <Icon name="payroll" className="h-5 w-5" />,
         badge: (
           <Badge className="border-slate-200 bg-slate-50 text-slate-600">
-            {payslips.length}
+            {displayedPayslips.length}
           </Badge>
         ),
       },
@@ -1573,7 +1647,7 @@ export default function EmployeeDocumentsModal({
       form101Status,
       hoursSummary.status,
       idCardStatus,
-      payslips.length,
+      displayedPayslips.length,
     ],
   );
 
@@ -2185,15 +2259,15 @@ export default function EmployeeDocumentsModal({
                 </div>
               </div>
 
-              {payslips.length > 0 ? (
+              {displayedPayslips.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2">
-                  {payslips.map((item) => {
+                  {displayedPayslips.map((item) => {
                     const id = String(item.id || item._id || Math.random());
-                    const period =
-                      item.period ||
-                      [monthName(item.month), item.year]
-                        .filter(Boolean)
-                        .join(" ");
+                    const period = getPayslipPeriodLabel(item);
+                    const fileUrl = cleanString(item.fileUrl);
+                    const fileName =
+                      cleanString(item.originalFileName) || "תלוש שכר";
+                    const uploadedDate = getPayslipUploadedDate(item);
 
                     return (
                       <div
@@ -2203,7 +2277,7 @@ export default function EmployeeDocumentsModal({
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-lg font-black text-slate-900">
-                              {item.title || "תלוש שכר"}
+                              {item.title || `תלוש שכר${period ? ` - ${period}` : ""}`}
                             </p>
 
                             <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
@@ -2231,9 +2305,27 @@ export default function EmployeeDocumentsModal({
                               <span>
                                 תאריך העלאה:{" "}
                                 <b className="text-slate-900">
-                                  {formatDate(item.uploadedAt || item.createdAt)}
+                                  {uploadedDate}
                                 </b>
                               </span>
+
+                              {item.originalFileName && (
+                                <span>
+                                  קובץ:{" "}
+                                  <b className="text-slate-900">
+                                    {item.originalFileName}
+                                  </b>
+                                </span>
+                              )}
+
+                              {item.fileSize ? (
+                                <span>
+                                  גודל:{" "}
+                                  <b className="text-slate-900">
+                                    {formatFileSize(item.fileSize)}
+                                  </b>
+                                </span>
+                              ) : null}
                             </div>
                           </div>
 
@@ -2242,15 +2334,28 @@ export default function EmployeeDocumentsModal({
                           </Badge>
                         </div>
 
-                        {item.fileUrl && (
+                        {fileUrl && (
                           <a
-                            href={item.fileUrl}
+                            href={fileUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
                           >
                             <Icon name="open" className="h-4 w-4" />
                             צפייה בתלוש
+                          </a>
+                        )}
+
+                        {fileUrl && (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={fileName}
+                            className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-xs font-black text-white transition hover:bg-slate-800"
+                          >
+                            <Icon name="file" className="h-4 w-4" />
+                            הורדת תלוש
                           </a>
                         )}
                       </div>
