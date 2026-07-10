@@ -915,7 +915,7 @@ const PAYMENT_TERMS: DetailSection[] = [
     items: [
       "שירותים דיגיטליים ושירותי הכנה לפני האירוע משולמים במלואם במועד ביצוע העסקה.",
       "שירותי יום האירוע, לרבות הושבה באולם וניהול אלכוהול באולם, משולמים לפי הבחירה בעסקה: תשלום מלא מראש או תשלום ראשוני ויתרה ביום האירוע.",
-      "כאשר נבחר תשלום ראשוני ויתרה ביום האירוע, שירותי יום האירוע מחושבים כך: 50% במועד ביצוע העסקה לצורך שריון הצוות והתאריך, ו־50% ביום האירוע.",
+      "כאשר נבחר תשלום ראשוני ויתרה ביום האירוע, העובד יכול לערוך את סכום התשלום הראשוני לפי הסיכום עם הלקוח, והמערכת מחשבת אוטומטית את היתרה ליום האירוע לפי ההפרש מהסכום הסופי.",
       "המחיר הסופי בהצעת המחיר ובהסכם מוצג כולל מע״מ.",
     ],
   },
@@ -1282,6 +1282,7 @@ export default function AdminSalesNewPage() {
   const [suppliersBudgetFree, setSuppliersBudgetFree] = useState(false);
 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("split");
+  const [customInitialPayment, setCustomInitialPayment] = useState("");
   const [adminPaymentStatus, setAdminPaymentStatus] = useState<"stripe" | "manual_paid">("stripe");
   const [adminPackagePriceOverride, setAdminPackagePriceOverride] = useState<number | "">("");
   const [adminUpsellPriceOverrides, setAdminUpsellPriceOverrides] = useState<Partial<Record<UpsellKey, number | "">>>({});
@@ -1461,9 +1462,39 @@ export default function AdminSalesNewPage() {
       };
     }
 
-    const eventServicesDeposit = roundMoney(roundedEventServicesTotal * 0.5);
-    const eventServicesBalance = roundMoney(roundedEventServicesTotal - eventServicesDeposit);
-    const immediateTotal = roundMoney(preEventServicesTotal + eventServicesDeposit);
+    const defaultInitialPayment = roundMoney(
+      preEventServicesTotal + roundedEventServicesTotal * 0.5,
+    );
+
+    const customInitialPaymentNumber = Number(customInitialPayment || 0);
+    const hasCustomInitialPayment =
+      customInitialPayment.trim() !== "" &&
+      Number.isFinite(customInitialPaymentNumber) &&
+      customInitialPaymentNumber > 0;
+
+    const immediateTotal = roundMoney(
+      Math.min(
+        finalGrossAmount,
+        Math.max(
+          1,
+          hasCustomInitialPayment
+            ? customInitialPaymentNumber
+            : defaultInitialPayment,
+        ),
+      ),
+    );
+
+    const eventDayTotal = roundMoney(
+      Math.max(0, finalGrossAmount - immediateTotal),
+    );
+
+    const eventServicesDeposit = roundMoney(
+      Math.max(0, immediateTotal - preEventServicesTotal),
+    );
+
+    const eventServicesBalance = roundMoney(
+      Math.max(0, roundedEventServicesTotal - eventServicesDeposit),
+    );
 
     return {
       paymentMode,
@@ -1475,10 +1506,10 @@ export default function AdminSalesNewPage() {
       eventServicesDeposit,
       eventServicesBalance,
       immediateTotal,
-      eventDayTotal: eventServicesBalance,
+      eventDayTotal,
       stripeAmount: immediateTotal,
     };
-  }, [baseGrossAmount, effectivePackagePrice, finalGrossAmount, getEffectiveUpsellPrice, paymentDiscountAmount, paymentMode, selectedUpsellsList]);
+  }, [baseGrossAmount, customInitialPayment, effectivePackagePrice, finalGrossAmount, getEffectiveUpsellPrice, paymentDiscountAmount, paymentMode, selectedUpsellsList]);
 
   const extraRecordPrice = packageCalculation.pricePerRecord;
 
@@ -2606,14 +2637,31 @@ export default function AdminSalesNewPage() {
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between gap-3"><span>תשלום ראשוני</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span>תשלום ראשוני</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={finalGrossAmount || undefined}
+                              value={customInitialPayment}
+                              onChange={(event) => setCustomInitialPayment(event.target.value)}
+                              placeholder={String(paymentSchedule.immediateTotal)}
+                              className="h-10 w-32 rounded-2xl border border-[#eadfce] bg-white px-3 text-left text-sm font-black text-[#3f3327] outline-none transition focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                            />
+                            <span>₪</span>
+                          </div>
+                        </div>
                         <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(paymentSchedule.eventDayTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותים דיגיטליים/לפני האירוע</span><span>{money(paymentSchedule.preEventServicesTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותי יום אירוע</span><span>{money(paymentSchedule.eventServicesTotal)}</span></div>
                       </>
                     )}
                   </div>
-                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">לתשלום עכשיו: {money(paymentSchedule.stripeAmount)}.</p>
+                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">
+                    לתשלום עכשיו: {money(paymentSchedule.stripeAmount)}.
+                    {paymentMode === "split" ? " אפשר לערוך את התשלום הראשוני, והיתרה תתעדכן אוטומטית." : ""}
+                  </p>
                 </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">

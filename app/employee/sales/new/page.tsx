@@ -796,7 +796,7 @@ const PAYMENT_TERMS: DetailSection[] = [
     items: [
       "שירותים דיגיטליים ושירותי הכנה לפני האירוע משולמים במלואם במועד ביצוע העסקה.",
       "שירותי יום האירוע, לרבות הושבה באולם וניהול אלכוהול באולם, משולמים לפי הבחירה בעסקה: תשלום מלא מראש או תשלום ראשוני ויתרה ביום האירוע.",
-      "כאשר נבחר תשלום ראשוני ויתרה ביום האירוע, שירותי יום האירוע מחושבים כך: 50% במועד ביצוע העסקה לצורך שריון הצוות והתאריך, ו־50% ביום האירוע.",
+      "כאשר נבחר תשלום ראשוני ויתרה ביום האירוע, סכום התשלום הראשוני נקבע במערכת בזמן המכירה וניתן לעריכה על ידי העובד בהתאם לסיכום עם הלקוח. היתרה ליום האירוע מחושבת אוטומטית לפי הסכום שנותר מתוך סך העסקה.",
       "המחיר הסופי בהצעת המחיר ובהסכם מוצג כולל מע״מ.",
     ],
   },
@@ -1140,6 +1140,7 @@ export default function NewEmployeeSalePage() {
   const [suppliersBudgetFree, setSuppliersBudgetFree] = useState(false);
 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("split");
+  const [customInitialPayment, setCustomInitialPayment] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("quote");
   const [quotePricingDisplay, setQuotePricingDisplay] =
     useState<QuotePricingDisplay>("showUpsellPrices");
@@ -1268,9 +1269,40 @@ export default function NewEmployeeSalePage() {
       };
     }
 
-    const eventServicesDeposit = roundMoney(roundedEventServicesTotal * 0.5);
-    const eventServicesBalance = roundMoney(roundedEventServicesTotal - eventServicesDeposit);
-    const immediateTotal = roundMoney(preEventServicesTotal + eventServicesDeposit);
+    const defaultInitialPayment = roundMoney(
+      preEventServicesTotal + roundedEventServicesTotal * 0.5,
+    );
+
+    const rawCustomInitialPayment = Number(customInitialPayment || 0);
+
+    const hasCustomInitialPayment =
+      customInitialPayment.trim() !== "" &&
+      Number.isFinite(rawCustomInitialPayment) &&
+      rawCustomInitialPayment > 0;
+
+    const immediateTotal = roundMoney(
+      Math.min(
+        finalGrossAmount,
+        Math.max(
+          1,
+          hasCustomInitialPayment
+            ? rawCustomInitialPayment
+            : defaultInitialPayment,
+        ),
+      ),
+    );
+
+    const eventDayTotal = roundMoney(
+      Math.max(0, finalGrossAmount - immediateTotal),
+    );
+
+    const eventServicesDeposit = roundMoney(
+      Math.max(0, immediateTotal - preEventServicesTotal),
+    );
+
+    const eventServicesBalance = roundMoney(
+      Math.max(0, roundedEventServicesTotal - eventServicesDeposit),
+    );
 
     return {
       paymentMode,
@@ -1282,10 +1314,10 @@ export default function NewEmployeeSalePage() {
       eventServicesDeposit,
       eventServicesBalance,
       immediateTotal,
-      eventDayTotal: eventServicesBalance,
+      eventDayTotal,
       stripeAmount: immediateTotal,
     };
-  }, [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, finalGrossAmount, packageCalculation.finalPrice, paymentDiscountAmount, paymentMode, selectedPlanKey, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
+  }, [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, customInitialPayment, finalGrossAmount, packageCalculation.finalPrice, paymentDiscountAmount, paymentMode, selectedPlanKey, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const extraRecordPrice = packageCalculation.pricePerRecord;
 
@@ -1865,7 +1897,7 @@ export default function NewEmployeeSalePage() {
               </p>
               <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">יצירת לקוח חדש ותשלום</h1>
               <p className="mt-4 max-w-3xl text-base font-semibold leading-8 text-slate-600">
-                העובד בוחר חבילה, כמות רשומות ושירותים בלבד. המחיר, המע״מ, התשלום הראשוני והיתרה ביום האירוע מחושבים אוטומטית.
+                העובד בוחר חבילה, כמות רשומות ושירותים. המחיר והמע״מ מחושבים אוטומטית, ואת התשלום הראשוני ניתן לערוך ידנית לפי הסיכום עם הלקוח. היתרה ביום האירוע מתעדכנת בהתאם.
               </p>
             </div>
 
@@ -1876,7 +1908,7 @@ export default function NewEmployeeSalePage() {
               </div>
               <div className="rounded-[24px] border border-[#eadfce] bg-white/80 p-4 shadow-sm">
                 <p className="text-sm font-black text-[#3f3327]">מחיר נעול</p>
-                <p className="mt-1 text-xs font-semibold leading-6 text-[#7b6a58]">אין עריכת מחיר ידנית. כל המחירים מגיעים ממדרגות ותוספות מוגדרות.</p>
+                <p className="mt-1 text-xs font-semibold leading-6 text-[#7b6a58]">מחיר העסקה מגיע ממדרגות ותוספות מוגדרות. תשלום ראשוני ניתן לעריכה, והיתרה מתעדכנת אוטומטית.</p>
               </div>
             </div>
           </div>
@@ -2239,7 +2271,25 @@ export default function NewEmployeeSalePage() {
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between gap-3"><span>תשלום ראשוני</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3">
+                          <label className="block text-xs font-black text-[#3f3327]">
+                            תשלום ראשוני
+                            <input
+                              type="number"
+                              min={1}
+                              max={finalGrossAmount}
+                              value={customInitialPayment}
+                              onChange={(event) =>
+                                setCustomInitialPayment(event.target.value)
+                              }
+                              placeholder={String(paymentSchedule.immediateTotal)}
+                              className="mt-2 h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-left text-sm font-black text-[#3f3327] outline-none transition focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                            />
+                          </label>
+                          <p className="mt-2 text-[11px] font-bold leading-5 text-[#8b7b68]">
+                            ברירת מחדל: שירותים לפני האירוע + 50% משירותי יום האירוע. ניתן לערוך ידנית לפי הסיכום עם הלקוח.
+                          </p>
+                        </div>
                         <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(paymentSchedule.eventDayTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותים דיגיטליים/לפני האירוע</span><span>{money(paymentSchedule.preEventServicesTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותי יום אירוע</span><span>{money(paymentSchedule.eventServicesTotal)}</span></div>
