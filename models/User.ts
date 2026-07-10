@@ -115,7 +115,31 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     };
   };
 
+  /**
+   * סכומי חיוב/תשלום:
+   * totalDealAmount = שווי עסקה מלא כולל מע״מ/תוספות לפי מה שסגרת עם הלקוח
+   * paidAmount = כמה כסף נכנס בפועל עד עכשיו
+   * remainingAmount = יתרה לתשלום
+   * paymentMode = מלא / מקדמה / ידני / חינם
+   */
+  totalDealAmount: number;
   paidAmount: number;
+  remainingAmount: number;
+  paymentMode: "full" | "deposit" | "manual" | "free" | "none";
+  paidAt?: Date | null;
+  lastPaymentAt?: Date | null;
+
+  payments?: {
+    amount: number;
+    type: "full" | "deposit" | "balance" | "manual" | "refund" | "other";
+    method?: "stripe" | "cash" | "bank_transfer" | "bit" | "paybox" | "manual" | "other";
+    status: "paid" | "pending" | "failed" | "refunded" | "cancelled";
+    paidAt?: Date | null;
+    note?: string;
+    createdBy?: mongoose.Types.ObjectId | null;
+    createdAt?: Date;
+  }[];
+
   hasPaid: boolean;
   isActive: boolean;
 
@@ -610,14 +634,134 @@ preRsvpMessages: {
       },
     },
 
+    /**
+     * שווי העסקה המלאה.
+     * לדוגמה: אם סגרת עסקה על 2,299 ₪ — זה השדה שיחזיק 2299.
+     * לא משתמשים בו כהכנסה חודשית, אלא רק להצגת שווי עסקה/יתרה.
+     */
+    totalDealAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    /**
+     * כמה כסף נכנס בפועל עד עכשיו.
+     * אם הלקוח שילם רק מקדמה — כאן שומרים רק את המקדמה.
+     * הדשבורד הכנסות צריך להסתמך על paidAmount ולא על totalDealAmount.
+     */
     paidAmount: {
       type: Number,
       default: 0,
+      min: 0,
+      index: true,
     },
+
+    /**
+     * יתרה לתשלום.
+     * מחושב אוטומטית ב-hook לפי totalDealAmount - paidAmount.
+     */
+    remainingAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    /**
+     * סוג התשלום בפועל.
+     * deposit = מקדמה בלבד
+     * full = שולם מלא
+     * manual = עודכן ידנית
+     * free = ללא תשלום
+     * none = לא שולם
+     */
+    paymentMode: {
+      type: String,
+      enum: ["full", "deposit", "manual", "free", "none"],
+      default: "none",
+      index: true,
+    },
+
+    paidAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    lastPaymentAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    /**
+     * היסטוריית תשלומים בפועל.
+     * מאפשרת שמקדמה תיספר בחודש אחד, ויתרה בחודש אחר.
+     */
+    payments: [
+      {
+        amount: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+
+        type: {
+          type: String,
+          enum: ["full", "deposit", "balance", "manual", "refund", "other"],
+          default: "manual",
+        },
+
+        method: {
+          type: String,
+          enum: [
+            "stripe",
+            "cash",
+            "bank_transfer",
+            "bit",
+            "paybox",
+            "manual",
+            "other",
+          ],
+          default: "manual",
+        },
+
+        status: {
+          type: String,
+          enum: ["paid", "pending", "failed", "refunded", "cancelled"],
+          default: "paid",
+          index: true,
+        },
+
+        paidAt: {
+          type: Date,
+          default: Date.now,
+          index: true,
+        },
+
+        note: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+
+        createdBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
 
     hasPaid: {
       type: Boolean,
       default: false,
+      index: true,
     },
 
     isActive: {
@@ -1264,6 +1408,68 @@ UserSchema.pre("validate", function () {
     doc.maxMessages = doc.planLimits.smsLimit;
   }
 
+  /*
+    חישוב תשלום בפועל:
+    totalDealAmount = סכום עסקה מלא
+    paidAmount = רק מה ששולם בפועל
+    remainingAmount = יתרה
+
+    אם קיימת היסטוריית payments, paidAmount מחושב מסכום התשלומים בסטטוס paid
+    פחות refunds. כך מקדמה נספרת לבד, ותשלום יתרה בהמשך יכול להיספר בנפרד.
+  */
+  const totalDealAmount = Math.max(0, Number(doc.totalDealAmount || 0));
+
+  const paymentsList = Array.isArray(doc.payments) ? doc.payments : [];
+
+  if (paymentsList.length > 0) {
+    const paidFromPayments = paymentsList.reduce((sum, payment: any) => {
+      const amount = Math.max(0, Number(payment?.amount || 0));
+      const status = String(payment?.status || "").toLowerCase();
+      const type = String(payment?.type || "").toLowerCase();
+
+      if (status !== "paid") return sum;
+      if (type === "refund") return sum - amount;
+
+      return sum + amount;
+    }, 0);
+
+    doc.paidAmount = Math.max(0, paidFromPayments);
+
+    const latestPaidPayment = [...paymentsList]
+      .filter((payment: any) => String(payment?.status || "").toLowerCase() === "paid")
+      .sort((a: any, b: any) => {
+        return (
+          new Date(b?.paidAt || b?.createdAt || 0).getTime() -
+          new Date(a?.paidAt || a?.createdAt || 0).getTime()
+        );
+      })[0];
+
+    if (latestPaidPayment?.paidAt || latestPaidPayment?.createdAt) {
+      doc.lastPaymentAt = latestPaidPayment.paidAt || latestPaidPayment.createdAt;
+      doc.paidAt = doc.paidAt || doc.lastPaymentAt;
+    }
+  } else {
+    doc.paidAmount = Math.max(0, Number(doc.paidAmount || 0));
+  }
+
+  doc.totalDealAmount = totalDealAmount;
+  doc.remainingAmount = Math.max(0, totalDealAmount - Number(doc.paidAmount || 0));
+  doc.hasPaid = Number(doc.paidAmount || 0) > 0;
+
+  if (doc.hasPaid && !doc.paidAt) {
+    doc.paidAt = doc.lastPaymentAt || new Date();
+  }
+
+  if (!doc.hasPaid) {
+    doc.paymentMode = doc.paymentMode === "free" ? "free" : "none";
+  } else if (totalDealAmount > 0 && Number(doc.paidAmount || 0) >= totalDealAmount) {
+    doc.paymentMode = "full";
+  } else if (totalDealAmount > 0 && Number(doc.paidAmount || 0) < totalDealAmount) {
+    doc.paymentMode = "deposit";
+  } else if (!doc.paymentMode || doc.paymentMode === "none") {
+    doc.paymentMode = "manual";
+  }
+
  if (doc.role === "admin") {
   doc.staffType = null;
   doc.employeeScope = null;
@@ -1383,6 +1589,11 @@ UserSchema.index({ "salesUpsells.preRsvpMessages.saveTheDateSentAt": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.invitationOnlySentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
+
+UserSchema.index({ hasPaid: 1, paidAmount: 1, paidAt: 1 });
+UserSchema.index({ hasPaid: 1, paidAmount: 1, createdAt: 1 });
+UserSchema.index({ "payments.status": 1, "payments.paidAt": 1 });
+UserSchema.index({ paymentMode: 1, remainingAmount: 1 });
 
 /* ============================================================
    MODEL

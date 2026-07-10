@@ -1963,9 +1963,22 @@ export default function AdminSalesNewPage() {
           guests: packageCalculation.records,
           records: packageCalculation.records,
 
+          // סכום העסקה המלא — לא הכנסה בפועל
           grossAmount: finalGrossAmount,
           originalGrossAmount: baseGrossAmount,
           discountAmount: paymentDiscountAmount,
+
+          // חשוב לאדמין הכנסות:
+          // totalDealAmount = שווי העסקה הכולל
+          // paidAmount = מה שאמור להיגבות עכשיו בפועל
+          // remainingAmount = יתרה ליום האירוע / לתשלום עתידי
+          totalDealAmount: finalGrossAmount,
+          paidAmount: paymentSchedule.immediateTotal,
+          remainingAmount: paymentSchedule.eventDayTotal,
+          paymentActualMode:
+            paymentMode === "split" && paymentSchedule.eventDayTotal > 0
+              ? "deposit"
+              : "full",
 
           status: "pending",
           signedAgreementToken: generatedDocument?.token || "",
@@ -2011,13 +2024,25 @@ export default function AdminSalesNewPage() {
           payment: {
             method: "stripe",
             provider: "stripe",
-            amount: finalGrossAmount,
+
+            // כאן לא שולחים את הסכום הכולל לחיוב.
+            // אם נבחר תשלום מפוצל/מקדמה — Stripe יחייב רק את המקדמה.
+            amount: paymentSchedule.immediateTotal,
+            paidAmount: paymentSchedule.immediateTotal,
+            totalDealAmount: finalGrossAmount,
+            remainingAmount: paymentSchedule.eventDayTotal,
+
             originalAmount: baseGrossAmount,
+            finalAmount: finalGrossAmount,
             discountAmount: paymentDiscountAmount,
             immediateAmount: paymentSchedule.immediateTotal,
             stripeAmount: paymentSchedule.stripeAmount,
             eventDayAmount: paymentSchedule.eventDayTotal,
             mode: paymentMode,
+            actualMode:
+              paymentMode === "split" && paymentSchedule.eventDayTotal > 0
+                ? "deposit"
+                : "full",
           },
         }),
       });

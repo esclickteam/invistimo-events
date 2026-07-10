@@ -91,11 +91,9 @@ function getPackageLabel(user: any) {
 }
 
 /**
- * תאריך תשלום לפי המודל של User.
- * קודם מחפש שדה תשלום אם קיים, ואם אין — משתמש ב-createdAt.
- * לפי הצילום שלך createdAt הוא יולי, ולכן הוא ייכנס ליולי.
+ * תאריך תשלום ישן ליוזרים שאין להם payments[].
  */
-const userRevenueDateExpression = {
+const legacyUserRevenueDateExpression = {
   $ifNull: [
     "$paidAt",
     {
@@ -120,10 +118,9 @@ const userRevenueDateExpression = {
 };
 
 /**
- * סכום הכנסה לפי User.
- * לפי הצילום שלך השדה הוא paidAmount.
+ * סכום תשלום ישן ליוזרים שאין להם payments[].
  */
-const userRevenueAmountExpression = {
+const legacyUserRevenueAmountExpression = {
   $ifNull: [
     "$paidAmount",
     {
@@ -157,25 +154,156 @@ const userRevenueAmountExpression = {
   ],
 };
 
-function userRevenueDateMatch(startDate: Date, endDate: Date) {
+function legacyDateMatch(startDate: Date, endDate: Date) {
   return {
     $expr: {
       $and: [
-        { $gte: [userRevenueDateExpression, startDate] },
-        { $lt: [userRevenueDateExpression, endDate] },
+        { $gte: [legacyUserRevenueDateExpression, startDate] },
+        { $lt: [legacyUserRevenueDateExpression, endDate] },
       ],
     },
   };
 }
 
-function buildPaidUserMatch(startDate: Date, endDate: Date) {
+/**
+ * משמש רק לגיבוי:
+ * אם יש ליוזר payments[] — לא סופרים את paidAmount כדי לא להכפיל.
+ * אם אין payments[] — סופרים paidAmount לפי התאריך הישן.
+ */
+function buildLegacyPaidUserMatch(startDate: Date, endDate: Date) {
   return {
     isDemoUser: { $ne: true },
     isTest: { $ne: true },
     hasPaid: true,
     paidAmount: { $gt: 0 },
-    ...userRevenueDateMatch(startDate, endDate),
+    $or: [
+      { payments: { $exists: false } },
+      { payments: null },
+      { payments: { $size: 0 } },
+    ],
+    ...legacyDateMatch(startDate, endDate),
   };
+}
+
+/**
+ * שלב אגרגציה שמוציא כל תשלום מתוך User.payments[]
+ * תשלום ביולי ייספר ביולי, תשלום יתרה באוגוסט ייספר באוגוסט.
+ */
+function paymentsArrayPipeline(startDate: Date, endDate: Date) {
+  return [
+    {
+      $match: {
+        isDemoUser: { $ne: true },
+        isTest: { $ne: true },
+        payments: { $exists: true, $type: "array", $ne: [] },
+      },
+    },
+    {
+      $unwind: "$payments",
+    },
+    {
+      $project: {
+        email: 1,
+        name: 1,
+        fullName: 1,
+        firstName: 1,
+        lastName: 1,
+        clientName: 1,
+        businessName: 1,
+
+        plan: 1,
+        priceKey: 1,
+        packageName: 1,
+        planName: 1,
+        subscriptionPlan: 1,
+        maxGuests: 1,
+
+        includeCalls: 1,
+        includeCreditGifts: 1,
+        callsAddonPrice: 1,
+        creditGiftsAddonPrice: 1,
+
+        paymentAmount: {
+          $ifNull: ["$payments.amount", 0],
+        },
+
+        paymentDate: {
+          $ifNull: [
+            "$payments.paidAt",
+            {
+              $ifNull: [
+                "$payments.createdAt",
+                {
+                  $ifNull: ["$paidAt", "$createdAt"],
+                },
+              ],
+            },
+          ],
+        },
+
+        paymentType: {
+          $ifNull: ["$payments.type", "payment"],
+        },
+
+        paymentStatus: {
+          $ifNull: ["$payments.status", "paid"],
+        },
+      },
+    },
+    {
+      $match: {
+        paymentAmount: { $gt: 0 },
+        paymentDate: {
+          $gte: startDate,
+          $lt: endDate,
+        },
+        paymentStatus: {
+          $nin: ["cancelled", "canceled", "failed", "refunded"],
+        },
+      },
+    },
+  ];
+}
+
+function legacyPaymentsPipeline(startDate: Date, endDate: Date) {
+  return [
+    {
+      $match: buildLegacyPaidUserMatch(startDate, endDate),
+    },
+    {
+      $project: {
+        email: 1,
+        name: 1,
+        fullName: 1,
+        firstName: 1,
+        lastName: 1,
+        clientName: 1,
+        businessName: 1,
+
+        plan: 1,
+        priceKey: 1,
+        packageName: 1,
+        planName: 1,
+        subscriptionPlan: 1,
+        maxGuests: 1,
+
+        includeCalls: 1,
+        includeCreditGifts: 1,
+        callsAddonPrice: 1,
+        creditGiftsAddonPrice: 1,
+
+        paymentAmount: legacyUserRevenueAmountExpression,
+        paymentDate: legacyUserRevenueDateExpression,
+        paymentType: "legacy",
+        paymentStatus: "paid",
+      },
+    },
+    {
+      $match: {
+        paymentAmount: { $gt: 0 },
+      },
+    },
+  ];
 }
 
 export async function GET(req: NextRequest) {
@@ -258,20 +386,16 @@ export async function GET(req: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const monthlyPaidUserMatch = buildPaidUserMatch(startDate, endDate);
-    const rangePaidUserMatch = buildPaidUserMatch(rangeStartDate, rangeEndDate);
-
     const [
       usersCount,
       activeInvitationsCount,
       callsCount,
 
-      revenueAgg,
-      payingCustomersRaw,
-      rangeRevenueAgg,
-      rangeMonthlyAgg,
-      rangeCustomersAgg,
-      rangeByTypeAgg,
+      monthlyPaymentsFromArray,
+      monthlyLegacyPayments,
+
+      rangePaymentsFromArray,
+      rangeLegacyPayments,
     ] = await Promise.all([
       User.countDocuments(),
 
@@ -291,239 +415,181 @@ export async function GET(req: NextRequest) {
         paidAmount: { $gt: 0 },
       }),
 
-      User.aggregate([
-        {
-          $match: monthlyPaidUserMatch,
-        },
-        {
-          $project: {
-            revenueAmount: userRevenueAmountExpression,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: "$revenueAmount" },
-            paymentsCount: { $sum: 1 },
-          },
-        },
-      ]),
+      User.aggregate(paymentsArrayPipeline(startDate, endDate)),
+      User.aggregate(legacyPaymentsPipeline(startDate, endDate)),
 
-      User.aggregate([
-        {
-          $match: monthlyPaidUserMatch,
-        },
-        {
-          $project: {
-            email: 1,
-            name: 1,
-            fullName: 1,
-            firstName: 1,
-            lastName: 1,
-            clientName: 1,
-            businessName: 1,
-
-            plan: 1,
-            priceKey: 1,
-            packageName: 1,
-            planName: 1,
-            subscriptionPlan: 1,
-            maxGuests: 1,
-
-            includeCalls: 1,
-            includeCreditGifts: 1,
-            callsAddonPrice: 1,
-            creditGiftsAddonPrice: 1,
-
-            paidAmount: userRevenueAmountExpression,
-            paidDate: userRevenueDateExpression,
-          },
-        },
-        {
-          $match: {
-            paidAmount: { $gt: 0 },
-          },
-        },
-        {
-          $sort: {
-            paidDate: -1,
-          },
-        },
-      ]),
-
-      User.aggregate([
-        {
-          $match: rangePaidUserMatch,
-        },
-        {
-          $project: {
-            revenueAmount: userRevenueAmountExpression,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: "$revenueAmount" },
-            paymentsCount: { $sum: 1 },
-          },
-        },
-      ]),
-
-      User.aggregate([
-        {
-          $match: rangePaidUserMatch,
-        },
-        {
-          $project: {
-            paidDate: userRevenueDateExpression,
-            revenueAmount: userRevenueAmountExpression,
-          },
-        },
-        {
-          $match: {
-            revenueAmount: { $gt: 0 },
-          },
-        },
-        {
-          $project: {
-            year: { $year: "$paidDate" },
-            month: { $month: "$paidDate" },
-            revenueAmount: 1,
-          },
-        },
-        {
-          $group: {
-            _id: {
-              year: "$year",
-              month: "$month",
-            },
-            revenue: { $sum: "$revenueAmount" },
-            paymentsCount: { $sum: 1 },
-          },
-        },
-        {
-          $sort: {
-            "_id.year": 1,
-            "_id.month": 1,
-          },
-        },
-      ]),
-
-      User.aggregate([
-        {
-          $match: rangePaidUserMatch,
-        },
-        {
-          $group: {
-            _id: "$email",
-          },
-        },
-        {
-          $count: "total",
-        },
-      ]),
-
-      User.aggregate([
-        {
-          $match: rangePaidUserMatch,
-        },
-        {
-          $project: {
-            revenueAmount: userRevenueAmountExpression,
-            type: {
-              $ifNull: [
-                "$priceKey",
-                {
-                  $ifNull: [
-                    "$plan",
-                    {
-                      $ifNull: ["$packageName", "user"],
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        },
-        {
-          $match: {
-            revenueAmount: { $gt: 0 },
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            revenue: { $sum: "$revenueAmount" },
-            paymentsCount: { $sum: 1 },
-          },
-        },
-        {
-          $sort: {
-            revenue: -1,
-          },
-        },
-      ]),
+      User.aggregate(paymentsArrayPipeline(rangeStartDate, rangeEndDate)),
+      User.aggregate(legacyPaymentsPipeline(rangeStartDate, rangeEndDate)),
     ]);
 
-    const payingCustomers = payingCustomersRaw.map((user: any) => {
-      return {
-        email: user.email || "ללא אימייל",
-        name: getUserDisplayName(user) || "לא הוגדר שם",
-        packageName: getPackageLabel(user),
-        maxGuests: user.maxGuests || null,
-        totalPaid: Number(user.paidAmount || 0),
-        paymentsCount: 1,
-        lastPaymentAt: user.paidDate || null,
-        types: [user.priceKey || user.plan || "user"],
-        hasCallsAddon: Boolean(user.includeCalls),
-        hasCreditGiftsAddon: Boolean(user.includeCreditGifts),
-      };
-    });
+    const monthlyPayments = [
+      ...monthlyPaymentsFromArray,
+      ...monthlyLegacyPayments,
+    ];
 
-    const revenue =
-      revenueAgg.length > 0 ? Number(revenueAgg[0].totalRevenue || 0) : 0;
+    const rangePayments = [
+      ...rangePaymentsFromArray,
+      ...rangeLegacyPayments,
+    ];
 
-    const paymentsCount =
-      revenueAgg.length > 0 ? Number(revenueAgg[0].paymentsCount || 0) : 0;
+    const revenue = monthlyPayments.reduce((sum: number, item: any) => {
+      return sum + Number(item.paymentAmount || 0);
+    }, 0);
 
-    const callsRevenue = payingCustomersRaw.reduce((sum: number, user: any) => {
+    const paymentsCount = monthlyPayments.length;
+
+    const payingCustomersMap = new Map<string, any>();
+
+    for (const payment of monthlyPayments) {
+      const key = String(payment.email || payment._id || Math.random()).toLowerCase();
+      const existing = payingCustomersMap.get(key);
+
+      if (!existing) {
+        payingCustomersMap.set(key, {
+          ...payment,
+          totalPaid: Number(payment.paymentAmount || 0),
+          paymentsCount: 1,
+          lastPaymentAt: payment.paymentDate || null,
+          types: [payment.paymentType || payment.priceKey || payment.plan || "payment"],
+        });
+      } else {
+        existing.totalPaid += Number(payment.paymentAmount || 0);
+        existing.paymentsCount += 1;
+
+        const currentDate = new Date(existing.lastPaymentAt || 0).getTime();
+        const nextDate = new Date(payment.paymentDate || 0).getTime();
+
+        if (nextDate > currentDate) {
+          existing.lastPaymentAt = payment.paymentDate || null;
+        }
+
+        existing.types = Array.from(
+          new Set([
+            ...(existing.types || []),
+            payment.paymentType || payment.priceKey || payment.plan || "payment",
+          ]),
+        );
+      }
+    }
+
+    const payingCustomers = Array.from(payingCustomersMap.values())
+      .sort((a: any, b: any) => Number(b.totalPaid || 0) - Number(a.totalPaid || 0))
+      .map((user: any) => {
+        return {
+          email: user.email || "ללא אימייל",
+          name: getUserDisplayName(user) || "לא הוגדר שם",
+          packageName: getPackageLabel(user),
+          maxGuests: user.maxGuests || null,
+          totalPaid: Number(user.totalPaid || 0),
+          paymentsCount: Number(user.paymentsCount || 0),
+          lastPaymentAt: user.lastPaymentAt || null,
+          types: user.types || [user.priceKey || user.plan || "payment"],
+          hasCallsAddon: Boolean(user.includeCalls),
+          hasCreditGiftsAddon: Boolean(user.includeCreditGifts),
+        };
+      });
+
+    const callsRevenue = monthlyPayments.reduce((sum: number, user: any) => {
       if (!user.includeCalls) return sum;
       return sum + Number(user.callsAddonPrice || 0);
     }, 0);
 
-    const creditGiftsRevenue = payingCustomersRaw.reduce(
-      (sum: number, user: any) => {
-        if (!user.includeCreditGifts) return sum;
-        return sum + Number(user.creditGiftsAddonPrice || 0);
-      },
-      0,
+    const creditGiftsRevenue = monthlyPayments.reduce((sum: number, user: any) => {
+      if (!user.includeCreditGifts) return sum;
+      return sum + Number(user.creditGiftsAddonPrice || 0);
+    }, 0);
+
+    const rangeRevenue = rangePayments.reduce((sum: number, item: any) => {
+      return sum + Number(item.paymentAmount || 0);
+    }, 0);
+
+    const rangePaymentsCount = rangePayments.length;
+
+    const rangeCustomersSet = new Set(
+      rangePayments.map((item: any) => String(item.email || item._id || "").toLowerCase()).filter(Boolean),
     );
 
-    const rangeRevenue =
-      rangeRevenueAgg.length > 0
-        ? Number(rangeRevenueAgg[0].totalRevenue || 0)
-        : 0;
+    const rangeCustomers = rangeCustomersSet.size;
 
-    const rangePaymentsCount =
-      rangeRevenueAgg.length > 0
-        ? Number(rangeRevenueAgg[0].paymentsCount || 0)
-        : 0;
+    const monthlyBreakdownMap = new Map<string, {
+      year: number;
+      month: number;
+      revenue: number;
+      paymentsCount: number;
+    }>();
 
-    const rangeCustomers =
-      rangeCustomersAgg.length > 0 ? Number(rangeCustomersAgg[0].total || 0) : 0;
+    for (const payment of rangePayments) {
+      const date = new Date(payment.paymentDate);
 
-    const rangeMonthlyBreakdown = rangeMonthlyAgg.map((item: any) => ({
-      year: item._id.year,
-      month: item._id.month,
-      revenue: Number(item.revenue || 0),
-      paymentsCount: Number(item.paymentsCount || 0),
-    }));
+      if (Number.isNaN(date.getTime())) continue;
 
-    const rangeByType = rangeByTypeAgg.map((item: any) => ({
-      type: item._id || "user",
-      revenue: Number(item.revenue || 0),
-      paymentsCount: Number(item.paymentsCount || 0),
-    }));
+      const itemYear = date.getFullYear();
+      const itemMonth = date.getMonth() + 1;
+      const key = `${itemYear}-${String(itemMonth).padStart(2, "0")}`;
+
+      const existing =
+        monthlyBreakdownMap.get(key) ||
+        {
+          year: itemYear,
+          month: itemMonth,
+          revenue: 0,
+          paymentsCount: 0,
+        };
+
+      existing.revenue += Number(payment.paymentAmount || 0);
+      existing.paymentsCount += 1;
+
+      monthlyBreakdownMap.set(key, existing);
+    }
+
+    const rangeMonthlyBreakdown = Array.from(monthlyBreakdownMap.values())
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      })
+      .map((item) => ({
+        year: item.year,
+        month: item.month,
+        revenue: Math.round((item.revenue + Number.EPSILON) * 100) / 100,
+        paymentsCount: item.paymentsCount,
+      }));
+
+    const byTypeMap = new Map<string, {
+      type: string;
+      revenue: number;
+      paymentsCount: number;
+    }>();
+
+    for (const payment of rangePayments) {
+      const type = String(
+        payment.paymentType ||
+          payment.priceKey ||
+          payment.plan ||
+          payment.packageName ||
+          "payment",
+      );
+
+      const existing =
+        byTypeMap.get(type) ||
+        {
+          type,
+          revenue: 0,
+          paymentsCount: 0,
+        };
+
+      existing.revenue += Number(payment.paymentAmount || 0);
+      existing.paymentsCount += 1;
+
+      byTypeMap.set(type, existing);
+    }
+
+    const rangeByType = Array.from(byTypeMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .map((item) => ({
+        type: item.type,
+        revenue: Math.round((item.revenue + Number.EPSILON) * 100) / 100,
+        paymentsCount: item.paymentsCount,
+      }));
 
     return NextResponse.json(
       {
@@ -531,13 +597,15 @@ export async function GET(req: NextRequest) {
         invitations: activeInvitationsCount,
         calls: callsCount,
 
-        revenue,
+        revenue: Math.round((revenue + Number.EPSILON) * 100) / 100,
         payingUsers: payingCustomers.length,
         payingCustomers,
         paymentsCount,
 
-        callsRevenue,
-        creditGiftsRevenue,
+        callsRevenue: Math.round((callsRevenue + Number.EPSILON) * 100) / 100,
+        creditGiftsRevenue: Math.round(
+          (creditGiftsRevenue + Number.EPSILON) * 100,
+        ) / 100,
 
         month,
         year,
@@ -549,7 +617,7 @@ export async function GET(req: NextRequest) {
           toDay,
           toMonth,
           toYear,
-          revenue: rangeRevenue,
+          revenue: Math.round((rangeRevenue + Number.EPSILON) * 100) / 100,
           customers: rangeCustomers,
           paymentsCount: rangePaymentsCount,
           monthlyBreakdown: rangeMonthlyBreakdown,

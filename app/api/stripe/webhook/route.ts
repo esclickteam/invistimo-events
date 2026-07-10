@@ -39,6 +39,84 @@ function toBool(v: unknown): boolean {
   return String(v ?? "").toLowerCase() === "true";
 }
 
+function roundMoney(value: number) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
+function getUserPaymentsArray(user: any): any[] {
+  return Array.isArray(user?.payments) ? user.payments : [];
+}
+
+function hasRecordedPayment(user: any, paymentIntentId: string) {
+  if (!paymentIntentId) return false;
+
+  return getUserPaymentsArray(user).some((payment: any) => {
+    return (
+      cleanString(payment?.stripePaymentIntentId) === paymentIntentId ||
+      cleanString(payment?.paymentIntentId) === paymentIntentId
+    );
+  });
+}
+
+function getEmployeeSalePaidAmount({
+  session,
+  sale,
+  fallbackAmount,
+}: {
+  session: Stripe.Checkout.Session;
+  sale: any;
+  fallbackAmount: number;
+}) {
+  return roundMoney(
+    toNum(session.metadata?.paidAmount) ||
+      toNum(session.metadata?.stripeAmount) ||
+      toNum(sale?.payment?.paidAmount) ||
+      toNum(sale?.payment?.stripeAmount) ||
+      toNum(sale?.stripeAmount) ||
+      fallbackAmount,
+  );
+}
+
+function getEmployeeSaleTotalDealAmount({
+  session,
+  sale,
+  fallbackAmount,
+}: {
+  session: Stripe.Checkout.Session;
+  sale: any;
+  fallbackAmount: number;
+}) {
+  return roundMoney(
+    toNum(session.metadata?.totalDealAmount) ||
+      toNum(session.metadata?.finalGrossAmount) ||
+      toNum(sale?.totalDealAmount) ||
+      toNum(sale?.grossAmount) ||
+      toNum(sale?.payment?.totalDealAmount) ||
+      toNum(sale?.payment?.amount) ||
+      fallbackAmount,
+  );
+}
+
+function getPaymentActualMode({
+  session,
+  paidAmount,
+  totalDealAmount,
+}: {
+  session: Stripe.Checkout.Session;
+  paidAmount: number;
+  totalDealAmount: number;
+}) {
+  const explicitMode = cleanString(
+    session.metadata?.paymentActualMode || session.metadata?.paymentMode,
+  );
+
+  if (explicitMode === "deposit" || explicitMode === "split") return "deposit";
+  if (explicitMode === "full") return "full";
+  if (explicitMode === "upgrade") return "upgrade";
+
+  return paidAmount < totalDealAmount ? "deposit" : "full";
+}
+
 function normalizeAllowedMessageRounds(value: unknown): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
@@ -670,55 +748,77 @@ export async function POST(req: Request) {
         },
       });
 
-      await User.findByIdAndUpdate(
-        user._id,
-        {
-          $inc: {
-            paidAmount: amount,
-          },
+      const upgradePaidAt = new Date();
+      const upgradeAlreadyRecorded = hasRecordedPayment(user, paymentIntentId);
+      const currentPaidAmount = toNum(user?.paidAmount, 0);
+      const nextPaidAmount = upgradeAlreadyRecorded
+        ? currentPaidAmount
+        : roundMoney(currentPaidAmount + amount);
 
-          $set: {
-            hasPaid: true,
-            isActive: true,
+      const upgradeUserUpdate: any = {
+        $set: {
+          paidAmount: nextPaidAmount,
+          hasPaid: true,
+          isActive: true,
+          lastPaymentAt: upgradePaidAt,
 
+          plan,
+          priceKey,
+          packageName,
+
+          guests: maxGuests,
+          maxGuests,
+
+          smsLimit,
+          maxMessages,
+
+          allowedMessageRounds,
+
+          includeCalls,
+          includeCreditGifts,
+
+          includeDigitalSeating: accessModules.rsvpSeating,
+          includeEventManagement: accessModules.eventProduction,
+          includeCustomDesign,
+
+          accessModules,
+
+          selfManageEnabled: accessModules.eventProduction,
+          customDesignEnabled: includeCustomDesign,
+
+          "planLimits.maxGuests": maxGuests,
+          "planLimits.allowedMessageRounds": allowedMessageRounds,
+
+          "planLimits.smsEnabled": true,
+          "planLimits.smsLimit": smsLimit,
+          "planLimits.seatingEnabled": accessModules.rsvpSeating,
+          "planLimits.remindersEnabled": true,
+          "planLimits.callsEnabled": includeCalls,
+
+          updatedAt: upgradePaidAt,
+        },
+      };
+
+      if (!upgradeAlreadyRecorded) {
+        upgradeUserUpdate.$push = {
+          payments: {
+            amount,
+            type: "upgrade",
+            status: "paid",
+            paidAt: upgradePaidAt,
+            createdAt: upgradePaidAt,
+            source: "admin_upgrade",
+            stripeSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            currency: (session.currency || "ils").toLowerCase(),
             plan,
             priceKey,
             packageName,
-
-            guests: maxGuests,
-            maxGuests,
-
-            smsLimit,
-            maxMessages,
-
-            allowedMessageRounds,
-
-            includeCalls,
-            includeCreditGifts,
-
-            includeDigitalSeating: accessModules.rsvpSeating,
-            includeEventManagement: accessModules.eventProduction,
-            includeCustomDesign,
-
-            accessModules,
-
-            selfManageEnabled: accessModules.eventProduction,
-            customDesignEnabled: includeCustomDesign,
-
-            "planLimits.maxGuests": maxGuests,
-            "planLimits.allowedMessageRounds": allowedMessageRounds,
-
-            "planLimits.smsEnabled": true,
-            "planLimits.smsLimit": smsLimit,
-            "planLimits.seatingEnabled": accessModules.rsvpSeating,
-            "planLimits.remindersEnabled": true,
-            "planLimits.callsEnabled": includeCalls,
-
-            updatedAt: new Date(),
           },
-        },
-        { new: true }
-      );
+        };
+      }
+
+      await User.findByIdAndUpdate(user._id, upgradeUserUpdate, { new: true });
 
       try {
         await notifyAdminPurchase({
@@ -842,75 +942,121 @@ export async function POST(req: Request) {
       const venueSeatingDeposit = toNum(sale?.paymentSchedule?.eventServicesDeposit, 0);
       const venueSeatingBalance = toNum(sale?.paymentSchedule?.eventServicesBalance, 0);
 
-      await User.findByIdAndUpdate(
-        user._id,
-        {
-          $set: {
-            paidAmount: amount,
-            hasPaid: true,
-            isActive: true,
-            billingSource: "pricing",
+      const paidAt = new Date();
+      const actualPaidAmount = getEmployeeSalePaidAmount({
+        session,
+        sale,
+        fallbackAmount: amount,
+      });
+      const totalDealAmount = getEmployeeSaleTotalDealAmount({
+        session,
+        sale,
+        fallbackAmount: actualPaidAmount,
+      });
+      const alreadyRecordedOnUser = hasRecordedPayment(user, paymentIntentId);
+      const previousPaidAmount = toNum(user?.paidAmount, 0);
+      const nextPaidAmount = alreadyRecordedOnUser
+        ? previousPaidAmount
+        : roundMoney(previousPaidAmount + actualPaidAmount);
+      const remainingAmount = roundMoney(Math.max(0, totalDealAmount - nextPaidAmount));
+      const paymentActualMode = getPaymentActualMode({
+        session,
+        paidAmount: actualPaidAmount,
+        totalDealAmount,
+      });
 
-            isTrial: false,
-            hasDashboardAccess: true,
+      const employeeSaleUserUpdate: any = {
+        $set: {
+          paidAmount: nextPaidAmount,
+          totalDealAmount,
+          remainingAmount,
+          paymentMode: paymentActualMode,
+          hasPaid: nextPaidAmount > 0,
+          isActive: true,
+          billingSource: "pricing",
 
+          isTrial: false,
+          hasDashboardAccess: true,
+
+          plan: userPlan,
+          priceKey: userPlan,
+          packageName: packageFlags.packageName,
+
+          guests: packageFlags.guests,
+          maxGuests: packageFlags.guests,
+
+          allowedMessageRounds: packageFlags.allowedMessageRounds,
+
+          planLimits: packageFlags.planLimits,
+
+          smsLimit: packageFlags.guests,
+          maxMessages: packageFlags.guests,
+
+          includeCalls: packageFlags.includeCalls,
+          callsRounds: packageFlags.callsRounds,
+          callsAddonPrice: 0,
+          callsEnabledBy: packageFlags.includeCalls ? "stripe" : null,
+          callsEnabledAt: packageFlags.includeCalls ? paidAt : null,
+
+          includeCreditGifts: packageFlags.includeCreditGifts,
+          creditGiftsAddonPrice: packageFlags.salesUpsells.creditGifts.price,
+          creditGiftsEnabledBy: packageFlags.includeCreditGifts ? "stripe" : null,
+          creditGiftsEnabledAt: packageFlags.includeCreditGifts ? paidAt : null,
+
+          includeDigitalSeating: packageFlags.includeDigitalSeating,
+          includeEventManagement: packageFlags.includeEventManagement,
+
+          accessModules: packageFlags.accessModules,
+
+          selfManageEnabled: packageFlags.includeEventManagement,
+
+          salesUpsells: packageFlags.salesUpsells,
+
+          venueSeatingService: {
+            enabled: packageFlags.salesUpsells.venueSeating.enabled,
+            totalPrice: venueSeatingPrice,
+            depositAmount: venueSeatingDeposit,
+            venuePaymentAmount: venueSeatingBalance,
+            staffPaymentAmount: 0,
+            staffPaidFromVenue: 0,
+            staffPaidFromFullAmount: 0,
+            venuePaymentAfterStaff: venueSeatingBalance,
+            totalAfterStaff: venueSeatingPrice,
+          },
+
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          stripePaidAt: paidAt,
+          paidAt: user?.paidAt || paidAt,
+          lastPaymentAt: paidAt,
+
+          updatedAt: paidAt,
+        },
+      };
+
+      if (!alreadyRecordedOnUser) {
+        employeeSaleUserUpdate.$push = {
+          payments: {
+            amount: actualPaidAmount,
+            type: paymentActualMode,
+            status: "paid",
+            paidAt,
+            createdAt: paidAt,
+            source: "employee_sales_page",
+            saleId: String(sale._id),
+            stripeSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            currency: (session.currency || "ils").toLowerCase(),
+            totalDealAmount,
+            remainingAmount,
             plan: userPlan,
             priceKey: userPlan,
             packageName: packageFlags.packageName,
-
-            guests: packageFlags.guests,
-            maxGuests: packageFlags.guests,
-
-            allowedMessageRounds: packageFlags.allowedMessageRounds,
-
-            planLimits: packageFlags.planLimits,
-
-            smsLimit: packageFlags.guests,
-            maxMessages: packageFlags.guests,
-
-            includeCalls: packageFlags.includeCalls,
-            callsRounds: packageFlags.callsRounds,
-            callsAddonPrice: 0,
-            callsEnabledBy: packageFlags.includeCalls ? "stripe" : null,
-            callsEnabledAt: packageFlags.includeCalls ? new Date() : null,
-
-            includeCreditGifts: packageFlags.includeCreditGifts,
-            creditGiftsAddonPrice: packageFlags.salesUpsells.creditGifts.price,
-            creditGiftsEnabledBy: packageFlags.includeCreditGifts ? "stripe" : null,
-            creditGiftsEnabledAt: packageFlags.includeCreditGifts ? new Date() : null,
-
-            includeDigitalSeating: packageFlags.includeDigitalSeating,
-            includeEventManagement: packageFlags.includeEventManagement,
-
-            accessModules: packageFlags.accessModules,
-
-            selfManageEnabled: packageFlags.includeEventManagement,
-
-            salesUpsells: packageFlags.salesUpsells,
-
-            venueSeatingService: {
-              enabled: packageFlags.salesUpsells.venueSeating.enabled,
-              totalPrice: venueSeatingPrice,
-              depositAmount: venueSeatingDeposit,
-              venuePaymentAmount: venueSeatingBalance,
-              staffPaymentAmount: 0,
-              staffPaidFromVenue: 0,
-              staffPaidFromFullAmount: 0,
-              venuePaymentAfterStaff: venueSeatingBalance,
-              totalAfterStaff: venueSeatingPrice,
-            },
-
-            stripeCheckoutSessionId: session.id,
-            stripePaymentIntentId: paymentIntentId,
-            stripePaidAt: new Date(),
-
-            updatedAt: new Date(),
           },
-        },
-        { new: true }
-      );
+        };
+      }
 
-      const paidAt = new Date();
+      await User.findByIdAndUpdate(user._id, employeeSaleUserUpdate, { new: true });
 
       sale.set?.("status", "paid");
       sale.set?.("stripeCheckoutSessionId", sale.stripeCheckoutSessionId || session.id);
@@ -922,9 +1068,13 @@ export async function POST(req: Request) {
       sale.set?.("payment.checkoutSessionId", sale.payment?.checkoutSessionId || session.id);
       sale.set?.("payment.paymentIntentId", paymentIntentId);
       sale.set?.("payment.paidAt", paidAt);
-      sale.set?.("payment.amount", sale.payment?.amount || sale.grossAmount || amount);
-      sale.set?.("payment.stripeAmount", sale.payment?.stripeAmount || sale.stripeAmount || amount);
-      sale.set?.("payment.immediateAmount", sale.payment?.immediateAmount || sale.stripeAmount || amount);
+      sale.set?.("payment.amount", actualPaidAmount);
+      sale.set?.("payment.paidAmount", actualPaidAmount);
+      sale.set?.("payment.totalDealAmount", totalDealAmount);
+      sale.set?.("payment.remainingAmount", remainingAmount);
+      sale.set?.("payment.mode", paymentActualMode);
+      sale.set?.("payment.stripeAmount", actualPaidAmount);
+      sale.set?.("payment.immediateAmount", actualPaidAmount);
 
       await sale.save?.();
 
@@ -1099,50 +1249,80 @@ export async function POST(req: Request) {
       console.log("ℹ️ Payment already exists for paymentIntent:", paymentIntentId);
     }
 
-    await User.findByIdAndUpdate(
-      user._id,
-      {
-        $set: {
-          hasPaid: true,
-          paidAmount: amount,
+    const checkoutPaidAt = new Date();
+    const checkoutAlreadyRecorded = hasRecordedPayment(user, paymentIntentId);
+    const checkoutCurrentPaidAmount = toNum(user?.paidAmount, 0);
+    const checkoutNextPaidAmount = checkoutAlreadyRecorded
+      ? checkoutCurrentPaidAmount
+      : roundMoney(checkoutCurrentPaidAmount + amount);
 
-          billingSource: source === "admin_checkout" ? "admin" : "site",
+    const checkoutUserUpdate: any = {
+      $set: {
+        hasPaid: checkoutNextPaidAmount > 0,
+        paidAmount: checkoutNextPaidAmount,
+        paidAt: user?.paidAt || checkoutPaidAt,
+        lastPaymentAt: checkoutPaidAt,
 
-          isTrial: false,
-          hasDashboardAccess: true,
+        billingSource: source === "admin_checkout" ? "admin" : "site",
 
-          isActive: source === "admin_checkout" ? true : false,
+        isTrial: false,
+        hasDashboardAccess: true,
 
+        isActive: source === "admin_checkout" ? true : false,
+
+        plan,
+        priceKey,
+        packageName,
+
+        guests: maxGuests || guests,
+        maxGuests: maxGuests || guests,
+
+        allowedMessageRounds,
+
+        planLimits: finalPlanLimits,
+
+        maxMessages: 0,
+        smsLimit: 0,
+
+        includeCalls: finalIncludeCalls,
+        includeCreditGifts: finalIncludeCreditGifts,
+        includeDigitalSeating: finalAccessModules.rsvpSeating,
+        includeEventManagement: finalAccessModules.eventProduction,
+        includeCustomDesign: addonCustomDesign,
+
+        accessModules: finalAccessModules,
+
+        selfManageEnabled: finalAccessModules.eventProduction,
+        customDesignEnabled: addonCustomDesign,
+
+        stripeCheckoutSessionId: session.id,
+        stripePaymentIntentId: paymentIntentId,
+        stripePaidAt: checkoutPaidAt,
+
+        updatedAt: checkoutPaidAt,
+      },
+    };
+
+    if (!checkoutAlreadyRecorded) {
+      checkoutUserUpdate.$push = {
+        payments: {
+          amount,
+          type: source === "admin_checkout" ? "admin_checkout" : "package",
+          status: "paid",
+          paidAt: checkoutPaidAt,
+          createdAt: checkoutPaidAt,
+          source,
+          stripeSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          currency: (session.currency || "ils").toLowerCase(),
           plan,
           priceKey,
           packageName,
-
-          guests: maxGuests || guests,
-          maxGuests: maxGuests || guests,
-
-          allowedMessageRounds,
-
-          planLimits: finalPlanLimits,
-
-          maxMessages: 0,
-          smsLimit: 0,
-
-          includeCalls: finalIncludeCalls,
-          includeCreditGifts: finalIncludeCreditGifts,
-          includeDigitalSeating: finalAccessModules.rsvpSeating,
-          includeEventManagement: finalAccessModules.eventProduction,
-          includeCustomDesign: addonCustomDesign,
-
-          accessModules: finalAccessModules,
-
-          selfManageEnabled: finalAccessModules.eventProduction,
-          customDesignEnabled: addonCustomDesign,
-
-          updatedAt: new Date(),
         },
-      },
-      { new: true }
-    );
+      };
+    }
+
+    await User.findByIdAndUpdate(user._id, checkoutUserUpdate, { new: true });
 
     try {
       await notifyAdminPurchase({

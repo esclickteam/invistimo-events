@@ -417,6 +417,73 @@ function getEventDayAmountFromBody(body: any) {
   );
 }
 
+function getActualPaidAmountFromBody({
+  body,
+  finalGrossAmount,
+  stripeAmount,
+  eventDayAmount,
+  paymentMode,
+}: {
+  body: any;
+  finalGrossAmount: number;
+  stripeAmount: number;
+  eventDayAmount: number;
+  paymentMode: PaymentMode;
+}) {
+  const payment = normalizeObject(body?.payment);
+  const totals = normalizeObject(body?.totals);
+  const schedule = normalizeObject(
+    body?.paymentSchedule || (totals as Record<string, unknown>)?.paymentSchedule,
+  );
+
+  const explicitPaidAmount =
+    toNumber(body?.paidAmount) ||
+    toNumber((payment as Record<string, unknown>)?.paidAmount) ||
+    toNumber((payment as Record<string, unknown>)?.actualPaidAmount) ||
+    toNumber((payment as Record<string, unknown>)?.amount) ||
+    toNumber((payment as Record<string, unknown>)?.stripeAmount) ||
+    toNumber((payment as Record<string, unknown>)?.immediateAmount) ||
+    toNumber((totals as Record<string, unknown>)?.paidAmount) ||
+    toNumber((totals as Record<string, unknown>)?.actualPaidAmount) ||
+    toNumber((totals as Record<string, unknown>)?.stripeAmount) ||
+    toNumber((schedule as Record<string, unknown>)?.paidAmount) ||
+    toNumber((schedule as Record<string, unknown>)?.actualPaidAmount) ||
+    toNumber((schedule as Record<string, unknown>)?.stripeAmount) ||
+    toNumber((schedule as Record<string, unknown>)?.immediateTotal) ||
+    stripeAmount;
+
+  const fallbackPaidAmount =
+    paymentMode === "split" && eventDayAmount > 0
+      ? Math.max(0, finalGrossAmount - eventDayAmount)
+      : finalGrossAmount;
+
+  const paidAmount = roundMoney(explicitPaidAmount || fallbackPaidAmount);
+
+  return Math.min(Math.max(0, paidAmount), finalGrossAmount);
+}
+
+function getPaymentActualMode({
+  paidAmount,
+  finalGrossAmount,
+}: {
+  paidAmount: number;
+  finalGrossAmount: number;
+}) {
+  if (paidAmount <= 0) return "none";
+  if (paidAmount >= finalGrossAmount) return "full";
+  return "deposit";
+}
+
+function getRemainingAmount({
+  paidAmount,
+  finalGrossAmount,
+}: {
+  paidAmount: number;
+  finalGrossAmount: number;
+}) {
+  return roundMoney(Math.max(0, finalGrossAmount - paidAmount));
+}
+
 function serializeSale(sale: any) {
   return {
     id: String(sale._id),
@@ -636,6 +703,10 @@ async function createStripeCheckoutSession({
   body.set("metadata[originalGrossAmount]", String(originalGrossAmount));
   body.set("metadata[discountAmount]", String(discountAmount));
   body.set("metadata[eventDayAmount]", String(eventDayAmount));
+  body.set("metadata[paidAmount]", String(stripeAmount));
+  body.set("metadata[totalDealAmount]", String(finalGrossAmount));
+  body.set("metadata[remainingAmount]", String(Math.max(0, finalGrossAmount - stripeAmount)));
+  body.set("metadata[paymentActualMode]", stripeAmount >= finalGrossAmount ? "full" : "deposit");
   body.set("metadata[requiresWebhookActivation]", "true");
 
   body.set("payment_intent_data[metadata][userId]", userId);
@@ -650,6 +721,19 @@ async function createStripeCheckoutSession({
   body.set(
     "payment_intent_data[metadata][eventDayAmount]",
     String(eventDayAmount),
+  );
+  body.set("payment_intent_data[metadata][paidAmount]", String(stripeAmount));
+  body.set(
+    "payment_intent_data[metadata][totalDealAmount]",
+    String(finalGrossAmount),
+  );
+  body.set(
+    "payment_intent_data[metadata][remainingAmount]",
+    String(Math.max(0, finalGrossAmount - stripeAmount)),
+  );
+  body.set(
+    "payment_intent_data[metadata][paymentActualMode]",
+    stripeAmount >= finalGrossAmount ? "full" : "deposit",
   );
   body.set("payment_intent_data[metadata][requiresWebhookActivation]", "true");
 
@@ -891,6 +975,34 @@ export async function POST(req: NextRequest) {
     const stripeAmount = getStripeAmountFromBody(body);
     const eventDayAmount = getEventDayAmountFromBody(body);
 
+    /**
+     * paidAmount = רק כסף שנכנס בפועל עכשיו.
+     * finalGrossAmount / totalDealAmount = כל שווי העסקה.
+     *
+     * לדוגמה:
+     * עסקה 2,299 ₪ עם מקדמה 500 ₪:
+     * totalDealAmount = 2299
+     * paidAmount = 500
+     * remainingAmount = 1799
+     */
+    const actualPaidAmount = getActualPaidAmountFromBody({
+      body,
+      finalGrossAmount,
+      stripeAmount,
+      eventDayAmount,
+      paymentMode,
+    });
+
+    const remainingAmount = getRemainingAmount({
+      paidAmount: actualPaidAmount,
+      finalGrossAmount,
+    });
+
+    const paymentActualMode = getPaymentActualMode({
+      paidAmount: actualPaidAmount,
+      finalGrossAmount,
+    });
+
     const notes = cleanString(body?.notes);
     const upsells = getUpsellsArray(body);
     const allowedMessageRounds = getAllowedMessageRoundsFromUpsells(upsells);
@@ -975,9 +1087,18 @@ export async function POST(req: NextRequest) {
       maxGuests: guests,
 
       // תשלום רק Stripe — עד שה-webhook חוזר כ-paid, הלקוח לא פעיל ולא נפתחות הרשאות.
+      // חשוב: paidAmount נשאר 0 עד תשלום בפועל.
+      // totalDealAmount שומר את כל שווי העסקה.
+      totalDealAmount: finalGrossAmount,
       paidAmount: 0,
+      remainingAmount: finalGrossAmount,
+      paymentMode,
+      paymentActualMode: "none",
       hasPaid: false,
       isActive: false,
+      paidAt: null,
+      lastPaymentAt: null,
+      payments: [],
 
       eventDate,
 
@@ -1153,7 +1274,8 @@ export async function POST(req: NextRequest) {
 
     if (isManualPaid) {
       const now = new Date();
-      const paidAmount = stripeAmount > 0 ? stripeAmount : finalGrossAmount;
+      const paidAmount = actualPaidAmount;
+      const userRemainingAmount = remainingAmount;
       const includeCalls = Boolean(hasCallsPackage);
       const includeDigitalSeating = Boolean(hasDigitalSeating);
       const includeCreditGifts = Boolean(hasCreditGifts);
@@ -1191,7 +1313,13 @@ export async function POST(req: NextRequest) {
           $set: {
             hasPaid: true,
             isActive: true,
+            totalDealAmount: finalGrossAmount,
             paidAmount,
+            remainingAmount: userRemainingAmount,
+            paymentMode,
+            paymentActualMode,
+            paidAt: now,
+            lastPaymentAt: now,
             billingSource: "admin",
             isTrial: false,
             hasDashboardAccess: true,
@@ -1251,9 +1379,23 @@ export async function POST(req: NextRequest) {
             manualPaidAt: now,
             pendingPaymentAmount: 0,
             pendingGrossAmount: 0,
-            pendingEventDayAmount: eventDayAmount,
-            paymentMode,
+            pendingEventDayAmount: userRemainingAmount,
+            pendingRemainingAmount: userRemainingAmount,
             updatedAt: now,
+          },
+          $push: {
+            payments: {
+              amount: paidAmount,
+              type: paymentActualMode,
+              mode: paymentMode,
+              provider: "manual",
+              paidAt: now,
+              saleId: sale._id,
+              reference: manualPaymentReference,
+              note: manualPaymentNote,
+              totalDealAmount: finalGrossAmount,
+              remainingAmount: userRemainingAmount,
+            },
           },
         },
       );
@@ -1264,9 +1406,13 @@ export async function POST(req: NextRequest) {
       sale.set?.("payment.method", "manual");
       sale.set?.("payment.status", "paid");
       sale.set?.("payment.paidAt", now);
-      sale.set?.("payment.amount", finalGrossAmount);
+      sale.set?.("payment.amount", paidAmount);
+      sale.set?.("payment.paidAmount", paidAmount);
+      sale.set?.("payment.totalDealAmount", finalGrossAmount);
+      sale.set?.("payment.remainingAmount", userRemainingAmount);
+      sale.set?.("payment.paymentActualMode", paymentActualMode);
       sale.set?.("payment.stripeAmount", paidAmount);
-      sale.set?.("payment.eventDayAmount", eventDayAmount);
+      sale.set?.("payment.eventDayAmount", userRemainingAmount);
       sale.set?.("salesUpsells.creditGifts", {
         enabled: includeCreditGifts,
         price: salesUpsells.creditGifts.price,
@@ -1278,6 +1424,10 @@ export async function POST(req: NextRequest) {
       sale.set?.("activationSnapshot.hasCreditGifts", includeCreditGifts);
       sale.set?.("activationSnapshot.hasPreRsvpMessages", hasPreRsvpMessages);
       sale.set?.("activationSnapshot.preRsvpMessagesMode", preRsvpMessagesMode);
+      sale.set?.("paidAmount", paidAmount);
+      sale.set?.("totalDealAmount", finalGrossAmount);
+      sale.set?.("remainingAmount", userRemainingAmount);
+      sale.set?.("paymentActualMode", paymentActualMode);
       sale.set?.("paidAt", now);
       sale.set?.("stripePaidAt", now);
       sale.set?.("manualPaymentReference", manualPaymentReference);
@@ -1300,10 +1450,14 @@ export async function POST(req: NextRequest) {
             status: "paid",
             mode: paymentMode,
             stripeAmount: paidAmount,
+            paidAmount,
+            totalDealAmount: finalGrossAmount,
+            remainingAmount: userRemainingAmount,
+            paymentActualMode,
             finalGrossAmount,
             originalGrossAmount,
             discountAmount,
-            eventDayAmount,
+            eventDayAmount: userRemainingAmount,
             manualPaymentReference,
           },
           sale: serializeSale(sale),
@@ -1340,10 +1494,14 @@ export async function POST(req: NextRequest) {
         $set: {
           stripeCheckoutSessionId: checkout.checkoutSessionId,
           stripeCheckoutUrl: checkout.checkoutUrl,
+          totalDealAmount: finalGrossAmount,
+          remainingAmount: finalGrossAmount,
+          paymentMode,
+          paymentActualMode: "none",
           pendingPaymentAmount: stripeAmount,
           pendingGrossAmount: finalGrossAmount,
-          pendingEventDayAmount: eventDayAmount,
-          paymentMode,
+          pendingEventDayAmount: remainingAmount,
+          pendingRemainingAmount: remainingAmount,
           billingSource: "pricing",
         },
       },
@@ -1367,10 +1525,14 @@ export async function POST(req: NextRequest) {
           provider: "stripe",
           mode: paymentMode,
           stripeAmount,
+          paidAmount: stripeAmount,
+          totalDealAmount: finalGrossAmount,
+          remainingAmount,
+          paymentActualMode,
           finalGrossAmount,
           originalGrossAmount,
           discountAmount,
-          eventDayAmount,
+          eventDayAmount: remainingAmount,
         },
         sale: serializeSale(sale),
       },

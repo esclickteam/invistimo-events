@@ -1433,6 +1433,10 @@ export default function NewEmployeeSalePage() {
     }),
     totals: {
       grossAmount: finalGrossAmount,
+      totalDealAmount: finalGrossAmount,
+      paidAmount: paymentSchedule.immediateTotal,
+      remainingAmount: paymentSchedule.eventDayTotal,
+      paymentActualMode: paymentMode === "split" ? "deposit" : "full",
       originalGrossAmount: baseGrossAmount,
       discountAmount: paymentDiscountAmount,
       netAmount,
@@ -1511,7 +1515,11 @@ export default function NewEmployeeSalePage() {
     payment: {
       method: "stripe",
       provider: "stripe",
-      amount: finalGrossAmount,
+      amount: paymentSchedule.immediateTotal,
+      paidAmount: paymentSchedule.immediateTotal,
+      totalDealAmount: finalGrossAmount,
+      remainingAmount: paymentSchedule.eventDayTotal,
+      paymentActualMode: paymentMode === "split" ? "deposit" : "full",
       originalAmount: baseGrossAmount,
       discountAmount: paymentDiscountAmount,
       immediateAmount: paymentSchedule.immediateTotal,
@@ -1758,6 +1766,10 @@ export default function NewEmployeeSalePage() {
           customerFile: customerFilePayload,
 
           grossAmount: finalGrossAmount,
+          totalDealAmount: finalGrossAmount,
+          paidAmount: paymentSchedule.immediateTotal,
+          remainingAmount: paymentSchedule.eventDayTotal,
+          paymentActualMode: paymentMode === "split" ? "deposit" : "full",
           originalGrossAmount: baseGrossAmount,
           discountAmount: paymentDiscountAmount,
 
@@ -1788,7 +1800,11 @@ export default function NewEmployeeSalePage() {
           payment: {
             method: "stripe",
             provider: "stripe",
-            amount: finalGrossAmount,
+            amount: paymentSchedule.immediateTotal,
+            paidAmount: paymentSchedule.immediateTotal,
+            totalDealAmount: finalGrossAmount,
+            remainingAmount: paymentSchedule.eventDayTotal,
+            paymentActualMode: paymentMode === "split" ? "deposit" : "full",
             originalAmount: baseGrossAmount,
             discountAmount: paymentDiscountAmount,
             immediateAmount: paymentSchedule.immediateTotal,
