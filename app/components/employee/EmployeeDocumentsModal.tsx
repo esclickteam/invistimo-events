@@ -2288,20 +2288,7 @@ export default function EmployeeDocumentsModal({
                                 </b>
                               </span>
 
-                              <span>
-                                ברוטו:{" "}
-                                <b className="text-slate-900">
-                                  {formatMoney(item.grossSalary)}
-                                </b>
-                              </span>
-
-                              <span>
-                                נטו:{" "}
-                                <b className="text-slate-900">
-                                  {formatMoney(item.netSalary)}
-                                </b>
-                              </span>
-
+                              
                               <span>
                                 תאריך העלאה:{" "}
                                 <b className="text-slate-900">
