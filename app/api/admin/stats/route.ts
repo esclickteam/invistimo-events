@@ -10,7 +10,19 @@ import Payment from "@/models/Payment";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const PAID_STATUSES = ["paid", "partially_refunded"];
+/**
+ * כאן הרחבתי סטטוסים כדי שלא ייספרו רק paid.
+ * אם אצלך במונגו יש סטטוס אחר לתשלום מוצלח, תוסיפי אותו פה.
+ */
+const PAID_STATUSES = [
+  "paid",
+  "partially_refunded",
+  "success",
+  "succeeded",
+  "completed",
+  "approved",
+  "captured",
+];
 
 function getMonthRange(year: number, month: number) {
   const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
@@ -34,10 +46,9 @@ function getRangeDates(params: {
     0,
     0,
     0,
-    0
+    0,
   );
 
-  // כולל את היום האחרון שנבחר
   const rangeEndDate = new Date(
     params.toYear,
     params.toMonth - 1,
@@ -45,7 +56,7 @@ function getRangeDates(params: {
     0,
     0,
     0,
-    0
+    0,
   );
 
   return { rangeStartDate, rangeEndDate };
@@ -98,13 +109,56 @@ function getPaymentPackageLabel(payment: any) {
   return "לא הוגדרה חבילה";
 }
 
+/**
+ * שדה תאריך אחיד לתשלום.
+ * קודם paidAt/paymentDate/paidDate/chargedAt, ורק בסוף createdAt.
+ */
+const paymentDateExpression = {
+  $ifNull: [
+    "$paidAt",
+    {
+      $ifNull: [
+        "$paymentDate",
+        {
+          $ifNull: [
+            "$paidDate",
+            {
+              $ifNull: ["$chargedAt", "$createdAt"],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+function paidDateMatch(startDate: Date, endDate: Date) {
+  return {
+    $expr: {
+      $and: [
+        { $gte: [paymentDateExpression, startDate] },
+        { $lt: [paymentDateExpression, endDate] },
+      ],
+    },
+  };
+}
+
+const netAmountExpression = {
+  $max: [
+    0,
+    {
+      $subtract: [
+        { $ifNull: ["$amount", 0] },
+        { $ifNull: ["$refundAmount", 0] },
+      ],
+    },
+  ],
+};
+
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    /* ======================================================
-       AUTH
-    ====================================================== */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -118,9 +172,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    /* ======================================================
-       QUERY PARAMS
-    ====================================================== */
     const { searchParams } = new URL(req.url);
 
     const now = new Date();
@@ -134,49 +185,48 @@ export async function GET(req: NextRequest) {
     const year = queryYear >= 2000 ? queryYear : now.getFullYear();
 
     const fromDayQuery = Number(searchParams.get("fromDay"));
-const fromMonthQuery = Number(searchParams.get("fromMonth"));
-const fromYearQuery = Number(searchParams.get("fromYear"));
+    const fromMonthQuery = Number(searchParams.get("fromMonth"));
+    const fromYearQuery = Number(searchParams.get("fromYear"));
 
-const toDayQuery = Number(searchParams.get("toDay"));
-const toMonthQuery = Number(searchParams.get("toMonth"));
-const toYearQuery = Number(searchParams.get("toYear"));
+    const toDayQuery = Number(searchParams.get("toDay"));
+    const toMonthQuery = Number(searchParams.get("toMonth"));
+    const toYearQuery = Number(searchParams.get("toYear"));
 
     const fromDay =
-  fromDayQuery >= 1 && fromDayQuery <= 31 ? fromDayQuery : 1;
+      fromDayQuery >= 1 && fromDayQuery <= 31 ? fromDayQuery : 1;
 
-const fromMonth =
-  fromMonthQuery >= 1 && fromMonthQuery <= 12 ? fromMonthQuery : 1;
+    const fromMonth =
+      fromMonthQuery >= 1 && fromMonthQuery <= 12 ? fromMonthQuery : 1;
 
-const fromYear = fromYearQuery >= 2000 ? fromYearQuery : now.getFullYear();
+    const fromYear = fromYearQuery >= 2000 ? fromYearQuery : now.getFullYear();
 
-const toDay =
-  toDayQuery >= 1 && toDayQuery <= 31 ? toDayQuery : 31;
+    const toDay = toDayQuery >= 1 && toDayQuery <= 31 ? toDayQuery : 31;
 
-const toMonth =
-  toMonthQuery >= 1 && toMonthQuery <= 12 ? toMonthQuery : 12;
+    const toMonth =
+      toMonthQuery >= 1 && toMonthQuery <= 12 ? toMonthQuery : 12;
 
-const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
+    const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
 
     const { startDate, endDate } = getMonthRange(year, month);
 
     let { rangeStartDate, rangeEndDate } = getRangeDates({
-  fromYear,
-  fromMonth,
-  fromDay,
-  toYear,
-  toMonth,
-  toDay,
-});
+      fromYear,
+      fromMonth,
+      fromDay,
+      toYear,
+      toMonth,
+      toDay,
+    });
 
     if (rangeStartDate > rangeEndDate) {
-     const fixed = getRangeDates({
-  fromYear: toYear,
-  fromMonth: toMonth,
-  fromDay: toDay,
-  toYear: fromYear,
-  toMonth: fromMonth,
-  toDay: fromDay,
-});
+      const fixed = getRangeDates({
+        fromYear: toYear,
+        fromMonth: toMonth,
+        fromDay: toDay,
+        toYear: fromYear,
+        toMonth: fromMonth,
+        toDay: fromDay,
+      });
 
       rangeStartDate = fixed.rangeStartDate;
       rangeEndDate = fixed.rangeEndDate;
@@ -190,22 +240,31 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       status: { $in: PAID_STATUSES },
     };
 
-    /* ======================================================
-       MAIN STATS
-    ====================================================== */
+    const monthlyPaidMatch = {
+      ...basePaidMatch,
+      ...paidDateMatch(startDate, endDate),
+    };
+
+    const rangePaidMatch = {
+      ...basePaidMatch,
+      ...paidDateMatch(rangeStartDate, rangeEndDate),
+    };
+
     const [
       usersCount,
       activeInvitationsCount,
       callsCount,
+
       revenueAgg,
       payingCustomersAgg,
-      paymentsCount,
+      paymentsCountAgg,
       callsRevenueAgg,
       creditGiftsRevenueAgg,
+
       rangeRevenueAgg,
       rangeMonthlyAgg,
       rangeCustomersAgg,
-      rangePaymentsCount,
+      rangePaymentsCountAgg,
       rangeByTypeAgg,
     ] = await Promise.all([
       User.countDocuments(),
@@ -223,28 +282,10 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       User.countDocuments({ includeCalls: true }),
 
       Payment.aggregate([
-        {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: startDate,
-              $lt: endDate,
-            },
-          },
-        },
+        { $match: monthlyPaidMatch },
         {
           $project: {
-            netAmount: {
-              $max: [
-                0,
-                {
-                  $subtract: [
-                    { $ifNull: ["$amount", 0] },
-                    { $ifNull: ["$refundAmount", 0] },
-                  ],
-                },
-              ],
-            },
+            netAmount: netAmountExpression,
           },
         },
         {
@@ -256,42 +297,28 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       ]),
 
       Payment.aggregate([
-        {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: startDate,
-              $lt: endDate,
-            },
-          },
-        },
+        { $match: monthlyPaidMatch },
         {
           $project: {
             email: 1,
             amount: 1,
             refundAmount: 1,
-            createdAt: 1,
             type: 1,
             priceKey: 1,
+            packageLabel: 1,
+            packageName: 1,
             maxGuests: 1,
             includeCalls: 1,
             includeCreditGifts: 1,
-            netAmount: {
-              $max: [
-                0,
-                {
-                  $subtract: [
-                    { $ifNull: ["$amount", 0] },
-                    { $ifNull: ["$refundAmount", 0] },
-                  ],
-                },
-              ],
-            },
+            callsAddonPrice: 1,
+            creditGiftsAddonPrice: 1,
+            paidDate: paymentDateExpression,
+            netAmount: netAmountExpression,
           },
         },
         {
           $sort: {
-            createdAt: -1,
+            paidDate: -1,
           },
         },
         {
@@ -300,10 +327,12 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
             email: { $first: "$email" },
             totalPaid: { $sum: "$netAmount" },
             paymentsCount: { $sum: 1 },
-            lastPaymentAt: { $first: "$createdAt" },
+            lastPaymentAt: { $first: "$paidDate" },
             types: { $addToSet: "$type" },
             lastType: { $first: "$type" },
             lastPriceKey: { $first: "$priceKey" },
+            lastPackageLabel: { $first: "$packageLabel" },
+            lastPackageName: { $first: "$packageName" },
             lastMaxGuests: { $first: "$maxGuests" },
             hasCallsAddon: { $max: "$includeCalls" },
             hasCreditGiftsAddon: { $max: "$includeCreditGifts" },
@@ -316,22 +345,17 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
         },
       ]),
 
-      Payment.countDocuments({
-        ...basePaidMatch,
-        createdAt: {
-          $gte: startDate,
-          $lt: endDate,
+      Payment.aggregate([
+        { $match: monthlyPaidMatch },
+        {
+          $count: "total",
         },
-      }),
+      ]),
 
       Payment.aggregate([
         {
           $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: startDate,
-              $lt: endDate,
-            },
+            ...monthlyPaidMatch,
             includeCalls: true,
           },
         },
@@ -346,11 +370,7 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       Payment.aggregate([
         {
           $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: startDate,
-              $lt: endDate,
-            },
+            ...monthlyPaidMatch,
             includeCreditGifts: true,
           },
         },
@@ -365,28 +385,10 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       ]),
 
       Payment.aggregate([
-        {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: rangeStartDate,
-              $lt: rangeEndDate,
-            },
-          },
-        },
+        { $match: rangePaidMatch },
         {
           $project: {
-            netAmount: {
-              $max: [
-                0,
-                {
-                  $subtract: [
-                    { $ifNull: ["$amount", 0] },
-                    { $ifNull: ["$refundAmount", 0] },
-                  ],
-                },
-              ],
-            },
+            netAmount: netAmountExpression,
           },
         },
         {
@@ -398,30 +400,18 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       ]),
 
       Payment.aggregate([
+        { $match: rangePaidMatch },
         {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: rangeStartDate,
-              $lt: rangeEndDate,
-            },
+          $project: {
+            paidDate: paymentDateExpression,
+            netAmount: netAmountExpression,
           },
         },
         {
           $project: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
-            netAmount: {
-              $max: [
-                0,
-                {
-                  $subtract: [
-                    { $ifNull: ["$amount", 0] },
-                    { $ifNull: ["$refundAmount", 0] },
-                  ],
-                },
-              ],
-            },
+            year: { $year: "$paidDate" },
+            month: { $month: "$paidDate" },
+            netAmount: 1,
           },
         },
         {
@@ -443,15 +433,7 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       ]),
 
       Payment.aggregate([
-        {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: rangeStartDate,
-              $lt: rangeEndDate,
-            },
-          },
-        },
+        { $match: rangePaidMatch },
         {
           $group: {
             _id: "$email",
@@ -462,38 +444,19 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
         },
       ]),
 
-      Payment.countDocuments({
-        ...basePaidMatch,
-        createdAt: {
-          $gte: rangeStartDate,
-          $lt: rangeEndDate,
+      Payment.aggregate([
+        { $match: rangePaidMatch },
+        {
+          $count: "total",
         },
-      }),
+      ]),
 
       Payment.aggregate([
-        {
-          $match: {
-            ...basePaidMatch,
-            createdAt: {
-              $gte: rangeStartDate,
-              $lt: rangeEndDate,
-            },
-          },
-        },
+        { $match: rangePaidMatch },
         {
           $project: {
             type: { $ifNull: ["$type", "other"] },
-            netAmount: {
-              $max: [
-                0,
-                {
-                  $subtract: [
-                    { $ifNull: ["$amount", 0] },
-                    { $ifNull: ["$refundAmount", 0] },
-                  ],
-                },
-              ],
-            },
+            netAmount: netAmountExpression,
           },
         },
         {
@@ -511,9 +474,6 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       ]),
     ]);
 
-    /* ======================================================
-       ENRICH CUSTOMERS WITH USER DATA
-    ====================================================== */
     const customerEmails = payingCustomersAgg
       .map((customer: any) => customer.email)
       .filter(Boolean);
@@ -522,7 +482,7 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       email: { $in: customerEmails },
     })
       .select(
-        "email name fullName firstName lastName clientName businessName packageName planName subscriptionPlan priceKey maxGuests"
+        "email name fullName firstName lastName clientName businessName packageName planName subscriptionPlan priceKey maxGuests",
       )
       .lean();
 
@@ -543,6 +503,8 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       const packageLabel =
         userPackageName ||
         getPaymentPackageLabel({
+          packageLabel: customer.lastPackageLabel,
+          packageName: customer.lastPackageName,
           priceKey: customer.lastPriceKey,
           maxGuests: customer.lastMaxGuests,
           type: customer.lastType,
@@ -562,11 +524,11 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
       };
     });
 
-    /* ======================================================
-       FINAL VALUES
-    ====================================================== */
     const revenue =
       revenueAgg.length > 0 ? Number(revenueAgg[0].totalRevenue || 0) : 0;
+
+    const paymentsCount =
+      paymentsCountAgg.length > 0 ? Number(paymentsCountAgg[0].total || 0) : 0;
 
     const callsRevenue =
       callsRevenueAgg.length > 0 ? Number(callsRevenueAgg[0].total || 0) : 0;
@@ -583,6 +545,11 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
 
     const rangeCustomers =
       rangeCustomersAgg.length > 0 ? Number(rangeCustomersAgg[0].total || 0) : 0;
+
+    const rangePaymentsCount =
+      rangePaymentsCountAgg.length > 0
+        ? Number(rangePaymentsCountAgg[0].total || 0)
+        : 0;
 
     const rangeMonthlyBreakdown = rangeMonthlyAgg.map((item: any) => ({
       year: item._id.year,
@@ -615,12 +582,12 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
         year,
 
         rangeSummary: {
-  fromDay,
-  fromMonth,
-  fromYear,
-  toDay,
-  toMonth,
-  toYear,
+          fromDay,
+          fromMonth,
+          fromYear,
+          toDay,
+          toMonth,
+          toYear,
           revenue: rangeRevenue,
           customers: rangeCustomers,
           paymentsCount: rangePaymentsCount,
@@ -634,7 +601,7 @@ const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
           Pragma: "no-cache",
           Expires: "0",
         },
-      }
+      },
     );
   } catch (err) {
     console.error("❌ Admin stats error:", err);
