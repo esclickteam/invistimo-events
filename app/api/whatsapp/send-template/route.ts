@@ -11,6 +11,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
+import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -248,12 +249,13 @@ function buildPayloadTemplate({
 
   const eventLocation = cleanAddress(invitation.location?.address);
 
-  const finalImageUrl =
+  const finalImageUrl = getHighQualityCloudinaryImageUrl(
     invitation.headerImageUrl ||
-    invitation.previewImageUrl ||
-    invitation.imageUrl ||
-    invitation.canvasImageUrl ||
-    "";
+      invitation.previewImageUrl ||
+      invitation.imageUrl ||
+      invitation.canvasImageUrl ||
+      ""
+  );
 
   const basePayload: any = {
     languageCode,

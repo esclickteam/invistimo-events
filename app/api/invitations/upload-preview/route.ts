@@ -80,28 +80,30 @@ export async function POST(req: Request) {
     const targetHeight = finalImageMode === "square" ? 1080 : 1920;
 
     /*
-      חשוב:
-      כאן אנחנו שומרים את התמונה בגודל קבוע שמתאים להזמנה.
-      portrait = 1080x1920
-      square = 1080x1080
+      חשוב מאוד – איכות התמונה:
+      התמונה נשמרת בגודל שמתאים להזמנה.
+      portrait = 1080x1920, square = 1080x1080.
 
-      crop: "pad" שומר את כל התמונה בלי חיתוך.
-      background: "#ffffff" מוסיף רקע לבן אם היחס לא תואם בדיוק.
-      quality: "100" שומר איכות גבוהה.
-      format: "jpg" מייצר קובץ שמתאים טוב לוואטסאפ.
+      crop: "lpad" שומר את כל התמונה בלי חיתוך, אבל בניגוד ל-"pad"
+      הוא לעולם לא מגדיל בכוח תמונה קטנה (שגורם לטשטוש).
+      background: "#ffffff" מוסיף רקע לבן רק אם היחס לא תואם.
+      format: "png" שומר קובץ ללא אובדן איכות (lossless) – חד יותר בטקסט
+      ובקווים דקים של ההזמנה, וזה מה שנשלח כתמונת ה-header בוואטסאפ.
+      quality: "auto:best" שומר איכות מקסימלית ומצמצם משקל קובץ
+      כדי לא לחרוג ממגבלת הגודל של וואטסאפ.
     */
     const upload = await cloudinary.uploader.upload(base64Image, {
       folder: "invistimo/invitations",
       resource_type: "image",
       overwrite: true,
-      format: "jpg",
+      format: "png",
       transformation: [
         {
           width: targetWidth,
           height: targetHeight,
-          crop: "pad",
+          crop: "lpad",
           background: "#ffffff",
-          quality: "100",
+          quality: "auto:best",
         },
       ],
     });

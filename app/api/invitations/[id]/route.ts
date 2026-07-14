@@ -825,19 +825,25 @@ export async function PUT(
       const targetWidth = 1080;
       const targetHeight = finalImageMode === "square" ? 1080 : 1920;
 
+      /*
+        איכות התמונה: שומרים ללא אובדן (PNG) כדי שתמונת ה-header
+        בוואטסאפ תישאר חדה. crop: "lpad" לא מגדיל בכוח תמונה קטנה
+        (מונע טשטוש), ו-quality: "auto:best" שומר איכות מקסימלית
+        עם משקל קובץ סביר.
+      */
       const upload = await cloudinary.uploader.upload(previewBase64, {
         public_id: publicId,
         resource_type: "image",
         overwrite: false,
         invalidate: true,
-        format: "jpg",
+        format: "png",
         transformation: [
           {
             width: targetWidth,
             height: targetHeight,
-            crop: "pad",
+            crop: "lpad",
             background: "#ffffff",
-            quality: "100",
+            quality: "auto:best",
           },
         ],
       });
