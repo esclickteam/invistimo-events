@@ -684,10 +684,24 @@ const canViewActualArrived =
       invitation?.eventDetails?._id;
 
     if (!eventId) {
-      console.warn("No eventId found for seating tables", {
-        eventIdFromUrl,
-        invitation,
-      });
+      return;
+    }
+
+    const hasSeatingAccess =
+      effectiveRole === "admin" ||
+      effectiveRole === "producer" ||
+      user?.impersonated === true ||
+      user?.impersonatedByAdmin === true ||
+      user?.impersonationRole === "admin" ||
+      user?.plan === "premium" ||
+      user?.plan === "seating" ||
+      user?.plan === "plan3" ||
+      user?.planLimits?.seatingEnabled === true ||
+      user?.accessModules?.seating === true ||
+      user?.accessModules?.rsvpSeating === true;
+
+    if (!hasSeatingAccess) {
+      setSeatingTables([]);
       return;
     }
 
@@ -704,9 +718,12 @@ const canViewActualArrived =
 
       const data = await res.json().catch(() => ({}));
 
-      console.log("SEATING TABLES RESPONSE:", data);
-
       if (!res.ok || !data.success) {
+        if (data?.code === "SEATING_NOT_ALLOWED") {
+          setSeatingTables([]);
+          return;
+        }
+
         console.warn("Failed to load seating tables", data);
         return;
       }

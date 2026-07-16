@@ -40,10 +40,17 @@ export async function requireSeating() {
   }
 
   /**
-   * ⭐ מפיק / אדמין – תמיד מותר
+   * ⭐ מפיק / אדמין / התחזות – תמיד מותר
    * לא בודקים להם plan של המשתמש המחובר
    */
-  if (auth.role === "producer" || auth.role === "admin") {
+  const isPrivilegedActor =
+    auth.role === "producer" ||
+    auth.role === "admin" ||
+    auth.impersonationRole === "admin" ||
+    auth.impersonationRole === "producer" ||
+    Boolean(auth.impersonatedBy);
+
+  if (isPrivilegedActor) {
     return { ok: true, userId };
   }
 
