@@ -310,6 +310,15 @@ export default function EditInvitePage() {
       setImageMode(mode);
     } catch (error) {
       console.error("IMAGE_UPLOAD_FAILED:", error);
+
+      if (
+        error instanceof Error &&
+        error.message === "IMAGE_TOO_LARGE_AFTER_COMPRESSION"
+      ) {
+        alert("❌ התמונה גדולה מדי לשמירה. נסו קובץ קטן יותר או בפורמט JPG");
+        return;
+      }
+
       alert("❌ שגיאה בקריאת התמונה");
     }
   };
@@ -325,16 +334,25 @@ export default function EditInvitePage() {
     try {
       setSaving(true);
 
+      let imageUploaded = false;
+
       if (uploadedImage?.base64) {
+        const uploadPayload = JSON.stringify({
+          invitationId: inviteId,
+          base64Image: uploadedImage.base64,
+          imageMode,
+        });
+
+        if (new Blob([uploadPayload]).size > 3.5 * 1024 * 1024) {
+          alert("❌ התמונה גדולה מדי לשמירה. נסו קובץ קטן יותר או בפורמט JPG");
+          return;
+        }
+
         const uploadRes = await fetch("/api/invitations/upload-preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({
-            invitationId: inviteId,
-            base64Image: uploadedImage.base64,
-            imageMode,
-          }),
+          body: uploadPayload,
         });
 
         const { data: uploadData, rawText: uploadRawText } =
@@ -351,16 +369,52 @@ export default function EditInvitePage() {
           );
           return;
         }
+
+        imageUploaded = true;
+
+        const uploadedUrl = String(
+          uploadData.imageUrl ||
+            uploadData.previewImageUrl ||
+            uploadData.headerImageUrl ||
+            ""
+        );
+
+        setInvite((prev: any) => ({
+          ...prev,
+          previewImageUrl: uploadedUrl,
+          headerImageUrl: uploadedUrl,
+          imageUrl: uploadedUrl,
+          previewImage: uploadedUrl,
+          orientation: imageMode,
+        }));
+      }
+
+      const currentEventId = getStringValue(
+        invite.eventId,
+        invite.productionEventId,
+        invite.linkedEventId
+      );
+      const needsEventSync =
+        Boolean(eventForm.eventId) && eventForm.eventId !== currentEventId;
+      const currentOrientation =
+        invite.orientation === "square" ? "square" : "portrait";
+      const needsOrientationSync =
+        !imageUploaded && imageMode !== currentOrientation;
+
+      if (!needsEventSync && !needsOrientationSync) {
+        setUploadedImage(null);
+        setPreviewRefreshKey((prev) => prev + 1);
+        alert("✅ ההזמנה נשמרה בהצלחה!");
+        return;
       }
 
       const body: Record<string, unknown> = {
         orientation: imageMode,
         imageMode,
-        eventId: eventForm.eventId || undefined,
       };
 
-      if (Array.isArray(invite.canvasData?.objects) && invite.canvasData.objects.length) {
-        body.canvasData = invite.canvasData;
+      if (needsEventSync) {
+        body.eventId = eventForm.eventId;
       }
 
       const res = await fetch(`/api/invitations/${inviteId}`, {
@@ -421,7 +475,7 @@ export default function EditInvitePage() {
 
       alert("✅ ההזמנה נשמרה בהצלחה!");
     } catch (error) {
-      console.error("PUT /api/invitations/[inviteId] failed:", error);
+      console.error("SAVE /api/invitations/[inviteId] failed:", error);
       alert("❌ שגיאה בשמירה");
     } finally {
       setSaving(false);

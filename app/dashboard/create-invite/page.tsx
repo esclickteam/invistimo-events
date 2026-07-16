@@ -271,6 +271,15 @@ export default function CreateInvitePage() {
       setImageMode(mode);
     } catch (error) {
       console.error("IMAGE_UPLOAD_FAILED:", error);
+
+      if (
+        error instanceof Error &&
+        error.message === "IMAGE_TOO_LARGE_AFTER_COMPRESSION"
+      ) {
+        alert("❌ התמונה גדולה מדי לשמירה. נסו קובץ קטן יותר או בפורמט JPG");
+        return;
+      }
+
       alert("❌ שגיאה בקריאת התמונה");
     }
   };
@@ -337,17 +346,24 @@ export default function CreateInvitePage() {
       return;
     }
 
+    const uploadPayload = JSON.stringify({
+      invitationId,
+      base64Image: uploadedImage.base64,
+      imageMode,
+    });
+
+    if (new Blob([uploadPayload]).size > 3.5 * 1024 * 1024) {
+      alert("❌ התמונה גדולה מדי לשמירה. נסו קובץ קטן יותר או בפורמט JPG");
+      return;
+    }
+
     const uploadRes = await fetch("/api/invitations/upload-preview", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({
-        invitationId,
-        base64Image: uploadedImage.base64,
-        imageMode,
-      }),
+      body: uploadPayload,
     });
 
     const { data: uploadData, rawText: uploadRawText } =

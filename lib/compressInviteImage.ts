@@ -75,9 +75,11 @@ export async function compressInviteImageFile(
   ctx.drawImage(img, 0, 0, width, height);
 
   const base64 = canvas.toDataURL("image/jpeg", 0.88);
+  const maxPayloadBytes = 3 * 1024 * 1024;
+  const optimizedBase64 = await shrinkBase64IfNeeded(canvas, base64, maxPayloadBytes);
 
   return {
-    base64,
+    base64: optimizedBase64,
     mode: detectedMode,
     info: {
       width,
@@ -85,4 +87,28 @@ export async function compressInviteImageFile(
       aspectRatio: width / height,
     },
   };
+}
+
+function estimateDataUrlBytes(dataUrl: string): number {
+  return new Blob([dataUrl]).size;
+}
+
+async function shrinkBase64IfNeeded(
+  canvas: HTMLCanvasElement,
+  initialBase64: string,
+  maxBytes: number
+): Promise<string> {
+  let quality = 0.88;
+  let base64 = initialBase64;
+
+  while (estimateDataUrlBytes(base64) > maxBytes && quality > 0.45) {
+    quality -= 0.08;
+    base64 = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  if (estimateDataUrlBytes(base64) > maxBytes) {
+    throw new Error("IMAGE_TOO_LARGE_AFTER_COMPRESSION");
+  }
+
+  return base64;
 }
