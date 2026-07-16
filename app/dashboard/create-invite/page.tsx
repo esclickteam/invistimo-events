@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { compressInviteImageFile } from "@/lib/compressInviteImage";
+import { getApiErrorMessage, parseApiResponse } from "@/lib/parseApiResponse";
 
 /* =========================================================
    Types
@@ -28,45 +30,6 @@ type EventForm = {
 /* =========================================================
    Helpers
 ========================================================= */
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve(String(reader.result || ""));
-    };
-
-    reader.onerror = () => {
-      reject(new Error("FILE_READ_FAILED"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function getImageInfo(src: string): Promise<ImageInfo> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-
-    img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-
-      resolve({
-        width,
-        height,
-        aspectRatio: width && height ? width / height : 0,
-      });
-    };
-
-    img.onerror = () => {
-      reject(new Error("IMAGE_LOAD_FAILED"));
-    };
-
-    img.src = src;
-  });
-}
 
 function getRecommendedText(mode: InviteImageMode) {
   if (mode === "square") {
@@ -298,24 +261,14 @@ export default function CreateInvitePage() {
     }
 
     try {
-      const base64 = await fileToBase64(file);
-      const info = await getImageInfo(base64);
+      const { base64, info, mode } = await compressInviteImageFile(file);
 
       setUploadedImage({
         file,
         base64,
         info,
       });
-
-      if (info.width && info.height) {
-        const ratio = info.width / info.height;
-
-        if (ratio > 0.9 && ratio < 1.1) {
-          setImageMode("square");
-        } else {
-          setImageMode("portrait");
-        }
-      }
+      setImageMode(mode);
     } catch (error) {
       console.error("IMAGE_UPLOAD_FAILED:", error);
       alert("❌ שגיאה בקריאת התמונה");
@@ -397,17 +350,19 @@ export default function CreateInvitePage() {
       }),
     });
 
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text();
-      console.error("UPLOAD ERROR:", text);
-      alert("❌ שגיאה בהעלאת תמונה");
-      return;
-    }
+    const { data: uploadData, rawText: uploadRawText } =
+      await parseApiResponse(uploadRes);
 
-    const uploadData = await uploadRes.json();
-
-    if (!uploadData.success) {
-      alert("❌ שגיאה בהעלאת תמונה");
+    if (!uploadRes.ok || !uploadData?.success) {
+      console.error("UPLOAD ERROR:", uploadRawText);
+      alert(
+        `❌ ${getApiErrorMessage(
+          uploadRes,
+          uploadData,
+          uploadRawText,
+          "שגיאה בהעלאת תמונה"
+        )}`
+      );
       return;
     }
 

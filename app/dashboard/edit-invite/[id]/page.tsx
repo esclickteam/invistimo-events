@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { compressInviteImageFile } from "@/lib/compressInviteImage";
+import { getApiErrorMessage, parseApiResponse } from "@/lib/parseApiResponse";
 
 /* =========================================================
    Types
@@ -43,45 +45,6 @@ type EventForm = {
 /* =========================================================
    Helpers
 ========================================================= */
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve(String(reader.result || ""));
-    };
-
-    reader.onerror = () => {
-      reject(new Error("FILE_READ_FAILED"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function getImageInfo(src: string): Promise<ImageInfo> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-
-    img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-
-      resolve({
-        width,
-        height,
-        aspectRatio: width && height ? width / height : 0,
-      });
-    };
-
-    img.onerror = () => {
-      reject(new Error("IMAGE_LOAD_FAILED"));
-    };
-
-    img.src = src;
-  });
-}
 
 function getRecommendedText(mode: InviteImageMode) {
   if (mode === "square") {
@@ -337,24 +300,14 @@ export default function EditInvitePage() {
     }
 
     try {
-      const base64 = await fileToBase64(file);
-      const info = await getImageInfo(base64);
+      const { base64, info, mode } = await compressInviteImageFile(file);
 
       setUploadedImage({
         file,
         base64,
         info,
       });
-
-      if (info.width && info.height) {
-        const ratio = info.width / info.height;
-
-        if (ratio > 0.9 && ratio < 1.1) {
-          setImageMode("square");
-        } else {
-          setImageMode("portrait");
-        }
-      }
+      setImageMode(mode);
     } catch (error) {
       console.error("IMAGE_UPLOAD_FAILED:", error);
       alert("❌ שגיאה בקריאת התמונה");
@@ -372,15 +325,42 @@ export default function EditInvitePage() {
     try {
       setSaving(true);
 
-      const body: any = {
+      if (uploadedImage?.base64) {
+        const uploadRes = await fetch("/api/invitations/upload-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            invitationId: inviteId,
+            base64Image: uploadedImage.base64,
+            imageMode,
+          }),
+        });
+
+        const { data: uploadData, rawText: uploadRawText } =
+          await parseApiResponse(uploadRes);
+
+        if (!uploadRes.ok || !uploadData?.success) {
+          alert(
+            `❌ ${getApiErrorMessage(
+              uploadRes,
+              uploadData,
+              uploadRawText,
+              "שגיאה בהעלאת תמונה"
+            )}`
+          );
+          return;
+        }
+      }
+
+      const body: Record<string, unknown> = {
         orientation: imageMode,
         imageMode,
-        canvasData: invite.canvasData || { objects: [] },
         eventId: eventForm.eventId || undefined,
       };
 
-      if (uploadedImage?.base64) {
-        body.previewBase64 = uploadedImage.base64;
+      if (Array.isArray(invite.canvasData?.objects) && invite.canvasData.objects.length) {
+        body.canvasData = invite.canvasData;
       }
 
       const res = await fetch(`/api/invitations/${inviteId}`, {
@@ -390,17 +370,25 @@ export default function EditInvitePage() {
         body: JSON.stringify(body),
       });
 
-      const result = await res.json();
+      const { data: result, rawText } = await parseApiResponse(res);
 
-      if (!res.ok || !result.success) {
-        alert(result.error || result.message || "❌ שגיאה בשמירה");
+      if (!res.ok || !result?.success) {
+        alert(
+          `❌ ${getApiErrorMessage(res, result, rawText, "שגיאה בשמירה")}`
+        );
         return;
       }
 
-      setInvite(result.invitation);
+      const saveResult = result as {
+        success?: boolean;
+        invitation?: any;
+        event?: any;
+      };
 
-      const updatedInvitation = result.invitation || {};
-      const updatedEvent = result.event || updatedInvitation.event || null;
+      setInvite(saveResult.invitation);
+
+      const updatedInvitation = saveResult.invitation || {};
+      const updatedEvent = saveResult.event || updatedInvitation.event || null;
 
       setEventForm((prev) => ({
         ...prev,
