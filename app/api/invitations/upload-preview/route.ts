@@ -3,6 +3,7 @@ import { v2 as cloudinary } from "cloudinary";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { canManageInvitation } from "@/lib/canManageInvitation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,15 +61,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const invitation: any = await Invitation.findOne({
-      _id: invitationId,
-      ownerId: auth.userId,
-    });
+    const invitation: any = await Invitation.findById(invitationId);
 
     if (!invitation) {
       return NextResponse.json(
         { success: false, error: "INVITATION_NOT_FOUND" },
         { status: 404 }
+      );
+    }
+
+    if (!canManageInvitation(auth, invitation)) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
       );
     }
 
@@ -120,7 +125,6 @@ export async function POST(req: Request) {
     const updated = await Invitation.findOneAndUpdate(
       {
         _id: invitationId,
-        ownerId: auth.userId,
       },
       {
         $set: {
