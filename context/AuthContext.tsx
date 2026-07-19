@@ -494,8 +494,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("auth_user");
+      }
       setUser(null);
-      window.location.replace("/login");
+      window.location.replace("/login?loggedOut=1");
     }
   };
 
