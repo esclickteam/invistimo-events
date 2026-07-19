@@ -87,6 +87,46 @@ function isProtectedDashboardPath(pathname: string): boolean {
   );
 }
 
+function isAuthEntryPath(pathname: string): boolean {
+  return pathname === "/" || pathname === "/login" || pathname.startsWith("/login/");
+}
+
+function getDashboardPathFromJwt(payload: JwtPayloadShape): string {
+  const role = String(payload.role || "").toLowerCase().trim();
+  const impersonationRole = String(payload.impersonationRole || "")
+    .toLowerCase()
+    .trim();
+
+  const targetRole = impersonationRole || role;
+
+  if (targetRole === "admin" || role === "admin") {
+    return "/admin";
+  }
+
+  if (targetRole === "venue_owner" || role === "venue_owner") {
+    return "/venues/dashboard";
+  }
+
+  if (targetRole === "producer" || role === "producer") {
+    return "/producer/dashboard";
+  }
+
+  if (
+    targetRole === "producer_staff" ||
+    targetRole === "staff_producer" ||
+    role === "producer_staff" ||
+    role === "staff_producer"
+  ) {
+    return "/producer-staff/dashboard";
+  }
+
+  if (targetRole === "system_staff" || role === "system_staff" || role === "staff") {
+    return "/staff/dashboard";
+  }
+
+  return "/dashboard";
+}
+
 /* ========================================================
    Middleware
 ======================================================== */
@@ -98,22 +138,37 @@ export function middleware(req: NextRequest) {
   /* 0) NEVER gate API */
   if (pathname.startsWith("/api")) return NextResponse.next();
 
-  /* 1) Public pages */
-  if (isPublicPath(pathname)) return NextResponse.next();
-
-  /* 2) Force www (production) */
+  /* 1) Force www (production) — including public pages like / and /login */
   if (process.env.NODE_ENV === "production" && hostname === "invistimo.com") {
     const url = nextUrl.clone();
     url.hostname = "www.invistimo.com";
     return NextResponse.redirect(url);
   }
 
-  /* 3) Read token */
+  /* 2) Read token */
   const token =
     cookies.get("authToken")?.value ||
     cookies.get("producerAuthToken")?.value ||
     cookies.get("adminAuthToken")?.value ||
     null;
+
+  /*
+    משתמש מחובר שנכנס לדף הבית או ל-login —
+    ננתב אותו ישר לדשבורד המתאים לפי role.
+  */
+  if (token && isAuthEntryPath(pathname)) {
+    const payload = readJwtPayload(token);
+
+    if (payload) {
+      const url = req.nextUrl.clone();
+      url.pathname = getDashboardPathFromJwt(payload);
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  /* 3) Public pages */
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   if (isProtectedDashboardPath(pathname) && !token) {
     return redirectToLogin(req);
@@ -207,6 +262,9 @@ export function middleware(req: NextRequest) {
 ======================================================== */
 export const config = {
   matcher: [
+    "/",
+    "/login",
+    "/login/:path*",
     "/dashboard/:path*",
     "/producer/:path*",
     "/producer-staff/:path*",
