@@ -495,8 +495,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("❌ Logout request failed:", err);
     } finally {
       setUser(null);
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     }
   };
 
