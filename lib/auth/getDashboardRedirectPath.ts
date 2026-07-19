@@ -44,16 +44,7 @@ function isTokenExpired(payload: JwtPayloadShape): boolean {
   return payload.exp * 1000 <= Date.now();
 }
 
-function resolveRoleFromCookies(cookies: AuthCookieSnapshot): string | null {
-  const fromCookies =
-    cookies.originalTargetRole ||
-    cookies.impersonationRole ||
-    cookies.role;
-
-  return fromCookies ? String(fromCookies) : null;
-}
-
-export function getDashboardPathFromAuthCookies(
+function getDashboardPathFromValidToken(
   cookies: AuthCookieSnapshot
 ): string | null {
   const token =
@@ -62,21 +53,31 @@ export function getDashboardPathFromAuthCookies(
     cookies.adminAuthToken ||
     null;
 
-  if (token) {
-    const payload = readJwtPayload(token);
-
-    if (payload && !isTokenExpired(payload)) {
-      const role = payload.impersonationRole || payload.role;
-      if (role) {
-        return getDashboardPathFromRole(String(role));
-      }
-    }
+  if (!token) {
+    return null;
   }
 
-  const role = resolveRoleFromCookies(cookies);
+  const payload = readJwtPayload(token);
+
+  if (!payload || isTokenExpired(payload)) {
+    return null;
+  }
+
+  const role = payload.impersonationRole || payload.role;
   if (role) {
-    return getDashboardPathFromRole(role);
+    return getDashboardPathFromRole(String(role));
   }
 
   return null;
+}
+
+export function getDashboardPathFromAuthCookies(
+  cookies: AuthCookieSnapshot
+): string | null {
+  /*
+    Redirect only when a valid auth token exists.
+    UX cookies like role/impersonationRole alone must not trigger redirect,
+    otherwise logout leaves stale cookies and causes /login <-> /dashboard loops.
+  */
+  return getDashboardPathFromValidToken(cookies);
 }

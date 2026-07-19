@@ -1,5 +1,30 @@
 import { NextResponse } from "next/server";
 
+const AUTH_COOKIES_TO_DELETE = [
+  "authToken",
+  "adminAuthToken",
+  "producerAuthToken",
+  "producerStaffAuthToken",
+  "adminToken",
+  "token",
+  "impersonationToken",
+  "role",
+  "hasPaid",
+  "isTrial",
+  "trialExpiresAt",
+  "smsLimit",
+  "smsUsed",
+  "impersonationRole",
+  "originalTargetRole",
+  "impersonationSourceRole",
+  "impersonatedByAdmin",
+  "staffType",
+  "staffImpersonationActive",
+  "staffOriginalUserId",
+  "staffOriginalType",
+  "staffOriginalScope",
+] as const;
+
 export async function POST() {
   const res = NextResponse.json(
     { success: true },
@@ -15,46 +40,43 @@ export async function POST() {
   const cookieDomain =
     process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
-  const baseCookie = {
+  const deleteWithDomain = {
     path: "/",
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
-    domain: cookieDomain,
-  };
-
-  const delHttpOnly = {
-    ...baseCookie,
-    httpOnly: true,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
     maxAge: 0,
     expires: new Date(0),
   };
 
-  const delClient = {
-    ...baseCookie,
-    httpOnly: false,
+  const deleteWithoutDomain = {
+    path: "/",
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 0,
     expires: new Date(0),
   };
 
-  const cookiesToDelete = [
-    "authToken",
-    "adminAuthToken",
-    "producerAuthToken",
-    "adminToken",
-    "token",
-    "impersonationToken",
-    "role",
-    "hasPaid",
-    "isTrial",
-    "trialExpiresAt",
-    "smsLimit",
-    "smsUsed",
-  ];
+  for (const name of AUTH_COOKIES_TO_DELETE) {
+    const isHttpOnly =
+      name === "authToken" ||
+      name === "adminAuthToken" ||
+      name === "producerAuthToken" ||
+      name === "producerStaffAuthToken" ||
+      name === "token" ||
+      name === "adminToken" ||
+      name === "impersonationToken";
 
-  cookiesToDelete.forEach((name) => {
-    res.cookies.set(name, "", delHttpOnly);
-    res.cookies.set(name, "", delClient);
-  });
+    res.cookies.set(name, "", {
+      ...deleteWithDomain,
+      httpOnly: isHttpOnly,
+    });
+
+    res.cookies.set(name, "", {
+      ...deleteWithoutDomain,
+      httpOnly: isHttpOnly,
+    });
+  }
 
   return res;
 }

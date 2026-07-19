@@ -23,7 +23,7 @@ export default function StaffDashboardPage() {
     if (authLoading) return;
 
     if (!user) {
-      window.location.replace("/login");
+      window.location.replace("/login?loggedOut=1");
       return;
     }
 

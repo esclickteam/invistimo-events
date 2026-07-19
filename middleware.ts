@@ -136,15 +136,19 @@ export function middleware(req: NextRequest) {
     גם מוסיפים www בקפיצה אחת כדי שלא יישאר על invistimo.com בלי redirect.
   */
   if (isAuthEntryPath(pathname)) {
-    const dashboardPath = getDashboardPathFromAuthCookies({
-      authToken: token,
-      role: roleCookie,
-      impersonationRole: cookies.get("impersonationRole")?.value,
-      originalTargetRole: cookies.get("originalTargetRole")?.value,
-    });
+    const isExplicitLogout = nextUrl.searchParams.get("loggedOut") === "1";
 
-    if (dashboardPath) {
-      return redirectLoggedInUserFromAuthEntry(req, dashboardPath);
+    if (!isExplicitLogout) {
+      const dashboardPath = getDashboardPathFromAuthCookies({
+        authToken: token,
+        role: roleCookie,
+        impersonationRole: cookies.get("impersonationRole")?.value,
+        originalTargetRole: cookies.get("originalTargetRole")?.value,
+      });
+
+      if (dashboardPath) {
+        return redirectLoggedInUserFromAuthEntry(req, dashboardPath);
+      }
     }
   }
 
