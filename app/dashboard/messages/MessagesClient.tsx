@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import { resolveInvitationTitle } from "@/lib/invitations/resolveInvitationTitle";
 
 /* ================= TYPES ================= */
 
@@ -463,25 +464,40 @@ const navigationLink =
   function getEventMeta(invitation: any) {
     const event = invitation?.event;
 
-    const title = event?.title || "";
-    const rawDate = event?.date || "";
-    const time = event?.time || "";
+    const title = resolveInvitationTitle(invitation, event);
+    const rawDate =
+      invitation?.eventDate ||
+      invitation?.date ||
+      event?.date ||
+      "";
+    const time = invitation?.eventTime || invitation?.time || event?.time || "";
 
-    const location = event?.location?.address || event?.location?.name || "";
+    const location =
+      invitation?.location?.address ||
+      invitation?.location?.name ||
+      event?.location?.address ||
+      event?.location?.name ||
+      "";
 
     const imageUrl =
       typeof invitation?.previewImage === "string" &&
       invitation.previewImage.startsWith("http")
         ? invitation.previewImage
-        : "";
+        : invitation?.headerImageUrl ||
+          invitation?.previewImageUrl ||
+          invitation?.imageUrl ||
+          "";
 
-    const eventType = event?.eventType || event?.type || "";
+    const eventType =
+      invitation?.eventType || event?.eventType || event?.type || "";
 
     const giftCreditUrl =
-      typeof event?.giftCreditUrl === "string" &&
+      invitation?.publicEventPage?.gifts?.creditUrl ||
+      invitation?.giftCreditUrl ||
+      (typeof event?.giftCreditUrl === "string" &&
       event.giftCreditUrl.startsWith("http")
         ? event.giftCreditUrl
-        : "";
+        : "");
 
     return {
       title,
