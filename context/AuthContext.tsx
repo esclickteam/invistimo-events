@@ -410,7 +410,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!shouldRedirectFromAuthEntry || !user) return;
 
-    router.replace(getUserRedirectPath(user));
+    const redirectPath = getUserRedirectPath(user);
+    window.location.replace(redirectPath);
   }, [shouldRedirectFromAuthEntry, user, router]);
 
   /* --------------------------------------------------

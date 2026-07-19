@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decodeJwt } from "jose";
 
+import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
+
 /* ========================================================
    Types
 ======================================================== */
@@ -54,27 +56,6 @@ function readJwtPayload(token: string): JwtPayloadShape | null {
   }
 }
 
-function isTokenExpired(payload: JwtPayloadShape): boolean {
-  if (!payload.exp) return false;
-  return payload.exp * 1000 <= Date.now();
-}
-
-function getDashboardPathFromRole(role: string): string {
-  const normalized = String(role || "").toLowerCase().trim();
-
-  if (normalized === "admin") return "/admin";
-  if (normalized === "venue_owner") return "/venues/dashboard";
-  if (normalized === "producer") return "/producer/dashboard";
-  if (normalized === "producer_staff" || normalized === "staff_producer") {
-    return "/producer-staff/dashboard";
-  }
-  if (normalized === "system_staff" || normalized === "staff") {
-    return "/staff/dashboard";
-  }
-
-  return "/dashboard";
-}
-
 /* ========================================================
    Path helpers
 ======================================================== */
@@ -110,12 +91,6 @@ function isProtectedDashboardPath(pathname: string): boolean {
 
 function isAuthEntryPath(pathname: string): boolean {
   return pathname === "/" || pathname === "/login" || pathname.startsWith("/login/");
-}
-
-function getDashboardPathFromJwt(payload: JwtPayloadShape): string {
-  return getDashboardPathFromRole(
-    String(payload.impersonationRole || payload.role || "")
-  );
 }
 
 function redirectLoggedInUserFromAuthEntry(req: NextRequest, dashboardPath: string) {
@@ -159,22 +134,15 @@ export function middleware(req: NextRequest) {
     גם מוסיפים www בקפיצה אחת כדי שלא יישאר על invistimo.com בלי redirect.
   */
   if (isAuthEntryPath(pathname)) {
-    if (token) {
-      const payload = readJwtPayload(token);
+    const dashboardPath = getDashboardPathFromAuthCookies({
+      authToken: token,
+      role: roleCookie,
+      impersonationRole: cookies.get("impersonationRole")?.value,
+      originalTargetRole: cookies.get("originalTargetRole")?.value,
+    });
 
-      if (payload && !isTokenExpired(payload)) {
-        return redirectLoggedInUserFromAuthEntry(
-          req,
-          getDashboardPathFromJwt(payload)
-        );
-      }
-    }
-
-    if (roleCookie) {
-      return redirectLoggedInUserFromAuthEntry(
-        req,
-        getDashboardPathFromRole(roleCookie)
-      );
+    if (dashboardPath) {
+      return redirectLoggedInUserFromAuthEntry(req, dashboardPath);
     }
   }
 
