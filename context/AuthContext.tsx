@@ -430,7 +430,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.replace(redirectPath);
     } catch (err: any) {
       console.error("❌ Login failed:", err);
-      alert(err?.message || "שגיאה בהתחברות");
       throw err;
     }
   };
