@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { clearClientReadableAuthCookies } from "@/lib/auth/clearAuthCookies";
 
 /* =====================================================
    TYPES
@@ -485,21 +486,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🚪 LOGOUT
   -------------------------------------------------- */
   const logout = async () => {
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-    } catch (err) {
-      console.error("❌ Logout request failed:", err);
-    } finally {
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("auth_user");
-      }
-      setUser(null);
-      window.location.replace("/login?loggedOut=1");
+    clearClientReadableAuthCookies();
+
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("auth_user");
     }
+
+    setUser(null);
+    window.location.href = "/api/logout";
   };
 
   /* --------------------------------------------------
