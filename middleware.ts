@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decodeJwt } from "jose";
 
+import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
+
 /* ========================================================
    Types
 ======================================================== */
@@ -87,6 +89,25 @@ function isProtectedDashboardPath(pathname: string): boolean {
   );
 }
 
+function isAuthEntryPath(pathname: string): boolean {
+  return pathname === "/" || pathname === "/login" || pathname.startsWith("/login/");
+}
+
+function redirectLoggedInUserFromAuthEntry(req: NextRequest, dashboardPath: string) {
+  const url = req.nextUrl.clone();
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    url.hostname === "invistimo.com"
+  ) {
+    url.hostname = "www.invistimo.com";
+  }
+
+  url.pathname = dashboardPath;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 /* ========================================================
    Middleware
 ======================================================== */
@@ -98,8 +119,32 @@ export function middleware(req: NextRequest) {
   /* 0) NEVER gate API */
   if (pathname.startsWith("/api")) return NextResponse.next();
 
-  /* 1) Public pages */
-  if (isPublicPath(pathname)) return NextResponse.next();
+  /* 1) Read token */
+  const token =
+    cookies.get("authToken")?.value ||
+    cookies.get("producerAuthToken")?.value ||
+    cookies.get("adminAuthToken")?.value ||
+    null;
+
+  const roleCookie = cookies.get("role")?.value || null;
+
+  /*
+    משתמש מחובר שנכנס לדף הבית או ל-login —
+    ננתב אותו ישר לדשבורד המתאים לפי role.
+    גם מוסיפים www בקפיצה אחת כדי שלא יישאר על invistimo.com בלי redirect.
+  */
+  if (isAuthEntryPath(pathname)) {
+    const dashboardPath = getDashboardPathFromAuthCookies({
+      authToken: token,
+      role: roleCookie,
+      impersonationRole: cookies.get("impersonationRole")?.value,
+      originalTargetRole: cookies.get("originalTargetRole")?.value,
+    });
+
+    if (dashboardPath) {
+      return redirectLoggedInUserFromAuthEntry(req, dashboardPath);
+    }
+  }
 
   /* 2) Force www (production) */
   if (process.env.NODE_ENV === "production" && hostname === "invistimo.com") {
@@ -108,12 +153,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  /* 3) Read token */
-  const token =
-    cookies.get("authToken")?.value ||
-    cookies.get("producerAuthToken")?.value ||
-    cookies.get("adminAuthToken")?.value ||
-    null;
+  /* 3) Public pages */
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   if (isProtectedDashboardPath(pathname) && !token) {
     return redirectToLogin(req);
@@ -207,6 +248,9 @@ export function middleware(req: NextRequest) {
 ======================================================== */
 export const config = {
   matcher: [
+    "/",
+    "/login",
+    "/login/:path*",
     "/dashboard/:path*",
     "/producer/:path*",
     "/producer-staff/:path*",
