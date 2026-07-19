@@ -54,6 +54,27 @@ function readJwtPayload(token: string): JwtPayloadShape | null {
   }
 }
 
+function isTokenExpired(payload: JwtPayloadShape): boolean {
+  if (!payload.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+}
+
+function getDashboardPathFromRole(role: string): string {
+  const normalized = String(role || "").toLowerCase().trim();
+
+  if (normalized === "admin") return "/admin";
+  if (normalized === "venue_owner") return "/venues/dashboard";
+  if (normalized === "producer") return "/producer/dashboard";
+  if (normalized === "producer_staff" || normalized === "staff_producer") {
+    return "/producer-staff/dashboard";
+  }
+  if (normalized === "system_staff" || normalized === "staff") {
+    return "/staff/dashboard";
+  }
+
+  return "/dashboard";
+}
+
 /* ========================================================
    Path helpers
 ======================================================== */
@@ -92,39 +113,24 @@ function isAuthEntryPath(pathname: string): boolean {
 }
 
 function getDashboardPathFromJwt(payload: JwtPayloadShape): string {
-  const role = String(payload.role || "").toLowerCase().trim();
-  const impersonationRole = String(payload.impersonationRole || "")
-    .toLowerCase()
-    .trim();
+  return getDashboardPathFromRole(
+    String(payload.impersonationRole || payload.role || "")
+  );
+}
 
-  const targetRole = impersonationRole || role;
-
-  if (targetRole === "admin" || role === "admin") {
-    return "/admin";
-  }
-
-  if (targetRole === "venue_owner" || role === "venue_owner") {
-    return "/venues/dashboard";
-  }
-
-  if (targetRole === "producer" || role === "producer") {
-    return "/producer/dashboard";
-  }
+function redirectLoggedInUserFromAuthEntry(req: NextRequest, dashboardPath: string) {
+  const url = req.nextUrl.clone();
 
   if (
-    targetRole === "producer_staff" ||
-    targetRole === "staff_producer" ||
-    role === "producer_staff" ||
-    role === "staff_producer"
+    process.env.NODE_ENV === "production" &&
+    url.hostname === "invistimo.com"
   ) {
-    return "/producer-staff/dashboard";
+    url.hostname = "www.invistimo.com";
   }
 
-  if (targetRole === "system_staff" || role === "system_staff" || role === "staff") {
-    return "/staff/dashboard";
-  }
-
-  return "/dashboard";
+  url.pathname = dashboardPath;
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
 /* ========================================================
@@ -138,33 +144,45 @@ export function middleware(req: NextRequest) {
   /* 0) NEVER gate API */
   if (pathname.startsWith("/api")) return NextResponse.next();
 
-  /* 1) Force www (production) — including public pages like / and /login */
-  if (process.env.NODE_ENV === "production" && hostname === "invistimo.com") {
-    const url = nextUrl.clone();
-    url.hostname = "www.invistimo.com";
-    return NextResponse.redirect(url);
-  }
-
-  /* 2) Read token */
+  /* 1) Read token */
   const token =
     cookies.get("authToken")?.value ||
     cookies.get("producerAuthToken")?.value ||
     cookies.get("adminAuthToken")?.value ||
     null;
 
+  const roleCookie = cookies.get("role")?.value || null;
+
   /*
     משתמש מחובר שנכנס לדף הבית או ל-login —
     ננתב אותו ישר לדשבורד המתאים לפי role.
+    גם מוסיפים www בקפיצה אחת כדי שלא יישאר על invistimo.com בלי redirect.
   */
-  if (token && isAuthEntryPath(pathname)) {
-    const payload = readJwtPayload(token);
+  if (isAuthEntryPath(pathname)) {
+    if (token) {
+      const payload = readJwtPayload(token);
 
-    if (payload) {
-      const url = req.nextUrl.clone();
-      url.pathname = getDashboardPathFromJwt(payload);
-      url.search = "";
-      return NextResponse.redirect(url);
+      if (payload && !isTokenExpired(payload)) {
+        return redirectLoggedInUserFromAuthEntry(
+          req,
+          getDashboardPathFromJwt(payload)
+        );
+      }
     }
+
+    if (roleCookie) {
+      return redirectLoggedInUserFromAuthEntry(
+        req,
+        getDashboardPathFromRole(roleCookie)
+      );
+    }
+  }
+
+  /* 2) Force www (production) */
+  if (process.env.NODE_ENV === "production" && hostname === "invistimo.com") {
+    const url = nextUrl.clone();
+    url.hostname = "www.invistimo.com";
+    return NextResponse.redirect(url);
   }
 
   /* 3) Public pages */

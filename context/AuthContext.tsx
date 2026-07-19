@@ -7,7 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 /* =====================================================
    TYPES
@@ -143,7 +143,15 @@ function cleanRole(value: unknown) {
   return String(value || "").toLowerCase().trim();
 }
 
-function getUserRedirectPath(nextUser: User) {
+function isAuthEntryPath(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname.startsWith("/login/")
+  );
+}
+
+export function getUserRedirectPath(nextUser: User) {
   const role = cleanRole(nextUser.role);
   const effectiveRole = cleanRole(nextUser.effectiveRole);
   const impersonationRole = cleanRole(nextUser.impersonationRole);
@@ -291,6 +299,7 @@ const AuthContext = createContext<AuthContextType>({
 ===================================================== */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   /* --------------------------------------------------
      UX cache בלבד – לא מקור אמת
@@ -308,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(true);
-  const [, setBootstrapDone] = useState(false);
+  const [bootstrapDone, setBootstrapDone] = useState(false);
 
   const [isAuthenticated, _setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -389,6 +398,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const shouldRedirectFromAuthEntry =
+    bootstrapDone &&
+    !!user &&
+    isAuthEntryPath(pathname);
+
+  /* --------------------------------------------------
+     🔁 Auto-redirect logged-in users away from home/login
+  -------------------------------------------------- */
+  useEffect(() => {
+    if (!shouldRedirectFromAuthEntry || !user) return;
+
+    router.replace(getUserRedirectPath(user));
+  }, [shouldRedirectFromAuthEntry, user, router]);
 
   /* --------------------------------------------------
      🔑 LOGIN
@@ -479,7 +502,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* --------------------------------------------------
      ⏳ Guard
   -------------------------------------------------- */
-  if (loading) {
+  if (loading || shouldRedirectFromAuthEntry) {
     return null;
   }
 

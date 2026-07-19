@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, UserRound, Sparkles, Home } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, getUserRedirectPath } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 
 export default function Header() {
@@ -19,7 +19,8 @@ export default function Header() {
 
   const shouldHideHeader = isStaffPage;
 
-  const logoHref = user ? "/dashboard" : "/";
+  const dashboardHref = user ? getUserRedirectPath(user) : "/dashboard";
+  const logoHref = dashboardHref;
 
   const isProducer =
     pathname.startsWith("/producer") ||
@@ -282,7 +283,7 @@ export default function Header() {
                 (user ? (
                   <>
                     <Link
-                      href="/dashboard"
+                      href={dashboardHref}
                       className="
                         whitespace-nowrap
                         rounded-[13px]
@@ -438,7 +439,7 @@ export default function Header() {
                 (user ? (
                   <>
                     <Link
-                      href="/dashboard"
+                      href={dashboardHref}
                       onClick={() => setMobileOpen(false)}
                       className="
                         flex w-full items-center justify-center
