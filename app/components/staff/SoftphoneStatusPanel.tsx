@@ -2135,7 +2135,7 @@ export default function SoftphoneStatusPanel({
       await logout();
     } catch (error) {
       console.error("STAFF SOFTPHONE LOGOUT FAILED:", error);
-      router.push("/login");
+      window.location.replace("/login");
     }
   }
 

@@ -85,7 +85,9 @@ function isProtectedDashboardPath(pathname: string): boolean {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/producer") ||
     pathname.startsWith("/producer-staff") ||
-    pathname.startsWith("/admin")
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/employee")
   );
 }
 
@@ -255,5 +257,7 @@ export const config = {
     "/producer/:path*",
     "/producer-staff/:path*",
     "/admin/:path*",
+    "/staff/:path*",
+    "/employee/:path*",
   ],
 };

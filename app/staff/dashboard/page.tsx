@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import EmployeeDashboardPage from "@/app/components/staff/EmployeeDashboardPage";
 
 export default function StaffDashboardPage() {
   const { user, loading: authLoading } = useAuth();
-  const [error, setError] = useState("");
+  const router = useRouter();
 
   const isSystemStaff = useMemo(() => {
     return (
@@ -22,19 +23,16 @@ export default function StaffDashboardPage() {
     if (authLoading) return;
 
     if (!user) {
-      setError("לא נמצאה התחברות פעילה");
+      window.location.replace("/login");
       return;
     }
 
     if (!isSystemStaff && user.role !== "admin") {
-      setError("אין הרשאה לצפייה בדשבורד עובדים");
-      return;
+      router.replace("/");
     }
+  }, [authLoading, user, isSystemStaff, router]);
 
-    setError("");
-  }, [authLoading, user, isSystemStaff]);
-
-  if (authLoading) {
+  if (authLoading || !user || (!isSystemStaff && user.role !== "admin")) {
     return (
       <main
         dir="rtl"
@@ -50,31 +48,6 @@ export default function StaffDashboardPage() {
 
             <p className="mt-2 text-xs font-semibold text-slate-400">
               בודק הרשאות ומכין את סביבת העבודה
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main
-        dir="rtl"
-        className="min-h-screen overflow-x-hidden bg-[#f7f8fb] px-4 py-4"
-      >
-        <div className="flex min-h-[65vh] items-center justify-center">
-          <div className="max-w-md rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-3xl">
-              ⚠️
-            </div>
-
-            <h1 className="mt-5 text-2xl font-black text-slate-950">
-              לא ניתן להציג את דשבורד העובדים
-            </h1>
-
-            <p className="mt-3 text-sm font-bold leading-7 text-red-700">
-              {error}
             </p>
           </div>
         </div>
