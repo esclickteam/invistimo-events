@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const { login } = useAuth();
 
@@ -17,7 +18,7 @@ export default function LoginPage() {
     async function clearOldSession() {
       try {
         // ✅ מוחק cookies דרך השרת
-        await fetch("/api/auth/logout", {
+        await fetch("/api/logout", {
           method: "POST",
           credentials: "include",
           cache: "no-store",
@@ -46,12 +47,15 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
 
     try {
-      await login(email, pass);
+      await login(email.trim(), pass);
     } catch (err) {
       console.error("❌ Login error:", err);
-      alert("שגיאה בהתחברות");
+      setErrorMsg(
+        err instanceof Error && err.message ? err.message : "שגיאה בהתחברות"
+      );
     } finally {
       setLoading(false);
     }
@@ -192,6 +196,16 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {/* הודעת שגיאה */}
+              {errorMsg ? (
+                <p
+                  role="alert"
+                  className="rounded-[14px] border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700"
+                >
+                  {errorMsg}
+                </p>
+              ) : null}
 
               {/* שכחתי סיסמה */}
               <div className="flex justify-end pt-1">
