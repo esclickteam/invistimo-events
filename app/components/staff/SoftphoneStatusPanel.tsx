@@ -2135,7 +2135,7 @@ export default function SoftphoneStatusPanel({
       await logout();
     } catch (error) {
       console.error("STAFF SOFTPHONE LOGOUT FAILED:", error);
-      window.location.replace("/login?loggedOut=1");
+      window.location.replace("/api/logout");
     }
   }
 
