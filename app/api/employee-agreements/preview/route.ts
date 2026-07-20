@@ -17,12 +17,11 @@ import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 import { formatDateForPdf } from "@/lib/dateFieldFormat";
 import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
 import {
-  collapseConsecutiveCheckboxesToChoiceFields,
   getChoiceFieldBounds,
   isChoiceValueSelected,
   normalizeChoiceOptions,
+  prepareTerminationAgreementFields,
   resolveAgreementFieldType,
-  TERMINATION_REASON_OPTION_LABELS,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 import {
@@ -532,11 +531,7 @@ export async function POST(req: NextRequest) {
     if (shouldValidateRequired) {
       const validationFields =
         templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION
-          ? (collapseConsecutiveCheckboxesToChoiceFields(fields, {
-              minGroupSize: 2,
-              choiceLabel: "סיבת סיום ההעסקה",
-              defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
-            }) as TemplateField[])
+          ? (prepareTerminationAgreementFields(fields).fields as TemplateField[])
           : fields;
 
       for (const field of validationFields) {

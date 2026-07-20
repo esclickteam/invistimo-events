@@ -192,6 +192,98 @@ export const TERMINATION_REASON_OPTION_LABELS = [
   "סיבה אחרת:",
 ] as const;
 
+const GENERIC_FIELD_LABELS = new Set([
+  "",
+  "שדה",
+  "שדה טקסט",
+  "תיבת סימון",
+  "בחירה",
+]);
+
+export function isGenericAgreementFieldLabel(label: unknown) {
+  return GENERIC_FIELD_LABELS.has(String(label ?? "").trim());
+}
+
+/**
+ * Drop the free-text field that sits on "סיבה אחרת".
+ * Templates often added it as a required generic text field on the same page
+ * as the reason checkboxes, even when a fixed reason was selected.
+ */
+export function stripTerminationOtherReasonTextFields<
+  T extends {
+    id: string;
+    type: string;
+    label?: string;
+    pageIndex?: number;
+    sourceCheckboxIds?: string[];
+    options?: ChoiceOption[];
+  },
+>(fields: T[]): { fields: T[]; skippedFieldIds: string[] } {
+  const reasonPageIndexes = new Set(
+    fields
+      .filter((field) => {
+        if (field.type !== "choice") return false;
+        if (
+          Array.isArray(field.sourceCheckboxIds) &&
+          field.sourceCheckboxIds.length >= 2
+        ) {
+          return true;
+        }
+        return (
+          Array.isArray(field.options) &&
+          field.options.length === TERMINATION_REASON_OPTION_LABELS.length
+        );
+      })
+      .map((field) => Number(field.pageIndex ?? 0)),
+  );
+
+  if (reasonPageIndexes.size === 0) {
+    return { fields, skippedFieldIds: [] };
+  }
+
+  const skippedFieldIds: string[] = [];
+  const nextFields = fields.filter((field) => {
+    const shouldSkip =
+      field.type === "text" &&
+      isGenericAgreementFieldLabel(field.label) &&
+      reasonPageIndexes.has(Number(field.pageIndex ?? 0));
+
+    if (shouldSkip) {
+      skippedFieldIds.push(String(field.id));
+      return false;
+    }
+
+    return true;
+  });
+
+  return { fields: nextFields, skippedFieldIds };
+}
+
+export function prepareTerminationAgreementFields<
+  T extends {
+    id: string;
+    type: string;
+    label?: string;
+    pageIndex: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    required?: boolean;
+    order: number;
+    options?: ChoiceOption[];
+    sourceCheckboxIds?: string[];
+  },
+>(fields: T[]) {
+  const collapsed = collapseConsecutiveCheckboxesToChoiceFields(fields, {
+    minGroupSize: 2,
+    choiceLabel: "סיבת סיום ההעסקה",
+    defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
+  }) as T[];
+
+  return stripTerminationOtherReasonTextFields(collapsed);
+}
+
 export function collapseConsecutiveCheckboxesToChoiceFields<
   T extends CheckboxLikeField & { type: string; options?: ChoiceOption[] },
 >(

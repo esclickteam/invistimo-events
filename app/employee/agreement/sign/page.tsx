@@ -10,13 +10,12 @@ import {
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
 import {
-  collapseConsecutiveCheckboxesToChoiceFields,
   getChoiceFieldBounds,
   getChoiceOptionDisplayLabel,
   isChoiceValueSelected,
   normalizeChoiceOptions,
+  prepareTerminationAgreementFields,
   resolveAgreementFieldType,
-  TERMINATION_REASON_OPTION_LABELS,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 
@@ -195,18 +194,15 @@ function defaultFieldLabel(type: FieldType) {
 function buildWizardFields(
   fields: TemplateField[],
   templateType: string,
-): TemplateField[] {
+): { fields: TemplateField[]; skippedFieldIds: string[] } {
   // Termination reason was often modeled as 4 separate checkboxes; collapse
-  // consecutive same-page checkboxes into one single-select choice step.
+  // consecutive same-page checkboxes into one single-select choice step, and
+  // drop the leftover "סיבה אחרת" free-text field from the wizard.
   if (templateType !== EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION) {
-    return fields;
+    return { fields, skippedFieldIds: [] };
   }
 
-  return collapseConsecutiveCheckboxesToChoiceFields(fields, {
-    minGroupSize: 2,
-    choiceLabel: "סיבת סיום ההעסקה",
-    defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
-  }) as TemplateField[];
+  return prepareTerminationAgreementFields(fields);
 }
 
 function getChoiceSelectionFromValues(
@@ -917,14 +913,21 @@ function AgreementSignContent() {
 
       const normalizedTemplate = normalizeTemplate(loadedTemplate);
       const sortedFields = normalizedTemplate.fields;
-      const wizardFields = buildWizardFields(sortedFields, templateType);
+      const { fields: wizardFields, skippedFieldIds } = buildWizardFields(
+        sortedFields,
+        templateType,
+      );
+      const skippedIds = new Set(skippedFieldIds);
+      const visibleDocumentFields = sortedFields.filter(
+        (field) => !skippedIds.has(field.id),
+      );
 
       if (sortedFields.length === 0) {
         throw new Error("בתבנית ההסכם לא הוגדרו שדות למילוי.");
       }
 
       setTemplate(normalizedTemplate);
-      setDocumentFields(sortedFields);
+      setDocumentFields(visibleDocumentFields);
       setFields(wizardFields);
 
       if (agreementRes.ok && agreementData?.agreement) {
