@@ -217,5 +217,12 @@ EmployeeAgreementTemplateSchema.index({
   isActive: 1,
 });
 
-export default models.EmployeeAgreementTemplate ||
-  model("EmployeeAgreementTemplate", EmployeeAgreementTemplateSchema);
+// Avoid stale cached schema (e.g. missing "choice" enum) in Next.js hot reload / serverless.
+if (models.EmployeeAgreementTemplate) {
+  delete models.EmployeeAgreementTemplate;
+}
+
+export default model(
+  "EmployeeAgreementTemplate",
+  EmployeeAgreementTemplateSchema,
+);

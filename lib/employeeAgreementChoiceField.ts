@@ -212,3 +212,28 @@ export function isChoiceValueSelected(
 
   return options.some((option) => option.id === selected);
 }
+
+/** Treat fields with option boxes as choice even if type was lost/mis-saved. */
+export function hasChoiceOptions(raw: unknown) {
+  return Array.isArray(raw) && raw.length >= CHOICE_OPTION_MIN_COUNT;
+}
+
+export function resolveAgreementFieldType(
+  rawType: unknown,
+  rawOptions?: unknown,
+): "text" | "date" | "signature" | "checkbox" | "choice" {
+  if (hasChoiceOptions(rawOptions)) {
+    return "choice";
+  }
+
+  const type = String(rawType || "")
+    .trim()
+    .toLowerCase();
+
+  if (type === "date") return "date";
+  if (type === "signature") return "signature";
+  if (type === "checkbox") return "checkbox";
+  if (type === "choice") return "choice";
+
+  return "text";
+}

@@ -29,6 +29,7 @@ import {
   getChoiceOptionDisplayLabel,
   normalizeChoiceOptions,
   resizeChoiceOptions,
+  resolveAgreementFieldType,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 
@@ -109,14 +110,7 @@ function normalizePageType(value: unknown): TemplatePage["type"] {
 }
 
 function normalizeField(raw: any, index: number): TemplateField {
-  const rawType = String(raw?.type || "text");
-  const type: FieldType =
-    rawType === "date" ||
-    rawType === "signature" ||
-    rawType === "checkbox" ||
-    rawType === "choice"
-      ? rawType
-      : "text";
+  const type = resolveAgreementFieldType(raw?.type, raw?.options) as FieldType;
 
   let width = toNumber(
     raw?.width,
@@ -173,11 +167,20 @@ function normalizeField(raw: any, index: number): TemplateField {
         })
       : undefined;
 
+  const rawLabel = typeof raw?.label === "string" ? raw.label : "";
+  const fallbackLabel =
+    type === "choice"
+      ? "בחירה"
+      : type === "checkbox"
+        ? "תיבת סימון"
+        : FIELD_LABELS[type] || "שדה";
+  const label = rawLabel.trim() ? rawLabel : fallbackLabel;
+
   if (type === "choice" && options) {
     const bounds = getChoiceFieldBounds(options);
     return {
       id: String(raw?.id || makeId()),
-      label: String(raw?.label || FIELD_LABELS.choice || "בחירה"),
+      label,
       type,
       pageIndex,
       ...bounds,
@@ -194,7 +197,7 @@ function normalizeField(raw: any, index: number): TemplateField {
 
   return {
     id: String(raw?.id || makeId()),
-    label: String(raw?.label || FIELD_LABELS[type] || "שדה"),
+    label,
     type,
     pageIndex,
     x,
@@ -1593,12 +1596,12 @@ function AgreementTemplateEditor() {
                   disabled={loading || uploadingPdf || !hasPageImages}
                   className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
                 >
-                  הוסף תיבת סימון
+                  הוסף תיבת סימון (בודדת)
                 </button>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <label className="mb-2 block text-xs font-black text-slate-500">
-                    תיבת בחירה — כמה אפשרויות (בחירה אחת)
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3">
+                  <label className="mb-2 block text-xs font-black text-violet-700">
+                    תיבת בחירה — שדה אחד עם כמה אפשרויות (בחירה אחת + תת־שמות)
                   </label>
 
                   <select

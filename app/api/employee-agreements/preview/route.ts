@@ -20,6 +20,7 @@ import {
   getChoiceFieldBounds,
   isChoiceValueSelected,
   normalizeChoiceOptions,
+  resolveAgreementFieldType,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 import {
@@ -177,28 +178,33 @@ async function loadTemplatePdfBytes(fileUrl: string) {
 }
 
 function normalizeField(raw: any, index = 0): TemplateField {
-  const rawType = cleanStr(raw?.type);
-
-  const type: FieldType =
-    rawType === "date" ||
-    rawType === "signature" ||
-    rawType === "checkbox" ||
-    rawType === "choice"
-      ? rawType
-      : "text";
+  const type = resolveAgreementFieldType(raw?.type, raw?.options) as FieldType;
 
   const x = cleanNumber(raw?.x, 0);
   const y = cleanNumber(raw?.y, 0);
   const options =
     type === "choice"
-      ? normalizeChoiceOptions(raw?.options, 4, x || 38, y || 35)
+      ? normalizeChoiceOptions(
+          raw?.options,
+          Array.isArray(raw?.options) && raw.options.length > 0
+            ? raw.options.length
+            : 4,
+          x || 38,
+          y || 35,
+        )
       : undefined;
   const bounds =
     type === "choice" && options ? getChoiceFieldBounds(options) : null;
 
   return {
     id: cleanStr(raw?.id),
-    label: cleanStr(raw?.label) || (type === "choice" ? "בחירה" : "שדה"),
+    label:
+      cleanStr(raw?.label) ||
+      (type === "choice"
+        ? "בחירה"
+        : type === "checkbox"
+          ? "תיבת סימון"
+          : "שדה"),
     type,
     pageIndex: Math.max(0, cleanNumber(raw?.pageIndex, 0)),
     x: bounds?.x ?? x,

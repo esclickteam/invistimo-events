@@ -13,6 +13,7 @@ import {
   getChoiceOptionDisplayLabel,
   isChoiceValueSelected,
   normalizeChoiceOptions,
+  resolveAgreementFieldType,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 
@@ -178,15 +179,16 @@ function DateFieldInput({
   );
 }
 
+function defaultFieldLabel(type: FieldType) {
+  if (type === "date") return "תאריך";
+  if (type === "signature") return "חתימה";
+  if (type === "checkbox") return "תיבת סימון";
+  if (type === "choice") return "בחירה";
+  return "שדה טקסט";
+}
+
 function normalizeField(raw: any, index: number): TemplateField {
-  const rawType = String(raw?.type || "text");
-  const type: FieldType =
-    rawType === "date" ||
-    rawType === "signature" ||
-    rawType === "checkbox" ||
-    rawType === "choice"
-      ? rawType
-      : "text";
+  const type = resolveAgreementFieldType(raw?.type, raw?.options) as FieldType;
 
   let width = toNumber(
     raw?.width,
@@ -216,13 +218,23 @@ function normalizeField(raw: any, index: number): TemplateField {
     height = (height / LEGACY_PAGE_HEIGHT) * 100;
   }
 
+  const rawLabel = typeof raw?.label === "string" ? raw.label : "";
+  const label = rawLabel.trim() ? rawLabel : defaultFieldLabel(type);
+
   if (type === "choice") {
-    const options = normalizeChoiceOptions(raw?.options, 4, x, y);
+    const options = normalizeChoiceOptions(
+      raw?.options,
+      Array.isArray(raw?.options) && raw.options.length > 0
+        ? raw.options.length
+        : 4,
+      x,
+      y,
+    );
     const bounds = getChoiceFieldBounds(options);
 
     return {
       id: String(raw?.id || `${Date.now()}-${index}`),
-      label: String(raw?.label || "בחירה"),
+      label,
       type,
       pageIndex,
       ...bounds,
@@ -239,7 +251,7 @@ function normalizeField(raw: any, index: number): TemplateField {
 
   return {
     id: String(raw?.id || `${Date.now()}-${index}`),
-    label: String(raw?.label || "שדה"),
+    label,
     type,
     pageIndex,
     x,
@@ -1322,11 +1334,23 @@ function AgreementSignContent() {
           <div className="mt-6 rounded-[28px] bg-slate-50 p-4 sm:p-5">
             {!isConfirmStep && currentField ? (
               <>
-                <h2 className="text-lg font-black sm:text-xl">{currentField.label}</h2>
+                <h2 className="text-lg font-black sm:text-xl">
+                  {currentField.label?.trim() || defaultFieldLabel(currentField.type)}
+                  {" — "}
+                  {currentField.required ? "חובה" : "רשות"}
+                </h2>
 
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  {currentField.required ? "שדה חובה" : "שדה רשות — ניתן לדלג"}
-                </p>
+                {currentField.type === "choice" ? (
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    בחרי אפשרות אחת מהרשימה
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    {currentField.required
+                      ? "שדה חובה"
+                      : "שדה רשות — ניתן לדלג"}
+                  </p>
+                )}
 
                 {currentField.type === "signature" ? (
                   <SignatureCanvas
@@ -1335,6 +1359,54 @@ function AgreementSignContent() {
                       updateSignature(currentField.id, dataUrl)
                     }
                   />
+                ) : currentField.type === "choice" ? (
+                  <div className="mt-5 space-y-2.5">
+                    {normalizeChoiceOptions(
+                      currentField.options,
+                      currentField.options?.length || 4,
+                      currentField.x,
+                      currentField.y,
+                    ).map((option, index) => {
+                      const selected =
+                        String(values[currentField.id] || "").trim() ===
+                        option.id;
+                      const optionLabel = getChoiceOptionDisplayLabel(
+                        option,
+                        index,
+                      );
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            updateValue(currentField.id, option.id);
+                            scheduleAutoAdvance(currentField, 300);
+                          }}
+                          className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-3 py-3 text-right transition ${
+                            selected
+                              ? "border-violet-500 bg-violet-50 text-violet-800 shadow-sm"
+                              : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 text-lg font-black ${
+                              selected
+                                ? "border-violet-500 bg-white text-violet-700"
+                                : "border-slate-300 bg-white text-transparent"
+                            }`}
+                            aria-hidden
+                          >
+                            ✓
+                          </span>
+
+                          <span className="min-w-0 flex-1 text-sm font-black leading-5">
+                            {optionLabel}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : currentField.type === "checkbox" ? (
                   <button
                     type="button"
@@ -1359,68 +1431,6 @@ function AgreementSignContent() {
                   >
                     {isCheckboxChecked(values[currentField.id]) ? "✓" : ""}
                   </button>
-                ) : currentField.type === "choice" ? (
-                  <div className="mt-5 space-y-3">
-                    <p className="text-sm font-semibold text-slate-500">
-                      בחרי אפשרות אחת מתוך{" "}
-                      {currentField.options?.length || 0} — לחיצה מסמנת V
-                    </p>
-
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      {(
-                        normalizeChoiceOptions(
-                          currentField.options,
-                          currentField.options?.length || 4,
-                          currentField.x,
-                          currentField.y,
-                        ) || []
-                      ).map((option, index) => {
-                        const selected =
-                          String(values[currentField.id] || "").trim() ===
-                          option.id;
-                        const optionLabel = getChoiceOptionDisplayLabel(
-                          option,
-                          index,
-                        );
-
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => {
-                              updateValue(currentField.id, option.id);
-                              scheduleAutoAdvance(currentField, 300);
-                            }}
-                            className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-3 py-3 text-right transition ${
-                              selected
-                                ? "border-violet-500 bg-violet-50 text-violet-800 shadow-sm"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"
-                            }`}
-                          >
-                            <span
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 text-xl font-black ${
-                                selected
-                                  ? "border-violet-500 bg-white text-violet-700"
-                                  : "border-slate-300 bg-white text-slate-300"
-                              }`}
-                            >
-                              {selected ? "✓" : ""}
-                            </span>
-
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-black leading-5">
-                                {optionLabel}
-                              </span>
-                              <span className="mt-0.5 block text-[11px] font-bold text-slate-400">
-                                אפשרות {index + 1} מתוך{" "}
-                                {currentField.options?.length || 0}
-                              </span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 ) : currentField.type === "date" ? (
                   <DateFieldInput
                     value={values[currentField.id] || ""}

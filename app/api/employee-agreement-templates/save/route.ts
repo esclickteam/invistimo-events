@@ -17,6 +17,7 @@ import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employee
 import {
   getChoiceFieldBounds,
   normalizeChoiceOptions,
+  resolveAgreementFieldType,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 
@@ -102,15 +103,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function normalizeFieldType(value: unknown): FieldType {
-  const type = cleanStr(value);
-
-  if (type === "date") return "date";
-  if (type === "signature") return "signature";
-  if (type === "checkbox") return "checkbox";
-  if (type === "choice") return "choice";
-
-  return "text";
+function normalizeFieldType(value: unknown, options?: unknown): FieldType {
+  return resolveAgreementFieldType(value, options);
 }
 
 function normalizePageType(value: unknown): PageFileType {
@@ -135,7 +129,7 @@ function normalizeFields(
 
   const normalized = fields.map((field, index): TemplateField => {
       const item = field as TemplateField;
-      const type = normalizeFieldType(item.type);
+      const type = normalizeFieldType(item.type, item.options);
 
       let x = cleanNumber(item.x, 38);
       let y = cleanNumber(item.y, 35);
@@ -513,6 +507,7 @@ export async function POST(req: NextRequest) {
         new: true,
         upsert: true,
         setDefaultsOnInsert: true,
+        runValidators: true,
       }
     ).lean();
 
