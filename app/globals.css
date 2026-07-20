@@ -265,3 +265,8 @@ body {
 .pac-container {
   z-index: 99999 !important;
 }
+
+/* Native schedule time inputs: keep original look, hide AM/PM */
+input.schedule-time-24h::-webkit-datetime-edit-ampm-field {
+  display: none !important;
+}
