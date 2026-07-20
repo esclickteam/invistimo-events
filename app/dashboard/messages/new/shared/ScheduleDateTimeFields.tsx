@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  displayToYmd,
-  normalizeHHmm,
-  ymdToDisplay,
-} from "@/lib/formatScheduleDateTime";
+import { useRef } from "react";
+import { ymdToDisplay } from "@/lib/formatScheduleDateTime";
 
 type FieldProps = {
   value: string;
@@ -15,8 +11,22 @@ type FieldProps = {
   min?: string;
 };
 
+function openNativePicker(input: HTMLInputElement | null) {
+  if (!input || input.disabled) return;
+  try {
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+  } catch {
+    // ignore — fall back to click/focus
+  }
+  input.focus();
+  input.click();
+}
+
 /**
- * Date field that always displays DD/MM/YYYY (LTR).
+ * Date field: always shows DD/MM/YYYY (LTR), click opens native calendar.
  * Parent state stays YYYY-MM-DD — scheduling logic unchanged.
  */
 export function ScheduleDateField({
@@ -26,50 +36,48 @@ export function ScheduleDateField({
   disabled,
   min,
 }: FieldProps) {
-  const [text, setText] = useState(() => ymdToDisplay(value));
-
-  useEffect(() => {
-    setText(ymdToDisplay(value));
-  }, [value]);
-
-  function commit(raw: string) {
-    const ymd = displayToYmd(raw);
-    if (!ymd) {
-      setText(ymdToDisplay(value));
-      return;
-    }
-    if (min && ymd < min) {
-      setText(ymdToDisplay(value));
-      return;
-    }
-    onChange(ymd);
-    setText(ymdToDisplay(ymd));
-  }
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const display = ymdToDisplay(value);
 
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      dir="ltr"
-      placeholder="DD/MM/YYYY"
-      autoComplete="off"
-      disabled={disabled}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={(e) => commit(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
-      }}
-      className={className}
-      aria-label="תאריך שליחה"
-    />
+    <div
+      className={`relative flex cursor-pointer items-center gap-2 ${
+        disabled ? "cursor-not-allowed opacity-60" : ""
+      } ${className}`}
+      onClick={() => openNativePicker(pickerRef.current)}
+    >
+      <span
+        dir="ltr"
+        className={`min-w-0 flex-1 select-none ${
+          display ? "" : "text-gray-400"
+        }`}
+      >
+        {display || "DD/MM/YYYY"}
+      </span>
+
+      <span className="shrink-0 text-[#8A6A3D]" aria-hidden="true">
+        <CalendarIcon />
+      </span>
+
+      <input
+        ref={pickerRef}
+        type="date"
+        lang="en-GB"
+        tabIndex={-1}
+        disabled={disabled}
+        min={min}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        aria-label="תאריך שליחה"
+      />
+    </div>
   );
 }
 
 /**
- * Time field that always displays HH:mm (24h, no AM/PM).
+ * Time field: always shows HH:mm (24h, no AM/PM), click opens native clock.
  * Parent state stays HH:mm — scheduling logic unchanged.
  */
 export function ScheduleTimeField({
@@ -79,44 +87,82 @@ export function ScheduleTimeField({
   disabled,
   min,
 }: FieldProps) {
-  const [text, setText] = useState(() => value || "");
-
-  useEffect(() => {
-    setText(value || "");
-  }, [value]);
-
-  function commit(raw: string) {
-    const hhmm = normalizeHHmm(raw);
-    if (!hhmm) {
-      setText(value || "");
-      return;
-    }
-    if (min && hhmm < min) {
-      setText(value || "");
-      return;
-    }
-    onChange(hhmm);
-    setText(hhmm);
-  }
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const display = value || "";
 
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      dir="ltr"
-      placeholder="HH:mm"
-      autoComplete="off"
-      disabled={disabled}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={(e) => commit(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
-      }}
-      className={className}
-      aria-label="שעת שליחה"
-    />
+    <div
+      className={`relative flex cursor-pointer items-center gap-2 ${
+        disabled ? "cursor-not-allowed opacity-60" : ""
+      } ${className}`}
+      onClick={() => openNativePicker(pickerRef.current)}
+    >
+      <span
+        dir="ltr"
+        className={`min-w-0 flex-1 select-none ${
+          display ? "" : "text-gray-400"
+        }`}
+      >
+        {display || "HH:mm"}
+      </span>
+
+      <span className="shrink-0 text-[#8A6A3D]" aria-hidden="true">
+        <ClockIcon />
+      </span>
+
+      <input
+        ref={pickerRef}
+        type="time"
+        lang="en-GB"
+        tabIndex={-1}
+        disabled={disabled}
+        min={min}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value.slice(0, 5))}
+        onClick={(e) => e.stopPropagation()}
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        aria-label="שעת שליחה"
+      />
+    </div>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   );
 }
