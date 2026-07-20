@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useAuth } from "@/context/AuthContext";
+
 import {
   EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
   type EmployeeAgreementTemplateType,
@@ -182,6 +184,72 @@ function buildPagesFromTemplate(template: any): TemplatePage[] {
   }));
 }
 
+function getAdminBusinessId(user: any) {
+  return String(
+    user?.businessId ||
+      user?.employerId ||
+      user?.companyId ||
+      user?._id ||
+      user?.id ||
+      "",
+  );
+}
+
+function FieldOrderControl({
+  fieldId,
+  currentOrder,
+  totalFields,
+  disabled,
+  onApply,
+}: {
+  fieldId: string;
+  currentOrder: number;
+  totalFields: number;
+  disabled?: boolean;
+  onApply: (fieldId: string, targetOrder: number) => void | Promise<void>;
+}) {
+  const [draft, setDraft] = useState(String(currentOrder));
+
+  useEffect(() => {
+    setDraft(String(currentOrder));
+  }, [fieldId, currentOrder]);
+
+  function applyOrder() {
+    const nextOrder = clamp(Math.round(Number(draft)), 1, totalFields);
+    setDraft(String(nextOrder));
+    void onApply(fieldId, nextOrder);
+  }
+
+  return (
+    <div className="flex gap-2">
+      <input
+        type="number"
+        min={1}
+        max={totalFields}
+        value={draft}
+        disabled={disabled}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            applyOrder();
+          }
+        }}
+        className="h-11 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400 disabled:opacity-40"
+      />
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={applyOrder}
+        className="h-11 shrink-0 rounded-2xl bg-violet-600 px-4 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-40"
+      >
+        עדכן
+      </button>
+    </div>
+  );
+}
+
 export default function AgreementTemplatePage() {
   return (
     <Suspense
@@ -201,6 +269,9 @@ export default function AgreementTemplatePage() {
 function AgreementTemplateEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth() as { user?: any };
+
+  const businessId = useMemo(() => getAdminBusinessId(user), [user]);
 
   const templateType = normalizeTemplateType(searchParams.get("type"));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -234,7 +305,7 @@ function AgreementTemplateEditor() {
   );
 
   const sortedFields = useMemo(
-    () => [...fields].sort((a, b) => a.order - b.order),
+    () => sortAgreementFieldsByOrder(fields) as TemplateField[],
     [fields]
   );
 
@@ -284,8 +355,16 @@ function AgreementTemplateEditor() {
       setLoading(true);
       setMessage("");
 
+      const params = new URLSearchParams({
+        templateType: type,
+      });
+
+      if (businessId) {
+        params.set("businessId", businessId);
+      }
+
       const res = await fetch(
-        `/api/employee-agreement-templates/current?templateType=${encodeURIComponent(type)}`,
+        `/api/employee-agreement-templates/current?${params.toString()}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -312,7 +391,7 @@ function AgreementTemplateEditor() {
 
   useEffect(() => {
     void loadTemplate(templateType);
-  }, [templateType]);
+  }, [templateType, businessId]);
 
   useEffect(() => {
     async function loadEmployees() {
@@ -552,26 +631,48 @@ function AgreementTemplateEditor() {
     }
   }
 
-  function setFieldOrder(id: string, targetOrder: number) {
-    setFields((prev) => {
-      const sorted = sortAgreementFieldsByOrder(prev) as TemplateField[];
-      const currentIndex = sorted.findIndex((field) => field.id === id);
-      if (currentIndex === -1) return prev;
+  function reorderFields(
+    id: string,
+    targetOrder: number,
+    currentFields: TemplateField[] = fields,
+  ) {
+    const sorted = sortAgreementFieldsByOrder(currentFields) as TemplateField[];
+    const currentIndex = sorted.findIndex((field) => field.id === id);
+    if (currentIndex === -1) return null;
 
-      const nextIndex = clamp(Math.round(targetOrder), 1, sorted.length) - 1;
-      if (currentIndex === nextIndex) return prev;
+    const nextIndex = clamp(Math.round(targetOrder), 1, sorted.length) - 1;
+    if (currentIndex === nextIndex) return sorted;
 
-      const [movedField] = sorted.splice(currentIndex, 1);
-      sorted.splice(nextIndex, 0, movedField);
+    const [movedField] = sorted.splice(currentIndex, 1);
+    sorted.splice(nextIndex, 0, movedField);
 
-      return normalizeFieldOrders(sorted);
-    });
+    return normalizeFieldOrders(sorted);
+  }
 
-    setMessage("סדר השדות עודכן. לחצי על שמור תבנית כדי שהסדר יישמר גם בטלפון.");
+  async function applyFieldOrder(id: string, targetOrder: number) {
+    const sorted = sortAgreementFieldsByOrder(fields) as TemplateField[];
+    const currentIndex = sorted.findIndex((field) => field.id === id);
+    if (currentIndex === -1) return;
+
+    const nextIndex = clamp(Math.round(targetOrder), 1, sorted.length) - 1;
+    if (currentIndex === nextIndex) {
+      setMessage(`השדה כבר במקום ${targetOrder}.`);
+      return;
+    }
+
+    const nextFields = reorderFields(id, targetOrder, fields);
+    if (!nextFields) return;
+
+    setFields(nextFields);
+    setMessage(
+      `שדה ${currentIndex + 1} הועבר למקום ${nextIndex + 1}. שאר השדות עודכנו אוטומטית. שומר...`,
+    );
+
+    await saveTemplate(undefined, nextFields);
   }
 
   function moveFieldOrder(id: string, direction: "up" | "down") {
-    const sorted = [...fields].sort((a, b) => a.order - b.order);
+    const sorted = sortAgreementFieldsByOrder(fields) as TemplateField[];
     const currentIndex = sorted.findIndex((field) => field.id === id);
     if (currentIndex === -1) return;
 
@@ -579,7 +680,7 @@ function AgreementTemplateEditor() {
       direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (nextIndex < 0 || nextIndex >= sorted.length) return;
 
-    setFieldOrder(id, nextIndex + 1);
+    void applyFieldOrder(id, nextIndex + 1);
   }
 
   function moveFieldToPage(id: string, pageIndex: number) {
@@ -657,13 +758,17 @@ function AgreementTemplateEditor() {
 
     return "שדה טקסט";
   }
-  async function saveTemplate(pdfFile?: File) {
+  async function saveTemplate(
+    pdfFile?: File,
+    fieldsOverride?: TemplateField[],
+  ) {
     try {
       setSaving(!pdfFile);
       setUploadingPdf(Boolean(pdfFile));
       setMessage("");
 
       const endpoint = "/api/employee-agreement-templates/save";
+      const orderedFields = normalizeFieldOrders(fieldsOverride ?? fields);
 
       let res: Response;
 
@@ -677,10 +782,14 @@ function AgreementTemplateEditor() {
         formData.append("name", templateName);
         formData.append("fileUrl", fileUrl || DEFAULT_FILE_URL);
         formData.append("pageCount", String(pageCount || DEFAULT_PAGE_COUNT));
-        formData.append("pages", JSON.stringify([]));
-        formData.append("fields", JSON.stringify([]));
+        formData.append("pages", JSON.stringify(pages));
+        formData.append("fields", JSON.stringify(orderedFields));
         formData.append("isActive", "true");
         formData.append("coordinateMode", "percent");
+
+        if (businessId) {
+          formData.append("businessId", businessId);
+        }
 
         res = await fetch(endpoint, {
           method: "POST",
@@ -688,13 +797,12 @@ function AgreementTemplateEditor() {
           body: formData,
         });
       } else {
-        const orderedFields = normalizeFieldOrders(fields);
-
         res = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            businessId,
             templateType,
             name: templateName,
             fileUrl,
@@ -720,7 +828,9 @@ function AgreementTemplateEditor() {
       setMessage(
         pdfFile
           ? "ה־PDF הועלה בהצלחה והתבנית התעדכנה אוטומטית"
-          : "התבנית נשמרה בהצלחה"
+          : fieldsOverride
+            ? `סדר השדות נשמר (${orderedFields.length} שדות)`
+            : "התבנית נשמרה בהצלחה",
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "שגיאה בשמירת התבנית");
@@ -1181,70 +1291,55 @@ function AgreementTemplateEditor() {
                       מספר שדה במילוי (1-{sortedFields.length})
                     </label>
 
-                    <div className="flex gap-2">
-                      <input
-                        key={`selected-order-${selectedField.id}-${selectedField.order}`}
-                        type="number"
-                        min={1}
-                        max={sortedFields.length}
-                        defaultValue={selectedField.order}
-                        onBlur={(event) => {
-                          const nextOrder = clamp(
-                            Math.round(Number(event.target.value)),
-                            1,
-                            sortedFields.length,
-                          );
+                    <FieldOrderControl
+                      fieldId={selectedField.id}
+                      currentOrder={selectedField.order}
+                      totalFields={sortedFields.length}
+                      disabled={saving || uploadingPdf}
+                      onApply={applyFieldOrder}
+                    />
 
-                          if (nextOrder !== selectedField.order) {
-                            setFieldOrder(selectedField.id, nextOrder);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
-                      />
-
+                    <div className="mt-2 flex gap-2">
                       <button
                         type="button"
                         onClick={() =>
-                          moveFieldOrder(selectedField.id, "up")
+                          void applyFieldOrder(
+                            selectedField.id,
+                            selectedField.order - 1,
+                          )
                         }
                         disabled={
-                          sortedFields.findIndex(
-                            (field) => field.id === selectedField.id,
-                          ) === 0
+                          saving ||
+                          uploadingPdf ||
+                          selectedField.order <= 1
                         }
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black disabled:opacity-30"
-                        title="העבר שדה אחד למעלה"
+                        className="flex h-10 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xs font-black disabled:opacity-30"
                       >
-                        ↑
+                        ↑ מקום אחד למעלה
                       </button>
 
                       <button
                         type="button"
                         onClick={() =>
-                          moveFieldOrder(selectedField.id, "down")
+                          void applyFieldOrder(
+                            selectedField.id,
+                            selectedField.order + 1,
+                          )
                         }
                         disabled={
-                          sortedFields.findIndex(
-                            (field) => field.id === selectedField.id,
-                          ) ===
-                          sortedFields.length - 1
+                          saving ||
+                          uploadingPdf ||
+                          selectedField.order >= sortedFields.length
                         }
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black disabled:opacity-30"
-                        title="העבר שדה אחד למטה"
+                        className="flex h-10 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xs font-black disabled:opacity-30"
                       >
-                        ↓
+                        ↓ מקום אחד למטה
                       </button>
                     </div>
 
                     <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
-                      לדוגמה: שדה 13 יכול להפוך לשדה 2. אחרי שינוי חובה לשמור
-                      תבנית — זה הסדר שבו העובד ימלא בטלפון.
+                      לדוגמה: להעביר שדה 17 למקום 8 — הקלידי 8 ולחצי עדכן.
+                      שדות 8-16 יזוזו אוטומטית למטה (+1), והסדר נשמר מיד.
                     </p>
                   </div>
 
@@ -1339,7 +1434,12 @@ function AgreementTemplateEditor() {
               )}
             </SideBox>
 
-            <SideBox title="שדות שהוגדרו">
+            <SideBox title="שדות שהוגדרו (לפי סדר מילוי)">
+              <p className="mb-3 text-[11px] font-bold leading-5 text-slate-500">
+                הרשימה ממוינת לפי סדר המילוי בטלפון. שינוי מספר + לחיצה על
+                &quot;עדכן&quot; מעביר את השדה ושומר אוטומטית.
+              </p>
+
               <div className="space-y-2">
                 {sortedFields.length === 0 && (
                   <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
@@ -1357,40 +1457,9 @@ function AgreementTemplateEditor() {
                     }`}
                   >
                     <div className="mb-2 flex items-center gap-2">
-                      <label className="shrink-0 text-[11px] font-black text-slate-500">
-                        #
-                      </label>
-
-                      <input
-                        key={`list-order-${field.id}-${field.order}`}
-                        type="number"
-                        min={1}
-                        max={sortedFields.length}
-                        defaultValue={field.order}
-                        onClick={(event) => event.stopPropagation()}
-                        onFocus={() => {
-                          setSelectedId(field.id);
-                          setActivePageIndex(field.pageIndex);
-                        }}
-                        onBlur={(event) => {
-                          const nextOrder = clamp(
-                            Math.round(Number(event.target.value)),
-                            1,
-                            sortedFields.length,
-                          );
-
-                          if (nextOrder !== field.order) {
-                            setFieldOrder(field.id, nextOrder);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        className="h-9 w-16 rounded-xl border border-slate-200 bg-white px-2 text-center text-xs font-black outline-none focus:border-violet-400"
-                      />
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white">
+                        {index + 1}
+                      </span>
 
                       <button
                         type="button"
@@ -1398,16 +1467,19 @@ function AgreementTemplateEditor() {
                           setSelectedId(field.id);
                           scrollToPage(field.pageIndex);
                         }}
-                        className="min-w-0 flex-1 text-right text-xs font-black text-slate-500"
+                        className="min-w-0 flex-1 text-right text-xs font-black text-slate-700"
                       >
-                        {FIELD_TYPE_NAMES[field.type]} — עמוד {field.pageIndex + 1}
+                        {field.label?.trim() || FIELD_TYPE_NAMES[field.type]}
+                        <span className="mt-0.5 block text-[11px] font-bold text-slate-400">
+                          {FIELD_TYPE_NAMES[field.type]} — עמוד {field.pageIndex + 1}
+                        </span>
                       </button>
 
                       <div className="flex shrink-0 gap-1">
                         <button
                           type="button"
                           onClick={() => moveFieldOrder(field.id, "up")}
-                          disabled={index === 0}
+                          disabled={index === 0 || saving || uploadingPdf}
                           className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 disabled:opacity-30"
                           title="העבר למעלה"
                         >
@@ -1417,7 +1489,11 @@ function AgreementTemplateEditor() {
                         <button
                           type="button"
                           onClick={() => moveFieldOrder(field.id, "down")}
-                          disabled={index === sortedFields.length - 1}
+                          disabled={
+                            index === sortedFields.length - 1 ||
+                            saving ||
+                            uploadingPdf
+                          }
                           className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 disabled:opacity-30"
                           title="העבר למטה"
                         >
@@ -1425,6 +1501,14 @@ function AgreementTemplateEditor() {
                         </button>
                       </div>
                     </div>
+
+                    <FieldOrderControl
+                      fieldId={field.id}
+                      currentOrder={field.order}
+                      totalFields={sortedFields.length}
+                      disabled={saving || uploadingPdf}
+                      onApply={applyFieldOrder}
+                    />
 
                     <input
                       value={field.label}
