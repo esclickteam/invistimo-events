@@ -30,7 +30,12 @@ type ApiEmployeeDocument = {
 };
 
 
-type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
+type EmployeeAgreementStatus =
+  | "missing"
+  | "pending"
+  | "signed"
+  | "approved"
+  | "rejected";
 
 type ApiEmployeeAgreement = {
   _id?: string;
@@ -52,6 +57,9 @@ type ApiEmployeeAgreement = {
   url?: string;
 
   status?: EmployeeAgreementStatus;
+  templateType?: string;
+  templateTypeLabel?: string;
+  sentAt?: string | null;
   signedAt?: string | null;
   approvedAt?: string | null;
   rejectedAt?: string | null;
@@ -191,6 +199,8 @@ type EmployeeDocumentsModalProps = {
   idCard: ApiEmployeeDocument | null;
   idCardAppendix?: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
+  assignedAgreements?: ApiEmployeeAgreement[];
+  buildSignAgreementUrl?: (templateType?: string) => string;
   accountManagement?: ApiEmployeeDocument | null;
 
   form101File: File | null;
@@ -625,6 +635,8 @@ function getAgreementEffectiveStatus(
 ): EmployeeAgreementStatus {
   if (!agreement) return "missing";
 
+  if (agreement.status === "pending") return "pending";
+
   if (agreement.status === "rejected") return "rejected";
 
   if (agreement.status === "approved" || agreement.approvedAt) {
@@ -644,6 +656,8 @@ function getAgreementEffectiveStatus(
 
 function agreementStatusLabel(status?: EmployeeAgreementStatus) {
   switch (status) {
+    case "pending":
+      return "ממתין לחתימה";
     case "approved":
       return "מאושר";
     case "signed":
@@ -657,6 +671,8 @@ function agreementStatusLabel(status?: EmployeeAgreementStatus) {
 
 function agreementStatusClass(status?: EmployeeAgreementStatus) {
   switch (status) {
+    case "pending":
+      return "border-amber-200 bg-amber-50 text-amber-700";
     case "approved":
     case "signed":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -1315,6 +1331,8 @@ export default function EmployeeDocumentsModal({
   idCard,
   idCardAppendix = null,
   agreement,
+  assignedAgreements = [],
+  buildSignAgreementUrl,
   accountManagement = null,
 
   form101File,
@@ -1372,7 +1390,17 @@ export default function EmployeeDocumentsModal({
   const agreementFileUrl = getAgreementFileUrl(agreement);
   const agreementDate = getAgreementDate(agreement);
   const canSignAgreement =
-    agreementStatus === "missing" || agreementStatus === "rejected";
+    agreementStatus === "missing" ||
+    agreementStatus === "rejected" ||
+    agreementStatus === "pending";
+
+  const pendingAssignedAgreements = useMemo(
+    () =>
+      assignedAgreements.filter(
+        (item) => item.status === "pending" || item.status === "rejected",
+      ),
+    [assignedAgreements],
+  );
 
   const canUploadForm101 = canUploadDocument(form101);
   const canUploadIdCard = canUploadDocument(idCard);
@@ -1971,6 +1999,50 @@ export default function EmployeeDocumentsModal({
 
           {activeTab === "agreement" && (
             <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+              {pendingAssignedAgreements.length > 0 && (
+                <div className="lg:col-span-2 rounded-[28px] border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="text-lg font-black text-amber-900">
+                    מסמכים שנשלחו אליך לחתימה
+                  </h3>
+
+                  <div className="mt-4 space-y-3">
+                    {pendingAssignedAgreements.map((item) => {
+                      const signUrl = buildSignAgreementUrl
+                        ? buildSignAgreementUrl(item.templateType)
+                        : signAgreementUrl;
+
+                      return (
+                        <div
+                          key={String(item.id || item._id || item.templateType)}
+                          className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-black text-slate-900">
+                              {item.templateTypeLabel ||
+                                (item.templateType === "termination_request"
+                                  ? "בקשה לסיום העסקה"
+                                  : "הסכם עבודה")}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {item.status === "rejected"
+                                ? "נדחה — נדרשת חתימה מחדש"
+                                : "ממתין לחתימה"}
+                            </p>
+                          </div>
+
+                          <a
+                            href={signUrl}
+                            className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700"
+                          >
+                            מעבר לחתימה
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-[28px] border border-slate-200 bg-white p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>

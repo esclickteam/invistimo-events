@@ -48,3 +48,13 @@ export function getTemplateDefaultName(type: EmployeeAgreementTemplateType): str
     TEMPLATE_TYPE_DEFAULT_NAMES[DEFAULT_TEMPLATE_TYPE]
   );
 }
+
+export function buildTemplateTypeQuery(templateType: EmployeeAgreementTemplateType) {
+  if (templateType === DEFAULT_TEMPLATE_TYPE) {
+    return {
+      $or: [{ templateType }, { templateType: { $exists: false } }],
+    };
+  }
+
+  return { templateType };
+}

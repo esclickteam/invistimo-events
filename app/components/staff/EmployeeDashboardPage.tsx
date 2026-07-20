@@ -75,7 +75,12 @@ type ApiEmployeePayslip = {
   updatedAt?: string;
 };
 
-type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
+type EmployeeAgreementStatus =
+  | "missing"
+  | "pending"
+  | "signed"
+  | "approved"
+  | "rejected";
 
 type ApiEmployeeAgreement = {
   _id?: string;
@@ -98,6 +103,9 @@ type ApiEmployeeAgreement = {
   url?: string;
 
   status?: EmployeeAgreementStatus;
+  templateType?: string;
+  templateTypeLabel?: string;
+  sentAt?: string | null;
   signedAt?: string | null;
   approvedAt?: string | null;
   rejectedAt?: string | null;
@@ -318,6 +326,7 @@ const API = {
   form101Upload: "/api/forms/101/upload",
   form101Download: "/api/forms/101/download",
   employeeAgreementCurrent: "/api/employee-agreements/current",
+  employeeAgreementsMine: "/api/employee-agreements/mine",
   employeeWorkOrders: "/api/employee/work-orders",
   employeeLeads: "/api/employee/leads",
 };
@@ -498,6 +507,8 @@ function getAgreementEffectiveStatus(
 ): EmployeeAgreementStatus {
   if (!agreement) return "missing";
 
+  if (agreement.status === "pending") return "pending";
+
   // אם האדמין דחה את ההסכם — העובד צריך לראות שניתן לחתום מחדש.
   if (agreement.status === "rejected") return "rejected";
 
@@ -616,6 +627,8 @@ function sortPayslipsByDate(items: ApiEmployeePayslip[]) {
 
 function agreementStatusLabel(status?: EmployeeAgreementStatus) {
   switch (status) {
+    case "pending":
+      return "ממתין לחתימה";
     case "approved":
       return "מאושר";
     case "signed":
@@ -629,6 +642,8 @@ function agreementStatusLabel(status?: EmployeeAgreementStatus) {
 
 function agreementStatusClass(status?: EmployeeAgreementStatus) {
   switch (status) {
+    case "pending":
+      return "border-amber-200 bg-amber-50 text-amber-700";
     case "approved":
     case "signed":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -1549,6 +1564,9 @@ export default function EmployeeDashboardPage() {
   const [payslips, setPayslips] = useState<ApiEmployeePayslip[]>([]);
   const [payslipsLoading, setPayslipsLoading] = useState(true);
   const [agreement, setAgreement] = useState<ApiEmployeeAgreement | null>(null);
+  const [assignedAgreements, setAssignedAgreements] = useState<
+    ApiEmployeeAgreement[]
+  >([]);
   const [agreementLoading, setAgreementLoading] = useState(true);
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
@@ -1623,6 +1641,32 @@ export default function EmployeeDashboardPage() {
       ? `/employee/agreement/sign?${query}`
       : "/employee/agreement/sign";
   }, [currentEmployeeId, currentBusinessId]);
+
+  const pendingAgreements = useMemo(
+    () =>
+      assignedAgreements.filter(
+        (item) => item.status === "pending" || item.status === "rejected",
+      ),
+    [assignedAgreements],
+  );
+
+  function buildSignAgreementUrl(templateType?: string) {
+    const params = new URLSearchParams();
+
+    if (currentEmployeeId) {
+      params.set("employeeId", currentEmployeeId);
+    }
+
+    if (currentBusinessId) {
+      params.set("businessId", currentBusinessId);
+    }
+
+    if (templateType) {
+      params.set("type", templateType);
+    }
+
+    return `/employee/agreement/sign?${params.toString()}`;
+  }
 
   const loadEmployeeWorkOrders = useCallback(async () => {
     try {
@@ -1979,39 +2023,54 @@ export default function EmployeeDashboardPage() {
 
       if (!currentEmployeeId) {
         setAgreement(null);
+        setAssignedAgreements([]);
         return;
       }
 
-      const params = new URLSearchParams();
-      params.set("employeeId", currentEmployeeId);
-
-      if (currentBusinessId) {
-        params.set("businessId", currentBusinessId);
-      }
-
-      const response = await fetch(
-        `${API.employeeAgreementCurrent}?${params.toString()}`,
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        },
-      );
+      const response = await fetch(API.employeeAgreementsMine, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
+        throw new Error(data?.error || "שגיאה בטעינת מסמכים לחתימה");
       }
 
-      setAgreement(normalizeEmployeeAgreementFromResponse(data));
+      const agreements = Array.isArray(data?.agreements)
+        ? data.agreements.map((item: any) =>
+            normalizeEmployeeAgreementFromResponse({ agreement: item }),
+          )
+        : [];
+
+      setAssignedAgreements(
+        agreements.filter(Boolean) as ApiEmployeeAgreement[],
+      );
+
+      const phoneAgreement =
+        data?.byType?.phone_representative_agreement ||
+        agreements.find(
+          (item: ApiEmployeeAgreement | null) =>
+            item?.templateType === "phone_representative_agreement" ||
+            !item?.templateType,
+        ) ||
+        null;
+
+      setAgreement(
+        phoneAgreement
+          ? normalizeEmployeeAgreementFromResponse({ agreement: phoneAgreement })
+          : null,
+      );
     } catch (loadError) {
       console.error("LOAD EMPLOYEE AGREEMENT FAILED:", loadError);
       setAgreement(null);
+      setAssignedAgreements([]);
     } finally {
       setAgreementLoading(false);
     }
-  }, [currentEmployeeId, currentBusinessId]);
+  }, [currentEmployeeId]);
 
   const uploadEmployeeDocument = useCallback(
     async (documentType: EmployeeDocumentType) => {
@@ -2510,6 +2569,45 @@ export default function EmployeeDashboardPage() {
             </div>
           </div>
 
+          {pendingAgreements.length > 0 && (
+            <section className="mt-6 rounded-[28px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+              <h3 className="text-lg font-black text-amber-900">
+                מסמכים שממתינים לחתימה
+              </h3>
+
+              <div className="mt-4 space-y-3">
+                {pendingAgreements.map((item) => (
+                  <div
+                    key={String(item.id || item._id || item.templateType)}
+                    className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-black text-slate-900">
+                        {item.templateTypeLabel ||
+                          (item.templateType === "termination_request"
+                            ? "בקשה לסיום העסקה"
+                            : "הסכם עבודה")}
+                      </p>
+
+                      <p className="mt-1 text-xs font-bold text-slate-500">
+                        {item.status === "rejected"
+                          ? "נדחה — נדרשת חתימה מחדש"
+                          : "נשלח אליך לחתימה"}
+                      </p>
+                    </div>
+
+                    <a
+                      href={buildSignAgreementUrl(item.templateType)}
+                      className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      מעבר לחתימה
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <EmployeeDocumentsModal
             open={documentsModalOpen}
             onClose={() => setDocumentsModalOpen(false)}
@@ -2518,6 +2616,8 @@ export default function EmployeeDashboardPage() {
             idCardAppendix={idCardAppendix}
             accountManagement={accountManagement}
             agreement={agreement}
+            assignedAgreements={assignedAgreements}
+            buildSignAgreementUrl={buildSignAgreementUrl}
             form101File={form101File}
             idCardFile={idCardFile}
             idCardAppendixFile={idCardAppendixFile}

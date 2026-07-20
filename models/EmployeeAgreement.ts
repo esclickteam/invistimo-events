@@ -1,5 +1,9 @@
 import mongoose, { Schema, models, model } from "mongoose";
 
+import {
+  DEFAULT_TEMPLATE_TYPE,
+} from "@/lib/employeeAgreementTemplateTypes";
+
 const EmployeeAgreementSchema = new Schema(
   {
     employeeId: {
@@ -11,6 +15,13 @@ const EmployeeAgreementSchema = new Schema(
     businessId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
+      index: true,
+    },
+
+    templateType: {
+      type: String,
+      enum: ["phone_representative_agreement", "termination_request"],
+      default: DEFAULT_TEMPLATE_TYPE,
       index: true,
     },
 
@@ -85,19 +96,31 @@ const EmployeeAgreementSchema = new Schema(
 
     signedFileUrl: {
       type: String,
-      required: true,
+      default: "",
+      trim: true,
     },
 
     status: {
       type: String,
-      enum: ["signed", "approved", "rejected"],
-      default: "signed",
+      enum: ["pending", "signed", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
+
+    sentAt: {
+      type: Date,
+      default: null,
+    },
+
+    sentByAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
       index: true,
     },
 
     signedAt: {
       type: Date,
-      default: Date.now,
+      default: null,
     },
 
     approvedAt: {
@@ -126,7 +149,7 @@ const EmployeeAgreementSchema = new Schema(
 );
 
 EmployeeAgreementSchema.index(
-  { employeeId: 1, businessId: 1 },
+  { employeeId: 1, businessId: 1, templateType: 1 },
   { unique: true }
 );
 

@@ -1,11 +1,20 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
+import {
+  getTemplateTypeLabel,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 type FieldType = "text" | "date" | "signature" | "checkbox";
-type EmployeeAgreementStatus = "signed" | "approved" | "rejected";
+type EmployeeAgreementStatus =
+  | "pending"
+  | "signed"
+  | "approved"
+  | "rejected";
 
 type TemplateField = {
   id: string;
@@ -80,18 +89,46 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "";
+import {
+  DATE_FIELD_PLACEHOLDER,
+  formatDateForPdf,
+  formatDateMaskInput,
+  isoToDisplayDate,
+  isValidDisplayDate,
+} from "@/lib/dateFieldFormat";
 
-  const date = new Date(value);
+function DateFieldInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  const displayValue = isoToDisplayDate(value);
 
-  if (Number.isNaN(date.getTime())) return value || "";
+  return (
+    <div className="mt-5 space-y-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        dir="ltr"
+        value={displayValue}
+        onChange={(event) => {
+          const masked = formatDateMaskInput(event.target.value);
+          onChange(masked);
+        }}
+        placeholder={DATE_FIELD_PLACEHOLDER}
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold tracking-wide text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+      />
 
-  return date.toLocaleDateString("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+      <p className="text-xs font-semibold text-slate-500">
+        הזיני תאריך בפורמט {DATE_FIELD_PLACEHOLDER}
+        {label?.trim() ? ` · ${label.trim()}` : ""}
+      </p>
+    </div>
+  );
 }
 
 function normalizeField(raw: any, index: number): TemplateField {
@@ -208,7 +245,11 @@ function getFieldDisplayValue({
   const value = values[field.id] || "";
 
   if (field.type === "date") {
-    return formatDate(value);
+    return formatDateForPdf(value);
+  }
+
+  if (field.type === "checkbox") {
+    return isCheckboxChecked(value) ? "✓" : "";
   }
 
   return value;
@@ -406,10 +447,15 @@ function TemplateImagePreview({
                       <div
                         key={field.id}
                         className={[
-                          "absolute flex items-center justify-center overflow-hidden rounded-xl border-2 px-2 text-center text-xs font-black shadow-sm",
+                          "absolute flex items-center justify-center overflow-hidden text-center text-xs font-black shadow-sm",
+                          field.type === "checkbox"
+                            ? "rounded-md border-2 border-slate-700 bg-white"
+                            : "rounded-xl border-2 px-2",
                           selected
                             ? "border-violet-600 bg-violet-100/80 text-violet-900"
-                            : "border-violet-300 bg-white/70 text-slate-700",
+                            : field.type === "checkbox"
+                              ? "border-slate-700 bg-white text-slate-700"
+                              : "border-violet-300 bg-white/70 text-slate-700",
                         ].join(" ")}
                         style={{
                           left: `${field.x}%`,
@@ -424,6 +470,14 @@ function TemplateImagePreview({
                             alt="חתימה"
                             className="h-full w-full object-contain"
                           />
+                        ) : field.type === "checkbox" ? (
+                          displayValue ? (
+                            <span className="text-base font-black">✓</span>
+                          ) : null
+                        ) : field.type === "date" ? (
+                          <span className="font-mono text-[11px] tracking-wide">
+                            {displayValue || DATE_FIELD_PLACEHOLDER}
+                          </span>
                         ) : (
                           <span className="truncate">
                             {displayValue || field.label}
@@ -498,6 +552,10 @@ function ExistingSignedAgreement({ agreement }: { agreement: EmployeeAgreement }
 
 function AgreementSignContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+
+  const templateType = normalizeTemplateType(searchParams.get("type"));
+  const templateTypeLabel = getTemplateTypeLabel(templateType);
 
   const employeeId = getUserId(user);
   const businessId = getBusinessId(user);
@@ -549,20 +607,26 @@ function AgreementSignContent() {
         return;
       }
 
-      const templateParams = new URLSearchParams({ businessId });
+      const templateParams = new URLSearchParams({
+        businessId,
+        templateType,
+      });
+
+      const agreementParams = new URLSearchParams({
+        employeeId,
+        businessId,
+        templateType,
+      });
 
       const [templateRes, agreementRes] = await Promise.all([
         fetch(`/api/employee-agreement-templates/current?${templateParams}`, {
           credentials: "include",
           cache: "no-store",
         }),
-        fetch(
-          `/api/employee-agreements/current?employeeId=${employeeId}&businessId=${businessId}`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        ),
+        fetch(`/api/employee-agreements/current?${agreementParams}`, {
+          credentials: "include",
+          cache: "no-store",
+        }),
       ]);
 
       const templateData = await templateRes.json().catch(() => null);
@@ -589,8 +653,21 @@ function AgreementSignContent() {
       setFields(sortedFields);
 
       if (agreementRes.ok && agreementData?.agreement) {
-        setExistingAgreement(agreementData.agreement);
+        const agreement = agreementData.agreement;
+
+        if (
+          templateType === "termination_request" &&
+          !["pending", "rejected"].includes(String(agreement.status || ""))
+        ) {
+          throw new Error("בקשה לסיום העסקה לא נשלחה אליך לחתימה");
+        }
+
+        setExistingAgreement(agreement);
       } else {
+        if (templateType === "termination_request") {
+          throw new Error("בקשה לסיום העסקה לא נשלחה אליך לחתימה");
+        }
+
         setExistingAgreement(null);
       }
     } catch (err) {
@@ -602,7 +679,7 @@ function AgreementSignContent() {
 
   useEffect(() => {
     void loadAll();
-  }, [employeeId, businessId]);
+  }, [employeeId, businessId, templateType]);
 
   useEffect(() => {
     return () => {
@@ -642,7 +719,24 @@ function AgreementSignContent() {
 
     if (field.type === "checkbox") {
       if (!isCheckboxChecked(values[field.id])) {
-        setError(`יש לסמן את השדה: ${field.label}`);
+        setError(
+          field.label?.trim()
+            ? `יש לסמן את השדה: ${field.label}`
+            : "יש לסמן את תיבת הסימון"
+        );
+        return false;
+      }
+
+      return true;
+    }
+
+    if (field.type === "date") {
+      if (!isValidDisplayDate(values[field.id])) {
+        setError(
+          field.label?.trim()
+            ? `יש להזין תאריך תקין (${DATE_FIELD_PLACEHOLDER}) בשדה: ${field.label}`
+            : `יש להזין תאריך תקין בפורמט ${DATE_FIELD_PLACEHOLDER}`
+        );
         return false;
       }
 
@@ -679,7 +773,16 @@ function AgreementSignContent() {
       if (
         field.type !== "signature" &&
         field.type !== "checkbox" &&
+        field.type !== "date" &&
         !String(values[field.id] || "").trim()
+      ) {
+        setError(`חסר שדה חובה: ${field.label}`);
+        return false;
+      }
+
+      if (
+        field.type === "date" &&
+        !isValidDisplayDate(values[field.id])
       ) {
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
@@ -728,6 +831,7 @@ function AgreementSignContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId,
+          templateType,
           values,
           signatures,
           validateRequired: true,
@@ -784,6 +888,7 @@ function AgreementSignContent() {
         body: JSON.stringify({
           employeeId,
           businessId,
+          templateType,
           values,
           signatures,
         }),
@@ -817,7 +922,14 @@ function AgreementSignContent() {
     return <SignedAgreementSuccess signedUrl={successUrl} />;
   }
 
-  if (existingAgreement?.signedFileUrl && existingAgreement.status !== "rejected") {
+  if (
+    existingAgreement &&
+    existingAgreement.status !== "rejected" &&
+    existingAgreement.status !== "pending" &&
+    (existingAgreement.signedFileUrl ||
+      existingAgreement.status === "signed" ||
+      existingAgreement.status === "approved")
+  ) {
     return <ExistingSignedAgreement agreement={existingAgreement} />;
   }
 
@@ -827,7 +939,7 @@ function AgreementSignContent() {
         <section className="order-2 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm lg:order-1">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4">
             <div>
-              <h2 className="text-lg font-black">תצוגת הסכם עבודה</h2>
+              <h2 className="text-lg font-black">תצוגת {templateTypeLabel}</h2>
               <p className="mt-1 text-xs font-bold text-slate-500">
                 התצוגה מתעדכנת לפי השדות שאת ממלאת.
               </p>
@@ -871,7 +983,7 @@ function AgreementSignContent() {
             חתימה דיגיטלית
           </div>
 
-          <h1 className="text-2xl font-black">חתימה על הסכם עבודה</h1>
+          <h1 className="text-2xl font-black">חתימה על {templateTypeLabel}</h1>
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
             מלאי את השדות לפי הסדר שהוגדר בתבנית. בכל שלב לחצי הבא.
@@ -929,9 +1041,17 @@ function AgreementSignContent() {
                   >
                     {isCheckboxChecked(values[currentField.id]) ? "✓" : ""}
                   </button>
+                ) : currentField.type === "date" ? (
+                  <DateFieldInput
+                    value={values[currentField.id] || ""}
+                    onChange={(nextValue) =>
+                      updateValue(currentField.id, nextValue)
+                    }
+                    label={currentField.label}
+                  />
                 ) : (
                   <input
-                    type={currentField.type === "date" ? "date" : "text"}
+                    type="text"
                     value={values[currentField.id] || ""}
                     onChange={(event) =>
                       updateValue(currentField.id, event.target.value)

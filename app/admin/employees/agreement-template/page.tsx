@@ -11,6 +11,7 @@ import {
   normalizeTemplateType,
   TEMPLATE_TYPE_LABELS,
 } from "@/lib/employeeAgreementTemplateTypes";
+import { DATE_FIELD_PLACEHOLDER } from "@/lib/dateFieldFormat";
 
 type FieldType = "text" | "date" | "signature" | "checkbox";
 
@@ -57,7 +58,14 @@ const FIELD_LABELS: Record<FieldType, string> = {
   text: "שדה טקסט",
   date: "תאריך",
   signature: "חתימה",
-  checkbox: "תיבת סימון",
+  checkbox: "",
+};
+
+const FIELD_TYPE_NAMES: Record<FieldType, string> = {
+  text: "שדה טקסט",
+  date: "תאריך",
+  signature: "חתימה",
+  checkbox: "ריבוע סימון",
 };
 
 function makeId() {
@@ -208,6 +216,12 @@ function AgreementTemplateEditor() {
   const [saving, setSaving] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [message, setMessage] = useState("");
+  const [employees, setEmployees] = useState<
+    Array<{ id: string; name: string; email: string }>
+  >([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [sending, setSending] = useState(false);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedId) || null,
@@ -284,6 +298,77 @@ function AgreementTemplateEditor() {
   useEffect(() => {
     void loadTemplate(templateType);
   }, [templateType]);
+
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        setEmployeesLoading(true);
+
+        const res = await fetch("/api/admin/employees", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => null);
+        const rows = Array.isArray(data?.employees) ? data.employees : [];
+
+        setEmployees(
+          rows
+            .map((employee: any) => ({
+              id: String(employee.id || employee._id || ""),
+              name: String(employee.name || employee.fullName || "עובד ללא שם"),
+              email: String(employee.email || ""),
+            }))
+            .filter((employee) => employee.id),
+        );
+      } catch {
+        setEmployees([]);
+      } finally {
+        setEmployeesLoading(false);
+      }
+    }
+
+    void loadEmployees();
+  }, []);
+
+  async function sendToEmployee() {
+    if (!selectedEmployeeId) {
+      alert("בחרי עובד לשליחה");
+      return;
+    }
+
+    if (!hasPageImages) {
+      alert("קודם צריך להעלות PDF ולשמור את התבנית");
+      return;
+    }
+
+    try {
+      setSending(true);
+      setMessage("");
+
+      const res = await fetch("/api/admin/employee-agreements/send", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeId: selectedEmployeeId,
+          templateType,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "שגיאה בשליחה לעובד");
+      }
+
+      setMessage(data?.message || "המסמך נשלח לעובד בהצלחה");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "שגיאה בשליחה לעובד");
+    } finally {
+      setSending(false);
+    }
+  }
 
   function switchTemplateType(nextType: EmployeeAgreementTemplateType) {
     if (nextType === templateType) return;
@@ -389,7 +474,7 @@ function AgreementTemplateEditor() {
 
     const field: TemplateField = {
       id: makeId(),
-      label: FIELD_LABELS[type],
+      label: type === "checkbox" ? "" : FIELD_LABELS[type],
       type,
       pageIndex: activePageIndex,
       x: 38,
@@ -508,11 +593,13 @@ function AgreementTemplateEditor() {
   }
 
   function getFieldPreview(field: TemplateField) {
+    if (field.type === "checkbox") return "";
+
+    if (field.type === "date") return DATE_FIELD_PLACEHOLDER;
+
     if (field.label?.trim()) return field.label.trim();
 
     if (field.type === "signature") return "חתימה";
-    if (field.type === "date") return "תאריך";
-    if (field.type === "checkbox") return "✓";
 
     return "שדה טקסט";
   }
@@ -680,6 +767,47 @@ function AgreementTemplateEditor() {
               </button>
             ))}
           </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 lg:flex-row lg:items-end">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-black text-slate-500">
+                שליחה לעובד
+              </label>
+
+              <select
+                value={selectedEmployeeId}
+                onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                disabled={employeesLoading || sending || loading}
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400 disabled:opacity-50"
+              >
+                <option value="">
+                  {employeesLoading ? "טוען עובדים..." : "בחרי עובד מהרשימה"}
+                </option>
+
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                    {employee.email ? ` · ${employee.email}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void sendToEmployee()}
+              disabled={
+                sending ||
+                employeesLoading ||
+                loading ||
+                !selectedEmployeeId ||
+                !hasPageImages
+              }
+              className="inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-6 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {sending ? "שולח..." : "שליחה לעובד"}
+            </button>
+          </div>
         </div>
 
         {message && (
@@ -784,11 +912,15 @@ function AgreementTemplateEditor() {
                                     setActivePageIndex(field.pageIndex);
                                   }}
                                   className={[
-                                    "group pointer-events-auto absolute flex items-center justify-center overflow-visible rounded-xl border-2 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
-                                    "cursor-move bg-white/85 text-slate-900",
+                                    "group pointer-events-auto absolute flex items-center justify-center overflow-visible text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
+                                    field.type === "checkbox"
+                                      ? "cursor-move rounded-md border-2 border-slate-700 bg-white"
+                                      : "cursor-move rounded-xl border-2 bg-white/85 text-slate-900",
                                     selected
                                       ? "border-violet-600 ring-4 ring-violet-600/15"
-                                      : "border-slate-500 hover:border-violet-500",
+                                      : field.type === "checkbox"
+                                        ? "border-slate-700 hover:border-violet-500"
+                                        : "border-slate-500 hover:border-violet-500",
                                   ].join(" ")}
                                   style={{
                                     left: `${field.x}%`,
@@ -803,8 +935,17 @@ function AgreementTemplateEditor() {
                                     ⋮⋮
                                   </span>
 
-                                  <div className="max-w-full truncate px-2">
-                                    {getFieldPreview(field)}
+                                  <div
+                                    className={[
+                                      "max-w-full truncate px-2",
+                                      field.type === "date"
+                                        ? "font-mono text-[10px] text-slate-400"
+                                        : "",
+                                    ].join(" ")}
+                                  >
+                                    {field.type === "checkbox"
+                                      ? null
+                                      : getFieldPreview(field)}
                                   </div>
 
                                   <button
@@ -882,7 +1023,7 @@ function AgreementTemplateEditor() {
                   disabled={loading || uploadingPdf || !hasPageImages}
                   className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
                 >
-                  הוסף תיבת סימון ✓
+                  הוסף תיבת סימון
                 </button>
               </div>
 
@@ -945,7 +1086,7 @@ function AgreementTemplateEditor() {
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                    סוג שדה: {FIELD_LABELS[selectedField.type]}
+                    סוג שדה: {FIELD_TYPE_NAMES[selectedField.type]}
                   </div>
 
                   <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800">
@@ -1064,7 +1205,7 @@ function AgreementTemplateEditor() {
                       }}
                       className="mb-2 w-full text-right text-xs font-black text-slate-500"
                     >
-                      {index + 1}. {FIELD_LABELS[field.type]} — עמוד{" "}
+                      {index + 1}. {FIELD_TYPE_NAMES[field.type]} — עמוד{" "}
                       {field.pageIndex + 1}
                     </button>
 

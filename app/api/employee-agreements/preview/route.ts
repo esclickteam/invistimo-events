@@ -14,6 +14,11 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
+import { formatDateForPdf } from "@/lib/dateFieldFormat";
+import {
+  buildTemplateTypeQuery,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +41,7 @@ type TemplateField = {
 
 type PreviewAgreementBody = {
   businessId?: string;
+  templateType?: string;
 
   values?: Record<string, string>;
   signatures?: Record<string, string>;
@@ -430,9 +436,12 @@ export async function POST(req: NextRequest) {
     }
 
     const businessId = cleanStr(body.businessId);
+    const templateType = normalizeTemplateType(body.templateType);
+    const templateTypeQuery = buildTemplateTypeQuery(templateType);
 
     const templateQuery: Record<string, unknown> = {
       isActive: true,
+      ...templateTypeQuery,
     };
 
     if (businessId && mongoose.Types.ObjectId.isValid(businessId)) {
@@ -449,6 +458,7 @@ export async function POST(req: NextRequest) {
       template = await EmployeeAgreementTemplate.findOne({
         isActive: true,
         businessId: null,
+        ...templateTypeQuery,
       })
         .sort({ updatedAt: -1, createdAt: -1 })
         .lean();
@@ -591,7 +601,8 @@ export async function POST(req: NextRequest) {
       }
 
       const rawValue = getFieldValue(body, field);
-      const value = field.type === "date" ? formatDate(rawValue) : rawValue;
+      const value =
+        field.type === "date" ? formatDateForPdf(rawValue) : rawValue;
 
       drawTextInBox({
         page,

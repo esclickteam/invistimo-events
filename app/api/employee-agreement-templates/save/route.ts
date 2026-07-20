@@ -106,7 +106,7 @@ function normalizePageType(value: unknown): PageFileType {
 function defaultFieldLabel(type: FieldType, index: number) {
   if (type === "date") return "תאריך";
   if (type === "signature") return "חתימה";
-  if (type === "checkbox") return "תיבת סימון";
+  if (type === "checkbox") return "";
   if (type === "text") return "שדה טקסט";
 
   return `שדה ${index + 1}`;

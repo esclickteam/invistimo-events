@@ -16,6 +16,11 @@ import db from "@/lib/db";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
+import { formatDateForPdf } from "@/lib/dateFieldFormat";
+import {
+  buildTemplateTypeQuery,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +44,7 @@ type TemplateField = {
 type SignAgreementBody = {
   employeeId?: string;
   businessId?: string;
+  templateType?: string;
   values?: Record<string, string>;
   signatures?: Record<string, string>;
 
@@ -527,10 +533,36 @@ export async function POST(req: NextRequest) {
 
     const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
     const businessObjectId = new mongoose.Types.ObjectId(businessId);
+    const templateType = normalizeTemplateType(body.templateType);
+    const templateTypeQuery = buildTemplateTypeQuery(templateType);
+
+    const existingAssignment = await EmployeeAgreement.findOne({
+      employeeId: employeeObjectId,
+      businessId: businessObjectId,
+      ...templateTypeQuery,
+    }).lean();
+
+    if (templateType === "termination_request") {
+      const existingStatus = cleanStr((existingAssignment as any)?.status);
+
+      if (
+        !existingAssignment ||
+        !["pending", "rejected"].includes(existingStatus)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "בקשה לסיום העסקה לא נשלחה אליך לחתימה",
+          },
+          { status: 403 },
+        );
+      }
+    }
 
     let template = await EmployeeAgreementTemplate.findOne({
       isActive: true,
       businessId: businessObjectId,
+      ...templateTypeQuery,
     })
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
@@ -539,6 +571,7 @@ export async function POST(req: NextRequest) {
       template = await EmployeeAgreementTemplate.findOne({
         isActive: true,
         businessId: null,
+        ...templateTypeQuery,
       })
         .sort({ updatedAt: -1, createdAt: -1 })
         .lean();
@@ -700,7 +733,8 @@ export async function POST(req: NextRequest) {
       }
 
       const rawValue = getFieldValue(body, field);
-      const value = field.type === "date" ? formatDate(rawValue) : rawValue;
+      const value =
+        field.type === "date" ? formatDateForPdf(rawValue) : rawValue;
 
       if (!rawValue) continue;
 
@@ -733,10 +767,12 @@ export async function POST(req: NextRequest) {
       {
         employeeId: employeeObjectId,
         businessId: businessObjectId,
+        ...templateTypeQuery,
       },
       {
         employeeId: employeeObjectId,
         businessId: businessObjectId,
+        templateType,
         templateId: (template as any)._id,
         values: valuesToSave,
 

@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
+import {
+  getTemplateTypeLabel,
+  normalizeTemplateType,
+  buildTemplateTypeQuery,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,11 +30,23 @@ function normalizeAgreement(agreement: any) {
     agreement.signedPdfUrl ||
     "";
 
-  const hasSignedAgreement =
-    Boolean(signedFileUrl) ||
-    Boolean(agreement.signedAt) ||
-    agreement.status === "signed" ||
-    agreement.status === "approved";
+  const templateType = normalizeTemplateType(agreement?.templateType);
+  const rawStatus = cleanStr(agreement?.status).toLowerCase();
+
+  let status = rawStatus || "pending";
+
+  if (
+    signedFileUrl ||
+    agreement.signedAt ||
+    rawStatus === "signed" ||
+    rawStatus === "approved"
+  ) {
+    status = rawStatus === "approved" ? "approved" : "signed";
+  } else if (rawStatus === "rejected") {
+    status = "rejected";
+  } else if (rawStatus === "pending" || agreement.sentAt) {
+    status = "pending";
+  }
 
   return {
     ...agreement,
@@ -38,6 +55,8 @@ function normalizeAgreement(agreement: any) {
 
     employeeId: agreement.employeeId ? String(agreement.employeeId) : "",
     businessId: agreement.businessId ? String(agreement.businessId) : "",
+    templateType,
+    templateTypeLabel: getTemplateTypeLabel(templateType),
 
     fullName: agreement.fullName || "",
     idNumber: agreement.idNumber || "",
@@ -49,9 +68,8 @@ function normalizeAgreement(agreement: any) {
     signedFileUrl,
     fileUrl: signedFileUrl,
 
-    // בהסכם עבודה, כל הסכם שיש לו קובץ חתום / signedAt / signed / approved
-    // מוחזר לפרונט כ-signed כדי שיוצג "נחתם"
-    status: hasSignedAgreement ? "signed" : agreement.status || "missing",
+    status,
+    sentAt: agreement.sentAt || null,
 
     signedAt: agreement.signedAt || agreement.approvedAt || null,
 
@@ -79,6 +97,8 @@ export async function GET(req: NextRequest) {
 
     const employeeId = cleanStr(searchParams.get("employeeId"));
     const businessId = cleanStr(searchParams.get("businessId"));
+    const templateType = normalizeTemplateType(searchParams.get("templateType"));
+    const templateTypeQuery = buildTemplateTypeQuery(templateType);
 
     /**
      * חשוב:
@@ -122,6 +142,7 @@ export async function GET(req: NextRequest) {
       agreement = await EmployeeAgreement.findOne({
         employeeId: employeeObjectId,
         businessId: businessObjectId,
+        ...templateTypeQuery,
       })
         .sort({
           updatedAt: -1,
@@ -139,6 +160,7 @@ export async function GET(req: NextRequest) {
     if (!agreement) {
       agreement = await EmployeeAgreement.findOne({
         employeeId: employeeObjectId,
+        ...templateTypeQuery,
       })
         .sort({
           updatedAt: -1,
