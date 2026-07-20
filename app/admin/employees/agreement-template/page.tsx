@@ -12,6 +12,10 @@ import {
   TEMPLATE_TYPE_LABELS,
 } from "@/lib/employeeAgreementTemplateTypes";
 import { DATE_FIELD_PLACEHOLDER } from "@/lib/dateFieldFormat";
+import {
+  sortAgreementFieldsByOrder,
+  toPositiveFieldOrder,
+} from "@/lib/employeeAgreementFieldOrder";
 
 type FieldType = "text" | "date" | "signature" | "checkbox";
 
@@ -135,7 +139,7 @@ function normalizeField(raw: any, index: number): TemplateField {
     width,
     height,
     required: raw?.required !== undefined ? Boolean(raw.required) : true,
-    order: toNumber(raw?.order, index + 1),
+    order: toPositiveFieldOrder(raw?.order, index + 1),
   };
 }
 
@@ -241,12 +245,7 @@ function AgreementTemplateEditor() {
   }, [fields.length]);
 
   function normalizeFieldOrders(items: TemplateField[]) {
-    return [...items]
-      .sort((a, b) => a.order - b.order)
-      .map((field, index) => ({
-        ...field,
-        order: index + 1,
-      }));
+    return sortAgreementFieldsByOrder(items) as TemplateField[];
   }
 
   function applyTemplateToState(template: any) {
@@ -555,11 +554,11 @@ function AgreementTemplateEditor() {
 
   function setFieldOrder(id: string, targetOrder: number) {
     setFields((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      const sorted = sortAgreementFieldsByOrder(prev) as TemplateField[];
       const currentIndex = sorted.findIndex((field) => field.id === id);
       if (currentIndex === -1) return prev;
 
-      const nextIndex = clamp(targetOrder, 1, sorted.length) - 1;
+      const nextIndex = clamp(Math.round(targetOrder), 1, sorted.length) - 1;
       if (currentIndex === nextIndex) return prev;
 
       const [movedField] = sorted.splice(currentIndex, 1);
@@ -567,6 +566,8 @@ function AgreementTemplateEditor() {
 
       return normalizeFieldOrders(sorted);
     });
+
+    setMessage("סדר השדות עודכן. לחצי על שמור תבנית כדי שהסדר יישמר גם בטלפון.");
   }
 
   function moveFieldOrder(id: string, direction: "up" | "down") {
@@ -687,6 +688,8 @@ function AgreementTemplateEditor() {
           body: formData,
         });
       } else {
+        const orderedFields = normalizeFieldOrders(fields);
+
         res = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
@@ -697,7 +700,7 @@ function AgreementTemplateEditor() {
             fileUrl,
             pageCount,
             pages,
-            fields,
+            fields: orderedFields,
             isActive: true,
             coordinateMode: "percent",
           }),
@@ -1175,26 +1178,74 @@ function AgreementTemplateEditor() {
 
                   <div>
                     <label className="mb-1 block text-xs font-black text-slate-500">
-                      סדר מילוי (שדה #)
+                      מספר שדה במילוי (1-{sortedFields.length})
                     </label>
 
-                    <select
-                      value={selectedField.order}
-                      onChange={(event) =>
-                        setFieldOrder(
-                          selectedField.id,
-                          Number(event.target.value)
-                        )
-                      }
-                      className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
-                    >
-                      {sortedFields.map((field, index) => (
-                        <option key={field.id} value={index + 1}>
-                          שדה {index + 1}
-                          {field.id === selectedField.id ? " (נוכחי)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex gap-2">
+                      <input
+                        key={`selected-order-${selectedField.id}-${selectedField.order}`}
+                        type="number"
+                        min={1}
+                        max={sortedFields.length}
+                        defaultValue={selectedField.order}
+                        onBlur={(event) => {
+                          const nextOrder = clamp(
+                            Math.round(Number(event.target.value)),
+                            1,
+                            sortedFields.length,
+                          );
+
+                          if (nextOrder !== selectedField.order) {
+                            setFieldOrder(selectedField.id, nextOrder);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          moveFieldOrder(selectedField.id, "up")
+                        }
+                        disabled={
+                          sortedFields.findIndex(
+                            (field) => field.id === selectedField.id,
+                          ) === 0
+                        }
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black disabled:opacity-30"
+                        title="העבר שדה אחד למעלה"
+                      >
+                        ↑
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          moveFieldOrder(selectedField.id, "down")
+                        }
+                        disabled={
+                          sortedFields.findIndex(
+                            (field) => field.id === selectedField.id,
+                          ) ===
+                          sortedFields.length - 1
+                        }
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-black disabled:opacity-30"
+                        title="העבר שדה אחד למטה"
+                      >
+                        ↓
+                      </button>
+                    </div>
+
+                    <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
+                      לדוגמה: שדה 13 יכול להפוך לשדה 2. אחרי שינוי חובה לשמור
+                      תבנית — זה הסדר שבו העובד ימלא בטלפון.
+                    </p>
                   </div>
 
                   <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800">
@@ -1306,6 +1357,41 @@ function AgreementTemplateEditor() {
                     }`}
                   >
                     <div className="mb-2 flex items-center gap-2">
+                      <label className="shrink-0 text-[11px] font-black text-slate-500">
+                        #
+                      </label>
+
+                      <input
+                        key={`list-order-${field.id}-${field.order}`}
+                        type="number"
+                        min={1}
+                        max={sortedFields.length}
+                        defaultValue={field.order}
+                        onClick={(event) => event.stopPropagation()}
+                        onFocus={() => {
+                          setSelectedId(field.id);
+                          setActivePageIndex(field.pageIndex);
+                        }}
+                        onBlur={(event) => {
+                          const nextOrder = clamp(
+                            Math.round(Number(event.target.value)),
+                            1,
+                            sortedFields.length,
+                          );
+
+                          if (nextOrder !== field.order) {
+                            setFieldOrder(field.id, nextOrder);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="h-9 w-16 rounded-xl border border-slate-200 bg-white px-2 text-center text-xs font-black outline-none focus:border-violet-400"
+                      />
+
                       <button
                         type="button"
                         onClick={() => {
@@ -1314,8 +1400,7 @@ function AgreementTemplateEditor() {
                         }}
                         className="min-w-0 flex-1 text-right text-xs font-black text-slate-500"
                       >
-                        שדה {field.order}. {FIELD_TYPE_NAMES[field.type]} — עמוד{" "}
-                        {field.pageIndex + 1}
+                        {FIELD_TYPE_NAMES[field.type]} — עמוד {field.pageIndex + 1}
                       </button>
 
                       <div className="flex shrink-0 gap-1">
@@ -1340,24 +1425,6 @@ function AgreementTemplateEditor() {
                         </button>
                       </div>
                     </div>
-
-                    <select
-                      value={field.order}
-                      onChange={(event) =>
-                        setFieldOrder(field.id, Number(event.target.value))
-                      }
-                      onFocus={() => {
-                        setSelectedId(field.id);
-                        setActivePageIndex(field.pageIndex);
-                      }}
-                      className="mb-2 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-violet-400"
-                    >
-                      {sortedFields.map((_, orderIndex) => (
-                        <option key={orderIndex + 1} value={orderIndex + 1}>
-                          מיקום בסדר: שדה {orderIndex + 1}
-                        </option>
-                      ))}
-                    </select>
 
                     <input
                       value={field.label}

@@ -13,6 +13,7 @@ import {
   getTemplateDefaultName,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
+import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,8 +119,7 @@ function normalizeFields(
 ): TemplateField[] {
   if (!Array.isArray(fields)) return [];
 
-  return fields
-    .map((field, index): TemplateField => {
+  const normalized = fields.map((field, index): TemplateField => {
       const item = field as TemplateField;
       const type = normalizeFieldType(item.type);
 
@@ -161,10 +161,11 @@ function normalizeFields(
         width,
         height,
         required: item.required !== false,
-        order: cleanNumber(item.order, index + 1),
+        order: toPositiveFieldOrder(item.order, index + 1),
       };
-    })
-    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+    });
+
+  return sortAgreementFieldsByOrder(normalized);
 }
 
 function normalizePagesFromBody({

@@ -96,6 +96,10 @@ import {
   isoToDisplayDate,
   isValidDisplayDate,
 } from "@/lib/dateFieldFormat";
+import {
+  sortAgreementFieldsByOrder,
+  toPositiveFieldOrder,
+} from "@/lib/employeeAgreementFieldOrder";
 
 function DateFieldInput({
   value,
@@ -187,7 +191,7 @@ function normalizeField(raw: any, index: number): TemplateField {
     width,
     height,
     required: raw?.required !== undefined ? Boolean(raw.required) : true,
-    order: toNumber(raw?.order, index + 1),
+    order: toPositiveFieldOrder(raw?.order, index + 1),
   };
 }
 
@@ -225,9 +229,11 @@ function normalizeTemplate(raw: any): AgreementTemplate {
     : [];
 
   const fields = Array.isArray(raw?.fields)
-    ? raw.fields
-        .map((field: any, index: number) => normalizeField(field, index))
-        .sort((a: TemplateField, b: TemplateField) => a.order - b.order)
+    ? (sortAgreementFieldsByOrder(
+        raw.fields.map((field: any, index: number) =>
+          normalizeField(field, index),
+        ),
+      ) as TemplateField[])
     : [];
 
   return {

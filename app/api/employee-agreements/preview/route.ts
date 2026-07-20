@@ -15,6 +15,7 @@ import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 import { formatDateForPdf } from "@/lib/dateFieldFormat";
+import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
 import {
   buildTemplateTypeQuery,
   normalizeTemplateType,
@@ -168,7 +169,7 @@ async function loadTemplatePdfBytes(fileUrl: string) {
   }
 }
 
-function normalizeField(raw: any): TemplateField {
+function normalizeField(raw: any, index = 0): TemplateField {
   const rawType = cleanStr(raw?.type);
 
   const type: FieldType =
@@ -192,7 +193,7 @@ function normalizeField(raw: any): TemplateField {
       type === "signature" ? 8 : type === "checkbox" ? 5 : 6
     ),
     required: raw?.required !== false,
-    order: cleanNumber(raw?.order, 0),
+    order: toPositiveFieldOrder(raw?.order, index + 1),
   };
 }
 
@@ -475,10 +476,11 @@ export async function POST(req: NextRequest) {
     }
 
     const fields = Array.isArray((template as any).fields)
-      ? ((template as any).fields as any[])
-          .map(normalizeField)
-          .filter((field) => Boolean(field.id))
-          .sort((a, b) => a.order - b.order)
+      ? sortAgreementFieldsByOrder(
+          ((template as any).fields as any[])
+            .map((field, index) => normalizeField(field, index))
+            .filter((field) => Boolean(field.id)),
+        )
       : [];
 
     if (fields.length === 0) {
