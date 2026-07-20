@@ -1,5 +1,14 @@
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 
+export type AgreementCheckedMark = {
+  id: string;
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 function readRawValue(
   values: Record<string, unknown> | undefined | null,
   key: string,
@@ -10,6 +19,42 @@ function readRawValue(
   if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
   if (typeof raw === "string") return raw.trim();
   return "";
+}
+
+function toFiniteNumber(value: unknown, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+/** Normalize client-sent checkbox mark boxes (percent coords, same as overlay). */
+export function normalizeAgreementCheckedMarks(
+  raw: unknown,
+): AgreementCheckedMark[] {
+  if (!Array.isArray(raw)) return [];
+
+  const marks: AgreementCheckedMark[] = [];
+
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const id = String((item as any).id || "").trim();
+    if (!id) continue;
+
+    const width = Math.max(1, toFiniteNumber((item as any).width, 5));
+    const height = Math.max(1, toFiniteNumber((item as any).height, 5));
+    const x = Math.max(0, Math.min(100 - width, toFiniteNumber((item as any).x, 0)));
+    const y = Math.max(0, Math.min(100 - height, toFiniteNumber((item as any).y, 0)));
+
+    marks.push({
+      id,
+      pageIndex: Math.max(0, Math.round(toFiniteNumber((item as any).pageIndex, 0))),
+      x,
+      y,
+      width,
+      height,
+    });
+  }
+
+  return marks;
 }
 
 /**

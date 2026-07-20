@@ -266,6 +266,100 @@ function buildValuesForPdfSubmit(
   return next;
 }
 
+/**
+ * Exact overlay boxes that show a ✓ — sent to preview/sign so the PDF draws
+ * marks even if server-side field ids/types diverge from the client.
+ */
+function buildCheckedMarksForPdf(
+  values: Record<string, string>,
+  wizardFields: TemplateField[],
+  documentFields: TemplateField[],
+) {
+  const pdfValues = buildValuesForPdfSubmit(
+    values,
+    wizardFields,
+    documentFields,
+  );
+  const marks: Array<{
+    id: string;
+    pageIndex: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> = [];
+  const seen = new Set<string>();
+
+  function pushMark(mark: {
+    id: string;
+    pageIndex: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) {
+    const key = `${mark.pageIndex}:${mark.id}:${mark.x}:${mark.y}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    marks.push(mark);
+  }
+
+  for (const field of documentFields) {
+    if (field.type === "checkbox") {
+      const checked =
+        isCheckboxChecked(pdfValues[field.id]) ||
+        Object.values(pdfValues).some(
+          (entry) => String(entry || "").trim() === field.id,
+        );
+      if (!checked) continue;
+      pushMark({
+        id: field.id,
+        pageIndex: field.pageIndex,
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+      });
+      continue;
+    }
+
+    if (field.type === "choice") {
+      const selected = getChoiceSelectionFromValues(field, pdfValues);
+      for (const option of field.options || []) {
+        const optionSelected =
+          selected === option.id || isCheckboxChecked(pdfValues[option.id]);
+        if (!optionSelected) continue;
+        pushMark({
+          id: option.id,
+          pageIndex: field.pageIndex,
+          x: option.x,
+          y: option.y,
+          width: option.width,
+          height: option.height,
+        });
+      }
+    }
+  }
+
+  for (const field of wizardFields) {
+    if (field.type !== "choice") continue;
+    const selected = getChoiceSelectionFromValues(field, pdfValues);
+    if (!selected) continue;
+    const option = (field.options || []).find((item) => item.id === selected);
+    if (!option) continue;
+    pushMark({
+      id: selected,
+      pageIndex: field.pageIndex,
+      x: option.x,
+      y: option.y,
+      width: option.width,
+      height: option.height,
+    });
+  }
+
+  return marks;
+}
+
 function normalizeField(raw: any, index: number): TemplateField {
   const type = resolveAgreementFieldType(raw?.type, raw?.options) as FieldType;
 
@@ -1308,6 +1402,12 @@ function AgreementSignContent() {
       setPreviewing(true);
       setError("");
 
+      const pdfValues = buildValuesForPdfSubmit(
+        values,
+        fields,
+        documentFields,
+      );
+
       const res = await fetch("/api/employee-agreements/preview", {
         method: "POST",
         credentials: "include",
@@ -1315,7 +1415,12 @@ function AgreementSignContent() {
         body: JSON.stringify({
           businessId: existingAgreement?.businessId || businessId,
           templateType,
-          values: buildValuesForPdfSubmit(values, fields, documentFields),
+          values: pdfValues,
+          checkedMarks: buildCheckedMarksForPdf(
+            values,
+            fields,
+            documentFields,
+          ),
           signatures,
           validateRequired: true,
         }),
@@ -1364,6 +1469,12 @@ function AgreementSignContent() {
       setSubmitting(true);
       setError("");
 
+      const pdfValues = buildValuesForPdfSubmit(
+        values,
+        fields,
+        documentFields,
+      );
+
       const res = await fetch("/api/employee-agreements/sign", {
         method: "POST",
         credentials: "include",
@@ -1373,7 +1484,12 @@ function AgreementSignContent() {
           employeeId: existingAgreement?.employeeId || employeeId,
           businessId: existingAgreement?.businessId || businessId,
           templateType,
-          values: buildValuesForPdfSubmit(values, fields, documentFields),
+          values: pdfValues,
+          checkedMarks: buildCheckedMarksForPdf(
+            values,
+            fields,
+            documentFields,
+          ),
           signatures,
         }),
       });

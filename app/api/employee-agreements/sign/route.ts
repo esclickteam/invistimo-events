@@ -30,6 +30,7 @@ import {
 } from "@/lib/employeeAgreementChoiceField";
 import {
   isAgreementOptionMarked,
+  normalizeAgreementCheckedMarks,
   resolveMarkedAgreementOptionIds,
 } from "@/lib/employeeAgreementFieldValues";
 import {
@@ -65,6 +66,8 @@ type SignAgreementBody = {
   businessId?: string;
   templateType?: string;
   values?: Record<string, string>;
+  /** Overlay boxes that already show ✓ on the client (percent coords). */
+  checkedMarks?: unknown;
   signatures?: Record<string, string>;
 
   agreementDate?: string;
@@ -867,10 +870,14 @@ export async function POST(req: NextRequest) {
 
     const pages = pdfDoc.getPages();
     const coordinateMode = resolveCoordinateMode(template, fields);
+    const clientCheckedMarks = normalizeAgreementCheckedMarks(body.checkedMarks);
     const markedOptionIds = resolveMarkedAgreementOptionIds(body.values, [
       ...fields,
       ...validationFields,
     ]);
+    for (const mark of clientCheckedMarks) {
+      markedOptionIds.add(mark.id);
+    }
 
     const valuesToSave: Record<string, string> = {};
     const signatureFieldIds: string[] = [];
@@ -999,6 +1006,39 @@ export async function POST(req: NextRequest) {
         box,
         hebrewFont,
         fallbackFont,
+      });
+    }
+
+    // Draw marks using the exact overlay boxes from the client (percent coords).
+    for (const mark of clientCheckedMarks) {
+      const page = pages[mark.pageIndex];
+      if (!page) continue;
+
+      const { width: pageWidth, height: pageHeight } = page.getSize();
+      const box = convertTemplateBoxToPdfBox({
+        field: {
+          id: mark.id,
+          label: mark.id,
+          type: "checkbox",
+          pageIndex: mark.pageIndex,
+          x: mark.x,
+          y: mark.y,
+          width: mark.width,
+          height: mark.height,
+          required: false,
+          order: 0,
+        },
+        pageWidth,
+        pageHeight,
+        coordinateMode: "percent",
+      });
+
+      valuesToSave[mark.id] = "true";
+
+      drawCheckInBox({
+        page,
+        checked: true,
+        box,
       });
     }
 
