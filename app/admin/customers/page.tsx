@@ -499,7 +499,7 @@ export default function AdminCustomersPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#F7F1EA] px-3 py-6 text-[#3A271D] sm:px-5 lg:px-7"
+      className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D] sm:px-1"
     >
       <div className="w-full max-w-none space-y-6">
         <section className="overflow-hidden rounded-[2rem] border border-[#E8D8C4] bg-white shadow-sm">
@@ -806,7 +806,7 @@ export default function AdminCustomersPage() {
                                 }))
                               }
                               disabled={staffLoading || assigningCustomerId === customerId}
-                              className="h-12 min-w-[240px] rounded-2xl border border-[#D9C3A8] bg-white px-4 text-sm font-black text-[#3A271D] outline-none transition focus:border-[#C58B2B]"
+                              className="h-12 w-full min-w-0 rounded-2xl border border-[#D9C3A8] bg-white px-4 text-sm font-black text-[#3A271D] outline-none transition focus:border-[#C58B2B] sm:min-w-[240px] sm:w-auto"
                             >
                               <option value="">
                                 {staffLoading ? "טוען עובדים..." : "בחר עובד"}

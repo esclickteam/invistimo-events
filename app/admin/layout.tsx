@@ -3,7 +3,7 @@
 // 🔒 קריטי לספארי iOS – מונע snapshot / BFCache
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
@@ -86,13 +86,24 @@ export default function AdminLayout({
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   return (
     <div
-      className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
+      className="flex min-h-screen overflow-x-hidden bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
       dir="rtl"
     >
       {/* ================= Mobile Header ================= */}
-      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 shadow-sm backdrop-blur md:hidden">
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur sm:px-4 md:hidden">
         <button
           onClick={() => setOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-xl font-black text-slate-700"
@@ -123,11 +134,11 @@ export default function AdminLayout({
       {/* ================= Sidebar ================= */}
       <aside
         className={`
-          fixed right-0 top-0 z-50 flex h-full w-[292px] flex-col
-          border-l border-white/70 bg-white/92 p-5 shadow-[-18px_0_60px_rgba(79,70,229,0.12)]
+          fixed inset-y-0 right-0 z-50 flex h-[100dvh] w-[min(292px,100vw)] flex-col
+          border-l border-white/70 bg-white/95 p-4 shadow-[-18px_0_60px_rgba(79,70,229,0.12)]
           backdrop-blur-xl transition-transform duration-300
-          md:sticky md:top-0 md:translate-x-0
-          ${open ? "translate-x-0" : "translate-x-full"}
+          md:static md:z-auto md:h-screen md:w-[292px] md:max-w-none md:shrink-0 md:translate-x-0
+          ${open ? "translate-x-0" : "translate-x-full md:translate-x-0"}
         `}
       >
         {/* Header */}
@@ -176,7 +187,7 @@ export default function AdminLayout({
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-2">
+        <nav className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-1">
           {nav.map((item) => {
             const isActive = isActivePath(item.href);
 
@@ -255,8 +266,8 @@ export default function AdminLayout({
       </aside>
 
       {/* ================= Content ================= */}
-      <main className="w-full flex-1 p-4 pt-20 md:p-8 md:pt-8">
-        <div className="mx-auto w-full max-w-[1700px]">{children}</div>
+      <main className="min-w-0 flex-1 overflow-x-hidden p-3 pt-[4.25rem] sm:p-4 md:p-6 md:pt-6">
+        <div className="mx-auto w-full min-w-0 max-w-[1700px]">{children}</div>
       </main>
     </div>
   );

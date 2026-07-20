@@ -976,7 +976,7 @@ export default function AdminEmployeeHoursPage() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-slate-900"
+      className="w-full min-w-0 text-slate-900"
     >
       <style>{`
         .print-only-report {
@@ -1099,7 +1099,7 @@ export default function AdminEmployeeHoursPage() {
         }
       `}</style>
 
-      <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full min-w-0 max-w-[1500px] space-y-6">
         <section className="no-print rounded-[34px] border border-white bg-white p-6 shadow-[0_18px_55px_rgba(16,185,129,0.10)] md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>

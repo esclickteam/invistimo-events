@@ -693,11 +693,8 @@ export default function AdminEmployeeShiftsPage() {
   }
 
   return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-slate-900"
-    >
-      <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 md:p-6">
+    <div dir="rtl" className="w-full min-w-0 space-y-6 text-slate-900">
+      <div className="mx-auto w-full min-w-0 max-w-[1600px] space-y-6">
         <section className="rounded-[34px] border border-white bg-white p-6 shadow-[0_18px_55px_rgba(79,70,229,0.10)] md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -819,7 +816,8 @@ export default function AdminEmployeeShiftsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-7 gap-2">
+            <div className="mt-5 overflow-x-auto pb-2">
+              <div className="grid min-w-[720px] grid-cols-7 gap-2">
               {WEEK_DAYS.map((day) => (
                 <div
                   key={day}
@@ -899,6 +897,7 @@ export default function AdminEmployeeShiftsPage() {
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
 

@@ -2118,10 +2118,10 @@ export default function AdminSalesNewPage() {
 
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_38%,#eef2f7_100%)] text-slate-950">
+    <div dir="rtl" className="w-full min-w-0 text-slate-950">
       <DetailsModal details={detailsModal} onClose={() => setDetailsModal(null)} />
 
-      <main className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full min-w-0 max-w-[1500px]">
         <section className="relative overflow-hidden rounded-[36px] border border-[#eadfce] bg-white/90 p-6 shadow-sm sm:p-8">
           <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>

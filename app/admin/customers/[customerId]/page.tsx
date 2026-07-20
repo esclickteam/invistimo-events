@@ -381,7 +381,7 @@ export default function AdminCustomerFilePage() {
     return (
       <main
         dir="rtl"
-        className="min-h-screen bg-[#F7F1EA] px-4 py-8 text-[#3A271D] sm:px-6 lg:px-8"
+        className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D]"
       >
         <div className="mx-auto max-w-7xl rounded-[2rem] border border-[#E8D8C4] bg-white p-8 text-center text-sm font-black text-[#8A6A43] shadow-sm">
           טוען תיק לקוח...
@@ -394,7 +394,7 @@ export default function AdminCustomerFilePage() {
     return (
       <main
         dir="rtl"
-        className="min-h-screen bg-[#F7F1EA] px-4 py-8 text-[#3A271D] sm:px-6 lg:px-8"
+        className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D]"
       >
         <div className="mx-auto max-w-3xl rounded-[2rem] border border-red-100 bg-white p-8 shadow-sm">
           <p className="text-lg font-black text-red-700">
@@ -437,7 +437,7 @@ export default function AdminCustomerFilePage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#F7F1EA] px-4 py-6 text-[#3A271D] sm:px-6 lg:px-8"
+      className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D]"
     >
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="rounded-[2rem] border border-[#E8D8C4] bg-white p-5 shadow-sm sm:p-6">

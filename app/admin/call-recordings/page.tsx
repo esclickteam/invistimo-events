@@ -393,7 +393,7 @@ export default function AdminCallRecordingsPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#f7f3ec] px-4 py-6 text-[#2f251d] md:px-8"
+      className="w-full min-w-0 bg-[#f7f3ec] py-2 text-[#2f251d]"
     >
       <section className="mx-auto max-w-7xl">
         <div className="mb-6 overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-[0_24px_80px_rgba(47,37,29,0.08)]">
@@ -652,7 +652,7 @@ export default function AdminCallRecordingsPage() {
                                 controls
                                 preload="none"
                                 src={streamUrl}
-                                className="h-10 w-[260px]"
+                                className="h-10 w-full max-w-[260px]"
                               />
 
                               <span className="text-[11px] font-bold text-[#8b7b68]">

@@ -1314,7 +1314,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F6F4F1] px-4 py-6 md:px-8">
+    <div dir="rtl" className="w-full min-w-0 bg-[#F6F4F1] py-2">
       <div className="mx-auto max-w-7xl space-y-6">
         <section
           className="
