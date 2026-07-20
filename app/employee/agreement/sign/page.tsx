@@ -5,15 +5,18 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 import {
+  EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
   getTemplateTypeLabel,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
 import {
+  collapseConsecutiveCheckboxesToChoiceFields,
   getChoiceFieldBounds,
   getChoiceOptionDisplayLabel,
   isChoiceValueSelected,
   normalizeChoiceOptions,
   resolveAgreementFieldType,
+  TERMINATION_REASON_OPTION_LABELS,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 
@@ -36,6 +39,8 @@ type TemplateField = {
   required: boolean;
   order: number;
   options?: ChoiceOption[];
+  /** Present when consecutive checkboxes were collapsed into one choice step. */
+  sourceCheckboxIds?: string[];
 };
 
 type TemplatePage = {
@@ -185,6 +190,61 @@ function defaultFieldLabel(type: FieldType) {
   if (type === "checkbox") return "תיבת סימון";
   if (type === "choice") return "בחירה";
   return "שדה טקסט";
+}
+
+function buildWizardFields(
+  fields: TemplateField[],
+  templateType: string,
+): TemplateField[] {
+  // Termination reason was often modeled as 4 separate checkboxes; collapse
+  // consecutive same-page checkboxes into one single-select choice step.
+  if (templateType !== EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION) {
+    return fields;
+  }
+
+  return collapseConsecutiveCheckboxesToChoiceFields(fields, {
+    minGroupSize: 2,
+    choiceLabel: "סיבת סיום ההעסקה",
+    defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
+  }) as TemplateField[];
+}
+
+function getChoiceSelectionFromValues(
+  field: TemplateField,
+  fieldValues: Record<string, string>,
+) {
+  const direct = String(fieldValues[field.id] || "").trim();
+  if (direct && isChoiceValueSelected(direct, field.options)) {
+    return direct;
+  }
+
+  const sourceIds = field.sourceCheckboxIds || [];
+  for (const checkboxId of sourceIds) {
+    if (isCheckboxChecked(fieldValues[checkboxId])) {
+      return checkboxId;
+    }
+  }
+
+  return "";
+}
+
+function applyExclusiveCheckboxChoice(
+  prev: Record<string, string>,
+  field: TemplateField,
+  selectedOptionId: string,
+) {
+  const next = { ...prev, [field.id]: selectedOptionId };
+  const sourceIds = field.sourceCheckboxIds || [];
+
+  if (sourceIds.length === 0) {
+    return next;
+  }
+
+  for (const checkboxId of sourceIds) {
+    next[checkboxId] = checkboxId === selectedOptionId ? "true" : "false";
+  }
+
+  return next;
 }
 
 function normalizeField(raw: any, index: number): TemplateField {
@@ -339,7 +399,8 @@ function getFieldDisplayValue({
   }
 
   if (field.type === "choice") {
-    return isChoiceValueSelected(value, field.options) ? value : "";
+    const selected = getChoiceSelectionFromValues(field, values);
+    return selected ? "✓" : "";
   }
 
   return value;
@@ -487,6 +548,8 @@ function TemplateImagePreview({
   values,
   signatures,
   currentFieldId,
+  highlightedFieldIds,
+  activePageIndex,
   onSelectChoice,
 }: {
   template: AgreementTemplate;
@@ -494,10 +557,18 @@ function TemplateImagePreview({
   values: Record<string, string>;
   signatures: Record<string, string>;
   currentFieldId?: string;
+  highlightedFieldIds?: string[];
+  activePageIndex?: number;
   onSelectChoice?: (fieldId: string, optionId: string) => void;
 }) {
   const pages = template.pages || [];
-  const currentField = fields.find((field) => field.id === currentFieldId);
+  const highlightIds = new Set(
+    highlightedFieldIds?.length
+      ? highlightedFieldIds
+      : currentFieldId
+        ? [currentFieldId]
+        : [],
+  );
   const activePageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -505,7 +576,7 @@ function TemplateImagePreview({
       behavior: "smooth",
       block: "nearest",
     });
-  }, [currentFieldId, currentField?.pageIndex]);
+  }, [currentFieldId, activePageIndex]);
 
   return (
     <div className="h-[42vh] overflow-y-auto overflow-x-hidden bg-slate-100 p-3 sm:h-[56vh] sm:p-4 lg:h-[74vh]">
@@ -519,9 +590,7 @@ function TemplateImagePreview({
             <div
               key={page.pageIndex}
               ref={
-                currentField?.pageIndex === page.pageIndex
-                  ? activePageRef
-                  : undefined
+                activePageIndex === page.pageIndex ? activePageRef : undefined
               }
               className="space-y-2"
             >
@@ -545,7 +614,7 @@ function TemplateImagePreview({
 
                 <div className="pointer-events-none absolute inset-0 z-10">
                   {pageFields.flatMap((field) => {
-                    const selected = currentFieldId === field.id;
+                    const selected = highlightIds.has(field.id);
                     const displayValue = getFieldDisplayValue({
                       field,
                       values,
@@ -559,11 +628,14 @@ function TemplateImagePreview({
                         field.x,
                         field.y,
                       );
-                      const selectedOptionId = String(values[field.id] || "").trim();
+                      const selectedOptionId = getChoiceSelectionFromValues(
+                        field,
+                        values,
+                      );
                       const canSelect =
                         selected && typeof onSelectChoice === "function";
 
-                      return options.map((option) => {
+                      return options.map((option, optionIndex) => {
                         const optionSelected = selectedOptionId === option.id;
 
                         return (
@@ -592,7 +664,7 @@ function TemplateImagePreview({
                             }}
                             title={getChoiceOptionDisplayLabel(
                               option,
-                              Number(option.id) - 1,
+                              optionIndex,
                             )}
                           >
                             {optionSelected ? (
@@ -603,46 +675,75 @@ function TemplateImagePreview({
                       });
                     }
 
+                    const canSelectGroupedCheckbox =
+                      field.type === "checkbox" &&
+                      selected &&
+                      typeof onSelectChoice === "function";
+
+                    const boxClassName = [
+                      "absolute flex items-center justify-center overflow-hidden text-center text-xs font-black shadow-sm",
+                      field.type === "checkbox"
+                        ? "rounded-md border-2 border-slate-700 bg-white"
+                        : "rounded-xl border-2 px-2",
+                      canSelectGroupedCheckbox
+                        ? "pointer-events-auto cursor-pointer"
+                        : "pointer-events-none",
+                      selected
+                        ? "border-violet-600 bg-violet-100/80 text-violet-900"
+                        : field.type === "checkbox"
+                          ? "border-slate-700 bg-white text-slate-700"
+                          : "border-violet-300 bg-white/70 text-slate-700",
+                    ].join(" ");
+
+                    const boxStyle = {
+                      left: `${field.x}%`,
+                      top: `${field.y}%`,
+                      width: `${field.width}%`,
+                      height: `${field.height}%`,
+                    } as const;
+
+                    const boxContent =
+                      field.type === "signature" && displayValue ? (
+                        <img
+                          src={displayValue}
+                          alt="חתימה"
+                          className="h-full w-full object-contain"
+                        />
+                      ) : field.type === "checkbox" ? (
+                        displayValue ? (
+                          <span className="text-base font-black">✓</span>
+                        ) : null
+                      ) : field.type === "date" ? (
+                        <span className="font-mono text-[11px] tracking-wide">
+                          {displayValue || DATE_FIELD_PLACEHOLDER}
+                        </span>
+                      ) : (
+                        <span className="truncate">
+                          {displayValue || field.label}
+                        </span>
+                      );
+
+                    if (canSelectGroupedCheckbox) {
+                      return [
+                        <button
+                          key={field.id}
+                          type="button"
+                          onClick={() => onSelectChoice(field.id, field.id)}
+                          className={boxClassName}
+                          style={boxStyle}
+                        >
+                          {boxContent}
+                        </button>,
+                      ];
+                    }
+
                     return [
                       <div
                         key={field.id}
-                        className={[
-                          "absolute flex items-center justify-center overflow-hidden text-center text-xs font-black shadow-sm",
-                          field.type === "checkbox"
-                            ? "rounded-md border-2 border-slate-700 bg-white"
-                            : "rounded-xl border-2 px-2",
-                          selected
-                            ? "border-violet-600 bg-violet-100/80 text-violet-900"
-                            : field.type === "checkbox"
-                              ? "border-slate-700 bg-white text-slate-700"
-                              : "border-violet-300 bg-white/70 text-slate-700",
-                        ].join(" ")}
-                        style={{
-                          left: `${field.x}%`,
-                          top: `${field.y}%`,
-                          width: `${field.width}%`,
-                          height: `${field.height}%`,
-                        }}
+                        className={boxClassName}
+                        style={boxStyle}
                       >
-                        {field.type === "signature" && displayValue ? (
-                          <img
-                            src={displayValue}
-                            alt="חתימה"
-                            className="h-full w-full object-contain"
-                          />
-                        ) : field.type === "checkbox" ? (
-                          displayValue ? (
-                            <span className="text-base font-black">✓</span>
-                          ) : null
-                        ) : field.type === "date" ? (
-                          <span className="font-mono text-[11px] tracking-wide">
-                            {displayValue || DATE_FIELD_PLACEHOLDER}
-                          </span>
-                        ) : (
-                          <span className="truncate">
-                            {displayValue || field.label}
-                          </span>
-                        )}
+                        {boxContent}
                       </div>,
                     ];
                   })}
@@ -721,6 +822,9 @@ function AgreementSignContent() {
   const businessId = getBusinessId(user);
 
   const [template, setTemplate] = useState<AgreementTemplate | null>(null);
+  /** Original template fields — used for PDF preview overlays and submit. */
+  const [documentFields, setDocumentFields] = useState<TemplateField[]>([]);
+  /** Wizard steps — may collapse consecutive checkboxes into one choice. */
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -813,13 +917,15 @@ function AgreementSignContent() {
 
       const normalizedTemplate = normalizeTemplate(loadedTemplate);
       const sortedFields = normalizedTemplate.fields;
+      const wizardFields = buildWizardFields(sortedFields, templateType);
 
       if (sortedFields.length === 0) {
         throw new Error("בתבנית ההסכם לא הוגדרו שדות למילוי.");
       }
 
       setTemplate(normalizedTemplate);
-      setFields(sortedFields);
+      setDocumentFields(sortedFields);
+      setFields(wizardFields);
 
       if (agreementRes.ok && agreementData?.agreement) {
         const agreement = agreementData.agreement;
@@ -896,7 +1002,7 @@ function AgreementSignContent() {
     }
 
     if (field.type === "choice") {
-      return isChoiceValueSelected(fieldValues[field.id], field.options);
+      return Boolean(getChoiceSelectionFromValues(field, fieldValues));
     }
 
     if (field.type === "date") {
@@ -947,7 +1053,14 @@ function AgreementSignContent() {
     setConfirmed(false);
     clearCreatedPreview();
 
-    setValues((prev) => ({ ...prev, [fieldId]: value }));
+    setValues((prev) => {
+      const field = fields.find((item) => item.id === fieldId);
+      if (field?.type === "choice") {
+        return applyExclusiveCheckboxChoice(prev, field, value);
+      }
+
+      return { ...prev, [fieldId]: value };
+    });
   }
 
   function updateSignature(fieldId: string, value: string) {
@@ -995,7 +1108,7 @@ function AgreementSignContent() {
     }
 
     if (field.type === "choice") {
-      if (!isChoiceValueSelected(values[field.id], field.options)) {
+      if (!getChoiceSelectionFromValues(field, values)) {
         setError(
           field.label?.trim()
             ? `יש לבחור אפשרות אחת בשדה: ${field.label}`
@@ -1049,7 +1162,7 @@ function AgreementSignContent() {
 
       if (
         field.type === "choice" &&
-        !isChoiceValueSelected(values[field.id], field.options)
+        !getChoiceSelectionFromValues(field, values)
       ) {
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
@@ -1269,15 +1382,37 @@ function AgreementSignContent() {
           ) : template && templateHasImages ? (
             <TemplateImagePreview
               template={template}
-              fields={fields}
+              fields={documentFields}
               values={values}
               signatures={signatures}
               currentFieldId={currentField?.id}
+              highlightedFieldIds={
+                currentField?.sourceCheckboxIds?.length
+                  ? currentField.sourceCheckboxIds
+                  : currentField
+                    ? [currentField.id]
+                    : []
+              }
+              activePageIndex={currentField?.pageIndex}
               onSelectChoice={(fieldId, optionId) => {
-                updateValue(fieldId, optionId);
-                const field = fields.find((item) => item.id === fieldId);
-                if (field) {
-                  scheduleAutoAdvance(field, 300);
+                // Native choice fields live in documentFields; synthetic
+                // groups are selected from the wizard via checkbox ids.
+                const docField = documentFields.find((item) => item.id === fieldId);
+                if (docField?.type === "choice") {
+                  updateValue(fieldId, optionId);
+                  const wizardField = fields.find((item) => item.id === fieldId);
+                  if (wizardField) scheduleAutoAdvance(wizardField, 300);
+                  return;
+                }
+
+                const wizardField = fields.find(
+                  (item) =>
+                    item.type === "choice" &&
+                    item.sourceCheckboxIds?.includes(optionId),
+                );
+                if (wizardField) {
+                  updateValue(wizardField.id, optionId);
+                  scheduleAutoAdvance(wizardField, 300);
                 }
               }}
             />
@@ -1367,9 +1502,11 @@ function AgreementSignContent() {
                       currentField.x,
                       currentField.y,
                     ).map((option, index) => {
-                      const selected =
-                        String(values[currentField.id] || "").trim() ===
-                        option.id;
+                      const selectedOptionId = getChoiceSelectionFromValues(
+                        currentField,
+                        values,
+                      );
+                      const selected = selectedOptionId === option.id;
                       const optionLabel = getChoiceOptionDisplayLabel(
                         option,
                         index,

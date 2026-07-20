@@ -19,14 +19,17 @@ import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 import { formatDateForPdf } from "@/lib/dateFieldFormat";
 import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
 import {
+  collapseConsecutiveCheckboxesToChoiceFields,
   getChoiceFieldBounds,
   isChoiceValueSelected,
   normalizeChoiceOptions,
   resolveAgreementFieldType,
+  TERMINATION_REASON_OPTION_LABELS,
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 import {
   buildTemplateTypeQuery,
+  EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
 
@@ -48,6 +51,7 @@ type TemplateField = {
   required: boolean;
   order: number;
   options?: ChoiceOption[];
+  sourceCheckboxIds?: string[];
 };
 
 type SignAgreementBody = {
@@ -632,7 +636,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    for (const field of fields) {
+    const validationFields =
+      templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION
+        ? (collapseConsecutiveCheckboxesToChoiceFields(fields, {
+            minGroupSize: 2,
+            choiceLabel: "סיבת סיום ההעסקה",
+            defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
+          }) as TemplateField[])
+        : fields;
+
+    for (const field of validationFields) {
       if (!field.required) continue;
 
       if (field.type === "signature") {
@@ -662,6 +675,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (field.type === "choice") {
+        const sourceIds = field.sourceCheckboxIds || [];
+        if (sourceIds.length > 0) {
+          const selected = sourceIds.some((checkboxId) =>
+            isCheckboxChecked(cleanStr((body.values || {})[checkboxId])),
+          );
+
+          if (!selected) {
+            return NextResponse.json(
+              { success: false, error: `חסר שדה חובה: ${field.label}` },
+              { status: 400 }
+            );
+          }
+
+          continue;
+        }
+
         const value = getFieldValue(body, field);
 
         if (!isChoiceValueSelected(value, field.options)) {

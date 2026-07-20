@@ -69,6 +69,7 @@ export function buildChoiceOptions(
   count: number,
   startX = 38,
   startY = 35,
+  layout: "vertical" | "horizontal" = "vertical",
 ): ChoiceOption[] {
   const safeCount = clampChoiceCount(count);
   const { width, height } = clampChoiceOptionSize(
@@ -77,21 +78,204 @@ export function buildChoiceOptions(
   );
 
   return Array.from({ length: safeCount }, (_, index) => {
-    const x = clamp(
-      Number((startX + index * (width + CHOICE_OPTION_GAP)).toFixed(2)),
-      0,
-      100 - width,
-    );
+    const x =
+      layout === "horizontal"
+        ? clamp(
+            Number((startX + index * (width + CHOICE_OPTION_GAP)).toFixed(2)),
+            0,
+            100 - width,
+          )
+        : clamp(Number(startX.toFixed(2)), 0, 100 - width);
+
+    const y =
+      layout === "vertical"
+        ? clamp(
+            Number((startY + index * (height + CHOICE_OPTION_GAP)).toFixed(2)),
+            0,
+            100 - height,
+          )
+        : clamp(Number(startY.toFixed(2)), 0, 100 - height);
 
     return {
       id: String(index + 1),
       label: "",
       x,
-      y: clamp(Number(startY.toFixed(2)), 0, 100 - height),
+      y,
       width,
       height,
     };
   });
+}
+
+export type CheckboxLikeField = {
+  id: string;
+  label?: string;
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required?: boolean;
+  order: number;
+};
+
+/**
+ * Merge consecutive checkbox fields (same page, adjacent order) into one
+ * single-select choice field. Option ids keep the original checkbox ids so
+ * values can be written back as true/false per box on the PDF.
+ */
+export function mergeCheckboxFieldsToChoice(
+  checkboxes: CheckboxLikeField[],
+  fieldLabel = "בחירה",
+): {
+  id: string;
+  label: string;
+  type: "choice";
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  order: number;
+  options: ChoiceOption[];
+  sourceCheckboxIds: string[];
+} | null {
+  if (!Array.isArray(checkboxes) || checkboxes.length < CHOICE_OPTION_MIN_COUNT) {
+    return null;
+  }
+
+  const sorted = [...checkboxes].sort((a, b) => a.order - b.order);
+  const genericLabels = new Set(["שדה", "תיבת סימון", "שדה טקסט", "בחירה"]);
+
+  const options: ChoiceOption[] = sorted.map((field) => {
+    const { width, height } = clampChoiceOptionSize(field.width, field.height);
+    const rawLabel = typeof field.label === "string" ? field.label.trim() : "";
+    return {
+      id: String(field.id),
+      label: rawLabel && !genericLabels.has(rawLabel) ? rawLabel : "",
+      x: clamp(Number(toNumber(field.x, 0).toFixed(2)), 0, 100 - width),
+      y: clamp(Number(toNumber(field.y, 0).toFixed(2)), 0, 100 - height),
+      width,
+      height,
+    };
+  });
+
+  const bounds = getChoiceFieldBounds(options);
+  const sharedLabel = sorted
+    .map((field) => String(field.label || "").trim())
+    .find((label) => label.length > 0 && !genericLabels.has(label));
+
+  return {
+    id: `choice-group-${sorted[0].id}`,
+    label: sharedLabel || fieldLabel,
+    type: "choice",
+    pageIndex: sorted[0].pageIndex,
+    ...bounds,
+    required: sorted.some((field) => field.required !== false),
+    order: sorted[0].order,
+    options,
+    sourceCheckboxIds: sorted.map((field) => String(field.id)),
+  };
+}
+
+/**
+ * Collapse order-adjacent checkbox runs on the same page into choice steps.
+ * Non-checkbox fields stay as-is. Use for wizard UX when a template was built
+ * with separate checkboxes that should be mutually exclusive.
+ */
+/** Default sub-labels for termination-request reason checkboxes on the PDF. */
+export const TERMINATION_REASON_OPTION_LABELS = [
+  "שעות העבודה והיקף המשרה אינם מתאימים לי.",
+  "מצאתי מקום עבודה אחר.",
+  "העבודה אינה מתאימה לי.",
+  "סיבה אחרת:",
+] as const;
+
+export function collapseConsecutiveCheckboxesToChoiceFields<
+  T extends CheckboxLikeField & { type: string; options?: ChoiceOption[] },
+>(
+  fields: T[],
+  options?: {
+    minGroupSize?: number;
+    choiceLabel?: string;
+    defaultOptionLabels?: string[];
+  },
+): Array<
+  | T
+  | (ReturnType<typeof mergeCheckboxFieldsToChoice> & { type: "choice" })
+> {
+  const minGroupSize = Math.max(
+    CHOICE_OPTION_MIN_COUNT,
+    options?.minGroupSize ?? CHOICE_OPTION_MIN_COUNT,
+  );
+  const choiceLabel = options?.choiceLabel || "בחירה";
+  const defaultOptionLabels = options?.defaultOptionLabels || [];
+  const sorted = [...fields].sort((a, b) => a.order - b.order);
+  const result: Array<
+    | T
+    | (NonNullable<ReturnType<typeof mergeCheckboxFieldsToChoice>> & {
+        type: "choice";
+      })
+  > = [];
+
+  let index = 0;
+  while (index < sorted.length) {
+    const field = sorted[index];
+
+    if (field.type !== "checkbox") {
+      result.push(field);
+      index += 1;
+      continue;
+    }
+
+    const run: T[] = [field];
+    let cursor = index + 1;
+
+    while (cursor < sorted.length) {
+      const next = sorted[cursor];
+      if (next.type !== "checkbox") break;
+      if (next.pageIndex !== field.pageIndex) break;
+      // Adjacent in fill-order list on the same page = one exclusive group.
+      run.push(next);
+      cursor += 1;
+    }
+
+    const genericLabels = new Set(["", "שדה", "תיבת סימון", "שדה טקסט"]);
+    const allGenericLabels = run.every((item) =>
+      genericLabels.has(String(item.label || "").trim()),
+    );
+
+    // Only auto-collapse unlabeled checkbox clusters (typical "pick one reason"
+    // rows). Labeled confirmation checkboxes stay as separate required steps.
+    if (run.length >= minGroupSize && allGenericLabels) {
+      const merged = mergeCheckboxFieldsToChoice(run, choiceLabel);
+      if (merged) {
+        if (
+          defaultOptionLabels.length > 0 &&
+          merged.options.length === defaultOptionLabels.length
+        ) {
+          merged.options = merged.options.map((option, optionIndex) => ({
+            ...option,
+            label:
+              option.label?.trim() ||
+              defaultOptionLabels[optionIndex] ||
+              option.label ||
+              "",
+          }));
+        }
+
+        result.push(merged);
+        index = cursor;
+        continue;
+      }
+    }
+
+    result.push(field);
+    index += 1;
+  }
+
+  return result;
 }
 
 export function normalizeChoiceOptions(
@@ -178,17 +362,18 @@ export function resizeChoiceOptions(
     (_, index) => {
       const offset = index + 1;
       const { width, height } = clampChoiceOptionSize(last.width, last.height);
-      const x = clamp(
-        Number((last.x + offset * (width + CHOICE_OPTION_GAP)).toFixed(2)),
+      const x = clamp(Number(last.x.toFixed(2)), 0, 100 - width);
+      const y = clamp(
+        Number((last.y + offset * (height + CHOICE_OPTION_GAP)).toFixed(2)),
         0,
-        100 - width,
+        100 - height,
       );
 
       return {
         id: String(existing.length + offset),
         label: "",
         x,
-        y: last.y,
+        y,
         width,
         height,
       };

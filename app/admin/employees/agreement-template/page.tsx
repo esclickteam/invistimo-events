@@ -27,6 +27,7 @@ import {
   clampChoiceOptionSize,
   getChoiceFieldBounds,
   getChoiceOptionDisplayLabel,
+  mergeCheckboxFieldsToChoice,
   normalizeChoiceOptions,
   resizeChoiceOptions,
   resolveAgreementFieldType,
@@ -862,6 +863,75 @@ function AgreementTemplateEditor() {
     if (selectedId === id) {
       setSelectedId("");
     }
+  }
+
+  function mergeSelectedCheckboxesToChoice() {
+    if (!selectedField || selectedField.type !== "checkbox") return;
+
+    const sorted = sortAgreementFieldsByOrder(fields) as TemplateField[];
+    const selectedIndex = sorted.findIndex(
+      (field) => field.id === selectedField.id,
+    );
+    if (selectedIndex === -1) return;
+
+    let start = selectedIndex;
+    while (
+      start > 0 &&
+      sorted[start - 1].type === "checkbox" &&
+      sorted[start - 1].pageIndex === selectedField.pageIndex
+    ) {
+      start -= 1;
+    }
+
+    let end = selectedIndex;
+    while (
+      end < sorted.length - 1 &&
+      sorted[end + 1].type === "checkbox" &&
+      sorted[end + 1].pageIndex === selectedField.pageIndex
+    ) {
+      end += 1;
+    }
+
+    const run = sorted.slice(start, end + 1);
+    if (run.length < CHOICE_OPTION_MIN_COUNT) {
+      alert("צריך לפחות 2 תיבות סימון רצופות באותו עמוד כדי להמיר לתיבת בחירה.");
+      return;
+    }
+
+    const defaultLabel =
+      templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION
+        ? "סיבת סיום ההעסקה"
+        : "בחירה";
+
+    const merged = mergeCheckboxFieldsToChoice(run, defaultLabel);
+    if (!merged) return;
+
+    const choiceField: TemplateField = {
+      id: makeId(),
+      label: merged.label,
+      type: "choice",
+      pageIndex: merged.pageIndex,
+      x: merged.x,
+      y: merged.y,
+      width: merged.width,
+      height: merged.height,
+      required: merged.required,
+      order: merged.order,
+      options: merged.options.map((option, index) => ({
+        ...option,
+        id: String(index + 1),
+      })),
+    };
+
+    const removeIds = new Set(run.map((field) => field.id));
+    const nextFields = normalizeFieldOrders([
+      ...sorted.filter((field) => !removeIds.has(field.id)),
+      choiceField,
+    ]);
+
+    setFields(nextFields);
+    setSelectedId(choiceField.id);
+    setSelectedOptionId(choiceField.options?.[0]?.id || "");
   }
 
   function reorderFields(
@@ -2048,6 +2118,17 @@ function AgreementTemplateEditor() {
                         }
                       />
                     </div>
+                  )}
+
+                  {selectedField.type === "checkbox" && (
+                    <button
+                      type="button"
+                      onClick={mergeSelectedCheckboxesToChoice}
+                      disabled={saving || uploadingPdf}
+                      className="h-11 w-full rounded-2xl border border-violet-300 bg-violet-50 px-4 text-sm font-black text-violet-800 transition hover:bg-violet-100 disabled:opacity-40"
+                    >
+                      המר תיבות סימון רצופות לתיבת בחירה (אחת מתוך כמה)
+                    </button>
                   )}
 
                   <button
