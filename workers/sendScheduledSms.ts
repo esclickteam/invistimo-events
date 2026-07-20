@@ -5,6 +5,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { resolveInvitationTitle } from "@/lib/invitations/resolveInvitationTitle";
 
 import {
   sendRsvpTemplateMedia,
@@ -233,6 +234,39 @@ function stripTableBlockForGuestWithoutTable(text: string) {
     .trim();
 }
 
+function applyFreshEventTitle(payload: any, eventTitle: string) {
+  const nextPayload = {
+    ...(payload || {}),
+    eventTitle,
+  };
+
+  if (!Array.isArray(nextPayload.components)) {
+    return nextPayload;
+  }
+
+  nextPayload.components = nextPayload.components.map((component: any) => {
+    if (component?.type !== "body" || !Array.isArray(component.parameters)) {
+      return component;
+    }
+
+    const parameters = [...component.parameters];
+
+    if (parameters[0]?.type === "text") {
+      parameters[0] = {
+        ...parameters[0],
+        text: eventTitle,
+      };
+    }
+
+    return {
+      ...component,
+      parameters,
+    };
+  });
+
+  return nextPayload;
+}
+
 async function buildSmsText({
   schedule,
   invitation,
@@ -244,7 +278,7 @@ async function buildSmsText({
   guest: any;
   navigationLink: string;
 }) {
-  const invitationTitle = invitation?.title?.trim() || "האירוע שלנו";
+  const invitationTitle = resolveInvitationTitle(invitation);
 
   const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
   const shortUrl = await shortenUrl(personalUrl);
@@ -944,16 +978,21 @@ export async function sendScheduledWhatsapp() {
         const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
 const personalUrl = `https://www.invistimo.com/invite/${urlSuffix}`;
 
+        const resolvedTitle = resolveInvitationTitle(invitation);
+
         const replacements = {
           name: guest.name || "",
-          invitationTitle: invitation.title || "האירוע שלנו",
+          invitationTitle: resolvedTitle,
           rsvpLink: personalUrl,
           urlSuffix,
           tableName,
           navigationLink: navigationLink || "",
         };
 
-        const payload = deepReplacePlaceholders(msg.payload || {}, replacements);
+        const payload = applyFreshEventTitle(
+          deepReplacePlaceholders(msg.payload || {}, replacements),
+          resolvedTitle
+        );
 
         const templateName = String(msg.templateName || "").trim();
 

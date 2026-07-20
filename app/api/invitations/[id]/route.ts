@@ -7,6 +7,7 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 
 import { v2 as cloudinary } from "cloudinary";
+import { resolveInvitationTitle } from "@/lib/invitations/resolveInvitationTitle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -326,6 +327,48 @@ async function findEventForInvitation(invitation: any) {
       $in: possibleIds.map((id) => new mongoose.Types.ObjectId(id)),
     },
   }).lean();
+}
+
+async function syncLinkedEventFromInvitation(invitation: any) {
+  const linkedEvent = await findEventForInvitation(invitation);
+
+  if (!linkedEvent?._id) {
+    return null;
+  }
+
+  const eventUpdates: Record<string, any> = {
+    updatedAt: new Date(),
+  };
+
+  const title = resolveInvitationTitle(invitation, linkedEvent);
+
+  if (title) {
+    eventUpdates.title = title;
+  }
+
+  const eventType = cleanString(invitation?.eventType);
+  if (eventType) {
+    eventUpdates.eventType = eventType;
+  }
+
+  if (invitation?.eventDate) {
+    eventUpdates.date = invitation.eventDate;
+  }
+
+  const eventTime = cleanString(invitation?.eventTime);
+  if (eventTime) {
+    eventUpdates.time = eventTime;
+  }
+
+  if (invitation?.location) {
+    eventUpdates.location = invitation.location;
+  }
+
+  return Event.findByIdAndUpdate(
+    linkedEvent._id,
+    { $set: eventUpdates },
+    { new: true }
+  ).lean();
 }
 
 /* ============================================================
@@ -732,6 +775,7 @@ export async function PUT(
 
     if (typeof title === "string" && title.trim()) {
       updatePayload.title = title.trim();
+      updatePayload.eventTitle = title.trim();
     }
 
     if (typeof eventType === "string" && eventType.trim()) {
@@ -880,6 +924,8 @@ export async function PUT(
     let event: any = null;
 
     try {
+      event = await syncLinkedEventFromInvitation(invitationAfterBasicUpdate);
+
       if (toBool(body?.createEvent)) {
         event = await createOrUpdateEventForInvitation({
           invitation: invitationAfterBasicUpdate,

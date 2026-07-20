@@ -12,6 +12,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
+import { resolveInvitationTitle } from "@/lib/invitations/resolveInvitationTitle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -257,9 +258,11 @@ function buildPayloadTemplate({
       ""
   );
 
+  const eventTitle = resolveInvitationTitle(invitation);
+
   const basePayload: any = {
     languageCode,
-    eventTitle: invitation.title || "",
+    eventTitle,
     eventDate,
     eventLocation,
     headerImageUrl: finalImageUrl,
@@ -289,7 +292,7 @@ function buildPayloadTemplate({
     {
       type: "body",
       parameters: [
-        { type: "text", text: invitation.title || "" },
+        { type: "text", text: eventTitle },
         { type: "text", text: eventDate },
         { type: "text", text: eventLocation },
       ],
@@ -323,7 +326,7 @@ if (templateName === "rsvp_reminder_invistimo") {
     {
       type: "body",
       parameters: [
-        { type: "text", text: invitation.title || "האירוע שלנו" },
+        { type: "text", text: eventTitle || "האירוע שלנו" },
       ],
     },
     {
