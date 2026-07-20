@@ -187,6 +187,7 @@ type DocumentsTab =
   | "form101"
   | "idCard"
   | "agreement"
+  | "termination"
   | "accountManagement"
   | "hours"
   | "payslips";
@@ -194,11 +195,13 @@ type DocumentsTab =
 type EmployeeDocumentsModalProps = {
   open: boolean;
   onClose: () => void;
+  initialTab?: DocumentsTab;
 
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
   idCardAppendix?: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
+  terminationAgreement?: ApiEmployeeAgreement | null;
   assignedAgreements?: ApiEmployeeAgreement[];
   buildSignAgreementUrl?: (templateType?: string) => string;
   accountManagement?: ApiEmployeeDocument | null;
@@ -1326,11 +1329,13 @@ function HoursTable({
 export default function EmployeeDocumentsModal({
   open,
   onClose,
+  initialTab = "form101",
 
   form101,
   idCard,
   idCardAppendix = null,
   agreement,
+  terminationAgreement = null,
   assignedAgreements = [],
   buildSignAgreementUrl,
   accountManagement = null,
@@ -1394,10 +1399,23 @@ export default function EmployeeDocumentsModal({
     agreementStatus === "rejected" ||
     agreementStatus === "pending";
 
+  const terminationStatus = getAgreementEffectiveStatus(terminationAgreement);
+  const terminationFileUrl = getAgreementFileUrl(terminationAgreement);
+  const terminationDate = getAgreementDate(terminationAgreement);
+  const hasTerminationAssignment = Boolean(terminationAgreement);
+  const canSignTermination =
+    hasTerminationAssignment &&
+    (terminationStatus === "pending" || terminationStatus === "rejected");
+  const terminationSignUrl = buildSignAgreementUrl
+    ? buildSignAgreementUrl("termination_request")
+    : `${signAgreementUrl}${signAgreementUrl.includes("type=") ? signAgreementUrl.replace(/type=[^&]*/, "type=termination_request") : `${signAgreementUrl}${signAgreementUrl.includes("?") ? "&" : "?"}type=termination_request`}`;
+
   const pendingAssignedAgreements = useMemo(
     () =>
       assignedAgreements.filter(
-        (item) => item.status === "pending" || item.status === "rejected",
+        (item) =>
+          (item.status === "pending" || item.status === "rejected") &&
+          item.templateType !== "termination_request",
       ),
     [assignedAgreements],
   );
@@ -1590,9 +1608,22 @@ export default function EmployeeDocumentsModal({
 
   useEffect(() => {
     if (open) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+        return;
+      }
+
+      if (
+        terminationAgreement &&
+        (terminationStatus === "pending" || terminationStatus === "rejected")
+      ) {
+        setActiveTab("termination");
+        return;
+      }
+
       setActiveTab("form101");
     }
-  }, [open]);
+  }, [open, initialTab, terminationAgreement, terminationStatus]);
 
   useEffect(() => {
     if (!open || activeTab !== "hours") return;
@@ -1646,6 +1677,21 @@ export default function EmployeeDocumentsModal({
           </Badge>
         ),
       },
+      ...(hasTerminationAssignment
+        ? [
+            {
+              id: "termination" as const,
+              title: "סיום העסקה",
+              subtitle: "בקשה לחתימה",
+              icon: <Icon name="agreement" className="h-5 w-5" />,
+              badge: (
+                <Badge className={agreementStatusClass(terminationStatus)}>
+                  {agreementStatusLabel(terminationStatus)}
+                </Badge>
+              ),
+            },
+          ]
+        : []),
       {
         id: "hours" as const,
         title: "שעות",
@@ -1671,6 +1717,8 @@ export default function EmployeeDocumentsModal({
     ],
     [
       agreementStatus,
+      terminationStatus,
+      hasTerminationAssignment,
       accountManagementStatus,
       form101Status,
       hoursSummary.status,
@@ -2167,6 +2215,134 @@ export default function EmployeeDocumentsModal({
                     <EmptyTabState
                       title="עדיין אין הסכם חתום"
                       subtitle="לאחר חתימה על ההסכם, ה-PDF החתום יופיע כאן לצפייה בלבד."
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "termination" && (
+            <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">
+                      בקשה לסיום העסקה
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                      מלאי את השדות לפי הסדר, חתמי ושלחי. המסמך החתום יישמר
+                      בתיק העובד שלך ויוצג גם לאדמין.
+                    </p>
+                  </div>
+
+                  <Badge className={agreementStatusClass(terminationStatus)}>
+                    {agreementStatusLabel(terminationStatus)}
+                  </Badge>
+                </div>
+
+                {terminationAgreement?.sentAt && (
+                  <p className="mt-4 text-xs font-bold text-slate-500">
+                    נשלח אליך לחתימה:{" "}
+                    {formatDate(terminationAgreement.sentAt)}
+                  </p>
+                )}
+
+                {terminationStatus === "rejected" && (
+                  <div className="mt-5">
+                    <RejectionBox reason={terminationAgreement?.rejectionReason} />
+                  </div>
+                )}
+
+                {canSignTermination ? (
+                  <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                    <p className="text-sm font-black leading-6 text-amber-900">
+                      {terminationStatus === "rejected"
+                        ? "הבקשה נדחתה — יש למלא ולחתום מחדש."
+                        : "יש למלא את הבקשה, לחתום ולשלוח."}
+                    </p>
+
+                    <a
+                      href={terminationSignUrl}
+                      className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 sm:w-auto"
+                    >
+                      <Icon name="check" className="h-4 w-4" />
+                      מעבר למילוי וחתימה
+                    </a>
+                  </div>
+                ) : terminationFileUrl ? (
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <a
+                      href={terminationFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      <Icon name="open" className="h-4 w-4" />
+                      צפייה בבקשה החתומה
+                    </a>
+                  </div>
+                ) : (
+                  !agreementLoading && (
+                    <EmptyTabState
+                      title="הבקשה טרם נשלחה"
+                      subtitle="כשהאדמין ישלח אליך בקשה לסיום העסקה, היא תופיע כאן למילוי."
+                    />
+                  )
+                )}
+
+                {!canSignTermination && terminationFileUrl && (
+                  <ReadonlyNotice text="הבקשה נחתמה ונשמרה במערכת. ניתן לצפות בה בלבד." />
+                )}
+              </div>
+
+              <div>
+                {terminationAgreement &&
+                (terminationStatus === "signed" ||
+                  terminationStatus === "approved") ? (
+                  <div className="rounded-[26px] border border-slate-200 bg-white p-5">
+                    <p className="text-lg font-black text-slate-900">
+                      הבקשה החתומה האחרונה
+                    </p>
+
+                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                      {terminationAgreement.fullName && (
+                        <span>
+                          שם:{" "}
+                          <b className="text-slate-900">
+                            {terminationAgreement.fullName}
+                          </b>
+                        </span>
+                      )}
+
+                      {terminationDate && (
+                        <span>
+                          תאריך חתימה:{" "}
+                          <b className="text-slate-900">
+                            {formatDate(terminationDate)}
+                          </b>
+                        </span>
+                      )}
+                    </div>
+
+                    {terminationFileUrl && (
+                      <a
+                        href={terminationFileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Icon name="open" className="h-4 w-4" />
+                        צפייה בבקשה החתומה
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  !agreementLoading &&
+                  canSignTermination && (
+                    <EmptyTabState
+                      title="אזור מילוי הבקשה"
+                      subtitle='לחצי על "מעבר למילוי וחתימה" כדי למלא את השדות לפי הסדר ולשלוח.'
                     />
                   )
                 )}

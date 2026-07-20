@@ -20,6 +20,7 @@ type DocumentType =
   | "idCardAppendix"
   | "accountManagement"
   | "agreement"
+  | "termination_request"
   | "payslip"
   | string;
 
@@ -55,6 +56,9 @@ type AdminEmployeeDocument = {
   payrollMonth?: string;
   status?: DocumentStatus;
   uploadedAt?: string;
+  sentAt?: string | null;
+  templateType?: string;
+  templateTypeLabel?: string;
   createdAt?: string;
   updatedAt?: string;
   startDate?: string | null;
@@ -299,6 +303,20 @@ function statusLabel(status?: string) {
   }
 }
 
+function documentStatusLabel(doc?: AdminEmployeeDocument | null) {
+  const status = String(doc?.status || "").toLowerCase();
+  const isAgreementDoc =
+    doc?.source === "agreement" ||
+    doc?.documentType === "agreement" ||
+    doc?.documentType === "termination_request";
+
+  if (isAgreementDoc && status === "pending") {
+    return "ממתין למילוי";
+  }
+
+  return statusLabel(doc?.status);
+}
+
 function statusClass(status?: string) {
   switch (String(status || "").toLowerCase()) {
     case "approved":
@@ -330,6 +348,8 @@ function documentTypeLabel(type?: string) {
       return "אישור ניהול חשבון";
     case "agreement":
       return "הסכם עבודה";
+    case "termination_request":
+      return "בקשה לסיום העסקה";
     case "payslip":
       return "תלוש שכר";
     default:
@@ -639,6 +659,8 @@ export default function AdminEmployeeFilePage() {
     documents.find((doc) => doc.documentType === "accountManagement") || null;
   const agreement =
     documents.find((doc) => doc.documentType === "agreement") || null;
+  const terminationRequest =
+    documents.find((doc) => doc.documentType === "termination_request") || null;
 
   const payslips = useMemo(
     () =>
@@ -672,8 +694,9 @@ export default function AdminEmployeeFilePage() {
       { type: "idCardAppendix", doc: idCardAppendix },
       { type: "accountManagement", doc: accountManagement },
       { type: "agreement", doc: agreement },
+      { type: "termination_request", doc: terminationRequest },
     ],
-    [form101, idCard, idCardAppendix, accountManagement, agreement],
+    [form101, idCard, idCardAppendix, accountManagement, agreement, terminationRequest],
   );
 
   const totalMinutes = useMemo(
@@ -866,12 +889,19 @@ export default function AdminEmployeeFilePage() {
       agreements.forEach((agreementItem) => {
         if (String(agreementItem.employeeId || "") !== employeeId) return;
 
+        const templateType = String(
+          agreementItem.templateType || "phone_representative_agreement",
+        );
+        const isTermination = templateType === "termination_request";
+
         const fileUrl = cleanStr(
           agreementItem.signedFileUrl ||
             agreementItem.signedPdfUrl ||
             agreementItem.fileUrl ||
             agreementItem.pdfUrl,
         );
+
+        const status = cleanStr(agreementItem.status) || (fileUrl ? "signed" : "pending");
 
         mergedDocs.push({
           _id: agreementItem._id,
@@ -881,11 +911,18 @@ export default function AdminEmployeeFilePage() {
           employeeName: agreementItem.employeeName || agreementItem.fullName,
           employeeEmail: agreementItem.employeeEmail || agreementItem.email,
           employeePhone: agreementItem.employeePhone || agreementItem.phone,
-          documentType: "agreement",
-          originalFileName: "הסכם עבודה חתום",
+          documentType: isTermination ? "termination_request" : "agreement",
+          templateType,
+          templateTypeLabel:
+            agreementItem.templateTypeLabel ||
+            (isTermination ? "בקשה לסיום העסקה" : "הסכם עבודה"),
+          originalFileName: isTermination
+            ? "בקשה לסיום העסקה"
+            : "הסכם עבודה חתום",
           fileUrl,
           fileType: "application/pdf",
-          status: agreementItem.status || "signed",
+          status,
+          sentAt: agreementItem.sentAt || null,
           uploadedAt: agreementItem.signedAt,
           createdAt: agreementItem.createdAt,
           updatedAt: agreementItem.updatedAt,
@@ -1968,11 +2005,13 @@ export default function AdminEmployeeFilePage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-5">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {documentCards.map(({ type, doc }) => {
               const documentId = doc ? getDocumentId(doc) : "";
               const isUpdating = updatingDocId === documentId;
               const documentUrl = safeDocumentUrl(doc);
+              const isPendingWithoutFile =
+                String(doc?.status || "") === "pending" && !documentUrl;
 
               return (
                 <article
@@ -1985,7 +2024,7 @@ export default function AdminEmployeeFilePage() {
                         doc?.status,
                       )}`}
                     >
-                      {statusLabel(doc?.status)}
+                      {documentStatusLabel(doc)}
                     </span>
 
                     <div className="text-right">
@@ -1999,6 +2038,9 @@ export default function AdminEmployeeFilePage() {
                   </div>
 
                   <div className="mt-4 space-y-1 text-sm font-semibold text-slate-600">
+                    {doc?.sentAt ? (
+                      <p>נשלח לעובד: {formatDateTime(doc.sentAt)}</p>
+                    ) : null}
                     <p>
                       תאריך: {formatDateTime(doc?.uploadedAt || doc?.createdAt)}
                     </p>
@@ -2036,6 +2078,11 @@ export default function AdminEmployeeFilePage() {
                           {documentExportLabel(doc)}
                         </a>
                       </>
+                    ) : isPendingWithoutFile ? (
+                      <div className="col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-black leading-5 text-amber-800">
+                        נשלח לעובד — ממתין למילוי וחתימה. לאחר שליחה יופיע
+                        כאן הקובץ החתום.
+                      </div>
                     ) : (
                       <button
                         type="button"
@@ -2091,7 +2138,7 @@ export default function AdminEmployeeFilePage() {
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      disabled={!doc || isUpdating}
+                      disabled={!doc || isUpdating || isPendingWithoutFile}
                       onClick={() =>
                         doc && void updateDocumentStatus(doc, "approved")
                       }
@@ -2102,7 +2149,7 @@ export default function AdminEmployeeFilePage() {
 
                     <button
                       type="button"
-                      disabled={!doc || isUpdating}
+                      disabled={!doc || isUpdating || isPendingWithoutFile}
                       onClick={() =>
                         doc && void updateDocumentStatus(doc, "rejected")
                       }

@@ -1579,6 +1579,11 @@ export default function EmployeeDashboardPage() {
     useState<EmployeeDocumentType | null>(null);
   const [documentsError, setDocumentsError] = useState("");
   const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
+  const [documentsInitialTab, setDocumentsInitialTab] = useState<
+    "form101" | "termination" | "agreement"
+  >("form101");
+  const [terminationAgreement, setTerminationAgreement] =
+    useState<ApiEmployeeAgreement | null>(null);
 
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
@@ -1649,6 +1654,23 @@ export default function EmployeeDashboardPage() {
       ),
     [assignedAgreements],
   );
+
+  const pendingTermination = useMemo(
+    () =>
+      terminationAgreement &&
+      (terminationAgreement.status === "pending" ||
+        terminationAgreement.status === "rejected")
+        ? terminationAgreement
+        : null,
+    [terminationAgreement],
+  );
+
+  function openDocumentsModal(
+    tab: "form101" | "termination" | "agreement" = "form101",
+  ) {
+    setDocumentsInitialTab(tab);
+    setDocumentsModalOpen(true);
+  }
 
   function buildSignAgreementUrl(templateType?: string) {
     const params = new URLSearchParams();
@@ -2023,6 +2045,7 @@ export default function EmployeeDashboardPage() {
 
       if (!currentEmployeeId) {
         setAgreement(null);
+        setTerminationAgreement(null);
         setAssignedAgreements([]);
         return;
       }
@@ -2058,14 +2081,29 @@ export default function EmployeeDashboardPage() {
         ) ||
         null;
 
+      const terminationItem =
+        data?.byType?.termination_request ||
+        agreements.find(
+          (item: ApiEmployeeAgreement | null) =>
+            item?.templateType === "termination_request",
+        ) ||
+        null;
+
       setAgreement(
         phoneAgreement
           ? normalizeEmployeeAgreementFromResponse({ agreement: phoneAgreement })
           : null,
       );
+
+      setTerminationAgreement(
+        terminationItem
+          ? normalizeEmployeeAgreementFromResponse({ agreement: terminationItem })
+          : null,
+      );
     } catch (loadError) {
       console.error("LOAD EMPLOYEE AGREEMENT FAILED:", loadError);
       setAgreement(null);
+      setTerminationAgreement(null);
       setAssignedAgreements([]);
     } finally {
       setAgreementLoading(false);
@@ -2475,7 +2513,11 @@ export default function EmployeeDashboardPage() {
 
                   <button
                     type="button"
-                    onClick={() => setDocumentsModalOpen(true)}
+                    onClick={() =>
+                      openDocumentsModal(
+                        pendingTermination ? "termination" : "form101",
+                      )
+                    }
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-md"
                   >
                     <Icon name="file" className="h-4 w-4" />
@@ -2596,12 +2638,24 @@ export default function EmployeeDashboardPage() {
                       </p>
                     </div>
 
-                    <a
-                      href={buildSignAgreementUrl(item.templateType)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.templateType === "termination_request") {
+                          openDocumentsModal("termination");
+                          return;
+                        }
+
+                        window.location.href = buildSignAgreementUrl(
+                          item.templateType,
+                        );
+                      }}
                       className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700"
                     >
-                      מעבר לחתימה
-                    </a>
+                      {item.templateType === "termination_request"
+                        ? "פתיחת הבקשה למילוי"
+                        : "מעבר לחתימה"}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -2611,11 +2665,13 @@ export default function EmployeeDashboardPage() {
           <EmployeeDocumentsModal
             open={documentsModalOpen}
             onClose={() => setDocumentsModalOpen(false)}
+            initialTab={documentsInitialTab}
             form101={form101}
             idCard={idCard}
             idCardAppendix={idCardAppendix}
             accountManagement={accountManagement}
             agreement={agreement}
+            terminationAgreement={terminationAgreement}
             assignedAgreements={assignedAgreements}
             buildSignAgreementUrl={buildSignAgreementUrl}
             form101File={form101File}

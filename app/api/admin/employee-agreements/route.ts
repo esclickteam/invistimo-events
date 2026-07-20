@@ -5,6 +5,11 @@ import db from "@/lib/db";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
 import User from "@/models/User";
 
+import {
+  getTemplateTypeLabel,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -58,6 +63,23 @@ export async function GET(req: NextRequest) {
 
     const formattedAgreements = agreements.map((agreement: any) => {
       const employee = usersById.get(String(agreement.employeeId));
+      const templateType = normalizeTemplateType(agreement.templateType);
+      const rawStatus = cleanStr(agreement.status).toLowerCase();
+      const signedFileUrl = cleanStr(agreement.signedFileUrl);
+
+      let status = rawStatus || "pending";
+      if (
+        signedFileUrl ||
+        agreement.signedAt ||
+        rawStatus === "signed" ||
+        rawStatus === "approved"
+      ) {
+        status = rawStatus === "approved" ? "approved" : "signed";
+      } else if (rawStatus === "rejected") {
+        status = "rejected";
+      } else if (rawStatus === "pending" || agreement.sentAt) {
+        status = "pending";
+      }
 
       return {
         _id: String(agreement._id),
@@ -68,6 +90,13 @@ export async function GET(req: NextRequest) {
           : "",
         businessId: agreement.businessId
           ? String(agreement.businessId)
+          : "",
+
+        templateType,
+        templateTypeLabel: getTemplateTypeLabel(templateType),
+        sentAt: agreement.sentAt || null,
+        sentByAdminId: agreement.sentByAdminId
+          ? String(agreement.sentByAdminId)
           : "",
 
         employeeName:
@@ -91,8 +120,9 @@ export async function GET(req: NextRequest) {
         finalIdNumber: agreement.finalIdNumber || "",
         finalSignatureDate: agreement.finalSignatureDate || null,
 
-        signedFileUrl: agreement.signedFileUrl || "",
-        status: agreement.status || "signed",
+        signedFileUrl,
+        fileUrl: signedFileUrl,
+        status,
         signedAt: agreement.signedAt || agreement.createdAt || null,
         approvedAt: agreement.approvedAt || null,
         rejectedAt: agreement.rejectedAt || null,
