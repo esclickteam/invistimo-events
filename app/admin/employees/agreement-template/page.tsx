@@ -757,19 +757,35 @@ function AgreementTemplateEditor() {
         const nextField = {
           ...field,
           ...patch,
+          // Never coerce typed labels while editing — preserve spaces between words.
+          label:
+            patch.label !== undefined
+              ? String(patch.label)
+              : String(field.label ?? ""),
         };
 
         if (nextField.type === "choice") {
-          const options = normalizeChoiceOptions(
-            nextField.options,
-            4,
-            nextField.x,
-            nextField.y,
-          );
+          const options =
+            patch.options !== undefined
+              ? normalizeChoiceOptions(
+                  nextField.options,
+                  4,
+                  nextField.x,
+                  nextField.y,
+                )
+              : field.options || [];
+
           return {
             ...nextField,
             options,
-            ...getChoiceFieldBounds(options),
+            ...(patch.options !== undefined
+              ? getChoiceFieldBounds(options)
+              : {
+                  x: field.x,
+                  y: field.y,
+                  width: field.width,
+                  height: field.height,
+                }),
           };
         }
 
@@ -823,19 +839,13 @@ function AgreementTemplateEditor() {
       prev.map((field) => {
         if (field.id !== fieldId || field.type !== "choice") return field;
 
-        const options = normalizeChoiceOptions(
-          field.options,
-          4,
-          field.x,
-          field.y,
-        ).map((option) =>
+        const options = (field.options || []).map((option) =>
           option.id === optionId ? { ...option, label } : option,
         );
 
         return {
           ...field,
           options,
-          ...getChoiceFieldBounds(options),
         };
       }),
     );

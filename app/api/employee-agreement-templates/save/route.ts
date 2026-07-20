@@ -87,6 +87,12 @@ function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Keep internal spaces; only treat whitespace-only as empty. */
+function cleanLabel(value: unknown, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  return value.trim() ? value.replace(/^\s+|\s+$/g, "") : fallback;
+}
+
 function cleanNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -166,7 +172,7 @@ function normalizeFields(
 
         return {
           id: cleanStr(item.id) || `${Date.now()}-${index}`,
-          label: cleanStr(item.label) || defaultFieldLabel(type, index),
+          label: cleanLabel(item.label, defaultFieldLabel(type, index)),
           type,
           pageIndex,
           ...bounds,
@@ -183,7 +189,7 @@ function normalizeFields(
 
       return {
         id: cleanStr(item.id) || `${Date.now()}-${index}`,
-        label: cleanStr(item.label) || defaultFieldLabel(type, index),
+        label: cleanLabel(item.label, defaultFieldLabel(type, index)),
         type,
         pageIndex,
         x,

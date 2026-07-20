@@ -11,7 +11,7 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
     label: {
       type: String,
       required: true,
-      trim: true,
+      trim: false,
     },
 
     type: {
@@ -67,7 +67,7 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
       type: [
         {
           id: { type: String, required: true, trim: true },
-          label: { type: String, default: "", trim: true },
+          label: { type: String, default: "", trim: false },
           x: { type: Number, default: 38, min: 0, max: 100 },
           y: { type: Number, default: 35, min: 0, max: 100 },
           width: { type: Number, default: 3, min: 1, max: 100 },

@@ -99,8 +99,8 @@ function clamp(value: number, min: number, max: number) {
 
 import {
   DATE_FIELD_PLACEHOLDER,
+  displayToIsoDate,
   formatDateForPdf,
-  formatDateMaskInput,
   isoToDisplayDate,
   isValidDisplayDate,
 } from "@/lib/dateFieldFormat";
@@ -120,35 +120,58 @@ function DateFieldInput({
   label: string;
   onComplete?: () => void;
 }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const isoValue = displayToIsoDate(value);
+  const pickerValue = /^\d{4}-\d{2}-\d{2}$/.test(isoValue) ? isoValue : "";
   const displayValue = isoToDisplayDate(value);
+
+  function openPicker() {
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.focus();
+
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+      }
+    } catch {
+      // Native date input still opens on tap/click in most mobile browsers.
+    }
+  }
 
   return (
     <div className="mt-5 space-y-2">
-      <input
-        type="text"
-        inputMode="numeric"
-        dir="ltr"
-        value={displayValue}
-        onChange={(event) => {
-          const masked = formatDateMaskInput(event.target.value);
-          onChange(masked);
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="date"
+          dir="ltr"
+          value={pickerValue}
+          onChange={(event) => {
+            const nextIso = event.target.value;
+            if (!nextIso) {
+              onChange("");
+              return;
+            }
 
-          if (isValidDisplayDate(masked)) {
-            onComplete?.();
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && isValidDisplayDate(displayValue)) {
-            event.preventDefault();
-            onComplete?.();
-          }
-        }}
-        placeholder={DATE_FIELD_PLACEHOLDER}
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-base font-bold tracking-wide text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-      />
+            const nextDisplay = isoToDisplayDate(nextIso);
+            onChange(nextDisplay);
+
+            if (isValidDisplayDate(nextDisplay)) {
+              onComplete?.();
+            }
+          }}
+          onClick={openPicker}
+          onFocus={openPicker}
+          className="h-12 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 text-left text-base font-bold tracking-wide text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+          aria-label={label?.trim() || "בחירת תאריך"}
+        />
+      </div>
 
       <p className="text-xs font-semibold text-slate-500">
-        הזיני תאריך בפורמט {DATE_FIELD_PLACEHOLDER}
+        לחיצה פותחת בחירת תאריך מהיומן
+        {displayValue ? ` · נבחר: ${displayValue}` : ""}
         {label?.trim() ? ` · ${label.trim()}` : ""}
       </p>
     </div>
