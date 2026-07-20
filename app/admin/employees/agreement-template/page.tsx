@@ -222,6 +222,7 @@ function AgreementTemplateEditor() {
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [sending, setSending] = useState(false);
+  const [newFieldOrder, setNewFieldOrder] = useState(1);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedId) || null,
@@ -234,6 +235,19 @@ function AgreementTemplateEditor() {
   );
 
   const hasPageImages = pages.some((page) => Boolean(page.imageUrl));
+
+  useEffect(() => {
+    setNewFieldOrder(fields.length + 1);
+  }, [fields.length]);
+
+  function normalizeFieldOrders(items: TemplateField[]) {
+    return [...items]
+      .sort((a, b) => a.order - b.order)
+      .map((field, index) => ({
+        ...field,
+        order: index + 1,
+      }));
+  }
 
   function applyTemplateToState(template: any) {
     const nextFileUrl = String(template?.fileUrl || DEFAULT_FILE_URL);
@@ -253,11 +267,13 @@ function AgreementTemplateEditor() {
     setPages(nextPages);
 
     setFields(
-      Array.isArray(template?.fields)
-        ? template.fields.map((field: any, index: number) =>
-            normalizeField(field, index)
-          )
-        : []
+      normalizeFieldOrders(
+        Array.isArray(template?.fields)
+          ? template.fields.map((field: any, index: number) =>
+              normalizeField(field, index)
+            )
+          : []
+      )
     );
 
     setActivePageIndex(0);
@@ -484,10 +500,15 @@ function AgreementTemplateEditor() {
       width,
       height,
       required: true,
-      order: fields.length + 1,
+      order: clamp(newFieldOrder, 1, fields.length + 1),
     };
 
-    setFields((prev) => [...prev, field]);
+    setFields((prev) => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      const targetIndex = clamp(field.order - 1, 0, sorted.length);
+      sorted.splice(targetIndex, 0, field);
+      return normalizeFieldOrders(sorted);
+    });
     setSelectedId(field.id);
 
     requestAnimationFrame(() => {
@@ -523,11 +544,41 @@ function AgreementTemplateEditor() {
   }
 
   function deleteField(id: string) {
-    setFields((prev) => prev.filter((field) => field.id !== id));
+    setFields((prev) =>
+      normalizeFieldOrders(prev.filter((field) => field.id !== id))
+    );
 
     if (selectedId === id) {
       setSelectedId("");
     }
+  }
+
+  function setFieldOrder(id: string, targetOrder: number) {
+    setFields((prev) => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      const currentIndex = sorted.findIndex((field) => field.id === id);
+      if (currentIndex === -1) return prev;
+
+      const nextIndex = clamp(targetOrder, 1, sorted.length) - 1;
+      if (currentIndex === nextIndex) return prev;
+
+      const [movedField] = sorted.splice(currentIndex, 1);
+      sorted.splice(nextIndex, 0, movedField);
+
+      return normalizeFieldOrders(sorted);
+    });
+  }
+
+  function moveFieldOrder(id: string, direction: "up" | "down") {
+    const sorted = [...fields].sort((a, b) => a.order - b.order);
+    const currentIndex = sorted.findIndex((field) => field.id === id);
+    if (currentIndex === -1) return;
+
+    const nextIndex =
+      direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= sorted.length) return;
+
+    setFieldOrder(id, nextIndex + 1);
   }
 
   function moveFieldToPage(id: string, pageIndex: number) {
@@ -991,6 +1042,37 @@ function AgreementTemplateEditor() {
 
           <aside className="space-y-5">
             <SideBox title="הוספת שדות">
+              <div className="mb-4">
+                <label className="mb-1 block text-xs font-black text-slate-500">
+                  מיקום בסדר המילוי (שדה #)
+                </label>
+
+                <select
+                  value={newFieldOrder}
+                  onChange={(event) =>
+                    setNewFieldOrder(Number(event.target.value))
+                  }
+                  disabled={loading || uploadingPdf || !hasPageImages}
+                  className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400 disabled:opacity-40"
+                >
+                  {Array.from({ length: fields.length + 1 }, (_, index) => {
+                    const orderNumber = index + 1;
+                    const isLast = orderNumber === fields.length + 1;
+
+                    return (
+                      <option key={orderNumber} value={orderNumber}>
+                        שדה {orderNumber}
+                        {isLast ? " (בסוף)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
+                  השדה החדש ייכנס למקום שבחרת, והשדות שאחריו יזוזו קדימה.
+                </p>
+              </div>
+
               <div className="grid gap-3">
                 <button
                   type="button"
@@ -1089,6 +1171,30 @@ function AgreementTemplateEditor() {
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
                     סוג שדה: {FIELD_TYPE_NAMES[selectedField.type]}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-black text-slate-500">
+                      סדר מילוי (שדה #)
+                    </label>
+
+                    <select
+                      value={selectedField.order}
+                      onChange={(event) =>
+                        setFieldOrder(
+                          selectedField.id,
+                          Number(event.target.value)
+                        )
+                      }
+                      className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                    >
+                      {sortedFields.map((field, index) => (
+                        <option key={field.id} value={index + 1}>
+                          שדה {index + 1}
+                          {field.id === selectedField.id ? " (נוכחי)" : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800">
@@ -1199,17 +1305,59 @@ function AgreementTemplateEditor() {
                         : "border-slate-200 bg-white"
                     }`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
+                    <div className="mb-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(field.id);
+                          scrollToPage(field.pageIndex);
+                        }}
+                        className="min-w-0 flex-1 text-right text-xs font-black text-slate-500"
+                      >
+                        שדה {field.order}. {FIELD_TYPE_NAMES[field.type]} — עמוד{" "}
+                        {field.pageIndex + 1}
+                      </button>
+
+                      <div className="flex shrink-0 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveFieldOrder(field.id, "up")}
+                          disabled={index === 0}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 disabled:opacity-30"
+                          title="העבר למעלה"
+                        >
+                          ↑
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => moveFieldOrder(field.id, "down")}
+                          disabled={index === sortedFields.length - 1}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-black text-slate-700 disabled:opacity-30"
+                          title="העבר למטה"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+
+                    <select
+                      value={field.order}
+                      onChange={(event) =>
+                        setFieldOrder(field.id, Number(event.target.value))
+                      }
+                      onFocus={() => {
                         setSelectedId(field.id);
-                        scrollToPage(field.pageIndex);
+                        setActivePageIndex(field.pageIndex);
                       }}
-                      className="mb-2 w-full text-right text-xs font-black text-slate-500"
+                      className="mb-2 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-violet-400"
                     >
-                      {index + 1}. {FIELD_TYPE_NAMES[field.type]} — עמוד{" "}
-                      {field.pageIndex + 1}
-                    </button>
+                      {sortedFields.map((_, orderIndex) => (
+                        <option key={orderIndex + 1} value={orderIndex + 1}>
+                          מיקום בסדר: שדה {orderIndex + 1}
+                        </option>
+                      ))}
+                    </select>
 
                     <input
                       value={field.label}
