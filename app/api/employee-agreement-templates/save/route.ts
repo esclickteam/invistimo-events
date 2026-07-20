@@ -8,6 +8,11 @@ import path from "path";
 
 import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
+import {
+  DEFAULT_TEMPLATE_TYPE,
+  getTemplateDefaultName,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +45,7 @@ type TemplatePage = {
 
 type SaveTemplateBody = {
   businessId?: string;
+  templateType?: string;
   name?: string;
   fileUrl?: string;
   pageCount?: number;
@@ -320,6 +326,7 @@ async function parseRequest(req: NextRequest): Promise<{
 
     const body: SaveTemplateBody = {
       businessId: cleanStr(formData.get("businessId")),
+      templateType: cleanStr(formData.get("templateType")),
       name: cleanStr(formData.get("name")),
       fileUrl: cleanStr(formData.get("fileUrl")),
       pageCount: cleanNumber(formData.get("pageCount"), DEFAULT_PAGE_COUNT),
@@ -380,7 +387,8 @@ export async function POST(req: NextRequest) {
     }
 
     const businessId = cleanStr(body.businessId);
-    const name = cleanStr(body.name) || "תבנית הסכם עבודה";
+    const templateType = normalizeTemplateType(body.templateType);
+    const name = cleanStr(body.name) || getTemplateDefaultName(templateType);
 
     let fileUrl = cleanStr(body.fileUrl) || DEFAULT_FILE_URL;
 
@@ -430,13 +438,25 @@ export async function POST(req: NextRequest) {
         ? new mongoose.Types.ObjectId(businessId)
         : null;
 
-    const query: Record<string, unknown> = {
-      isActive: true,
-      businessId: businessObjectId,
-    };
+    const query: Record<string, unknown> =
+      templateType === DEFAULT_TEMPLATE_TYPE
+        ? {
+            isActive: true,
+            businessId: businessObjectId,
+            $or: [
+              { templateType },
+              { templateType: { $exists: false } },
+            ],
+          }
+        : {
+            isActive: true,
+            businessId: businessObjectId,
+            templateType,
+          };
 
     const update = {
       businessId: businessObjectId,
+      templateType,
       name,
       fileUrl,
       pageCount,

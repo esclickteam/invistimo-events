@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
+import {
+  DEFAULT_TEMPLATE_TYPE,
+  getTemplateDefaultName,
+  normalizeTemplateType,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,15 +83,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const businessId = cleanStr(searchParams.get("businessId"));
+    const templateType = normalizeTemplateType(searchParams.get("templateType"));
 
     const businessObjectId =
       businessId && mongoose.Types.ObjectId.isValid(businessId)
         ? new mongoose.Types.ObjectId(businessId)
         : null;
 
+    const templateTypeQuery =
+      templateType === DEFAULT_TEMPLATE_TYPE
+        ? {
+            $or: [
+              { templateType },
+              { templateType: { $exists: false } },
+            ],
+          }
+        : { templateType };
+
     let template = await EmployeeAgreementTemplate.findOne({
       isActive: true,
       businessId: businessObjectId,
+      ...templateTypeQuery,
     })
       .sort({
         updatedAt: -1,
@@ -98,6 +115,7 @@ export async function GET(req: NextRequest) {
       template = await EmployeeAgreementTemplate.findOne({
         isActive: true,
         businessId: null,
+        ...templateTypeQuery,
       })
         .sort({
           updatedAt: -1,
@@ -112,7 +130,8 @@ export async function GET(req: NextRequest) {
           success: true,
           template: {
             businessId: businessObjectId,
-            name: "תבנית הסכם עבודה",
+            templateType,
+            name: getTemplateDefaultName(templateType),
             fileUrl: DEFAULT_FILE_URL,
             pageCount: DEFAULT_PAGE_COUNT,
             pages: [],

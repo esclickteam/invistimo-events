@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import {
+  EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
+  type EmployeeAgreementTemplateType,
+  getTemplateDefaultName,
+  getTemplateTypeLabel,
+  normalizeTemplateType,
+  TEMPLATE_TYPE_LABELS,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 type FieldType = "text" | "date" | "signature";
 
@@ -152,6 +162,26 @@ function buildPagesFromTemplate(template: any): TemplatePage[] {
 }
 
 export default function AgreementTemplatePage() {
+  return (
+    <Suspense
+      fallback={
+        <main dir="rtl" className="min-h-screen bg-slate-50 p-5 text-slate-950">
+          <div className="mx-auto max-w-7xl rounded-[28px] border border-slate-200 bg-white p-8 text-center text-sm font-black text-slate-500">
+            טוען עורך תבניות...
+          </div>
+        </main>
+      }
+    >
+      <AgreementTemplateEditor />
+    </Suspense>
+  );
+}
+
+function AgreementTemplateEditor() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const templateType = normalizeTemplateType(searchParams.get("type"));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pageEditorRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const dragRef = useRef<DragState | null>(null);
@@ -211,15 +241,18 @@ export default function AgreementTemplatePage() {
     setSelectedId("");
   }
 
-  async function loadTemplate() {
+  async function loadTemplate(type: EmployeeAgreementTemplateType = templateType) {
     try {
       setLoading(true);
       setMessage("");
 
-      const res = await fetch("/api/employee-agreement-templates/current", {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/employee-agreement-templates/current?templateType=${encodeURIComponent(type)}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
       const data = await res.json().catch(() => null);
       const template = data?.template || {};
@@ -240,8 +273,16 @@ export default function AgreementTemplatePage() {
   }
 
   useEffect(() => {
-    void loadTemplate();
-  }, []);
+    void loadTemplate(templateType);
+  }, [templateType]);
+
+  function switchTemplateType(nextType: EmployeeAgreementTemplateType) {
+    if (nextType === templateType) return;
+
+    router.push(
+      `/admin/employees/agreement-template?type=${encodeURIComponent(nextType)}`
+    );
+  }
 
   useEffect(() => {
     if (!draggingId) return;
@@ -474,11 +515,14 @@ export default function AgreementTemplatePage() {
 
       let res: Response;
 
+      const templateName = getTemplateDefaultName(templateType);
+
       if (pdfFile) {
         const formData = new FormData();
 
         formData.append("file", pdfFile);
-        formData.append("name", "תבנית הסכם עבודה");
+        formData.append("templateType", templateType);
+        formData.append("name", templateName);
         formData.append("fileUrl", fileUrl || DEFAULT_FILE_URL);
         formData.append("pageCount", String(pageCount || DEFAULT_PAGE_COUNT));
         formData.append("pages", JSON.stringify([]));
@@ -497,7 +541,8 @@ export default function AgreementTemplatePage() {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: "תבנית הסכם עבודה",
+            templateType,
+            name: templateName,
             fileUrl,
             pageCount,
             pages,
@@ -552,51 +597,77 @@ export default function AgreementTemplatePage() {
   return (
     <main dir="rtl" className="min-h-screen bg-slate-50 p-5 text-slate-950">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-5 flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-black">תבנית הסכם עבודה</h1>
+        <div className="mb-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-black">
+                {getTemplateTypeLabel(templateType)}
+              </h1>
 
-            <p className="mt-2 text-sm font-bold text-slate-500">
-              העלאת PDF, יצירת תמונות עמודים אוטומטית, מיקום שדות באחוזים ושמירה לפי עמוד.
-            </p>
+              <p className="mt-2 text-sm font-bold text-slate-500">
+                העלאת PDF, יצירת תמונות עמודים אוטומטית, מיקום שדות באחוזים ושמירה לפי עמוד.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleUploadPdf}
+                disabled={uploadingPdf || saving || loading}
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPdf || saving || loading}
+                className="inline-flex h-11 items-center rounded-2xl bg-slate-950 px-5 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {uploadingPdf ? "מעלה וממיר..." : "העלאת PDF"}
+              </button>
+
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50"
+              >
+                פתיחת PDF
+              </a>
+
+              <button
+                type="button"
+                onClick={() => saveTemplate()}
+                disabled={saving || uploadingPdf || loading}
+                className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
+              >
+                {saving ? "שומר..." : "שמירת תבנית"}
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={handleUploadPdf}
-              disabled={uploadingPdf || saving || loading}
-            />
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingPdf || saving || loading}
-              className="inline-flex h-11 items-center rounded-2xl bg-slate-950 px-5 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-50"
-            >
-              {uploadingPdf ? "מעלה וממיר..." : "העלאת PDF"}
-            </button>
-
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-11 items-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50"
-            >
-              פתיחת PDF
-            </a>
-
-            <button
-              type="button"
-              onClick={() => saveTemplate()}
-              disabled={saving || uploadingPdf || loading}
-              className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
-            >
-              {saving ? "שומר..." : "שמירת תבנית"}
-            </button>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+            {(
+              Object.values(
+                EMPLOYEE_AGREEMENT_TEMPLATE_TYPES
+              ) as EmployeeAgreementTemplateType[]
+            ).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => switchTemplateType(type)}
+                disabled={loading || saving || uploadingPdf}
+                className={`rounded-2xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-50 ${
+                  templateType === type
+                    ? "border-violet-500 bg-violet-600 text-white shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-violet-200 hover:bg-violet-50"
+                }`}
+              >
+                {TEMPLATE_TYPE_LABELS[type]}
+              </button>
+            ))}
           </div>
         </div>
 

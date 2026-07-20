@@ -131,6 +131,13 @@ const EmployeeAgreementTemplateSchema = new Schema(
       index: true,
     },
 
+    templateType: {
+      type: String,
+      enum: ["phone_representative_agreement", "termination_request"],
+      default: "phone_representative_agreement",
+      index: true,
+    },
+
     name: {
       type: String,
       default: "תבנית הסכם עבודה",
@@ -187,6 +194,7 @@ const EmployeeAgreementTemplateSchema = new Schema(
 
 EmployeeAgreementTemplateSchema.index({
   businessId: 1,
+  templateType: 1,
   isActive: 1,
 });
 

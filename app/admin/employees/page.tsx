@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
+  type EmployeeAgreementTemplateType,
+  TEMPLATE_TYPE_LABELS,
+} from "@/lib/employeeAgreementTemplateTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -219,7 +225,8 @@ function Icon({
     | "id"
     | "sparkles"
     | "download"
-    | "calendar";
+    | "calendar"
+    | "chevronDown";
   className?: string;
 }) {
   const common = {
@@ -347,6 +354,14 @@ function Icon({
     );
   }
 
+  if (name === "chevronDown") {
+    return (
+      <svg {...common}>
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="m12 3 10 18H2L12 3z" />
@@ -367,6 +382,8 @@ export default function AdminEmployeesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [detailsFilter, setDetailsFilter] = useState("");
   const [payrollMonth, setPayrollMonth] = useState(getCurrentMonthValue());
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const templateMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -481,6 +498,25 @@ export default function AdminEmployeesPage() {
     void loadEmployees();
   }, [loadEmployees]);
 
+  useEffect(() => {
+    if (!templateMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        templateMenuRef.current &&
+        !templateMenuRef.current.contains(event.target as Node)
+      ) {
+        setTemplateMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [templateMenuOpen]);
+
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -564,13 +600,39 @@ export default function AdminEmployeesPage() {
                   יצירת תבנית טופס 101
                 </Link>
 
-                <Link
-                  href="/admin/employees/agreement-template"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
-                >
-                  <Icon name="template" className="h-4 w-4" />
-                  יצירת תבנית הסכם לעובדים
-                </Link>
+                <div ref={templateMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setTemplateMenuOpen((open) => !open)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
+                  >
+                    <Icon name="template" className="h-4 w-4" />
+                    יצירת תבנית הסכם לעובדים
+                    <Icon
+                      name="chevronDown"
+                      className={`h-4 w-4 transition ${templateMenuOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {templateMenuOpen && (
+                    <div className="absolute left-0 top-[calc(100%+8px)] z-30 min-w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                      {(
+                        Object.values(
+                          EMPLOYEE_AGREEMENT_TEMPLATE_TYPES
+                        ) as EmployeeAgreementTemplateType[]
+                      ).map((type) => (
+                        <Link
+                          key={type}
+                          href={`/admin/employees/agreement-template?type=${encodeURIComponent(type)}`}
+                          onClick={() => setTemplateMenuOpen(false)}
+                          className="block rounded-xl px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-violet-50 hover:text-violet-700"
+                        >
+                          {TEMPLATE_TYPE_LABELS[type]}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"
