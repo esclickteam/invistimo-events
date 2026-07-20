@@ -2377,7 +2377,7 @@ export default function EmployeeDashboardPage() {
       dir="rtl"
       className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] text-slate-950"
     >
-      <main className="min-h-screen pb-10">
+      <main className="min-h-screen px-3 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-0 sm:pb-10">
         <section className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />

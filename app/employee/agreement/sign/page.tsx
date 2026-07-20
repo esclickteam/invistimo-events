@@ -101,10 +101,12 @@ function DateFieldInput({
   value,
   onChange,
   label,
+  onComplete,
 }: {
   value: string;
   onChange: (value: string) => void;
   label: string;
+  onComplete?: () => void;
 }) {
   const displayValue = isoToDisplayDate(value);
 
@@ -118,9 +120,19 @@ function DateFieldInput({
         onChange={(event) => {
           const masked = formatDateMaskInput(event.target.value);
           onChange(masked);
+
+          if (isValidDisplayDate(masked)) {
+            onComplete?.();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && isValidDisplayDate(displayValue)) {
+            event.preventDefault();
+            onComplete?.();
+          }
         }}
         placeholder={DATE_FIELD_PLACEHOLDER}
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold tracking-wide text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-base font-bold tracking-wide text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
       />
 
       <p className="text-xs font-semibold text-slate-500">
@@ -405,9 +417,18 @@ function TemplateImagePreview({
   currentFieldId?: string;
 }) {
   const pages = template.pages || [];
+  const currentField = fields.find((field) => field.id === currentFieldId);
+  const activePageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    activePageRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [currentFieldId, currentField?.pageIndex]);
 
   return (
-    <div className="h-[74vh] overflow-y-auto overflow-x-hidden bg-slate-100 p-4">
+    <div className="h-[42vh] overflow-y-auto overflow-x-hidden bg-slate-100 p-3 sm:h-[56vh] sm:p-4 lg:h-[74vh]">
       <div className="mx-auto flex w-full max-w-[920px] flex-col gap-7">
         {pages.map((page) => {
           const pageFields = fields.filter(
@@ -415,7 +436,15 @@ function TemplateImagePreview({
           );
 
           return (
-            <div key={page.pageIndex} className="space-y-2">
+            <div
+              key={page.pageIndex}
+              ref={
+                currentField?.pageIndex === page.pageIndex
+                  ? activePageRef
+                  : undefined
+              }
+              className="space-y-2"
+            >
               <div className="flex items-center justify-between px-1">
                 <div className="text-sm font-black text-slate-700">
                   עמוד {page.pageNumber}
@@ -580,6 +609,15 @@ function AgreementSignContent() {
 
   const [successUrl, setSuccessUrl] = useState("");
   const [error, setError] = useState("");
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valuesRef = useRef(values);
+  const signaturesRef = useRef(signatures);
+
+  valuesRef.current = values;
+  signaturesRef.current = signatures;
 
   const currentField = fields[stepIndex] || null;
   const isConfirmStep = stepIndex >= fields.length;
@@ -682,10 +720,92 @@ function AgreementSignContent() {
   }, [employeeId, businessId, templateType]);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
+
+    function updateLayout() {
+      setIsMobileLayout(mediaQuery.matches);
+      if (!mediaQuery.matches) {
+        setMobilePreviewOpen(false);
+      }
+    }
+
+    updateLayout();
+    mediaQuery.addEventListener("change", updateLayout);
+
+    return () => mediaQuery.removeEventListener("change", updateLayout);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  function checkFieldValid(
+    field: TemplateField,
+    fieldValues: Record<string, string>,
+    fieldSignatures: Record<string, string>
+  ) {
+    if (!field.required) return true;
+
+    if (field.type === "signature") {
+      return Boolean(fieldSignatures[field.id]);
+    }
+
+    if (field.type === "checkbox") {
+      return isCheckboxChecked(fieldValues[field.id]);
+    }
+
+    if (field.type === "date") {
+      return isValidDisplayDate(fieldValues[field.id]);
+    }
+
+    return Boolean(String(fieldValues[field.id] || "").trim());
+  }
+
+  function scheduleAutoAdvance(field: TemplateField, delay = 450) {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+    }
+
+    autoAdvanceTimerRef.current = setTimeout(() => {
+      const fieldIndex = fields.findIndex((item) => item.id === field.id);
+      if (fieldIndex === -1) return;
+
+      setStepIndex((prev) => {
+        if (prev !== fieldIndex) return prev;
+
+        if (
+          !checkFieldValid(
+            field,
+            valuesRef.current,
+            signaturesRef.current
+          )
+        ) {
+          return prev;
+        }
+
+        setError("");
+        return Math.min(prev + 1, fields.length);
+      });
+    }, delay);
+  }
+
+  function advanceFromCurrentField() {
+    if (!currentField) return;
+
+    if (!validateField(currentField)) return;
+
+    setStepIndex((prev) => Math.min(prev + 1, fields.length));
+  }
 
   function updateValue(fieldId: string, value: string) {
     setPreviewWasOpened(false);
@@ -700,7 +820,16 @@ function AgreementSignContent() {
     setConfirmed(false);
     clearCreatedPreview();
 
-    setSignatures((prev) => ({ ...prev, [fieldId]: value }));
+    setSignatures((prev) => {
+      const next = { ...prev, [fieldId]: value };
+      signaturesRef.current = next;
+      return next;
+    });
+
+    const field = fields.find((item) => item.id === fieldId);
+    if (field && value) {
+      scheduleAutoAdvance(field, 700);
+    }
   }
 
   function validateField(field: TemplateField) {
@@ -799,6 +928,12 @@ function AgreementSignContent() {
     }
 
     if (!currentField) return;
+
+    if (!currentField.required) {
+      setError("");
+      setStepIndex((prev) => Math.min(prev + 1, fields.length));
+      return;
+    }
 
     if (!validateField(currentField)) return;
 
@@ -934,31 +1069,44 @@ function AgreementSignContent() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950">
-      <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <section className="order-2 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm lg:order-1">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4">
+    <main dir="rtl" className="min-h-screen bg-slate-50 px-3 py-4 pb-28 text-slate-950 sm:px-4 sm:py-6 lg:pb-6">
+      <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-5">
+        {( !isMobileLayout || mobilePreviewOpen ) && (
+        <section className="order-2 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm sm:rounded-[32px] lg:order-1">
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-black">תצוגת {templateTypeLabel}</h2>
+              <h2 className="text-base font-black sm:text-lg">תצוגת {templateTypeLabel}</h2>
               <p className="mt-1 text-xs font-bold text-slate-500">
                 התצוגה מתעדכנת לפי השדות שאת ממלאת.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void createPreview()}
-              disabled={previewing || submitting}
-              className="shrink-0 rounded-2xl bg-violet-600 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
-            >
-              {previewing ? "יוצר..." : "צפייה בהסכם לפני שליחה"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {isMobileLayout && (
+                <button
+                  type="button"
+                  onClick={() => setMobilePreviewOpen(false)}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                >
+                  חזרה למילוי
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void createPreview()}
+                disabled={previewing || submitting}
+                className="w-full shrink-0 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-violet-700 disabled:opacity-50 sm:w-auto"
+              >
+                {previewing ? "יוצר..." : "צפייה בהסכם לפני שליחה"}
+              </button>
+            </div>
           </div>
 
           {previewUrl ? (
             <iframe
               src={previewUrl}
-              className="h-[74vh] w-full"
+              className="h-[42vh] w-full sm:h-[56vh] lg:h-[74vh]"
               title="תצוגה מקדימה להסכם עבודה"
             />
           ) : template && templateHasImages ? (
@@ -972,22 +1120,35 @@ function AgreementSignContent() {
           ) : (
             <iframe
               src={template?.fileUrl || DEFAULT_FILE_URL}
-              className="h-[74vh] w-full"
+              className="h-[42vh] w-full sm:h-[56vh] lg:h-[74vh]"
               title="תבנית הסכם עבודה"
             />
           )}
         </section>
+        )}
 
-        <section className="order-1 rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm lg:order-2 lg:sticky lg:top-5 lg:self-start">
+        <section className={`order-1 rounded-[28px] border border-slate-200 bg-white shadow-sm sm:rounded-[32px] lg:order-2 lg:sticky lg:top-5 lg:self-start ${isMobileLayout && mobilePreviewOpen ? "hidden" : ""}`}>
+          <div className="p-4 sm:p-5">
           <div className="mb-4 inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
             חתימה דיגיטלית
           </div>
 
-          <h1 className="text-2xl font-black">חתימה על {templateTypeLabel}</h1>
+          <h1 className="text-xl font-black sm:text-2xl">חתימה על {templateTypeLabel}</h1>
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            מלאי את השדות לפי הסדר שהוגדר בתבנית. בכל שלב לחצי הבא.
+            מלאי את השדות לפי הסדר. לאחר מילוי כל שדה המערכת תעביר אותך
+            אוטומטית לשדה הבא.
           </p>
+
+          {isMobileLayout && !mobilePreviewOpen && (
+            <button
+              type="button"
+              onClick={() => setMobilePreviewOpen(true)}
+              className="mt-4 flex h-11 w-full items-center justify-center rounded-2xl border border-violet-200 bg-violet-50 px-4 text-sm font-black text-violet-700"
+            >
+              צפייה במסמך
+            </button>
+          )}
 
           <div className="mt-5">
             <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-500">
@@ -1006,13 +1167,13 @@ function AgreementSignContent() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-[28px] bg-slate-50 p-5">
+          <div className="mt-6 rounded-[28px] bg-slate-50 p-4 sm:p-5">
             {!isConfirmStep && currentField ? (
               <>
-                <h2 className="text-xl font-black">{currentField.label}</h2>
+                <h2 className="text-lg font-black sm:text-xl">{currentField.label}</h2>
 
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  {currentField.required ? "שדה חובה" : "שדה רשות"}
+                  {currentField.required ? "שדה חובה" : "שדה רשות — ניתן לדלג"}
                 </p>
 
                 {currentField.type === "signature" ? (
@@ -1025,14 +1186,19 @@ function AgreementSignContent() {
                 ) : currentField.type === "checkbox" ? (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      const nextChecked = !isCheckboxChecked(
+                        values[currentField.id]
+                      );
                       updateValue(
                         currentField.id,
-                        isCheckboxChecked(values[currentField.id])
-                          ? "false"
-                          : "true"
-                      )
-                    }
+                        nextChecked ? "true" : "false"
+                      );
+
+                      if (nextChecked || !currentField.required) {
+                        scheduleAutoAdvance(currentField, 300);
+                      }
+                    }}
                     className={`mt-5 flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-3xl font-black transition ${
                       isCheckboxChecked(values[currentField.id])
                         ? "border-violet-500 bg-violet-50 text-violet-700"
@@ -1047,6 +1213,7 @@ function AgreementSignContent() {
                     onChange={(nextValue) =>
                       updateValue(currentField.id, nextValue)
                     }
+                    onComplete={() => scheduleAutoAdvance(currentField, 250)}
                     label={currentField.label}
                   />
                 ) : (
@@ -1056,14 +1223,31 @@ function AgreementSignContent() {
                     onChange={(event) =>
                       updateValue(currentField.id, event.target.value)
                     }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        advanceFromCurrentField();
+                      }
+                    }}
+                    onBlur={() => {
+                      if (
+                        checkFieldValid(
+                          currentField,
+                          valuesRef.current,
+                          signaturesRef.current
+                        )
+                      ) {
+                        scheduleAutoAdvance(currentField, 200);
+                      }
+                    }}
                     placeholder={`מילוי ${currentField.label}`}
-                    className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   />
                 )}
               </>
             ) : (
               <div className="space-y-4">
-                <h2 className="text-xl font-black">אישור ושליחה</h2>
+                <h2 className="text-lg font-black sm:text-xl">סיום ושליחה</h2>
 
                 <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
                   לפני השליחה חובה לצפות בהסכם. לאחר השליחה לא ניתן לערוך את
@@ -1107,13 +1291,15 @@ function AgreementSignContent() {
               {error}
             </div>
           )}
+          </div>
 
-          <div className="mt-6 flex items-center justify-between gap-3">
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:relative lg:inset-auto lg:z-auto lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:pb-0 lg:backdrop-blur-none">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 lg:max-w-none">
             <button
               type="button"
               onClick={goBack}
               disabled={submitting || previewing}
-              className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              className="h-11 min-w-[88px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:px-5"
             >
               {stepIndex === 0 ? "חזרה" : "הקודם"}
             </button>
@@ -1122,14 +1308,17 @@ function AgreementSignContent() {
               type="button"
               onClick={goNext}
               disabled={submitting || previewing}
-              className="h-11 rounded-2xl bg-violet-600 px-7 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
+              className="h-11 flex-1 rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-50 sm:flex-none sm:px-7"
             >
               {submitting
                 ? "שולח..."
                 : isConfirmStep
-                  ? "שליחת הסכם חתום"
-                  : "הבא"}
+                  ? "סיום ושליחה"
+                  : currentField && !currentField.required
+                    ? "דלג לשדה הבא"
+                    : "המשך"}
             </button>
+          </div>
           </div>
         </section>
       </div>

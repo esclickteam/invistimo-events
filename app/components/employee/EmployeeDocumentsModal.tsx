@@ -947,7 +947,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       aria-selected={active}
-      className={`flex min-w-[185px] flex-1 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-3 text-right transition ${
+      className={`flex min-w-[160px] shrink-0 items-center justify-between gap-3 overflow-hidden rounded-2xl border p-3 text-right transition sm:min-w-[185px] sm:flex-1 ${
         active
           ? "border-sky-300 bg-sky-50 text-sky-800 shadow-sm"
           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -1691,21 +1691,21 @@ export default function EmployeeDocumentsModal({
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-700/25 px-3 py-5 backdrop-blur-sm"
+      className="fixed inset-0 z-[999] flex items-stretch justify-center bg-slate-700/25 sm:items-center sm:px-3 sm:py-5 sm:backdrop-blur-sm"
       onMouseDown={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-7xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl"
+        className="flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden border-slate-200 bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-[32px] sm:border"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-slate-200 bg-white p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+        <div className="shrink-0 border-b border-slate-200 bg-white p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
               <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
                 תיק העובד/ת
               </span>
 
-              <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              <h2 className="mt-3 text-xl font-black tracking-tight text-slate-900 sm:text-3xl">
                 מסמכים, הסכמים, שעות ותלושי שכר
               </h2>
 
@@ -1725,7 +1725,7 @@ export default function EmployeeDocumentsModal({
             </button>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1 sm:mt-5 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:pb-0">
             {tabs.map((tab) => (
               <TabButton
                 key={tab.id}
@@ -1740,7 +1740,7 @@ export default function EmployeeDocumentsModal({
           </div>
         </div>
 
-        <div className="max-h-[calc(92vh-230px)] overflow-y-auto bg-slate-50 p-5 sm:p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4 sm:max-h-[calc(92vh-230px)] sm:p-6">
           {isAnythingLoading && (
             <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-black text-slate-500">
               טוען נתונים...
@@ -2433,7 +2433,7 @@ export default function EmployeeDocumentsModal({
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 flex flex-col gap-3 border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <p className="text-xs font-bold leading-6 text-slate-400">
             כל מסמך שנשלח נשמר במערכת ולא ניתן לעריכה מצד העובד או העובדת לאחר
             השליחה.

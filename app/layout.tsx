@@ -108,6 +108,12 @@ export const metadata = {
   manifest: "/site-v6.webmanifest",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 /* ======================================================
    ROOT LAYOUT (Server Component)
 ====================================================== */

@@ -112,7 +112,7 @@ export default function LoginPageClient() {
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
                       bg-white/90 px-4 py-3.5 pl-11
-                      text-[#3E2D20] shadow-sm outline-none transition
+                      text-base text-[#3E2D20] shadow-sm outline-none transition
                       placeholder:text-[#AF9B87]
                       focus:border-[#C9A46A]
                       focus:ring-4 focus:ring-[#D8B16A]/15
@@ -142,7 +142,7 @@ export default function LoginPageClient() {
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
                       bg-white/90 px-4 py-3.5 pl-16
-                      text-[#3E2D20] shadow-sm outline-none transition
+                      text-base text-[#3E2D20] shadow-sm outline-none transition
                       placeholder:text-[#AF9B87]
                       focus:border-[#C9A46A]
                       focus:ring-4 focus:ring-[#D8B16A]/15
