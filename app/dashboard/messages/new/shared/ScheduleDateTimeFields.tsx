@@ -23,6 +23,7 @@ type PopoverPos = {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
 };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => pad2(i));
@@ -71,7 +72,9 @@ function toYmd(y: number, m: number, d: number) {
 
 function useDropdownPosition(
   open: boolean,
-  anchorRef: React.RefObject<HTMLElement | null>
+  anchorRef: React.RefObject<HTMLElement | null>,
+  preferredHeight: number,
+  minWidth: number
 ) {
   const [pos, setPos] = useState<PopoverPos | null>(null);
 
@@ -85,15 +88,30 @@ function useDropdownPosition(
       const el = anchorRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const gap = 8;
-      // Always open downward (portal escapes parent overflow clipping).
-      const top = rect.bottom + gap;
-      const width = Math.max(rect.width, 260);
+      const gap = 6;
+      const edge = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+      const spaceAbove = rect.top - gap - edge;
+
+      // Prefer opening downward; flip up only if below has almost no room.
+      const openDown = spaceBelow >= 140 || spaceBelow >= spaceAbove;
+      const available = openDown ? spaceBelow : spaceAbove;
+      const maxHeight = Math.max(140, Math.min(preferredHeight, available));
+      const top = openDown
+        ? rect.bottom + gap
+        : Math.max(edge, rect.top - gap - maxHeight);
+
+      const width = Math.min(
+        Math.max(rect.width, minWidth),
+        window.innerWidth - edge * 2
+      );
       let left = rect.left;
-      if (left + width > window.innerWidth - 8) {
-        left = Math.max(8, window.innerWidth - width - 8);
+      if (left + width > window.innerWidth - edge) {
+        left = Math.max(edge, window.innerWidth - width - edge);
       }
-      setPos({ top, left, width });
+      if (left < edge) left = edge;
+
+      setPos({ top, left, width, maxHeight });
     }
 
     update();
@@ -103,7 +121,7 @@ function useDropdownPosition(
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [open, anchorRef]);
+  }, [open, anchorRef, preferredHeight, minWidth]);
 
   return pos;
 }
@@ -113,16 +131,18 @@ function PickerPortal({
   anchorRef,
   onClose,
   children,
-  minWidth = 260,
+  preferredHeight,
+  minWidth = 220,
 }: {
   open: boolean;
   anchorRef: React.RefObject<HTMLElement | null>;
   onClose: () => void;
-  children: ReactNode;
+  children: (maxHeight: number) => ReactNode;
+  preferredHeight: number;
   minWidth?: number;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const pos = useDropdownPosition(open, anchorRef);
+  const pos = useDropdownPosition(open, anchorRef, preferredHeight, minWidth);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -155,7 +175,8 @@ function PickerPortal({
     position: "fixed",
     top: pos.top,
     left: pos.left,
-    width: Math.max(pos.width, minWidth),
+    width: pos.width,
+    maxHeight: pos.maxHeight,
     zIndex: 99999,
   };
 
@@ -163,17 +184,17 @@ function PickerPortal({
     <div
       ref={panelRef}
       style={style}
-      className="rounded-2xl border border-[#E6D6BC] bg-white shadow-[0_22px_60px_rgba(78,49,27,0.22)]"
+      className="overflow-hidden rounded-xl border border-[#E6D6BC] bg-white shadow-[0_16px_40px_rgba(78,49,27,0.22)]"
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {children}
+      {children(pos.maxHeight)}
     </div>,
     document.body
   );
 }
 
 /**
- * Date field: DD/MM/YYYY display + custom calendar opening below the field.
+ * Date field: DD/MM/YYYY display + compact calendar under the field.
  * Parent state stays YYYY-MM-DD — scheduling logic unchanged.
  */
 export function ScheduleDateField({
@@ -189,25 +210,20 @@ export function ScheduleDateField({
 
   const selected = parseYmd(value);
   const minDate = parseYmd(min || "");
-  const initialMonth = selected
-    ? new Date(selected.y, selected.m - 1, 1)
-    : new Date();
-  const [view, setView] = useState(initialMonth);
+  const [view, setView] = useState(() =>
+    selected ? new Date(selected.y, selected.m - 1, 1) : new Date()
+  );
 
   useEffect(() => {
-    if (open) {
-      setView(
-        selected
-          ? new Date(selected.y, selected.m - 1, 1)
-          : new Date()
-      );
-    }
-  }, [open, selected?.y, selected?.m, selected?.d]);
+    if (!open) return;
+    setView(
+      selected ? new Date(selected.y, selected.m - 1, 1) : new Date()
+    );
+  }, [open, value]);
 
   const year = view.getFullYear();
-  const month = view.getMonth(); // 0-based
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-  // Hebrew week often starts Sunday — keep as-is matching native
+  const month = view.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: Array<number | null> = [
     ...Array.from({ length: firstDow }, () => null),
@@ -253,75 +269,84 @@ export function ScheduleDateField({
         open={open && !disabled}
         anchorRef={rootRef}
         onClose={() => setOpen(false)}
-        minWidth={300}
+        preferredHeight={280}
+        minWidth={240}
       >
-        <div dir="rtl" className="bg-white p-3" role="dialog" aria-label="בחירת תאריך">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              className="rounded-xl px-2 py-1 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
-              onClick={() => setView(new Date(year, month - 1, 1))}
-              aria-label="חודש קודם"
-            >
-              ‹
-            </button>
-            <div className="text-sm font-black text-[#3A2417]">
-              {MONTHS_HE[month]} {year}
-            </div>
-            <button
-              type="button"
-              className="rounded-xl px-2 py-1 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
-              onClick={() => setView(new Date(year, month + 1, 1))}
-              aria-label="חודש הבא"
-            >
-              ›
-            </button>
-          </div>
-
-          <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[#8A6A3D]">
-            {WEEKDAYS.map((d) => (
-              <div key={d} className="py-1">
-                {d}
+        {(maxHeight) => (
+          <div
+            dir="rtl"
+            className="bg-white p-2"
+            style={{ maxHeight, overflow: "auto" }}
+            role="dialog"
+            aria-label="בחירת תאריך"
+          >
+            <div className="mb-1.5 flex items-center justify-between gap-1">
+              <button
+                type="button"
+                className="rounded-lg px-1.5 py-0.5 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
+                onClick={() => setView(new Date(year, month - 1, 1))}
+                aria-label="חודש קודם"
+              >
+                ‹
+              </button>
+              <div className="text-xs font-black text-[#3A2417]">
+                {MONTHS_HE[month]} {year}
               </div>
-            ))}
-          </div>
+              <button
+                type="button"
+                className="rounded-lg px-1.5 py-0.5 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
+                onClick={() => setView(new Date(year, month + 1, 1))}
+                aria-label="חודש הבא"
+              >
+                ›
+              </button>
+            </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((day, idx) => {
-              if (!day) return <div key={`e-${idx}`} />;
-              const ymd = toYmd(year, month + 1, day);
-              const active = value === ymd;
-              const blocked = isDisabledDay(day);
-              return (
-                <button
-                  key={ymd}
-                  type="button"
-                  disabled={blocked}
-                  onClick={() => {
-                    onChange(ymd);
-                    setOpen(false);
-                  }}
-                  className={`h-9 rounded-xl text-sm font-bold transition ${
-                    active
-                      ? "bg-[#C5964D] text-white"
-                      : blocked
-                        ? "cursor-not-allowed text-gray-300"
-                        : "text-[#3A2417] hover:bg-[#FFF3DD]"
-                  }`}
-                >
-                  {day}
-                </button>
-              );
-            })}
+            <div className="mb-0.5 grid grid-cols-7 gap-0.5 text-center text-[10px] font-bold text-[#8A6A3D]">
+              {WEEKDAYS.map((d) => (
+                <div key={d} className="py-0.5">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-0.5">
+              {cells.map((day, idx) => {
+                if (!day) return <div key={`e-${idx}`} />;
+                const ymd = toYmd(year, month + 1, day);
+                const active = value === ymd;
+                const blocked = isDisabledDay(day);
+                return (
+                  <button
+                    key={ymd}
+                    type="button"
+                    disabled={blocked}
+                    onClick={() => {
+                      onChange(ymd);
+                      setOpen(false);
+                    }}
+                    className={`h-7 rounded-lg text-xs font-bold transition ${
+                      active
+                        ? "bg-[#C5964D] text-white"
+                        : blocked
+                          ? "cursor-not-allowed text-gray-300"
+                          : "text-[#3A2417] hover:bg-[#FFF3DD]"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </PickerPortal>
     </div>
   );
 }
 
 /**
- * Time field: HH:mm (24h, no AM/PM) with portal popover opening below.
+ * Time field: compact HH:mm (24h) picker that fits the viewport.
  * Parent state stays HH:mm — scheduling logic unchanged.
  */
 export function ScheduleTimeField({
@@ -404,74 +429,85 @@ export function ScheduleTimeField({
         open={open && !disabled}
         anchorRef={rootRef}
         onClose={() => setOpen(false)}
-        minWidth={240}
+        preferredHeight={220}
+        minWidth={180}
       >
-        <div dir="ltr" className="overflow-hidden rounded-2xl bg-white" role="dialog" aria-label="בחירת שעה">
-          <div className="grid grid-cols-2 border-b border-[#F0E3D1] bg-[#FFF9F1] text-center text-xs font-bold text-[#8A6A3D]">
-            <div className="px-3 py-2">שעה</div>
-            <div className="px-3 py-2">דקה</div>
-          </div>
-
-          <div className="grid grid-cols-2">
+        {(maxHeight) => {
+          const listHeight = Math.max(120, maxHeight - 32);
+          return (
             <div
-              ref={hourListRef}
-              className="max-h-56 overflow-y-auto border-r border-[#F0E3D1] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              dir="ltr"
+              className="overflow-hidden bg-white"
+              role="dialog"
+              aria-label="בחירת שעה"
             >
-              {HOURS.map((hour) => {
-                const sample = `${hour}:${draft.minute}`;
-                const blocked = isBeforeMin(sample, min);
-                const active = draft.hour === hour;
-                return (
-                  <button
-                    key={hour}
-                    type="button"
-                    data-active={active ? "true" : "false"}
-                    disabled={blocked}
-                    onClick={() => commit(hour, draft.minute, false)}
-                    className={`block w-full px-3 py-2.5 text-sm font-bold transition ${
-                      active
-                        ? "bg-[#C5964D] text-white"
-                        : blocked
-                          ? "cursor-not-allowed text-gray-300"
-                          : "text-[#3A2417] hover:bg-[#FFF3DD]"
-                    }`}
-                  >
-                    {hour}
-                  </button>
-                );
-              })}
-            </div>
+              <div className="grid grid-cols-2 border-b border-[#F0E3D1] bg-[#FFF9F1] text-center text-[10px] font-bold text-[#8A6A3D]">
+                <div className="px-2 py-1.5">שעה</div>
+                <div className="px-2 py-1.5">דקה</div>
+              </div>
 
-            <div
-              ref={minuteListRef}
-              className="max-h-56 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {minuteOptions.map((minute) => {
-                const sample = `${draft.hour}:${minute}`;
-                const blocked = isBeforeMin(sample, min);
-                const active = draft.minute === minute;
-                return (
-                  <button
-                    key={minute}
-                    type="button"
-                    data-active={active ? "true" : "false"}
-                    disabled={blocked}
-                    onClick={() => commit(draft.hour, minute, true)}
-                    className={`block w-full px-3 py-2.5 text-sm font-bold transition ${
-                      active
-                        ? "bg-[#C5964D] text-white"
-                        : blocked
-                          ? "cursor-not-allowed text-gray-300"
-                          : "text-[#3A2417] hover:bg-[#FFF3DD]"
-                    }`}
-                  >
-                    {minute}
-                  </button>
-                );
-              })}
+              <div className="grid grid-cols-2" style={{ height: listHeight }}>
+                <div
+                  ref={hourListRef}
+                  className="h-full overflow-y-auto border-r border-[#F0E3D1] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {HOURS.map((hour) => {
+                    const sample = `${hour}:${draft.minute}`;
+                    const blocked = isBeforeMin(sample, min);
+                    const active = draft.hour === hour;
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        data-active={active ? "true" : "false"}
+                        disabled={blocked}
+                        onClick={() => commit(hour, draft.minute, false)}
+                        className={`block w-full px-2 py-1 text-xs font-bold transition ${
+                          active
+                            ? "bg-[#C5964D] text-white"
+                            : blocked
+                              ? "cursor-not-allowed text-gray-300"
+                              : "text-[#3A2417] hover:bg-[#FFF3DD]"
+                        }`}
+                      >
+                        {hour}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div
+                  ref={minuteListRef}
+                  className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {minuteOptions.map((minute) => {
+                    const sample = `${draft.hour}:${minute}`;
+                    const blocked = isBeforeMin(sample, min);
+                    const active = draft.minute === minute;
+                    return (
+                      <button
+                        key={minute}
+                        type="button"
+                        data-active={active ? "true" : "false"}
+                        disabled={blocked}
+                        onClick={() => commit(draft.hour, minute, true)}
+                        className={`block w-full px-2 py-1 text-xs font-bold transition ${
+                          active
+                            ? "bg-[#C5964D] text-white"
+                            : blocked
+                              ? "cursor-not-allowed text-gray-300"
+                              : "text-[#3A2417] hover:bg-[#FFF3DD]"
+                        }`}
+                      >
+                        {minute}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        }}
       </PickerPortal>
     </div>
   );
@@ -480,8 +516,8 @@ export function ScheduleTimeField({
 function CalendarIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -501,8 +537,8 @@ function CalendarIcon() {
 function ClockIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
