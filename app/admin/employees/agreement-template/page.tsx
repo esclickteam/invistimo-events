@@ -312,14 +312,16 @@ function AgreementTemplateEditor() {
         const data = await res.json().catch(() => null);
         const rows = Array.isArray(data?.employees) ? data.employees : [];
 
+        type EmployeeOption = { id: string; name: string; email: string };
+
         setEmployees(
           rows
-            .map((employee: any) => ({
+            .map((employee: Record<string, unknown>): EmployeeOption => ({
               id: String(employee.id || employee._id || ""),
               name: String(employee.name || employee.fullName || "עובד ללא שם"),
               email: String(employee.email || ""),
             }))
-            .filter((employee) => employee.id),
+            .filter((employee: EmployeeOption) => employee.id),
         );
       } catch {
         setEmployees([]);
