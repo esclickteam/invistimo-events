@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  LineCapStyle,
   PDFDocument,
   rgb,
   StandardFonts,
@@ -390,25 +391,34 @@ function drawCheckInBox(options: {
     width: number;
     height: number;
   };
-  font: PDFFont;
 }) {
   if (!options.checked) return;
 
-  const value = "✓";
-  const size = Math.max(8, Math.min(options.box.height * 0.75, 16));
-  const textWidth = options.font.widthOfTextAtSize(value, size);
+  const { page, box } = options;
+  const padX = box.width * 0.22;
+  const padY = box.height * 0.2;
+  const left = box.x + padX;
+  const right = box.x + box.width - padX;
+  const bottom = box.y + padY;
+  const top = box.y + box.height - padY;
+  const midX = left + (right - left) * 0.32;
+  const midY = bottom + (top - bottom) * 0.15;
+  const thickness = Math.max(1.2, Math.min(box.width, box.height) * 0.14);
 
-  options.page.drawText(value, {
-    x:
-      options.box.x +
-      Math.max((options.box.width - textWidth) / 2, 0),
-    y:
-      options.box.y +
-      Math.max((options.box.height - size) / 2, 0) +
-      1,
-    size,
-    font: options.font,
+  // Vector checkmark — avoids WinAnsi/"✓" encoding errors with StandardFonts.
+  page.drawLine({
+    start: { x: left, y: midY + (top - bottom) * 0.25 },
+    end: { x: midX, y: midY },
+    thickness,
     color: rgb(0, 0, 0),
+    lineCap: LineCapStyle.Round,
+  });
+  page.drawLine({
+    start: { x: midX, y: midY },
+    end: { x: right, y: top },
+    thickness,
+    color: rgb(0, 0, 0),
+    lineCap: LineCapStyle.Round,
   });
 }
 
@@ -791,7 +801,6 @@ export async function POST(req: NextRequest) {
           page,
           checked,
           box,
-          font: fallbackFont,
         });
 
         continue;
@@ -823,7 +832,6 @@ export async function POST(req: NextRequest) {
             page,
             checked: String(rawValue).trim() === option.id,
             box: optionBox,
-            font: fallbackFont,
           });
         }
 
