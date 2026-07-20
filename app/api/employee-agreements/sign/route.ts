@@ -19,6 +19,12 @@ import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 import { formatDateForPdf } from "@/lib/dateFieldFormat";
 import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
 import {
+  getChoiceFieldBounds,
+  isChoiceValueSelected,
+  normalizeChoiceOptions,
+  type ChoiceOption,
+} from "@/lib/employeeAgreementChoiceField";
+import {
   buildTemplateTypeQuery,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
@@ -26,7 +32,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "date" | "signature" | "checkbox";
+type FieldType = "text" | "date" | "signature" | "checkbox" | "choice";
 type CoordinateMode = "percent" | "pixel";
 
 type TemplateField = {
@@ -40,6 +46,7 @@ type TemplateField = {
   height: number;
   required: boolean;
   order: number;
+  options?: ChoiceOption[];
 };
 
 type SignAgreementBody = {
@@ -196,21 +203,34 @@ function normalizeField(raw: any, index = 0): TemplateField {
   const rawType = cleanStr(raw?.type);
 
   const type: FieldType =
-    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+    rawType === "date" ||
+    rawType === "signature" ||
+    rawType === "checkbox" ||
+    rawType === "choice"
       ? rawType
       : "text";
 
+  const x = cleanNumber(raw?.x, 0);
+  const y = cleanNumber(raw?.y, 0);
+  const options =
+    type === "choice"
+      ? normalizeChoiceOptions(raw?.options, 4, x || 38, y || 35)
+      : undefined;
+  const bounds =
+    type === "choice" && options ? getChoiceFieldBounds(options) : null;
+
   return {
     id: cleanStr(raw?.id),
-    label: cleanStr(raw?.label) || "שדה",
+    label: cleanStr(raw?.label) || (type === "choice" ? "בחירה" : "שדה"),
     type,
     pageIndex: Math.max(0, cleanNumber(raw?.pageIndex, 0)),
-    x: cleanNumber(raw?.x, 0),
-    y: cleanNumber(raw?.y, 0),
-    width: cleanNumber(raw?.width, type === "signature" ? 24 : 22),
-    height: cleanNumber(raw?.height, type === "signature" ? 8 : 6),
+    x: bounds?.x ?? x,
+    y: bounds?.y ?? y,
+    width: bounds?.width ?? cleanNumber(raw?.width, type === "signature" ? 24 : 22),
+    height: bounds?.height ?? cleanNumber(raw?.height, type === "signature" ? 8 : 6),
     required: raw?.required !== false,
     order: toPositiveFieldOrder(raw?.order, index + 1),
+    ...(options ? { options } : {}),
   };
 }
 
@@ -635,6 +655,19 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      if (field.type === "choice") {
+        const value = getFieldValue(body, field);
+
+        if (!isChoiceValueSelected(value, field.options)) {
+          return NextResponse.json(
+            { success: false, error: `חסר שדה חובה: ${field.label}` },
+            { status: 400 }
+          );
+        }
+
+        continue;
+      }
+
       const value = getFieldValue(body, field);
 
       if (!value) {
@@ -730,6 +763,39 @@ export async function POST(req: NextRequest) {
           box,
           font: fallbackFont,
         });
+
+        continue;
+      }
+
+      if (field.type === "choice") {
+        const rawValue = getFieldValue(body, field);
+        const options = field.options || [];
+
+        if (isChoiceValueSelected(rawValue, options)) {
+          valuesToSave[field.id] = String(rawValue).trim();
+        }
+
+        for (const option of options) {
+          const optionBox = convertTemplateBoxToPdfBox({
+            field: {
+              ...field,
+              x: option.x,
+              y: option.y,
+              width: option.width,
+              height: option.height,
+            },
+            pageWidth,
+            pageHeight,
+            coordinateMode,
+          });
+
+          drawCheckInBox({
+            page,
+            checked: String(rawValue).trim() === option.id,
+            box: optionBox,
+            font: fallbackFont,
+          });
+        }
 
         continue;
       }

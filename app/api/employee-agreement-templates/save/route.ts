@@ -14,11 +14,16 @@ import {
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
 import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employeeAgreementFieldOrder";
+import {
+  getChoiceFieldBounds,
+  normalizeChoiceOptions,
+  type ChoiceOption,
+} from "@/lib/employeeAgreementChoiceField";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "date" | "signature" | "checkbox";
+type FieldType = "text" | "date" | "signature" | "checkbox" | "choice";
 type PageFileType = "image" | "pdf";
 
 type TemplateField = {
@@ -33,6 +38,7 @@ type TemplateField = {
   height?: number;
   required?: boolean;
   order?: number;
+  options?: ChoiceOption[];
 };
 
 type TemplatePage = {
@@ -96,6 +102,7 @@ function normalizeFieldType(value: unknown): FieldType {
   if (type === "date") return "date";
   if (type === "signature") return "signature";
   if (type === "checkbox") return "checkbox";
+  if (type === "choice") return "choice";
 
   return "text";
 }
@@ -108,6 +115,7 @@ function defaultFieldLabel(type: FieldType, index: number) {
   if (type === "date") return "תאריך";
   if (type === "signature") return "חתימה";
   if (type === "checkbox") return "";
+  if (type === "choice") return "בחירה";
   if (type === "text") return "שדה טקסט";
 
   return `שדה ${index + 1}`;
@@ -125,8 +133,14 @@ function normalizeFields(
 
       let x = cleanNumber(item.x, 38);
       let y = cleanNumber(item.y, 35);
-      let width = cleanNumber(item.width, type === "signature" ? 24 : type === "checkbox" ? 5 : 22);
-      let height = cleanNumber(item.height, type === "signature" ? 8 : type === "checkbox" ? 5 : 6);
+      let width = cleanNumber(
+        item.width,
+        type === "signature" ? 24 : type === "checkbox" ? 5 : type === "choice" ? 12 : 22,
+      );
+      let height = cleanNumber(
+        item.height,
+        type === "signature" ? 8 : type === "checkbox" ? 5 : type === "choice" ? 4 : 6,
+      );
 
       const looksLikeLegacyPixels =
         coordinateMode !== "percent" &&
@@ -139,17 +153,33 @@ function normalizeFields(
         height = (height / LEGACY_PAGE_HEIGHT) * 100;
       }
 
-      width = clamp(Number(width.toFixed(2)), 4, 85);
-      height = clamp(Number(height.toFixed(2)), 3, 35);
-      x = clamp(Number(x.toFixed(2)), 0, 100 - width);
-      y = clamp(Number(y.toFixed(2)), 0, 100 - height);
-
       const pageIndex =
         item.pageIndex !== undefined
           ? Math.max(0, cleanNumber(item.pageIndex, 0))
           : item.pageNumber !== undefined
             ? Math.max(0, cleanNumber(item.pageNumber, 1) - 1)
             : 0;
+
+      if (type === "choice") {
+        const options = normalizeChoiceOptions(item.options, 4, x, y);
+        const bounds = getChoiceFieldBounds(options);
+
+        return {
+          id: cleanStr(item.id) || `${Date.now()}-${index}`,
+          label: cleanStr(item.label) || defaultFieldLabel(type, index),
+          type,
+          pageIndex,
+          ...bounds,
+          required: item.required !== false,
+          order: toPositiveFieldOrder(item.order, index + 1),
+          options,
+        };
+      }
+
+      width = clamp(Number(width.toFixed(2)), 4, 85);
+      height = clamp(Number(height.toFixed(2)), 3, 35);
+      x = clamp(Number(x.toFixed(2)), 0, 100 - width);
+      y = clamp(Number(y.toFixed(2)), 0, 100 - height);
 
       return {
         id: cleanStr(item.id) || `${Date.now()}-${index}`,

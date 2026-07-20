@@ -18,8 +18,20 @@ import {
   sortAgreementFieldsByOrder,
   toPositiveFieldOrder,
 } from "@/lib/employeeAgreementFieldOrder";
+import {
+  CHOICE_OPTION_MAX_COUNT,
+  CHOICE_OPTION_MIN_COUNT,
+  CHOICE_OPTION_MIN_SIZE,
+  buildChoiceOptions,
+  clampChoiceCount,
+  clampChoiceOptionSize,
+  getChoiceFieldBounds,
+  normalizeChoiceOptions,
+  resizeChoiceOptions,
+  type ChoiceOption,
+} from "@/lib/employeeAgreementChoiceField";
 
-type FieldType = "text" | "date" | "signature" | "checkbox";
+type FieldType = "text" | "date" | "signature" | "checkbox" | "choice";
 
 type TemplateField = {
   id: string;
@@ -32,6 +44,7 @@ type TemplateField = {
   height: number;
   required: boolean;
   order: number;
+  options?: ChoiceOption[];
 };
 
 type TemplatePage = {
@@ -45,6 +58,7 @@ type TemplatePage = {
 
 type DragState = {
   id: string;
+  optionId?: string;
   startClientX: number;
   startClientY: number;
   startX: number;
@@ -65,6 +79,7 @@ const FIELD_LABELS: Record<FieldType, string> = {
   date: "תאריך",
   signature: "חתימה",
   checkbox: "",
+  choice: "בחירה",
 };
 
 const FIELD_TYPE_NAMES: Record<FieldType, string> = {
@@ -72,6 +87,7 @@ const FIELD_TYPE_NAMES: Record<FieldType, string> = {
   date: "תאריך",
   signature: "חתימה",
   checkbox: "ריבוע סימון",
+  choice: "תיבת בחירה",
 };
 
 function makeId() {
@@ -94,17 +110,20 @@ function normalizePageType(value: unknown): TemplatePage["type"] {
 function normalizeField(raw: any, index: number): TemplateField {
   const rawType = String(raw?.type || "text");
   const type: FieldType =
-    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+    rawType === "date" ||
+    rawType === "signature" ||
+    rawType === "checkbox" ||
+    rawType === "choice"
       ? rawType
       : "text";
 
   let width = toNumber(
     raw?.width,
-    type === "signature" ? 24 : type === "checkbox" ? 5 : 22
+    type === "signature" ? 24 : type === "checkbox" ? 5 : type === "choice" ? 12 : 22
   );
   let height = toNumber(
     raw?.height,
-    type === "signature" ? 8 : type === "checkbox" ? 5 : 6
+    type === "signature" ? 8 : type === "checkbox" ? 5 : type === "choice" ? 4 : 6
   );
   let x = toNumber(raw?.x, 38);
   let y = toNumber(raw?.y, 35);
@@ -124,6 +143,47 @@ function normalizeField(raw: any, index: number): TemplateField {
     y = (y / LEGACY_PAGE_HEIGHT) * 100;
     width = (width / LEGACY_PAGE_WIDTH) * 100;
     height = (height / LEGACY_PAGE_HEIGHT) * 100;
+  }
+
+  const options =
+    type === "choice"
+      ? normalizeChoiceOptions(raw?.options, 4, x, y).map((option) => {
+          if (!looksLikeLegacyPixels) return option;
+
+          const size = clampChoiceOptionSize(
+            (option.width / LEGACY_PAGE_WIDTH) * 100,
+            (option.height / LEGACY_PAGE_HEIGHT) * 100,
+          );
+
+          return {
+            ...option,
+            ...size,
+            x: clamp(
+              Number(((option.x / LEGACY_PAGE_WIDTH) * 100).toFixed(2)),
+              0,
+              100 - size.width,
+            ),
+            y: clamp(
+              Number(((option.y / LEGACY_PAGE_HEIGHT) * 100).toFixed(2)),
+              0,
+              100 - size.height,
+            ),
+          };
+        })
+      : undefined;
+
+  if (type === "choice" && options) {
+    const bounds = getChoiceFieldBounds(options);
+    return {
+      id: String(raw?.id || makeId()),
+      label: String(raw?.label || FIELD_LABELS.choice || "בחירה"),
+      type,
+      pageIndex,
+      ...bounds,
+      required: raw?.required !== undefined ? Boolean(raw.required) : true,
+      order: toPositiveFieldOrder(raw?.order, index + 1),
+      options,
+    };
   }
 
   width = clamp(Number(width.toFixed(2)), 4, 85);
@@ -309,6 +369,8 @@ function AgreementTemplateEditor() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [sending, setSending] = useState(false);
   const [newFieldOrder, setNewFieldOrder] = useState(1);
+  const [newChoiceCount, setNewChoiceCount] = useState(4);
+  const [selectedOptionId, setSelectedOptionId] = useState("");
   const fieldListRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const selectedField = useMemo(
@@ -517,6 +579,51 @@ function AgreementTemplateEditor() {
         prev.map((item) => {
           if (item.id !== activeDrag.id) return item;
 
+          if (item.type === "choice" && activeDrag.optionId) {
+            const options = normalizeChoiceOptions(item.options, 4, item.x, item.y);
+            const nextOptions = options.map((option) => {
+              if (option.id !== activeDrag.optionId) return option;
+
+              if (activeDrag.mode === "resize") {
+                const size = clampChoiceOptionSize(
+                  activeDrag.startWidth + dx,
+                  activeDrag.startHeight + dy,
+                );
+                const nextWidth = clamp(size.width, CHOICE_OPTION_MIN_SIZE, 100 - option.x);
+                const nextHeight = clamp(size.height, CHOICE_OPTION_MIN_SIZE, 100 - option.y);
+
+                return {
+                  ...option,
+                  width: Number(nextWidth.toFixed(2)),
+                  height: Number(nextHeight.toFixed(2)),
+                };
+              }
+
+              const nextX = clamp(
+                activeDrag.startX + dx,
+                0,
+                100 - option.width,
+              );
+              const nextY = clamp(
+                activeDrag.startY + dy,
+                0,
+                100 - option.height,
+              );
+
+              return {
+                ...option,
+                x: Number(nextX.toFixed(2)),
+                y: Number(nextY.toFixed(2)),
+              };
+            });
+
+            return {
+              ...item,
+              options: nextOptions,
+              ...getChoiceFieldBounds(nextOptions),
+            };
+          }
+
           if (activeDrag.mode === "resize") {
             const nextWidth = clamp(
               activeDrag.startWidth + dx,
@@ -585,21 +692,43 @@ function AgreementTemplateEditor() {
       return;
     }
 
+    const choiceOptions =
+      type === "choice" ? buildChoiceOptions(newChoiceCount, 38, 35) : undefined;
+    const choiceBounds = choiceOptions
+      ? getChoiceFieldBounds(choiceOptions)
+      : null;
+
     const width =
-      type === "signature" ? 24 : type === "date" ? 18 : type === "checkbox" ? 5 : 22;
-    const height = type === "signature" ? 8 : type === "checkbox" ? 5 : 6;
+      type === "signature"
+        ? 24
+        : type === "date"
+          ? 18
+          : type === "checkbox"
+            ? 5
+            : type === "choice"
+              ? choiceBounds!.width
+              : 22;
+    const height =
+      type === "signature"
+        ? 8
+        : type === "checkbox"
+          ? 5
+          : type === "choice"
+            ? choiceBounds!.height
+            : 6;
 
     const field: TemplateField = {
       id: makeId(),
       label: type === "checkbox" ? "" : FIELD_LABELS[type],
       type,
       pageIndex: activePageIndex,
-      x: 38,
-      y: 35,
+      x: choiceBounds?.x ?? 38,
+      y: choiceBounds?.y ?? 35,
       width,
       height,
       required: true,
       order: clamp(newFieldOrder, 1, fields.length + 1),
+      ...(choiceOptions ? { options: choiceOptions } : {}),
     };
 
     setFields((prev) => {
@@ -609,6 +738,7 @@ function AgreementTemplateEditor() {
       return renumberFieldOrders(sorted);
     });
     setSelectedId(field.id);
+    setSelectedOptionId(choiceOptions?.[0]?.id || "");
 
     requestAnimationFrame(() => {
       pageEditorRefs.current[activePageIndex]?.scrollIntoView({
@@ -628,6 +758,20 @@ function AgreementTemplateEditor() {
           ...patch,
         };
 
+        if (nextField.type === "choice") {
+          const options = normalizeChoiceOptions(
+            nextField.options,
+            4,
+            nextField.x,
+            nextField.y,
+          );
+          return {
+            ...nextField,
+            options,
+            ...getChoiceFieldBounds(options),
+          };
+        }
+
         const width = clamp(toNumber(nextField.width, field.width), 4, 85);
         const height = clamp(toNumber(nextField.height, field.height), 3, 35);
 
@@ -639,6 +783,33 @@ function AgreementTemplateEditor() {
           y: clamp(toNumber(nextField.y, field.y), 0, 100 - height),
         };
       })
+    );
+  }
+
+  function setChoiceOptionCount(id: string, count: number) {
+    const current = fields.find(
+      (field) => field.id === id && field.type === "choice",
+    );
+    if (!current) return;
+
+    const options = resizeChoiceOptions(current.options || [], count);
+
+    setFields((prev) =>
+      prev.map((field) =>
+        field.id !== id || field.type !== "choice"
+          ? field
+          : {
+              ...field,
+              options,
+              ...getChoiceFieldBounds(options),
+            },
+      ),
+    );
+
+    setSelectedOptionId((prev) =>
+      options.some((option) => option.id === prev)
+        ? prev
+        : options[0]?.id || "",
     );
   }
 
@@ -743,22 +914,25 @@ function AgreementTemplateEditor() {
 
   function startDrag(
     event: React.PointerEvent<HTMLDivElement>,
-    field: TemplateField
+    field: TemplateField,
+    option?: ChoiceOption,
   ) {
     event.preventDefault();
     event.stopPropagation();
 
     setSelectedId(field.id);
+    setSelectedOptionId(option?.id || "");
     setActivePageIndex(field.pageIndex);
 
     dragRef.current = {
       id: field.id,
+      optionId: option?.id,
       startClientX: event.clientX,
       startClientY: event.clientY,
-      startX: field.x,
-      startY: field.y,
-      startWidth: field.width,
-      startHeight: field.height,
+      startX: option?.x ?? field.x,
+      startY: option?.y ?? field.y,
+      startWidth: option?.width ?? field.width,
+      startHeight: option?.height ?? field.height,
       mode: "move",
     };
 
@@ -768,22 +942,25 @@ function AgreementTemplateEditor() {
 
   function startResize(
     event: React.PointerEvent<HTMLButtonElement>,
-    field: TemplateField
+    field: TemplateField,
+    option?: ChoiceOption,
   ) {
     event.preventDefault();
     event.stopPropagation();
 
     setSelectedId(field.id);
+    setSelectedOptionId(option?.id || "");
     setActivePageIndex(field.pageIndex);
 
     dragRef.current = {
       id: field.id,
+      optionId: option?.id,
       startClientX: event.clientX,
       startClientY: event.clientY,
-      startX: field.x,
-      startY: field.y,
-      startWidth: field.width,
-      startHeight: field.height,
+      startX: option?.x ?? field.x,
+      startY: option?.y ?? field.y,
+      startWidth: option?.width ?? field.width,
+      startHeight: option?.height ?? field.height,
       mode: "resize",
     };
 
@@ -792,7 +969,7 @@ function AgreementTemplateEditor() {
   }
 
   function getFieldPreview(field: TemplateField) {
-    if (field.type === "checkbox") return "";
+    if (field.type === "checkbox" || field.type === "choice") return "";
 
     if (field.type === "date") return DATE_FIELD_PLACEHOLDER;
 
@@ -1139,10 +1316,91 @@ function AgreementTemplateEditor() {
                           <TemplatePageImage page={page} />
 
                           <div className="pointer-events-none absolute inset-0 z-10">
-                            {pageFields.map((field) => {
+                            {pageFields.flatMap((field) => {
+                              if (field.type === "choice") {
+                                const options = normalizeChoiceOptions(
+                                  field.options,
+                                  4,
+                                  field.x,
+                                  field.y,
+                                );
+
+                                return options.map((option, optionIndex) => {
+                                  const selected =
+                                    selectedId === field.id &&
+                                    selectedOptionId === option.id;
+                                  const fieldSelected = selectedId === field.id;
+
+                                  return (
+                                    <div
+                                      key={`${field.id}-${option.id}`}
+                                      onPointerDown={(event) =>
+                                        startDrag(event, field, option)
+                                      }
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedId(field.id);
+                                        setSelectedOptionId(option.id);
+                                        setActivePageIndex(field.pageIndex);
+                                      }}
+                                      className={[
+                                        "group pointer-events-auto absolute flex items-center justify-center overflow-visible text-[10px] font-black shadow-sm backdrop-blur-sm transition cursor-move rounded-md border-2 bg-white",
+                                        selected
+                                          ? "border-violet-600 ring-4 ring-violet-600/15"
+                                          : fieldSelected
+                                            ? "border-violet-400 hover:border-violet-500"
+                                            : "border-slate-700 hover:border-violet-500",
+                                      ].join(" ")}
+                                      style={{
+                                        left: `${option.x}%`,
+                                        top: `${option.y}%`,
+                                        width: `${option.width}%`,
+                                        height: `${option.height}%`,
+                                        touchAction: "none",
+                                        userSelect: "none",
+                                      }}
+                                      title={`${field.label || "בחירה"} · אפשרות ${optionIndex + 1}`}
+                                    >
+                                      <span className="text-[9px] font-black text-slate-500">
+                                        {optionIndex + 1}
+                                      </span>
+
+                                      {optionIndex === 0 && (
+                                        <button
+                                          type="button"
+                                          onPointerDown={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                          }}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            deleteField(field.id);
+                                          }}
+                                          className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
+                                          title="מחיקת שדה"
+                                        >
+                                          ×
+                                        </button>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onPointerDown={(event) =>
+                                          startResize(event, field, option)
+                                        }
+                                        className="absolute -bottom-2 -right-2 hidden h-6 w-6 cursor-se-resize items-center justify-center rounded-full border border-violet-200 bg-white text-[10px] text-violet-700 shadow-md group-hover:flex"
+                                        title="הגדלה / הקטנה"
+                                      >
+                                        ↘
+                                      </button>
+                                    </div>
+                                  );
+                                });
+                              }
+
                               const selected = selectedId === field.id;
 
-                              return (
+                              return [
                                 <div
                                   key={field.id}
                                   onPointerDown={(event) =>
@@ -1151,6 +1409,7 @@ function AgreementTemplateEditor() {
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     setSelectedId(field.id);
+                                    setSelectedOptionId("");
                                     setActivePageIndex(field.pageIndex);
                                   }}
                                   className={[
@@ -1216,8 +1475,8 @@ function AgreementTemplateEditor() {
                                   >
                                     ↘
                                   </button>
-                                </div>
-                              );
+                                </div>,
+                              ];
                             })}
                           </div>
                         </div>
@@ -1298,6 +1557,52 @@ function AgreementTemplateEditor() {
                 >
                   הוסף תיבת סימון
                 </button>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <label className="mb-2 block text-xs font-black text-slate-500">
+                    תיבת בחירה — כמה אפשרויות (בחירה אחת)
+                  </label>
+
+                  <select
+                    value={newChoiceCount}
+                    onChange={(event) =>
+                      setNewChoiceCount(
+                        clampChoiceCount(Number(event.target.value), 4),
+                      )
+                    }
+                    disabled={loading || uploadingPdf || !hasPageImages}
+                    className="mb-3 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400 disabled:opacity-40"
+                  >
+                    {Array.from(
+                      {
+                        length:
+                          CHOICE_OPTION_MAX_COUNT - CHOICE_OPTION_MIN_COUNT + 1,
+                      },
+                      (_, index) => {
+                        const count = CHOICE_OPTION_MIN_COUNT + index;
+                        return (
+                          <option key={count} value={count}>
+                            1 מתוך {count}
+                          </option>
+                        );
+                      },
+                    )}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => addField("choice")}
+                    disabled={loading || uploadingPdf || !hasPageImages}
+                    className="h-12 w-full rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
+                  >
+                    הוסף תיבת בחירה
+                  </button>
+
+                  <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
+                    יוצר {newChoiceCount} קוביות קטנות (3×4) כשדה אחד — אפשר
+                    לסמן רק אפשרות אחת.
+                  </p>
+                </div>
               </div>
 
               <div className="mt-5">
@@ -1360,7 +1665,51 @@ function AgreementTemplateEditor() {
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
                     סוג שדה: {FIELD_TYPE_NAMES[selectedField.type]}
+                    {selectedField.type === "choice"
+                      ? ` · 1 מתוך ${selectedField.options?.length || 0}`
+                      : ""}
                   </div>
+
+                  {selectedField.type === "choice" && (
+                    <div>
+                      <label className="mb-1 block text-xs font-black text-slate-500">
+                        מספר אפשרויות לבחירה
+                      </label>
+
+                      <select
+                        value={selectedField.options?.length || 4}
+                        onChange={(event) =>
+                          setChoiceOptionCount(
+                            selectedField.id,
+                            Number(event.target.value),
+                          )
+                        }
+                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                      >
+                        {Array.from(
+                          {
+                            length:
+                              CHOICE_OPTION_MAX_COUNT -
+                              CHOICE_OPTION_MIN_COUNT +
+                              1,
+                          },
+                          (_, index) => {
+                            const count = CHOICE_OPTION_MIN_COUNT + index;
+                            return (
+                              <option key={count} value={count}>
+                                1 מתוך {count}
+                              </option>
+                            );
+                          },
+                        )}
+                      </select>
+
+                      <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
+                        כל קוביה ניתנת לגרירה בנפרד על המסמך. בעת מילוי אפשר
+                        לסמן רק אחת.
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="mb-1 block text-xs font-black text-slate-500">
@@ -1457,47 +1806,157 @@ function AgreementTemplateEditor() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <NumberInput
-                      label="מיקום X %"
-                      value={selectedField.x}
-                      onChange={(value) =>
-                        updateField(selectedField.id, {
-                          x: clamp(value, 0, 100 - selectedField.width),
-                        })
-                      }
-                    />
+                  {selectedField.type === "choice" ? (
+                    (() => {
+                      const options = normalizeChoiceOptions(
+                        selectedField.options,
+                        4,
+                        selectedField.x,
+                        selectedField.y,
+                      );
+                      const activeOption =
+                        options.find((option) => option.id === selectedOptionId) ||
+                        options[0];
 
-                    <NumberInput
-                      label="מיקום Y %"
-                      value={selectedField.y}
-                      onChange={(value) =>
-                        updateField(selectedField.id, {
-                          y: clamp(value, 0, 100 - selectedField.height),
-                        })
-                      }
-                    />
+                      if (!activeOption) return null;
 
-                    <NumberInput
-                      label="רוחב %"
-                      value={selectedField.width}
-                      onChange={(value) =>
-                        updateField(selectedField.id, {
-                          width: clamp(value, 4, 85),
-                        })
-                      }
-                    />
+                      return (
+                        <div className="space-y-2">
+                          <div className="text-xs font-black text-slate-500">
+                            מיקום קוביה {activeOption.id} מתוך {options.length}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <NumberInput
+                              label="מיקום X %"
+                              value={activeOption.x}
+                              onChange={(value) => {
+                                const nextOptions = options.map((option) =>
+                                  option.id === activeOption.id
+                                    ? {
+                                        ...option,
+                                        x: clamp(value, 0, 100 - option.width),
+                                      }
+                                    : option,
+                                );
+                                updateField(selectedField.id, {
+                                  options: nextOptions,
+                                });
+                              }}
+                            />
+                            <NumberInput
+                              label="מיקום Y %"
+                              value={activeOption.y}
+                              onChange={(value) => {
+                                const nextOptions = options.map((option) =>
+                                  option.id === activeOption.id
+                                    ? {
+                                        ...option,
+                                        y: clamp(value, 0, 100 - option.height),
+                                      }
+                                    : option,
+                                );
+                                updateField(selectedField.id, {
+                                  options: nextOptions,
+                                });
+                              }}
+                            />
+                            <NumberInput
+                              label="רוחב %"
+                              value={activeOption.width}
+                              onChange={(value) => {
+                                const size = clampChoiceOptionSize(
+                                  value,
+                                  activeOption.height,
+                                );
+                                const nextOptions = options.map((option) =>
+                                  option.id === activeOption.id
+                                    ? {
+                                        ...option,
+                                        width: clamp(
+                                          size.width,
+                                          CHOICE_OPTION_MIN_SIZE,
+                                          100 - option.x,
+                                        ),
+                                      }
+                                    : option,
+                                );
+                                updateField(selectedField.id, {
+                                  options: nextOptions,
+                                });
+                              }}
+                            />
+                            <NumberInput
+                              label="גובה %"
+                              value={activeOption.height}
+                              onChange={(value) => {
+                                const size = clampChoiceOptionSize(
+                                  activeOption.width,
+                                  value,
+                                );
+                                const nextOptions = options.map((option) =>
+                                  option.id === activeOption.id
+                                    ? {
+                                        ...option,
+                                        height: clamp(
+                                          size.height,
+                                          CHOICE_OPTION_MIN_SIZE,
+                                          100 - option.y,
+                                        ),
+                                      }
+                                    : option,
+                                );
+                                updateField(selectedField.id, {
+                                  options: nextOptions,
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberInput
+                        label="מיקום X %"
+                        value={selectedField.x}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            x: clamp(value, 0, 100 - selectedField.width),
+                          })
+                        }
+                      />
 
-                    <NumberInput
-                      label="גובה %"
-                      value={selectedField.height}
-                      onChange={(value) =>
-                        updateField(selectedField.id, {
-                          height: clamp(value, 3, 35),
-                        })
-                      }
-                    />
-                  </div>
+                      <NumberInput
+                        label="מיקום Y %"
+                        value={selectedField.y}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            y: clamp(value, 0, 100 - selectedField.height),
+                          })
+                        }
+                      />
+
+                      <NumberInput
+                        label="רוחב %"
+                        value={selectedField.width}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            width: clamp(value, 4, 85),
+                          })
+                        }
+                      />
+
+                      <NumberInput
+                        label="גובה %"
+                        value={selectedField.height}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            height: clamp(value, 3, 35),
+                          })
+                        }
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -1550,7 +2009,11 @@ function AgreementTemplateEditor() {
                       >
                         {field.label?.trim() || FIELD_TYPE_NAMES[field.type]}
                         <span className="mt-0.5 block text-[11px] font-bold text-slate-400">
-                          {FIELD_TYPE_NAMES[field.type]} — עמוד {field.pageIndex + 1}
+                          {FIELD_TYPE_NAMES[field.type]}
+                          {field.type === "choice"
+                            ? ` · 1/${field.options?.length || 0}`
+                            : ""}{" "}
+                          — עמוד {field.pageIndex + 1}
                         </span>
                       </button>
 

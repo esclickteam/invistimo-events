@@ -8,8 +8,14 @@ import {
   getTemplateTypeLabel,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
+import {
+  getChoiceFieldBounds,
+  isChoiceValueSelected,
+  normalizeChoiceOptions,
+  type ChoiceOption,
+} from "@/lib/employeeAgreementChoiceField";
 
-type FieldType = "text" | "date" | "signature" | "checkbox";
+type FieldType = "text" | "date" | "signature" | "checkbox" | "choice";
 type EmployeeAgreementStatus =
   | "pending"
   | "signed"
@@ -27,6 +33,7 @@ type TemplateField = {
   height: number;
   required: boolean;
   order: number;
+  options?: ChoiceOption[];
 };
 
 type TemplatePage = {
@@ -150,12 +157,21 @@ function DateFieldInput({
 function normalizeField(raw: any, index: number): TemplateField {
   const rawType = String(raw?.type || "text");
   const type: FieldType =
-    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+    rawType === "date" ||
+    rawType === "signature" ||
+    rawType === "checkbox" ||
+    rawType === "choice"
       ? rawType
       : "text";
 
-  let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
-  let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
+  let width = toNumber(
+    raw?.width,
+    type === "signature" ? 24 : type === "checkbox" ? 5 : type === "choice" ? 12 : 22,
+  );
+  let height = toNumber(
+    raw?.height,
+    type === "signature" ? 8 : type === "checkbox" ? 5 : type === "choice" ? 4 : 6,
+  );
   let x = toNumber(raw?.x, 38);
   let y = toNumber(raw?.y, 35);
 
@@ -174,6 +190,22 @@ function normalizeField(raw: any, index: number): TemplateField {
     y = (y / LEGACY_PAGE_HEIGHT) * 100;
     width = (width / LEGACY_PAGE_WIDTH) * 100;
     height = (height / LEGACY_PAGE_HEIGHT) * 100;
+  }
+
+  if (type === "choice") {
+    const options = normalizeChoiceOptions(raw?.options, 4, x, y);
+    const bounds = getChoiceFieldBounds(options);
+
+    return {
+      id: String(raw?.id || `${Date.now()}-${index}`),
+      label: String(raw?.label || "בחירה"),
+      type,
+      pageIndex,
+      ...bounds,
+      required: raw?.required !== undefined ? Boolean(raw.required) : true,
+      order: toPositiveFieldOrder(raw?.order, index + 1),
+      options,
+    };
   }
 
   width = clamp(Number(width.toFixed(2)), 4, 85);
@@ -268,6 +300,10 @@ function getFieldDisplayValue({
 
   if (field.type === "checkbox") {
     return isCheckboxChecked(value) ? "✓" : "";
+  }
+
+  if (field.type === "choice") {
+    return isChoiceValueSelected(value, field.options) ? value : "";
   }
 
   return value;
@@ -470,7 +506,7 @@ function TemplateImagePreview({
                 />
 
                 <div className="pointer-events-none absolute inset-0 z-10">
-                  {pageFields.map((field) => {
+                  {pageFields.flatMap((field) => {
                     const selected = currentFieldId === field.id;
                     const displayValue = getFieldDisplayValue({
                       field,
@@ -478,7 +514,43 @@ function TemplateImagePreview({
                       signatures,
                     });
 
-                    return (
+                    if (field.type === "choice") {
+                      const options = normalizeChoiceOptions(
+                        field.options,
+                        4,
+                        field.x,
+                        field.y,
+                      );
+                      const selectedOptionId = String(values[field.id] || "").trim();
+
+                      return options.map((option) => {
+                        const optionSelected = selectedOptionId === option.id;
+
+                        return (
+                          <div
+                            key={`${field.id}-${option.id}`}
+                            className={[
+                              "absolute flex items-center justify-center overflow-hidden rounded-md border-2 text-xs font-black shadow-sm",
+                              selected || optionSelected
+                                ? "border-violet-600 bg-violet-100/80 text-violet-900"
+                                : "border-slate-700 bg-white text-slate-700",
+                            ].join(" ")}
+                            style={{
+                              left: `${option.x}%`,
+                              top: `${option.y}%`,
+                              width: `${option.width}%`,
+                              height: `${option.height}%`,
+                            }}
+                          >
+                            {optionSelected ? (
+                              <span className="text-sm font-black">✓</span>
+                            ) : null}
+                          </div>
+                        );
+                      });
+                    }
+
+                    return [
                       <div
                         key={field.id}
                         className={[
@@ -518,8 +590,8 @@ function TemplateImagePreview({
                             {displayValue || field.label}
                           </span>
                         )}
-                      </div>
-                    );
+                      </div>,
+                    ];
                   })}
                 </div>
               </div>
@@ -770,6 +842,10 @@ function AgreementSignContent() {
       return isCheckboxChecked(fieldValues[field.id]);
     }
 
+    if (field.type === "choice") {
+      return isChoiceValueSelected(fieldValues[field.id], field.options);
+    }
+
     if (field.type === "date") {
       return isValidDisplayDate(fieldValues[field.id]);
     }
@@ -865,6 +941,19 @@ function AgreementSignContent() {
       return true;
     }
 
+    if (field.type === "choice") {
+      if (!isChoiceValueSelected(values[field.id], field.options)) {
+        setError(
+          field.label?.trim()
+            ? `יש לבחור אפשרות אחת בשדה: ${field.label}`
+            : "יש לבחור אפשרות אחת"
+        );
+        return false;
+      }
+
+      return true;
+    }
+
     if (field.type === "date") {
       if (!isValidDisplayDate(values[field.id])) {
         setError(
@@ -906,8 +995,17 @@ function AgreementSignContent() {
       }
 
       if (
+        field.type === "choice" &&
+        !isChoiceValueSelected(values[field.id], field.options)
+      ) {
+        setError(`חסר שדה חובה: ${field.label}`);
+        return false;
+      }
+
+      if (
         field.type !== "signature" &&
         field.type !== "checkbox" &&
+        field.type !== "choice" &&
         field.type !== "date" &&
         !String(values[field.id] || "").trim()
       ) {
@@ -1213,6 +1311,40 @@ function AgreementSignContent() {
                   >
                     {isCheckboxChecked(values[currentField.id]) ? "✓" : ""}
                   </button>
+                ) : currentField.type === "choice" ? (
+                  <div className="mt-5 space-y-3">
+                    <p className="text-sm font-semibold text-slate-500">
+                      בחרי אפשרות אחת מתוך{" "}
+                      {currentField.options?.length || 0}
+                    </p>
+
+                    <div className="flex flex-wrap gap-3">
+                      {(currentField.options || []).map((option, index) => {
+                        const selected =
+                          String(values[currentField.id] || "").trim() ===
+                          option.id;
+
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              updateValue(currentField.id, option.id);
+                              scheduleAutoAdvance(currentField, 300);
+                            }}
+                            className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-2xl font-black transition ${
+                              selected
+                                ? "border-violet-500 bg-violet-50 text-violet-700"
+                                : "border-slate-300 bg-white text-slate-400 hover:border-violet-300"
+                            }`}
+                            title={`אפשרות ${index + 1}`}
+                          >
+                            {selected ? "✓" : index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : currentField.type === "date" ? (
                   <DateFieldInput
                     value={values[currentField.id] || ""}

@@ -16,7 +16,7 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
 
     type: {
       type: String,
-      enum: ["text", "date", "signature", "checkbox"],
+      enum: ["text", "date", "signature", "checkbox", "choice"],
       default: "text",
       required: true,
     },
@@ -57,6 +57,24 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
       default: 6,
       min: 1,
       max: 100,
+    },
+
+    /**
+     * לתיבת בחירה (choice): קוביות קטנות לבחירה אחת מתוך כמה.
+     * כל אפשרות עם מיקום עצמאי באחוזים.
+     */
+    options: {
+      type: [
+        {
+          id: { type: String, required: true, trim: true },
+          x: { type: Number, default: 38, min: 0, max: 100 },
+          y: { type: Number, default: 35, min: 0, max: 100 },
+          width: { type: Number, default: 3, min: 1, max: 100 },
+          height: { type: Number, default: 4, min: 1, max: 100 },
+          _id: false,
+        },
+      ],
+      default: undefined,
     },
 
     required: {
