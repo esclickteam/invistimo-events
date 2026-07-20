@@ -209,23 +209,29 @@ export function isGenericAgreementFieldLabel(label: unknown) {
   return GENERIC_FIELD_LABELS.has(String(label ?? "").trim());
 }
 
-/** Free-text / leftover fields for "סיבה אחרת" — never required once a reason is chosen. */
+/** Free-text / leftover fields for "סיבה אחרת" — never required. */
 export function isTerminationOptionalReasonDetailLabel(label: unknown) {
-  const text = String(label ?? "").trim();
-  if (isGenericAgreementFieldLabel(text)) return true;
-  if (!text) return true;
+  const text = String(label ?? "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim()
+    .replace(/[:：]\s*$/, "")
+    .trim();
 
-  const normalized = text.replace(/[:：]\s*$/, "").trim();
-  if (normalized === "סיבה") return true;
-  if (normalized === "סיבה אחרת") return true;
-  if (normalized.startsWith("סיבה אחרת")) return true;
+  if (!text) return true;
+  if (isGenericAgreementFieldLabel(text)) return true;
+
+  // Keep the main group title required.
+  if (text.includes("סיבת סיום")) return false;
+
+  if (text === "סיבה") return true;
+  if (text.includes("סיבה אחרת")) return true;
 
   return false;
 }
 
 /**
  * Drop leftover "סיבה" / "סיבה אחרת" text or lone checkbox fields.
- * Templates often added them as required even when a fixed reason was selected.
+ * Always strip on termination — these must never block send/preview.
  */
 export function stripTerminationOtherReasonTextFields<
   T extends {
@@ -237,55 +243,13 @@ export function stripTerminationOtherReasonTextFields<
     options?: ChoiceOption[];
   },
 >(fields: T[]): { fields: T[]; skippedFieldIds: string[] } {
-  const hasReasonChoice = fields.some((field) => {
-    if (field.type !== "choice") return false;
-    if (
-      Array.isArray(field.sourceCheckboxIds) &&
-      field.sourceCheckboxIds.length >= 2
-    ) {
-      return true;
-    }
-    return (
-      Array.isArray(field.options) &&
-      field.options.length === TERMINATION_REASON_OPTION_LABELS.length
-    );
-  });
-
-  const reasonPageIndexes = new Set(
-    fields
-      .filter((field) => {
-        if (field.type !== "choice") return false;
-        if (
-          Array.isArray(field.sourceCheckboxIds) &&
-          field.sourceCheckboxIds.length >= 2
-        ) {
-          return true;
-        }
-        return (
-          Array.isArray(field.options) &&
-          field.options.length === TERMINATION_REASON_OPTION_LABELS.length
-        );
-      })
-      .map((field) => Number(field.pageIndex ?? 0)),
-  );
-
   const skippedFieldIds: string[] = [];
   const nextFields = fields.filter((field) => {
-    const label = field.label;
-    const onReasonPage = reasonPageIndexes.has(Number(field.pageIndex ?? 0));
+    const shouldSkip =
+      (field.type === "text" || field.type === "checkbox") &&
+      isTerminationOptionalReasonDetailLabel(field.label);
 
-    const shouldSkipText =
-      field.type === "text" &&
-      isTerminationOptionalReasonDetailLabel(label) &&
-      (hasReasonChoice || onReasonPage);
-
-    // Lone checkbox titled "סיבה" that wasn't folded into the choice group.
-    const shouldSkipCheckbox =
-      field.type === "checkbox" &&
-      isTerminationOptionalReasonDetailLabel(label) &&
-      hasReasonChoice;
-
-    if (shouldSkipText || shouldSkipCheckbox) {
+    if (shouldSkip) {
       skippedFieldIds.push(String(field.id));
       return false;
     }
@@ -318,7 +282,21 @@ export function prepareTerminationAgreementFields<
     defaultOptionLabels: [...TERMINATION_REASON_OPTION_LABELS],
   }) as T[];
 
-  return stripTerminationOtherReasonTextFields(collapsed);
+  const stripped = stripTerminationOtherReasonTextFields(collapsed);
+
+  // Belt-and-suspenders: never require leftover reason-detail labels.
+  const nextFields = stripped.fields.map((field) => {
+    if (
+      (field.type === "text" || field.type === "checkbox") &&
+      isTerminationOptionalReasonDetailLabel(field.label)
+    ) {
+      return { ...field, required: false };
+    }
+
+    return field;
+  });
+
+  return { fields: nextFields, skippedFieldIds: stripped.skippedFieldIds };
 }
 
 export function collapseConsecutiveCheckboxesToChoiceFields<

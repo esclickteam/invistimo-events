@@ -20,6 +20,7 @@ import { sortAgreementFieldsByOrder, toPositiveFieldOrder } from "@/lib/employee
 import {
   getChoiceFieldBounds,
   isChoiceValueSelected,
+  isTerminationOptionalReasonDetailLabel,
   normalizeChoiceOptions,
   prepareTerminationAgreementFields,
   resolveAgreementFieldType,
@@ -545,6 +546,16 @@ export async function POST(req: NextRequest) {
           : fields;
 
       for (const field of validationFields) {
+        const isTermination =
+          templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION;
+        const isOptionalReasonDetail =
+          isTermination &&
+          isTerminationOptionalReasonDetailLabel(field.label) &&
+          (field.type === "text" ||
+            field.type === "checkbox" ||
+            field.type === "choice");
+
+        if (isOptionalReasonDetail) continue;
         if (!field.required) continue;
 
         if (field.type === "signature") {
@@ -578,8 +589,15 @@ export async function POST(req: NextRequest) {
           }
 
           const value = getFieldValue(body, field);
+          const selectedFromOptions = (field.options || []).some((option) => {
+            const optionId = cleanStr(option.id);
+            return (
+              optionId === cleanStr(value) ||
+              isCheckboxChecked(cleanStr((body.values || {})[optionId]))
+            );
+          });
 
-          if (!isChoiceValueSelected(value, field.options)) {
+          if (!isChoiceValueSelected(value, field.options) && !selectedFromOptions) {
             return NextResponse.json(
               { success: false, error: `חסר שדה חובה: ${field.label}` },
               { status: 400 }

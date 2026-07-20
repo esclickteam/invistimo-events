@@ -13,6 +13,7 @@ import {
   getChoiceFieldBounds,
   getChoiceOptionDisplayLabel,
   isChoiceValueSelected,
+  isTerminationOptionalReasonDetailLabel,
   normalizeChoiceOptions,
   prepareTerminationAgreementFields,
   resolveAgreementFieldType,
@@ -218,6 +219,17 @@ function getChoiceSelectionFromValues(
   for (const checkboxId of sourceIds) {
     if (isCheckboxChecked(fieldValues[checkboxId])) {
       return checkboxId;
+    }
+  }
+
+  // Native choice options may also be stored as true/false under option ids.
+  for (const option of field.options || []) {
+    const optionId = String(option.id);
+    if (isCheckboxChecked(fieldValues[optionId])) {
+      return optionId;
+    }
+    if (String(fieldValues[optionId] || "").trim() === optionId) {
+      return optionId;
     }
   }
 
@@ -994,6 +1006,14 @@ function AgreementSignContent() {
     fieldValues: Record<string, string>,
     fieldSignatures: Record<string, string>
   ) {
+    if (
+      templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION &&
+      (field.type === "text" || field.type === "checkbox") &&
+      isTerminationOptionalReasonDetailLabel(field.label)
+    ) {
+      return true;
+    }
+
     if (!field.required) return true;
 
     if (field.type === "signature") {
@@ -1086,6 +1106,14 @@ function AgreementSignContent() {
   function validateField(field: TemplateField) {
     setError("");
 
+    if (
+      templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION &&
+      (field.type === "text" || field.type === "checkbox") &&
+      isTerminationOptionalReasonDetailLabel(field.label)
+    ) {
+      return true;
+    }
+
     if (!field.required) return true;
 
     if (field.type === "signature") {
@@ -1148,6 +1176,14 @@ function AgreementSignContent() {
     setError("");
 
     for (const field of fields) {
+      if (
+        templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION &&
+        (field.type === "text" || field.type === "checkbox") &&
+        isTerminationOptionalReasonDetailLabel(field.label)
+      ) {
+        continue;
+      }
+
       if (!field.required) continue;
 
       if (field.type === "signature" && !signatures[field.id]) {
@@ -1167,6 +1203,14 @@ function AgreementSignContent() {
         field.type === "choice" &&
         !getChoiceSelectionFromValues(field, values)
       ) {
+        // Leftover admin label "סיבה" should not block send on termination.
+        if (
+          templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION &&
+          isTerminationOptionalReasonDetailLabel(field.label)
+        ) {
+          continue;
+        }
+
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
       }
@@ -1178,6 +1222,13 @@ function AgreementSignContent() {
         field.type !== "date" &&
         !String(values[field.id] || "").trim()
       ) {
+        if (
+          templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION &&
+          isTerminationOptionalReasonDetailLabel(field.label)
+        ) {
+          continue;
+        }
+
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
       }
