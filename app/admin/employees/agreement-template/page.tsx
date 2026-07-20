@@ -327,8 +327,17 @@ function AgreementTemplateEditor() {
     setNewFieldOrder(fields.length + 1);
   }, [fields.length]);
 
+  /** Sort by existing order values, then renumber 1..n. */
   function normalizeFieldOrders(items: TemplateField[]) {
     return sortAgreementFieldsByOrder(items) as TemplateField[];
+  }
+
+  /** Keep current array sequence and renumber 1..n (do not re-sort). */
+  function renumberFieldOrders(items: TemplateField[]) {
+    return items.map((field, index) => ({
+      ...field,
+      order: index + 1,
+    }));
   }
 
   function applyTemplateToState(template: any) {
@@ -594,10 +603,10 @@ function AgreementTemplateEditor() {
     };
 
     setFields((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      const sorted = sortAgreementFieldsByOrder(prev) as TemplateField[];
       const targetIndex = clamp(field.order - 1, 0, sorted.length);
       sorted.splice(targetIndex, 0, field);
-      return normalizeFieldOrders(sorted);
+      return renumberFieldOrders(sorted);
     });
     setSelectedId(field.id);
 
@@ -658,7 +667,8 @@ function AgreementTemplateEditor() {
     const [movedField] = sorted.splice(currentIndex, 1);
     sorted.splice(nextIndex, 0, movedField);
 
-    return normalizeFieldOrders(sorted);
+    // Renumber in place — sorting again by old order values would undo the move.
+    return renumberFieldOrders(sorted);
   }
 
   async function applyFieldOrder(id: string, targetOrder: number) {
