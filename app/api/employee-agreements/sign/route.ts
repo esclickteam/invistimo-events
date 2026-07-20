@@ -32,6 +32,7 @@ import {
   EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -554,38 +555,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const employeeId = cleanStr(body.employeeId);
-    const businessId = cleanStr(body.businessId);
+    const auth = await getUserIdFromRequest(req);
+    const authEmployeeId = cleanStr((auth as any)?.userId);
+    const bodyEmployeeId = cleanStr(body.employeeId);
+    const bodyBusinessId = cleanStr(body.businessId);
 
-    if (!employeeId || !businessId) {
+    // Always prefer the authenticated user so we never save under businessId.
+    const employeeId = authEmployeeId || bodyEmployeeId;
+    const businessId = bodyBusinessId;
+
+    if (!employeeId) {
       return NextResponse.json(
-        { success: false, error: "חסר מזהה עובד או עסק" },
-        { status: 400 }
+        { success: false, error: "צריך להתחבר מחדש כדי לחתום על ההסכם" },
+        { status: 401 },
       );
     }
 
-    if (!isValidObjectId(employeeId) || !isValidObjectId(businessId)) {
+    if (!isValidObjectId(employeeId)) {
       return NextResponse.json(
-        { success: false, error: "מזהה עובד או עסק לא תקין" },
-        { status: 400 }
+        { success: false, error: "מזהה עובד לא תקין" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      authEmployeeId &&
+      bodyEmployeeId &&
+      authEmployeeId !== bodyEmployeeId
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא ניתן לחתום עבור עובד אחר. יש להתחבר עם המשתמש של העובד.",
+        },
+        { status: 403 },
       );
     }
 
     const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
-    let businessObjectId = new mongoose.Types.ObjectId(businessId);
     const templateType = normalizeTemplateType(body.templateType);
     const templateTypeQuery = buildTemplateTypeQuery(templateType);
 
-    // Prefer exact employee+business match; fall back to employee-only like /current,
-    // because softphone users sometimes resolve a different businessId than the one
-    // stored when the admin sent the termination request.
-    let existingAssignment = await EmployeeAgreement.findOne({
-      employeeId: employeeObjectId,
-      businessId: businessObjectId,
-      ...templateTypeQuery,
-    })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .lean();
+    // Prefer exact employee+business match; fall back to employee-only like /current.
+    let existingAssignment =
+      businessId && isValidObjectId(businessId)
+        ? await EmployeeAgreement.findOne({
+            employeeId: employeeObjectId,
+            businessId: new mongoose.Types.ObjectId(businessId),
+            ...templateTypeQuery,
+          })
+            .sort({ updatedAt: -1, createdAt: -1 })
+            .lean()
+        : null;
 
     if (!existingAssignment) {
       existingAssignment = await EmployeeAgreement.findOne({
@@ -594,16 +615,26 @@ export async function POST(req: NextRequest) {
       })
         .sort({ updatedAt: -1, createdAt: -1 })
         .lean();
+    }
 
-      const fallbackBusinessId = cleanStr(
-        (existingAssignment as any)?.businessId,
+    let businessObjectId: mongoose.Types.ObjectId | null = null;
+    const assignmentBusinessId = cleanStr(
+      (existingAssignment as any)?.businessId,
+    );
+    if (
+      assignmentBusinessId &&
+      mongoose.Types.ObjectId.isValid(assignmentBusinessId)
+    ) {
+      businessObjectId = new mongoose.Types.ObjectId(assignmentBusinessId);
+    } else if (businessId && isValidObjectId(businessId)) {
+      businessObjectId = new mongoose.Types.ObjectId(businessId);
+    }
+
+    if (!businessObjectId) {
+      return NextResponse.json(
+        { success: false, error: "חסר מזהה עסק תקין לחתימה" },
+        { status: 400 },
       );
-      if (
-        fallbackBusinessId &&
-        mongoose.Types.ObjectId.isValid(fallbackBusinessId)
-      ) {
-        businessObjectId = new mongoose.Types.ObjectId(fallbackBusinessId);
-      }
     }
 
     if (templateType === "termination_request") {
@@ -905,46 +936,71 @@ export async function POST(req: NextRequest) {
       fields
     );
 
-    const savedAgreement = await EmployeeAgreement.findOneAndUpdate(
-      {
-        employeeId: employeeObjectId,
-        businessId: businessObjectId,
-        ...templateTypeQuery,
-      },
-      {
-        employeeId: employeeObjectId,
-        businessId: businessObjectId,
-        templateType,
-        templateId: (template as any)._id,
-        values: valuesToSave,
+    const agreementPatch = {
+      employeeId: employeeObjectId,
+      businessId: businessObjectId,
+      templateType,
+      templateId: (template as any)._id,
+      values: valuesToSave,
 
-        fullName: fullNameToSave,
-        idNumber: cleanStr(body.idNumber) || "",
-        address: cleanStr(body.address) || "",
-        phone: cleanStr(body.phone) || "",
-        email: cleanStr(body.email) || "",
-        agreementDate: body.agreementDate ? new Date(body.agreementDate) : null,
-        startDate: body.startDate ? new Date(body.startDate) : null,
-        finalFullName: cleanStr(body.finalFullName),
-        finalIdNumber: cleanStr(body.finalIdNumber),
-        finalSignatureDate: body.finalSignatureDate
-          ? new Date(body.finalSignatureDate)
-          : null,
+      fullName: fullNameToSave,
+      idNumber: cleanStr(body.idNumber) || "",
+      address: cleanStr(body.address) || "",
+      phone: cleanStr(body.phone) || "",
+      email: cleanStr(body.email) || "",
+      agreementDate: body.agreementDate ? new Date(body.agreementDate) : null,
+      startDate: body.startDate ? new Date(body.startDate) : null,
+      finalFullName: cleanStr(body.finalFullName),
+      finalIdNumber: cleanStr(body.finalIdNumber),
+      finalSignatureDate: body.finalSignatureDate
+        ? new Date(body.finalSignatureDate)
+        : null,
 
-        signedFileUrl,
-        status: "signed",
-        signedAt: new Date(),
-        approvedAt: null,
-        rejectedAt: null,
-        rejectionReason: "",
-        signatureFieldIds,
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      }
-    ).lean();
+      signedFileUrl,
+      status: "signed",
+      signedAt: new Date(),
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: "",
+      signatureFieldIds,
+    };
+
+    const assignmentId = cleanStr((existingAssignment as any)?._id);
+    let savedAgreement: any = null;
+
+    // Always update the existing assignment by id when present — never create an
+    // orphan row under businessId for termination requests.
+    if (assignmentId && mongoose.Types.ObjectId.isValid(assignmentId)) {
+      savedAgreement = await EmployeeAgreement.findByIdAndUpdate(
+        new mongoose.Types.ObjectId(assignmentId),
+        { $set: agreementPatch },
+        { new: true },
+      ).lean();
+    } else if (templateType !== EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION) {
+      savedAgreement = await EmployeeAgreement.findOneAndUpdate(
+        {
+          employeeId: employeeObjectId,
+          businessId: businessObjectId,
+          ...templateTypeQuery,
+        },
+        { $set: agreementPatch },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        },
+      ).lean();
+    }
+
+    if (!savedAgreement) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא נמצאה בקשה פתוחה לעדכון לאחר החתימה",
+        },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json({
       success: true,

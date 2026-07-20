@@ -1238,7 +1238,7 @@ function AgreementSignContent() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          businessId,
+          businessId: existingAgreement?.businessId || businessId,
           templateType,
           values,
           signatures,
@@ -1294,8 +1294,9 @@ function AgreementSignContent() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          employeeId,
-          businessId,
+          // Prefer ids from the assignment the admin actually sent.
+          employeeId: existingAgreement?.employeeId || employeeId,
+          businessId: existingAgreement?.businessId || businessId,
           templateType,
           values,
           signatures,

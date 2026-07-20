@@ -9,6 +9,7 @@ import {
   getTemplateTypeLabel,
   normalizeTemplateType,
 } from "@/lib/employeeAgreementTemplateTypes";
+import { repairMisattributedSignedAgreements } from "@/lib/repairEmployeeAgreementAttribution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,16 @@ export async function GET(req: NextRequest) {
       }
 
       query.employeeId = new mongoose.Types.ObjectId(employeeId);
+
+      // Fix terminations that were signed under businessId-as-employeeId.
+      try {
+        await repairMisattributedSignedAgreements(employeeId);
+      } catch (repairError) {
+        console.error(
+          "REPAIR MISATTRIBUTED EMPLOYEE AGREEMENTS ERROR:",
+          repairError,
+        );
+      }
     }
 
     const agreements = await EmployeeAgreement.find(query)
