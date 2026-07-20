@@ -254,7 +254,7 @@ export default function AgreementTemplatePage() {
   return (
     <Suspense
       fallback={
-        <main dir="rtl" className="min-h-screen bg-slate-50 p-5 text-slate-950">
+        <main dir="rtl" className="w-full min-w-0 bg-slate-50 text-slate-950">
           <div className="mx-auto max-w-7xl rounded-[28px] border border-slate-200 bg-white p-8 text-center text-sm font-black text-slate-500">
             טוען עורך תבניות...
           </div>
@@ -859,7 +859,7 @@ function AgreementTemplateEditor() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-50 p-5 text-slate-950">
+    <main dir="rtl" className="w-full min-w-0 bg-slate-50 p-3 text-slate-950 sm:p-5">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

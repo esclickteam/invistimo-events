@@ -566,11 +566,8 @@ export default function AdminEmployeesPage() {
   }, [employees]);
 
   return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
-    >
-      <div className="mx-auto w-full max-w-[1550px] space-y-6 p-4 md:p-6">
+    <div dir="rtl" className="w-full min-w-0 space-y-6 text-slate-900">
+      <div className="mx-auto w-full min-w-0 max-w-[1550px] space-y-6">
         <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -615,7 +612,7 @@ export default function AdminEmployeesPage() {
                   </button>
 
                   {templateMenuOpen && (
-                    <div className="absolute left-0 top-[calc(100%+8px)] z-30 min-w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                    <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                       {(
                         Object.values(
                           EMPLOYEE_AGREEMENT_TEMPLATE_TYPES
@@ -649,7 +646,7 @@ export default function AdminEmployeesPage() {
               </div>
 
               <div className="flex w-full flex-col gap-3 rounded-[24px] border border-indigo-100 bg-indigo-50/60 p-3 sm:flex-row xl:w-auto">
-                <label className="relative flex h-11 min-w-[190px] items-center rounded-2xl border border-indigo-100 bg-white px-4 pr-11 text-sm font-black text-slate-700 shadow-sm">
+                <label className="relative flex h-11 w-full min-w-0 items-center rounded-2xl border border-indigo-100 bg-white px-4 pr-11 text-sm font-black text-slate-700 shadow-sm sm:min-w-[190px] sm:w-auto">
                   <span className="pointer-events-none absolute right-4 text-indigo-400">
                     <Icon name="calendar" className="h-4 w-4" />
                   </span>
@@ -803,8 +800,10 @@ export default function AdminEmployeesPage() {
             </p>
           </section>
         ) : (
-          <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
-            <table className="w-full border-collapse text-right">
+          <>
+            <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] border-collapse text-right">
               <thead className="bg-slate-50/80">
                 <tr className="text-sm text-slate-500">
                   <th className="px-5 py-4 font-black">עובד</th>
@@ -921,7 +920,85 @@ export default function AdminEmployeesPage() {
                 ))}
               </tbody>
             </table>
-          </section>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 gap-4 xl:hidden">
+              {filteredEmployees.map((employee) => (
+                <article
+                  key={employee.id}
+                  className="rounded-[26px] border border-white/80 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
+                        {initials(employee.name)}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="truncate font-black text-slate-900">
+                          {employee.name}
+                        </p>
+                        <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                          {employee.email || "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/admin/employees/${encodeURIComponent(employee.id)}`}
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100"
+                    >
+                      <Icon name="open" className="h-3.5 w-3.5" />
+                      תיק עובד
+                    </Link>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                    <p className="font-bold text-slate-600">
+                      <span className="text-slate-400">טלפון: </span>
+                      <span dir="ltr">{employee.phone || "—"}</span>
+                    </p>
+                    <p className="font-bold text-slate-600">
+                      <span className="text-slate-400">ת.ז.: </span>
+                      <span dir="ltr">{employee.idNumber || "—"}</span>
+                    </p>
+                    <p className="font-bold text-slate-600 sm:col-span-2">
+                      <span className="text-slate-400">כתובת: </span>
+                      {employee.address || "—"}
+                    </p>
+                    <p className="font-bold text-slate-600">
+                      <span className="text-slate-400">התחלה: </span>
+                      {formatDate(employee.startDate)}
+                    </p>
+                    <p className="font-bold text-slate-600">
+                      <span className="text-slate-400">שכר שעתי: </span>
+                      {employee.hourlyRate > 0
+                        ? formatMoney(employee.hourlyRate)
+                        : "—"}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                        employee
+                      )}`}
+                    >
+                      {employmentStatusLabel(employee)}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
+                        employee
+                      )}`}
+                    >
+                      {detailsStatusLabel(employee)}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </section>
+          </>
         )}
       </div>
     </div>

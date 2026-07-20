@@ -485,12 +485,7 @@ const [toYear, setToYear] = useState(currentYear);
   return (
     <div
       dir="rtl"
-      className="
-        min-h-screen
-        bg-[#F6F4F1]
-        px-4 py-6
-        md:px-8 md:py-8
-      "
+      className="w-full min-w-0 bg-[#F6F4F1]"
     >
       <div className="mx-auto max-w-7xl space-y-7">
         {/* =====================================================

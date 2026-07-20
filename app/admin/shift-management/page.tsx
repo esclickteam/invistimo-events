@@ -2052,7 +2052,7 @@ function StatusBadge({ status }: { status: SoftphoneStatus }) {
 
 function HeroMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-[115px] rounded-[24px] border border-white/80 bg-white/80 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
+    <div className="min-w-0 flex-1 rounded-[24px] border border-white/80 bg-white/80 p-3 shadow-lg shadow-slate-100/70 backdrop-blur sm:min-w-[115px] sm:p-4">
       <p className="text-xs font-black text-slate-400">{label}</p>
       <p className="mt-1 text-3xl font-black text-slate-950">{value}</p>
     </div>

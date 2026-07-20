@@ -2441,9 +2441,9 @@ export default function Form101MapperPage() {
         if (event.key === "ArrowRight") nudge(1, 0);
         if (event.key === "ArrowLeft") nudge(-1, 0);
       }}
-      className="min-h-screen bg-slate-100 text-slate-900"
+      className="w-full min-w-0 bg-slate-100 text-slate-900"
     >
-      <div className="mx-auto max-w-[1900px] space-y-4 p-4">
+      <div className="mx-auto w-full min-w-0 max-w-[1900px] space-y-4">
         <section className="rounded-3xl bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>

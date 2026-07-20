@@ -1464,9 +1464,9 @@ export default function AdminEmployeeFilePage() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-950"
+      className="w-full min-w-0 text-slate-950"
     >
-      <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full min-w-0 max-w-[1500px] space-y-6">
         <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>

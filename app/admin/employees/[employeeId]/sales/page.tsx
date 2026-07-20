@@ -437,9 +437,9 @@ export default function AdminEmployeeSalesPage() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-950"
+      className="w-full min-w-0 text-slate-950"
     >
-      <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full min-w-0 max-w-[1500px] space-y-6">
         <section className="rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -597,7 +597,8 @@ export default function AdminEmployeeSalesPage() {
           </section>
         ) : (
           <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <table className="w-full border-collapse text-right">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-right">
               <thead className="bg-slate-50/80">
                 <tr className="text-sm text-slate-500">
                   <th className="px-5 py-4 font-black">תאריך</th>
@@ -665,6 +666,7 @@ export default function AdminEmployeeSalesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </section>
         )}
       </div>
