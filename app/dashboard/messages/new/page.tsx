@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import RsvpTab from "./tabs/RsvpTab";
 import ReminderTab from "./tabs/ReminderTab";
 import ThankYouTab from "./tabs/ThankYouTab";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "./shared/ScheduleDateTimeFields";
 
 /* ================= TYPES ================= */
 
@@ -1563,11 +1567,9 @@ function PreRsvpTab({
                     תאריך שליחה
                   </label>
 
-                  <input
-                    type="date"
-                    lang="en-GB"
+                  <ScheduleDateField
                     value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    onChange={setScheduledDate}
                     className="
                       w-full
                       rounded-[22px]
@@ -1592,11 +1594,9 @@ function PreRsvpTab({
                     שעת שליחה
                   </label>
 
-                  <input
-                    type="time"
-                    lang="en-GB"
+                  <ScheduleTimeField
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
+                    onChange={setScheduledTime}
                     className="
                       w-full
                       rounded-[22px]

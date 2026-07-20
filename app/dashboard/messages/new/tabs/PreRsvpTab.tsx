@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "../shared/ScheduleDateTimeFields";
 
 /* ================= TYPES ================= */
 
@@ -1096,11 +1100,9 @@ export default function PreRsvpTab({
                     תאריך שליחה
                   </label>
 
-                  <input
-                    type="date"
-                    lang="en-GB"
+                  <ScheduleDateField
                     value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    onChange={setScheduledDate}
                     className="
                       w-full
                       rounded-[22px]
@@ -1125,11 +1127,9 @@ export default function PreRsvpTab({
                     שעת שליחה
                   </label>
 
-                  <input
-                    type="time"
-                    lang="en-GB"
+                  <ScheduleTimeField
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
+                    onChange={setScheduledTime}
                     className="
                       w-full
                       rounded-[22px]

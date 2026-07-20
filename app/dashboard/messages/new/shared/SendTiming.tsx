@@ -1,5 +1,7 @@
 "use client";
 
+import { ScheduleDateField, ScheduleTimeField } from "./ScheduleDateTimeFields";
+
 type Props = {
   scheduledAt: Date | null;
   onChange: (date: Date | null) => void;
@@ -45,27 +47,19 @@ export default function SendTiming({ scheduledAt, onChange }: Props) {
       {isScheduled && (
         <div className="ml-6 space-y-3">
           <div className="flex gap-3">
-            <input
-              type="date"
-              lang="en-GB"
+            <ScheduleDateField
               className="border rounded-lg p-2 flex-1"
               value={toDateInput(scheduledAt)}
-              onChange={(e) =>
-                onChange(
-                  mergeDateAndTime(e.target.value, toTimeInput(scheduledAt))
-                )
+              onChange={(date) =>
+                onChange(mergeDateAndTime(date, toTimeInput(scheduledAt)))
               }
             />
 
-            <input
-              type="time"
-              lang="en-GB"
+            <ScheduleTimeField
               className="border rounded-lg p-2 flex-1"
               value={toTimeInput(scheduledAt)}
-              onChange={(e) =>
-                onChange(
-                  mergeDateAndTime(toDateInput(scheduledAt), e.target.value)
-                )
+              onChange={(time) =>
+                onChange(mergeDateAndTime(toDateInput(scheduledAt), time))
               }
             />
           </div>

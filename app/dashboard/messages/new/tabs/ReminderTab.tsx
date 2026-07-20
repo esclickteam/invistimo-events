@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import SendButton from "../shared/SendButton";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "../shared/ScheduleDateTimeFields";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
 import { useAuth } from "@/context/AuthContext";
@@ -744,12 +748,10 @@ export default function ReminderTab({
                   <label className="mb-2 block text-sm font-bold text-[#6B5138]">
                     תאריך שליחה
                   </label>
-                  <input
-                    type="date"
-                    lang="en-GB"
+                  <ScheduleDateField
                     min={new Date().toLocaleDateString("en-CA")}
                     value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    onChange={setScheduledDate}
                     className={inputClassName}
                   />
                 </div>
@@ -758,16 +760,14 @@ export default function ReminderTab({
                   <label className="mb-2 block text-sm font-bold text-[#6B5138]">
                     שעת שליחה
                   </label>
-                  <input
-                    type="time"
-                    lang="en-GB"
+                  <ScheduleTimeField
                     min={
                       scheduledDate === new Date().toLocaleDateString("en-CA")
                         ? new Date().toTimeString().slice(0, 5)
                         : undefined
                     }
                     value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
+                    onChange={setScheduledTime}
                     className={inputClassName}
                   />
                 </div>

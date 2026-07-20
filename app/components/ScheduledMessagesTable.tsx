@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import EditScheduledMessageModal from "@/app/components/EditScheduledMessageModal";
+import {
+  formatScheduleDate,
+  formatScheduleTime,
+} from "@/lib/formatScheduleDateTime";
 
 /* ================= TYPES ================= */
 
@@ -24,17 +28,11 @@ type ScheduledMessage = {
 /* ================= HELPERS ================= */
 
 function formatScheduledAt(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-
+  const date = formatScheduleDate(iso);
+  const time = formatScheduleTime(iso);
+  if (!date || !time) return "";
   // DD/MM/YYYY HH:mm (24h, no AM/PM), left-to-right
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return `${date} ${time}`;
 }
 
 /* ================= COMPONENT ================= */

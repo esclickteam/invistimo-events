@@ -6,7 +6,15 @@ import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 import TextMessagePreview from "../shared/TextMessagePreview";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "../shared/ScheduleDateTimeFields";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import {
+  formatScheduleDate,
+  formatScheduleTime,
+} from "@/lib/formatScheduleDateTime";
 
 
 /* ================= TYPES ================= */
@@ -136,23 +144,7 @@ function formatDateOnly(value: any) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
 
-  return d.toLocaleDateString("en-GB");
-}
-
-function formatDateTime(value: any) {
-  if (!value) return "";
-
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-
-  return `${d.toLocaleDateString("en-GB")} בשעה ${d.toLocaleTimeString(
-    "en-GB",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }
-  )}`;
+  return formatScheduleDate(d);
 }
 
 function isActiveSchedule(schedule: any) {
@@ -1232,21 +1224,17 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
 
               {sendTiming === "scheduled" && (
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="date"
-                    lang="en-GB"
+                  <ScheduleDateField
                     value={scheduledDate}
                     disabled={sendingNow}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    onChange={setScheduledDate}
                     className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
 
-                  <input
-                    type="time"
-                    lang="en-GB"
+                  <ScheduleTimeField
                     value={scheduledTime}
                     disabled={sendingNow}
-                    onChange={(e) => setScheduledTime(e.target.value)}
+                    onChange={setScheduledTime}
                     className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
                 </div>
@@ -1260,7 +1248,14 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
                         סבב {round} מתוזמן ב־{existingScheduleChannelLabel}
                       </p>
                       <p className="mt-1 text-sm text-[#8A5A25]">
-                        {formatDateTime(existingSchedule.scheduledAt)}
+                        <span dir="ltr" className="inline-block">
+                          {formatScheduleDate(existingSchedule.scheduledAt)}
+                        </span>
+                        {" "}
+                        בשעה{" "}
+                        <span dir="ltr" className="inline-block">
+                          {formatScheduleTime(existingSchedule.scheduledAt)}
+                        </span>
                       </p>
                     </div>
 

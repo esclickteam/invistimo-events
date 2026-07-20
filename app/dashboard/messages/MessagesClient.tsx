@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "./new/shared/ScheduleDateTimeFields";
+import {
+  formatScheduleDate,
+  formatScheduleTime,
+} from "@/lib/formatScheduleDateTime";
 
 /* ================= TYPES ================= */
 
@@ -1590,12 +1598,10 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
                 <label className="text-sm text-gray-600 block mb-1">
                   תאריך שליחה
                 </label>
-                <input
-                  type="date"
-                  lang="en-GB"
+                <ScheduleDateField
                   min={new Date().toLocaleDateString("en-CA")}
                   value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
+                  onChange={setScheduledDate}
                   className="w-full border rounded-xl p-3"
                 />
               </div>
@@ -1604,11 +1610,9 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
                 <label className="text-sm text-gray-600 block mb-1">
                   שעת שליחה
                 </label>
-                <input
-                  type="time"
-                  lang="en-GB"
+                <ScheduleTimeField
                   value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
+                  onChange={setScheduledTime}
                   className="w-full border rounded-xl p-3"
                 />
               </div>
@@ -1619,14 +1623,12 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
           {sendTiming === "scheduled" && scheduledAt && (
             <p className="text-xs text-gray-500 mt-2">
               📅 ההודעה תישלח ב־
-              <strong>{scheduledAt.toLocaleDateString("en-GB")}</strong>{" "}
+              <strong dir="ltr" className="inline-block">
+                {formatScheduleDate(scheduledAt)}
+              </strong>{" "}
               בשעה{" "}
-              <strong>
-                {scheduledAt.toLocaleTimeString("en-GB", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                })}
+              <strong dir="ltr" className="inline-block">
+                {formatScheduleTime(scheduledAt)}
               </strong>
             </p>
           )}
