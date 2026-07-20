@@ -572,27 +572,61 @@ export async function POST(req: NextRequest) {
     }
 
     const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
-    const businessObjectId = new mongoose.Types.ObjectId(businessId);
+    let businessObjectId = new mongoose.Types.ObjectId(businessId);
     const templateType = normalizeTemplateType(body.templateType);
     const templateTypeQuery = buildTemplateTypeQuery(templateType);
 
-    const existingAssignment = await EmployeeAgreement.findOne({
+    // Prefer exact employee+business match; fall back to employee-only like /current,
+    // because softphone users sometimes resolve a different businessId than the one
+    // stored when the admin sent the termination request.
+    let existingAssignment = await EmployeeAgreement.findOne({
       employeeId: employeeObjectId,
       businessId: businessObjectId,
       ...templateTypeQuery,
-    }).lean();
+    })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+
+    if (!existingAssignment) {
+      existingAssignment = await EmployeeAgreement.findOne({
+        employeeId: employeeObjectId,
+        ...templateTypeQuery,
+      })
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean();
+
+      const fallbackBusinessId = cleanStr(
+        (existingAssignment as any)?.businessId,
+      );
+      if (
+        fallbackBusinessId &&
+        mongoose.Types.ObjectId.isValid(fallbackBusinessId)
+      ) {
+        businessObjectId = new mongoose.Types.ObjectId(fallbackBusinessId);
+      }
+    }
 
     if (templateType === "termination_request") {
       const existingStatus = cleanStr((existingAssignment as any)?.status);
 
-      if (
-        !existingAssignment ||
-        !["pending", "rejected"].includes(existingStatus)
-      ) {
+      if (!existingAssignment) {
         return NextResponse.json(
           {
             success: false,
             error: "בקשה לסיום העסקה לא נשלחה אליך לחתימה",
+          },
+          { status: 403 },
+        );
+      }
+
+      if (!["pending", "rejected"].includes(existingStatus)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              existingStatus === "signed" || existingStatus === "approved"
+                ? "בקשה לסיום העסקה כבר נחתמה. אם צריך לחתום שוב, האדמין צריך לשלוח מחדש."
+                : "בקשה לסיום העסקה לא זמינה לחתימה כרגע",
           },
           { status: 403 },
         );
@@ -857,10 +891,12 @@ export async function POST(req: NextRequest) {
 
     const signedPdfBytes = await pdfDoc.save();
 
+    const resolvedBusinessId = String(businessObjectId);
+
     const signedFileUrl = await uploadSignedPdfToCloudinary({
       pdfBuffer: Buffer.from(signedPdfBytes),
       employeeId,
-      businessId,
+      businessId: resolvedBusinessId,
     });
 
     const fullNameToSave = buildFullNameForAgreement(
