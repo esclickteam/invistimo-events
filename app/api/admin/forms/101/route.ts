@@ -88,13 +88,16 @@ function serializeForm(form: any, employee?: any) {
     businessId: form.businessId ? String(form.businessId) : "",
 
     employeeName:
+      form.employeeName ||
       employee?.name ||
       employee?.fullName ||
       [employee?.firstName, employee?.lastName].filter(Boolean).join(" ") ||
       "עובד ללא שם",
 
-    employeeEmail: employee?.email || "",
-    employeePhone: employee?.phone || "",
+    employeeEmail: form.employeeEmail || employee?.email || "",
+    employeePhone: form.employeePhone || employee?.phone || "",
+    employeeIdNumber: form.employeeIdNumber || "",
+    employeeDeletedAt: form.employeeDeletedAt || null,
 
     documentType,
     documentTypeLabel: documentTypeLabel(documentType),

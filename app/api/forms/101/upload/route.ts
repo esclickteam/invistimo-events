@@ -9,6 +9,7 @@ import User from "@/models/User";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -463,6 +464,9 @@ export async function POST(req: NextRequest) {
 
     const fileUrl = `/api/forms/101/file/${storedFileName}`;
 
+    const employeeUser = await User.findById(employeeId).lean();
+    const employeeSnapshot = buildEmployeeSnapshot(employeeUser);
+
     /**
      * אם אדמין מעלה מחדש מסמך רגיל ויש כבר מסמך ישן,
      * ניצור רשומה חדשה. בגלל שהטעינה באדמין ממיינת לפי createdAt,
@@ -473,6 +477,8 @@ export async function POST(req: NextRequest) {
     const saved = await EmployeeForm101.create({
       employeeId,
       businessId,
+
+      ...employeeSnapshot,
 
       documentType,
       payrollMonth: documentType === "payslip" ? payrollMonth : "",

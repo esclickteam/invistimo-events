@@ -122,6 +122,35 @@ const EmployeeForm101Schema = new Schema(
       type: Date,
       default: null,
     },
+
+    employeeName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    employeeEmail: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    employeePhone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    employeeIdNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    employeeDeletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

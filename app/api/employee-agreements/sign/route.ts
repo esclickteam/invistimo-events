@@ -15,11 +15,12 @@ import { v2 as cloudinary } from "cloudinary";
 import db from "@/lib/db";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
+import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "date" | "signature";
+type FieldType = "text" | "date" | "signature" | "checkbox";
 type CoordinateMode = "percent" | "pixel";
 
 type TemplateField = {
@@ -188,7 +189,9 @@ function normalizeField(raw: any): TemplateField {
   const rawType = cleanStr(raw?.type);
 
   const type: FieldType =
-    rawType === "date" || rawType === "signature" ? rawType : "text";
+    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+      ? rawType
+      : "text";
 
   return {
     id: cleanStr(raw?.id),
@@ -340,6 +343,37 @@ function getFittedFontSize(options: {
   }
 
   return 6;
+}
+
+function drawCheckInBox(options: {
+  page: PDFPage;
+  checked: boolean;
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  font: PDFFont;
+}) {
+  if (!options.checked) return;
+
+  const value = "✓";
+  const size = Math.max(8, Math.min(options.box.height * 0.75, 16));
+  const textWidth = options.font.widthOfTextAtSize(value, size);
+
+  options.page.drawText(value, {
+    x:
+      options.box.x +
+      Math.max((options.box.width - textWidth) / 2, 0),
+    y:
+      options.box.y +
+      Math.max((options.box.height - size) / 2, 0) +
+      1,
+    size,
+    font: options.font,
+    color: rgb(0, 0, 0),
+  });
 }
 
 function drawTextInBox(options: {
@@ -553,6 +587,19 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      if (field.type === "checkbox") {
+        const value = getFieldValue(body, field);
+
+        if (!isCheckboxChecked(value)) {
+          return NextResponse.json(
+            { success: false, error: `חסר שדה חובה: ${field.label}` },
+            { status: 400 }
+          );
+        }
+
+        continue;
+      }
+
       const value = getFieldValue(body, field);
 
       if (!value) {
@@ -630,6 +677,24 @@ export async function POST(req: NextRequest) {
         });
 
         signatureFieldIds.push(field.id);
+
+        continue;
+      }
+
+      if (field.type === "checkbox") {
+        const rawValue = getFieldValue(body, field);
+        const checked = isCheckboxChecked(rawValue);
+
+        if (checked) {
+          valuesToSave[field.id] = "true";
+        }
+
+        drawCheckInBox({
+          page,
+          checked,
+          box,
+          font: fallbackFont,
+        });
 
         continue;
       }

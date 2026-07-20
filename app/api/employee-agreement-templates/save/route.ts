@@ -17,7 +17,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "date" | "signature";
+type FieldType = "text" | "date" | "signature" | "checkbox";
 type PageFileType = "image" | "pdf";
 
 type TemplateField = {
@@ -94,6 +94,7 @@ function normalizeFieldType(value: unknown): FieldType {
 
   if (type === "date") return "date";
   if (type === "signature") return "signature";
+  if (type === "checkbox") return "checkbox";
 
   return "text";
 }
@@ -105,6 +106,7 @@ function normalizePageType(value: unknown): PageFileType {
 function defaultFieldLabel(type: FieldType, index: number) {
   if (type === "date") return "תאריך";
   if (type === "signature") return "חתימה";
+  if (type === "checkbox") return "תיבת סימון";
   if (type === "text") return "שדה טקסט";
 
   return `שדה ${index + 1}`;
@@ -123,8 +125,8 @@ function normalizeFields(
 
       let x = cleanNumber(item.x, 38);
       let y = cleanNumber(item.y, 35);
-      let width = cleanNumber(item.width, type === "signature" ? 24 : 22);
-      let height = cleanNumber(item.height, type === "signature" ? 8 : 6);
+      let width = cleanNumber(item.width, type === "signature" ? 24 : type === "checkbox" ? 5 : 22);
+      let height = cleanNumber(item.height, type === "signature" ? 8 : type === "checkbox" ? 5 : 6);
 
       const looksLikeLegacyPixels =
         coordinateMode !== "percent" &&

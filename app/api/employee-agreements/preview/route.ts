@@ -13,11 +13,12 @@ import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
+import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "date" | "signature";
+type FieldType = "text" | "date" | "signature" | "checkbox";
 type CoordinateMode = "percent" | "pixel";
 
 type TemplateField = {
@@ -165,7 +166,9 @@ function normalizeField(raw: any): TemplateField {
   const rawType = cleanStr(raw?.type);
 
   const type: FieldType =
-    rawType === "date" || rawType === "signature" ? rawType : "text";
+    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+      ? rawType
+      : "text";
 
   return {
     id: cleanStr(raw?.id),
@@ -174,8 +177,14 @@ function normalizeField(raw: any): TemplateField {
     pageIndex: Math.max(0, cleanNumber(raw?.pageIndex, 0)),
     x: cleanNumber(raw?.x, 0),
     y: cleanNumber(raw?.y, 0),
-    width: cleanNumber(raw?.width, type === "signature" ? 24 : 22),
-    height: cleanNumber(raw?.height, type === "signature" ? 8 : 6),
+    width: cleanNumber(
+      raw?.width,
+      type === "signature" ? 24 : type === "checkbox" ? 5 : 22
+    ),
+    height: cleanNumber(
+      raw?.height,
+      type === "signature" ? 8 : type === "checkbox" ? 5 : 6
+    ),
     required: raw?.required !== false,
     order: cleanNumber(raw?.order, 0),
   };
@@ -317,6 +326,37 @@ function getFittedFontSize(options: {
   }
 
   return 6;
+}
+
+function drawCheckInBox(options: {
+  page: PDFPage;
+  checked: boolean;
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  font: PDFFont;
+}) {
+  if (!options.checked) return;
+
+  const value = "✓";
+  const size = Math.max(8, Math.min(options.box.height * 0.75, 16));
+  const textWidth = options.font.widthOfTextAtSize(value, size);
+
+  options.page.drawText(value, {
+    x:
+      options.box.x +
+      Math.max((options.box.width - textWidth) / 2, 0),
+    y:
+      options.box.y +
+      Math.max((options.box.height - size) / 2, 0) +
+      1,
+    size,
+    font: options.font,
+    color: rgb(0, 0, 0),
+  });
 }
 
 function drawTextInBox(options: {
@@ -532,6 +572,19 @@ export async function POST(req: NextRequest) {
           y: box.y,
           width: box.width,
           height: box.height,
+        });
+
+        continue;
+      }
+
+      if (field.type === "checkbox") {
+        const rawValue = getFieldValue(body, field);
+
+        drawCheckInBox({
+          page,
+          checked: isCheckboxChecked(rawValue),
+          box,
+          font: fallbackFont,
         });
 
         continue;

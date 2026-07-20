@@ -5,6 +5,9 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
+import EmployeeForm101 from "@/models/EmployeeForm101";
+import EmployeeAgreement from "@/models/EmployeeAgreement";
+import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -748,7 +751,7 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    const deletedUser = await User.findByIdAndDelete(id);
+    const deletedUser = await User.findById(id).lean();
 
     if (!deletedUser) {
       return NextResponse.json(
@@ -759,6 +762,35 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    const snapshot = buildEmployeeSnapshot(deletedUser);
+    const deletedAt = new Date();
+
+    await Promise.all([
+      EmployeeForm101.updateMany(
+        { employeeId: id },
+        {
+          $set: {
+            ...snapshot,
+            employeeDeletedAt: deletedAt,
+          },
+        }
+      ),
+      EmployeeAgreement.updateMany(
+        { employeeId: id },
+        {
+          $set: {
+            fullName: snapshot.employeeName || undefined,
+            email: snapshot.employeeEmail || undefined,
+            phone: snapshot.employeePhone || undefined,
+            idNumber: snapshot.employeeIdNumber || undefined,
+            employeeDeletedAt: deletedAt,
+          },
+        }
+      ),
+    ]);
+
+    await User.findByIdAndDelete(id);
 
     return NextResponse.json(
       {

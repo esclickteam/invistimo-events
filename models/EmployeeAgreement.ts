@@ -114,6 +114,11 @@ const EmployeeAgreementSchema = new Schema(
       type: String,
       default: "",
     },
+
+    employeeDeletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { isCheckboxChecked } from "@/lib/employeeSnapshot";
 
-type FieldType = "text" | "date" | "signature";
+type FieldType = "text" | "date" | "signature" | "checkbox";
 type EmployeeAgreementStatus = "signed" | "approved" | "rejected";
 
 type TemplateField = {
@@ -96,7 +97,9 @@ function formatDate(value?: string | null) {
 function normalizeField(raw: any, index: number): TemplateField {
   const rawType = String(raw?.type || "text");
   const type: FieldType =
-    rawType === "date" || rawType === "signature" ? rawType : "text";
+    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+      ? rawType
+      : "text";
 
   let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
   let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
@@ -637,6 +640,15 @@ function AgreementSignContent() {
       return true;
     }
 
+    if (field.type === "checkbox") {
+      if (!isCheckboxChecked(values[field.id])) {
+        setError(`יש לסמן את השדה: ${field.label}`);
+        return false;
+      }
+
+      return true;
+    }
+
     if (!String(values[field.id] || "").trim()) {
       setError(`יש למלא את השדה: ${field.label}`);
       return false;
@@ -656,7 +668,19 @@ function AgreementSignContent() {
         return false;
       }
 
-      if (field.type !== "signature" && !String(values[field.id] || "").trim()) {
+      if (
+        field.type === "checkbox" &&
+        !isCheckboxChecked(values[field.id])
+      ) {
+        setError(`חסר שדה חובה: ${field.label}`);
+        return false;
+      }
+
+      if (
+        field.type !== "signature" &&
+        field.type !== "checkbox" &&
+        !String(values[field.id] || "").trim()
+      ) {
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
       }
@@ -886,6 +910,25 @@ function AgreementSignContent() {
                       updateSignature(currentField.id, dataUrl)
                     }
                   />
+                ) : currentField.type === "checkbox" ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateValue(
+                        currentField.id,
+                        isCheckboxChecked(values[currentField.id])
+                          ? "false"
+                          : "true"
+                      )
+                    }
+                    className={`mt-5 flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-3xl font-black transition ${
+                      isCheckboxChecked(values[currentField.id])
+                        ? "border-violet-500 bg-violet-50 text-violet-700"
+                        : "border-slate-300 bg-white text-slate-300 hover:border-violet-300"
+                    }`}
+                  >
+                    {isCheckboxChecked(values[currentField.id]) ? "✓" : ""}
+                  </button>
                 ) : (
                   <input
                     type={currentField.type === "date" ? "date" : "text"}

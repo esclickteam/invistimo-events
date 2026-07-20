@@ -11,7 +11,9 @@ import db from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import Form101Template from "@/models/Form101Template";
+import User from "@/models/User";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -2348,9 +2350,15 @@ export async function POST(req: NextRequest) {
       })
     );
 
+    const employeeUser = await User.findById(employeeObjectId).lean();
+    const employeeSnapshot = buildEmployeeSnapshot(employeeUser);
+
     const document = await EmployeeForm101.create({
       employeeId: employeeObjectId,
       businessId: businessObjectId,
+
+      ...employeeSnapshot,
+
       documentType: "form101",
 
       originalFileName,

@@ -12,7 +12,7 @@ import {
   TEMPLATE_TYPE_LABELS,
 } from "@/lib/employeeAgreementTemplateTypes";
 
-type FieldType = "text" | "date" | "signature";
+type FieldType = "text" | "date" | "signature" | "checkbox";
 
 type TemplateField = {
   id: string;
@@ -57,6 +57,7 @@ const FIELD_LABELS: Record<FieldType, string> = {
   text: "שדה טקסט",
   date: "תאריך",
   signature: "חתימה",
+  checkbox: "תיבת סימון",
 };
 
 function makeId() {
@@ -79,10 +80,18 @@ function normalizePageType(value: unknown): TemplatePage["type"] {
 function normalizeField(raw: any, index: number): TemplateField {
   const rawType = String(raw?.type || "text");
   const type: FieldType =
-    rawType === "date" || rawType === "signature" ? rawType : "text";
+    rawType === "date" || rawType === "signature" || rawType === "checkbox"
+      ? rawType
+      : "text";
 
-  let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
-  let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
+  let width = toNumber(
+    raw?.width,
+    type === "signature" ? 24 : type === "checkbox" ? 5 : 22
+  );
+  let height = toNumber(
+    raw?.height,
+    type === "signature" ? 8 : type === "checkbox" ? 5 : 6
+  );
   let x = toNumber(raw?.x, 38);
   let y = toNumber(raw?.y, 35);
 
@@ -374,8 +383,9 @@ function AgreementTemplateEditor() {
       return;
     }
 
-    const width = type === "signature" ? 24 : type === "date" ? 18 : 22;
-    const height = type === "signature" ? 8 : 6;
+    const width =
+      type === "signature" ? 24 : type === "date" ? 18 : type === "checkbox" ? 5 : 22;
+    const height = type === "signature" ? 8 : type === "checkbox" ? 5 : 6;
 
     const field: TemplateField = {
       id: makeId(),
@@ -498,13 +508,14 @@ function AgreementTemplateEditor() {
   }
 
   function getFieldPreview(field: TemplateField) {
-  if (field.label?.trim()) return field.label.trim();
+    if (field.label?.trim()) return field.label.trim();
 
-  if (field.type === "signature") return "חתימה";
-  if (field.type === "date") return "תאריך";
+    if (field.type === "signature") return "חתימה";
+    if (field.type === "date") return "תאריך";
+    if (field.type === "checkbox") return "✓";
 
-  return "שדה טקסט";
-}
+    return "שדה טקסט";
+  }
   async function saveTemplate(pdfFile?: File) {
     try {
       setSaving(!pdfFile);
@@ -864,6 +875,15 @@ function AgreementTemplateEditor() {
                 >
                   הוסף שדה חתימה
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => addField("checkbox")}
+                  disabled={loading || uploadingPdf || !hasPageImages}
+                  className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
+                >
+                  הוסף תיבת סימון ✓
+                </button>
               </div>
 
               <div className="mt-5">
@@ -902,8 +922,8 @@ function AgreementTemplateEditor() {
 
             <SideBox title="עריכת שדה">
               {!selectedField ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm font-black text-slate-500">
-                  בחרי שדה מהמסמך כדי לערוך
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm font-black leading-6 text-slate-500">
+                  בחרי שדה מהמסמך או מהרשימה למטה כדי לשנות את שמו
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -919,8 +939,13 @@ function AgreementTemplateEditor() {
                           label: event.target.value,
                         })
                       }
+                      placeholder="לדוגמה: שם מלא, תאריך סיום..."
                       className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
                     />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                    סוג שדה: {FIELD_LABELS[selectedField.type]}
                   </div>
 
                   <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800">
@@ -1023,21 +1048,41 @@ function AgreementTemplateEditor() {
                 )}
 
                 {sortedFields.map((field, index) => (
-                  <button
+                  <div
                     key={field.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(field.id);
-                      scrollToPage(field.pageIndex);
-                    }}
-                    className={`w-full rounded-2xl border p-3 text-right text-xs font-black ${
+                    className={`rounded-2xl border p-3 ${
                       selectedId === field.id
-                        ? "border-violet-300 bg-violet-50 text-violet-800"
-                        : "border-slate-200 bg-white text-slate-700"
+                        ? "border-violet-300 bg-violet-50"
+                        : "border-slate-200 bg-white"
                     }`}
                   >
-                    {index + 1}. {field.label} — עמוד {field.pageIndex + 1}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(field.id);
+                        scrollToPage(field.pageIndex);
+                      }}
+                      className="mb-2 w-full text-right text-xs font-black text-slate-500"
+                    >
+                      {index + 1}. {FIELD_LABELS[field.type]} — עמוד{" "}
+                      {field.pageIndex + 1}
+                    </button>
+
+                    <input
+                      value={field.label}
+                      onFocus={() => {
+                        setSelectedId(field.id);
+                        setActivePageIndex(field.pageIndex);
+                      }}
+                      onChange={(event) =>
+                        updateField(field.id, {
+                          label: event.target.value,
+                        })
+                      }
+                      placeholder="שם השדה"
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-black outline-none focus:border-violet-400"
+                    />
+                  </div>
                 ))}
               </div>
             </SideBox>

@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
 import db from "@/lib/db";
+import EmployeeForm101 from "@/models/EmployeeForm101";
+import EmployeeAgreement from "@/models/EmployeeAgreement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,6 +102,41 @@ function normalizeEmployee(user: any, employeeId: string) {
   };
 }
 
+async function findEmployeeSnapshot(employeeId: string) {
+  const objectId = toObjectId(employeeId);
+
+  const [document, agreement] = await Promise.all([
+    EmployeeForm101.findOne(
+      objectId ? { employeeId: objectId } : { employeeId }
+    )
+      .sort({ createdAt: -1 })
+      .lean(),
+    EmployeeAgreement.findOne(
+      objectId ? { employeeId: objectId } : { employeeId }
+    )
+      .sort({ signedAt: -1, createdAt: -1 })
+      .lean(),
+  ]);
+
+  if (!document && !agreement) return null;
+
+  return {
+    name:
+      (document as any)?.employeeName ||
+      (agreement as any)?.fullName ||
+      (agreement as any)?.finalFullName ||
+      "",
+    email: (document as any)?.employeeEmail || (agreement as any)?.email || "",
+    phone: (document as any)?.employeePhone || (agreement as any)?.phone || "",
+    idNumber:
+      (document as any)?.employeeIdNumber || (agreement as any)?.idNumber || "",
+    employeeDeletedAt:
+      (document as any)?.employeeDeletedAt ||
+      (agreement as any)?.employeeDeletedAt ||
+      null,
+  };
+}
+
 async function findEmployee(employeeId: string) {
   const database = mongoose.connection.db;
   if (!database) return null;
@@ -140,10 +177,12 @@ export async function GET(
     }
 
     const user = await findEmployee(employeeId);
+    const snapshot = user ? null : await findEmployeeSnapshot(employeeId);
 
     return NextResponse.json({
       success: true,
-      employee: normalizeEmployee(user || {}, employeeId),
+      employee: normalizeEmployee(user || snapshot || {}, employeeId),
+      archived: Boolean(snapshot?.employeeDeletedAt),
     });
   } catch (error) {
     console.error("GET ADMIN EMPLOYEE PROFILE FAILED:", error);

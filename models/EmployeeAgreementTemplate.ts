@@ -16,7 +16,7 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
 
     type: {
       type: String,
-      enum: ["text", "date", "signature"],
+      enum: ["text", "date", "signature", "checkbox"],
       default: "text",
       required: true,
     },
