@@ -6,6 +6,10 @@ import AudienceFilterSelector, {
 } from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import TextMessagePreview from "../shared/TextMessagePreview";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "../shared/ScheduleDateTimeFields";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 
 
@@ -528,16 +532,14 @@ setRound2Locked(
 
         {sendTiming === "scheduled" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input
-              type="date"
+            <ScheduleDateField
               value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
+              onChange={setScheduledDate}
               className="border rounded-xl px-4 py-3 text-sm"
             />
-            <input
-              type="time"
+            <ScheduleTimeField
               value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
+              onChange={setScheduledTime}
               className="border rounded-xl px-4 py-3 text-sm"
             />
           </div>

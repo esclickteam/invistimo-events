@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import EditScheduledMessageModal from "@/app/components/EditScheduledMessageModal";
+import {
+  formatScheduleDate,
+  formatScheduleTime,
+} from "@/lib/formatScheduleDateTime";
 
 /* ================= TYPES ================= */
 
@@ -20,6 +24,16 @@ type ScheduledMessage = {
   scheduledAt: string;
   status: ScheduledMessageStatus;
 };
+
+/* ================= HELPERS ================= */
+
+function formatScheduledAt(iso: string) {
+  const date = formatScheduleDate(iso);
+  const time = formatScheduleTime(iso);
+  if (!date || !time) return "";
+  // DD/MM/YYYY HH:mm (24h, no AM/PM), left-to-right
+  return `${date} ${time}`;
+}
 
 /* ================= COMPONENT ================= */
 
@@ -83,7 +97,9 @@ export default function ScheduledMessagesTable({
                 </td>
 
                 <td className="p-3 text-center">
-                  {new Date(msg.scheduledAt).toLocaleString("he-IL")}
+                  <span dir="ltr" className="inline-block">
+                    {formatScheduledAt(msg.scheduledAt)}
+                  </span>
                 </td>
 
                 <td
@@ -130,7 +146,10 @@ export default function ScheduledMessagesTable({
             </div>
 
             <div className="text-xs text-gray-500 mb-1">
-              📅 {new Date(msg.scheduledAt).toLocaleString("he-IL")}
+              📅{" "}
+              <span dir="ltr" className="inline-block">
+                {formatScheduledAt(msg.scheduledAt)}
+              </span>
             </div>
 
             <div

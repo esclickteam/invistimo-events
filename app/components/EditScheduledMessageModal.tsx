@@ -1,6 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  ScheduleDateField,
+  ScheduleTimeField,
+} from "@/app/dashboard/messages/new/shared/ScheduleDateTimeFields";
 
 /* ================= TYPES ================= */
 
@@ -218,12 +222,11 @@ export default function EditScheduledMessageModal({
             תאריך שליחה
           </label>
 
-          <input
-            type="date"
+          <ScheduleDateField
             value={date}
             min={minDate}
             disabled={loading}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
             className="
               w-full
               rounded-xl
@@ -247,11 +250,10 @@ export default function EditScheduledMessageModal({
             שעת שליחה
           </label>
 
-          <input
-            type="time"
+          <ScheduleTimeField
             value={time}
             disabled={loading}
-            onChange={(e) => setTime(e.target.value)}
+            onChange={setTime}
             className="
               w-full
               rounded-xl
