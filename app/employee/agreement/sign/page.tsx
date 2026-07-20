@@ -242,14 +242,31 @@ function applyExclusiveCheckboxChoice(
   selectedOptionId: string,
 ) {
   const next = { ...prev, [field.id]: selectedOptionId };
-  const sourceIds = field.sourceCheckboxIds || [];
-
-  if (sourceIds.length === 0) {
-    return next;
-  }
+  const sourceIds =
+    field.sourceCheckboxIds?.length
+      ? field.sourceCheckboxIds
+      : (field.options || []).map((option) => String(option.id));
 
   for (const checkboxId of sourceIds) {
     next[checkboxId] = checkboxId === selectedOptionId ? "true" : "false";
+  }
+
+  return next;
+}
+
+/** Ensure choice selections are written as true/false on every option box before PDF. */
+function buildValuesForPdfSubmit(
+  values: Record<string, string>,
+  wizardFields: TemplateField[],
+  documentFields: TemplateField[],
+) {
+  let next = { ...values };
+
+  for (const field of [...wizardFields, ...documentFields]) {
+    if (field.type !== "choice") continue;
+    const selected = getChoiceSelectionFromValues(field, next);
+    if (!selected) continue;
+    next = applyExclusiveCheckboxChoice(next, field, selected);
   }
 
   return next;
@@ -403,7 +420,16 @@ function getFieldDisplayValue({
   }
 
   if (field.type === "checkbox") {
-    return isCheckboxChecked(value) ? "✓" : "";
+    if (isCheckboxChecked(value)) return "✓";
+    // Synthetic choice groups store the selected checkbox id on the group key.
+    if (
+      Object.values(values).some(
+        (entry) => String(entry || "").trim() === field.id,
+      )
+    ) {
+      return "✓";
+    }
+    return "";
   }
 
   if (field.type === "choice") {
@@ -1291,7 +1317,7 @@ function AgreementSignContent() {
         body: JSON.stringify({
           businessId: existingAgreement?.businessId || businessId,
           templateType,
-          values,
+          values: buildValuesForPdfSubmit(values, fields, documentFields),
           signatures,
           validateRequired: true,
         }),
@@ -1349,7 +1375,7 @@ function AgreementSignContent() {
           employeeId: existingAgreement?.employeeId || employeeId,
           businessId: existingAgreement?.businessId || businessId,
           templateType,
-          values,
+          values: buildValuesForPdfSubmit(values, fields, documentFields),
           signatures,
         }),
       });

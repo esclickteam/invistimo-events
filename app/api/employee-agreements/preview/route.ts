@@ -27,6 +27,10 @@ import {
   type ChoiceOption,
 } from "@/lib/employeeAgreementChoiceField";
 import {
+  isAgreementOptionMarked,
+  resolveMarkedAgreementOptionIds,
+} from "@/lib/employeeAgreementFieldValues";
+import {
   buildTemplateTypeQuery,
   EMPLOYEE_AGREEMENT_TEMPLATE_TYPES,
   normalizeTemplateType,
@@ -87,6 +91,11 @@ function cleanStr(value: unknown) {
 function cleanNumber(value: unknown, fallback = 0) {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+}
+
+function cleanPositiveNumber(value: unknown, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : fallback;
 }
 
 function normalizeLabel(value: string) {
@@ -216,13 +225,13 @@ function normalizeField(raw: any, index = 0): TemplateField {
     y: bounds?.y ?? y,
     width:
       bounds?.width ??
-      cleanNumber(
+      cleanPositiveNumber(
         raw?.width,
         type === "signature" ? 24 : type === "checkbox" ? 5 : 22,
       ),
     height:
       bounds?.height ??
-      cleanNumber(
+      cleanPositiveNumber(
         raw?.height,
         type === "signature" ? 8 : type === "checkbox" ? 5 : 6,
       ),
@@ -287,9 +296,20 @@ function getLegacyValue(body: PreviewAgreementBody, field: TemplateField) {
   return cleanStr(legacyMap[label]);
 }
 
+function readBodyFieldValue(
+  values: Record<string, unknown> | undefined,
+  key: string,
+) {
+  if (!values || !key) return "";
+  const raw = values[key];
+  if (typeof raw === "boolean") return raw ? "true" : "false";
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  if (typeof raw === "string") return raw.trim();
+  return "";
+}
+
 function getFieldValue(body: PreviewAgreementBody, field: TemplateField) {
-  const values = body.values || {};
-  const directValue = cleanStr(values[field.id]);
+  const directValue = readBodyFieldValue(body.values, field.id);
 
   if (directValue) return directValue;
 
@@ -382,16 +402,29 @@ function drawCheckInBox(options: {
 }) {
   if (!options.checked) return;
 
-  const { page, box } = options;
-  const padX = box.width * 0.22;
-  const padY = box.height * 0.2;
-  const left = box.x + padX;
-  const right = box.x + box.width - padX;
-  const bottom = box.y + padY;
-  const top = box.y + box.height - padY;
+  const { page } = options;
+  let { x, y, width, height } = options.box;
+
+  // Tiny / zero boxes from bad template data still need a visible mark.
+  const minSize = 9;
+  if (width < minSize) {
+    x -= (minSize - width) / 2;
+    width = minSize;
+  }
+  if (height < minSize) {
+    y -= (minSize - height) / 2;
+    height = minSize;
+  }
+
+  const padX = width * 0.22;
+  const padY = height * 0.2;
+  const left = x + padX;
+  const right = x + width - padX;
+  const bottom = y + padY;
+  const top = y + height - padY;
   const midX = left + (right - left) * 0.32;
   const midY = bottom + (top - bottom) * 0.15;
-  const thickness = Math.max(1.2, Math.min(box.width, box.height) * 0.14);
+  const thickness = Math.max(1.6, Math.min(width, height) * 0.18);
 
   // Vector checkmark — avoids WinAnsi/"✓" encoding errors with StandardFonts.
   page.drawLine({
@@ -656,6 +689,12 @@ export async function POST(req: NextRequest) {
 
     const pages = pdfDoc.getPages();
     const coordinateMode = resolveCoordinateMode(template, fields);
+    const markedOptionIds = resolveMarkedAgreementOptionIds(body.values, [
+      ...fields,
+      ...(templateType === EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION
+        ? (prepareTerminationAgreementFields(fields).fields as TemplateField[])
+        : []),
+    ]);
 
     for (const field of fields) {
       const page = pages[field.pageIndex];
@@ -698,11 +737,13 @@ export async function POST(req: NextRequest) {
       }
 
       if (field.type === "checkbox") {
-        const rawValue = getFieldValue(body, field);
-
         drawCheckInBox({
           page,
-          checked: isCheckboxChecked(rawValue),
+          checked: isAgreementOptionMarked(
+            markedOptionIds,
+            body.values,
+            field.id,
+          ),
           box,
         });
 
@@ -710,7 +751,6 @@ export async function POST(req: NextRequest) {
       }
 
       if (field.type === "choice") {
-        const rawValue = getFieldValue(body, field);
         const options = field.options || [];
 
         for (const option of options) {
@@ -729,7 +769,12 @@ export async function POST(req: NextRequest) {
 
           drawCheckInBox({
             page,
-            checked: String(rawValue).trim() === option.id,
+            checked: isAgreementOptionMarked(
+              markedOptionIds,
+              body.values,
+              option.id,
+              field.id,
+            ),
             box: optionBox,
           });
         }
