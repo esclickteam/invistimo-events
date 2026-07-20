@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const status = normalizeStatus(searchParams.get("status") || "");
+    const employeeId = cleanStr(searchParams.get("employeeId"));
 
     const query: Record<string, unknown> = {};
 
@@ -41,8 +42,19 @@ export async function GET(req: NextRequest) {
       query.status = status;
     }
 
+    if (employeeId) {
+      if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+        return NextResponse.json(
+          { success: false, error: "מזהה עובד לא תקין" },
+          { status: 400 },
+        );
+      }
+
+      query.employeeId = new mongoose.Types.ObjectId(employeeId);
+    }
+
     const agreements = await EmployeeAgreement.find(query)
-      .sort({ signedAt: -1, createdAt: -1 })
+      .sort({ signedAt: -1, updatedAt: -1, createdAt: -1 })
       .lean();
 
     const employeeIds = agreements

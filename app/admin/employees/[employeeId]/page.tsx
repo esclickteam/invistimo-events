@@ -132,7 +132,8 @@ const API = {
   profile: (employeeId: string) =>
     `/api/admin/employees/${encodeURIComponent(employeeId)}/profile`,
   forms101: "/api/admin/forms/101",
-  agreements: "/api/admin/employee-agreements",
+  agreements: (employeeId: string) =>
+    `/api/admin/employee-agreements?employeeId=${encodeURIComponent(employeeId)}`,
   updateFormStatus: (formId: string) => `/api/admin/forms/101/${formId}/status`,
   updateAgreementStatus: (agreementId: string) =>
     `/api/admin/employee-agreements/${agreementId}/status`,
@@ -370,6 +371,42 @@ function paymentModeLabel(value?: string) {
 
 function getDocumentId(doc: AdminEmployeeDocument) {
   return String(doc.id || doc._id || "");
+}
+
+function sameEmployeeId(left?: string | null, right?: string | null) {
+  return cleanStr(left).toLowerCase() === cleanStr(right).toLowerCase();
+}
+
+/** Prefer signed/approved docs with a file over older pending assignments. */
+function pickLatestDocumentByType(
+  documents: AdminEmployeeDocument[],
+  documentType: string,
+) {
+  const matches = documents.filter(
+    (doc) => String(doc.documentType || "") === documentType,
+  );
+
+  if (matches.length === 0) return null;
+
+  const rank = (doc: AdminEmployeeDocument) => {
+    const status = String(doc.status || "").toLowerCase();
+    const hasFile = Boolean(cleanStr(doc.fileUrl));
+    let score = 0;
+
+    if (hasFile) score += 100;
+    if (status === "approved") score += 40;
+    if (status === "signed") score += 30;
+    if (status === "rejected") score += 10;
+    if (status === "pending") score += 5;
+
+    const time = new Date(
+      doc.uploadedAt || doc.updatedAt || doc.createdAt || 0,
+    ).getTime();
+
+    return score * 1e15 + (Number.isFinite(time) ? time : 0);
+  };
+
+  return [...matches].sort((a, b) => rank(b) - rank(a))[0] || null;
 }
 
 function initials(name: string) {
@@ -657,10 +694,11 @@ export default function AdminEmployeeFilePage() {
     documents.find((doc) => doc.documentType === "idCardAppendix") || null;
   const accountManagement =
     documents.find((doc) => doc.documentType === "accountManagement") || null;
-  const agreement =
-    documents.find((doc) => doc.documentType === "agreement") || null;
-  const terminationRequest =
-    documents.find((doc) => doc.documentType === "termination_request") || null;
+  const agreement = pickLatestDocumentByType(documents, "agreement");
+  const terminationRequest = pickLatestDocumentByType(
+    documents,
+    "termination_request",
+  );
 
   const payslips = useMemo(
     () =>
@@ -851,7 +889,7 @@ export default function AdminEmployeeFilePage() {
       const [profileData, formsData, agreementsData] = await Promise.all([
         fetchJson(API.profile(employeeId), true),
         fetchJson(API.forms101),
-        fetchJson(API.agreements),
+        fetchJson(API.agreements(employeeId)),
       ]);
 
       const forms = getArrayFromResponse<any>(formsData, [
@@ -869,7 +907,7 @@ export default function AdminEmployeeFilePage() {
       const mergedDocs: AdminEmployeeDocument[] = [];
 
       forms.forEach((form) => {
-        if (String(form.employeeId || "") !== employeeId) return;
+        if (!sameEmployeeId(form.employeeId, employeeId)) return;
 
         const fileUrl = cleanStr(form.fileUrl);
 
@@ -887,7 +925,7 @@ export default function AdminEmployeeFilePage() {
       });
 
       agreements.forEach((agreementItem) => {
-        if (String(agreementItem.employeeId || "") !== employeeId) return;
+        if (!sameEmployeeId(agreementItem.employeeId, employeeId)) return;
 
         const templateType = String(
           agreementItem.templateType || "phone_representative_agreement",
@@ -901,11 +939,12 @@ export default function AdminEmployeeFilePage() {
             agreementItem.pdfUrl,
         );
 
-        const status = cleanStr(agreementItem.status) || (fileUrl ? "signed" : "pending");
+        const status =
+          cleanStr(agreementItem.status) || (fileUrl ? "signed" : "pending");
 
         mergedDocs.push({
           _id: agreementItem._id,
-          id: agreementItem.id,
+          id: agreementItem.id || agreementItem._id,
           source: "agreement",
           employeeId: agreementItem.employeeId,
           employeeName: agreementItem.employeeName || agreementItem.fullName,
@@ -916,14 +955,21 @@ export default function AdminEmployeeFilePage() {
           templateTypeLabel:
             agreementItem.templateTypeLabel ||
             (isTermination ? "בקשה לסיום העסקה" : "הסכם עבודה"),
-          originalFileName: isTermination
-            ? "בקשה לסיום העסקה"
-            : "הסכם עבודה חתום",
+          originalFileName: fileUrl
+            ? isTermination
+              ? "בקשה לסיום העסקה חתומה"
+              : "הסכם עבודה חתום"
+            : isTermination
+              ? "בקשה לסיום העסקה"
+              : "הסכם עבודה",
           fileUrl,
           fileType: "application/pdf",
           status,
           sentAt: agreementItem.sentAt || null,
-          uploadedAt: agreementItem.signedAt,
+          uploadedAt:
+            agreementItem.signedAt ||
+            agreementItem.updatedAt ||
+            agreementItem.createdAt,
           createdAt: agreementItem.createdAt,
           updatedAt: agreementItem.updatedAt,
           startDate: agreementItem.startDate || null,
@@ -2042,8 +2088,20 @@ export default function AdminEmployeeFilePage() {
                       <p>נשלח לעובד: {formatDateTime(doc.sentAt)}</p>
                     ) : null}
                     <p>
-                      תאריך: {formatDateTime(doc?.uploadedAt || doc?.createdAt)}
+                      {String(doc?.status || "").toLowerCase() === "signed" ||
+                      String(doc?.status || "").toLowerCase() === "approved"
+                        ? "נחתם: "
+                        : "תאריך: "}
+                      {formatDateTime(doc?.uploadedAt || doc?.createdAt)}
                     </p>
+                    {documentUrl &&
+                    (doc?.documentType === "termination_request" ||
+                      doc?.documentType === "agreement") &&
+                    String(doc?.status || "").toLowerCase() === "signed" ? (
+                      <p className="rounded-2xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800">
+                        ההסכם החתום נקלט. אפשר לצפות ולאשר/לדחות.
+                      </p>
+                    ) : null}
                     {doc?.taxYear ? <p>שנת מס: {doc.taxYear}</p> : null}
                     {doc?.fileSize ? <p>גודל: {formatFileSize(doc.fileSize)}</p> : null}
                     {isForm101Document(doc) && documentUrl ? (
@@ -2082,6 +2140,12 @@ export default function AdminEmployeeFilePage() {
                       <div className="col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-black leading-5 text-amber-800">
                         נשלח לעובד — ממתין למילוי וחתימה. לאחר שליחה יופיע
                         כאן הקובץ החתום.
+                      </div>
+                    ) : String(doc?.status || "").toLowerCase() === "signed" &&
+                      !documentUrl ? (
+                      <div className="col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-black leading-5 text-amber-800">
+                        נחתם במערכת, אך קובץ ה-PDF עדיין לא זמין. רענני את
+                        הדף או בדקי שוב בעוד רגע.
                       </div>
                     ) : (
                       <button
