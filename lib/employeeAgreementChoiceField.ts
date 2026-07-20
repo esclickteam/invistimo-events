@@ -8,6 +8,7 @@ export const CHOICE_OPTION_GAP = 1.5;
 
 export type ChoiceOption = {
   id: string;
+  label?: string;
   x: number;
   y: number;
   width: number;
@@ -21,6 +22,10 @@ function toNumber(value: unknown, fallback: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function cleanOptionLabel(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export function clampChoiceCount(value: unknown, fallback = 4) {
@@ -51,6 +56,14 @@ export function clampChoiceOptionSize(
   return { width: nextWidth, height: nextHeight };
 }
 
+export function getChoiceOptionDisplayLabel(
+  option: ChoiceOption | undefined,
+  index: number,
+) {
+  const label = cleanOptionLabel(option?.label);
+  return label || `אפשרות ${index + 1}`;
+}
+
 export function buildChoiceOptions(
   count: number,
   startX = 38,
@@ -71,6 +84,7 @@ export function buildChoiceOptions(
 
     return {
       id: String(index + 1),
+      label: "",
       x,
       y: clamp(Number(startY.toFixed(2)), 0, 100 - height),
       width,
@@ -98,6 +112,7 @@ export function normalizeChoiceOptions(
 
       return {
         id: String(item?.id || index + 1),
+        label: cleanOptionLabel(item?.label),
         x,
         y,
         width,
@@ -143,7 +158,10 @@ export function resizeChoiceOptions(
   const existing = normalizeChoiceOptions(current, safeCount);
 
   if (existing.length === safeCount) {
-    return existing.slice(0, safeCount);
+    return existing.slice(0, safeCount).map((option, index) => ({
+      ...option,
+      id: String(index + 1),
+    }));
   }
 
   if (existing.length > safeCount) {
@@ -167,6 +185,7 @@ export function resizeChoiceOptions(
 
       return {
         id: String(existing.length + offset),
+        label: "",
         x,
         y: last.y,
         width,

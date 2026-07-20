@@ -26,6 +26,7 @@ import {
   clampChoiceCount,
   clampChoiceOptionSize,
   getChoiceFieldBounds,
+  getChoiceOptionDisplayLabel,
   normalizeChoiceOptions,
   resizeChoiceOptions,
   type ChoiceOption,
@@ -813,6 +814,35 @@ function AgreementTemplateEditor() {
     );
   }
 
+  function updateChoiceOptionLabel(
+    fieldId: string,
+    optionId: string,
+    label: string,
+  ) {
+    setFields((prev) =>
+      prev.map((field) => {
+        if (field.id !== fieldId || field.type !== "choice") return field;
+
+        const options = normalizeChoiceOptions(
+          field.options,
+          4,
+          field.x,
+          field.y,
+        ).map((option) =>
+          option.id === optionId
+            ? { ...option, label: label.trim() }
+            : option,
+        );
+
+        return {
+          ...field,
+          options,
+          ...getChoiceFieldBounds(options),
+        };
+      }),
+    );
+  }
+
   function deleteField(id: string) {
     setFields((prev) =>
       normalizeFieldOrders(prev.filter((field) => field.id !== id))
@@ -1359,7 +1389,7 @@ function AgreementTemplateEditor() {
                                         touchAction: "none",
                                         userSelect: "none",
                                       }}
-                                      title={`${field.label || "בחירה"} · אפשרות ${optionIndex + 1}`}
+                                      title={`${field.label || "בחירה"} · ${getChoiceOptionDisplayLabel(option, optionIndex)}`}
                                     >
                                       <span className="text-[9px] font-black text-slate-500">
                                         {optionIndex + 1}
@@ -1671,43 +1701,94 @@ function AgreementTemplateEditor() {
                   </div>
 
                   {selectedField.type === "choice" && (
-                    <div>
-                      <label className="mb-1 block text-xs font-black text-slate-500">
-                        מספר אפשרויות לבחירה
-                      </label>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-black text-slate-500">
+                          מספר אפשרויות לבחירה
+                        </label>
 
-                      <select
-                        value={selectedField.options?.length || 4}
-                        onChange={(event) =>
-                          setChoiceOptionCount(
-                            selectedField.id,
-                            Number(event.target.value),
-                          )
-                        }
-                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
-                      >
-                        {Array.from(
-                          {
-                            length:
-                              CHOICE_OPTION_MAX_COUNT -
-                              CHOICE_OPTION_MIN_COUNT +
-                              1,
-                          },
-                          (_, index) => {
-                            const count = CHOICE_OPTION_MIN_COUNT + index;
-                            return (
-                              <option key={count} value={count}>
-                                1 מתוך {count}
-                              </option>
-                            );
-                          },
-                        )}
-                      </select>
+                        <select
+                          value={selectedField.options?.length || 4}
+                          onChange={(event) =>
+                            setChoiceOptionCount(
+                              selectedField.id,
+                              Number(event.target.value),
+                            )
+                          }
+                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                        >
+                          {Array.from(
+                            {
+                              length:
+                                CHOICE_OPTION_MAX_COUNT -
+                                CHOICE_OPTION_MIN_COUNT +
+                                1,
+                            },
+                            (_, index) => {
+                              const count = CHOICE_OPTION_MIN_COUNT + index;
+                              return (
+                                <option key={count} value={count}>
+                                  1 מתוך {count}
+                                </option>
+                              );
+                            },
+                          )}
+                        </select>
+                      </div>
 
-                      <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
-                        כל קוביה ניתנת לגרירה בנפרד על המסמך. בעת מילוי אפשר
-                        לסמן רק אחת.
-                      </p>
+                      <div>
+                        <label className="mb-2 block text-xs font-black text-slate-500">
+                          תת־שם לכל אפשרות
+                        </label>
+
+                        <div className="space-y-2">
+                          {normalizeChoiceOptions(
+                            selectedField.options,
+                            4,
+                            selectedField.x,
+                            selectedField.y,
+                          ).map((option, optionIndex) => (
+                            <div
+                              key={option.id}
+                              className={`rounded-2xl border p-2.5 ${
+                                selectedOptionId === option.id
+                                  ? "border-violet-300 bg-violet-50"
+                                  : "border-slate-200 bg-white"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSelectedOptionId(option.id)}
+                                className="mb-2 flex items-center gap-2 text-right text-[11px] font-black text-slate-500"
+                              >
+                                <span className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 bg-white text-[10px] text-slate-700">
+                                  {optionIndex + 1}
+                                </span>
+                                קוביה {optionIndex + 1} על המסמך
+                              </button>
+
+                              <input
+                                value={option.label || ""}
+                                onFocus={() => setSelectedOptionId(option.id)}
+                                onChange={(event) =>
+                                  updateChoiceOptionLabel(
+                                    selectedField.id,
+                                    option.id,
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder={`תת־שם לאפשרות ${optionIndex + 1}`}
+                                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500">
+                          התת־שם מוצג לעובד ליד הקוביה. לחיצה מסמנת V באפשרות
+                          אחת בלבד. כל קוביה נגררת בנפרד על המסמך.
+                        </p>
+                      </div>
                     </div>
                   )}
 

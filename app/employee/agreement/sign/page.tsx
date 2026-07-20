@@ -10,6 +10,7 @@ import {
 } from "@/lib/employeeAgreementTemplateTypes";
 import {
   getChoiceFieldBounds,
+  getChoiceOptionDisplayLabel,
   isChoiceValueSelected,
   normalizeChoiceOptions,
   type ChoiceOption,
@@ -451,12 +452,14 @@ function TemplateImagePreview({
   values,
   signatures,
   currentFieldId,
+  onSelectChoice,
 }: {
   template: AgreementTemplate;
   fields: TemplateField[];
   values: Record<string, string>;
   signatures: Record<string, string>;
   currentFieldId?: string;
+  onSelectChoice?: (fieldId: string, optionId: string) => void;
 }) {
   const pages = template.pages || [];
   const currentField = fields.find((field) => field.id === currentFieldId);
@@ -522,15 +525,26 @@ function TemplateImagePreview({
                         field.y,
                       );
                       const selectedOptionId = String(values[field.id] || "").trim();
+                      const canSelect =
+                        selected && typeof onSelectChoice === "function";
 
                       return options.map((option) => {
                         const optionSelected = selectedOptionId === option.id;
 
                         return (
-                          <div
+                          <button
                             key={`${field.id}-${option.id}`}
+                            type="button"
+                            disabled={!canSelect}
+                            onClick={() => {
+                              if (!canSelect) return;
+                              onSelectChoice(field.id, option.id);
+                            }}
                             className={[
                               "absolute flex items-center justify-center overflow-hidden rounded-md border-2 text-xs font-black shadow-sm",
+                              canSelect
+                                ? "pointer-events-auto cursor-pointer"
+                                : "pointer-events-none",
                               selected || optionSelected
                                 ? "border-violet-600 bg-violet-100/80 text-violet-900"
                                 : "border-slate-700 bg-white text-slate-700",
@@ -541,11 +555,15 @@ function TemplateImagePreview({
                               width: `${option.width}%`,
                               height: `${option.height}%`,
                             }}
+                            title={getChoiceOptionDisplayLabel(
+                              option,
+                              Number(option.id) - 1,
+                            )}
                           >
                             {optionSelected ? (
                               <span className="text-sm font-black">✓</span>
                             ) : null}
-                          </div>
+                          </button>
                         );
                       });
                     }
@@ -1220,6 +1238,13 @@ function AgreementSignContent() {
               values={values}
               signatures={signatures}
               currentFieldId={currentField?.id}
+              onSelectChoice={(fieldId, optionId) => {
+                updateValue(fieldId, optionId);
+                const field = fields.find((item) => item.id === fieldId);
+                if (field) {
+                  scheduleAutoAdvance(field, 300);
+                }
+              }}
             />
           ) : (
             <iframe
@@ -1315,14 +1340,25 @@ function AgreementSignContent() {
                   <div className="mt-5 space-y-3">
                     <p className="text-sm font-semibold text-slate-500">
                       בחרי אפשרות אחת מתוך{" "}
-                      {currentField.options?.length || 0}
+                      {currentField.options?.length || 0} — לחיצה מסמנת V
                     </p>
 
-                    <div className="flex flex-wrap gap-3">
-                      {(currentField.options || []).map((option, index) => {
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {(
+                        normalizeChoiceOptions(
+                          currentField.options,
+                          currentField.options?.length || 4,
+                          currentField.x,
+                          currentField.y,
+                        ) || []
+                      ).map((option, index) => {
                         const selected =
                           String(values[currentField.id] || "").trim() ===
                           option.id;
+                        const optionLabel = getChoiceOptionDisplayLabel(
+                          option,
+                          index,
+                        );
 
                         return (
                           <button
@@ -1332,14 +1368,31 @@ function AgreementSignContent() {
                               updateValue(currentField.id, option.id);
                               scheduleAutoAdvance(currentField, 300);
                             }}
-                            className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-2xl font-black transition ${
+                            className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-3 py-3 text-right transition ${
                               selected
-                                ? "border-violet-500 bg-violet-50 text-violet-700"
-                                : "border-slate-300 bg-white text-slate-400 hover:border-violet-300"
+                                ? "border-violet-500 bg-violet-50 text-violet-800 shadow-sm"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"
                             }`}
-                            title={`אפשרות ${index + 1}`}
                           >
-                            {selected ? "✓" : index + 1}
+                            <span
+                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 text-xl font-black ${
+                                selected
+                                  ? "border-violet-500 bg-white text-violet-700"
+                                  : "border-slate-300 bg-white text-slate-300"
+                              }`}
+                            >
+                              {selected ? "✓" : ""}
+                            </span>
+
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-black leading-5">
+                                {optionLabel}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] font-bold text-slate-400">
+                                אפשרות {index + 1} מתוך{" "}
+                                {currentField.options?.length || 0}
+                              </span>
+                            </span>
                           </button>
                         );
                       })}
