@@ -146,14 +146,15 @@ export function mergeCheckboxFieldsToChoice(
   }
 
   const sorted = [...checkboxes].sort((a, b) => a.order - b.order);
-  const genericLabels = new Set(["שדה", "תיבת סימון", "שדה טקסט", "בחירה"]);
-
   const options: ChoiceOption[] = sorted.map((field) => {
     const { width, height } = clampChoiceOptionSize(field.width, field.height);
     const rawLabel = typeof field.label === "string" ? field.label.trim() : "";
     return {
       id: String(field.id),
-      label: rawLabel && !genericLabels.has(rawLabel) ? rawLabel : "",
+      label:
+        rawLabel && !isTerminationOptionalReasonDetailLabel(rawLabel)
+          ? rawLabel
+          : "",
       x: clamp(Number(toNumber(field.x, 0).toFixed(2)), 0, 100 - width),
       y: clamp(Number(toNumber(field.y, 0).toFixed(2)), 0, 100 - height),
       width,
@@ -164,7 +165,10 @@ export function mergeCheckboxFieldsToChoice(
   const bounds = getChoiceFieldBounds(options);
   const sharedLabel = sorted
     .map((field) => String(field.label || "").trim())
-    .find((label) => label.length > 0 && !genericLabels.has(label));
+    .find(
+      (label) =>
+        label.length > 0 && !isTerminationOptionalReasonDetailLabel(label),
+    );
 
   return {
     id: `choice-group-${sorted[0].id}`,
@@ -198,16 +202,30 @@ const GENERIC_FIELD_LABELS = new Set([
   "שדה טקסט",
   "תיבת סימון",
   "בחירה",
+  "סיבה",
 ]);
 
 export function isGenericAgreementFieldLabel(label: unknown) {
   return GENERIC_FIELD_LABELS.has(String(label ?? "").trim());
 }
 
+/** Free-text / leftover fields for "סיבה אחרת" — never required once a reason is chosen. */
+export function isTerminationOptionalReasonDetailLabel(label: unknown) {
+  const text = String(label ?? "").trim();
+  if (isGenericAgreementFieldLabel(text)) return true;
+  if (!text) return true;
+
+  const normalized = text.replace(/[:：]\s*$/, "").trim();
+  if (normalized === "סיבה") return true;
+  if (normalized === "סיבה אחרת") return true;
+  if (normalized.startsWith("סיבה אחרת")) return true;
+
+  return false;
+}
+
 /**
- * Drop the free-text field that sits on "סיבה אחרת".
- * Templates often added it as a required generic text field on the same page
- * as the reason checkboxes, even when a fixed reason was selected.
+ * Drop leftover "סיבה" / "סיבה אחרת" text or lone checkbox fields.
+ * Templates often added them as required even when a fixed reason was selected.
  */
 export function stripTerminationOtherReasonTextFields<
   T extends {
@@ -219,6 +237,20 @@ export function stripTerminationOtherReasonTextFields<
     options?: ChoiceOption[];
   },
 >(fields: T[]): { fields: T[]; skippedFieldIds: string[] } {
+  const hasReasonChoice = fields.some((field) => {
+    if (field.type !== "choice") return false;
+    if (
+      Array.isArray(field.sourceCheckboxIds) &&
+      field.sourceCheckboxIds.length >= 2
+    ) {
+      return true;
+    }
+    return (
+      Array.isArray(field.options) &&
+      field.options.length === TERMINATION_REASON_OPTION_LABELS.length
+    );
+  });
+
   const reasonPageIndexes = new Set(
     fields
       .filter((field) => {
@@ -237,18 +269,23 @@ export function stripTerminationOtherReasonTextFields<
       .map((field) => Number(field.pageIndex ?? 0)),
   );
 
-  if (reasonPageIndexes.size === 0) {
-    return { fields, skippedFieldIds: [] };
-  }
-
   const skippedFieldIds: string[] = [];
   const nextFields = fields.filter((field) => {
-    const shouldSkip =
-      field.type === "text" &&
-      isGenericAgreementFieldLabel(field.label) &&
-      reasonPageIndexes.has(Number(field.pageIndex ?? 0));
+    const label = field.label;
+    const onReasonPage = reasonPageIndexes.has(Number(field.pageIndex ?? 0));
 
-    if (shouldSkip) {
+    const shouldSkipText =
+      field.type === "text" &&
+      isTerminationOptionalReasonDetailLabel(label) &&
+      (hasReasonChoice || onReasonPage);
+
+    // Lone checkbox titled "סיבה" that wasn't folded into the choice group.
+    const shouldSkipCheckbox =
+      field.type === "checkbox" &&
+      isTerminationOptionalReasonDetailLabel(label) &&
+      hasReasonChoice;
+
+    if (shouldSkipText || shouldSkipCheckbox) {
       skippedFieldIds.push(String(field.id));
       return false;
     }
@@ -333,9 +370,8 @@ export function collapseConsecutiveCheckboxesToChoiceFields<
       cursor += 1;
     }
 
-    const genericLabels = new Set(["", "שדה", "תיבת סימון", "שדה טקסט"]);
     const allGenericLabels = run.every((item) =>
-      genericLabels.has(String(item.label || "").trim()),
+      isTerminationOptionalReasonDetailLabel(item.label),
     );
 
     // Only auto-collapse unlabeled checkbox clusters (typical "pick one reason"
