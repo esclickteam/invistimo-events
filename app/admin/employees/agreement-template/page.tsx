@@ -209,15 +209,26 @@ function FieldOrderControl({
   onApply: (fieldId: string, targetOrder: number) => void | Promise<void>;
 }) {
   const [draft, setDraft] = useState(String(currentOrder));
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     setDraft(String(currentOrder));
   }, [fieldId, currentOrder]);
 
-  function applyOrder() {
+  async function applyOrder() {
     const nextOrder = clamp(Math.round(Number(draft)), 1, totalFields);
     setDraft(String(nextOrder));
-    void onApply(fieldId, nextOrder);
+
+    if (nextOrder === currentOrder) {
+      return;
+    }
+
+    try {
+      setApplying(true);
+      await onApply(fieldId, nextOrder);
+    } finally {
+      setApplying(false);
+    }
   }
 
   return (
@@ -227,12 +238,12 @@ function FieldOrderControl({
         min={1}
         max={totalFields}
         value={draft}
-        disabled={disabled}
+        disabled={disabled || applying}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            applyOrder();
+            void applyOrder();
           }
         }}
         className="h-11 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400 disabled:opacity-40"
@@ -240,11 +251,11 @@ function FieldOrderControl({
 
       <button
         type="button"
-        disabled={disabled}
-        onClick={applyOrder}
+        disabled={disabled || applying}
+        onClick={() => void applyOrder()}
         className="h-11 shrink-0 rounded-2xl bg-violet-600 px-4 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-40"
       >
-        עדכן
+        {applying ? "..." : "עדכן"}
       </button>
     </div>
   );
@@ -298,6 +309,7 @@ function AgreementTemplateEditor() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [sending, setSending] = useState(false);
   const [newFieldOrder, setNewFieldOrder] = useState(1);
+  const fieldListRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedId) || null,
@@ -664,11 +676,33 @@ function AgreementTemplateEditor() {
     if (!nextFields) return;
 
     setFields(nextFields);
+    setSelectedId(id);
     setMessage(
-      `שדה ${currentIndex + 1} הועבר למקום ${nextIndex + 1}. שאר השדות עודכנו אוטומטית. שומר...`,
+      `שדה ${currentIndex + 1} הועבר למקום ${nextIndex + 1}. שאר השדות עודכנו אוטומטית.`,
     );
 
-    await saveTemplate(undefined, nextFields);
+    requestAnimationFrame(() => {
+      fieldListRefs.current[id]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
+
+    try {
+      setSaving(true);
+      await saveTemplate(undefined, nextFields, { keepLocalFields: true });
+      setMessage(
+        `שדה ${currentIndex + 1} הועבר למקום ${nextIndex + 1} ונשמר. זה הסדר בטלפון.`,
+      );
+    } catch (err) {
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : "הסדר עודכן במסך, אבל השמירה נכשלה. נסי שוב.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function moveFieldOrder(id: string, direction: "up" | "down") {
@@ -761,11 +795,14 @@ function AgreementTemplateEditor() {
   async function saveTemplate(
     pdfFile?: File,
     fieldsOverride?: TemplateField[],
+    options?: { keepLocalFields?: boolean },
   ) {
     try {
       setSaving(!pdfFile);
       setUploadingPdf(Boolean(pdfFile));
-      setMessage("");
+      if (!fieldsOverride) {
+        setMessage("");
+      }
 
       const endpoint = "/api/employee-agreement-templates/save";
       const orderedFields = normalizeFieldOrders(fieldsOverride ?? fields);
@@ -822,18 +859,47 @@ function AgreementTemplateEditor() {
       }
 
       if (data?.template) {
-        applyTemplateToState(data.template);
+        if (options?.keepLocalFields && fieldsOverride) {
+          setFields(normalizeFieldOrders(fieldsOverride));
+          setFileUrl(String(data.template.fileUrl || fileUrl));
+          setPageCount(
+            Math.max(1, toNumber(data.template.pageCount, pageCount)),
+          );
+          if (Array.isArray(data.template.pages)) {
+            setPages(
+              buildPagesFromTemplate({
+                ...data.template,
+                fileUrl: String(data.template.fileUrl || fileUrl),
+                pageCount: Math.max(
+                  1,
+                  toNumber(data.template.pageCount, pageCount),
+                ),
+              }),
+            );
+          }
+        } else {
+          applyTemplateToState(data.template);
+        }
+      } else if (fieldsOverride) {
+        setFields(normalizeFieldOrders(fieldsOverride));
       }
 
-      setMessage(
-        pdfFile
-          ? "ה־PDF הועלה בהצלחה והתבנית התעדכנה אוטומטית"
-          : fieldsOverride
-            ? `סדר השדות נשמר (${orderedFields.length} שדות)`
+      if (!fieldsOverride) {
+        setMessage(
+          pdfFile
+            ? "ה־PDF הועלה בהצלחה והתבנית התעדכנה אוטומטית"
             : "התבנית נשמרה בהצלחה",
-      );
+        );
+      }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "שגיאה בשמירת התבנית");
+      const errorMessage =
+        err instanceof Error ? err.message : "שגיאה בשמירת התבנית";
+
+      if (!fieldsOverride) {
+        setMessage(errorMessage);
+      }
+
+      throw err instanceof Error ? err : new Error(errorMessage);
     } finally {
       setSaving(false);
       setUploadingPdf(false);
@@ -1450,6 +1516,9 @@ function AgreementTemplateEditor() {
                 {sortedFields.map((field, index) => (
                   <div
                     key={field.id}
+                    ref={(node) => {
+                      fieldListRefs.current[field.id] = node;
+                    }}
                     className={`rounded-2xl border p-3 ${
                       selectedId === field.id
                         ? "border-violet-300 bg-violet-50"
@@ -1458,7 +1527,7 @@ function AgreementTemplateEditor() {
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white">
-                        {index + 1}
+                        {field.order}
                       </span>
 
                       <button
