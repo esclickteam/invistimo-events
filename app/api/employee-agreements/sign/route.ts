@@ -981,7 +981,8 @@ export async function POST(req: NextRequest) {
       signatureFieldIds,
     };
 
-    const assignmentId = cleanStr((existingAssignment as any)?._id);
+    // lean() may return ObjectId — never use cleanStr() which only accepts strings.
+    const assignmentId = String((existingAssignment as any)?._id || "").trim();
     let savedAgreement: any = null;
 
     // Always update the existing assignment by id when present — never create an
@@ -992,7 +993,25 @@ export async function POST(req: NextRequest) {
         { $set: agreementPatch },
         { new: true },
       ).lean();
-    } else if (templateType !== EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION) {
+    }
+
+    if (!savedAgreement && existingAssignment) {
+      savedAgreement = await EmployeeAgreement.findOneAndUpdate(
+        {
+          employeeId: employeeObjectId,
+          businessId: businessObjectId,
+          ...templateTypeQuery,
+          status: { $in: ["pending", "rejected"] },
+        },
+        { $set: agreementPatch },
+        { new: true },
+      ).lean();
+    }
+
+    if (
+      !savedAgreement &&
+      templateType !== EMPLOYEE_AGREEMENT_TEMPLATE_TYPES.TERMINATION
+    ) {
       savedAgreement = await EmployeeAgreement.findOneAndUpdate(
         {
           employeeId: employeeObjectId,
