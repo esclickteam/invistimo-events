@@ -220,6 +220,7 @@ export default function EditScheduledMessageModal({
 
           <input
             type="date"
+            lang="en-GB"
             value={date}
             min={minDate}
             disabled={loading}
@@ -249,6 +250,7 @@ export default function EditScheduledMessageModal({
 
           <input
             type="time"
+            lang="en-GB"
             value={time}
             disabled={loading}
             onChange={(e) => setTime(e.target.value)}

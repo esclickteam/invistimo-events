@@ -136,7 +136,7 @@ function formatDateOnly(value: any) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
 
-  return d.toLocaleDateString("he-IL");
+  return d.toLocaleDateString("en-GB");
 }
 
 function formatDateTime(value: any) {
@@ -145,11 +145,12 @@ function formatDateTime(value: any) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
 
-  return `${d.toLocaleDateString("he-IL")} בשעה ${d.toLocaleTimeString(
-    "he-IL",
+  return `${d.toLocaleDateString("en-GB")} בשעה ${d.toLocaleTimeString(
+    "en-GB",
     {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     }
   )}`;
 }
@@ -1233,6 +1234,7 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="date"
+                    lang="en-GB"
                     value={scheduledDate}
                     disabled={sendingNow}
                     onChange={(e) => setScheduledDate(e.target.value)}
@@ -1241,6 +1243,7 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
 
                   <input
                     type="time"
+                    lang="en-GB"
                     value={scheduledTime}
                     disabled={sendingNow}
                     onChange={(e) => setScheduledTime(e.target.value)}

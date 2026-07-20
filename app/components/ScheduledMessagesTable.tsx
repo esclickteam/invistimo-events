@@ -21,6 +21,22 @@ type ScheduledMessage = {
   status: ScheduledMessageStatus;
 };
 
+/* ================= HELPERS ================= */
+
+function formatScheduledAt(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  // DD/MM/YYYY HH:mm (24h, no AM/PM), left-to-right
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
 /* ================= COMPONENT ================= */
 
 export default function ScheduledMessagesTable({
@@ -83,7 +99,9 @@ export default function ScheduledMessagesTable({
                 </td>
 
                 <td className="p-3 text-center">
-                  {new Date(msg.scheduledAt).toLocaleString("he-IL")}
+                  <span dir="ltr" className="inline-block">
+                    {formatScheduledAt(msg.scheduledAt)}
+                  </span>
                 </td>
 
                 <td
@@ -130,7 +148,10 @@ export default function ScheduledMessagesTable({
             </div>
 
             <div className="text-xs text-gray-500 mb-1">
-              📅 {new Date(msg.scheduledAt).toLocaleString("he-IL")}
+              📅{" "}
+              <span dir="ltr" className="inline-block">
+                {formatScheduledAt(msg.scheduledAt)}
+              </span>
             </div>
 
             <div

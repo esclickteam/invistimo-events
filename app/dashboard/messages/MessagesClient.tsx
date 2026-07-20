@@ -1592,6 +1592,7 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
                 </label>
                 <input
                   type="date"
+                  lang="en-GB"
                   min={new Date().toLocaleDateString("en-CA")}
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
@@ -1605,6 +1606,7 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
                 </label>
                 <input
                   type="time"
+                  lang="en-GB"
                   value={scheduledTime}
                   onChange={(e) => setScheduledTime(e.target.value)}
                   className="w-full border rounded-xl p-3"
@@ -1617,12 +1619,13 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
           {sendTiming === "scheduled" && scheduledAt && (
             <p className="text-xs text-gray-500 mt-2">
               📅 ההודעה תישלח ב־
-              <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
+              <strong>{scheduledAt.toLocaleDateString("en-GB")}</strong>{" "}
               בשעה{" "}
               <strong>
-                {scheduledAt.toLocaleTimeString("he-IL", {
+                {scheduledAt.toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  hour12: false,
                 })}
               </strong>
             </p>

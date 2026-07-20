@@ -530,12 +530,14 @@ setRound2Locked(
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input
               type="date"
+              lang="en-GB"
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
               className="border rounded-xl px-4 py-3 text-sm"
             />
             <input
               type="time"
+              lang="en-GB"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
               className="border rounded-xl px-4 py-3 text-sm"

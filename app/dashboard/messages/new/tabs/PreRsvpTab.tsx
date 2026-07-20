@@ -1098,6 +1098,7 @@ export default function PreRsvpTab({
 
                   <input
                     type="date"
+                    lang="en-GB"
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     className="
@@ -1126,6 +1127,7 @@ export default function PreRsvpTab({
 
                   <input
                     type="time"
+                    lang="en-GB"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
                     className="

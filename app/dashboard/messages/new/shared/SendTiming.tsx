@@ -47,6 +47,7 @@ export default function SendTiming({ scheduledAt, onChange }: Props) {
           <div className="flex gap-3">
             <input
               type="date"
+              lang="en-GB"
               className="border rounded-lg p-2 flex-1"
               value={toDateInput(scheduledAt)}
               onChange={(e) =>
@@ -58,6 +59,7 @@ export default function SendTiming({ scheduledAt, onChange }: Props) {
 
             <input
               type="time"
+              lang="en-GB"
               className="border rounded-lg p-2 flex-1"
               value={toTimeInput(scheduledAt)}
               onChange={(e) =>

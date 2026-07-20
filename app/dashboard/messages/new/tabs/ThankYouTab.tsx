@@ -590,6 +590,7 @@ export default function ThankYouTab({
                   </label>
                   <input
                     type="date"
+                    lang="en-GB"
                     min={new Date().toLocaleDateString("en-CA")}
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
@@ -603,6 +604,7 @@ export default function ThankYouTab({
                   </label>
                   <input
                     type="time"
+                    lang="en-GB"
                     min={
                       scheduledDate === new Date().toLocaleDateString("en-CA")
                         ? new Date().toTimeString().slice(0, 5)
