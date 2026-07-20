@@ -25,7 +25,8 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function cleanOptionLabel(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  // Keep spaces while typing; trim only for display helpers.
+  return typeof value === "string" ? value : "";
 }
 
 export function clampChoiceCount(value: unknown, fallback = 4) {
@@ -60,7 +61,7 @@ export function getChoiceOptionDisplayLabel(
   option: ChoiceOption | undefined,
   index: number,
 ) {
-  const label = cleanOptionLabel(option?.label);
+  const label = cleanOptionLabel(option?.label).trim();
   return label || `אפשרות ${index + 1}`;
 }
 

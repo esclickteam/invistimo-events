@@ -829,9 +829,7 @@ function AgreementTemplateEditor() {
           field.x,
           field.y,
         ).map((option) =>
-          option.id === optionId
-            ? { ...option, label: label.trim() }
-            : option,
+          option.id === optionId ? { ...option, label } : option,
         );
 
         return {
