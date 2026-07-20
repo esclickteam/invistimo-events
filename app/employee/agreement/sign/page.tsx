@@ -119,12 +119,10 @@ function DateFieldInput({
   value,
   onChange,
   label,
-  onComplete,
 }: {
   value: string;
   onChange: (value: string) => void;
   label: string;
-  onComplete?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const isoValue = displayToIsoDate(value);
@@ -161,22 +159,18 @@ function DateFieldInput({
               return;
             }
 
-            const nextDisplay = isoToDisplayDate(nextIso);
-            onChange(nextDisplay);
-
-            if (isValidDisplayDate(nextDisplay)) {
-              onComplete?.();
-            }
+            // Never auto-advance from here: Chrome/Edge date segments can emit a
+            // full value after editing only the day, before month/year are set.
+            onChange(isoToDisplayDate(nextIso));
           }}
           onClick={openPicker}
-          onFocus={openPicker}
           className="h-12 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 text-left text-base font-bold tracking-wide text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
           aria-label={label?.trim() || "בחירת תאריך"}
         />
       </div>
 
       <p className="text-xs font-semibold text-slate-500">
-        לחיצה פותחת בחירת תאריך מהיומן
+        בחרי יום, חודש ושנה — ואז לחצי &quot;המשך&quot;
         {displayValue ? ` · נבחר: ${displayValue}` : ""}
         {label?.trim() ? ` · ${label.trim()}` : ""}
       </p>
@@ -1062,6 +1056,10 @@ function AgreementSignContent() {
   }
 
   function scheduleAutoAdvance(field: TemplateField, delay = 450) {
+    // Date fields stay until the user presses "המשך" — native pickers can
+    // commit a value while the user is still changing month/year.
+    if (field.type === "date") return;
+
     if (autoAdvanceTimerRef.current) {
       clearTimeout(autoAdvanceTimerRef.current);
     }
@@ -1655,7 +1653,6 @@ function AgreementSignContent() {
                     onChange={(nextValue) =>
                       updateValue(currentField.id, nextValue)
                     }
-                    onComplete={() => scheduleAutoAdvance(currentField, 250)}
                     label={currentField.label}
                   />
                 ) : (
