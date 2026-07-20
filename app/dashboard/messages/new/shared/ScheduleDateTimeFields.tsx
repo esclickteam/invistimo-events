@@ -9,7 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { pad2, ymdToDisplay } from "@/lib/formatScheduleDateTime";
+import {
+  displayToYmd,
+  normalizeHHmm,
+  pad2,
+  ymdToDisplay,
+} from "@/lib/formatScheduleDateTime";
 
 type FieldProps = {
   value: string;
@@ -28,7 +33,6 @@ type PopoverPos = {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => pad2(i));
 const MINUTES = Array.from({ length: 12 }, (_, i) => pad2(i * 5));
-
 const WEEKDAYS = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const MONTHS_HE = [
   "ינואר",
@@ -70,11 +74,11 @@ function toYmd(y: number, m: number, d: number) {
   return `${y}-${pad2(m)}-${pad2(d)}`;
 }
 
-function useDropdownPosition(
+/** Flush popover attached under the field (same width, tiny gap). */
+function useAttachedPosition(
   open: boolean,
   anchorRef: React.RefObject<HTMLElement | null>,
-  preferredHeight: number,
-  minWidth: number
+  preferredHeight: number
 ) {
   const [pos, setPos] = useState<PopoverPos | null>(null);
 
@@ -88,30 +92,23 @@ function useDropdownPosition(
       const el = anchorRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const gap = 6;
+      const gap = 2;
       const edge = 8;
       const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
       const spaceAbove = rect.top - gap - edge;
-
-      // Prefer opening downward; flip up only if below has almost no room.
-      const openDown = spaceBelow >= 140 || spaceBelow >= spaceAbove;
+      const openDown = spaceBelow >= 120 || spaceBelow >= spaceAbove;
       const available = openDown ? spaceBelow : spaceAbove;
-      const maxHeight = Math.max(140, Math.min(preferredHeight, available));
+      const maxHeight = Math.max(110, Math.min(preferredHeight, available));
       const top = openDown
         ? rect.bottom + gap
         : Math.max(edge, rect.top - gap - maxHeight);
 
-      const width = Math.min(
-        Math.max(rect.width, minWidth),
-        window.innerWidth - edge * 2
-      );
-      let left = rect.left;
-      if (left + width > window.innerWidth - edge) {
-        left = Math.max(edge, window.innerWidth - width - edge);
-      }
-      if (left < edge) left = edge;
-
-      setPos({ top, left, width, maxHeight });
+      setPos({
+        top,
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+      });
     }
 
     update();
@@ -121,28 +118,26 @@ function useDropdownPosition(
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [open, anchorRef, preferredHeight, minWidth]);
+  }, [open, anchorRef, preferredHeight]);
 
   return pos;
 }
 
-function PickerPortal({
+function AttachedPopover({
   open,
   anchorRef,
   onClose,
-  children,
   preferredHeight,
-  minWidth = 220,
+  children,
 }: {
   open: boolean;
   anchorRef: React.RefObject<HTMLElement | null>;
   onClose: () => void;
-  children: (maxHeight: number) => ReactNode;
   preferredHeight: number;
-  minWidth?: number;
+  children: (maxHeight: number) => ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const pos = useDropdownPosition(open, anchorRef, preferredHeight, minWidth);
+  const pos = useAttachedPosition(open, anchorRef, preferredHeight);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -184,7 +179,7 @@ function PickerPortal({
     <div
       ref={panelRef}
       style={style}
-      className="overflow-hidden rounded-xl border border-[#E6D6BC] bg-white shadow-[0_16px_40px_rgba(78,49,27,0.22)]"
+      className="overflow-hidden rounded-b-2xl rounded-t-md border border-[#E6D6BC] border-t-[#F0E3D1] bg-white shadow-[0_10px_28px_rgba(78,49,27,0.14)]"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {children(pos.maxHeight)}
@@ -194,8 +189,8 @@ function PickerPortal({
 }
 
 /**
- * Date field: DD/MM/YYYY display + compact calendar under the field.
- * Parent state stays YYYY-MM-DD — scheduling logic unchanged.
+ * Date: type DD/MM/YYYY manually, or open a small calendar flush under the field.
+ * Parent state stays YYYY-MM-DD.
  */
 export function ScheduleDateField({
   value,
@@ -206,7 +201,7 @@ export function ScheduleDateField({
 }: FieldProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const display = ymdToDisplay(value);
+  const [text, setText] = useState(() => ymdToDisplay(value));
 
   const selected = parseYmd(value);
   const minDate = parseYmd(min || "");
@@ -215,11 +210,27 @@ export function ScheduleDateField({
   );
 
   useEffect(() => {
+    setText(ymdToDisplay(value));
+  }, [value]);
+
+  useEffect(() => {
     if (!open) return;
-    setView(
-      selected ? new Date(selected.y, selected.m - 1, 1) : new Date()
-    );
+    setView(selected ? new Date(selected.y, selected.m - 1, 1) : new Date());
   }, [open, value]);
+
+  function commitText(raw: string) {
+    const ymd = displayToYmd(raw);
+    if (!ymd) {
+      setText(ymdToDisplay(value));
+      return;
+    }
+    if (min && ymd < min) {
+      setText(ymdToDisplay(value));
+      return;
+    }
+    onChange(ymd);
+    setText(ymdToDisplay(ymd));
+  }
 
   const year = view.getFullYear();
   const month = view.getMonth();
@@ -239,70 +250,69 @@ export function ScheduleDateField({
   return (
     <div
       ref={rootRef}
-      className={`relative flex items-center gap-2 ${
-        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-      } ${className}`}
+      className={`relative flex items-center gap-2 ${className}`}
     >
+      <input
+        type="text"
+        inputMode="numeric"
+        dir="ltr"
+        placeholder="DD/MM/YYYY"
+        autoComplete="off"
+        disabled={disabled}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commitText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="min-w-0 flex-1 bg-transparent p-0 text-sm outline-none border-0 disabled:opacity-60"
+        aria-label="תאריך שליחה"
+      />
+
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-w-0 flex-1 items-center gap-2 bg-transparent p-0 text-left outline-none"
-        aria-label="תאריך שליחה"
-        aria-haspopup="dialog"
-        aria-expanded={open}
+        className="shrink-0 text-[#8A6A3D] transition hover:text-[#5C4030] disabled:opacity-50"
+        aria-label="בחירת תאריך"
+        title="בחירת תאריך"
       >
-        <span
-          dir="ltr"
-          className={`min-w-0 flex-1 select-none ${
-            display ? "text-[#2D241D]" : "text-gray-400"
-          }`}
-        >
-          {display || "DD/MM/YYYY"}
-        </span>
-        <span className="shrink-0 text-[#8A6A3D]" aria-hidden="true">
-          <CalendarIcon />
-        </span>
+        <CalendarIcon />
       </button>
 
-      <PickerPortal
+      <AttachedPopover
         open={open && !disabled}
         anchorRef={rootRef}
         onClose={() => setOpen(false)}
-        preferredHeight={280}
-        minWidth={240}
+        preferredHeight={220}
       >
         {(maxHeight) => (
           <div
             dir="rtl"
-            className="bg-white p-2"
+            className="bg-white p-1.5"
             style={{ maxHeight, overflow: "auto" }}
-            role="dialog"
-            aria-label="בחירת תאריך"
           >
-            <div className="mb-1.5 flex items-center justify-between gap-1">
+            <div className="mb-1 flex items-center justify-between">
               <button
                 type="button"
-                className="rounded-lg px-1.5 py-0.5 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
+                className="rounded px-1 text-xs text-[#8A6A3D] hover:bg-[#FFF3DD]"
                 onClick={() => setView(new Date(year, month - 1, 1))}
-                aria-label="חודש קודם"
               >
                 ‹
               </button>
-              <div className="text-xs font-black text-[#3A2417]">
+              <div className="text-[11px] font-bold text-[#3A2417]">
                 {MONTHS_HE[month]} {year}
               </div>
               <button
                 type="button"
-                className="rounded-lg px-1.5 py-0.5 text-sm font-bold text-[#8A6A3D] hover:bg-[#FFF3DD]"
+                className="rounded px-1 text-xs text-[#8A6A3D] hover:bg-[#FFF3DD]"
                 onClick={() => setView(new Date(year, month + 1, 1))}
-                aria-label="חודש הבא"
               >
                 ›
               </button>
             </div>
 
-            <div className="mb-0.5 grid grid-cols-7 gap-0.5 text-center text-[10px] font-bold text-[#8A6A3D]">
+            <div className="mb-0.5 grid grid-cols-7 text-center text-[9px] text-[#A07A4A]">
               {WEEKDAYS.map((d) => (
                 <div key={d} className="py-0.5">
                   {d}
@@ -310,7 +320,7 @@ export function ScheduleDateField({
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-0.5">
+            <div className="grid grid-cols-7 gap-px">
               {cells.map((day, idx) => {
                 if (!day) return <div key={`e-${idx}`} />;
                 const ymd = toYmd(year, month + 1, day);
@@ -323,13 +333,14 @@ export function ScheduleDateField({
                     disabled={blocked}
                     onClick={() => {
                       onChange(ymd);
+                      setText(ymdToDisplay(ymd));
                       setOpen(false);
                     }}
-                    className={`h-7 rounded-lg text-xs font-bold transition ${
+                    className={`h-6 rounded text-[11px] font-semibold ${
                       active
                         ? "bg-[#C5964D] text-white"
                         : blocked
-                          ? "cursor-not-allowed text-gray-300"
+                          ? "text-gray-300"
                           : "text-[#3A2417] hover:bg-[#FFF3DD]"
                     }`}
                   >
@@ -340,14 +351,14 @@ export function ScheduleDateField({
             </div>
           </div>
         )}
-      </PickerPortal>
+      </AttachedPopover>
     </div>
   );
 }
 
 /**
- * Time field: compact HH:mm (24h) picker that fits the viewport.
- * Parent state stays HH:mm — scheduling logic unchanged.
+ * Time: type HH:mm manually, or open a small 24h list flush under the field.
+ * Parent state stays HH:mm.
  */
 export function ScheduleTimeField({
   value,
@@ -360,8 +371,8 @@ export function ScheduleTimeField({
   const hourListRef = useRef<HTMLDivElement>(null);
   const minuteListRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [text, setText] = useState(() => value || "");
   const [draft, setDraft] = useState(() => parseHHmm(value || "12:00"));
-  const display = value || "";
 
   const minuteOptions = (() => {
     const base = [...MINUTES];
@@ -373,142 +384,145 @@ export function ScheduleTimeField({
   })();
 
   useEffect(() => {
+    setText(value || "");
+  }, [value]);
+
+  useEffect(() => {
     if (open) setDraft(parseHHmm(value || "12:00"));
   }, [open, value]);
 
   useLayoutEffect(() => {
     if (!open) return;
-    const hourBtn = hourListRef.current?.querySelector<HTMLElement>(
-      '[data-active="true"]'
-    );
-    const minuteBtn = minuteListRef.current?.querySelector<HTMLElement>(
-      '[data-active="true"]'
-    );
-    hourBtn?.scrollIntoView({ block: "center" });
-    minuteBtn?.scrollIntoView({ block: "center" });
+    hourListRef.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView({ block: "center" });
+    minuteListRef.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView({ block: "center" });
   }, [open, draft.hour, draft.minute]);
 
-  function commit(hour: string, minute: string, close: boolean) {
+  function commitText(raw: string) {
+    const hhmm = normalizeHHmm(raw);
+    if (!hhmm) {
+      setText(value || "");
+      return;
+    }
+    if (min && hhmm < min) {
+      setText(value || "");
+      return;
+    }
+    onChange(hhmm);
+    setText(hhmm);
+  }
+
+  function pick(hour: string, minute: string, close: boolean) {
     const next = `${hour}:${minute}`;
     if (isBeforeMin(next, min)) return;
     setDraft({ hour, minute });
     onChange(next);
+    setText(next);
     if (close) setOpen(false);
   }
 
   return (
     <div
       ref={rootRef}
-      className={`relative flex items-center gap-2 ${
-        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-      } ${className}`}
+      className={`relative flex items-center gap-2 ${className}`}
     >
+      <input
+        type="text"
+        inputMode="numeric"
+        dir="ltr"
+        placeholder="HH:mm"
+        autoComplete="off"
+        disabled={disabled}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commitText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="min-w-0 flex-1 bg-transparent p-0 text-sm outline-none border-0 disabled:opacity-60"
+        aria-label="שעת שליחה"
+      />
+
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-w-0 flex-1 items-center gap-2 bg-transparent p-0 text-left outline-none"
-        aria-label="שעת שליחה"
-        aria-haspopup="dialog"
-        aria-expanded={open}
+        className="shrink-0 text-[#8A6A3D] transition hover:text-[#5C4030] disabled:opacity-50"
+        aria-label="בחירת שעה"
+        title="בחירת שעה"
       >
-        <span
-          dir="ltr"
-          className={`min-w-0 flex-1 select-none ${
-            display ? "text-[#2D241D]" : "text-gray-400"
-          }`}
-        >
-          {display || "HH:mm"}
-        </span>
-        <span className="shrink-0 text-[#8A6A3D]" aria-hidden="true">
-          <ClockIcon />
-        </span>
+        <ClockIcon />
       </button>
 
-      <PickerPortal
+      <AttachedPopover
         open={open && !disabled}
         anchorRef={rootRef}
         onClose={() => setOpen(false)}
-        preferredHeight={220}
-        minWidth={180}
+        preferredHeight={150}
       >
-        {(maxHeight) => {
-          const listHeight = Math.max(120, maxHeight - 32);
-          return (
+        {(maxHeight) => (
+          <div className="grid grid-cols-2 bg-white" style={{ height: maxHeight }}>
             <div
-              dir="ltr"
-              className="overflow-hidden bg-white"
-              role="dialog"
-              aria-label="בחירת שעה"
+              ref={hourListRef}
+              className="h-full overflow-y-auto border-r border-[#F0E3D1] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             >
-              <div className="grid grid-cols-2 border-b border-[#F0E3D1] bg-[#FFF9F1] text-center text-[10px] font-bold text-[#8A6A3D]">
-                <div className="px-2 py-1.5">שעה</div>
-                <div className="px-2 py-1.5">דקה</div>
-              </div>
-
-              <div className="grid grid-cols-2" style={{ height: listHeight }}>
-                <div
-                  ref={hourListRef}
-                  className="h-full overflow-y-auto border-r border-[#F0E3D1] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
-                  {HOURS.map((hour) => {
-                    const sample = `${hour}:${draft.minute}`;
-                    const blocked = isBeforeMin(sample, min);
-                    const active = draft.hour === hour;
-                    return (
-                      <button
-                        key={hour}
-                        type="button"
-                        data-active={active ? "true" : "false"}
-                        disabled={blocked}
-                        onClick={() => commit(hour, draft.minute, false)}
-                        className={`block w-full px-2 py-1 text-xs font-bold transition ${
-                          active
-                            ? "bg-[#C5964D] text-white"
-                            : blocked
-                              ? "cursor-not-allowed text-gray-300"
-                              : "text-[#3A2417] hover:bg-[#FFF3DD]"
-                        }`}
-                      >
-                        {hour}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div
-                  ref={minuteListRef}
-                  className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
-                  {minuteOptions.map((minute) => {
-                    const sample = `${draft.hour}:${minute}`;
-                    const blocked = isBeforeMin(sample, min);
-                    const active = draft.minute === minute;
-                    return (
-                      <button
-                        key={minute}
-                        type="button"
-                        data-active={active ? "true" : "false"}
-                        disabled={blocked}
-                        onClick={() => commit(draft.hour, minute, true)}
-                        className={`block w-full px-2 py-1 text-xs font-bold transition ${
-                          active
-                            ? "bg-[#C5964D] text-white"
-                            : blocked
-                              ? "cursor-not-allowed text-gray-300"
-                              : "text-[#3A2417] hover:bg-[#FFF3DD]"
-                        }`}
-                      >
-                        {minute}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {HOURS.map((hour) => {
+                const blocked = isBeforeMin(`${hour}:${draft.minute}`, min);
+                const active = draft.hour === hour;
+                return (
+                  <button
+                    key={hour}
+                    type="button"
+                    data-active={active ? "true" : "false"}
+                    disabled={blocked}
+                    onClick={() => pick(hour, draft.minute, false)}
+                    className={`block w-full py-1 text-center text-xs font-semibold ${
+                      active
+                        ? "bg-[#C5964D] text-white"
+                        : blocked
+                          ? "text-gray-300"
+                          : "text-[#3A2417] hover:bg-[#FFF3DD]"
+                    }`}
+                  >
+                    {hour}
+                  </button>
+                );
+              })}
             </div>
-          );
-        }}
-      </PickerPortal>
+
+            <div
+              ref={minuteListRef}
+              className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {minuteOptions.map((minute) => {
+                const blocked = isBeforeMin(`${draft.hour}:${minute}`, min);
+                const active = draft.minute === minute;
+                return (
+                  <button
+                    key={minute}
+                    type="button"
+                    data-active={active ? "true" : "false"}
+                    disabled={blocked}
+                    onClick={() => pick(draft.hour, minute, true)}
+                    className={`block w-full py-1 text-center text-xs font-semibold ${
+                      active
+                        ? "bg-[#C5964D] text-white"
+                        : blocked
+                          ? "text-gray-300"
+                          : "text-[#3A2417] hover:bg-[#FFF3DD]"
+                    }`}
+                  >
+                    {minute}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </AttachedPopover>
     </div>
   );
 }
