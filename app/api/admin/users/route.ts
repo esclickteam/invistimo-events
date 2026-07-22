@@ -854,6 +854,67 @@ packageName
       }
     }
 
+    /*
+      סנכרון תאריך אירוע מההזמנה ל-User,
+      כדי שבאדמין ובמסננים יוצג תמיד התאריך האמיתי מההזמנה במונגו.
+    */
+    const normalizeDateKey = (value: unknown) => {
+      if (!value) return "";
+
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value.toISOString().slice(0, 10);
+      }
+
+      const raw = String(value).trim();
+      if (!raw) return "";
+
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+        return raw.slice(0, 10);
+      }
+
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return "";
+
+      return parsed.toISOString().slice(0, 10);
+    };
+
+    const userEventDateSyncOps = users
+      .map((u: any) => {
+        const invitation = invitationByUserId.get(String(u._id));
+        const invitationEventDate = invitation?.eventDate;
+
+        if (!invitationEventDate) return null;
+
+        const invitationKey = normalizeDateKey(invitationEventDate);
+        const userKey = normalizeDateKey(u.eventDate);
+
+        if (!invitationKey || invitationKey === userKey) return null;
+
+        return {
+          updateOne: {
+            filter: { _id: u._id },
+            update: { $set: { eventDate: invitationEventDate } },
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (userEventDateSyncOps.length > 0) {
+      await User.bulkWrite(userEventDateSyncOps as any[], { ordered: false });
+
+      for (const u of users) {
+        const invitation = invitationByUserId.get(String(u._id));
+        if (!invitation?.eventDate) continue;
+
+        const invitationKey = normalizeDateKey(invitation.eventDate);
+        const userKey = normalizeDateKey(u.eventDate);
+
+        if (invitationKey && invitationKey !== userKey) {
+          u.eventDate = invitation.eventDate;
+        }
+      }
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -989,7 +1050,8 @@ packageName
           paymentTypes: payment?.paymentTypes || [],
           invitationId: invitation?._id ? String(invitation._id) : null,
 
-          eventDate: u.eventDate || invitation?.eventDate || null,
+          // מקור האמת לתאריך אירוע: ההזמנה במונגו
+          eventDate: invitation?.eventDate || u.eventDate || null,
 
           messageRounds: buildMessageRounds(invitation, scheduledMessages, u),
         };

@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
+import Invitation from "@/models/Invitation";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
 import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
@@ -590,6 +591,19 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
         { status: 404 }
+      );
+    }
+
+    /*
+      תאריך האירוע באדמין צריך להישאר תואם להזמנה במונגו.
+      אם עדכנו eventDate למשתמש — מסנכרנים גם את ההזמנה/ות שלו.
+    */
+    if (hasField(body, "eventDate")) {
+      const nextEventDate = body.eventDate || null;
+
+      await Invitation.updateMany(
+        { ownerId: id },
+        { $set: { eventDate: nextEventDate } }
       );
     }
 
