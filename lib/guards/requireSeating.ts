@@ -48,6 +48,7 @@ export async function requireSeating() {
     auth.role === "admin" ||
     auth.impersonationRole === "admin" ||
     auth.impersonationRole === "producer" ||
+    auth.impersonatedByAdmin === true ||
     Boolean(auth.impersonatedBy);
 
   if (isPrivilegedActor) {

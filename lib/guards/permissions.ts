@@ -11,12 +11,14 @@ type AuthContext = {
   impersonated?: boolean;
   impersonatedBy?: string | null;
   impersonationRole?: string | null;
+  impersonatedByAdmin?: boolean;
 };
 
 function isAdminByContext(auth?: AuthContext | null) {
   return (
     auth?.role === "admin" ||
     auth?.impersonationRole === "admin" ||
+    (auth as any)?.impersonatedByAdmin === true ||
     !!auth?.impersonatedBy // אדמין מתחזה
   );
 }

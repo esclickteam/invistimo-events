@@ -165,12 +165,23 @@ async function canSaveSeating({
   eventId,
   invitationId,
   invitation,
+  auth,
 }: {
   userId: string;
   eventId: string;
   invitationId?: string;
   invitation: any;
+  auth?: any;
 }) {
+  const isAdmin =
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    auth?.impersonatedByAdmin === true;
+
+  if (isAdmin) {
+    return true;
+  }
+
   const ownerId = invitation?.ownerId ? String(invitation.ownerId) : "";
   const invitationUserId = invitation?.userId ? String(invitation.userId) : "";
   const producerId = invitation?.producerId ? String(invitation.producerId) : "";
@@ -369,6 +380,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       eventId,
       invitationId: invitationIdFromRequest || String(invitation._id),
       invitation,
+      auth,
     });
 
     if (!allowed) {

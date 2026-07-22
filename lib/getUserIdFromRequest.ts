@@ -36,6 +36,8 @@ export type AuthPayload = {
   impersonated: boolean;
   impersonatedBy?: string | null;
   impersonationRole?: ImpersonationRole | null;
+  /** true when the active session is an admin impersonating another user */
+  impersonatedByAdmin?: boolean;
 };
 
 /* =========================
@@ -174,6 +176,12 @@ export async function getUserIdFromRequest(
       getCookieFromReq(req, "producerAuthToken") ??
       (await getCookieFromHeadersStore("producerAuthToken"));
 
+    const adminAuthToken =
+      getCookieFromReq(req, "adminAuthToken") ??
+      (await getCookieFromHeadersStore("adminAuthToken")) ??
+      getCookieFromReq(req, "adminToken") ??
+      (await getCookieFromHeadersStore("adminToken"));
+
     const staffOriginalUserId =
       getCookieFromReq(req, "staffOriginalUserId") ??
       (await getCookieFromHeadersStore("staffOriginalUserId"));
@@ -188,6 +196,7 @@ export async function getUserIdFromRequest(
     const impersonationDecoded = decodeJwtToken(impersonationToken);
     const authDecoded = decodeJwtToken(authToken);
     const producerDecoded = decodeJwtToken(producerAuthToken);
+    const adminDecoded = decodeJwtToken(adminAuthToken);
 
     /*
       חשוב:
@@ -218,6 +227,7 @@ export async function getUserIdFromRequest(
     ---------------------------------- */
     const authUserId = getDecodedUserId(authDecoded);
     const producerUserId = getDecodedUserId(producerDecoded);
+    const adminUserId = getDecodedUserId(adminDecoded);
 
     const impersonatedBy =
       activeDecoded.impersonatedBy ||
@@ -225,23 +235,42 @@ export async function getUserIdFromRequest(
       staffOriginalUserId ||
       authUserId ||
       producerUserId ||
+      adminUserId ||
       null;
 
-    let impersonationRole =
+    const impersonationRole =
       normalizeImpersonationRole(activeDecoded.impersonationRole) ||
       normalizeImpersonationRole(impersonationDecoded?.impersonationRole) ||
       normalizeImpersonationRole(authDecoded?.role) ||
       normalizeImpersonationRole(producerDecoded?.role);
 
     /*
-      אם יש authToken מקורי של אדמין בזמן התחזות,
-      חייבים לשמר impersonationRole=admin כדי ש־admin routes לא ייחסמו.
+      אל תשנה impersonationRole ל-"admin" בזמן התחזות ללקוח —
+      אחרת /api/me וה־UI חושבים שהמשתמש עצמו הוא אדמין.
+      במקום זה מסמנים impersonatedByAdmin כדי לתת לאדמין הרשאות מלאות.
     */
-    if (authUserId) {
+    let impersonatedByAdmin =
+      activeDecoded.impersonatedByAdmin === true ||
+      impersonationDecoded?.impersonatedByAdmin === true ||
+      activeDecoded.impersonationSourceRole === "admin" ||
+      impersonationDecoded?.impersonationSourceRole === "admin";
+
+    if (authUserId && authUserId !== String(userId)) {
       const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId));
 
       if (freshOriginalAuth?.role === "admin") {
-        impersonationRole = "admin";
+        impersonatedByAdmin = true;
+      }
+    }
+
+    if (!impersonatedByAdmin && adminUserId) {
+      const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId));
+
+      if (
+        freshAdminAuth?.role === "admin" ||
+        normalizeRole(adminDecoded?.role) === "admin"
+      ) {
+        impersonatedByAdmin = true;
       }
     }
 
@@ -263,6 +292,7 @@ export async function getUserIdFromRequest(
         impersonated: true,
         impersonatedBy: String(userId),
         impersonationRole: "admin",
+        impersonatedByAdmin: true,
       };
     }
 
@@ -273,7 +303,8 @@ export async function getUserIdFromRequest(
       Boolean(impersonationToken) ||
       Boolean(activeDecoded.impersonated) ||
       Boolean(activeDecoded.impersonatedBy) ||
-      Boolean(staffOriginalUserId);
+      Boolean(staffOriginalUserId) ||
+      Boolean(adminAuthToken && impersonatedByAdmin);
 
     if (isImpersonated) {
       return {
@@ -284,6 +315,7 @@ export async function getUserIdFromRequest(
         impersonated: true,
         impersonatedBy: impersonatedBy ? String(impersonatedBy) : null,
         impersonationRole,
+        impersonatedByAdmin,
       };
     }
 
@@ -298,6 +330,7 @@ export async function getUserIdFromRequest(
       impersonated: false,
       impersonatedBy: null,
       impersonationRole: null,
+      impersonatedByAdmin: false,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);

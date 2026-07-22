@@ -22,6 +22,7 @@ export function canManageInvitation(
   if (
     auth.role === "admin" ||
     auth.impersonationRole === "admin" ||
+    auth.impersonatedByAdmin === true ||
     Boolean(auth.impersonatedBy)
   ) {
     return true;

@@ -1253,7 +1253,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const isOwner = auth.userId.toString() === invitation.ownerId.toString();
-    const isAdmin = effectiveRole === "admin";
+    const isAdmin =
+      effectiveRole === "admin" ||
+      auth?.role === "admin" ||
+      auth?.impersonationRole === "admin" ||
+      auth?.impersonatedByAdmin === true;
     const isProducerRole = effectiveRole === "producer";
     const isWorkerRole = effectiveRole === "worker";
     const isVenueOwnerRole = effectiveRole === "venue_owner";
@@ -1271,6 +1275,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       producerIdStr,
       userId: auth.userId?.toString?.(),
       impersonatedBy: auth.impersonatedBy?.toString?.(),
+      impersonatedByAdmin: auth?.impersonatedByAdmin === true,
       effectiveRole,
     });
 
@@ -1490,6 +1495,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       data.actualArrivedCount >= 0
     ) {
       const canUpdateActualArrived =
+        isOwner ||
         isAdmin ||
         isProducerRole ||
         isWorkerRole ||
@@ -1681,7 +1687,11 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
         : auth?.impersonationRole || auth?.role;
 
     const isOwner = auth.userId.toString() === invitation.ownerId.toString();
-    const isAdmin = effectiveRole === "admin";
+    const isAdmin =
+      effectiveRole === "admin" ||
+      auth?.role === "admin" ||
+      auth?.impersonationRole === "admin" ||
+      auth?.impersonatedByAdmin === true;
     const isProducerRole = effectiveRole === "producer";
     const isWorkerRole = effectiveRole === "worker";
 
