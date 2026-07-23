@@ -117,9 +117,9 @@ function sanitizeCustomerDealSummary(
   };
 }
 
-export function sanitizeSalesDocumentForCustomer<T extends Record<string, unknown>>(
-  document: T | null | undefined,
-): T | null {
+export function sanitizeSalesDocumentForCustomer(
+  document: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
   if (!document) {
     return null;
   }
@@ -147,5 +147,5 @@ export function sanitizeSalesDocumentForCustomer<T extends Record<string, unknow
     customerDealSummary: sanitizeCustomerDealSummary(
       document.customerDealSummary as Record<string, unknown> | undefined,
     ),
-  } as T;
+  };
 }
