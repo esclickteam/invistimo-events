@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
+import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,13 +143,13 @@ function shouldMarkAsViewed(req: NextRequest) {
 function normalizeDocumentForClient(document: any) {
   if (!document) return null;
 
-  const normalized = {
+  const normalized = sanitizeSalesDocumentForCustomer({
     ...document,
     _id: document._id ? String(document._id) : "",
     createdByUserId: document.createdByUserId
       ? String(document.createdByUserId)
       : null,
-  };
+  });
 
   return normalized;
 }
