@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CUSTOMER_PAYMENT_TERMS } from "@/lib/salesDocumentTerms";
 
 const VAT_RATE = 0.18;
 const COMMISSION_RATE = 0.05;
@@ -790,17 +791,7 @@ const CANCELLATION_TERMS: DetailSection[] = [
   },
 ];
 
-const PAYMENT_TERMS: DetailSection[] = [
-  {
-    title: "תנאי תשלום",
-    items: [
-      "שירותים דיגיטליים ושירותי הכנה לפני האירוע משולמים במלואם במועד ביצוע העסקה.",
-      "שירותי יום האירוע, לרבות הושבה באולם וניהול אלכוהול באולם, משולמים לפי הבחירה בעסקה: תשלום מלא מראש או תשלום ראשוני ויתרה ביום האירוע.",
-      "כאשר נבחר תשלום ראשוני ויתרה ביום האירוע, סכום התשלום הראשוני נקבע במערכת בזמן המכירה וניתן לעריכה על ידי העובד בהתאם לסיכום עם הלקוח. היתרה ליום האירוע מחושבת אוטומטית לפי הסכום שנותר מתוך סך העסקה.",
-      "המחיר הסופי בהצעת המחיר ובהסכם מוצג כולל מע״מ.",
-    ],
-  },
-];
+const PAYMENT_TERMS = CUSTOMER_PAYMENT_TERMS;
 
 function createEmptyUpsells(): SelectedUpsells {
   return {
