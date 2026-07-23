@@ -119,8 +119,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר בהתחזות — לא מייצרים שוב טוקן
-    if (auth.impersonated) {
+    /*
+      אדמין שמתחזה למפיק כבר מסומן כ־impersonated.
+      עדיין צריך לאפשר לו להיכנס ללקוח (התחזות מקוננת).
+      חוסמים רק התחזות כפולה שאינה admin→producer.
+    */
+    const isAdminActingAsProducer =
+      Boolean(auth.impersonated) &&
+      (auth.impersonatedByAdmin === true ||
+        auth.impersonationSourceRole === "admin");
+
+    if (auth.impersonated && !isAdminActingAsProducer) {
       return NextResponse.json(
         {
           success: true,
@@ -249,6 +258,15 @@ export async function POST(req: NextRequest) {
         impersonated: true,
         impersonatedBy: producerId,
         impersonationRole: "producer",
+
+        // שומרים שהמקור הוא אדמין (כשמתחזים דרך admin→producer→client)
+        ...(isAdminActingAsProducer
+          ? {
+              impersonatedByAdmin: true,
+              impersonationSourceRole: "admin",
+              adminId: auth.impersonatedBy ? String(auth.impersonatedBy) : null,
+            }
+          : {}),
       },
       process.env.JWT_SECRET,
       {

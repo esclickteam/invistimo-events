@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 import ProductionTabs from "./_components/ProductionTabs";
@@ -16,20 +17,28 @@ import SeatingPage from "@/app/dashboard/seating/page";
 
 export default function EventProductionPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
 
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creatingProductionEvent, setCreatingProductionEvent] = useState(false);
   const [fallbackEventId, setFallbackEventId] = useState(null);
 
+  const eventIdFromUrl = searchParams.get("eventId");
+
   /* =========================
      Load invitation
-     לוגיקה ישנה נשארת כמו שהיא
   ========================= */
   useEffect(() => {
     if (!user?._id) return;
 
-    fetch("/api/invitations/my", {
+    const invitationUrl = eventIdFromUrl
+      ? `/api/invitations/my?eventId=${encodeURIComponent(eventIdFromUrl)}`
+      : "/api/invitations/my";
+
+    setLoading(true);
+
+    fetch(invitationUrl, {
       credentials: "include",
       cache: "no-store",
       headers: {
@@ -49,7 +58,7 @@ export default function EventProductionPage() {
         setInvitation(null);
       })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, eventIdFromUrl]);
 
   /* =========================
      Extract eventId
@@ -58,18 +67,14 @@ export default function EventProductionPage() {
      אחר כך fallback שנוצר אוטומטית
   ========================= */
   const eventId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-
-    const params = new URLSearchParams(window.location.search);
-
     return (
-      params.get("eventId") ||
+      eventIdFromUrl ||
       invitation?.eventId ||
       invitation?.event?._id ||
       fallbackEventId ||
       null
     );
-  }, [invitation, fallbackEventId]);
+  }, [eventIdFromUrl, invitation, fallbackEventId]);
 
   /* =========================
      Fallback only:
@@ -80,11 +85,6 @@ export default function EventProductionPage() {
   useEffect(() => {
     if (!user?._id) return;
     if (loading) return;
-
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    const eventIdFromUrl = params.get("eventId");
 
     // אם כבר יש eventId בכתובת — לא נוגעים בכלום
     if (eventIdFromUrl) return;
@@ -124,7 +124,7 @@ export default function EventProductionPage() {
     }
 
     createOrLoadProductionEvent();
-  }, [user?._id, loading, invitation, fallbackEventId]);
+  }, [user?._id, loading, invitation, fallbackEventId, eventIdFromUrl]);
 
   /* =========================
      Loading

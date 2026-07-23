@@ -8,8 +8,6 @@ import {
   useRef,
 } from "react";
 
-import { useRouter } from "next/navigation";
-
 import {
   ArrowUpRight,
   CalendarClock,
@@ -404,8 +402,6 @@ export default function ProducerDashboard() {
     setIsAuthenticated,
   } = useAuth();
 
-  const router = useRouter();
-
   const [clients, setClients] = useState([]);
   const [clientsLoading, setClientsLoading] =
     useState(false);
@@ -688,9 +684,8 @@ export default function ProducerDashboard() {
         return;
       }
 
-      router.push(
-        `/events/production?eventId=${eventId}&tab=overview`
-      );
+      // Full reload so AuthContext picks up the new client session cookies
+      window.location.href = `/events/production?eventId=${eventId}&tab=overview`;
     } catch (err) {
       console.error(
         "❌ handleManageClient error:",
