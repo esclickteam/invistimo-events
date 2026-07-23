@@ -558,6 +558,10 @@ export async function PATCH(
         ? body.assignedProducerId
         : undefined,
 
+      assignedProducerIds: hasField(body, "assignedProducerIds")
+        ? body.assignedProducerIds
+        : undefined,
+
       assignedClientIds: hasField(body, "assignedClientIds")
         ? body.assignedClientIds
         : undefined,

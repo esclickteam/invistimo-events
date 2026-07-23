@@ -162,7 +162,10 @@ export async function POST(req: NextRequest) {
 
     const client: any = await User.findOne({
       _id: clientId,
-      assignedProducerId: producerId,
+      $or: [
+        { assignedProducerId: producerId },
+        { assignedProducerIds: producerId },
+      ],
     })
       .select("_id role name email hasPaid isTrial trialExpiresAt")
       .lean();

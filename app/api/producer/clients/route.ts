@@ -148,15 +148,20 @@ export async function GET(req: NextRequest) {
     console.log("🟢 Producer ObjectId:", producerObjectId.toString());
 
     /* =========================
-       Clients – by assignedProducerId
+       Clients – by assignedProducerId / assignedProducerIds
     ========================= */
     const clients = await User.find({
-      assignedProducerId: producerObjectId,
       role: {
         $in: ["client", "user"],
       },
+      $or: [
+        { assignedProducerId: producerObjectId },
+        { assignedProducerIds: producerObjectId },
+      ],
     })
-      .select("name email phone createdAt assignedProducerId billingSource")
+      .select(
+        "name email phone createdAt assignedProducerId assignedProducerIds billingSource"
+      )
       .sort({
         createdAt: -1,
       })
@@ -809,10 +814,13 @@ export async function PATCH(req: NextRequest) {
     const updatedClient = await User.findOneAndUpdate(
       {
         _id: clientId,
-        assignedProducerId: producerObjectId,
         role: {
           $in: ["client", "user"],
         },
+        $or: [
+          { assignedProducerId: producerObjectId },
+          { assignedProducerIds: producerObjectId },
+        ],
       },
       {
         $set: updates,
@@ -821,7 +829,9 @@ export async function PATCH(req: NextRequest) {
         new: true,
       }
     )
-      .select("name email phone createdAt assignedProducerId billingSource role")
+      .select(
+        "name email phone createdAt assignedProducerId assignedProducerIds billingSource role"
+      )
       .lean();
 
     if (!updatedClient) {

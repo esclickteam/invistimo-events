@@ -44,6 +44,15 @@ function toObjectIds(ids: string[]) {
   return ids.map((id) => new mongoose.Types.ObjectId(id));
 }
 
+function resolveProducerIds(body: any) {
+  if (Array.isArray(body?.assignedProducerIds)) {
+    return uniqueValidIds(body.assignedProducerIds);
+  }
+
+  const single = cleanId(body?.assignedProducerId);
+  return single ? [single] : [];
+}
+
 /* =========================================================
    PATCH – UPDATE USER ASSIGNEES (ADMIN ONLY)
 ========================================================= */
@@ -85,7 +94,7 @@ export async function PATCH(
     /* ===== BODY ===== */
     const body = await req.json().catch(() => ({}));
 
-    const assignedProducerId = cleanId(body?.assignedProducerId);
+    const nextAssignedProducerIds = resolveProducerIds(body);
     const nextAssignedStaffIds = uniqueValidIds(body?.assignedStaffIds);
 
     /* ===== EXISTING USER ===== */
@@ -112,22 +121,34 @@ export async function PATCH(
       (staffId) => !previousAssignedStaffIds.includes(staffId)
     );
 
-    /*
-      מוודאים שמקצים רק משתמשים שהם באמת עובדים.
-      כולל:
-      - עובד מערכת general_staff
-      - עובד הושבה seating_staff
-      - עובד מפיק producer_staff
-    */
-    const validStaffUsers = await User.find({
-      _id: { $in: toObjectIds(nextAssignedStaffIds) },
-      role: "staff",
-      staffType: {
-        $in: ["general_staff", "producer_staff", "seating_staff"],
-      },
-    })
-      .select("_id staffType employeeScope")
-      .lean();
+    const [validProducerUsers, validStaffUsers] = await Promise.all([
+      nextAssignedProducerIds.length > 0
+        ? User.find({
+            _id: { $in: toObjectIds(nextAssignedProducerIds) },
+            role: "producer",
+          })
+            .select("_id")
+            .lean()
+        : Promise.resolve([]),
+      nextAssignedStaffIds.length > 0
+        ? User.find({
+            _id: { $in: toObjectIds(nextAssignedStaffIds) },
+            role: "staff",
+            staffType: {
+              $in: ["general_staff", "producer_staff", "seating_staff"],
+            },
+          })
+            .select("_id staffType employeeScope")
+            .lean()
+        : Promise.resolve([]),
+    ]);
+
+    const validProducerIdSet = new Set(
+      validProducerUsers.map((producer) => String((producer as any)._id))
+    );
+    const validProducerIds = nextAssignedProducerIds.filter((id) =>
+      validProducerIdSet.has(id)
+    );
 
     const validStaffIds = validStaffUsers.map((staff) =>
       String((staff as any)._id)
@@ -137,7 +158,10 @@ export async function PATCH(
     const user = await User.findByIdAndUpdate(
       userId,
       {
-        assignedProducerId: assignedProducerId || null,
+        assignedProducerId: validProducerIds[0]
+          ? new mongoose.Types.ObjectId(validProducerIds[0])
+          : null,
+        assignedProducerIds: toObjectIds(validProducerIds),
         assignedStaffIds: toObjectIds(validStaffIds),
       },
       { new: true }
@@ -207,6 +231,8 @@ export async function PATCH(
         success: true,
         user,
         assigneesSync: {
+          assignedProducerIds: validProducerIds,
+          assignedProducerId: validProducerIds[0] || null,
           assignedStaffIds: validStaffIds,
           addedStaffIds: validAddedStaffIds,
           removedStaffIds: removedOrInvalidStaffIds,

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
+import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import {
   Search,
   Users,
@@ -66,6 +67,7 @@ type AdminUser = {
   eventDate?: string;
 
   assignedProducerId?: string | null;
+  assignedProducerIds?: string[];
   assignedStaffIds?: string[];
 
   assignedProducerEmail?: string;
@@ -133,7 +135,7 @@ type EditFormState = {
   name: string;
   email: string;
   eventDate: string;
-  assignedProducerId: string | null;
+  assignedProducerIds: string[];
   assignedStaffIds: string[];
 };
 
@@ -206,6 +208,37 @@ function formatDateInput(value?: string) {
 
 function formatMoney(value?: number) {
   return `${Number(value || 0).toLocaleString("he-IL")} ₪`;
+}
+
+function resolveAssignedProducerIds(user: {
+  assignedProducerId?: string | null;
+  assignedProducerIds?: string[];
+}): string[] {
+  if (Array.isArray(user.assignedProducerIds) && user.assignedProducerIds.length > 0) {
+    return Array.from(new Set(user.assignedProducerIds.map(String).filter(Boolean)));
+  }
+
+  if (user.assignedProducerId) {
+    return [String(user.assignedProducerId)];
+  }
+
+  return [];
+}
+
+function formatAssigneeNames(
+  ids: string[] | undefined,
+  options: Assignee[]
+): string {
+  if (!ids?.length) return "—";
+
+  const names = ids
+    .map((id) => {
+      const match = options.find((option) => option._id === id);
+      return match?.name || match?.email || "";
+    })
+    .filter(Boolean);
+
+  return names.length > 0 ? names.join(", ") : "—";
 }
 
 type VenueSeatingServiceForm = {
@@ -1499,8 +1532,8 @@ export default function AdminUsersPage() {
                 <th className="p-4">חבילה</th>
                 <th className="p-4">רשומות</th>
                 <th className="p-4">תאריך אירוע</th>
-                <th className="p-4">מפיק מטפל</th>
-                <th className="p-4">עובד מטפל</th>
+                <th className="p-4">מפיקים מטפלים</th>
+                <th className="p-4">עובדים מטפלים</th>
                 <th className="p-4">שירות שיחות</th>
                 <th className="p-4">פעולות</th>
               </tr>
@@ -1538,13 +1571,14 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
-                    {producers.find((p) => p._id === u.assignedProducerId)
-                      ?.name || "—"}
+                    {formatAssigneeNames(
+                      resolveAssignedProducerIds(u),
+                      producers
+                    )}
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
-                    {staff.find((s) => s._id === u.assignedStaffIds?.[0])
-                      ?.name || "—"}
+                    {formatAssigneeNames(u.assignedStaffIds, staff)}
                   </td>
 
                   <td className="p-4">
@@ -2100,8 +2134,8 @@ function EditUserModal({
     name: user.name || "",
     email: user.email || "",
     eventDate: formatDateInput(user.eventDate),
-    assignedProducerId: user.assignedProducerId || null,
-    assignedStaffIds: user.assignedStaffIds || [],
+    assignedProducerIds: resolveAssignedProducerIds(user),
+    assignedStaffIds: (user.assignedStaffIds || []).map(String),
   });
 
   async function saveChanges() {
@@ -2151,7 +2185,7 @@ function EditUserModal({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        assignedProducerId: form.assignedProducerId,
+        assignedProducerIds: form.assignedProducerIds,
         assignedStaffIds: form.assignedStaffIds,
       }),
     });
@@ -2392,69 +2426,31 @@ function EditUserModal({
           <h3 className="mb-4 text-lg font-black text-[#3A2A1C]">מטפלים</h3>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <label>
-              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
-                מפיק מטפל
-              </span>
+            <AssigneeMultiSelect
+              label="מפיקים מטפלים"
+              options={producers}
+              selectedIds={form.assignedProducerIds}
+              onChange={(ids) =>
+                setForm((p) => ({
+                  ...p,
+                  assignedProducerIds: ids,
+                }))
+              }
+              emptyLabel="ללא מפיק מטפל"
+            />
 
-              <select
-                className="
-                  h-12 w-full rounded-2xl
-                  border border-[#E7D8C6]
-                  bg-white px-4
-                  text-sm font-bold
-                  outline-none
-                "
-                value={form.assignedProducerId ?? ""}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    assignedProducerId: e.target.value || null,
-                  }))
-                }
-              >
-                <option value="">ללא מפיק</option>
-
-                {producers.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name || p.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-  <span className="mb-2 block text-sm font-black text-[#6B5A48]">
-    עובד מטפל
-  </span>
-
-  <select
-    className="
-      h-12 w-full rounded-2xl
-      border border-[#E7D8C6]
-      bg-white px-4
-      text-sm font-bold
-      text-[#3A2A1C]
-      outline-none
-    "
-    value={form.assignedStaffIds?.[0] || ""}
-    onChange={(e) =>
-      setForm((p) => ({
-        ...p,
-        assignedStaffIds: e.target.value ? [e.target.value] : [],
-      }))
-    }
-  >
-    <option value="">ללא עובד מטפל</option>
-
-    {staff.map((s) => (
-      <option key={s._id} value={s._id}>
-        {s.name || s.email}
-      </option>
-    ))}
-  </select>
-</label>
-
+            <AssigneeMultiSelect
+              label="עובדים מטפלים"
+              options={staff}
+              selectedIds={form.assignedStaffIds}
+              onChange={(ids) =>
+                setForm((p) => ({
+                  ...p,
+                  assignedStaffIds: ids,
+                }))
+              }
+              emptyLabel="ללא עובד מטפל"
+            />
           </div>
         </section>
       </div>

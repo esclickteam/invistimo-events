@@ -150,6 +150,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   createdByAdmin?: boolean;
 
   assignedProducerId?: mongoose.Types.ObjectId | null;
+  assignedProducerIds?: mongoose.Types.ObjectId[];
   assignedStaffIds?: mongoose.Types.ObjectId[];
   assignedClientIds?: mongoose.Types.ObjectId[];
 
@@ -801,6 +802,13 @@ preRsvpMessages: {
       default: null,
       index: true,
     },
+
+    assignedProducerIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
     assignedStaffIds: [
       {
@@ -1474,6 +1482,7 @@ UserSchema.pre("validate", function () {
   doc.staffType = null;
   doc.employeeScope = null;
   doc.assignedProducerId = null;
+  doc.assignedProducerIds = [];
   doc.assignedClientIds = [];
 }
 
@@ -1555,6 +1564,12 @@ if (doc.role === "staff" && doc.staffType === "producer_staff") {
     ).map((id) => new mongoose.Types.ObjectId(id));
   }
 
+  if (Array.isArray(doc.assignedProducerIds)) {
+    doc.assignedProducerIds = Array.from(
+      new Set(doc.assignedProducerIds.map(String))
+    ).map((id) => new mongoose.Types.ObjectId(id));
+  }
+
   if (Array.isArray(doc.assignedStaffIds)) {
     doc.assignedStaffIds = Array.from(
       new Set(doc.assignedStaffIds.map(String))
@@ -1569,6 +1584,7 @@ UserSchema.index({ role: 1, staffType: 1 });
 UserSchema.index({ role: 1, staffType: 1, employeeScope: 1 });
 UserSchema.index({ assignedProducerId: 1, role: 1 });
 UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
+UserSchema.index({ assignedProducerIds: 1, role: 1 });
 UserSchema.index({ email: 1, role: 1 });
 UserSchema.index({ eventDate: 1 });
 UserSchema.index({ plan: 1, hasPaid: 1 });

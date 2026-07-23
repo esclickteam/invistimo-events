@@ -136,6 +136,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       existingUser.role = "client";
 
       existingUser.assignedProducerId = producer._id;
+      existingUser.assignedProducerIds = [producer._id];
       existingUser.createdByProducer = true;
       existingUser.billingSource = "producer";
 
@@ -165,6 +166,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         role: "client",
 
         assignedProducerId: producer._id,
+        assignedProducerIds: [producer._id],
         createdByProducer: true,
         billingSource: "producer",
 

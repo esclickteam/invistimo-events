@@ -599,6 +599,7 @@ packageName
 
         producerPricePerRecord
         assignedProducerId
+        assignedProducerIds
         assignedStaffIds
       `)
       .sort({ createdAt: -1 })
