@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerAgreement from "@/models/CustomerAgreement";
+import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -117,11 +118,11 @@ function normalizeSignedDocumentForClient(document: any) {
       ? document.toObject()
       : document || {};
 
-  return {
+  return sanitizeSalesDocumentForCustomer({
     ...obj,
     _id: obj._id ? String(obj._id) : "",
     createdByUserId: obj.createdByUserId ? String(obj.createdByUserId) : null,
-  };
+  });
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {

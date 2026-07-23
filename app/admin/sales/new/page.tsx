@@ -1666,7 +1666,6 @@ export default function AdminSalesNewPage() {
         givenFree,
         showFreeLabelInDocument: showUpsellPricesInDocument && givenFree,
         customerDetails: getCustomerSectionsForUpsell(upsell),
-        employeeDetails: getEmployeeSectionsForUpsell(upsell),
         showPriceInDocument: showUpsellPricesInDocument,
         hidePriceInDocument: !showUpsellPricesInDocument,
         paymentType: isEventDayService(upsell.key) ? "event_day_service" : "pre_event_service",

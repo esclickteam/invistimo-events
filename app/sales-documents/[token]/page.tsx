@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useParams } from "next/navigation";
-import { sanitizePaymentTermsForCustomer } from "@/lib/salesDocumentTerms";
+import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer } from "@/lib/salesDocumentTerms";
 
 type DetailSection = {
   title: string;
@@ -724,6 +724,11 @@ export default function SalesDocumentPage() {
     [document?.paymentTerms],
   );
 
+  const customerCancellationTerms = useMemo(
+    () => sanitizeDetailSectionsForCustomer(document?.cancellationTerms),
+    [document?.cancellationTerms],
+  );
+
   const loadDocument = useCallback(async () => {
     if (!token) {
       setLoadError("קישור לא תקין");
@@ -1211,7 +1216,7 @@ export default function SalesDocumentPage() {
             </SectionCard>
 
             <SectionCard title="תנאי ביטול">
-              <DetailSections sections={document.cancellationTerms} />
+              <DetailSections sections={customerCancellationTerms} />
             </SectionCard>
 
             {isAgreement ? (

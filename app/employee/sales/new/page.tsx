@@ -1440,7 +1440,6 @@ export default function NewEmployeeSalePage() {
         title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         customerDetails: getCustomerSectionsForUpsell(upsell),
-        employeeDetails: getEmployeeSectionsForUpsell(upsell),
         showPriceInDocument: showUpsellPricesInDocument,
         hidePriceInDocument: !showUpsellPricesInDocument,
         paymentType: isEventDayService(upsell.key) ? "event_day_service" : "pre_event_service",
