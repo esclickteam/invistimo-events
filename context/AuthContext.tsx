@@ -440,19 +440,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user as User);
       }
 
-      const nextUser = await refreshUser();
+      // Prefer fresh session from cookie; fall back to login payload (Safari race)
+      const nextUser = (await refreshUser()) || (data.user as User | undefined);
 
-      if (!nextUser) {
+      if (!nextUser?.role) {
         throw new Error("לא הצלחנו לטעון את המשתמש");
       }
 
-      /*
-        אם זה משתמש בתחזות — עדיין אפשר לנתב לפי התפקיד שאליו התחזינו,
-        כדי שעובד מערכת לא ייפול בטעות ל-producer-staff.
-      */
+      setUser(nextUser);
+
       const redirectPath = getUserRedirectPath(nextUser);
 
-      router.replace(redirectPath);
+      // Full navigation so Safari/iPad reliably sends the new auth cookies
+      window.location.replace(redirectPath);
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err?.message || "שגיאה בהתחברות");
@@ -497,9 +497,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     ⏳ Guard
+     ⏳ Guard — don't blank the login page while bootstrapping
+     (Safari/iPad often looks "broken" if we return null here)
   -------------------------------------------------- */
-  if (loading || shouldRedirectFromAuthEntry) {
+  if (shouldRedirectFromAuthEntry) {
+    return null;
+  }
+
+  if (loading && !isAuthEntryPath(pathname)) {
     return null;
   }
 

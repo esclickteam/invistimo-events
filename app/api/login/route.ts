@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import { connectDB } from "@/lib/db";
+import {
+  appendCookieDeletes,
+  LOGIN_COOKIES_TO_CLEAR,
+  setAuthCookie,
+} from "@/lib/auth/clearAuthCookies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,137 +116,40 @@ export async function POST(req: Request) {
     );
 
     /* ======================================================
-       Cookie domain
+       Clear stale cookies (host-only + .invistimo.com) via
+       appended Set-Cookie headers — required for Safari/iPad
     ====================================================== */
 
-    const cookieDomain =
-      process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
-
-    /* ======================================================
-       Cookie options
-    ====================================================== */
-
-    const baseCookie = {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      path: "/",
-      ...(cookieDomain ? { domain: cookieDomain } : {}),
-      maxAge: 60 * 60 * 24 * 7, // 7 ימים
-    };
-
-    const cleanupCookie = {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      path: "/",
-      ...(cookieDomain ? { domain: cookieDomain } : {}),
-      maxAge: 0,
-    };
-
-    const cleanupCookieWithoutDomain = {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      path: "/",
-      maxAge: 0,
-    };
-
-    /* ======================================================
-       Clean old cookies - with domain and without domain
-    ====================================================== */
-
-    const cookiesToClear = [
-      "authToken",
-      "producerAuthToken",
-      "adminAuthToken",
-
-      // legacy / old names
-      "token",
-      "adminToken",
-      "impersonationToken",
-
-      // client-readable UX cookies
-      "role",
-      "isTrial",
-      "hasPaid",
-      "trialExpiresAt",
-      "smsUsed",
-      "smsLimit",
-    ];
-
-    for (const name of cookiesToClear) {
-      const isHttpOnly =
-        name === "authToken" ||
-        name === "producerAuthToken" ||
-        name === "adminAuthToken" ||
-        name === "token" ||
-        name === "adminToken" ||
-        name === "impersonationToken";
-
-      // מחיקה עם domain
-      res.cookies.set(name, "", {
-        ...cleanupCookie,
-        httpOnly: isHttpOnly,
-      });
-
-      // מחיקה גם בלי domain
-      res.cookies.set(name, "", {
-        ...cleanupCookieWithoutDomain,
-        httpOnly: isHttpOnly,
-      });
-    }
+    appendCookieDeletes(res, LOGIN_COOKIES_TO_CLEAR);
 
     /* ======================================================
        Auth token - HttpOnly
     ====================================================== */
 
-    res.cookies.set("authToken", token, {
-      ...baseCookie,
-      httpOnly: true,
-    });
+    setAuthCookie(res, "authToken", token, { httpOnly: true });
 
     /* ======================================================
        Client-readable cookies - UX only
-       האבטחה עצמה נשענת על JWT + Middleware + API
     ====================================================== */
 
-    res.cookies.set("role", role, {
-      ...baseCookie,
-      httpOnly: false,
-    });
-
-    res.cookies.set("hasPaid", String(hasPaid), {
-      ...baseCookie,
-      httpOnly: false,
-    });
-
-    res.cookies.set("isTrial", String(isTrial), {
-      ...baseCookie,
-      httpOnly: false,
-    });
+    setAuthCookie(res, "role", role, { httpOnly: false });
+    setAuthCookie(res, "hasPaid", String(hasPaid), { httpOnly: false });
+    setAuthCookie(res, "isTrial", String(isTrial), { httpOnly: false });
 
     if (isTrial && user.trialExpiresAt) {
-      res.cookies.set("trialExpiresAt", String(user.trialExpiresAt.getTime()), {
-        ...baseCookie,
-        httpOnly: false,
-      });
-    } else {
-      res.cookies.set("trialExpiresAt", "", {
-        ...cleanupCookie,
-        httpOnly: false,
-      });
-
-      res.cookies.set("trialExpiresAt", "", {
-        ...cleanupCookieWithoutDomain,
-        httpOnly: false,
-      });
+      setAuthCookie(
+        res,
+        "trialExpiresAt",
+        String(user.trialExpiresAt.getTime()),
+        { httpOnly: false }
+      );
     }
 
-    res.cookies.set("smsUsed", String(user.smsUsed ?? 0), {
-      ...baseCookie,
+    setAuthCookie(res, "smsUsed", String(user.smsUsed ?? 0), {
       httpOnly: false,
     });
 
-    res.cookies.set("smsLimit", String(user.planLimits?.smsLimit ?? 0), {
-      ...baseCookie,
+    setAuthCookie(res, "smsLimit", String(user.planLimits?.smsLimit ?? 0), {
       httpOnly: false,
     });
 

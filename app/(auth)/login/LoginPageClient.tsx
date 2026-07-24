@@ -18,10 +18,26 @@ export default function LoginPageClient() {
     setLoading(true);
 
     try {
-      await login(email, pass);
+      /*
+        Safari/iPad autofill often fills the DOM without firing React onChange.
+        Always read from FormData so we submit what the user actually sees.
+      */
+      const formData = new FormData(e.currentTarget);
+      const submittedEmail = String(formData.get("email") || email).trim();
+      const submittedPassword = String(formData.get("password") || pass);
+
+      if (!submittedEmail || !submittedPassword) {
+        alert("נא למלא אימייל וסיסמה");
+        return;
+      }
+
+      setEmail(submittedEmail);
+      setPass(submittedPassword);
+
+      await login(submittedEmail, submittedPassword);
     } catch (err) {
+      // AuthContext already surfaces the error message
       console.error("❌ Login error:", err);
-      alert("שגיאה בהתחברות");
     } finally {
       setLoading(false);
     }
@@ -104,11 +120,16 @@ export default function LoginPageClient() {
                 <div className="relative">
                   <input
                     type="email"
+                    name="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="הזינו את כתובת האימייל שלכם"
                     autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
                       bg-white/90 px-4 py-3.5 pl-11
@@ -134,6 +155,7 @@ export default function LoginPageClient() {
                 <div className="relative">
                   <input
                     type={showPass ? "text" : "password"}
+                    name="password"
                     required
                     value={pass}
                     onChange={(e) => setPass(e.target.value)}
