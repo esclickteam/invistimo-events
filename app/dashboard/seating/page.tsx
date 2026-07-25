@@ -310,26 +310,8 @@ export default function SeatingPage() {
   =============================== */
   useEffect(() => {
     const nextMode = isLiveSeatingView ? "live" : "regular";
-
-    console.log("🔥 SEATING MODE RESOLVED:", {
-      nextMode,
-      isProducer,
-      isLiveView,
-      seatingMode,
-      storedWorkMode,
-      pathname,
-    });
-
     setSeatingMode(nextMode);
-  }, [
-    isLiveSeatingView,
-    isProducer,
-    isLiveView,
-    seatingMode,
-    storedWorkMode,
-    pathname,
-    setSeatingMode,
-  ]);
+  }, [isLiveSeatingView, setSeatingMode]);
 
   /* ===============================
      LOAD SEATING DATA
@@ -554,7 +536,7 @@ export default function SeatingPage() {
     isDemo,
     isVenueTemplateMode,
     loadSeatingData,
-    user,
+    user?._id,
     eventIdFromQuery,
     invitationIdFromQuery,
   ]);
@@ -594,8 +576,9 @@ export default function SeatingPage() {
     refreshLiveSeatingData();
 
     const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       refreshLiveSeatingData();
-    }, 3000);
+    }, 15000);
 
     const refreshOnFocus = () => {
       refreshLiveSeatingData();

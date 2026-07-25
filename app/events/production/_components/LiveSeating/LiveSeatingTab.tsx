@@ -147,14 +147,16 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 useEffect(() => {
   if (!focusGuestId || !hasImported) return;
 
-  const table = tables.find((t: SeatingTable) =>
+  // Read tables from store once — do not depend on `tables` refs from polls
+  const currentTables = useSeatingStore.getState().tables || [];
+
+  const table = currentTables.find((t: SeatingTable) =>
     t.seatedGuests?.some(
       (sg) => String(sg.guestId) === String(focusGuestId)
     )
   );
 
   if (!table) {
-    console.warn("❌ NO TABLE FOR GUEST", focusGuestId);
     return;
   }
 
@@ -174,7 +176,7 @@ useEffect(() => {
   router.replace("/events/production?tab=live-seating");
 
   return () => clearTimeout(timeout);
-}, [focusGuestId, hasImported, tables, setCanvasView, router]);
+}, [focusGuestId, hasImported, setCanvasView, router]);
 
 
 

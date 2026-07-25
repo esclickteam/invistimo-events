@@ -1127,7 +1127,29 @@ export default function AdminShiftManagementPage() {
         ? list.filter(isSystemEmployee)
         : [];
 
-      setEmployees(onlySystemEmployees);
+      setEmployees((prev) => {
+        if (
+          prev.length === onlySystemEmployees.length &&
+          prev.every((employee, index) => {
+            const next = onlySystemEmployees[index];
+            if (!next) return false;
+            return (
+              String(getEmployeeId(employee)) === String(getEmployeeId(next)) &&
+              String(employee.status || "") === String(next.status || "") &&
+              String(employee.softphoneStatus || "") ===
+                String(next.softphoneStatus || "") &&
+              String(employee.currentCall?.status || "") ===
+                String(next.currentCall?.status || "") &&
+              String(employee.currentCall?.callControlId || "") ===
+                String(next.currentCall?.callControlId || "")
+            );
+          })
+        ) {
+          return prev;
+        }
+
+        return onlySystemEmployees;
+      });
       setLastRefreshAt(new Date());
       setError("");
     } catch (err: any) {
@@ -1191,11 +1213,12 @@ export default function AdminShiftManagementPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // סנכרון נתונים כל שנייה בלי כפתור רענון.
+  // סנכרון נתונים חי — לא כל שנייה (מונע רינדור אינסופי)
   useEffect(() => {
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       fetchEmployees(false);
-    }, 1000);
+    }, 10000);
 
     return () => window.clearInterval(timer);
   }, [fetchEmployees]);

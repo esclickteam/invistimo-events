@@ -742,29 +742,67 @@ export const useSeatingStore = create((set, get) => ({
 
   init: (tables, guests, background = null, canvasView = null) => {
     const seatingMode = get().seatingMode;
+    const nextTables = (tables || []).map((t) => normalizeTableForStore(t));
+    const nextGuests = guests || [];
+    const nextLiveArrivals =
+      seatingMode === "live"
+        ? Object.fromEntries(
+            nextGuests.map((g) => [
+              String(g.id ?? g._id),
+              Number(g.actualArrivedCount ?? 0),
+            ])
+          )
+        : null;
 
-    set((state) => ({
-      ...state,
+    set((state) => {
+      const sameGuests =
+        state.guests?.length === nextGuests.length &&
+        (state.guests || []).every((guest, index) => {
+          const next = nextGuests[index];
+          if (!next) return false;
+          return (
+            String(guest.id ?? guest._id) === String(next.id ?? next._id) &&
+            Number(guest.actualArrivedCount ?? 0) ===
+              Number(next.actualArrivedCount ?? 0) &&
+            Number(guest.arrivedCount ?? 0) === Number(next.arrivedCount ?? 0) &&
+            String(guest.tableId ?? "") === String(next.tableId ?? "") &&
+            guest.rsvp === next.rsvp
+          );
+        });
 
-      tables: (tables || []).map((t) => normalizeTableForStore(t)),
+      const sameTables =
+        state.tables?.length === nextTables.length &&
+        (state.tables || []).every((table, index) => {
+          const next = nextTables[index];
+          if (!next) return false;
+          return (
+            String(table.id ?? table._id) === String(next.id ?? next._id) &&
+            Number(table.seats ?? 0) === Number(next.seats ?? 0) &&
+            (table.seatedGuests || []).length ===
+              (next.seatedGuests || []).length
+          );
+        });
 
-      guests: guests || [],
+      if (
+        sameGuests &&
+        sameTables &&
+        state.background === background &&
+        (canvasView == null || state.canvasView === canvasView)
+      ) {
+        return state;
+      }
 
-      liveArrivals:
-        seatingMode === "live"
-          ? Object.fromEntries(
-              (guests || []).map((g) => [
-                String(g.id ?? g._id),
-                Number(g.actualArrivedCount ?? 0),
-              ])
-            )
-          : state.liveArrivals,
-
-      background,
-
-      canvasView:
-        canvasView ?? state.canvasView ?? { scale: 1, x: 0, y: 0 },
-    }));
+      return {
+        ...state,
+        tables: nextTables,
+        guests: nextGuests,
+        liveArrivals:
+          nextLiveArrivals != null ? nextLiveArrivals : state.liveArrivals,
+        background,
+        canvasView:
+          canvasView ?? state.canvasView ?? { scale: 1, x: 0, y: 0 },
+      };
+    });
   },
 
   importSnapshot: (snapshot) => {

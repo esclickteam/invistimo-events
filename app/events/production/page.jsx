@@ -25,12 +25,18 @@ export default function EventProductionPage() {
   const [fallbackEventId, setFallbackEventId] = useState(null);
 
   const eventIdFromUrl = searchParams.get("eventId");
+  const userId = user?._id ? String(user._id) : "";
+  const invitationEventId = String(
+    invitation?.eventId || invitation?.event?._id || ""
+  );
 
   /* =========================
      Load invitation
   ========================= */
   useEffect(() => {
-    if (!user?._id) return;
+    if (!userId) return;
+
+    let cancelled = false;
 
     const invitationUrl = eventIdFromUrl
       ? `/api/invitations/my?eventId=${encodeURIComponent(eventIdFromUrl)}`
@@ -43,7 +49,7 @@ export default function EventProductionPage() {
       cache: "no-store",
       headers: {
         // ⭐ קריטי – מאפשר לבקאנד לדעת על מי האדמין מתחזה
-        "x-impersonate-user": user._id,
+        "x-impersonate-user": userId,
       },
     })
       .then((res) => {
@@ -51,14 +57,21 @@ export default function EventProductionPage() {
         return res.json();
       })
       .then((data) => {
+        if (cancelled) return;
         setInvitation(data?.invitation || null);
       })
       .catch((err) => {
         console.error("Invitation fetch error:", err);
-        setInvitation(null);
+        if (!cancelled) setInvitation(null);
       })
-      .finally(() => setLoading(false));
-  }, [user, eventIdFromUrl]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, eventIdFromUrl]);
 
   /* =========================
      Extract eventId
@@ -69,12 +82,11 @@ export default function EventProductionPage() {
   const eventId = useMemo(() => {
     return (
       eventIdFromUrl ||
-      invitation?.eventId ||
-      invitation?.event?._id ||
+      invitationEventId ||
       fallbackEventId ||
       null
     );
-  }, [eventIdFromUrl, invitation, fallbackEventId]);
+  }, [eventIdFromUrl, invitationEventId, fallbackEventId]);
 
   /* =========================
      Fallback only:
@@ -83,17 +95,19 @@ export default function EventProductionPage() {
      לא נוגעים בלוגיקה הישנה אם יש eventId.
   ========================= */
   useEffect(() => {
-    if (!user?._id) return;
+    if (!userId) return;
     if (loading) return;
 
     // אם כבר יש eventId בכתובת — לא נוגעים בכלום
     if (eventIdFromUrl) return;
 
     // אם יש invitation עם eventId — לא נוגעים בכלום
-    if (invitation?.eventId || invitation?.event?._id) return;
+    if (invitationEventId) return;
 
     // אם כבר יצרנו fallback — לא עושים שוב
     if (fallbackEventId) return;
+
+    let cancelled = false;
 
     async function createOrLoadProductionEvent() {
       try {
@@ -105,6 +119,8 @@ export default function EventProductionPage() {
         });
 
         const data = await res.json().catch(() => null);
+
+        if (cancelled) return;
 
         if (!res.ok || !data?.success || !data?.eventId) {
           console.error("My production event error:", data);
@@ -119,12 +135,16 @@ export default function EventProductionPage() {
       } catch (err) {
         console.error("Create/load production event error:", err);
       } finally {
-        setCreatingProductionEvent(false);
+        if (!cancelled) setCreatingProductionEvent(false);
       }
     }
 
     createOrLoadProductionEvent();
-  }, [user?._id, loading, invitation, fallbackEventId, eventIdFromUrl]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, loading, invitationEventId, fallbackEventId, eventIdFromUrl]);
 
   /* =========================
      Loading

@@ -497,15 +497,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     ⏳ Guard — don't blank the login page while bootstrapping
-     (Safari/iPad often looks "broken" if we return null here)
+     ⏳ Guard — never unmount the whole tree on bootstrap.
+     Returning null remounts every page and restarts fetch loops.
   -------------------------------------------------- */
   if (shouldRedirectFromAuthEntry) {
-    return null;
-  }
-
-  if (loading && !isAuthEntryPath(pathname)) {
-    return null;
+    return (
+      <AuthContext.Provider
+        value={{
+          user,
+          loading: true,
+          isAuthenticated,
+          login,
+          refreshUser,
+          exitImpersonation,
+          logout,
+          setUser,
+          setIsAuthenticated,
+        }}
+      >
+        <div className="flex min-h-screen items-center justify-center text-sm text-[#7C6A58]">
+          מעביר לדשבורד…
+        </div>
+      </AuthContext.Provider>
+    );
   }
 
   /* --------------------------------------------------

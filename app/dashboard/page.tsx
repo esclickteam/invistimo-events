@@ -389,7 +389,7 @@ const canViewActualArrived =
   useEffect(() => {
   // לא לשנות מצב לפני שהמשתמש נטען,
   // אחרת ברענון זה עלול להחזיר בטעות ל-regular.
-  if (!isDemo && !user) return;
+  if (!isDemo && !user?._id) return;
 
   if (!canViewActualArrived) {
     setWorkMode("regular");
@@ -400,7 +400,7 @@ const canViewActualArrived =
   // שומר בדיוק את מה שבחרת:
   // LIVE נשאר LIVE, רגיל נשאר רגיל.
   setSeatingMode(workMode === "live" ? "live" : "regular");
-}, [isDemo, user, canViewActualArrived, workMode, setSeatingMode]);
+}, [isDemo, user?._id, canViewActualArrived, workMode, setSeatingMode]);
 
 
   useEffect(() => {
@@ -412,7 +412,7 @@ const canViewActualArrived =
 
   useEffect(() => {
     if (isDemo) return;
-    if (!user) return;
+    if (!user?._id) return;
 
     if (
       user.role === "producer" &&
@@ -422,7 +422,7 @@ const canViewActualArrived =
       console.error("Producer dashboard loaded without eventId");
       router.replace("/events");
     }
-  }, [user, eventIdFromUrl, router, isDemo]);
+  }, [user?._id, user?.role, user?.impersonated, eventIdFromUrl, router, isDemo]);
 
   const [selectedGuest, setSelectedGuest] =
     useState<Guest | null>(null);
@@ -644,8 +644,6 @@ const canViewActualArrived =
         )}&venueView=1&eventId=${encodeURIComponent(eventIdFromUrl || "")}`
       : `/api/guests?invitation=${encodeURIComponent(invitationId)}`;
 
-    console.log("LOAD GUESTS URL:", url);
-
     const res = await fetch(url, {
       credentials: "include",
       cache: "no-store",
@@ -653,26 +651,48 @@ const canViewActualArrived =
 
     const data = await res.json().catch(() => ({}));
 
-    console.log("LOAD GUESTS RESPONSE:", data);
-
     if (!res.ok || data?.success === false) {
       setGuests([]);
       return;
     }
 
-    setGuests(
-  Array.isArray(data.guests)
-    ? data.guests
-        .filter((guest: Guest) => {
-          const hasId = Boolean(guest?._id || guest?.id);
-          const hasName = Boolean(String(guest?.name || "").trim());
-          const hasPhone = Boolean(String(guest?.phone || "").trim());
+    const nextGuests = Array.isArray(data.guests)
+      ? data.guests
+          .filter((guest: Guest) => {
+            const hasId = Boolean(guest?._id || guest?.id);
+            const hasName = Boolean(String(guest?.name || "").trim());
+            const hasPhone = Boolean(String(guest?.phone || "").trim());
 
-          return hasId && (hasName || hasPhone);
+            return hasId && (hasName || hasPhone);
+          })
+          .map((guest: Guest) => normalizeGuestForDashboard(guest))
+      : [];
+
+    setGuests((prev) => {
+      if (
+        prev.length === nextGuests.length &&
+        prev.every((guest, index) => {
+          const next = nextGuests[index];
+          return (
+            String(guest._id || guest.id) === String(next._id || next.id) &&
+            guest.rsvp === next.rsvp &&
+            Number(guest.guestsCount || 0) === Number(next.guestsCount || 0) &&
+            Number(guest.arrivedCount || 0) === Number(next.arrivedCount || 0) &&
+            Number(guest.actualArrivedCount || 0) ===
+              Number(next.actualArrivedCount || 0) &&
+            String(guest.tableName || "") === String(next.tableName || "") &&
+            String(guest.tableId || "") === String(next.tableId || "") &&
+            String(guest.name || "") === String(next.name || "") &&
+            String(guest.phone || "") === String(next.phone || "") &&
+            String(guest.groupId || "") === String(next.groupId || "")
+          );
         })
-        .map((guest: Guest) => normalizeGuestForDashboard(guest))
-    : []
-);
+      ) {
+        return prev;
+      }
+
+      return nextGuests;
+    });
   }
 
   async function loadSeatingTables() {
@@ -906,9 +926,13 @@ if (!canDeleteAllGuests) {
     loadUser();
   }, [isDemo]);
 
+  const userId = user?._id ? String(user._id) : "";
+
   useEffect(() => {
     if (isDemo) return;
-    if (!user) return;
+    if (!userId) return;
+
+    let cancelled = false;
 
     async function initAfterUser() {
       setLoading(true);
@@ -920,11 +944,18 @@ if (!canDeleteAllGuests) {
       await loadInvitation();
       await loadEvent();
 
-      setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+      }
     }
 
     initAfterUser();
-  }, [user, isDemo, isVenueView, invitationIdFromUrl, eventIdFromUrl]);
+
+    return () => {
+      cancelled = true;
+    };
+    // Depend on stable user id — full `user` object identity restarts this loop
+  }, [userId, isDemo, isVenueView, invitationIdFromUrl, eventIdFromUrl]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -944,7 +975,7 @@ if (!canDeleteAllGuests) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId }),
     });
-  }, [isDemo, user, invitation?._id]);
+  }, [isDemo, userId, user?.impersonated, user?.role, invitation?._id, invitation?.ownerId]);
 
   useEffect(() => {
     if (!isDemo) return;
@@ -1060,24 +1091,45 @@ if (!canDeleteAllGuests) {
     setLoading(false);
   }, [isDemo]);
 
+  const invitationEventId = String(
+    eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      invitation?.eventDetails?._id ||
+      ""
+  );
+
   useEffect(() => {
-  if (isDemo) return;
-  if (!invitationId) return;
+    if (isDemo) return;
+    if (!invitationId) return;
 
-  async function load() {
-    await loadGuests();
-    await loadSeatingTables();
-    setLoading(false);
-  }
+    let cancelled = false;
 
-  load();
-}, [invitationId, isDemo, eventIdFromUrl, invitation]);
+    async function load() {
+      await loadGuests();
+      if (cancelled) return;
+      await loadSeatingTables();
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+    // Do NOT depend on the whole `invitation` object — new references
+    // re-fire this effect and spam /api/guests forever.
+  }, [invitationId, isDemo, eventIdFromUrl, invitationEventId, isVenueView]);
 
   useEffect(() => {
     if (isDemo) return;
     if (!invitationId) return;
 
     const refreshGuests = async () => {
+      if (document.visibilityState !== "visible") return;
       if (guestsAutoRefreshRef.current) return;
 
       guestsAutoRefreshRef.current = true;
@@ -1089,7 +1141,7 @@ if (!canDeleteAllGuests) {
       }
     };
 
-    const interval = window.setInterval(refreshGuests, 3000);
+    const interval = window.setInterval(refreshGuests, 15000);
 
     const refreshOnFocus = () => {
       refreshGuests();
@@ -2120,9 +2172,6 @@ const approveSuggestedTableMove = async (
   };
 
   if (loading) return null;
-
-  console.log("USER FROM /api/me:", user);
-  console.log("INVITATION:", invitation);
 
   const eventTitle = resolveEventTitle(invitation, event);
 

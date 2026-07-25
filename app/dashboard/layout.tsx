@@ -32,7 +32,6 @@ export default function DashboardLayout({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
-  const [loadingInvitation, setLoadingInvitation] = useState(true);
 
   const eventIdFromUrl = searchParams.get("eventId");
   const invitationIdFromUrl = searchParams.get("invitationId");
@@ -87,7 +86,6 @@ export default function DashboardLayout({
         title: "אירוע לדוגמה",
         eventId: "demo-event-001",
       });
-      setLoadingInvitation(false);
       return;
     }
 
@@ -95,8 +93,6 @@ export default function DashboardLayout({
 
     async function loadInvitation() {
       try {
-        setLoadingInvitation(true);
-
         let url = "";
 
         // ✅ עדיפות 1 – invitationId מה-query או מהנתיב
@@ -134,10 +130,6 @@ export default function DashboardLayout({
         if (!cancelled) {
           setInvitation(null);
         }
-      } finally {
-        if (!cancelled) {
-          setLoadingInvitation(false);
-        }
       }
     }
 
@@ -171,7 +163,9 @@ export default function DashboardLayout({
       />
 
       {/* ========================= Content ========================= */}
-      <main className="pt-16">{!loadingInvitation && children}</main>
+      {/* Always keep children mounted. Gating on invitation loading remounts
+          the dashboard and restarts loadUser/loadGuests in a loop. */}
+      <main className="pt-16">{children}</main>
     </div>
   );
 }

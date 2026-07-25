@@ -652,8 +652,9 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
     loadWhatsappStats();
 
     const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       loadWhatsappStats();
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [selectedChannel, round1Sent, round2Sent, round3Sent, invitationId]);

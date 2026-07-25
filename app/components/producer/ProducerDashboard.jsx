@@ -494,7 +494,7 @@ export default function ProducerDashboard() {
     };
   }, [
     authLoading,
-    user,
+    user?._id,
     setUser,
     setIsAuthenticated,
   ]);
@@ -591,7 +591,7 @@ export default function ProducerDashboard() {
 
   useEffect(() => {
   if (!authResolved) return;
-  if (!user || user.role !== "producer") return;
+  if (!user?._id || user.role !== "producer") return;
 
   let isMounted = true;
 
@@ -611,7 +611,8 @@ export default function ProducerDashboard() {
   };
 }, [
   authResolved,
-  user,
+  user?._id,
+  user?.role,
   fetchClients,
   fetchStaff,
 ]);
