@@ -119,8 +119,11 @@ export const viewport = {
 ====================================================== */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="he" dir="rtl">
-      <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <body
+        className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]"
+        suppressHydrationWarning
+      >
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
           strategy="afterInteractive"

@@ -303,27 +303,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   /* --------------------------------------------------
-     UX cache בלבד – לא מקור אמת
+     UX cache בלבד – לא מקור אמת.
+     Start null on server AND client to avoid hydration mismatch
+     (sessionStorage is only available in the browser).
   -------------------------------------------------- */
-  const [user, _setUser] = useState<User | null>(() => {
-    if (typeof window === "undefined") return null;
-
-    try {
-      const cached = sessionStorage.getItem("auth_user");
-      return cached ? (JSON.parse(cached) as User) : null;
-    } catch {
-      sessionStorage.removeItem("auth_user");
-      return null;
-    }
-  });
+  const [user, _setUser] = useState<User | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [bootstrapDone, setBootstrapDone] = useState(false);
 
-  const [isAuthenticated, _setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return !!sessionStorage.getItem("auth_user");
-  });
+  const [isAuthenticated, _setIsAuthenticated] = useState(false);
 
   const setUser = (next: User | null) => {
     _setUser(next);
@@ -389,9 +378,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     🚀 אימות ראשוני
+     🚀 אימות ראשוני + שחזור cache אחרי mount בלבד
   -------------------------------------------------- */
   useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem("auth_user");
+      if (cached) {
+        const parsed = JSON.parse(cached) as User;
+        if (parsed?.role) {
+          _setUser(parsed);
+          _setIsAuthenticated(true);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem("auth_user");
+    }
+
     refreshUser().finally(() => {
       setBootstrapDone(true);
       setLoading(false);

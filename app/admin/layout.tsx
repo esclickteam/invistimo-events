@@ -23,8 +23,13 @@ export default function AdminLayout({
   const { logout } = auth;
 
   const user = auth?.user || auth?.currentUser || null;
+  const authLoading = Boolean(auth?.loading);
 
-  const adminName = user?.name || user?.fullName || user?.email || "Admin";
+  // Keep SSR/client first paint identical — never flash cached user name before mount
+  const adminName =
+    authLoading || !user
+      ? "Admin"
+      : user?.name || user?.fullName || user?.email || "Admin";
 
   const pathname = usePathname();
 

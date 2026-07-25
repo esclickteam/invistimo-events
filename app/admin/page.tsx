@@ -274,21 +274,26 @@ export default function AdminDashboardPage() {
     useState<UpcomingCallRoundsResponse | null>(null);
   const [loadingUpcomingCalls, setLoadingUpcomingCalls] = useState(true);
 
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
+  // Fixed calendar seed for SSR/hydration — sync to real "now" after mount
+  const [selectedDate, setSelectedDate] = useState(() => new Date(Date.UTC(2026, 0, 1)));
+  const [currentYear, setCurrentYear] = useState(2026);
 
   const [fromDay, setFromDay] = useState(1);
-const [fromMonth, setFromMonth] = useState(1);
-const [fromYear, setFromYear] = useState(currentYear);
+  const [fromMonth, setFromMonth] = useState(1);
+  const [fromYear, setFromYear] = useState(2026);
 
-const [toDay, setToDay] = useState(31);
-const [toMonth, setToMonth] = useState(12);
-const [toYear, setToYear] = useState(currentYear);
+  const [toDay, setToDay] = useState(31);
+  const [toMonth, setToMonth] = useState(12);
+  const [toYear, setToYear] = useState(2026);
+
+  useEffect(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    setCurrentYear(year);
+    setFromYear(year);
+    setToYear(year);
+  }, []);
 
   const yearOptions = useMemo(() => {
     const years: number[] = [];
