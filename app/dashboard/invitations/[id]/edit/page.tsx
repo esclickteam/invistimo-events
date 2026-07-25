@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   useParams,
   usePathname,
@@ -11,6 +11,20 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 import EventInvitationSettings from "@/app/components/EventInvitationSettings";
 
 export default function EditEventPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-[#7C6A58]">
+          טוען...
+        </div>
+      }
+    >
+      <EditEventPageInner />
+    </Suspense>
+  );
+}
+
+function EditEventPageInner() {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -16,6 +16,20 @@ import EventGiftsTab from "./_components/EventGiftsTab";
 import SeatingPage from "@/app/dashboard/seating/page";
 
 export default function EventProductionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[60vh] items-center justify-center text-sm text-[#7C6A58]">
+          טוען נתוני אירוע…
+        </div>
+      }
+    >
+      <EventProductionPageInner />
+    </Suspense>
+  );
+}
+
+function EventProductionPageInner() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
 

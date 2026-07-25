@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { compressInviteImageFile } from "@/lib/compressInviteImage";
 import { getApiErrorMessage, parseApiResponse } from "@/lib/parseApiResponse";
@@ -196,6 +196,20 @@ function CreatePhonePreview({
 ========================================================= */
 
 export default function CreateInvitePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-[#7C6A58]">
+          טוען...
+        </div>
+      }
+    >
+      <CreateInvitePageInner />
+    </Suspense>
+  );
+}
+
+function CreateInvitePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

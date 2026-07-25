@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useState,
   useEffect,
   useMemo,
@@ -271,6 +272,20 @@ function formatActivityDateTime(date?: string) {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center text-sm text-[#7C6A58]">
+          טוען דשבורד…
+        </div>
+      }
+    >
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+function DashboardPageInner() {
   type WorkMode = "regular" | "live";
 
   const [workMode, setWorkMode] = useState<WorkMode>(() => {

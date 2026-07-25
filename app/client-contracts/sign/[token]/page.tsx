@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
@@ -106,6 +106,20 @@ function getFieldDefaultValue(field: ContractField) {
 }
 
 export default function ClientContractSignPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center text-sm text-[#7C6A58]">
+          טוען חוזה…
+        </div>
+      }
+    >
+      <ClientContractSignPageInner />
+    </Suspense>
+  );
+}
+
+function ClientContractSignPageInner() {
   const params = useParams<{ token: string }>();
   const searchParams = useSearchParams();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 
 // טאב סקירה (Overview)
@@ -12,6 +13,20 @@ import PlanningTab from "../_components/PlanningTab";
 import CalendarTab from "../_components/CalendarTab";
 
 export default function ProductionEventPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[60vh] items-center justify-center text-sm text-[#7C6A58]">
+          טוען נתוני אירוע…
+        </div>
+      }
+    >
+      <ProductionEventPageInner />
+    </Suspense>
+  );
+}
+
+function ProductionEventPageInner() {
   const { eventId } = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
