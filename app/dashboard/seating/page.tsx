@@ -126,6 +126,20 @@ function resolveInvitationIdsFromUser(
 }
 
 export default function SeatingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#faf7f3] text-sm text-[#7C6A58]">
+          טוען הושבה...
+        </div>
+      }
+    >
+      <SeatingPageInner />
+    </Suspense>
+  );
+}
+
+function SeatingPageInner() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
