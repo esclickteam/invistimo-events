@@ -1,0 +1,98 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap");
+
+.wedding-website-root {
+  color: var(--ww-text);
+  font-family: var(--ww-font-body), "Heebo", sans-serif;
+  scroll-behavior: smooth;
+}
+
+.ww-site {
+  overflow-x: hidden;
+}
+
+.ww-display {
+  color: var(--ww-text);
+  letter-spacing: -0.02em;
+}
+
+.ww-section {
+  position: relative;
+}
+
+.ww-grain::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  opacity: 0.04;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  mix-blend-mode: overlay;
+}
+
+.ww-card {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.ww-card:hover {
+  transform: translateY(-2px);
+}
+
+@keyframes ww-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.ww-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: ww-shimmer 3s infinite;
+}
+
+[data-mood="romantic"] .ww-section:nth-child(even) {
+  background-image: radial-gradient(
+    ellipse at top,
+    color-mix(in srgb, var(--ww-accent) 8%, transparent),
+    transparent 60%
+  );
+}
+
+[data-mood="dramatic"] .ww-site {
+  background-image: radial-gradient(
+    circle at 50% 0%,
+    color-mix(in srgb, var(--ww-accent) 12%, transparent),
+    transparent 45%
+  );
+}
+
+[data-mood="modern"] .ww-card {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ww-template-card:hover .ww-template-preview img {
+  transform: scale(1.06);
+}
+
+.ww-template-preview img {
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wedding-website-root *,
+  .wedding-website-root *::before,
+  .wedding-website-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

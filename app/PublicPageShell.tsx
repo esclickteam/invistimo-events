@@ -53,6 +53,11 @@ function isPublicEventRoute(pathname: string | null) {
   return path === "/e" || path.startsWith("/e/");
 }
 
+function isWeddingWebsiteRoute(pathname: string | null) {
+  const path = String(pathname || "");
+  return path === "/wedding-website" || path.startsWith("/wedding-website/");
+}
+
 function isSalesDocumentRoute(pathname: string | null) {
   const path = String(pathname || "");
 
@@ -103,6 +108,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
   const shouldHidePublicShell = useMemo(() => {
     if (isSalesDocumentRoute(pathname)) return true;
 
+    if (isWeddingWebsiteRoute(pathname)) return true;
+
     if (isPublicEventRoute(pathname)) return true;
 
     if (isPrivateStaffRoute(pathname)) return true;
@@ -119,6 +126,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
 
   const shouldShowSupportBot = useMemo(() => {
     if (isSalesDocumentRoute(pathname)) return false;
+
+    if (isWeddingWebsiteRoute(pathname)) return false;
 
     if (isPublicEventRoute(pathname)) return false;
 
