@@ -96,6 +96,17 @@ const InvitationSettingsSchema = new Schema(
       default: false,
     },
 
+    /*
+      סוג אתר אישורי הגעה:
+      standard — הקישור הרגיל (/invite/[shareId])
+      personal — אתר חתונה אישי (הגדרה בלבד, טרם מופעל)
+    */
+    rsvpSiteMode: {
+      type: String,
+      enum: ["standard", "personal"],
+      default: "standard",
+    },
+
     menuOptions: {
       vegetarian: { type: Boolean, default: false },
       vegan: { type: Boolean, default: false },
