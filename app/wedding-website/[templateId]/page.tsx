@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import WeddingWebsiteRenderer from "@/components/wedding-website/WeddingWebsiteRenderer";
+import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 
 type Props = {
   params: Promise<{ templateId: string }>;
+  searchParams: Promise<{ embed?: string }>;
 };
 
 export async function generateStaticParams() {
@@ -40,13 +41,16 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function WeddingTemplatePage({ params }: Props) {
+export default async function WeddingTemplatePage({ params, searchParams }: Props) {
   const { templateId } = await params;
+  const { embed } = await searchParams;
   const template = getWeddingTemplate(templateId);
 
   if (!template) {
     notFound();
   }
 
-  return <WeddingWebsiteRenderer template={template} />;
+  const isEmbed = embed === "1" || embed === "true";
+
+  return <WeddingTemplateSiteRenderer template={template} embed={isEmbed} />;
 }
