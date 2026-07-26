@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type DragEvent, type JSX } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type DragEvent, type JSX } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -489,7 +489,7 @@ export function FaqSection() {
         <SectionHeading eyebrow="FAQ" title="שאלות נפוצות" />
         <div className="space-y-3">
           {content.faq.map((item, i) => (
-            <GlassCard key={item.question} className="cursor-pointer" onClick={() => setOpen(open === i ? null : i)}>
+            <GlassCard key={item.question} onClick={() => setOpen(open === i ? null : i)}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <HelpCircle className="mb-2 h-5 w-5 text-[var(--ww-accent)]" />

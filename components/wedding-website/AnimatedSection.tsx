@@ -72,13 +72,28 @@ export function SectionHeading({
 export function GlassCard({
   children,
   className = "",
+  onClick,
 }: {
   children: ReactNode;
   className?: string;
+  onClick?: () => void;
 }) {
   return (
     <div
-      className={`ww-card rounded-[var(--ww-radius)] border border-[var(--ww-border)] bg-[var(--ww-surface)] p-6 shadow-[var(--ww-shadow)] backdrop-blur-xl md:p-8 ${className}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`ww-card rounded-[var(--ww-radius)] border border-[var(--ww-border)] bg-[var(--ww-surface)] p-6 shadow-[var(--ww-shadow)] backdrop-blur-xl md:p-8 ${onClick ? "cursor-pointer" : ""} ${className}`}
     >
       {children}
     </div>
