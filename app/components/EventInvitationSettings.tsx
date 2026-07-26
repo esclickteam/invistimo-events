@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  RSVP_SITE_MODE_DEFAULT,
+  type RsvpSiteMode,
+} from "@/types/rsvpSite";
+
 type MenuOptions = {
   vegetarian: boolean;
   vegan: boolean;
@@ -17,6 +22,7 @@ type InvitationSettings = {
   showStoryAfterConfirm: boolean;
   showGiftLinkAfterConfirm: boolean;
   allowGuestNote: boolean;
+  rsvpSiteMode: RsvpSiteMode;
   menuOptions: MenuOptions;
 };
 
@@ -28,6 +34,7 @@ const defaultSettings: InvitationSettings = {
   showStoryAfterConfirm: false,
   showGiftLinkAfterConfirm: false,
   allowGuestNote: false,
+  rsvpSiteMode: RSVP_SITE_MODE_DEFAULT,
   menuOptions: {
     vegetarian: false,
     vegan: false,
@@ -87,6 +94,10 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
           setSettings({
             ...defaultSettings,
             ...data.invitation.invitationSettings,
+            rsvpSiteMode:
+              data.invitation.invitationSettings.rsvpSiteMode === "personal"
+                ? "personal"
+                : RSVP_SITE_MODE_DEFAULT,
             menuOptions: {
               ...defaultSettings.menuOptions,
               ...data.invitation.invitationSettings.menuOptions,
