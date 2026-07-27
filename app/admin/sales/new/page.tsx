@@ -1275,7 +1275,7 @@ export default function AdminSalesNewPage() {
 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("split");
   const [customInitialPayment, setCustomInitialPayment] = useState("");
-  const [adminPaymentStatus, setAdminPaymentStatus] = useState<"stripe" | "manual_paid">("stripe");
+  const [adminPaymentStatus, setAdminPaymentStatus] = useState<"stripe" | "manual_paid">("manual_paid");
   const [adminPackagePriceOverride, setAdminPackagePriceOverride] = useState<number | "">("");
   const [adminUpsellPriceOverrides, setAdminUpsellPriceOverrides] = useState<Partial<Record<UpsellKey, number | "">>>({});
   const [adminDiscountType, setAdminDiscountType] = useState<AdminDiscountType>("none");
@@ -2527,8 +2527,8 @@ export default function AdminSalesNewPage() {
                           onChange={(e) => setAdminPaymentStatus(e.target.value as "stripe" | "manual_paid")}
                           className="h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-sm font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                         >
-                          <option value="stripe">תשלום דרך Stripe</option>
                           <option value="manual_paid">שולם ידנית — לפתוח לקוח כשולם</option>
+                          <option value="stripe">תשלום דרך Stripe</option>
                         </select>
                       </label>
 
