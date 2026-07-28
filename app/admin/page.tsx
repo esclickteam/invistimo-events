@@ -346,13 +346,18 @@ export default function AdminDashboardPage() {
   }, [stats?.paymentsCount, stats?.revenue]);
 
   const rangeAverageMonthlyRevenue = useMemo(() => {
-    const monthsCount = stats?.rangeSummary?.monthlyBreakdown?.length || 0;
     const revenue = Number(stats?.rangeSummary?.revenue || 0);
+
+    // Average over the selected calendar span (incl. zero-revenue months),
+    // not only months that appear in monthlyBreakdown.
+    const fromIndex = fromYear * 12 + (fromMonth - 1);
+    const toIndex = toYear * 12 + (toMonth - 1);
+    const monthsCount = Math.max(0, toIndex - fromIndex + 1);
 
     if (!monthsCount) return 0;
 
     return Math.round(revenue / monthsCount);
-  }, [stats?.rangeSummary]);
+  }, [stats?.rangeSummary?.revenue, fromMonth, fromYear, toMonth, toYear]);
 
 
   const upcomingCallRounds = useMemo(() => {

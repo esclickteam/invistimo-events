@@ -224,7 +224,21 @@ function paymentsArrayPipeline(startDate: Date, endDate: Date) {
         creditGiftsAddonPrice: 1,
 
         paymentAmount: {
-          $ifNull: ["$payments.amount", 0],
+          $let: {
+            vars: {
+              rawAmount: { $ifNull: ["$payments.amount", 0] },
+              paymentType: {
+                $toLower: { $ifNull: ["$payments.type", "payment"] },
+              },
+            },
+            in: {
+              $cond: [
+                { $eq: ["$$paymentType", "refund"] },
+                { $multiply: ["$$rawAmount", -1] },
+                "$$rawAmount",
+              ],
+            },
+          },
         },
 
         paymentDate: {
@@ -252,7 +266,7 @@ function paymentsArrayPipeline(startDate: Date, endDate: Date) {
     },
     {
       $match: {
-        paymentAmount: { $gt: 0 },
+        paymentAmount: { $ne: 0 },
         paymentDate: {
           $gte: startDate,
           $lt: endDate,

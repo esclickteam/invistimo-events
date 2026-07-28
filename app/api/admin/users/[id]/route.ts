@@ -64,6 +64,10 @@ function toNumberOrUndefined(value: any) {
   return Number.isFinite(num) ? num : undefined;
 }
 
+function roundMoney(value: number) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
 function normalizeAllowedMessageRounds(value: any): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
@@ -298,12 +302,38 @@ export async function PATCH(
       nextVenueSeatingService?.enabled
     );
 
-    const shouldAddVenueDepositPayment =
-      !hadVenueSeatingService && hasNewVenueSeatingService;
+    /*
+      מקדמת הושבה באולם:
+      - הפעלה ראשונה דרך מודל שדרוג: הסכום כבר כלול ב-upgradeAmount מהקליינט
+      - הפעלה ראשונה דרך עריכת משתמש: אין upgradeAmount → מוסיפים מקדמה כאן
+      - שינוי מקדמה על שירות שכבר נרכש: מסנכרנים את ההפרש לסכום הכולל
+      - כיבוי שירות: מורידים את המקדמה הקודמת מהסכום הכולל
+    */
+    const previousVenueDeposit = Number(
+      currentUser.venueSeatingService?.depositAmount || 0
+    );
+    const nextVenueDeposit = Number(
+      nextVenueSeatingService?.depositAmount || 0
+    );
 
-    const venueDepositPaymentAmount = shouldAddVenueDepositPayment
-      ? Number(nextVenueSeatingService?.depositAmount || 0)
-      : 0;
+    const clientIncludesNewVenueDeposit =
+      hasField(body, "upgradeAmount") &&
+      !hadVenueSeatingService &&
+      hasNewVenueSeatingService;
+
+    let venueDepositPaymentAmount = 0;
+
+    if (hasField(body, "venueSeatingService") && nextVenueSeatingService) {
+      if (!hadVenueSeatingService && hasNewVenueSeatingService) {
+        venueDepositPaymentAmount = clientIncludesNewVenueDeposit
+          ? 0
+          : nextVenueDeposit;
+      } else if (hadVenueSeatingService && hasNewVenueSeatingService) {
+        venueDepositPaymentAmount = nextVenueDeposit - previousVenueDeposit;
+      } else if (hadVenueSeatingService && !hasNewVenueSeatingService) {
+        venueDepositPaymentAmount = -previousVenueDeposit;
+      }
+    }
 
     /* =====================================================
        BASIC FIELDS
@@ -613,108 +643,176 @@ export async function PATCH(
 
     /* =====================================================
        MANUAL ADMIN UPGRADE PAYMENT
-       רק אם סימנת באדמין "שולם" ויש סכום חיובי.
+       חשוב: סקירת ההכנסות באדמין סופרת מ-User.payments[]
+       (ולא רק ממודל Payment / paidAmount).
+       לכן כל תשלום שדרוג חייב להידחף גם ל-payments[].
     ===================================================== */
     const upgradeAmount = Number(body.upgradeAmount || 0);
-    const venueDepositAmountFromEdit = Number(venueDepositPaymentAmount || 0);
-    const totalPaymentAmount = upgradeAmount + venueDepositAmountFromEdit;
+    const totalPaymentAmount = roundMoney(
+      upgradeAmount + Number(venueDepositPaymentAmount || 0)
+    );
 
-    if (totalPaymentAmount > 0) {
+    if (totalPaymentAmount !== 0) {
       const paymentEmail = normalizeEmail(
         updatedUser.email || currentUser.email
       );
+      const paidAt = new Date();
+      const isRefundAdjustment = totalPaymentAmount < 0;
+      const absoluteAmount = Math.abs(totalPaymentAmount);
 
-      await Payment.create({
-        email: paymentEmail,
+      if (!isRefundAdjustment) {
+        await Payment.create({
+          email: paymentEmail,
 
-        stripeSessionId: undefined,
-        stripePaymentIntentId: undefined,
-        stripeCustomerId: undefined,
-        stripePriceId: undefined,
+          stripeSessionId: undefined,
+          stripePaymentIntentId: undefined,
+          stripeCustomerId: undefined,
+          stripePriceId: undefined,
 
-        priceKey: updatedUser.priceKey || updatedUser.plan || nextPlan || "",
-        maxGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
-
-        includeCalls: Boolean(updatedUser.includeCalls),
-        callsAddonPrice: Number(updatedUser.callsAddonPrice || 0),
-
-        includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
-        creditGiftsAddonPrice: Number(updatedUser.creditGiftsAddonPrice || 0),
-
-        amount: totalPaymentAmount,
-        refundAmount: 0,
-        currency: "ils",
-
-        type: "upgrade",
-        status: "paid",
-        isTest: false,
-
-        meta: {
-          source: "admin_upgrade",
-          paymentMethod: body.upgradePaymentMethod || "manual_admin",
-          paymentStatus: body.upgradePaymentStatus || "paid",
-
-          adminId: auth.impersonatedBy
-            ? String(auth.impersonatedBy)
-            : String(auth.userId),
-
-          userId: String(updatedUser._id),
-
-          previousPlan: currentUser.plan || currentUser.priceKey || null,
-          newPlan: updatedUser.plan || updatedUser.priceKey || null,
-          packageName: updatedUser.packageName || null,
-
-          previousGuests: Number(
-            currentUser.maxGuests || currentUser.guests || 0
-          ),
-          newGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
-
-          previousAllowedMessageRounds: Number(
-            currentUser.allowedMessageRounds ||
-              currentUser.planLimits?.allowedMessageRounds ||
-              2
-          ),
-          newAllowedMessageRounds: Number(
-            updatedUser.allowedMessageRounds ||
-              updatedUser.planLimits?.allowedMessageRounds ||
-              2
-          ),
-
-          previousSmsLimit: Number(
-            currentUser.smsLimit || currentUser.maxMessages || 0
-          ),
-          newSmsLimit: Number(
-            updatedUser.smsLimit || updatedUser.maxMessages || 0
-          ),
-
-          extraRecords: Number(body.extraRecords || 0),
-          extraRecordsAmount: Number(body.extraRecordsAmount || 0),
-
-          manualAmount: true,
-
-          venueSeatingDepositAmount: venueDepositAmountFromEdit,
-          venueSeatingService: nextVenueSeatingService || null,
+          priceKey: updatedUser.priceKey || updatedUser.plan || nextPlan || "",
+          maxGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
 
           includeCalls: Boolean(updatedUser.includeCalls),
-          includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
-          includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
-          includeEventManagement: Boolean(updatedUser.includeEventManagement),
-          includeCustomDesign: Boolean(updatedUser.includeCustomDesign),
+          callsAddonPrice: Number(updatedUser.callsAddonPrice || 0),
 
-          accessModules: updatedUser.accessModules || {
-            rsvpSeating: Boolean(updatedUser.includeDigitalSeating),
-            eventProduction: Boolean(updatedUser.includeEventManagement),
+          includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
+          creditGiftsAddonPrice: Number(updatedUser.creditGiftsAddonPrice || 0),
+
+          amount: absoluteAmount,
+          refundAmount: 0,
+          currency: "ils",
+
+          type: "upgrade",
+          status: "paid",
+          isTest: false,
+
+          meta: {
+            source: "admin_upgrade",
+            paymentMethod: body.upgradePaymentMethod || "manual_admin",
+            paymentStatus: body.upgradePaymentStatus || "paid",
+
+            adminId: auth.impersonatedBy
+              ? String(auth.impersonatedBy)
+              : String(auth.userId),
+
+            userId: String(updatedUser._id),
+
+            previousPlan: currentUser.plan || currentUser.priceKey || null,
+            newPlan: updatedUser.plan || updatedUser.priceKey || null,
+            packageName: updatedUser.packageName || null,
+
+            previousGuests: Number(
+              currentUser.maxGuests || currentUser.guests || 0
+            ),
+            newGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
+
+            previousAllowedMessageRounds: Number(
+              currentUser.allowedMessageRounds ||
+                currentUser.planLimits?.allowedMessageRounds ||
+                2
+            ),
+            newAllowedMessageRounds: Number(
+              updatedUser.allowedMessageRounds ||
+                updatedUser.planLimits?.allowedMessageRounds ||
+                2
+            ),
+
+            previousSmsLimit: Number(
+              currentUser.smsLimit || currentUser.maxMessages || 0
+            ),
+            newSmsLimit: Number(
+              updatedUser.smsLimit || updatedUser.maxMessages || 0
+            ),
+
+            extraRecords: Number(body.extraRecords || 0),
+            extraRecordsAmount: Number(body.extraRecordsAmount || 0),
+
+            manualAmount: true,
+
+            venueSeatingDepositAmount: venueDepositPaymentAmount,
+            venueSeatingService: nextVenueSeatingService || null,
+
+            includeCalls: Boolean(updatedUser.includeCalls),
+            includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
+            includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
+            includeEventManagement: Boolean(
+              updatedUser.includeEventManagement
+            ),
+            includeCustomDesign: Boolean(updatedUser.includeCustomDesign),
+
+            accessModules: updatedUser.accessModules || {
+              rsvpSeating: Boolean(updatedUser.includeDigitalSeating),
+              eventProduction: Boolean(updatedUser.includeEventManagement),
+            },
           },
-        },
-      });
+        });
+      }
+
+      const paymentNote = isRefundAdjustment
+        ? "תיקון מקדמת שירות הושבה באולם"
+        : upgradeAmount > 0
+          ? "שדרוג ידני מאדמין"
+          : "מקדמת שירות הושבה באולם";
+
+      const userPaymentEntry = {
+        amount: absoluteAmount,
+        type: isRefundAdjustment ? "refund" : "manual",
+        method: "manual",
+        status: "paid",
+        paidAt,
+        createdAt: paidAt,
+        note: paymentNote,
+        createdBy: auth.impersonatedBy || auth.userId || null,
+      };
+
+      const existingPayments = Array.isArray(currentUser.payments)
+        ? currentUser.payments
+        : [];
+      const legacyPaidAmount = Number(currentUser.paidAmount || 0);
+
+      /*
+        אם ליוזר יש paidAmount ישן בלי payments[] —
+        קודם שומרים את היתרה כרשומה, אחרת הסקירה תאבד את הסכום הישן
+        ברגע שנוצר payments[] בפעם הראשונה.
+      */
+      const paymentsToPush =
+        existingPayments.length === 0 && legacyPaidAmount > 0
+          ? [
+              {
+                amount: legacyPaidAmount,
+                type: "manual",
+                method: "manual",
+                status: "paid",
+                paidAt:
+                  currentUser.paidAt ||
+                  currentUser.lastPaymentAt ||
+                  currentUser.createdAt ||
+                  paidAt,
+                createdAt:
+                  currentUser.paidAt ||
+                  currentUser.lastPaymentAt ||
+                  currentUser.createdAt ||
+                  paidAt,
+                note: "יתרת תשלומים קודמת",
+              },
+              userPaymentEntry,
+            ]
+          : [userPaymentEntry];
+
+      const nextPaidAmount = Math.max(0, legacyPaidAmount + totalPaymentAmount);
 
       await User.findByIdAndUpdate(updatedUser._id, {
-        $inc: {
-          paidAmount: totalPaymentAmount,
+        $push: {
+          payments: {
+            $each: paymentsToPush,
+          },
         },
         $set: {
-          hasPaid: true,
+          paidAmount: nextPaidAmount,
+          hasPaid: nextPaidAmount > 0,
           isActive: true,
+          lastPaymentAt: paidAt,
+          paidAt: currentUser.paidAt || paidAt,
         },
       });
     }
