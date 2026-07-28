@@ -610,6 +610,24 @@ export async function PATCH(
       eventDate: hasField(body, "eventDate") ? body.eventDate : undefined,
 
       venueSeatingService: nextVenueSeatingService,
+
+      /*
+        מסנכרנים גם salesUpsells.venueSeating — אחרת ב-Compass נראה
+        ערך ישן ב-salesUpsells למרות ש-venueSeatingService התעדכן.
+      */
+      ...(nextVenueSeatingService
+        ? {
+            "salesUpsells.venueSeating.enabled":
+              nextVenueSeatingService.enabled,
+            "salesUpsells.venueSeating.totalPrice":
+              nextVenueSeatingService.totalPrice,
+            "salesUpsells.venueSeating.depositAmount":
+              nextVenueSeatingService.depositAmount,
+            "salesUpsells.venueSeating.eventDayBalance":
+              nextVenueSeatingService.venuePaymentAmount,
+          }
+        : {}),
+
       callRoundsSchedule: nextCallRoundsSchedule,
 
       ...planLimitsPatch,
@@ -643,14 +661,62 @@ export async function PATCH(
 
     /* =====================================================
        MANUAL ADMIN UPGRADE PAYMENT
-       חשוב: סקירת ההכנסות באדמין סופרת מ-User.payments[]
-       (ולא רק ממודל Payment / paidAmount).
-       לכן כל תשלום שדרוג חייב להידחף גם ל-payments[].
+       חשוב: כמו במכירה ידנית — שומרים מבנה מלא:
+       totalDealAmount / paidAmount / remainingAmount / paymentMode / payments[]
+       סקירת ההכנסות סופרת מ-User.payments[].
     ===================================================== */
     const upgradeAmount = Number(body.upgradeAmount || 0);
     const totalPaymentAmount = roundMoney(
       upgradeAmount + Number(venueDepositPaymentAmount || 0)
     );
+
+    const existingPayments = Array.isArray(currentUser.payments)
+      ? currentUser.payments
+      : [];
+    const legacyPaidAmount = Number(currentUser.paidAmount || 0);
+    const currentTotalDealAmount = Number(currentUser.totalDealAmount || 0);
+
+    const previousVenueTotal = Number(
+      currentUser.venueSeatingService?.totalPrice || 0
+    );
+    const nextVenueTotal = nextVenueSeatingService?.enabled
+      ? Number(nextVenueSeatingService.totalPrice || 0)
+      : 0;
+    const nextVenueHallBalance = nextVenueSeatingService?.enabled
+      ? Number(nextVenueSeatingService.venuePaymentAmount || 0)
+      : 0;
+
+    const venueDealDelta = hasField(body, "venueSeatingService")
+      ? nextVenueTotal - (hadVenueSeatingService ? previousVenueTotal : 0)
+      : 0;
+
+    /*
+      שווי עסקה:
+      - אם לא היה totalDealAmount — מתחילים מ-paidAmount הקיים
+      - מוסיפים הפרש חבילה ששולם עכשיו
+      - מסנכרנים שינוי בשווי שירות הושבה
+    */
+    let nextTotalDealAmount = currentTotalDealAmount;
+
+    if (nextTotalDealAmount <= 0 && legacyPaidAmount > 0) {
+      nextTotalDealAmount = legacyPaidAmount;
+    }
+
+    if (upgradeAmount > 0) {
+      // upgradeAmount כולל מקדמת הושבה חדשה אם הופעלה עכשיו —
+      // מוסיפים גם את יתרת התשלום באולם לשווי העסקה.
+      const newVenueHallToAdd =
+        !hadVenueSeatingService && hasNewVenueSeatingService
+          ? nextVenueHallBalance
+          : 0;
+      nextTotalDealAmount = roundMoney(
+        nextTotalDealAmount + upgradeAmount + newVenueHallToAdd
+      );
+    } else if (venueDealDelta !== 0) {
+      nextTotalDealAmount = roundMoney(
+        Math.max(0, nextTotalDealAmount + venueDealDelta)
+      );
+    }
 
     if (totalPaymentAmount !== 0) {
       const paymentEmail = normalizeEmail(
@@ -659,6 +725,17 @@ export async function PATCH(
       const paidAt = new Date();
       const isRefundAdjustment = totalPaymentAmount < 0;
       const absoluteAmount = Math.abs(totalPaymentAmount);
+      const nextPaidAmount = Math.max(0, legacyPaidAmount + totalPaymentAmount);
+      const nextRemainingAmount = Math.max(
+        0,
+        roundMoney(nextTotalDealAmount - nextPaidAmount)
+      );
+      const nextPaymentMode =
+        nextPaidAmount <= 0
+          ? "none"
+          : nextRemainingAmount > 0
+            ? "deposit"
+            : "full";
 
       if (!isRefundAdjustment) {
         await Payment.create({
@@ -732,6 +809,10 @@ export async function PATCH(
             venueSeatingDepositAmount: venueDepositPaymentAmount,
             venueSeatingService: nextVenueSeatingService || null,
 
+            totalDealAmount: nextTotalDealAmount,
+            remainingAmount: nextRemainingAmount,
+            paymentMode: nextPaymentMode,
+
             includeCalls: Boolean(updatedUser.includeCalls),
             includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
             includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
@@ -754,9 +835,15 @@ export async function PATCH(
           ? "שדרוג ידני מאדמין"
           : "מקדמת שירות הושבה באולם";
 
+      const paymentType = isRefundAdjustment
+        ? "refund"
+        : nextRemainingAmount > 0
+          ? "deposit"
+          : "full";
+
       const userPaymentEntry = {
         amount: absoluteAmount,
-        type: isRefundAdjustment ? "refund" : "manual",
+        type: paymentType,
         method: "manual",
         status: "paid",
         paidAt,
@@ -764,11 +851,6 @@ export async function PATCH(
         note: paymentNote,
         createdBy: auth.impersonatedBy || auth.userId || null,
       };
-
-      const existingPayments = Array.isArray(currentUser.payments)
-        ? currentUser.payments
-        : [];
-      const legacyPaidAmount = Number(currentUser.paidAmount || 0);
 
       /*
         אם ליוזר יש paidAmount ישן בלי payments[] —
@@ -799,8 +881,6 @@ export async function PATCH(
             ]
           : [userPaymentEntry];
 
-      const nextPaidAmount = Math.max(0, legacyPaidAmount + totalPaymentAmount);
-
       await User.findByIdAndUpdate(updatedUser._id, {
         $push: {
           payments: {
@@ -808,11 +888,36 @@ export async function PATCH(
           },
         },
         $set: {
+          totalDealAmount: nextTotalDealAmount,
           paidAmount: nextPaidAmount,
+          remainingAmount: nextRemainingAmount,
+          paymentMode: nextPaymentMode,
           hasPaid: nextPaidAmount > 0,
           isActive: true,
           lastPaymentAt: paidAt,
           paidAt: currentUser.paidAt || paidAt,
+        },
+      });
+    } else if (
+      hasField(body, "venueSeatingService") &&
+      nextTotalDealAmount !== currentTotalDealAmount
+    ) {
+      // שינוי שווי הושבה בלי תשלום חדש — מסנכרנים יתרה/שווי עסקה בלבד
+      const nextRemainingAmount = Math.max(
+        0,
+        roundMoney(nextTotalDealAmount - legacyPaidAmount)
+      );
+
+      await User.findByIdAndUpdate(updatedUser._id, {
+        $set: {
+          totalDealAmount: nextTotalDealAmount,
+          remainingAmount: nextRemainingAmount,
+          paymentMode:
+            legacyPaidAmount <= 0
+              ? currentUser.paymentMode || "none"
+              : nextRemainingAmount > 0
+                ? "deposit"
+                : "full",
         },
       });
     }
