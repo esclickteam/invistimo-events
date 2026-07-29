@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
@@ -44,6 +45,52 @@ const SMART_PACKAGE_TIERS = [
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeEmail(value: unknown) {
+  return cleanStr(value).toLowerCase();
+}
+
+function normalizePhone(value: unknown) {
+  let digits = cleanStr(value).replace(/\D/g, "");
+
+  if (!digits) return "";
+
+  if (digits.startsWith("972")) {
+    digits = `0${digits.slice(3)}`;
+  } else if (digits.startsWith("00") && digits.slice(2).startsWith("972")) {
+    digits = `0${digits.slice(5)}`;
+  }
+
+  return digits;
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function createPhoneMatchRegex(phone: string) {
+  const digits = normalizePhone(phone);
+
+  if (!digits) return null;
+
+  const pattern = digits.split("").join("\\D*");
+
+  return new RegExp(`^\\D*${pattern}\\D*$`, "i");
+}
+
+function createInternationalPhoneMatchRegex(phone: string) {
+  const localPhone = normalizePhone(phone);
+
+  if (!localPhone) return null;
+
+  const internationalPhone = localPhone.startsWith("0")
+    ? `972${localPhone.slice(1)}`
+    : localPhone;
+
+  const pattern = internationalPhone.split("").join("\\D*");
+
+  return new RegExp(`^\\D*\\+?${pattern}\\D*$`, "i");
 }
 
 function asNumber(value: unknown, fallback = 0) {
@@ -358,8 +405,55 @@ async function createUniqueToken() {
     .toString("base64url")}`;
 }
 
+async function findExistingCustomerFile({
+  customerFileId,
+  clientEmail,
+  clientPhone,
+}: {
+  customerFileId: string;
+  clientEmail: string;
+  clientPhone: string;
+}) {
+  if (customerFileId && mongoose.Types.ObjectId.isValid(customerFileId)) {
+    const byId = await CustomerFile.findById(customerFileId);
+
+    if (byId) {
+      return byId;
+    }
+  }
+
+  const orConditions: Record<string, unknown>[] = [];
+
+  if (clientEmail) {
+    orConditions.push({ email: clientEmail });
+  }
+
+  const localPhoneRegex = createPhoneMatchRegex(clientPhone);
+  const internationalPhoneRegex =
+    createInternationalPhoneMatchRegex(clientPhone);
+
+  if (localPhoneRegex) {
+    orConditions.push({ phone: localPhoneRegex });
+  }
+
+  if (internationalPhoneRegex) {
+    orConditions.push({ phone: internationalPhoneRegex });
+  }
+
+  if (clientPhone) {
+    orConditions.push({ phone: clientPhone });
+  }
+
+  if (orConditions.length === 0) {
+    return null;
+  }
+
+  return CustomerFile.findOne({ $or: orConditions }).sort({ updatedAt: -1 });
+}
+
 async function upsertCustomerFile({
   type,
+  customerFileId,
   clientFullName,
   clientPhone,
   clientEmail,
@@ -368,8 +462,10 @@ async function upsertCustomerFile({
   venueName,
   selectedPackage,
   paymentAmounts,
+  documentToken,
 }: {
   type: SalesDocumentType;
+  customerFileId: string;
   clientFullName: string;
   clientPhone: string;
   clientEmail: string;
@@ -378,6 +474,7 @@ async function upsertCustomerFile({
   venueName: string;
   selectedPackage: Record<string, unknown>;
   paymentAmounts: ReturnType<typeof buildPaymentAmounts>;
+  documentToken: string;
 }) {
   const packageKey = cleanStr(selectedPackage.key);
   const packageTitle = cleanStr(selectedPackage.title);
@@ -394,56 +491,70 @@ async function upsertCustomerFile({
 
   const targetPriceWithCalls = roundMoney(currentDealTotal + upgradeDeltaToCalls);
 
-  const query =
-    clientEmail && clientPhone
+  const tokenFields =
+    type === "quote"
       ? {
-          $or: [
-            { email: clientEmail },
-            { phone: clientPhone },
-          ],
+          quoteToken: documentToken,
+          salesDocumentToken: documentToken,
         }
-      : clientEmail
-        ? { email: clientEmail }
-        : { phone: clientPhone };
+      : {
+          agreementToken: documentToken,
+          salesDocumentToken: documentToken,
+        };
 
-  const customer = await CustomerFile.findOneAndUpdate(
-    query,
-    {
-      $set: {
-        fullName: clientFullName,
-        email: clientEmail,
-        phone: clientPhone,
+  const updateFields: Record<string, unknown> = {
+    fullName: clientFullName,
+    email: clientEmail,
+    phone: clientPhone,
 
-        eventDate: parseDateInput(eventDate) || undefined,
-        venueName,
-        city: eventCity,
+    eventDate: parseDateInput(eventDate) || undefined,
+    venueName,
+    city: eventCity,
 
-        packageName: packageTitle,
-        packageBasePrice: currentDealTotal,
-        packageTargetPriceWithCalls: targetPriceWithCalls,
+    packageName: packageTitle,
+    packageBasePrice: currentDealTotal,
+    packageTargetPriceWithCalls: targetPriceWithCalls,
 
-        hasCallRounds: hasCallsIncluded(packageKey),
-        allowedCallRounds: hasCallsIncluded(packageKey) ? 3 : 0,
+    hasCallRounds: hasCallsIncluded(packageKey),
+    allowedCallRounds: hasCallsIncluded(packageKey) ? 3 : 0,
 
-        totalPrice: currentDealTotal,
-        paidAmount: 0,
-        balance: currentDealTotal,
+    totalPrice: currentDealTotal,
+    paidAmount: 0,
+    balance: currentDealTotal,
 
-        status: type === "quote" ? "quote_sent" : "quote_sent",
-      },
-      $setOnInsert: {
-        notes: "",
-        assignedStaffIds: [],
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    },
-  );
+    leadStatus: "quote_sent",
+    ...tokenFields,
+  };
 
-  return customer;
+  const existingCustomer = await findExistingCustomerFile({
+    customerFileId,
+    clientEmail,
+    clientPhone,
+  });
+
+  if (existingCustomer) {
+    const currentStatus = cleanStr((existingCustomer as any).status);
+    const shouldMarkQuoteSent =
+      !currentStatus ||
+      currentStatus === "lead" ||
+      currentStatus === "quote_sent";
+
+    if (shouldMarkQuoteSent) {
+      updateFields.status = "quote_sent";
+    }
+
+    existingCustomer.set(updateFields);
+    await existingCustomer.save();
+    return existingCustomer;
+  }
+
+  return CustomerFile.create({
+    ...updateFields,
+    status: "quote_sent",
+    notes: "",
+    assignedStaffIds: [],
+    source: "sales_document",
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -472,10 +583,17 @@ export async function POST(req: NextRequest) {
     const paymentScheduleFromBody = normalizeObject(totals.paymentSchedule);
 
     const clientFullName = cleanStr(client.fullName);
-    const clientPhone = cleanStr(client.phone);
-    const clientEmail = cleanStr(client.email);
+    const clientPhone = normalizePhone(client.phone) || cleanStr(client.phone);
+    const clientEmail = normalizeEmail(client.email);
     const clientIdNumber = cleanStr(client.idNumber);
     const clientAddress = cleanStr(client.address);
+    const requestedCustomerFileId = cleanStr(
+      payload.customerFileId ||
+        payload.customerId ||
+        payload.leadId ||
+        normalizeObject(payload.customerFile)._id ||
+        normalizeObject(payload.customer)._id
+    );
 
     const eventName = cleanStr(event.name);
     const eventDate = cleanStr(event.date);
@@ -519,6 +637,7 @@ export async function POST(req: NextRequest) {
 
     const customerFile = await upsertCustomerFile({
       type,
+      customerFileId: requestedCustomerFileId,
       clientFullName,
       clientPhone,
       clientEmail,
@@ -527,13 +646,17 @@ export async function POST(req: NextRequest) {
       venueName,
       selectedPackage,
       paymentAmounts,
+      documentToken: token,
     });
+
+    const customerFileId = String((customerFile as any)._id);
 
     const document = await SalesDocument.create({
       type,
       token,
       url,
       status: "draft",
+      customerFileId,
 
       client: {
         fullName: clientFullName,
@@ -654,7 +777,6 @@ export async function POST(req: NextRequest) {
       createdByUserId: null,
     });
 
-    const customerFileId = String((customerFile as any)._id);
     const documentId = String((document as any)._id);
 
     let customerQuoteId = "";
@@ -674,6 +796,7 @@ export async function POST(req: NextRequest) {
         validUntil: parseDateInput(quoteDates.expiresAt),
         status: "draft",
         publicToken: token,
+        salesDocumentId: documentId,
       });
 
       customerQuoteId = String((customerQuote as any)._id);
@@ -699,6 +822,7 @@ export async function POST(req: NextRequest) {
 
         publicToken: token,
         pdfUrl: "",
+        salesDocumentId: documentId,
       });
 
       customerAgreementId = String((customerAgreement as any)._id);

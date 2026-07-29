@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
+import CustomerQuote from "@/models/CustomerQuote";
+import CustomerAgreement from "@/models/CustomerAgreement";
+import CustomerFile from "@/models/CustomerFile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -353,6 +356,76 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("sms.lastError", "");
 
     await document.save();
+
+    const documentId = cleanStr(document.get("_id"));
+    const customerFileId = cleanStr(document.get("customerFileId"));
+
+    if (documentType === "quote") {
+      await CustomerQuote.findOneAndUpdate(
+        {
+          $or: [
+            { publicToken: token },
+            ...(documentId ? [{ salesDocumentId: documentId }] : []),
+          ],
+        },
+        {
+          $set: {
+            status: currentStatus === "signed" ? "approved" : "sent",
+            ...(documentId ? { salesDocumentId: documentId } : {}),
+            ...(customerFileId ? { customerFileId } : {}),
+          },
+        },
+      );
+    }
+
+    if (documentType === "agreement") {
+      await CustomerAgreement.findOneAndUpdate(
+        {
+          $or: [
+            { publicToken: token },
+            ...(documentId ? [{ salesDocumentId: documentId }] : []),
+          ],
+        },
+        {
+          $set: {
+            status: currentStatus === "signed" ? "signed" : "sent",
+            ...(documentId ? { salesDocumentId: documentId } : {}),
+            ...(customerFileId ? { customerFileId } : {}),
+          },
+        },
+      );
+    }
+
+    if (customerFileId) {
+      try {
+        const customer = await CustomerFile.findById(customerFileId);
+
+        if (customer) {
+          const currentStatus = cleanStr(customer.get("status"));
+
+          customer.set("leadStatus", "quote_sent");
+
+          if (documentType === "quote") {
+            customer.set("quoteToken", token);
+            customer.set("salesDocumentToken", token);
+          } else {
+            customer.set("agreementToken", token);
+            customer.set("salesDocumentToken", token);
+          }
+
+          if (!currentStatus || currentStatus === "lead" || currentStatus === "quote_sent") {
+            customer.set("status", "quote_sent");
+          }
+
+          await customer.save();
+        }
+      } catch (customerUpdateError) {
+        console.error(
+          "UPDATE CUSTOMER FILE AFTER SMS FAILED:",
+          customerUpdateError,
+        );
+      }
+    }
 
     const normalizedDocument = normalizeDocumentForClient(document);
 

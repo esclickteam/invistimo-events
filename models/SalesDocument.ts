@@ -133,6 +133,8 @@ export type SalesDocumentModelType = {
 
   signedAt?: Date | null;
 
+  customerFileId?: mongoose.Types.ObjectId | null;
+
   createdByUserId?: mongoose.Types.ObjectId | null;
 
   createdAt?: Date;
@@ -335,6 +337,13 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
 
     signedAt: { type: Date, default: null },
 
+    customerFileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CustomerFile",
+      default: null,
+      index: true,
+    },
+
     createdByUserId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
@@ -352,6 +361,7 @@ SalesDocumentSchema.index({ token: 1, type: 1 });
 SalesDocumentSchema.index({ "client.phone": 1 });
 SalesDocumentSchema.index({ "client.email": 1 });
 SalesDocumentSchema.index({ "quote.expiresAt": 1, status: 1 });
+SalesDocumentSchema.index({ customerFileId: 1, type: 1, createdAt: -1 });
 
 const SalesDocument =
   (models.SalesDocument as Model<SalesDocumentModelType> | undefined) ||
