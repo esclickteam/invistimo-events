@@ -256,7 +256,7 @@ function getDescriptionByRound(round: RoundNumber) {
     return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
   }
 
-  return "סבב 3 - שיחות למי שלא נסגר בסבב השני";
+  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
 }
 
 /* ============================================================
@@ -469,10 +469,12 @@ function isPendingGuest(guest: any) {
     "pending",
     "wait",
     "waiting",
+    "awaiting",
     "unknown",
     "none",
     "טרם השיב",
     "ממתין",
+    "בהמתנה",
     "לא ידוע",
   ].includes(rsvp);
 }
@@ -714,9 +716,18 @@ async function loadGuestsForRound(input: {
     return pendingGuestsWithPhone;
   }
 
+  /*
+    סבב 3 בלבד:
+    נפתח לכל מי שבהמתנה.
+    סבב 2 נשאר לפי תוצאות סבב 1 בלבד.
+  */
+  if (input.round === 3) {
+    return pendingGuestsWithPhone;
+  }
+
   if (!invitationObjectId) return [];
 
-  const previousRound = (input.round - 1) as 1 | 2;
+  const previousRound = 1 as const;
 
   const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
@@ -1318,8 +1329,8 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error:
-            round === 1
-              ? "אין אורחים ממתינים לשיחה בסבב 1"
+            round === 1 || round === 3
+              ? `אין אורחים בהמתנה לשיחה בסבב ${round}`
               : `אין אורחים להמשך סבב ${round}. סבב ${round} נפתח רק למי שהיה בסבב ${
                   round - 1
                 } ולא נסגר סופית או שלא נגעו בו.`,

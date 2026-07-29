@@ -155,7 +155,7 @@ function getAudienceLabel(sourceAudience: string) {
   const map: Record<string, string> = {
     pending_rsvp: "כל הממתינים",
     round_1_no_answer: "לא ענו בסבב 1",
-    round_2_no_answer: "לא ענו בסבב 2",
+    round_2_no_answer: "כל מי שבהמתנה",
   };
 
   return map[sourceAudience] || sourceAudience || "—";
