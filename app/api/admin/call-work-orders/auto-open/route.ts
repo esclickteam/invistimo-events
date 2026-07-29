@@ -1068,6 +1068,7 @@ function isPendingGuest(guest: any) {
     "pending",
     "wait",
     "waiting",
+    "awaiting",
     "unknown",
     "none",
     "no_response",
@@ -1075,6 +1076,7 @@ function isPendingGuest(guest: any) {
     "not_answered",
     "טרם השיב",
     "ממתין",
+    "בהמתנה",
     "לא ידוע",
   ].includes(rsvp);
 }
@@ -1125,9 +1127,18 @@ async function loadGuestsForRound(input: {
     return pendingGuestsWithPhone;
   }
 
+  /*
+    סבב 3 בלבד:
+    נפתח לכל מי שבהמתנה.
+    סבב 2 נשאר לפי תוצאות סבב 1 בלבד.
+  */
+  if (input.round === 3) {
+    return pendingGuestsWithPhone;
+  }
+
   if (!invitationObjectId) return [];
 
-  const previousRound = (input.round - 1) as 1 | 2;
+  const previousRound = 1 as const;
 
   const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
@@ -1196,7 +1207,7 @@ function getRoundDescription(round: RoundNumber) {
     return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
   }
 
-  return "סבב 3 - שיחות למי שלא נסגר בסבב השני";
+  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
 }
 
 function getAttendingCount(guest: any) {
@@ -2149,8 +2160,8 @@ async function createWorkOrderForCandidate(input: {
     return {
       status: "skipped",
       reason:
-        candidate.round === 1
-          ? "NO_PENDING_GUESTS_FOR_ROUND_1"
+        candidate.round === 1 || candidate.round === 3
+          ? `NO_PENDING_GUESTS_FOR_ROUND_${candidate.round}`
           : `NO_GUESTS_FOR_ROUND_${candidate.round}`,
       round: candidate.round,
     };

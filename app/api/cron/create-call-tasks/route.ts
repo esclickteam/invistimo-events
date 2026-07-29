@@ -162,6 +162,7 @@ function isAdminRole(role?: string) {
 function getSourceAudienceByRound(round: RoundNumber) {
   if (round === 1) return "pending_rsvp";
   if (round === 2) return "round_1_no_answer";
+  // סבב 3 נפתח לכל מי שבהמתנה; הערך נשמר לתאימות, התוכן נקבע ב-loadGuestsForRound
   return "round_2_no_answer";
 }
 
@@ -1369,6 +1370,7 @@ const PENDING_GUEST_RSVP = [
   "pending",
   "wait",
   "waiting",
+  "awaiting",
   "unknown",
   "none",
   "no_response",
@@ -1378,6 +1380,7 @@ const PENDING_GUEST_RSVP = [
   "created",
   "טרם השיב",
   "ממתין",
+  "בהמתנה",
   "לא ידוע",
 ];
 
@@ -1497,9 +1500,21 @@ async function loadGuestsForRound(input: {
     });
   }
 
+  /*
+    סבב 3 בלבד:
+    נפתח לכל האורחים שבהמתנה (עם טלפון),
+    בלי תלות בתוצאות סבב 2.
+    סבב 2 נשאר בדיוק כמו קודם.
+  */
+  if (input.round === 3) {
+    return allGuests.filter((guest: any) => {
+      return hasPhone(guest) && isPendingGuestForRound1(guest);
+    });
+  }
+
   if (!invitationObjectId) return [];
 
-  const previousRound = (input.round - 1) as 1 | 2;
+  const previousRound = 1 as const;
 
   const previousTasks = await CallTask.collection
     .find({
@@ -1584,7 +1599,7 @@ function getRoundDescription(round: RoundNumber) {
     return "סבב 2 - שיחות למי שלא ענה בסבב הראשון";
   }
 
-  return "סבב 3 - שיחות למי שלא ענה בסבב השני";
+  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
 }
 
 function serializeWorkOrder(order: any) {
@@ -1851,8 +1866,8 @@ async function createOrCompleteWorkOrderForCandidate(input: {
     return {
       status: "skipped",
       reason:
-        candidate.round === 1
-          ? "NO_PENDING_GUESTS_FOR_ROUND_1"
+        candidate.round === 1 || candidate.round === 3
+          ? `NO_PENDING_GUESTS_FOR_ROUND_${candidate.round}`
           : `NO_NO_ANSWER_GUESTS_FROM_ROUND_${candidate.round - 1}`,
       round: candidate.round,
     };

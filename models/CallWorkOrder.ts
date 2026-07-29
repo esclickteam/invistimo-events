@@ -20,7 +20,7 @@ export type CallWorkOrderStatus =
 export type CallWorkOrderSourceAudience =
   | "pending_rsvp" // סבב 1 - כל מי שממתין / טרם השיב
   | "round_1_no_answer" // סבב 2 - מי שלא ענה בסבב 1
-  | "round_2_no_answer"; // סבב 3 - מי שלא ענה בסבב 2
+  | "round_2_no_answer"; // סבב 3 - כל מי שבהמתנה
 
 export type CallWorkOrderDistributionStrategy =
   | "scheduled_shift_round_robin" // חלוקה לפי עובדים שמשובצים למשמרת באותו יום
@@ -440,7 +440,7 @@ function getDescriptionByRound(round: CallWorkOrderRound) {
     return "סבב 2 - שיחות למי שלא ענה בסבב הראשון";
   }
 
-  return "סבב 3 - שיחות למי שלא ענה בסבב השני";
+  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
 }
 
 /* ============================================================
