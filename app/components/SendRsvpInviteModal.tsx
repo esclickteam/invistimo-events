@@ -4,18 +4,17 @@ import { useState } from "react";
 
 type Channel = "whatsapp" | "sms";
 
-type GuestLike = {
-  _id: string;
-  name?: string;
-  phone?: string;
-};
-
 type Props = {
-  guest: GuestLike;
+  taskId: string;
+  guestName?: string;
   onClose: () => void;
 };
 
-export default function SendRsvpInviteModal({ guest, onClose }: Props) {
+export default function SendRsvpInviteModal({
+  taskId,
+  guestName,
+  onClose,
+}: Props) {
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,12 +26,15 @@ export default function SendRsvpInviteModal({ guest, onClose }: Props) {
     setError("");
 
     try {
-      const res = await fetch(`/api/guests/${guest._id}/send-rsvp-invite`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel }),
-      });
+      const res = await fetch(
+        `/api/employee/call-tasks/${taskId}/send-rsvp-invite`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel }),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
 
@@ -47,8 +49,8 @@ export default function SendRsvpInviteModal({ guest, onClose }: Props) {
 
       alert(
         channel === "whatsapp"
-          ? `ההזמנה לאישור הגעה נשלחה בוואטסאפ ל-${guest.name || "האורח"}`
-          : `ההזמנה לאישור הגעה נשלחה ב-SMS ל-${guest.name || "האורח"}`
+          ? `ההזמנה לאישור הגעה נשלחה בוואטסאפ ל-${guestName || "האורח"}`
+          : `ההזמנה לאישור הגעה נשלחה ב-SMS ל-${guestName || "האורח"}`
       );
 
       onClose();
@@ -61,7 +63,7 @@ export default function SendRsvpInviteModal({ guest, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#1E1B2E]/55 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0f172a]/55 px-4 py-6 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -74,8 +76,7 @@ export default function SendRsvpInviteModal({ guest, onClose }: Props) {
         </h3>
 
         <p className="mb-4 text-sm text-gray-600">
-          שליחה מיידית ל-{guest.name || "האורח"} עם תבנית סבב 1 והקישור האישי.
-          לא משפיע על סבבי ההודעות.
+          שליחה מיידית ל-{guestName || "האורח"} עם תבנית סבב 1 והקישור האישי.
         </p>
 
         <div className="mb-4 grid grid-cols-2 gap-2">
@@ -104,16 +105,14 @@ export default function SendRsvpInviteModal({ guest, onClose }: Props) {
           </button>
         </div>
 
-        {error ? (
-          <p className="mb-3 text-sm text-red-600">{error}</p>
-        ) : null}
+        {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={handleSend}
             disabled={loading}
-            className="flex-1 rounded-xl bg-[#1E1B2E] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="flex-1 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
           >
             {loading ? "שולח..." : "שליחה מיידית"}
           </button>
