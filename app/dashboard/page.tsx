@@ -22,7 +22,6 @@ import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
-import SendRsvpInviteModal from "../components/SendRsvpInviteModal";
 import type { QuickFilter } from "@/types/quickFilter";
 
 type EventModel = {
@@ -504,9 +503,6 @@ const canViewActualArrived =
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   const [openCallsGuest, setOpenCallsGuest] =
-    useState<Guest | null>(null);
-
-  const [sendRsvpInviteGuest, setSendRsvpInviteGuest] =
     useState<Guest | null>(null);
 
   const [openRsvpSchedule, setOpenRsvpSchedule] = useState(false);
@@ -2893,13 +2889,6 @@ const canOpenEventManagement =
                     </IconAction>
 
                     <IconAction
-                      title="שליחת הזמנה לאישור הגעה"
-                      onClick={() => setSendRsvpInviteGuest(g)}
-                    >
-                      ✉️
-                    </IconAction>
-
-                    <IconAction
                       title="עריכת מוזמן"
                       onClick={() => setSelectedGuest(g)}
                     >
@@ -2951,7 +2940,6 @@ const canOpenEventManagement =
     }}
     onCall={(g) => setOpenCallsGuest(g)}
     onWhatsApp={(g) => sendWhatsApp(g)}
-    onSendRsvpInvite={(g) => setSendRsvpInviteGuest(g)}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
   />
@@ -3248,13 +3236,6 @@ const canOpenEventManagement =
                 : current
             );
           }}
-        />
-      )}
-
-      {sendRsvpInviteGuest && (
-        <SendRsvpInviteModal
-          guest={sendRsvpInviteGuest}
-          onClose={() => setSendRsvpInviteGuest(null)}
         />
       )}
 

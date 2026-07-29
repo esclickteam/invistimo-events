@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import SendRsvpInviteModal from "@/app/components/SendRsvpInviteModal";
 
 /* ============================================================
    Constants
@@ -463,6 +464,7 @@ export default function EmployeeWorkOrderTasksPage() {
   const [tasks, setTasks] = useState<CallTask[]>([]);
 
   const [selectedTask, setSelectedTask] = useState<CallTask | null>(null);
+  const [sendRsvpInviteOpen, setSendRsvpInviteOpen] = useState(false);
 
   const [callAnswered, setCallAnswered] = useState<CallAnswered>("");
   const [answeredResult, setAnsweredResult] = useState<AnsweredResult>("");
@@ -1631,6 +1633,15 @@ export default function EmployeeWorkOrderTasksPage() {
                       אין טלפון
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    className="inviteBtn"
+                    disabled={Boolean(updatingTaskId) || !selectedTel}
+                    onClick={() => setSendRsvpInviteOpen(true)}
+                  >
+                    שליחת הזמנה לאישור הגעה
+                  </button>
                 </div>
 
                 <div className="resultPanel">
@@ -1788,6 +1799,14 @@ export default function EmployeeWorkOrderTasksPage() {
           </aside>
         </section>
       )}
+
+      {sendRsvpInviteOpen && selectedTask ? (
+        <SendRsvpInviteModal
+          taskId={getTaskId(selectedTask)}
+          guestName={selectedTask.guestName}
+          onClose={() => setSendRsvpInviteOpen(false)}
+        />
+      ) : null}
 
       <style>{`
         .callCenterPage {
@@ -2471,6 +2490,7 @@ export default function EmployeeWorkOrderTasksPage() {
         }
 
         .callBtn,
+        .inviteBtn,
         .saveBtn {
           min-height: 52px;
           border-radius: 16px;
@@ -2488,6 +2508,21 @@ export default function EmployeeWorkOrderTasksPage() {
           color: white;
           box-shadow: 0 14px 28px rgba(16, 185, 129, 0.22);
           font-size: 17px;
+        }
+
+        .inviteBtn {
+          border: 0;
+          background: #0f172a;
+          color: white;
+          box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+          font-size: 15px;
+        }
+
+        .inviteBtn:disabled,
+        .callBtn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+          box-shadow: none;
         }
 
         .resultPanel {

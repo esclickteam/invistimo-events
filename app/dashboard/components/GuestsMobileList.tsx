@@ -77,7 +77,6 @@ type Props = {
   onCopyInviteLink?: GuestAction;
   onCall?: GuestAction;
   onWhatsApp?: GuestAction;
-  onSendRsvpInvite?: GuestAction;
   onEdit: GuestAction;
   onDelete: GuestAction;
 
@@ -241,7 +240,6 @@ export default function GuestsMobileList({
   onCopyInviteLink,
   onCall,
   onWhatsApp,
-  onSendRsvpInvite,
   onEdit,
   onDelete,
 
@@ -386,15 +384,6 @@ export default function GuestsMobileList({
                       onClick={() => handleWhatsApp(g)}
                     >
                       💬
-                    </ActionButton>
-                  ) : null}
-
-                  {onSendRsvpInvite ? (
-                    <ActionButton
-                      title="שליחת הזמנה לאישור הגעה"
-                      onClick={() => onSendRsvpInvite(g)}
-                    >
-                      ✉️
                     </ActionButton>
                   ) : null}
 
