@@ -1329,8 +1329,8 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error:
-            round === 1
-              ? "אין אורחים ממתינים לשיחה בסבב 1"
+            round === 1 || round === 3
+              ? `אין אורחים בהמתנה לשיחה בסבב ${round}`
               : `אין אורחים להמשך סבב ${round}. סבב ${round} נפתח רק למי שהיה בסבב ${
                   round - 1
                 } ולא נסגר סופית או שלא נגעו בו.`,
