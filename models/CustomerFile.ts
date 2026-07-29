@@ -193,6 +193,35 @@ const CustomerFileSchema = new Schema(
       type: String,
       default: "",
     },
+
+    // מצביעים למסמכי מכירה אחרונים שנשלחו ללקוח
+    quoteToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    agreementToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    signedAgreementToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    salesDocumentToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );

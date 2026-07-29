@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import CustomerFile from "@/models/CustomerFile";
+import CustomerQuote from "@/models/CustomerQuote";
+import CustomerAgreement from "@/models/CustomerAgreement";
 import SalesDocument from "@/models/SalesDocument";
 
 export const runtime = "nodejs";
@@ -173,9 +175,11 @@ function mapQuoteStatus(value: unknown) {
       return "sent";
 
     case "viewed":
+    case "opened":
       return "opened";
 
     case "signed":
+    case "approved":
       return "approved";
 
     case "expired":
@@ -183,6 +187,9 @@ function mapQuoteStatus(value: unknown) {
 
     case "cancelled":
       return "cancelled";
+
+    case "converted":
+      return "converted";
 
     default:
       return status || "draft";
@@ -234,16 +241,12 @@ function buildQuoteItems(document: AnyRecord) {
   if (packageTitle) {
     items.push({
       title: packageTitle,
-      description: cleanString(
-        document?.selectedPackage?.customerSummary
-      ),
+      description: cleanString(document?.selectedPackage?.customerSummary),
       price: asNumber(document?.selectedPackage?.price),
     });
   }
 
-  const upsells = Array.isArray(document?.upsells)
-    ? document.upsells
-    : [];
+  const upsells = Array.isArray(document?.upsells) ? document.upsells : [];
 
   for (const upsell of upsells) {
     const title = cleanString(upsell?.title);
@@ -254,9 +257,7 @@ function buildQuoteItems(document: AnyRecord) {
       title,
       description: cleanString(upsell?.description),
       price: asNumber(
-        upsell?.givenFree
-          ? 0
-          : upsell?.price ?? upsell?.totalPrice
+        upsell?.givenFree ? 0 : upsell?.price ?? upsell?.totalPrice
       ),
     });
   }
@@ -264,7 +265,7 @@ function buildQuoteItems(document: AnyRecord) {
   return items;
 }
 
-function mapQuote(
+function mapQuoteFromSalesDocument(
   document: AnyRecord,
   customerId: string,
   customerUserId: string
@@ -272,7 +273,8 @@ function mapQuote(
   return {
     _id: getDocumentId(document),
     customerFileId: customerId,
-    userId: customerUserId,
+    userId: customerUserId || null,
+    salesDocumentId: getDocumentId(document),
 
     quoteNumber: getDocumentNumber(document, "Q"),
 
@@ -283,39 +285,30 @@ function mapQuote(
         document?.totals?.grossAmount
     ),
 
-    validUntil:
-      document?.quote?.expiresAt ||
-      document?.validUntil ||
-      null,
+    validUntil: document?.quote?.expiresAt || document?.validUntil || null,
 
     status: mapQuoteStatus(document?.status),
 
-    publicToken: cleanString(
-      document?.token || document?.publicToken
-    ),
+    publicToken: cleanString(document?.token || document?.publicToken),
 
-    createdAt:
-      document?.createdAt ||
-      document?.quote?.createdAt ||
-      null,
+    createdAt: document?.createdAt || document?.quote?.createdAt || null,
 
     updatedAt: document?.updatedAt || null,
   };
 }
 
-function mapAgreement(
+function mapAgreementFromSalesDocument(
   document: AnyRecord,
   customerId: string,
   customerUserId: string
 ) {
-  const packageTitle = cleanString(
-    document?.selectedPackage?.title
-  );
+  const packageTitle = cleanString(document?.selectedPackage?.title);
 
   return {
     _id: getDocumentId(document),
     customerFileId: customerId,
-    userId: customerUserId,
+    userId: customerUserId || null,
+    salesDocumentId: getDocumentId(document),
 
     title:
       cleanString(document?.title) ||
@@ -346,15 +339,149 @@ function mapAgreement(
 
     ipAddress: getSignatureIp(document),
 
-    publicToken: cleanString(
-      document?.token || document?.publicToken
-    ),
+    publicToken: cleanString(document?.token || document?.publicToken),
 
     pdfUrl: cleanString(document?.pdfUrl),
 
     createdAt: document?.createdAt || null,
 
     updatedAt: document?.updatedAt || null,
+  };
+}
+
+function enrichQuoteFromSalesDocument(
+  quote: AnyRecord,
+  salesDocument: AnyRecord | undefined,
+  customerId: string,
+  customerUserId: string
+) {
+  const base = {
+    _id: getDocumentId(quote),
+    customerFileId: cleanString(quote?.customerFileId) || customerId,
+    userId: cleanString(quote?.userId) || customerUserId || null,
+    salesDocumentId:
+      cleanString(quote?.salesDocumentId) ||
+      (salesDocument ? getDocumentId(salesDocument) : ""),
+    quoteNumber:
+      cleanString(quote?.quoteNumber) ||
+      (salesDocument ? getDocumentNumber(salesDocument, "Q") : "Q"),
+    items: Array.isArray(quote?.items) ? quote.items : [],
+    total: asNumber(quote?.total),
+    validUntil: quote?.validUntil || null,
+    status: mapQuoteStatus(quote?.status),
+    publicToken: cleanString(quote?.publicToken),
+    createdAt: quote?.createdAt || null,
+    updatedAt: quote?.updatedAt || null,
+  };
+
+  if (!salesDocument) {
+    return base;
+  }
+
+  const salesItems = buildQuoteItems(salesDocument);
+  const salesStatus = mapQuoteStatus(salesDocument?.status);
+  const quoteStatus = mapQuoteStatus(quote?.status);
+
+  // Prefer the live SalesDocument status when it is further along.
+  const statusPriority = [
+    "draft",
+    "sent",
+    "opened",
+    "approved",
+    "converted",
+    "expired",
+    "cancelled",
+  ];
+  const quoteRank = statusPriority.indexOf(quoteStatus);
+  const salesRank = statusPriority.indexOf(salesStatus);
+  const status =
+    salesRank > quoteRank && salesRank >= 0 ? salesStatus : quoteStatus;
+
+  return {
+    ...base,
+    items: salesItems.length > 0 ? salesItems : base.items,
+    total:
+      asNumber(
+        salesDocument?.totals?.grossAmountAfterDiscount ??
+          salesDocument?.totals?.grossAmount,
+        base.total
+      ) || base.total,
+    validUntil:
+      quote?.validUntil ||
+      salesDocument?.quote?.expiresAt ||
+      salesDocument?.validUntil ||
+      null,
+    status,
+    publicToken:
+      base.publicToken ||
+      cleanString(salesDocument?.token || salesDocument?.publicToken),
+    createdAt: base.createdAt || salesDocument?.createdAt || null,
+    updatedAt: salesDocument?.updatedAt || base.updatedAt || null,
+  };
+}
+
+function enrichAgreementFromSalesDocument(
+  agreement: AnyRecord,
+  salesDocument: AnyRecord | undefined,
+  customerId: string,
+  customerUserId: string
+) {
+  const base = {
+    _id: getDocumentId(agreement),
+    customerFileId: cleanString(agreement?.customerFileId) || customerId,
+    userId: cleanString(agreement?.userId) || customerUserId || null,
+    salesDocumentId:
+      cleanString(agreement?.salesDocumentId) ||
+      (salesDocument ? getDocumentId(salesDocument) : ""),
+    title: cleanString(agreement?.title) || "הסכם שירותים",
+    amount: asNumber(agreement?.amount),
+    status: cleanString(agreement?.status) || "draft",
+    signedAt: agreement?.signedAt || null,
+    signerName: cleanString(agreement?.signerName),
+    signerIdNumber: cleanString(agreement?.signerIdNumber),
+    signerEmail: cleanString(agreement?.signerEmail),
+    signerPhone: cleanString(agreement?.signerPhone),
+    signatureText: cleanString(agreement?.signatureText),
+    signatureImageUrl: cleanString(agreement?.signatureImageUrl),
+    ipAddress: cleanString(agreement?.ipAddress),
+    publicToken: cleanString(agreement?.publicToken),
+    pdfUrl: cleanString(agreement?.pdfUrl),
+    createdAt: agreement?.createdAt || null,
+    updatedAt: agreement?.updatedAt || null,
+  };
+
+  if (!salesDocument) {
+    return base;
+  }
+
+  const mapped = mapAgreementFromSalesDocument(
+    salesDocument,
+    customerId,
+    customerUserId
+  );
+
+  return {
+    ...base,
+    title: base.title || mapped.title,
+    amount: base.amount || mapped.amount,
+    status:
+      mapped.status === "signed" || mapped.signedAt
+        ? "signed"
+        : base.status === "draft" && mapped.status
+          ? mapped.status
+          : base.status,
+    signedAt: base.signedAt || mapped.signedAt,
+    signerName: base.signerName || mapped.signerName,
+    signerIdNumber: base.signerIdNumber || mapped.signerIdNumber,
+    signerEmail: base.signerEmail || mapped.signerEmail,
+    signerPhone: base.signerPhone || mapped.signerPhone,
+    signatureText: base.signatureText || mapped.signatureText,
+    signatureImageUrl: base.signatureImageUrl || mapped.signatureImageUrl,
+    ipAddress: base.ipAddress || mapped.ipAddress,
+    publicToken: base.publicToken || mapped.publicToken,
+    pdfUrl: base.pdfUrl || mapped.pdfUrl,
+    createdAt: base.createdAt || mapped.createdAt,
+    updatedAt: mapped.updatedAt || base.updatedAt,
   };
 }
 
@@ -383,6 +510,14 @@ function buildSalesDocumentConditions(customer: AnyRecord) {
     });
   }
 
+  const customerFileId = cleanString(customer?._id);
+
+  if (customerFileId && mongoose.Types.ObjectId.isValid(customerFileId)) {
+    conditions.push({
+      customerFileId: new mongoose.Types.ObjectId(customerFileId),
+    });
+  }
+
   if (customerEmail) {
     const emailCondition: AnyRecord = {
       "client.email": createExactTextRegex(customerEmail),
@@ -400,10 +535,9 @@ function buildSalesDocumentConditions(customer: AnyRecord) {
     const internationalPhoneRegex =
       createInternationalPhoneRegex(customerPhone);
 
-    const phoneRegexes = [
-      localPhoneRegex,
-      internationalPhoneRegex,
-    ].filter(Boolean);
+    const phoneRegexes = [localPhoneRegex, internationalPhoneRegex].filter(
+      Boolean
+    );
 
     if (phoneRegexes.length > 0) {
       const phoneCondition: AnyRecord = {
@@ -442,10 +576,9 @@ function buildSalesDocumentConditions(customer: AnyRecord) {
     const internationalPhoneRegex =
       createInternationalPhoneRegex(customerPhone);
 
-    const phoneRegexes = [
-      localPhoneRegex,
-      internationalPhoneRegex,
-    ].filter(Boolean);
+    const phoneRegexes = [localPhoneRegex, internationalPhoneRegex].filter(
+      Boolean
+    );
 
     if (phoneRegexes.length > 0) {
       conditions.push({
@@ -457,6 +590,13 @@ function buildSalesDocumentConditions(customer: AnyRecord) {
   }
 
   return conditions;
+}
+
+function sortByCreatedAtDesc(a: AnyRecord, b: AnyRecord) {
+  const aTime = new Date(a?.createdAt || 0).getTime();
+  const bTime = new Date(b?.createdAt || 0).getTime();
+
+  return bTime - aTime;
 }
 
 export async function GET(
@@ -485,10 +625,7 @@ export async function GET(
     }
 
     const customer = (await CustomerFile.findById(customerId)
-      .populate(
-        "assignedStaffIds",
-        "_id name email role staffType"
-      )
+      .populate("assignedStaffIds", "_id name email role staffType")
       .lean()) as AnyRecord | null;
 
     if (!customer) {
@@ -503,51 +640,177 @@ export async function GET(
       );
     }
 
-    const conditions =
-      buildSalesDocumentConditions(customer);
+    const customerUserId = cleanString(customer?.userId);
 
-    let documents: AnyRecord[] = [];
+    const [savedQuotes, savedAgreements] = await Promise.all([
+      CustomerQuote.find({ customerFileId: customerId })
+        .sort({ createdAt: -1 })
+        .lean(),
+      CustomerAgreement.find({ customerFileId: customerId })
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
 
-    if (conditions.length > 0) {
-      documents = (await SalesDocument.find({
-        $or: conditions,
-      })
+    const tokenSet = new Set<string>();
+    const salesDocumentIdSet = new Set<string>();
+
+    for (const quote of savedQuotes as AnyRecord[]) {
+      const token = cleanString(quote?.publicToken);
+      const salesDocumentId = cleanString(quote?.salesDocumentId);
+
+      if (token) tokenSet.add(token);
+      if (salesDocumentId) salesDocumentIdSet.add(salesDocumentId);
+    }
+
+    for (const agreement of savedAgreements as AnyRecord[]) {
+      const token = cleanString(agreement?.publicToken);
+      const salesDocumentId = cleanString(agreement?.salesDocumentId);
+
+      if (token) tokenSet.add(token);
+      if (salesDocumentId) salesDocumentIdSet.add(salesDocumentId);
+    }
+
+    const conditions = buildSalesDocumentConditions(customer);
+
+    const salesDocumentQuery: AnyRecord = {
+      $or: [
+        ...(conditions.length > 0 ? conditions : []),
+        ...(tokenSet.size > 0
+          ? [
+              {
+                token: {
+                  $in: Array.from(tokenSet),
+                },
+              },
+            ]
+          : []),
+        ...(salesDocumentIdSet.size > 0
+          ? [
+              {
+                _id: {
+                  $in: Array.from(salesDocumentIdSet).filter((id) =>
+                    mongoose.Types.ObjectId.isValid(id)
+                  ),
+                },
+              },
+            ]
+          : []),
+      ],
+    };
+
+    let salesDocuments: AnyRecord[] = [];
+
+    if (salesDocumentQuery.$or.length > 0) {
+      salesDocuments = (await SalesDocument.find(salesDocumentQuery)
         .sort({
           createdAt: -1,
         })
         .lean()) as AnyRecord[];
     }
 
-    const customerUserId = cleanString(customer?.userId);
+    const salesDocumentsById = new Map<string, AnyRecord>();
+    const salesDocumentsByToken = new Map<string, AnyRecord>();
 
-    const quotes = documents
-      .filter(
-        (document) =>
-          cleanString(document?.type).toLowerCase() === "quote"
-      )
-      .map((document) =>
-        mapQuote(document, customerId, customerUserId)
+    for (const document of salesDocuments) {
+      const id = getDocumentId(document);
+      const token = cleanString(document?.token);
+
+      if (id) salesDocumentsById.set(id, document);
+      if (token) salesDocumentsByToken.set(token, document);
+    }
+
+    const quotes = (savedQuotes as AnyRecord[]).map((quote) => {
+      const salesDocumentId = cleanString(quote?.salesDocumentId);
+      const token = cleanString(quote?.publicToken);
+
+      const salesDocument =
+        (salesDocumentId
+          ? salesDocumentsById.get(salesDocumentId)
+          : undefined) ||
+        (token ? salesDocumentsByToken.get(token) : undefined);
+
+      return enrichQuoteFromSalesDocument(
+        quote,
+        salesDocument,
+        customerId,
+        customerUserId
       );
-
-    const agreements = documents
-      .filter(
-        (document) =>
-          cleanString(document?.type).toLowerCase() ===
-          "agreement"
-      )
-      .map((document) =>
-        mapAgreement(document, customerId, customerUserId)
-      );
-
-    console.log("ADMIN CUSTOMER SALES DOCUMENTS:", {
-      customerId,
-      customerName: customer?.fullName || "",
-      customerEmail: customer?.email || "",
-      customerPhone: customer?.phone || "",
-      documentsFound: documents.length,
-      quotesFound: quotes.length,
-      agreementsFound: agreements.length,
     });
+
+    const agreements = (savedAgreements as AnyRecord[]).map((agreement) => {
+      const salesDocumentId = cleanString(agreement?.salesDocumentId);
+      const token = cleanString(agreement?.publicToken);
+
+      const salesDocument =
+        (salesDocumentId
+          ? salesDocumentsById.get(salesDocumentId)
+          : undefined) ||
+        (token ? salesDocumentsByToken.get(token) : undefined);
+
+      return enrichAgreementFromSalesDocument(
+        agreement,
+        salesDocument,
+        customerId,
+        customerUserId
+      );
+    });
+
+    const knownQuoteTokens = new Set(
+      quotes.map((quote) => cleanString(quote.publicToken)).filter(Boolean)
+    );
+    const knownAgreementTokens = new Set(
+      agreements
+        .map((agreement) => cleanString(agreement.publicToken))
+        .filter(Boolean)
+    );
+    const knownQuoteSalesIds = new Set(
+      quotes
+        .map((quote) => cleanString(quote.salesDocumentId))
+        .filter(Boolean)
+    );
+    const knownAgreementSalesIds = new Set(
+      agreements
+        .map((agreement) => cleanString(agreement.salesDocumentId))
+        .filter(Boolean)
+    );
+
+    // Legacy fallback: include SalesDocuments that were never written into
+    // CustomerQuote / CustomerAgreement, but clearly belong to this customer.
+    for (const document of salesDocuments) {
+      const type = cleanString(document?.type).toLowerCase();
+      const token = cleanString(document?.token);
+      const documentId = getDocumentId(document);
+
+      if (type === "quote") {
+        if (
+          (token && knownQuoteTokens.has(token)) ||
+          (documentId && knownQuoteSalesIds.has(documentId))
+        ) {
+          continue;
+        }
+
+        quotes.push(
+          mapQuoteFromSalesDocument(document, customerId, customerUserId)
+        );
+        continue;
+      }
+
+      if (type === "agreement") {
+        if (
+          (token && knownAgreementTokens.has(token)) ||
+          (documentId && knownAgreementSalesIds.has(documentId))
+        ) {
+          continue;
+        }
+
+        agreements.push(
+          mapAgreementFromSalesDocument(document, customerId, customerUserId)
+        );
+      }
+    }
+
+    quotes.sort(sortByCreatedAtDesc);
+    agreements.sort(sortByCreatedAtDesc);
 
     return NextResponse.json(
       {
@@ -558,8 +821,7 @@ export async function GET(
       },
       {
         headers: {
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
         },
       }
     );
