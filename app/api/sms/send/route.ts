@@ -848,13 +848,15 @@ if (inv.shareId) {
 
         /**
          * חשוב:
-         * בתזכורת מתוזמנת לא שומרים הודעה אחת סופית עם שולחן.
-         * ה-worker חייב לבנות הודעה לכל אורח בזמן השליחה בפועל:
+         * בתזכורת מתוזמנת שומרים AUTO — ה-worker בונה לכל אורח בזמן השליחה:
          * אורח עם שולחן יקבל הודעה עם מספר שולחן.
          * אורח בלי שולחן יקבל תזכורת רגילה בלי המשפט "מספר השולחן שלך".
+         *
+         * ב-messageContent שומרים את תבנית עם השולחן לתצוגה בטבלת התזמונים
+         * ({{tableName}}), כדי שיראו שמספר שולחן חלק מההודעה.
          */
         messageContent: useAutoReminderByTable
-          ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
+          ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
           : messageContent,
 
         messageOverride: useAutoReminderByTable
@@ -862,7 +864,7 @@ if (inv.shareId) {
           : baseTemplateText,
 
         text: useAutoReminderByTable
-          ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
+          ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
           : messageContent,
 
         reminderWithTableTemplate: useAutoReminderByTable
