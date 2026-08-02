@@ -247,11 +247,17 @@ export default function ReminderTab({
 
     const guestHasTable = !!tableName;
 
-    const templateForGuest = hasSeatingPackage
-      ? guestHasTable
+    /**
+     * בתצוגה מקדימה: אם לאורח יש שולחן — תמיד מציגים עם מספר שולחן,
+     * גם לפני שה-state של התבנית הספיק להתעדכן מ-ONLY ל-WITH.
+     */
+    const templateForGuest = guestHasTable
+      ? message.includes("{{tableName}}")
         ? message
-        : REMINDER_ONLY_TEMPLATE
-      : message;
+        : REMINDER_WITH_TABLE_TEMPLATE
+      : message.includes("{{tableName}}")
+        ? REMINDER_ONLY_TEMPLATE
+        : message;
 
     return buildMessage({
       template: templateForGuest,
@@ -281,6 +287,12 @@ export default function ReminderTab({
         ? guestsWithTable[0]
         : guestsToSend[0];
 
+    /**
+     * מקור האמת לתצוגה = הטקסט המקומי (כולל מספר שולחן אם יש).
+     * השרת משמש רק לאימות אורך/חלקים — לא לדריסת התוכן,
+     * כדי למנוע הבהוב שבו מספר השולחן מופיע ואז נעלם
+     * בגלל תשובת preview ישנה שמגיעה אחרי עדכון התבנית.
+     */
     const localText = buildReminderMessage(firstGuest);
 
     setPreview({
@@ -291,12 +303,15 @@ export default function ReminderTab({
       loading: true,
     });
 
+    const abortController = new AbortController();
+
     async function validateWithServer() {
       try {
         const res = await fetch("/api/sms/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
+          signal: abortController.signal,
           body: JSON.stringify({
             invitationId,
             guestId: firstGuest._id,
@@ -306,24 +321,42 @@ export default function ReminderTab({
 
         const data = await res.json();
 
-        if (data?.text) {
+        if (abortController.signal.aborted) return;
+
+        if (
+          typeof data?.totalChars === "number" &&
+          typeof data?.parts === "number"
+        ) {
           setPreview({
-            text: data.text,
+            text: localText,
             totalChars: data.totalChars,
             parts: data.parts,
             blocked: !data.allowed,
             loading: false,
           });
+        } else {
+          setPreview((prev: any) => ({
+            ...prev,
+            text: localText,
+            loading: false,
+          }));
         }
-      } catch {
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+
         setPreview((prev: any) => ({
           ...prev,
+          text: localText,
           loading: false,
         }));
       }
     }
 
     validateWithServer();
+
+    return () => {
+      abortController.abort();
+    };
   }, [
     invitationId,
     guestsToSend,
