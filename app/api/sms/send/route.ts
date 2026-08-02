@@ -9,6 +9,13 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
+import {
+  AUTO_REMINDER_BY_TABLE,
+  REMINDER_WITH_TABLE_SERVER_TEMPLATE,
+  REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE,
+  isDefaultReminderSmsTemplate,
+  resolveReminderSmsTemplate,
+} from "@/lib/messages/resolveReminderSmsTemplate";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -235,24 +242,6 @@ const MESSAGE_TEMPLATES: Record<
       "תודה שהגעת לחגוג איתנו.",
   },
 };
-
-/* ======================================================
-   REMINDER FALLBACK TEMPLATES
-====================================================== */
-
-const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
-  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "מספר השולחן שלך:\n" +
-  "{{tableName}}\n\n" +
-  "לכל פרטי האירוע והניווט:\n" +
-  "{{navigationLink}}\n\n" +
-  "נשמח לראותכם ❤️";
-
-const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
-  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "לכל פרטי האירוע והניווט:\n" +
-  "{{navigationLink}}\n\n" +
-  "נשמח לראותכם ❤️";
 
 /* ======================================================
    POST
@@ -534,10 +523,19 @@ if (isDirectSmsRequest) {
       body.text?.trim() ||
       "";
 
-    const hasCustomTemplateText = Boolean(adminTemplateText);
+    const isReminderSmsTemplate =
+      templateKey === "reminder" || templateKey === "table";
+
+    /**
+     * תבניות ברירת מחדל של תזכורת (עם/בלי שולחן) לא נחשבות "מותאמות".
+     * כך נשמר מצב AUTO והבחירה עם/בלי שולחן קורית ברגע השליחה בפועל.
+     */
+    const hasCustomTemplateText =
+      Boolean(adminTemplateText) &&
+      !(isReminderSmsTemplate && isDefaultReminderSmsTemplate(adminTemplateText));
 
     const baseTemplateText =
-      hasCustomTemplateText ? adminTemplateText : serverTemplateText;
+      Boolean(adminTemplateText) ? adminTemplateText : serverTemplateText;
 
     /* ================= INVITATION ================= */
 
@@ -815,8 +813,16 @@ if (inv.shareId) {
         status: "scheduled",
       });
 
-            const isReminderSms =
+      const isReminderSms =
         templateKey === "reminder" || templateKey === "table";
+
+      /**
+       * בתזכורת מתוזמנת תמיד שומרים AUTO (גם אם ה-UI שלח תבנית ברירת מחדל).
+       * ה-worker בוחר עם/בלי שולחן לפי מצב האורח ברגע השליחה בפועל.
+       * נוסח מותאם באמת נשמר כמות שהוא — וה-worker עדיין משדרג/מסיר שולחן בזמן שליחה.
+       */
+      const useAutoReminderByTable =
+        isReminderSms && !hasCustomTemplateText;
 
       const payload = {
         invitationId,
@@ -847,23 +853,23 @@ if (inv.shareId) {
          * אורח עם שולחן יקבל הודעה עם מספר שולחן.
          * אורח בלי שולחן יקבל תזכורת רגילה בלי המשפט "מספר השולחן שלך".
          */
-                messageContent: isReminderSms && !hasCustomTemplateText
+        messageContent: useAutoReminderByTable
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
-        messageOverride: isReminderSms && !hasCustomTemplateText
-          ? "__AUTO_REMINDER_BY_TABLE__"
+        messageOverride: useAutoReminderByTable
+          ? AUTO_REMINDER_BY_TABLE
           : baseTemplateText,
 
-        text: isReminderSms && !hasCustomTemplateText
+        text: useAutoReminderByTable
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
-        reminderWithTableTemplate: isReminderSms && !hasCustomTemplateText
+        reminderWithTableTemplate: useAutoReminderByTable
           ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
           : null,
 
-        reminderWithoutTableTemplate: isReminderSms && !hasCustomTemplateText
+        reminderWithoutTableTemplate: useAutoReminderByTable
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : null,
 
@@ -979,22 +985,19 @@ if (inv.shareId) {
 
         /**
          * תיקון חשוב:
-         * בתזכורת/שולחן, מי שיש לו שולחן מקבל הודעה עם שולחן.
-         * מי שאין לו שולחן מקבל הודעה רגילה בלי המשפט "השולחן שלך באירוע".
+         * בתזכורת/שולחן — בחירת עם/בלי שולחן לפי מצב האורח ברגע השליחה בפועל.
+         * גם אם ב-UI נבחרה תבנית בלי שולחן, אורח שקיבל מספר עד השליחה יקבל הודעה עם מספר.
          *
          * RSVP / תודה / custom נשארים בדיוק לפי baseMessage.
          */
         let messageForGuest = baseMessage;
 
-        if (
-          (templateKey === "table" || templateKey === "reminder") &&
-          !hasCustomTemplateText
-        ) {
-          messageForGuest = guestHasTable
-            ? baseMessage.includes("{{tableName}}")
-              ? baseMessage
-              : REMINDER_WITH_TABLE_SERVER_TEMPLATE
-            : REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE;
+        if (templateKey === "table" || templateKey === "reminder") {
+          messageForGuest = resolveReminderSmsTemplate({
+            template: baseMessage,
+            guestHasTable,
+            isAutoReminder: !hasCustomTemplateText,
+          });
         }
 
         let finalText = messageForGuest

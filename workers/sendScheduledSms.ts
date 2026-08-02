@@ -5,6 +5,10 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
+import {
+  AUTO_REMINDER_BY_TABLE,
+  resolveReminderSmsTemplate,
+} from "@/lib/messages/resolveReminderSmsTemplate";
 
 import {
   sendRsvpTemplateMedia,
@@ -189,22 +193,6 @@ function buildGuestsQuery({
   return query;
 }
 
-const AUTO_REMINDER_BY_TABLE = "__AUTO_REMINDER_BY_TABLE__";
-
-const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
-  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "מספר השולחן שלך:\n" +
-  "{{tableName}}\n\n" +
-  "לכל פרטי האירוע והניווט:\n" +
-  "{{navigationLink}}\n\n" +
-  "נשמח לראותכם ❤️";
-
-const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
-  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "לכל פרטי האירוע והניווט:\n" +
-  "{{navigationLink}}\n\n" +
-  "נשמח לראותכם ❤️";
-
 function getTableName(guest: any) {
   const tableName = String(guest?.tableName || "").trim();
 
@@ -217,20 +205,6 @@ function getTableName(guest: any) {
   }
 
   return "";
-}
-
-function stripTableBlockForGuestWithoutTable(text: string) {
-  return String(text || "")
-    .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*(?:🪑\s*)?{{tableName}}\s*\n*/g,
-      "\n"
-    )
-    .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*(?:🪑\s*)?\n*/g,
-      "\n"
-    )
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 async function buildSmsText({
@@ -259,18 +233,21 @@ async function buildSmsText({
   );
 
   if (type === "reminder" || type === "table") {
+    /**
+     * חשוב: מספר שולחן נלקח מהאורח ברגע השליחה בפועל בלבד.
+     * גם אם תזמנו מראש בלי שולחן — אם עד השליחה יש מספר, ההודעה תכלול אותו.
+     * אם ברגע השליחה אין מספר — נשלחת תזכורת בלבד.
+     */
     const isAutoReminder =
       template === AUTO_REMINDER_BY_TABLE ||
       schedule.messageOverride === AUTO_REMINDER_BY_TABLE ||
       schedule.text === AUTO_REMINDER_BY_TABLE;
 
-    if (isAutoReminder) {
-      template = guestHasTable
-        ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
-        : REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE;
-    } else if (!guestHasTable) {
-      template = stripTableBlockForGuestWithoutTable(template);
-    }
+    template = resolveReminderSmsTemplate({
+      template,
+      guestHasTable,
+      isAutoReminder,
+    });
   }
 
   return template
