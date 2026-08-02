@@ -118,7 +118,21 @@ export async function PATCH(
       );
     }
 
+    const AUTO_REMINDER_BY_TABLE = "__AUTO_REMINDER_BY_TABLE__";
+    const isAutoReminder =
+      String(msg.messageOverride || "").trim() === AUTO_REMINDER_BY_TABLE ||
+      String(msg.text || "").trim() === AUTO_REMINDER_BY_TABLE;
+
+    /**
+     * בתזכורת AUTO:
+     * מעדכנים את התוכן לתצוגה בלבד, ושומרים את דגל AUTO
+     * כדי שבזמן השליחה מספר השולחן יימשך מהאורח בפועל.
+     */
+    msg.messageContent = text;
     msg.text = text;
+    if (!isAutoReminder) {
+      msg.messageOverride = text;
+    }
     msg.scheduledAt = scheduledAt;
     await msg.save();
 
