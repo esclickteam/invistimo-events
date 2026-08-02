@@ -168,33 +168,23 @@ export async function GET(req: Request) {
     }
 
     const users = await User.find({
-      $and: [
+      $or: [
+        { role: { $in: ["producer", "staff", "employee"] } },
+        { producerAccess: true },
+        { isProducer: true },
+        { userType: "producer" },
         {
-          $or: [
-            { role: { $in: ["producer", "staff", "employee"] } },
-            { producerAccess: true },
-            { isProducer: true },
-            { userType: "producer" },
-            {
-              staffType: {
-                $in: [
-                  "general_staff",
-                  "producer_staff",
-                  "seating_staff",
-                  "usher_staff",
-                ],
-              },
-            },
-            { staffType: { $exists: true, $ne: "" } },
-            { employeeScope: { $exists: true, $ne: "" } },
-          ],
+          staffType: {
+            $in: [
+              "general_staff",
+              "producer_staff",
+              "seating_staff",
+              "usher_staff",
+            ],
+          },
         },
-        {
-          $or: [
-            { isActive: { $ne: false } },
-            { isActive: { $exists: false } },
-          ],
-        },
+        { staffType: { $exists: true, $ne: "" } },
+        { employeeScope: { $exists: true, $ne: "" } },
       ],
     })
       .select(
@@ -203,18 +193,22 @@ export async function GET(req: Request) {
       .sort({ name: 1, email: 1 })
       .lean();
 
-    const activeUsers = users.filter(isActiveUser);
+    /*
+      מפיקים תמיד מוצגים לבחירת "מפיק מטפל", גם אם isActive=false.
+      isActive אצל מפיקים לא תמיד מסונכרן (ברירת מחדל false במודל),
+      ולכן סינון לפיו השאיר מפיקים חסרים ברשימה.
+      עובדים עדיין מסוננים לפי isActive.
+    */
+    const producers = users.filter(isProducerUser);
 
-    const producers = activeUsers.filter(isProducerUser);
-
-    const staff = activeUsers.filter((user: any) => {
+    const staff = users.filter((user: any) => {
       if (isProducerUser(user)) return false;
+      if (!isActiveUser(user)) return false;
       return isStaffUser(user);
     });
 
     console.log("✅ ASSIGNEES RESULT:", {
       totalUsers: users.length,
-      activeUsers: activeUsers.length,
       producers: producers.length,
       staff: staff.length,
     });
@@ -226,7 +220,6 @@ export async function GET(req: Request) {
         staff,
         counts: {
           totalUsers: users.length,
-          activeUsers: activeUsers.length,
           producers: producers.length,
           staff: staff.length,
         },

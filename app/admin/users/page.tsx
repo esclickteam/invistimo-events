@@ -1327,6 +1327,39 @@ export default function AdminUsersPage() {
     pricingPlans,
   ]);
 
+  /* כל המפיקים מטבלת המשתמשים + מה־API, כדי שלא ייעלם מפיק מ"מפיקים מטפלים" */
+  const producerOptions = useMemo(() => {
+    const byId = new Map<string, Assignee>();
+
+    for (const producer of producers) {
+      byId.set(String(producer._id), {
+        _id: String(producer._id),
+        name: producer.name,
+        email: producer.email,
+      });
+    }
+
+    for (const user of users) {
+      if (user.role !== "producer") continue;
+
+      const id = String(user._id);
+      const existing = byId.get(id);
+
+      byId.set(id, {
+        _id: id,
+        name: existing?.name || user.name,
+        email: existing?.email || user.email,
+      });
+    }
+
+    return Array.from(byId.values()).sort((a, b) =>
+      String(a.name || a.email || "").localeCompare(
+        String(b.name || b.email || ""),
+        "he"
+      )
+    );
+  }, [producers, users]);
+
   const stats = useMemo(() => {
     return {
       total: filteredUsers.length,
@@ -1573,7 +1606,7 @@ export default function AdminUsersPage() {
                   <td className="p-4 text-[#6B5A48]">
                     {formatAssigneeNames(
                       resolveAssignedProducerIds(u),
-                      producers
+                      producerOptions
                     )}
                   </td>
 
@@ -1696,7 +1729,7 @@ export default function AdminUsersPage() {
           user={editingUser}
           pricingPlans={pricingPlans}
           recordOptions={recordOptions}
-          producers={producers}
+          producers={producerOptions}
           staff={staff}
           onClose={() => setEditingUser(null)}
           onSaved={() => {
