@@ -18,6 +18,12 @@ type AuthUser = {
   name?: string;
 };
 
+type WorkSession = {
+  id: string;
+  start: string;
+  end: string;
+};
+
 type DayRow = {
   id: string;
   date: string;
@@ -28,6 +34,8 @@ type DayRow = {
   scheduledEnd: string;
   actualStart: string;
   actualEnd: string;
+  workSessions: WorkSession[];
+  sessions: WorkSession[];
   totalMinutes: number;
   note: string;
   status: string;
@@ -163,6 +171,25 @@ function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
 
+function makeSessionId() {
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function calculateSessionsMinutes(sessions: WorkSession[]) {
+  return sessions.reduce((sum, session) => {
+    return sum + minutesBetween(session.start, session.end);
+  }, 0);
+}
+
+function getFirstSessionStart(sessions: WorkSession[]) {
+  return sessions.find((session) => session.start)?.start || "";
+}
+
+function getLastSessionEnd(sessions: WorkSession[]) {
+  const reversed = [...sessions].reverse();
+  return reversed.find((session) => session.end)?.end || "";
+}
+
 function toDateKey(date: Date) {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
     date.getDate(),
@@ -200,6 +227,8 @@ function getDaysInMonth(monthKey: string): DayRow[] {
       scheduledEnd: "",
       actualStart: "",
       actualEnd: "",
+      workSessions: [],
+      sessions: [],
       totalMinutes: 0,
       note: "",
       status: "draft",
@@ -483,8 +512,7 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
   const grouped = new Map<
     string,
     {
-      starts: any[];
-      ends: any[];
+      workSessions: WorkSession[];
       totalMinutes: number;
     }
   >();
@@ -544,16 +572,26 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
 
     if (!dateKey || !rowsMap.has(dateKey)) continue;
 
+    const start = formatTime(startValue);
+    const end = formatTime(endValue);
+
+    if (!start && !end) continue;
+
     const current =
       grouped.get(dateKey) ||
       {
-        starts: [],
-        ends: [],
+        workSessions: [],
         totalMinutes: 0,
       };
 
-    if (startValue) current.starts.push(startValue);
-    if (endValue) current.ends.push(endValue);
+    /*
+      כל מקטע נרשם לחוד — לא מאחדים להתחלה/סיום אחת ליום.
+    */
+    current.workSessions.push({
+      id: cleanStr(session?._id || session?.id) || makeSessionId(),
+      start,
+      end,
+    });
 
     const directMinutes = Number(
       getValueByKeys(session, [
@@ -566,10 +604,10 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
 
     if (!Number.isNaN(directMinutes) && directMinutes > 0) {
       current.totalMinutes += directMinutes;
-    } else if (startValue && endValue) {
-      current.totalMinutes += minutesBetween(startValue, endValue);
-    } else if (startValue && String(session?.status || "").toLowerCase() === "open") {
-      // משמרת פתוחה — מציג זמן רץ עד עכשיו כדי שהעובד/ת יראו את היום הנוכחי
+    } else if (start && end) {
+      current.totalMinutes += minutesBetween(start, end);
+    } else if (start && isOpenSession) {
+      // משמרת פתוחה — זמן רץ עד עכשיו ביום הנוכחי
       current.totalMinutes += minutesBetween(startValue, new Date());
     }
 
@@ -580,19 +618,18 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
     const row = rowsMap.get(dateKey);
     if (!row) continue;
 
-    const sortedStarts = data.starts
-      .map((value) => new Date(value))
-      .filter((date) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => a.getTime() - b.getTime());
+    const sortedSessions = data.workSessions.sort((a, b) =>
+      String(a.start || "99:99").localeCompare(String(b.start || "99:99")),
+    );
 
-    const sortedEnds = data.ends
-      .map((value) => new Date(value))
-      .filter((date) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    row.actualStart = sortedStarts[0] ? formatTime(sortedStarts[0]) : row.actualStart;
-    row.actualEnd = sortedEnds[0] ? formatTime(sortedEnds[0]) : row.actualEnd;
-    row.totalMinutes = Math.round(data.totalMinutes);
+    row.workSessions = sortedSessions;
+    row.sessions = sortedSessions;
+    row.actualStart = getFirstSessionStart(sortedSessions);
+    row.actualEnd = getLastSessionEnd(sortedSessions);
+    row.totalMinutes =
+      data.totalMinutes > 0
+        ? Math.round(data.totalMinutes)
+        : calculateSessionsMinutes(sortedSessions);
   }
 
   return Array.from(rowsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
