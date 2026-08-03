@@ -863,9 +863,17 @@ export default function SoftphoneStatusPanel({
     });
   }, [loggedUser, shiftStarted, shiftStartedAt, shiftSessionId]);
 
+  const loggedUserId = getLoggedUserId(loggedUser);
+
   useEffect(() => {
-    loadMyStatus();
-  }, []);
+    if (!loggedUserId) {
+      setLoading(true);
+      return;
+    }
+
+    void loadMyStatus();
+    // נטען מחדש כשהמשתמש מזדהה אחרי login / bootstrap של AuthContext
+  }, [loggedUserId]);
 
   useEffect(() => {
     function handleExternalDialRequest(event: Event) {
@@ -1095,6 +1103,35 @@ export default function SoftphoneStatusPanel({
     }
   }
 
+  async function applyStartedShiftSession(
+    session: SoftphoneShiftSession | null | undefined,
+    fallbackStartedAt?: string | null,
+  ) {
+    const startedAt =
+      session?.startedAt || fallbackStartedAt || new Date().toISOString();
+    const sessionId = getShiftSessionId(session);
+
+    shiftStartedRef.current = true;
+    shiftStartedAtRef.current = startedAt;
+    shiftSessionIdRef.current = sessionId || shiftSessionIdRef.current;
+
+    setShiftStarted(true);
+    setShiftStartedAt(startedAt);
+    if (sessionId) setShiftSessionId(sessionId);
+    setShiftError("");
+
+    persistSoftphoneShift(loggedUser, {
+      shiftStarted: true,
+      shiftStartedAt: startedAt,
+      shiftSessionId: sessionId || shiftSessionIdRef.current,
+    });
+
+    return {
+      startedAt,
+      sessionId: sessionId || shiftSessionIdRef.current,
+    };
+  }
+
   async function loadMyStatus() {
     const now = new Date().toISOString();
     const persistedShift = readPersistedSoftphoneShift(loggedUser);
@@ -1131,21 +1168,43 @@ export default function SoftphoneStatusPanel({
       setShiftStarted(true);
       setShiftStartedAt(persistedShift.shiftStartedAt || now);
       setShiftSessionId(persistedShift.shiftSessionId || null);
+      shiftStartedRef.current = true;
+      shiftStartedAtRef.current = persistedShift.shiftStartedAt || now;
+      shiftSessionIdRef.current = persistedShift.shiftSessionId || null;
 
       // חשוב: מעבר עמוד / רענון לא מסיים משמרת.
-      // רק מחזירים את העובד לסטטוס זמין ומעדכנים נוכחות חיה.
+      // מחזירים את העובד לסטטוס זמין, מוודאים שיש סשן שעות פתוח בשרת,
+      // ומעדכנים נוכחות חיה.
+      let restoredSessionId = persistedShift.shiftSessionId || null;
+      let restoredStartedAt = persistedShift.shiftStartedAt || now;
+
+      try {
+        const session = await startShiftSessionApi();
+        const applied = await applyStartedShiftSession(
+          session,
+          persistedShift.shiftStartedAt || now,
+        );
+        restoredSessionId = applied.sessionId;
+        restoredStartedAt = applied.startedAt;
+      } catch (error) {
+        console.error("RESTORE OPEN SHIFT SESSION FAILED:", error);
+      }
+
       void syncLiveStatus("available", {
         direction: "none",
         number: null,
         reason: null,
         shiftStartedOverride: true,
-        shiftStartedAtOverride: persistedShift.shiftStartedAt || now,
-        shiftSessionIdOverride: persistedShift.shiftSessionId || null,
+        shiftStartedAtOverride: restoredStartedAt,
+        shiftSessionIdOverride: restoredSessionId,
       });
     } else {
       setShiftStarted(false);
       setShiftStartedAt(null);
       setShiftSessionId(null);
+      shiftStartedRef.current = false;
+      shiftStartedAtRef.current = null;
+      shiftSessionIdRef.current = null;
     }
 
     setLoading(false);
@@ -1167,30 +1226,17 @@ export default function SoftphoneStatusPanel({
       shiftStartedAt: now,
       shiftSessionId: shiftSessionIdRef.current,
     });
+
+    // שומר שעת התחלה בתיק עובד גם אם הסטטוס השתנה בלי כפתור "התחל משמרת"
+    void ensureShiftStartedForCall();
   }
 
   async function ensureShiftStartedForCall() {
-    if (shiftStartedRef.current) return;
+    if (shiftStartedRef.current && shiftSessionIdRef.current) return;
 
     try {
       const session = await startShiftSessionApi();
-      const startedAt = session?.startedAt || new Date().toISOString();
-      const sessionId = getShiftSessionId(session);
-
-      shiftStartedRef.current = true;
-      shiftStartedAtRef.current = startedAt;
-      shiftSessionIdRef.current = sessionId;
-
-      setShiftStarted(true);
-      setShiftStartedAt(startedAt);
-      setShiftSessionId(sessionId);
-      setShiftError("");
-
-      persistSoftphoneShift(loggedUser, {
-        shiftStarted: true,
-        shiftStartedAt: startedAt,
-        shiftSessionId: sessionId,
-      });
+      await applyStartedShiftSession(session);
     } catch (error) {
       console.error("AUTO START SHIFT FOR CALL FAILED:", error);
 
@@ -1355,32 +1401,23 @@ export default function SoftphoneStatusPanel({
     try {
       setShiftError("");
 
-      await connectWebrtc();
-
+      // קודם שומרים שעת התחלה בתיק העובד, ורק אחר כך מחברים WebRTC
       const session = await startShiftSessionApi();
-      const startedAt = session?.startedAt || new Date().toISOString();
+      await applyStartedShiftSession(session);
 
-      const sessionId = getShiftSessionId(session);
-
-      shiftStartedRef.current = true;
-      shiftStartedAtRef.current = startedAt;
-      shiftSessionIdRef.current = sessionId;
-
-      setShiftStarted(true);
-      setShiftStartedAt(startedAt);
-      setShiftSessionId(sessionId);
-
-      persistSoftphoneShift(loggedUser, {
-        shiftStarted: true,
-        shiftStartedAt: startedAt,
-        shiftSessionId: sessionId,
-      });
       setCallDirection("none");
       setActiveCallNumber("");
       setActiveBusyReason(null);
       setBusyReason("");
       setShowDialer(false);
       setShowBusyMenu(false);
+
+      try {
+        await connectWebrtc();
+      } catch (webrtcErr) {
+        console.error("START SHIFT WEBRTC FAILED:", webrtcErr);
+        setWebrtcError("המשמרת נפתחה, אבל חיבור הסופטפון נכשל. נסי שוב.");
+      }
 
       await changeStatus("available", {
         direction: "none",
@@ -1393,7 +1430,7 @@ export default function SoftphoneStatusPanel({
       const message =
         error instanceof Error ? error.message : "לא הצלחנו להתחיל משמרת";
       setShiftError(message);
-      alert("לא הצלחנו להתחיל משמרת. בדקי חיבור סופטפון והרשאת מיקרופון.");
+      alert("לא הצלחנו להתחיל משמרת ולשמור שעת התחלה. נסי שוב.");
     }
   }
 
@@ -2124,12 +2161,47 @@ export default function SoftphoneStatusPanel({
   const activeDisplayNumber = activeCallNumber || phoneNumber || "—";
   const timerLabel = getTimerLabel(currentStatus, activeBusyReason);
 
+  async function endOpenShiftForDisconnect(endedBy: "employee" | "admin" = "employee") {
+    if (!shiftStartedRef.current && !shiftSessionIdRef.current) {
+      return;
+    }
+
+    try {
+      await endShiftSessionApi();
+    } catch (error) {
+      console.error("END SHIFT ON DISCONNECT FAILED:", error);
+    }
+
+    shiftStartedRef.current = false;
+    shiftStartedAtRef.current = null;
+    shiftSessionIdRef.current = null;
+
+    persistSoftphoneShift(loggedUser, { shiftStarted: false });
+    setShiftStarted(false);
+    setShiftStartedAt(null);
+    setShiftSessionId(null);
+
+    try {
+      await syncLiveStatus("offline", {
+        direction: "none",
+        number: null,
+        reason: null,
+        shiftStartedOverride: false,
+        shiftStartedAtOverride: null,
+        shiftSessionIdOverride: null,
+        endedBy,
+      });
+    } catch (error) {
+      console.error("SYNC OFFLINE ON DISCONNECT FAILED:", error);
+    }
+  }
+
   async function handleLogout() {
     try {
       /*
-        חשוב: התנתקות לא מסיימת משמרת.
-        סיום משמרת נשמר רק דרך כפתור "סיים משמרת" ואישור ידני.
+        התנתקות מסיימת משמרת פתוחה ושומרת שעת סיום בתיק העובד.
       */
+      await endOpenShiftForDisconnect("employee");
       disconnectWebrtc();
 
       await logout();

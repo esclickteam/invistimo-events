@@ -280,6 +280,22 @@ function getExitImpersonationRedirectPath(currentUser: User | null) {
   return "/admin";
 }
 
+const AUTH_CHANGED_EVENT = "invistimo:auth-changed";
+
+function notifyAuthChanged(user: User | null) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(AUTH_CHANGED_EVENT, {
+        detail: { user },
+      }),
+    );
+  } catch (error) {
+    console.warn("AUTH CHANGED EVENT FAILED:", error);
+  }
+}
+
 /* =====================================================
    CONTEXT
 ===================================================== */
@@ -326,6 +342,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem("auth_user");
       _setIsAuthenticated(false);
     }
+
+    notifyAuthChanged(next);
   };
 
   const setIsAuthenticated = (value: boolean) => {
@@ -386,8 +404,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cached) {
         const parsed = JSON.parse(cached) as User;
         if (parsed?.role) {
-          _setUser(parsed);
-          _setIsAuthenticated(true);
+          setUser(parsed);
         }
       }
     } catch {
