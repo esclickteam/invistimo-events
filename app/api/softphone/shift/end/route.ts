@@ -408,12 +408,15 @@ async function createFallbackClosedSession({
   const totalMinutes = calculateTotalMinutes(startedAt, now);
   const totalHours = Number((totalMinutes / 60).toFixed(2));
   const dayKey = getDayKey(startedAt);
+  const monthKey = dayKey.slice(0, 7);
 
   const session = await SoftphoneWorkSession.create({
     employeeId: identity.employeeObjectId,
     employeeIdString: identity.employeeId,
     employeeEmail: identity.employeeEmail,
     businessIdString: identity.businessId,
+    date: dayKey,
+    month: monthKey,
     startedAt,
     startAt: startedAt,
     endedAt: now,

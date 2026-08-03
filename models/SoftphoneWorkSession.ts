@@ -44,6 +44,18 @@ const SoftphoneWorkSessionSchema = new Schema(
       // YYYY-MM
     },
 
+    dayKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    workDate: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     startedAt: {
       type: Date,
       required: true,
@@ -68,9 +80,31 @@ const SoftphoneWorkSessionSchema = new Schema(
       index: true,
     },
 
+    active: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
     source: {
       type: String,
       default: "softphone",
+    },
+
+    endedBy: {
+      type: String,
+      default: "",
+    },
+
+    endReason: {
+      type: String,
+      default: "",
     },
 
     startMeta: {

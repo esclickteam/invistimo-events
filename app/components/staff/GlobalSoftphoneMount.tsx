@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
+import { useAuth } from "@/context/AuthContext";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -15,6 +16,7 @@ type GlobalSoftphoneUser = {
   staffType?: string | null;
   employeeScope?: string | null;
   isSystemStaff?: boolean;
+  isUsherStaff?: boolean;
   isProducerStaff?: boolean;
   impersonated?: boolean;
   impersonatedByAdmin?: boolean;
@@ -92,7 +94,8 @@ function isSystemEmployeeRole(value?: string | null) {
     role === "employee" ||
     role === "worker" ||
     role === "system_staff" ||
-    role === "general_staff"
+    role === "general_staff" ||
+    role === "usher_staff"
   );
 }
 
@@ -101,8 +104,8 @@ function isSystemEmployeeRole(value?: string | null) {
   כן:
   - role: staff / employee / worker
   - effectiveRole: system_staff
-  - isSystemStaff: true
-  - staffType: general_staff + employeeScope: system
+  - isSystemStaff / isUsherStaff: true
+  - staffType: general_staff|usher_staff + employeeScope: system
 
   לא:
   - producer
@@ -123,6 +126,7 @@ function isSystemEmployeeUser(user: GlobalSoftphoneUser) {
   if (isProducerRole(effectiveRole)) return false;
   if (isProducerRole(staffType)) return false;
   if (isProducerRole(impersonationRole)) return false;
+  if (user.isProducerStaff === true) return false;
 
   /*
     בזמן התחזות:
@@ -138,12 +142,13 @@ function isSystemEmployeeUser(user: GlobalSoftphoneUser) {
   }
 
   if (user.isSystemStaff === true) return true;
+  if (user.isUsherStaff === true) return true;
   if (effectiveRole === "system_staff") return true;
 
   if (
     role === "staff" &&
-    staffType === "general_staff" &&
-    employeeScope === "system"
+    employeeScope === "system" &&
+    (staffType === "general_staff" || staffType === "usher_staff")
   ) {
     return true;
   }
@@ -153,33 +158,37 @@ function isSystemEmployeeUser(user: GlobalSoftphoneUser) {
 
 export default function GlobalSoftphoneMount() {
   const pathname = usePathname();
+  const { user: authUser, loading: authLoading } = useAuth();
 
   const [mounted, setMounted] = useState(false);
-  const [currentUser, setCurrentUser] =
-    useState<GlobalSoftphoneUser>(null);
+  const [cachedUser, setCachedUser] = useState<GlobalSoftphoneUser>(null);
   const [supportModeActive, setSupportModeActive] = useState(false);
 
-  const refreshState = useCallback(() => {
-    setCurrentUser(getCachedUserFromSession());
+  const refreshCacheState = useCallback(() => {
+    setCachedUser(getCachedUserFromSession());
     setSupportModeActive(isSupportModeActive());
   }, []);
 
   useEffect(() => {
+    /*
+      mounted + cache מיד ב-client mount — לפני סיום /api/me —
+      כדי שהסופטפון יופיע ישר אחרי התחברות.
+    */
     setMounted(true);
-    refreshState();
+    refreshCacheState();
 
     function handleFocus() {
-      refreshState();
+      refreshCacheState();
     }
 
     function handleVisibilityChange() {
       if (!document.hidden) {
-        refreshState();
+        refreshCacheState();
       }
     }
 
     function handleAuthChanged() {
-      refreshState();
+      refreshCacheState();
     }
 
     function handleStorage(event: StorageEvent) {
@@ -188,7 +197,7 @@ export default function GlobalSoftphoneMount() {
         event.key === "staffImpersonationActive" ||
         event.key === "staffOriginalUserId"
       ) {
-        refreshState();
+        refreshCacheState();
       }
     }
 
@@ -197,47 +206,37 @@ export default function GlobalSoftphoneMount() {
     window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    /*
-      אין setInterval.
-      אין /api/me.
-      הסופטפון מתעדכן רק כשה־AuthProvider מעדכן sessionStorage
-      ומשדר invistimo:auth-changed.
-    */
-
     return () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshState]);
+  }, [refreshCacheState]);
 
   useEffect(() => {
-    refreshState();
-  }, [pathname, refreshState]);
+    refreshCacheState();
+  }, [pathname, authUser, authLoading, refreshCacheState]);
+
+  /*
+    מקור אמת ראשי: AuthContext (מתעדכן ישר אחרי login /api/me).
+    sessionStorage הוא fallback בזמן bootstrap בלבד.
+  */
+  const currentUser = useMemo<GlobalSoftphoneUser>(() => {
+    if (authUser) return authUser as GlobalSoftphoneUser;
+    if (!authLoading) return cachedUser;
+    return cachedUser || null;
+  }, [authUser, authLoading, cachedUser]);
 
   const shouldShowSoftphone = useMemo(() => {
     if (!mounted) return false;
 
-    /*
-      אין משתמש מחובר בכלל.
-    */
     if (!currentUser) return false;
 
-    /*
-      מצב התחזות / תמיכה:
-      מציגים רק אם המשתמש המקורי הוא עובד מערכת,
-      ולא עובד מפיק.
-    */
     if (supportModeActive) {
       return isSystemEmployeeUser(currentUser);
     }
 
-    /*
-      בלי התחזות:
-      מציגים רק באזורי staff / employee
-      ורק לעובד מערכת.
-    */
     if (!isEmployeeOrStaffPath(pathname)) return false;
 
     return isSystemEmployeeUser(currentUser);

@@ -242,12 +242,16 @@ export async function POST(request: NextRequest) {
 
       date: dateKey,
       month: monthKey,
+      dayKey: dateKey,
+      workDate: dateKey,
 
       startedAt: now,
       endedAt: null,
       totalMinutes: 0,
 
       status: "open",
+      active: true,
+      isActive: true,
       source: cleanStr(body.source) || "softphone",
 
       startMeta: {

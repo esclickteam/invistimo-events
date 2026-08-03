@@ -280,6 +280,22 @@ function getExitImpersonationRedirectPath(currentUser: User | null) {
   return "/admin";
 }
 
+const AUTH_CHANGED_EVENT = "invistimo:auth-changed";
+
+function notifyAuthChanged(user: User | null) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(AUTH_CHANGED_EVENT, {
+        detail: { user },
+      }),
+    );
+  } catch (error) {
+    console.warn("AUTH CHANGED EVENT FAILED:", error);
+  }
+}
+
 /* =====================================================
    CONTEXT
 ===================================================== */
@@ -298,14 +314,31 @@ const AuthContext = createContext<AuthContextType>({
 /* =====================================================
    PROVIDER
 ===================================================== */
+function readCachedAuthUser(): User | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const cached = sessionStorage.getItem("auth_user");
+    if (!cached) return null;
+
+    const parsed = JSON.parse(cached) as User;
+    if (!parsed?.role) return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
   /* --------------------------------------------------
      UX cache בלבד – לא מקור אמת.
-     Start null on server AND client to avoid hydration mismatch
-     (sessionStorage is only available in the browser).
+     בצד השרת מתחילים null (hydration בטוח).
+     אחרי mount משחזרים מיד מ-sessionStorage כדי שהסופטפון
+     יופיע בלי לחכות ל-/api/me.
   -------------------------------------------------- */
   const [user, _setUser] = useState<User | null>(null);
 
@@ -326,6 +359,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem("auth_user");
       _setIsAuthenticated(false);
     }
+
+    notifyAuthChanged(next);
   };
 
   const setIsAuthenticated = (value: boolean) => {
@@ -354,8 +389,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!res.ok) {
+        /*
+          כשל רגעי ב-/api/me לא מוחק משתמש תקין מה-cache.
+          אחרת הסופטפון נעלם אחרי login עד רענון ידני.
+        */
         console.error("❌ /api/me failed:", res.status);
-        setUser(null);
         return null;
       }
 
@@ -364,7 +402,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextUser || !nextUser.role) {
         console.error("❌ Invalid user from /api/me");
-        setUser(null);
         return null;
       }
 
@@ -372,7 +409,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return nextUser;
     } catch (err) {
       console.error("❌ refreshUser error:", err);
-      setUser(null);
       return null;
     }
   };
@@ -381,17 +417,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🚀 אימות ראשוני + שחזור cache אחרי mount בלבד
   -------------------------------------------------- */
   useEffect(() => {
-    try {
-      const cached = sessionStorage.getItem("auth_user");
-      if (cached) {
-        const parsed = JSON.parse(cached) as User;
-        if (parsed?.role) {
-          _setUser(parsed);
-          _setIsAuthenticated(true);
-        }
-      }
-    } catch {
-      sessionStorage.removeItem("auth_user");
+    const cached = readCachedAuthUser();
+
+    if (cached) {
+      /*
+        משחזרים מיד לפני /api/me כדי שעובד מערכת יראה סופטפון
+        ישר אחרי login/redirect — בלי רענון ידני.
+      */
+      setUser(cached);
+      setIsAuthenticated(true);
+      setLoading(false);
     }
 
     refreshUser().finally(() => {

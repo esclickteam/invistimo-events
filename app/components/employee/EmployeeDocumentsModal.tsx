@@ -121,6 +121,12 @@ type EmployeeHoursSubmissionStatus =
   | "rejected"
   | string;
 
+type WorkSession = {
+  id: string;
+  start: string;
+  end: string;
+};
+
 type ApiEmployeeHoursRow = {
   _id?: string;
   id?: string;
@@ -147,6 +153,23 @@ type ApiEmployeeHoursRow = {
   clockIn?: string;
   clockOut?: string;
 
+  workSessions?: Array<{
+    id?: string;
+    _id?: string;
+    start?: string;
+    end?: string;
+    actualStart?: string;
+    actualEnd?: string;
+  }>;
+  sessions?: Array<{
+    id?: string;
+    _id?: string;
+    start?: string;
+    end?: string;
+    actualStart?: string;
+    actualEnd?: string;
+  }>;
+
   totalMinutes?: number;
   workMinutes?: number;
   minutes?: number;
@@ -168,6 +191,7 @@ type EmployeeHoursRow = {
   scheduledEnd: string;
   actualStart: string;
   actualEnd: string;
+  workSessions: WorkSession[];
   totalMinutes: number;
   note: string;
   status: string;
@@ -350,11 +374,56 @@ function getDaysInMonth(monthKey: string) {
       scheduledEnd: "",
       actualStart: "",
       actualEnd: "",
+      workSessions: [],
       totalMinutes: 0,
       note: "",
       status: "draft",
     } satisfies EmployeeHoursRow;
   });
+}
+
+function normalizeWorkSessions(row: ApiEmployeeHoursRow): WorkSession[] {
+  const rawSessions = Array.isArray(row.workSessions)
+    ? row.workSessions
+    : Array.isArray(row.sessions)
+      ? row.sessions
+      : [];
+
+  const sessions = rawSessions
+    .map((session, index) => {
+      const start = cleanString(
+        session?.start || session?.actualStart || "",
+      );
+      const end = cleanString(session?.end || session?.actualEnd || "");
+
+      return {
+        id: cleanString(session?.id || session?._id) || `session-${index}`,
+        start,
+        end,
+      } satisfies WorkSession;
+    })
+    .filter((session) => session.start || session.end);
+
+  if (sessions.length > 0) return sessions;
+
+  const actualStart = cleanString(
+    row.actualStart || row.softphoneStart || row.clockIn || "",
+  );
+  const actualEnd = cleanString(
+    row.actualEnd || row.softphoneEnd || row.clockOut || "",
+  );
+
+  if (actualStart || actualEnd) {
+    return [
+      {
+        id: "legacy-session",
+        start: actualStart,
+        end: actualEnd,
+      },
+    ];
+  }
+
+  return [];
 }
 
 function formatTime(value?: string | null) {
@@ -427,7 +496,7 @@ function monthName(value?: number | string) {
   return String(value);
 }
 
-function parseTotalMinutes(row: ApiEmployeeHoursRow) {
+function parseTotalMinutes(row: ApiEmployeeHoursRow, workSessions: WorkSession[]) {
   const directMinutes = Number(row.totalMinutes ?? row.workMinutes ?? row.minutes);
 
   if (!Number.isNaN(directMinutes) && directMinutes > 0) {
@@ -438,6 +507,13 @@ function parseTotalMinutes(row: ApiEmployeeHoursRow) {
 
   if (!Number.isNaN(totalHours) && totalHours > 0) {
     return Math.round(totalHours * 60);
+  }
+
+  if (workSessions.length > 0) {
+    return workSessions.reduce(
+      (sum, session) => sum + minutesBetween(session.start, session.end),
+      0,
+    );
   }
 
   const actualStart =
@@ -476,13 +552,17 @@ function normalizeHoursRows(data: any, monthKey: string): {
           rawItem.scheduledStart || rawItem.shiftStart || "";
         const scheduledEnd = rawItem.scheduledEnd || rawItem.shiftEnd || "";
 
+        const workSessions = normalizeWorkSessions(rawItem);
+
         const actualStart =
+          workSessions[0]?.start ||
           rawItem.actualStart ||
           rawItem.softphoneStart ||
           rawItem.clockIn ||
           "";
 
         const actualEnd =
+          [...workSessions].reverse().find((session) => session.end)?.end ||
           rawItem.actualEnd ||
           rawItem.softphoneEnd ||
           rawItem.clockOut ||
@@ -514,7 +594,8 @@ function normalizeHoursRows(data: any, monthKey: string): {
           scheduledEnd: cleanString(scheduledEnd),
           actualStart: cleanString(actualStart),
           actualEnd: cleanString(actualEnd),
-          totalMinutes: parseTotalMinutes(rawItem),
+          workSessions,
+          totalMinutes: parseTotalMinutes(rawItem, workSessions),
           note: cleanString(rawItem.note || rawItem.employeeNote),
           status: cleanString(rawItem.status) || "draft",
         } satisfies EmployeeHoursRow;
@@ -550,8 +631,13 @@ function normalizeHoursRows(data: any, monthKey: string): {
 
   const workedDays =
     Number(summaryFromResponse.workedDays) ||
-    rows.filter((row) => row.actualStart || row.actualEnd || row.totalMinutes > 0)
-      .length;
+    rows.filter(
+      (row) =>
+        row.workSessions.length > 0 ||
+        row.actualStart ||
+        row.actualEnd ||
+        row.totalMinutes > 0,
+    ).length;
 
   const status =
     cleanString(
@@ -1277,11 +1363,31 @@ function HoursTable({
                   </td>
 
                   <td className="px-4 py-3 text-sm font-bold text-slate-700">
-                    {formatTime(row.actualStart)}
+                    {row.workSessions.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {row.workSessions.map((session) => (
+                          <span key={`${row.date}-in-${session.id}`}>
+                            {formatTime(session.start)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      formatTime(row.actualStart)
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-sm font-bold text-slate-700">
-                    {formatTime(row.actualEnd)}
+                    {row.workSessions.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {row.workSessions.map((session) => (
+                          <span key={`${row.date}-out-${session.id}`}>
+                            {formatTime(session.end)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      formatTime(row.actualEnd)
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-sm font-black text-slate-900">

@@ -235,6 +235,16 @@ function getSessionStart(session: Record<string, unknown>) {
 }
 
 function getSessionEnd(session: Record<string, unknown>) {
+  const status = String(session.status || "").toLowerCase();
+  const isOpen =
+    status !== "closed" &&
+    status !== "ended" &&
+    (session.endedAt == null || session.endedAt === "");
+
+  if (isOpen) {
+    return null;
+  }
+
   return (
     session.endedAt ||
     session.endTime ||
