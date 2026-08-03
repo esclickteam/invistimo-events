@@ -655,6 +655,29 @@ export default function AdminEmployeeHoursPage() {
             ? row.workSessions
             : normalizeWorkSessions(row);
 
+        const target = currentSessions.find(
+          (session: EmployeeWorkSession) => session.id === sessionId
+        );
+
+        if (!target) return row;
+
+        // מקטע יחיד עם שעות — מנקים אותו לגמרי (לא מסתירים את כפתור המחיקה)
+        if (currentSessions.length === 1) {
+          return recalculateRow({
+            ...row,
+            workSessions: [
+              {
+                id: makeSessionId(),
+                start: "",
+                end: "",
+              },
+            ],
+            actualStart: "",
+            actualEnd: "",
+            totalMinutes: 0,
+          });
+        }
+
         const nextSessions = currentSessions.filter(
           (session: EmployeeWorkSession) => session.id !== sessionId
         );
@@ -1469,13 +1492,32 @@ export default function AdminEmployeeHoursPage() {
                                       className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
                                     />
 
-                                    {sessions.length > 1 ? (
+                                    {sessions.length > 1 ||
+                                    session.start ||
+                                    session.end ? (
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          removeWorkSession(row.date, session.id)
-                                        }
+                                        onClick={() => {
+                                          const filledCount = sessions.filter(
+                                            (item: EmployeeWorkSession) =>
+                                              item.start || item.end
+                                          ).length;
+
+                                          const message =
+                                            sessions.length === 1 ||
+                                            filledCount <= 1
+                                              ? "למחוק את השעות של היום הזה?\nלאחר המחיקה יש לשמור כדי לעדכן."
+                                              : "למחוק את מקטע השעות הזה?\nלאחר המחיקה יש לשמור כדי לעדכן.";
+
+                                          if (!window.confirm(message)) return;
+
+                                          removeWorkSession(
+                                            row.date,
+                                            session.id
+                                          );
+                                        }}
                                         className="h-10 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-100"
+                                        title="מחק שעות"
                                       >
                                         מחק
                                       </button>

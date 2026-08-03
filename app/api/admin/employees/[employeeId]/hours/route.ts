@@ -772,18 +772,21 @@ function hasManualOverride(saved: any, sourceRow: DayRow) {
   const sourceSessionSignature = sessionsSignature(sourceSessions);
 
   const savedNote = cleanStr(saved?.note);
+  const sourceNote = cleanStr(sourceRow.note);
   const savedMinutes = Number(saved?.totalMinutes);
+  const sourceMinutes = Number(sourceRow.totalMinutes || 0);
 
-  if (savedSessionSignature && savedSessionSignature !== sourceSessionSignature) {
+  // כולל מקרה של מחיקת שעות (חתימה ריקה מול מקור עם שעות)
+  if (savedSessionSignature !== sourceSessionSignature) {
     return true;
   }
 
-  if (savedNote && savedNote !== sourceRow.note) return true;
+  if (savedNote !== sourceNote) return true;
 
   if (
     Number.isFinite(savedMinutes) &&
-    savedMinutes > 0 &&
-    savedMinutes !== Number(sourceRow.totalMinutes || 0)
+    savedMinutes >= 0 &&
+    savedMinutes !== sourceMinutes
   ) {
     return true;
   }
