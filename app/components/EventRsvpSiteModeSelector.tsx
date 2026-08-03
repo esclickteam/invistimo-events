@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link2, Plus, Sparkles } from "lucide-react";
-import AddPageModal from "@/components/site-page-library/AddPageModal";
+import { Link2, Sparkles } from "lucide-react";
 import {
   normalizeRsvpSiteMode,
   RSVP_SITE_MODE_DEFAULT,
   RSVP_SITE_MODE_OPTIONS,
   type RsvpSiteMode,
 } from "@/types/rsvpSite";
-import type { SitePageSelection } from "@/types/sitePageLibrary";
 
 type Props = {
   invitationId: string;
@@ -17,12 +15,9 @@ type Props = {
 
 export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
   const [mode, setMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
-  const [shareId, setShareId] = useState("");
   const [invitationSettings, setInvitationSettings] = useState<
     Record<string, unknown>
   >({});
-  const [sitePages, setSitePages] = useState<SitePageSelection[]>([]);
-  const [libraryOpen, setLibraryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -46,12 +41,6 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
         const storedSettings = data?.invitation?.invitationSettings || {};
         setInvitationSettings(storedSettings);
         setMode(normalizeRsvpSiteMode(storedSettings.rsvpSiteMode));
-        setShareId(String(data?.invitation?.shareId || ""));
-        setSitePages(
-          Array.isArray(storedSettings.sitePages)
-            ? (storedSettings.sitePages as SitePageSelection[])
-            : []
-        );
       } catch (err) {
         console.error("Failed loading RSVP site mode", err);
         if (!cancelled) {
@@ -329,56 +318,16 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
           py-5
         "
       >
-        {mode === "personal" && (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setLibraryOpen(true)}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#B8844F] px-5 text-sm font-black text-white transition hover:bg-[#96703A]"
-            >
-              <Plus className="h-4 w-4" />
-              הוספת עמודים
-            </button>
-
-            {sitePages.length > 0 && (
-              <span className="rounded-full border border-[#E3D6C3] bg-white px-3 py-1.5 text-xs font-black text-[#B8844F]">
-                {sitePages.length} עמודים/סקשנים נוספו
-              </span>
-            )}
-          </div>
-        )}
-
         <p className="text-sm font-bold text-[#8A7B69]">
           {saving
             ? "שומר בחירה..."
             : saved
-              ? "הבחירה נשמרה."
+              ? "הבחירה נשמרה. האתר האישי יופעל בשלב הבא."
               : mode === "personal"
-                ? sitePages.length > 0
-                  ? `אתר אישי עם ${sitePages.length} עמודים — לחצו "הוספת עמודים" לעריכה.`
-                  : 'נבחר אתר אישי — לחצו "הוספת עמודים" כדי להוסיף עמודים, טפסי התחברות/הרשמה ואזור אישי.'
+                ? "נבחר אתר אישי — ההגדרה נשמרת, אך האורחים עדיין מקבלים את הקישור הרגיל."
                 : "נבחר קישור רגיל — זה מה שהאורחים מקבלים היום."}
         </p>
       </div>
-
-      {shareId && (
-        <AddPageModal
-          open={libraryOpen}
-          onClose={() => setLibraryOpen(false)}
-          shareId={shareId}
-          invitationId={invitationId}
-          initialPages={sitePages}
-          existingSettings={invitationSettings}
-          onPagesChange={(pages) => {
-            setSitePages(pages);
-            setInvitationSettings((prev) => ({
-              ...prev,
-              sitePages: pages,
-            }));
-            setSaved(true);
-          }}
-        />
-      )}
     </div>
   );
 }
