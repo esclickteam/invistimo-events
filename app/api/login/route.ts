@@ -77,6 +77,30 @@ export async function POST(req: Request) {
     const isTrial = Boolean(user.isTrial);
 
     const role = String(user.role || "user");
+    const staffType = (user.staffType as string | null) ?? null;
+    const employeeScope =
+      (user.employeeScope as string | null) ?? null;
+
+    const isUsherStaff =
+      role === "staff" &&
+      staffType === "usher_staff" &&
+      employeeScope === "system";
+
+    const isSystemStaff =
+      role === "staff" &&
+      employeeScope === "system" &&
+      (staffType === "general_staff" || staffType === "usher_staff");
+
+    const isProducerStaff =
+      role === "staff" &&
+      staffType === "producer_staff" &&
+      employeeScope === "producer";
+
+    const effectiveRole = isProducerStaff
+      ? "producer_staff"
+      : isSystemStaff
+        ? "system_staff"
+        : role;
 
     /* ======================================================
        JWT - 7 days
@@ -103,6 +127,12 @@ export async function POST(req: Request) {
           name: user.name ?? "",
           email: user.email ?? "",
           role,
+          effectiveRole,
+          staffType,
+          employeeScope,
+          isSystemStaff,
+          isUsherStaff,
+          isProducerStaff,
           hasPaid,
           isTrial,
           trialExpiresAt: user.trialExpiresAt ?? null,

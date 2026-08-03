@@ -170,6 +170,10 @@ export default function GlobalSoftphoneMount() {
   }, []);
 
   useEffect(() => {
+    /*
+      mounted + cache מיד ב-client mount — לפני סיום /api/me —
+      כדי שהסופטפון יופיע ישר אחרי התחברות.
+    */
     setMounted(true);
     refreshCacheState();
 

@@ -504,19 +504,31 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
       "createdAt",
     ]);
 
-    const endValue = getValueByKeys(session, [
-      // SoftphoneWorkSession החדש
-      "endedAt",
+    const sessionStatus = String(session?.status || "").toLowerCase();
+    const hasClosedStatus = sessionStatus === "closed" || sessionStatus === "ended";
+    const hasRealEndedAt =
+      session?.endedAt != null && session?.endedAt !== "";
+    const isOpenSession = !hasClosedStatus && !hasRealEndedAt;
 
-      // תמיכה בשמות קיימים/עתידיים
-      "actualEnd",
-      "softphoneEnd",
-      "clockOut",
-      "clockOutAt",
-      "logoutAt",
-      "endAt",
-      "updatedAt",
-    ]);
+    /*
+      משמרת פתוחה: לא משתמשים ב-updatedAt כשעת סיום.
+      רק endedAt אמיתי נסגר ע״י סיום משמרת / התנתקות.
+    */
+    const endValue = isOpenSession
+      ? null
+      : getValueByKeys(session, [
+          // SoftphoneWorkSession החדש
+          "endedAt",
+
+          // תמיכה בשמות קיימים/עתידיים
+          "actualEnd",
+          "softphoneEnd",
+          "clockOut",
+          "clockOutAt",
+          "logoutAt",
+          "endAt",
+          "updatedAt",
+        ]);
 
     const dateKey =
       normalizeDateKey(

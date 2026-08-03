@@ -767,6 +767,41 @@ function persistSoftphoneShift(
   }
 }
 
+function readCachedAuthUser() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem("auth_user");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCurrentOpenShiftSession() {
+  const response = await fetch("/api/softphone/shift/current", {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = (await response.json().catch(() => null)) as {
+    success?: boolean;
+    open?: boolean;
+    session?: SoftphoneShiftSession | null;
+    error?: string;
+  } | null;
+
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || "SHIFT_CURRENT_FAILED");
+  }
+
+  if (!data.open || !data.session) return null;
+
+  return data.session;
+}
+
 type SoftphoneDialRequest = {
   number?: string;
   phone?: string;
@@ -791,6 +826,21 @@ export default function SoftphoneStatusPanel({
   const auth = useAuth() as any;
   const { logout } = auth;
 
+  const [cachedAuthUser, setCachedAuthUser] = useState<any>(null);
+
+  useEffect(() => {
+    setCachedAuthUser(readCachedAuthUser());
+
+    function handleAuthChanged() {
+      setCachedAuthUser(readCachedAuthUser());
+    }
+
+    window.addEventListener("invistimo:auth-changed", handleAuthChanged);
+    return () => {
+      window.removeEventListener("invistimo:auth-changed", handleAuthChanged);
+    };
+  }, []);
+
   const loggedUser =
     auth?.user ||
     auth?.currentUser ||
@@ -798,6 +848,7 @@ export default function SoftphoneStatusPanel({
     auth?.staff ||
     auth?.me ||
     auth?.profile ||
+    cachedAuthUser ||
     null;
 
   const [agent, setAgent] = useState<AgentState | null>(null);
@@ -819,6 +870,7 @@ export default function SoftphoneStatusPanel({
   const shiftStartedRef = useRef(false);
   const shiftStartedAtRef = useRef<string | null>(null);
   const shiftSessionIdRef = useRef<string | null>(null);
+  const shiftHydratedRef = useRef(false);
 
   const [tick, setTick] = useState(0);
 
@@ -856,11 +908,20 @@ export default function SoftphoneStatusPanel({
     shiftStartedAtRef.current = shiftStartedAt;
     shiftSessionIdRef.current = shiftSessionId;
 
-    persistSoftphoneShift(loggedUser, {
-      shiftStarted,
-      shiftStartedAt,
-      shiftSessionId,
-    });
+    /*
+      קריטי: לא מוחקים localStorage של משמרת פתוחה מהמצב ההתחלתי false.
+      אחרת מעבר עמוד / remount מוחק את המפתח לפני restore ונראה כאילו המשמרת נגמרה.
+      ניקוי קורה רק ב-confirmEndShift / endOpenShiftForDisconnect.
+    */
+    if (!shiftHydratedRef.current) return;
+
+    if (shiftStarted) {
+      persistSoftphoneShift(loggedUser, {
+        shiftStarted: true,
+        shiftStartedAt,
+        shiftSessionId,
+      });
+    }
   }, [loggedUser, shiftStarted, shiftStartedAt, shiftSessionId]);
 
   const loggedUserId = getLoggedUserId(loggedUser);
@@ -1138,17 +1199,37 @@ export default function SoftphoneStatusPanel({
 
     setLoading(true);
     setShiftError("");
+    shiftHydratedRef.current = false;
 
-    const defaultStatus: AgentStatus = persistedShift?.shiftStarted
-      ? "available"
-      : "offline";
+    let serverOpenSession: SoftphoneShiftSession | null = null;
+
+    try {
+      serverOpenSession = await fetchCurrentOpenShiftSession();
+    } catch (error) {
+      console.warn("FETCH CURRENT OPEN SHIFT FAILED:", error);
+    }
+
+    const hasOpenShift =
+      Boolean(persistedShift?.shiftStarted) || Boolean(serverOpenSession);
+
+    const restoredStartedAtHint =
+      serverOpenSession?.startedAt ||
+      persistedShift?.shiftStartedAt ||
+      now;
+
+    const restoredSessionIdHint =
+      getShiftSessionId(serverOpenSession) ||
+      persistedShift?.shiftSessionId ||
+      null;
+
+    const defaultStatus: AgentStatus = hasOpenShift ? "available" : "offline";
 
     setAgent({
       agentId: getLoggedUserId(loggedUser) || "local-softphone",
       name: getLoggedUserName(loggedUser),
       email: getLoggedUserEmail(loggedUser),
       status: defaultStatus,
-      statusStartedAt: persistedShift?.shiftStartedAt || now,
+      statusStartedAt: restoredStartedAtHint,
       todayAvailableSeconds: 0,
       todayDialingSeconds: 0,
       todayRingingSeconds: 0,
@@ -1164,30 +1245,53 @@ export default function SoftphoneStatusPanel({
       lastSeenAt: now,
     });
 
-    if (persistedShift?.shiftStarted) {
+    if (hasOpenShift) {
       setShiftStarted(true);
-      setShiftStartedAt(persistedShift.shiftStartedAt || now);
-      setShiftSessionId(persistedShift.shiftSessionId || null);
+      setShiftStartedAt(restoredStartedAtHint);
+      setShiftSessionId(restoredSessionIdHint);
       shiftStartedRef.current = true;
-      shiftStartedAtRef.current = persistedShift.shiftStartedAt || now;
-      shiftSessionIdRef.current = persistedShift.shiftSessionId || null;
+      shiftStartedAtRef.current = restoredStartedAtHint;
+      shiftSessionIdRef.current = restoredSessionIdHint;
 
-      // חשוב: מעבר עמוד / רענון לא מסיים משמרת.
-      // מחזירים את העובד לסטטוס זמין, מוודאים שיש סשן שעות פתוח בשרת,
-      // ומעדכנים נוכחות חיה.
-      let restoredSessionId = persistedShift.shiftSessionId || null;
-      let restoredStartedAt = persistedShift.shiftStartedAt || now;
+      /*
+        חשוב: מעבר עמוד / חיוג / רענון לא מסיים משמרת.
+        משחזרים משמרת פתוחה מהשרת או מה-localStorage, ורק אם אין סשן בשרת
+        אבל יש סימון מקומי — מוודאים סשן דרך start (מחזיר alreadyOpen או יוצר).
+      */
+      let restoredSessionId = restoredSessionIdHint;
+      let restoredStartedAt = restoredStartedAtHint;
 
       try {
-        const session = await startShiftSessionApi();
-        const applied = await applyStartedShiftSession(
-          session,
-          persistedShift.shiftStartedAt || now,
-        );
-        restoredSessionId = applied.sessionId;
-        restoredStartedAt = applied.startedAt;
+        if (serverOpenSession) {
+          const applied = await applyStartedShiftSession(
+            serverOpenSession,
+            restoredStartedAtHint,
+          );
+          restoredSessionId = applied.sessionId;
+          restoredStartedAt = applied.startedAt;
+        } else {
+          const session = await startShiftSessionApi();
+          const applied = await applyStartedShiftSession(
+            session,
+            restoredStartedAtHint,
+          );
+          restoredSessionId = applied.sessionId;
+          restoredStartedAt = applied.startedAt;
+        }
       } catch (error) {
         console.error("RESTORE OPEN SHIFT SESSION FAILED:", error);
+        persistSoftphoneShift(loggedUser, {
+          shiftStarted: true,
+          shiftStartedAt: restoredStartedAt,
+          shiftSessionId: restoredSessionId,
+        });
+      }
+
+      try {
+        await connectWebrtc();
+      } catch (webrtcErr) {
+        console.error("RESTORE SHIFT WEBRTC FAILED:", webrtcErr);
+        setWebrtcError("המשמרת פתוחה, אבל חיבור הסופטפון נכשל. נסי שוב.");
       }
 
       void syncLiveStatus("available", {
@@ -1207,6 +1311,7 @@ export default function SoftphoneStatusPanel({
       shiftSessionIdRef.current = null;
     }
 
+    shiftHydratedRef.current = true;
     setLoading(false);
   }
 
