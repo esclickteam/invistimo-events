@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
+import { moveStuckPaymentsToDecember } from "@/lib/admin/moveStuckPaymentsToDecember";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -353,6 +354,14 @@ export async function GET(req: NextRequest) {
 
     if (decoded.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // תיקון נקודתי: גל ואורנית / רפאל אברמוב → דצמבר 2025
+    // לא מוחק משתמשים ולא מכבה גישה — רק מעביר תאריך תשלום.
+    try {
+      await moveStuckPaymentsToDecember();
+    } catch (fixErr) {
+      console.error("⚠️ moveStuckPaymentsToDecember failed:", fixErr);
     }
 
     const { searchParams } = new URL(req.url);
