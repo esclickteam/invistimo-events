@@ -92,6 +92,8 @@ function getPackageLabel(user: any) {
 
 /**
  * תאריך תשלום ישן ליוזרים שאין להם payments[].
+ * חשוב: לא משתמשים ב-updatedAt — כל שמירה על היוזר הייתה
+ * גורמת לסכום ישן "לקפוץ" שוב לחודש הנוכחי.
  */
 const legacyUserRevenueDateExpression = {
   $ifNull: [
@@ -104,9 +106,9 @@ const legacyUserRevenueDateExpression = {
             "$lastPaymentAt",
             {
               $ifNull: [
-                "$subscriptionPaidAt",
+                "$manualPaidAt",
                 {
-                  $ifNull: ["$createdAt", "$updatedAt"],
+                  $ifNull: ["$subscriptionPaidAt", "$createdAt"],
                 },
               ],
             },
@@ -158,6 +160,7 @@ function legacyDateMatch(startDate: Date, endDate: Date) {
   return {
     $expr: {
       $and: [
+        { $ne: [legacyUserRevenueDateExpression, null] },
         { $gte: [legacyUserRevenueDateExpression, startDate] },
         { $lt: [legacyUserRevenueDateExpression, endDate] },
       ],
@@ -248,7 +251,12 @@ function paymentsArrayPipeline(startDate: Date, endDate: Date) {
               $ifNull: [
                 "$payments.createdAt",
                 {
-                  $ifNull: ["$paidAt", "$createdAt"],
+                  $ifNull: [
+                    "$paidAt",
+                    {
+                      $ifNull: ["$manualPaidAt", "$createdAt"],
+                    },
+                  ],
                 },
               ],
             },
@@ -256,11 +264,11 @@ function paymentsArrayPipeline(startDate: Date, endDate: Date) {
         },
 
         paymentType: {
-          $ifNull: ["$payments.type", "payment"],
+          $toLower: { $ifNull: ["$payments.type", "payment"] },
         },
 
         paymentStatus: {
-          $ifNull: ["$payments.status", "paid"],
+          $toLower: { $ifNull: ["$payments.status", "paid"] },
         },
       },
     },
@@ -268,12 +276,22 @@ function paymentsArrayPipeline(startDate: Date, endDate: Date) {
       $match: {
         paymentAmount: { $ne: 0 },
         paymentDate: {
+          $ne: null,
           $gte: startDate,
           $lt: endDate,
         },
-        paymentStatus: {
-          $nin: ["cancelled", "canceled", "failed", "refunded"],
-        },
+        $or: [
+          // הכנסה בפועל — רק תשלומים ששולמו
+          {
+            paymentStatus: "paid",
+            paymentType: { $ne: "refund" },
+          },
+          // החזרים נספרים כסכום שלילי גם אם הסטטוס refunded
+          {
+            paymentType: "refund",
+            paymentStatus: { $in: ["paid", "refunded"] },
+          },
+        ],
       },
     },
   ];
