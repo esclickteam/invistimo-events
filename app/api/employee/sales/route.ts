@@ -1258,9 +1258,26 @@ export async function POST(req: NextRequest) {
       paymentMode,
       paymentProvider,
       paidAt: isManualPaid ? new Date() : null,
+      lastPaymentAt: isManualPaid ? new Date() : null,
       manualPaidAt: isManualPaid ? new Date() : null,
       manualPaymentReference: cleanString(body?.manualPaymentReference),
       manualPaymentNote: cleanString(body?.manualPaymentNote),
+      totalDealAmount: isManualPaid ? finalGrossAmount : 0,
+      remainingAmount: 0,
+      payments: isManualPaid
+        ? [
+            {
+              amount: finalGrossAmount,
+              type: paymentMode === "split" ? "deposit" : "full",
+              method: "manual",
+              status: "paid",
+              paidAt: new Date(),
+              createdAt: new Date(),
+              note: "מכירה ידנית מעובד",
+              createdBy: required.employeeObjectId || null,
+            },
+          ]
+        : [],
     });
 
     const sale = await EmployeeSale.create({

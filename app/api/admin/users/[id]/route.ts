@@ -309,11 +309,11 @@ export async function PATCH(
       - שינוי מקדמה על שירות שכבר נרכש: מסנכרנים את ההפרש לסכום הכולל
       - כיבוי שירות: מורידים את המקדמה הקודמת מהסכום הכולל
     */
-    const previousVenueDeposit = Number(
-      currentUser.venueSeatingService?.depositAmount || 0
+    const previousVenueDeposit = roundMoney(
+      Number(currentUser.venueSeatingService?.depositAmount || 0)
     );
-    const nextVenueDeposit = Number(
-      nextVenueSeatingService?.depositAmount || 0
+    const nextVenueDeposit = roundMoney(
+      Number(nextVenueSeatingService?.depositAmount || 0)
     );
 
     const clientIncludesNewVenueDeposit =
@@ -329,10 +329,17 @@ export async function PATCH(
           ? 0
           : nextVenueDeposit;
       } else if (hadVenueSeatingService && hasNewVenueSeatingService) {
-        venueDepositPaymentAmount = nextVenueDeposit - previousVenueDeposit;
+        venueDepositPaymentAmount = roundMoney(
+          nextVenueDeposit - previousVenueDeposit
+        );
       } else if (hadVenueSeatingService && !hasNewVenueSeatingService) {
         venueDepositPaymentAmount = -previousVenueDeposit;
       }
+    }
+
+    // התעלמות מהפרשי עיגול זעירים — מונע תשלום "מלאכותי" בכל שמירה
+    if (Math.abs(venueDepositPaymentAmount) < 0.01) {
+      venueDepositPaymentAmount = 0;
     }
 
     /* =====================================================
@@ -857,6 +864,32 @@ export async function PATCH(
         קודם שומרים את היתרה כרשומה, אחרת הסקירה תאבד את הסכום הישן
         ברגע שנוצר payments[] בפעם הראשונה.
       */
+      /*
+        גיבוי יתרה ישנה חייב להישאר בתאריך ההיסטורי האמיתי.
+        אסור להשתמש ב-new Date() — זה גורם לסכומים ישנים לקפוץ
+        להכנסה החודשית הנוכחית. אם אין תאריך שדה — לוקחים
+        את חותמת הזמן מ-_id של היוזר.
+      */
+      const objectIdCreatedAt = (() => {
+        try {
+          const rawId = String(currentUser._id || "");
+          if (/^[a-f0-9]{24}$/i.test(rawId)) {
+            return new Date(parseInt(rawId.slice(0, 8), 16) * 1000);
+          }
+        } catch {
+          // ignore
+        }
+        return null;
+      })();
+
+      const legacyPaymentDate =
+        currentUser.paidAt ||
+        currentUser.lastPaymentAt ||
+        currentUser.manualPaidAt ||
+        currentUser.createdAt ||
+        objectIdCreatedAt ||
+        paidAt;
+
       const paymentsToPush =
         existingPayments.length === 0 && legacyPaidAmount > 0
           ? [
@@ -865,16 +898,8 @@ export async function PATCH(
                 type: "manual",
                 method: "manual",
                 status: "paid",
-                paidAt:
-                  currentUser.paidAt ||
-                  currentUser.lastPaymentAt ||
-                  currentUser.createdAt ||
-                  paidAt,
-                createdAt:
-                  currentUser.paidAt ||
-                  currentUser.lastPaymentAt ||
-                  currentUser.createdAt ||
-                  paidAt,
+                paidAt: legacyPaymentDate,
+                createdAt: legacyPaymentDate,
                 note: "יתרת תשלומים קודמת",
               },
               userPaymentEntry,

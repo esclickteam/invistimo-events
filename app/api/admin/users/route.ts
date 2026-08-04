@@ -1516,6 +1516,7 @@ export async function POST(req: Request) {
 
     const paymentStatus = billing?.paymentStatus || "paid";
     const hasPaid = paymentStatus === "paid";
+    const paidAt = hasPaid && priceNum > 0 ? new Date() : null;
 
     const user = await User.create({
       name: safeName,
@@ -1560,6 +1561,26 @@ export async function POST(req: Request) {
 
       hasPaid,
       paidAmount: hasPaid ? priceNum : 0,
+      totalDealAmount: hasPaid ? priceNum : 0,
+      remainingAmount: 0,
+      paymentMode: hasPaid ? (priceNum > 0 ? "full" : "free") : "none",
+      paidAt,
+      lastPaymentAt: paidAt,
+      payments:
+        hasPaid && priceNum > 0
+          ? [
+              {
+                amount: priceNum,
+                type: "full",
+                method: "manual",
+                status: "paid",
+                paidAt,
+                createdAt: paidAt,
+                note: "יצירת לקוח מאדמין",
+                createdBy: auth.impersonatedBy || auth.userId || null,
+              },
+            ]
+          : [],
       isActive: hasPaid,
 
       needsPasswordSetup: true,
