@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { appendAuthCookieDeletes } from "@/lib/auth/clearAuthCookies";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { revokeTelnyxWebRtcForUser } from "@/lib/telnyx/webrtcCredentials";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,13 +15,27 @@ function buildLogoutRedirect(req: Request) {
   return NextResponse.redirect(new URL(target, req.url), 303);
 }
 
-function createLogoutResponse(req: Request, json = false) {
+async function revokeOnLogout(req: Request) {
+  try {
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) return;
+
+    await revokeTelnyxWebRtcForUser(auth.userId, "logout");
+  } catch {
+    console.error("TELNYX WEBRTC REVOKE ON LOGOUT FAILED");
+  }
+}
+
+async function createLogoutResponse(req: Request, json = false) {
+  await revokeOnLogout(req);
+
   const res = json
     ? NextResponse.json(
         { success: true },
         {
           headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Cache-Control":
+              "no-store, no-cache, must-revalidate, proxy-revalidate",
             Pragma: "no-cache",
             Expires: "0",
           },

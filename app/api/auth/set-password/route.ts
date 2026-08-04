@@ -263,6 +263,15 @@ export async function POST(req: Request) {
     user.resetPasswordExpires = undefined;
     user.needsPasswordSetup = false;
 
+    try {
+      const { revokeTelnyxWebRtcForUser } = await import(
+        "@/lib/telnyx/webrtcCredentials"
+      );
+      await revokeTelnyxWebRtcForUser(user._id.toString(), "password_changed");
+    } catch {
+      console.error("TELNYX WEBRTC REVOKE ON SET PASSWORD FAILED");
+    }
+
     console.log("✅ PASSWORD SAVED", {
       userId: user._id.toString(),
       role,
