@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { useAuth } from "@/context/AuthContext";
+
 import DashboardHeader from "./DashboardHeader";
 import DashboardMobileMenu from "./DashboardMobileMenu";
 
@@ -44,6 +46,7 @@ function DashboardLayoutInner({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   // 🧪 דמו = כל מה שמתחיל ב־/try
   const isDemo = pathname.startsWith("/try");
@@ -53,6 +56,11 @@ function DashboardLayoutInner({
 
   const eventIdFromUrl = searchParams.get("eventId");
   const invitationIdFromUrl = searchParams.get("invitationId");
+
+  const canOpenEventManagement =
+    user?.accessModules?.eventProduction === true ||
+    user?.includeEventManagement === true ||
+    user?.selfManageEnabled === true;
 
   /*
     ✅ תומך גם בנתיב החדש:
@@ -81,6 +89,12 @@ function DashboardLayoutInner({
   }, [pathname]);
 
   const resolvedInvitationId = invitationIdFromUrl || invitationIdFromPath;
+
+  const eventIdForMenu = useMemo(() => {
+    if (isDemo) return "demo-event-001";
+
+    return eventIdFromUrl || invitation?.eventId || "";
+  }, [isDemo, eventIdFromUrl, invitation?.eventId]);
 
   /* ============================================================
      Load Invitation
@@ -170,6 +184,8 @@ function DashboardLayoutInner({
         onClose={() => setMenuOpen(false)}
         invitationId={invitation?._id || resolvedInvitationId}
         invitationShareId={invitation?.shareId}
+        eventId={eventIdForMenu}
+        canOpenEventManagement={canOpenEventManagement}
         isDemo={isDemo}
       />
 

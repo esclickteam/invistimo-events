@@ -2222,6 +2222,11 @@ const approveSuggestedTableMove = async (
 
 const eventLocation = resolveEventLocation(invitation, event);
 
+const canOpenEventManagement =
+  user?.accessModules?.eventProduction === true ||
+  user?.includeEventManagement === true ||
+  user?.selfManageEnabled === true;
+
   /* ============================================================
      Render
   ============================================================ */
@@ -2337,6 +2342,8 @@ const eventLocation = resolveEventLocation(invitation, event);
   onDemoBlocked={handleDemoBlockedAction}
   onImport={() => setShowImportModal(true)}
   onExportExcel={handleExportExcel}
+  canOpenEventManagement={canOpenEventManagement}
+  eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
 />
 
           {/* תיוגים קיימים מהשרת */}
@@ -3488,6 +3495,8 @@ function GoldenActionButtons({
   onDemoBlocked,
   onImport,
   onExportExcel,
+  canOpenEventManagement,
+  eventId,
 }: {
   invitation: any | null;
   invitationId: string;
@@ -3496,6 +3505,8 @@ function GoldenActionButtons({
   onDemoBlocked: () => void;
   onImport: () => void;
   onExportExcel: () => void;
+  canOpenEventManagement: boolean;
+  eventId?: string;
 }) {
 
     const [openInviteMenu, setOpenInviteMenu] = useState(false);
@@ -3642,7 +3653,31 @@ function GoldenActionButtons({
       }}
     />
 
-    {/* 3️⃣ ייבוא מאקסל */}
+    {/* 3️⃣ ניהול אירוע */}
+    {canOpenEventManagement && (
+      <GoldenActionButton
+        label="ניהול אירוע"
+        icon="◆"
+        tone="gold"
+        disabled={!invitation}
+        onClick={() => {
+          if (!invitation) return;
+
+          if (isDemo) {
+            onDemoBlocked();
+            return;
+          }
+
+          const target = eventId
+            ? `/events/production?eventId=${eventId}&tab=overview`
+            : "/events/production?tab=overview";
+
+          router.push(target);
+        }}
+      />
+    )}
+
+    {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton
       label="ייבוא מאקסל"
       icon="▣"

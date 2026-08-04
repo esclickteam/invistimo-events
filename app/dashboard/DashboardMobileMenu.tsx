@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Sparkles,
   ChevronLeft,
+  ClipboardList,
 } from "lucide-react";
 
 type Props = {
@@ -20,6 +21,8 @@ type Props = {
   onClose: () => void;
   invitationId?: string;
   invitationShareId?: string;
+  eventId?: string;
+  canOpenEventManagement?: boolean;
   isDemo?: boolean;
 };
 
@@ -28,6 +31,8 @@ export default function DashboardMobileMenu({
   onClose,
   invitationId,
   invitationShareId,
+  eventId,
+  canOpenEventManagement = false,
   isDemo = false,
 }: Props) {
   const router = useRouter();
@@ -64,6 +69,20 @@ export default function DashboardMobileMenu({
     );
   };
 
+  const openEventManagement = () => {
+    if (isDemo) {
+      go("/try/events/production?tab=overview");
+      return;
+    }
+
+    if (eventId) {
+      go(`/events/production?eventId=${eventId}&tab=overview`);
+      return;
+    }
+
+    go("/events/production?tab=overview");
+  };
+
   const menuItems = [
     {
       title: hasInvitation ? "עריכת הזמנה" : "יצירת הזמנה",
@@ -87,24 +106,24 @@ export default function DashboardMobileMenu({
     },
 
     {
-  title: "עריכת פרטי האירוע",
-  subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
-  icon: Settings2,
-  badge: "אירוע",
-  onClick: () => {
-    if (isDemo) {
-      demoBlock();
-      return;
-    }
+      title: "עריכת פרטי האירוע",
+      subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
+      icon: Settings2,
+      badge: "אירוע",
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
 
-    if (!invitationId) {
-      go("/dashboard");
-      return;
-    }
+        if (!invitationId) {
+          go("/dashboard");
+          return;
+        }
 
-    go(`/dashboard/invitations/${invitationId}/edit`);
-  },
-},
+        go(`/dashboard/invitations/${invitationId}/edit`);
+      },
+    },
 
     {
       title: "צפייה בהזמנה",
@@ -121,6 +140,14 @@ export default function DashboardMobileMenu({
       badge: "Seating",
       onClick: () =>
         isDemo ? go("/try/dashboard/seating") : go("/dashboard/seating"),
+    },
+    {
+      title: "ניהול אירוע",
+      subtitle: "תמונת מצב, ספקים, לוגיסטיקה, לו״ז ומתנות",
+      icon: ClipboardList,
+      badge: "ניהול",
+      hidden: !canOpenEventManagement,
+      onClick: openEventManagement,
     },
     {
       title: "שליחת הודעות",
