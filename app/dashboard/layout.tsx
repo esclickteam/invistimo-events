@@ -82,12 +82,6 @@ function DashboardLayoutInner({
 
   const resolvedInvitationId = invitationIdFromUrl || invitationIdFromPath;
 
-  const eventIdForMenu = useMemo(() => {
-    if (isDemo) return "demo-event-001";
-
-    return eventIdFromUrl || invitation?.eventId || "";
-  }, [isDemo, eventIdFromUrl, invitation?.eventId]);
-
   /* ============================================================
      Load Invitation
      ✅ תומך:
@@ -176,7 +170,6 @@ function DashboardLayoutInner({
         onClose={() => setMenuOpen(false)}
         invitationId={invitation?._id || resolvedInvitationId}
         invitationShareId={invitation?.shareId}
-        eventId={eventIdForMenu}
         isDemo={isDemo}
       />
 

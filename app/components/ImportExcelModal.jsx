@@ -45,6 +45,29 @@ function normalizeText(value) {
 }
 
 /* ============================================================
+   עזר: נירמול מפתחות שורה מאקסל (רווחים בכותרות)
+============================================================ */
+function normalizeRowKeys(row) {
+  const normalized = {};
+
+  for (const [key, value] of Object.entries(row || {})) {
+    const cleanKey = normalizeText(key);
+    if (!cleanKey) continue;
+
+    // אם יש כפילות אחרי ניקוי – שומרים ערך לא-ריק
+    if (
+      normalized[cleanKey] === undefined ||
+      normalized[cleanKey] === null ||
+      normalized[cleanKey] === ""
+    ) {
+      normalized[cleanKey] = value;
+    }
+  }
+
+  return normalized;
+}
+
+/* ============================================================
    עזר: מספר תקין
 ============================================================ */
 function normalizeNumber(value) {
@@ -138,11 +161,15 @@ export default function ImportExcelModal({
       ============================================================ */
       const guests = rawJson
         .map((row, index) => {
+          const normalizedRow = normalizeRowKeys(row);
+
           console.log("=================================");
           console.log(`🔍 ROW ${index + 1}`);
           console.log("RAW ROW:", row);
+          console.log("NORMALIZED ROW:", normalizedRow);
 
-          const nameRaw = row["שם"] || row["שם מלא"] || "";
+          const nameRaw =
+            normalizedRow["שם"] || normalizedRow["שם מלא"] || "";
           const name = normalizeText(nameRaw);
 
           console.log("➡️ NAME RAW:", JSON.stringify(nameRaw));
@@ -150,27 +177,27 @@ export default function ImportExcelModal({
 
           if (!name) return null;
 
-          const rawStatus = normalizeText(row["סטטוס"]);
+          const rawStatus = normalizeText(normalizedRow["סטטוס"]);
 
-          const relationOriginal = row["קרבה"];
+          const relationOriginal = normalizedRow["קרבה"];
           const relationRaw = normalizeText(relationOriginal);
 
-          const groupOriginal = row["קבוצה"];
+          const groupOriginal = normalizedRow["קבוצה"];
           const groupRaw = normalizeText(groupOriginal);
 
           console.log("➡️ RELATION RAW:", JSON.stringify(relationOriginal));
           console.log("➡️ RELATION CLEAN:", relationRaw);
 
-          const phoneRaw = row["טלפון"];
+          const phoneRaw = normalizedRow["טלפון"];
           const phoneClean = normalizeText(phoneRaw).replace(/\D/g, "");
 
           console.log("➡️ PHONE RAW:", phoneRaw);
           console.log("➡️ PHONE CLEAN:", phoneClean);
 
           const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ??
-              row["מספר שולחן"] ??
-              row["שולחן"] ??
+            normalizedRow["מס' שולחן"] ??
+              normalizedRow["מספר שולחן"] ??
+              normalizedRow["שולחן"] ??
               ""
           );
 
@@ -191,13 +218,17 @@ export default function ImportExcelModal({
             // כמות מוזמנים בתוך הרשומה - לא קשור למגבלת הרשומות
             guestsCount: Math.max(
               1,
-              Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
+              Number(
+                normalizedRow["מוזמנים"] ??
+                  normalizedRow["כמות אורחים"] ??
+                  1
+              ) || 1
             ),
 
             // מתחיל תמיד מ-0
             arrivedCount: 0,
 
-            notes: normalizeText(row["הערות"]) || null,
+            notes: normalizeText(normalizedRow["הערות"]) || null,
 
             tableNumber,
             tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
