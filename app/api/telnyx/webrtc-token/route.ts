@@ -1,126 +1,205 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import {
+  assertSafeWebrtcAuthPayload,
+  checkSoftphoneWebrtcRateLimit,
+  getClientIp,
+  isSoftphoneEligibleAuth,
+  isSoftphoneWebrtcEnabled,
+} from "@/lib/telnyx/webrtcSecurity";
+import {
+  issueSoftphoneLoginToken,
+  writeSoftphoneTokenAudit,
+} from "@/lib/telnyx/webrtcCredentials";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type WebrtcCredentialsResponse = {
-  success: true;
-  authType: "credentials";
-  login: string;
-  username: string;
-  password: string;
-  connectionId: string;
-  callerNumber: string;
-  fromNumber: string;
-};
-
-function jsonError(message: string, status = 400, details?: unknown) {
+function jsonError(
+  error: string,
+  status: number,
+  extras?: Record<string, unknown>
+) {
   return NextResponse.json(
     {
       success: false,
-      error: message,
-      details,
+      error,
+      ...(extras || {}),
     },
-    { status }
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
   );
 }
 
-function normalizePhoneNumber(value: string) {
-  let clean = String(value || "").trim();
+async function auditAndError(input: {
+  userId?: string | null;
+  role?: string | null;
+  ip: string;
+  userAgent: string | null;
+  error: string;
+  status: number;
+  extras?: Record<string, unknown>;
+}) {
+  await writeSoftphoneTokenAudit({
+    userId: input.userId,
+    role: input.role,
+    ip: input.ip,
+    userAgent: input.userAgent,
+    success: false,
+    failureReason: input.error,
+  });
 
-  clean = clean.replace(/[^\d+]/g, "");
-  clean = clean.replace(/\+/g, (match, offset) => (offset === 0 ? match : ""));
-
-  if (!clean) return "";
-
-  if (clean.startsWith("00")) {
-    clean = `+${clean.slice(2)}`;
-  }
-
-  if (clean.startsWith("+")) {
-    return clean;
-  }
-
-  if (clean.startsWith("972")) {
-    return `+${clean}`;
-  }
-
-  if (clean.startsWith("0") && clean.length >= 8) {
-    return `+972${clean.slice(1)}`;
-  }
-
-  return clean;
+  return jsonError(input.error, input.status, input.extras);
 }
 
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "Telnyx WebRTC auth endpoint is alive",
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      message: "Telnyx WebRTC auth endpoint is alive",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const userAgent = req.headers.get("user-agent");
+
   try {
-    const username = process.env.TELNYX_WEBRTC_USERNAME || "";
-    const password = process.env.TELNYX_WEBRTC_PASSWORD || "";
-    const connectionId = process.env.TELNYX_WEBRTC_CONNECTION_ID || "";
+    const auth = await getUserIdFromRequest(req);
 
-    const callerNumber = normalizePhoneNumber(
-      process.env.TELNYX_FROM_NUMBER || "+972555172720"
-    );
-
-    if (!username) {
-      return jsonError("TELNYX_WEBRTC_USERNAME is missing", 500);
+    if (!auth?.userId) {
+      return auditAndError({
+        ip,
+        userAgent,
+        error: "UNAUTHORIZED",
+        status: 401,
+      });
     }
 
-    if (!password) {
-      return jsonError("TELNYX_WEBRTC_PASSWORD is missing", 500);
+    if (!isSoftphoneEligibleAuth(auth)) {
+      return auditAndError({
+        userId: auth.userId,
+        role: auth.role,
+        ip,
+        userAgent,
+        error: "FORBIDDEN_SOFTPHONE_ROLE",
+        status: 403,
+      });
     }
 
-    if (!connectionId) {
-      return jsonError("TELNYX_WEBRTC_CONNECTION_ID is missing", 500);
+    const rateKey = `${auth.userId}:${ip}`;
+    const rate = checkSoftphoneWebrtcRateLimit(rateKey);
+    if (!rate.allowed) {
+      return auditAndError({
+        userId: auth.userId,
+        role: auth.role,
+        ip,
+        userAgent,
+        error: "RATE_LIMIT",
+        status: 429,
+        extras: {
+          retryAfterMs: rate.retryAfterMs,
+        },
+      });
     }
 
-    if (!callerNumber) {
-      return jsonError("TELNYX_FROM_NUMBER is missing", 500);
+    if (!isSoftphoneWebrtcEnabled()) {
+      return auditAndError({
+        userId: auth.userId,
+        role: auth.role,
+        ip,
+        userAgent,
+        error: "SOFTPHONE_DISABLED",
+        status: 503,
+      });
     }
 
-    const body = await req.json().catch(() => ({}));
+    await connectDB();
 
-    console.log("TELNYX WEBRTC AUTH REQUEST:", {
-      authType: "credentials",
-      username,
-      connectionId,
-      callerNumber,
-      agentId: body?.agentId || null,
-      requestedAt: new Date().toISOString(),
-    });
+    const user = await User.findById(auth.userId)
+      .select("isActive role staffType employeeScope")
+      .lean();
 
-    const response: WebrtcCredentialsResponse = {
-      success: true,
-      authType: "credentials",
-      login: username,
-      username,
-      password,
-      connectionId,
-      callerNumber,
-      fromNumber: callerNumber,
+    if (!user) {
+      return auditAndError({
+        userId: auth.userId,
+        role: auth.role,
+        ip,
+        userAgent,
+        error: "USER_NOT_FOUND",
+        status: 404,
+      });
+    }
+
+    if ((user as any).isActive === false) {
+      return auditAndError({
+        userId: auth.userId,
+        role: auth.role,
+        ip,
+        userAgent,
+        error: "FORBIDDEN_USER_INACTIVE",
+        status: 403,
+      });
+    }
+
+    const tokenPayload = await issueSoftphoneLoginToken(auth.userId);
+
+    const responseBody = {
+      success: true as const,
+      authType: tokenPayload.authType,
+      login_token: tokenPayload.login_token,
+      expiresIn: tokenPayload.expiresIn,
+      callerId: tokenPayload.callerId,
     };
 
-    return NextResponse.json(response, {
+    assertSafeWebrtcAuthPayload(responseBody);
+
+    await writeSoftphoneTokenAudit({
+      userId: auth.userId,
+      role: auth.role,
+      ip,
+      userAgent,
+      success: true,
+      failureReason: null,
+    });
+
+    return NextResponse.json(responseBody, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error) {
-    console.error("TELNYX WEBRTC AUTH ROUTE ERROR:", error);
+    const message =
+      error instanceof Error ? error.message : "TELNYX_WEBRTC_AUTH_ROUTE_FAILED";
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "TELNYX_WEBRTC_AUTH_ROUTE_FAILED",
-      },
-      { status: 500 }
-    );
+    // Never include credential material in error responses or logs.
+    console.error("TELNYX WEBRTC AUTH ROUTE ERROR:", message);
+
+    return auditAndError({
+      ip,
+      userAgent,
+      error:
+        message === "TELNYX_API_KEY_MISSING" ||
+        message === "TELNYX_CONNECTION_ID_MISSING" ||
+        message === "TELNYX_FROM_NUMBER_MISSING" ||
+        message === "TELNYX_CREATE_CREDENTIAL_FAILED" ||
+        message === "TELNYX_CREATE_TOKEN_FAILED"
+          ? "SOFTPHONE_TOKEN_UNAVAILABLE"
+          : "TELNYX_WEBRTC_AUTH_ROUTE_FAILED",
+      status: 500,
+    });
   }
 }

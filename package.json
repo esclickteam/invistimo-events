@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

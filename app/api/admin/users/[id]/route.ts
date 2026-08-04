@@ -653,6 +653,17 @@ export async function PATCH(
       );
     }
 
+    if (hasField(body, "isActive") && body.isActive === false) {
+      try {
+        const { revokeTelnyxWebRtcForUser } = await import(
+          "@/lib/telnyx/webrtcCredentials"
+        );
+        await revokeTelnyxWebRtcForUser(String(id), "employee_disabled");
+      } catch {
+        console.error("TELNYX WEBRTC REVOKE ON DISABLE FAILED");
+      }
+    }
+
     /*
       תאריך האירוע באדמין צריך להישאר תואם להזמנה במונגו.
       אם עדכנו eventDate למשתמש — מסנכרנים גם את ההזמנה/ות שלו.
@@ -1035,6 +1046,15 @@ export async function DELETE(
         }
       ),
     ]);
+
+    try {
+      const { revokeTelnyxWebRtcForUser } = await import(
+        "@/lib/telnyx/webrtcCredentials"
+      );
+      await revokeTelnyxWebRtcForUser(String(id), "employee_deleted");
+    } catch {
+      console.error("TELNYX WEBRTC REVOKE ON DELETE FAILED");
+    }
 
     await User.findByIdAndDelete(id);
 
