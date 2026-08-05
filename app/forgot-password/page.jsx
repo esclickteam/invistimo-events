@@ -5,7 +5,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -17,17 +17,17 @@ export default function ForgotPasswordPage() {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ phone }),
       });
 
       if (!response.ok) {
-        throw new Error("MAIL_SEND_FAILED");
+        throw new Error("SMS_SEND_FAILED");
       }
 
       setSent(true);
     } catch (err) {
       console.error("❌ Forgot password error:", err);
-      alert("אירעה שגיאה בשליחת קישור האיפוס ב־SMS. ודאו שיש טלפון בחשבון ונסו שוב.");
+      alert("אירעה שגיאה בשליחת קישור האיפוס ב־SMS. בדקו את המספר ונסו שוב.");
     } finally {
       setLoading(false);
     }
@@ -97,8 +97,8 @@ export default function ForgotPasswordPage() {
               </h1>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
-                הזינו את כתובת האימייל שלכם, ואם החשבון קיים במערכת — נשלח
-                קישור לאיפוס הסיסמה ב־SMS למספר הטלפון השמור בחשבון.
+                הזינו את מספר הטלפון שלכם, ואם החשבון קיים במערכת — נשלח
+                אליכם קישור לאיפוס הסיסמה ב־SMS.
               </p>
             </div>
 
@@ -125,8 +125,7 @@ export default function ForgotPasswordPage() {
                 </h2>
 
                 <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#7B6754]">
-                  אם החשבון קיים ויש טלפון במערכת, נשלח אליו SMS עם קישור
-                  לאיפוס הסיסמה.
+                  אם המספר קיים במערכת, נשלח אליו SMS עם קישור לאיפוס הסיסמה.
                 </p>
 
                 <Link
@@ -147,19 +146,21 @@ export default function ForgotPasswordPage() {
               </motion.div>
             ) : (
               <form onSubmit={submit} className="space-y-5">
-                {/* אימייל */}
+                {/* טלפון */}
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-bold text-[#4C3724]">
-                    אימייל
+                    מספר טלפון
                   </label>
 
                   <div className="relative">
                     <input
-                      type="email"
+                      type="tel"
+                      inputMode="tel"
                       required
-                      placeholder="הזינו את כתובת האימייל שלכם"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="tel"
+                      placeholder="הזינו את מספר הטלפון שלכם"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                       className="
                         w-full rounded-[18px] border border-[#DDCBB3]
                         bg-white/90 px-4 py-3.5 pl-11
@@ -171,7 +172,7 @@ export default function ForgotPasswordPage() {
                     />
 
                     <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#B18B60]">
-                      ✉
+                      ☎
                     </span>
                   </div>
                 </div>
