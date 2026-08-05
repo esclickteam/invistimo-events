@@ -14,16 +14,20 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      await fetch("/api/auth/forgot-password", {
+      const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
+      if (!response.ok) {
+        throw new Error("MAIL_SEND_FAILED");
+      }
+
       setSent(true);
     } catch (err) {
       console.error("❌ Forgot password error:", err);
-      alert("אירעה שגיאה בשליחת קישור האיפוס");
+      alert("אירעה שגיאה בשליחת קישור האיפוס. בדקו גם בספאם או נסו שוב.");
     } finally {
       setLoading(false);
     }
@@ -122,7 +126,8 @@ export default function ForgotPasswordPage() {
 
                 <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#7B6754]">
                   אם האימייל קיים במערכת, נשלחה אליו הודעה עם קישור לאיפוס
-                  הסיסמה.
+                  הסיסמה מ־support@invistimo.com. אם לא מופיע בתיבה הראשית —
+                  בדקו גם בספאם / קידומי מכירות.
                 </p>
 
                 <Link

@@ -1398,8 +1398,13 @@ export async function POST(req: NextRequest) {
       });
       await sale.save?.();
 
+      let passwordSetup: Awaited<
+        ReturnType<typeof sendPasswordSetupMail>
+      > | null = null;
       try {
-        await sendPasswordSetupMail(String(createdUser._id));
+        passwordSetup = await sendPasswordSetupMail(String(createdUser._id), {
+          alsoSms: true,
+        });
       } catch (mailError) {
         console.error("SEND PASSWORD SETUP MAIL FAILED:", mailError);
       }
@@ -1413,6 +1418,17 @@ export async function POST(req: NextRequest) {
           checkoutUrl: "",
           stripeCheckoutUrl: "",
           checkoutSessionId: "",
+          passwordSetup: passwordSetup
+            ? {
+                link: passwordSetup.link,
+                email: passwordSetup.email,
+                phone: passwordSetup.phone,
+                emailSent: passwordSetup.emailSent,
+                smsSent: passwordSetup.smsSent,
+                emailError: passwordSetup.emailError || null,
+                smsError: passwordSetup.smsError || null,
+              }
+            : null,
           payment: {
             provider: "manual",
             mode: paymentMode,
@@ -1466,8 +1482,13 @@ export async function POST(req: NextRequest) {
       },
     );
 
+    let passwordSetup: Awaited<
+      ReturnType<typeof sendPasswordSetupMail>
+    > | null = null;
     try {
-      await sendPasswordSetupMail(String(createdUser._id));
+      passwordSetup = await sendPasswordSetupMail(String(createdUser._id), {
+        alsoSms: true,
+      });
     } catch (mailError) {
       console.error("SEND PASSWORD SETUP MAIL FAILED:", mailError);
     }
@@ -1481,6 +1502,17 @@ export async function POST(req: NextRequest) {
         checkoutUrl: checkout.checkoutUrl,
         stripeCheckoutUrl: checkout.checkoutUrl,
         checkoutSessionId: checkout.checkoutSessionId,
+        passwordSetup: passwordSetup
+          ? {
+              link: passwordSetup.link,
+              email: passwordSetup.email,
+              phone: passwordSetup.phone,
+              emailSent: passwordSetup.emailSent,
+              smsSent: passwordSetup.smsSent,
+              emailError: passwordSetup.emailError || null,
+              smsError: passwordSetup.smsError || null,
+            }
+          : null,
         payment: {
           provider: "stripe",
           mode: paymentMode,

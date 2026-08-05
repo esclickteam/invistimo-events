@@ -90,11 +90,20 @@ export async function POST(req: Request) {
 </html>
 `;
 
-  await sendEmail({
-    to: email,
-    subject: "איפוס סיסמה",
-    html,
-  });
+  try {
+    await sendEmail({
+      to: email,
+      subject: "איפוס סיסמה – Invistimo",
+      html,
+      text: `איפוס סיסמה\n\nכדי לאפס את הסיסמה היכנסו לקישור:\n${resetLink}\n\nהקישור תקף ל־30 דקות.\nאם לא ביקשתם איפוס – התעלמו מהודעה זו.\nצוות Invistimo`,
+    });
+  } catch (mailError) {
+    console.error("FORGOT PASSWORD MAIL FAILED:", mailError);
+    return NextResponse.json(
+      { success: false, error: "MAIL_SEND_FAILED" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
