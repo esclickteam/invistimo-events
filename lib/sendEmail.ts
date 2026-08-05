@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 type SendEmailProps = {
   to: string;
@@ -6,31 +6,31 @@ type SendEmailProps = {
   html: string;
 };
 
+/**
+ * Transactional mail for password setup / reset / staff invites.
+ * Uses Resend (same provider as contact + admin purchase alerts).
+ * SMTP was unreliable in production and failures were easy to miss.
+ */
 export async function sendEmail({ to, subject, html }: SendEmailProps) {
-  if (
-    !process.env.EMAIL_HOST ||
-    !process.env.EMAIL_PORT ||
-    !process.env.EMAIL_USER ||
-    !process.env.EMAIL_PASS
-  ) {
-    throw new Error("❌ Missing EMAIL SMTP environment variables");
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("❌ Missing RESEND_API_KEY");
   }
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT), // 465
-    secure: true, // ✅ חובה בפורט 465
-    auth: {
-      user: process.env.EMAIL_USER, // support@invistimo.com
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-  await transporter.sendMail({
-    from: `"Invistimo" <noreply@invistimo.com>`, // 👈 מה שהלקוח רואה
+  const result = await resend.emails.send({
+    from: "Invistimo <support@invistimo.com>",
     to,
     subject,
     html,
-    replyTo: "support@invistimo.com", // אופציונלי ומומלץ
+    replyTo: "support@invistimo.com",
   });
+
+  if (result.error) {
+    throw new Error(
+      `Resend send failed: ${result.error.message || JSON.stringify(result.error)}`,
+    );
+  }
+
+  return result.data;
 }
