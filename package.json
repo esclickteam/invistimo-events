@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs"
+    "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
+    "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",
