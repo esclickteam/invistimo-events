@@ -59,15 +59,10 @@ type AgentState = {
 
 type WebrtcAuthResponse = {
   success?: boolean;
-  authType?: "credentials" | "token";
-  login?: string;
-  username?: string;
-  password?: string;
-  loginToken?: string;
-  token?: string;
-  connectionId?: string;
-  callerNumber?: string;
-  fromNumber?: string;
+  authType?: "jwt" | "token";
+  login_token?: string;
+  expiresIn?: number;
+  callerId?: string;
   error?: string;
 };
 
@@ -863,6 +858,7 @@ export default function SoftphoneStatusPanel({
 
   const telnyxClientRef = useRef<TelnyxRtcClient | null>(null);
   const activeCallRef = useRef<TelnyxRtcCall | null>(null);
+  const webrtcCallerIdRef = useRef<string>(TELNYX_DEFAULT_CALLER_NUMBER);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoDialRequestKeyRef = useRef("");
@@ -1736,7 +1732,7 @@ export default function SoftphoneStatusPanel({
   }
 
   function handleWebrtcNotification(notification: any) {
-    console.log("RAW TELNYX NOTIFICATION:", notification);
+    // Avoid logging full Telnyx payloads (may include sensitive call metadata).
 
     const call = (notification?.call || notification) as TelnyxRtcCall | null;
 
@@ -1750,7 +1746,7 @@ export default function SoftphoneStatusPanel({
     ).toLowerCase();
 
     if (!call) {
-      console.warn("TELNYX NOTIFICATION WITHOUT CALL OBJECT:", notification);
+      console.warn("TELNYX NOTIFICATION WITHOUT CALL OBJECT");
       return;
     }
 
@@ -1853,10 +1849,47 @@ export default function SoftphoneStatusPanel({
       .catch(() => null)) as WebrtcAuthResponse | null;
 
     if (!res.ok || !data?.success) {
+      if (data?.error === "SOFTPHONE_DISABLED" || res.status === 503) {
+        throw new Error("SOFTPHONE_DISABLED");
+      }
       throw new Error(data?.error || "TELNYX_WEBRTC_AUTH_FAILED");
     }
 
+    // Defense in depth: never accept password-based auth payloads.
+    if (
+      data.authType !== "jwt" &&
+      data.authType !== "token"
+    ) {
+      throw new Error("TELNYX_WEBRTC_UNSUPPORTED_AUTH_TYPE");
+    }
+
+    if (!data.login_token || typeof data.login_token !== "string") {
+      throw new Error("TELNYX_WEBRTC_LOGIN_TOKEN_MISSING");
+    }
+
+    if (
+      "password" in (data as object) ||
+      "login" in (data as object) ||
+      "username" in (data as object)
+    ) {
+      throw new Error("TELNYX_WEBRTC_UNSAFE_AUTH_PAYLOAD");
+    }
+
     return data;
+  }
+
+  async function revokeWebrtcCredential(reason: string) {
+    try {
+      await fetch("/api/telnyx/webrtc-revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ reason }),
+      });
+    } catch {
+      // Revoke is best-effort; logout must continue.
+    }
   }
 
   async function connectWebrtc() {
@@ -1868,6 +1901,15 @@ export default function SoftphoneStatusPanel({
       setWebrtcError("");
 
       const auth = await getWebrtcAuth();
+      const loginToken = auth.login_token;
+
+      if (!loginToken) {
+        throw new Error("TELNYX_WEBRTC_LOGIN_TOKEN_MISSING");
+      }
+
+      webrtcCallerIdRef.current =
+        auth.callerId || TELNYX_DEFAULT_CALLER_NUMBER;
+
       const telnyxModule = await import("@telnyx/webrtc");
       const TelnyxRTC =
         (telnyxModule as any).TelnyxRTC || (telnyxModule as any).default;
@@ -1876,22 +1918,10 @@ export default function SoftphoneStatusPanel({
         throw new Error("TELNYX_RTC_SDK_NOT_FOUND");
       }
 
-      const clientOptions =
-        auth.authType === "token" && (auth.loginToken || auth.token)
-          ? { login_token: auth.loginToken || auth.token }
-          : {
-              login: auth.login || auth.username,
-              password: auth.password,
-            };
-
-      if (
-        !(clientOptions as any).login_token &&
-        !(clientOptions as any).login
-      ) {
-        throw new Error("TELNYX_WEBRTC_LOGIN_MISSING");
-      }
-
-      const client = new TelnyxRTC(clientOptions) as TelnyxRtcClient;
+      // JWT-only authentication — never login/password.
+      const client = new TelnyxRTC({
+        login_token: loginToken,
+      }) as TelnyxRtcClient;
 
       client.on?.("telnyx.ready", () => {
         console.log("TELNYX WEBRTC READY");
@@ -1901,19 +1931,18 @@ export default function SoftphoneStatusPanel({
       });
 
       client.on?.("telnyx.error", (...args: any[]) => {
-        console.error("TELNYX WEBRTC ERROR:", args);
+        console.error("TELNYX WEBRTC ERROR");
         setWebrtcReady(false);
         setWebrtcConnecting(false);
         setWebrtcError("שגיאת חיבור ל־WebRTC");
       });
 
       client.on?.("telnyx.socket.close", (...args: any[]) => {
-        console.warn("TELNYX WEBRTC SOCKET CLOSED:", args);
+        console.warn("TELNYX WEBRTC SOCKET CLOSED");
         setWebrtcReady(false);
       });
 
       client.on?.("telnyx.notification", (notification: any) => {
-        console.log("TELNYX NOTIFICATION EVENT RECEIVED");
         handleWebrtcNotification(notification);
       });
 
@@ -1922,9 +1951,14 @@ export default function SoftphoneStatusPanel({
 
       return client;
     } catch (err) {
-      console.error("CONNECT TELNYX WEBRTC FAILED:", err);
+      const message = err instanceof Error ? err.message : "";
+      console.error("CONNECT TELNYX WEBRTC FAILED");
       setWebrtcReady(false);
-      setWebrtcError("לא הצלחנו להתחבר לסופטפון בדפדפן");
+      setWebrtcError(
+        message === "SOFTPHONE_DISABLED"
+          ? "הסופטפון כבוי זמנית מסיבות אבטחה"
+          : "לא הצלחנו להתחבר לסופטפון בדפדפן",
+      );
       throw err;
     } finally {
       setWebrtcConnecting(false);
@@ -1954,6 +1988,7 @@ export default function SoftphoneStatusPanel({
     }
 
     telnyxClientRef.current = null;
+    webrtcCallerIdRef.current = TELNYX_DEFAULT_CALLER_NUMBER;
     setWebrtcReady(false);
     setWebrtcConnecting(false);
     setWebrtcError("");
@@ -2036,9 +2071,8 @@ export default function SoftphoneStatusPanel({
         throw new Error("TELNYX_WEBRTC_CLIENT_NOT_READY");
       }
 
-      const auth = await getWebrtcAuth().catch(() => null);
       const callerNumber =
-        auth?.callerNumber || auth?.fromNumber || TELNYX_DEFAULT_CALLER_NUMBER;
+        webrtcCallerIdRef.current || TELNYX_DEFAULT_CALLER_NUMBER;
 
       const agentId =
         getLoggedUserId(loggedUser) || agent?.agentId || "local-softphone";
@@ -2308,10 +2342,11 @@ export default function SoftphoneStatusPanel({
       */
       await endOpenShiftForDisconnect("employee");
       disconnectWebrtc();
+      await revokeWebrtcCredential("client_logout");
 
       await logout();
     } catch (error) {
-      console.error("STAFF SOFTPHONE LOGOUT FAILED:", error);
+      console.error("STAFF SOFTPHONE LOGOUT FAILED");
       window.location.replace("/api/logout");
     }
   }
