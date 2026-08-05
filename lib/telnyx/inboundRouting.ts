@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import SoftphoneAgentStatus from "@/models/SoftphoneAgentStatus";
 import TelnyxWebRtcCredential from "@/models/TelnyxWebRtcCredential";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 import {
@@ -149,30 +148,71 @@ async function speakAndHangup(callControlId: string, text: string) {
 
 /**
  * Pick one available softphone agent that has an active per-user telephony credential.
+ *
+ * Softphone UI writes live presence to collection `softphonestatuses`:
+ * - rawAgentStatus: "available"
+ * - status / softphoneStatus: "online" (admin mapping)
+ *
  * Never falls back to TELNYX_WEBRTC_USERNAME / shared credential.
  */
 export async function findAvailableInboundSoftphoneTarget() {
   await connectDB();
 
-  const availableAgents = await SoftphoneAgentStatus.find({
-    status: "available",
-  })
+  const availableAgents = await mongoose.connection
+    .collection("softphonestatuses")
+    .find({
+      $or: [
+        { rawAgentStatus: "available" },
+        { status: "online" },
+        { softphoneStatus: "online" },
+        { availabilityStatus: "online" },
+      ],
+    })
     .sort({ statusStartedAt: 1, lastSeenAt: -1 })
-    .select("agentId status statusStartedAt lastSeenAt")
-    .lean();
+    .limit(25)
+    .toArray();
+
+  console.log("INBOUND SOFTPHONE AGENT SCAN:", {
+    availableCount: availableAgents.length,
+    sample: availableAgents.slice(0, 5).map((agent) => ({
+      userId: String(
+        agent.userId || agent.agentId || agent.employeeId || agent.staffId || ""
+      ),
+      rawAgentStatus: agent.rawAgentStatus || null,
+      status: agent.status || null,
+      lastSeenAt: agent.lastSeenAt || null,
+    })),
+  });
 
   for (const agent of availableAgents) {
-    const userId = String(agent.agentId || "");
+    const userId = String(
+      agent.userId || agent.agentId || agent.employeeId || agent.staffId || ""
+    );
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) continue;
 
+    // Skip stale presence (> 3 minutes without heartbeat).
+    const lastSeenAt = agent.lastSeenAt ? new Date(agent.lastSeenAt) : null;
+    if (
+      lastSeenAt &&
+      Number.isFinite(lastSeenAt.getTime()) &&
+      Date.now() - lastSeenAt.getTime() > 3 * 60 * 1000
+    ) {
+      continue;
+    }
+
     const credentials = await TelnyxWebRtcCredential.find({
-      userId,
+      userId: new mongoose.Types.ObjectId(userId),
       status: "active",
     })
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!credentials.length) continue;
+    if (!credentials.length) {
+      console.log("INBOUND SOFTPHONE AGENT SKIPPED: NO_ACTIVE_CREDENTIAL", {
+        userId,
+      });
+      continue;
+    }
 
     // Prefer newest active credential; ignore duplicates beyond the first.
     const credential = credentials[0];
@@ -183,7 +223,13 @@ export async function findAvailableInboundSoftphoneTarget() {
       (credential as any).sipUsername ||
       (await getSipUsernameForCredentialId(credentialId));
 
-    if (!sipUsername) continue;
+    if (!sipUsername) {
+      console.log("INBOUND SOFTPHONE AGENT SKIPPED: NO_SIP_USERNAME", {
+        userId,
+        credentialId,
+      });
+      continue;
+    }
 
     const oldShared = getOldSharedUsername();
     if (oldShared && sipUsername === oldShared) {
