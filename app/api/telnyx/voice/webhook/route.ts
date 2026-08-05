@@ -3,11 +3,6 @@ import mongoose from "mongoose";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import CallRecording from "@/models/CallRecording";
 import { routeInboundCallToSoftphone } from "@/lib/telnyx/inboundRouting";
-import {
-  attachSecondaryBridgeLeg,
-  parseBridgeClientState,
-  updateBridgeFromWebhook,
-} from "@/lib/telnyx/inboundBridgeState";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 
 export const runtime = "nodejs";
@@ -1468,75 +1463,46 @@ export async function POST(req: NextRequest) {
           callControlId,
         });
 
-        const clientState = parseBridgeClientState(payload.client_state);
-        const bridgeIntent =
-          clientState.bridge_intent === true ||
-          clientState.invistimo_inbound_bridge === true ||
-          Boolean((payload as { bridge_intent?: boolean }).bridge_intent);
+        if (inbound && callControlId) {
+          /*
+            Inbound softphone routing (JWT / per-user telephony credential):
+            transfer to sip:{gencred...}@sip.telnyx.com of an available agent.
+            Never fall back to TELNYX_WEBRTC_USERNAME / shared credential.
+          */
+          if (isSoftphoneWebrtcEnabled()) {
+            const routeResult = await routeInboundCallToSoftphone({
+              callControlId,
+              from,
+              to,
+              callLegId,
+              callSessionId,
+              inboundConnectionId: connectionId || undefined,
+            });
 
-        /*
-          Secondary legs (Voice App dial / WebRTC gencred) only attach to the
-          existing session — they must NEVER create a new bridge attempt.
-        */
-        if (callControlId) {
-          await attachSecondaryBridgeLeg({
-            callControlId,
-            callLegId,
-            callSessionId,
-            clientState,
-            to,
-            connectionId,
-            direction,
-          });
-        }
-
-        /*
-          Softphone routing only for the original PSTN root leg to Invistimo DID.
-          Hard filter lives in isRoutablePstnInboundLeg (default deny).
-        */
-        if (isSoftphoneWebrtcEnabled() && callControlId) {
-          const routeResult = await routeInboundCallToSoftphone({
-            callControlId,
-            from,
-            to,
-            callLegId,
-            callSessionId,
-            inboundConnectionId: connectionId || undefined,
-            direction,
-            inbound,
-            clientState,
-            bridgeIntent,
-          });
-
-          console.log("INBOUND SOFTPHONE BRIDGE RESULT:", {
-            ok: routeResult.ok,
-            userId: "userId" in routeResult ? routeResult.userId : null,
-            credentialId:
-              "credentialId" in routeResult ? routeResult.credentialId : null,
-            sipDestination:
-              "sipDestination" in routeResult
-                ? routeResult.sipDestination
-                : null,
-            bridgeResult: routeResult.bridgeResult,
-            dialConnectionId:
-              "dialConnectionId" in routeResult
-                ? routeResult.dialConnectionId
-                : null,
-            inboundConnectionId: connectionId || null,
-            errorCode:
-              "errorCode" in routeResult ? routeResult.errorCode : null,
-            errorMessage:
-              "errorMessage" in routeResult
-                ? routeResult.errorMessage
-                : null,
-          });
-        } else if (
-          inbound &&
-          callControlId &&
-          getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)
-        ) {
-          // Softphone disabled — keep legacy auto-answer behavior only.
-          await answerIncomingCall(callControlId);
+            console.log("INBOUND SOFTPHONE BRIDGE RESULT:", {
+              ok: routeResult.ok,
+              userId: "userId" in routeResult ? routeResult.userId : null,
+              credentialId:
+                "credentialId" in routeResult ? routeResult.credentialId : null,
+              sipDestination:
+                "sipDestination" in routeResult
+                  ? routeResult.sipDestination
+                  : null,
+              bridgeResult: routeResult.bridgeResult,
+              dialConnectionId:
+                "dialConnectionId" in routeResult
+                  ? routeResult.dialConnectionId
+                  : null,
+              inboundConnectionId: connectionId || null,
+              errorCode:
+                "errorCode" in routeResult ? routeResult.errorCode : null,
+              errorMessage:
+                "errorMessage" in routeResult ? routeResult.errorMessage : null,
+            });
+          } else if (getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)) {
+            // Softphone disabled — keep legacy auto-answer behavior only.
+            await answerIncomingCall(callControlId);
+          }
         }
 
         break;
@@ -1548,19 +1514,6 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
-
-        if (callControlId) {
-          await updateBridgeFromWebhook({
-            callControlId,
-            eventType,
-            direction,
-            callSessionId,
-            callLegId,
-            clientState: payload.client_state,
-            to,
-            connectionId,
-          });
-        }
 
         console.log("CALL ANSWERED:", {
           from,
@@ -1595,20 +1548,6 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
-
-        if (callControlId) {
-          await updateBridgeFromWebhook({
-            callControlId,
-            eventType,
-            hangupCause: getString(payload.hangup_cause),
-            direction,
-            callSessionId,
-            callLegId,
-            clientState: payload.client_state,
-            to,
-            connectionId,
-          });
-        }
 
         console.log("CALL HANGUP:", {
           from,
@@ -1697,19 +1636,6 @@ export async function POST(req: NextRequest) {
       }
 
       case "call.bridged": {
-        if (callControlId) {
-          await updateBridgeFromWebhook({
-            callControlId,
-            eventType,
-            direction,
-            callSessionId,
-            callLegId,
-            clientState: payload.client_state,
-            to,
-            connectionId,
-          });
-        }
-
         console.log("CALL BRIDGED:", {
           from,
           to,
