@@ -4,33 +4,81 @@ import User from "@/models/User";
 import { nanoid } from "nanoid";
 import { sendSMS } from "@/lib/sendSMS";
 
+function digitsOnly(value: unknown) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function phoneLookupVariants(rawPhone: string) {
+  let digits = digitsOnly(rawPhone);
+
+  if (!digits) return [];
+
+  if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  const variants = new Set<string>();
+
+  variants.add(digits);
+  variants.add(`+${digits}`);
+
+  if (digits.startsWith("972") && digits.length >= 11) {
+    const local = `0${digits.slice(3)}`;
+    variants.add(local);
+    variants.add(digits);
+    variants.add(`+${digits}`);
+  } else if (digits.startsWith("0") && digits.length >= 9) {
+    const intl = `972${digits.slice(1)}`;
+    variants.add(digits);
+    variants.add(intl);
+    variants.add(`+${intl}`);
+  } else if (digits.length >= 8) {
+    const local = `0${digits}`;
+    const intl = `972${digits}`;
+    variants.add(local);
+    variants.add(intl);
+    variants.add(`+${intl}`);
+  }
+
+  return [...variants];
+}
+
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { email } = await req.json();
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const body = await req.json().catch(() => ({}));
+  const rawPhone = String(body?.phone || body?.email || "").trim();
+  const variants = phoneLookupVariants(rawPhone);
 
-  if (!normalizedEmail) {
+  if (!variants.length) {
     return NextResponse.json({ success: true });
   }
 
-  const user = await User.findOne({ email: normalizedEmail });
+  let user = await User.findOne({
+    phone: { $in: variants },
+  });
+
+  // Fallback for phones stored with dashes/spaces (052-3...)
   if (!user) {
-    // 🔒 לא מגלים אם האימייל קיים
+    const core = digitsOnly(rawPhone)
+      .replace(/^00/, "")
+      .replace(/^972/, "")
+      .replace(/^0/, "");
+
+    if (core.length >= 8) {
+      const loosePattern = core.split("").join("\\D*");
+      user = await User.findOne({
+        phone: { $regex: `${loosePattern}$` },
+      });
+    }
+  }
+
+  if (!user) {
+    // 🔒 לא מגלים אם המספר קיים
     return NextResponse.json({ success: true });
   }
 
-  const phone = String(user.phone || "").trim();
-  if (!phone) {
-    console.error("FORGOT PASSWORD SMS FAILED: missing phone", {
-      email: normalizedEmail,
-      userId: String(user._id),
-    });
-    return NextResponse.json(
-      { success: false, error: "SMS_SEND_FAILED" },
-      { status: 500 },
-    );
-  }
+  const phone = String(user.phone || "").trim() || variants[0];
 
   const token = nanoid(32);
   user.resetPasswordToken = token;
