@@ -154,14 +154,8 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!user.needsPasswordSetup) {
-      console.log("❌ PASSWORD ALREADY SET");
-
-      return NextResponse.json(
-        { success: false, message: "הסיסמה כבר הוגדרה עבור חשבון זה" },
-        { status: 400 }
-      );
-    }
+    // Allow both first-time setup and later token-based resets.
+    // needsPasswordSetup is cleared when the password is saved below.
 
     /* =========================
        NORMALIZE ROLE

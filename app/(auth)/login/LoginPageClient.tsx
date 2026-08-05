@@ -27,7 +27,7 @@ export default function LoginPageClient() {
       const submittedPassword = String(formData.get("password") || pass);
 
       if (!submittedEmail || !submittedPassword) {
-        alert("נא למלא אימייל וסיסמה");
+        alert("נא למלא מייל/טלפון וסיסמה");
         return;
       }
 
@@ -105,28 +105,28 @@ export default function LoginPageClient() {
               </h1>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
-                התחברו לחשבון שלכם והמשיכו לנהל את האירוע, אישורי ההגעה,
-                ההושבה וההודעות במקום אחד.
+                התחברו עם מייל או מספר טלפון, והמשיכו לנהל את האירוע, אישורי
+                ההגעה, ההושבה וההודעות במקום אחד.
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* אימייל */}
+              {/* מייל או טלפון */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-[#4C3724]">
-                  אימייל
+                  מייל או מספר טלפון
                 </label>
 
                 <div className="relative">
                   <input
-                    type="email"
+                    type="text"
                     name="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="הזינו את כתובת האימייל שלכם"
-                    autoComplete="email"
-                    inputMode="email"
+                    placeholder="מייל או מספר טלפון"
+                    autoComplete="username"
+                    inputMode="text"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}

@@ -42,12 +42,20 @@ export default function ResetPasswordPage() {
       const data = await res.json();
 
       if (!res.ok || data?.success === false) {
-        setErr(data?.error || "קישור לא תקין או שפג תוקף");
+        setErr(
+          data?.error === "PASSWORD_TOO_SHORT"
+            ? "הסיסמה חייבת להכיל לפחות 6 תווים"
+            : data?.error || "קישור לא תקין או שפג תוקף",
+        );
         return;
       }
 
-      setMsg("✅ הסיסמה עודכנה בהצלחה. מעבירה להתחברות…");
-      setTimeout(() => router.push("/login"), 1200);
+      const accountHint = data?.email
+        ? ` אפשר להתחבר עם ${data.email} או עם מספר הטלפון.`
+        : " אפשר להתחבר עם המייל או מספר הטלפון של החשבון.";
+
+      setMsg(`✅ הסיסמה עודכנה בהצלחה.${accountHint} מעבירה להתחברות…`);
+      setTimeout(() => router.push("/login"), 1600);
     } catch (e) {
       console.error(e);
       setErr("שגיאת שרת");
