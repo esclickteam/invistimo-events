@@ -99,6 +99,8 @@ type TelnyxRtcClient = {
   newCall?: (options: Record<string, unknown>) => TelnyxRtcCall;
   on?: (eventName: string, handler: (...args: any[]) => void) => void;
   off?: (eventName: string, handler: (...args: any[]) => void) => void;
+  calls?: Record<string, TelnyxRtcCall | undefined>;
+  remoteElement?: HTMLAudioElement | null;
 };
 
 type TelnyxRtcCall = {
@@ -107,8 +109,9 @@ type TelnyxRtcCall = {
   direction?: string;
   options?: Record<string, any>;
   remoteStream?: MediaStream;
-  answer?: (options?: Record<string, unknown>) => void;
-  hangup?: () => void;
+  answer?: (options?: Record<string, unknown>) => void | Promise<void>;
+  hangup?: (options?: Record<string, unknown>) => void;
+  reject?: () => void;
   muteAudio?: () => void;
   unmuteAudio?: () => void;
 };
@@ -274,6 +277,67 @@ function onlyDialChars(value: string) {
 function normalizeDialNumber(value: string) {
   return value.replace(/[^\d*#+]/g, "");
 }
+
+function listTelnyxCalls(client?: TelnyxRtcClient | null): TelnyxRtcCall[] {
+  if (!client) return [];
+  const bag =
+    client.calls ||
+    (client as any)?.session?.calls ||
+    (client as any)?._session?.calls ||
+    {};
+  return Object.values(bag).filter(Boolean) as TelnyxRtcCall[];
+}
+
+function getCallState(call?: TelnyxRtcCall | null) {
+  return String((call as any)?.state || (call as any)?._state || "").toLowerCase();
+}
+
+function isInboundCallObject(call?: TelnyxRtcCall | null) {
+  const direction = String(call?.direction || call?.options?.direction || "").toLowerCase();
+  const state = getCallState(call);
+  return (
+    direction === "inbound" ||
+    direction === "incoming" ||
+    ["new", "ringing", "answering", "early"].includes(state)
+  );
+}
+
+/** Pick the call the user should answer — never hang up siblings (that caused ring loops). */
+function resolveInboundCallToAnswer(
+  client: TelnyxRtcClient | null | undefined,
+  preferred?: TelnyxRtcCall | null,
+): TelnyxRtcCall | null {
+  const calls = listTelnyxCalls(client);
+
+  const alreadyLive = calls.find((call) => {
+    const state = getCallState(call);
+    return (
+      isInboundCallObject(call) &&
+      (["answering", "early", "active"].includes(state) ||
+        Boolean((call as any)?._creatingPeer))
+    );
+  });
+  if (alreadyLive) return alreadyLive;
+
+  if (preferred && typeof (preferred as any).answer === "function") {
+    return preferred;
+  }
+
+  const ringing = calls.find((call) => {
+    const state = getCallState(call);
+    return (
+      isInboundCallObject(call) &&
+      ["new", "ringing"].includes(state) &&
+      typeof (call as any).answer === "function"
+    );
+  });
+
+  return ringing || preferred || null;
+}
+
+// Module singleton — prevents duplicate TelnyxRTC registrations across remounts.
+let sharedTelnyxClient: TelnyxRtcClient | null = null;
+let sharedTelnyxConnectPromise: Promise<TelnyxRtcClient> | null = null;
 
 function getBusyReasonLabel(reason?: BusyReason | null) {
   if (!reason) return "";
@@ -858,10 +922,15 @@ export default function SoftphoneStatusPanel({
 
   const telnyxClientRef = useRef<TelnyxRtcClient | null>(null);
   const activeCallRef = useRef<TelnyxRtcCall | null>(null);
+  const incomingCallRef = useRef<TelnyxRtcCall | null>(null);
   const webrtcCallerIdRef = useRef<string>(TELNYX_DEFAULT_CALLER_NUMBER);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoDialRequestKeyRef = useRef("");
+  const handleWebrtcNotificationRef = useRef<(notification: any) => void>(
+    () => {},
+  );
+  const answeringIncomingRef = useRef(false);
 
   const shiftStartedRef = useRef(false);
   const shiftStartedAtRef = useRef<string | null>(null);
@@ -1734,7 +1803,9 @@ export default function SoftphoneStatusPanel({
   function handleWebrtcNotification(notification: any) {
     // Avoid logging full Telnyx payloads (may include sensitive call metadata).
 
-    const call = (notification?.call || notification) as TelnyxRtcCall | null;
+    const call = (notification?.call ||
+      notification?.params?.call ||
+      notification) as TelnyxRtcCall | null;
 
     const callState = String(
       call?.state ||
@@ -1745,12 +1816,20 @@ export default function SoftphoneStatusPanel({
         "",
     ).toLowerCase();
 
-    if (!call) {
+    if (!call || typeof call !== "object") {
       console.warn("TELNYX NOTIFICATION WITHOUT CALL OBJECT");
       return;
     }
 
-    const inbound = isInboundWebrtcCall(call, notification);
+    // Prefer SDK direction; if modal/ringing and call has answer(), treat as inbound.
+    const inbound =
+      isInboundWebrtcCall(call, notification) ||
+      Boolean(
+        (callState === "ringing" || callState === "new") &&
+          typeof (call as any).answer === "function" &&
+          String(call?.direction || "").toLowerCase() !== "outbound",
+      );
+
     const number = getCallNumber(call, activeCallNumber || phoneNumber || "");
 
     console.log("TELNYX WEBRTC NOTIFICATION:", {
@@ -1764,11 +1843,17 @@ export default function SoftphoneStatusPanel({
         notification?.params?.direction ||
         notification?.data?.direction,
       inbound,
+      hasAnswer: typeof (call as any).answer === "function",
       number,
     });
 
     if (callState === "ringing" || callState === "new") {
       activeCallRef.current = call;
+      if (inbound) {
+        // New ring must unlock Answer — previous attempt may have left this stuck true.
+        answeringIncomingRef.current = false;
+        incomingCallRef.current = call;
+      }
       void attachRemoteAudio(call);
 
       if (inbound) {
@@ -1785,7 +1870,17 @@ export default function SoftphoneStatusPanel({
         setShowIncomingCallModal(true);
         addRecentCall(displayNumber, "inbound");
 
-        void changeStatus("ringing", {
+        // Do not lock savingStatus — Answer/Decline must stay clickable.
+        setAgent((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "ringing",
+                statusStartedAt: new Date().toISOString(),
+              }
+            : prev,
+        );
+        void syncLiveStatus("ringing", {
           number: displayNumber,
           direction: "inbound",
           reason: null,
@@ -1795,14 +1890,29 @@ export default function SoftphoneStatusPanel({
 
     if (callState === "active" || callState === "answered") {
       activeCallRef.current = call;
+      incomingCallRef.current = null;
+      answeringIncomingRef.current = false;
       void attachRemoteAudio(call);
       setShowIncomingCallModal(false);
 
-      void changeStatus("in_call", {
+      void syncLiveStatus("in_call", {
         number: number || activeCallNumber || phoneNumber,
         direction: inbound ? "inbound" : "outbound",
         reason: inbound ? null : "outbound_call",
       });
+      setAgent((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "in_call",
+              statusStartedAt: new Date().toISOString(),
+              answeredCallsToday:
+                prev.status !== "in_call"
+                  ? (prev.answeredCallsToday || 0) + 1
+                  : prev.answeredCallsToday || 0,
+            }
+          : prev,
+      );
     }
 
     if (
@@ -1811,16 +1921,43 @@ export default function SoftphoneStatusPanel({
       callState === "purge" ||
       callState === "done"
     ) {
+      answeringIncomingRef.current = false;
+
+      // Sibling inbound may still be ringing (duplicate INVITE). Keep modal on that leg.
+      const stillRinging = listTelnyxCalls(telnyxClientRef.current).find(
+        (item) => {
+          if (item?.id && call?.id && item.id === call.id) return false;
+          const state = getCallState(item);
+          return isInboundCallObject(item) && ["new", "ringing"].includes(state);
+        },
+      );
+
+      if (stillRinging) {
+        activeCallRef.current = stillRinging;
+        incomingCallRef.current = stillRinging;
+        const displayNumber =
+          getCallNumber(stillRinging, number || activeCallNumber || phoneNumber) ||
+          "שיחה נכנסת";
+        setActiveCallNumber(displayNumber);
+        setPhoneNumber(displayNumber);
+        setIncomingCallNumber(displayNumber);
+        setCallDirection("inbound");
+        setShowIncomingCallModal(true);
+        return;
+      }
+
+      const wasIncoming = Boolean(incomingCallRef.current) || inbound;
       activeCallRef.current = null;
+      incomingCallRef.current = null;
       setMuted(false);
       setSpeakerEnabled(false);
       setShowIncomingCallModal(false);
       setIncomingCallNumber("");
 
-      void changeStatus("after_call", {
+      void syncLiveStatus("after_call", {
         reason: "after_call",
         number: number || activeCallNumber || phoneNumber,
-        direction: inbound ? "inbound" : callDirection,
+        direction: wasIncoming ? "inbound" : callDirection,
       });
 
       setActiveBusyReason("after_call");
@@ -1830,8 +1967,20 @@ export default function SoftphoneStatusPanel({
       setPhoneNumber("");
       setShowDialer(false);
       setShowBusyMenu(false);
+      setAgent((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "after_call",
+              statusStartedAt: new Date().toISOString(),
+            }
+          : prev,
+      );
     }
   }
+
+  // Keep the Telnyx listener on a stable wrapper so connectWebrtc never captures a stale handler.
+  handleWebrtcNotificationRef.current = handleWebrtcNotification;
 
   async function getWebrtcAuth() {
     const res = await fetch("/api/telnyx/webrtc-token", {
@@ -1894,9 +2043,24 @@ export default function SoftphoneStatusPanel({
 
   async function connectWebrtc() {
     if (telnyxClientRef.current && webrtcReady) return telnyxClientRef.current;
-    if (webrtcConnecting) return telnyxClientRef.current;
+    if (sharedTelnyxClient) {
+      telnyxClientRef.current = sharedTelnyxClient;
+      setWebrtcReady(true);
+      setWebrtcConnecting(false);
+      return sharedTelnyxClient;
+    }
+    if (webrtcConnecting || sharedTelnyxConnectPromise) {
+      const existing = await (sharedTelnyxConnectPromise ||
+        Promise.resolve(telnyxClientRef.current));
+      if (existing) {
+        telnyxClientRef.current = existing;
+        sharedTelnyxClient = existing;
+        setWebrtcReady(true);
+        return existing;
+      }
+    }
 
-    try {
+    const connectPromise = (async () => {
       setWebrtcConnecting(true);
       setWebrtcError("");
 
@@ -1918,10 +2082,33 @@ export default function SoftphoneStatusPanel({
         throw new Error("TELNYX_RTC_SDK_NOT_FOUND");
       }
 
+      // Critical: only one registered TelnyxRTC in the page.
+      const previousShared = sharedTelnyxClient as TelnyxRtcClient | null;
+      if (previousShared) {
+        try {
+          previousShared.disconnect?.();
+        } catch {
+          // ignore
+        }
+        sharedTelnyxClient = null;
+      }
+      const previousLocal = telnyxClientRef.current;
+      if (previousLocal && previousLocal !== previousShared) {
+        try {
+          previousLocal.disconnect?.();
+        } catch {
+          // ignore
+        }
+      }
+
       // JWT-only authentication — never login/password.
       const client = new TelnyxRTC({
         login_token: loginToken,
       }) as TelnyxRtcClient;
+
+      if (remoteAudioRef.current) {
+        client.remoteElement = remoteAudioRef.current;
+      }
 
       client.on?.("telnyx.ready", () => {
         console.log("TELNYX WEBRTC READY");
@@ -1943,13 +2130,20 @@ export default function SoftphoneStatusPanel({
       });
 
       client.on?.("telnyx.notification", (notification: any) => {
-        handleWebrtcNotification(notification);
+        handleWebrtcNotificationRef.current?.(notification);
       });
 
+      sharedTelnyxClient = client;
       telnyxClientRef.current = client;
       client.connect?.();
 
       return client;
+    })();
+
+    sharedTelnyxConnectPromise = connectPromise;
+
+    try {
+      return await connectPromise;
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
       console.error("CONNECT TELNYX WEBRTC FAILED");
@@ -1961,6 +2155,7 @@ export default function SoftphoneStatusPanel({
       );
       throw err;
     } finally {
+      sharedTelnyxConnectPromise = null;
       setWebrtcConnecting(false);
     }
   }
@@ -1973,12 +2168,27 @@ export default function SoftphoneStatusPanel({
     }
 
     try {
-      telnyxClientRef.current?.disconnect?.();
+      incomingCallRef.current?.hangup?.();
+    } catch {
+      // ignore
+    }
+
+    try {
+      const client = telnyxClientRef.current || sharedTelnyxClient;
+      client?.disconnect?.();
     } catch {
       // ignore disconnect errors
     }
 
+    if (sharedTelnyxClient === telnyxClientRef.current) {
+      sharedTelnyxClient = null;
+    }
+    sharedTelnyxClient = null;
+    sharedTelnyxConnectPromise = null;
+
     activeCallRef.current = null;
+    incomingCallRef.current = null;
+    answeringIncomingRef.current = false;
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
 
@@ -2149,15 +2359,21 @@ export default function SoftphoneStatusPanel({
   }
 
   async function rejectIncomingCall() {
-    if (savingStatus) return;
+    answeringIncomingRef.current = false;
+    const call = incomingCallRef.current || activeCallRef.current;
 
     try {
-      activeCallRef.current?.hangup?.();
+      if (typeof (call as any)?.hangup === "function") {
+        call?.hangup?.();
+      } else if (typeof (call as any)?.reject === "function") {
+        (call as any).reject();
+      }
     } catch (err) {
       console.error("REJECT WEBRTC INCOMING CALL FAILED:", err);
     }
 
     activeCallRef.current = null;
+    incomingCallRef.current = null;
 
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
@@ -2169,11 +2385,7 @@ export default function SoftphoneStatusPanel({
       remoteAudioRef.current.srcObject = null;
     }
 
-    await changeStatus("after_call", {
-      reason: "after_call",
-      number: activeCallNumber || incomingCallNumber || phoneNumber,
-      direction: "inbound",
-    });
+    const number = activeCallNumber || incomingCallNumber || phoneNumber;
 
     setActiveBusyReason("after_call");
     setBusyReason("after_call");
@@ -2182,32 +2394,131 @@ export default function SoftphoneStatusPanel({
     setPhoneNumber("");
     setShowDialer(false);
     setShowBusyMenu(false);
+    setAgent((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: "after_call",
+            statusStartedAt: new Date().toISOString(),
+          }
+        : prev,
+    );
+
+    void syncLiveStatus("after_call", {
+      reason: "after_call",
+      number,
+      direction: "inbound",
+    });
   }
 
   async function markAnswered() {
+    const cleanNumber =
+      activeCallNumber ||
+      incomingCallNumber ||
+      normalizeDialNumber(phoneNumber) ||
+      "שיחה נכנסת";
+
+    const isInboundUi =
+      showIncomingCallModal ||
+      callDirection === "inbound" ||
+      Boolean(incomingCallRef.current);
+
+    if (isInboundUi) {
+      // Never soft-lock forever — previous answer attempts left this true.
+      if (answeringIncomingRef.current) {
+        answeringIncomingRef.current = false;
+      }
+
+      const call = resolveInboundCallToAnswer(
+        telnyxClientRef.current || sharedTelnyxClient,
+        incomingCallRef.current || activeCallRef.current,
+      );
+
+      if (!call || typeof (call as any).answer !== "function") {
+        console.error("ANSWER WEBRTC CALL MISSING CALL OBJECT", {
+          hasIncomingRef: Boolean(incomingCallRef.current),
+          hasActiveRef: Boolean(activeCallRef.current),
+          clientCalls: listTelnyxCalls(
+            telnyxClientRef.current || sharedTelnyxClient,
+          ).map((item) => ({
+            id: item.id || null,
+            state: getCallState(item),
+            direction: item.direction || null,
+          })),
+        });
+        alert("אין שיחה נכנסת פעילה לענות לה. רענני את הדף ונסי שוב.");
+        return;
+      }
+
+      answeringIncomingRef.current = true;
+      ensureShiftStarted();
+
+      // Safety unlock if SDK never reaches active.
+      window.setTimeout(() => {
+        if (answeringIncomingRef.current) {
+          answeringIncomingRef.current = false;
+        }
+      }, 8000);
+
+      try {
+        if (remoteAudioRef.current && telnyxClientRef.current) {
+          telnyxClientRef.current.remoteElement = remoteAudioRef.current;
+        }
+
+        console.log("TELNYX WEBRTC ANSWER CLICK", {
+          callId: call.id || null,
+          state: getCallState(call),
+          direction: call.direction || null,
+        });
+
+        // Plain answer() — Telnyx README. Do NOT hang up sibling legs first
+        // (that caused hangup→new-ring loops and blocked answer).
+        await Promise.resolve(call.answer?.());
+
+        activeCallRef.current = call;
+        incomingCallRef.current = call;
+        void attachRemoteAudio(call);
+
+        setActiveCallNumber(cleanNumber);
+        setPhoneNumber(cleanNumber);
+        setCallDirection("inbound");
+        setShowIncomingCallModal(false);
+        setIncomingCallNumber("");
+        setShowDialer(false);
+        setShowBusyMenu(false);
+        setActiveBusyReason(null);
+
+        setAgent((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "in_call",
+                statusStartedAt: new Date().toISOString(),
+                answeredCallsToday: (prev.answeredCallsToday || 0) + 1,
+              }
+            : prev,
+        );
+
+        void syncLiveStatus("in_call", {
+          number: cleanNumber,
+          direction: "inbound",
+          reason: null,
+        });
+      } catch (err) {
+        answeringIncomingRef.current = false;
+        console.error("ANSWER WEBRTC CALL FAILED:", err);
+        alert("שגיאה במענה לשיחה. בדקי אישור מיקרופון ונסי שוב.");
+      }
+
+      return;
+    }
+
+    // Manual "ענה" on outbound dialer path (status only).
     if (savingStatus) return;
-
-    const cleanNumber = activeCallNumber || normalizeDialNumber(phoneNumber);
-    const call = activeCallRef.current;
-
-    if (!cleanNumber) {
-      alert("אין מספר פעיל לשיחה");
-      return;
-    }
-
-    if (!call?.answer && callDirection === "inbound") {
-      alert("אין שיחה נכנסת פעילה לענות לה");
-      return;
-    }
 
     ensureShiftStarted();
 
     try {
-      if (callDirection === "inbound") {
-        call?.answer?.(getCallMediaOptions());
-        void attachRemoteAudio(call);
-      }
-
       setActiveCallNumber(cleanNumber);
       setPhoneNumber(cleanNumber);
       setShowIncomingCallModal(false);
@@ -2836,18 +3147,16 @@ export default function SoftphoneStatusPanel({
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={rejectIncomingCall}
-                disabled={!!savingStatus}
-                className="h-14 rounded-2xl border border-slate-200 bg-slate-50 text-base font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void rejectIncomingCall()}
+                className="h-14 rounded-2xl border border-slate-200 bg-slate-50 text-base font-black text-slate-900 transition hover:bg-slate-100"
               >
                 דחה
               </button>
 
               <button
                 type="button"
-                onClick={markAnswered}
-                disabled={!!savingStatus || creatingCall || shiftSaving}
-                className="h-14 rounded-2xl border border-emerald-200 bg-emerald-50 text-base font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void markAnswered()}
+                className="h-14 rounded-2xl border border-emerald-200 bg-emerald-50 text-base font-black text-emerald-700 transition hover:bg-emerald-100"
               >
                 ענה
               </button>
