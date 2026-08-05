@@ -39,6 +39,7 @@ type AdminUser = {
   invitationId?: string;
   name?: string;
   email: string;
+  phone?: string;
   role: AdminRole;
 
   plan?: string;
@@ -134,6 +135,7 @@ type AdminRecordOption = {
 type EditFormState = {
   name: string;
   email: string;
+  phone: string;
   eventDate: string;
   assignedProducerIds: string[];
   assignedStaffIds: string[];
@@ -2166,6 +2168,7 @@ function EditUserModal({
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
+    phone: user.phone || "",
     eventDate: formatDateInput(user.eventDate),
     assignedProducerIds: resolveAssignedProducerIds(user),
     assignedStaffIds: (user.assignedStaffIds || []).map(String),
@@ -2178,6 +2181,7 @@ function EditUserModal({
     const payload = {
       name: form.name,
       email: form.email,
+      phone: form.phone,
       eventDate: form.eventDate,
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       callRoundsSchedule: {
@@ -2452,6 +2456,13 @@ function EditUserModal({
             type="date"
             value={form.eventDate}
             onChange={(value) => setForm((p) => ({ ...p, eventDate: value }))}
+          />
+
+          <InputField
+            label="טלפון"
+            type="tel"
+            value={form.phone}
+            onChange={(value) => setForm((p) => ({ ...p, phone: value }))}
           />
         </section>
 
