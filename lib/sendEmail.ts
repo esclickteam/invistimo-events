@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 type SendEmailProps = {
   to: string;
@@ -8,18 +8,36 @@ type SendEmailProps = {
 };
 
 /**
- * Transactional mail for password setup / reset / staff invites.
- * Uses Resend (same provider as contact + admin purchase alerts).
+ * Password setup / reset / staff invites — Box/cPanel SMTP only.
+ * Contact form and admin purchase alerts use Resend separately.
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailProps) {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("❌ Missing RESEND_API_KEY");
+  const host = process.env.EMAIL_HOST;
+  const port = Number(process.env.EMAIL_PORT || 465);
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+
+  if (!host || !port || !user || !pass) {
+    throw new Error("❌ Missing EMAIL SMTP environment variables");
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  // From must match the authenticated mailbox on Box/cPanel.
+  // Using noreply@ while auth is support@ gets rejected/dropped.
+  const fromAddress = user;
 
-  const result = await resend.emails.send({
-    from: "Invistimo <support@invistimo.com>",
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587,
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: `"Invistimo" <${fromAddress}>`,
     to,
     subject,
     html,
@@ -30,20 +48,18 @@ export async function sendEmail({ to, subject, html, text }: SendEmailProps) {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim(),
-    replyTo: "support@invistimo.com",
+    replyTo: fromAddress,
   });
 
-  if (result.error) {
-    throw new Error(
-      `Resend send failed: ${result.error.message || JSON.stringify(result.error)}`,
-    );
-  }
-
-  console.log("📧 sendEmail ok", {
+  console.log("📧 SMTP sendEmail ok", {
     to,
     subject,
-    id: result.data?.id || null,
+    from: fromAddress,
+    messageId: info.messageId || null,
+    response: info.response || null,
+    accepted: info.accepted || [],
+    rejected: info.rejected || [],
   });
 
-  return result.data;
+  return info;
 }
