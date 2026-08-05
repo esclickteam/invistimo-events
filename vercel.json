@@ -11,10 +11,6 @@
     {
       "path": "/api/admin/call-work-orders/auto-open",
       "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/telnyx-inbound-bridge-cleanup",
-      "schedule": "* * * * *"
     }
   ]
 }
