@@ -179,7 +179,21 @@ export async function findAvailableInboundSoftphoneTarget() {
     After an outbound hangup the UI often stays on after_call/busy for a while.
     Those agents must still receive inbound calls.
   */
-  let candidateAgents = await mongoose.connection
+  type SoftphonePresenceCandidate = {
+    _id?: unknown;
+    userId?: unknown;
+    agentId?: unknown;
+    employeeId?: unknown;
+    staffId?: unknown;
+    rawAgentStatus?: unknown;
+    status?: unknown;
+    softphoneStatus?: unknown;
+    availabilityStatus?: unknown;
+    lastSeenAt?: unknown;
+    statusStartedAt?: unknown;
+  };
+
+  let candidateAgents: SoftphonePresenceCandidate[] = await mongoose.connection
     .collection("softphonestatuses")
     .find({
       $and: [
