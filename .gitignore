@@ -53,6 +53,8 @@ out/
 .env
 .env.local
 .env.*.local
+.env.vercel*
+.env*.prod
 
 # Parcel cache
 .cache

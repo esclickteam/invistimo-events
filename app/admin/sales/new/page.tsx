@@ -1301,6 +1301,13 @@ export default function AdminSalesNewPage() {
   } | null>(null);
   const [documentSaving, setDocumentSaving] = useState(false);
   const [documentSuccess, setDocumentSuccess] = useState("");
+  const [passwordSetupInfo, setPasswordSetupInfo] = useState<{
+    link: string | null;
+    email: string;
+    phone: string;
+    emailSent: boolean;
+    smsSent: boolean;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -2089,7 +2096,25 @@ export default function AdminSalesNewPage() {
 
       if (data?.sale?.status === "paid" || data?.payment?.provider === "manual") {
         setError("");
-        setDocumentSuccess("הלקוח נפתח וסומן כשולם ידנית בהצלחה. נשארת בעמוד כדי להמשיך לעבוד.");
+        const setup = data?.passwordSetup;
+        setPasswordSetupInfo(
+          setup
+            ? {
+                link: setup.link || null,
+                email: setup.email || "",
+                phone: setup.phone || "",
+                emailSent: Boolean(setup.emailSent),
+                smsSent: Boolean(setup.smsSent),
+              }
+            : null,
+        );
+        const deliveryBits = [
+          setup?.emailSent ? "מייל נשלח" : "מייל לא אושר",
+          setup?.smsSent ? "SMS נשלח" : null,
+        ].filter(Boolean);
+        setDocumentSuccess(
+          `הלקוח נפתח וסומן כשולם ידנית בהצלחה. ${deliveryBits.join(" · ")}. נשארת בעמוד כדי להמשיך לעבוד.`,
+        );
         router.refresh();
         return;
       }
@@ -2713,6 +2738,47 @@ export default function AdminSalesNewPage() {
                   {documentSuccess ? (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">
                       {documentSuccess}
+                    </div>
+                  ) : null}
+
+                  {passwordSetupInfo?.link ? (
+                    <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs font-bold leading-5 text-sky-900">
+                      <p className="mb-2">
+                        קישור הגדרת סיסמה ללקוח
+                        {passwordSetupInfo.emailSent ? " (נשלח גם במייל)" : ""}
+                        {passwordSetupInfo.smsSent ? " (נשלח גם ב־SMS)" : ""}:
+                      </p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <a
+                          href={passwordSetupInfo.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="break-all underline"
+                        >
+                          {passwordSetupInfo.link}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(
+                                passwordSetupInfo.link || "",
+                              );
+                              setDocumentSuccess(
+                                "קישור הגדרת הסיסמה הועתק ללוח",
+                              );
+                            } catch {
+                              setError("לא ניתן להעתיק את הקישור");
+                            }
+                          }}
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl border border-sky-300 bg-white px-3 text-[11px] font-black text-sky-900"
+                        >
+                          העתקת קישור
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] font-semibold text-sky-800/80">
+                        אם המייל לא מופיע אצל הלקוח — בדקו ספאם, או שלחו את הקישור ידנית / ב־SMS.
+                      </p>
                     </div>
                   ) : null}
 
