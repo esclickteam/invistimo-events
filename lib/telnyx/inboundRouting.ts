@@ -292,7 +292,13 @@ export async function findAvailableInboundSoftphoneTarget() {
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) continue;
 
     // Skip stale presence (> 5 minutes without heartbeat).
-    const lastSeenAt = agent.lastSeenAt ? new Date(agent.lastSeenAt) : null;
+    const lastSeenRaw = agent.lastSeenAt;
+    const lastSeenAt =
+      lastSeenRaw instanceof Date
+        ? lastSeenRaw
+        : typeof lastSeenRaw === "string" || typeof lastSeenRaw === "number"
+          ? new Date(lastSeenRaw)
+          : null;
     if (
       lastSeenAt &&
       Number.isFinite(lastSeenAt.getTime()) &&
