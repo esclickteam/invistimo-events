@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import CallRecording from "@/models/CallRecording";
 import { routeInboundCallToSoftphone } from "@/lib/telnyx/inboundRouting";
+import { updateBridgeFromWebhook } from "@/lib/telnyx/inboundBridgeState";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 
 export const runtime = "nodejs";
@@ -1515,6 +1516,14 @@ export async function POST(req: NextRequest) {
           eventType,
         });
 
+        if (callControlId) {
+          await updateBridgeFromWebhook({
+            callControlId,
+            eventType,
+            direction,
+          });
+        }
+
         console.log("CALL ANSWERED:", {
           from,
           to,
@@ -1548,6 +1557,15 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
+
+        if (callControlId) {
+          await updateBridgeFromWebhook({
+            callControlId,
+            eventType,
+            hangupCause: getString(payload.hangup_cause),
+            direction,
+          });
+        }
 
         console.log("CALL HANGUP:", {
           from,
