@@ -1,46 +1,36 @@
 import { NextResponse } from "next/server";
+import { nanoid } from "nanoid";
+
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import { nanoid } from "nanoid";
 import { sendSMS } from "@/lib/sendSMS";
+import {
+  phoneCoreDigits,
+  phoneLookupVariants,
+} from "@/lib/auth/phoneLookup";
 
-function digitsOnly(value: unknown) {
-  return String(value || "").replace(/\D/g, "");
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function phoneLookupVariants(rawPhone: string) {
-  let digits = digitsOnly(rawPhone);
+async function findUsersByPhone(rawPhone: string) {
+  const variants = phoneLookupVariants(rawPhone);
+  if (!variants.length) return [];
 
-  if (!digits) return [];
+  const exact = await User.find({ phone: { $in: variants } })
+    .select("_id email phone updatedAt createdAt needsPasswordSetup hasPaid")
+    .sort({ updatedAt: -1 })
+    .lean();
 
-  if (digits.startsWith("00")) {
-    digits = digits.slice(2);
-  }
+  if (exact.length > 0) return exact;
 
-  const variants = new Set<string>();
+  const core = phoneCoreDigits(rawPhone);
+  if (core.length < 8) return [];
 
-  variants.add(digits);
-  variants.add(`+${digits}`);
-
-  if (digits.startsWith("972") && digits.length >= 11) {
-    const local = `0${digits.slice(3)}`;
-    variants.add(local);
-    variants.add(digits);
-    variants.add(`+${digits}`);
-  } else if (digits.startsWith("0") && digits.length >= 9) {
-    const intl = `972${digits.slice(1)}`;
-    variants.add(digits);
-    variants.add(intl);
-    variants.add(`+${intl}`);
-  } else if (digits.length >= 8) {
-    const local = `0${digits}`;
-    const intl = `972${digits}`;
-    variants.add(local);
-    variants.add(intl);
-    variants.add(`+${intl}`);
-  }
-
-  return [...variants];
+  const loosePattern = core.split("").join("\\D*");
+  return User.find({ phone: { $regex: `${loosePattern}$` } })
+    .select("_id email phone updatedAt createdAt needsPasswordSetup hasPaid")
+    .sort({ updatedAt: -1 })
+    .lean();
 }
 
 export async function POST(req: Request) {
@@ -48,42 +38,44 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const rawPhone = String(body?.phone || body?.email || "").trim();
-  const variants = phoneLookupVariants(rawPhone);
 
-  if (!variants.length) {
+  if (!rawPhone) {
     return NextResponse.json({ success: true });
   }
 
-  let user = await User.findOne({
-    phone: { $in: variants },
-  });
+  const matches = await findUsersByPhone(rawPhone);
 
-  // Fallback for phones stored with dashes/spaces (052-3...)
-  if (!user) {
-    const core = digitsOnly(rawPhone)
-      .replace(/^00/, "")
-      .replace(/^972/, "")
-      .replace(/^0/, "");
-
-    if (core.length >= 8) {
-      const loosePattern = core.split("").join("\\D*");
-      user = await User.findOne({
-        phone: { $regex: `${loosePattern}$` },
-      });
-    }
-  }
-
-  if (!user) {
+  if (!matches.length) {
     // 🔒 לא מגלים אם המספר קיים
     return NextResponse.json({ success: true });
   }
 
-  const phone = String(user.phone || "").trim() || variants[0];
+  // Prefer the most recently updated account when phone is shared.
+  const user = matches[0];
 
+  if (matches.length > 1) {
+    console.warn("FORGOT PASSWORD: multiple users share phone", {
+      phone: rawPhone,
+      count: matches.length,
+      chosenUserId: String(user._id),
+      chosenEmail: user.email,
+      emails: matches.map((item) => item.email),
+    });
+  }
+
+  const phone = String(user.phone || "").trim() || rawPhone;
   const token = nanoid(32);
-  user.resetPasswordToken = token;
-  user.resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 30); // 30 דקות
-  await user.save();
+  const expires = new Date(Date.now() + 1000 * 60 * 30); // 30 minutes
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        resetPasswordToken: token,
+        resetPasswordExpires: expires,
+      },
+    },
+  );
 
   const resetLink = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password/${token}`;
 

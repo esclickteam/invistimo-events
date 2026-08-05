@@ -8,9 +8,42 @@ import {
   LOGIN_COOKIES_TO_CLEAR,
   setAuthCookie,
 } from "@/lib/auth/clearAuthCookies";
+import {
+  phoneCoreDigits,
+  phoneLookupVariants,
+} from "@/lib/auth/phoneLookup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function looksLikeEmail(value: string) {
+  return value.includes("@");
+}
+
+async function findLoginCandidates(identifier: string) {
+  if (looksLikeEmail(identifier)) {
+    const email = identifier.trim().toLowerCase();
+    const user = await User.findOne({ email }).select("+password");
+    return user ? [user] : [];
+  }
+
+  const variants = phoneLookupVariants(identifier);
+  const users = variants.length
+    ? await User.find({ phone: { $in: variants } })
+        .select("+password")
+        .sort({ updatedAt: -1 })
+    : [];
+
+  if (users.length > 0) return users;
+
+  const core = phoneCoreDigits(identifier);
+  if (core.length < 8) return [];
+
+  const loosePattern = core.split("").join("\\D*");
+  return User.find({ phone: { $regex: `${loosePattern}$` } })
+    .select("+password")
+    .sort({ updatedAt: -1 });
+}
 
 export async function POST(req: Request) {
   try {
@@ -29,13 +62,13 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const email = String(body?.email || "")
+    const identifier = String(body?.email || body?.phone || "")
       .trim()
       .toLowerCase();
 
     const password = String(body?.password || "");
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return NextResponse.json(
         { success: false, error: "חסרים פרטי התחברות" },
         {
@@ -45,11 +78,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    const candidates = await findLoginCandidates(identifier);
 
-    if (!user) {
+    if (!candidates.length) {
       return NextResponse.json(
-        { success: false, error: "מייל או סיסמה שגויים" },
+        { success: false, error: "מייל/טלפון או סיסמה שגויים" },
         {
           status: 401,
           headers: { "Cache-Control": "no-store" },
@@ -57,16 +90,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const match = await bcrypt.compare(password, user.password);
+    let user = null as (typeof candidates)[number] | null;
 
-    if (!match) {
+    for (const candidate of candidates) {
+      const hash = String(candidate.password || "");
+      if (!hash) continue;
+
+      const match = await bcrypt.compare(password, hash);
+      if (match) {
+        user = candidate;
+        break;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
-        { success: false, error: "מייל או סיסמה שגויים" },
+        { success: false, error: "מייל/טלפון או סיסמה שגויים" },
         {
           status: 401,
           headers: { "Cache-Control": "no-store" },
         }
       );
+    }
+
+    // Repair stuck flag after older reset-password saves.
+    if (user.needsPasswordSetup) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { needsPasswordSetup: false } },
+      );
+      user.needsPasswordSetup = false;
     }
 
     /* ======================================================
