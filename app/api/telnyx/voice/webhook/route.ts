@@ -1476,6 +1476,7 @@ export async function POST(req: NextRequest) {
               to,
               callLegId,
               callSessionId,
+              inboundConnectionId: connectionId || undefined,
             });
 
             console.log("INBOUND SOFTPHONE BRIDGE RESULT:", {
@@ -1488,6 +1489,11 @@ export async function POST(req: NextRequest) {
                   ? routeResult.sipDestination
                   : null,
               bridgeResult: routeResult.bridgeResult,
+              dialConnectionId:
+                "dialConnectionId" in routeResult
+                  ? routeResult.dialConnectionId
+                  : null,
+              inboundConnectionId: connectionId || null,
               errorCode:
                 "errorCode" in routeResult ? routeResult.errorCode : null,
               errorMessage:

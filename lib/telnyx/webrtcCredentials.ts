@@ -12,6 +12,7 @@ type TelnyxCredentialCreateResponse = {
   data?: {
     id?: string;
     sip_username?: string;
+    resource_id?: string;
   };
 };
 
@@ -92,8 +93,15 @@ async function createTelnyxTelephonyCredential(userId: string) {
 }
 
 export async function getSipUsernameForCredentialId(credentialId: string) {
+  const meta = await getTelephonyCredentialMeta(credentialId);
+  return meta.sipUsername;
+}
+
+export async function getTelephonyCredentialMeta(credentialId: string) {
   const id = String(credentialId || "").trim();
-  if (!id) return "";
+  if (!id) {
+    return { sipUsername: "", connectionId: "" };
+  }
 
   const res = await telnyxFetch(
     `/telephony_credentials/${encodeURIComponent(id)}`,
@@ -104,8 +112,21 @@ export async function getSipUsernameForCredentialId(credentialId: string) {
     | TelnyxCredentialCreateResponse
     | null;
 
-  if (!res.ok) return "";
-  return String(data?.data?.sip_username || "").trim();
+  if (!res.ok) {
+    return { sipUsername: "", connectionId: "" };
+  }
+
+  const resourceId = String(data?.data?.resource_id || "");
+  const connectionId = resourceId.replace(/^connection:/i, "").trim();
+
+  return {
+    sipUsername: String(data?.data?.sip_username || "").trim(),
+    connectionId,
+  };
+}
+
+export function getConfiguredTelnyxWebRtcConnectionId() {
+  return getTelnyxConnectionId();
 }
 
 async function createTelnyxLoginToken(credentialId: string) {

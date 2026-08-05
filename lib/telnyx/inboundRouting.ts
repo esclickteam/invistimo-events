@@ -5,7 +5,10 @@ import TelnyxWebRtcCredential from "@/models/TelnyxWebRtcCredential";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 import {
   getSipUsernameForCredentialId,
+  getTelephonyCredentialMeta,
+  getConfiguredTelnyxWebRtcConnectionId,
   buildTelnyxSipUri,
+  getSoftphoneCallerId,
 } from "@/lib/telnyx/webrtcCredentials";
 
 export type InboundRouteResult =
@@ -14,8 +17,9 @@ export type InboundRouteResult =
       userId: string;
       credentialId: string;
       sipDestination: string;
-      bridgeResult: "transfer_requested";
+      bridgeResult: "dial_bridge_requested";
       transferStatus: number;
+      dialConnectionId?: string | null;
     }
   | {
       ok: false;
@@ -27,6 +31,7 @@ export type InboundRouteResult =
       errorCode?: string | null;
       errorMessage?: string | null;
       transferStatus?: number;
+      dialConnectionId?: string | null;
     };
 
 function getTelnyxApiKey() {
@@ -37,7 +42,20 @@ function getOldSharedUsername() {
   return String(process.env.TELNYX_WEBRTC_USERNAME || "").trim();
 }
 
-async function transferCallToSip(callControlId: string, sipUri: string) {
+/**
+ * Ring the WebRTC endpoint on the SAME connection the telephony credential
+ * is registered on, then auto-bridge to the inbound PSTN leg.
+ *
+ * Plain `transfer` from the inbound Call Control connection caused
+ * hangupCause=user_busy because the gencred registration lives on the
+ * WebRTC credential connection (often a different connection id).
+ */
+async function dialBridgeToSip(params: {
+  inboundCallControlId: string;
+  sipUri: string;
+  fromNumber: string;
+  connectionId: string;
+}) {
   const apiKey = getTelnyxApiKey();
   if (!apiKey) {
     return {
@@ -48,24 +66,32 @@ async function transferCallToSip(callControlId: string, sipUri: string) {
     };
   }
 
-  const res = await fetch(
-    `https://api.telnyx.com/v2/calls/${encodeURIComponent(
-      callControlId
-    )}/actions/transfer`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        to: sipUri,
-        timeout_secs: 45,
-      }),
-      cache: "no-store",
-    }
-  );
+  if (!params.connectionId) {
+    return {
+      ok: false as const,
+      status: 500,
+      errorCode: "WEBRTC_CONNECTION_ID_MISSING",
+      errorMessage: "WEBRTC_CONNECTION_ID_MISSING",
+    };
+  }
+
+  const res = await fetch("https://api.telnyx.com/v2/calls", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      connection_id: params.connectionId,
+      to: params.sipUri,
+      from: params.fromNumber,
+      link_to: params.inboundCallControlId,
+      bridge_intent: true,
+      timeout_secs: 45,
+    }),
+    cache: "no-store",
+  });
 
   const data = await res.json().catch(() => null);
   const firstError = Array.isArray(data?.errors) ? data.errors[0] : null;
@@ -74,10 +100,11 @@ async function transferCallToSip(callControlId: string, sipUri: string) {
     return {
       ok: false as const,
       status: res.status,
-      errorCode: String(firstError?.code || "TELNYX_TRANSFER_FAILED"),
+      errorCode: String(firstError?.code || "TELNYX_DIAL_BRIDGE_FAILED"),
       errorMessage: String(
-        firstError?.detail || firstError?.title || "TELNYX_TRANSFER_FAILED"
+        firstError?.detail || firstError?.title || "TELNYX_DIAL_BRIDGE_FAILED"
       ),
+      dialCallControlId: null as string | null,
     };
   }
 
@@ -86,6 +113,7 @@ async function transferCallToSip(callControlId: string, sipUri: string) {
     status: res.status,
     errorCode: null,
     errorMessage: null,
+    dialCallControlId: String(data?.data?.call_control_id || "") || null,
   };
 }
 
@@ -214,13 +242,14 @@ export async function findAvailableInboundSoftphoneTarget() {
       continue;
     }
 
-    // Prefer newest active credential; ignore duplicates beyond the first.
     const credential = credentials[0];
     const credentialId = String(credential.telnyxCredentialId || "");
     if (!credentialId) continue;
 
+    const meta = await getTelephonyCredentialMeta(credentialId);
     const sipUsername =
       (credential as any).sipUsername ||
+      meta.sipUsername ||
       (await getSipUsernameForCredentialId(credentialId));
 
     if (!sipUsername) {
@@ -240,7 +269,6 @@ export async function findAvailableInboundSoftphoneTarget() {
       continue;
     }
 
-    // Backfill sipUsername if missing in DB (never store password).
     if (!(credential as any).sipUsername && sipUsername) {
       await TelnyxWebRtcCredential.updateOne(
         { _id: credential._id },
@@ -248,11 +276,15 @@ export async function findAvailableInboundSoftphoneTarget() {
       );
     }
 
+    const dialConnectionId =
+      meta.connectionId || getConfiguredTelnyxWebRtcConnectionId();
+
     return {
       userId,
       credentialId,
       sipUsername,
       sipDestination: buildTelnyxSipUri(sipUsername),
+      dialConnectionId,
       duplicateActiveCredentials: credentials.length > 1,
     };
   }
@@ -266,6 +298,7 @@ export async function routeInboundCallToSoftphone(params: {
   to?: string;
   callLegId?: string;
   callSessionId?: string;
+  inboundConnectionId?: string;
 }): Promise<InboundRouteResult> {
   const { callControlId } = params;
 
@@ -297,6 +330,7 @@ export async function routeInboundCallToSoftphone(params: {
       from: params.from || null,
       to: params.to || null,
       callControlId,
+      inboundConnectionId: params.inboundConnectionId || null,
     });
 
     await speakAndHangup(
@@ -317,7 +351,6 @@ export async function routeInboundCallToSoftphone(params: {
     };
   }
 
-  // Hard ban: never route to old shared username.
   const oldShared = getOldSharedUsername();
   if (
     oldShared &&
@@ -343,19 +376,31 @@ export async function routeInboundCallToSoftphone(params: {
     };
   }
 
-  const transfer = await transferCallToSip(
-    callControlId,
-    target.sipDestination
-  );
+  const fromNumber =
+    String(params.from || "").trim() || getSoftphoneCallerId();
+
+  const dial = await dialBridgeToSip({
+    inboundCallControlId: callControlId,
+    sipUri: target.sipDestination,
+    fromNumber,
+    connectionId: target.dialConnectionId,
+  });
 
   console.log("INBOUND SOFTPHONE ROUTE:", {
     userId: target.userId,
     credentialId: target.credentialId,
     sipDestination: target.sipDestination,
-    bridgeResult: transfer.ok ? "transfer_requested" : "failed",
-    errorCode: transfer.errorCode,
-    errorMessage: transfer.errorMessage,
-    transferStatus: transfer.status,
+    bridgeResult: dial.ok ? "dial_bridge_requested" : "failed",
+    errorCode: dial.errorCode,
+    errorMessage: dial.errorMessage,
+    transferStatus: dial.status,
+    dialConnectionId: target.dialConnectionId,
+    inboundConnectionId: params.inboundConnectionId || null,
+    connectionMismatch:
+      Boolean(params.inboundConnectionId) &&
+      Boolean(target.dialConnectionId) &&
+      params.inboundConnectionId !== target.dialConnectionId,
+    dialCallControlId: dial.dialCallControlId || null,
     duplicateActiveCredentials: target.duplicateActiveCredentials,
     from: params.from || null,
     to: params.to || null,
@@ -364,17 +409,18 @@ export async function routeInboundCallToSoftphone(params: {
     callSessionId: params.callSessionId || null,
   });
 
-  if (!transfer.ok) {
+  if (!dial.ok) {
     return {
       ok: false,
-      reason: "TRANSFER_FAILED",
+      reason: "DIAL_BRIDGE_FAILED",
       userId: target.userId,
       credentialId: target.credentialId,
       sipDestination: target.sipDestination,
       bridgeResult: "failed",
-      errorCode: transfer.errorCode,
-      errorMessage: transfer.errorMessage,
-      transferStatus: transfer.status,
+      errorCode: dial.errorCode,
+      errorMessage: dial.errorMessage,
+      transferStatus: dial.status,
+      dialConnectionId: target.dialConnectionId,
     };
   }
 
@@ -383,7 +429,8 @@ export async function routeInboundCallToSoftphone(params: {
     userId: target.userId,
     credentialId: target.credentialId,
     sipDestination: target.sipDestination,
-    bridgeResult: "transfer_requested",
-    transferStatus: transfer.status,
+    bridgeResult: "dial_bridge_requested",
+    transferStatus: dial.status,
+    dialConnectionId: target.dialConnectionId,
   };
 }
