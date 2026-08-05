@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
+import SoftphoneWorkSession from "@/models/SoftphoneWorkSession";
 import TelnyxWebRtcCredential from "@/models/TelnyxWebRtcCredential";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 import {
@@ -117,14 +118,14 @@ async function dialBridgeToSip(params: {
   };
 }
 
-async function speakAndHangup(callControlId: string, text: string) {
+async function rejectInboundCall(callControlId: string) {
   const apiKey = getTelnyxApiKey();
   if (!apiKey || !callControlId) return;
 
-  await fetch(
+  const rejectRes = await fetch(
     `https://api.telnyx.com/v2/calls/${encodeURIComponent(
       callControlId
-    )}/actions/answer`,
+    )}/actions/reject`,
     {
       method: "POST",
       headers: {
@@ -132,30 +133,12 @@ async function speakAndHangup(callControlId: string, text: string) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ cause: "call_rejected" }),
       cache: "no-store",
     }
   ).catch(() => null);
 
-  await fetch(
-    `https://api.telnyx.com/v2/calls/${encodeURIComponent(
-      callControlId
-    )}/actions/speak`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        payload: text,
-        language: process.env.TELNYX_GREETING_LANGUAGE || "he-IL",
-        voice: process.env.TELNYX_GREETING_VOICE || "female",
-      }),
-      cache: "no-store",
-    }
-  ).catch(() => null);
+  if (rejectRes && rejectRes.ok) return;
 
   await fetch(
     `https://api.telnyx.com/v2/calls/${encodeURIComponent(
@@ -186,19 +169,95 @@ async function speakAndHangup(callControlId: string, text: string) {
 export async function findAvailableInboundSoftphoneTarget() {
   await connectDB();
 
-  const availableAgents = await mongoose.connection
+  /*
+    Softphone live-status mapping (adminStatus):
+    - available  -> online
+    - after_call -> busy
+    - in_call / dialing / ringing -> in_call / dialing / ringing
+    - break / unavailable / offline -> break / not_available / offline
+
+    After an outbound hangup the UI often stays on after_call/busy for a while.
+    Those agents must still receive inbound calls.
+  */
+  let candidateAgents = await mongoose.connection
     .collection("softphonestatuses")
     .find({
-      $or: [
-        { rawAgentStatus: "available" },
-        { status: "online" },
-        { softphoneStatus: "online" },
-        { availabilityStatus: "online" },
+      $and: [
+        {
+          $or: [
+            { rawAgentStatus: { $in: ["available", "after_call"] } },
+            { status: { $in: ["online", "busy"] } },
+            { softphoneStatus: { $in: ["online", "busy"] } },
+            { availabilityStatus: { $in: ["online", "busy"] } },
+          ],
+        },
+        {
+          rawAgentStatus: {
+            $nin: ["offline", "unavailable", "in_call", "dialing", "ringing"],
+          },
+        },
       ],
     })
     .sort({ statusStartedAt: 1, lastSeenAt: -1 })
-    .limit(25)
+    .limit(40)
     .toArray();
+
+  // Fallback: open softphone shift + active credential, even if status sync lagged.
+  if (!candidateAgents.length) {
+    const openSessions = await SoftphoneWorkSession.find({ status: "open" })
+      .select("employeeId employeeIdString")
+      .limit(25)
+      .lean();
+
+    const openUserIds = openSessions
+      .map((session) =>
+        String(session.employeeId || session.employeeIdString || "")
+      )
+      .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+    if (openUserIds.length) {
+      candidateAgents = await mongoose.connection
+        .collection("softphonestatuses")
+        .find({
+          $or: [
+            { userId: { $in: openUserIds } },
+            { agentId: { $in: openUserIds } },
+            { employeeId: { $in: openUserIds } },
+            { staffId: { $in: openUserIds } },
+          ],
+          rawAgentStatus: {
+            $nin: ["offline", "unavailable", "in_call", "dialing", "ringing"],
+          },
+        })
+        .sort({ lastSeenAt: -1 })
+        .limit(25)
+        .toArray();
+
+      // If live-status row is missing entirely, synthesize minimal candidates.
+      if (!candidateAgents.length) {
+        candidateAgents = openUserIds.map((userId) => ({
+          userId,
+          agentId: userId,
+          employeeId: userId,
+          rawAgentStatus: "available",
+          status: "online",
+          lastSeenAt: new Date(),
+        }));
+      }
+    }
+  }
+
+  // Prefer truly available agents before after_call/busy.
+  const availableAgents = [...candidateAgents].sort((a, b) => {
+    const rank = (agent: any) => {
+      const raw = String(agent.rawAgentStatus || "").toLowerCase();
+      const status = String(agent.status || "").toLowerCase();
+      if (raw === "available" || status === "online") return 0;
+      if (raw === "after_call" || status === "busy") return 1;
+      return 2;
+    };
+    return rank(a) - rank(b);
+  });
 
   console.log("INBOUND SOFTPHONE AGENT SCAN:", {
     availableCount: availableAgents.length,
@@ -218,12 +277,12 @@ export async function findAvailableInboundSoftphoneTarget() {
     );
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) continue;
 
-    // Skip stale presence (> 3 minutes without heartbeat).
+    // Skip stale presence (> 5 minutes without heartbeat).
     const lastSeenAt = agent.lastSeenAt ? new Date(agent.lastSeenAt) : null;
     if (
       lastSeenAt &&
       Number.isFinite(lastSeenAt.getTime()) &&
-      Date.now() - lastSeenAt.getTime() > 3 * 60 * 1000
+      Date.now() - lastSeenAt.getTime() > 5 * 60 * 1000
     ) {
       continue;
     }
@@ -333,11 +392,11 @@ export async function routeInboundCallToSoftphone(params: {
       inboundConnectionId: params.inboundConnectionId || null,
     });
 
-    await speakAndHangup(
-      callControlId,
-      process.env.TELNYX_NO_AGENT_TEXT ||
-        "שלום, אין כרגע נציג זמין. אנא נסו שוב מאוחר יותר."
-    );
+    /*
+      Avoid immediate answer+hangup (sounds like busy tone).
+      Reject the inbound call cleanly when no agent can take it.
+    */
+    await rejectInboundCall(callControlId);
 
     return {
       ok: false,
