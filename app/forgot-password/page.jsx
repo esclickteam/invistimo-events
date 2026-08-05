@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err) {
       console.error("❌ Forgot password error:", err);
-      alert("אירעה שגיאה בשליחת קישור האיפוס. בדקו גם בספאם או נסו שוב.");
+      alert("אירעה שגיאה בשליחת קישור האיפוס ב־SMS. ודאו שיש טלפון בחשבון ונסו שוב.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
                 הזינו את כתובת האימייל שלכם, ואם החשבון קיים במערכת — נשלח
-                אליכם קישור לאיפוס הסיסמה.
+                קישור לאיפוס הסיסמה ב־SMS למספר הטלפון השמור בחשבון.
               </p>
             </div>
 
@@ -125,9 +125,8 @@ export default function ForgotPasswordPage() {
                 </h2>
 
                 <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#7B6754]">
-                  אם האימייל קיים במערכת, נשלחה אליו הודעה עם קישור לאיפוס
-                  הסיסמה מ־support@invistimo.com. אם לא מופיע בתיבה הראשית —
-                  בדקו גם בספאם / קידומי מכירות.
+                  אם החשבון קיים ויש טלפון במערכת, נשלח אליו SMS עם קישור
+                  לאיפוס הסיסמה.
                 </p>
 
                 <Link

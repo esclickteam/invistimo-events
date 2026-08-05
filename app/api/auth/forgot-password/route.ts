@@ -2,17 +2,34 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import { nanoid } from "nanoid";
-import { sendEmail } from "@/lib/sendEmail";
+import { sendSMS } from "@/lib/sendSMS";
 
 export async function POST(req: Request) {
   await dbConnect();
 
   const { email } = await req.json();
+  const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  const user = await User.findOne({ email });
+  if (!normalizedEmail) {
+    return NextResponse.json({ success: true });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
   if (!user) {
     // 🔒 לא מגלים אם האימייל קיים
     return NextResponse.json({ success: true });
+  }
+
+  const phone = String(user.phone || "").trim();
+  if (!phone) {
+    console.error("FORGOT PASSWORD SMS FAILED: missing phone", {
+      email: normalizedEmail,
+      userId: String(user._id),
+    });
+    return NextResponse.json(
+      { success: false, error: "SMS_SEND_FAILED" },
+      { status: 500 },
+    );
   }
 
   const token = nanoid(32);
@@ -22,85 +39,15 @@ export async function POST(req: Request) {
 
   const resetLink = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password/${token}`;
 
-  /* ============================================================
-     HTML RTL למייל (יישור לימין)
-  ============================================================ */
-  const html = `
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-  </head>
-  <body style="
-    margin: 0;
-    padding: 0;
-    background-color: #f7f3ee;
-    font-family: Arial, Helvetica, sans-serif;
-    direction: rtl;
-    text-align: right;
-  ">
-    <div style="
-      max-width: 520px;
-      margin: 40px auto;
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 24px 28px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    ">
-      <h2 style="margin-top: 0; color: #5c4632;">
-        איפוס סיסמה
-      </h2>
-
-      <p style="color: #444; line-height: 1.6;">
-        כדי לאפס את הסיסמה שלך, לחצי על הכפתור הבא:
-      </p>
-
-      <div style="margin: 24px 0; text-align: right;">
-        <a
-          href="${resetLink}"
-          style="
-            background: #cbb39a;
-            color: #ffffff;
-            padding: 12px 20px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: bold;
-            display: inline-block;
-          "
-        >
-          איפוס סיסמה
-        </a>
-      </div>
-
-      <p style="font-size: 14px; color: #555;">
-        הקישור תקף ל־30 דקות.
-      </p>
-
-      <p style="font-size: 13px; color: #777;">
-        אם לא ביקשת איפוס סיסמה – ניתן להתעלם מהמייל.
-      </p>
-
-      <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-
-      <p style="font-size: 12px; color: #999;">
-        Invistimo · הודעה אוטומטית · אין להשיב למייל זה
-      </p>
-    </div>
-  </body>
-</html>
-`;
-
   try {
-    await sendEmail({
-      to: email,
-      subject: "איפוס סיסמה – Invistimo",
-      html,
-      text: `איפוס סיסמה\n\nכדי לאפס את הסיסמה היכנסו לקישור:\n${resetLink}\n\nהקישור תקף ל־30 דקות.\nאם לא ביקשתם איפוס – התעלמו מהודעה זו.\nצוות Invistimo`,
+    await sendSMS({
+      to: phone,
+      message: `Invistimo: לאיפוס סיסמה לחצו כאן: ${resetLink}`,
     });
-  } catch (mailError) {
-    console.error("FORGOT PASSWORD MAIL FAILED:", mailError);
+  } catch (smsError) {
+    console.error("FORGOT PASSWORD SMS FAILED:", smsError);
     return NextResponse.json(
-      { success: false, error: "MAIL_SEND_FAILED" },
+      { success: false, error: "SMS_SEND_FAILED" },
       { status: 500 },
     );
   }

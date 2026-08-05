@@ -2109,9 +2109,8 @@ export default function AdminSalesNewPage() {
             : null,
         );
         const deliveryBits = [
-          setup?.emailSent ? "מייל נשלח" : "מייל לא אושר",
-          setup?.smsSent ? "SMS נשלח" : null,
-        ].filter(Boolean);
+          setup?.smsSent ? "SMS להגדרת סיסמה נשלח" : "SMS להגדרת סיסמה לא נשלח",
+        ];
         setDocumentSuccess(
           `הלקוח נפתח וסומן כשולם ידנית בהצלחה. ${deliveryBits.join(" · ")}. נשארת בעמוד כדי להמשיך לעבוד.`,
         );
@@ -2745,8 +2744,7 @@ export default function AdminSalesNewPage() {
                     <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs font-bold leading-5 text-sky-900">
                       <p className="mb-2">
                         קישור הגדרת סיסמה ללקוח
-                        {passwordSetupInfo.emailSent ? " (נשלח גם במייל)" : ""}
-                        {passwordSetupInfo.smsSent ? " (נשלח גם ב־SMS)" : ""}:
+                        {passwordSetupInfo.smsSent ? " (נשלח ב־SMS)" : " (לא נשלח ב־SMS)"}:
                       </p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <a
@@ -2777,7 +2775,7 @@ export default function AdminSalesNewPage() {
                         </button>
                       </div>
                       <p className="mt-2 text-[11px] font-semibold text-sky-800/80">
-                        אם המייל לא מופיע אצל הלקוח — בדקו ספאם, או שלחו את הקישור ידנית / ב־SMS.
+                        קישור הגדרת הסיסמה נשלח ב־SMS בלבד. אם לא הגיע — העתיקו ושלחו ידנית.
                       </p>
                     </div>
                   ) : null}
