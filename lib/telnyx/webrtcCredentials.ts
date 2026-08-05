@@ -11,8 +11,15 @@ import {
 type TelnyxCredentialCreateResponse = {
   data?: {
     id?: string;
+    sip_username?: string;
   };
 };
+
+export function buildTelnyxSipUri(sipUsername: string) {
+  const user = String(sipUsername || "").trim();
+  if (!user) return "";
+  return `sip:${user}@sip.telnyx.com`;
+}
 
 function getTelnyxApiKey() {
   return String(process.env.TELNYX_API_KEY || "").trim();
@@ -72,12 +79,33 @@ async function createTelnyxTelephonyCredential(userId: string) {
     | null;
 
   const credentialId = data?.data?.id;
+  const sipUsername = String(data?.data?.sip_username || "").trim();
   if (!res.ok || !credentialId) {
     throw new Error("TELNYX_CREATE_CREDENTIAL_FAILED");
   }
 
-  // Never persist sip_username / sip_password from Telnyx.
-  return String(credentialId);
+  // Persist sip_username only (public SIP identity). Never persist sip_password.
+  return {
+    telnyxCredentialId: String(credentialId),
+    sipUsername: sipUsername || null,
+  };
+}
+
+export async function getSipUsernameForCredentialId(credentialId: string) {
+  const id = String(credentialId || "").trim();
+  if (!id) return "";
+
+  const res = await telnyxFetch(
+    `/telephony_credentials/${encodeURIComponent(id)}`,
+    { method: "GET" }
+  );
+
+  const data = (await res.json().catch(() => null)) as
+    | TelnyxCredentialCreateResponse
+    | null;
+
+  if (!res.ok) return "";
+  return String(data?.data?.sip_username || "").trim();
 }
 
 async function createTelnyxLoginToken(credentialId: string) {
@@ -132,20 +160,32 @@ export async function ensureActiveTelnyxCredentialId(userId: string) {
   }).lean();
 
   if (existing?.telnyxCredentialId) {
+    if (!(existing as any).sipUsername) {
+      const sipUsername = await getSipUsernameForCredentialId(
+        String(existing.telnyxCredentialId)
+      );
+      if (sipUsername) {
+        await TelnyxWebRtcCredential.updateOne(
+          { _id: existing._id },
+          { $set: { sipUsername } }
+        );
+      }
+    }
     return String(existing.telnyxCredentialId);
   }
 
-  const telnyxCredentialId = await createTelnyxTelephonyCredential(userId);
+  const created = await createTelnyxTelephonyCredential(userId);
 
   await TelnyxWebRtcCredential.create({
     userId,
-    telnyxCredentialId,
+    telnyxCredentialId: created.telnyxCredentialId,
+    sipUsername: created.sipUsername,
     status: "active",
     revokedAt: null,
     revokeReason: null,
   });
 
-  return telnyxCredentialId;
+  return created.telnyxCredentialId;
 }
 
 export async function issueSoftphoneLoginToken(userId: string) {

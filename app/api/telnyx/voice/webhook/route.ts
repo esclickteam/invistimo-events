@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import CallRecording from "@/models/CallRecording";
+import { routeInboundCallToSoftphone } from "@/lib/telnyx/inboundRouting";
+import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1461,12 +1463,40 @@ export async function POST(req: NextRequest) {
           callControlId,
         });
 
-        if (
-          inbound &&
-          callControlId &&
-          getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)
-        ) {
-          await answerIncomingCall(callControlId);
+        if (inbound && callControlId) {
+          /*
+            Inbound softphone routing (JWT / per-user telephony credential):
+            transfer to sip:{gencred...}@sip.telnyx.com of an available agent.
+            Never fall back to TELNYX_WEBRTC_USERNAME / shared credential.
+          */
+          if (isSoftphoneWebrtcEnabled()) {
+            const routeResult = await routeInboundCallToSoftphone({
+              callControlId,
+              from,
+              to,
+              callLegId,
+              callSessionId,
+            });
+
+            console.log("INBOUND SOFTPHONE BRIDGE RESULT:", {
+              ok: routeResult.ok,
+              userId: "userId" in routeResult ? routeResult.userId : null,
+              credentialId:
+                "credentialId" in routeResult ? routeResult.credentialId : null,
+              sipDestination:
+                "sipDestination" in routeResult
+                  ? routeResult.sipDestination
+                  : null,
+              bridgeResult: routeResult.bridgeResult,
+              errorCode:
+                "errorCode" in routeResult ? routeResult.errorCode : null,
+              errorMessage:
+                "errorMessage" in routeResult ? routeResult.errorMessage : null,
+            });
+          } else if (getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)) {
+            // Softphone disabled — keep legacy auto-answer behavior only.
+            await answerIncomingCall(callControlId);
+          }
         }
 
         break;

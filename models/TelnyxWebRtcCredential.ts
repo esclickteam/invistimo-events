@@ -5,6 +5,8 @@ export type TelnyxWebRtcCredentialStatus = "active" | "revoked";
 export type TelnyxWebRtcCredentialDoc = {
   userId: mongoose.Types.ObjectId;
   telnyxCredentialId: string;
+  /** Public SIP identity (gencred...), never store sip_password. */
+  sipUsername?: string | null;
   status: TelnyxWebRtcCredentialStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +27,12 @@ const TelnyxWebRtcCredentialSchema = new Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
+    },
+
+    sipUsername: {
+      type: String,
+      default: null,
       index: true,
     },
 
