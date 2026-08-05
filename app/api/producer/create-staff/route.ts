@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import { sendEmail } from "@/lib/sendEmail";
+import { sendSMS } from "@/lib/sendSMS";
 
 export const dynamic = "force-dynamic";
 
@@ -125,28 +125,22 @@ export async function POST(req: NextRequest) {
     const setupLink = `${baseUrl}/set-password?token=${tokenForSetup}`;
 
 
-    // שליחת מייל (לא מפיל את היצירה אם נכשל)
+    // שליחת SMS להגדרת סיסמה (לא מפיל את היצירה אם נכשל)
     try {
-      await sendEmail({
-        to: email,
-        subject: "הגדרת סיסמה - Invistimo",
-        html: `
-          <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7">
-            <h2>ברוכים הבאים ל-Invistimo</h2>
-            <p>נוצר עבורך משתמש עובד מפיק.</p>
-            <p>להגדרת סיסמה לחצי על הקישור:</p>
-            <p><a href="${setupLink}">${setupLink}</a></p>
-            <p>הקישור תקף ל־24 שעות.</p>
-          </div>
-        `,
+      if (!phone) {
+        throw new Error("MISSING_PHONE_FOR_PASSWORD_SMS");
+      }
+      await sendSMS({
+        to: phone,
+        message: `Invistimo: להגדרת סיסמה לחשבון לחצו כאן: ${setupLink}`,
       });
-    } catch (mailErr) {
-      console.error("send setup email error:", mailErr);
+    } catch (smsErr) {
+      console.error("send setup SMS error:", smsErr);
     }
 
     return NextResponse.json({
       success: true,
-      message: "העובד נוצר בהצלחה ונשלח מייל להגדרת סיסמה",
+      message: "העובד נוצר בהצלחה ונשלח SMS להגדרת סיסמה",
       user: {
         _id: staff._id,
         name: staff.name,
