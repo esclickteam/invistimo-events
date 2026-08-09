@@ -1252,7 +1252,16 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isOwner = auth.userId.toString() === invitation.ownerId.toString();
+    const ownerIdStr = invitation.ownerId
+      ? String(invitation.ownerId)
+      : "";
+    const invitationUserIdStr = invitation.userId
+      ? String(invitation.userId)
+      : "";
+    const authUserIdStr = String(auth.userId);
+    const isOwner =
+      (ownerIdStr && authUserIdStr === ownerIdStr) ||
+      (invitationUserIdStr && authUserIdStr === invitationUserIdStr);
     const isAdmin =
       effectiveRole === "admin" ||
       auth?.role === "admin" ||
@@ -1265,12 +1274,84 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const { producerIdStr, isProducerByInvitation } =
       await getInvitationProducerPermission(auth, invitation);
 
+    // Venue owners/managers access linked client guests via venueView=1
+    // (JWT role is often a normal user, not "venue_owner").
+    const isVenueView =
+      req.nextUrl.searchParams.get("venueView") === "1" ||
+      data?.venueView === true ||
+      data?.venueView === 1 ||
+      data?.venueView === "1";
+    let isLinkedVenueActor = false;
+    if (isVenueView || isVenueOwnerRole) {
+      try {
+        const dbConn = mongoose.connection?.db;
+        if (dbConn && invitation.eventId) {
+          const linked = await dbConn.collection("events").findOne(
+            {
+              _id: invitation.eventId,
+              venueOwnerId: {
+                $in: [
+                  auth.userId,
+                  ...(mongoose.Types.ObjectId.isValid(authUserIdStr)
+                    ? [new mongoose.Types.ObjectId(authUserIdStr)]
+                    : []),
+                ],
+              },
+              venueAccessStatus: "linked",
+            },
+            { projection: { _id: 1 } }
+          );
+          isLinkedVenueActor = Boolean(linked);
+        }
+        // Also allow venue membership on the hall (employees with guest access)
+        if (!isLinkedVenueActor && dbConn && invitation.eventId) {
+          const ev = await dbConn.collection("events").findOne(
+            { _id: invitation.eventId, venueAccessStatus: "linked" },
+            { projection: { venueHallId: 1, venueOwnerId: 1 } }
+          );
+          const hallId = String(ev?.venueHallId || "");
+          if (hallId) {
+            const membership = await dbConn
+              .collection("venuememberships")
+              .findOne({
+                venueId: hallId,
+                userId: {
+                  $in: [
+                    auth.userId,
+                    ...(mongoose.Types.ObjectId.isValid(authUserIdStr)
+                      ? [new mongoose.Types.ObjectId(authUserIdStr)]
+                      : []),
+                  ],
+                },
+                status: "active",
+              });
+            if (membership) {
+              const role = String(membership.role || "");
+              const perms = Array.isArray(membership.permissions)
+                ? membership.permissions.map(String)
+                : [];
+              isLinkedVenueActor =
+                ["OWNER", "MANAGER"].includes(role) ||
+                perms.includes("guests.edit") ||
+                perms.includes("guests.view") ||
+                perms.includes("events.manage") ||
+                perms.includes("calendar.edit");
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("venue linked actor check failed", e);
+      }
+    }
+
     console.log("🔐 Permissions:", {
       isOwner,
       isAdmin,
       isProducerRole,
       isWorkerRole,
       isVenueOwnerRole,
+      isLinkedVenueActor,
+      isVenueView,
       isProducerByInvitation,
       producerIdStr,
       userId: auth.userId?.toString?.(),
@@ -1285,6 +1366,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       !isProducerRole &&
       !isWorkerRole &&
       !isVenueOwnerRole &&
+      !isLinkedVenueActor &&
       !isProducerByInvitation
     ) {
       console.warn("⛔ Not authorized to update guest");
@@ -1500,6 +1582,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         isProducerRole ||
         isWorkerRole ||
         isVenueOwnerRole ||
+        isLinkedVenueActor ||
         isProducerByInvitation;
 
       if (!canUpdateActualArrived) {

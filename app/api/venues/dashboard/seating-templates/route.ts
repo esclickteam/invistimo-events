@@ -342,38 +342,74 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    if (body.name !== undefined) {
-      const cleanName = cleanString(body.name);
-      if (cleanName.length < 2) {
-        return NextResponse.json(
-          { success: false, error: "שם תבנית קצר מדי" },
-          { status: 400 }
-        );
-      }
-      existing.name = cleanName;
+    const nextName =
+      body.name !== undefined ? cleanString(body.name) : existing.name;
+    if (body.name !== undefined && nextName.length < 2) {
+      return NextResponse.json(
+        { success: false, error: "שם תבנית קצר מדי" },
+        { status: 400 }
+      );
     }
-    if (body.description !== undefined) {
-      existing.description = String(body.description || "");
-    }
-    if (Array.isArray(body.tables)) existing.tables = body.tables;
-    if (body.canvas !== undefined) existing.canvas = body.canvas || {};
-    if (body.settings !== undefined) existing.settings = body.settings || {};
 
-    await existing.save();
+    const nextTables = Array.isArray(body.tables)
+      ? body.tables
+      : existing.tables || [];
+    const nextCanvas =
+      body.canvas !== undefined ? body.canvas || {} : existing.canvas || {};
+    const nextSettings =
+      body.settings !== undefined
+        ? body.settings || {}
+        : existing.settings || {};
+    const nextDescription =
+      body.description !== undefined
+        ? String(body.description || "")
+        : existing.description;
 
-    // Live sync: push template geometry into linked event owner seating layouts
+    // Preview sync against the candidate template BEFORE persisting.
+    // Blocks silent loss of seated guests on delete/capacity shrink.
     let sync: Awaited<
       ReturnType<typeof syncSeatingTemplateToLinkedEvents>
     > | null = null;
     try {
       sync = await syncSeatingTemplateToLinkedEvents({
-        template: existing,
+        template: {
+          _id: existing._id,
+          id: existing._id,
+          name: nextName,
+          tables: nextTables,
+          canvas: nextCanvas,
+          updatedAt: new Date(),
+        },
         hallId: ctx.venueId,
         ownerId: String(ctx.ownerId),
+        confirmDestructive: Boolean(
+          body.confirmDestructive || body.forceSync || body.force
+        ),
       });
     } catch (syncError) {
       console.error("seating template live sync failed:", syncError);
     }
+
+    if (sync?.blocked) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "DESTRUCTIVE_SEATING_SYNC_BLOCKED",
+          message:
+            "השינוי בתבנית עלול למחוק הושבת אורחים קיימת. אשר במפורש (confirmDestructive) כדי להמשיך.",
+          warnings: sync.warnings,
+          sync,
+        },
+        { status: 409 }
+      );
+    }
+
+    existing.name = nextName;
+    existing.description = nextDescription;
+    existing.tables = nextTables;
+    existing.canvas = nextCanvas;
+    existing.settings = nextSettings;
+    await existing.save();
 
     await writeVenueAudit({
       venueId: ctx.venueId,
@@ -389,6 +425,7 @@ export async function PUT(req: NextRequest) {
       success: true,
       template: stringifyDocs(existing),
       sync,
+      warnings: sync?.warnings || [],
     });
   } catch (error: any) {
     console.error("PUT venue seating template error:", error);
