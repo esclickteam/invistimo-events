@@ -15,6 +15,7 @@
     "test:venues": "node --test scripts/tests/venue-*.test.mjs && npx tsx --test --test-force-exit scripts/tests/venue-e2e-memory.test.ts",
     "test:venues:db": "node --test scripts/tests/venue-db-isolation.test.mjs",
     "test:venues:e2e": "npx tsx --test --test-force-exit scripts/tests/venue-e2e-memory.test.ts",
+    "test:venues:staging-live": "node scripts/staging/run-staging-venues-e2e.mjs",
     "venues:backfill:dry": "npx tsx scripts/venues/backfill-venue-event-links.ts",
     "venues:backfill:write": "npx tsx scripts/venues/backfill-venue-event-links.ts --write",
     "venues:check-cloudinary-env": "node scripts/venues/check-cloudinary-env.mjs"
