@@ -24,14 +24,13 @@ import {
 
 import { connectDB } from "@/lib/db";
 import VenueLead from "@/models/VenueLead";
-import VenueEvent from "@/models/VenueEvent";
 import VenueMembership from "@/models/VenueMembership";
-import Event from "@/models/Event";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 import {
   VENUE_EVENT_STATUS_LABELS,
   type VenueEventLifecycleStatus,
 } from "@/lib/venues/statuses";
+import { listVenueEventsForHall } from "@/lib/venues/venueEventsService";
 import VenueOnboardingChecklist, {
   type OnboardingItem,
 } from "@/components/venues/VenueOnboardingChecklist";
@@ -142,40 +141,24 @@ function eventStatusLabel(status: EventStatus) {
   return VENUE_EVENT_STATUS_LABELS[status] || status;
 }
 
-function serializeEvent(
-  event: any,
-  linkedEvent?: any | null
-): SerializedEvent {
-  const linkedEventId = event.linkedEventId
-    ? String(event.linkedEventId)
-    : "";
-  const venueEventId = String(event._id);
-
-  const title =
-    String(event.title || "") ||
-    String(linkedEvent?.title || "") ||
-    "אירוע ללא שם";
-
-  const guests =
-    Number(event.guests || 0) ||
-    Number(linkedEvent?.estimatedGuests || 0) ||
-    Number(linkedEvent?.estimatedGuestCount || 0) ||
-    0;
+function toHallPageEvent(event: any): SerializedEvent {
+  const venueEventId = String(event.venueEventId || event._id || event.id || "");
+  const linkedEventId = String(event.linkedEventId || "");
 
   return {
     id: venueEventId,
     venueEventId,
     linkedEventId,
     eventDetailId: linkedEventId || venueEventId,
-    title,
-    eventType: String(event.eventType || linkedEvent?.eventType || ""),
+    title: String(event.title || "אירוע ללא שם"),
+    eventType: String(event.eventType || ""),
     clientName: String(event.clientName || ""),
     date: String(event.date || ""),
     startTime: String(event.startTime || ""),
     endTime: String(event.endTime || ""),
-    guests,
+    guests: Number(event.guests || 0),
     status: (event.status || "confirmed") as EventStatus,
-    budget: Number(event.budget || linkedEvent?.budgetTotal || 0),
+    budget: Number(event.budget || 0),
     paidAmount: Number(event.paidAmount || 0),
   };
 }
@@ -230,56 +213,17 @@ export default async function VenueHallPage({ params }: Props) {
   const { from, to, today } = getCurrentMonthRange();
 
   const [
-    monthEventsRaw,
-    upcomingEventsRaw,
-    todayEventsRaw,
-    nextEventRaw,
+    allVenueEvents,
     seatingTemplatesRaw,
     leadCount,
     openLeadCount,
-    eventCount,
     employeeCount,
   ] = await Promise.all([
-    VenueEvent.find({
+    listVenueEventsForHall({
       ownerId: ctx.ownerId,
-      hallId: safeHallId,
-      date: {
-        $gte: from,
-        $lte: to,
-      },
-    })
-      .sort({ date: 1, startTime: 1 })
-      .lean(),
-
-    VenueEvent.find({
-      ownerId: ctx.ownerId,
-      hallId: safeHallId,
-      date: {
-        $gte: today,
-      },
-    })
-      .sort({ date: 1, startTime: 1 })
-      .limit(6)
-      .lean(),
-
-    VenueEvent.find({
-      ownerId: ctx.ownerId,
-      hallId: safeHallId,
-      date: today,
-    })
-      .sort({ startTime: 1 })
-      .limit(6)
-      .lean(),
-
-    VenueEvent.findOne({
-      ownerId: ctx.ownerId,
-      hallId: safeHallId,
-      date: {
-        $gte: today,
-      },
-    })
-      .sort({ date: 1, startTime: 1 })
-      .lean(),
+      venueId: safeHallId,
+      hall: ctx.hall,
+    }),
 
     VenueSeatingTemplate.find({
       ownerId: ctx.ownerId,
@@ -301,41 +245,35 @@ export default async function VenueHallPage({ params }: Props) {
       status: { $nin: ["closed", "lost"] },
     }),
 
-    VenueEvent.countDocuments({
-      ownerId: ctx.ownerId,
-      hallId: safeHallId,
-    }),
-
     VenueMembership.countDocuments({
       venueId: safeHallId,
       status: { $ne: "disabled" },
     }),
   ]);
 
-  const linkedEventIds = [
-    ...monthEventsRaw,
-    ...upcomingEventsRaw,
-    ...todayEventsRaw,
-    ...(nextEventRaw ? [nextEventRaw] : []),
-  ]
-    .map((ve: any) => ve.linkedEventId)
-    .filter((id: any) => id);
+  const eventCount = allVenueEvents.length;
 
-  const linkedEventsRaw = linkedEventIds.length
-    ? await Event.find({ _id: { $in: linkedEventIds } }).lean()
-    : [];
+  const monthEvents = allVenueEvents
+    .filter((event) => {
+      const date = String(event.date || "");
+      return date >= from && date <= to;
+    })
+    .map(toHallPageEvent);
 
-  const linkedEventById = new Map(
-    linkedEventsRaw.map((e: any) => [String(e._id), e])
+  const upcomingEvents = allVenueEvents
+    .filter((event) => String(event.date || "") >= today)
+    .slice(0, 6)
+    .map(toHallPageEvent);
+
+  const todayEvents = allVenueEvents
+    .filter((event) => String(event.date || "") === today)
+    .slice(0, 6)
+    .map(toHallPageEvent);
+
+  const nextEventRaw = allVenueEvents.find(
+    (event) => String(event.date || "") >= today
   );
-
-  const withLinked = (ve: any) =>
-    serializeEvent(ve, linkedEventById.get(String(ve.linkedEventId)) || null);
-
-  const monthEvents = monthEventsRaw.map(withLinked);
-  const upcomingEvents = upcomingEventsRaw.map(withLinked);
-  const todayEvents = todayEventsRaw.map(withLinked);
-  const nextEvent = nextEventRaw ? withLinked(nextEventRaw) : null;
+  const nextEvent = nextEventRaw ? toHallPageEvent(nextEventRaw) : null;
   const seatingTemplates = seatingTemplatesRaw.map(serializeSeatingTemplate);
 
   const eventsByStatus = monthEvents.reduce<Record<string, number>>((acc, event) => {

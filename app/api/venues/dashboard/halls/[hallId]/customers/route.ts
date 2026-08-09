@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import VenueLead from "@/models/VenueLead";
-import VenueEvent from "@/models/VenueEvent";
 import { connectDB } from "@/lib/db";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { listVenueEventsForHall } from "@/lib/venues/venueEventsService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -96,12 +96,11 @@ export async function GET(req: NextRequest, { params }: Props) {
       })
         .sort({ updatedAt: -1 })
         .lean(),
-      VenueEvent.find({
-        hallId: ctx.venueId,
+      listVenueEventsForHall({
         ownerId: ctx.ownerId,
-      })
-        .sort({ updatedAt: -1 })
-        .lean(),
+        venueId: ctx.venueId,
+        hall: ctx.hall,
+      }),
     ]);
 
     const map = new Map<string, CustomerRow>();

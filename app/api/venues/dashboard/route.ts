@@ -8,10 +8,10 @@ import "@/models/InvitationGuest";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import VenueHall from "@/models/VenueHall";
-import VenueEvent from "@/models/VenueEvent";
 import VenueTask from "@/models/VenueTask";
 import VenueAlert from "@/models/VenueAlert";
 import { listUserVenueMemberships } from "@/lib/venues/requireVenueAccess";
+import { listVenueEventsForHall } from "@/lib/venues/venueEventsService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -398,18 +398,30 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: 1 })
       .lean();
 
-    const hallIds = halls.map((h: any) => String(h.id || h._id)).filter(Boolean);
-
     /**
-     * Source of truth for venue calendar KPIs = VenueEvent.
+     * Source of truth for venue calendar KPIs = VenueEvent via service.
      * Enrich with linked Invistimo Event + Invitation when present.
      */
-    const venueEvents = await VenueEvent.find({
-      hallId: { $in: hallIds },
-      status: { $nin: ["cancelled"] },
-    })
-      .sort({ createdAt: 1 })
-      .lean();
+    const venueEventsByHall = await Promise.all(
+      halls.map(async (hall: any) => {
+        const venueId = String(hall.id || hall._id || "");
+        const hallOwnerId = String(hall.ownerId || ownerId);
+
+        if (!venueId || !hallOwnerId || !mongoose.Types.ObjectId.isValid(hallOwnerId)) {
+          return [];
+        }
+
+        const events = await listVenueEventsForHall({
+          ownerId: hallOwnerId,
+          venueId,
+          hall,
+        });
+
+        return events.filter((event) => event.status !== "cancelled");
+      })
+    );
+
+    const venueEvents = venueEventsByHall.flat();
 
     const linkedEventIds = venueEvents
       .map((ve: any) => ve.linkedEventId)
@@ -437,8 +449,8 @@ export async function GET(req: NextRequest) {
         : null;
 
       return {
-        id: String(ve.linkedEventId || ve._id),
-        venueEventId: String(ve._id),
+        id: String(ve.linkedEventId || ve.venueEventId || ve.id),
+        venueEventId: String(ve.venueEventId || ve._id || ve.id),
         linkedEventId: ve.linkedEventId ? String(ve.linkedEventId) : "",
         venueHallId: String(ve.hallId || ""),
         venueHallName: ve.hallName || "",
@@ -446,7 +458,7 @@ export async function GET(req: NextRequest) {
         eventName: fromInvitation?.title || ve.title || "",
         clientName: ve.clientName || "",
         date: ve.date || fromInvitation?.date || "",
-        time: ve.startTime || fromInvitation?.time || "",
+        time: ve.startTime || ve.time || fromInvitation?.time || "",
         status: ve.status || "confirmed",
         guests: ve.guests || (fromInvitation as any)?.guests || 0,
         budget: ve.budget || (fromInvitation as any)?.budgetTotal || 0,

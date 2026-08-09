@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import VenueLead from "@/models/VenueLead";
-import VenueEvent from "@/models/VenueEvent";
 import { connectDB } from "@/lib/db";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { listVenueEventsForHall } from "@/lib/venues/venueEventsService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,10 +47,11 @@ export async function GET(req: NextRequest, { params }: Props) {
         hallId: ctx.venueId,
         ownerId: ctx.ownerId,
       }).lean(),
-      VenueEvent.find({
-        hallId: ctx.venueId,
+      listVenueEventsForHall({
         ownerId: ctx.ownerId,
-      }).lean(),
+        venueId: ctx.venueId,
+        hall: ctx.hall,
+      }),
     ]);
 
     const leadsByMonth: Record<string, number> = {};

@@ -227,16 +227,26 @@ export async function listVenueEventsForHall(input: ListVenueEventsInput) {
 
 export type GetVenueEventCanonicalInput = {
   ownerId: string;
-  venueId: string;
+  /** Hall/venue id — preferred for tenant scoping; optional when looking up by linkedEventId */
+  venueId?: string;
   venueEventId?: string;
   linkedEventId?: string;
   hall?: any;
 };
 
 export async function getVenueEventCanonical(input: GetVenueEventCanonicalInput) {
-  const baseQuery = tenantQuery(input.ownerId, input.venueId);
   const venueEventId = cleanString(input.venueEventId);
   const linkedEventId = cleanString(input.linkedEventId);
+  const venueId = cleanString(input.venueId);
+
+  const ownerObjectId = new mongoose.Types.ObjectId(input.ownerId);
+  const baseQuery: Record<string, unknown> = {
+    ownerId: ownerObjectId,
+  };
+
+  if (venueId) {
+    baseQuery.hallId = venueId;
+  }
 
   let venueEvent: any = null;
 
