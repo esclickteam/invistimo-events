@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import cloudinary from "@/lib/cloudinary";
+import { cloudinaryFolder } from "@/lib/cloudinaryFolder";
 
 export const VENUE_FILE_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 
@@ -127,8 +128,8 @@ export async function uploadVenueFileToCloudinary(params: {
     .toString("hex")}-${stem}`;
 
   const folder = suffix
-    ? `invistimo/venues/${venueId}/${suffix}`
-    : `invistimo/venues/${venueId}`;
+    ? cloudinaryFolder("venues", venueId, suffix)
+    : cloudinaryFolder("venues", venueId);
 
   const result = await new Promise<any>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
