@@ -130,6 +130,8 @@ export default async function VenueSeatingTemplatesPage({ params }: Props) {
   const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
   const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
   const createTemplateHref = `/dashboard/seating?mode=venue-template&hallId=${encodedHallId}`;
+  const editTemplateHref = (templateId: string) =>
+    `/dashboard/seating?mode=venue-template&hallId=${encodedHallId}&templateId=${encodeURIComponent(templateId)}`;
 
   const templatesRaw = await VenueSeatingTemplate.find({
     ownerId: auth.userId,
@@ -364,6 +366,13 @@ export default async function VenueSeatingTemplatesPage({ params }: Props) {
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-2">
+                    <Link
+                      href={editTemplateHref(template.id)}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[#B8872E] px-4 text-xs font-black text-white transition hover:bg-[#9f7427]"
+                    >
+                      <LayoutTemplate size={15} />
+                      עריכת תבנית
+                    </Link>
                     <Link
                       href={createTemplateHref}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-xs font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"

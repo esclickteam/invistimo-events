@@ -113,6 +113,16 @@ export async function POST(req: Request) {
       );
     }
 
+    if ((user as any).isActive === false) {
+      return NextResponse.json(
+        { success: false, error: "המשתמש אינו פעיל" },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+    }
+
     // Repair stuck flag after older reset-password saves.
     if (user.needsPasswordSetup) {
       await User.updateOne(
@@ -149,11 +159,17 @@ export async function POST(req: Request) {
       staffType === "producer_staff" &&
       employeeScope === "producer";
 
+    const isVenueUser =
+      Boolean((user as any).venueUser) ||
+      (employeeScope === "venue" && role !== "staff");
+
     const effectiveRole = isProducerStaff
       ? "producer_staff"
       : isSystemStaff
         ? "system_staff"
-        : role;
+        : isVenueUser && role !== "venue_owner"
+          ? "venue_user"
+          : role;
 
     /* ======================================================
        JWT - 7 days
@@ -186,6 +202,9 @@ export async function POST(req: Request) {
           isSystemStaff,
           isUsherStaff,
           isProducerStaff,
+          isVenueUser,
+          venueUser: isVenueUser,
+          mustChangePassword: Boolean((user as any).mustChangePassword),
           hasPaid,
           isTrial,
           trialExpiresAt: user.trialExpiresAt ?? null,

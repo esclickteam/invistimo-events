@@ -406,33 +406,87 @@ export default function VenueDashboardClient() {
           </div>
 
           <nav className="mt-7 space-y-1">
-            {[
-              { label: "דשבורד בעלים", icon: LayoutDashboard, active: true },
-              { label: "יומן אירועים", icon: CalendarDays },
-              { label: "הצעות מחיר", icon: FileText },
-              { label: "תשלומים וחשבונות", icon: CreditCard },
-              { label: "תחזוקה ותפעול", icon: Wrench },
-              { label: "צוות ועובדים", icon: ShieldCheck },
-              { label: "הגדרות מתחם", icon: Settings },
-            ].map((item) => {
-              const Icon = item.icon;
+            {(() => {
+              const firstHallId = halls?.[0]?.id
+                ? String(halls[0].id)
+                : "";
+              const hallBase = firstHallId
+                ? `/venues/dashboard/halls/${encodeURIComponent(firstHallId)}`
+                : "";
 
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={[
-                    "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
-                    item.active
-                      ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
-                      : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
-                  ].join(" ")}
-                >
-                  <Icon size={18} />
-                  <span className="flex-1 text-right">{item.label}</span>
-                </button>
-              );
-            })}
+              const items: {
+                label: string;
+                icon: any;
+                active?: boolean;
+                href?: string;
+              }[] = [
+                {
+                  label: "סקירה",
+                  icon: LayoutDashboard,
+                  active: true,
+                  href: "/venues/dashboard",
+                },
+                {
+                  label: "לידים",
+                  icon: FileText,
+                  href: hallBase ? `${hallBase}/crm` : undefined,
+                },
+                {
+                  label: "אירועים",
+                  icon: CalendarDays,
+                  href: hallBase ? `${hallBase}/calendar` : undefined,
+                },
+                {
+                  label: "הושבה",
+                  icon: CreditCard,
+                  href: hallBase
+                    ? `${hallBase}/seating-templates`
+                    : undefined,
+                },
+                {
+                  label: "עובדים",
+                  icon: Wrench,
+                  href: hallBase ? `${hallBase}/staff` : undefined,
+                },
+                {
+                  label: "עובדים והרשאות",
+                  icon: ShieldCheck,
+                  href: hallBase ? `${hallBase}/employees` : undefined,
+                },
+                {
+                  label: "הגדרות אולם",
+                  icon: Settings,
+                  href: hallBase || undefined,
+                },
+              ];
+
+              return items.map((item) => {
+                const Icon = item.icon;
+                const disabled = !item.href;
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      if (item.href) router.push(item.href);
+                    }}
+                    className={[
+                      "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
+                      item.active
+                        ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
+                        : disabled
+                          ? "cursor-not-allowed text-[#b7aa99] opacity-60"
+                          : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
+                    ].join(" ")}
+                  >
+                    <Icon size={18} />
+                    <span className="flex-1 text-right">{item.label}</span>
+                  </button>
+                );
+              });
+            })()}
           </nav>
 
           <div className="mt-7 rounded-3xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4">

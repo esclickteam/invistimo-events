@@ -161,6 +161,14 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   venueClientSource?: boolean;
   venueOwnerId?: mongoose.Types.ObjectId | null;
 
+  /**
+   * Venue system user (login for a hall) — NOT Invistimo Staff.
+   * Access is always via VenueMembership, never via staffType.
+   */
+  venueUser?: boolean;
+  mustChangePassword?: boolean;
+  authVersion?: number;
+
   venueHallId?: string;
   venueHallName?: string;
 
@@ -1088,6 +1096,26 @@ preRsvpMessages: {
     needsPasswordSetup: {
       type: Boolean,
       default: true,
+    },
+
+    /**
+     * Venue tenant login user (hall employee with system access).
+     * Must never set staffType / Invistimo staff portals.
+     */
+    venueUser: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+
+    authVersion: {
+      type: Number,
+      default: 0,
     },
 
     resetPasswordToken: {

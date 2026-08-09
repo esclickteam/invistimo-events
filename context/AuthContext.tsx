@@ -22,7 +22,8 @@ type UserRole =
   | "producer_staff"
   | "staff_producer"
   | "system_staff"
-  | "venue_owner";
+  | "venue_owner"
+  | "venue_user";
 
 type StaffType = "producer_staff" | "general_staff" | string;
 
@@ -49,8 +50,10 @@ interface User {
   name?: string;
 
   role: UserRole;
-  effectiveRole?: UserRole | "producer_staff" | "system_staff";
+  effectiveRole?: UserRole | "producer_staff" | "system_staff" | "venue_user";
   venueOwner?: boolean;
+  venueUser?: boolean;
+  isVenueUser?: boolean;
 
   /* ===== STAFF ===== */
   staffType?: StaffType | null;
@@ -212,6 +215,14 @@ export function getUserRedirectPath(nextUser: User) {
     nextUser.accessModules?.venues === true ||
     nextUser.accessModules?.venueDashboard === true;
 
+  // Venue tenant employee login (NOT Invistimo staff)
+  const isVenueUser =
+    targetRole === "venue_user" ||
+    effectiveRole === "venue_user" ||
+    nextUser.venueUser === true ||
+    nextUser.isVenueUser === true ||
+    (employeeScope === "venue" && role !== "staff" && !isSystemStaff);
+
   const rsvpSeating =
     nextUser.accessModules?.rsvpSeating ??
     nextUser.includeDigitalSeating ??
@@ -234,8 +245,8 @@ export function getUserRedirectPath(nextUser: User) {
     return "/staff/dashboard";
   }
 
-  // VENUE OWNER
-  if (isVenueOwner) {
+  // VENUE OWNER / VENUE USER (hall membership)
+  if (isVenueOwner || isVenueUser) {
     return "/venues/dashboard";
   }
 

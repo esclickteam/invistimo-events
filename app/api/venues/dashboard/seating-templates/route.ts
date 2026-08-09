@@ -235,3 +235,156 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/* ============================================================
+   PUT update / duplicate template
+============================================================ */
+export async function PUT(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "לא מחובר" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const templateId = cleanString(body.templateId || body.id || body._id);
+    const action = cleanString(body.action || "update");
+
+    if (!templateId) {
+      return NextResponse.json(
+        { success: false, error: "חסר מזהה תבנית" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await VenueSeatingTemplate.findOne({
+      _id: templateId,
+      ownerId: auth.userId,
+      isActive: true,
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "תבנית לא נמצאה או שאין הרשאה" },
+        { status: 404 }
+      );
+    }
+
+    if (action === "duplicate") {
+      const copy = await VenueSeatingTemplate.create({
+        ownerId: auth.userId,
+        hallId: existing.hallId,
+        hallName: existing.hallName,
+        name: `${existing.name} (עותק)`,
+        description: existing.description,
+        tables: existing.tables || [],
+        canvas: existing.canvas || {},
+        settings: existing.settings || {},
+        isActive: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        template: stringifyDocs(copy),
+      });
+    }
+
+    if (body.name !== undefined) {
+      const cleanName = cleanString(body.name);
+      if (cleanName.length < 2) {
+        return NextResponse.json(
+          { success: false, error: "שם תבנית קצר מדי" },
+          { status: 400 }
+        );
+      }
+      existing.name = cleanName;
+    }
+    if (body.description !== undefined) {
+      existing.description = String(body.description || "");
+    }
+    if (Array.isArray(body.tables)) existing.tables = body.tables;
+    if (body.canvas !== undefined) existing.canvas = body.canvas || {};
+    if (body.settings !== undefined) existing.settings = body.settings || {};
+
+    await existing.save();
+
+    return NextResponse.json({
+      success: true,
+      template: stringifyDocs(existing),
+    });
+  } catch (error: any) {
+    console.error("PUT venue seating template error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "שגיאה בעדכון תבנית",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/* ============================================================
+   DELETE soft-delete template
+============================================================ */
+export async function DELETE(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "לא מחובר" },
+        { status: 401 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const templateId = cleanString(
+      url.searchParams.get("templateId") || url.searchParams.get("id")
+    );
+
+    if (!templateId) {
+      return NextResponse.json(
+        { success: false, error: "חסר מזהה תבנית" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await VenueSeatingTemplate.findOneAndUpdate(
+      {
+        _id: templateId,
+        ownerId: auth.userId,
+        isActive: true,
+      },
+      { $set: { isActive: false } },
+      { new: true }
+    );
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "תבנית לא נמצאה או שאין הרשאה" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedTemplateId: templateId,
+    });
+  } catch (error: any) {
+    console.error("DELETE venue seating template error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "שגיאה במחיקת תבנית",
+      },
+      { status: 500 }
+    );
+  }
+}

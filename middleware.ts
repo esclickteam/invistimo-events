@@ -87,7 +87,11 @@ function isProtectedDashboardPath(pathname: string): boolean {
     pathname.startsWith("/producer-staff") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/staff") ||
-    pathname.startsWith("/employee")
+    pathname.startsWith("/employee") ||
+    // Venue Owner Suite (exclude public client registration)
+    (pathname.startsWith("/venues") &&
+      !pathname.startsWith("/venue-client") &&
+      !pathname.startsWith("/venues/public"))
   );
 }
 
@@ -263,5 +267,6 @@ export const config = {
     "/admin/:path*",
     "/staff/:path*",
     "/employee/:path*",
+    "/venues/:path*",
   ],
 };
