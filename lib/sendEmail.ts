@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 
 type SendEmailProps = {
   to: string;
@@ -12,6 +13,20 @@ type SendEmailProps = {
  * Contact form and admin purchase alerts use Resend separately.
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailProps) {
+  const gate = assertExternalSendAllowed({ channel: "email", to });
+  if (!gate.allowed) {
+    console.warn("📧 SMTP sendEmail blocked by staging safety gate", {
+      to,
+      subject,
+      reason: gate.reason,
+    });
+    return {
+      messageId: null,
+      blocked: true,
+      reason: gate.reason,
+    } as any;
+  }
+
   const host = process.env.EMAIL_HOST;
   const port = Number(process.env.EMAIL_PORT || 465);
   const user = process.env.EMAIL_USER;

@@ -1,4 +1,8 @@
 import type { NextResponse } from "next/server";
+import {
+  getAuthCookieDomain,
+  isProductionAppEnv,
+} from "@/lib/env/appEnv";
 
 export const AUTH_COOKIES_TO_DELETE = [
   "authToken",
@@ -44,8 +48,9 @@ function isHttpOnlyCookie(name: string) {
 }
 
 function getDeleteDomains(): Array<string | undefined> {
-  if (process.env.NODE_ENV === "production") {
-    // Host-only + shared domain — both must be cleared on Safari/iPad
+  // Only true Production uses shared .invistimo.com cookies.
+  // Staging/Preview must stay host-only so sessions never leak across envs.
+  if (isProductionAppEnv()) {
     return [undefined, ".invistimo.com"];
   }
 
@@ -95,7 +100,10 @@ export function appendCookieDeletes(
   res: NextResponse,
   names: readonly string[]
 ) {
-  const secure = process.env.NODE_ENV === "production";
+  const secure =
+    isProductionAppEnv() ||
+    process.env.NODE_ENV === "production" ||
+    Boolean(getAuthCookieDomain());
   const expiredAt = new Date(0);
 
   for (const name of names) {
@@ -149,13 +157,16 @@ export function setAuthCookie(
     maxAge?: number;
   }
 ) {
-  const isProd = process.env.NODE_ENV === "production";
-  const cookieDomain = isProd ? ".invistimo.com" : undefined;
+  const cookieDomain = getAuthCookieDomain();
+  const secure =
+    isProductionAppEnv() ||
+    process.env.NODE_ENV === "production" ||
+    Boolean(cookieDomain);
 
   appendSetCookieHeader(res, name, value, {
     path: "/",
     sameSite: "lax",
-    secure: isProd,
+    secure,
     httpOnly: options.httpOnly,
     maxAge: options.maxAge ?? 60 * 60 * 24 * 7,
     ...(cookieDomain ? { domain: cookieDomain } : {}),
@@ -167,7 +178,12 @@ export function clearClientReadableAuthCookies() {
 
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   const expired = "Thu, 01 Jan 1970 00:00:00 GMT";
-  const domains = ["", "; domain=.invistimo.com", "; domain=www.invistimo.com"];
+  const host = window.location.hostname;
+  const isProdHost =
+    host === "www.invistimo.com" || host === "invistimo.com";
+  const domains = isProdHost
+    ? ["", "; domain=.invistimo.com", "; domain=www.invistimo.com"]
+    : [""];
 
   for (const name of CLIENT_READABLE_AUTH_COOKIES) {
     for (const domain of domains) {
