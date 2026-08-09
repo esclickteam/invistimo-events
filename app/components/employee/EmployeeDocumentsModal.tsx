@@ -314,9 +314,17 @@ function pad2(value: number) {
 }
 
 function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+  });
+
+  // en-CA with year+month gives YYYY-MM
+  return formatter.format(new Date());
 }
+
+const SOFTPHONE_HOURS_CHANGED_EVENT = "invistimo:softphone:hours-changed";
 
 function monthInputToLabel(monthKey: string) {
   const [year, month] = monthKey.split("-").map((item) => Number(item));
@@ -1735,6 +1743,27 @@ export default function EmployeeDocumentsModal({
     if (!open || activeTab !== "hours") return;
 
     void loadEmployeeHours(hoursMonth);
+  }, [activeTab, hoursMonth, loadEmployeeHours, open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleSoftphoneHoursChanged() {
+      if (activeTab !== "hours") return;
+      void loadEmployeeHours(hoursMonth);
+    }
+
+    window.addEventListener(
+      SOFTPHONE_HOURS_CHANGED_EVENT,
+      handleSoftphoneHoursChanged,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SOFTPHONE_HOURS_CHANGED_EVENT,
+        handleSoftphoneHoursChanged,
+      );
+    };
   }, [activeTab, hoursMonth, loadEmployeeHours, open]);
 
   const tabs = useMemo(
