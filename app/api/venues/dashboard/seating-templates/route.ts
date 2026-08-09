@@ -59,8 +59,11 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const hallId = cleanString(searchParams.get("hallId"));
+    const templateId = cleanString(
+      searchParams.get("templateId") || searchParams.get("id")
+    );
 
-    if (!hallId) {
+    if (!hallId && !templateId) {
       return NextResponse.json(
         { success: false, error: "חסר מזהה אולם" },
         { status: 400 }
@@ -104,9 +107,16 @@ export async function GET(req: NextRequest) {
     }
 
     const query: any = {
-      hallId,
       isActive: true,
     };
+
+    if (templateId) {
+      query._id = templateId;
+    }
+
+    if (hallId) {
+      query.hallId = hallId;
+    }
 
     /*
       בעל אולם רגיל רואה רק את התבניות שהוא יצר.
@@ -121,8 +131,16 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
+    if (templateId && templates.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "תבנית לא נמצאה" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
+      template: templateId ? stringifyDocs(templates[0]) : undefined,
       templates: stringifyDocs(templates),
     });
   } catch (error: any) {

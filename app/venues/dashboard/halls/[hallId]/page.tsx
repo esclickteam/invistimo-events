@@ -25,7 +25,12 @@ import {
 import { connectDB } from "@/lib/db";
 import VenueLead from "@/models/VenueLead";
 import VenueEvent from "@/models/VenueEvent";
+import Event from "@/models/Event";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
+import {
+  VENUE_EVENT_STATUS_LABELS,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,15 +43,7 @@ type Props = {
 
 type HallStatus = "active" | "maintenance" | "closed";
 
-type EventStatus =
-  | "lead"
-  | "proposal"
-  | "closed"
-  | "confirmed"
-  | "preparing"
-  | "live"
-  | "done"
-  | "cancelled";
+type EventStatus = VenueEventLifecycleStatus;
 
 type SerializedHall = {
   id: string;
@@ -64,6 +61,9 @@ type SerializedHall = {
 
 type SerializedEvent = {
   id: string;
+  venueEventId: string;
+  linkedEventId: string;
+  eventDetailId: string;
   title: string;
   eventType: string;
   clientName: string;
@@ -132,14 +132,45 @@ function statusLabel(status: HallStatus) {
 }
 
 function eventStatusLabel(status: EventStatus) {
-  if (status === "lead") return "ליד";
-  if (status === "proposal") return "בהצעה";
-  if (status === "closed") return "סגור";
-  if (status === "confirmed") return "מאושר";
-  if (status === "preparing") return "בהכנות";
-  if (status === "live") return "פעיל עכשיו";
-  if (status === "done") return "הסתיים";
-  return "בוטל";
+  return VENUE_EVENT_STATUS_LABELS[status] || status;
+}
+
+function serializeEvent(
+  event: any,
+  linkedEvent?: any | null
+): SerializedEvent {
+  const linkedEventId = event.linkedEventId
+    ? String(event.linkedEventId)
+    : "";
+  const venueEventId = String(event._id);
+
+  const title =
+    String(event.title || "") ||
+    String(linkedEvent?.title || "") ||
+    "אירוע ללא שם";
+
+  const guests =
+    Number(event.guests || 0) ||
+    Number(linkedEvent?.estimatedGuests || 0) ||
+    Number(linkedEvent?.estimatedGuestCount || 0) ||
+    0;
+
+  return {
+    id: venueEventId,
+    venueEventId,
+    linkedEventId,
+    eventDetailId: linkedEventId || venueEventId,
+    title,
+    eventType: String(event.eventType || linkedEvent?.eventType || ""),
+    clientName: String(event.clientName || ""),
+    date: String(event.date || ""),
+    startTime: String(event.startTime || ""),
+    endTime: String(event.endTime || ""),
+    guests,
+    status: (event.status || "confirmed") as EventStatus,
+    budget: Number(event.budget || linkedEvent?.budgetTotal || 0),
+    paidAmount: Number(event.paidAmount || 0),
+  };
 }
 
 function serializeHall(hall: any): SerializedHall {
@@ -155,22 +186,6 @@ function serializeHall(hall: any): SerializedHall {
     nextEventAt: String(hall.nextEventAt || ""),
     status: (hall.status || "active") as HallStatus,
     image: String(hall.image || ""),
-  };
-}
-
-function serializeEvent(event: any): SerializedEvent {
-  return {
-    id: String(event._id),
-    title: String(event.title || ""),
-    eventType: String(event.eventType || ""),
-    clientName: String(event.clientName || ""),
-    date: String(event.date || ""),
-    startTime: String(event.startTime || ""),
-    endTime: String(event.endTime || ""),
-    guests: Number(event.guests || 0),
-    status: (event.status || "confirmed") as EventStatus,
-    budget: Number(event.budget || 0),
-    paidAmount: Number(event.paidAmount || 0),
   };
 }
 
@@ -259,9 +274,28 @@ export default async function VenueHallPage({ params }: Props) {
     }),
   ]);
 
-  const monthEvents = monthEventsRaw.map(serializeEvent);
-  const upcomingEvents = upcomingEventsRaw.map(serializeEvent);
-  const nextEvent = nextEventRaw ? serializeEvent(nextEventRaw) : null;
+  const linkedEventIds = [
+    ...monthEventsRaw,
+    ...upcomingEventsRaw,
+    ...(nextEventRaw ? [nextEventRaw] : []),
+  ]
+    .map((ve: any) => ve.linkedEventId)
+    .filter((id: any) => id);
+
+  const linkedEventsRaw = linkedEventIds.length
+    ? await Event.find({ _id: { $in: linkedEventIds } }).lean()
+    : [];
+
+  const linkedEventById = new Map(
+    linkedEventsRaw.map((e: any) => [String(e._id), e])
+  );
+
+  const withLinked = (ve: any) =>
+    serializeEvent(ve, linkedEventById.get(String(ve.linkedEventId)) || null);
+
+  const monthEvents = monthEventsRaw.map(withLinked);
+  const upcomingEvents = upcomingEventsRaw.map(withLinked);
+  const nextEvent = nextEventRaw ? withLinked(nextEventRaw) : null;
   const seatingTemplates = seatingTemplatesRaw.map(serializeSeatingTemplate);
 
   const monthlyRevenue = monthEvents.reduce(
@@ -569,8 +603,12 @@ export default async function VenueHallPage({ params }: Props) {
                   {upcomingEvents.length ? (
                     upcomingEvents.map((event) => (
                       <Link
-                        href={`/venues/dashboard/events/${event.id}`}
-                        key={event.id}
+                        href={
+                          event.linkedEventId
+                            ? `/venues/dashboard/events/${event.linkedEventId}`
+                            : `#`
+                        }
+                        key={event.venueEventId}
                         className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2 transition hover:bg-[#fbf5ea]"
                       >
                         <div className="text-right">

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
-import VenueHall from "@/models/VenueHall";
+import VenueEvent from "@/models/VenueEvent";
+import {
+  isVenueEventStatus,
+  venueLifecycleToInvistimoStatus,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +29,6 @@ const allowedEventTypes = [
   "other",
 ];
 
-const allowedEventStatuses = ["active", "archived"];
 const allowedPaymentStatuses = ["paid", "refunded"];
 
 function cleanString(value: unknown) {
@@ -36,11 +38,6 @@ function cleanString(value: unknown) {
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function objectIdString(value: unknown) {
-  if (!value) return "";
-  return String(value);
 }
 
 function normalizeDateOnly(value: unknown) {
@@ -99,297 +96,144 @@ function serializeHall(hall: any) {
   };
 }
 
-function getInvitationIdCandidates(eventId: string) {
-  if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
-    return [];
-  }
-
-  const objectId = new mongoose.Types.ObjectId(eventId);
-
-  return [
-    { eventId: objectId },
-    { productionEventId: objectId },
-    { linkedEventId: objectId },
-
-    { eventId },
-    { productionEventId: eventId },
-    { linkedEventId: eventId },
-  ];
-}
-
-async function getInvitationsForEvents(events: any[]) {
-  const eventIds = events
-    .map((event) => String(event._id))
-    .filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-  if (!eventIds.length) {
-    return new Map<string, any>();
-  }
-
-  const orQuery = eventIds.flatMap((eventId) =>
-    getInvitationIdCandidates(eventId)
-  );
-
-  if (!orQuery.length) {
-    return new Map<string, any>();
-  }
-
-  const invitations = await Invitation.find({
-    $or: orQuery,
-  })
-    .populate("guests")
-    .lean();
-
-  const invitationByEventId = new Map<string, any>();
-
-  for (const invitation of invitations) {
-    const candidates = [
-      invitation.eventId,
-      invitation.productionEventId,
-      invitation.linkedEventId,
-    ];
-
-    for (const candidate of candidates) {
-      const key = objectIdString(candidate);
-
-      if (key && !invitationByEventId.has(key)) {
-        invitationByEventId.set(key, invitation);
-      }
-    }
-  }
-
-  return invitationByEventId;
-}
-
 /**
- * Event = מקור אמת רק לשיוך לאולם:
- * venueOwnerId / venueHallId / venueHallName / venueAccessStatus
- *
- * Invitation = מקור אמת לפרטי האירוע:
- * שם / תאריך / שעה / מיקום / מוזמנים / תמונה / shareId וכו׳
+ * VenueEvent = lifecycle + hall tenant source of truth.
+ * Linked Event supplements title/guests when available.
  */
-function serializeEvent(event: any, hall?: any, invitation?: any) {
-  const venueHallId = cleanString(event.venueHallId);
-  const venueHallName =
-    cleanString(event.venueHallName) || cleanString(hall?.name);
+function serializeVenueEvent(
+  venueEvent: any,
+  hall?: any,
+  linkedEvent?: any | null
+) {
+  const linkedEventId = venueEvent.linkedEventId
+    ? String(venueEvent.linkedEventId)
+    : "";
 
   const title =
-    cleanString(invitation?.title) ||
-    cleanString(invitation?.eventTitle) ||
-    cleanString(event.title) ||
+    cleanString(venueEvent.title) ||
+    cleanString(linkedEvent?.title) ||
     "אירוע ללא שם";
 
   const eventType =
-    cleanString(invitation?.eventType) ||
-    cleanString(event.eventType) ||
+    cleanString(venueEvent.eventType) ||
+    cleanString(linkedEvent?.eventType) ||
     "other";
 
-  const date =
-    normalizeDateOnly(invitation?.eventDate || invitation?.date) ||
-    normalizeDateOnly(event.date);
-
-  const time =
-    cleanString(invitation?.eventTime) ||
-    cleanString(invitation?.time) ||
-    cleanString(event.time);
-
-  const location = invitation?.location || event.location || {};
-
-  const estimatedGuests =
-    toNumber(invitation?.estimatedGuestCount, 0) ||
-    toNumber(invitation?.estimatedGuests, 0) ||
-    toNumber(invitation?.maxGuests, 0) ||
-    toNumber(event.estimatedGuestCount, 0) ||
-    toNumber(event.estimatedGuests, 0) ||
-    toNumber(event.maxGuests, 0) ||
+  const guests =
+    toNumber(venueEvent.guests, 0) ||
+    toNumber(linkedEvent?.estimatedGuests, 0) ||
+    toNumber(linkedEvent?.estimatedGuestCount, 0) ||
     0;
 
-  const budgetTotal =
-    toNumber(invitation?.budgetTotal, 0) || toNumber(event.budgetTotal, 0) || 0;
+  const budget =
+    toNumber(venueEvent.budget, 0) ||
+    toNumber(linkedEvent?.budgetTotal, 0) ||
+    0;
 
-  const paymentStatus =
-    cleanString(invitation?.paymentStatus) ||
-    cleanString(event.paymentStatus) ||
-    "paid";
-
-  const email =
-    cleanString(invitation?.email) ||
-    cleanString(event.email) ||
-    "";
-
-  const notes =
-    cleanString(invitation?.notes) ||
-    cleanString(event.notes) ||
-    "";
+  const paidAmount = toNumber(venueEvent.paidAmount, 0);
 
   return {
-    id: String(event._id),
-    _id: String(event._id),
+    id: linkedEventId || String(venueEvent._id),
+    _id: String(venueEvent._id),
+    venueEventId: String(venueEvent._id),
+    linkedEventId,
 
-    /**
-     * מזהי הזמנה ציבוריים
-     */
-    invitationId: invitation?._id ? String(invitation._id) : "",
-    shareId: invitation?.shareId || "",
+    ownerId: venueEvent.ownerId ? String(venueEvent.ownerId) : "",
+    hallId: cleanString(venueEvent.hallId),
+    hallName:
+      cleanString(venueEvent.hallName) || cleanString(hall?.name),
 
-    /**
-     * שדות Event אמיתיים / שיוך
-     */
-    userId: event.userId ? String(event.userId) : "",
-    producerId: event.producerId ? String(event.producerId) : "",
-    assignedStaffIds: Array.isArray(event.assignedStaffIds)
-      ? event.assignedStaffIds.map((id: any) => String(id))
-      : [],
-
-    venueOwnerId: event.venueOwnerId ? String(event.venueOwnerId) : "",
-    venueHallId,
-    venueHallName,
-    venueLinkedAt: event.venueLinkedAt || null,
-    venueAccessStatus: event.venueAccessStatus || "none",
-
-    /**
-     * פרטי האירוע — קודם מההזמנה
-     */
-    email,
-
-    eventType,
     title,
+    eventType,
+    clientName: cleanString(venueEvent.clientName),
+    clientPhone: cleanString(venueEvent.clientPhone),
+    clientEmail: cleanString(venueEvent.clientEmail),
 
-    budgetTotal,
-    estimatedGuests,
-    estimatedGuestCount: estimatedGuests,
+    date: normalizeDateOnly(venueEvent.date),
+    startTime: cleanString(venueEvent.startTime),
+    endTime: cleanString(venueEvent.endTime),
+    time: cleanString(venueEvent.startTime),
 
-    date,
-    time,
+    guests,
+    estimatedGuests: guests,
+    estimatedGuestCount: guests,
 
-    location: {
-      address: cleanString(location?.address || location?.name),
-      lat: location?.lat,
-      lng: location?.lng,
-    },
+    status: venueEvent.status || "confirmed",
 
-    giftCreditUrl:
-      cleanString(invitation?.giftCreditUrl) ||
-      cleanString(event.giftCreditUrl),
+    budget,
+    paidAmount,
+    notes: cleanString(venueEvent.notes),
+    color: cleanString(venueEvent.color),
 
-    maxGuests: estimatedGuests,
-
-    paymentStatus,
-    status: event.status || "active",
-
-    notes,
-
-    createdAt: event.createdAt,
-    updatedAt: event.updatedAt,
-
-    /**
-     * תאימות לאחור ליומן/קומפוננטות קיימות
-     */
-    ownerId: event.venueOwnerId ? String(event.venueOwnerId) : "",
-    hallId: venueHallId,
-    hallName: venueHallName,
-
-    clientName: title,
-    clientPhone: cleanString(invitation?.phone || invitation?.clientPhone),
-    clientEmail: email,
-
-    startTime: time,
-    endTime: "",
-
-    guests: estimatedGuests,
-
-    budget: budgetTotal,
-    paidAmount: paymentStatus === "paid" ? budgetTotal : 0,
-
-    color: "",
-
-    /**
-     * מידע מלא למקרה שהקומפוננטה צריכה
-     */
-    source: invitation ? "invitation" : "event",
+    createdAt: venueEvent.createdAt,
+    updatedAt: venueEvent.updatedAt,
   };
+}
+
+async function loadLinkedEventsMap(venueEvents: any[]) {
+  const linkedIds = venueEvents
+    .map((ve) => ve.linkedEventId)
+    .filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+
+  if (!linkedIds.length) {
+    return new Map<string, any>();
+  }
+
+  const events = await Event.find({ _id: { $in: linkedIds } }).lean();
+  const map = new Map<string, any>();
+
+  for (const event of events) {
+    map.set(String(event._id), event);
+  }
+
+  return map;
 }
 
 /* ======================================================
    GET /api/venues/dashboard/halls/[hallId]/calendar
-   שליפת אירועי יומן לאולם מסוים
-   Event = שיוך לאולם
-   Invitation = פרטי אירוע
+   VenueEvents for the hall (tenant-scoped).
 ====================================================== */
 
 export async function GET(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await params;
 
-    if (!hallId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "חסר מזהה אולם",
-        },
-        { status: 400 }
-      );
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      hallId,
+      "dashboard.view"
+    );
+
+    if (error || !ctx) {
+      return error!;
     }
 
-    const hall = await VenueHall.findOne({
-      ownerId: auth.userId,
-      id: hallId,
-    }).lean();
-
-    if (!hall) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "האולם לא נמצא או שאין הרשאה",
-        },
-        { status: 404 }
-      );
-    }
-
+    const hall = ctx.hall;
     const url = new URL(req.url);
     const from = cleanString(url.searchParams.get("from"));
     const to = cleanString(url.searchParams.get("to"));
 
-    /**
-     * מסנן לפי Event רק כדי למצוא את האירועים ששויכו לאולם.
-     * לא מסתמכים על date/time של Event כי מקור האמת הוא Invitation.
-     */
     const query: Record<string, any> = {
-      venueOwnerId: auth.userId,
-      venueHallId: hallId,
-      venueAccessStatus: "linked",
-      status: "active",
+      ownerId: ctx.ownerId,
+      hallId: ctx.venueId,
     };
 
-    const events = await Event.find(query)
-      .sort({ createdAt: 1 })
+    const venueEvents = await VenueEvent.find(query)
+      .sort({ date: 1, startTime: 1 })
       .lean();
 
-    const invitationByEventId = await getInvitationsForEvents(events);
+    const linkedEventById = await loadLinkedEventsMap(venueEvents);
 
-    let serializedEvents = events.map((event: any) => {
-      const invitation = invitationByEventId.get(String(event._id)) || null;
-      return serializeEvent(event, hall, invitation);
+    let serializedEvents = venueEvents.map((venueEvent: any) => {
+      const linkedEvent = venueEvent.linkedEventId
+        ? linkedEventById.get(String(venueEvent.linkedEventId)) || null
+        : null;
+
+      return serializeVenueEvent(venueEvent, hall, linkedEvent);
     });
 
-    /**
-     * סינון תאריכים מתבצע אחרי המיזוג,
-     * כי התאריך האמיתי מגיע מה-Invitation.
-     */
     if (from || to) {
       serializedEvents = serializedEvents.filter((event: any) => {
         const date = cleanString(event.date);
@@ -409,8 +253,8 @@ export async function GET(req: NextRequest, { params }: Props) {
     }
 
     serializedEvents.sort((a: any, b: any) => {
-      const aKey = `${a.date || ""} ${a.time || ""}`;
-      const bKey = `${b.date || ""} ${b.time || ""}`;
+      const aKey = `${a.date || ""} ${a.startTime || ""}`;
+      const bKey = `${b.date || ""} ${b.startTime || ""}`;
       return aKey.localeCompare(bKey);
     });
 
@@ -437,54 +281,26 @@ export async function GET(req: NextRequest, { params }: Props) {
 
 /* ======================================================
    POST /api/venues/dashboard/halls/[hallId]/calendar
-   יצירת Event עצמאי חדש ביומן של אולם
-   זה מיועד לאירוע שנוצר מתוך צד בעל האולם,
-   לא להזמנה קיימת של לקוח.
+   Creates VenueEvent + linked Event (dual-write).
 ====================================================== */
 
 export async function POST(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await params;
 
-    if (!hallId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "חסר מזהה אולם",
-        },
-        { status: 400 }
-      );
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      hallId,
+      "dashboard.view"
+    );
+
+    if (error || !ctx) {
+      return error!;
     }
 
-    const hall = await VenueHall.findOne({
-      ownerId: auth.userId,
-      id: hallId,
-    }).lean();
-
-    if (!hall) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "האולם לא נמצא או שאין הרשאה",
-        },
-        { status: 404 }
-      );
-    }
-
+    const hall = ctx.hall;
     const body = await req.json();
 
     const title = cleanString(body.title);
@@ -492,9 +308,11 @@ export async function POST(req: NextRequest, { params }: Props) {
     const eventType = normalizeEventType(rawEventType);
 
     const clientName = cleanString(body.clientName);
+    const clientPhone = cleanString(body.clientPhone);
     const clientEmail = cleanString(body.clientEmail || body.email);
     const date = normalizeDateOnly(body.date);
-    const time = cleanString(body.time || body.startTime);
+    const startTime = cleanString(body.time || body.startTime);
+    const endTime = cleanString(body.endTime);
 
     const notes = cleanString(body.notes);
 
@@ -514,10 +332,17 @@ export async function POST(req: NextRequest, { params }: Props) {
       toNumber(body.budgetTotal ?? body.budget, 0)
     );
 
+    const paidAmount = Math.max(
+      0,
+      toNumber(body.paidAmount, 0)
+    );
+
     const requestedStatus = cleanString(body.status);
-    const status = allowedEventStatuses.includes(requestedStatus)
-      ? requestedStatus
-      : "active";
+    const lifecycleStatus: VenueEventLifecycleStatus = isVenueEventStatus(
+      requestedStatus
+    )
+      ? (requestedStatus as VenueEventLifecycleStatus)
+      : "confirmed";
 
     const requestedPaymentStatus = cleanString(body.paymentStatus);
     const paymentStatus = allowedPaymentStatuses.includes(requestedPaymentStatus)
@@ -544,7 +369,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    if (!time) {
+    if (!startTime) {
       return NextResponse.json(
         {
           success: false,
@@ -554,75 +379,106 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const fallbackEmail = `venue-${String(auth.userId)}@invistimo.local`;
+    const fallbackEmail = `venue-${String(ctx.auth.userId)}@invistimo.local`;
+    const invistimoStatus = venueLifecycleToInvistimoStatus(lifecycleStatus);
 
-    const event = await Event.create({
-      /**
-       * בעל האירוע כרגע הוא בעל האולם,
-       * כדי לאפשר אירועי יומן עצמאיים של האולם.
-       */
-      userId: new mongoose.Types.ObjectId(auth.userId),
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      /**
-       * חיבור לאולם
-       */
-      venueOwnerId: new mongoose.Types.ObjectId(auth.userId),
-      venueHallId: hallId,
-      venueHallName: hall.name || "",
-      venueLinkedAt: new Date(),
-      venueAccessStatus: "linked",
+    try {
+      const [createdEvent] = await Event.create(
+        [
+          {
+            userId: new mongoose.Types.ObjectId(ctx.ownerId),
+            venueOwnerId: new mongoose.Types.ObjectId(ctx.ownerId),
+            venueHallId: ctx.venueId,
+            venueHallName: hall.name || "",
+            venueLinkedAt: new Date(),
+            venueAccessStatus: "linked",
+            email: clientEmail || fallbackEmail,
+            eventType,
+            title: clientName ? `${title} - ${clientName}` : title,
+            budgetTotal,
+            estimatedGuests: guests || null,
+            estimatedGuestCount: guests || null,
+            date,
+            time: startTime,
+            location: {
+              address: cleanString(
+                body.location?.address || body.location || ""
+              ),
+              lat:
+                body.location?.lat === undefined || body.location?.lat === null
+                  ? undefined
+                  : toNumber(body.location.lat, undefined),
+              lng:
+                body.location?.lng === undefined || body.location?.lng === null
+                  ? undefined
+                  : toNumber(body.location.lng, undefined),
+            },
+            giftCreditUrl: cleanString(body.giftCreditUrl),
+            zones: [],
+            planning: {
+              eventDefinition: {
+                goal: "",
+                vibe: "",
+                size: "",
+                notes: "",
+              },
+              concept: "",
+            },
+            maxGuests: guests || toNumber(hall.capacity, 0) || 0,
+            paymentStatus,
+            status: invistimoStatus,
+            notes,
+          },
+        ],
+        { session }
+      );
 
-      email: clientEmail || fallbackEmail,
+      const [createdVenueEvent] = await VenueEvent.create(
+        [
+          {
+            ownerId: new mongoose.Types.ObjectId(ctx.ownerId),
+            hallId: ctx.venueId,
+            hallName: hall.name || "",
+            title,
+            eventType: rawEventType || eventType,
+            clientName,
+            clientPhone,
+            clientEmail,
+            date,
+            startTime,
+            endTime,
+            guests,
+            status: lifecycleStatus,
+            budget: budgetTotal,
+            paidAmount,
+            notes,
+            linkedEventId: createdEvent._id,
+            createdBy: new mongoose.Types.ObjectId(ctx.auth.userId),
+          },
+        ],
+        { session }
+      );
 
-      eventType,
-      title: clientName ? `${title} - ${clientName}` : title,
+      await session.commitTransaction();
 
-      budgetTotal,
-
-      estimatedGuests: guests || null,
-      estimatedGuestCount: guests || null,
-
-      date,
-      time,
-
-      location: {
-        address: cleanString(body.location?.address || body.location || ""),
-        lat:
-          body.location?.lat === undefined || body.location?.lat === null
-            ? undefined
-            : toNumber(body.location.lat, undefined),
-        lng:
-          body.location?.lng === undefined || body.location?.lng === null
-            ? undefined
-            : toNumber(body.location.lng, undefined),
-      },
-
-      giftCreditUrl: cleanString(body.giftCreditUrl),
-
-      zones: [],
-      planning: {
-        eventDefinition: {
-          goal: "",
-          vibe: "",
-          size: "",
-          notes: "",
-        },
-        concept: "",
-      },
-
-      maxGuests: guests || toNumber(hall.capacity, 0) || 0,
-
-      paymentStatus,
-      status,
-
-      notes,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "האירוע נוסף ליומן בהצלחה",
-      event: serializeEvent(event, hall, null),
-    });
+      return NextResponse.json({
+        success: true,
+        message: "האירוע נוסף ליומן בהצלחה",
+        event: serializeVenueEvent(
+          createdVenueEvent,
+          hall,
+          createdEvent
+        ),
+      });
+    } catch (txError) {
+      await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
+    }
   } catch (error) {
     console.error(
       "POST /api/venues/dashboard/halls/[hallId]/calendar failed:",

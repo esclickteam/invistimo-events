@@ -4,6 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  VENUE_EVENT_STATUSES,
+  VENUE_EVENT_STATUS_LABELS,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
+import {
   ArrowRight,
   Building2,
   CalendarDays,
@@ -31,19 +36,11 @@ import {
 
 type CalendarView = "day" | "week" | "month";
 
-type VenueEventStatus =
-  | "lead"
-  | "proposal"
-  | "closed"
-  | "confirmed"
-  | "preparing"
-  | "live"
-  | "done"
-  | "cancelled";
-
 type VenueEvent = {
   id: string;
   _id?: string;
+  venueEventId?: string;
+  linkedEventId?: string;
 
   ownerId?: string;
   hallId: string;
@@ -59,7 +56,7 @@ type VenueEvent = {
   endTime: string;
 
   guests: number;
-  status: VenueEventStatus;
+  status: VenueEventLifecycleStatus;
 
   budget?: number;
   paidAmount?: number;
@@ -90,7 +87,7 @@ type NewEventForm = {
   startTime: string;
   endTime: string;
   guests: string;
-  status: VenueEventStatus;
+  status: VenueEventLifecycleStatus;
   budget: string;
   paidAmount: string;
   notes: string;
@@ -186,18 +183,11 @@ function getEventHour(time: string, fallback: number) {
   return hour + minute / 60;
 }
 
-function statusLabel(status: VenueEventStatus) {
-  if (status === "lead") return "ליד";
-  if (status === "proposal") return "בהצעה";
-  if (status === "closed") return "סגור";
-  if (status === "confirmed") return "מאושר";
-  if (status === "preparing") return "בהכנות";
-  if (status === "live") return "פעיל עכשיו";
-  if (status === "done") return "הסתיים";
-  return "בוטל";
+function statusLabel(status: VenueEventLifecycleStatus) {
+  return VENUE_EVENT_STATUS_LABELS[status] || status;
 }
 
-function itemColorClass(status: VenueEventStatus) {
+function itemColorClass(status: VenueEventLifecycleStatus) {
   if (status === "closed") return "border-[#d6a33a] bg-[#fff4dc] text-[#7b4e09]";
   if (status === "confirmed") return "border-emerald-300 bg-emerald-50 text-emerald-800";
   if (status === "preparing") return "border-sky-300 bg-sky-50 text-sky-800";
@@ -312,7 +302,9 @@ export default function HallCalendarPage() {
   }, [events]);
 
   const goToEvent = (item: VenueEvent) => {
-    router.push(`/venues/dashboard/events/${item.id}`);
+    const eventId = item.linkedEventId || item.id;
+    if (!eventId) return;
+    router.push(`/venues/dashboard/events/${eventId}`);
   };
 
   const goPrevious = () => {
@@ -853,17 +845,16 @@ function CreateEventModal({
               <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס</span>
               <select
                 value={form.status}
-                onChange={(event) => updateField("status", event.target.value as VenueEventStatus)}
+                onChange={(event) =>
+                  updateField("status", event.target.value as VenueEventLifecycleStatus)
+                }
                 className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
               >
-                <option value="lead">ליד</option>
-                <option value="proposal">בהצעה</option>
-                <option value="closed">סגור</option>
-                <option value="confirmed">מאושר</option>
-                <option value="preparing">בהכנות</option>
-                <option value="live">פעיל עכשיו</option>
-                <option value="done">הסתיים</option>
-                <option value="cancelled">בוטל</option>
+                {VENUE_EVENT_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {VENUE_EVENT_STATUS_LABELS[status]}
+                  </option>
+                ))}
               </select>
             </label>
 
