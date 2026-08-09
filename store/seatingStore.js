@@ -15,6 +15,10 @@ function getGuestId(guest) {
 }
 
 function getTableSeatCount(table) {
+  // Venue templates / legacy sync may send seats as an array of seat slots.
+  if (Array.isArray(table?.seats)) {
+    return Math.max(0, table.seats.length);
+  }
   return Math.max(
     0,
     Math.floor(Number(table?.seats ?? table?.capacity ?? 0))
