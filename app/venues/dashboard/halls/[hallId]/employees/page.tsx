@@ -168,7 +168,10 @@ export default function VenueEmployeesPermissionsPage() {
     }
   };
 
-  const setStatus = async (membershipId: string, action: "disable" | "enable") => {
+  const setStatus = async (
+    membershipId: string,
+    action: "disable" | "enable" | "revoke"
+  ) => {
     setSaving(true);
     setError("");
     try {
@@ -362,6 +365,24 @@ export default function VenueEmployeesPermissionsPage() {
                               פתיחה
                             </button>
                           )}
+                          {row.status === "active" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  typeof window !== "undefined" &&
+                                  window.confirm(
+                                    `לבטל גישה לצמיתות עבור ${row.name}? הסשן יבוטל.`
+                                  )
+                                ) {
+                                  void setStatus(row.membershipId, "revoke");
+                                }
+                              }}
+                              className="rounded-xl border border-[#eadfce] px-3 py-1.5 text-xs font-black text-[#6f6252]"
+                            >
+                              Revoke
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

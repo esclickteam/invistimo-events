@@ -47,13 +47,14 @@ const NAV_ITEMS: NavItem[] = [
   { label: "לידים", segment: "crm", icon: FileText, permission: "leads.view" },
   { label: "אירועים / יומן", segment: "calendar", icon: CalendarDays, permission: "events.view" },
   { label: "לקוחות", segment: "customers", icon: UsersRound, permission: "guests.view" },
+  { label: "תפריטים", segment: "menus", icon: UtensilsCrossed, permission: "settings.view" },
   { label: "הושבה", segment: "seating-templates", icon: Grid3X3, permission: "seating.view" },
   { label: "צוות / משמרות", segment: "staff", icon: Wrench, permission: "staff.view" },
   { label: "עובדים והרשאות", segment: "employees", icon: ShieldCheck, permission: "employees.view" },
-  { label: "קבצים", segment: "files", icon: FolderOpen, permission: "files.view" },
+  { label: "קבצים / חוזים", segment: "files", icon: FolderOpen, permission: "files.view" },
   { label: "דוחות", segment: "reports", icon: PieChart, permission: "reports.view" },
   { label: "הגדרות", segment: "settings", icon: Settings, permission: "settings.view" },
-  { label: "Activity Log", segment: "activity", icon: Activity, permission: "dashboard.view" },
+  { label: "יומן פעילות", segment: "activity", icon: Activity, permission: "dashboard.view" },
 ];
 
 function encodeHallId(hallId: string) {
@@ -161,6 +162,20 @@ export default function VenueShell({
     try {
       localStorage.setItem(ACTIVE_HALL_KEY, newHallId);
       setActiveHallCookie(newHallId);
+      // Clear any cached hall-scoped client keys to prevent leakage
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (
+          key.startsWith("venue.") &&
+          key !== ACTIVE_HALL_KEY &&
+          (key.includes(hallId) || key.includes("cache"))
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
     } catch {
       /* ignore */
     }
@@ -170,7 +185,9 @@ export default function VenueShell({
       activeSegment ? `${newBase}/${activeSegment}` : newBase;
 
     setSwitcherOpen(false);
+    // Hard navigation resets client React state / fetch cache for the new tenant
     router.push(target);
+    router.refresh();
   };
 
   return (

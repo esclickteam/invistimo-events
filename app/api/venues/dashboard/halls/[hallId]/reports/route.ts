@@ -111,10 +111,92 @@ export async function GET(req: NextRequest, { params }: Props) {
       ([status, count]) => ({ status, count })
     );
 
+    let totalGuests = 0;
+    let paidTotal = 0;
+    let budgetTotal = 0;
+    const eventsByPeriodMap: Record<string, number> = {};
+    const salespersonMap: Record<string, { leads: number; converted: number }> =
+      {};
+
+    for (const event of events) {
+      totalGuests += Number((event as any).guests || 0);
+      paidTotal += Number((event as any).paidAmount || 0);
+      budgetTotal += Number((event as any).budget || 0);
+      const key = monthKey(String((event as any).date || ""));
+      if (key) {
+        eventsByPeriodMap[key] = (eventsByPeriodMap[key] || 0) + 1;
+      }
+    }
+
+    for (const lead of leads) {
+      const sp =
+        String((lead as any).assignedToName || "").trim() ||
+        String((lead as any).salesperson || "").trim() ||
+        String((lead as any).ownerName || "").trim() ||
+        "לא משויך";
+      if (!salespersonMap[sp]) {
+        salespersonMap[sp] = { leads: 0, converted: 0 };
+      }
+      salespersonMap[sp].leads += 1;
+      if (
+        (lead as any).status === "closed" ||
+        Boolean((lead as any).venueEventId || (lead as any).eventId)
+      ) {
+        salespersonMap[sp].converted += 1;
+      }
+    }
+
+    const eventsByPeriod = Object.entries(eventsByPeriodMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([period, count]) => ({ period, count }));
+
+    const salespersonBreakdown = Object.entries(salespersonMap)
+      .map(([name, stats]) => ({
+        name,
+        leads: stats.leads,
+        converted: stats.converted,
+        conversionRate:
+          stats.leads > 0
+            ? Math.round((stats.converted / stats.leads) * 100)
+            : 0,
+      }))
+      .sort((a, b) => b.leads - a.leads);
+
+    const format = String(url.searchParams.get("format") || "").toLowerCase();
+    if (format === "csv") {
+      const rows = [
+        ["metric", "value"],
+        ["totalLeads", String(totalLeads)],
+        ["convertedLeads", String(convertedLeads)],
+        ["conversionRate", String(conversionRate)],
+        ["totalEvents", String(events.length)],
+        ["upcomingCount", String(upcomingCount)],
+        ["completedCount", String(completedCount)],
+        ["totalGuests", String(totalGuests)],
+        ["paidTotal", String(paidTotal)],
+        ["budgetTotal", String(budgetTotal)],
+        ...eventsByStatusList.map((r) => [
+          `events.status.${r.status}`,
+          String(r.count),
+        ]),
+      ];
+      const csv = rows
+        .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="venue-${ctx.venueId}-reports.csv"`,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       reports: {
         leadsByPeriod,
+        eventsByPeriod,
         conversionRate,
         totalLeads,
         convertedLeads,
@@ -122,6 +204,10 @@ export async function GET(req: NextRequest, { params }: Props) {
         upcomingCount,
         completedCount,
         totalEvents: events.length,
+        totalGuests,
+        paidTotal,
+        budgetTotal,
+        salespersonBreakdown,
         periodFrom,
         periodMonths: monthsBack,
       },

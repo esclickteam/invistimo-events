@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   VENUE_EVENT_STATUSES,
   VENUE_EVENT_STATUS_LABELS,
+  getVenueEventStatusStyle,
   type VenueEventLifecycleStatus,
 } from "@/lib/venues/statuses";
 import {
@@ -198,14 +199,8 @@ function statusLabel(status: VenueEventLifecycleStatus) {
 }
 
 function itemColorClass(status: VenueEventLifecycleStatus) {
-  if (status === "closed") return "border-[#d6a33a] bg-[#fff4dc] text-[#7b4e09]";
-  if (status === "confirmed") return "border-emerald-300 bg-emerald-50 text-emerald-800";
-  if (status === "preparing") return "border-sky-300 bg-sky-50 text-sky-800";
-  if (status === "proposal") return "border-rose-300 bg-rose-50 text-rose-800";
-  if (status === "lead") return "border-violet-300 bg-violet-50 text-violet-800";
-  if (status === "live") return "border-emerald-400 bg-emerald-100 text-emerald-900";
-  if (status === "done") return "border-slate-300 bg-slate-50 text-slate-700";
-  return "border-rose-300 bg-rose-50 text-rose-800";
+  const style = getVenueEventStatusStyle(status);
+  return `border ${style.border} ${style.bg} ${style.text}`;
 }
 
 function getTodayYmd() {

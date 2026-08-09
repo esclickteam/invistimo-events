@@ -1520,8 +1520,14 @@ if (
   doc.role === "producer" ||
   doc.role === "venue_owner"
 ) {
+  // Venue login users keep employeeScope="venue" and never get Invistimo staffType.
+  // Regular clients/producers/owners stay outside Invistimo Staff portals.
   doc.staffType = null;
-  doc.employeeScope = null;
+  if (doc.role === "user" && doc.venueUser) {
+    doc.employeeScope = "venue";
+  } else {
+    doc.employeeScope = null;
+  }
 }
 
 /*

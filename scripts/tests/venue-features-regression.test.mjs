@@ -76,7 +76,7 @@ test("seating page loads and updates by templateId", () => {
 
 test("owner dashboard aggregates VenueEvent", () => {
   const src = read("app/api/venues/dashboard/route.ts");
-  assert.match(src, /VenueEvent\.find/);
+  assert.match(src, /listVenueEventsForHall/);
   assert.match(src, /listUserVenueMemberships/);
 });
 

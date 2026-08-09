@@ -498,11 +498,26 @@ export default function VenueDashboardClient() {
 
                   <button
                     type="button"
-                    onClick={() => router.push("/venues/dashboard/events")}
+                    onClick={() => {
+                      const firstHallId =
+                        halls?.[0]?.id ||
+                        (typeof window !== "undefined"
+                          ? localStorage.getItem("venue.activeHallId")
+                          : null);
+                      if (firstHallId) {
+                        router.push(
+                          `/venues/dashboard/halls/${encodeURIComponent(
+                            String(firstHallId)
+                          )}/calendar`
+                        );
+                      } else {
+                        setCreateHallOpen(true);
+                      }
+                    }}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
                   >
                     <CalendarDays size={17} />
-                    יומן כל המתחם
+                    יומן אולם
                   </button>
                 </div>
               </div>
@@ -781,7 +796,20 @@ export default function VenueDashboardClient() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/venues/dashboard/events")}
+                  onClick={() => {
+                    const firstHallId =
+                      halls?.[0]?.id ||
+                      (typeof window !== "undefined"
+                        ? localStorage.getItem("venue.activeHallId")
+                        : null);
+                    if (firstHallId) {
+                      router.push(
+                        `/venues/dashboard/halls/${encodeURIComponent(
+                          String(firstHallId)
+                        )}/calendar`
+                      );
+                    }
+                  }}
                   className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                 >
                   הצג את כל האירועים

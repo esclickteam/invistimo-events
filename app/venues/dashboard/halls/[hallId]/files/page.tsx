@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ExternalLink, FolderOpen, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import VenueConfirmDialog from "@/components/venues/VenueConfirmDialog";
 
 type FileRow = {
@@ -16,6 +23,7 @@ type FileRow = {
   sourceName: string;
   uploadedAt: string | null;
   size: number;
+  storageRecordId?: string;
 };
 
 function formatDate(value: string | null) {
@@ -41,8 +49,11 @@ export default function VenueFilesPage() {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<FileRow | null>(null);
+  const uploadRef = useRef<HTMLInputElement | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -78,6 +89,9 @@ export default function VenueFilesPage() {
         sourceId: pendingDelete.sourceId,
         category: pendingDelete.category,
       });
+      if (pendingDelete.storageRecordId) {
+        qs.set("storageRecordId", pendingDelete.storageRecordId);
+      }
       const res = await fetch(
         `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/files?${qs}`,
         { method: "DELETE" }
@@ -95,6 +109,33 @@ export default function VenueFilesPage() {
     }
   };
 
+  const uploadDocument = async (file: File | null) => {
+    if (!file || !hallId) return;
+    setUploading(true);
+    setError("");
+    setMessage("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", "document");
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/files`,
+        { method: "POST", body: fd }
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "העלאה נכשלה");
+      }
+      setMessage("הקובץ הועלה בהצלחה");
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "העלאה נכשלה");
+    } finally {
+      setUploading(false);
+      if (uploadRef.current) uploadRef.current.value = "";
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1000px] px-4 py-6 md:px-7">
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
@@ -106,17 +147,39 @@ export default function VenueFilesPage() {
               קבצים
             </h1>
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
-              הצעות מחיר וחוזים מלידים באולם. קבצים מועלים דרך CRM — מחיקה מסירה את הקישור מהליד.
+              הצעות מחיר, חוזים ומסמכי אולם. מחיקה מסירה גם את הקובץ מ-Cloudinary.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            רענון
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={uploadRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => uploadDocument(e.target.files?.[0] || null)}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => uploadRef.current?.click()}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white disabled:opacity-60"
+            >
+              {uploading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Upload size={16} />
+              )}
+              העלאת מסמך
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              רענון
+            </button>
+          </div>
         </div>
       </header>
 
@@ -125,9 +188,14 @@ export default function VenueFilesPage() {
           {error}
         </div>
       ) : null}
+      {message ? (
+        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+          {message}
+        </div>
+      ) : null}
 
       <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 py-3 text-xs font-bold leading-5 text-[#8a7b68]">
-        טיפ: העלי קבצים ישירות מכרטיס ליד ב-CRM. כאן תראי את כל הקבצים של האולם במקום אחד.
+        טיפ: אפשר להעלות מסמך כאן או מכרטיס ליד ב-CRM. מחיקה מוחקת גם מ-Cloudinary.
       </div>
 
       <div className="rounded-[28px] border border-[#eadfce] bg-white shadow-sm">

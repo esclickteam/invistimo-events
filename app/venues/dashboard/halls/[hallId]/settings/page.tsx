@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, Save, Settings } from "lucide-react";
+import { ImagePlus, Loader2, Save, Settings } from "lucide-react";
 
 type SettingsForm = {
   name: string;
@@ -35,8 +35,10 @@ export default function VenueSettingsPage() {
   const [form, setForm] = useState<SettingsForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -102,6 +104,32 @@ export default function VenueSettingsPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const uploadHallImage = async (file: File | null) => {
+    if (!file || !hallId) return;
+    setUploadingImage(true);
+    setError("");
+    setMessage("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/image`,
+        { method: "PATCH", body: fd }
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "העלאת תמונה נכשלה");
+      }
+      update("image", data.image || data.file?.url || "");
+      setMessage("תמונת האולם הועלתה ונשמרה");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "העלאת תמונה נכשלה");
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[900px] px-4 py-6 md:px-7">
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
@@ -164,12 +192,56 @@ export default function VenueSettingsPage() {
               value={form.timezone}
               onChange={(v) => update("timezone", v)}
             />
-            <Field
-              label="קישור לתמונה"
-              value={form.image}
-              onChange={(v) => update("image", v)}
-              className="sm:col-span-2"
-            />
+            <div className="sm:col-span-2">
+              <span className="mb-2 block text-sm font-black text-[#6f6252]">
+                תמונת אולם
+              </span>
+              <div className="flex flex-col gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4 sm:flex-row sm:items-center">
+                {form.image ? (
+                  <img
+                    src={form.image}
+                    alt={form.name || "תמונת אולם"}
+                    className="h-24 w-36 rounded-xl object-cover border border-[#eadfce]"
+                  />
+                ) : (
+                  <div className="flex h-24 w-36 items-center justify-center rounded-xl border border-dashed border-[#d9bd83] bg-white text-xs font-bold text-[#8a7b68]">
+                    אין תמונה
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) =>
+                      uploadHallImage(e.target.files?.[0] || null)
+                    }
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingImage}
+                    onClick={() => imageInputRef.current?.click()}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white disabled:opacity-60"
+                  >
+                    {uploadingImage ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <ImagePlus size={16} />
+                    )}
+                    העלאת תמונה
+                  </button>
+                  <p className="text-xs font-bold text-[#8a7b68]">
+                    נשמר ב-Cloudinary ומקושר לאולם. החלפה מוחקת את הקודמת מהאחסון.
+                  </p>
+                  <Field
+                    label="או קישור ידני (אופציונלי)"
+                    value={form.image}
+                    onChange={(v) => update("image", v)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end border-t border-[#eadfce] pt-5">

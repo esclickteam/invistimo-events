@@ -9,8 +9,12 @@
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
     "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs",
     "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
-    "test:venues": "node --test scripts/tests/venue-*.test.mjs",
-    "test:venues:db": "node --test scripts/tests/venue-db-isolation.test.mjs"
+    "test:venues": "node --test scripts/tests/venue-*.test.mjs && npx tsx --test --test-force-exit scripts/tests/venue-e2e-memory.test.ts",
+    "test:venues:db": "node --test scripts/tests/venue-db-isolation.test.mjs",
+    "test:venues:e2e": "npx tsx --test --test-force-exit scripts/tests/venue-e2e-memory.test.ts",
+    "venues:backfill:dry": "npx tsx scripts/venues/backfill-venue-event-links.ts",
+    "venues:backfill:write": "npx tsx scripts/venues/backfill-venue-event-links.ts --write",
+    "venues:check-cloudinary-env": "node scripts/venues/check-cloudinary-env.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

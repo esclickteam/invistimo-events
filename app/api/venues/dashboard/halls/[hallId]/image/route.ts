@@ -5,6 +5,7 @@ import VenueFile from "@/models/VenueFile";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
 import {
+  deleteVenueFileFromCloudinary,
   uploadVenueFileToCloudinary,
   VenueStorageError,
 } from "@/lib/venues/storage";
@@ -72,6 +73,24 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       );
     }
 
+    const existingHall = await VenueHall.findOne({
+      ownerId: ctx.ownerId,
+      id: ctx.venueId,
+    }).lean();
+
+    if (!existingHall) {
+      return NextResponse.json(
+        { success: false, message: "האולם לא נמצא" },
+        { status: 404 }
+      );
+    }
+
+    const previousFiles = await VenueFile.find({
+      venueId: ctx.venueId,
+      ownerId: ctx.ownerId,
+      kind: "hall_image",
+    }).lean();
+
     const uploaded = await uploadVenueFileToCloudinary({
       venueId: ctx.venueId,
       file,
@@ -100,6 +119,25 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         { success: false, message: "האולם לא נמצא" },
         { status: 404 }
       );
+    }
+
+    // Best-effort cleanup of previous Cloudinary assets + VenueFile rows
+    for (const prev of previousFiles as any[]) {
+      try {
+        if (prev.publicId) {
+          await deleteVenueFileFromCloudinary(prev.publicId, prev.mimeType);
+        }
+      } catch (cleanupErr) {
+        console.error("Previous hall image Cloudinary cleanup failed:", cleanupErr);
+      }
+    }
+    if (previousFiles.length) {
+      await VenueFile.deleteMany({
+        venueId: ctx.venueId,
+        ownerId: ctx.ownerId,
+        kind: "hall_image",
+        publicId: { $ne: uploaded.publicId },
+      });
     }
 
     const venueFile = await VenueFile.create({

@@ -674,13 +674,13 @@ export default function HallStaffShiftsPage() {
                   הוספת עובד
                 </button>
 
-                <button
-                  type="button"
+                <Link
+                  href={`/venues/dashboard/halls/${encodeURIComponent(hallId)}/employees`}
                   className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
                 >
                   <Send size={16} />
-                  שליחת הודעה לצוות
-                </button>
+                  ניהול עובדים והרשאות
+                </Link>
               </div>
             </Panel>
           </aside>
@@ -915,12 +915,27 @@ export default function HallStaffShiftsPage() {
 
             <Panel title="התראות" icon={<MessageCircle size={18} />}>
               <div className="space-y-2">
-                <AlertLine
-                  title="חסר עובד בערב"
-                  text={`${stats.todayDisplay || "היום"} · משמרת ערב חסר תקן חלקי`}
-                />
-                <AlertLine title="מחלה פתוחה" text="שיר לוי ממתינה לאישור מנהל" />
-                <AlertLine title="החלפה ממתינה" text="רועי לוי ביקש החלפה במשמרת ערב" />
+                {absences.some((a) => a.status === "pending") ? (
+                  absences
+                    .filter((a) => a.status === "pending")
+                    .slice(0, 5)
+                    .map((a) => (
+                      <AlertLine
+                        key={a.id}
+                        title="בקשת היעדרות ממתינה"
+                        text={`${a.workerName} · ${a.fromDate}${
+                          a.toDate && a.toDate !== a.fromDate
+                            ? ` - ${a.toDate}`
+                            : ""
+                        }`}
+                      />
+                    ))
+                ) : (
+                  <AlertLine
+                    title="אין התראות פתוחות"
+                    text="אין בקשות היעדרות ממתינות לאישור"
+                  />
+                )}
               </div>
             </Panel>
           </aside>

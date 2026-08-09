@@ -2,10 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, PieChart, RefreshCw, TrendingUp } from "lucide-react";
+import { Download, Loader2, PieChart, RefreshCw, TrendingUp } from "lucide-react";
+import {
+  VENUE_EVENT_STATUS_LABELS,
+  isVenueEventStatus,
+} from "@/lib/venues/statuses";
 
 type ReportsData = {
   leadsByPeriod: { period: string; count: number }[];
+  eventsByPeriod?: { period: string; count: number }[];
   conversionRate: number;
   totalLeads: number;
   convertedLeads: number;
@@ -13,6 +18,15 @@ type ReportsData = {
   upcomingCount: number;
   completedCount: number;
   totalEvents: number;
+  totalGuests?: number;
+  paidTotal?: number;
+  budgetTotal?: number;
+  salespersonBreakdown?: {
+    name: string;
+    leads: number;
+    converted: number;
+    conversionRate: number;
+  }[];
   periodFrom: string;
   periodMonths: number;
 };
@@ -24,13 +38,14 @@ export default function VenueReportsPage() {
   const [reports, setReports] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [months, setMonths] = useState(6);
 
   const load = async () => {
     setLoading(true);
     setError("");
     try {
       const res = await fetch(
-        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/reports?months=6`,
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/reports?months=${months}`,
         { cache: "no-store" }
       );
       const data = await res.json();
@@ -47,7 +62,7 @@ export default function VenueReportsPage() {
 
   useEffect(() => {
     if (hallId) load();
-  }, [hallId]);
+  }, [hallId, months]);
 
   const maxLeads = Math.max(
     ...(reports?.leadsByPeriod?.map((p) => p.count) || [1]),
@@ -76,14 +91,34 @@ export default function VenueReportsPage() {
               טיפ: עקבי אחרי שיעור ההמרה מדי חודש כדי לזהות מגמות ב-CRM.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            רענון
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={months}
+              onChange={(e) => setMonths(Number(e.target.value) || 6)}
+              className="h-11 rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black"
+            >
+              <option value={3}>3 חודשים</option>
+              <option value={6}>6 חודשים</option>
+              <option value={12}>12 חודשים</option>
+            </select>
+            <a
+              href={`/api/venues/dashboard/halls/${encodeURIComponent(
+                hallId
+              )}/reports?months=${months}&format=csv`}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
+            >
+              <Download size={16} />
+              ייצוא CSV
+            </a>
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              רענון
+            </button>
+          </div>
         </div>
       </header>
 
@@ -165,7 +200,11 @@ export default function VenueReportsPage() {
                   return (
                     <div key={item.status}>
                       <div className="mb-1 flex items-center justify-between text-sm font-black text-[#2b241c]">
-                        <span>{item.status}</span>
+                        <span>
+                          {isVenueEventStatus(item.status)
+                            ? VENUE_EVENT_STATUS_LABELS[item.status]
+                            : item.status}
+                        </span>
                         <span className="rounded-full bg-[#f4ead9] px-3 py-1 text-xs text-[#b98121]">
                           {item.count}
                         </span>
@@ -190,6 +229,45 @@ export default function VenueReportsPage() {
               <StatBox label="עתידיים" value={reports.upcomingCount} tone="amber" />
               <StatBox label="הושלמו" value={reports.completedCount} tone="green" />
             </div>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <StatBox label="אורחים" value={reports.totalGuests || 0} />
+              <StatBox label="תקציב" value={reports.budgetTotal || 0} />
+              <StatBox label="שולם" value={reports.paidTotal || 0} tone="green" />
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm lg:col-span-2">
+            <h2 className="text-lg font-black text-[#2b241c]">פילוח אנשי מכירות</h2>
+            {!reports.salespersonBreakdown?.length ? (
+              <p className="mt-4 text-sm font-bold text-[#8a7b68]">
+                אין נתוני שיוך מכירות על הלידים.
+              </p>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#eadfce] text-right text-xs font-black text-[#8a7b68]">
+                      <th className="px-3 py-2">שם</th>
+                      <th className="px-3 py-2">לידים</th>
+                      <th className="px-3 py-2">הומרו</th>
+                      <th className="px-3 py-2">המרה</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.salespersonBreakdown.map((row) => (
+                      <tr key={row.name} className="border-b border-[#f0e7d8]">
+                        <td className="px-3 py-2 font-black">{row.name}</td>
+                        <td className="px-3 py-2 font-bold">{row.leads}</td>
+                        <td className="px-3 py-2 font-bold">{row.converted}</td>
+                        <td className="px-3 py-2 font-bold text-[#b98121]">
+                          {row.conversionRate}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
       ) : null}

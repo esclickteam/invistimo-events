@@ -317,6 +317,7 @@ export default async function VenueHallPage({ params }: Props) {
   const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
   const hallReportsHref = `/venues/dashboard/halls/${encodedHallId}/reports`;
   const hallFilesHref = `/venues/dashboard/halls/${encodedHallId}/files`;
+  const hallCustomersHref = `/venues/dashboard/halls/${encodedHallId}/customers`;
   const hallSeatingTemplatesHref =
     `/venues/dashboard/halls/${encodedHallId}/seating-templates`;
 
@@ -509,10 +510,10 @@ export default async function VenueHallPage({ params }: Props) {
                 { label: "תבניות הושבה", href: hallSeatingTemplatesHref },
                 { label: "תפריטים", href: hallMenusHref },
                 { label: "צוות ומשמרות", href: hallStaffHref },
-                { label: "כספים", href: "#finance" },
-                { label: "גלריה", href: "#gallery" },
-                { label: "ציוד ותחזוקה", href: "#maintenance" },
-                { label: "הגדרות", href: "#settings" },
+                { label: "כספים", href: hallReportsHref },
+                { label: "קבצים", href: hallFilesHref },
+                { label: "לקוחות", href: hallCustomersHref },
+                { label: "הגדרות", href: hallSettingsHref },
               ].map((tab, index) => {
                 const isActive = index === 0;
 
@@ -792,6 +793,7 @@ export default async function VenueHallPage({ params }: Props) {
                   title="כספים ותשלומים"
                   icon={<WalletCards size={20} />}
                   footer="מעבר לדוחות כספיים"
+                  href={hallReportsHref}
                 >
                   <div className="grid grid-cols-2 gap-3">
                     <FinanceBox

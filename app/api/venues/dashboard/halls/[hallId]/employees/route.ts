@@ -429,6 +429,42 @@ export async function PUT(req: NextRequest, { params }: Props) {
       });
     }
 
+    if (action === "revoke") {
+      membership.status = "disabled";
+      membership.permissions = [];
+      await membership.save();
+      await User.findByIdAndUpdate(membership.userId, {
+        $inc: { authVersion: 1 },
+      });
+      if (membership.employeeId) {
+        try {
+          const VenueEmployee = (await import("@/models/VenueEmployee")).default;
+          await VenueEmployee.findOneAndUpdate(
+            {
+              _id: membership.employeeId,
+              venueId: ctx.venueId,
+            },
+            { $set: { status: "inactive", hasLogin: false } }
+          );
+        } catch {
+          /* best-effort */
+        }
+      }
+      await writeVenueAudit({
+        venueId: ctx.venueId,
+        ownerId: ctx.ownerId,
+        actorUserId: ctx.auth.userId,
+        action: "employees.revoke",
+        targetType: "VenueMembership",
+        targetId: membershipId,
+      });
+      return NextResponse.json({
+        success: true,
+        message: "הגישה בוטלה לצמיתות (ניתן להפעיל מחדש ידנית)",
+        employee: serializeMembership(membership),
+      });
+    }
+
     if (action === "resetPassword") {
       const password = String(body.password || "");
       if (password.length < 8) {
