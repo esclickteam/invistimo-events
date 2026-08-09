@@ -82,7 +82,19 @@ function cookieHeaderFromJar(extraToken) {
   return parts.join("; ");
 }
 
-function request(method, path, { token, body, redirectCount = 0 } = {}) {
+function sameOrigin(nextUrl, baseUrl) {
+  try {
+    return new URL(nextUrl).origin === new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function requestOnce(method, path, { token, body, redirectCount = 0 } = {}) {
   const url = new URL(path.startsWith("http") ? path : `${BASE}${path}`);
   const lib = url.protocol === "https:" ? https : http;
   const headers = {
@@ -122,13 +134,25 @@ function request(method, path, { token, body, redirectCount = 0 } = {}) {
             redirectCount < 8
           ) {
             const nextUrl = new URL(location, url).toString();
-            // After bypass cookie set, follow with GET for safety on 307 to same path
+            // Never follow off-host redirects (Vercel SSO login).
+            if (!sameOrigin(nextUrl, BASE) && !sameOrigin(nextUrl, url.toString())) {
+              resolve({
+                status,
+                headers: res.headers,
+                setCookie,
+                raw: Buffer.concat(chunks).toString("utf8").slice(0, 4000),
+                json: null,
+                finalUrl: url.toString(),
+                error: `off-host redirect blocked: ${new URL(nextUrl).host}`,
+              });
+              return;
+            }
             const nextMethod =
               status === 307 || status === 308 ? method : "GET";
             const nextBody =
               nextMethod === "GET" || nextMethod === "HEAD" ? undefined : body;
             resolve(
-              await request(nextMethod, nextUrl, {
+              await requestOnce(nextMethod, nextUrl, {
                 token,
                 body: nextBody,
                 redirectCount: redirectCount + 1,
@@ -176,6 +200,24 @@ function request(method, path, { token, body, redirectCount = 0 } = {}) {
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+async function request(method, path, opts = {}) {
+  let last;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    last = await requestOnce(method, path, opts);
+    const tlsFail =
+      last.status === 0 &&
+      /SSL|TLS|socket|ECONNRESET|EOF|disconnected/i.test(String(last.error || ""));
+    const ssoBlock =
+      last.status >= 300 &&
+      last.status < 400 &&
+      /off-host redirect blocked/i.test(String(last.error || ""));
+    if (!tlsFail && !ssoBlock) return last;
+    // retry SSO once after short wait in case bypass cookie lands late
+    await sleep(800 * attempt);
+  }
+  return last;
 }
 
 function extractToken() {
@@ -519,27 +561,88 @@ async function main() {
     report.checks.push(
       check("regular_host_no_venues", ids.length === 0, ids)
     );
+
+    // Regular Invistimo event regression — host keeps non-venue events
+    const eventsRes = await request("GET", "/api/events", {
+      token: host.token,
+    });
+    const event = eventsRes.json?.event || null;
+    const hasStagingRegular =
+      event &&
+      (String(event.title || "").includes("[STAGING] Regular Event") ||
+        String(event.email || "").includes("staging-regular-event"));
+    report.checks.push(
+      check(
+        "regular_host_events_list",
+        eventsRes.status === 200 && eventsRes.json?.success === true,
+        { status: eventsRes.status, hasEvent: Boolean(event) }
+      )
+    );
+    report.checks.push(
+      check("regular_host_has_staging_event", Boolean(hasStagingRegular), {
+        title: event?.title || null,
+        email: event?.email || null,
+      })
+    );
+    // Venue APIs must not be required for regular events
+    report.checks.push(
+      check(
+        "regular_event_no_venueId_required",
+        Boolean(event) && (event.venueId == null || event.venueId === ""),
+        { venueId: event?.venueId ?? null }
+      )
+    );
   }
 
   const ownerB = await login(FIXTURES.ownerB);
   report.checks.push(
     check("ownerB_login", ownerB.ok && ownerB.token, { status: ownerB.status })
   );
+  if (ownerB.token) {
+    const hallB = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${FIXTURES.hallB}/calendar`,
+      { token: ownerB.token }
+    );
+    report.checks.push(
+      check("ownerB_hall_b_calendar", hallB.status === 200, hallB.status)
+    );
+    const cross = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${FIXTURES.hallA}/reports?months=3`,
+      { token: ownerB.token }
+    );
+    report.checks.push(
+      check(
+        "ownerB_denied_hall_a",
+        cross.status === 403 || cross.json?.success === false,
+        { status: cross.status }
+      )
+    );
+  }
 
   const failed = report.checks.filter((c) => !c.pass);
+  const onCustomDomain = /staging\.invistimo\.com$/i.test(
+    new URL(BASE).hostname
+  );
   report.summary = {
     total: report.checks.length,
     passed: report.checks.length - failed.length,
     failed: failed.length,
     failedNames: failed.map((c) => c.name),
     VENUES_STAGING_E2E: failed.length === 0 ? "PASS" : "FAIL",
-    SAFE_TO_PROCEED_TO_PRODUCTION_GATE: failed.length === 0 ? "NO_UNTIL_DNS_AND_REVIEW" : "NO",
+    base: BASE,
+    onCustomDomain,
+    SAFE_TO_PROCEED_TO_PRODUCTION_GATE: "NO",
   };
-  // Production gate still requires DNS on staging.invistimo.com + human review
-  if (failed.length === 0) {
+  if (failed.length === 0 && onCustomDomain) {
+    report.summary.SAFE_TO_PROCEED_TO_PRODUCTION_GATE = "YES_IF_OTHER_GATES_PASS";
+    report.summary.note =
+      "Live E2E against staging.invistimo.com PASS including tenant isolation + regular event regression.";
+  } else if (failed.length === 0) {
     report.summary.SAFE_TO_PROCEED_TO_PRODUCTION_GATE = "CONDITIONAL";
     report.summary.note =
-      "Live E2E against Staging alias PASS. Confirm staging.invistimo.com DNS before Production gate.";
+      "E2E PASS on alias only — re-run on staging.invistimo.com before Production.";
   }
 
   report.finishedAt = new Date().toISOString();
