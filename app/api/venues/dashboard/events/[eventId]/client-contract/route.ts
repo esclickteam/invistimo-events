@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
 import { buildCloudinaryPdfPageImageUrl } from "@/lib/cloudinaryPdfPages";
+import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -299,6 +300,13 @@ export async function GET(
       );
     }
 
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "files.view"
+    );
+    if (guard.error) return guard.error;
+
     const contracts = await ClientContract.find({ eventId })
       .sort({ createdAt: -1 })
       .lean();
@@ -327,6 +335,13 @@ export async function POST(
     await connectDB();
 
     const { eventId } = await context.params;
+
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "files.upload"
+    );
+    if (guard.error) return guard.error;
 
     if (!eventId) {
       return NextResponse.json(

@@ -12,6 +12,11 @@ import {
   phoneCoreDigits,
   phoneLookupVariants,
 } from "@/lib/auth/phoneLookup";
+import {
+  buildLoginRateLimitKeyFromRequest,
+  checkLoginRateLimit,
+  clearLoginRateLimit,
+} from "@/lib/auth/loginRateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,6 +83,25 @@ export async function POST(req: Request) {
       );
     }
 
+    const rateLimitKey = buildLoginRateLimitKeyFromRequest(req, identifier);
+    const rateLimit = checkLoginRateLimit(rateLimitKey);
+    if (!rateLimit.allowed) {
+      const retryAfterSec = Math.ceil(rateLimit.retryAfterMs / 1000);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "יותר מדי ניסיונות התחברות. נסה שוב מאוחר יותר.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": String(retryAfterSec),
+          },
+        }
+      );
+    }
+
     const candidates = await findLoginCandidates(identifier);
 
     if (!candidates.length) {
@@ -108,6 +132,16 @@ export async function POST(req: Request) {
         { success: false, error: "מייל/טלפון או סיסמה שגויים" },
         {
           status: 401,
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+    }
+
+    if ((user as any).isActive === false) {
+      return NextResponse.json(
+        { success: false, error: "המשתמש אינו פעיל" },
+        {
+          status: 403,
           headers: { "Cache-Control": "no-store" },
         }
       );
@@ -149,15 +183,23 @@ export async function POST(req: Request) {
       staffType === "producer_staff" &&
       employeeScope === "producer";
 
+    const isVenueUser =
+      Boolean((user as any).venueUser) ||
+      (employeeScope === "venue" && role !== "staff");
+
     const effectiveRole = isProducerStaff
       ? "producer_staff"
       : isSystemStaff
         ? "system_staff"
-        : role;
+        : isVenueUser && role !== "venue_owner"
+          ? "venue_user"
+          : role;
 
     /* ======================================================
        JWT - 7 days
     ====================================================== */
+
+    const authVersion = Number((user as any).authVersion ?? 0);
 
     const token = jwt.sign(
       {
@@ -165,12 +207,15 @@ export async function POST(req: Request) {
         role,
         hasPaid,
         isTrial,
+        authVersion,
       },
       process.env.JWT_SECRET,
       {
         expiresIn: "7d",
       }
     );
+
+    clearLoginRateLimit(rateLimitKey);
 
     const res = NextResponse.json(
       {
@@ -186,6 +231,9 @@ export async function POST(req: Request) {
           isSystemStaff,
           isUsherStaff,
           isProducerStaff,
+          isVenueUser,
+          venueUser: isVenueUser,
+          mustChangePassword: Boolean((user as any).mustChangePassword),
           hasPaid,
           isTrial,
           trialExpiresAt: user.trialExpiresAt ?? null,

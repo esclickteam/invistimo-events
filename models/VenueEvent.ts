@@ -61,6 +61,16 @@ export type VenueEventDocument = {
 
   clientRegistrationStatus?: VenueClientRegistrationStatus;
 
+  /**
+   * Link to Invistimo Event (optional until conversion / calendar sync).
+   * VenueEvent remains the venue-tenant source of truth for lifecycle.
+   */
+  linkedEventId?: Types.ObjectId | string | null;
+  createdFromLeadId?: Types.ObjectId | string | null;
+  createdBy?: Types.ObjectId | string | null;
+  assignedVenueStaffIds?: (Types.ObjectId | string)[];
+  packageName?: string;
+
   createdAt: Date;
   updatedAt: Date;
 };
@@ -228,6 +238,40 @@ const VenueEventSchema = new Schema<VenueEventDocument>(
       default: "not_sent",
       index: true,
     },
+
+    linkedEventId: {
+      type: Schema.Types.ObjectId,
+      ref: "Event",
+      default: null,
+      index: true,
+    },
+
+    createdFromLeadId: {
+      type: Schema.Types.ObjectId,
+      ref: "VenueLead",
+      default: null,
+      index: true,
+    },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    assignedVenueStaffIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "VenueEmployee",
+      },
+    ],
+
+    packageName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,
@@ -239,6 +283,16 @@ VenueEventSchema.index({ ownerId: 1, hallId: 1, date: 1 });
 VenueEventSchema.index({ ownerId: 1, hallId: 1, status: 1 });
 VenueEventSchema.index({ ownerId: 1, hallId: 1, clientRegistrationStatus: 1 });
 VenueEventSchema.index({ clientInviteToken: 1 });
+VenueEventSchema.index({ hallId: 1, linkedEventId: 1 });
+VenueEventSchema.index(
+  { createdFromLeadId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      createdFromLeadId: { $type: "objectId" },
+    },
+  }
+);
 
 export default mongoose.models.VenueEvent ||
   mongoose.model<VenueEventDocument>("VenueEvent", VenueEventSchema);

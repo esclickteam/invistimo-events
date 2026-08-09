@@ -6,11 +6,13 @@ export type VenueAlertType =
   | "maintenance"
   | "payments"
   | "staff"
-  | "menu";
+  | "menu"
+  | "leads";
 
 export type VenueAlertDocument = {
   _id: Types.ObjectId;
   ownerId: Types.ObjectId | string;
+  hallId?: string;
 
   title: string;
   description: string;
@@ -30,6 +32,12 @@ const VenueAlertSchema = new Schema<VenueAlertDocument>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
+    },
+
+    hallId: {
+      type: String,
+      trim: true,
       index: true,
     },
 
@@ -53,7 +61,7 @@ const VenueAlertSchema = new Schema<VenueAlertDocument>(
 
     type: {
       type: String,
-      enum: ["maintenance", "payments", "staff", "menu"],
+      enum: ["maintenance", "payments", "staff", "menu", "leads"],
       default: "maintenance",
     },
 
@@ -69,6 +77,7 @@ const VenueAlertSchema = new Schema<VenueAlertDocument>(
 );
 
 VenueAlertSchema.index({ ownerId: 1, read: 1, createdAt: -1 });
+VenueAlertSchema.index({ ownerId: 1, hallId: 1, read: 1, createdAt: -1 });
 
 export default mongoose.models.VenueAlert ||
   mongoose.model<VenueAlertDocument>("VenueAlert", VenueAlertSchema);

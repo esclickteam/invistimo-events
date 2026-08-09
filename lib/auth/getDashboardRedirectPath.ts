@@ -19,7 +19,9 @@ export function getDashboardPathFromRole(role: string): string {
   const normalized = String(role || "").toLowerCase().trim();
 
   if (normalized === "admin") return "/admin";
-  if (normalized === "venue_owner") return "/venues/dashboard";
+  if (normalized === "venue_owner" || normalized === "venue_user") {
+    return "/venues/dashboard";
+  }
   if (normalized === "producer") return "/producer/dashboard";
   if (normalized === "producer_staff" || normalized === "staff_producer") {
     return "/producer-staff/dashboard";

@@ -161,6 +161,14 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   venueClientSource?: boolean;
   venueOwnerId?: mongoose.Types.ObjectId | null;
 
+  /**
+   * Venue system user (login for a hall) — NOT Invistimo Staff.
+   * Access is always via VenueMembership, never via staffType.
+   */
+  venueUser?: boolean;
+  mustChangePassword?: boolean;
+  authVersion?: number;
+
   venueHallId?: string;
   venueHallName?: string;
 
@@ -1090,6 +1098,26 @@ preRsvpMessages: {
       default: true,
     },
 
+    /**
+     * Venue tenant login user (hall employee with system access).
+     * Must never set staffType / Invistimo staff portals.
+     */
+    venueUser: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+
+    authVersion: {
+      type: Number,
+      default: 0,
+    },
+
     resetPasswordToken: {
       type: String,
       default: undefined,
@@ -1492,8 +1520,14 @@ if (
   doc.role === "producer" ||
   doc.role === "venue_owner"
 ) {
+  // Venue login users keep employeeScope="venue" and never get Invistimo staffType.
+  // Regular clients/producers/owners stay outside Invistimo Staff portals.
   doc.staffType = null;
-  doc.employeeScope = null;
+  if (doc.role === "user" && doc.venueUser) {
+    doc.employeeScope = "venue";
+  } else {
+    doc.employeeScope = null;
+  }
 }
 
 /*
