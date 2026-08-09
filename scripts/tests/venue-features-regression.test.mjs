@@ -35,9 +35,11 @@ test("calendar API uses VenueEvent + requireVenueAccess", () => {
   const src = read(
     "app/api/venues/dashboard/halls/[hallId]/calendar/route.ts"
   );
-  assert.match(src, /VenueEvent/);
+  assert.match(src, /VenueEvent|venueEventsService/);
   assert.match(src, /requireVenueAccess/);
   assert.match(src, /linkedEventId/);
+  assert.match(src, /events\.view/);
+  assert.match(src, /writeVenueAudit/);
   assert.doesNotMatch(src, /allowedEventStatuses = \["active", "archived"\]/);
 });
 
