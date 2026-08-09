@@ -49,18 +49,28 @@ git push origin staging
 
 ---
 
-## 2) DNS
+## 2) DNS (required — currently NXDOMAIN until added)
 
-Create CNAME:
+`invistimo.com` uses **external** DNS (`ns1.dns-parking.com` / `ns2.dns-parking.com`), not Vercel nameservers.  
+The domain is attached + verified in Vercel, but public DNS still needs this record at the DNS host:
 
 ```
-staging.invistimo.com → cname.vercel-dns.com
+Type:  CNAME
+Name:  staging
+Value: cname.vercel-dns.com
+TTL:   300 (or Auto)
 ```
 
-(or the exact target Vercel shows after attaching the domain)
+Until that propagates, `staging.invistimo.com` will not resolve (NXDOMAIN).
 
-Verify HTTPS in Vercel Domains UI.  
-`staging.invistimo.com` must **not** redirect to Production.
+**Automation alias (works today, SSO-protected):**
+
+```
+https://invistimo-events-env-staging-esclicks-projects.vercel.app
+```
+
+Use with Protection Bypass for Automation header `x-vercel-protection-bypass`.  
+Custom domain `staging.invistimo.com` is exempt from SSO once DNS exists (`all_except_custom_domains`).
 
 ---
 
@@ -175,8 +185,13 @@ Accounts are marked `isStagingFixture: true` and use `@invistimo.test` emails.
 ## 9) Smoke / isolation proof
 
 ```bash
-curl -sS https://staging.invistimo.com/api/system/env-isolation \
-  -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET"
+# Preferred once DNS exists:
+curl -sS https://staging.invistimo.com/api/system/env-isolation
+
+# Until DNS exists, use Staging alias + bypass:
+curl -sS https://invistimo-events-env-staging-esclicks-projects.vercel.app/api/system/env-isolation \
+  -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+  -H "x-vercel-set-bypass-cookie: true" -L
 ```
 
 Expect:
@@ -185,9 +200,10 @@ Expect:
 - `mongoDbName: "invistimo_staging"`
 - `stripeMode: "test"` or `"missing"`
 - `externalSends: "disabled"` or `"allowlist"`
+- `cloudinaryRootFolder` contains `staging`
 - `ok: true`
 
-Production check:
+Production check (endpoint ships with Staging infra PR; may 404 until merged):
 
 ```bash
 curl -sS https://www.invistimo.com/api/system/env-isolation
@@ -195,8 +211,22 @@ curl -sS https://www.invistimo.com/api/system/env-isolation
 
 ---
 
-## 10) Agent / automation blocker
+## 10) Live Venues E2E (Staging)
 
-Cloud agents currently have **no `VERCEL_TOKEN`**, so Custom Environment creation, domain attach, and env var writes must be done by a human (or by providing a scoped Vercel token).
+```bash
+STAGING_BASE_URL=https://invistimo-events-env-staging-esclicks-projects.vercel.app \
+VERCEL_AUTOMATION_BYPASS_SECRET=... \
+npm run test:venues:staging-live
+```
 
-Production must remain untouched during Staging setup.
+Covers: isolation, fixture logins, hall switcher A/B, tenant deny, calendar create, CRM lead→event convert, files/employees lists, regular host has no venues.
+
+**Do not** promote Venues to Production until this PASS **and** `staging.invistimo.com` DNS resolves.
+
+---
+
+## 11) Production safety
+
+- Production must remain untouched during Staging setup
+- Do not copy live Stripe / production JWT / production WhatsApp mutation secrets to Staging
+- Preview historically may share Production `MONGO_URI` — Staging deliberately does not
