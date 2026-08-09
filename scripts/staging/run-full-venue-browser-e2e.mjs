@@ -160,8 +160,14 @@ async function login(email) {
 }
 
 async function main() {
-  if (!BASE.includes("staging")) {
-    throw new Error(`Refusing non-staging base: ${BASE}`);
+  const host = new URL(BASE).hostname;
+  if (
+    !host.includes("staging") ||
+    host === "www.invistimo.com" ||
+    host === "invistimo.com" ||
+    host.includes("production")
+  ) {
+    throw new Error(`Refusing non-staging base/host: ${BASE}`);
   }
 
   const report = {
