@@ -424,6 +424,8 @@ async function main() {
   );
 
   // Invitation + guests for Customer A
+  // App reads RSVP guests from invitationguests (InvitationGuest model), not guests.
+  const invitationGuests = db.collection("invitationguests");
   let invitation = await invitations.findOne({
     eventId: eventA!._id,
     isStagingFixture: true,
@@ -434,6 +436,7 @@ async function main() {
       _id: invId,
       eventId: eventA!._id,
       userId: customerA!._id,
+      ownerId: customerA!._id,
       shareId: `e2e-share-${String(eventA!._id).slice(-6)}`,
       title: "[E2E] Customer A Wedding",
       isStagingFixture: true,
@@ -441,13 +444,24 @@ async function main() {
       updatedAt: now,
     });
     invitation = await invitations.findOne({ _id: invId });
+  } else {
+    await invitations.updateOne(
+      { _id: invitation._id },
+      {
+        $set: {
+          userId: customerA!._id,
+          ownerId: customerA!._id,
+          updatedAt: now,
+        },
+      }
+    );
+    invitation = await invitations.findOne({ _id: invitation._id });
   }
 
-  // 40 guests with mixed RSVP
+  // 40 guests with mixed RSVP (yes/no/pending — InvitationGuest enums)
   const guestDocs = [];
   for (let i = 1; i <= 40; i += 1) {
-    const status =
-      i % 5 === 0 ? "declined" : i % 3 === 0 ? "pending" : "confirmed";
+    const rsvp = i % 5 === 0 ? "no" : i % 3 === 0 ? "pending" : "yes";
     const guestsCount = i % 4 === 0 ? 4 : i % 2 === 0 ? 2 : 1;
     guestDocs.push({
       eventId: eventA!._id,
@@ -455,21 +469,29 @@ async function main() {
       userId: customerA!._id,
       name: `[E2E] אורח ${i}`,
       phone: `0502${String(100000 + i).slice(-6)}`,
-      side: i % 2 === 0 ? "bride" : "groom",
-      status,
+      relation: i % 2 === 0 ? "bride" : "groom",
+      rsvp,
+      status: rsvp,
       guestsCount,
-      arrivedCount: 0,
+      arrivedCount: rsvp === "yes" ? guestsCount : 0,
+      amount: rsvp === "yes" ? guestsCount : 0,
       actualArrivedCount: 0,
+      token: `e2e-guest-token-${i}-${String(eventA!._id).slice(-6)}`,
       isStagingFixture: true,
       updatedAt: now,
       createdAt: now,
     });
   }
+  await invitationGuests.deleteMany({
+    invitationId: invitation!._id,
+    isStagingFixture: true,
+  });
+  // Also clear legacy wrong-collection seeds
   await guests.deleteMany({
     eventId: eventA!._id,
     isStagingFixture: true,
   });
-  await guests.insertMany(guestDocs);
+  await invitationGuests.insertMany(guestDocs);
 
   // Materialize seating from Template A1 for customer event
   const tplA1 = await templates.findOne({ _id: templateIds["e2e-tpl-a1"] });

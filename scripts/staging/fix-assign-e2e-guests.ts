@@ -10,17 +10,35 @@ async function main() {
     .findOne({ title: "[E2E] Customer A Wedding" });
   if (!event) throw new Error("event missing");
 
-  const fixtureGuests = await db
-    .collection("guests")
+  const invitation = await db.collection("invitations").findOne({
+    eventId: event._id,
+    isStagingFixture: true,
+  });
+  if (!invitation) throw new Error("invitation missing");
+
+  await db.collection("invitations").updateOne(
+    { _id: invitation._id },
+    {
+      $set: {
+        userId: event.userId,
+        ownerId: event.userId,
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  const guestCol = db.collection("invitationguests");
+  const fixtureGuests = await guestCol
     .find({ isStagingFixture: true, name: /^\[E2E\]/ })
     .toArray();
 
   for (const g of fixtureGuests) {
-    await db.collection("guests").updateOne(
+    await guestCol.updateOne(
       { _id: g._id },
       {
         $set: {
           eventId: event._id,
+          invitationId: invitation._id,
           userId: event.userId,
           updatedAt: new Date(),
         },
@@ -28,20 +46,8 @@ async function main() {
     );
   }
 
-  const invitation = await db.collection("invitations").findOne({
-    eventId: event._id,
-    isStagingFixture: true,
-  });
-  if (invitation) {
-    await db.collection("guests").updateMany(
-      { isStagingFixture: true, name: /^\[E2E\]/ },
-      { $set: { invitationId: invitation._id } }
-    );
-  }
-
-  const guestList = await db
-    .collection("guests")
-    .find({ eventId: event._id })
+  const guestList = await guestCol
+    .find({ invitationId: invitation._id })
     .limit(28)
     .toArray();
 
@@ -137,29 +143,39 @@ async function main() {
     }
   );
 
-  // RSVP mix + day-of arrivals
+  // RSVP mix + day-of arrivals (InvitationGuest uses yes/no/pending)
   if (guestList[0]) {
-    await db.collection("guests").updateOne(
+    await guestCol.updateOne(
       { _id: guestList[0]._id },
-      { $set: { status: "confirmed", arrivedCount: 1, actualArrivedCount: 1 } }
+      {
+        $set: {
+          rsvp: "yes",
+          status: "yes",
+          arrivedCount: 1,
+          actualArrivedCount: 1,
+        },
+      }
     );
   }
   if (guestList[1]) {
-    await db
-      .collection("guests")
-      .updateOne({ _id: guestList[1]._id }, { $set: { status: "declined" } });
+    await guestCol.updateOne(
+      { _id: guestList[1]._id },
+      { $set: { rsvp: "no", status: "no", arrivedCount: 0 } }
+    );
   }
   if (guestList[2]) {
-    await db
-      .collection("guests")
-      .updateOne({ _id: guestList[2]._id }, { $set: { status: "pending" } });
+    await guestCol.updateOne(
+      { _id: guestList[2]._id },
+      { $set: { rsvp: "pending", status: "pending" } }
+    );
   }
   if (guestList[3]) {
-    await db.collection("guests").updateOne(
+    await guestCol.updateOne(
       { _id: guestList[3]._id },
       {
         $set: {
-          status: "confirmed",
+          rsvp: "yes",
+          status: "yes",
           arrivedCount: 2,
           actualArrivedCount: 2,
         },
