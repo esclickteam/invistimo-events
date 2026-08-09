@@ -170,6 +170,65 @@ function normalizeSession(session: any) {
   };
 }
 
+async function markSoftphoneStatusShiftStarted({
+  employeeId,
+  employeeObjectId,
+  sessionId,
+  startedAt,
+}: {
+  employeeId: string;
+  employeeObjectId: mongoose.Types.ObjectId;
+  sessionId: string;
+  startedAt: Date;
+}) {
+  const database = mongoose.connection.db;
+  if (!database) return;
+
+  const now = new Date();
+  const statusFilter = {
+    $or: [
+      { agentId: employeeId },
+      { employeeId: employeeId },
+      { employeeId: employeeObjectId },
+      { staffId: employeeId },
+      { userId: employeeId },
+      { employeeIdString: employeeId },
+    ],
+  };
+
+  await database.collection("softphonestatuses").updateOne(
+    statusFilter,
+    {
+      $set: {
+        agentId: employeeId,
+        employeeId,
+        staffId: employeeId,
+        userId: employeeId,
+        employeeIdString: employeeId,
+        shiftSessionId: sessionId,
+        shiftStarted: true,
+        shiftActive: true,
+        active: true,
+        isActive: true,
+        shiftStartedAt: startedAt,
+        workStartedAt: startedAt,
+        sessionStartedAt: startedAt,
+        updatedAt: now,
+        lastSeenAt: now,
+        source: "softphone-shift-start",
+      },
+      $setOnInsert: {
+        createdAt: now,
+        status: "available",
+        softphoneStatus: "available",
+        availabilityStatus: "available",
+        rawAgentStatus: "available",
+      },
+    },
+    { upsert: true },
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     await db();
@@ -222,6 +281,20 @@ export async function POST(request: NextRequest) {
       .lean();
 
     if (existingOpenSession) {
+      const existingStartedAt =
+        existingOpenSession.startedAt instanceof Date
+          ? existingOpenSession.startedAt
+          : existingOpenSession.startedAt
+            ? new Date(existingOpenSession.startedAt)
+            : new Date();
+
+      await markSoftphoneStatusShiftStarted({
+        employeeId,
+        employeeObjectId,
+        sessionId: String(existingOpenSession._id || ""),
+        startedAt: existingStartedAt,
+      });
+
       return NextResponse.json({
         success: true,
         alreadyOpen: true,
@@ -264,6 +337,13 @@ export async function POST(request: NextRequest) {
       },
 
       endMeta: {},
+    });
+
+    await markSoftphoneStatusShiftStarted({
+      employeeId,
+      employeeObjectId,
+      sessionId: String(session._id || ""),
+      startedAt: now,
     });
 
     return NextResponse.json({

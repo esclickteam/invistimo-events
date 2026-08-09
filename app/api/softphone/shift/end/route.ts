@@ -24,6 +24,8 @@ type EndShiftBody = {
   employeeId?: string;
   employeeEmail?: string;
   source?: string;
+  shiftSessionId?: string;
+  shiftStartedAt?: string;
   meta?: Record<string, unknown>;
 };
 
@@ -209,16 +211,47 @@ function buildEmployeeOpenSessionQuery(identity: EmployeeIdentity) {
     $and: [
       buildEmployeeOrQuery(identity),
       {
-        $or: [
-          { status: "open" },
-          { endedAt: null },
-          { endedAt: { $exists: false } },
-          { active: true },
-          { isActive: true },
-        ],
+        $or: [{ status: "open" }, { status: { $exists: false } }],
+      },
+      {
+        $or: [{ endedAt: null }, { endedAt: { $exists: false } }],
       },
     ],
   };
+}
+
+function getMetaShiftSessionId(body: EndShiftBody) {
+  const fromBody = cleanStr(body.shiftSessionId);
+  if (fromBody) return fromBody;
+
+  const meta = body.meta && typeof body.meta === "object" ? body.meta : null;
+  return cleanStr(meta?.shiftSessionId);
+}
+
+function getMetaShiftStartedAt(body: EndShiftBody) {
+  const fromBody = safeDate(body.shiftStartedAt);
+  if (fromBody) return fromBody;
+
+  const meta = body.meta && typeof body.meta === "object" ? body.meta : null;
+  return safeDate(meta?.shiftStartedAt);
+}
+
+async function findOpenSessionById(sessionId: string, identity: EmployeeIdentity) {
+  if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
+    return null;
+  }
+
+  const session = await SoftphoneWorkSession.findOne({
+    _id: new mongoose.Types.ObjectId(sessionId),
+    $and: [
+      buildEmployeeOrQuery(identity),
+      {
+        $or: [{ endedAt: null }, { endedAt: { $exists: false } }],
+      },
+    ],
+  });
+
+  return session;
 }
 
 async function getSoftphoneStatus(identity: EmployeeIdentity) {
@@ -804,12 +837,20 @@ export async function POST(request: NextRequest) {
 
     const source = cleanStr(body.source) || "softphone";
     const endedBy: "employee" | "admin" = adminRequest ? "admin" : "employee";
+    const requestedSessionId = getMetaShiftSessionId(body);
+    const clientStartedAt = getMetaShiftStartedAt(body);
 
     const now = new Date();
 
-    const openSession = await SoftphoneWorkSession.findOne(
-      buildEmployeeOpenSessionQuery(identity),
-    ).sort({ startedAt: -1, startAt: -1, createdAt: -1 });
+    const openSessionById = requestedSessionId
+      ? await findOpenSessionById(requestedSessionId, identity)
+      : null;
+
+    const openSession =
+      openSessionById ||
+      (await SoftphoneWorkSession.findOne(
+        buildEmployeeOpenSessionQuery(identity),
+      ).sort({ startedAt: -1, startAt: -1, createdAt: -1 }));
 
     let result:
       | Awaited<ReturnType<typeof closeOpenSession>>
@@ -829,8 +870,22 @@ export async function POST(request: NextRequest) {
     } else {
       const statusDoc = await getSoftphoneStatus(identity);
       const connected = isStatusConnected(statusDoc);
+      const statusShiftStarted =
+        statusDoc?.shiftStarted === true ||
+        statusDoc?.shiftActive === true ||
+        Boolean(safeDate(statusDoc?.shiftStartedAt));
 
-      if (!connected) {
+      /*
+        אם אין סשן פתוח במסד, עדיין שומרים כניסה/יציאה לתיק העובד
+        כשיש ראיה שהמשמרת באמת התחילה (סטטוס מחובר / local start time).
+      */
+      const fallbackStartedAt =
+        clientStartedAt ||
+        (connected || statusShiftStarted
+          ? getFallbackStartedAt(statusDoc, now)
+          : null);
+
+      if (!fallbackStartedAt) {
         await updateSoftphoneStatusAfterEnd({
           identity,
           now,
@@ -849,8 +904,6 @@ export async function POST(request: NextRequest) {
           dailySummary,
         });
       }
-
-      const fallbackStartedAt = getFallbackStartedAt(statusDoc, now);
 
       result = await createFallbackClosedSession({
         identity,

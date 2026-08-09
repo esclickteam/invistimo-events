@@ -191,9 +191,14 @@ function getLastSessionEnd(sessions: WorkSession[]) {
 }
 
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate(),
-  )}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
 }
 
 function makeMonthDateRange(monthKey: string) {
@@ -255,10 +260,13 @@ function normalizeEmployeeIdQuery(employeeId: string) {
     ? [
         { employeeId: objectId },
         { employeeId },
+        { employeeIdString: employeeId },
         { userId: objectId },
         { userId: employeeId },
         { staffId: objectId },
         { staffId: employeeId },
+        { agentId: objectId },
+        { agentId: employeeId },
         { assignedEmployeeId: objectId },
         { assignedEmployeeId: employeeId },
         { assignedStaffId: objectId },
@@ -266,8 +274,10 @@ function normalizeEmployeeIdQuery(employeeId: string) {
       ]
     : [
         { employeeId },
+        { employeeIdString: employeeId },
         { userId: employeeId },
         { staffId: employeeId },
+        { agentId: employeeId },
         { assignedEmployeeId: employeeId },
         { assignedStaffId: employeeId },
       ];

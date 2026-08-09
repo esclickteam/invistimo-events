@@ -176,9 +176,14 @@ function getMonthParts(monthValue: string) {
 }
 
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate()
-  )}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
 }
 
 function makeMonthDateRange(monthKey: string) {
@@ -440,6 +445,12 @@ function dateQuery(monthKey: string) {
   const { start, end } = makeMonthDateRange(monthKey);
 
   return [
+    // SoftphoneWorkSession — שדה month/date בפורמט ישראל
+    { month: monthKey },
+    { date: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+    { workDate: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+    { dayKey: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+
     { date: { $gte: start, $lt: end } },
     { workDate: { $gte: start, $lt: end } },
     { day: { $gte: start, $lt: end } },

@@ -82,6 +82,7 @@ type SoftphoneShiftSession = {
 type ShiftApiResponse = {
   success?: boolean;
   alreadyOpen?: boolean;
+  noOpenShift?: boolean;
   message?: string;
   error?: string;
   session?: SoftphoneShiftSession | null;
@@ -690,6 +691,7 @@ function encodeSoftphoneClientState(value: Record<string, unknown>) {
 }
 
 const SOFTPHONE_DIAL_EVENT = "invistimo:softphone:dial";
+const SOFTPHONE_HOURS_CHANGED_EVENT = "invistimo:softphone:hours-changed";
 
 const SOFTPHONE_SHIFT_STORAGE_PREFIX = "invistimo:softphone:open-shift";
 
@@ -759,6 +761,31 @@ function persistSoftphoneShift(
     );
   } catch (error) {
     console.warn("PERSIST SOFTPHONE SHIFT FAILED:", error);
+  }
+}
+
+function notifySoftphoneHoursChanged(detail?: {
+  action?: "start" | "end";
+  startedAt?: string | null;
+  endedAt?: string | null;
+  sessionId?: string | null;
+}) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(SOFTPHONE_HOURS_CHANGED_EVENT, {
+        detail: {
+          action: detail?.action || "end",
+          startedAt: detail?.startedAt || null,
+          endedAt: detail?.endedAt || null,
+          sessionId: detail?.sessionId || null,
+          at: new Date().toISOString(),
+        },
+      }),
+    );
+  } catch (error) {
+    console.warn("NOTIFY SOFTPHONE HOURS CHANGED FAILED:", error);
   }
 }
 
@@ -1130,6 +1157,9 @@ export default function SoftphoneStatusPanel({
     setShiftError("");
 
     try {
+      const sessionId = shiftSessionIdRef.current || shiftSessionId || "";
+      const startedAt = shiftStartedAtRef.current || shiftStartedAt || "";
+
       const response = await fetch("/api/softphone/shift/end", {
         method: "POST",
         headers: {
@@ -1139,8 +1169,11 @@ export default function SoftphoneStatusPanel({
         cache: "no-store",
         body: JSON.stringify({
           source: "softphone",
+          shiftSessionId: sessionId || undefined,
+          shiftStartedAt: startedAt || undefined,
           meta: {
-            shiftSessionId,
+            shiftSessionId: sessionId || undefined,
+            shiftStartedAt: startedAt || undefined,
             webrtcReady,
           },
         }),
@@ -1152,6 +1185,16 @@ export default function SoftphoneStatusPanel({
 
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || data?.message || "SHIFT_END_FAILED");
+      }
+
+      /*
+        noOpenShift בלי session = לא נשמרה כניסה/יציאה.
+        אם יש לנו זמן התחלה מקומי זה נחשב כשלון — לא מנקים את ה-UI כאילו הצליח.
+      */
+      if (data.noOpenShift && !data.session && startedAt) {
+        throw new Error(
+          data.message || "SHIFT_END_NO_SESSION_RECORDED",
+        );
       }
 
       return data.session || null;
@@ -1274,8 +1317,44 @@ export default function SoftphoneStatusPanel({
           restoredSessionId = applied.sessionId;
           restoredStartedAt = applied.startedAt;
         }
+
+        notifySoftphoneHoursChanged({
+          action: "start",
+          startedAt: restoredStartedAt,
+          sessionId: restoredSessionId,
+        });
       } catch (error) {
         console.error("RESTORE OPEN SHIFT SESSION FAILED:", error);
+        /*
+          בלי סשן שרת אמיתי לא משאירים משמרת פתוחה מקומית —
+          אחרת "סיים משמרת" ייראה כאילו עבד בלי לשמור שעות בתיק.
+        */
+        if (!serverOpenSession) {
+          persistSoftphoneShift(loggedUser, { shiftStarted: false });
+          setShiftStarted(false);
+          setShiftStartedAt(null);
+          setShiftSessionId(null);
+          shiftStartedRef.current = false;
+          shiftStartedAtRef.current = null;
+          shiftSessionIdRef.current = null;
+          setAgent((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "offline",
+                }
+              : prev,
+          );
+          setShiftError(
+            error instanceof Error
+              ? error.message
+              : "לא הצלחנו לשחזר משמרת פתוחה בתיק העובד",
+          );
+          shiftHydratedRef.current = true;
+          setLoading(false);
+          return;
+        }
+
         persistSoftphoneShift(loggedUser, {
           shiftStarted: true,
           shiftStartedAt: restoredStartedAt,
@@ -1314,21 +1393,8 @@ export default function SoftphoneStatusPanel({
   function ensureShiftStarted() {
     if (shiftStartedRef.current) return;
 
-    const now = new Date().toISOString();
-
-    shiftStartedRef.current = true;
-    shiftStartedAtRef.current = now;
-
-    setShiftStarted(true);
-    setShiftStartedAt(now);
-
-    persistSoftphoneShift(loggedUser, {
-      shiftStarted: true,
-      shiftStartedAt: now,
-      shiftSessionId: shiftSessionIdRef.current,
-    });
-
     // שומר שעת התחלה בתיק עובד גם אם הסטטוס השתנה בלי כפתור "התחל משמרת"
+    // חשוב: לא מסמנים משמרת פתוחה מקומית לפני שהשרת מאשר — אחרת עמוד השעות נשאר ריק.
     void ensureShiftStartedForCall();
   }
 
@@ -1338,22 +1404,22 @@ export default function SoftphoneStatusPanel({
     try {
       const session = await startShiftSessionApi();
       await applyStartedShiftSession(session);
+      notifySoftphoneHoursChanged({
+        action: "start",
+        startedAt: session?.startedAt || shiftStartedAtRef.current,
+        sessionId: getShiftSessionId(session) || shiftSessionIdRef.current,
+      });
     } catch (error) {
       console.error("AUTO START SHIFT FOR CALL FAILED:", error);
-
-      const startedAt = new Date().toISOString();
-
-      shiftStartedRef.current = true;
-      shiftStartedAtRef.current = startedAt;
-
-      setShiftStarted(true);
-      setShiftStartedAt(startedAt);
-
-      persistSoftphoneShift(loggedUser, {
-        shiftStarted: true,
-        shiftStartedAt: startedAt,
-        shiftSessionId: shiftSessionIdRef.current,
-      });
+      setShiftError(
+        error instanceof Error
+          ? error.message
+          : "לא הצלחנו לשמור התחלת משמרת בתיק העובד",
+      );
+      /*
+        לא משאירים משמרת "פתוחה" רק ב-localStorage בלי סשן בשרת —
+        אחרת סיום משמרת ינקה את ה-UI בלי לשמור שעות.
+      */
     }
   }
 
@@ -1429,6 +1495,9 @@ export default function SoftphoneStatusPanel({
       autoStartShift?: boolean;
       endShiftExplicitly?: boolean;
       endedBy?: "employee" | "admin" | null;
+      shiftStartedOverride?: boolean;
+      shiftStartedAtOverride?: string | null;
+      shiftSessionIdOverride?: string | null;
     },
   ) {
     if (savingStatus) return;
@@ -1504,7 +1573,13 @@ export default function SoftphoneStatusPanel({
 
       // קודם שומרים שעת התחלה בתיק העובד, ורק אחר כך מחברים WebRTC
       const session = await startShiftSessionApi();
-      await applyStartedShiftSession(session);
+      const applied = await applyStartedShiftSession(session);
+
+      notifySoftphoneHoursChanged({
+        action: "start",
+        startedAt: applied.startedAt,
+        sessionId: applied.sessionId,
+      });
 
       setCallDirection("none");
       setActiveCallNumber("");
@@ -1525,6 +1600,9 @@ export default function SoftphoneStatusPanel({
         number: null,
         reason: null,
         autoStartShift: false,
+        shiftStartedOverride: true,
+        shiftStartedAtOverride: applied.startedAt,
+        shiftSessionIdOverride: applied.sessionId,
       });
     } catch (error) {
       console.error("START SHIFT FAILED:", error);
@@ -1548,7 +1626,17 @@ export default function SoftphoneStatusPanel({
     try {
       setShiftError("");
 
-      await endShiftSessionApi();
+      const startedAtBeforeEnd = shiftStartedAtRef.current || shiftStartedAt;
+      const sessionIdBeforeEnd = shiftSessionIdRef.current || shiftSessionId;
+
+      const closedSession = await endShiftSessionApi();
+
+      notifySoftphoneHoursChanged({
+        action: "end",
+        startedAt: closedSession?.startedAt || startedAtBeforeEnd,
+        endedAt: closedSession?.endedAt || new Date().toISOString(),
+        sessionId: getShiftSessionId(closedSession) || sessionIdBeforeEnd,
+      });
 
       disconnectWebrtc();
 
@@ -1579,6 +1667,9 @@ export default function SoftphoneStatusPanel({
         autoStartShift: false,
         endShiftExplicitly: true,
         endedBy: "employee",
+        shiftStartedOverride: false,
+        shiftStartedAtOverride: null,
+        shiftSessionIdOverride: null,
       });
     } catch (error) {
       console.error("END SHIFT FAILED:", error);
@@ -2305,8 +2396,17 @@ export default function SoftphoneStatusPanel({
       return;
     }
 
+    const startedAtBeforeEnd = shiftStartedAtRef.current;
+    const sessionIdBeforeEnd = shiftSessionIdRef.current;
+
     try {
-      await endShiftSessionApi();
+      const closedSession = await endShiftSessionApi();
+      notifySoftphoneHoursChanged({
+        action: "end",
+        startedAt: closedSession?.startedAt || startedAtBeforeEnd,
+        endedAt: closedSession?.endedAt || new Date().toISOString(),
+        sessionId: getShiftSessionId(closedSession) || sessionIdBeforeEnd,
+      });
     } catch (error) {
       console.error("END SHIFT ON DISCONNECT FAILED:", error);
     }
