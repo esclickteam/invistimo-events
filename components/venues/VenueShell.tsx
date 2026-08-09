@@ -353,7 +353,7 @@ export default function VenueShell({
         </aside>
 
         <section className="min-w-0 flex-1">
-          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[#eadfce] bg-white/80 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="sticky top-[56px] z-30 flex items-center gap-3 border-b border-[#eadfce] bg-white/80 px-4 py-3 backdrop-blur lg:hidden">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}

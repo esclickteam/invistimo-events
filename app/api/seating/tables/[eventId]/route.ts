@@ -330,6 +330,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
       sourceTemplateId: record?.sourceTemplateId
         ? String(record.sourceTemplateId)
         : null,
+      sourceTemplateUpdatedAt: record?.sourceTemplateUpdatedAt
+        ? new Date(record.sourceTemplateUpdatedAt).toISOString()
+        : record?.updatedAt
+          ? new Date(record.updatedAt).toISOString()
+          : null,
+      updatedAt: record?.updatedAt
+        ? new Date(record.updatedAt).toISOString()
+        : null,
 
       eventId: record?.eventId ? String(record.eventId) : cleanEventId,
       invitationId: record?.invitationId
