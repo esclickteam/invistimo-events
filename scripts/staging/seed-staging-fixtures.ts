@@ -103,6 +103,42 @@ async function main() {
     allowedMessageRounds: 2,
   });
 
+  const ownerC = await upsertUser({
+    name: "[STAGING] Owner C",
+    email: "staging-owner-c@invistimo.test",
+    password: passwordHash,
+    role: "user",
+    venueUser: true,
+    employeeScope: "venue",
+    staffType: null,
+    isActive: true,
+    hasPaid: true,
+    needsPasswordSetup: false,
+    authVersion: 0,
+    plan: "basic",
+    guests: 0,
+    maxGuests: 0,
+    allowedMessageRounds: 2,
+  });
+
+  const ownerD = await upsertUser({
+    name: "[STAGING] Owner D",
+    email: "staging-owner-d@invistimo.test",
+    password: passwordHash,
+    role: "user",
+    venueUser: true,
+    employeeScope: "venue",
+    staffType: null,
+    isActive: true,
+    hasPaid: true,
+    needsPasswordSetup: false,
+    authVersion: 0,
+    plan: "basic",
+    guests: 0,
+    maxGuests: 0,
+    allowedMessageRounds: 2,
+  });
+
   const shared = await upsertUser({
     name: "[STAGING] Shared Owner",
     email: "staging-shared-owner@invistimo.test",
@@ -186,6 +222,38 @@ async function main() {
     { upsert: true }
   );
 
+  await halls.updateOne(
+    { id: "staging-hall-c" },
+    {
+      $set: {
+        ownerId: ownerC!._id,
+        id: "staging-hall-c",
+        name: "[STAGING] Hall C",
+        status: "active",
+        isStagingFixture: true,
+        updatedAt: now,
+      },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true }
+  );
+
+  await halls.updateOne(
+    { id: "staging-hall-d" },
+    {
+      $set: {
+        ownerId: ownerD!._id,
+        id: "staging-hall-d",
+        name: "[STAGING] Hall D",
+        status: "active",
+        isStagingFixture: true,
+        updatedAt: now,
+      },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true }
+  );
+
   const membershipDocs = [
     {
       userId: ownerA!._id,
@@ -216,6 +284,24 @@ async function main() {
       venueId: "staging-hall-a",
       ownerId: ownerA!._id,
       role: "EVENT_MANAGER",
+    },
+    {
+      userId: ownerC!._id,
+      venueId: "staging-hall-c",
+      ownerId: ownerC!._id,
+      role: "OWNER",
+    },
+    {
+      userId: ownerD!._id,
+      venueId: "staging-hall-d",
+      ownerId: ownerD!._id,
+      role: "OWNER",
+    },
+    {
+      userId: shared!._id,
+      venueId: "staging-hall-c",
+      ownerId: ownerC!._id,
+      role: "VIEWER",
     },
   ];
 
@@ -313,11 +399,15 @@ async function main() {
         fixtures: {
           ownerA: "staging-owner-a@invistimo.test",
           ownerB: "staging-owner-b@invistimo.test",
+          ownerC: "staging-owner-c@invistimo.test",
+          ownerD: "staging-owner-d@invistimo.test",
           sharedOwner: "staging-shared-owner@invistimo.test",
           employee: "staging-venue-employee@invistimo.test",
           regularHost: "staging-regular-host@invistimo.test",
           hallA: "staging-hall-a",
           hallB: "staging-hall-b",
+          hallC: "staging-hall-c",
+          hallD: "staging-hall-d",
           leadA: "staging-lead-a@invistimo.test",
           regularEvent: "[STAGING] Regular Event",
         },

@@ -29,11 +29,15 @@ const REPORT_PATH =
 const FIXTURES = {
   ownerA: "staging-owner-a@invistimo.test",
   ownerB: "staging-owner-b@invistimo.test",
+  ownerC: "staging-owner-c@invistimo.test",
+  ownerD: "staging-owner-d@invistimo.test",
   shared: "staging-shared-owner@invistimo.test",
   employee: "staging-venue-employee@invistimo.test",
   regularHost: "staging-regular-host@invistimo.test",
   hallA: "staging-hall-a",
   hallB: "staging-hall-b",
+  hallC: "staging-hall-c",
+  hallD: "staging-hall-d",
 };
 
 function assertSafeBase(url) {
@@ -74,10 +78,14 @@ function storeSetCookies(setCookie) {
 
 function cookieHeaderFromJar(extraToken) {
   const parts = [];
-  for (const [k, v] of cookieJar.entries()) parts.push(`${k}=${v}`);
+  for (const [k, v] of cookieJar.entries()) {
+    // Explicit per-request auth token must win over leftover jar sessions
+    if (extraToken && (k === "authToken" || k === "token")) continue;
+    parts.push(`${k}=${v}`);
+  }
   if (extraToken) {
-    if (!cookieJar.has("authToken")) parts.push(`authToken=${extraToken}`);
-    if (!cookieJar.has("token")) parts.push(`token=${extraToken}`);
+    parts.push(`authToken=${extraToken}`);
+    parts.push(`token=${extraToken}`);
   }
   return parts.join("; ");
 }
@@ -618,6 +626,94 @@ async function main() {
         cross.status === 403 || cross.json?.success === false,
         { status: cross.status }
       )
+    );
+  }
+
+  // Multi-owner expansion C/D + employees/menus/seating pages
+  for (const [email, hallId, label] of [
+    [FIXTURES.ownerC, FIXTURES.hallC, "ownerC"],
+    [FIXTURES.ownerD, FIXTURES.hallD, "ownerD"],
+  ]) {
+    const loginRes = await login(email);
+    report.checks.push(
+      check(`${label}_login`, loginRes.ok && loginRes.token, {
+        status: loginRes.status,
+      })
+    );
+    if (!loginRes.token) continue;
+    const my = await request("GET", "/api/venues/dashboard/my-venues", {
+      token: loginRes.token,
+    });
+    const ids = (my.json?.venues || []).map((v) => v.venueId || v.id);
+    report.checks.push(
+      check(`${label}_sees_own_hall`, ids.includes(hallId), ids)
+    );
+    const empPage = await request(
+      "GET",
+      `/venues/dashboard/halls/${hallId}/employees`,
+      { token: loginRes.token }
+    );
+    report.checks.push(
+      check(`${label}_employees_page`, empPage.status === 200, empPage.status)
+    );
+    // Marketing footer/header markers must NOT appear on venue pages
+    const html = String(empPage.raw || "");
+    report.checks.push(
+      check(
+        `${label}_no_marketing_demo_cta`,
+        !html.includes("נסו דמו עכשיו") &&
+          !html.includes("חבילות ומחירים") &&
+          !html.includes("צור קשר"),
+        "marketing nav/CTA should be gone"
+      )
+    );
+    report.checks.push(
+      check(
+        `${label}_venue_internal_chrome`,
+        empPage.status === 200 &&
+          !html.includes("נסו דמו עכשיו") &&
+          (html.includes("venues") ||
+            html.includes("Venue") ||
+            html.includes("hall") ||
+            html.includes("עובד") ||
+            html.length > 500),
+        "internal venue page rendered without marketing chrome"
+      )
+    );
+  }
+
+  if (ownerA.token) {
+    const menus = await request(
+      "GET",
+      `/venues/dashboard/halls/${FIXTURES.hallA}/menus`,
+      { token: ownerA.token }
+    );
+    report.checks.push(
+      check("ownerA_menus_page", menus.status === 200, menus.status)
+    );
+    const seatingTpl = await request(
+      "GET",
+      `/api/venues/dashboard/seating-templates?hallId=${encodeURIComponent(
+        FIXTURES.hallA
+      )}`,
+      { token: ownerA.token }
+    );
+    report.checks.push(
+      check(
+        "ownerA_seating_templates_api",
+        seatingTpl.status === 200 && seatingTpl.json?.success !== false,
+        { status: seatingTpl.status }
+      )
+    );
+    const employeesApi = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${FIXTURES.hallA}/employees`,
+      { token: ownerA.token }
+    );
+    report.checks.push(
+      check("ownerA_employees_api", employeesApi.status === 200, {
+        status: employeesApi.status,
+      })
     );
   }
 
