@@ -50,43 +50,68 @@ async function main() {
     .findOne({ eventId: event._id });
   if (!seating) throw new Error("seating missing");
 
-  // Repair tables to client seating format if corrupted (seats as array / seats:0)
-  const tables = (Array.isArray(seating.tables) ? seating.tables : []).map(
-    (t: any, ti: number) => {
-      let seats = 0;
-      if (Array.isArray(t.seats)) seats = t.seats.length;
-      else if (Number(t.seats) > 0) seats = Math.floor(Number(t.seats));
-      else if (Number(t.capacity) > 0) seats = Math.floor(Number(t.capacity));
-      else seats = ti % 3 === 0 ? 10 : ti % 2 === 0 ? 8 : 6;
+  type ClientTable = {
+    id: string;
+    name: string;
+    type: string;
+    group: unknown;
+    seats: number;
+    capacity: number;
+    x: number;
+    y: number;
+    rotation: number;
+    width: number;
+    height: number;
+    radius: number;
+    color: string;
+    locked: boolean;
+    reserved: boolean;
+    reserveLabel: string;
+    seatedGuests: Array<{
+      guestId: unknown;
+      seatIndex: number;
+      arrived: boolean;
+      guestName?: string;
+    }>;
+  };
 
-      return {
-        id: t.id || `a1-table-${ti + 1}`,
-        name: t.name || `שולחן A1 ${ti + 1}`,
-        type: t.type || t.shape || "round",
-        group: t.group ?? null,
-        seats,
-        capacity: seats,
-        x: Number(t.x) || 80 + (ti % 5) * 160,
-        y: Number(t.y) || 80 + Math.floor(ti / 5) * 160,
-        rotation: Number(t.rotation) || 0,
-        width: Number(t.width) || 120,
-        height: Number(t.height) || 120,
-        radius: Number(t.radius) || 60,
-        color: t.color || "#ffffff",
-        locked: Boolean(t.locked),
-        reserved: Boolean(t.reserved) || ti === (seating.tables?.length || 1) - 1,
-        reserveLabel:
-          t.reserveLabel ||
-          (ti === (seating.tables?.length || 1) - 1 ? "רזרבה" : ""),
-        seatedGuests: [],
-      };
-    }
-  );
+  // Repair tables to client seating format if corrupted (seats as array / seats:0)
+  const tables: ClientTable[] = (
+    Array.isArray(seating.tables) ? seating.tables : []
+  ).map((t: any, ti: number) => {
+    let seats = 0;
+    if (Array.isArray(t.seats)) seats = t.seats.length;
+    else if (Number(t.seats) > 0) seats = Math.floor(Number(t.seats));
+    else if (Number(t.capacity) > 0) seats = Math.floor(Number(t.capacity));
+    else seats = ti % 3 === 0 ? 10 : ti % 2 === 0 ? 8 : 6;
+
+    return {
+      id: t.id || `a1-table-${ti + 1}`,
+      name: t.name || `שולחן A1 ${ti + 1}`,
+      type: t.type || t.shape || "round",
+      group: t.group ?? null,
+      seats,
+      capacity: seats,
+      x: Number(t.x) || 80 + (ti % 5) * 160,
+      y: Number(t.y) || 80 + Math.floor(ti / 5) * 160,
+      rotation: Number(t.rotation) || 0,
+      width: Number(t.width) || 120,
+      height: Number(t.height) || 120,
+      radius: Number(t.radius) || 60,
+      color: t.color || "#ffffff",
+      locked: Boolean(t.locked),
+      reserved: Boolean(t.reserved) || ti === (seating.tables?.length || 1) - 1,
+      reserveLabel:
+        t.reserveLabel ||
+        (ti === (seating.tables?.length || 1) - 1 ? "רזרבה" : ""),
+      seatedGuests: [] as ClientTable["seatedGuests"],
+    };
+  });
 
   let gi = 0;
   for (const table of tables) {
     if (table.reserved) continue;
-    const seatedGuests: any[] = [];
+    const seatedGuests: ClientTable["seatedGuests"] = [];
     // Fill ~half the table, leave some partial
     const fill = Math.max(1, Math.floor(table.seats * 0.6));
     for (let s = 0; s < fill && gi < guestList.length; s += 1) {
