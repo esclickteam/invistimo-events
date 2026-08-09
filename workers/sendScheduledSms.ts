@@ -295,6 +295,18 @@ function deepReplacePlaceholders(
 
 async function sendSms({ phone, text }: { phone: string; text: string }) {
   try {
+    const { assertExternalSendAllowed } = await import(
+      "@/lib/env/externalSends"
+    );
+    const gate = assertExternalSendAllowed({ channel: "sms", to: phone });
+    if (!gate.allowed) {
+      console.warn("📵 Scheduled SMS blocked by safety gate", {
+        phone,
+        reason: gate.reason,
+      });
+      return false;
+    }
+
     const res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -329,6 +341,24 @@ async function sendWhatsappTemplate({
   payload: any;
 }) {
   try {
+    const { assertExternalSendAllowed } = await import(
+      "@/lib/env/externalSends"
+    );
+    const gate = assertExternalSendAllowed({ channel: "whatsapp", to: phone });
+    if (!gate.allowed) {
+      console.warn("📵 Scheduled WhatsApp blocked by safety gate", {
+        phone,
+        templateName,
+        reason: gate.reason,
+      });
+      return {
+        success: false,
+        wamid: null,
+        error: new Error(gate.reason),
+        providerResponse: null,
+      };
+    }
+
     const result = await sendRsvpTemplateMedia({
       to: phone,
       ...(payload as Omit<SendRsvpTemplateMediaInput, "to" | "templateName">),

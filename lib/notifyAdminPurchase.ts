@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 
 /* ============================================================
    INIT
@@ -44,6 +45,19 @@ export async function notifyAdminPurchase({
   if (!recipients.length) {
     console.error("❌ ALERT_EMAIL is empty");
     return;
+  }
+
+  for (const recipient of recipients) {
+    const gate = assertExternalSendAllowed({
+      channel: "email",
+      to: recipient,
+    });
+    if (!gate.allowed) {
+      console.warn("📧 notifyAdminPurchase blocked by safety gate", {
+        reason: gate.reason,
+      });
+      return;
+    }
   }
 
   /* ================= LOG ================= */

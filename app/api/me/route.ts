@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
+import { getAuthCookieDomain } from "@/lib/env/appEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +39,7 @@ function expireCookie(
 }
 
 function clearAuthCookies(res: NextResponse) {
-  const cookieDomain =
-    process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+  const cookieDomain = getAuthCookieDomain();
 
   const cookieNames = [
     "authToken",
