@@ -660,6 +660,79 @@ function SeatingPageInner() {
   ]);
 
   /* ===============================
+     VENUE TEMPLATE → EVENT LIVE SYNC
+     When hall updates a seating template, linked event seating refreshes.
+  =============================== */
+  const venueTemplateSyncInFlightRef = useRef(false);
+  const lastVenueTemplateSyncAtRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isDemo) return;
+    if (isVenueTemplateMode) return;
+    if (!eventId) return;
+
+    const poll = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (venueTemplateSyncInFlightRef.current) return;
+      venueTemplateSyncInFlightRef.current = true;
+      try {
+        const qs = invitationId
+          ? `?invitationId=${encodeURIComponent(invitationId)}${
+              isVenueView ? "&venueView=1" : ""
+            }`
+          : isVenueView
+            ? "?venueView=1"
+            : "";
+        const res = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data?.success) return;
+        if (data.source !== "venue_seating_template") return;
+
+        const stamp = String(
+          data.sourceTemplateUpdatedAt || data.updatedAt || ""
+        );
+        if (!stamp) return;
+        if (lastVenueTemplateSyncAtRef.current === stamp) return;
+        lastVenueTemplateSyncAtRef.current = stamp;
+
+        // Reload full seating (guests + tables) when template version changes
+        if (invitationId) {
+          await loadSeatingData(eventId, invitationId);
+        } else {
+          init(
+            data.tables || [],
+            useSeatingStore.getState().guests || [],
+            data.background ?? null,
+            data.canvasView ?? useSeatingStore.getState().canvasView
+          );
+          if (Array.isArray(data.zones)) setZones(data.zones);
+        }
+      } catch {
+        /* ignore transient poll errors */
+      } finally {
+        venueTemplateSyncInFlightRef.current = false;
+      }
+    };
+
+    poll();
+    const interval = window.setInterval(poll, 8000);
+    return () => window.clearInterval(interval);
+  }, [
+    isDemo,
+    isVenueTemplateMode,
+    eventId,
+    invitationId,
+    isVenueView,
+    loadSeatingData,
+    init,
+    setZones,
+  ]);
+
+  /* ===============================
      BACKGROUND
   =============================== */
   const handleBackgroundSelect = (bgUrl: string) => {

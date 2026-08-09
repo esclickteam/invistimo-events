@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
+import VenueEvent from "@/models/VenueEvent";
+import { syncSeatingTemplateToLinkedEvents } from "@/lib/venues/syncSeatingTemplateToLinkedEvents";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -622,6 +624,31 @@ export async function POST(req: NextRequest, { params }: Props) {
         $set: updatePayload,
       }
     );
+
+    // Persist selection on VenueEvent + immediately materialize seating for the event owner
+    try {
+      await VenueEvent.updateMany(
+        {
+          linkedEventId: eventObjectId,
+          hallId: venueHallId,
+        },
+        {
+          $set: {
+            selectedSeatingTemplateId: templateObjectId,
+            seatingTemplateSyncedAt: now,
+            updatedAt: now,
+          },
+        }
+      );
+
+      await syncSeatingTemplateToLinkedEvents({
+        template: seatingTemplate,
+        hallId: venueHallId,
+        ownerId: String(venueOwnerIdValue),
+      });
+    } catch (syncError) {
+      console.error("client-invite seating sync failed:", syncError);
+    }
 
     return NextResponse.json({
       success: true,

@@ -6,6 +6,7 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { syncSeatingTemplateToLinkedEvents } from "@/lib/venues/syncSeatingTemplateToLinkedEvents";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -360,6 +361,20 @@ export async function PUT(req: NextRequest) {
 
     await existing.save();
 
+    // Live sync: push template geometry into linked event owner seating layouts
+    let sync: Awaited<
+      ReturnType<typeof syncSeatingTemplateToLinkedEvents>
+    > | null = null;
+    try {
+      sync = await syncSeatingTemplateToLinkedEvents({
+        template: existing,
+        hallId: ctx.venueId,
+        ownerId: String(ctx.ownerId),
+      });
+    } catch (syncError) {
+      console.error("seating template live sync failed:", syncError);
+    }
+
     await writeVenueAudit({
       venueId: ctx.venueId,
       ownerId: ctx.ownerId,
@@ -367,12 +382,13 @@ export async function PUT(req: NextRequest) {
       action: "seating_template.update",
       targetType: "VenueSeatingTemplate",
       targetId: String(existing._id),
-      meta: { name: existing.name },
+      meta: { name: existing.name, sync },
     });
 
     return NextResponse.json({
       success: true,
       template: stringifyDocs(existing),
+      sync,
     });
   } catch (error: any) {
     console.error("PUT venue seating template error:", error);

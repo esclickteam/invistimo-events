@@ -8,6 +8,7 @@ import Footer from "./components/Footer";
 import LayoutShell from "./components/LayoutShell";
 import SupportBotButton from "./components/SupportBotButton";
 import SupportBotGate from "./components/SupportBotGate";
+import VenueAppHeader from "@/components/venues/VenueAppHeader";
 
 export default function ClientShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -17,6 +18,8 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   const isProducer =
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
+
+  const isVenues = pathname.startsWith("/venues");
 
   /* =====================================================
      ❌ דפי הצעת מחיר / הסכם – בלי Header / Footer / SupportBot
@@ -36,6 +39,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/try/dashboard") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/producer") ||
+    pathname.startsWith("/venues") ||
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/guests") ||
@@ -96,7 +100,17 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     );
   }
 
-  
+  /* =====================================================
+     🏛️ Venues – VenueAppHeader בלבד, בלי Footer שיווקי
+  ===================================================== */
+  if (isVenues) {
+    return (
+      <LayoutShell header={<VenueAppHeader />} footer={null}>
+        {children}
+      </LayoutShell>
+    );
+  }
+
   /* =====================================================
      🟢 אתר רגיל
   ===================================================== */
