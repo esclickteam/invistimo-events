@@ -12,6 +12,11 @@ import {
   phoneCoreDigits,
   phoneLookupVariants,
 } from "@/lib/auth/phoneLookup";
+import {
+  buildLoginRateLimitKeyFromRequest,
+  checkLoginRateLimit,
+  clearLoginRateLimit,
+} from "@/lib/auth/loginRateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +79,25 @@ export async function POST(req: Request) {
         {
           status: 400,
           headers: { "Cache-Control": "no-store" },
+        }
+      );
+    }
+
+    const rateLimitKey = buildLoginRateLimitKeyFromRequest(req, identifier);
+    const rateLimit = checkLoginRateLimit(rateLimitKey);
+    if (!rateLimit.allowed) {
+      const retryAfterSec = Math.ceil(rateLimit.retryAfterMs / 1000);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "יותר מדי ניסיונות התחברות. נסה שוב מאוחר יותר.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": String(retryAfterSec),
+          },
         }
       );
     }
@@ -175,18 +199,23 @@ export async function POST(req: Request) {
        JWT - 7 days
     ====================================================== */
 
+    const authVersion = Number((user as any).authVersion ?? 0);
+
     const token = jwt.sign(
       {
         userId: user._id.toString(),
         role,
         hasPaid,
         isTrial,
+        authVersion,
       },
       process.env.JWT_SECRET,
       {
         expiresIn: "7d",
       }
     );
+
+    clearLoginRateLimit(rateLimitKey);
 
     const res = NextResponse.json(
       {

@@ -393,7 +393,8 @@ export async function PUT(req: NextRequest, { params }: Props) {
       membership.status = "disabled";
       await membership.save();
       await User.findByIdAndUpdate(membership.userId, {
-        // Do not globally deactivate if user has other venue memberships
+        // Invalidate sessions without globally deactivating multi-venue users
+        $inc: { authVersion: 1 },
       });
       await writeVenueAudit({
         venueId: ctx.venueId,
