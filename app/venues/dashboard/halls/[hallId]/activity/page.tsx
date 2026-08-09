@@ -1,20 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ExternalLink, FolderOpen, Loader2, RefreshCw } from "lucide-react";
+import { Activity, Loader2, RefreshCw } from "lucide-react";
 
-type FileRow = {
+type ActivityEntry = {
   id: string;
-  name: string;
-  url: string;
-  type: string;
-  category: string;
-  sourceId: string;
-  sourceName: string;
-  uploadedAt: string | null;
-  size: number;
+  action: string;
+  targetType: string;
+  targetId: string;
+  meta: Record<string, unknown>;
+  actorUserId: string;
+  actorName: string;
+  createdAt: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -26,18 +24,12 @@ function formatDate(value: string | null) {
   }
 }
 
-function formatSize(bytes: number) {
-  if (!bytes) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export default function VenueFilesPage() {
+export default function VenueActivityPage() {
   const params = useParams<{ hallId: string }>();
   const hallId = params?.hallId || "";
 
-  const [files, setFiles] = useState<FileRow[]>([]);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -46,14 +38,15 @@ export default function VenueFilesPage() {
     setError("");
     try {
       const res = await fetch(
-        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/files`,
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/activity?limit=50`,
         { cache: "no-store" }
       );
       const data = await res.json();
       if (!res.ok || !data?.success) {
         throw new Error(data?.message || "טעינה נכשלה");
       }
-      setFiles(data.files || []);
+      setActivity(data.activity || []);
+      setTotal(data.total || 0);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "טעינה נכשלה");
     } finally {
@@ -70,13 +63,13 @@ export default function VenueFilesPage() {
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-xs font-black text-[#9b8a73]">ניהול אולם › קבצים</div>
+            <div className="text-xs font-black text-[#9b8a73]">ניהול אולם › Activity Log</div>
             <h1 className="mt-2 flex items-center gap-3 text-3xl font-black">
-              <FolderOpen className="text-[#b98121]" />
-              קבצים
+              <Activity className="text-[#b98121]" />
+              Activity Log
             </h1>
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
-              הצעות מחיר וחוזים מלידים באולם.
+              יומן פעילות מהמערכת — {total} רשומות.
             </p>
           </div>
           <button
@@ -100,47 +93,39 @@ export default function VenueFilesPage() {
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-[#8a7b68]">
             <Loader2 size={20} className="animate-spin text-[#b98121]" />
-            טוען קבצים...
+            טוען יומן...
           </div>
-        ) : files.length === 0 ? (
+        ) : activity.length === 0 ? (
           <div className="py-16 text-center">
-            <FolderOpen size={40} className="mx-auto text-[#d5b36d]" />
-            <p className="mt-3 text-sm font-black text-[#2b241c]">אין קבצים עדיין</p>
+            <Activity size={40} className="mx-auto text-[#d5b36d]" />
+            <p className="mt-3 text-sm font-black text-[#2b241c]">אין פעילות עדיין</p>
             <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-              קבצים מלידים (הצעות וחוזים) יופיעו כאן.
+              פעולות במערכת יופיעו כאן אוטומטית.
             </p>
-            <Link
-              href={`/venues/dashboard/halls/${encodeURIComponent(hallId)}/crm`}
-              className="mt-4 inline-flex text-sm font-black text-[#b98121]"
-            >
-              מעבר ללידים
-            </Link>
           </div>
         ) : (
           <ul className="divide-y divide-[#f4ead9]">
-            {files.map((file) => (
-              <li
-                key={file.id}
-                className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <div className="text-sm font-black text-[#2b241c]">{file.name}</div>
-                  <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                    {file.category} · {file.sourceName} · {formatSize(file.size)}
+            {activity.map((entry) => (
+              <li key={entry.id} className="px-5 py-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-black text-[#2b241c]">
+                      {entry.action}
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                      {entry.targetType}
+                      {entry.targetId ? ` · ${entry.targetId}` : ""}
+                    </div>
+                    {entry.actorName ? (
+                      <div className="mt-1 text-xs font-bold text-[#9b8a73]">
+                        על ידי {entry.actorName}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="mt-1 text-[11px] font-bold text-[#9b8a73]">
-                    {formatDate(file.uploadedAt)}
-                  </div>
+                  <time className="text-xs font-bold text-[#9b8a73] shrink-0">
+                    {formatDate(entry.createdAt)}
+                  </time>
                 </div>
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#b98121]"
-                >
-                  <ExternalLink size={16} />
-                  פתיחה
-                </a>
               </li>
             ))}
           </ul>

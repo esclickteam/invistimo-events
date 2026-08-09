@@ -284,6 +284,9 @@ export default function VenueDashboardClient() {
 
       if (data.hall) {
         setHalls((prev) => [...prev, data.hall]);
+        router.push(
+          `/venues/dashboard/halls/${encodeURIComponent(data.hall.id)}`
+        );
       }
 
       setCreateHallOpen(false);
@@ -406,87 +409,27 @@ export default function VenueDashboardClient() {
           </div>
 
           <nav className="mt-7 space-y-1">
-            {(() => {
-              const firstHallId = halls?.[0]?.id
-                ? String(halls[0].id)
-                : "";
-              const hallBase = firstHallId
-                ? `/venues/dashboard/halls/${encodeURIComponent(firstHallId)}`
-                : "";
+            <button
+              type="button"
+              onClick={() => router.push("/venues/dashboard")}
+              className="group flex h-12 w-full items-center gap-3 rounded-2xl bg-gradient-to-l from-[#b98121] to-[#d5b36d] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#b98121]/15 transition"
+            >
+              <LayoutDashboard size={18} />
+              <span className="flex-1 text-right">סקירה מתחם</span>
+            </button>
 
-              const items: {
-                label: string;
-                icon: any;
-                active?: boolean;
-                href?: string;
-              }[] = [
-                {
-                  label: "סקירה",
-                  icon: LayoutDashboard,
-                  active: true,
-                  href: "/venues/dashboard",
-                },
-                {
-                  label: "לידים",
-                  icon: FileText,
-                  href: hallBase ? `${hallBase}/crm` : undefined,
-                },
-                {
-                  label: "אירועים",
-                  icon: CalendarDays,
-                  href: hallBase ? `${hallBase}/calendar` : undefined,
-                },
-                {
-                  label: "הושבה",
-                  icon: CreditCard,
-                  href: hallBase
-                    ? `${hallBase}/seating-templates`
-                    : undefined,
-                },
-                {
-                  label: "עובדים",
-                  icon: Wrench,
-                  href: hallBase ? `${hallBase}/staff` : undefined,
-                },
-                {
-                  label: "עובדים והרשאות",
-                  icon: ShieldCheck,
-                  href: hallBase ? `${hallBase}/employees` : undefined,
-                },
-                {
-                  label: "הגדרות אולם",
-                  icon: Settings,
-                  href: hallBase || undefined,
-                },
-              ];
-
-              return items.map((item) => {
-                const Icon = item.icon;
-                const disabled = !item.href;
-
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => {
-                      if (item.href) router.push(item.href);
-                    }}
-                    className={[
-                      "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
-                      item.active
-                        ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
-                        : disabled
-                          ? "cursor-not-allowed text-[#b7aa99] opacity-60"
-                          : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
-                    ].join(" ")}
-                  >
-                    <Icon size={18} />
-                    <span className="flex-1 text-right">{item.label}</span>
-                  </button>
-                );
-              });
-            })()}
+            {halls.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => goToHall(halls[0].id)}
+                className="group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold text-[#736657] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+              >
+                <Building2 size={18} />
+                <span className="flex-1 text-right">
+                  ניהול {halls[0].name || "אולם"}
+                </span>
+              </button>
+            ) : null}
           </nav>
 
           <div className="mt-7 rounded-3xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4">

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import mongoose from "mongoose";
 import { notFound, redirect } from "next/navigation";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import {
   ArrowRight,
   Bell,
@@ -23,8 +23,7 @@ import {
 } from "lucide-react";
 
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import VenueHall from "@/models/VenueHall";
+import VenueLead from "@/models/VenueLead";
 import VenueEvent from "@/models/VenueEvent";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
@@ -188,40 +187,21 @@ function serializeSeatingTemplate(template: any): SerializedSeatingTemplate {
 }
 
 export default async function VenueHallPage({ params }: Props) {
-  await connectDB();
-
-  const auth = await getUserIdFromRequest();
-
-  if (!auth?.userId) {
-    redirect("/login");
-  }
-
   const { hallId } = await params;
-  const decodedHallId = decodeURIComponent(hallId);
 
-  const hallOrConditions: any[] = [{ id: hallId }, { id: decodedHallId }];
+  const { ctx, error } = await requireVenueAccess(undefined, hallId, "dashboard.view");
 
-  if (mongoose.Types.ObjectId.isValid(hallId)) {
-    hallOrConditions.push({ _id: hallId });
-  }
-
-  const rawHall = await VenueHall.findOne({
-    ownerId: auth.userId,
-    $or: hallOrConditions,
-  }).lean();
-
-  if (!rawHall) {
-    console.log("❌ Hall not found:", {
-      ownerId: auth.userId,
-      hallId,
-      decodedHallId,
-    });
-
+  if (error || !ctx) {
+    if (error?.status === 401) {
+      redirect("/login");
+    }
     notFound();
   }
 
-  const hall = serializeHall(rawHall);
-  const safeHallId = hall.id || decodedHallId;
+  await connectDB();
+
+  const safeHallId = ctx.venueId;
+  const hall = serializeHall(ctx.hall);
 
   const { from, to, today } = getCurrentMonthRange();
 
@@ -230,9 +210,10 @@ export default async function VenueHallPage({ params }: Props) {
     upcomingEventsRaw,
     nextEventRaw,
     seatingTemplatesRaw,
+    leadCount,
   ] = await Promise.all([
     VenueEvent.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: safeHallId,
       date: {
         $gte: from,
@@ -243,7 +224,7 @@ export default async function VenueHallPage({ params }: Props) {
       .lean(),
 
     VenueEvent.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: safeHallId,
       date: {
         $gte: today,
@@ -254,7 +235,7 @@ export default async function VenueHallPage({ params }: Props) {
       .lean(),
 
     VenueEvent.findOne({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: safeHallId,
       date: {
         $gte: today,
@@ -264,13 +245,18 @@ export default async function VenueHallPage({ params }: Props) {
       .lean(),
 
     VenueSeatingTemplate.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: safeHallId,
       isActive: true,
     })
       .sort({ createdAt: -1 })
       .limit(6)
       .lean(),
+
+    VenueLead.countDocuments({
+      ownerId: ctx.ownerId,
+      hallId: safeHallId,
+    }),
   ]);
 
   const monthEvents = monthEventsRaw.map(serializeEvent);
@@ -303,6 +289,7 @@ export default async function VenueHallPage({ params }: Props) {
       : 0;
 
   const encodedHallId = encodeHallPath(safeHallId);
+  const hasLeadsOrEvents = leadCount > 0 || monthEvents.length > 0;
 
   const hallCalendarHref = `/venues/dashboard/halls/${encodedHallId}/calendar`;
   const hallCrmHref = `/venues/dashboard/halls/${encodedHallId}/crm`;
@@ -313,51 +300,31 @@ export default async function VenueHallPage({ params }: Props) {
 
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
-      <div className="mx-auto max-w-[1760px] px-4 py-5 md:px-7">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <Link
-            href="/venues/dashboard"
-            className="inline-flex h-11 w-fit items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
-          >
-            <ArrowRight size={17} />
-            חזרה לדשבורד המתחם
-          </Link>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={hallCalendarHref}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-            >
-              <CalendarDays size={16} />
-              יומן אולם
-            </Link>
-
-            <Link
-              href={hallCrmHref}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
-            >
-              <UsersRound size={16} />
-              CRM לקוחות
-            </Link>
-
-            <Link
-              href={hallMenusHref}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
-            >
-              <Utensils size={16} />
-              תפריטים
-            </Link>
-
-            <Link
-              href={hallStaffHref}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
-            >
-              <UsersRound size={16} />
-              צוות ומשמרות
-            </Link>
-          </div>
-        </div>
+    <div className="mx-auto max-w-[1760px] px-4 py-5 md:px-7">
+        {!hasLeadsOrEvents ? (
+          <section className="mb-5 rounded-[30px] border border-dashed border-[#d8bd83] bg-gradient-to-br from-[#fffdf8] to-[#fbf2df] p-8 text-center">
+            <h2 className="text-2xl font-black text-[#2b241c]">האולם מוכן — מה הצעד הבא?</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
+              עדיין אין לידים או אירועים באולם. התחילי מליד ראשון או הוספת אירוע ליומן.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <Link
+                href={hallCrmHref}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white"
+              >
+                <UsersRound size={17} />
+                הוסף ליד ראשון
+              </Link>
+              <Link
+                href={hallCalendarHref}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-5 text-sm font-black text-[#9f6f1a]"
+              >
+                <CalendarDays size={17} />
+                הוסף אירוע ליומן
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         <section className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-sm">
           <div className="relative min-h-[210px] overflow-hidden">
@@ -793,8 +760,7 @@ export default async function VenueHallPage({ params }: Props) {
             </section>
           </div>
         </section>
-      </div>
-    </main>
+    </div>
   );
 }
 

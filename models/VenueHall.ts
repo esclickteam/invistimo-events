@@ -20,6 +20,11 @@ export type VenueHallDocument = {
   status: VenueHallStatus;
   image: string;
 
+  address?: string;
+  phone?: string;
+  email?: string;
+  timezone?: string;
+
   createdAt: Date;
   updatedAt: Date;
 };
@@ -100,6 +105,31 @@ const VenueHallSchema = new Schema<VenueHallDocument>(
     image: {
       type: String,
       default: "",
+      trim: true,
+    },
+
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
+
+    timezone: {
+      type: String,
+      default: "Asia/Jerusalem",
       trim: true,
     },
   },
