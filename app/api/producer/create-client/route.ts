@@ -4,6 +4,8 @@ import crypto from "crypto";
 import Stripe from "stripe";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { getPublicSiteUrl, isStagingAppEnv } from "@/lib/env/appEnv";
+import { detectStripeMode } from "@/lib/env/safetyGuards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,12 +13,17 @@ export const dynamic = "force-dynamic";
 /* =========================================================
    INIT
 ========================================================= */
+if (isStagingAppEnv() && detectStripeMode() === "live") {
+  throw new Error(
+    "[ENV SAFETY] Staging cannot initialize with live Stripe credentials"
+  );
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-11-17.clover",
 });
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || "https://www.invistimo.com";
+const BASE_URL = getPublicSiteUrl();
 
 /* =========================================================
    TYPES

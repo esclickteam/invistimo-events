@@ -8,7 +8,11 @@
     "start": "next start",
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
     "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs",
-    "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs"
+    "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
+    "test:staging-safety": "node --test --import tsx scripts/tests/staging-env-safety.test.mjs",
+    "staging:seed": "npx tsx scripts/staging/seed-staging-fixtures.ts",
+    "staging:isolation": "node -e \"fetch(process.env.STAGING_URL+'/api/system/env-isolation',{headers:process.env.VERCEL_AUTOMATION_BYPASS_SECRET?{'x-vercel-protection-bypass':process.env.VERCEL_AUTOMATION_BYPASS_SECRET}:{}}).then(r=>r.json()).then(j=>{console.log(JSON.stringify(j,null,2)); if(!j.ok) process.exit(1)})\"",
+    "test:venues:staging-live": "node scripts/staging/run-staging-venues-e2e.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

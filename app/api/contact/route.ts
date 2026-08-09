@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -32,6 +33,23 @@ export async function POST(req: Request) {
       .split(",")
       .map((addr) => addr.trim())
       .filter(Boolean);
+
+    for (const recipient of recipients) {
+      const gate = assertExternalSendAllowed({
+        channel: "email",
+        to: recipient,
+      });
+      if (!gate.allowed) {
+        console.warn("contact form email blocked by safety gate", {
+          reason: gate.reason,
+        });
+        return NextResponse.json({
+          success: true,
+          blocked: true,
+          message: "Staging safety: external email not sent",
+        });
+      }
+    }
 
     await resend.emails.send({
       // ✅ שולח מדומיין מאומת
