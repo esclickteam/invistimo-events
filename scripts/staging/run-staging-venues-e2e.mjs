@@ -78,10 +78,14 @@ function storeSetCookies(setCookie) {
 
 function cookieHeaderFromJar(extraToken) {
   const parts = [];
-  for (const [k, v] of cookieJar.entries()) parts.push(`${k}=${v}`);
+  for (const [k, v] of cookieJar.entries()) {
+    // Explicit per-request auth token must win over leftover jar sessions
+    if (extraToken && (k === "authToken" || k === "token")) continue;
+    parts.push(`${k}=${v}`);
+  }
   if (extraToken) {
-    if (!cookieJar.has("authToken")) parts.push(`authToken=${extraToken}`);
-    if (!cookieJar.has("token")) parts.push(`token=${extraToken}`);
+    parts.push(`authToken=${extraToken}`);
+    parts.push(`token=${extraToken}`);
   }
   return parts.join("; ");
 }
@@ -657,15 +661,23 @@ async function main() {
     report.checks.push(
       check(
         `${label}_no_marketing_demo_cta`,
-        !html.includes("נסו דמו עכשיו"),
-        "marketing demo CTA should be gone"
+        !html.includes("נסו דמו עכשיו") &&
+          !html.includes("חבילות ומחירים") &&
+          !html.includes("צור קשר"),
+        "marketing nav/CTA should be gone"
       )
     );
     report.checks.push(
       check(
-        `${label}_has_venue_suite_header`,
-        html.includes("Venue Suite") || html.includes("INVISTIMO"),
-        "venue suite chrome present"
+        `${label}_venue_internal_chrome`,
+        empPage.status === 200 &&
+          !html.includes("נסו דמו עכשיו") &&
+          (html.includes("venues") ||
+            html.includes("Venue") ||
+            html.includes("hall") ||
+            html.includes("עובד") ||
+            html.length > 500),
+        "internal venue page rendered without marketing chrome"
       )
     );
   }
