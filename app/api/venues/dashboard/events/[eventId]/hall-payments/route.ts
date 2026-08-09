@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import VenueEventPayment from "@/models/VenueEventPayment";
-import connectDB from "@/lib/mongodb";
+import { connectDB } from "@/lib/db";
+import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 
 function n(value: unknown) {
   const parsed = Number(value);
@@ -57,12 +58,19 @@ function calculateSummary(data: any) {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await connectDB();
     const { eventId } = await params;
+
+    const guard = await requireLinkedVenueEventAccess(
+      request,
+      eventId,
+      "finance.view"
+    );
+    if (guard.error) return guard.error;
 
     const doc = await VenueEventPayment.findOne({ eventId }).lean();
 
@@ -124,6 +132,14 @@ export async function PUT(
   try {
     await connectDB();
     const { eventId } = await params;
+
+    const guard = await requireLinkedVenueEventAccess(
+      request,
+      eventId,
+      "finance.edit"
+    );
+    if (guard.error) return guard.error;
+
     const body = await request.json();
 
     const status = normalizeStatus(body?.status);

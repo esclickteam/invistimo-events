@@ -127,25 +127,42 @@ function getDecodedUserId(decoded: any) {
   return decoded?.userId || decoded?.id || decoded?._id || null;
 }
 
+function normalizeAuthVersion(raw: unknown) {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function getFreshUserAuthFields(userId: string) {
   try {
     await connectDB();
 
     const user = await User.findById(userId)
-      .select("role staffType employeeScope")
+      .select("role staffType employeeScope authVersion isActive")
       .lean();
 
     if (!user) return null;
+
+    if ((user as any).isActive === false) return null;
 
     return {
       role: normalizeRole((user as any).role),
       staffType: (user as any).staffType ?? null,
       employeeScope: normalizeEmployeeScope((user as any).employeeScope),
+      authVersion: normalizeAuthVersion((user as any).authVersion),
     };
   } catch (err) {
     console.error("❌ getFreshUserAuthFields error:", err);
     return null;
   }
+}
+
+function isTokenAuthVersionValid(
+  decoded: any,
+  freshAuthVersion: number | undefined
+) {
+  if (freshAuthVersion === undefined) return false;
+  const tokenAuthVersion = normalizeAuthVersion(decoded?.authVersion);
+  return tokenAuthVersion === freshAuthVersion;
 }
 
 /* =========================
@@ -212,15 +229,19 @@ export async function getUserIdFromRequest(
     if (!userId) return null;
 
     const freshUserAuthFields = await getFreshUserAuthFields(String(userId));
+    if (!freshUserAuthFields) return null;
 
-    const role = freshUserAuthFields?.role ?? normalizeRole(activeDecoded.role);
+    if (
+      !isTokenAuthVersionValid(activeDecoded, freshUserAuthFields.authVersion)
+    ) {
+      return null;
+    }
 
-    const staffType =
-      freshUserAuthFields?.staffType ?? activeDecoded.staffType ?? null;
+    const role = freshUserAuthFields.role;
 
-    const employeeScope =
-      freshUserAuthFields?.employeeScope ??
-      normalizeEmployeeScope(activeDecoded.employeeScope);
+    const staffType = freshUserAuthFields.staffType ?? null;
+
+    const employeeScope = freshUserAuthFields.employeeScope;
 
     /* ---------------------------------
        3) Find original impersonator

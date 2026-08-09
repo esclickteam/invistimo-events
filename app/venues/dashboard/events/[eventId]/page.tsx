@@ -7,6 +7,11 @@ import EventMenuTab from "./_components/EventMenuTab";
 import EventHallPaymentsTab from "./_components/EventHallPaymentsTab";
 import EventClientTab from "./_components/EventClientTab";
 import {
+  VENUE_EVENT_STATUS_LABELS,
+  isVenueEventStatus,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
+import {
   ArrowRight,
   Bell,
   CalendarDays,
@@ -64,6 +69,11 @@ type EventDashboardData = {
   venueLinkedAt?: string;
   venueAccessStatus?: VenueAccessStatus;
 
+  /** Linked VenueEvent id when calendar lifecycle SoT exists */
+  venueEventId?: string;
+  /** Venue lifecycle from VenueEvent.status — not Invistimo Event.status */
+  venueLifecycleStatus?: VenueEventLifecycleStatus | null;
+
   venueClientUserId?: string;
 venueClientInvitationId?: string;
 venueClientPackageType?: string;
@@ -85,6 +95,7 @@ fullName?: string;
   budgetTotal?: number;
   estimatedGuests?: number | null;
   estimatedGuestCount?: number | null;
+  paidAmount?: number;
 
   date: string;
   time?: string;
@@ -100,6 +111,7 @@ fullName?: string;
   maxGuests: number;
 
   paymentStatus: EventPaymentStatus;
+  /** Invistimo Event.status — active/archived */
   status: EventStatus;
 
   notes?: string;
@@ -741,14 +753,41 @@ function formatDateTime(value?: string) {
   }).format(date);
 }
 
-function eventStatusLabel(status?: EventStatus) {
+function invistimoStatusLabel(status?: EventStatus) {
   if (status === "active") return "פעיל";
   if (status === "archived") return "בארכיון";
   return "פעיל";
 }
 
-function eventStatusTone(status?: EventStatus): "green" | "amber" | "rose" | "gray" | "gold" {
-  if (status === "archived") return "gray";
+function venueLifecycleLabel(status?: VenueEventLifecycleStatus | null) {
+  if (status && isVenueEventStatus(status)) {
+    return VENUE_EVENT_STATUS_LABELS[status];
+  }
+  return "";
+}
+
+function displayEventStatusLabel(event?: EventDashboardData | null) {
+  if (!event) return "פעיל";
+
+  const lifecycleLabel = venueLifecycleLabel(event.venueLifecycleStatus);
+  if (lifecycleLabel) return lifecycleLabel;
+
+  return invistimoStatusLabel(event.status);
+}
+
+function eventStatusTone(
+  event?: EventDashboardData | null
+): "green" | "amber" | "rose" | "gray" | "gold" {
+  const lifecycle = event?.venueLifecycleStatus;
+
+  if (lifecycle === "cancelled") return "rose";
+  if (lifecycle === "done" || lifecycle === "closed") return "gray";
+  if (lifecycle === "live" || lifecycle === "confirmed") return "green";
+  if (lifecycle === "preparing" || lifecycle === "proposal" || lifecycle === "lead") {
+    return "amber";
+  }
+
+  if (event?.status === "archived") return "gray";
   return "green";
 }
 
@@ -1885,7 +1924,7 @@ const sendMenuSmsToCouple = async () => {
                     </h1>
 
                     <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#b98121]">
-                      {eventStatusLabel(eventData.status)}
+                      {displayEventStatusLabel(eventData)}
                     </span>
 
                     <span
@@ -2015,8 +2054,8 @@ const sendMenuSmsToCouple = async () => {
           <div className="grid gap-3 lg:grid-cols-6">
             <StatusTile
               label="סטטוס אירוע"
-              value={eventStatusLabel(eventData.status)}
-              tone={eventStatusTone(eventData.status)}
+              value={displayEventStatusLabel(eventData)}
+              tone={eventStatusTone(eventData)}
             />
 
             <StatusTile

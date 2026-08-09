@@ -10,6 +10,8 @@ import Invitation from "@/models/Invitation";
 import VenueHall from "@/models/VenueHall";
 import VenueTask from "@/models/VenueTask";
 import VenueAlert from "@/models/VenueAlert";
+import { listUserVenueMemberships } from "@/lib/venues/requireVenueAccess";
+import { listVenueEventsForHall } from "@/lib/venues/venueEventsService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -122,7 +124,9 @@ function getEventRevenue(item: any) {
 
   return Math.max(
     0,
-    toNumber(invitation?.budgetTotal, 0) || toNumber(event?.budgetTotal, 0)
+    toNumber(invitation?.budgetTotal, 0) ||
+      toNumber(event?.budgetTotal, 0) ||
+      toNumber(item?.budget, 0)
   );
 }
 
@@ -380,28 +384,86 @@ export async function GET(req: NextRequest) {
 
     const ownerId = auth.userId;
 
-    const halls = await VenueHall.find({ ownerId })
-      .sort({ createdAt: 1 })
-      .lean();
+    const memberships = await listUserVenueMemberships(ownerId);
+    const membershipHallIds = memberships.map((m) => m.venueId);
 
-    /**
-     * Event משמש רק לאיתור אירועים ששויכו לבעל אולם.
-     * את פרטי האירוע עצמם מושכים מה-Invitation.
-     */
-    const events = await Event.find({
-      venueOwnerId: ownerId,
-      venueAccessStatus: "linked",
-      status: "active",
+    const halls = await VenueHall.find({
+      $or: [
+        { ownerId },
+        ...(membershipHallIds.length
+          ? [{ id: { $in: membershipHallIds } }]
+          : []),
+      ],
     })
       .sort({ createdAt: 1 })
       .lean();
 
-    const invitationByEventId = await getInvitationsForEvents(events);
+    /**
+     * Source of truth for venue calendar KPIs = VenueEvent via service.
+     * Enrich with linked Invistimo Event + Invitation when present.
+     */
+    const venueEventsByHall = await Promise.all(
+      halls.map(async (hall: any) => {
+        const venueId = String(hall.id || hall._id || "");
+        const hallOwnerId = String(hall.ownerId || ownerId);
 
-    const mergedEvents = events.map((event: any) => {
-      const invitation = invitationByEventId.get(String(event._id)) || null;
+        if (!venueId || !hallOwnerId || !mongoose.Types.ObjectId.isValid(hallOwnerId)) {
+          return [];
+        }
 
-      return mergeVenueEventWithInvitation(event, invitation);
+        const events = await listVenueEventsForHall({
+          ownerId: hallOwnerId,
+          venueId,
+          hall,
+        });
+
+        return events.filter((event) => event.status !== "cancelled");
+      })
+    );
+
+    const venueEvents = venueEventsByHall.flat();
+
+    const linkedEventIds = venueEvents
+      .map((ve: any) => ve.linkedEventId)
+      .filter(Boolean);
+
+    const linkedEvents = linkedEventIds.length
+      ? await Event.find({ _id: { $in: linkedEventIds } }).lean()
+      : [];
+    const linkedById = new Map(
+      linkedEvents.map((e: any) => [String(e._id), e])
+    );
+
+    const invitationByEventId = await getInvitationsForEvents(linkedEvents);
+
+    const mergedEvents = venueEvents.map((ve: any) => {
+      const linked = ve.linkedEventId
+        ? linkedById.get(String(ve.linkedEventId))
+        : null;
+      const invitation = linked
+        ? invitationByEventId.get(String(linked._id)) || null
+        : null;
+
+      const fromInvitation = linked
+        ? mergeVenueEventWithInvitation(linked, invitation)
+        : null;
+
+      return {
+        id: String(ve.linkedEventId || ve.venueEventId || ve.id),
+        venueEventId: String(ve.venueEventId || ve._id || ve.id),
+        linkedEventId: ve.linkedEventId ? String(ve.linkedEventId) : "",
+        venueHallId: String(ve.hallId || ""),
+        venueHallName: ve.hallName || "",
+        title: fromInvitation?.title || ve.title || "",
+        eventName: fromInvitation?.title || ve.title || "",
+        clientName: ve.clientName || "",
+        date: ve.date || fromInvitation?.date || "",
+        time: ve.startTime || ve.time || fromInvitation?.time || "",
+        status: ve.status || "confirmed",
+        guests: ve.guests || (fromInvitation as any)?.guests || 0,
+        budget: ve.budget || (fromInvitation as any)?.budgetTotal || 0,
+        createdAt: ve.createdAt,
+      };
     });
 
     mergedEvents.sort((a, b) => {

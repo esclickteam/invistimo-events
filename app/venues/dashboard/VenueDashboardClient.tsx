@@ -284,6 +284,9 @@ export default function VenueDashboardClient() {
 
       if (data.hall) {
         setHalls((prev) => [...prev, data.hall]);
+        router.push(
+          `/venues/dashboard/halls/${encodeURIComponent(data.hall.id)}`
+        );
       }
 
       setCreateHallOpen(false);
@@ -406,33 +409,27 @@ export default function VenueDashboardClient() {
           </div>
 
           <nav className="mt-7 space-y-1">
-            {[
-              { label: "דשבורד בעלים", icon: LayoutDashboard, active: true },
-              { label: "יומן אירועים", icon: CalendarDays },
-              { label: "הצעות מחיר", icon: FileText },
-              { label: "תשלומים וחשבונות", icon: CreditCard },
-              { label: "תחזוקה ותפעול", icon: Wrench },
-              { label: "צוות ועובדים", icon: ShieldCheck },
-              { label: "הגדרות מתחם", icon: Settings },
-            ].map((item) => {
-              const Icon = item.icon;
+            <button
+              type="button"
+              onClick={() => router.push("/venues/dashboard")}
+              className="group flex h-12 w-full items-center gap-3 rounded-2xl bg-gradient-to-l from-[#b98121] to-[#d5b36d] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#b98121]/15 transition"
+            >
+              <LayoutDashboard size={18} />
+              <span className="flex-1 text-right">סקירה מתחם</span>
+            </button>
 
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={[
-                    "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
-                    item.active
-                      ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
-                      : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
-                  ].join(" ")}
-                >
-                  <Icon size={18} />
-                  <span className="flex-1 text-right">{item.label}</span>
-                </button>
-              );
-            })}
+            {halls.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => goToHall(halls[0].id)}
+                className="group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold text-[#736657] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+              >
+                <Building2 size={18} />
+                <span className="flex-1 text-right">
+                  ניהול {halls[0].name || "אולם"}
+                </span>
+              </button>
+            ) : null}
           </nav>
 
           <div className="mt-7 rounded-3xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4">
@@ -501,11 +498,26 @@ export default function VenueDashboardClient() {
 
                   <button
                     type="button"
-                    onClick={() => router.push("/venues/dashboard/events")}
+                    onClick={() => {
+                      const firstHallId =
+                        halls?.[0]?.id ||
+                        (typeof window !== "undefined"
+                          ? localStorage.getItem("venue.activeHallId")
+                          : null);
+                      if (firstHallId) {
+                        router.push(
+                          `/venues/dashboard/halls/${encodeURIComponent(
+                            String(firstHallId)
+                          )}/calendar`
+                        );
+                      } else {
+                        setCreateHallOpen(true);
+                      }
+                    }}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
                   >
                     <CalendarDays size={17} />
-                    יומן כל המתחם
+                    יומן אולם
                   </button>
                 </div>
               </div>
@@ -784,7 +796,20 @@ export default function VenueDashboardClient() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/venues/dashboard/events")}
+                  onClick={() => {
+                    const firstHallId =
+                      halls?.[0]?.id ||
+                      (typeof window !== "undefined"
+                        ? localStorage.getItem("venue.activeHallId")
+                        : null);
+                    if (firstHallId) {
+                      router.push(
+                        `/venues/dashboard/halls/${encodeURIComponent(
+                          String(firstHallId)
+                        )}/calendar`
+                      );
+                    }
+                  }}
                   className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                 >
                   הצג את כל האירועים
@@ -1219,6 +1244,8 @@ function EditHallModal({
   onAutoSaved: (hall: Hall) => void;
 }) {
   const [form, setForm] = useState<Hall>(hall);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const { state: autoSaveState, error: autoSaveError } = useAutoSaveHall(
     form,
@@ -1229,12 +1256,49 @@ function EditHallModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    updateField("image", previewUrl);
+    setUploadingImage(true);
+    setImageError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hall.id)}/image`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "העלאת תמונה נכשלה");
+      }
+
+      const imageUrl = String(data.image || data.hall?.image || "");
+
+      if (imageUrl) {
+        updateField("image", imageUrl);
+        onAutoSaved(data.hall || { ...form, image: imageUrl });
+      }
+    } catch (error) {
+      console.error("Hall image upload failed:", error);
+      setImageError(
+        error instanceof Error ? error.message : "העלאת תמונה נכשלה"
+      );
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1292,20 +1356,30 @@ function EditHallModal({
               </div>
 
               <label className="mt-4 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]">
-                <ImagePlus size={17} />
-                החלפת תמונה זמנית
+                {uploadingImage ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <ImagePlus size={17} />
+                )}
+                {uploadingImage ? "מעלה תמונה..." : "החלפת תמונת אולם"}
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  disabled={uploadingImage}
                   onChange={handleImageChange}
                 />
               </label>
 
-              <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
-                העלאת קובץ כאן היא תצוגה זמנית בלבד. כדי שתמונה תישמר אחרי רענון,
-                הזיני קישור תמונה או נחבר בהמשך Cloudinary.
-              </p>
+              {imageError ? (
+                <p className="mt-3 text-xs font-bold leading-5 text-rose-700">
+                  {imageError}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
+                  התמונה נשמרת בשרת (Cloudinary) ומוצגת בכרטיס האולם.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

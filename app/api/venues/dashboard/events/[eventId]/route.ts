@@ -4,6 +4,16 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Event from "@/models/Event";
 import VenueHall from "@/models/VenueHall";
+import {
+  isInvistimoEventStatus,
+  isVenueEventStatus,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
+import {
+  getVenueEventCanonical,
+  updateVenueCalendarEvent,
+  type VenueEventPatch,
+} from "@/lib/venues/venueEventsService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -259,28 +269,53 @@ async function ensureEventVenueFields(event: any, authUserId: string) {
 }
 
 /**
- * Event = מקור אמת לשיוך אולם.
+ * Event = מקור אמת לשיוך אולם + Invistimo status (active/archived).
+ * VenueEvent = מקור אמת ל-lifecycle של אולם כשקיים קישור.
  * Invitation = מקור אמת לפרטי ההזמנה והמוזמנים.
  */
-function serializeEvent(event: any, hall?: any, invitation?: any) {
+function serializeEvent(
+  event: any,
+  hall?: any,
+  invitation?: any,
+  venueCanonical?: {
+    venueEvent?: any;
+    serialized?: any;
+  } | null
+) {
+  const venueSerialized = venueCanonical?.serialized || null;
+  const venueEvent = venueCanonical?.venueEvent || null;
+
   const venueHallId =
-    cleanString(event.venueHallId) || cleanString(hall?.id || hall?._id);
+    cleanString(event.venueHallId) ||
+    cleanString(venueSerialized?.hallId) ||
+    cleanString(hall?.id || hall?._id);
 
   const venueHallName =
-    cleanString(event.venueHallName) || cleanString(hall?.name);
+    cleanString(event.venueHallName) ||
+    cleanString(venueSerialized?.hallName) ||
+    cleanString(hall?.name);
 
   const title =
     getInvitationTitle(invitation) ||
+    cleanString(venueSerialized?.title) ||
     cleanString(event.title) ||
     "אירוע ללא שם";
 
   const eventType =
     cleanString(invitation?.eventType) ||
+    cleanString(venueSerialized?.eventType) ||
     cleanString(event.eventType) ||
     "wedding";
 
-  const date = getInvitationDate(invitation) || normalizeDateOnly(event.date);
-  const time = getInvitationTime(invitation) || cleanString(event.time);
+  const date =
+    getInvitationDate(invitation) ||
+    normalizeDateOnly(venueSerialized?.date) ||
+    normalizeDateOnly(event.date);
+
+  const time =
+    getInvitationTime(invitation) ||
+    cleanString(venueSerialized?.startTime || venueSerialized?.time) ||
+    cleanString(event.time);
 
   const location = invitation?.location || event.location || {};
 
@@ -288,6 +323,7 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     toNumber(invitation?.maxGuests, 0) ||
     toNumber(invitation?.estimatedGuests, 0) ||
     toNumber(invitation?.estimatedGuestCount, 0) ||
+    toNumber(venueSerialized?.guests, 0) ||
     toNumber(event.maxGuests, 0) ||
     toNumber(event.estimatedGuests, 0) ||
     toNumber(event.estimatedGuestCount, 0) ||
@@ -295,6 +331,7 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
 
   const budgetTotal =
     toNumber(invitation?.budgetTotal, 0) ||
+    toNumber(venueSerialized?.budget, 0) ||
     toNumber(event.budgetTotal, 0) ||
     0;
 
@@ -303,8 +340,16 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     cleanString(event.paymentStatus) ||
     "paid";
 
-  const email = cleanString(invitation?.email) || cleanString(event.email) || "";
-  const notes = cleanString(invitation?.notes) || cleanString(event.notes) || "";
+  const email =
+    cleanString(invitation?.email) ||
+    cleanString(venueSerialized?.clientEmail) ||
+    cleanString(event.email) ||
+    "";
+  const notes =
+    cleanString(invitation?.notes) ||
+    cleanString(venueSerialized?.notes) ||
+    cleanString(event.notes) ||
+    "";
 
   const venueClientInvitationId =
     invitation?._id ||
@@ -333,6 +378,23 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     (Array.isArray(invitation?.guests) ? invitation.guests.length : 0) ||
     0;
 
+  const venueEventId = venueEvent?._id
+    ? String(venueEvent._id)
+    : venueSerialized?.venueEventId
+      ? String(venueSerialized.venueEventId)
+      : "";
+
+  const venueLifecycleStatus = isVenueEventStatus(
+    venueSerialized?.status || venueEvent?.status
+  )
+    ? (venueSerialized?.status || venueEvent?.status)
+    : null;
+
+  // Invistimo Event.status stays active/archived — never overloaded with venue lifecycle
+  const invistimoStatus = isInvistimoEventStatus(event.status)
+    ? event.status
+    : "active";
+
   return {
     id: String(event._id),
     _id: String(event._id),
@@ -352,6 +414,13 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     venueHallName,
     venueLinkedAt: event.venueLinkedAt || null,
     venueAccessStatus: event.venueAccessStatus || "none",
+
+    venueEventId,
+    venueLifecycleStatus,
+    clientName: cleanString(venueSerialized?.clientName),
+    clientPhone: cleanString(venueSerialized?.clientPhone),
+    clientEmail: cleanString(venueSerialized?.clientEmail) || email,
+    paidAmount: toNumber(venueSerialized?.paidAmount, 0),
 
     venueSeatingTemplateId: event.venueSeatingTemplateId
       ? String(event.venueSeatingTemplateId)
@@ -390,13 +459,41 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     maxGuests,
 
     paymentStatus,
-    status: event.status || "active",
+    status: invistimoStatus,
 
     notes,
 
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
   };
+}
+
+async function resolveVenueEventCanonical(
+  event: any,
+  hall?: any | null
+) {
+  const ownerId =
+    cleanString(event?.venueOwnerId) || cleanString(event?.userId);
+  const venueId =
+    cleanString(event?.venueHallId) ||
+    cleanString(hall?.id || hall?._id);
+  const linkedEventId = event?._id ? String(event._id) : "";
+
+  if (!ownerId || !mongoose.Types.ObjectId.isValid(ownerId) || !linkedEventId) {
+    return null;
+  }
+
+  try {
+    return await getVenueEventCanonical({
+      ownerId,
+      venueId: venueId || undefined,
+      linkedEventId,
+      hall,
+    });
+  } catch (error) {
+    console.error("getVenueEventCanonical failed:", error);
+    return null;
+  }
 }
 
 async function countGuestsForInvitationId(invitationId: any) {
@@ -1059,11 +1156,12 @@ export async function GET(req: NextRequest, { params }: Props) {
       synced.invitation || (await findInvitationForEvent(event, auth.userId));
 
     const hall = await getVenueHallForEvent(event, auth.userId);
+    const venueCanonical = await resolveVenueEventCanonical(event, hall);
     const stats = await buildStats(event, invitation);
 
     return NextResponse.json({
       success: true,
-      event: serializeEvent(event, hall, invitation),
+      event: serializeEvent(event, hall, invitation, venueCanonical),
       hall: serializeHall(hall),
       stats,
       invitation: invitation
@@ -1120,7 +1218,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       );
     }
 
-    const existingEvent = await Event.findOne({
+    let existingEvent = await Event.findOne({
       _id: eventId,
       venueOwnerId: auth.userId,
       venueAccessStatus: "linked",
@@ -1144,6 +1242,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     );
 
     const invitation = syncedBeforePatch.invitation;
+    let workingEvent = syncedBeforePatch.event || existingEvent;
 
     const requestedTitle = cleanString(body.title);
     const requestedDate = normalizeDateOnly(body.date);
@@ -1151,6 +1250,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     const requestedEventType = normalizeEventType(body.eventType);
     const requestedPaymentStatus = cleanString(body.paymentStatus);
     const requestedStatus = cleanString(body.status);
+    const requestedVenueLifecycleStatus = cleanString(body.venueLifecycleStatus);
     const requestedVenueAccessStatus = cleanString(body.venueAccessStatus);
 
     if (!requestedDate) {
@@ -1161,6 +1261,128 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         },
         { status: 400 }
       );
+    }
+
+    const hallBeforePatch = await getVenueHallForEvent(workingEvent, auth.userId);
+    const venueCanonicalBefore = await resolveVenueEventCanonical(
+      workingEvent,
+      hallBeforePatch
+    );
+
+    const lifecycleStatus: VenueEventLifecycleStatus | null = isVenueEventStatus(
+      requestedVenueLifecycleStatus
+    )
+      ? (requestedVenueLifecycleStatus as VenueEventLifecycleStatus)
+      : isVenueEventStatus(requestedStatus)
+        ? (requestedStatus as VenueEventLifecycleStatus)
+        : null;
+
+    // When a linked VenueEvent exists, patch lifecycle (+ synced fields) via service
+    if (venueCanonicalBefore?.venueEvent?._id) {
+      const ownerId =
+        cleanString(workingEvent.venueOwnerId) ||
+        cleanString(auth.userId);
+      const venueId =
+        cleanString(workingEvent.venueHallId) ||
+        cleanString(hallBeforePatch?.id || hallBeforePatch?._id) ||
+        cleanString(venueCanonicalBefore.venueEvent.hallId);
+
+      if (
+        ownerId &&
+        venueId &&
+        mongoose.Types.ObjectId.isValid(ownerId)
+      ) {
+        const venuePatch: VenueEventPatch = {};
+
+        if (lifecycleStatus) {
+          venuePatch.status = lifecycleStatus;
+        }
+
+        if (requestedTitle) {
+          venuePatch.title = requestedTitle;
+        }
+
+        if ("eventType" in body) {
+          venuePatch.eventType = cleanString(body.eventType);
+        }
+
+        if ("clientName" in body) {
+          venuePatch.clientName = cleanString(body.clientName);
+        }
+
+        if ("clientPhone" in body) {
+          venuePatch.clientPhone = cleanString(body.clientPhone);
+        }
+
+        if ("clientEmail" in body) {
+          venuePatch.clientEmail = cleanString(body.clientEmail);
+        }
+
+        if (requestedDate) {
+          venuePatch.date = requestedDate;
+        }
+
+        if (requestedTime) {
+          venuePatch.time = requestedTime;
+          venuePatch.startTime = requestedTime;
+        }
+
+        if ("endTime" in body) {
+          venuePatch.endTime = cleanString(body.endTime);
+        }
+
+        if (
+          body.estimatedGuestCount !== undefined ||
+          body.estimatedGuests !== undefined ||
+          body.guests !== undefined
+        ) {
+          venuePatch.estimatedGuestCount = toNumber(
+            body.estimatedGuestCount ?? body.estimatedGuests ?? body.guests,
+            0
+          );
+        }
+
+        if (body.budgetTotal !== undefined || body.budget !== undefined) {
+          venuePatch.budget = toNumber(body.budgetTotal ?? body.budget, 0);
+        }
+
+        if (body.paidAmount !== undefined) {
+          venuePatch.paidAmount = toNumber(body.paidAmount, 0);
+        }
+
+        if ("notes" in body) {
+          venuePatch.notes = cleanString(body.notes);
+        }
+
+        if (Object.keys(venuePatch).length > 0) {
+          const venueUpdate = await updateVenueCalendarEvent({
+            ownerId,
+            venueId,
+            venueEventId: String(venueCanonicalBefore.venueEvent._id),
+            patch: venuePatch,
+            hall: hallBeforePatch,
+          });
+
+          if (!venueUpdate.ok) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: venueUpdate.message,
+              },
+              { status: venueUpdate.status }
+            );
+          }
+
+          // Reload Event after service dual-write
+          const refreshed = await Event.findById(existingEvent._id);
+          if (refreshed) {
+            existingEvent = refreshed;
+            workingEvent = refreshed.toObject
+              ? refreshed.toObject()
+              : refreshed;
+          }
+        }
+      }
     }
 
     const venueHallId = cleanString(body.venueHallId);
@@ -1199,7 +1421,11 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       existingEvent.venueLinkedAt = new Date();
     }
 
-    if (allowedEventStatuses.includes(requestedStatus)) {
+    // Invistimo Event.status only accepts active/archived
+    if (
+      allowedEventStatuses.includes(requestedStatus) ||
+      isInvistimoEventStatus(requestedStatus)
+    ) {
       existingEvent.status = requestedStatus;
     }
 
@@ -1351,12 +1577,13 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     const finalInvitation = syncedAfterPatch.invitation || invitation;
 
     const hall = await getVenueHallForEvent(finalEvent, auth.userId);
+    const venueCanonical = await resolveVenueEventCanonical(finalEvent, hall);
     const stats = await buildStats(finalEvent, finalInvitation);
 
     return NextResponse.json({
       success: true,
       message: "האירוע עודכן בהצלחה",
-      event: serializeEvent(finalEvent, hall, finalInvitation),
+      event: serializeEvent(finalEvent, hall, finalInvitation, venueCanonical),
       hall: serializeHall(hall),
       stats,
       invitation: finalInvitation
