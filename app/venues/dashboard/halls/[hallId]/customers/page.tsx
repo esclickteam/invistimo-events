@@ -83,6 +83,9 @@ export default function VenueCustomersPage() {
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
               אגרגציה מלידים ואירועים — כל הלקוחות של האולם במקום אחד.
             </p>
+            <p className="mt-2 text-xs font-bold text-[#9b8a73]">
+              טיפ: לקוחות נוצרים אוטומטית מלידים ואירועים — אין צורך להזין אותם ידנית.
+            </p>
           </div>
           <button
             type="button"

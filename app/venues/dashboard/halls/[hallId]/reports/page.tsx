@@ -54,6 +54,11 @@ export default function VenueReportsPage() {
     1
   );
 
+  const maxStatusCount = Math.max(
+    ...(reports?.eventsByStatus?.map((p) => p.count) || [1]),
+    1
+  );
+
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-7">
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
@@ -66,6 +71,9 @@ export default function VenueReportsPage() {
             </h1>
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
               לידים, המרות ואירועים — מסוננים לאולם זה.
+            </p>
+            <p className="mt-2 text-xs font-bold text-[#9b8a73]">
+              טיפ: עקבי אחרי שיעור ההמרה מדי חודש כדי לזהות מגמות ב-CRM.
             </p>
           </div>
           <button
@@ -129,12 +137,18 @@ export default function VenueReportsPage() {
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-700">
                 <TrendingUp size={32} />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="text-4xl font-black text-[#2b241c]">
                   {reports.conversionRate}%
                 </div>
                 <div className="text-sm font-bold text-[#8a7b68]">
                   {reports.convertedLeads} מתוך {reports.totalLeads} לידים
+                </div>
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#eee6d9]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-l from-emerald-600 to-emerald-400"
+                    style={{ width: `${Math.min(100, reports.conversionRate)}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -142,23 +156,29 @@ export default function VenueReportsPage() {
 
           <section className="rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
             <h2 className="text-lg font-black text-[#2b241c]">אירועים לפי סטטוס</h2>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-3">
               {reports.eventsByStatus.length === 0 ? (
                 <p className="text-sm font-bold text-[#8a7b68]">אין אירועים.</p>
               ) : (
-                reports.eventsByStatus.map((item) => (
-                  <div
-                    key={item.status}
-                    className="flex items-center justify-between rounded-2xl bg-[#fffdf8] px-4 py-3"
-                  >
-                    <span className="text-sm font-black text-[#2b241c]">
-                      {item.status}
-                    </span>
-                    <span className="rounded-full bg-[#f4ead9] px-3 py-1 text-sm font-black text-[#b98121]">
-                      {item.count}
-                    </span>
-                  </div>
-                ))
+                reports.eventsByStatus.map((item) => {
+                  const pct = Math.round((item.count / maxStatusCount) * 100);
+                  return (
+                    <div key={item.status}>
+                      <div className="mb-1 flex items-center justify-between text-sm font-black text-[#2b241c]">
+                        <span>{item.status}</span>
+                        <span className="rounded-full bg-[#f4ead9] px-3 py-1 text-xs text-[#b98121]">
+                          {item.count}
+                        </span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-[#eee6d9]">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-l from-[#9f6f1a] to-[#f7e8bd]"
+                          style={{ width: `${Math.max(4, pct)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </section>

@@ -4,6 +4,7 @@ import VenueLead from "@/models/VenueLead";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import { convertLeadToVenueEvent } from "@/lib/venues/convertLeadToEvent";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -270,6 +271,15 @@ export async function POST(req: NextRequest, { params }: Props) {
       ],
     });
 
+    await createVenueAlert({
+      ownerId: String(guard.ctx!.ownerId),
+      hallId: guard.safeHallId,
+      title: `ליד חדש: ${name}`,
+      description: `נוצר ליד חדש ב-CRM${cleanString(body.eventType) ? ` · ${cleanString(body.eventType)}` : ""}`,
+      tone: "violet",
+      type: "leads",
+    });
+
     return NextResponse.json({
       success: true,
       message: "הליד נוצר בהצלחה",
@@ -404,6 +414,17 @@ export async function PUT(req: NextRequest, { params }: Props) {
           { success: false, message: result.message },
           { status: result.status }
         );
+      }
+
+      if (!result.alreadyExisted) {
+        await createVenueAlert({
+          ownerId: String(guard.ctx!.ownerId),
+          hallId: guard.safeHallId,
+          title: `ליד הומר לאירוע: ${lead.name || ""}`,
+          description: `הליד נסגר ונוצר אירוע ביומן${cleanString(body.date) ? ` · ${cleanString(body.date)}` : ""}`,
+          tone: "emerald",
+          type: "leads",
+        });
       }
 
       const freshLead =

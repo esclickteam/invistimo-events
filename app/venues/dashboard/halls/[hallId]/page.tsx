@@ -25,12 +25,17 @@ import {
 import { connectDB } from "@/lib/db";
 import VenueLead from "@/models/VenueLead";
 import VenueEvent from "@/models/VenueEvent";
+import VenueMembership from "@/models/VenueMembership";
 import Event from "@/models/Event";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 import {
   VENUE_EVENT_STATUS_LABELS,
   type VenueEventLifecycleStatus,
 } from "@/lib/venues/statuses";
+import VenueOnboardingChecklist, {
+  type OnboardingItem,
+} from "@/components/venues/VenueOnboardingChecklist";
+import VenueHallAlerts from "@/components/venues/VenueHallAlerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,6 +62,8 @@ type SerializedHall = {
   nextEventAt: string;
   status: HallStatus;
   image: string;
+  address: string;
+  phone: string;
 };
 
 type SerializedEvent = {
@@ -186,6 +193,8 @@ function serializeHall(hall: any): SerializedHall {
     nextEventAt: String(hall.nextEventAt || ""),
     status: (hall.status || "active") as HallStatus,
     image: String(hall.image || ""),
+    address: String(hall.address || ""),
+    phone: String(hall.phone || ""),
   };
 }
 
@@ -223,9 +232,13 @@ export default async function VenueHallPage({ params }: Props) {
   const [
     monthEventsRaw,
     upcomingEventsRaw,
+    todayEventsRaw,
     nextEventRaw,
     seatingTemplatesRaw,
     leadCount,
+    openLeadCount,
+    eventCount,
+    employeeCount,
   ] = await Promise.all([
     VenueEvent.find({
       ownerId: ctx.ownerId,
@@ -246,6 +259,15 @@ export default async function VenueHallPage({ params }: Props) {
       },
     })
       .sort({ date: 1, startTime: 1 })
+      .limit(6)
+      .lean(),
+
+    VenueEvent.find({
+      ownerId: ctx.ownerId,
+      hallId: safeHallId,
+      date: today,
+    })
+      .sort({ startTime: 1 })
       .limit(6)
       .lean(),
 
@@ -272,11 +294,28 @@ export default async function VenueHallPage({ params }: Props) {
       ownerId: ctx.ownerId,
       hallId: safeHallId,
     }),
+
+    VenueLead.countDocuments({
+      ownerId: ctx.ownerId,
+      hallId: safeHallId,
+      status: { $nin: ["closed", "lost"] },
+    }),
+
+    VenueEvent.countDocuments({
+      ownerId: ctx.ownerId,
+      hallId: safeHallId,
+    }),
+
+    VenueMembership.countDocuments({
+      venueId: safeHallId,
+      status: { $ne: "disabled" },
+    }),
   ]);
 
   const linkedEventIds = [
     ...monthEventsRaw,
     ...upcomingEventsRaw,
+    ...todayEventsRaw,
     ...(nextEventRaw ? [nextEventRaw] : []),
   ]
     .map((ve: any) => ve.linkedEventId)
@@ -295,8 +334,15 @@ export default async function VenueHallPage({ params }: Props) {
 
   const monthEvents = monthEventsRaw.map(withLinked);
   const upcomingEvents = upcomingEventsRaw.map(withLinked);
+  const todayEvents = todayEventsRaw.map(withLinked);
   const nextEvent = nextEventRaw ? withLinked(nextEventRaw) : null;
   const seatingTemplates = seatingTemplatesRaw.map(serializeSeatingTemplate);
+
+  const eventsByStatus = monthEvents.reduce<Record<string, number>>((acc, event) => {
+    const key = event.status || "confirmed";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   const monthlyRevenue = monthEvents.reduce(
     (sum, event) => sum + event.budget,
@@ -323,18 +369,62 @@ export default async function VenueHallPage({ params }: Props) {
       : 0;
 
   const encodedHallId = encodeHallPath(safeHallId);
-  const hasLeadsOrEvents = leadCount > 0 || monthEvents.length > 0;
+  const hasLeadsOrEvents = leadCount > 0 || eventCount > 0;
 
+  const hallSettingsHref = `/venues/dashboard/halls/${encodedHallId}/settings`;
+  const hallEmployeesHref = `/venues/dashboard/halls/${encodedHallId}/employees`;
   const hallCalendarHref = `/venues/dashboard/halls/${encodedHallId}/calendar`;
   const hallCrmHref = `/venues/dashboard/halls/${encodedHallId}/crm`;
   const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
   const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
+  const hallReportsHref = `/venues/dashboard/halls/${encodedHallId}/reports`;
+  const hallFilesHref = `/venues/dashboard/halls/${encodedHallId}/files`;
   const hallSeatingTemplatesHref =
-  `/venues/dashboard/halls/${encodedHallId}/seating-templates`;
+    `/venues/dashboard/halls/${encodedHallId}/seating-templates`;
+
+  const settingsComplete =
+    Boolean(hall.name?.trim()) &&
+    Boolean(hall.address?.trim()) &&
+    Boolean(hall.phone?.trim());
+
+  const onboardingItems: OnboardingItem[] = [
+    {
+      id: "settings",
+      label: "מילוי הגדרות אולם (שם, כתובת, טלפון)",
+      done: settingsComplete,
+      href: hallSettingsHref,
+    },
+    {
+      id: "image",
+      label: "העלאת תמונת אולם",
+      done: Boolean(hall.image),
+      href: hallSettingsHref,
+    },
+    {
+      id: "employee",
+      label: "הוספת עובד ראשון",
+      done: employeeCount > 0,
+      href: hallEmployeesHref,
+    },
+    {
+      id: "lead",
+      label: "הוספת ליד ראשון",
+      done: leadCount > 0,
+      href: hallCrmHref,
+    },
+    {
+      id: "event",
+      label: "יצירת אירוע ראשון ביומן",
+      done: eventCount > 0,
+      href: hallCalendarHref,
+    },
+  ];
 
 
   return (
     <div className="mx-auto max-w-[1760px] px-4 py-5 md:px-7">
+        <VenueOnboardingChecklist hallId={safeHallId} items={onboardingItems} />
+
         {!hasLeadsOrEvents ? (
           <section className="mb-5 rounded-[30px] border border-dashed border-[#d8bd83] bg-gradient-to-br from-[#fffdf8] to-[#fbf2df] p-8 text-center">
             <h2 className="text-2xl font-black text-[#2b241c]">האולם מוכן — מה הצעד הבא?</h2>
@@ -427,9 +517,9 @@ export default async function VenueHallPage({ params }: Props) {
           <div className="grid gap-3 border-t border-[#eadfce] bg-[#fffdf8] p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <HallKpi
               icon={<UsersRound size={22} />}
-              label="קיבולת מקסימלית"
-              value={`${hall.capacity}`}
-              subValue="אורחים"
+              label="לידים פתוחים"
+              value={`${openLeadCount}`}
+              subValue="ב-CRM"
             />
 
             <HallKpi
@@ -530,20 +620,20 @@ export default async function VenueHallPage({ params }: Props) {
 
               <InfoBlock
                 icon={<MapPin size={18} />}
-                title="מיקום במתחם"
-                description="לא הוגדר עדיין"
-              />
-
-              <InfoBlock
-                icon={<UsersRound size={18} />}
-                title="מנהל אולם"
-                description="לא הוגדר עדיין"
+                title="כתובת"
+                description={hall.address || "לא הוגדר עדיין"}
               />
 
               <InfoBlock
                 icon={<Phone size={18} />}
-                title="איש קשר"
-                description="לא הוגדר עדיין"
+                title="טלפון"
+                description={hall.phone || "לא הוגדר עדיין"}
+              />
+
+              <InfoBlock
+                icon={<UsersRound size={18} />}
+                title="עובדי מערכת"
+                description={`${employeeCount} משתמשים פעילים`}
               />
 
               <div className="mt-5 space-y-2">
@@ -592,6 +682,86 @@ export default async function VenueHallPage({ params }: Props) {
           </aside>
 
           <div id="overview" className="grid gap-5 xl:order-2">
+            <section className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm">
+              <h2 className="mb-3 text-base font-black text-[#2b241c]">קישורים מהירים</h2>
+              <div className="flex flex-wrap gap-2">
+                <QuickLink href={hallCrmHref} label="לידים CRM" />
+                <QuickLink href={hallCalendarHref} label="יומן אירועים" />
+                <QuickLink href={hallEmployeesHref} label="עובדים" />
+                <QuickLink href={hallReportsHref} label="דוחות" />
+                <QuickLink href={hallFilesHref} label="קבצים" />
+                <QuickLink href={hallSettingsHref} label="הגדרות" />
+              </div>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+              <DashboardCard
+                title="אירועי היום"
+                icon={<CalendarDays size={20} />}
+                footer="מעבר ליומן"
+                href={hallCalendarHref}
+              >
+                <EventList events={todayEvents} emptyText="אין אירועים מתוכננים להיום." />
+              </DashboardCard>
+
+              <DashboardCard
+                title="אירועים עתידיים"
+                icon={<Clock3 size={20} />}
+                footer="מעבר ליומן המלא"
+                href={hallCalendarHref}
+              >
+                <EventList events={upcomingEvents} emptyText="אין אירועים עתידיים לאולם הזה עדיין." />
+              </DashboardCard>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+              <DashboardCard
+                title="לידים פתוחים"
+                icon={<UsersRound size={20} />}
+                footer="מעבר ל-CRM"
+                href={hallCrmHref}
+              >
+                <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-5 text-center">
+                  <div className="text-4xl font-black text-[#b98121]">{openLeadCount}</div>
+                  <p className="mt-2 text-sm font-bold text-[#8a7b68]">
+                    לידים פעילים שטרם נסגרו או אבדו
+                  </p>
+                </div>
+              </DashboardCard>
+
+              <DashboardCard
+                title="אירועים לפי סטטוס (החודש)"
+                icon={<CheckCircle2 size={20} />}
+                footer="מעבר לדוחות"
+                href={hallReportsHref}
+              >
+                {Object.keys(eventsByStatus).length === 0 ? (
+                  <EmptyCardText text="אין אירועים החודש." />
+                ) : (
+                  <div className="space-y-2">
+                    {Object.entries(eventsByStatus).map(([status, count]) => {
+                      const max = Math.max(...Object.values(eventsByStatus), 1);
+                      const pct = Math.round((count / max) * 100);
+                      return (
+                        <div key={status}>
+                          <div className="mb-1 flex items-center justify-between text-xs font-black text-[#8a7b68]">
+                            <span>{eventStatusLabel(status as EventStatus)}</span>
+                            <span>{count}</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
+                            <div
+                              className="h-full rounded-full bg-[#b98121]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </DashboardCard>
+            </section>
+
             <section className="grid gap-5 lg:grid-cols-3">
               <DashboardCard
                 title="יומן אולם"
@@ -601,38 +771,8 @@ export default async function VenueHallPage({ params }: Props) {
               >
                 <div className="space-y-2">
                   {upcomingEvents.length ? (
-                    upcomingEvents.map((event) => (
-                      <Link
-                        href={
-                          event.linkedEventId
-                            ? `/venues/dashboard/events/${event.linkedEventId}`
-                            : `#`
-                        }
-                        key={event.venueEventId}
-                        className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2 transition hover:bg-[#fbf5ea]"
-                      >
-                        <div className="text-right">
-                          <div className="text-xs font-black text-[#9b8a73]">
-                            {formatDate(event.date)}
-                          </div>
-                          <div className="text-sm font-black text-[#2b241c]">
-                            {event.startTime || "לא הוגדר"}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-sm font-black text-[#2b241c]">
-                            {event.eventType || event.title}
-                          </div>
-                          <div className="text-xs font-bold text-[#8a7b68]">
-                            {event.clientName || "ללא לקוח"}
-                          </div>
-                        </div>
-
-                        <span className="rounded-full bg-[#f4ead9] px-2.5 py-1 text-[11px] font-black text-[#b98121]">
-                          {eventStatusLabel(event.status)}
-                        </span>
-                      </Link>
+                    upcomingEvents.slice(0, 4).map((event) => (
+                      <EventRow key={event.venueEventId} event={event} />
                     ))
                   ) : (
                     <EmptyCardText text="אין אירועים עתידיים לאולם הזה עדיין." />
@@ -784,20 +924,78 @@ export default async function VenueHallPage({ params }: Props) {
 
               <div id="settings" className="scroll-mt-28">
                 <DashboardCard
-                  title="הערות ותזכורות"
+                  title="התראות"
                   icon={<Bell size={20} />}
-                  footer="מעבר לכל ההערות"
+                  footer="סימון כנקראו מהכרטיס"
                 >
-                  <EmptyFeature
-                    title="אין הערות כרגע"
-                    text="הערות פנימיות ותזכורות לאולם יוצגו כאן בהמשך."
-                    icon={<Bell size={24} />}
-                  />
+                  <VenueHallAlerts hallId={safeHallId} />
                 </DashboardCard>
               </div>
             </section>
           </div>
         </section>
+    </div>
+  );
+}
+
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex h-10 items-center rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
+    >
+      {label}
+    </Link>
+  );
+}
+
+function EventRow({ event }: { event: SerializedEvent }) {
+  return (
+    <Link
+      href={
+        event.linkedEventId
+          ? `/venues/dashboard/events/${event.linkedEventId}`
+          : `#`
+      }
+      className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2 transition hover:bg-[#fbf5ea]"
+    >
+      <div className="text-right">
+        <div className="text-xs font-black text-[#9b8a73]">{formatDate(event.date)}</div>
+        <div className="text-sm font-black text-[#2b241c]">
+          {event.startTime || "לא הוגדר"}
+        </div>
+      </div>
+      <div>
+        <div className="text-sm font-black text-[#2b241c]">
+          {event.eventType || event.title}
+        </div>
+        <div className="text-xs font-bold text-[#8a7b68]">
+          {event.clientName || "ללא לקוח"}
+        </div>
+      </div>
+      <span className="rounded-full bg-[#f4ead9] px-2.5 py-1 text-[11px] font-black text-[#b98121]">
+        {eventStatusLabel(event.status)}
+      </span>
+    </Link>
+  );
+}
+
+function EventList({
+  events,
+  emptyText,
+}: {
+  events: SerializedEvent[];
+  emptyText: string;
+}) {
+  if (!events.length) {
+    return <EmptyCardText text={emptyText} />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {events.map((event) => (
+        <EventRow key={event.venueEventId} event={event} />
+      ))}
     </div>
   );
 }

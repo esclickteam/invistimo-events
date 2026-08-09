@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ExternalLink, FolderOpen, Loader2, RefreshCw } from "lucide-react";
+import { ExternalLink, FolderOpen, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import VenueConfirmDialog from "@/components/venues/VenueConfirmDialog";
 
 type FileRow = {
   id: string;
@@ -40,6 +41,8 @@ export default function VenueFilesPage() {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<FileRow | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -65,6 +68,33 @@ export default function VenueFilesPage() {
     if (hallId) load();
   }, [hallId]);
 
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const qs = new URLSearchParams({
+        fileId: pendingDelete.id,
+        sourceId: pendingDelete.sourceId,
+        category: pendingDelete.category,
+      });
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/files?${qs}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "מחיקה נכשלה");
+      }
+      setPendingDelete(null);
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "מחיקה נכשלה");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1000px] px-4 py-6 md:px-7">
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
@@ -76,7 +106,7 @@ export default function VenueFilesPage() {
               קבצים
             </h1>
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
-              הצעות מחיר וחוזים מלידים באולם.
+              הצעות מחיר וחוזים מלידים באולם. קבצים מועלים דרך CRM — מחיקה מסירה את הקישור מהליד.
             </p>
           </div>
           <button
@@ -96,6 +126,10 @@ export default function VenueFilesPage() {
         </div>
       ) : null}
 
+      <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 py-3 text-xs font-bold leading-5 text-[#8a7b68]">
+        טיפ: העלי קבצים ישירות מכרטיס ליד ב-CRM. כאן תראי את כל הקבצים של האולם במקום אחד.
+      </div>
+
       <div className="rounded-[28px] border border-[#eadfce] bg-white shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-[#8a7b68]">
@@ -107,7 +141,7 @@ export default function VenueFilesPage() {
             <FolderOpen size={40} className="mx-auto text-[#d5b36d]" />
             <p className="mt-3 text-sm font-black text-[#2b241c]">אין קבצים עדיין</p>
             <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-              קבצים מלידים (הצעות וחוזים) יופיעו כאן.
+              העלי הצעת מחיר או חוזה בליד — הקובץ יופיע כאן אוטומטית.
             </p>
             <Link
               href={`/venues/dashboard/halls/${encodeURIComponent(hallId)}/crm`}
@@ -132,20 +166,45 @@ export default function VenueFilesPage() {
                     {formatDate(file.uploadedAt)}
                   </div>
                 </div>
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#b98121]"
-                >
-                  <ExternalLink size={16} />
-                  פתיחה
-                </a>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#b98121]"
+                  >
+                    <ExternalLink size={16} />
+                    פתיחה
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(file)}
+                    className="inline-flex h-10 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-700"
+                  >
+                    <Trash2 size={16} />
+                    מחיקה
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <VenueConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="מחיקת קובץ"
+        message={
+          pendingDelete
+            ? `להסיר את "${pendingDelete.name}" מהליד של ${pendingDelete.sourceName}? הקובץ יוסר מהמערכת — לא ניתן לבטל.`
+            : ""
+        }
+        confirmLabel="מחק"
+        danger
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

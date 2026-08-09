@@ -112,3 +112,64 @@ export async function GET(req: NextRequest, { params }: Props) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: Props) {
+  try {
+    await connectDB();
+    const { hallId } = await params;
+    const { ctx, error } = await requireVenueAccess(req, hallId, "files.view");
+    if (error || !ctx) return error!;
+
+    const url = new URL(req.url);
+    const fileId = String(url.searchParams.get("fileId") || "").trim();
+    const sourceId = String(url.searchParams.get("sourceId") || "").trim();
+    const category = String(url.searchParams.get("category") || "").trim();
+
+    if (!sourceId || !category) {
+      return NextResponse.json(
+        { success: false, message: "חסרים פרטי קובץ למחיקה" },
+        { status: 400 }
+      );
+    }
+
+    const lead = await VenueLead.findOne({
+      _id: sourceId,
+      hallId: ctx.venueId,
+      ownerId: ctx.ownerId,
+    });
+
+    if (!lead) {
+      return NextResponse.json(
+        { success: false, message: "הליד לא נמצא" },
+        { status: 404 }
+      );
+    }
+
+    if (category === "proposal") {
+      (lead as any).proposalFile = null;
+      (lead as any).proposalFileName = "";
+    } else if (category === "contract") {
+      (lead as any).contractFile = null;
+      (lead as any).contractFileName = "";
+    } else {
+      return NextResponse.json(
+        { success: false, message: "סוג קובץ לא נתמך" },
+        { status: 400 }
+      );
+    }
+
+    await lead.save();
+
+    return NextResponse.json({
+      success: true,
+      message: "הקובץ הוסר מהליד",
+      deletedFileId: fileId,
+    });
+  } catch (err) {
+    console.error("DELETE files failed:", err);
+    return NextResponse.json(
+      { success: false, message: "מחיקת קובץ נכשלה" },
+      { status: 500 }
+    );
+  }
+}

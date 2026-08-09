@@ -250,6 +250,22 @@ export default function VenueShell({
               )}
             </button>
 
+            {switcherOpen && !loadingVenues && venues.length === 0 && (
+              <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-2xl border border-[#eadfce] bg-white p-4 shadow-xl">
+                <p className="text-center text-sm font-bold text-[#8a7b68]">
+                  אין אולמות נוספים בחשבון
+                </p>
+                <Link
+                  href="/venues/dashboard"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-[#b98121] transition hover:bg-[#fbf5ea]"
+                  onClick={() => setSwitcherOpen(false)}
+                >
+                  <LayoutDashboard size={16} />
+                  דשבורד מתחם
+                </Link>
+              </div>
+            )}
+
             {switcherOpen && venues.length > 0 && (
               <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-2xl border border-[#eadfce] bg-white p-2 shadow-xl">
                 {venues.map((venue) => (

@@ -12,6 +12,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import VenueConfirmDialog from "@/components/venues/VenueConfirmDialog";
 import {
   VENUE_PERMISSION_GROUPS,
   VENUE_ROLE_LABELS,
@@ -57,6 +58,7 @@ export default function VenueEmployeesPermissionsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [resetPassword, setResetPassword] = useState("");
+  const [pendingDisable, setPendingDisable] = useState<EmployeeRow | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -182,12 +184,17 @@ export default function VenueEmployeesPermissionsPage() {
       if (!res.ok || !data?.success) {
         throw new Error(data?.message || "עדכון סטטוס נכשל");
       }
+      setPendingDisable(null);
       await load();
     } catch (err: any) {
       setError(err?.message || "עדכון סטטוס נכשל");
     } finally {
       setSaving(false);
     }
+  };
+
+  const requestDisable = (row: EmployeeRow) => {
+    setPendingDisable(row);
   };
 
   const doResetPassword = async (membershipId: string) => {
@@ -238,6 +245,9 @@ export default function VenueEmployeesPermissionsPage() {
               </h1>
               <p className="mt-2 text-sm font-bold text-[#7f705d]">
                 ניהול משתמשי מערכת של האולם, תפקידים והרשאות מותאמות. נפרד לחלוטין מעובדי Invistimo.
+              </p>
+              <p className="mt-2 text-xs font-bold text-[#9b8a73]">
+                טיפ: התחילי עם תפקיד VIEWER לעובדים חדשים, והרחיבי הרשאות לפי הצורך.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -337,7 +347,7 @@ export default function VenueEmployeesPermissionsPage() {
                           {row.status === "active" ? (
                             <button
                               type="button"
-                              onClick={() => setStatus(row.membershipId, "disable")}
+                              onClick={() => requestDisable(row)}
                               className="inline-flex items-center gap-1 rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700"
                             >
                               <Lock size={12} />
@@ -505,6 +515,23 @@ export default function VenueEmployeesPermissionsPage() {
             </div>
           </div>
         ) : null}
+
+        <VenueConfirmDialog
+          open={Boolean(pendingDisable)}
+          title="חסימת משתמש"
+          message={
+            pendingDisable
+              ? `לחסום את ${pendingDisable.name || pendingDisable.email}? המשתמש לא יוכל להתחבר לאולם עד שתפתחי אותו מחדש.`
+              : ""
+          }
+          confirmLabel="חסום"
+          danger
+          loading={saving}
+          onConfirm={() =>
+            pendingDisable && setStatus(pendingDisable.membershipId, "disable")
+          }
+          onCancel={() => setPendingDisable(null)}
+        />
       </div>
     </main>
   );
