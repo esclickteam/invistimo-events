@@ -282,8 +282,22 @@ function SeatingPageInner() {
       return;
     }
 
-    if (user.planLimits?.seatingEnabled !== true) {
+    const u = user as any;
+    const venueClientSeating =
+      u.venueClientSource === true ||
+      u.includeSeating === true ||
+      u.includeDigitalSeating === true ||
+      Boolean(u.venueClientPackageType) ||
+      Boolean(u.venueSeatingTemplateId) ||
+      u.accessModules?.rsvpSeating === true ||
+      u.planLimits?.seatingEnabled === true ||
+      u.plan === "premium" ||
+      ["seating_only", "rsvp_seating", "full"].includes(String(u.plan || ""));
+
+    if (!venueClientSeating) {
       setBlockReason("no-plan");
+    } else {
+      setBlockReason(null);
     }
   }, [user, isVenueTemplateMode, isVenueView]);
 
