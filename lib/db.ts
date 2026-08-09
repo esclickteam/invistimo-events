@@ -1,14 +1,16 @@
 import mongoose from "mongoose";
 import { assertEnvironmentSafety } from "@/lib/env/safetyGuards";
 
-const MONGO_URI = (process.env.MONGO_URI ||
-  process.env.MONGODB_URI) as string;
-
-if (!MONGO_URI) {
-  throw new Error("❌ MONGO_URI is missing from environment variables!");
+function getMongoUri() {
+  return String(process.env.MONGO_URI || process.env.MONGODB_URI || "").trim();
 }
 
 export const connectDB = async () => {
+  const MONGO_URI = getMongoUri();
+  if (!MONGO_URI) {
+    throw new Error("❌ MONGO_URI is missing from environment variables!");
+  }
+
   // Isolation guards before any DB traffic
   assertEnvironmentSafety({ throwOnError: true });
 
