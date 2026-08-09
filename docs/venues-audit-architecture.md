@@ -333,25 +333,26 @@ Sidebar items hidden without permission; server still enforces.
 | `requireVenueAccess` + lazy OWNER membership backfill | ✅ |
 | Middleware protect `/venues` | ✅ |
 | Employees & permissions UI + APIs | ✅ |
-| Remove staff `saveMock` / wire staff API | ✅ |
+| Remove staff `saveMock` / wire staff API + dynamic weeks | ✅ |
 | CRM closeEvent → Event + VenueEvent linkage (idempotent) | ✅ |
-| Seating template Update/Delete/Duplicate (API) | ✅ |
+| Seating template Update/Delete/Duplicate + editor templateId | ✅ |
 | Auth on hall-payments + client-contract | ✅ |
 | Login redirect for venue users | ✅ |
-| Unit/regression tests (`npm run test:venues`) | ✅ 21 pass |
-| Venue switcher UI (full) | ⏳ API `my-venues` ready; UI switcher partial |
-| Real hall image + CRM binary uploads | ⏳ metadata schema ready; upload wiring pending |
-| Hall overview query migrate to linked Event | ⏳ |
-| Calendar UI status mapping to VenueEvent lifecycle | ⏳ |
-| DB integration tests (tenant A vs B) | ⏳ needs Mongo in CI |
-| Session invalidation via authVersion end-to-end | ⏳ field added; login JWT not yet version-checked |
+| VenueShell + switcher + permission nav | ✅ |
+| Real Cloudinary uploads (CRM/files/hall image) | ✅ (needs CLOUDINARY_* in deploy env) |
+| Customers / Reports / Settings / Activity pages | ✅ |
+| Calendar + overview + owner dashboard on VenueEvent | ✅ |
+| authVersion in JWT + mismatch invalidate + disable bump | ✅ |
+| Login rate limit | ✅ |
+| Unit + memory-mongo isolation tests | ✅ `npm run test:venues` |
+| Dry-run backfill for orphan VenueEvents | ✅ `scripts/venues/backfill-venue-event-links.ts` |
 
-### Phase 2 — Polish
-- Reports page, customers page, files library UX
-- Richer shift calendar weeks
-- Full venue switcher chrome on all hall pages
+### Still environment-dependent before Production YES
+- Vercel Preview green
+- Staging smoke with real Cloudinary + Mongo (cannot fake)
+- Manual E2E of employee login / conversion / uploads on Preview
 
-**READY TO MERGE: NO** — remaining gaps above; no production deploy.
+**READY TO MERGE:** only after Preview CI green + staging smoke PASS.
 
 ---
 

@@ -73,15 +73,7 @@ type AbsenceRequest = {
   status: "pending" | "approved" | "declined";
 };
 
-const weekDays = [
-  { date: "18.05", day: "ראשון" },
-  { date: "19.05", day: "שני" },
-  { date: "20.05", day: "שלישי" },
-  { date: "21.05", day: "רביעי" },
-  { date: "22.05", day: "חמישי" },
-  { date: "23.05", day: "שישי" },
-  { date: "24.05", day: "שבת" },
-];
+const DAY_LABELS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 const shiftTypes: Array<{
   type: ShiftType;
@@ -94,10 +86,51 @@ const shiftTypes: Array<{
   { type: "night", title: "לילה", time: "23:00 - 07:00" },
 ];
 
-function createEmptyShifts(): Shift[] {
-  return weekDays.flatMap((day) =>
+function startOfWeekSunday(base: Date) {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+function toIsoDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function toDisplayDate(d: Date) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${day}.${m}`;
+}
+
+function getWeekDays(weekOffset: number) {
+  const start = startOfWeekSunday(new Date());
+  start.setDate(start.getDate() + weekOffset * 7);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    return {
+      date: toDisplayDate(day),
+      day: DAY_LABELS[i],
+      iso: toIsoDate(day),
+    };
+  });
+}
+
+function getWeekStartKey(weekOffset: number) {
+  const start = startOfWeekSunday(new Date());
+  start.setDate(start.getDate() + weekOffset * 7);
+  return toIsoDate(start);
+}
+
+function createEmptyShifts(weekOffset: number): Shift[] {
+  const days = getWeekDays(weekOffset);
+  return days.flatMap((day) =>
     shiftTypes.map((shiftType) => ({
-      id: `${day.date}-${shiftType.type}`,
+      id: `${day.iso}-${shiftType.type}`,
       date: day.date,
       dayLabel: day.day,
       type: shiftType.type,
@@ -116,12 +149,8 @@ function createEmptyShifts(): Shift[] {
   );
 }
 
-const WEEK_START_KEY = "2026-05-18";
-
 function getHallName(hallId: string) {
-  if (hallId === "garden-hall") return "גן אירועים";
-  if (hallId === "sky-hall") return "SKY Hall";
-  return "אולם הזהב";
+  return hallId || "אולם";
 }
 
 function statusLabel(status: WorkerStatus) {
@@ -158,9 +187,17 @@ export default function HallStaffShiftsPage() {
   const hallName = getHallName(hallId);
 
   const [workers, setWorkers] = useState<Worker[]>([]);
-  const [shifts, setShifts] = useState<Shift[]>(createEmptyShifts);
-  const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
   const [selectedWeekOffset, setSelectedWeekOffset] = useState(0);
+  const weekDays = useMemo(
+    () => getWeekDays(selectedWeekOffset),
+    [selectedWeekOffset]
+  );
+  const weekStartKey = useMemo(
+    () => getWeekStartKey(selectedWeekOffset),
+    [selectedWeekOffset]
+  );
+  const [shifts, setShifts] = useState<Shift[]>(() => createEmptyShifts(0));
+  const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
   const [draggedWorkerId, setDraggedWorkerId] = useState<string | null>(null);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
@@ -190,7 +227,7 @@ export default function HallStaffShiftsPage() {
       setLoadError("");
       try {
         const res = await fetch(
-          `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/staff?weekStart=${WEEK_START_KEY}`,
+          `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/staff?weekStart=${weekStartKey}`,
           { cache: "no-store" }
         );
         const data = await res.json();
@@ -212,7 +249,7 @@ export default function HallStaffShiftsPage() {
         if (data.schedule?.shifts?.length) {
           setShifts(data.schedule.shifts);
         } else {
-          setShifts(createEmptyShifts());
+          setShifts(createEmptyShifts(selectedWeekOffset));
         }
         if (Array.isArray(data.schedule?.absences)) {
           setAbsences(data.schedule.absences);
@@ -220,13 +257,18 @@ export default function HallStaffShiftsPage() {
           setAbsences([]);
         }
         if (mapped[0]) {
-          setAbsenceForm((f) => ({ ...f, workerId: mapped[0].id }));
+          setAbsenceForm((f) => ({
+            ...f,
+            workerId: mapped[0].id,
+            fromDate: weekStartKey,
+            toDate: weekStartKey,
+          }));
         }
       } catch (err: any) {
         if (!cancelled) {
           setLoadError(err?.message || "טעינת צוות נכשלה");
           setWorkers([]);
-          setShifts(createEmptyShifts());
+          setShifts(createEmptyShifts(selectedWeekOffset));
           setAbsences([]);
         }
       } finally {
@@ -238,26 +280,27 @@ export default function HallStaffShiftsPage() {
     return () => {
       cancelled = true;
     };
-  }, [hallId]);
+  }, [hallId, weekStartKey, selectedWeekOffset]);
 
   const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId) || null;
   const selectedShift = shifts.find((shift) => shift.id === selectedShiftId) || null;
 
   const stats = useMemo(() => {
+    const todayDisplay = toDisplayDate(new Date());
     const todayWorkerIds = new Set<string>();
 
     shifts.forEach((shift) => {
-      if (shift.date === "19.05") {
+      if (shift.date === todayDisplay) {
         shift.workerIds.forEach((id) => todayWorkerIds.add(id));
       }
     });
 
     const eveningShift = shifts.find(
-      (shift) => shift.date === "19.05" && shift.type === "evening"
+      (shift) => shift.date === todayDisplay && shift.type === "evening"
     );
 
     const missingToday = shifts
-      .filter((shift) => shift.date === "19.05")
+      .filter((shift) => shift.date === todayDisplay)
       .reduce((sum, shift) => sum + Math.max(shift.required - shift.workerIds.length, 0), 0);
 
     return {
@@ -265,6 +308,7 @@ export default function HallStaffShiftsPage() {
       eveningWorkers: eveningShift?.workerIds.length || 0,
       missingToday,
       pendingAbsences: absences.filter((absence) => absence.status === "pending").length,
+      todayDisplay,
     };
   }, [shifts, absences]);
 
@@ -452,7 +496,7 @@ export default function HallStaffShiftsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "saveSchedule",
-            weekStart: WEEK_START_KEY,
+            weekStart: weekStartKey,
             shifts,
             absences,
           }),
@@ -650,7 +694,7 @@ export default function HallStaffShiftsPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedWeekOffset((current) => Math.max(0, current - 1))}
+                  onClick={() => setSelectedWeekOffset((current) => current - 1)}
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-[#6f6252]"
                 >
                   <ChevronRight size={18} />
@@ -658,12 +702,12 @@ export default function HallStaffShiftsPage() {
 
                 <div className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#2b241c]">
                   <CalendarDays size={16} className="text-[#b98121]" />
-                  שבוע {selectedWeekOffset + 1} מתוך 4
+                  {weekDays[0]?.date} – {weekDays[6]?.date}
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setSelectedWeekOffset((current) => Math.min(3, current + 1))}
+                  onClick={() => setSelectedWeekOffset((current) => current + 1)}
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-[#6f6252]"
                 >
                   <ChevronLeft size={18} />
@@ -868,7 +912,10 @@ export default function HallStaffShiftsPage() {
 
             <Panel title="התראות" icon={<MessageCircle size={18} />}>
               <div className="space-y-2">
-                <AlertLine title="חסר עובד בערב" text="19.05 · משמרת ערב חסר תקן חלקי" />
+                <AlertLine
+                  title="חסר עובד בערב"
+                  text={`${stats.todayDisplay || "היום"} · משמרת ערב חסר תקן חלקי`}
+                />
                 <AlertLine title="מחלה פתוחה" text="שיר לוי ממתינה לאישור מנהל" />
                 <AlertLine title="החלפה ממתינה" text="רועי לוי ביקש החלפה במשמרת ערב" />
               </div>

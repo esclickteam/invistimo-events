@@ -9,7 +9,8 @@
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
     "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs",
     "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
-    "test:venues": "node --test scripts/tests/venue-permissions.test.mjs scripts/tests/venue-statuses.test.mjs scripts/tests/venue-regression-safety.test.mjs scripts/tests/venue-auth.test.mjs scripts/tests/venue-isolation-logic.test.mjs scripts/tests/venue-db-isolation.test.mjs"
+    "test:venues": "node --test scripts/tests/venue-*.test.mjs",
+    "test:venues:db": "node --test scripts/tests/venue-db-isolation.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

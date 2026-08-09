@@ -36,11 +36,11 @@ const VenueStaffScheduleSchema = new Schema<VenueStaffScheduleDocument>(
       trim: true,
     },
     shifts: {
-      type: [Schema.Types.Mixed],
+      type: Schema.Types.Mixed,
       default: [],
     },
     absences: {
-      type: [Schema.Types.Mixed],
+      type: Schema.Types.Mixed,
       default: [],
     },
     updatedBy: {
