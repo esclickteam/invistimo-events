@@ -458,6 +458,18 @@ async function main() {
     invitation = await invitations.findOne({ _id: invitation._id });
   }
 
+  // Persist invitation link on the Event for venueView guest APIs
+  await events.updateOne(
+    { _id: eventA!._id },
+    {
+      $set: {
+        venueClientInvitationId: invitation!._id,
+        invitationId: invitation!._id,
+        updatedAt: now,
+      },
+    }
+  );
+
   // 40 guests with mixed RSVP (yes/no/pending — InvitationGuest enums)
   const guestDocs = [];
   for (let i = 1; i <= 40; i += 1) {

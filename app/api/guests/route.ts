@@ -246,6 +246,22 @@ async function canVenueOwnerAccessInvitation({
     orQuery.push({ productionEventId: { $in: eventValues } });
   }
 
+  // Resolve via invitation.eventId → linked venue event (covers seeds / older links
+  // that never persisted venueClientInvitationId on the Event document).
+  try {
+    const invitation = await Invitation.findById(invitationId)
+      .select("_id eventId")
+      .lean();
+    const invEventId = invitation?.eventId
+      ? objectIdOrString(invitation.eventId)
+      : [];
+    if (invEventId.length) {
+      orQuery.push({ _id: { $in: invEventId } });
+    }
+  } catch {
+    /* best-effort */
+  }
+
   const linkedEvent = await events.findOne(
     {
       venueOwnerId: { $in: userValues },
