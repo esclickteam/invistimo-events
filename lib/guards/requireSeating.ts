@@ -59,10 +59,26 @@ export async function requireSeating() {
    * ⭐ לקוח רגיל – בדיקת הרשאת הושבה
    * - פרימיום תמיד כולל הושבה
    * - add-on עתידי דרך planLimits
+   * - לקוח אולם (venue client) שקיבל חבילת הושבה מהאולם
    */
+  const u = user as any;
+  const isVenueClientWithSeating =
+    u.venueClientSource === true ||
+    u.includeSeating === true ||
+    u.includeDigitalSeating === true ||
+    u.accessModules?.rsvpSeating === true ||
+    u.accessModules?.digitalSeating === true ||
+    u.accessModules?.seatingTemplates === true ||
+    ["seating_only", "rsvp_seating", "rsvp_and_seating", "full"].includes(
+      String(u.venueClientPackageType || u.plan || "")
+    ) ||
+    Boolean(u.venueSeatingTemplateId) ||
+    Boolean(u.venueHallId || u.venueClientHallId);
+
   const hasSeating =
     user.plan === "premium" ||
-    user.planLimits?.seatingEnabled === true;
+    user.planLimits?.seatingEnabled === true ||
+    isVenueClientWithSeating;
 
   if (!hasSeating) {
     return {
