@@ -1273,6 +1273,8 @@ function EditHallModal({
   onAutoSaved: (hall: Hall) => void;
 }) {
   const [form, setForm] = useState<Hall>(hall);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const { state: autoSaveState, error: autoSaveError } = useAutoSaveHall(
     form,
@@ -1283,12 +1285,49 @@ function EditHallModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    updateField("image", previewUrl);
+    setUploadingImage(true);
+    setImageError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hall.id)}/image`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "העלאת תמונה נכשלה");
+      }
+
+      const imageUrl = String(data.image || data.hall?.image || "");
+
+      if (imageUrl) {
+        updateField("image", imageUrl);
+        onAutoSaved(data.hall || { ...form, image: imageUrl });
+      }
+    } catch (error) {
+      console.error("Hall image upload failed:", error);
+      setImageError(
+        error instanceof Error ? error.message : "העלאת תמונה נכשלה"
+      );
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1346,20 +1385,30 @@ function EditHallModal({
               </div>
 
               <label className="mt-4 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]">
-                <ImagePlus size={17} />
-                החלפת תמונה זמנית
+                {uploadingImage ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <ImagePlus size={17} />
+                )}
+                {uploadingImage ? "מעלה תמונה..." : "החלפת תמונת אולם"}
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  disabled={uploadingImage}
                   onChange={handleImageChange}
                 />
               </label>
 
-              <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
-                העלאת קובץ כאן היא תצוגה זמנית בלבד. כדי שתמונה תישמר אחרי רענון,
-                הזיני קישור תמונה או נחבר בהמשך Cloudinary.
-              </p>
+              {imageError ? (
+                <p className="mt-3 text-xs font-bold leading-5 text-rose-700">
+                  {imageError}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
+                  התמונה נשמרת בשרת (Cloudinary) ומוצגת בכרטיס האולם.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
