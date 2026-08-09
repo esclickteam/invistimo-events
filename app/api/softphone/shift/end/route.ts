@@ -156,9 +156,9 @@ async function getAuthUser(): Promise<AuthUser | null> {
     const decoded = jwt.verify(token, secret) as any;
 
     const id = String(
-      decoded.id ||
+      decoded.userId ||
+        decoded.id ||
         decoded._id ||
-        decoded.userId ||
         decoded.sub ||
         decoded.employeeId ||
         "",
@@ -876,8 +876,8 @@ export async function POST(request: NextRequest) {
         Boolean(safeDate(statusDoc?.shiftStartedAt));
 
       /*
-        אם אין סשן פתוח במסד, עדיין שומרים כניסה/יציאה לתיק העובד
-        כשיש ראיה שהמשמרת באמת התחילה (סטטוס מחובר / local start time).
+        Fallback רק כשיש ראיה ברורה למשמרת שהתחילה (shiftStartedAt מהלקוח/סטטוס).
+        התנתקות / רענון / מעבר עמוד לא אמורים לקרוא ל-endpoint הזה.
       */
       const fallbackStartedAt =
         clientStartedAt ||

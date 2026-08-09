@@ -39,6 +39,7 @@ type DayRow = {
   totalMinutes: number;
   note: string;
   status: string;
+  manualOverride?: boolean;
 };
 
 const APPROVAL_COLLECTION = "employeehoursapprovals";
@@ -60,22 +61,11 @@ const SHIFT_COLLECTIONS_TO_TRY = [
   "shifts",
 ];
 
-const SOFTPHONE_COLLECTIONS_TO_TRY = [
-  // המודל החדש שיצרנו:
-  // models/SoftphoneWorkSession.ts -> collection: softphoneworksessions
-  "softphoneworksessions",
-
-  "softphonesessions",
-  "softphone_sessions",
-  "softphonelogs",
-  "softphone_logs",
-  "staffsoftphonesessions",
-  "staff_softphone_sessions",
-  "telnyxsessions",
-  "telnyx_sessions",
-  "calllogs",
-  "call_logs",
-];
+/*
+  מקור האמת לשעות בפועל: רק סשנים שנפתחים/נסגרים
+  בכפתורי התחל/סיים משמרת (SoftphoneWorkSession).
+*/
+const SOFTPHONE_COLLECTIONS_TO_TRY = ["softphoneworksessions"];
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -115,9 +105,9 @@ async function getAuthUser(): Promise<AuthUser | null> {
     const decoded = jwt.verify(token, secret) as any;
 
     const id = String(
-      decoded.id ||
+      decoded.userId ||
+        decoded.id ||
         decoded._id ||
-        decoded.userId ||
         decoded.sub ||
         decoded.employeeId ||
         "",
@@ -306,10 +296,11 @@ function formatTime(value: any) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleTimeString("he-IL", {
+  return date.toLocaleTimeString("en-GB", {
     timeZone: "Asia/Jerusalem",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
@@ -368,8 +359,12 @@ async function loadApproval(employeeId: string, monthKey: string) {
   return database.collection(APPROVAL_COLLECTION).findOne({
     month: monthKey,
     $or: objectId
-      ? [{ employeeId: objectId }, { employeeId }]
-      : [{ employeeId }],
+      ? [
+          { employeeId: objectId },
+          { employeeId },
+          { employeeIdString: employeeId },
+        ]
+      : [{ employeeId }, { employeeIdString: employeeId }],
   });
 }
 
@@ -603,18 +598,7 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
       end,
     });
 
-    const directMinutes = Number(
-      getValueByKeys(session, [
-        "totalMinutes",
-        "workMinutes",
-        "minutes",
-        "durationMinutes",
-      ]),
-    );
-
-    if (!Number.isNaN(directMinutes) && directMinutes > 0) {
-      current.totalMinutes += directMinutes;
-    } else if (start && end) {
+    if (start && end) {
       current.totalMinutes += minutesBetween(start, end);
     } else if (start && isOpenSession) {
       // משמרת פתוחה — זמן רץ עד עכשיו ביום הנוכחי
@@ -645,23 +629,122 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
   return Array.from(rowsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
-  if (!approval?.rows || !Array.isArray(approval.rows)) return rows;
+function normalizeApprovalWorkSessions(row: any): WorkSession[] {
+  const rawSessions: any[] = Array.isArray(row?.workSessions)
+    ? row.workSessions
+    : Array.isArray(row?.sessions)
+      ? row.sessions
+      : [];
 
-  const notesMap = new Map<string, string>();
+  const sessions = rawSessions
+    .map((session: any) => {
+      const start =
+        cleanStr(session?.start) ||
+        cleanStr(session?.actualStart) ||
+        formatTime(session?.startedAt) ||
+        formatTime(session?.startAt);
 
-  for (const row of approval.rows) {
-    const date = cleanStr(row?.date);
-    if (!date) continue;
+      const end =
+        cleanStr(session?.end) ||
+        cleanStr(session?.actualEnd) ||
+        formatTime(session?.endedAt) ||
+        formatTime(session?.endAt);
 
-    notesMap.set(date, cleanStr(row?.note));
+      return {
+        id: cleanStr(session?.id || session?._id) || makeSessionId(),
+        start,
+        end,
+      } satisfies WorkSession;
+    })
+    .filter((session) => session.start || session.end);
+
+  if (sessions.length > 0) return sessions;
+
+  const actualStart = cleanStr(row?.actualStart);
+  const actualEnd = cleanStr(row?.actualEnd);
+
+  if (actualStart || actualEnd) {
+    return [
+      {
+        id: makeSessionId(),
+        start: actualStart,
+        end: actualEnd,
+      },
+    ];
   }
 
-  return rows.map((row) => ({
-    ...row,
-    note: notesMap.get(row.date) ?? row.note,
-    status: approval.status || row.status,
-  }));
+  return [];
+}
+
+function hasManualOverride(saved: any) {
+  /*
+    רק עריכה מפורשת של אדמין קובעת.
+    רשומות ישנות עם הערות בלבד (בלי manualOverride) לא דורסות את הסופטפון.
+  */
+  return saved?.manualOverride === true;
+}
+
+function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
+  if (!approval?.rows || !Array.isArray(approval.rows)) {
+    return rows.map((row) => ({
+      ...row,
+      status: approval?.status || row.status,
+      manualOverride: false,
+    }));
+  }
+
+  const savedMap = new Map<string, any>();
+
+  for (const savedRow of approval.rows) {
+    const date = cleanStr(savedRow?.date);
+    if (date) savedMap.set(date, savedRow);
+  }
+
+  return rows.map((row) => {
+    const saved = savedMap.get(row.date);
+    const noteFromSaved =
+      saved && "note" in saved ? cleanStr(saved.note) : row.note;
+
+    if (!saved) {
+      return {
+        ...row,
+        status: approval.status || row.status,
+        manualOverride: false,
+      };
+    }
+
+    const shouldOverride = hasManualOverride(saved);
+
+    if (!shouldOverride) {
+      return {
+        ...row,
+        note: noteFromSaved,
+        status: approval.status || row.status,
+        manualOverride: false,
+      };
+    }
+
+    const workSessions = normalizeApprovalWorkSessions(saved);
+    const totalMinutesFromSessions = calculateSessionsMinutes(workSessions);
+    const savedMinutes = Number(saved.totalMinutes);
+
+    const totalMinutes =
+      Number.isFinite(savedMinutes) && savedMinutes >= 0
+        ? Math.round(savedMinutes)
+        : totalMinutesFromSessions;
+
+    return {
+      ...row,
+      workSessions,
+      sessions: workSessions,
+      actualStart: getFirstSessionStart(workSessions),
+      actualEnd: getLastSessionEnd(workSessions),
+      note: noteFromSaved,
+      totalMinutes,
+      status: approval.status || row.status,
+      manualOverride: true,
+    };
+  });
 }
 
 export async function GET(request: NextRequest) {

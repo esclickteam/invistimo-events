@@ -67,9 +67,9 @@ async function getAuthUser(): Promise<AuthUser | null> {
     const decoded = jwt.verify(token, secret) as any;
 
     const id = String(
-      decoded.id ||
+      decoded.userId ||
+        decoded.id ||
         decoded._id ||
-        decoded.userId ||
         decoded.sub ||
         decoded.employeeId ||
         "",
@@ -144,23 +144,68 @@ async function findUserBusinessId(employeeId: string) {
   return String(rawBusinessId?._id || rawBusinessId?.id || rawBusinessId || "");
 }
 
-function normalizeRows(rows: SubmitBody["rows"]) {
+function normalizeNoteRows(rows: SubmitBody["rows"]) {
   if (!Array.isArray(rows)) return [];
 
   return rows
     .map((row) => {
       const date = normalizeDate(row?.date);
-      const note = cleanStr(row?.note);
-
       if (!date) return null;
 
       return {
         date,
-        note,
-        updatedAt: new Date(),
+        note: cleanStr(row?.note),
       };
     })
-    .filter(Boolean);
+    .filter(Boolean) as { date: string; note: string }[];
+}
+
+/*
+  שליחת שעות מהעובד מעדכנת רק הערות + סטטוס.
+  לא מוחקים עריכות אדמין (workSessions / manualOverride / totalMinutes).
+*/
+function mergeEmployeeNotesIntoApprovalRows(
+  existingRows: any[] | undefined,
+  noteRows: { date: string; note: string }[],
+) {
+  const existingMap = new Map<string, any>();
+
+  for (const row of Array.isArray(existingRows) ? existingRows : []) {
+    const date = normalizeDate(row?.date);
+    if (!date) continue;
+    existingMap.set(date, { ...row, date });
+  }
+
+  const now = new Date();
+
+  for (const noteRow of noteRows) {
+    const current = existingMap.get(noteRow.date);
+
+    if (current) {
+      existingMap.set(noteRow.date, {
+        ...current,
+        note: noteRow.note,
+        updatedAt: now,
+      });
+      continue;
+    }
+
+    existingMap.set(noteRow.date, {
+      date: noteRow.date,
+      note: noteRow.note,
+      workSessions: [],
+      sessions: [],
+      actualStart: "",
+      actualEnd: "",
+      totalMinutes: 0,
+      manualOverride: false,
+      updatedAt: now,
+    });
+  }
+
+  return Array.from(existingMap.values()).sort((a, b) =>
+    String(a.date).localeCompare(String(b.date)),
+  );
 }
 
 function buildEmployeeQuery(employeeId: string, month: string) {
@@ -201,7 +246,7 @@ export async function POST(request: NextRequest) {
     const businessObjectId = toObjectId(businessId);
 
     const month = normalizeMonth(body.month || "");
-    const rows = normalizeRows(body.rows);
+    const noteRows = normalizeNoteRows(body.rows);
 
     const database = mongoose.connection.db;
 
@@ -234,6 +279,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
+    const rows = mergeEmployeeNotesIntoApprovalRows(existing?.rows, noteRows);
 
     const documentToSet = {
       employeeId: employeeObjectId || employeeId,

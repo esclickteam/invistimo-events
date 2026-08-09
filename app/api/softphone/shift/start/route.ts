@@ -64,9 +64,9 @@ async function getAuthUser(): Promise<AuthUser | null> {
     const decoded = jwt.verify(token, secret) as any;
 
     const id = String(
-      decoded.id ||
+      decoded.userId ||
+        decoded.id ||
         decoded._id ||
-        decoded.userId ||
         decoded.sub ||
         decoded.employeeId ||
         "",
