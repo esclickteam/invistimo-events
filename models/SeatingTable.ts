@@ -141,6 +141,24 @@ const TableSchema = new Schema(
       type: [SeatedGuestSchema],
       default: [],
     },
+
+    /* שולחן רזרבה (מתבנית אולם) */
+    reserved: {
+      type: Boolean,
+      default: false,
+    },
+    reserveLabel: {
+      type: String,
+      default: "",
+    },
+    capacity: {
+      type: Number,
+      default: 0,
+      set: (v: unknown) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      },
+    },
   },
   { _id: false }
 );

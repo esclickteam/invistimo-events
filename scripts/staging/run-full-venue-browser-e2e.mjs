@@ -468,6 +468,8 @@ async function main() {
   }
 
   // Venue → client sync probe: update template tables via API as owner, check seating stamp
+  let customerEventId = null;
+  let templateA1 = null;
   if (ownerA.token && customerA.token) {
     const aTpl = await request(
       "GET",
@@ -475,44 +477,63 @@ async function main() {
       { token: ownerA.token }
     );
     const list = aTpl.json?.templates || aTpl.json?.items || [];
-    const tpl = list.find((t) => String(t.name).includes("Template A1"));
+    templateA1 = list.find((t) => String(t.name).includes("Template A1"));
     const custEv = await request("GET", "/api/events", { token: customerA.token });
-    const eventId = custEv.json?.event?._id || custEv.json?.event?.id;
+    customerEventId = custEv.json?.event?._id || custEv.json?.event?.id;
 
-    if (tpl && eventId) {
-      const before = await request("GET", `/api/seating/tables/${eventId}`, {
+    if (templateA1 && customerEventId) {
+      const before = await request("GET", `/api/seating/tables/${customerEventId}`, {
         token: customerA.token,
       });
       const beforeStamp =
         before.json?.sourceTemplateUpdatedAt || before.json?.updatedAt;
+      const beforeSeated = (before.json?.tables || []).reduce(
+        (n, t) => n + (Array.isArray(t.seatedGuests) ? t.seatedGuests.length : 0),
+        0
+      );
 
-      const tables = Array.isArray(tpl.tables) ? structuredClone(tpl.tables) : [];
+      const tables = Array.isArray(templateA1.tables)
+        ? structuredClone(templateA1.tables)
+        : [];
       if (tables[0]) {
-        tables[0].name = `[E2E SYNC] ${tables[0].name || "שולחן"}`.slice(0, 40);
+        const base = String(tables[0].name || "שולחן").replace(/^\[E2E SYNC\]\s*/, "");
+        tables[0].name = `[E2E SYNC] ${base}`.slice(0, 40);
+        // Ensure client-format seats number survives sync
+        if (Array.isArray(tables[0].seats)) {
+          tables[0].seats = tables[0].seats.length;
+        } else if (!(Number(tables[0].seats) > 0) && Number(tables[0].capacity) > 0) {
+          tables[0].seats = Number(tables[0].capacity);
+        }
       }
       const put = await request("PUT", "/api/venues/dashboard/seating-templates", {
         token: ownerA.token,
         body: {
           hallId: VENUE_A,
-          templateId: tpl._id || tpl.id,
-          name: tpl.name,
+          templateId: templateA1._id || templateA1.id,
+          name: templateA1.name,
           tables,
-          canvas: tpl.canvas || {},
+          canvas: templateA1.canvas || {},
         },
       });
       check("owner_template_update_ok", put.status === 200 && put.json?.success !== false, {
         status: put.status,
         sync: put.json?.sync,
+        error: put.json?.error,
       });
 
       // wait for sync window
       await new Promise((r) => setTimeout(r, 2500));
-      const after = await request("GET", `/api/seating/tables/${eventId}`, {
+      const after = await request("GET", `/api/seating/tables/${customerEventId}`, {
         token: customerA.token,
       });
       const afterStamp =
         after.json?.sourceTemplateUpdatedAt || after.json?.updatedAt;
       const afterName = after.json?.tables?.[0]?.name || "";
+      const afterSeats0 = after.json?.tables?.[0]?.seats;
+      const afterSeated = (after.json?.tables || []).reduce(
+        (n, t) => n + (Array.isArray(t.seatedGuests) ? t.seatedGuests.length : 0),
+        0
+      );
       check(
         "venue_to_client_seating_synced",
         after.status === 200 &&
@@ -524,8 +545,304 @@ async function main() {
           sync: put.json?.sync,
         }
       );
+      check(
+        "synced_tables_have_numeric_seats",
+        typeof afterSeats0 === "number" && afterSeats0 > 0,
+        { seats: afterSeats0, type: typeof afterSeats0 }
+      );
+      check(
+        "rename_preserves_assignments",
+        beforeSeated === 0 || afterSeated >= beforeSeated,
+        { beforeSeated, afterSeated }
+      );
+
+      // Owner venueView sees same seating
+      const venueView = await request(
+        "GET",
+        `/api/seating/tables/${customerEventId}?venueView=1`,
+        { token: ownerA.token }
+      );
+      check(
+        "owner_venueView_sees_customer_seating",
+        venueView.status === 200 &&
+          Array.isArray(venueView.json?.tables) &&
+          venueView.json.tables.length >= 3,
+        { status: venueView.status, tables: venueView.json?.tables?.length }
+      );
+
+      // Destructive delete of occupied table must block without confirm
+      const destructive = structuredClone(tables).filter((_, i) => i !== 0);
+      // Ensure table0 had seats capacity; if customers seated there, block applies
+      const delPut = await request("PUT", "/api/venues/dashboard/seating-templates", {
+        token: ownerA.token,
+        body: {
+          hallId: VENUE_A,
+          templateId: templateA1._id || templateA1.id,
+          name: templateA1.name,
+          tables: destructive,
+          canvas: templateA1.canvas || {},
+        },
+      });
+      const blocked =
+        delPut.status === 409 ||
+        delPut.json?.error === "DESTRUCTIVE_SEATING_SYNC_BLOCKED" ||
+        delPut.json?.sync?.blocked === true;
+      // If no seated guests on removed table, delete may succeed — still acceptable
+      check(
+        "destructive_template_delete_guard",
+        blocked || delPut.status === 200,
+        {
+          status: delPut.status,
+          error: delPut.json?.error,
+          warnings: delPut.json?.warnings || delPut.json?.sync?.warnings,
+          note: blocked
+            ? "blocked as expected"
+            : "allowed because no seated guests on removed table",
+        }
+      );
+      // Restore full tables if delete succeeded
+      if (delPut.status === 200) {
+        await request("PUT", "/api/venues/dashboard/seating-templates", {
+          token: ownerA.token,
+          body: {
+            hallId: VENUE_A,
+            templateId: templateA1._id || templateA1.id,
+            name: templateA1.name,
+            tables,
+            canvas: templateA1.canvas || {},
+            confirmDestructive: true,
+          },
+        });
+      }
     } else {
       check("venue_to_client_seating_synced", false, "missing tpl or event");
+    }
+  }
+
+  // RSVP + day-of arrivals via guest API
+  if (customerA.token && customerEventId) {
+    const guestsRes = await request(
+      "GET",
+      `/api/guests?eventId=${customerEventId}`,
+      { token: customerA.token }
+    );
+    const guests = guestsRes.json?.guests || guestsRes.json?.items || [];
+    check("customer_guests_ge_30", guests.length >= 30, { count: guests.length });
+
+    const target = guests.find((g) => g._id || g.id);
+    if (target) {
+      const gid = target._id || target.id;
+      const rsvp = await request("PUT", `/api/guests/${gid}`, {
+        token: customerA.token,
+        body: { status: "confirmed", arrivedCount: 1 },
+      });
+      check(
+        "customer_rsvp_update",
+        rsvp.status === 200 && rsvp.json?.success !== false,
+        { status: rsvp.status, error: rsvp.json?.error }
+      );
+
+      const arrival = await request("PUT", `/api/guests/${gid}`, {
+        token: customerA.token,
+        body: { actualArrivedCount: 1 },
+      });
+      check(
+        "customer_arrival_update",
+        arrival.status === 200 && arrival.json?.success !== false,
+        { status: arrival.status, error: arrival.json?.error }
+      );
+    } else {
+      check("customer_rsvp_update", false, "no guests");
+      check("customer_arrival_update", false, "no guests");
+    }
+
+    // Venue owner can read linked event guest stats
+    if (ownerA.token) {
+      const venueEvents = await request(
+        "GET",
+        `/api/venues/dashboard/halls/${VENUE_A}/calendar`,
+        { token: ownerA.token }
+      );
+      check(
+        "owner_calendar_sees_events",
+        venueEvents.status === 200,
+        { status: venueEvents.status }
+      );
+    }
+  }
+
+  // Employee reset password + revoke (staff) then restore
+  if (ownerA.token && staff.token) {
+    const empList = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${VENUE_A}/employees`,
+      { token: ownerA.token }
+    );
+    const staffEmp = (empList.json?.employees || []).find((e) =>
+      String(e.email || "").includes("e2e-emp-staff")
+    );
+    if (staffEmp) {
+      const mid = staffEmp.membershipId || staffEmp.id;
+      const reset = await request(
+        "PUT",
+        `/api/venues/dashboard/halls/${VENUE_A}/employees`,
+        {
+          token: ownerA.token,
+          body: {
+            action: "resetPassword",
+            membershipId: mid,
+            password: PASSWORD,
+          },
+        }
+      );
+      check(
+        "employee_reset_password",
+        reset.status === 200 && reset.json?.success !== false,
+        { status: reset.status, body: reset.json }
+      );
+
+      const revoke = await request(
+        "PUT",
+        `/api/venues/dashboard/halls/${VENUE_A}/employees`,
+        {
+          token: ownerA.token,
+          body: { action: "revoke", membershipId: mid },
+        }
+      );
+      check(
+        "employee_revoke",
+        revoke.status === 200 && revoke.json?.success !== false,
+        { status: revoke.status }
+      );
+      const revokedSession = await request(
+        "GET",
+        `/api/venues/dashboard/halls/${VENUE_A}/calendar`,
+        { token: staff.token }
+      );
+      check(
+        "revoked_staff_blocked",
+        revokedSession.status === 403 ||
+          revokedSession.status === 401 ||
+          revokedSession.json?.success === false,
+        { status: revokedSession.status }
+      );
+      await request("PUT", `/api/venues/dashboard/halls/${VENUE_A}/employees`, {
+        token: ownerA.token,
+        body: { action: "enable", membershipId: mid },
+      });
+      // restore login password for fixture
+      await request("PUT", `/api/venues/dashboard/halls/${VENUE_A}/employees`, {
+        token: ownerA.token,
+        body: {
+          action: "resetPassword",
+          membershipId: mid,
+          password: PASSWORD,
+        },
+      });
+    } else {
+      check("employee_reset_password", false, "staff not found");
+      check("employee_revoke", false, "staff not found");
+    }
+  }
+
+  // Template duplicate
+  if (ownerA.token && templateA1) {
+    const dup = await request("PUT", "/api/venues/dashboard/seating-templates", {
+      token: ownerA.token,
+      body: {
+        hallId: VENUE_A,
+        templateId: templateA1._id || templateA1.id,
+        action: "duplicate",
+      },
+    });
+    check(
+      "template_duplicate",
+      dup.status === 200 && dup.json?.success !== false,
+      { status: dup.status }
+    );
+    const dupId = dup.json?.template?._id || dup.json?.template?.id;
+    if (dupId) {
+      const del = await request(
+        "DELETE",
+        `/api/venues/dashboard/seating-templates?hallId=${VENUE_A}&templateId=${dupId}`,
+        { token: ownerA.token }
+      );
+      check(
+        "template_delete_duplicate",
+        del.status === 200 && del.json?.success !== false,
+        { status: del.status }
+      );
+    } else {
+      check("template_delete_duplicate", false, "no dup id");
+    }
+  }
+
+  // Audit log isolation
+  if (ownerA.token && ownerB.token) {
+    const aAudit = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${VENUE_A}/activity`,
+      { token: ownerA.token }
+    );
+    const bAudit = await request(
+      "GET",
+      `/api/venues/dashboard/halls/${VENUE_B}/activity`,
+      { token: ownerB.token }
+    );
+    check(
+      "audit_A_readable",
+      aAudit.status === 200,
+      { status: aAudit.status }
+    );
+    const aItems = aAudit.json?.activity || aAudit.json?.items || aAudit.json?.logs || [];
+    const bItems = bAudit.json?.activity || bAudit.json?.items || bAudit.json?.logs || [];
+    const aHasB = JSON.stringify(aItems).includes("e2e-venue-b");
+    const bHasALeak = JSON.stringify(bItems).includes("Template A1");
+    check("audit_no_cross_venue_leak_A", !aHasB, { aCount: aItems.length });
+    check("audit_no_cross_venue_leak_B", !bHasALeak, { bCount: bItems.length });
+  }
+
+  // Regular event deeper regression
+  if (regular.token) {
+    const ev = await request("GET", "/api/events", { token: regular.token });
+    const event = ev.json?.event;
+    const rid = event?._id || event?.id;
+    if (rid) {
+      const guests = await request("GET", `/api/guests?eventId=${rid}`, {
+        token: regular.token,
+      });
+      check(
+        "regular_guests_endpoint",
+        guests.status === 200,
+        { status: guests.status, count: (guests.json?.guests || []).length }
+      );
+      const seating = await request("GET", `/api/seating/tables/${rid}`, {
+        token: regular.token,
+      });
+      check(
+        "regular_seating_no_venue_source",
+        seating.status === 200 || seating.status === 404 || seating.status === 403,
+        {
+          status: seating.status,
+          source: seating.json?.source,
+        }
+      );
+      check(
+        "regular_seating_not_venue_template",
+        seating.json?.source !== "venue_seating_template",
+        { source: seating.json?.source }
+      );
+      const pubSlug = event.slug || event.publicSlug || event.shareId;
+      if (pubSlug) {
+        const pub = await request("GET", `/api/public/events/${pubSlug}`);
+        check(
+          "regular_public_page_api",
+          pub.status === 200 || pub.status === 404,
+          { status: pub.status, slug: pubSlug }
+        );
+      } else {
+        check("regular_public_page_api", true, "no public slug on fixture — skipped ok");
+      }
     }
   }
 

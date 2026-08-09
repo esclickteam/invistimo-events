@@ -21,24 +21,26 @@ function oid() {
 }
 
 function makeTables(prefix: string, count: number) {
+  // Client seating format (seats:number + seatedGuests[]) — matches /dashboard/seating
   const tables = [];
   for (let i = 1; i <= count; i += 1) {
     const capacity = i % 3 === 0 ? 10 : i % 2 === 0 ? 8 : 6;
-    const seats = Array.from({ length: capacity }, (_, s) => ({
-      id: `${prefix}-t${i}-s${s + 1}`,
-      label: String(s + 1),
-      occupied: false,
-      guest: null,
-      guestId: null,
-    }));
     tables.push({
       id: `${prefix}-table-${i}`,
       name: `שולחן ${prefix.toUpperCase()} ${i}`,
+      type: "round",
       x: 80 + ((i - 1) % 5) * 160,
       y: 80 + Math.floor((i - 1) / 5) * 160,
+      seats: capacity,
       capacity,
-      seats,
-      shape: "round",
+      width: 120,
+      height: 120,
+      radius: 60,
+      color: "#ffffff",
+      locked: false,
+      rotation: 0,
+      group: null,
+      seatedGuests: [],
       reserved: i === count,
       reserveLabel: i === count ? "רזרבה" : "",
     });
