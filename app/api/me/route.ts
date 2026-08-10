@@ -584,6 +584,10 @@ type JwtPayload = {
     | "staff_producer"
     | "venue_owner";
 
+  impersonationSourceRole?: "admin" | "producer" | string;
+
+  authVersion?: number;
+
   iat?: number;
   exp?: number;
 };
