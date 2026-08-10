@@ -753,6 +753,34 @@ export async function GET() {
       return res;
     }
 
+    const isImpersonationSession =
+      tokenResult.source === "impersonationToken" ||
+      decoded?.impersonated === true ||
+      decoded?.impersonatedByAdmin === true ||
+      decoded?.impersonationSourceRole === "admin";
+
+    /*
+      Keep /api/me aligned with getUserIdFromRequest:
+      deactivated customers must not look "logged in" with an empty dashboard.
+      Admin impersonation is allowed so support can still open their Event.
+    */
+    if ((user as any).isActive === false && !isImpersonationSession) {
+      const res = NextResponse.json(
+        {
+          success: false,
+          user: null,
+          error: "USER_INACTIVE",
+        },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+
+      clearAuthCookies(res);
+      return res;
+    }
+
     const currentUser = user as any;
 
     const preRsvpMessages = normalizePreRsvpMessagesAccess(currentUser);
