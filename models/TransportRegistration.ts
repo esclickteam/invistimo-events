@@ -20,6 +20,9 @@ export interface ITransportRegistration {
   returnStopId?: mongoose.Types.ObjectId | null;
   notes?: string;
   status: TransportRegistrationStatus;
+  waitlistedAt?: Date | null;
+  promotedAt?: Date | null;
+  rejectedAt?: Date | null;
   outboundBoardStatus: TransportBoardStatus;
   returnBoardStatus: TransportBoardStatus;
   createdAt?: Date;
@@ -76,6 +79,9 @@ const TransportRegistrationSchema = new Schema<ITransportRegistration>(
       default: "registered",
       index: true,
     },
+    waitlistedAt: { type: Date, default: null, index: true },
+    promotedAt: { type: Date, default: null },
+    rejectedAt: { type: Date, default: null },
     outboundBoardStatus: {
       type: String,
       enum: TRANSPORT_BOARD_STATUSES,
@@ -95,13 +101,14 @@ const TransportRegistrationSchema = new Schema<ITransportRegistration>(
 TransportRegistrationSchema.index({ eventId: 1, status: 1 });
 TransportRegistrationSchema.index({ eventId: 1, name: 1 });
 TransportRegistrationSchema.index({ eventId: 1, phone: 1 });
+TransportRegistrationSchema.index({ eventId: 1, status: 1, createdAt: 1 });
 TransportRegistrationSchema.index(
   { eventId: 1, invitationGuestId: 1 },
   {
     unique: true,
     partialFilterExpression: {
       invitationGuestId: { $type: "objectId" },
-      status: "registered",
+      status: { $in: ["registered", "waitlisted"] },
     },
   }
 );

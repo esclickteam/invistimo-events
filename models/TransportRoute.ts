@@ -14,6 +14,8 @@ export interface ITransportRoute {
   departureTime?: string;
   returnTime?: string;
   capacity: number;
+  /** Atomically maintained reserved seat count (registered passengers only). */
+  reservedSeats: number;
   companyName?: string;
   driverName?: string;
   driverPhone?: string;
@@ -65,6 +67,12 @@ const TransportRouteSchema = new Schema<ITransportRoute>(
       required: true,
       min: 0,
       default: 50,
+    },
+    reservedSeats: {
+      type: Number,
+      min: 0,
+      default: 0,
+      index: true,
     },
     companyName: { type: String, trim: true, default: "" },
     driverName: { type: String, trim: true, default: "" },

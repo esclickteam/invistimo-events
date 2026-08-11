@@ -69,6 +69,7 @@ export async function POST(
       departureTime: String(body.departureTime || "").trim(),
       returnTime: String(body.returnTime || "").trim(),
       capacity: Math.max(0, Number(body.capacity ?? 50)),
+      reservedSeats: 0,
       companyName: String(body.companyName || "").trim(),
       driverName: String(body.driverName || "").trim(),
       driverPhone: String(body.driverPhone || "").trim(),

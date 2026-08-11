@@ -9,10 +9,15 @@ import TransportStop from "@/models/TransportStop";
 import TransportRegistration from "@/models/TransportRegistration";
 import InvitationGuest from "@/models/InvitationGuest";
 import { userHasTransportationEntitlement } from "@/lib/transportation/entitlement";
-import { assertRouteHasCapacity } from "@/lib/transportation/capacity";
+import {
+  getCapacityLevel,
+  capacityLabel,
+} from "@/lib/transportation/types";
+import {
+  reserveForRegistration,
+  releaseForRegistration,
+} from "@/lib/transportation/capacity";
 import { isValidObjectId, serializeDoc } from "@/lib/transportation/service";
-import { getCapacityLevel } from "@/lib/transportation/types";
-import { countRoutePassengers } from "@/lib/transportation/capacity";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +31,7 @@ async function resolvePublicTransportContext(shareId: string) {
   }
 
   const event = await Event.findById(invitation.eventId)
-    .select("_id userId status")
+    .select("_id userId status title")
     .lean();
 
   if (!event || event.status === "archived") {
@@ -80,35 +85,32 @@ export async function GET(
       TransportStop.find({ eventId }).sort({ sortOrder: 1 }).lean(),
     ]);
 
-    const routePayload = await Promise.all(
-      routes.map(async (route) => {
-        const direction =
-          route.direction === "return" ? "return" : "outbound";
-        const registered = await countRoutePassengers(
-          eventId,
-          String(route._id),
-          direction as "outbound" | "return"
-        );
-        // For round_trip return capacity, also expose return seats separately via same capacity
-        const capacity = Number(route.capacity || 0);
-        return {
-          _id: String(route._id),
-          name: route.name,
-          direction: route.direction,
-          departureTime: route.departureTime || "",
-          returnTime: route.returnTime || "",
-          capacity,
-          registered,
-          remaining: Math.max(0, capacity - registered),
-          level: getCapacityLevel(registered, capacity),
-          full: registered >= capacity,
-        };
-      })
-    );
+    const routePayload = routes.map((route) => {
+      const reservedSeats = Number(route.reservedSeats || 0);
+      const capacity = Number(route.capacity || 0);
+      const remaining = Math.max(0, capacity - reservedSeats);
+      const level = getCapacityLevel(reservedSeats, capacity);
+      return {
+        _id: String(route._id),
+        name: route.name,
+        direction: route.direction,
+        departureTime: route.departureTime || "",
+        returnTime: route.returnTime || "",
+        capacity,
+        registered: reservedSeats,
+        remaining,
+        level,
+        levelLabel: capacityLabel(level),
+        full: remaining <= 0,
+      };
+    });
 
     let existingRegistration = null;
-    let guestPrefill: { invitationGuestId: string; name: string; phone: string } | null =
-      null;
+    let guestPrefill: {
+      invitationGuestId: string;
+      name: string;
+      phone: string;
+    } | null = null;
 
     if (guestToken) {
       const guest = await InvitationGuest.findOne({ token: guestToken })
@@ -125,7 +127,7 @@ export async function GET(
         const reg = await TransportRegistration.findOne({
           eventId,
           invitationGuestId: guest._id,
-          status: "registered",
+          status: { $in: ["registered", "waitlisted"] },
         }).lean();
 
         if (reg) existingRegistration = serializeDoc(reg);
@@ -138,8 +140,10 @@ export async function GET(
       settings: {
         enabled: true,
         guestRegistrationEnabled: true,
+        waitlistEnabled: Boolean(ctx.settings.waitlistEnabled),
         notes: ctx.settings.notes || "",
       },
+      eventTitle: (ctx.event as any).title || "",
       routes: routePayload,
       stops: stops.map((s) => ({
         _id: String(s._id),
@@ -182,6 +186,7 @@ export async function POST(
 
     const eventId = String(ctx.event._id);
     const body = await req.json();
+    const wantWaitlist = Boolean(body.waitlist || body.status === "waitlisted");
 
     const name = String(body.name || "").trim();
     const phone = String(body.phone || "").trim();
@@ -224,7 +229,7 @@ export async function POST(
       const existing = await TransportRegistration.findOne({
         eventId,
         invitationGuestId,
-        status: "registered",
+        status: { $in: ["registered", "waitlisted"] },
       });
       if (existing) {
         return NextResponse.json(
@@ -238,54 +243,25 @@ export async function POST(
       }
     }
 
-    let outboundRouteId = needsOutbound ? body.outboundRouteId : null;
-    let outboundStopId = needsOutbound ? body.outboundStopId : null;
-    let returnRouteId = needsReturn ? body.returnRouteId : null;
-    let returnStopId = needsReturn ? body.returnStopId : null;
+    const outboundRouteId = needsOutbound ? body.outboundRouteId : null;
+    const outboundStopId = needsOutbound ? body.outboundStopId : null;
+    const returnRouteId = needsReturn ? body.returnRouteId : null;
+    const returnStopId = needsReturn ? body.returnStopId : null;
 
-    if (needsOutbound) {
-      if (!isValidObjectId(outboundRouteId)) {
-        return NextResponse.json(
-          { success: false, error: "OUTBOUND_ROUTE_REQUIRED" },
-          { status: 400 }
-        );
-      }
-      const cap = await assertRouteHasCapacity({
-        eventId,
-        routeId: String(outboundRouteId),
-        direction: "outbound",
-        passengerCount,
-      });
-      if (!cap.ok) {
-        return NextResponse.json(
-          { success: false, error: cap.code, details: cap },
-          { status: 409 }
-        );
-      }
+    if (needsOutbound && !isValidObjectId(outboundRouteId)) {
+      return NextResponse.json(
+        { success: false, error: "OUTBOUND_ROUTE_REQUIRED" },
+        { status: 400 }
+      );
+    }
+    if (needsReturn && !isValidObjectId(returnRouteId)) {
+      return NextResponse.json(
+        { success: false, error: "RETURN_ROUTE_REQUIRED" },
+        { status: 400 }
+      );
     }
 
-    if (needsReturn) {
-      if (!isValidObjectId(returnRouteId)) {
-        return NextResponse.json(
-          { success: false, error: "RETURN_ROUTE_REQUIRED" },
-          { status: 400 }
-        );
-      }
-      const cap = await assertRouteHasCapacity({
-        eventId,
-        routeId: String(returnRouteId),
-        direction: "return",
-        passengerCount,
-      });
-      if (!cap.ok) {
-        return NextResponse.json(
-          { success: false, error: cap.code, details: cap },
-          { status: 409 }
-        );
-      }
-    }
-
-    const registration = await TransportRegistration.create({
+    const payload = {
       eventId,
       invitationGuestId,
       name,
@@ -302,15 +278,83 @@ export async function POST(
       returnStopId:
         needsReturn && isValidObjectId(returnStopId) ? returnStopId : null,
       notes,
-      status: "registered",
-      outboundBoardStatus: needsOutbound ? "registered" : "not_needed",
-      returnBoardStatus: needsReturn ? "registered" : "not_needed",
+    };
+
+    if (wantWaitlist) {
+      if (!ctx.settings.waitlistEnabled) {
+        return NextResponse.json(
+          { success: false, error: "WAITLIST_DISABLED" },
+          { status: 403 }
+        );
+      }
+
+      const registration = await TransportRegistration.create({
+        ...payload,
+        status: "waitlisted",
+        waitlistedAt: new Date(),
+        outboundBoardStatus: "not_needed",
+        returnBoardStatus: "not_needed",
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          registration: serializeDoc(registration),
+          waitlisted: true,
+        },
+        { status: 201 }
+      );
+    }
+
+    const reserved = await reserveForRegistration({
+      eventId,
+      passengerCount,
+      needsOutbound,
+      outboundRouteId,
+      needsReturn,
+      returnRouteId,
     });
 
-    return NextResponse.json(
-      { success: true, registration: serializeDoc(registration) },
-      { status: 201 }
-    );
+    if (!reserved.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: reserved.code,
+          message: (reserved as any).message,
+          remaining: (reserved as any).remaining ?? 0,
+          capacity: (reserved as any).capacity,
+          requested: passengerCount,
+          waitlistAvailable: Boolean(ctx.settings.waitlistEnabled),
+        },
+        { status: 409 }
+      );
+    }
+
+    try {
+      const registration = await TransportRegistration.create({
+        ...payload,
+        status: "registered",
+        outboundBoardStatus: needsOutbound ? "registered" : "not_needed",
+        returnBoardStatus: needsReturn ? "registered" : "not_needed",
+      });
+
+      return NextResponse.json(
+        { success: true, registration: serializeDoc(registration) },
+        { status: 201 }
+      );
+    } catch (err: any) {
+      await releaseForRegistration({
+        ...payload,
+        status: "registered",
+      });
+      if (err?.code === 11000) {
+        return NextResponse.json(
+          { success: false, error: "GUEST_ALREADY_REGISTERED" },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
   } catch (err: any) {
     if (err?.code === 11000) {
       return NextResponse.json(

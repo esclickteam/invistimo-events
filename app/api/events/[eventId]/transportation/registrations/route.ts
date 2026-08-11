@@ -6,17 +6,17 @@ import {
   isValidObjectId,
   serializeDoc,
 } from "@/lib/transportation/service";
-import { assertRouteHasCapacity } from "@/lib/transportation/capacity";
+import { reserveForRegistration } from "@/lib/transportation/capacity";
 import TransportRegistration from "@/models/TransportRegistration";
 import TransportRoute from "@/models/TransportRoute";
 import InvitationGuest from "@/models/InvitationGuest";
+import EventTransportation from "@/models/EventTransportation";
 
 export const dynamic = "force-dynamic";
 
-async function validateRegistrationPayload(
+async function validateRoutes(
   eventId: string,
-  body: any,
-  excludeRegistrationId?: string
+  body: any
 ) {
   const name = String(body.name || "").trim();
   const passengerCount = Math.max(1, Number(body.passengerCount || 1));
@@ -26,7 +26,6 @@ async function validateRegistrationPayload(
   if (!name) {
     return { ok: false as const, status: 400, error: "NAME_REQUIRED" };
   }
-
   if (!needsOutbound && !needsReturn) {
     return {
       ok: false as const,
@@ -49,23 +48,11 @@ async function validateRegistrationPayload(
       eventId,
       active: true,
     }).lean();
-    if (!route || (route.direction !== "outbound" && route.direction !== "round_trip")) {
+    if (
+      !route ||
+      (route.direction !== "outbound" && route.direction !== "round_trip")
+    ) {
       return { ok: false as const, status: 400, error: "INVALID_OUTBOUND_ROUTE" };
-    }
-    const cap = await assertRouteHasCapacity({
-      eventId,
-      routeId: String(outboundRouteId),
-      direction: "outbound",
-      passengerCount,
-      excludeRegistrationId,
-    });
-    if (!cap.ok) {
-      return {
-        ok: false as const,
-        status: 409,
-        error: cap.code,
-        details: cap,
-      };
     }
   } else {
     outboundRouteId = null;
@@ -81,23 +68,11 @@ async function validateRegistrationPayload(
       eventId,
       active: true,
     }).lean();
-    if (!route || (route.direction !== "return" && route.direction !== "round_trip")) {
+    if (
+      !route ||
+      (route.direction !== "return" && route.direction !== "round_trip")
+    ) {
       return { ok: false as const, status: 400, error: "INVALID_RETURN_ROUTE" };
-    }
-    const cap = await assertRouteHasCapacity({
-      eventId,
-      routeId: String(returnRouteId),
-      direction: "return",
-      passengerCount,
-      excludeRegistrationId,
-    });
-    if (!cap.ok) {
-      return {
-        ok: false as const,
-        status: 409,
-        error: cap.code,
-        details: cap,
-      };
     }
   } else {
     returnRouteId = null;
@@ -138,12 +113,11 @@ export async function GET(
     const q = String(searchParams.get("q") || "").trim();
     const routeId = searchParams.get("routeId");
     const stopId = searchParams.get("stopId");
-    const direction = searchParams.get("direction"); // outbound | return | none
+    const direction = searchParams.get("direction");
     const status = searchParams.get("status");
 
     const filter: Record<string, unknown> = { eventId };
     if (status) filter.status = status;
-    else filter.status = { $in: ["registered", "cancelled"] };
 
     if (routeId) {
       filter.$or = [
@@ -160,10 +134,7 @@ export async function GET(
     }
     if (direction === "outbound") filter.needsOutbound = true;
     if (direction === "return") filter.needsReturn = true;
-    if (direction === "none") {
-      filter.needsOutbound = false;
-      filter.needsReturn = false;
-    }
+    if (direction === "waitlist") filter.status = "waitlisted";
 
     if (q) {
       filter.$and = [
@@ -177,7 +148,7 @@ export async function GET(
     }
 
     const registrations = await TransportRegistration.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: status === "waitlisted" ? 1 : -1 })
       .lean();
 
     return NextResponse.json({
@@ -205,26 +176,23 @@ export async function POST(
 
     await getOrCreateEventTransportation(eventId);
     const body = await req.json();
-    const validated = await validateRegistrationPayload(eventId, body);
+    const wantWaitlist = Boolean(body.waitlist || body.status === "waitlisted");
+
+    const validated = await validateRoutes(eventId, body);
     if (!validated.ok) {
       return NextResponse.json(
-        {
-          success: false,
-          error: validated.error,
-          details: (validated as any).details,
-        },
+        { success: false, error: validated.error },
         { status: validated.status }
       );
     }
 
     const data = validated.data;
 
-    // Avoid duplicate active registration for same invitation guest
     if (data.invitationGuestId) {
       const existing = await TransportRegistration.findOne({
         eventId,
         invitationGuestId: data.invitationGuestId,
-        status: "registered",
+        status: { $in: ["registered", "waitlisted"] },
       });
       if (existing) {
         return NextResponse.json(
@@ -232,6 +200,7 @@ export async function POST(
             success: false,
             error: "GUEST_ALREADY_REGISTERED",
             registrationId: String(existing._id),
+            status: existing.status,
           },
           { status: 409 }
         );
@@ -246,18 +215,87 @@ export async function POST(
       }
     }
 
-    const registration = await TransportRegistration.create({
+    if (wantWaitlist) {
+      const settings = await EventTransportation.findOne({ eventId }).lean();
+      if (!settings?.waitlistEnabled) {
+        return NextResponse.json(
+          { success: false, error: "WAITLIST_DISABLED" },
+          { status: 403 }
+        );
+      }
+
+      const registration = await TransportRegistration.create({
+        eventId,
+        ...data,
+        status: "waitlisted",
+        waitlistedAt: new Date(),
+        outboundBoardStatus: "not_needed",
+        returnBoardStatus: "not_needed",
+      });
+
+      return NextResponse.json(
+        { success: true, registration: serializeDoc(registration), waitlisted: true },
+        { status: 201 }
+      );
+    }
+
+    // Atomic capacity reservation (server-side, race-safe)
+    const reserved = await reserveForRegistration({
       eventId,
-      ...data,
-      status: "registered",
-      outboundBoardStatus: data.needsOutbound ? "registered" : "not_needed",
-      returnBoardStatus: data.needsReturn ? "registered" : "not_needed",
+      passengerCount: data.passengerCount,
+      needsOutbound: data.needsOutbound,
+      outboundRouteId: data.outboundRouteId,
+      needsReturn: data.needsReturn,
+      returnRouteId: data.returnRouteId,
     });
 
-    return NextResponse.json(
-      { success: true, registration: serializeDoc(registration) },
-      { status: 201 }
-    );
+    if (!reserved.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: reserved.code,
+          message: (reserved as any).message,
+          remaining: (reserved as any).remaining,
+          capacity: (reserved as any).capacity,
+          reservedSeats: (reserved as any).reservedSeats,
+          requested: data.passengerCount,
+          waitlistAvailable: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    try {
+      const registration = await TransportRegistration.create({
+        eventId,
+        ...data,
+        status: "registered",
+        outboundBoardStatus: data.needsOutbound ? "registered" : "not_needed",
+        returnBoardStatus: data.needsReturn ? "registered" : "not_needed",
+      });
+
+      return NextResponse.json(
+        { success: true, registration: serializeDoc(registration) },
+        { status: 201 }
+      );
+    } catch (err: any) {
+      // Roll back seats if document create fails
+      const { releaseForRegistration } = await import(
+        "@/lib/transportation/capacity"
+      );
+      await releaseForRegistration({
+        eventId,
+        ...data,
+        status: "registered",
+      });
+      if (err?.code === 11000) {
+        return NextResponse.json(
+          { success: false, error: "GUEST_ALREADY_REGISTERED" },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
   } catch (err: any) {
     if (err?.code === 11000) {
       return NextResponse.json(

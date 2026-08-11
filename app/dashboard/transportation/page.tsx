@@ -1,10 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import "./transport.css";
 
-type TabKey = "overview" | "routes" | "passengers" | "dayof" | "manifest";
+type TabKey =
+  | "overview"
+  | "routes"
+  | "passengers"
+  | "waitlist"
+  | "dayof"
+  | "returns"
+  | "manifest";
+
+type CapacityLevel = "available" | "filling" | "almost_full" | "full";
+type LegacyCapacityLevel = "ok" | "warning_80" | "warning_90" | "full";
 
 type RouteRow = {
   _id: string;
@@ -13,6 +25,7 @@ type RouteRow = {
   departureTime?: string;
   returnTime?: string;
   capacity: number;
+  reservedSeats?: number;
   companyName?: string;
   driverName?: string;
   driverPhone?: string;
@@ -36,6 +49,8 @@ type StopRow = {
   stopType?: string;
 };
 
+type RegistrationStatus = "registered" | "waitlisted" | "cancelled" | "rejected";
+
 type RegistrationRow = {
   _id: string;
   name: string;
@@ -48,10 +63,65 @@ type RegistrationRow = {
   returnRouteId?: string | null;
   returnStopId?: string | null;
   notes?: string;
-  status: string;
+  status: RegistrationStatus | string;
   outboundBoardStatus: string;
   returnBoardStatus: string;
   invitationGuestId?: string | null;
+  createdAt?: string;
+};
+
+type RouteSummary = {
+  routeId: string;
+  name: string;
+  direction: string;
+  capacity: number;
+  registered: number;
+  remaining: number;
+  level?: CapacityLevel;
+  legacyLevel?: LegacyCapacityLevel;
+  active?: boolean;
+  status?: string;
+  departureTime?: string;
+  returnTime?: string;
+  waitlistedCount?: number;
+  waitlistedPassengers?: number;
+  companyName?: string;
+  driverName?: string;
+  vehicleNumber?: string;
+};
+
+type WaitlistOpportunity = {
+  routeId: string;
+  name: string;
+  remaining: number;
+  waitlistedCount: number;
+  waitlistedPassengers: number;
+  message: string;
+};
+
+type SummaryShape = {
+  routeCount?: number;
+  totalSeats?: number;
+  totalRegistered?: number;
+  remainingSeats?: number;
+  outboundPassengers?: number;
+  returnPassengers?: number;
+  waitlistedCount?: number;
+  waitlistedPassengers?: number;
+  guestsWithoutTransportCount?: number;
+  issues?: string[];
+  waitlistOpportunities?: WaitlistOpportunity[];
+  routes?: RouteSummary[];
+  stops?: Array<{
+    stopId: string;
+    routeId: string;
+    name: string;
+    time?: string;
+    expected: number;
+    boarded: number;
+    missing: number;
+  }>;
+  waitlist?: RegistrationRow[];
 };
 
 const DIRECTION_LABEL: Record<string, string> = {
@@ -60,55 +130,142 @@ const DIRECTION_LABEL: Record<string, string> = {
   round_trip: "הלוך וחזור",
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  scheduled: "מתוכנן",
+  boarding: "בעלייה",
+  departed: "יצא",
+  completed: "הושלם",
+  cancelled: "בוטל",
+};
+
 const BOARD_LABEL: Record<string, string> = {
-  registered: "רשום",
+  registered: "ממתין",
   checked_in: "צ׳ק־אין",
   boarded: "עלה",
-  no_show: "לא הגיע",
+  no_show: "חסר",
   cancelled: "בוטל",
-  not_needed: "לא רלוונטי",
+  not_needed: "לא נדרש",
 };
 
-const LEVEL_STYLE: Record<string, string> = {
-  ok: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  warning_80: "bg-amber-50 text-amber-800 border-amber-200",
-  warning_90: "bg-orange-50 text-orange-800 border-orange-200",
-  full: "bg-rose-50 text-rose-800 border-rose-200",
+const REG_STATUS_LABEL: Record<string, string> = {
+  registered: "רשום",
+  waitlisted: "בהמתנה",
+  cancelled: "בוטל",
+  rejected: "נדחה",
 };
 
-function CapacityBar({
+const LEVEL_LABEL: Record<CapacityLevel, string> = {
+  available: "זמין",
+  filling: "מתמלא",
+  almost_full: "כמעט מלא",
+  full: "מלא",
+};
+
+const RING_COLOR: Record<CapacityLevel, string> = {
+  available: "#6fd3a8",
+  filling: "#e0b35a",
+  almost_full: "#e0895a",
+  full: "#e06b6b",
+};
+
+function id(value: unknown) {
+  return value ? String(value) : "";
+}
+
+function normalizeLevel(level?: string, legacyLevel?: string): CapacityLevel {
+  if (
+    level === "available" ||
+    level === "filling" ||
+    level === "almost_full" ||
+    level === "full"
+  ) {
+    return level;
+  }
+  if (legacyLevel === "full") return "full";
+  if (legacyLevel === "warning_90") return "almost_full";
+  if (legacyLevel === "warning_80") return "filling";
+  return "available";
+}
+
+function pct(registered = 0, capacity = 0) {
+  if (capacity <= 0) return 100;
+  return Math.min(100, Math.max(0, Math.round((registered / capacity) * 100)));
+}
+
+function routeClock(route?: Pick<RouteRow, "departureTime" | "returnTime"> | RouteSummary | null) {
+  if (!route) return "";
+  return route.departureTime || route.returnTime || "";
+}
+
+function isOutboundRoute(route: RouteRow) {
+  return route.active && (route.direction === "outbound" || route.direction === "round_trip");
+}
+
+function isReturnRoute(route: RouteRow) {
+  return route.active && (route.direction === "return" || route.direction === "round_trip");
+}
+
+function CapacityRing({
   registered,
   capacity,
   level,
 }: {
   registered: number;
   capacity: number;
-  level: string;
+  level: CapacityLevel;
 }) {
-  const pct =
-    capacity > 0 ? Math.min(100, Math.round((registered / capacity) * 100)) : 100;
-  const bar =
-    level === "full"
-      ? "bg-rose-500"
-      : level === "warning_90"
-        ? "bg-orange-500"
-        : level === "warning_80"
-          ? "bg-amber-500"
-          : "bg-[#8f6437]";
-
+  const value = pct(registered, capacity);
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-xs font-bold text-[#5a4634]">
-        <span>
-          {registered} / {capacity}
-        </span>
-        <span className={`rounded-full border px-2 py-0.5 ${LEVEL_STYLE[level] || LEVEL_STYLE.ok}`}>
-          {level === "full" ? "FULL" : `${pct}%`}
-        </span>
+    <div
+      className="tx-ring"
+      style={
+        {
+          "--pct": value,
+          "--ring": RING_COLOR[level],
+        } as CSSProperties
+      }
+      aria-label={`ניצול קיבולת ${value}%`}
+    >
+      <span>{value}%</span>
+    </div>
+  );
+}
+
+function CapacityChip({
+  level,
+  legacyLevel,
+}: {
+  level?: string;
+  legacyLevel?: string;
+}) {
+  const normalized = normalizeLevel(level, legacyLevel);
+  return <span className={`tx-chip ${normalized}`}>{LEVEL_LABEL[normalized]}</span>;
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
+  return (
+    <div className="tx-stat">
+      <div className="text-xs font-black uppercase tracking-[0.22em] text-[#93a0b8]">
+        {label}
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[#efe4d6]">
-        <div className={`h-full ${bar}`} style={{ width: `${pct}%` }} />
-      </div>
+      <div className="mt-2 text-3xl font-black text-white">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-[#93a0b8]">{hint}</div> : null}
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-[#2a3a55] bg-[#101827]/70 p-8 text-center text-sm font-bold text-[#93a0b8]">
+      {text}
     </div>
   );
 }
@@ -124,20 +281,22 @@ export default function TransportationDashboardPage() {
     user?.includeTransportationManagement === true;
 
   const [tab, setTab] = useState<TabKey>("overview");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<any>(null);
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<SummaryShape | null>(null);
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [stops, setStops] = useState<StopRow[]>([]);
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [guestsWithoutTransport, setGuestsWithoutTransport] = useState<any[]>([]);
 
-  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
+  const [selectedRouteId, setSelectedRouteId] = useState("");
   const [search, setSearch] = useState("");
   const [filterDirection, setFilterDirection] = useState("all");
   const [filterRouteId, setFilterRouteId] = useState("all");
   const [filterStopId, setFilterStopId] = useState("all");
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState("");
 
   const [routeForm, setRouteForm] = useState({
     name: "",
@@ -172,15 +331,13 @@ export default function TransportationDashboardPage() {
     returnRouteId: "",
     returnStopId: "",
     notes: "",
+    waitlist: false,
   });
 
-  const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2800);
+  }, []);
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -193,88 +350,132 @@ export default function TransportationDashboardPage() {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.success) {
         setError(data?.code || data?.error || "LOAD_FAILED");
-        setLoading(false);
         return;
       }
       setSettings(data.settings);
-      setSummary(data.summary);
+      setSummary(data.summary || null);
       setRoutes(data.routes || []);
       setStops(data.stops || []);
       setRegistrations(data.registrations || []);
       setGuestsWithoutTransport(data.guestsWithoutTransport || []);
-      if (!selectedRouteId && data.routes?.[0]?._id) {
-        setSelectedRouteId(data.routes[0]._id);
-      }
+      setSelectedRouteId((current) => current || data.routes?.[0]?._id || "");
     } catch {
       setError("LOAD_FAILED");
     } finally {
       setLoading(false);
     }
-  }, [eventId, selectedRouteId]);
+  }, [eventId]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!canAccess) return;
-    if (!eventId) return;
+    if (authLoading || !canAccess || !eventId) return;
     load();
   }, [authLoading, canAccess, eventId, load]);
 
-  const routeMap = useMemo(
-    () => new Map(routes.map((r) => [r._id, r])),
-    [routes]
-  );
-  const stopMap = useMemo(
-    () => new Map(stops.map((s) => [s._id, s])),
-    [stops]
+  const routeMap = useMemo(() => new Map(routes.map((r) => [id(r._id), r])), [routes]);
+  const stopMap = useMemo(() => new Map(stops.map((s) => [id(s._id), s])), [stops]);
+  const summaryRouteMap = useMemo(
+    () => new Map((summary?.routes || []).map((r) => [id(r.routeId), r])),
+    [summary?.routes]
   );
 
-  const outboundRoutes = routes.filter(
-    (r) => r.active && (r.direction === "outbound" || r.direction === "round_trip")
-  );
-  const returnRoutes = routes.filter(
-    (r) => r.active && (r.direction === "return" || r.direction === "round_trip")
+  const activeRoutes = useMemo(() => routes.filter((r) => r.active), [routes]);
+  const outboundRoutes = useMemo(() => routes.filter(isOutboundRoute), [routes]);
+  const returnRoutes = useMemo(() => routes.filter(isReturnRoute), [routes]);
+  const waitlistRows = useMemo(
+    () =>
+      (summary?.waitlist?.length ? summary.waitlist : registrations.filter((r) => r.status === "waitlisted")) || [],
+    [registrations, summary?.waitlist]
   );
 
-  const selectedRouteStops = stops
-    .filter((s) => s.routeId === selectedRouteId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const selectedRouteStops = useMemo(
+    () =>
+      stops
+        .filter((s) => id(s.routeId) === selectedRouteId)
+        .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
+    [selectedRouteId, stops]
+  );
 
   const filteredRegistrations = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return registrations.filter((r) => {
-      if (r.status === "cancelled" && filterDirection !== "cancelled") {
-        // still show cancelled only when explicitly filtered via search? keep them out of main
-      }
-      if (search) {
-        const q = search.trim().toLowerCase();
-        const hay = `${r.name} ${r.phone || ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
+      if (q) {
+        const haystack = `${r.name} ${r.phone || ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       if (filterDirection === "outbound" && !r.needsOutbound) return false;
       if (filterDirection === "return" && !r.needsReturn) return false;
       if (filterDirection === "active" && r.status !== "registered") return false;
+      if (filterDirection === "waitlisted" && r.status !== "waitlisted") return false;
       if (filterDirection === "cancelled" && r.status !== "cancelled") return false;
       if (filterRouteId !== "all") {
-        if (
-          String(r.outboundRouteId) !== filterRouteId &&
-          String(r.returnRouteId) !== filterRouteId
-        ) {
+        if (id(r.outboundRouteId) !== filterRouteId && id(r.returnRouteId) !== filterRouteId) {
           return false;
         }
       }
       if (filterStopId !== "all") {
-        if (
-          String(r.outboundStopId) !== filterStopId &&
-          String(r.returnStopId) !== filterStopId
-        ) {
+        if (id(r.outboundStopId) !== filterStopId && id(r.returnStopId) !== filterStopId) {
           return false;
         }
       }
       return true;
     });
-  }, [registrations, search, filterDirection, filterRouteId, filterStopId]);
+  }, [filterDirection, filterRouteId, filterStopId, registrations, search]);
+
+  const resetRegistrationForm = () =>
+    setRegForm({
+      name: "",
+      phone: "",
+      passengerCount: "1",
+      needsOutbound: true,
+      outboundRouteId: "",
+      outboundStopId: "",
+      needsReturn: false,
+      returnRouteId: "",
+      returnStopId: "",
+      notes: "",
+      waitlist: false,
+    });
+
+  const routeStops = useCallback(
+    (routeId: string) =>
+      stops
+        .filter((s) => id(s.routeId) === routeId)
+        .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)),
+    [stops]
+  );
+
+  const routeRegistrations = useCallback(
+    (routeId: string) =>
+      registrations.filter(
+        (reg) =>
+          reg.status === "registered" &&
+          (id(reg.outboundRouteId) === routeId || id(reg.returnRouteId) === routeId)
+      ),
+    [registrations]
+  );
+
+  function routeBoardField(route: RouteRow, reg: RegistrationRow) {
+    if (route.direction === "return") return "returnBoardStatus";
+    if (id(reg.outboundRouteId) === id(route._id)) return "outboundBoardStatus";
+    return "returnBoardStatus";
+  }
+
+  function remainingForRegistration(reg: RegistrationRow) {
+    const values: number[] = [];
+    if (reg.needsOutbound && reg.outboundRouteId) {
+      values.push(summaryRouteMap.get(id(reg.outboundRouteId))?.remaining ?? 0);
+    }
+    if (reg.needsReturn && reg.returnRouteId) {
+      values.push(summaryRouteMap.get(id(reg.returnRouteId))?.remaining ?? 0);
+    }
+    return values.length ? Math.min(...values) : 0;
+  }
 
   async function createRoute() {
-    if (!routeForm.name.trim()) return;
+    if (!routeForm.name.trim()) {
+      showToast("שם הקו נדרש");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/events/${eventId}/transportation/routes`, {
@@ -286,7 +487,7 @@ export default function TransportationDashboardPage() {
           capacity: Number(routeForm.capacity || 50),
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         showToast(data?.error || "שגיאה ביצירת קו");
         return;
@@ -303,7 +504,7 @@ export default function TransportationDashboardPage() {
         vehicleNumber: "",
         notes: "",
       });
-      showToast("הקו נוצר");
+      showToast("קו חדש נפתח במרכז הבקרה");
       await load();
     } finally {
       setBusy(false);
@@ -311,7 +512,10 @@ export default function TransportationDashboardPage() {
   }
 
   async function createStop() {
-    if (!selectedRouteId || !stopForm.name.trim()) return;
+    if (!selectedRouteId || !stopForm.name.trim()) {
+      showToast("בחרו קו והזינו שם תחנה");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(
@@ -323,7 +527,7 @@ export default function TransportationDashboardPage() {
           body: JSON.stringify(stopForm),
         }
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         showToast(data?.error || "שגיאה ביצירת תחנה");
         return;
@@ -336,7 +540,7 @@ export default function TransportationDashboardPage() {
         mapLink: "",
         notes: "",
       });
-      showToast("התחנה נוספה");
+      showToast("תחנה נוספה למסלול");
       await load();
     } finally {
       setBusy(false);
@@ -345,23 +549,49 @@ export default function TransportationDashboardPage() {
 
   async function moveStop(stopId: string, direction: -1 | 1) {
     const ordered = [...selectedRouteStops];
-    const idx = ordered.findIndex((s) => s._id === stopId);
-    const next = idx + direction;
-    if (idx < 0 || next < 0 || next >= ordered.length) return;
-    const tmp = ordered[idx];
-    ordered[idx] = ordered[next];
-    ordered[next] = tmp;
+    const index = ordered.findIndex((s) => id(s._id) === stopId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+    [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
     setBusy(true);
     try {
-      await fetch(
-        `/api/events/${eventId}/transportation/routes/${selectedRouteId}/stops`,
-        {
-          method: "POST",
+      await fetch(`/api/events/${eventId}/transportation/routes/${selectedRouteId}/stops`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedStopIds: ordered.map((s) => id(s._id)) }),
+      });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moveRoute(routeId: string, direction: -1 | 1) {
+    const ordered = [...routes].sort(
+      (a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)
+    );
+    const index = ordered.findIndex((r) => id(r._id) === routeId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+    const current = ordered[index];
+    const next = ordered[nextIndex];
+    setBusy(true);
+    try {
+      await Promise.all([
+        fetch(`/api/events/${eventId}/transportation/routes/${current._id}`, {
+          method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderedStopIds: ordered.map((s) => s._id) }),
-        }
-      );
+          body: JSON.stringify({ sortOrder: nextIndex }),
+        }),
+        fetch(`/api/events/${eventId}/transportation/routes/${next._id}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: index }),
+        }),
+      ]);
       await load();
     } finally {
       setBusy(false);
@@ -369,53 +599,48 @@ export default function TransportationDashboardPage() {
   }
 
   async function createRegistration() {
+    if (!regForm.name.trim()) {
+      showToast("שם נוסע נדרש");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/events/${eventId}/transportation/registrations`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...regForm,
-            passengerCount: Number(regForm.passengerCount || 1),
-          }),
-        }
-      );
-      const data = await res.json();
+      const res = await fetch(`/api/events/${eventId}/transportation/registrations`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...regForm,
+          passengerCount: Number(regForm.passengerCount || 1),
+          waitlist: regForm.waitlist,
+        }),
+      });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        showToast(
-          data?.error === "ROUTE_FULL"
-            ? "הקו מלא — לא ניתן לרשום נוספים"
-            : data?.error || "שגיאה בהרשמה"
-        );
+        if (data?.error === "ROUTE_FULL") {
+          showToast(
+            data?.waitlistAvailable
+              ? "הקו מלא. אפשר לסמן הוספה לרשימת המתנה ולשמור מחדש."
+              : "הקו מלא — לא ניתן לרשום נוספים."
+          );
+        } else {
+          showToast(data?.error || "שגיאה בהרשמה");
+        }
         return;
       }
-      setRegForm({
-        name: "",
-        phone: "",
-        passengerCount: "1",
-        needsOutbound: true,
-        outboundRouteId: "",
-        outboundStopId: "",
-        needsReturn: false,
-        returnRouteId: "",
-        returnStopId: "",
-        notes: "",
-      });
-      showToast("נוסע נרשם");
+      resetRegistrationForm();
+      showToast(data?.waitlisted ? "הנוסע נוסף לרשימת המתנה" : "הנוסע שובץ להסעה");
       await load();
     } finally {
       setBusy(false);
     }
   }
 
-  async function patchRegistration(id: string, body: Record<string, unknown>) {
+  async function patchRegistration(idToPatch: string, body: Record<string, unknown>) {
     setBusy(true);
     try {
       const res = await fetch(
-        `/api/events/${eventId}/transportation/registrations/${id}`,
+        `/api/events/${eventId}/transportation/registrations/${idToPatch}`,
         {
           method: "PATCH",
           credentials: "include",
@@ -423,11 +648,21 @@ export default function TransportationDashboardPage() {
           body: JSON.stringify(body),
         }
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        showToast(data?.error || "שגיאה בעדכון");
+        if (data?.error === "ROUTE_FULL") {
+          showToast(
+            data?.remaining !== undefined
+              ? `אין מספיק מקומות: נותרו ${data.remaining}, נדרשים ${data.requested || "יותר"}`
+              : "אין מספיק מקומות בקו"
+          );
+        } else {
+          showToast(data?.error || "שגיאה בעדכון");
+        }
         return;
       }
+      if (data?.promoted) showToast("נוסע קודם מרשימת ההמתנה");
+      else if (body.action === "reject") showToast("בקשת המתנה נדחתה");
       await load();
     } finally {
       setBusy(false);
@@ -437,19 +672,22 @@ export default function TransportationDashboardPage() {
   async function updateRouteStatus(routeId: string, status: string) {
     setBusy(true);
     try {
-      await fetch(`/api/events/${eventId}/transportation/routes/${routeId}`, {
+      const res = await fetch(`/api/events/${eventId}/transportation/routes/${routeId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      if (!res.ok) showToast("לא הצלחנו לעדכן סטטוס קו");
       await load();
     } finally {
       setBusy(false);
     }
   }
 
-  async function toggleSettings(key: "enabled" | "guestRegistrationEnabled") {
+  async function toggleSettings(
+    key: "enabled" | "guestRegistrationEnabled" | "waitlistEnabled"
+  ) {
     setBusy(true);
     try {
       const res = await fetch(`/api/events/${eventId}/transportation`, {
@@ -458,8 +696,9 @@ export default function TransportationDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [key]: !settings?.[key] }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok) setSettings(data.settings);
+      else showToast(data?.error || "שגיאה בעדכון הגדרות");
       await load();
     } finally {
       setBusy(false);
@@ -469,33 +708,42 @@ export default function TransportationDashboardPage() {
   function exportExcel(mode: string, routeId?: string) {
     const params = new URLSearchParams({ mode });
     if (routeId) params.set("routeId", routeId);
-    window.open(
-      `/api/events/${eventId}/transportation/export?${params.toString()}`,
-      "_blank"
-    );
+    window.open(`/api/events/${eventId}/transportation/export?${params.toString()}`, "_blank");
   }
 
-  if (authLoading || loading) {
+  const tabs: { key: TabKey; label: string; hint: string }[] = [
+    { key: "overview", label: "סקירה", hint: "פיקוד" },
+    { key: "routes", label: "קווים", hint: "תכנון" },
+    { key: "passengers", label: "נוסעים", hint: "רישום" },
+    { key: "waitlist", label: "המתנה", hint: "אישורים" },
+    { key: "dayof", label: "יום האירוע", hint: "חי" },
+    { key: "returns", label: "חזור", hint: "לוח יציאות" },
+    { key: "manifest", label: "מניפסט", hint: "נהגים" },
+  ];
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#F6F1EA] p-8 text-center font-black text-[#5a4634]" dir="rtl">
-        טוען ניהול הסעות…
+      <div className="tx-root grid place-items-center p-8" dir="rtl">
+        <div className="tx-hero text-center">
+          <div className="tx-live mx-auto mb-4" />
+          <div className="text-xl font-black">מאמתים הרשאות למרכז ההסעות...</div>
+        </div>
       </div>
     );
   }
 
   if (!canAccess) {
     return (
-      <div className="min-h-screen bg-[#F6F1EA] p-8" dir="rtl">
-        <div className="mx-auto max-w-lg rounded-3xl border border-[#eadfce] bg-white p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-black text-[#241A14]">ניהול הסעות</h1>
-          <p className="mt-3 text-sm text-[#6b6046]">
-            המודול אינו פעיל בחשבון זה. פנו לאדמין להפעלת התוסף.
+      <div className="tx-root grid place-items-center p-6" dir="rtl">
+        <div className="tx-hero max-w-xl text-center">
+          <div className="text-sm font-black uppercase tracking-[0.25em] text-[#d4a35c]">
+            Access denied
+          </div>
+          <h1 className="mt-3 text-3xl font-black">מודול ההסעות אינו פעיל</h1>
+          <p className="mt-3 text-sm text-[#93a0b8]">
+            אין לחשבון הנוכחי הרשאה לניהול הסעות. ניתן לפנות לאדמין להפעלת המודול.
           </p>
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="mt-6 rounded-2xl bg-[#241A2E] px-5 py-3 text-sm font-black text-white"
-          >
+          <button type="button" onClick={() => router.push("/dashboard")} className="tx-btn primary mt-6">
             חזרה לדשבורד
           </button>
         </div>
@@ -505,1102 +753,966 @@ export default function TransportationDashboardPage() {
 
   if (!eventId) {
     return (
-      <div className="min-h-screen bg-[#F6F1EA] p-8 text-center" dir="rtl">
-        <p className="font-black text-[#5a4634]">חסר מזהה אירוע</p>
-      </div>
-    );
-  }
-
-  if (error === "TRANSPORTATION_NOT_ALLOWED" || error === "UNAUTHORIZED") {
-    return (
-      <div className="min-h-screen bg-[#F6F1EA] p-8" dir="rtl">
-        <div className="mx-auto max-w-lg rounded-3xl border border-rose-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-black text-rose-800">אין הרשאה</h1>
-          <p className="mt-2 text-sm text-[#6b6046]">גישה לניהול הסעות חסומה.</p>
+      <div className="tx-root grid place-items-center p-6" dir="rtl">
+        <div className="tx-hero max-w-xl text-center">
+          <h1 className="text-2xl font-black">חסר מזהה אירוע</h1>
+          <p className="mt-2 text-sm text-[#93a0b8]">פתחו את מרכז ההסעות מתוך אירוע פעיל.</p>
         </div>
       </div>
     );
   }
 
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: "overview", label: "סקירה" },
-    { key: "routes", label: "קווים ותחנות" },
-    { key: "passengers", label: "נוסעים" },
-    { key: "dayof", label: "יום האירוע" },
-    { key: "manifest", label: "מניפסט נהג" },
-  ];
+  if (loading) {
+    return (
+      <div className="tx-root grid place-items-center p-8" dir="rtl">
+        <div className="tx-hero text-center">
+          <div className="tx-live mx-auto mb-4" />
+          <div className="text-xl font-black">טוען תמונת מצב לוגיסטית...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#F6F1EA]" dir="rtl">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard")}
-              className="mb-2 text-sm font-bold text-[#8B5E34]"
-            >
-              ← חזרה לדשבורד
-            </button>
-            <h1 className="font-serif text-3xl font-black text-[#241A14] md:text-4xl">
-              ניהול הסעות
-            </h1>
-            <p className="mt-1 text-sm text-[#6b6046]">
-              קווים, תחנות, הרשמות וניהול חי ביום האירוע
-            </p>
-          </div>
+    <div className="tx-root" dir="rtl">
+      <main className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-8">
+        <section className="tx-hero">
+          <div className="relative z-[1]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="mb-4 text-sm font-black text-[#d4a35c]"
+                >
+                  חזרה לדשבורד
+                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="tx-chip available">
+                    <span className="tx-live" />
+                    Control Center Live
+                  </span>
+                  <span className="tx-chip filling">RTL Logistics</span>
+                </div>
+                <h1 className="mt-4 text-4xl font-black tracking-tight text-white md:text-6xl">
+                  הסעות לאירוע
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#93a0b8] md:text-base">
+                  מרכז פיקוד פרימיום לקווים, תחנות, קיבולת, רשימות המתנה וניהול עלייה בזמן אמת.
+                </p>
+              </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => toggleSettings("enabled")}
-              className={`rounded-2xl border px-4 py-2 text-sm font-black ${
-                settings?.enabled
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                  : "border-[#eadfce] bg-white text-[#6b6046]"
-              }`}
-            >
-              {settings?.enabled ? "מודול פעיל" : "מודול כבוי"}
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleSettings("guestRegistrationEnabled")}
-              className={`rounded-2xl border px-4 py-2 text-sm font-black ${
-                settings?.guestRegistrationEnabled
-                  ? "border-[#c79a55] bg-[#fff7ea] text-[#5a4634]"
-                  : "border-[#eadfce] bg-white text-[#6b6046]"
-              }`}
-            >
-              {settings?.guestRegistrationEnabled
-                ? "הרשמת אורחים פתוחה"
-                : "הרשמת אורחים סגורה"}
-            </button>
-            <button
-              type="button"
-              onClick={() => exportExcel("all")}
-              className="rounded-2xl bg-[#241A2E] px-4 py-2 text-sm font-black text-white"
-            >
-              ייצוא Excel
-            </button>
-          </div>
-        </div>
+              <div className="min-w-[220px] rounded-[24px] border border-[#2a3a55] bg-[#0b1220]/60 p-5 text-center">
+                <div className="text-xs font-black uppercase tracking-[0.25em] text-[#93a0b8]">
+                  Total registered
+                </div>
+                <div className="mt-2 text-5xl font-black text-[#d4a35c]">
+                  {summary?.totalRegistered ?? 0}
+                </div>
+                <div className="mt-1 text-xs text-[#93a0b8]">
+                  {summary?.outboundPassengers ?? 0} הלוך · {summary?.returnPassengers ?? 0} חזור
+                </div>
+              </div>
+            </div>
 
-        {toast && (
-          <div className="mb-4 rounded-2xl border border-[#c79a55] bg-[#fff7ea] px-4 py-3 text-sm font-bold text-[#5a4634]">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric label="קווים פעילים" value={summary?.routeCount ?? activeRoutes.length} hint="מסלולים פתוחים" />
+              <Metric label="מקומות פנויים" value={summary?.remainingSeats ?? 0} hint={`${summary?.totalSeats ?? 0} מושבים בסך הכל`} />
+              <Metric label="בהמתנה" value={summary?.waitlistedPassengers ?? summary?.waitlistedCount ?? 0} hint={`${summary?.waitlistedCount ?? 0} בקשות`} />
+              <Metric label="חריגות" value={summary?.issues?.length ?? 0} hint="קווים מלאים / כמעט מלאים" />
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {tabs.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setTab(item.key)}
+                    className={`tx-tab ${tab === item.key ? "active" : ""}`}
+                  >
+                    {item.label}
+                    <span className="mr-2 text-[10px] opacity-70">{item.hint}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => toggleSettings("enabled")}
+                  className={`tx-btn ${settings?.enabled ? "primary" : ""}`}
+                >
+                  {settings?.enabled ? "המודול פעיל" : "המודול כבוי"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => toggleSettings("guestRegistrationEnabled")}
+                  className={`tx-btn ${settings?.guestRegistrationEnabled ? "primary" : ""}`}
+                >
+                  {settings?.guestRegistrationEnabled ? "אורחים פתוח" : "אורחים סגור"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => toggleSettings("waitlistEnabled")}
+                  className={`tx-btn ${settings?.waitlistEnabled ? "primary" : ""}`}
+                >
+                  {settings?.waitlistEnabled ? "המתנה פעילה" : "המתנה כבויה"}
+                </button>
+                <button type="button" onClick={() => exportExcel("all")} className="tx-btn">
+                  ייצוא Excel
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {toast ? (
+          <div className="mt-4 rounded-[20px] border border-[#d4a35c]/40 bg-[#d4a35c]/15 px-4 py-3 text-sm font-black text-[#ffe0a5]">
             {toast}
           </div>
-        )}
+        ) : null}
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-                tab === t.key
-                  ? "bg-[#241A2E] text-white"
-                  : "border border-[#eadfce] bg-white text-[#5a4634]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {error ? (
+          <div className="mt-4 rounded-[20px] border border-[#e06b6b]/40 bg-[#e06b6b]/12 px-4 py-3 text-sm font-black text-[#ffc2c2]">
+            {error === "TRANSPORTATION_NOT_ALLOWED" || error === "UNAUTHORIZED"
+              ? "אין הרשאה לגשת לניהול ההסעות."
+              : "לא הצלחנו לטעון את מרכז ההסעות."}
+          </div>
+        ) : null}
 
-        {tab === "overview" && (
-          <section className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
-              {[
-                ["קווי הסעה", summary?.routeCount ?? 0],
-                ["סך מקומות", summary?.totalSeats ?? 0],
-                ["סך נרשמים", summary?.totalRegistered ?? 0],
-                ["מקומות פנויים", summary?.remainingSeats ?? 0],
-                ["נוסעים בהלוך", summary?.outboundPassengers ?? 0],
-                ["נוסעים בחזור", summary?.returnPassengers ?? 0],
-                ["בלי הסעה", summary?.guestsWithoutTransportCount ?? 0],
-                ["קווים מלאים", summary?.fullRoutes ?? 0],
-                ["כמעט מלאים", summary?.almostFullRoutes ?? 0],
-                ["חריגות", summary?.issues?.length ?? 0],
-              ].map(([label, value]) => (
-                <div
-                  key={String(label)}
-                  className="rounded-3xl border border-[#eadfce] bg-white p-4 shadow-sm"
-                >
-                  <div className="text-xs font-bold text-[#9a8771]">{label}</div>
-                  <div className="mt-2 text-2xl font-black text-[#241A14]">{value}</div>
-                </div>
-              ))}
-            </div>
-
-            {summary?.issues?.length > 0 && (
-              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
-                <h3 className="font-black text-amber-900">חריגות / בעיות</h3>
-                <ul className="mt-2 space-y-1 text-sm text-amber-900">
-                  {summary.issues.map((issue: string) => (
-                    <li key={issue}>• {issue}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(summary?.routes || []).map((r: any) => (
-                <div
-                  key={r.routeId}
-                  className="rounded-3xl border border-[#eadfce] bg-white p-5"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div>
-                      <div className="font-black text-[#241A14]">{r.name}</div>
-                      <div className="text-xs text-[#9a8771]">
-                        {DIRECTION_LABEL[r.direction] || r.direction}
-                        {r.departureTime ? ` · ${r.departureTime}` : ""}
+        <div className="mt-6">
+          {tab === "overview" && (
+            <section className="space-y-5">
+              {(summary?.waitlistOpportunities || []).length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(summary?.waitlistOpportunities || []).map((item) => (
+                    <div
+                      key={item.routeId}
+                      className="rounded-[22px] border border-[#5ec4a8]/30 bg-[#5ec4a8]/10 p-4"
+                    >
+                      <div className="text-xs font-black uppercase tracking-[0.2em] text-[#6fd3a8]">
+                        הזדמנות מרשימת המתנה
                       </div>
+                      <div className="mt-2 text-lg font-black text-white">{item.message}</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRouteId(item.routeId);
+                          setTab("waitlist");
+                        }}
+                        className="tx-btn primary mt-3"
+                      >
+                        בדיקת מועמדים
+                      </button>
                     </div>
-                    <span className="rounded-full bg-[#F6F1EA] px-3 py-1 text-xs font-bold text-[#5a4634]">
-                      {r.status}
-                    </span>
-                  </div>
-                  <CapacityBar
-                    registered={r.registered}
-                    capacity={r.capacity}
-                    level={r.level}
-                  />
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              ) : null}
 
-        {tab === "routes" && (
-          <section className="grid gap-6 lg:grid-cols-[340px_1fr]">
-            <div className="space-y-4">
-              <div className="rounded-3xl border border-[#eadfce] bg-white p-5">
-                <h3 className="mb-3 font-black text-[#241A14]">יצירת קו חדש</h3>
-                <div className="space-y-2">
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="שם הקו (לדוגמה: חיפה)"
-                    value={routeForm.name}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, name: e.target.value }))
-                    }
-                  />
-                  <select
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    value={routeForm.direction}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, direction: e.target.value }))
-                    }
-                  >
+              {(summary?.issues || []).length > 0 ? (
+                <div className="rounded-[24px] border border-[#e0b35a]/35 bg-[#e0b35a]/10 p-5">
+                  <div className="text-lg font-black text-[#ffd28a]">חריגות תפעוליות</div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {(summary?.issues || []).map((issue) => (
+                      <div key={issue} className="rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm text-[#f5d8a8]">
+                        {issue}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {(summary?.routes || []).map((r) => {
+                  const route = routeMap.get(id(r.routeId));
+                  const stopsForRoute = routeStops(id(r.routeId)).slice(0, 5);
+                  const level = normalizeLevel(r.level, r.legacyLevel);
+                  return (
+                    <article key={r.routeId} className="tx-route-card">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CapacityChip level={r.level} legacyLevel={r.legacyLevel} />
+                            {Number(r.waitlistedPassengers || 0) > 0 ? (
+                              <span className="tx-chip full">+{r.waitlistedPassengers} בהמתנה</span>
+                            ) : null}
+                            <span className="tx-chip">{STATUS_LABEL[r.status || ""] || r.status || "פעיל"}</span>
+                          </div>
+                          <h2 className="mt-3 text-2xl font-black text-white">{r.name}</h2>
+                          <p className="mt-1 text-sm text-[#93a0b8]">
+                            {DIRECTION_LABEL[r.direction] || r.direction}
+                            {routeClock(r) ? ` · ${routeClock(r)}` : ""}
+                            {r.driverName ? ` · נהג ${r.driverName}` : ""}
+                            {r.vehicleNumber ? ` · רכב ${r.vehicleNumber}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <CapacityRing registered={r.registered} capacity={r.capacity} level={level} />
+                          <div className="text-sm">
+                            <div className="font-black text-white">
+                              {r.registered}/{r.capacity}
+                            </div>
+                            <div className="text-[#93a0b8]">{r.remaining} פנויים</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 tx-timeline">
+                        {stopsForRoute.map((stop, index) => (
+                          <div key={stop._id} className={`tx-stop ${index === stopsForRoute.length - 1 ? "is-venue" : ""}`}>
+                            <div className="text-sm font-black text-white">
+                              {stop.name}
+                              {stop.time ? ` · ${stop.time}` : ""}
+                            </div>
+                            <div className="text-xs text-[#93a0b8]">
+                              {stop.address || stop.landmark || "נקודה לוגיסטית"}
+                            </div>
+                          </div>
+                        ))}
+                        {stopsForRoute.length === 0 ? (
+                          <div className="text-sm font-bold text-[#93a0b8]">אין תחנות מוגדרות לקו זה.</div>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRouteId(id(r.routeId));
+                            setTab("dayof");
+                          }}
+                          className="tx-btn primary"
+                        >
+                          ניהול עלייה
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRouteId(id(r.routeId));
+                            setTab("routes");
+                          }}
+                          className="tx-btn"
+                        >
+                          תחנות וקיבולת
+                        </button>
+                        <button type="button" onClick={() => exportExcel("manifest", id(r.routeId))} className="tx-btn">
+                          מניפסט נהג
+                        </button>
+                        {route ? (
+                          <button
+                            type="button"
+                            onClick={() => updateRouteStatus(route._id, route.status === "boarding" ? "departed" : "boarding")}
+                            className="tx-btn"
+                          >
+                            {route.status === "boarding" ? "סמן יצא" : "פתח עלייה"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {(summary?.routes || []).length === 0 ? <EmptyState text="אין עדיין קווי הסעה. עברו לטאב קווים ופתחו את הקו הראשון." /> : null}
+            </section>
+          )}
+
+          {tab === "routes" && (
+            <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
+              <aside className="tx-route-card h-fit">
+                <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">
+                  Route Builder
+                </div>
+                <h2 className="mt-2 text-2xl font-black text-white">יצירת קו חדש</h2>
+                <div className="mt-5 space-y-3">
+                  <input className="tx-input" placeholder="שם הקו" value={routeForm.name} onChange={(e) => setRouteForm((p) => ({ ...p, name: e.target.value }))} />
+                  <select className="tx-select" value={routeForm.direction} onChange={(e) => setRouteForm((p) => ({ ...p, direction: e.target.value }))}>
                     <option value="outbound">הלוך</option>
                     <option value="return">חזור</option>
                     <option value="round_trip">הלוך וחזור</option>
                   </select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                      placeholder="שעת יציאה"
-                      value={routeForm.departureTime}
-                      onChange={(e) =>
-                        setRouteForm((p) => ({
-                          ...p,
-                          departureTime: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                      placeholder="שעת חזרה"
-                      value={routeForm.returnTime}
-                      onChange={(e) =>
-                        setRouteForm((p) => ({
-                          ...p,
-                          returnTime: e.target.value,
-                        }))
-                      }
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="tx-input" placeholder="שעת יציאה" value={routeForm.departureTime} onChange={(e) => setRouteForm((p) => ({ ...p, departureTime: e.target.value }))} />
+                    <input className="tx-input" placeholder="שעת חזרה" value={routeForm.returnTime} onChange={(e) => setRouteForm((p) => ({ ...p, returnTime: e.target.value }))} />
                   </div>
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="קיבולת"
-                    value={routeForm.capacity}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, capacity: e.target.value }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="חברת הסעות"
-                    value={routeForm.companyName}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, companyName: e.target.value }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="שם נהג"
-                    value={routeForm.driverName}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, driverName: e.target.value }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="טלפון נהג"
-                    value={routeForm.driverPhone}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, driverPhone: e.target.value }))
-                    }
-                  />
-                  <input
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="מספר אוטובוס"
-                    value={routeForm.vehicleNumber}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({
-                        ...p,
-                        vehicleNumber: e.target.value,
-                      }))
-                    }
-                  />
-                  <textarea
-                    className="w-full rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                    placeholder="הערות"
-                    value={routeForm.notes}
-                    onChange={(e) =>
-                      setRouteForm((p) => ({ ...p, notes: e.target.value }))
-                    }
-                  />
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={createRoute}
-                    className="w-full rounded-2xl bg-[#8f6437] px-4 py-3 text-sm font-black text-white disabled:opacity-60"
-                  >
-                    יצירת קו
+                  <input className="tx-input" inputMode="numeric" placeholder="קיבולת" value={routeForm.capacity} onChange={(e) => setRouteForm((p) => ({ ...p, capacity: e.target.value }))} />
+                  <input className="tx-input" placeholder="חברת הסעות" value={routeForm.companyName} onChange={(e) => setRouteForm((p) => ({ ...p, companyName: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="tx-input" placeholder="שם נהג" value={routeForm.driverName} onChange={(e) => setRouteForm((p) => ({ ...p, driverName: e.target.value }))} />
+                    <input className="tx-input" placeholder="טלפון נהג" value={routeForm.driverPhone} onChange={(e) => setRouteForm((p) => ({ ...p, driverPhone: e.target.value }))} />
+                  </div>
+                  <input className="tx-input" placeholder="מספר אוטובוס / רכב" value={routeForm.vehicleNumber} onChange={(e) => setRouteForm((p) => ({ ...p, vehicleNumber: e.target.value }))} />
+                  <textarea className="tx-textarea min-h-[92px]" placeholder="הערות תפעוליות" value={routeForm.notes} onChange={(e) => setRouteForm((p) => ({ ...p, notes: e.target.value }))} />
+                  <button type="button" disabled={busy} onClick={createRoute} className="tx-btn primary w-full">
+                    פתיחת קו
                   </button>
                 </div>
-              </div>
-            </div>
+              </aside>
 
-            <div className="space-y-4">
-              {routes.length === 0 && (
-                <div className="rounded-3xl border border-dashed border-[#d8c7ad] bg-white/70 p-8 text-center text-sm text-[#6b6046]">
-                  עדיין אין קווי הסעה. צרו את הקו הראשון.
-                </div>
-              )}
-
-              {routes.map((route) => {
-                const routeSummary = (summary?.routes || []).find(
-                  (r: any) => r.routeId === route._id
-                );
-                const isSelected = selectedRouteId === route._id;
-                return (
-                  <div
-                    key={route._id}
-                    className={`rounded-3xl border bg-white p-5 ${
-                      isSelected ? "border-[#c79a55]" : "border-[#eadfce]"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className="w-full text-right"
-                      onClick={() => setSelectedRouteId(route._id)}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-lg font-black text-[#241A14]">
-                            {route.name}
-                          </div>
-                          <div className="text-xs text-[#9a8771]">
-                            {DIRECTION_LABEL[route.direction]} · קיבולת{" "}
-                            {route.capacity}
-                            {route.departureTime
-                              ? ` · יציאה ${route.departureTime}`
-                              : ""}
-                          </div>
-                          {(route.driverName || route.companyName) && (
-                            <div className="mt-1 text-xs text-[#6b6046]">
-                              {route.companyName}
-                              {route.driverName ? ` · ${route.driverName}` : ""}
-                              {route.driverPhone ? ` · ${route.driverPhone}` : ""}
-                            </div>
-                          )}
-                        </div>
-                        {routeSummary && (
-                          <div className="w-40">
-                            <CapacityBar
-                              registered={routeSummary.registered}
-                              capacity={routeSummary.capacity}
-                              level={routeSummary.level}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-
-                    {isSelected && (
-                      <div className="mt-4 border-t border-[#efe4d6] pt-4">
-                        <h4 className="mb-2 font-black text-[#241A14]">
-                          נקודות איסוף / הורדה
-                        </h4>
-                        <div className="mb-3 space-y-2">
-                          {selectedRouteStops.map((stop, index) => (
-                            <div
-                              key={stop._id}
-                              className="flex items-center justify-between gap-2 rounded-2xl bg-[#FBF7F0] px-3 py-2"
-                            >
-                              <div>
-                                <div className="text-sm font-black text-[#241A14]">
-                                  {index + 1}. {stop.name}
-                                  {stop.time ? ` · ${stop.time}` : ""}
-                                </div>
-                                <div className="text-xs text-[#6b6046]">
-                                  {stop.address}
-                                  {stop.landmark ? ` · ${stop.landmark}` : ""}
-                                </div>
-                                {stop.mapLink && (
-                                  <a
-                                    href={stop.mapLink}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs font-bold text-[#8B5E34]"
-                                  >
-                                    Waze / מפה
-                                  </a>
-                                )}
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => moveStop(stop._id, -1)}
-                                  className="rounded-xl border border-[#eadfce] bg-white px-2 py-1 text-xs"
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => moveStop(stop._id, 1)}
-                                  className="rounded-xl border border-[#eadfce] bg-white px-2 py-1 text-xs"
-                                >
-                                  ↓
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {selectedRouteStops.length === 0 && (
-                            <p className="text-xs text-[#9a8771]">
-                              אין תחנות עדיין לקו זה.
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="grid gap-2 md:grid-cols-2">
-                          <input
-                            className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                            placeholder="שם תחנה"
-                            value={stopForm.name}
-                            onChange={(e) =>
-                              setStopForm((p) => ({ ...p, name: e.target.value }))
-                            }
-                          />
-                          <input
-                            className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                            placeholder="שעה"
-                            value={stopForm.time}
-                            onChange={(e) =>
-                              setStopForm((p) => ({ ...p, time: e.target.value }))
-                            }
-                          />
-                          <input
-                            className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm md:col-span-2"
-                            placeholder="כתובת מלאה"
-                            value={stopForm.address}
-                            onChange={(e) =>
-                              setStopForm((p) => ({
-                                ...p,
-                                address: e.target.value,
-                              }))
-                            }
-                          />
-                          <input
-                            className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                            placeholder="landmark / הוראות"
-                            value={stopForm.landmark}
-                            onChange={(e) =>
-                              setStopForm((p) => ({
-                                ...p,
-                                landmark: e.target.value,
-                              }))
-                            }
-                          />
-                          <input
-                            className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                            placeholder="קישור Waze/מפה"
-                            value={stopForm.mapLink}
-                            onChange={(e) =>
-                              setStopForm((p) => ({
-                                ...p,
-                                mapLink: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={createStop}
-                          className="mt-3 rounded-2xl bg-[#241A2E] px-4 py-2 text-sm font-black text-white"
-                        >
-                          הוספת תחנה
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {tab === "passengers" && (
-          <section className="space-y-4">
-            <div className="rounded-3xl border border-[#eadfce] bg-white p-5">
-              <h3 className="mb-3 font-black text-[#241A14]">הוספת נוסע ידנית</h3>
-              <div className="grid gap-2 md:grid-cols-3">
-                <input
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  placeholder="שם"
-                  value={regForm.name}
-                  onChange={(e) =>
-                    setRegForm((p) => ({ ...p, name: e.target.value }))
-                  }
-                />
-                <input
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  placeholder="טלפון"
-                  value={regForm.phone}
-                  onChange={(e) =>
-                    setRegForm((p) => ({ ...p, phone: e.target.value }))
-                  }
-                />
-                <input
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  placeholder="כמות נוסעים"
-                  value={regForm.passengerCount}
-                  onChange={(e) =>
-                    setRegForm((p) => ({
-                      ...p,
-                      passengerCount: e.target.value,
-                    }))
-                  }
-                />
-                <label className="flex items-center gap-2 text-sm font-bold">
-                  <input
-                    type="checkbox"
-                    checked={regForm.needsOutbound}
-                    onChange={(e) =>
-                      setRegForm((p) => ({
-                        ...p,
-                        needsOutbound: e.target.checked,
-                      }))
-                    }
-                  />
-                  הלוך
-                </label>
-                <select
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  value={regForm.outboundRouteId}
-                  onChange={(e) =>
-                    setRegForm((p) => ({
-                      ...p,
-                      outboundRouteId: e.target.value,
-                      outboundStopId: "",
-                    }))
-                  }
-                >
-                  <option value="">קו הלוך</option>
-                  {outboundRoutes.map((r) => (
-                    <option key={r._id} value={r._id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  value={regForm.outboundStopId}
-                  onChange={(e) =>
-                    setRegForm((p) => ({
-                      ...p,
-                      outboundStopId: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">תחנת איסוף</option>
-                  {stops
-                    .filter((s) => s.routeId === regForm.outboundRouteId)
-                    .map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.name}
-                        {s.time ? ` (${s.time})` : ""}
-                      </option>
-                    ))}
-                </select>
-                <label className="flex items-center gap-2 text-sm font-bold">
-                  <input
-                    type="checkbox"
-                    checked={regForm.needsReturn}
-                    onChange={(e) =>
-                      setRegForm((p) => ({
-                        ...p,
-                        needsReturn: e.target.checked,
-                      }))
-                    }
-                  />
-                  חזור
-                </label>
-                <select
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  value={regForm.returnRouteId}
-                  onChange={(e) =>
-                    setRegForm((p) => ({
-                      ...p,
-                      returnRouteId: e.target.value,
-                      returnStopId: "",
-                    }))
-                  }
-                >
-                  <option value="">קו/שעת חזור</option>
-                  {returnRoutes.map((r) => (
-                    <option key={r._id} value={r._id}>
-                      {r.name}
-                      {r.departureTime ? ` · ${r.departureTime}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-2xl border border-[#eadfce] px-3 py-2 text-sm"
-                  value={regForm.returnStopId}
-                  onChange={(e) =>
-                    setRegForm((p) => ({
-                      ...p,
-                      returnStopId: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">נקודת הורדה</option>
-                  {stops
-                    .filter((s) => s.routeId === regForm.returnRouteId)
-                    .map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={createRegistration}
-                className="mt-3 rounded-2xl bg-[#8f6437] px-4 py-2 text-sm font-black text-white"
-              >
-                הוספת נוסע
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <input
-                className="min-w-[200px] flex-1 rounded-2xl border border-[#eadfce] bg-white px-3 py-2 text-sm"
-                placeholder="חיפוש לפי שם / טלפון"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <select
-                className="rounded-2xl border border-[#eadfce] bg-white px-3 py-2 text-sm"
-                value={filterDirection}
-                onChange={(e) => setFilterDirection(e.target.value)}
-              >
-                <option value="all">כל הכיוונים</option>
-                <option value="outbound">הלוך</option>
-                <option value="return">חזור</option>
-                <option value="active">פעילים</option>
-                <option value="cancelled">מבוטלים</option>
-              </select>
-              <select
-                className="rounded-2xl border border-[#eadfce] bg-white px-3 py-2 text-sm"
-                value={filterRouteId}
-                onChange={(e) => setFilterRouteId(e.target.value)}
-              >
-                <option value="all">כל הקווים</option>
-                {routes.map((r) => (
-                  <option key={r._id} value={r._id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="rounded-2xl border border-[#eadfce] bg-white px-3 py-2 text-sm"
-                value={filterStopId}
-                onChange={(e) => setFilterStopId(e.target.value)}
-              >
-                <option value="all">כל התחנות</option>
-                {stops.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="overflow-x-auto rounded-3xl border border-[#eadfce] bg-white">
-              <table className="min-w-full text-sm">
-                <thead className="bg-[#FBF7F0] text-[#5a4634]">
-                  <tr>
-                    {[
-                      "שם",
-                      "טלפון",
-                      "כמות",
-                      "הלוך",
-                      "קו",
-                      "תחנה",
-                      "שעה",
-                      "חזור",
-                      "שעת חזור",
-                      "הורדה",
-                      "סטטוס",
-                      "פעולות",
-                    ].map((h) => (
-                      <th key={h} className="px-3 py-3 text-right font-black">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRegistrations.map((r) => {
-                    const outRoute = r.outboundRouteId
-                      ? routeMap.get(String(r.outboundRouteId))
-                      : null;
-                    const retRoute = r.returnRouteId
-                      ? routeMap.get(String(r.returnRouteId))
-                      : null;
-                    const outStop = r.outboundStopId
-                      ? stopMap.get(String(r.outboundStopId))
-                      : null;
-                    const retStop = r.returnStopId
-                      ? stopMap.get(String(r.returnStopId))
-                      : null;
-                    return (
-                      <tr key={r._id} className="border-t border-[#efe4d6]">
-                        <td className="px-3 py-3 font-bold">{r.name}</td>
-                        <td className="px-3 py-3">{r.phone}</td>
-                        <td className="px-3 py-3">{r.passengerCount}</td>
-                        <td className="px-3 py-3">
-                          {r.needsOutbound ? "כן" : "לא"}
-                        </td>
-                        <td className="px-3 py-3">{outRoute?.name || "—"}</td>
-                        <td className="px-3 py-3">{outStop?.name || "—"}</td>
-                        <td className="px-3 py-3">
-                          {outStop?.time || outRoute?.departureTime || "—"}
-                        </td>
-                        <td className="px-3 py-3">
-                          {r.needsReturn ? "כן" : "לא"}
-                        </td>
-                        <td className="px-3 py-3">
-                          {retRoute?.departureTime || retRoute?.returnTime || "—"}
-                        </td>
-                        <td className="px-3 py-3">{retStop?.name || "—"}</td>
-                        <td className="px-3 py-3">
-                          {r.status === "cancelled"
-                            ? "בוטל"
-                            : BOARD_LABEL[r.outboundBoardStatus] ||
-                              r.outboundBoardStatus}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            <select
-                              className="rounded-xl border border-[#eadfce] px-2 py-1 text-xs"
-                              value={String(r.outboundRouteId || "")}
-                              onChange={(e) =>
-                                patchRegistration(r._id, {
-                                  needsOutbound: true,
-                                  outboundRouteId: e.target.value,
-                                })
-                              }
-                            >
-                              <option value="">העבר קו</option>
-                              {outboundRoutes.map((route) => (
-                                <option key={route._id} value={route._id}>
-                                  {route.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm("לבטל הרשמה?")) {
-                                  patchRegistration(r._id, {
-                                    status: "cancelled",
-                                  });
-                                }
-                              }}
-                              className="rounded-xl border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700"
-                            >
-                              ביטול
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {filteredRegistrations.length === 0 && (
-                <div className="p-8 text-center text-sm text-[#9a8771]">
-                  אין נוסעים תואמים לסינון.
-                </div>
-              )}
-            </div>
-
-            {guestsWithoutTransport.length > 0 && (
-              <div className="rounded-3xl border border-[#eadfce] bg-white p-5">
-                <h3 className="font-black text-[#241A14]">
-                  אורחים שלא בחרו הסעה ({guestsWithoutTransport.length})
-                </h3>
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {guestsWithoutTransport.slice(0, 20).map((g) => (
-                    <div
-                      key={g._id}
-                      className="rounded-2xl bg-[#FBF7F0] px-3 py-2 text-sm"
-                    >
-                      <span className="font-bold">{g.name}</span>
-                      {g.phone ? ` · ${g.phone}` : ""}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {tab === "dayof" && (
-          <section className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {routes
-                .filter((r) => r.active)
-                .map((route) => {
-                  const routeRegs = registrations.filter(
-                    (reg) =>
-                      reg.status === "registered" &&
-                      (String(reg.outboundRouteId) === route._id ||
-                        String(reg.returnRouteId) === route._id)
-                  );
-                  const expected = routeRegs.reduce(
-                    (s, r) => s + Number(r.passengerCount || 0),
-                    0
-                  );
-                  const boarded = routeRegs
-                    .filter((r) => {
-                      if (String(r.outboundRouteId) === route._id) {
-                        return r.outboundBoardStatus === "boarded";
-                      }
-                      return r.returnBoardStatus === "boarded";
-                    })
-                    .reduce((s, r) => s + Number(r.passengerCount || 0), 0);
-                  const missing = Math.max(0, expected - boarded);
+              <div className="space-y-4">
+                {routes.map((route, index) => {
+                  const rSummary = summaryRouteMap.get(id(route._id));
+                  const level = normalizeLevel(rSummary?.level, rSummary?.legacyLevel);
+                  const selected = selectedRouteId === id(route._id);
+                  const routeStopList = routeStops(id(route._id));
                   return (
-                    <div
-                      key={route._id}
-                      className="rounded-3xl border border-[#eadfce] bg-white p-5"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="font-black text-[#241A14]">
-                            {route.name}
+                    <article key={route._id} className={`tx-route-card ${selected ? "border-[#d4a35c]" : ""}`}>
+                      <button type="button" onClick={() => setSelectedRouteId(id(route._id))} className="w-full text-right">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CapacityChip level={rSummary?.level} legacyLevel={rSummary?.legacyLevel} />
+                              <span className="tx-chip">{DIRECTION_LABEL[route.direction]}</span>
+                              {!route.active ? <span className="tx-chip full">כבוי</span> : null}
+                            </div>
+                            <h2 className="mt-2 text-2xl font-black text-white">{route.name}</h2>
+                            <p className="mt-1 text-sm text-[#93a0b8]">
+                              {routeClock(route) ? `${routeClock(route)} · ` : ""}
+                              {route.capacity} מקומות
+                              {route.companyName ? ` · ${route.companyName}` : ""}
+                              {route.driverName ? ` · ${route.driverName}` : ""}
+                            </p>
                           </div>
-                          <div className="text-xs text-[#9a8771]">
-                            {DIRECTION_LABEL[route.direction]}
-                            {route.departureTime
-                              ? ` · ${route.departureTime}`
-                              : ""}
+                          <div className="flex items-center gap-4">
+                            {rSummary ? (
+                              <>
+                                <CapacityRing registered={rSummary.registered} capacity={rSummary.capacity} level={level} />
+                                <div className="text-sm text-[#93a0b8]">
+                                  <div className="font-black text-white">{rSummary.remaining} פנויים</div>
+                                  <div>{rSummary.waitlistedPassengers || 0} בהמתנה</div>
+                                </div>
+                              </>
+                            ) : null}
                           </div>
                         </div>
-                        <select
-                          className="rounded-xl border border-[#eadfce] px-2 py-1 text-xs"
-                          value={route.status}
-                          onChange={(e) =>
-                            updateRouteStatus(route._id, e.target.value)
-                          }
-                        >
-                          <option value="scheduled">ממתין</option>
-                          <option value="boarding">עלייה</option>
+                      </button>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button type="button" disabled={index === 0 || busy} onClick={() => moveRoute(route._id, -1)} className="tx-btn">
+                          העלה בסדר
+                        </button>
+                        <button type="button" disabled={index === routes.length - 1 || busy} onClick={() => moveRoute(route._id, 1)} className="tx-btn">
+                          הורד בסדר
+                        </button>
+                        <select className="tx-select max-w-[180px]" value={route.status} onChange={(e) => updateRouteStatus(route._id, e.target.value)}>
+                          <option value="scheduled">מתוכנן</option>
+                          <option value="boarding">בעלייה</option>
                           <option value="departed">יצא</option>
-                          <option value="completed">הסתיים</option>
+                          <option value="completed">הושלם</option>
                           <option value="cancelled">בוטל</option>
                         </select>
                       </div>
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-2xl bg-[#FBF7F0] p-3">
-                          <div className="text-xs text-[#9a8771]">צפויים</div>
-                          <div className="text-xl font-black">{expected}</div>
-                        </div>
-                        <div className="rounded-2xl bg-emerald-50 p-3">
-                          <div className="text-xs text-emerald-700">עלו</div>
-                          <div className="text-xl font-black text-emerald-800">
-                            {boarded}
+
+                      {selected ? (
+                        <div className="mt-5 border-t border-[#2a3a55] pt-5">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h3 className="text-lg font-black text-white">תחנות במסלול</h3>
+                            <span className="text-sm font-bold text-[#93a0b8]">{routeStopList.length} תחנות</span>
                           </div>
-                        </div>
-                        <div className="rounded-2xl bg-rose-50 p-3">
-                          <div className="text-xs text-rose-700">חסרים</div>
-                          <div className="text-xl font-black text-rose-800">
-                            {missing}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        {stops
-                          .filter((s) => s.routeId === route._id)
-                          .sort((a, b) => a.sortOrder - b.sortOrder)
-                          .map((stop) => {
-                            const stopExpected = routeRegs
-                              .filter(
-                                (r) =>
-                                  String(r.outboundStopId) === stop._id ||
-                                  String(r.returnStopId) === stop._id
-                              )
-                              .reduce(
-                                (s, r) => s + Number(r.passengerCount || 0),
-                                0
-                              );
-                            const stopBoarded = routeRegs
-                              .filter((r) => {
-                                if (String(r.outboundStopId) === stop._id) {
-                                  return r.outboundBoardStatus === "boarded";
-                                }
-                                if (String(r.returnStopId) === stop._id) {
-                                  return r.returnBoardStatus === "boarded";
-                                }
-                                return false;
-                              })
-                              .reduce(
-                                (s, r) => s + Number(r.passengerCount || 0),
-                                0
-                              );
-                            return (
-                              <div
-                                key={stop._id}
-                                className="flex items-center justify-between rounded-2xl bg-[#FBF7F0] px-3 py-2 text-sm"
-                              >
-                                <span className="font-bold">{stop.name}</span>
-                                <span className="text-xs text-[#6b6046]">
-                                  {stopExpected} צפויים · {stopBoarded} עלו ·{" "}
-                                  {Math.max(0, stopExpected - stopBoarded)} חסרים
-                                </span>
-                              </div>
-                            );
-                          })}
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        {routeRegs.map((reg) => {
-                          const isOutbound =
-                            String(reg.outboundRouteId) === route._id;
-                          const boardStatus = isOutbound
-                            ? reg.outboundBoardStatus
-                            : reg.returnBoardStatus;
-                          return (
-                            <div
-                              key={reg._id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#efe4d6] px-3 py-2"
-                            >
-                              <div className="text-sm">
-                                <span className="font-black">{reg.name}</span>
-                                <span className="text-[#9a8771]">
-                                  {" "}
-                                  · {reg.passengerCount} · {reg.phone}
-                                </span>
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    patchRegistration(reg._id, {
-                                      [isOutbound
-                                        ? "outboundBoardStatus"
-                                        : "returnBoardStatus"]: "boarded",
-                                    })
-                                  }
-                                  className={`rounded-xl px-2 py-1 text-xs font-bold ${
-                                    boardStatus === "boarded"
-                                      ? "bg-emerald-600 text-white"
-                                      : "border border-emerald-200 bg-emerald-50 text-emerald-800"
-                                  }`}
-                                >
-                                  עלה
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    patchRegistration(reg._id, {
-                                      [isOutbound
-                                        ? "outboundBoardStatus"
-                                        : "returnBoardStatus"]: "no_show",
-                                    })
-                                  }
-                                  className={`rounded-xl px-2 py-1 text-xs font-bold ${
-                                    boardStatus === "no_show"
-                                      ? "bg-rose-600 text-white"
-                                      : "border border-rose-200 bg-rose-50 text-rose-800"
-                                  }`}
-                                >
-                                  חסר
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </section>
-        )}
-
-        {tab === "manifest" && (
-          <section className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {routes.map((r) => (
-                <button
-                  key={r._id}
-                  type="button"
-                  onClick={() => setSelectedRouteId(r._id)}
-                  className={`rounded-2xl px-4 py-2 text-sm font-black ${
-                    selectedRouteId === r._id
-                      ? "bg-[#241A2E] text-white"
-                      : "border border-[#eadfce] bg-white"
-                  }`}
-                >
-                  {r.name}
-                </button>
-              ))}
-              {selectedRouteId && (
-                <button
-                  type="button"
-                  onClick={() => exportExcel("manifest", selectedRouteId)}
-                  className="rounded-2xl bg-[#8f6437] px-4 py-2 text-sm font-black text-white"
-                >
-                  ייצוא מניפסט
-                </button>
-              )}
-            </div>
-
-            {selectedRouteId && (
-              <div className="rounded-3xl border border-[#eadfce] bg-white p-5">
-                {(() => {
-                  const route = routeMap.get(selectedRouteId);
-                  if (!route) return null;
-                  const routeStops = stops
-                    .filter((s) => s.routeId === selectedRouteId)
-                    .sort((a, b) => a.sortOrder - b.sortOrder);
-                  const routeRegs = registrations.filter(
-                    (r) =>
-                      r.status === "registered" &&
-                      (String(r.outboundRouteId) === selectedRouteId ||
-                        String(r.returnRouteId) === selectedRouteId)
-                  );
-                  return (
-                    <>
-                      <h3 className="text-xl font-black text-[#241A14]">
-                        Passenger Manifest — {route.name}
-                      </h3>
-                      <p className="text-sm text-[#6b6046]">
-                        {DIRECTION_LABEL[route.direction]}
-                        {route.departureTime
-                          ? ` · יציאה ${route.departureTime}`
-                          : ""}
-                        {route.driverName ? ` · נהג ${route.driverName}` : ""}
-                        {route.vehicleNumber
-                          ? ` · רכב ${route.vehicleNumber}`
-                          : ""}
-                      </p>
-
-                      {routeStops.map((stop) => {
-                        const stopRegs = routeRegs.filter(
-                          (r) =>
-                            String(r.outboundStopId) === stop._id ||
-                            String(r.returnStopId) === stop._id
-                        );
-                        return (
-                          <div key={stop._id} className="mt-5">
-                            <div className="mb-2 font-black text-[#241A14]">
-                              {stop.name}
-                              {stop.time ? ` · ${stop.time}` : ""}
-                            </div>
-                            <div className="space-y-2">
-                              {stopRegs.map((reg) => {
-                                const isOutbound =
-                                  String(reg.outboundRouteId) ===
-                                  selectedRouteId;
-                                const boarded = isOutbound
-                                  ? reg.outboundBoardStatus === "boarded"
-                                  : reg.returnBoardStatus === "boarded";
-                                return (
-                                  <div
-                                    key={reg._id}
-                                    className="flex items-center justify-between rounded-2xl bg-[#FBF7F0] px-3 py-2 text-sm"
-                                  >
-                                    <div>
-                                      <span className="font-black">
-                                        {reg.name}
-                                      </span>
-                                      <span className="text-[#9a8771]">
-                                        {" "}
-                                        · {reg.phone} · {reg.passengerCount}
-                                      </span>
+                          <div className="mt-4 tx-timeline">
+                            {routeStopList.map((stop, stopIndex) => (
+                              <div key={stop._id} className="tx-stop">
+                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0b1220]/50 px-3 py-2">
+                                  <div>
+                                    <div className="font-black text-white">
+                                      {stopIndex + 1}. {stop.name}
+                                      {stop.time ? ` · ${stop.time}` : ""}
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        patchRegistration(reg._id, {
-                                          [isOutbound
-                                            ? "outboundBoardStatus"
-                                            : "returnBoardStatus"]: boarded
-                                            ? "registered"
-                                            : "boarded",
-                                        })
-                                      }
-                                      className={`rounded-xl px-3 py-1 text-xs font-black ${
-                                        boarded
-                                          ? "bg-emerald-600 text-white"
-                                          : "border border-[#eadfce] bg-white"
-                                      }`}
-                                    >
-                                      {boarded ? "YES" : "NO"}
+                                    <div className="text-xs text-[#93a0b8]">
+                                      {stop.address || "ללא כתובת"}
+                                      {stop.landmark ? ` · ${stop.landmark}` : ""}
+                                    </div>
+                                    {stop.mapLink ? (
+                                      <a href={stop.mapLink} target="_blank" rel="noreferrer" className="text-xs font-black text-[#d4a35c]">
+                                        פתיחה במפה
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button type="button" disabled={busy || stopIndex === 0} onClick={() => moveStop(stop._id, -1)} className="tx-btn">
+                                      למעלה
+                                    </button>
+                                    <button type="button" disabled={busy || stopIndex === routeStopList.length - 1} onClick={() => moveStop(stop._id, 1)} className="tx-btn">
+                                      למטה
                                     </button>
                                   </div>
-                                );
-                              })}
-                              {stopRegs.length === 0 && (
-                                <p className="text-xs text-[#9a8771]">
-                                  אין נוסעים בתחנה זו
-                                </p>
-                              )}
+                                </div>
+                              </div>
+                            ))}
+                            {routeStopList.length === 0 ? <div className="text-sm text-[#93a0b8]">אין תחנות עדיין לקו זה.</div> : null}
+                          </div>
+
+                          <div className="mt-5 grid gap-3 md:grid-cols-2">
+                            <input className="tx-input" placeholder="שם תחנה" value={stopForm.name} onChange={(e) => setStopForm((p) => ({ ...p, name: e.target.value }))} />
+                            <input className="tx-input" placeholder="שעה" value={stopForm.time} onChange={(e) => setStopForm((p) => ({ ...p, time: e.target.value }))} />
+                            <input className="tx-input md:col-span-2" placeholder="כתובת מלאה" value={stopForm.address} onChange={(e) => setStopForm((p) => ({ ...p, address: e.target.value }))} />
+                            <input className="tx-input" placeholder="נקודת ציון / הוראות" value={stopForm.landmark} onChange={(e) => setStopForm((p) => ({ ...p, landmark: e.target.value }))} />
+                            <input className="tx-input" placeholder="קישור Waze / מפה" value={stopForm.mapLink} onChange={(e) => setStopForm((p) => ({ ...p, mapLink: e.target.value }))} />
+                          </div>
+                          <button type="button" disabled={busy} onClick={createStop} className="tx-btn primary mt-3">
+                            הוספת תחנה
+                          </button>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+                {routes.length === 0 ? <EmptyState text="אין קווים עדיין. צרו קו חדש כדי להתחיל לבנות מסלולים." /> : null}
+              </div>
+            </section>
+          )}
+
+          {tab === "passengers" && (
+            <section className="space-y-5">
+              <div className="tx-route-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">Passenger Desk</div>
+                    <h2 className="mt-2 text-2xl font-black text-white">הוספת נוסע ידנית</h2>
+                  </div>
+                  <label className="tx-chip filling cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={regForm.waitlist}
+                      onChange={(e) => setRegForm((p) => ({ ...p, waitlist: e.target.checked }))}
+                    />
+                    הוסף לרשימת המתנה
+                  </label>
+                </div>
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  <input className="tx-input" placeholder="שם מלא" value={regForm.name} onChange={(e) => setRegForm((p) => ({ ...p, name: e.target.value }))} />
+                  <input className="tx-input" placeholder="טלפון" value={regForm.phone} onChange={(e) => setRegForm((p) => ({ ...p, phone: e.target.value }))} />
+                  <input className="tx-input" inputMode="numeric" placeholder="כמות נוסעים" value={regForm.passengerCount} onChange={(e) => setRegForm((p) => ({ ...p, passengerCount: e.target.value }))} />
+                  <label className="flex items-center gap-2 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm font-black text-white">
+                    <input type="checkbox" checked={regForm.needsOutbound} onChange={(e) => setRegForm((p) => ({ ...p, needsOutbound: e.target.checked }))} />
+                    צריך הלוך
+                  </label>
+                  <select className="tx-select" value={regForm.outboundRouteId} onChange={(e) => setRegForm((p) => ({ ...p, outboundRouteId: e.target.value, outboundStopId: "" }))}>
+                    <option value="">קו הלוך</option>
+                    {outboundRoutes.map((route) => {
+                      const s = summaryRouteMap.get(id(route._id));
+                      return (
+                        <option key={route._id} value={route._id}>
+                          {route.name} {routeClock(route) ? `· ${routeClock(route)}` : ""} {s ? `· ${s.remaining} פנויים` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select className="tx-select" value={regForm.outboundStopId} onChange={(e) => setRegForm((p) => ({ ...p, outboundStopId: e.target.value }))}>
+                    <option value="">תחנת איסוף</option>
+                    {routeStops(regForm.outboundRouteId).map((stop) => (
+                      <option key={stop._id} value={stop._id}>
+                        {stop.name}
+                        {stop.time ? ` · ${stop.time}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-2 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm font-black text-white">
+                    <input type="checkbox" checked={regForm.needsReturn} onChange={(e) => setRegForm((p) => ({ ...p, needsReturn: e.target.checked }))} />
+                    צריך חזור
+                  </label>
+                  <select className="tx-select" value={regForm.returnRouteId} onChange={(e) => setRegForm((p) => ({ ...p, returnRouteId: e.target.value, returnStopId: "" }))}>
+                    <option value="">קו / שעת חזור</option>
+                    {returnRoutes.map((route) => {
+                      const s = summaryRouteMap.get(id(route._id));
+                      return (
+                        <option key={route._id} value={route._id}>
+                          {route.name} {routeClock(route) ? `· ${routeClock(route)}` : ""} {s ? `· ${s.remaining} פנויים` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select className="tx-select" value={regForm.returnStopId} onChange={(e) => setRegForm((p) => ({ ...p, returnStopId: e.target.value }))}>
+                    <option value="">נקודת הורדה</option>
+                    {routeStops(regForm.returnRouteId).map((stop) => (
+                      <option key={stop._id} value={stop._id}>
+                        {stop.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <textarea className="tx-textarea mt-3 min-h-[80px]" placeholder="הערות" value={regForm.notes} onChange={(e) => setRegForm((p) => ({ ...p, notes: e.target.value }))} />
+                <button type="button" disabled={busy} onClick={createRegistration} className="tx-btn primary mt-3">
+                  {regForm.waitlist ? "הוספה להמתנה" : "שיבוץ נוסע"}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <input className="tx-input min-w-[220px] flex-1" placeholder="חיפוש לפי שם / טלפון" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <select className="tx-select max-w-[180px]" value={filterDirection} onChange={(e) => setFilterDirection(e.target.value)}>
+                  <option value="all">כל הנוסעים</option>
+                  <option value="outbound">הלוך</option>
+                  <option value="return">חזור</option>
+                  <option value="active">רשומים</option>
+                  <option value="waitlisted">בהמתנה</option>
+                  <option value="cancelled">מבוטלים</option>
+                </select>
+                <select className="tx-select max-w-[220px]" value={filterRouteId} onChange={(e) => setFilterRouteId(e.target.value)}>
+                  <option value="all">כל הקווים</option>
+                  {routes.map((route) => (
+                    <option key={route._id} value={route._id}>
+                      {route.name}
+                    </option>
+                  ))}
+                </select>
+                <select className="tx-select max-w-[220px]" value={filterStopId} onChange={(e) => setFilterStopId(e.target.value)}>
+                  <option value="all">כל התחנות</option>
+                  {stops.map((stop) => (
+                    <option key={stop._id} value={stop._id}>
+                      {stop.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tx-board overflow-x-auto">
+                <table className="tx-table min-w-[1180px]">
+                  <thead>
+                    <tr>
+                      {["נוסע", "טלפון", "כמות", "הלוך", "תחנת איסוף", "חזור", "הורדה", "סטטוס", "פעולות"].map((head) => (
+                        <th key={head}>{head}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRegistrations.map((reg) => {
+                      const outRoute = routeMap.get(id(reg.outboundRouteId));
+                      const retRoute = routeMap.get(id(reg.returnRouteId));
+                      const outStop = stopMap.get(id(reg.outboundStopId));
+                      const retStop = stopMap.get(id(reg.returnStopId));
+                      return (
+                        <tr key={reg._id}>
+                          <td>
+                            <div className="font-black text-white">{reg.name}</div>
+                            {reg.notes ? <div className="text-xs text-[#93a0b8]">{reg.notes}</div> : null}
+                          </td>
+                          <td>{reg.phone || "—"}</td>
+                          <td>{reg.passengerCount}</td>
+                          <td>{reg.needsOutbound ? outRoute?.name || "לא שובץ" : "לא"}</td>
+                          <td>{outStop?.name || "—"}</td>
+                          <td>{reg.needsReturn ? retRoute?.name || "לא שובץ" : "לא"}</td>
+                          <td>{retStop?.name || "—"}</td>
+                          <td>
+                            <span className={`tx-chip ${reg.status === "registered" ? "available" : reg.status === "waitlisted" ? "filling" : "full"}`}>
+                              {REG_STATUS_LABEL[reg.status] || reg.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex min-w-[320px] flex-wrap gap-2">
+                              <select className="tx-select max-w-[150px]" value={id(reg.outboundRouteId)} onChange={(e) => patchRegistration(reg._id, { needsOutbound: Boolean(e.target.value), outboundRouteId: e.target.value || null, outboundStopId: null })}>
+                                <option value="">ללא הלוך</option>
+                                {outboundRoutes.map((route) => (
+                                  <option key={route._id} value={route._id}>
+                                    {route.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <select className="tx-select max-w-[150px]" value={id(reg.returnRouteId)} onChange={(e) => patchRegistration(reg._id, { needsReturn: Boolean(e.target.value), returnRouteId: e.target.value || null, returnStopId: null })}>
+                                <option value="">ללא חזור</option>
+                                {returnRoutes.map((route) => (
+                                  <option key={route._id} value={route._id}>
+                                    {route.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {reg.status !== "cancelled" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm("לבטל הרשמה להסעה?")) patchRegistration(reg._id, { action: "cancel" });
+                                  }}
+                                  className="tx-btn danger"
+                                >
+                                  ביטול
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filteredRegistrations.length === 0 ? <EmptyState text="אין נוסעים תואמים לסינון הנוכחי." /> : null}
+              </div>
+
+              {guestsWithoutTransport.length > 0 ? (
+                <div className="tx-route-card">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-xl font-black text-white">
+                      אורחים ללא בחירת הסעה ({guestsWithoutTransport.length})
+                    </h3>
+                    <span className="text-sm text-[#93a0b8]">מוצגים עד 24 אורחים</span>
+                  </div>
+                  <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {guestsWithoutTransport.slice(0, 24).map((guest) => (
+                      <div key={guest._id} className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm">
+                        <span className="font-black text-white">{guest.name}</span>
+                        {guest.phone ? <span className="text-[#93a0b8]"> · {guest.phone}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          )}
+
+          {tab === "waitlist" && (
+            <section className="space-y-5">
+              {(summary?.waitlistOpportunities || []).length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(summary?.waitlistOpportunities || []).map((item) => (
+                    <div key={item.routeId} className="rounded-[22px] border border-[#5ec4a8]/30 bg-[#5ec4a8]/10 p-4">
+                      <div className="font-black text-[#6fd3a8]">{item.name}</div>
+                      <div className="mt-1 text-sm text-white">{item.message}</div>
+                      <div className="mt-1 text-xs text-[#93a0b8]">
+                        {item.remaining} מקומות פנויים מול {item.waitlistedPassengers} נוסעים בהמתנה
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {waitlistRows.map((reg) => {
+                  const outRoute = routeMap.get(id(reg.outboundRouteId));
+                  const retRoute = routeMap.get(id(reg.returnRouteId));
+                  const outRemaining = reg.needsOutbound ? summaryRouteMap.get(id(reg.outboundRouteId))?.remaining ?? 0 : null;
+                  const retRemaining = reg.needsReturn ? summaryRouteMap.get(id(reg.returnRouteId))?.remaining ?? 0 : null;
+                  const availableToCompare = remainingForRegistration(reg);
+                  const canFit = availableToCompare >= Number(reg.passengerCount || 0);
+                  return (
+                    <article key={reg._id} className="tx-route-card">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <span className={`tx-chip ${canFit ? "available" : "full"}`}>
+                            {canFit ? "ניתן לשקול קידום" : "אין מספיק מקומות"}
+                          </span>
+                          <h2 className="mt-3 text-2xl font-black text-white">{reg.name}</h2>
+                          <p className="mt-1 text-sm text-[#93a0b8]">
+                            {reg.phone || "ללא טלפון"} · {reg.passengerCount} נוסעים
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/50 px-4 py-3 text-sm">
+                          <div className="font-black text-white">בקשה מול קיבולת</div>
+                          <div className="mt-1 text-[#93a0b8]">
+                            מבקש {reg.passengerCount}; מינימום פנוי {availableToCompare}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {reg.needsOutbound ? (
+                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 p-3">
+                            <div className="text-xs font-black text-[#d4a35c]">הלוך</div>
+                            <div className="mt-1 font-black text-white">{outRoute?.name || "קו לא נמצא"}</div>
+                            <div className="text-sm text-[#93a0b8]">{outRemaining} מקומות פנויים</div>
+                          </div>
+                        ) : null}
+                        {reg.needsReturn ? (
+                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 p-3">
+                            <div className="text-xs font-black text-[#d4a35c]">חזור</div>
+                            <div className="mt-1 font-black text-white">{retRoute?.name || "קו לא נמצא"}</div>
+                            <div className="text-sm text-[#93a0b8]">{retRemaining} מקומות פנויים</div>
+                          </div>
+                        ) : null}
+                      </div>
+                      {reg.notes ? <div className="mt-3 rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm text-[#93a0b8]">{reg.notes}</div> : null}
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { action: "promote" })} className="tx-btn primary">
+                          אשר ושבץ
+                        </button>
+                        <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { action: "reject" })} className="tx-btn danger">
+                          דחה בקשה
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {waitlistRows.length === 0 ? <EmptyState text="רשימת ההמתנה ריקה כרגע." /> : null}
+            </section>
+          )}
+
+          {tab === "dayof" && (
+            <section className="grid gap-4 xl:grid-cols-2">
+              {activeRoutes.map((route) => {
+                const regs = routeRegistrations(id(route._id));
+                const expected = regs.reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0);
+                const boarded = regs
+                  .filter((reg) => reg[routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus"] === "boarded")
+                  .reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0);
+                const missing = Math.max(0, expected - boarded);
+                const currentStops = routeStops(id(route._id));
+                return (
+                  <article key={route._id} className="tx-route-card">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="tx-live" />
+                          <span className="tx-chip available">{STATUS_LABEL[route.status] || route.status}</span>
+                        </div>
+                        <h2 className="mt-3 text-2xl font-black text-white">{route.name}</h2>
+                        <p className="mt-1 text-sm text-[#93a0b8]">
+                          {DIRECTION_LABEL[route.direction]} {routeClock(route) ? `· ${routeClock(route)}` : ""}
+                        </p>
+                      </div>
+                      <select className="tx-select max-w-[170px]" value={route.status} onChange={(e) => updateRouteStatus(route._id, e.target.value)}>
+                        <option value="scheduled">מתוכנן</option>
+                        <option value="boarding">בעלייה</option>
+                        <option value="departed">יצא</option>
+                        <option value="completed">הושלם</option>
+                        <option value="cancelled">בוטל</option>
+                      </select>
+                    </div>
+                    <div className="mt-5 grid grid-cols-3 gap-3">
+                      <Metric label="צפויים" value={expected} />
+                      <Metric label="עלו" value={boarded} />
+                      <Metric label="חסרים" value={missing} />
+                    </div>
+                    <div className="mt-5 tx-timeline">
+                      {currentStops.map((stop) => {
+                        const stopRegs = regs.filter(
+                          (reg) => id(reg.outboundStopId) === id(stop._id) || id(reg.returnStopId) === id(stop._id)
+                        );
+                        const stopExpected = stopRegs.reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0);
+                        const stopBoarded = stopRegs
+                          .filter((reg) => reg[routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus"] === "boarded")
+                          .reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0);
+                        const stopMissing = Math.max(0, stopExpected - stopBoarded);
+                        return (
+                          <div key={stop._id} className="tx-stop">
+                            {stopExpected > 0 && stopMissing > 0 ? <span className="tx-bus" aria-hidden="true" /> : null}
+                            <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="font-black text-white">
+                                    {stop.name}
+                                    {stop.time ? ` · ${stop.time}` : ""}
+                                  </div>
+                                  <div className="text-xs text-[#93a0b8]">
+                                    {stopExpected} צפויים · {stopBoarded} עלו · {stopMissing} חסרים
+                                  </div>
+                                </div>
+                                <div className="h-2 w-24 overflow-hidden rounded-full bg-white/10">
+                                  <div
+                                    className="h-full rounded-full bg-[#d4a35c]"
+                                    style={{ width: `${stopExpected ? Math.round((stopBoarded / stopExpected) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
                       })}
-                    </>
+                    </div>
+                    <div className="mt-5 space-y-2">
+                      {regs.map((reg) => {
+                        const field = routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus";
+                        const boardStatus = reg[field];
+                        return (
+                          <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2">
+                            <div>
+                              <div className="font-black text-white">{reg.name}</div>
+                              <div className="text-xs text-[#93a0b8]">
+                                {reg.passengerCount} נוסעים · {reg.phone || "ללא טלפון"} · {BOARD_LABEL[boardStatus] || boardStatus}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { [field]: "boarded" })} className={`tx-btn ${boardStatus === "boarded" ? "primary" : ""}`}>
+                                עלה
+                              </button>
+                              <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { [field]: "no_show" })} className={`tx-btn ${boardStatus === "no_show" ? "danger" : ""}`}>
+                                חסר
+                              </button>
+                              <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { [field]: "checked_in" })} className="tx-btn">
+                                צ׳ק־אין
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {regs.length === 0 ? <div className="text-sm text-[#93a0b8]">אין נוסעים רשומים לקו זה.</div> : null}
+                    </div>
+                  </article>
+                );
+              })}
+              {activeRoutes.length === 0 ? <EmptyState text="אין קווים פעילים לניהול ביום האירוע." /> : null}
+            </section>
+          )}
+
+          {tab === "returns" && (
+            <section className="space-y-5">
+              <div className="tx-board">
+                <div className="tx-board-row bg-[#121a2b] text-xs font-black uppercase tracking-[0.25em] text-[#93a0b8]">
+                  <div>שעה</div>
+                  <div>קו חזור</div>
+                  <div>סטטוס</div>
+                </div>
+                {returnRoutes.map((route) => {
+                  const s = summaryRouteMap.get(id(route._id));
+                  return (
+                    <div key={route._id} className="tx-board-row">
+                      <div className="text-2xl font-black text-[#d4a35c]">{routeClock(route) || "TBD"}</div>
+                      <div>
+                        <div className="text-lg font-black text-white">{route.name}</div>
+                        <div className="text-sm text-[#93a0b8]">
+                          {s?.registered ?? 0}/{s?.capacity ?? route.capacity} נוסעים · {s?.remaining ?? 0} פנויים
+                          {route.driverName ? ` · ${route.driverName}` : ""}
+                          {route.vehicleNumber ? ` · ${route.vehicleNumber}` : ""}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {routeStops(id(route._id)).slice(0, 4).map((stop) => (
+                            <span key={stop._id} className="tx-chip">
+                              {stop.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <span className={`tx-chip ${route.status === "departed" || route.status === "completed" ? "available" : "filling"}`}>
+                          {STATUS_LABEL[route.status] || route.status}
+                        </span>
+                        <button type="button" onClick={() => updateRouteStatus(route._id, "boarding")} className="tx-btn">
+                          פתח עלייה
+                        </button>
+                        <button type="button" onClick={() => updateRouteStatus(route._id, "departed")} className="tx-btn primary">
+                          יצא
+                        </button>
+                      </div>
+                    </div>
                   );
-                })()}
+                })}
               </div>
-            )}
-          </section>
-        )}
-      </div>
+              {returnRoutes.length === 0 ? <EmptyState text="אין קווי חזור פעילים." /> : null}
+            </section>
+          )}
+
+          {tab === "manifest" && (
+            <section className="space-y-5">
+              <div className="flex flex-wrap gap-2">
+                {routes.map((route) => (
+                  <button
+                    key={route._id}
+                    type="button"
+                    onClick={() => setSelectedRouteId(id(route._id))}
+                    className={`tx-tab ${selectedRouteId === id(route._id) ? "active" : ""}`}
+                  >
+                    {route.name}
+                  </button>
+                ))}
+                {selectedRouteId ? (
+                  <button type="button" onClick={() => exportExcel("manifest", selectedRouteId)} className="tx-btn primary">
+                    ייצוא מניפסט נהג
+                  </button>
+                ) : null}
+              </div>
+
+              {selectedRouteId ? (
+                <article className="tx-route-card">
+                  {(() => {
+                    const route = routeMap.get(selectedRouteId);
+                    if (!route) return <EmptyState text="בחרו קו להצגת מניפסט." />;
+                    const regs = routeRegistrations(selectedRouteId);
+                    const stopsForManifest = routeStops(selectedRouteId);
+                    const unassigned = regs.filter(
+                      (reg) =>
+                        id(reg.outboundRouteId) === selectedRouteId
+                          ? !reg.outboundStopId
+                          : !reg.returnStopId
+                    );
+                    return (
+                      <>
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">
+                              Driver Manifest
+                            </div>
+                            <h2 className="mt-2 text-3xl font-black text-white">{route.name}</h2>
+                            <p className="mt-1 text-sm text-[#93a0b8]">
+                              {DIRECTION_LABEL[route.direction]} {routeClock(route) ? `· ${routeClock(route)}` : ""}
+                              {route.driverName ? ` · נהג ${route.driverName}` : ""}
+                              {route.driverPhone ? ` · ${route.driverPhone}` : ""}
+                              {route.vehicleNumber ? ` · רכב ${route.vehicleNumber}` : ""}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/50 px-4 py-3 text-center">
+                            <div className="text-xs text-[#93a0b8]">נוסעים במניפסט</div>
+                            <div className="text-3xl font-black text-white">
+                              {regs.reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 space-y-5">
+                          {stopsForManifest.map((stop) => {
+                            const stopRegs = regs.filter(
+                              (reg) => id(reg.outboundStopId) === id(stop._id) || id(reg.returnStopId) === id(stop._id)
+                            );
+                            return (
+                              <div key={stop._id} className="rounded-[22px] border border-[#2a3a55] bg-[#0b1220]/45 p-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <h3 className="text-xl font-black text-white">
+                                    {stop.name}
+                                    {stop.time ? ` · ${stop.time}` : ""}
+                                  </h3>
+                                  <span className="tx-chip">{stopRegs.length} רשומות</span>
+                                </div>
+                                <div className="mt-3 space-y-2">
+                                  {stopRegs.map((reg) => {
+                                    const field = routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus";
+                                    const boarded = reg[field] === "boarded";
+                                    return (
+                                      <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#121a2b] px-3 py-2">
+                                        <div>
+                                          <span className="font-black text-white">{reg.name}</span>
+                                          <span className="text-sm text-[#93a0b8]">
+                                            {" "}
+                                            · {reg.phone || "ללא טלפון"} · {reg.passengerCount} נוסעים
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => patchRegistration(reg._id, { [field]: boarded ? "registered" : "boarded" })}
+                                          className={`tx-btn ${boarded ? "primary" : ""}`}
+                                        >
+                                          {boarded ? "עלה" : "סמן עלה"}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                  {stopRegs.length === 0 ? <div className="text-sm text-[#93a0b8]">אין נוסעים בתחנה זו.</div> : null}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {unassigned.length > 0 ? (
+                            <div className="rounded-[22px] border border-[#e0b35a]/35 bg-[#e0b35a]/10 p-4">
+                              <h3 className="text-xl font-black text-[#ffd28a]">ללא תחנה משויכת</h3>
+                              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                {unassigned.map((reg) => (
+                                  <div key={reg._id} className="rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm">
+                                    <span className="font-black text-white">{reg.name}</span>
+                                    <span className="text-[#93a0b8]"> · {reg.passengerCount} נוסעים</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </article>
+              ) : (
+                <EmptyState text="בחרו קו להצגת מניפסט נהג." />
+              )}
+            </section>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
