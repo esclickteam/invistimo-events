@@ -15,6 +15,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import WaveMotion from "../illustrations/WaveMotion";
 
 const NAV = {
   bg: "rgba(240,248,255,0.92)",
@@ -138,8 +139,8 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
             </a>
           </motion.div>
         </div>
-        <div className="absolute inset-x-0 bottom-0">
-          <Wave />
+        <div className="absolute inset-x-0 bottom-0 z-10">
+          <WaveMotion color="#9AD7F2" />
         </div>
       </section>
 

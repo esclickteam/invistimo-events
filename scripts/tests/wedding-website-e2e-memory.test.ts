@@ -183,6 +183,48 @@ describe("Wedding Website memory E2E", () => {
     assert.equal(payload!.content.heroSubtitle, "עודכן מהדשבורד");
   });
 
+  it("themeOverrides + section toggles persist without touching invite", async () => {
+    const beforeInvite = await Invitation.findOne({ shareId: shareIdWW }).lean();
+    await WeddingWebsite.updateOne(
+      { shareId: shareIdWW },
+      {
+        $set: {
+          themeOverrides: {
+            accent: "#112233",
+            background: "#fafafa",
+            fontFamily: "playfair",
+            headingScale: 1.1,
+          },
+          sections: { faq: false, gifts: true },
+          "content.rsvpText": "אשרו הגעה בבקשה",
+          "content.parkingText": "חניה חינם",
+          "content.footerNote": "נתראה!",
+          "content.galleryUrls": [
+            "/wedding-media/kiss.jpg",
+            "/wedding-media/florals.jpg",
+          ],
+          "content.heroImageUrl": "/wedding-media/outdoorCouple.jpg",
+        },
+      }
+    );
+
+    const payload = await loadPublicWeddingSite({ shareId: shareIdWW });
+    assert.equal(payload!.themeOverrides.accent, "#112233");
+    assert.equal(payload!.themeOverrides.fontFamily, "playfair");
+    assert.equal(payload!.sections.faq, false);
+    assert.equal(payload!.content.rsvpText, "אשרו הגעה בבקשה");
+    assert.equal(payload!.content.parkingText, "חניה חינם");
+    assert.equal(payload!.content.heroImageUrl, "/wedding-media/outdoorCouple.jpg");
+    assert.deepEqual(payload!.content.galleryUrls, [
+      "/wedding-media/kiss.jpg",
+      "/wedding-media/florals.jpg",
+    ]);
+
+    const afterInvite = await Invitation.findOne({ shareId: shareIdWW }).lean();
+    assert.equal(String(beforeInvite!.shareId), String(afterInvite!.shareId));
+    assert.equal(beforeInvite!.title, afterInvite!.title);
+  });
+
   it("template switch does not change invitation shareId or guests", async () => {
     const beforeInvite = await Invitation.findOne({ shareId: shareIdWW }).lean();
     const beforeGuests = await InvitationGuest.countDocuments({

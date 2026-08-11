@@ -205,17 +205,17 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
             {images.slice(0, 6).map((src, i) => (
               <motion.figure
-                key={src}
+                key={`${src}-${i}`}
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className={`overflow-hidden border border-[#D4AF37]/20 ${i === 0 ? "md:col-span-2 md:row-span-2" : ""}`}
+                className="overflow-hidden border border-[#D4AF37]/20 bg-[#16131C]"
               >
                 <SafeImage
                   src={src}
                   alt=""
-                  className={`w-full object-cover ${i === 0 ? "h-full min-h-[280px]" : "aspect-square"}`}
+                  className="aspect-[4/5] w-full object-cover"
                 />
               </motion.figure>
             ))}

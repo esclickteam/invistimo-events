@@ -7,6 +7,7 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
+import FilmStripGallery from "../illustrations/FilmStripGallery";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 
@@ -276,21 +277,8 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
         <div className="mx-auto max-w-5xl px-6">
           <h2 className="text-center text-xs font-bold uppercase tracking-[0.4em]">גלריה</h2>
           <Rule className="mx-auto mt-4 mb-10 max-w-[80px]" />
-          <div className="grid grid-cols-2 gap-px bg-black md:grid-cols-3">
-            {images.slice(0, 6).map((src, i) => (
-              <motion.figure
-                key={src}
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="aspect-square overflow-hidden bg-neutral-100"
-              >
-                <SafeImage src={src} alt="" className="h-full w-full object-cover grayscale" />
-              </motion.figure>
-            ))}
-          </div>
         </div>
+        <FilmStripGallery images={images.slice(0, 6)} />
       </Section>
 
       <Section id="faq" className="border-t border-black py-20">

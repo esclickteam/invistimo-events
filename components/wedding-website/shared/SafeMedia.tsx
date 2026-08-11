@@ -56,7 +56,8 @@ export function SafeImage({
       src={current}
       alt={alt}
       className={className}
-      loading={rest.loading || "lazy"}
+      loading={rest.loading || "eager"}
+      decoding="async"
       onError={() => {
         if (current !== fallback) {
           setCurrent(fallback);

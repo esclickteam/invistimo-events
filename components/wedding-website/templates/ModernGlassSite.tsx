@@ -11,6 +11,7 @@ import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
+import GlassShimmer from "../illustrations/GlassShimmer";
 
 const ACCENT = "#7C9CFF";
 const NAV = {
@@ -119,9 +120,10 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.12 }}
-            className={`${glass} col-span-2 overflow-hidden md:col-span-2`}
+            className={`${glass} relative col-span-2 overflow-hidden md:col-span-2`}
           >
             <SafeImage src={heroImg} alt="" className="h-full min-h-[160px] w-full object-cover md:min-h-[220px]" />
+            <GlassShimmer />
           </motion.div>
 
           <motion.div
@@ -183,22 +185,20 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">גלריה</h2>
           <p className="mt-2 text-center text-sm text-[#8B97B8]">פסיפס עריכתי</p>
-          <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-4 md:grid-rows-2">
+          <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3">
             {images.slice(0, 6).map((src, i) => (
               <motion.figure
-                key={src}
+                key={`${src}-${i}`}
                 initial={{ opacity: 0, scale: 0.96 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
-                className={`overflow-hidden rounded-2xl border border-white/10 ${
-                  i === 0 ? "md:col-span-2 md:row-span-2" : ""
-                }`}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-white/5"
               >
                 <SafeImage
                   src={src}
                   alt=""
-                  className={`w-full object-cover ${i === 0 ? "aspect-square md:h-full" : "aspect-[4/3]"}`}
+                  className="aspect-[4/5] w-full object-cover"
                 />
               </motion.figure>
             ))}

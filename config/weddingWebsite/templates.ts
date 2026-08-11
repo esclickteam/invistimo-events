@@ -88,7 +88,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       "kiss",
       "ringsHands",
       "celebration",
-      "ceremony",
+      "outdoorCouple",
       "softPortrait"
     ),
     mood: "dramatic",
