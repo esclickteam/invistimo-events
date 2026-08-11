@@ -13,9 +13,17 @@ export interface ITransportRoute {
   date?: Date | null;
   departureTime?: string;
   returnTime?: string;
+  /** Outbound capacity (also the only capacity for outbound/return-only routes). */
   capacity: number;
-  /** Atomically maintained reserved seat count (registered passengers only). */
+  /** Atomically maintained reserved seat count for outbound (or sole) leg. */
   reservedSeats: number;
+  /**
+   * Return-leg capacity for round_trip routes.
+   * Unused for outbound/return-only routes (defaults to capacity).
+   */
+  returnCapacity: number;
+  /** Atomically maintained reserved seat count for return leg on round_trip. */
+  returnReservedSeats: number;
   companyName?: string;
   driverName?: string;
   driverPhone?: string;
@@ -69,6 +77,17 @@ const TransportRouteSchema = new Schema<ITransportRoute>(
       default: 50,
     },
     reservedSeats: {
+      type: Number,
+      min: 0,
+      default: 0,
+      index: true,
+    },
+    returnCapacity: {
+      type: Number,
+      min: 0,
+      default: 50,
+    },
+    returnReservedSeats: {
       type: Number,
       min: 0,
       default: 0,

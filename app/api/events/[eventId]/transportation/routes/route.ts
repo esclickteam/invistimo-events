@@ -4,6 +4,7 @@ import { requireTransportationManagement } from "@/lib/guards/requireTransportat
 import { getOrCreateEventTransportation, serializeDoc } from "@/lib/transportation/service";
 import TransportRoute from "@/models/TransportRoute";
 import { TRANSPORT_DIRECTIONS } from "@/lib/transportation/types";
+import { normalizeTimeInput } from "@/lib/transportation/time";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,31 @@ export async function POST(
       ? body.direction
       : "outbound";
 
+    const capacity = Math.max(0, Number(body.capacity ?? 50));
+    const returnCapacity = Math.max(
+      0,
+      Number(
+        body.returnCapacity !== undefined && body.returnCapacity !== ""
+          ? body.returnCapacity
+          : capacity
+      )
+    );
+
+    const departureTime = normalizeTimeInput(String(body.departureTime || ""));
+    const returnTime = normalizeTimeInput(String(body.returnTime || ""));
+    if (body.departureTime && !departureTime) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_DEPARTURE_TIME" },
+        { status: 400 }
+      );
+    }
+    if (body.returnTime && !returnTime) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_RETURN_TIME" },
+        { status: 400 }
+      );
+    }
+
     const count = await TransportRoute.countDocuments({ eventId });
 
     const route = await TransportRoute.create({
@@ -66,10 +92,12 @@ export async function POST(
       name,
       direction,
       date: body.date ? new Date(body.date) : null,
-      departureTime: String(body.departureTime || "").trim(),
-      returnTime: String(body.returnTime || "").trim(),
-      capacity: Math.max(0, Number(body.capacity ?? 50)),
+      departureTime,
+      returnTime,
+      capacity,
       reservedSeats: 0,
+      returnCapacity: direction === "round_trip" ? returnCapacity : capacity,
+      returnReservedSeats: 0,
       companyName: String(body.companyName || "").trim(),
       driverName: String(body.driverName || "").trim(),
       driverPhone: String(body.driverPhone || "").trim(),

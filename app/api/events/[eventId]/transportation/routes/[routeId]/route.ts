@@ -8,6 +8,7 @@ import {
   TRANSPORT_DIRECTIONS,
   TRANSPORT_ROUTE_STATUSES,
 } from "@/lib/transportation/types";
+import { normalizeTimeInput } from "@/lib/transportation/time";
 
 export const dynamic = "force-dynamic";
 
@@ -77,13 +78,30 @@ export async function PATCH(
       route.date = body.date ? new Date(body.date) : null;
     }
     if (typeof body.departureTime === "string") {
-      route.departureTime = body.departureTime.trim();
+      const normalized = normalizeTimeInput(body.departureTime);
+      if (body.departureTime.trim() && !normalized) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_DEPARTURE_TIME" },
+          { status: 400 }
+        );
+      }
+      route.departureTime = normalized;
     }
     if (typeof body.returnTime === "string") {
-      route.returnTime = body.returnTime.trim();
+      const normalized = normalizeTimeInput(body.returnTime);
+      if (body.returnTime.trim() && !normalized) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_RETURN_TIME" },
+          { status: 400 }
+        );
+      }
+      route.returnTime = normalized;
     }
     if (body.capacity !== undefined) {
       route.capacity = Math.max(0, Number(body.capacity || 0));
+    }
+    if (body.returnCapacity !== undefined) {
+      route.returnCapacity = Math.max(0, Number(body.returnCapacity || 0));
     }
     if (typeof body.companyName === "string") {
       route.companyName = body.companyName.trim();

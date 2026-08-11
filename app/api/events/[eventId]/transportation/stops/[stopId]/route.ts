@@ -4,6 +4,7 @@ import { requireTransportationManagement } from "@/lib/guards/requireTransportat
 import { serializeDoc } from "@/lib/transportation/service";
 import TransportStop from "@/models/TransportStop";
 import { TRANSPORT_STOP_TYPES } from "@/lib/transportation/types";
+import { normalizeTimeInput } from "@/lib/transportation/time";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,16 @@ export async function PATCH(
       stop.name = body.name.trim();
     }
     if (typeof body.address === "string") stop.address = body.address.trim();
-    if (typeof body.time === "string") stop.time = body.time.trim();
+    if (typeof body.time === "string") {
+      const normalized = normalizeTimeInput(body.time);
+      if (body.time.trim() && !normalized) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_STOP_TIME" },
+          { status: 400 }
+        );
+      }
+      stop.time = normalized;
+    }
     if (body.sortOrder !== undefined) stop.sortOrder = Number(body.sortOrder || 0);
     if (typeof body.notes === "string") stop.notes = body.notes.trim();
     if (typeof body.landmark === "string") stop.landmark = body.landmark.trim();

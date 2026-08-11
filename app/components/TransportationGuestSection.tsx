@@ -17,7 +17,20 @@ type PublicRoute = {
   legacyLevel?: string;
   levelLabel?: string;
   full: boolean;
+  returnCapacity?: number;
+  returnRegistered?: number;
+  returnRemaining?: number;
+  returnLevel?: CapacityLevel;
+  returnFull?: boolean;
 };
+
+function remainingForLeg(route: PublicRoute | null | undefined, leg: "outbound" | "return") {
+  if (!route) return 0;
+  if (leg === "return" && route.direction === "round_trip") {
+    return Number(route.returnRemaining ?? route.remaining ?? 0);
+  }
+  return Number(route.remaining ?? 0);
+}
 
 type PublicStop = {
   _id: string;
@@ -189,8 +202,12 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
 
   const selectedRemaining = useMemo(() => {
     const values: number[] = [];
-    if (form.needsOutbound && outboundRoute) values.push(outboundRoute.remaining);
-    if (form.needsReturn && returnRoute) values.push(returnRoute.remaining);
+    if (form.needsOutbound && outboundRoute) {
+      values.push(remainingForLeg(outboundRoute, "outbound"));
+    }
+    if (form.needsReturn && returnRoute) {
+      values.push(remainingForLeg(returnRoute, "return"));
+    }
     return values.length ? Math.min(...values) : null;
   }, [form.needsOutbound, form.needsReturn, outboundRoute, returnRoute]);
 
@@ -347,13 +364,32 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
     route,
     selected,
     onClick,
+    leg = "outbound",
   }: {
     route: PublicRoute;
     selected: boolean;
     onClick: () => void;
+    leg?: "outbound" | "return";
   }) {
-    const level = normalizeLevel(route.level, route.legacyLevel);
-    const percent = capacityPct(route);
+    const useReturn =
+      leg === "return" && route.direction === "round_trip";
+    const level = normalizeLevel(
+      useReturn ? route.returnLevel || route.level : route.level,
+      route.legacyLevel
+    );
+    const remaining = remainingForLeg(route, leg);
+    const capacity = useReturn
+      ? Number(route.returnCapacity ?? route.capacity ?? 0)
+      : route.capacity;
+    const registered = useReturn
+      ? Number(route.returnRegistered ?? route.registered ?? 0)
+      : route.registered;
+    const percent =
+      capacity <= 0 ? 100 : Math.min(100, Math.round((registered / capacity) * 100));
+    const clock =
+      leg === "return"
+        ? route.returnTime || route.departureTime || ""
+        : route.departureTime || route.returnTime || "";
     return (
       <button
         type="button"
@@ -362,11 +398,11 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
       >
         <span className="tg-route-top">
           <strong>{route.name}</strong>
-          <span>{routeTime(route) || "שעה תתעדכן"}</span>
+          <span>{clock || "שעה תתעדכן"}</span>
         </span>
         <span className="tg-route-cap">
           <span>{LEVEL_LABEL[level]}</span>
-          <span>{route.remaining} מקומות פנויים</span>
+          <span>{remaining} מקומות פנויים</span>
         </span>
         <span className="tg-meter" aria-hidden="true">
           <span style={{ width: `${percent}%` }} />
@@ -617,6 +653,7 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
                     <RouteCard
                       key={route._id}
                       route={route}
+                      leg="return"
                       selected={form.returnRouteId === route._id}
                       onClick={() => chooseRoute(route, "return")}
                     />

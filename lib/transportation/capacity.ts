@@ -8,20 +8,57 @@ import {
 } from "./types";
 import mongoose from "mongoose";
 
+export type SeatLeg = "outbound" | "return";
+
+function usesReturnCounters(route: {
+  direction?: string;
+}): boolean {
+  return route.direction === "round_trip";
+}
+
+function legFields(leg: SeatLeg, route: { direction?: string }) {
+  const returnLeg = leg === "return" && usesReturnCounters(route);
+  return {
+    reservedField: returnLeg ? "returnReservedSeats" : "reservedSeats",
+    capacityField: returnLeg ? "returnCapacity" : "capacity",
+  } as const;
+}
+
 /**
- * Atomic seat reservation on a route.
- * Uses findOneAndUpdate with $expr so two concurrent final-seat requests
- * cannot both succeed.
+ * Atomic seat reservation on a route leg.
+ * For round_trip routes, outbound and return use independent counters.
  */
 export async function atomicReserveSeats(params: {
   eventId: string;
   routeId: string;
   seats: number;
+  leg?: SeatLeg;
 }) {
   const seats = Math.max(0, Number(params.seats || 0));
+  const leg: SeatLeg = params.leg || "outbound";
   if (seats === 0) {
-    return { ok: true as const, reservedSeats: 0, capacity: 0, remaining: 0 };
+    return { ok: true as const, reservedSeats: 0, capacity: 0, remaining: 0, leg };
   }
+
+  const existing = await TransportRoute.findOne({
+    _id: params.routeId,
+    eventId: params.eventId,
+  }).lean();
+
+  if (!existing) {
+    return {
+      ok: false as const,
+      code: "ROUTE_NOT_FOUND" as const,
+      message: "Route not found",
+      remaining: 0,
+      capacity: 0,
+      reservedSeats: 0,
+      requested: seats,
+      leg,
+    };
+  }
+
+  const { reservedField, capacityField } = legFields(leg, existing);
 
   const updated = await TransportRoute.findOneAndUpdate(
     {
@@ -29,20 +66,15 @@ export async function atomicReserveSeats(params: {
       eventId: params.eventId,
       active: true,
       $expr: {
-        $lte: [{ $add: ["$reservedSeats", seats] }, "$capacity"],
+        $lte: [{ $add: [`$${reservedField}`, seats] }, `$${capacityField}`],
       },
     },
-    { $inc: { reservedSeats: seats } },
+    { $inc: { [reservedField]: seats } },
     { new: true }
   ).lean();
 
   if (!updated) {
-    const route = await TransportRoute.findOne({
-      _id: params.routeId,
-      eventId: params.eventId,
-    }).lean();
-
-    if (!route || !route.active) {
+    if (!existing.active) {
       return {
         ok: false as const,
         code: "ROUTE_NOT_FOUND" as const,
@@ -51,11 +83,12 @@ export async function atomicReserveSeats(params: {
         capacity: 0,
         reservedSeats: 0,
         requested: seats,
+        leg,
       };
     }
 
-    const reservedSeats = Number(route.reservedSeats || 0);
-    const capacity = Number(route.capacity || 0);
+    const reservedSeats = Number((existing as any)[reservedField] || 0);
+    const capacity = Number((existing as any)[capacityField] || 0);
     const remaining = Math.max(0, capacity - reservedSeats);
 
     return {
@@ -69,11 +102,12 @@ export async function atomicReserveSeats(params: {
       capacity,
       reservedSeats,
       requested: seats,
+      leg,
     };
   }
 
-  const reservedSeats = Number(updated.reservedSeats || 0);
-  const capacity = Number(updated.capacity || 0);
+  const reservedSeats = Number((updated as any)[reservedField] || 0);
+  const capacity = Number((updated as any)[capacityField] || 0);
 
   return {
     ok: true as const,
@@ -81,6 +115,7 @@ export async function atomicReserveSeats(params: {
     capacity,
     remaining: Math.max(0, capacity - reservedSeats),
     level: getCapacityLevel(reservedSeats, capacity),
+    leg,
   };
 }
 
@@ -88,11 +123,24 @@ export async function atomicReleaseSeats(params: {
   eventId: string;
   routeId: string;
   seats: number;
+  leg?: SeatLeg;
 }) {
   const seats = Math.max(0, Number(params.seats || 0));
+  const leg: SeatLeg = params.leg || "outbound";
   if (!params.routeId || seats === 0) {
     return { ok: true as const };
   }
+
+  const route = await TransportRoute.findOne({
+    _id: params.routeId,
+    eventId: params.eventId,
+  })
+    .select("direction")
+    .lean();
+
+  if (!route) return { ok: true as const };
+
+  const { reservedField } = legFields(leg, route);
 
   await TransportRoute.findOneAndUpdate(
     {
@@ -102,8 +150,8 @@ export async function atomicReleaseSeats(params: {
     [
       {
         $set: {
-          reservedSeats: {
-            $max: [0, { $subtract: ["$reservedSeats", seats] }],
+          [reservedField]: {
+            $max: [0, { $subtract: [`$${reservedField}`, seats] }],
           },
         },
       },
@@ -114,27 +162,30 @@ export async function atomicReleaseSeats(params: {
 }
 
 /**
- * Adjust seats on the same route by delta (positive = reserve more).
- * Atomic; fails if increasing beyond capacity.
+ * Adjust seats on the same route leg by delta (positive = reserve more).
  */
 export async function atomicAdjustSeats(params: {
   eventId: string;
   routeId: string;
   delta: number;
+  leg?: SeatLeg;
 }) {
   const delta = Number(params.delta || 0);
+  const leg: SeatLeg = params.leg || "outbound";
   if (delta === 0) return { ok: true as const };
   if (delta > 0) {
     return atomicReserveSeats({
       eventId: params.eventId,
       routeId: params.routeId,
       seats: delta,
+      leg,
     });
   }
   await atomicReleaseSeats({
     eventId: params.eventId,
     routeId: params.routeId,
     seats: Math.abs(delta),
+    leg,
   });
   return { ok: true as const };
 }
@@ -156,6 +207,16 @@ export async function getRouteAvailability(
   const capacity = Number(route.capacity || 0);
   const remaining = Math.max(0, capacity - reservedSeats);
 
+  const returnCapacity =
+    route.direction === "round_trip"
+      ? Number(route.returnCapacity ?? route.capacity ?? 0)
+      : Number(route.capacity || 0);
+  const returnReservedSeats =
+    route.direction === "round_trip"
+      ? Number(route.returnReservedSeats || 0)
+      : Number(route.reservedSeats || 0);
+  const returnRemaining = Math.max(0, returnCapacity - returnReservedSeats);
+
   return {
     routeId: String(route._id),
     name: route.name,
@@ -165,6 +226,11 @@ export async function getRouteAvailability(
     remaining,
     level: getCapacityLevel(reservedSeats, capacity),
     full: remaining <= 0,
+    returnCapacity,
+    returnReservedSeats,
+    returnRemaining,
+    returnLevel: getCapacityLevel(returnReservedSeats, returnCapacity),
+    returnFull: returnRemaining <= 0,
     active: Boolean(route.active),
   };
 }
@@ -180,75 +246,69 @@ export async function recountRouteReservedSeats(
   }).lean();
   if (!route) return 0;
 
-  const filter: Record<string, unknown> = {
-    eventId,
-    status: "registered",
-  };
-
   if (route.direction === "return") {
-    filter.needsReturn = true;
-    filter.returnRouteId = routeId;
-  } else {
-    // outbound + round_trip: seats reserved via outbound bookings on this route
-    filter.needsOutbound = true;
-    filter.outboundRouteId = routeId;
-  }
-
-  // For return direction of round_trip used as returnRouteId:
-  if (route.direction === "round_trip") {
-    // Round-trip bus capacity is tracked separately for outbound vs return
-    // when the same route id is used in either field.
-    // We store reservedSeats as outbound count on the route document;
-    // return bookings on a round_trip route also consume the same counter
-    // only when returnRouteId === this route AND needsReturn (independent flow
-    // usually uses dedicated return routes).
-  }
-
-  const rows = await TransportRegistration.find(filter)
-    .select("passengerCount")
-    .lean();
-
-  let total = rows.reduce((sum, row) => sum + Number(row.passengerCount || 0), 0);
-
-  // Also count return bookings that point at this route (for return / round_trip)
-  if (route.direction === "return" || route.direction === "round_trip") {
     const returnRows = await TransportRegistration.find({
       eventId,
       status: "registered",
       needsReturn: true,
       returnRouteId: routeId,
-      // avoid double-count if already counted as outbound on same route
-      ...(route.direction === "round_trip"
-        ? {
-            $or: [
-              { needsOutbound: false },
-              { outboundRouteId: { $ne: routeId } },
-            ],
-          }
-        : {}),
     })
       .select("passengerCount")
       .lean();
+    const total = returnRows.reduce(
+      (sum, row) => sum + Number(row.passengerCount || 0),
+      0
+    );
+    await TransportRoute.updateOne(
+      { _id: routeId, eventId },
+      { $set: { reservedSeats: total, returnReservedSeats: 0 } }
+    );
+    return total;
+  }
 
-    if (route.direction === "return") {
-      total = returnRows.reduce(
-        (sum, row) => sum + Number(row.passengerCount || 0),
-        0
-      );
-    } else {
-      total += returnRows.reduce(
-        (sum, row) => sum + Number(row.passengerCount || 0),
-        0
-      );
-    }
+  const outboundRows = await TransportRegistration.find({
+    eventId,
+    status: "registered",
+    needsOutbound: true,
+    outboundRouteId: routeId,
+  })
+    .select("passengerCount")
+    .lean();
+  const outboundTotal = outboundRows.reduce(
+    (sum, row) => sum + Number(row.passengerCount || 0),
+    0
+  );
+
+  if (route.direction === "round_trip") {
+    const returnRows = await TransportRegistration.find({
+      eventId,
+      status: "registered",
+      needsReturn: true,
+      returnRouteId: routeId,
+    })
+      .select("passengerCount")
+      .lean();
+    const returnTotal = returnRows.reduce(
+      (sum, row) => sum + Number(row.passengerCount || 0),
+      0
+    );
+    await TransportRoute.updateOne(
+      { _id: routeId, eventId },
+      {
+        $set: {
+          reservedSeats: outboundTotal,
+          returnReservedSeats: returnTotal,
+        },
+      }
+    );
+    return outboundTotal + returnTotal;
   }
 
   await TransportRoute.updateOne(
     { _id: routeId, eventId },
-    { $set: { reservedSeats: total } }
+    { $set: { reservedSeats: outboundTotal, returnReservedSeats: 0 } }
   );
-
-  return total;
+  return outboundTotal;
 }
 
 export async function countRoutePassengers(
@@ -303,6 +363,7 @@ export async function reserveForRegistration(params: {
       eventId: params.eventId,
       routeId: String(params.outboundRouteId),
       seats: count,
+      leg: "outbound",
     });
     if (!out.ok) return out;
     outboundReserved = true;
@@ -315,6 +376,7 @@ export async function reserveForRegistration(params: {
           eventId: params.eventId,
           routeId: String(params.outboundRouteId),
           seats: count,
+          leg: "outbound",
         });
       }
       return {
@@ -327,6 +389,7 @@ export async function reserveForRegistration(params: {
       eventId: params.eventId,
       routeId: String(params.returnRouteId),
       seats: count,
+      leg: "return",
     });
     if (!ret.ok) {
       if (outboundReserved && params.outboundRouteId) {
@@ -334,6 +397,7 @@ export async function reserveForRegistration(params: {
           eventId: params.eventId,
           routeId: String(params.outboundRouteId),
           seats: count,
+          leg: "outbound",
         });
       }
       return ret;
@@ -363,6 +427,7 @@ export async function releaseForRegistration(reg: {
       eventId,
       routeId: String(reg.outboundRouteId),
       seats: count,
+      leg: "outbound",
     });
   }
   if (reg.needsReturn && reg.returnRouteId) {
@@ -370,14 +435,13 @@ export async function releaseForRegistration(reg: {
       eventId,
       routeId: String(reg.returnRouteId),
       seats: count,
+      leg: "return",
     });
   }
 }
 
 /**
  * Move/edit reservation seats atomically.
- * Releases old seats first only after new seats are reserved when increasing,
- * or releases delta when decreasing / changing routes.
  */
 export async function rebalanceRegistrationSeats(params: {
   eventId: string;
@@ -400,7 +464,6 @@ export async function rebalanceRegistrationSeats(params: {
   const prev = params.previous;
   const next = params.next;
 
-  // If previous wasn't holding seats, just reserve next
   if (prev.status !== "registered") {
     return reserveForRegistration({
       eventId: params.eventId,
@@ -411,7 +474,6 @@ export async function rebalanceRegistrationSeats(params: {
   const prevCount = Number(prev.passengerCount || 0);
   const nextCount = Number(next.passengerCount || 0);
 
-  // Same outbound route — adjust delta
   const prevOut = prev.needsOutbound ? String(prev.outboundRouteId || "") : "";
   const nextOut = next.needsOutbound ? String(next.outboundRouteId || "") : "";
   const prevRet = prev.needsReturn ? String(prev.returnRouteId || "") : "";
@@ -424,6 +486,7 @@ export async function rebalanceRegistrationSeats(params: {
       eventId: params.eventId,
       routeId: nextOut,
       delta,
+      leg: "outbound",
     });
     if (!adj.ok) return adj;
   } else {
@@ -432,6 +495,7 @@ export async function rebalanceRegistrationSeats(params: {
         eventId: params.eventId,
         routeId: nextOut,
         seats: nextCount,
+        leg: "outbound",
       });
       if (!res.ok) return res;
     }
@@ -440,6 +504,7 @@ export async function rebalanceRegistrationSeats(params: {
         eventId: params.eventId,
         routeId: prevOut,
         seats: prevCount,
+        leg: "outbound",
       });
     }
   }
@@ -451,14 +516,15 @@ export async function rebalanceRegistrationSeats(params: {
       eventId: params.eventId,
       routeId: nextRet,
       delta,
+      leg: "return",
     });
     if (!adj.ok) {
-      // rollback outbound delta if we changed it
       if (prevOut && nextOut && prevOut === nextOut) {
         await atomicAdjustSeats({
           eventId: params.eventId,
           routeId: nextOut,
           delta: prevCount - nextCount,
+          leg: "outbound",
         });
       }
       return adj;
@@ -469,6 +535,7 @@ export async function rebalanceRegistrationSeats(params: {
         eventId: params.eventId,
         routeId: nextRet,
         seats: nextCount,
+        leg: "return",
       });
       if (!res.ok) {
         if (prevOut && nextOut && prevOut === nextOut) {
@@ -476,18 +543,21 @@ export async function rebalanceRegistrationSeats(params: {
             eventId: params.eventId,
             routeId: nextOut,
             delta: prevCount - nextCount,
+            leg: "outbound",
           });
         } else if (nextOut && (!prevOut || prevOut !== nextOut)) {
           await atomicReleaseSeats({
             eventId: params.eventId,
             routeId: nextOut,
             seats: nextCount,
+            leg: "outbound",
           });
           if (prevOut) {
             await atomicReserveSeats({
               eventId: params.eventId,
               routeId: prevOut,
               seats: prevCount,
+              leg: "outbound",
             });
           }
         }
@@ -499,6 +569,7 @@ export async function rebalanceRegistrationSeats(params: {
         eventId: params.eventId,
         routeId: prevRet,
         seats: prevCount,
+        leg: "return",
       });
     }
   }
@@ -513,7 +584,11 @@ export type RouteCapacitySummary = {
   capacity: number;
   registered: number;
   remaining: number;
+  returnCapacity: number;
+  returnRegistered: number;
+  returnRemaining: number;
   level: TransportCapacityLevel;
+  returnLevel: TransportCapacityLevel;
   legacyLevel: "ok" | "warning_80" | "warning_90" | "full";
   active: boolean;
   status: string;
@@ -521,6 +596,7 @@ export type RouteCapacitySummary = {
   returnTime?: string;
   waitlistedCount: number;
   waitlistedPassengers: number;
+  stopCount: number;
   companyName?: string;
   driverName?: string;
   vehicleNumber?: string;
@@ -536,11 +612,30 @@ export async function buildEventTransportSummary(eventId: string) {
       .lean(),
   ]);
 
+  const stopsByRoute = new Map<string, number>();
+  for (const stop of stops) {
+    const key = String(stop.routeId);
+    stopsByRoute.set(key, (stopsByRoute.get(key) || 0) + 1);
+  }
+
   const routeSummaries: RouteCapacitySummary[] = routes.map((route) => {
     const routeId = String(route._id);
     const reservedSeats = Number(route.reservedSeats || 0);
     const capacity = Number(route.capacity || 0);
     const level = getCapacityLevel(reservedSeats, capacity);
+
+    const returnCapacity =
+      route.direction === "round_trip"
+        ? Number(route.returnCapacity ?? route.capacity ?? 0)
+        : capacity;
+    const returnRegistered =
+      route.direction === "round_trip"
+        ? Number(route.returnReservedSeats || 0)
+        : route.direction === "return"
+          ? reservedSeats
+          : 0;
+    const returnRemaining = Math.max(0, returnCapacity - returnRegistered);
+    const returnLevel = getCapacityLevel(returnRegistered, returnCapacity);
 
     const routeWaitlisted = waitlisted.filter(
       (w) =>
@@ -555,7 +650,11 @@ export async function buildEventTransportSummary(eventId: string) {
       capacity,
       registered: reservedSeats,
       remaining: Math.max(0, capacity - reservedSeats),
+      returnCapacity,
+      returnRegistered,
+      returnRemaining,
       level,
+      returnLevel,
       legacyLevel: toLegacyCapacityLevel(level),
       active: Boolean(route.active),
       status: route.status,
@@ -566,6 +665,7 @@ export async function buildEventTransportSummary(eventId: string) {
         (s, w) => s + Number(w.passengerCount || 0),
         0
       ),
+      stopCount: stopsByRoute.get(routeId) || 0,
       companyName: route.companyName || "",
       driverName: route.driverName || "",
       vehicleNumber: route.vehicleNumber || "",
@@ -579,8 +679,13 @@ export async function buildEventTransportSummary(eventId: string) {
 
   for (const summary of routeSummaries) {
     if (!summary.active) continue;
-    totalSeats += summary.capacity;
-    totalRegisteredSeats += summary.registered;
+    if (summary.direction === "round_trip") {
+      totalSeats += summary.capacity + summary.returnCapacity;
+      totalRegisteredSeats += summary.registered + summary.returnRegistered;
+    } else {
+      totalSeats += summary.capacity;
+      totalRegisteredSeats += summary.registered;
+    }
   }
 
   for (const reg of registrations) {
@@ -589,38 +694,63 @@ export async function buildEventTransportSummary(eventId: string) {
     if (reg.needsReturn) returnPassengers += count;
   }
 
-  const fullRoutes = routeSummaries.filter(
-    (r) => r.active && r.level === "full"
-  ).length;
-  const almostFullRoutes = routeSummaries.filter(
-    (r) => r.active && (r.level === "almost_full" || r.level === "filling")
-  ).length;
+  const fullRoutes = routeSummaries.filter((r) => {
+    if (!r.active) return false;
+    if (r.direction === "round_trip") {
+      return r.level === "full" || r.returnLevel === "full";
+    }
+    return r.level === "full";
+  }).length;
+  const almostFullRoutes = routeSummaries.filter((r) => {
+    if (!r.active) return false;
+    const levels = [r.level, r.direction === "round_trip" ? r.returnLevel : null];
+    return levels.some((l) => l === "almost_full" || l === "filling");
+  }).length;
 
   const issues: string[] = [];
   for (const r of routeSummaries) {
     if (!r.active) continue;
     if (r.level === "full") {
-      issues.push(`קו מלא: ${r.name}`);
+      issues.push(
+        r.direction === "round_trip" ? `הלוך מלא: ${r.name}` : `קו מלא: ${r.name}`
+      );
       if (r.waitlistedPassengers > 0) {
         issues.push(
           `נפתחו מקומות? ${r.name} מלא — ${r.waitlistedPassengers} בהמתנה`
         );
       }
     }
+    if (r.direction === "round_trip" && r.returnLevel === "full") {
+      issues.push(`חזור מלא: ${r.name}`);
+    }
     if (r.level === "almost_full") issues.push(`קו כמעט מלא: ${r.name}`);
+    if (r.direction === "round_trip" && r.returnLevel === "almost_full") {
+      issues.push(`חזור כמעט מלא: ${r.name}`);
+    }
   }
 
-  // Freed seats vs waitlist opportunities
   const waitlistOpportunities = routeSummaries
-    .filter((r) => r.active && r.remaining > 0 && r.waitlistedPassengers > 0)
-    .map((r) => ({
-      routeId: r.routeId,
-      name: r.name,
-      remaining: r.remaining,
-      waitlistedCount: r.waitlistedCount,
-      waitlistedPassengers: r.waitlistedPassengers,
-      message: `נפתחו ${r.remaining} מקומות — יש ${r.waitlistedCount} ברשימת המתנה`,
-    }));
+    .filter((r) => {
+      if (!r.active || r.waitlistedPassengers <= 0) return false;
+      if (r.direction === "round_trip") {
+        return r.remaining > 0 || r.returnRemaining > 0;
+      }
+      return r.remaining > 0;
+    })
+    .map((r) => {
+      const remaining =
+        r.direction === "round_trip"
+          ? r.remaining + r.returnRemaining
+          : r.remaining;
+      return {
+        routeId: r.routeId,
+        name: r.name,
+        remaining,
+        waitlistedCount: r.waitlistedCount,
+        waitlistedPassengers: r.waitlistedPassengers,
+        message: `נפתחו ${remaining} מקומות — יש ${r.waitlistedCount} ברשימת המתנה`,
+      };
+    });
 
   const stopCounts = stops.map((stop) => {
     const stopId = String(stop._id);
