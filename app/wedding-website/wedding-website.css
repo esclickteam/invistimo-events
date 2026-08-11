@@ -6,6 +6,29 @@ html {
   scroll-behavior: smooth;
 }
 
+/* No visible scrollbars on wedding sites (scroll still works for CTAs) */
+html:has(.wedding-website-root),
+body:has(.wedding-website-root),
+.wedding-website-root,
+.ww-site,
+.wedding-website-root *,
+.ww-site * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html:has(.wedding-website-root)::-webkit-scrollbar,
+body:has(.wedding-website-root)::-webkit-scrollbar,
+.wedding-website-root::-webkit-scrollbar,
+.ww-site::-webkit-scrollbar,
+.wedding-website-root *::-webkit-scrollbar,
+.ww-site *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
 .wedding-website-root,
 .ww-site {
   overflow-x: clip;
@@ -14,6 +37,7 @@ html {
   font-family: var(--ww-font-body), "Heebo", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  padding-bottom: 5.5rem; /* room for floating action bar */
 }
 
 .wedding-website-root *,

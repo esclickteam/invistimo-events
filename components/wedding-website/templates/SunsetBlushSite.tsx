@@ -7,7 +7,8 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -18,14 +19,6 @@ import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
 const ACCENT = "#E8788A";
-const NAV = {
-  bg: "rgba(255,245,247,0.95)",
-  text: "#3D1F28",
-  muted: "#9A6070",
-  accent: ACCENT,
-  border: "rgba(232,120,138,0.28)",
-  fontDisplay: "'Cormorant Garamond', serif",
-};
 
 const fade = {
   initial: { opacity: 0, y: 24 },
@@ -68,12 +61,17 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
       style={{ fontFamily: "'Cormorant Garamond', serif" }}
     >
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+        <WeddingActionBar
+          accent="#E8788A"
+          text="#FFFFFF"
+          surface="rgba(255,245,247,0.94)"
+          border="rgba(232,120,138,0.35)"
+        />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#E8788A]/35 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#E8788A]/35 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
           style={{ fontFamily: "system-ui, sans-serif" }}
         >
           ← תבניות
@@ -83,7 +81,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
       {/* HERO — soft dusk gradient */}
       <section
         id="hero"
-        className={`relative flex min-h-[100svh] items-center justify-center overflow-hidden px-6 text-center ${embed ? "" : "pt-14"}`}
+        className={`relative flex min-h-[100svh] items-center justify-center overflow-hidden px-6 text-center ${embed ? "" : "pt-8"}`}
       >
         <div
           className="absolute inset-0"
@@ -125,8 +123,8 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
             <a href="#rsvp" className="rounded-full bg-[#E8788A] px-8 py-3.5 text-sm font-bold text-white shadow-[0_14px_36px_rgba(232,120,138,0.35)]">
               אישור הגעה
             </a>
-            <a href="#our-story" className="rounded-full border border-white/70 bg-white/50 px-8 py-3.5 text-sm font-bold text-[#3D1F28] backdrop-blur-sm">
-              הסיפור שלנו
+            <a href="#transportation" className="rounded-full border border-white/70 bg-white/50 px-8 py-3.5 text-sm font-bold text-[#3D1F28] backdrop-blur-sm">
+              הזמנת הסעה
             </a>
           </div>
         </div>
@@ -137,12 +135,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
           <h2 className="text-4xl font-light">הספירה לאחור</h2>
           <p className="mt-2 text-[#9A6070]">עד היום הגדול</p>
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {[
-              ["ימים", time.days],
-              ["שעות", time.hours],
-              ["דקות", time.minutes],
-              ["שניות", time.seconds],
-            ].map(([label, value]) => (
+            {getFlippedCountdownUnits(time).map(({ label, value }) => (
               <div
                 key={String(label)}
                 className="rounded-[28px] border border-[#E8788A]/25 bg-white/80 px-4 py-7 shadow-[0_12px_40px_rgba(232,120,138,0.1)]"

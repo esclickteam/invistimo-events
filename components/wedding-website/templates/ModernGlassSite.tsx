@@ -7,22 +7,14 @@ import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import GlassShimmer from "../illustrations/GlassShimmer";
 
 const ACCENT = "#7C9CFF";
-const NAV = {
-  bg: "rgba(10,14,23,0.9)",
-  text: "#F2F5FF",
-  muted: "#8B97B8",
-  accent: ACCENT,
-  border: "rgba(124,156,255,0.28)",
-  fontDisplay: "'Montserrat', sans-serif",
-  dark: true,
-};
 
 const fade = {
   initial: { opacity: 0, y: 24 },
@@ -67,12 +59,17 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
       style={{ fontFamily: "'Montserrat', sans-serif" }}
     >
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+        <WeddingActionBar
+          accent="#7C9CFF"
+          text="#0A0E17"
+          surface="rgba(10,14,23,0.94)"
+          border="rgba(124,156,255,0.35)"
+        />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#7C9CFF]/40 bg-[#0A0E17]/90 px-4 py-2 text-xs font-bold text-[#F2F5FF] shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#7C9CFF]/40 bg-[#0A0E17]/90 px-4 py-2 text-xs font-bold text-[#F2F5FF] shadow-lg"
         >
           ← תבניות
         </Link>
@@ -81,7 +78,7 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
       {/* HERO — asymmetric glass bento */}
       <section
         id="hero"
-        className={`relative overflow-x-clip px-4 md:px-8 ${embed ? "py-10" : "pb-10 pt-20"}`}
+        className={`relative overflow-x-clip px-4 md:px-8 ${embed ? "py-10" : "pb-10 pt-10"}`}
       >
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
@@ -108,12 +105,20 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
               {formatHebrewDate(DEMO.weddingDate)}
               {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
             </p>
-            <a
-              href="#rsvp"
-              className="mt-8 inline-flex w-fit rounded-full bg-[#7C9CFF] px-7 py-3 text-sm font-bold text-[#0A0E17]"
-            >
-              אישור הגעה
-            </a>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href="#rsvp"
+                className="inline-flex w-fit rounded-full bg-[#7C9CFF] px-7 py-3 text-sm font-bold text-[#0A0E17]"
+              >
+                אישור הגעה
+              </a>
+              <a
+                href="#transportation"
+                className="inline-flex w-fit rounded-full border border-[#7C9CFF]/50 px-7 py-3 text-sm font-bold text-[#7C9CFF]"
+              >
+                הזמנת הסעה
+              </a>
+            </div>
           </motion.div>
 
           <motion.div

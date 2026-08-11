@@ -7,7 +7,8 @@ import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -17,14 +18,6 @@ import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import WaveMotion from "../illustrations/WaveMotion";
 
-const NAV = {
-  bg: "rgba(240,248,255,0.92)",
-  text: "#1A3A4A",
-  muted: "#5A8499",
-  accent: "#3D8BBA",
-  border: "rgba(61,139,186,0.28)",
-  fontDisplay: "'Montserrat', sans-serif",
-};
 
 const BLUE = "#3D8BBA";
 
@@ -77,12 +70,17 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
   return (
     <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+        <WeddingActionBar
+          accent="#3D8BBA"
+          text="#FFFFFF"
+          surface="rgba(240,248,255,0.94)"
+          border="rgba(61,139,186,0.35)"
+        />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#3D8BBA]/35 bg-white/90 px-4 py-2 text-xs font-bold text-[#3D8BBA] shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#3D8BBA]/35 bg-white/90 px-4 py-2 text-xs font-bold text-[#3D8BBA] shadow-lg"
         >
           ← תבניות
         </Link>
@@ -134,8 +132,8 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
             <a href="#rsvp" className="rounded-full bg-[#3D8BBA] px-8 py-3.5 text-sm font-semibold text-white">
               אישור הגעה
             </a>
-            <a href="#countdown" className="rounded-full border border-white/50 bg-white/10 px-8 py-3.5 text-sm font-semibold backdrop-blur-sm">
-              הספירה לאחור
+            <a href="#transportation" className="rounded-full border border-white/50 bg-white/10 px-8 py-3.5 text-sm font-semibold backdrop-blur-sm">
+              הזמנת הסעה
             </a>
           </motion.div>
         </div>
@@ -149,12 +147,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
           <h2 className="font-['Montserrat'] text-3xl font-light tracking-wide">הספירה לאחור</h2>
           <p className="mt-2 text-sm text-[#5A8499]">{formatHebrewDate(DEMO.weddingDate)}</p>
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              ["ימים", time.days],
-              ["שעות", time.hours],
-              ["דקות", time.minutes],
-              ["שניות", time.seconds],
-            ].map(([label, value]) => (
+            {getFlippedCountdownUnits(time).map(({ label, value }) => (
               <div key={String(label)} className="rounded-2xl bg-white/80 px-4 py-6 shadow-[0_12px_40px_rgba(26,58,74,0.06)]">
                 <p className="font-['Montserrat'] text-4xl font-light text-[#3D8BBA]">{value}</p>
                 <p className="mt-2 text-xs font-semibold tracking-widest text-[#5A8499]">{label}</p>

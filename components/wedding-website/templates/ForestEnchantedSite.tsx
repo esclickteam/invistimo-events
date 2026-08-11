@@ -7,7 +7,8 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import PathDrawTimeline from "../illustrations/PathDrawTimeline";
 import FloatingPetals from "../illustrations/FloatingPetals";
@@ -15,15 +16,6 @@ import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
 const ACCENT = "#7CB87A";
-const NAV = {
-  bg: "rgba(15,24,16,0.92)",
-  text: "#E8F0E4",
-  muted: "#8AA892",
-  accent: ACCENT,
-  border: "rgba(124,184,122,0.28)",
-  fontDisplay: "'Libre Baskerville', serif",
-  dark: true,
-};
 
 const fade = {
   initial: { opacity: 0, y: 28 },
@@ -76,14 +68,19 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
       className="wedding-website-root relative min-h-screen overflow-x-clip bg-[#0F1810] text-[#E8F0E4]"
       style={{ fontFamily: "'Libre Baskerville', serif" }}
     >
-      {!embed && <FloatingPetals color={ACCENT} count={8} />}
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+        <WeddingActionBar
+          accent="#7CB87A"
+          text="#0F1810"
+          surface="rgba(15,24,16,0.94)"
+          border="rgba(124,184,122,0.35)"
+        />
       )}
+      {!embed && <FloatingPetals color={ACCENT} count={8} />}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#7CB87A]/40 bg-[#0F1810]/90 px-4 py-2 text-xs font-bold text-[#E8F0E4] shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#7CB87A]/40 bg-[#0F1810]/90 px-4 py-2 text-xs font-bold text-[#E8F0E4] shadow-lg"
           style={{ fontFamily: "system-ui, sans-serif" }}
         >
           ← תבניות
@@ -120,8 +117,8 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
             <a href="#rsvp" className="rounded-full bg-[#7CB87A] px-8 py-3.5 text-sm font-bold text-[#0F1810]">
               אישור הגעה
             </a>
-            <a href="#our-story" className="rounded-full border border-[#7CB87A]/50 px-8 py-3.5 text-sm font-bold text-[#E8F0E4]">
-              הסיפור שלנו
+            <a href="#transportation" className="rounded-full border border-[#7CB87A]/50 px-8 py-3.5 text-sm font-bold text-[#E8F0E4]">
+              הזמנת הסעה
             </a>
           </div>
         </div>

@@ -7,7 +7,8 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useFaqAccordion,
   useWeddingRsvp,
@@ -16,14 +17,6 @@ import FloatingPetals from "../illustrations/FloatingPetals";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 
-const NAV = {
-  bg: "rgba(244,250,244,0.94)",
-  text: "#2F4A36",
-  muted: "#6B8F74",
-  accent: "#6B9E78",
-  border: "rgba(107,158,120,0.28)",
-  fontDisplay: "'Libre Baskerville', serif",
-};
 
 const GREEN = "#6B9E78";
 
@@ -73,11 +66,18 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
 
   return (
     <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
-      {!embed && <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />}
+      {!embed && (
+        <WeddingActionBar
+          accent="#6B9E78"
+          text="#FFFFFF"
+          surface="rgba(244,250,244,0.94)"
+          border="rgba(107,158,120,0.35)"
+        />
+      )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#6B9E78]/40 bg-white/90 px-4 py-2 text-xs font-bold text-[#6B9E78] shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#6B9E78]/40 bg-white/90 px-4 py-2 text-xs font-bold text-[#6B9E78] shadow-lg"
         >
           ← תבניות
         </Link>
@@ -109,8 +109,8 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
             <a href="#rsvp" className="rounded-full bg-[#6B9E78] px-8 py-3.5 text-sm font-bold text-white shadow-[0_14px_36px_rgba(107,158,120,0.3)]">
               אישור הגעה
             </a>
-            <a href="#our-story" className="rounded-full border border-[#6B9E78] bg-white/70 px-8 py-3.5 text-sm font-bold text-[#6B9E78] backdrop-blur-sm">
-              הסיפור שלנו
+            <a href="#transportation" className="rounded-full border border-[#6B9E78] bg-white/70 px-8 py-3.5 text-sm font-bold text-[#6B9E78] backdrop-blur-sm">
+              הזמנת הסעה
             </a>
           </div>
         </div>

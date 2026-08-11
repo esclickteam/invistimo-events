@@ -7,7 +7,8 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useFaqAccordion,
   useWeddingRsvp,
@@ -16,14 +17,6 @@ import WatercolorReveal from "../illustrations/WatercolorReveal";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 
-const NAV = {
-  bg: "rgba(251,245,240,0.94)",
-  text: "#4A2E28",
-  muted: "#9A6B5C",
-  accent: "#C4705A",
-  border: "rgba(196,112,90,0.3)",
-  fontDisplay: "'Cormorant Garamond', serif",
-};
 
 const ROSE = "#C4705A";
 
@@ -61,11 +54,18 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
 
   return (
     <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
-      {!embed && <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />}
+      {!embed && (
+        <WeddingActionBar
+          accent="#C4705A"
+          text="#FFFFFF"
+          surface="rgba(251,245,240,0.94)"
+          border="rgba(196,112,90,0.35)"
+        />
+      )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] px-4 py-2 text-xs font-bold text-[#C4705A] shadow-lg"
+          className="fixed top-4 left-4 z-[55] px-4 py-2 text-xs font-bold text-[#C4705A] shadow-lg"
           style={{
             background: "rgba(251,245,240,0.95)",
             clipPath: "polygon(8% 0, 100% 0, 92% 100%, 0 100%)",
@@ -111,11 +111,11 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
                 אישור הגעה
               </a>
               <a
-                href="#invitation"
+                href="#transportation"
                 className="border border-[#C4705A] px-8 py-3.5 text-sm font-bold text-[#C4705A]"
                 style={{ clipPath: "polygon(6% 0, 100% 0, 94% 100%, 0 100%)" }}
               >
-                הזמנה
+                הזמנת הסעה
               </a>
             </div>
           </div>

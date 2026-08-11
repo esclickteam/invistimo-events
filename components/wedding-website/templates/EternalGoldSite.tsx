@@ -8,7 +8,8 @@ import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -18,14 +19,6 @@ import GoldScrollLine from "../illustrations/GoldScrollLine";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 
-const NAV = {
-  bg: "rgba(250,247,242,0.94)",
-  text: "#2A2118",
-  muted: "#8A7560",
-  accent: "#C9A962",
-  border: "rgba(201,169,98,0.35)",
-  fontDisplay: "'Cormorant Garamond', serif",
-};
 
 const fade = {
   initial: { opacity: 0, y: 28 },
@@ -72,14 +65,19 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
 
   return (
     <div className="wedding-website-root overflow-x-clip bg-[#FAF7F2] text-[#2A2118]" data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }}>
-      {!embed && <GoldScrollLine />}
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />
+        <WeddingActionBar
+          accent="#C9A962"
+          text="#2A2118"
+          surface="rgba(250,247,242,0.94)"
+          border="rgba(201,169,98,0.35)"
+        />
       )}
+      {!embed && <GoldScrollLine />}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#C9A962]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#C9A962]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
         >
           ← תבניות
         </Link>
@@ -110,8 +108,8 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
             <a href="#rsvp" className="rounded-full bg-[#C9A962] px-8 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(201,169,98,0.35)]">
               אישור הגעה
             </a>
-            <a href="#our-story" className="rounded-full border border-white/45 bg-white/10 px-8 py-3.5 text-sm font-bold backdrop-blur-sm">
-              הסיפור שלנו
+            <a href="#transportation" className="rounded-full border border-white/45 bg-white/10 px-8 py-3.5 text-sm font-bold backdrop-blur-sm">
+              הזמנת הסעה
             </a>
           </div>
         </div>
@@ -122,12 +120,7 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
           <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">הספירה לאחור</h2>
           <Divider />
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              ["ימים", time.days],
-              ["שעות", time.hours],
-              ["דקות", time.minutes],
-              ["שניות", time.seconds],
-            ].map(([label, value]) => (
+            {getFlippedCountdownUnits(time).map(({ label, value }) => (
               <div key={String(label)} className="border border-[#C9A962]/35 bg-white px-4 py-6">
                 <p className="font-['Cormorant_Garamond'] text-4xl text-[#C9A962]">{value}</p>
                 <p className="mt-2 text-xs font-bold tracking-widest text-[#8A7560]">{label}</p>

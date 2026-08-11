@@ -8,21 +8,14 @@ import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
 const ACCENT = "#B8956B";
-const NAV = {
-  bg: "rgba(253,251,247,0.95)",
-  text: "#3A2E22",
-  muted: "#9A8570",
-  accent: ACCENT,
-  border: "rgba(184,149,107,0.35)",
-  fontDisplay: "'Playfair Display', serif",
-};
 
 const fade = {
   initial: { opacity: 0, y: 24, scale: 0.98 },
@@ -88,11 +81,18 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
       className="wedding-website-root min-h-screen overflow-x-clip bg-[#FDFBF7] text-[#3A2E22]"
       style={{ fontFamily: "'Playfair Display', serif" }}
     >
-      {!embed && <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />}
+      {!embed && (
+        <WeddingActionBar
+          accent="#B8956B"
+          text="#FFFFFF"
+          surface="rgba(253,251,247,0.94)"
+          border="rgba(184,149,107,0.35)"
+        />
+      )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#B8956B]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-full border border-[#B8956B]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
           style={{ fontFamily: "system-ui, sans-serif" }}
         >
           ← תבניות
@@ -137,13 +137,20 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
           {formatHebrewDate(DEMO.weddingDate)}
           {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
         </p>
-        <a
-          href="#rsvp"
-          className="relative mt-10 inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]"
-          style={{ fontFamily: "system-ui, sans-serif" }}
-        >
-          אישור הגעה
-        </a>
+        <div className="relative mt-10 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+          <a
+            href="#rsvp"
+            className="inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]"
+          >
+            אישור הגעה
+          </a>
+          <a
+            href="#transportation"
+            className="inline-flex rounded-full border border-[#B8956B] bg-white/70 px-9 py-3.5 text-sm font-bold text-[#B8956B]"
+          >
+            הזמנת הסעה
+          </a>
+        </div>
       </section>
 
       <Section id="invitation" className="py-20">

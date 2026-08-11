@@ -8,17 +8,10 @@ import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionE
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import FilmStripGallery from "../illustrations/FilmStripGallery";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 
-const NAV = {
-  bg: "rgba(255,255,255,0.96)",
-  text: "#111111",
-  muted: "#666666",
-  accent: "#111111",
-  border: "rgba(0,0,0,0.12)",
-  fontDisplay: "'Montserrat', sans-serif",
-};
 
 const fade = {
   initial: { opacity: 0, y: 20 },
@@ -80,18 +73,23 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
       style={{ fontFamily: "'Montserrat', sans-serif" }}
     >
       {!embed && (
+        <WeddingActionBar
+          accent="#111111"
+          text="#FFFFFF"
+          surface="rgba(255,255,255,0.94)"
+          border="rgba(0,0,0,0.2)"
+        />
+      )}
+      {!embed && (
         <motion.div
           style={{ width: lineWidth }}
           className="fixed left-0 top-0 z-[60] h-px bg-black"
         />
       )}
-      {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
-      )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] border border-black bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+          className="fixed top-4 left-4 z-[55] border border-black bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em]"
         >
           ← תבניות
         </Link>
@@ -100,7 +98,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
       {/* HERO — typography only, split names */}
       <section
         id="hero"
-        className={`relative flex min-h-[100svh] flex-col justify-center overflow-x-clip px-6 md:px-12 lg:px-16 ${embed ? "py-16" : "pt-20"}`}
+        className={`relative flex min-h-[100svh] flex-col justify-center overflow-x-clip px-6 md:px-12 lg:px-16 ${embed ? "py-16" : "pt-10"}`}
       >
         <p className="text-[10px] font-bold uppercase tracking-[0.45em] text-neutral-500">
           Save the Date
@@ -140,8 +138,8 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
           <a href="#rsvp" className="bg-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white">
             אישור הגעה
           </a>
-          <a href="#event-details" className="border border-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em]">
-            פרטים
+          <a href="#transportation" className="border border-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em]">
+            הזמנת הסעה
           </a>
         </div>
       </section>
@@ -218,6 +216,32 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
               />
             </div>
           ) : null}
+        </div>
+      </Section>
+
+      <Section id="transportation" className="border-t border-black py-20">
+        <div className="mx-auto max-w-2xl px-6 text-center">
+          <h2 className="text-xs font-bold uppercase tracking-[0.4em]">הסעות</h2>
+          <Rule className="mx-auto mt-4 mb-8 max-w-[80px]" />
+          <p className="text-sm leading-relaxed text-neutral-600">
+            {DEMO.parkingText ||
+              DEMO.transportation?.[0]?.description ||
+              "פרטי הסעות יישלחו לאורחים שאישרו הגעה."}
+          </p>
+          <div className="mt-8 space-y-3 text-left" dir="rtl">
+            {(DEMO.transportation.length
+              ? DEMO.transportation
+              : [
+                  { title: "הסעה", description: "קווי הסעה ממרכז ומצפון" },
+                  { title: "חנייה", description: DEMO.parkingText || "חניה במתחם" },
+                ]
+            ).map((item) => (
+              <div key={item.title} className="border border-black px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.2em]">{item.title}</p>
+                <p className="mt-1 text-sm text-neutral-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </Section>
 

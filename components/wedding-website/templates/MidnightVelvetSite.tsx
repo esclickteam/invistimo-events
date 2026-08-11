@@ -7,7 +7,8 @@ import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import WeddingActionBar from "../shared/WeddingActionBar";
+import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
   useFaqAccordion,
   useWeddingRsvp,
@@ -16,15 +17,6 @@ import Starfield from "../illustrations/Starfield";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 
-const NAV = {
-  bg: "rgba(13,11,16,0.9)",
-  text: "#F5F0E8",
-  muted: "#A89BB0",
-  accent: "#D4AF37",
-  border: "rgba(212,175,55,0.25)",
-  fontDisplay: "'Playfair Display', serif",
-  dark: true,
-};
 
 const GOLD = "#D4AF37";
 
@@ -63,19 +55,24 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
   return (
     <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
       {!embed && (
-        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+        <WeddingActionBar
+          accent="#D4AF37"
+          text="#0D0B10"
+          surface="rgba(13,11,16,0.94)"
+          border="rgba(212,175,55,0.35)"
+        />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-sm border border-[#D4AF37]/40 bg-[#0D0B10]/90 px-4 py-2 text-xs font-bold text-[#D4AF37]"
+          className="fixed top-4 left-4 z-[55] rounded-sm border border-[#D4AF37]/40 bg-[#0D0B10]/90 px-4 py-2 text-xs font-bold text-[#D4AF37]"
         >
           ← תבניות
         </Link>
       )}
 
       {/* HERO — cinematic widescreen + Starfield */}
-      <section id="hero" className="relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 pb-16 pt-28 md:px-8">
+      <section id="hero" className="relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 pb-16 pt-10 md:px-8">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1a1520_0%,_#0D0B10_70%)]" />
         <div className="relative z-10 w-full max-w-6xl">
           <div className="relative aspect-[2.35/1] w-full overflow-hidden rounded-sm border border-[#D4AF37]/25 shadow-[0_0_80px_rgba(212,175,55,0.12)]">
@@ -130,10 +127,10 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
                   אישור הגעה
                 </a>
                 <a
-                  href="#schedule"
+                  href="#transportation"
                   className="rounded-sm border border-[#D4AF37]/50 px-7 py-3 text-sm font-bold text-[#D4AF37]"
                 >
-                  לוח זמנים
+                  הזמנת הסעה
                 </a>
               </motion.div>
             </div>
