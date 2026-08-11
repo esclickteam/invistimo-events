@@ -4,16 +4,19 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -48,25 +51,8 @@ function Section({
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 border-b-2 border-transparent px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold tracking-wide text-[#8A7560] transition hover:border-[#C9A962] hover:text-[#2A2118]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
 function HeroSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen items-end justify-center overflow-hidden">
       <motion.div
@@ -90,11 +76,17 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
         <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#E8D5A8]">
           {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
         </p>
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <a href="#rsvp" className="rounded-sm bg-[#C9A962] px-10 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-[#B8956B]">
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a
+            href="#rsvp"
+            className="rounded-full bg-[#C9A962] px-9 py-3.5 text-sm font-bold tracking-wide text-white shadow-[0_16px_40px_rgba(201,169,98,0.35)] transition hover:bg-[#B8956B]"
+          >
             אישור הגעה
           </a>
-          <a href="#our-story" className="rounded-sm border border-[#E8D5A8]/60 px-10 py-4 text-sm font-bold text-white transition hover:bg-white/10">
+          <a
+            href="#our-story"
+            className="rounded-full border border-white/50 bg-white/10 px-9 py-3.5 text-sm font-bold tracking-wide text-white backdrop-blur-sm transition hover:bg-white/20"
+          >
             הסיפור שלנו
           </a>
         </div>
@@ -104,6 +96,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -139,6 +132,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -154,6 +148,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -179,6 +174,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -202,6 +198,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -227,23 +224,26 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
 }
 
 function GallerySection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
+  const images =
+    DEMO.galleryUrls?.length > 0 ? DEMO.galleryUrls : template.galleryImages;
   return (
     <Section id="gallery" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-7xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">רגעים מהדרך</h2>
         <GoldDivider />
-        <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
-          {template.galleryImages.map((src, i) => (
-            <motion.div
+        <div className="ww-gallery-grid">
+          {images.map((src, i) => (
+            <motion.figure
               key={src}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="mb-5 break-inside-avoid border-2 border-[#C9A962]/50 p-1"
+              className="border border-[#C9A962]/35 bg-white p-1.5 shadow-[0_18px_50px_rgba(92,65,35,0.08)]"
             >
-              <img src={src} alt="" className="w-full object-cover transition duration-700 hover:scale-[1.03]" />
-            </motion.div>
+              <img src={src} alt="" className="h-full w-full object-cover" />
+            </motion.figure>
           ))}
         </div>
       </div>
@@ -258,7 +258,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">סרטון Save the Date</h2>
         <GoldDivider />
         <div className="overflow-hidden border-2 border-[#C9A962]/50 shadow-xl">
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -266,6 +266,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -290,6 +291,7 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-2xl px-6">
@@ -322,12 +324,42 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-5xl px-6">
-        <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">איך מגיעים</h2>
+        <div className="flex justify-center">
+          <MapPinPulse accent="#C9A962" />
+        </div>
+        <h2 className="mt-2 text-center font-['Cormorant_Garamond'] text-4xl font-light">
+          {DEMO.venueName || "איך מגיעים"}
+        </h2>
         <p className="mt-2 text-center text-[#8A7560]">{DEMO.venueAddress}</p>
         <GoldDivider />
+        {(DEMO.wazeUrl || DEMO.mapsUrl) && (
+          <div className="mb-6 flex flex-wrap justify-center gap-3">
+            {DEMO.wazeUrl ? (
+              <a
+                href={DEMO.wazeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-[#C9A962] px-6 py-3 text-sm font-bold text-white"
+              >
+                Waze
+              </a>
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a
+                href={DEMO.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="border border-[#C9A962] px-6 py-3 text-sm font-bold text-[#C9A962]"
+              >
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+        )}
         <div className="overflow-hidden border-2 border-[#C9A962]/40">
           <iframe
             title="map"
@@ -342,6 +374,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -354,6 +387,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -373,11 +407,13 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">הגעה וחנייה</h2>
         <GoldDivider />
+        <ShuttleRide accent="#C9A962" label="הסעה לאירוע" className="mb-8" />
         <div className="grid gap-6 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
             <div key={item.title} className="border border-[#C9A962]/35 bg-white p-6">
@@ -392,6 +428,7 @@ function TransportationSection() {
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#FAF7F2] py-24">
@@ -421,7 +458,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-lg px-6">
@@ -456,13 +493,19 @@ function RsvpSection() {
                 />
               </div>
             )}
+            {guestName ? (
+              <p className="text-center text-sm text-[#8A7560]">שלום {guestName}</p>
+            ) : null}
+            {error ? (
+              <p className="text-center text-sm font-bold text-red-600">{error}</p>
+            ) : null}
             <button
               type="button"
-              onClick={() => rsvp && setSent(true)}
-              disabled={!rsvp}
-              className="w-full bg-[#C9A962] py-4 text-sm font-bold text-white disabled:opacity-40"
+              onClick={() => void submit()}
+              disabled={!rsvp || saving}
+              className="w-full rounded-full bg-[#C9A962] py-4 text-sm font-bold tracking-wide text-white shadow-[0_14px_34px_rgba(201,169,98,0.28)] transition hover:bg-[#B8956B] disabled:opacity-40"
             >
-              שליחה
+              {saving ? "שולח..." : "שליחה"}
             </button>
           </div>
         )}
@@ -472,6 +515,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -558,6 +602,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#F3EBE0] py-24">
@@ -589,6 +634,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="bg-[#2A2118] py-16 text-center text-white">
       <p className="font-['Cormorant_Garamond'] text-3xl font-light">{DEMO.coupleNames}</p>
@@ -599,10 +645,10 @@ function FooterSection() {
   );
 }
 
-export default function EternalGoldSite({ template, embed }: TemplateProps) {
+export default function EternalGoldSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
-      {!embed && (
+    <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth overflow-x-clip">
+      {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
           className="fixed bottom-4 left-4 z-[55] rounded-sm border border-[#C9A962]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-md"
@@ -610,7 +656,9 @@ export default function EternalGoldSite({ template, embed }: TemplateProps) {
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(250,247,242,0.92)","text":"#2A2118","muted":"#8A7560","accent":"#C9A962","border":"rgba(201,169,98,0.35)","fontDisplay":"'Cormorant Garamond', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

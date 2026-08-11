@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Link2, Sparkles } from "lucide-react";
 import {
   normalizeRsvpSiteMode,
@@ -193,8 +194,8 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
         </h2>
 
         <p className="mt-2 max-w-[720px] text-sm font-semibold leading-relaxed text-[#8A7B69]">
-          בחרו איך האורחים יגיעו לאישור ההגעה — קישור רגיל או אתר חתונה אישי.
-          כרגע שני הסוגים נשמרים כהגדרה בלבד; הקישור הרגיל ממשיך לעבוד כרגיל.
+          שני מוצרים נפרדים: הזמנה אישית (`/invite/...`) ואתר חתונה אישי (`/w/...`).
+          בחירה כאן לא מחליפה ולא שוברת קישורים שכבר נשלחו לאורחים.
         </p>
       </div>
 
@@ -322,11 +323,20 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
           {saving
             ? "שומר בחירה..."
             : saved
-              ? "הבחירה נשמרה. האתר האישי יופעל בשלב הבא."
+              ? "הבחירה נשמרה. קישור ההזמנה הרגיל לא השתנה."
               : mode === "personal"
-                ? "נבחר אתר אישי — ההגדרה נשמרת, אך האורחים עדיין מקבלים את הקישור הרגיל."
-                : "נבחר קישור רגיל — זה מה שהאורחים מקבלים היום."}
+                ? "נבחר אתר חתונה אישי — נהלו תבנית, תוכן ופרסום במסך הייעודי. קישור ההזמנה הרגיל נשאר פעיל."
+                : "נבחרה הזמנה אישית רגילה — זה מה שהאורחים מקבלים בהודעות."}
         </p>
+
+        {mode === "personal" ? (
+          <Link
+            href={`/dashboard/wedding-website?invitationId=${encodeURIComponent(invitationId)}`}
+            className="mt-4 inline-flex rounded-full bg-[#B8844F] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:brightness-105"
+          >
+            ניהול אתר החתונה · תבניות ופרסום
+          </Link>
+        ) : null}
       </div>
     </div>
   );

@@ -4,16 +4,18 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const GREEN = "#6B9E78";
 
@@ -73,26 +75,8 @@ function Section({ id, children, className = "", wavy = false }: { id: string; c
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-[#5C7A62] transition hover:bg-[#6B9E78]/15 hover:text-[#1F3324]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#6B9E78]/40 to-transparent" />
-    </nav>
-  );
-}
-
 function HeroSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative min-h-screen overflow-hidden bg-[#F4FAF4]">
       <FloatingPetals />
@@ -139,6 +123,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -172,6 +157,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -186,6 +172,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-4xl px-6">
@@ -210,6 +197,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -226,6 +214,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -274,7 +263,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-[2rem] shadow-xl">
-          <video src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -282,6 +271,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -305,6 +295,7 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-3xl px-6">
@@ -332,6 +323,7 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto max-w-5xl px-6">
@@ -346,6 +338,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -357,6 +350,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -375,9 +369,11 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-4xl px-6">
+        <ShuttleRide accent="#6B9E78" className="mb-8 mt-6" />
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הגעה</h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
@@ -393,6 +389,7 @@ function TransportationSection() {
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#F4FAF4] py-24">
@@ -412,7 +409,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-lg px-6">
@@ -429,7 +426,7 @@ function RsvpSection() {
               ))}
             </div>
             {rsvp === "yes" && <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-full border px-4 py-3 text-center" style={{ borderColor: GREEN }} />}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="w-full rounded-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: GREEN }}>
+            <button type="button" onClick={() => void submit()} disabled={!rsvp || saving} className="w-full rounded-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: GREEN }}>
               שליחה
             </button>
           </div>
@@ -440,6 +437,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -500,6 +498,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#E8F3E8] py-24" wavy>
@@ -521,6 +520,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="bg-[#6B9E78] py-20 text-center">
       <p className="font-['Libre_Baskerville'] text-3xl text-white">{DEMO.coupleNames}</p>
@@ -529,15 +529,17 @@ function FooterSection() {
   );
 }
 
-export default function GardenBloomSite({ template, embed }: TemplateProps) {
+export default function GardenBloomSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#F4FAF4] text-[#1F3324] scroll-smooth">
-      {!embed && (
+    <div className="wedding-website-root bg-[#F4FAF4] text-[#1F3324] scroll-smooth overflow-x-clip">
+      {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full bg-white px-4 py-2 text-xs font-bold shadow-lg" style={{ color: GREEN }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(244,250,244,0.94)","text":"#1F3324","muted":"#5C7A62","accent":"#6B9E78","border":"rgba(107,158,120,0.3)","fontDisplay":"'Libre Baskerville', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

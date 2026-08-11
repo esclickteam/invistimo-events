@@ -3,18 +3,19 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const ACCENT = "#7C9CFF";
 const DARK = "#0A0E17";
 
@@ -87,58 +88,19 @@ function GlassPanel({
   );
 }
 
-function GlassNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4">
-      <GlassPanel
-        className={`mx-auto flex max-w-6xl items-center justify-between px-6 py-3 transition ${
-          scrolled ? "shadow-[0_8px_40px_rgba(124,156,255,0.15)]" : ""
-        }`}
-      >
-        <Link href="/wedding-website" className="text-xs font-medium text-[#7C9CFF]">
-          ← תבניות
-        </Link>
-        <nav className="hidden gap-1 md:flex">
-          {NAV.slice(1, 10).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="rounded-lg px-3 py-1.5 text-xs text-[#8892A8] transition hover:bg-white/5 hover:text-white"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="rounded-xl bg-[#7C9CFF]/20 px-4 py-2 text-xs font-bold text-[#7C9CFF] backdrop-blur hover:bg-[#7C9CFF]/30"
-        >
-          RSVP
-        </a>
-      </GlassPanel>
-    </header>
-  );
-}
-
-export default function ModernGlassSite({ template, embed }: TemplateProps) {
+export default function ModernGlassSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
+    <div className="min-h-screen font-['Montserrat'] overflow-x-clip" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
       <GradientMeshBg />
-      <GlassNav embed={embed} />
+      <WeddingSmartNav theme={{"bg":"rgba(10,14,23,0.88)","text":"#F0F4FF","muted":"#8892A8","accent":"#7C9CFF","border":"rgba(255,255,255,0.12)","fontDisplay":"'Montserrat', sans-serif","dark":true}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* HERO — bento grid with video cell */}
       <section id="hero" className={`relative px-4 ${embed ? "pt-4" : "pt-24"} md:px-8`}>
@@ -151,14 +113,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
             <TiltCard className="h-full">
               <GlassPanel className="flex h-full min-h-[320px] flex-col justify-end overflow-hidden p-8 md:min-h-[480px]">
                 <div className="absolute inset-0 -z-10">
-                  <video
-                    src={VIDEOS.couple}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="h-full w-full object-cover opacity-60"
-                  />
+                  <video src={VIDEOS.couple} autoPlay muted loop playsInline className="h-full w-full object-cover opacity-60" preload="metadata" poster={template.heroImage} />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-[#0A0E17]/50 to-transparent" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#7C9CFF]">Wedding</p>
@@ -357,7 +312,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
         <TiltCard className="mx-auto max-w-4xl">
           <GlassPanel className="overflow-hidden p-0">
             <h2 className="p-6 text-2xl font-bold">סרטון</h2>
-            <video src={VIDEOS.party} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <video src={VIDEOS.party} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
           </GlassPanel>
         </TiltCard>
       </section>
@@ -475,6 +430,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
       <section id="transportation" className="px-4 py-20 md:px-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-10 text-center text-3xl font-bold">הגעה</h2>
+        <ShuttleRide accent="#7C9CFF" className="mb-8 mt-6" />
           <div className="space-y-3">
             {DEMO.transportation.map((t) => (
               <TiltCard key={t.title}>
@@ -557,8 +513,8 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
                 )}
                 <button
                   type="button"
-                  onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                  disabled={!rsvp.rsvp}
+                  onClick={() => void rsvp.submit()}
+                  disabled={!rsvp.rsvp || rsvp.saving}
                   className="w-full rounded-xl bg-[#7C9CFF] py-3 font-bold text-[#0A0E17] disabled:opacity-40"
                 >
                   שליחה
@@ -654,7 +610,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
               <TiltCard key={item.id}>
                 <GlassPanel className="overflow-hidden p-0">
                   {item.type === "video" ? (
-                    <video src={item.url} className="aspect-square w-full object-cover" muted />
+                    <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={item.url} alt="" className="aspect-square w-full object-cover" />

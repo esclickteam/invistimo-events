@@ -4,16 +4,18 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -62,28 +64,8 @@ function Section({ id, children, className = "", diagonal = false }: { id: strin
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50">
-      <div
-        className="mx-4 mt-2 flex items-center gap-1 overflow-x-auto px-4 py-3 backdrop-blur-md scrollbar-none"
-        style={{
-          background: "linear-gradient(135deg, rgba(251,245,240,0.95), rgba(245,232,222,0.95))",
-          clipPath: "polygon(2% 0, 100% 0, 98% 100%, 0 100%)",
-          borderBottom: `2px solid ${TERRACOTTA}`,
-        }}
-      >
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold text-[#9A7060] transition hover:text-[#C4705A]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
 function HeroSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative min-h-screen overflow-hidden" style={{ backgroundColor: BLUSH }}>
       <SandShimmer />
@@ -118,6 +100,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -152,6 +135,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -166,6 +150,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-4xl px-6">
@@ -191,6 +176,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
@@ -207,6 +193,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
@@ -254,7 +241,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">סרטון</h2>
         <div className="relative mt-10 overflow-hidden shadow-2xl" style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}>
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -262,6 +249,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -285,6 +273,7 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-3xl px-6">
@@ -313,6 +302,7 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto max-w-5xl px-6">
@@ -327,6 +317,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -338,6 +329,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -356,9 +348,11 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-4xl px-6">
+        <ShuttleRide accent="#C4705A" className="mb-8 mt-6" />
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">הגעה</h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
@@ -374,6 +368,7 @@ function TransportationSection() {
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#FBF5F0] py-24">
@@ -393,7 +388,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-lg px-6">
@@ -411,7 +406,7 @@ function RsvpSection() {
               ))}
             </div>
             {rsvp === "yes" && <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="relative w-full border bg-white px-4 py-3 text-center" style={{ borderColor: TERRACOTTA }} />}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="relative w-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: TERRACOTTA }}>
+            <button type="button" onClick={() => void submit()} disabled={!rsvp || saving} className="relative w-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: TERRACOTTA }}>
               שליחה
             </button>
           </div>
@@ -422,6 +417,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -485,6 +481,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#F5E8DE] py-24" diagonal>
@@ -506,6 +503,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="relative bg-[#C4705A] py-20 text-center text-white">
       <SandShimmer />
@@ -515,15 +513,17 @@ function FooterSection() {
   );
 }
 
-export default function DesertRoseSite({ template, embed }: TemplateProps) {
+export default function DesertRoseSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518] scroll-smooth">
-      {!embed && (
+    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518] scroll-smooth overflow-x-clip">
+      {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] px-4 py-2 text-xs font-bold text-white shadow-lg" style={{ backgroundColor: TERRACOTTA, clipPath: "polygon(5% 0, 100% 0, 95% 100%, 0 100%)" }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(251,245,240,0.94)","text":"#3D2518","muted":"#9A7060","accent":"#C4705A","border":"rgba(196,112,90,0.3)","fontDisplay":"'Cormorant Garamond', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

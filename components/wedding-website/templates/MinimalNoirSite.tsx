@@ -3,18 +3,19 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 
 function NoirRule({ className = "" }: { className?: string }) {
   return <hr className={`border-0 border-t border-black ${className}`} />;
@@ -28,59 +29,10 @@ function NoirLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function NoirNav({ embed }: { embed?: boolean }) {
-  const [active, setActive] = useState("hero");
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
-      { rootMargin: "-40% 0px -55% 0px" }
-    );
-    NAV.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) obs.observe(el);
-    });
-    return () => obs.disconnect();
-  }, []);
-
-  if (embed) return null;
-
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-black bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link
-          href="/wedding-website"
-          className="font-mono text-[10px] uppercase tracking-widest hover:underline"
-        >
-          ← תבניות
-        </Link>
-        <nav className="hidden gap-0 md:flex">
-          {NAV.slice(0, 8).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className={`border-l border-black px-3 py-1 font-mono text-[9px] uppercase tracking-wider transition ${
-                active === id ? "bg-black text-white" : "hover:bg-neutral-100"
-              }`}
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="border border-black px-3 py-1 font-mono text-[10px] uppercase tracking-widest hover:bg-black hover:text-white"
-        >
-          RSVP
-        </a>
-      </div>
-    </header>
-  );
-}
-
-export default function MinimalNoirSite({ template, embed }: TemplateProps) {
+export default function MinimalNoirSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -91,8 +43,8 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
   const [namesFirst, namesSecond] = DEMO.coupleNames.split("&").map((s) => s.trim());
 
   return (
-    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
-      <NoirNav embed={embed} />
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white overflow-x-clip">
+      <WeddingSmartNav theme={{"bg":"rgba(250,250,250,0.96)","text":"#111111","muted":"#666666","accent":"#111111","border":"rgba(0,0,0,0.12)","fontDisplay":"'Montserrat', sans-serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* Progress line */}
       <motion.div
@@ -319,14 +271,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
             <h2 className="text-3xl font-black">סרטון</h2>
           </div>
           <div className="md:col-span-2">
-            <video
-              src={VIDEOS.rings}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="aspect-video w-full object-cover"
-            />
+            <video src={VIDEOS.rings} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" />
           </div>
         </div>
       </section>
@@ -436,6 +381,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
         <div className="mx-auto max-w-7xl p-8 md:p-16">
           <NoirLabel>Transportation</NoirLabel>
           <h2 className="mb-8 text-3xl font-black">הגעה</h2>
+        <ShuttleRide accent="#111111" className="mb-8 mt-6" />
           <div className="grid gap-0 md:grid-cols-3">
             {DEMO.transportation.map((t) => (
               <div key={t.title} className="border border-black p-6 md:-mr-px">
@@ -514,8 +460,8 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
               )}
               <button
                 type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
+                onClick={() => void rsvp.submit()}
+                disabled={!rsvp.rsvp || rsvp.saving}
                 className="w-full border border-white py-4 font-mono text-xs uppercase tracking-widest disabled:opacity-30"
               >
                 שליחה
@@ -600,7 +546,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
             {upload.items.map((item) => (
               <div key={item.id} className="aspect-square border border-black">
                 {item.type === "video" ? (
-                  <video src={item.url} className="h-full w-full object-cover" muted />
+                  <video src={item.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.url} alt="" className="h-full w-full object-cover grayscale" />

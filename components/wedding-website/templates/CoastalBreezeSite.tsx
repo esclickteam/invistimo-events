@@ -4,16 +4,19 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -49,24 +52,11 @@ function Section({ id, children, className = "", wave = false }: { id: string; c
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-[#5A7A94] transition hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function HeroSection() {
+function HeroSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden">
-      <video src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+      <video src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" preload="metadata" poster={template.heroImage} />
       <div className="absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative z-10 px-6 text-center text-white">
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#B3E0F2]">Coastal Breeze</p>
@@ -86,6 +76,7 @@ function HeroSection() {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -111,6 +102,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -125,6 +117,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-4xl px-6">
@@ -142,6 +135,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
@@ -158,6 +152,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
@@ -198,7 +193,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-3xl shadow-2xl">
-          <video src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -206,6 +201,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -229,11 +225,12 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">לוח זמנים</h2>
-        <div className="mt-12 flex gap-4 overflow-x-auto pb-6 scrollbar-none">
+        <div className="mt-12 grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto gap-4 overflow-x-clip md:overflow-visible pb-6 scrollbar-none ww-no-x-scroll">
           {DEMO.schedule.map((item, i) => (
             <motion.div
               key={item.time}
@@ -256,10 +253,16 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-5xl px-6">
-        <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">מיקום</h2>
+        <div className="flex justify-center">
+          <MapPinPulse accent={BLUE} />
+        </div>
+        <h2 className="mt-2 text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">
+          {DEMO.venueName || "מיקום"}
+        </h2>
         <p className="mt-2 text-center text-[#5A7A94]">{DEMO.venueAddress}</p>
         <div
           className="relative mx-auto mt-10 max-w-3xl overflow-hidden shadow-2xl"
@@ -276,6 +279,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -287,6 +291,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-4xl px-6">
@@ -305,10 +310,14 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">הגעה</h2>
+        <div className="mt-8">
+          <ShuttleRide accent={BLUE} label="שאטל לחתונה" />
+        </div>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
             <div key={item.title} className="rounded-2xl bg-white p-6 shadow-md">
@@ -317,12 +326,38 @@ function TransportationSection() {
             </div>
           ))}
         </div>
+        {DEMO.wazeUrl || DEMO.mapsUrl ? (
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            {DEMO.wazeUrl ? (
+              <a
+                href={DEMO.wazeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full px-6 py-3 text-sm font-bold text-white"
+                style={{ backgroundColor: BLUE }}
+              >
+                ניווט ב-Waze
+              </a>
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a
+                href={DEMO.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[#3D8BBA]/40 bg-white px-6 py-3 text-sm font-bold text-[#0D2840]"
+              >
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </Section>
   );
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#F0F8FF] pt-24" wave>
@@ -342,7 +377,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-lg px-6">
@@ -359,7 +394,7 @@ function RsvpSection() {
               ))}
             </div>
             {rsvp === "yes" && <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-full border px-4 py-3 text-center" style={{ borderColor: BLUE }} />}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="w-full rounded-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: BLUE }}>
+            <button type="button" onClick={() => void submit()} disabled={!rsvp || saving} className="w-full rounded-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: BLUE }}>
               שליחה
             </button>
           </div>
@@ -370,6 +405,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -430,6 +466,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#F5E6C8] pt-24">
@@ -451,6 +488,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="bg-gradient-to-b from-[#3D8BBA] to-[#0D2840] pt-20 text-center text-white">
       <p className="font-['Montserrat'] text-3xl font-light">{DEMO.coupleNames}</p>
@@ -459,16 +497,18 @@ function FooterSection() {
   );
 }
 
-export default function CoastalBreezeSite({ template, embed }: TemplateProps) {
+export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#F0F8FF] text-[#0D2840] scroll-smooth">
-      {!embed && (
+    <div className="wedding-website-root bg-[#F0F8FF] text-[#0D2840] scroll-smooth overflow-x-clip">
+      {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full bg-white px-4 py-2 text-xs font-bold shadow-lg" style={{ color: BLUE }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
-      <HeroSection />
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(240,248,255,0.94)","text":"#0D2840","muted":"#5A7A94","accent":"#3D8BBA","border":"rgba(61,139,186,0.28)","fontDisplay":"'Montserrat', sans-serif"}} hideDemoLink={hideDemoBadge} />
+      )}
+      <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />
       <OurStorySection />
