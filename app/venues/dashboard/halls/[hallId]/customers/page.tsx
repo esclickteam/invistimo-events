@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2, Phone, RefreshCw, Search, UsersRound } from "lucide-react";
 
@@ -15,6 +16,10 @@ type Customer = {
   notes: string;
   lastActivity: string;
   lastActivityAt: string | null;
+  leadId?: string | null;
+  linkedEventId?: string | null;
+  crmHref?: string | null;
+  eventHref?: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -150,7 +155,34 @@ export default function VenueCustomersPage() {
                     className="border-b border-[#f4ead9] transition hover:bg-[#fffdf8]"
                   >
                     <td className="px-4 py-3 font-black text-[#2b241c]">
-                      {customer.name}
+                      {customer.eventHref || customer.crmHref ? (
+                        <Link
+                          href={customer.eventHref || customer.crmHref || "#"}
+                          className="text-[#b98121] underline-offset-2 hover:underline"
+                        >
+                          {customer.name}
+                        </Link>
+                      ) : (
+                        customer.name
+                      )}
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-bold">
+                        {customer.crmHref ? (
+                          <Link
+                            href={customer.crmHref}
+                            className="text-[#8a7b68] hover:text-[#b98121]"
+                          >
+                            CRM
+                          </Link>
+                        ) : null}
+                        {customer.eventHref ? (
+                          <Link
+                            href={customer.eventHref}
+                            className="text-[#8a7b68] hover:text-[#b98121]"
+                          >
+                            אירוע
+                          </Link>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-bold text-[#6f6252]">
                       {customer.phone ? (

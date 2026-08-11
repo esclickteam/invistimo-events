@@ -15,6 +15,10 @@ import {
   type VenuePermission,
   type VenueRole,
 } from "@/lib/venues/permissions";
+import {
+  isVenuePilotAllowed,
+  isVenuePilotOwnerAllowed,
+} from "@/lib/venues/pilotGate";
 
 export type VenueAccessContext = {
   auth: AuthPayload;
@@ -114,6 +118,18 @@ export async function requireVenueAccess(
 
   const safeVenueId = String((hall as any).id || (hall as any)._id);
   const ownerId = String((hall as any).ownerId);
+
+  const pilot = isVenuePilotAllowed({
+    ownerId,
+    hallId: safeVenueId,
+    isAdmin,
+  });
+  if (!pilot.allowed) {
+    return {
+      ctx: null,
+      error: jsonError(pilot.reason || "אין גישה לפיילוט האולמות", 403),
+    };
+  }
 
   let membership = await VenueMembership.findOne({
     userId: auth.userId,
@@ -323,6 +339,31 @@ export async function requireVenueDashboardActor(
       ctx: null,
       error: jsonError("לא נמצא בעלים לאולם", 403),
     };
+  }
+
+  const pilotOwner = isVenuePilotOwnerAllowed({
+    ownerId: tenantOwnerId,
+    isAdmin: false,
+  });
+  if (!pilotOwner.allowed) {
+    // Allow if any membership hall is on the hall allowlist
+    const anyHallOk = memberships.some(
+      (m) =>
+        isVenuePilotAllowed({
+          ownerId: tenantOwnerId,
+          hallId: m.venueId,
+          isAdmin: false,
+        }).allowed
+    );
+    if (!anyHallOk) {
+      return {
+        ctx: null,
+        error: jsonError(
+          pilotOwner.reason || "אין גישה לפיילוט האולמות",
+          403
+        ),
+      };
+    }
   }
 
   // Prefer OWNER membership; otherwise first membership.

@@ -180,6 +180,9 @@ export default function VenueDashboardClient() {
   const [serverError, setServerError] = useState("");
   const [savingHallId, setSavingHallId] = useState<string | null>(null);
   const [creatingHall, setCreatingHall] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
 
   const fetchDashboard = async () => {
     setLoadingDashboard(true);
@@ -223,6 +226,80 @@ export default function VenueDashboardClient() {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  const createTask = async () => {
+    const title = newTaskTitle.trim();
+    if (!title || creatingTask) return;
+    setCreatingTask(true);
+    try {
+      const hallId = halls[0]?.id || "";
+      const res = await fetch("/api/venues/dashboard/tasks", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          area: "תפעול",
+          due: "היום",
+          priority: "medium",
+          hallId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "יצירת משימה נכשלה");
+      }
+      setNewTaskTitle("");
+      if (data.task) {
+        setTasks((prev) => [data.task, ...prev]);
+      } else {
+        await fetchDashboard();
+      }
+    } catch (error) {
+      console.error("POST task failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "יצירת משימה נכשלה"
+      );
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  const toggleTaskDone = async (task: Task) => {
+    if (togglingTaskId) return;
+    setTogglingTaskId(task.id);
+    const nextDone = !task.done;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, done: nextDone } : t))
+    );
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/tasks/${encodeURIComponent(task.id)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ done: nextDone }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "עדכון משימה נכשל");
+      }
+      if (data.task) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, ...data.task } : t))
+        );
+      }
+    } catch (error) {
+      console.error("PATCH task failed:", error);
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, done: task.done } : t))
+      );
+    } finally {
+      setTogglingTaskId(null);
+    }
+  };
 
   const stats = useMemo(() => {
     const monthlyEvents = halls.reduce((sum, hall) => sum + hall.monthlyEvents, 0);
@@ -901,6 +978,29 @@ export default function VenueDashboardClient() {
                   </div>
                 </div>
 
+                <div className="mt-4 flex gap-2">
+                  <input
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="משימה חדשה..."
+                    className="h-11 flex-1 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void createTask();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={creatingTask || !newTaskTitle.trim()}
+                    onClick={() => void createTask()}
+                    className="h-11 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white disabled:opacity-40"
+                  >
+                    הוסף
+                  </button>
+                </div>
+
                 <div className="mt-5 space-y-3">
                   {tasks.length ? (
                     tasks.map((task) => (
@@ -910,7 +1010,9 @@ export default function VenueDashboardClient() {
                       >
                         <input
                           type="checkbox"
-                          defaultChecked={task.done}
+                          checked={task.done}
+                          disabled={togglingTaskId === task.id}
+                          onChange={() => void toggleTaskDone(task)}
                           className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
                         />
 
@@ -955,7 +1057,7 @@ export default function VenueDashboardClient() {
                     <EmptySmall
                       icon={<ShieldCheck size={22} />}
                       title="אין משימות פתוחות"
-                      description="בהמשך נוסיף יצירת משימות לצוות ולתפעול."
+                      description="הוסיפי משימה חדשה בשדה למעלה."
                     />
                   )}
                 </div>
@@ -1063,7 +1165,7 @@ export default function VenueDashboardClient() {
                     <EmptySmall
                       icon={<Bell size={22} />}
                       title="אין התראות כרגע"
-                      description="התראות תחזוקה, תשלומים וצוות יופיעו כאן בהמשך."
+                      description="התראות לידים, המרות ועדכוני אולם יופיעו כאן."
                     />
                   )}
                 </div>

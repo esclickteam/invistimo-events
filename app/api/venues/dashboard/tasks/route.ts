@@ -7,6 +7,9 @@ import {
 import mongoose from "mongoose";
 
 import VenueTask from "@/models/VenueTask";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { eventHasVerifiedVenueLink } from "@/lib/venues/eventVenueLinkInvariant";
+import Event from "@/models/Event";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,9 +37,12 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const hallId = clean(new URL(req.url).searchParams.get("hallId"));
+    const url = new URL(req.url);
+    const hallId = clean(url.searchParams.get("hallId"));
+    const eventIdFilter = clean(url.searchParams.get("eventId"));
 
     let ownerId = "";
+    let venueId = "";
     if (hallId) {
       const { ctx, error } = await requireVenueAccess(
         req,
@@ -45,6 +51,7 @@ export async function GET(req: NextRequest) {
       );
       if (error || !ctx) return error!;
       ownerId = ctx.ownerId;
+      venueId = ctx.venueId;
     } else {
       const { ctx, error } = await requireVenueDashboardActor(
         req,
@@ -57,7 +64,14 @@ export async function GET(req: NextRequest) {
     const query: Record<string, unknown> = { ownerId };
     if (hallId) {
       // Include legacy tasks without hallId for this owner + hall-scoped ones
-      query.$or = [{ hallId }, { hallId: "" }, { hallId: { $exists: false } }];
+      query.$or = [
+        { hallId: venueId || hallId },
+        { hallId: "" },
+        { hallId: { $exists: false } },
+      ];
+    }
+    if (eventIdFilter && mongoose.Types.ObjectId.isValid(eventIdFilter)) {
+      query.eventId = new mongoose.Types.ObjectId(eventIdFilter);
     }
 
     const tasks = await VenueTask.find(query)
@@ -92,6 +106,8 @@ export async function POST(req: NextRequest) {
     const hallId = clean(body.hallId);
 
     let ownerId = "";
+    let venueId = "";
+    let actorUserId = "";
     if (hallId) {
       const { ctx, error } = await requireVenueAccess(
         req,
@@ -100,6 +116,8 @@ export async function POST(req: NextRequest) {
       );
       if (error || !ctx) return error!;
       ownerId = ctx.ownerId;
+      venueId = ctx.venueId;
+      actorUserId = String(ctx.auth.userId);
     } else {
       const { ctx, error } = await requireVenueDashboardActor(
         req,
@@ -107,17 +125,28 @@ export async function POST(req: NextRequest) {
       );
       if (error || !ctx) return error!;
       ownerId = ctx.ownerId;
+      actorUserId = String(ctx.auth.userId);
     }
 
     const eventIdRaw = clean(body.eventId);
-    const eventId =
-      eventIdRaw && mongoose.Types.ObjectId.isValid(eventIdRaw)
-        ? new mongoose.Types.ObjectId(eventIdRaw)
-        : null;
+    let eventId: mongoose.Types.ObjectId | null = null;
+    if (eventIdRaw && mongoose.Types.ObjectId.isValid(eventIdRaw)) {
+      const event = await Event.findById(eventIdRaw).lean();
+      if (!event || !(await eventHasVerifiedVenueLink(event))) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "ניתן לשייך משימה רק לאירוע אולם מאומת",
+          },
+          { status: 400 }
+        );
+      }
+      eventId = new mongoose.Types.ObjectId(eventIdRaw);
+    }
 
     const task = await VenueTask.create({
       ownerId,
-      hallId: hallId || "",
+      hallId: venueId || hallId || "",
       eventId,
 
       title: String(body.title || "").trim() || "משימה חדשה",
@@ -130,6 +159,21 @@ export async function POST(req: NextRequest) {
 
       done: Boolean(body.done),
     });
+
+    if (venueId || hallId) {
+      await writeVenueAudit({
+        venueId: venueId || hallId,
+        ownerId,
+        actorUserId,
+        action: "task.create",
+        targetType: "VenueTask",
+        targetId: String(task._id),
+        meta: {
+          title: task.title,
+          eventId: eventId ? String(eventId) : null,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
