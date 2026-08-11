@@ -253,18 +253,18 @@ function Metric({
 }) {
   return (
     <div className="tx-stat">
-      <div className="text-xs font-black uppercase tracking-[0.22em] text-[#93a0b8]">
+      <div className="text-xs font-black uppercase tracking-[0.22em] text-[#66768a]">
         {label}
       </div>
-      <div className="mt-2 text-3xl font-black text-white">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-[#93a0b8]">{hint}</div> : null}
+      <div className="mt-2 text-3xl font-black text-[#1c2430]">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-[#66768a]">{hint}</div> : null}
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-[#2a3a55] bg-[#101827]/70 p-8 text-center text-sm font-bold text-[#93a0b8]">
+    <div className="rounded-[24px] border border-dashed border-[#d7e0ec] bg-white/80 p-8 text-center text-sm font-bold text-[#66768a]">
       {text}
     </div>
   );
@@ -740,7 +740,7 @@ export default function TransportationDashboardPage() {
             Access denied
           </div>
           <h1 className="mt-3 text-3xl font-black">מודול ההסעות אינו פעיל</h1>
-          <p className="mt-3 text-sm text-[#93a0b8]">
+          <p className="mt-3 text-sm text-[#66768a]">
             אין לחשבון הנוכחי הרשאה לניהול הסעות. ניתן לפנות לאדמין להפעלת המודול.
           </p>
           <button type="button" onClick={() => router.push("/dashboard")} className="tx-btn primary mt-6">
@@ -756,7 +756,7 @@ export default function TransportationDashboardPage() {
       <div className="tx-root grid place-items-center p-6" dir="rtl">
         <div className="tx-hero max-w-xl text-center">
           <h1 className="text-2xl font-black">חסר מזהה אירוע</h1>
-          <p className="mt-2 text-sm text-[#93a0b8]">פתחו את מרכז ההסעות מתוך אירוע פעיל.</p>
+          <p className="mt-2 text-sm text-[#66768a]">פתחו את מרכז ההסעות מתוך אירוע פעיל.</p>
         </div>
       </div>
     );
@@ -794,22 +794,22 @@ export default function TransportationDashboardPage() {
                   </span>
                   <span className="tx-chip filling">RTL Logistics</span>
                 </div>
-                <h1 className="mt-4 text-4xl font-black tracking-tight text-white md:text-6xl">
+                <h1 className="mt-4 text-4xl font-black tracking-tight text-[#1c2430] md:text-6xl">
                   הסעות לאירוע
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#93a0b8] md:text-base">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66768a] md:text-base">
                   מרכז פיקוד פרימיום לקווים, תחנות, קיבולת, רשימות המתנה וניהול עלייה בזמן אמת.
                 </p>
               </div>
 
-              <div className="min-w-[220px] rounded-[24px] border border-[#2a3a55] bg-[#0b1220]/60 p-5 text-center">
-                <div className="text-xs font-black uppercase tracking-[0.25em] text-[#93a0b8]">
+              <div className="min-w-[220px] rounded-[24px] border border-[#d7e0ec] bg-white p-5 text-center">
+                <div className="text-xs font-black uppercase tracking-[0.25em] text-[#66768a]">
                   Total registered
                 </div>
                 <div className="mt-2 text-5xl font-black text-[#d4a35c]">
                   {summary?.totalRegistered ?? 0}
                 </div>
-                <div className="mt-1 text-xs text-[#93a0b8]">
+                <div className="mt-1 text-xs text-[#66768a]">
                   {summary?.outboundPassengers ?? 0} הלוך · {summary?.returnPassengers ?? 0} חזור
                 </div>
               </div>
@@ -870,13 +870,13 @@ export default function TransportationDashboardPage() {
         </section>
 
         {toast ? (
-          <div className="mt-4 rounded-[20px] border border-[#d4a35c]/40 bg-[#d4a35c]/15 px-4 py-3 text-sm font-black text-[#ffe0a5]">
+          <div className="mt-4 rounded-[20px] border border-[#d4a35c]/35 bg-[#d4a35c]/12 px-4 py-3 text-sm font-black text-[#8a6a16]">
             {toast}
           </div>
         ) : null}
 
         {error ? (
-          <div className="mt-4 rounded-[20px] border border-[#e06b6b]/40 bg-[#e06b6b]/12 px-4 py-3 text-sm font-black text-[#ffc2c2]">
+          <div className="mt-4 rounded-[20px] border border-[#c45b5b]/35 bg-[#c45b5b]/10 px-4 py-3 text-sm font-black text-[#9a3030]">
             {error === "TRANSPORTATION_NOT_ALLOWED" || error === "UNAUTHORIZED"
               ? "אין הרשאה לגשת לניהול ההסעות."
               : "לא הצלחנו לטעון את מרכז ההסעות."}
@@ -893,10 +893,10 @@ export default function TransportationDashboardPage() {
                       key={item.routeId}
                       className="rounded-[22px] border border-[#5ec4a8]/30 bg-[#5ec4a8]/10 p-4"
                     >
-                      <div className="text-xs font-black uppercase tracking-[0.2em] text-[#6fd3a8]">
+                      <div className="text-xs font-black uppercase tracking-[0.2em] text-[#2f9d78]">
                         הזדמנות מרשימת המתנה
                       </div>
-                      <div className="mt-2 text-lg font-black text-white">{item.message}</div>
+                      <div className="mt-2 text-lg font-black text-[#1c2430]">{item.message}</div>
                       <button
                         type="button"
                         onClick={() => {
@@ -914,10 +914,10 @@ export default function TransportationDashboardPage() {
 
               {(summary?.issues || []).length > 0 ? (
                 <div className="rounded-[24px] border border-[#e0b35a]/35 bg-[#e0b35a]/10 p-5">
-                  <div className="text-lg font-black text-[#ffd28a]">חריגות תפעוליות</div>
+                  <div className="text-lg font-black text-[#8a6a16]">חריגות תפעוליות</div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     {(summary?.issues || []).map((issue) => (
-                      <div key={issue} className="rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm text-[#f5d8a8]">
+                      <div key={issue} className="rounded-2xl bg-[#f7f9fc] px-3 py-2 text-sm text-[#8a6a16]">
                         {issue}
                       </div>
                     ))}
@@ -941,8 +941,8 @@ export default function TransportationDashboardPage() {
                             ) : null}
                             <span className="tx-chip">{STATUS_LABEL[r.status || ""] || r.status || "פעיל"}</span>
                           </div>
-                          <h2 className="mt-3 text-2xl font-black text-white">{r.name}</h2>
-                          <p className="mt-1 text-sm text-[#93a0b8]">
+                          <h2 className="mt-3 text-2xl font-black text-[#1c2430]">{r.name}</h2>
+                          <p className="mt-1 text-sm text-[#66768a]">
                             {DIRECTION_LABEL[r.direction] || r.direction}
                             {routeClock(r) ? ` · ${routeClock(r)}` : ""}
                             {r.driverName ? ` · נהג ${r.driverName}` : ""}
@@ -952,10 +952,10 @@ export default function TransportationDashboardPage() {
                         <div className="flex items-center gap-3">
                           <CapacityRing registered={r.registered} capacity={r.capacity} level={level} />
                           <div className="text-sm">
-                            <div className="font-black text-white">
+                            <div className="font-black text-[#1c2430]">
                               {r.registered}/{r.capacity}
                             </div>
-                            <div className="text-[#93a0b8]">{r.remaining} פנויים</div>
+                            <div className="text-[#66768a]">{r.remaining} פנויים</div>
                           </div>
                         </div>
                       </div>
@@ -963,17 +963,17 @@ export default function TransportationDashboardPage() {
                       <div className="mt-5 tx-timeline">
                         {stopsForRoute.map((stop, index) => (
                           <div key={stop._id} className={`tx-stop ${index === stopsForRoute.length - 1 ? "is-venue" : ""}`}>
-                            <div className="text-sm font-black text-white">
+                            <div className="text-sm font-black text-[#1c2430]">
                               {stop.name}
                               {stop.time ? ` · ${stop.time}` : ""}
                             </div>
-                            <div className="text-xs text-[#93a0b8]">
+                            <div className="text-xs text-[#66768a]">
                               {stop.address || stop.landmark || "נקודה לוגיסטית"}
                             </div>
                           </div>
                         ))}
                         {stopsForRoute.length === 0 ? (
-                          <div className="text-sm font-bold text-[#93a0b8]">אין תחנות מוגדרות לקו זה.</div>
+                          <div className="text-sm font-bold text-[#66768a]">אין תחנות מוגדרות לקו זה.</div>
                         ) : null}
                       </div>
 
@@ -1025,7 +1025,7 @@ export default function TransportationDashboardPage() {
                 <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">
                   Route Builder
                 </div>
-                <h2 className="mt-2 text-2xl font-black text-white">יצירת קו חדש</h2>
+                <h2 className="mt-2 text-2xl font-black text-[#1c2430]">יצירת קו חדש</h2>
                 <div className="mt-5 space-y-3">
                   <input className="tx-input" placeholder="שם הקו" value={routeForm.name} onChange={(e) => setRouteForm((p) => ({ ...p, name: e.target.value }))} />
                   <select className="tx-select" value={routeForm.direction} onChange={(e) => setRouteForm((p) => ({ ...p, direction: e.target.value }))}>
@@ -1067,8 +1067,8 @@ export default function TransportationDashboardPage() {
                               <span className="tx-chip">{DIRECTION_LABEL[route.direction]}</span>
                               {!route.active ? <span className="tx-chip full">כבוי</span> : null}
                             </div>
-                            <h2 className="mt-2 text-2xl font-black text-white">{route.name}</h2>
-                            <p className="mt-1 text-sm text-[#93a0b8]">
+                            <h2 className="mt-2 text-2xl font-black text-[#1c2430]">{route.name}</h2>
+                            <p className="mt-1 text-sm text-[#66768a]">
                               {routeClock(route) ? `${routeClock(route)} · ` : ""}
                               {route.capacity} מקומות
                               {route.companyName ? ` · ${route.companyName}` : ""}
@@ -1079,8 +1079,8 @@ export default function TransportationDashboardPage() {
                             {rSummary ? (
                               <>
                                 <CapacityRing registered={rSummary.registered} capacity={rSummary.capacity} level={level} />
-                                <div className="text-sm text-[#93a0b8]">
-                                  <div className="font-black text-white">{rSummary.remaining} פנויים</div>
+                                <div className="text-sm text-[#66768a]">
+                                  <div className="font-black text-[#1c2430]">{rSummary.remaining} פנויים</div>
                                   <div>{rSummary.waitlistedPassengers || 0} בהמתנה</div>
                                 </div>
                               </>
@@ -1106,21 +1106,21 @@ export default function TransportationDashboardPage() {
                       </div>
 
                       {selected ? (
-                        <div className="mt-5 border-t border-[#2a3a55] pt-5">
+                        <div className="mt-5 border-t border-[#d7e0ec] pt-5">
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h3 className="text-lg font-black text-white">תחנות במסלול</h3>
-                            <span className="text-sm font-bold text-[#93a0b8]">{routeStopList.length} תחנות</span>
+                            <h3 className="text-lg font-black text-[#1c2430]">תחנות במסלול</h3>
+                            <span className="text-sm font-bold text-[#66768a]">{routeStopList.length} תחנות</span>
                           </div>
                           <div className="mt-4 tx-timeline">
                             {routeStopList.map((stop, stopIndex) => (
                               <div key={stop._id} className="tx-stop">
-                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0b1220]/50 px-3 py-2">
+                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#f7f9fc] px-3 py-2">
                                   <div>
-                                    <div className="font-black text-white">
+                                    <div className="font-black text-[#1c2430]">
                                       {stopIndex + 1}. {stop.name}
                                       {stop.time ? ` · ${stop.time}` : ""}
                                     </div>
-                                    <div className="text-xs text-[#93a0b8]">
+                                    <div className="text-xs text-[#66768a]">
                                       {stop.address || "ללא כתובת"}
                                       {stop.landmark ? ` · ${stop.landmark}` : ""}
                                     </div>
@@ -1141,7 +1141,7 @@ export default function TransportationDashboardPage() {
                                 </div>
                               </div>
                             ))}
-                            {routeStopList.length === 0 ? <div className="text-sm text-[#93a0b8]">אין תחנות עדיין לקו זה.</div> : null}
+                            {routeStopList.length === 0 ? <div className="text-sm text-[#66768a]">אין תחנות עדיין לקו זה.</div> : null}
                           </div>
 
                           <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -1170,7 +1170,7 @@ export default function TransportationDashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">Passenger Desk</div>
-                    <h2 className="mt-2 text-2xl font-black text-white">הוספת נוסע ידנית</h2>
+                    <h2 className="mt-2 text-2xl font-black text-[#1c2430]">הוספת נוסע ידנית</h2>
                   </div>
                   <label className="tx-chip filling cursor-pointer">
                     <input
@@ -1185,7 +1185,7 @@ export default function TransportationDashboardPage() {
                   <input className="tx-input" placeholder="שם מלא" value={regForm.name} onChange={(e) => setRegForm((p) => ({ ...p, name: e.target.value }))} />
                   <input className="tx-input" placeholder="טלפון" value={regForm.phone} onChange={(e) => setRegForm((p) => ({ ...p, phone: e.target.value }))} />
                   <input className="tx-input" inputMode="numeric" placeholder="כמות נוסעים" value={regForm.passengerCount} onChange={(e) => setRegForm((p) => ({ ...p, passengerCount: e.target.value }))} />
-                  <label className="flex items-center gap-2 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm font-black text-white">
+                  <label className="flex items-center gap-2 rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-3 py-2 text-sm font-black text-[#1c2430]">
                     <input type="checkbox" checked={regForm.needsOutbound} onChange={(e) => setRegForm((p) => ({ ...p, needsOutbound: e.target.checked }))} />
                     צריך הלוך
                   </label>
@@ -1209,7 +1209,7 @@ export default function TransportationDashboardPage() {
                       </option>
                     ))}
                   </select>
-                  <label className="flex items-center gap-2 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm font-black text-white">
+                  <label className="flex items-center gap-2 rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-3 py-2 text-sm font-black text-[#1c2430]">
                     <input type="checkbox" checked={regForm.needsReturn} onChange={(e) => setRegForm((p) => ({ ...p, needsReturn: e.target.checked }))} />
                     צריך חזור
                   </label>
@@ -1285,8 +1285,8 @@ export default function TransportationDashboardPage() {
                       return (
                         <tr key={reg._id}>
                           <td>
-                            <div className="font-black text-white">{reg.name}</div>
-                            {reg.notes ? <div className="text-xs text-[#93a0b8]">{reg.notes}</div> : null}
+                            <div className="font-black text-[#1c2430]">{reg.name}</div>
+                            {reg.notes ? <div className="text-xs text-[#66768a]">{reg.notes}</div> : null}
                           </td>
                           <td>{reg.phone || "—"}</td>
                           <td>{reg.passengerCount}</td>
@@ -1341,16 +1341,16 @@ export default function TransportationDashboardPage() {
               {guestsWithoutTransport.length > 0 ? (
                 <div className="tx-route-card">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-xl font-black text-white">
+                    <h3 className="text-xl font-black text-[#1c2430]">
                       אורחים ללא בחירת הסעה ({guestsWithoutTransport.length})
                     </h3>
-                    <span className="text-sm text-[#93a0b8]">מוצגים עד 24 אורחים</span>
+                    <span className="text-sm text-[#66768a]">מוצגים עד 24 אורחים</span>
                   </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                     {guestsWithoutTransport.slice(0, 24).map((guest) => (
-                      <div key={guest._id} className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2 text-sm">
-                        <span className="font-black text-white">{guest.name}</span>
-                        {guest.phone ? <span className="text-[#93a0b8]"> · {guest.phone}</span> : null}
+                      <div key={guest._id} className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-3 py-2 text-sm">
+                        <span className="font-black text-[#1c2430]">{guest.name}</span>
+                        {guest.phone ? <span className="text-[#66768a]"> · {guest.phone}</span> : null}
                       </div>
                     ))}
                   </div>
@@ -1365,9 +1365,9 @@ export default function TransportationDashboardPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   {(summary?.waitlistOpportunities || []).map((item) => (
                     <div key={item.routeId} className="rounded-[22px] border border-[#5ec4a8]/30 bg-[#5ec4a8]/10 p-4">
-                      <div className="font-black text-[#6fd3a8]">{item.name}</div>
-                      <div className="mt-1 text-sm text-white">{item.message}</div>
-                      <div className="mt-1 text-xs text-[#93a0b8]">
+                      <div className="font-black text-[#2f9d78]">{item.name}</div>
+                      <div className="mt-1 text-sm text-[#1c2430]">{item.message}</div>
+                      <div className="mt-1 text-xs text-[#66768a]">
                         {item.remaining} מקומות פנויים מול {item.waitlistedPassengers} נוסעים בהמתנה
                       </div>
                     </div>
@@ -1390,35 +1390,35 @@ export default function TransportationDashboardPage() {
                           <span className={`tx-chip ${canFit ? "available" : "full"}`}>
                             {canFit ? "ניתן לשקול קידום" : "אין מספיק מקומות"}
                           </span>
-                          <h2 className="mt-3 text-2xl font-black text-white">{reg.name}</h2>
-                          <p className="mt-1 text-sm text-[#93a0b8]">
+                          <h2 className="mt-3 text-2xl font-black text-[#1c2430]">{reg.name}</h2>
+                          <p className="mt-1 text-sm text-[#66768a]">
                             {reg.phone || "ללא טלפון"} · {reg.passengerCount} נוסעים
                           </p>
                         </div>
-                        <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/50 px-4 py-3 text-sm">
-                          <div className="font-black text-white">בקשה מול קיבולת</div>
-                          <div className="mt-1 text-[#93a0b8]">
+                        <div className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-4 py-3 text-sm">
+                          <div className="font-black text-[#1c2430]">בקשה מול קיבולת</div>
+                          <div className="mt-1 text-[#66768a]">
                             מבקש {reg.passengerCount}; מינימום פנוי {availableToCompare}
                           </div>
                         </div>
                       </div>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {reg.needsOutbound ? (
-                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 p-3">
+                          <div className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] p-3">
                             <div className="text-xs font-black text-[#d4a35c]">הלוך</div>
-                            <div className="mt-1 font-black text-white">{outRoute?.name || "קו לא נמצא"}</div>
-                            <div className="text-sm text-[#93a0b8]">{outRemaining} מקומות פנויים</div>
+                            <div className="mt-1 font-black text-[#1c2430]">{outRoute?.name || "קו לא נמצא"}</div>
+                            <div className="text-sm text-[#66768a]">{outRemaining} מקומות פנויים</div>
                           </div>
                         ) : null}
                         {reg.needsReturn ? (
-                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 p-3">
+                          <div className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] p-3">
                             <div className="text-xs font-black text-[#d4a35c]">חזור</div>
-                            <div className="mt-1 font-black text-white">{retRoute?.name || "קו לא נמצא"}</div>
-                            <div className="text-sm text-[#93a0b8]">{retRemaining} מקומות פנויים</div>
+                            <div className="mt-1 font-black text-[#1c2430]">{retRoute?.name || "קו לא נמצא"}</div>
+                            <div className="text-sm text-[#66768a]">{retRemaining} מקומות פנויים</div>
                           </div>
                         ) : null}
                       </div>
-                      {reg.notes ? <div className="mt-3 rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm text-[#93a0b8]">{reg.notes}</div> : null}
+                      {reg.notes ? <div className="mt-3 rounded-2xl bg-[#f7f9fc] px-3 py-2 text-sm text-[#66768a]">{reg.notes}</div> : null}
                       <div className="mt-5 flex flex-wrap gap-2">
                         <button type="button" disabled={busy} onClick={() => patchRegistration(reg._id, { action: "promote" })} className="tx-btn primary">
                           אשר ושבץ
@@ -1453,8 +1453,8 @@ export default function TransportationDashboardPage() {
                           <span className="tx-live" />
                           <span className="tx-chip available">{STATUS_LABEL[route.status] || route.status}</span>
                         </div>
-                        <h2 className="mt-3 text-2xl font-black text-white">{route.name}</h2>
-                        <p className="mt-1 text-sm text-[#93a0b8]">
+                        <h2 className="mt-3 text-2xl font-black text-[#1c2430]">{route.name}</h2>
+                        <p className="mt-1 text-sm text-[#66768a]">
                           {DIRECTION_LABEL[route.direction]} {routeClock(route) ? `· ${routeClock(route)}` : ""}
                         </p>
                       </div>
@@ -1484,14 +1484,14 @@ export default function TransportationDashboardPage() {
                         return (
                           <div key={stop._id} className="tx-stop">
                             {stopExpected > 0 && stopMissing > 0 ? <span className="tx-bus" aria-hidden="true" /> : null}
-                            <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2">
+                            <div className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-3 py-2">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
-                                  <div className="font-black text-white">
+                                  <div className="font-black text-[#1c2430]">
                                     {stop.name}
                                     {stop.time ? ` · ${stop.time}` : ""}
                                   </div>
-                                  <div className="text-xs text-[#93a0b8]">
+                                  <div className="text-xs text-[#66768a]">
                                     {stopExpected} צפויים · {stopBoarded} עלו · {stopMissing} חסרים
                                   </div>
                                 </div>
@@ -1512,10 +1512,10 @@ export default function TransportationDashboardPage() {
                         const field = routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus";
                         const boardStatus = reg[field];
                         return (
-                          <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#2a3a55] bg-[#0b1220]/45 px-3 py-2">
+                          <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-3 py-2">
                             <div>
-                              <div className="font-black text-white">{reg.name}</div>
-                              <div className="text-xs text-[#93a0b8]">
+                              <div className="font-black text-[#1c2430]">{reg.name}</div>
+                              <div className="text-xs text-[#66768a]">
                                 {reg.passengerCount} נוסעים · {reg.phone || "ללא טלפון"} · {BOARD_LABEL[boardStatus] || boardStatus}
                               </div>
                             </div>
@@ -1533,7 +1533,7 @@ export default function TransportationDashboardPage() {
                           </div>
                         );
                       })}
-                      {regs.length === 0 ? <div className="text-sm text-[#93a0b8]">אין נוסעים רשומים לקו זה.</div> : null}
+                      {regs.length === 0 ? <div className="text-sm text-[#66768a]">אין נוסעים רשומים לקו זה.</div> : null}
                     </div>
                   </article>
                 );
@@ -1545,7 +1545,7 @@ export default function TransportationDashboardPage() {
           {tab === "returns" && (
             <section className="space-y-5">
               <div className="tx-board">
-                <div className="tx-board-row bg-[#121a2b] text-xs font-black uppercase tracking-[0.25em] text-[#93a0b8]">
+                <div className="tx-board-row bg-[#f8fafc] text-xs font-black uppercase tracking-[0.25em] text-[#66768a]">
                   <div>שעה</div>
                   <div>קו חזור</div>
                   <div>סטטוס</div>
@@ -1556,8 +1556,8 @@ export default function TransportationDashboardPage() {
                     <div key={route._id} className="tx-board-row">
                       <div className="text-2xl font-black text-[#d4a35c]">{routeClock(route) || "TBD"}</div>
                       <div>
-                        <div className="text-lg font-black text-white">{route.name}</div>
-                        <div className="text-sm text-[#93a0b8]">
+                        <div className="text-lg font-black text-[#1c2430]">{route.name}</div>
+                        <div className="text-sm text-[#66768a]">
                           {s?.registered ?? 0}/{s?.capacity ?? route.capacity} נוסעים · {s?.remaining ?? 0} פנויים
                           {route.driverName ? ` · ${route.driverName}` : ""}
                           {route.vehicleNumber ? ` · ${route.vehicleNumber}` : ""}
@@ -1629,17 +1629,17 @@ export default function TransportationDashboardPage() {
                             <div className="text-xs font-black uppercase tracking-[0.25em] text-[#d4a35c]">
                               Driver Manifest
                             </div>
-                            <h2 className="mt-2 text-3xl font-black text-white">{route.name}</h2>
-                            <p className="mt-1 text-sm text-[#93a0b8]">
+                            <h2 className="mt-2 text-3xl font-black text-[#1c2430]">{route.name}</h2>
+                            <p className="mt-1 text-sm text-[#66768a]">
                               {DIRECTION_LABEL[route.direction]} {routeClock(route) ? `· ${routeClock(route)}` : ""}
                               {route.driverName ? ` · נהג ${route.driverName}` : ""}
                               {route.driverPhone ? ` · ${route.driverPhone}` : ""}
                               {route.vehicleNumber ? ` · רכב ${route.vehicleNumber}` : ""}
                             </p>
                           </div>
-                          <div className="rounded-2xl border border-[#2a3a55] bg-[#0b1220]/50 px-4 py-3 text-center">
-                            <div className="text-xs text-[#93a0b8]">נוסעים במניפסט</div>
-                            <div className="text-3xl font-black text-white">
+                          <div className="rounded-2xl border border-[#d7e0ec] bg-[#f7f9fc] px-4 py-3 text-center">
+                            <div className="text-xs text-[#66768a]">נוסעים במניפסט</div>
+                            <div className="text-3xl font-black text-[#1c2430]">
                               {regs.reduce((sum, reg) => sum + Number(reg.passengerCount || 0), 0)}
                             </div>
                           </div>
@@ -1651,9 +1651,9 @@ export default function TransportationDashboardPage() {
                               (reg) => id(reg.outboundStopId) === id(stop._id) || id(reg.returnStopId) === id(stop._id)
                             );
                             return (
-                              <div key={stop._id} className="rounded-[22px] border border-[#2a3a55] bg-[#0b1220]/45 p-4">
+                              <div key={stop._id} className="rounded-[22px] border border-[#d7e0ec] bg-[#f7f9fc] p-4">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <h3 className="text-xl font-black text-white">
+                                  <h3 className="text-xl font-black text-[#1c2430]">
                                     {stop.name}
                                     {stop.time ? ` · ${stop.time}` : ""}
                                   </h3>
@@ -1664,10 +1664,10 @@ export default function TransportationDashboardPage() {
                                     const field = routeBoardField(route, reg) as "outboundBoardStatus" | "returnBoardStatus";
                                     const boarded = reg[field] === "boarded";
                                     return (
-                                      <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#121a2b] px-3 py-2">
+                                      <div key={reg._id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#f8fafc] px-3 py-2">
                                         <div>
-                                          <span className="font-black text-white">{reg.name}</span>
-                                          <span className="text-sm text-[#93a0b8]">
+                                          <span className="font-black text-[#1c2430]">{reg.name}</span>
+                                          <span className="text-sm text-[#66768a]">
                                             {" "}
                                             · {reg.phone || "ללא טלפון"} · {reg.passengerCount} נוסעים
                                           </span>
@@ -1682,7 +1682,7 @@ export default function TransportationDashboardPage() {
                                       </div>
                                     );
                                   })}
-                                  {stopRegs.length === 0 ? <div className="text-sm text-[#93a0b8]">אין נוסעים בתחנה זו.</div> : null}
+                                  {stopRegs.length === 0 ? <div className="text-sm text-[#66768a]">אין נוסעים בתחנה זו.</div> : null}
                                 </div>
                               </div>
                             );
@@ -1690,12 +1690,12 @@ export default function TransportationDashboardPage() {
 
                           {unassigned.length > 0 ? (
                             <div className="rounded-[22px] border border-[#e0b35a]/35 bg-[#e0b35a]/10 p-4">
-                              <h3 className="text-xl font-black text-[#ffd28a]">ללא תחנה משויכת</h3>
+                              <h3 className="text-xl font-black text-[#8a6a16]">ללא תחנה משויכת</h3>
                               <div className="mt-3 grid gap-2 md:grid-cols-2">
                                 {unassigned.map((reg) => (
-                                  <div key={reg._id} className="rounded-2xl bg-[#0b1220]/45 px-3 py-2 text-sm">
-                                    <span className="font-black text-white">{reg.name}</span>
-                                    <span className="text-[#93a0b8]"> · {reg.passengerCount} נוסעים</span>
+                                  <div key={reg._id} className="rounded-2xl bg-[#f7f9fc] px-3 py-2 text-sm">
+                                    <span className="font-black text-[#1c2430]">{reg.name}</span>
+                                    <span className="text-[#66768a]"> · {reg.passengerCount} נוסעים</span>
                                   </div>
                                 ))}
                               </div>
