@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
+import { copySeatingTemplateToClientEvent } from "@/lib/venues/copySeatingTemplateToClientEvent";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
 export const dynamic = "force-dynamic";
@@ -255,63 +256,6 @@ async function createOrUpdateInvitation({
     shareId,
     guests: [],
   };
-}
-
-async function copySeatingTemplateToClientEvent({
-  event,
-  invitation,
-  userId,
-  template,
-}: {
-  event: any;
-  invitation: any;
-  userId: mongoose.Types.ObjectId;
-  template: any;
-}) {
-  const seatingTables = getCollection("seatingtables");
-
-  if (!seatingTables) {
-    throw new Error("לא נמצאה קולקשן seatingtables");
-  }
-
-  const canvas = template?.canvas || {};
-  const now = new Date();
-
-  await seatingTables.updateOne(
-    {
-      eventId: event._id,
-      invitationId: invitation._id,
-    },
-    {
-      $set: {
-        userId,
-
-        eventId: event._id,
-        invitationId: invitation._id,
-        shareId: cleanString(invitation.shareId),
-
-        venueOwnerId: event.venueOwnerId,
-        venueHallId: cleanString(event.venueHallId),
-        venueHallName: cleanString(event.venueHallName),
-
-        source: "venue_seating_template",
-        sourceTemplateId: template._id,
-
-        tables: Array.isArray(template.tables) ? template.tables : [],
-        background: canvas.background || null,
-        canvasView: canvas.canvasView || null,
-        zones: Array.isArray(canvas.zones) ? canvas.zones : [],
-
-        updatedAt: now,
-      },
-      $setOnInsert: {
-        createdAt: now,
-      },
-    },
-    {
-      upsert: true,
-    }
-  );
 }
 
 async function updateUserPermissions({
