@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 import { loadPublicWeddingSite } from "@/lib/weddingWebsite/loadPublicWeddingSite";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
-import "../wedding-website/wedding-website.css";
 
 export const dynamic = "force-dynamic";
 
