@@ -129,14 +129,32 @@ function extractToken() {
   return cookieJar.get("authToken") || cookieJar.get("token") || null;
 }
 
+async function warmBypass() {
+  if (!BYPASS) return;
+  // Establish Vercel protection bypass cookie before auth calls.
+  await request("GET", "/api/system/env-isolation");
+}
+
 async function login(email) {
-  for (const name of ["authToken", "token", "role", "hasPaid", "isTrial"]) {
+  await warmBypass();
+  for (const name of [
+    "authToken",
+    "token",
+    "role",
+    "hasPaid",
+    "isTrial",
+    "adminAuthToken",
+    "impersonationToken",
+  ]) {
     cookieJar.delete(name);
   }
   const res = await request("POST", "/api/login", {
     body: { email, password: PASSWORD },
   });
-  const token = extractToken();
+  // Some responses clear stale cookies then set authToken; re-read jar.
+  let token = extractToken();
+  if (!token && res.json?.token) token = res.json.token;
+  if (!token && res.json?.accessToken) token = res.json.accessToken;
   return {
     ok: Boolean(res.json?.success) && Boolean(token),
     token,
