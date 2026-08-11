@@ -58,7 +58,13 @@ const cookieJar = new Map();
 
 function assertStagingHost() {
   const host = new URL(BASE).hostname.toLowerCase();
-  if (!host.includes("staging") || host === "www.invistimo.com") {
+  if (host === "www.invistimo.com" || host === "invistimo.com") {
+    throw new Error(`Refusing production host ${host}`);
+  }
+  const allowPreview =
+    process.env.PILOT_LAB_ALLOW_PREVIEW === "1" &&
+    host.endsWith(".vercel.app");
+  if (!host.includes("staging") && !allowPreview) {
     throw new Error(`Refusing non-staging host ${host}`);
   }
 }
