@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

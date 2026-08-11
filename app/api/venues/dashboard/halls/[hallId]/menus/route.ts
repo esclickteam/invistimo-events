@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import VenueMenu from "@/models/VenueMenu";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -229,6 +231,24 @@ export async function POST(req: NextRequest, { params }: Props) {
       categories,
     });
 
+    await writeVenueAudit({
+      venueId: hallId,
+      ownerId: String(guard.ownerId),
+      actorUserId: String(guard.auth!.userId),
+      action: "menu.create",
+      targetType: "VenueMenu",
+      targetId: String(menu._id),
+      meta: { name },
+    });
+    await createVenueAlert({
+      ownerId: String(guard.ownerId),
+      hallId,
+      title: `תפריט חדש: ${name}`,
+      tone: "emerald",
+      type: "menu",
+      linkHref: `/venues/dashboard/halls/${encodeURIComponent(hallId)}/menus`,
+      dedupeKey: `menu-create:${String(menu._id)}`,
+    });
     return NextResponse.json({
       success: true,
       message: "התפריט נוצר בהצלחה",
@@ -350,6 +370,15 @@ export async function PUT(req: NextRequest, { params }: Props) {
       );
     }
 
+    await writeVenueAudit({
+      venueId: hallId,
+      ownerId: String(guard.ownerId),
+      actorUserId: String(guard.auth!.userId),
+      action: "menu.update",
+      targetType: "VenueMenu",
+      targetId: String(menu._id),
+      meta: { name: menu.name },
+    });
     return NextResponse.json({
       success: true,
       message: "התפריט נשמר בהצלחה",
@@ -432,6 +461,14 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       );
     }
 
+    await writeVenueAudit({
+      venueId: hallId,
+      ownerId: String(guard.ownerId),
+      actorUserId: String(guard.auth!.userId),
+      action: "menu.delete",
+      targetType: "VenueMenu",
+      targetId: menuId,
+    });
     return NextResponse.json({
       success: true,
       message: "התפריט נמחק בהצלחה",

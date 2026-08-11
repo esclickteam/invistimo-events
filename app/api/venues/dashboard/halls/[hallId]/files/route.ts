@@ -4,6 +4,7 @@ import VenueFile from "@/models/VenueFile";
 import { connectDB } from "@/lib/db";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 import {
   deleteVenueFileFromCloudinary,
   uploadVenueFileToCloudinary,
@@ -215,6 +216,17 @@ export async function POST(req: NextRequest, { params }: Props) {
         mimeType: uploaded.mimeType,
         size: uploaded.size,
       },
+    });
+
+    await createVenueAlert({
+      ownerId: String(ctx.ownerId),
+      hallId: ctx.venueId,
+      title: `קובץ חדש: ${uploaded.originalName || "מסמך"}`,
+      description: kind || "upload",
+      tone: "emerald",
+      type: "files",
+      linkHref: `/venues/dashboard/halls/${encodeURIComponent(ctx.venueId)}/files`,
+      dedupeKey: `file-upload:${String(venueFile._id)}`,
     });
 
     return NextResponse.json({

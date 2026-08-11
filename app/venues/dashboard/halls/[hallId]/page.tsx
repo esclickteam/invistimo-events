@@ -829,13 +829,18 @@ export default async function VenueHallPage({ params }: Props) {
                 <DashboardCard
                   title="ציוד ותחזוקה"
                   icon={<Wrench size={20} />}
-                  footer="ניהול ציוד ותחזוקה"
+                  footer="ניהול מלאי ושיוך לאירועים"
                 >
-                  <EmptyFeature
-                    title="אין משימות תחזוקה"
-                    text="משימות תחזוקה, ציוד ובדיקות אולם יופיעו כאן אחרי שנחבר את המודול."
-                    icon={<Wrench size={24} />}
-                  />
+                  <p className="text-sm font-bold leading-6 text-[#7f705d]">
+                    מלאי ציוד, כמויות זמינות, שיוך לאירועים מאומתים והחזרות —
+                    במסך הציוד של האולם.
+                  </p>
+                  <Link
+                    href={`/venues/dashboard/halls/${encodedHallId}/equipment`}
+                    className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-[#1f1b17] px-5 text-sm font-black text-white"
+                  >
+                    פתיחת מסך ציוד
+                  </Link>
                 </DashboardCard>
               </div>
             </section>

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import VenueMenuDishCategory from "@/models/VenueMenuDishCategory";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,6 +142,16 @@ export async function POST(req: NextRequest, context: RouteParams) {
       sortOrder: count,
     });
 
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_category.create",
+      targetType: "VenueMenuDishCategory",
+      targetId: String(category._id),
+      meta: { name },
+    });
+
     return NextResponse.json({
       success: true,
       alreadyExists: false,
@@ -247,6 +258,15 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
         { status: 404 }
       );
     }
+
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_category.delete",
+      targetType: "VenueMenuDishCategory",
+      targetId: categoryId,
+    });
 
     return NextResponse.json({
       success: true,

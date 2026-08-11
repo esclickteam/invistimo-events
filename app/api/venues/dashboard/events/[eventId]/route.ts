@@ -15,6 +15,7 @@ import {
 } from "@/lib/venues/venueEventsService";
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1554,6 +1555,34 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     const hall = await getVenueHallForEvent(finalEvent, ownerId);
     const venueCanonical = await resolveVenueEventCanonical(finalEvent, hall);
     const stats = await buildStats(finalEvent, finalInvitation);
+
+    await writeVenueAudit({
+      venueId: String(guard.ctx.venueId),
+      ownerId: String(guard.ctx.ownerId),
+      actorUserId: String(guard.ctx.auth.userId),
+      action: "event.update",
+      targetType: "Event",
+      targetId: String(eventId),
+      meta: {
+        title: requestedTitle || undefined,
+        date: requestedDate || undefined,
+        status: lifecycleStatus || requestedStatus || undefined,
+        venueLifecycleStatus: lifecycleStatus || undefined,
+      },
+    });
+
+    if (lifecycleStatus) {
+      await createVenueAlert({
+        ownerId: String(guard.ctx.ownerId),
+        hallId: String(guard.ctx.venueId),
+        title: `סטטוס אירוע עודכן: ${lifecycleStatus}`,
+        description: requestedTitle || cleanString((finalEvent as any)?.title) || "אירוע",
+        tone: lifecycleStatus === "cancelled" ? "rose" : "amber",
+        type: "events",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(String(eventId))}`,
+        dedupeKey: `event-status:${eventId}:${lifecycleStatus}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,

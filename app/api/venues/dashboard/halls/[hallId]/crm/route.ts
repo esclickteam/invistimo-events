@@ -278,6 +278,18 @@ export async function POST(req: NextRequest, { params }: Props) {
       description: `נוצר ליד חדש ב-CRM${cleanString(body.eventType) ? ` · ${cleanString(body.eventType)}` : ""}`,
       tone: "violet",
       type: "leads",
+      linkHref: `/venues/dashboard/halls/${encodeURIComponent(guard.safeHallId)}/crm?leadId=${encodeURIComponent(String(lead._id))}`,
+      dedupeKey: `lead-create:${String(lead._id)}`,
+    });
+
+    await writeVenueAudit({
+      venueId: guard.safeHallId,
+      ownerId: String(guard.ctx!.ownerId),
+      actorUserId: String(guard.ctx!.auth.userId),
+      action: "lead.create",
+      targetType: "VenueLead",
+      targetId: String(lead._id),
+      meta: { name },
     });
 
     return NextResponse.json({
