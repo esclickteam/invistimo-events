@@ -5,6 +5,7 @@ import { serializeDoc } from "@/lib/transportation/service";
 import TransportRoute from "@/models/TransportRoute";
 import TransportStop from "@/models/TransportStop";
 import { TRANSPORT_STOP_TYPES } from "@/lib/transportation/types";
+import { normalizeTimeInput } from "@/lib/transportation/time";
 
 export const dynamic = "force-dynamic";
 
@@ -90,12 +91,20 @@ export async function POST(
         ? "dropoff"
         : "pickup";
 
+    const time = normalizeTimeInput(String(body.time || ""));
+    if (body.time && String(body.time).trim() && !time) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_STOP_TIME" },
+        { status: 400 }
+      );
+    }
+
     const stop = await TransportStop.create({
       eventId,
       routeId,
       name,
       address: String(body.address || "").trim(),
-      time: String(body.time || "").trim(),
+      time,
       sortOrder: Number.isFinite(Number(body.sortOrder))
         ? Number(body.sortOrder)
         : count,

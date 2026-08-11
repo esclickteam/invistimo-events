@@ -90,6 +90,16 @@ export async function GET(
       const capacity = Number(route.capacity || 0);
       const remaining = Math.max(0, capacity - reservedSeats);
       const level = getCapacityLevel(reservedSeats, capacity);
+      const returnCapacity =
+        route.direction === "round_trip"
+          ? Number(route.returnCapacity ?? route.capacity ?? 0)
+          : capacity;
+      const returnReservedSeats =
+        route.direction === "round_trip"
+          ? Number(route.returnReservedSeats || 0)
+          : reservedSeats;
+      const returnRemaining = Math.max(0, returnCapacity - returnReservedSeats);
+      const returnLevel = getCapacityLevel(returnReservedSeats, returnCapacity);
       return {
         _id: String(route._id),
         name: route.name,
@@ -102,6 +112,12 @@ export async function GET(
         level,
         levelLabel: capacityLabel(level),
         full: remaining <= 0,
+        returnCapacity,
+        returnRegistered: returnReservedSeats,
+        returnRemaining,
+        returnLevel,
+        returnLevelLabel: capacityLabel(returnLevel),
+        returnFull: returnRemaining <= 0,
       };
     });
 
