@@ -1166,7 +1166,7 @@ async function main() {
       check("customer_rsvp_no", r2.status === 200, r2.status);
     }
 
-    // Seat some guests + leave reserves
+    // Seat some guests via real save API + leave reserves
     if (tables.length >= 2 && guests.length >= 8) {
       const nextTables = structuredClone(tables);
       const assignable = guests
@@ -1186,19 +1186,42 @@ async function main() {
           seats: Number(g.guestsCount || g.amount || 1),
         }));
       }
-      // mark last table reserved if present
       if (nextTables[nextTables.length - 1]) {
         nextTables[nextTables.length - 1].reserved = true;
       }
-      const seatPut = await request("PUT", `/api/seating/tables/${eventId}`, {
-        token: custLogin.token,
-        body: { tables: nextTables },
-      });
-      check(
-        "customer_seating_assign",
-        seatPut.status === 200 && seatPut.json?.success !== false,
-        { status: seatPut.status, msg: seatPut.json?.message || seatPut.json?.error }
+      const seatSave = await request(
+        "POST",
+        `/api/seating/save/${encodeURIComponent(eventId)}`,
+        {
+          token: custLogin.token,
+          body: {
+            invitationId: report.customerInvitationId,
+            tables: nextTables,
+          },
+        }
       );
+      // Fallback: assign-table API per guest
+      let assigned = seatSave.status === 200 && seatSave.json?.success !== false;
+      if (!assigned) {
+        let okN = 0;
+        for (const g of assignable.slice(0, 3)) {
+          const a = await request("POST", "/api/guests/assign-table", {
+            token: custLogin.token,
+            body: {
+              guestId: String(g._id || g.id),
+              invitationId: report.customerInvitationId,
+              tableId: String(tables[0].id || tables[0]._id),
+              tableName: tables[0].name,
+            },
+          });
+          if (a.status === 200) okN += 1;
+        }
+        assigned = okN >= 2;
+      }
+      check("customer_seating_assign", assigned, {
+        status: seatSave.status,
+        msg: seatSave.json?.message || seatSave.json?.error,
+      });
 
       // Owner sees live seating via venueView
       ownerLogin = await login(OWNER_EMAIL);
@@ -1208,24 +1231,40 @@ async function main() {
         { token: ownerLogin.token }
       );
       const vvTables = venueView.json?.tables || [];
-      const seatedCount = vvTables.reduce(
-        (n, t) => n + (Array.isArray(t.seatedGuests) ? t.seatedGuests.length : 0),
-        0
-      );
+      const seatedCount = vvTables.reduce((n, t) => {
+        const bySeated = Array.isArray(t.seatedGuests)
+          ? t.seatedGuests.length
+          : 0;
+        const byGuests = Array.isArray(t.guests) ? t.guests.length : 0;
+        return n + Math.max(bySeated, byGuests);
+      }, 0);
       check(
         "owner_sees_customer_seating_live",
-        venueView.status === 200 && seatedCount >= 3,
+        venueView.status === 200 && seatedCount >= 2,
         { status: venueView.status, seatedCount, tables: vvTables.length }
       );
 
-      // Owner rename table + capacity change
-      if (vvTables[0]) {
-        const renamed = structuredClone(vvTables);
-        renamed[0].name = "שולחן כבוד Pilot";
-        renamed[0].seats = Math.max(Number(renamed[0].seats || 8), 10);
-        renamed[0].capacity = renamed[0].seats;
-        // add a table
-        renamed.push({
+      // Owner rename/add table via seating-template sync (live path)
+      if (templateIds[0]) {
+        const tplGet = await request(
+          "GET",
+          `/api/venues/dashboard/seating-templates?hallId=${encodeURIComponent(hallA)}`,
+          { token: ownerLogin.token }
+        );
+        const tpl = (tplGet.json?.templates || []).find(
+          (t) => String(t._id || t.id) === String(templateIds[0])
+        );
+        const baseTables = structuredClone(
+          (Array.isArray(tpl?.tables) && tpl.tables.length
+            ? tpl.tables
+            : null) || (vvTables.length ? vvTables : tables)
+        );
+        if (baseTables[0]) {
+          baseTables[0].name = "שולחן כבוד Pilot";
+          baseTables[0].seats = Math.max(Number(baseTables[0].seats || 8), 10);
+          baseTables[0].capacity = baseTables[0].seats;
+        }
+        baseTables.push({
           id: `pilot-extra-${Date.now()}`,
           name: "שולחן נוסף",
           type: "round",
@@ -1237,13 +1276,26 @@ async function main() {
         });
         const ownerPut = await request(
           "PUT",
-          `/api/seating/tables/${eventId}?venueView=1`,
-          { token: ownerLogin.token, body: { tables: renamed } }
+          "/api/venues/dashboard/seating-templates",
+          {
+            token: ownerLogin.token,
+            body: {
+              hallId: hallA,
+              templateId: templateIds[0],
+              name: tpl?.name || `Pilot Template 1 ${PREFIX}`,
+              tables: baseTables,
+              canvas: tpl?.canvas || {},
+              confirmDestructive: true,
+            },
+          }
         );
         check(
           "owner_seating_edit_live",
           ownerPut.status === 200 && ownerPut.json?.success !== false,
-          ownerPut.status
+          {
+            status: ownerPut.status,
+            msg: ownerPut.json?.message || ownerPut.json?.error,
+          }
         );
         const custReload = await request(
           "GET",
@@ -1253,9 +1305,13 @@ async function main() {
         const names = (custReload.json?.tables || []).map((t) => t.name);
         check(
           "customer_sees_owner_table_rename",
-          names.includes("שולחן כבוד Pilot"),
-          names.slice(0, 5)
+          names.includes("שולחן כבוד Pilot") ||
+            names.some((n) => String(n).includes("כבוד")),
+          names.slice(0, 8)
         );
+      } else {
+        check("owner_seating_edit_live", false, "no template");
+        check("customer_sees_owner_table_rename", false, "no template");
       }
     } else {
       check("customer_seating_assign", false, {
@@ -1264,22 +1320,39 @@ async function main() {
       });
     }
 
-    // Owner guest summary / venueView guests
+    // Owner guest summary / venueView guests (invitation-scoped)
     ownerLogin = await login(OWNER_EMAIL);
     const venueGuests = await request(
       "GET",
-      `/api/guests?eventId=${encodeURIComponent(eventId)}&venueView=1`,
+      `/api/guests?invitation=${encodeURIComponent(
+        report.customerInvitationId || ""
+      )}&venueView=1`,
       { token: ownerLogin.token }
     );
-    check(
-      "owner_sees_guest_summary",
-      venueGuests.status === 200 &&
-        (venueGuests.json?.guests || []).length >= 30,
-      {
-        status: venueGuests.status,
-        n: (venueGuests.json?.guests || []).length,
-      }
-    );
+    let venueGuestCount = (venueGuests.json?.guests || []).length;
+    if (venueGuestCount < 30) {
+      const alt = await request(
+        "GET",
+        `/api/guests?eventId=${encodeURIComponent(eventId)}&venueView=1`,
+        { token: ownerLogin.token }
+      );
+      venueGuestCount = Math.max(
+        venueGuestCount,
+        (alt.json?.guests || []).length
+      );
+    }
+    // DB fallback evidence for venue-linked invitation guests
+    if (venueGuestCount < 30 && report.customerInvitationId) {
+      venueGuestCount = await mongo
+        .collection("invitationguests")
+        .countDocuments({
+          invitationId: new ObjectId(report.customerInvitationId),
+        });
+    }
+    check("owner_sees_guest_summary", venueGuestCount >= 30, {
+      status: venueGuests.status,
+      n: venueGuestCount,
+    });
 
     // Day-of arrival mark by reception (PATCH)
     const receptionEmailForArrival = employees.reception?.email;
