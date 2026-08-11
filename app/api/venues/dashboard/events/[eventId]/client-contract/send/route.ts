@@ -253,6 +253,16 @@ export async function POST(
         targetId: serialized.id,
         meta: { eventId, phone: clientPhone },
       });
+      await createVenueAlert({
+        ownerId: String(guard.ctx.ownerId),
+        hallId: String(guard.ctx.venueId),
+        title: "חוזה נשלח ללקוח",
+        description: clientPhone || eventId,
+        tone: "violet",
+        type: "files",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(eventId)}`,
+        dedupeKey: `contract-send:${serialized.id}`,
+      });
     } catch {
       /* audit best-effort */
     }
