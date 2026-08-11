@@ -64,7 +64,18 @@ function store(setCookie) {
   for (const line of setCookie || []) {
     const part = String(line).split(";")[0];
     const eq = part.indexOf("=");
-    if (eq > 0) jar.set(part.slice(0, eq), part.slice(eq + 1));
+    if (eq <= 0) continue;
+    const name = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (
+      value === "" ||
+      /Max-Age=0/i.test(line) ||
+      /Expires=Thu, 01 Jan 1970/i.test(line)
+    ) {
+      jar.delete(name);
+    } else {
+      jar.set(name, value);
+    }
   }
 }
 function cookieHeader(token) {
