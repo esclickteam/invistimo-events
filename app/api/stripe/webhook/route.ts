@@ -440,6 +440,10 @@ function buildEmployeeSaleUpsells(sale: any) {
     "suppliersBudgetSystem"
   );
   const alcoholManagementEnabled = hasSaleUpsell(sale, "alcoholManagement");
+  const transportationManagementEnabled = hasSaleUpsell(
+    sale,
+    "transportationManagement"
+  );
   const creditGiftsEnabled = hasSaleUpsell(sale, "creditGifts");
 
   return {
@@ -482,6 +486,14 @@ function buildEmployeeSaleUpsells(sale: any) {
       staffCount: getSaleUpsellStaffCount(sale, "alcoholManagement", 0),
       totalPrice: getSaleUpsellPrice(sale, "alcoholManagement"),
     },
+
+    transportationManagement: {
+      enabled: transportationManagementEnabled,
+      price: getSaleUpsellPrice(sale, "transportationManagement"),
+      givenFree: Boolean(
+        findSaleUpsell(sale, "transportationManagement")?.givenFree
+      ),
+    },
   };
 }
 
@@ -508,6 +520,11 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     salesUpsells.suppliersBudgetSystem.enabled || user?.includeEventManagement
   );
 
+  const includeTransportationManagement = Boolean(
+    salesUpsells.transportationManagement?.enabled ||
+      user?.includeTransportationManagement
+  );
+
   const allowedMessageRounds: 2 | 3 = salesUpsells.thirdRsvpRound.enabled
     ? 3
     : normalizeAllowedMessageRounds(
@@ -522,6 +539,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
   const accessModules = {
     rsvpSeating: includeDigitalSeating,
     eventProduction: includeEventManagement,
+    transportationManagement: includeTransportationManagement,
 
     venues: Boolean(user?.accessModules?.venues ?? false),
     venueDashboard: Boolean(user?.accessModules?.venueDashboard ?? false),
@@ -540,6 +558,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     seatingEnabled: includeDigitalSeating,
     remindersEnabled: true,
     callsEnabled: includeCalls,
+    transportationEnabled: includeTransportationManagement,
   };
 
   return {
@@ -551,6 +570,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     includeDigitalSeating,
     includeCreditGifts,
     includeEventManagement,
+    includeTransportationManagement,
     allowedMessageRounds,
     accessModules,
     planLimits,
@@ -926,6 +946,8 @@ export async function POST(req: Request) {
             includeCreditGifts: packageFlags.includeCreditGifts,
             includeDigitalSeating: packageFlags.includeDigitalSeating,
             includeEventManagement: packageFlags.includeEventManagement,
+            includeTransportationManagement:
+              packageFlags.includeTransportationManagement,
 
             accessModules: packageFlags.accessModules,
             salesUpsells: packageFlags.salesUpsells,
@@ -1005,6 +1027,8 @@ export async function POST(req: Request) {
 
           includeDigitalSeating: packageFlags.includeDigitalSeating,
           includeEventManagement: packageFlags.includeEventManagement,
+          includeTransportationManagement:
+            packageFlags.includeTransportationManagement,
 
           accessModules: packageFlags.accessModules,
 

@@ -32,6 +32,7 @@ type EmployeeScope = "system" | "producer" | "venue" | "client" | string;
 type AccessModules = {
   rsvpSeating?: boolean;
   eventProduction?: boolean;
+  transportationManagement?: boolean;
 
   venues?: boolean;
   venueDashboard?: boolean;
@@ -82,6 +83,7 @@ interface User {
   accessModules?: AccessModules;
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
+  includeTransportationManagement?: boolean;
   selfManageEnabled?: boolean;
 
   // ⭐ producer only

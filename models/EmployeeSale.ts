@@ -23,7 +23,8 @@ export type EmployeeSaleUpsellKey =
   | "personalRepresentative"
   | "thirdRsvpRound"
   | "suppliersBudgetSystem"
-  | "alcoholManagement";
+  | "alcoholManagement"
+  | "transportationManagement";
 
 const AnySchema = Schema.Types.Mixed;
 
@@ -430,6 +431,11 @@ const EmployeeSaleSchema = new Schema(
       alcoholManagement: {
         type: UpsellStateSchema,
         default: () => ({ enabled: false, price: 0, totalPrice: 0, staffCount: 0 }),
+      },
+
+      transportationManagement: {
+        type: UpsellStateSchema,
+        default: () => ({ enabled: false, price: 0, totalPrice: 0, givenFree: false }),
       },
     },
 
