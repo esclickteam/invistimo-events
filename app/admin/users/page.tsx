@@ -61,6 +61,7 @@ type AdminUser = {
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
+  includeTransportationManagement?: boolean;
 
   paidAmount?: number;
   totalPaid?: number;
@@ -122,6 +123,7 @@ type AdminPricingPlan = {
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
+  includeTransportationManagement?: boolean;
 };
 
 type AdminRecordOption = {
@@ -148,6 +150,7 @@ type UpgradeFormState = {
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
+  includeTransportationManagement: boolean;
 };
 
 type UpgradePaymentMode = "manual_paid" | "stripe";
@@ -176,6 +179,11 @@ const ADDONS = [
   {
     key: "includeEventManagement",
     label: "מערכת ניהול אירוע",
+    price: 0,
+  },
+  {
+    key: "includeTransportationManagement",
+    label: "ניהול הסעות",
     price: 0,
   },
   {
@@ -480,6 +488,11 @@ function getPurchasedItems(
       label: "מערכת ניהול אירוע",
       value: user.includeEventManagement ? "פעיל" : "לא פעיל",
       active: Boolean(user.includeEventManagement),
+    },
+    {
+      label: "ניהול הסעות",
+      value: user.includeTransportationManagement ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeTransportationManagement),
     },
     {
       label: "עיצוב בהתאמה אישית",
@@ -3446,6 +3459,9 @@ function UpgradeUserModal({
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
     includeCustomDesign: Boolean(user.includeCustomDesign),
+    includeTransportationManagement: Boolean(
+      user.includeTransportationManagement
+    ),
   });
 
   const [selectedRecords, setSelectedRecords] = useState<number>(
@@ -3555,15 +3571,18 @@ const calculatedTotalToPay =
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
+      includeTransportationManagement: form.includeTransportationManagement,
 
       /*
         ✅ הרשאות מודולים:
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
+        transportationManagement = ניהול הסעות
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
+        transportationManagement: Boolean(form.includeTransportationManagement),
       },
 
       extraRecords,
@@ -3611,15 +3630,18 @@ const calculatedTotalToPay =
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
+      includeTransportationManagement: form.includeTransportationManagement,
 
       /*
         ✅ הרשאות מודולים:
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
+        transportationManagement = ניהול הסעות
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
+        transportationManagement: Boolean(form.includeTransportationManagement),
       },
 
       extraRecords,

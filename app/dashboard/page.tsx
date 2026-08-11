@@ -2227,6 +2227,10 @@ const canOpenEventManagement =
   user?.includeEventManagement === true ||
   user?.selfManageEnabled === true;
 
+const canOpenTransportationManagement =
+  user?.accessModules?.transportationManagement === true ||
+  user?.includeTransportationManagement === true;
+
   /* ============================================================
      Render
   ============================================================ */
@@ -2343,6 +2347,7 @@ const canOpenEventManagement =
   onImport={() => setShowImportModal(true)}
   onExportExcel={handleExportExcel}
   canOpenEventManagement={canOpenEventManagement}
+  canOpenTransportationManagement={canOpenTransportationManagement}
   eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
 />
 
@@ -3496,6 +3501,7 @@ function GoldenActionButtons({
   onImport,
   onExportExcel,
   canOpenEventManagement,
+  canOpenTransportationManagement,
   eventId,
 }: {
   invitation: any | null;
@@ -3506,6 +3512,7 @@ function GoldenActionButtons({
   onImport: () => void;
   onExportExcel: () => void;
   canOpenEventManagement: boolean;
+  canOpenTransportationManagement: boolean;
   eventId?: string;
 }) {
 
@@ -3673,6 +3680,25 @@ function GoldenActionButtons({
             : "/events/production?tab=overview";
 
           router.push(target);
+        }}
+      />
+    )}
+
+    {canOpenTransportationManagement && (
+      <GoldenActionButton
+        label="ניהול הסעות"
+        icon="⇄"
+        tone="gold"
+        disabled={!eventId}
+        onClick={() => {
+          if (!eventId) return;
+
+          if (isDemo) {
+            onDemoBlocked();
+            return;
+          }
+
+          router.push(`/dashboard/transportation?eventId=${eventId}`);
         }}
       />
     )}

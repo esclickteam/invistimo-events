@@ -987,6 +987,12 @@ packageName
           Boolean(u.includeEventManagement) ||
           Boolean(u.selfManageEnabled);
 
+        const includeTransportationManagement =
+          Boolean(u.accessModules?.transportationManagement) ||
+          Boolean(u.includeTransportationManagement) ||
+          Boolean(u.salesUpsells?.transportationManagement?.enabled) ||
+          Boolean(u.planLimits?.transportationEnabled);
+
         const includeCustomDesign =
           Boolean(u.includeCustomDesign) ||
           Boolean(u.customDesignEnabled);
@@ -997,6 +1003,10 @@ packageName
           ),
           eventProduction: Boolean(
             u.accessModules?.eventProduction ?? includeEventManagement
+          ),
+          transportationManagement: Boolean(
+            u.accessModules?.transportationManagement ??
+              includeTransportationManagement
           ),
         };
 
@@ -1041,6 +1051,7 @@ packageName
 
           includeDigitalSeating,
           includeEventManagement,
+          includeTransportationManagement,
           includeCustomDesign,
 
           accessModules,

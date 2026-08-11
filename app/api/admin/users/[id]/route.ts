@@ -83,6 +83,12 @@ function normalizeAccessModules(value: any, fallback: any) {
     Boolean(fallback?.includeEventManagement) ||
     Boolean(fallback?.selfManageEnabled);
 
+  const fallbackTransportation =
+    Boolean(fallback?.accessModules?.transportationManagement) ||
+    Boolean(fallback?.includeTransportationManagement) ||
+    Boolean(fallback?.salesUpsells?.transportationManagement?.enabled) ||
+    Boolean(fallback?.planLimits?.transportationEnabled);
+
   return {
     rsvpSeating:
       typeof value?.rsvpSeating === "boolean"
@@ -93,6 +99,11 @@ function normalizeAccessModules(value: any, fallback: any) {
       typeof value?.eventProduction === "boolean"
         ? value.eventProduction
         : fallbackEventProduction,
+
+    transportationManagement:
+      typeof value?.transportationManagement === "boolean"
+        ? value.transportationManagement
+        : fallbackTransportation,
   };
 }
 
@@ -409,6 +420,13 @@ export async function PATCH(
       ? Boolean(body.includeCustomDesign)
       : undefined;
 
+    const nextIncludeTransportationManagement = hasField(
+      body,
+      "includeTransportationManagement"
+    )
+      ? Boolean(body.includeTransportationManagement)
+      : undefined;
+
     /*
       ✅ הרשאות מודולים:
       אם הקליינט שלח accessModules — זה המקור החדש.
@@ -434,6 +452,10 @@ export async function PATCH(
           nextIncludeEventManagement !== undefined
             ? nextIncludeEventManagement
             : currentUser.selfManageEnabled,
+        includeTransportationManagement:
+          nextIncludeTransportationManagement !== undefined
+            ? nextIncludeTransportationManagement
+            : currentUser.includeTransportationManagement,
       }
     );
 
@@ -461,6 +483,13 @@ export async function PATCH(
         ? nextIncludeCustomDesign
         : Boolean(currentUser.includeCustomDesign);
 
+    const finalIncludeTransportationManagement =
+      nextAccessModules !== undefined
+        ? Boolean(finalAccessModules.transportationManagement)
+        : nextIncludeTransportationManagement !== undefined
+          ? nextIncludeTransportationManagement
+          : Boolean(currentUser.includeTransportationManagement);
+
     const planLimitsPatch: Record<string, any> = {};
 
     if (nextGuests !== undefined) {
@@ -483,6 +512,14 @@ export async function PATCH(
     ) {
       planLimitsPatch["planLimits.seatingEnabled"] =
         finalAccessModules.rsvpSeating;
+    }
+
+    if (
+      nextIncludeTransportationManagement !== undefined ||
+      nextAccessModules !== undefined
+    ) {
+      planLimitsPatch["planLimits.transportationEnabled"] =
+        finalIncludeTransportationManagement;
     }
 
     if (nextIncludeCalls !== undefined) {
@@ -568,12 +605,24 @@ export async function PATCH(
           ? finalIncludeEventManagement
           : undefined,
 
+      includeTransportationManagement:
+        nextAccessModules !== undefined ||
+        nextIncludeTransportationManagement !== undefined
+          ? finalIncludeTransportationManagement
+          : undefined,
+
       includeCustomDesign: nextIncludeCustomDesign,
 
       selfManageEnabled:
         nextAccessModules !== undefined ||
         nextIncludeEventManagement !== undefined
           ? finalAccessModules.eventProduction
+          : undefined,
+
+      "salesUpsells.transportationManagement.enabled":
+        nextAccessModules !== undefined ||
+        nextIncludeTransportationManagement !== undefined
+          ? finalIncludeTransportationManagement
           : undefined,
 
       customDesignEnabled:
@@ -838,10 +887,16 @@ export async function PATCH(
               updatedUser.includeEventManagement
             ),
             includeCustomDesign: Boolean(updatedUser.includeCustomDesign),
+            includeTransportationManagement: Boolean(
+              updatedUser.includeTransportationManagement
+            ),
 
             accessModules: updatedUser.accessModules || {
               rsvpSeating: Boolean(updatedUser.includeDigitalSeating),
               eventProduction: Boolean(updatedUser.includeEventManagement),
+              transportationManagement: Boolean(
+                updatedUser.includeTransportationManagement
+              ),
             },
           },
         });

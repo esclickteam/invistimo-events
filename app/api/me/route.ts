@@ -143,6 +143,12 @@ function normalizeAccessModules(user: any) {
     Boolean(user?.includeEventManagement) ||
     Boolean(user?.selfManageEnabled);
 
+  const includeTransportationManagement =
+    Boolean(user?.includeTransportationManagement) ||
+    Boolean(user?.accessModules?.transportationManagement) ||
+    Boolean(user?.salesUpsells?.transportationManagement?.enabled) ||
+    Boolean(user?.planLimits?.transportationEnabled);
+
   const isVenueOwner = user?.role === "venue_owner" || user?.venueOwner === true;
 
   return {
@@ -162,6 +168,11 @@ function normalizeAccessModules(user: any) {
 
     eventProduction: Boolean(
       user?.accessModules?.eventProduction ?? includeEventManagement
+    ),
+
+    transportationManagement: Boolean(
+      user?.accessModules?.transportationManagement ??
+        includeTransportationManagement
     ),
 
     venues: Boolean(user?.accessModules?.venues ?? isVenueOwner),
@@ -1071,6 +1082,8 @@ export async function GET() {
           includeSeating: currentUser.includeSeating === true,
           includeDigitalSeating: accessModules.rsvpSeating,
           includeEventManagement: accessModules.eventProduction,
+          includeTransportationManagement:
+            accessModules.transportationManagement === true,
           selfManageEnabled: accessModules.eventProduction,
 
           plan: currentUser.plan ?? "basic",

@@ -237,6 +237,10 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
   const preRsvpMessages = findUpsell(upsells, "preRsvpMessages");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
+  const transportationManagement = findUpsell(
+    upsells,
+    "transportationManagement"
+  );
   const creditGifts = findUpsell(upsells, "creditGifts");
 
   const venueSeatingPrice = getUpsellPrice(venueSeating);
@@ -308,6 +312,12 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
       enabled: Boolean(alcoholManagement),
       staffCount: getUpsellStaffCount(alcoholManagement, 1),
       totalPrice: alcoholManagementPrice,
+    },
+
+    transportationManagement: {
+      enabled: Boolean(transportationManagement),
+      price: getUpsellPrice(transportationManagement),
+      givenFree: Boolean(transportationManagement?.givenFree),
     },
   };
 }
@@ -1016,6 +1026,9 @@ export async function POST(req: NextRequest) {
     const hasPreRsvpMessages = salesUpsells.preRsvpMessages.enabled;
     const preRsvpMessagesMode = salesUpsells.preRsvpMessages.mode;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
+    const hasTransportationManagement = Boolean(
+      salesUpsells.transportationManagement?.enabled
+    );
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
       return NextResponse.json(
@@ -1181,6 +1194,11 @@ export async function POST(req: NextRequest) {
           staffCount: salesUpsells.alcoholManagement.staffCount,
           totalPrice: salesUpsells.alcoholManagement.totalPrice,
         },
+        transportationManagement: {
+          enabled: false,
+          price: salesUpsells.transportationManagement?.price || 0,
+          givenFree: Boolean(salesUpsells.transportationManagement?.givenFree),
+        },
       },
 
       accessModules: buildPendingAccessModules(),
@@ -1251,6 +1269,7 @@ export async function POST(req: NextRequest) {
         preRsvpMessagesMode,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
+        hasTransportationManagement,
         salesUpsells,
         adminPricingOverride,
         adminPaymentStatus,
@@ -1280,11 +1299,15 @@ export async function POST(req: NextRequest) {
       const includeDigitalSeating = Boolean(hasDigitalSeating);
       const includeCreditGifts = Boolean(hasCreditGifts);
       const includeEventManagement = Boolean(hasSuppliersBudgetSystem);
+      const includeTransportationManagement = Boolean(
+        hasTransportationManagement
+      );
       const activatedAllowedMessageRounds = allowedMessageRounds;
 
       const activatedAccessModules = {
         rsvpSeating: includeDigitalSeating,
         eventProduction: includeEventManagement,
+        transportationManagement: includeTransportationManagement,
         venues: false,
         venueDashboard: false,
         venueCrm: false,
@@ -1301,6 +1324,7 @@ export async function POST(req: NextRequest) {
         seatingEnabled: includeDigitalSeating,
         remindersEnabled: true,
         callsEnabled: includeCalls,
+        transportationEnabled: includeTransportationManagement,
       };
 
       const venueSeatingPrice = salesUpsells.venueSeating.totalPrice || 0;
@@ -1356,6 +1380,7 @@ export async function POST(req: NextRequest) {
 
             includeDigitalSeating,
             includeEventManagement,
+            includeTransportationManagement,
             includeCustomDesign: false,
             accessModules: activatedAccessModules,
             selfManageEnabled: includeEventManagement,
