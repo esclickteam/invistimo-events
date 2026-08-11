@@ -1229,9 +1229,15 @@ export default function TransportationDashboardPage() {
                     <option value="">קו / שעת חזור</option>
                     {returnRoutes.map((route) => {
                       const s = summaryRouteMap.get(id(route._id));
+                      const remaining =
+                        route.direction === "round_trip"
+                          ? s?.returnRemaining ?? s?.remaining
+                          : s?.remaining;
+                      const clock = route.returnTime || route.departureTime || "";
                       return (
                         <option key={route._id} value={route._id}>
-                          {route.name} {routeClock(route) ? `· ${routeClock(route)}` : ""} {s ? `· ${s.remaining} פנויים` : ""}
+                          {route.name} {clock ? `· ${clock}` : ""}{" "}
+                          {remaining !== undefined ? `· ${remaining} פנויים` : ""}
                         </option>
                       );
                     })}
