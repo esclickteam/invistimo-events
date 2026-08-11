@@ -62,6 +62,11 @@ type AdminUser = {
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
   includeTransportationManagement?: boolean;
+  accessModules?: {
+    rsvpSeating?: boolean;
+    eventProduction?: boolean;
+    transportationManagement?: boolean;
+  };
 
   paidAmount?: number;
   totalPaid?: number;

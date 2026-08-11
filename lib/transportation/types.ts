@@ -30,38 +30,51 @@ export type TransportBoardStatus = (typeof TRANSPORT_BOARD_STATUSES)[number];
 
 export const TRANSPORT_REGISTRATION_STATUSES = [
   "registered",
+  "waitlisted",
   "cancelled",
+  "rejected",
 ] as const;
 export type TransportRegistrationStatus =
   (typeof TRANSPORT_REGISTRATION_STATUSES)[number];
 
 export type TransportCapacityLevel =
-  | "ok"
-  | "warning_80"
-  | "warning_90"
+  | "available"
+  | "filling"
+  | "almost_full"
   | "full";
 
+/** Premium capacity bands: 0–69 available, 70–89 filling, 90–99 almost_full, 100 full */
 export function getCapacityLevel(
-  registered: number,
+  reserved: number,
   capacity: number
 ): TransportCapacityLevel {
   if (capacity <= 0) return "full";
-  if (registered >= capacity) return "full";
-  const ratio = registered / capacity;
-  if (ratio >= 0.9) return "warning_90";
-  if (ratio >= 0.8) return "warning_80";
-  return "ok";
+  if (reserved >= capacity) return "full";
+  const ratio = reserved / capacity;
+  if (ratio >= 0.9) return "almost_full";
+  if (ratio >= 0.7) return "filling";
+  return "available";
 }
 
 export function capacityLabel(level: TransportCapacityLevel) {
   switch (level) {
     case "full":
-      return "FULL";
-    case "warning_90":
-      return "90%";
-    case "warning_80":
-      return "80%";
+      return "מלא";
+    case "almost_full":
+      return "כמעט מלא";
+    case "filling":
+      return "מתמלא";
     default:
-      return "OK";
+      return "זמין";
   }
+}
+
+/** Legacy aliases used by older summary code */
+export function toLegacyCapacityLevel(
+  level: TransportCapacityLevel
+): "ok" | "warning_80" | "warning_90" | "full" {
+  if (level === "full") return "full";
+  if (level === "almost_full") return "warning_90";
+  if (level === "filling") return "warning_80";
+  return "ok";
 }

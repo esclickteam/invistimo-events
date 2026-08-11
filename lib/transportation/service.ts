@@ -25,7 +25,7 @@ export async function getOrCreateEventTransportation(
       invitationId: resolvedInvitationId,
       enabled: true,
       guestRegistrationEnabled: true,
-      waitlistEnabled: false,
+      waitlistEnabled: true,
     });
   } catch (err: any) {
     // Race: unique eventId

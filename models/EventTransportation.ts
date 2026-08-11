@@ -37,7 +37,7 @@ const EventTransportationSchema = new Schema<IEventTransportation>(
     },
     waitlistEnabled: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     notes: {
       type: String,

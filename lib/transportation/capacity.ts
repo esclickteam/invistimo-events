@@ -1,8 +1,255 @@
 import TransportRegistration from "@/models/TransportRegistration";
 import TransportRoute from "@/models/TransportRoute";
 import TransportStop from "@/models/TransportStop";
-import { getCapacityLevel, type TransportCapacityLevel } from "./types";
+import {
+  getCapacityLevel,
+  toLegacyCapacityLevel,
+  type TransportCapacityLevel,
+} from "./types";
 import mongoose from "mongoose";
+
+/**
+ * Atomic seat reservation on a route.
+ * Uses findOneAndUpdate with $expr so two concurrent final-seat requests
+ * cannot both succeed.
+ */
+export async function atomicReserveSeats(params: {
+  eventId: string;
+  routeId: string;
+  seats: number;
+}) {
+  const seats = Math.max(0, Number(params.seats || 0));
+  if (seats === 0) {
+    return { ok: true as const, reservedSeats: 0, capacity: 0, remaining: 0 };
+  }
+
+  const updated = await TransportRoute.findOneAndUpdate(
+    {
+      _id: params.routeId,
+      eventId: params.eventId,
+      active: true,
+      $expr: {
+        $lte: [{ $add: ["$reservedSeats", seats] }, "$capacity"],
+      },
+    },
+    { $inc: { reservedSeats: seats } },
+    { new: true }
+  ).lean();
+
+  if (!updated) {
+    const route = await TransportRoute.findOne({
+      _id: params.routeId,
+      eventId: params.eventId,
+    }).lean();
+
+    if (!route || !route.active) {
+      return {
+        ok: false as const,
+        code: "ROUTE_NOT_FOUND" as const,
+        message: "Route not found",
+        remaining: 0,
+        capacity: 0,
+        reservedSeats: 0,
+        requested: seats,
+      };
+    }
+
+    const reservedSeats = Number(route.reservedSeats || 0);
+    const capacity = Number(route.capacity || 0);
+    const remaining = Math.max(0, capacity - reservedSeats);
+
+    return {
+      ok: false as const,
+      code: "ROUTE_FULL" as const,
+      message:
+        remaining > 0
+          ? `נשארו רק ${remaining} מקומות בקו הזה`
+          : "הקו מלא",
+      remaining,
+      capacity,
+      reservedSeats,
+      requested: seats,
+    };
+  }
+
+  const reservedSeats = Number(updated.reservedSeats || 0);
+  const capacity = Number(updated.capacity || 0);
+
+  return {
+    ok: true as const,
+    reservedSeats,
+    capacity,
+    remaining: Math.max(0, capacity - reservedSeats),
+    level: getCapacityLevel(reservedSeats, capacity),
+  };
+}
+
+export async function atomicReleaseSeats(params: {
+  eventId: string;
+  routeId: string;
+  seats: number;
+}) {
+  const seats = Math.max(0, Number(params.seats || 0));
+  if (!params.routeId || seats === 0) {
+    return { ok: true as const };
+  }
+
+  await TransportRoute.findOneAndUpdate(
+    {
+      _id: params.routeId,
+      eventId: params.eventId,
+    },
+    [
+      {
+        $set: {
+          reservedSeats: {
+            $max: [0, { $subtract: ["$reservedSeats", seats] }],
+          },
+        },
+      },
+    ]
+  );
+
+  return { ok: true as const };
+}
+
+/**
+ * Adjust seats on the same route by delta (positive = reserve more).
+ * Atomic; fails if increasing beyond capacity.
+ */
+export async function atomicAdjustSeats(params: {
+  eventId: string;
+  routeId: string;
+  delta: number;
+}) {
+  const delta = Number(params.delta || 0);
+  if (delta === 0) return { ok: true as const };
+  if (delta > 0) {
+    return atomicReserveSeats({
+      eventId: params.eventId,
+      routeId: params.routeId,
+      seats: delta,
+    });
+  }
+  await atomicReleaseSeats({
+    eventId: params.eventId,
+    routeId: params.routeId,
+    seats: Math.abs(delta),
+  });
+  return { ok: true as const };
+}
+
+export async function getRouteAvailability(
+  eventId: string,
+  routeId: string
+) {
+  const route = await TransportRoute.findOne({
+    _id: routeId,
+    eventId,
+  }).lean();
+
+  if (!route) {
+    return null;
+  }
+
+  const reservedSeats = Number(route.reservedSeats || 0);
+  const capacity = Number(route.capacity || 0);
+  const remaining = Math.max(0, capacity - reservedSeats);
+
+  return {
+    routeId: String(route._id),
+    name: route.name,
+    direction: route.direction,
+    capacity,
+    reservedSeats,
+    remaining,
+    level: getCapacityLevel(reservedSeats, capacity),
+    full: remaining <= 0,
+    active: Boolean(route.active),
+  };
+}
+
+/** Recount registered seats for a route (source of truth repair). */
+export async function recountRouteReservedSeats(
+  eventId: string,
+  routeId: string
+) {
+  const route = await TransportRoute.findOne({
+    _id: routeId,
+    eventId,
+  }).lean();
+  if (!route) return 0;
+
+  const filter: Record<string, unknown> = {
+    eventId,
+    status: "registered",
+  };
+
+  if (route.direction === "return") {
+    filter.needsReturn = true;
+    filter.returnRouteId = routeId;
+  } else {
+    // outbound + round_trip: seats reserved via outbound bookings on this route
+    filter.needsOutbound = true;
+    filter.outboundRouteId = routeId;
+  }
+
+  // For return direction of round_trip used as returnRouteId:
+  if (route.direction === "round_trip") {
+    // Round-trip bus capacity is tracked separately for outbound vs return
+    // when the same route id is used in either field.
+    // We store reservedSeats as outbound count on the route document;
+    // return bookings on a round_trip route also consume the same counter
+    // only when returnRouteId === this route AND needsReturn (independent flow
+    // usually uses dedicated return routes).
+  }
+
+  const rows = await TransportRegistration.find(filter)
+    .select("passengerCount")
+    .lean();
+
+  let total = rows.reduce((sum, row) => sum + Number(row.passengerCount || 0), 0);
+
+  // Also count return bookings that point at this route (for return / round_trip)
+  if (route.direction === "return" || route.direction === "round_trip") {
+    const returnRows = await TransportRegistration.find({
+      eventId,
+      status: "registered",
+      needsReturn: true,
+      returnRouteId: routeId,
+      // avoid double-count if already counted as outbound on same route
+      ...(route.direction === "round_trip"
+        ? {
+            $or: [
+              { needsOutbound: false },
+              { outboundRouteId: { $ne: routeId } },
+            ],
+          }
+        : {}),
+    })
+      .select("passengerCount")
+      .lean();
+
+    if (route.direction === "return") {
+      total = returnRows.reduce(
+        (sum, row) => sum + Number(row.passengerCount || 0),
+        0
+      );
+    } else {
+      total += returnRows.reduce(
+        (sum, row) => sum + Number(row.passengerCount || 0),
+        0
+      );
+    }
+  }
+
+  await TransportRoute.updateOne(
+    { _id: routeId, eventId },
+    { $set: { reservedSeats: total } }
+  );
+
+  return total;
+}
 
 export async function countRoutePassengers(
   eventId: string,
@@ -29,77 +276,234 @@ export async function countRoutePassengers(
   return rows.reduce((sum, row) => sum + Number(row.passengerCount || 0), 0);
 }
 
-export async function assertRouteHasCapacity(params: {
+/**
+ * Reserve seats for a registration payload (outbound and/or return independently).
+ * Rolls back outbound if return fails.
+ */
+export async function reserveForRegistration(params: {
   eventId: string;
-  routeId: string;
-  direction: "outbound" | "return";
   passengerCount: number;
-  excludeRegistrationId?: string;
+  needsOutbound: boolean;
+  outboundRouteId?: string | null;
+  needsReturn: boolean;
+  returnRouteId?: string | null;
 }) {
-  const route = await TransportRoute.findOne({
-    _id: params.routeId,
-    eventId: params.eventId,
-    active: true,
-  }).lean();
+  const count = Math.max(1, Number(params.passengerCount || 1));
+  let outboundReserved = false;
 
-  if (!route) {
-    return {
-      ok: false as const,
-      code: "ROUTE_NOT_FOUND",
-      message: "Route not found",
-    };
+  if (params.needsOutbound) {
+    if (!params.outboundRouteId) {
+      return {
+        ok: false as const,
+        code: "OUTBOUND_ROUTE_REQUIRED" as const,
+        remaining: 0,
+      };
+    }
+    const out = await atomicReserveSeats({
+      eventId: params.eventId,
+      routeId: String(params.outboundRouteId),
+      seats: count,
+    });
+    if (!out.ok) return out;
+    outboundReserved = true;
   }
 
-  const current = await countRoutePassengers(
-    params.eventId,
-    params.routeId,
-    params.direction
-  );
-
-  let adjusted = current;
-  if (params.excludeRegistrationId) {
-    const existing = await TransportRegistration.findById(
-      params.excludeRegistrationId
-    )
-      .select(
-        "passengerCount needsOutbound outboundRouteId needsReturn returnRouteId status"
-      )
-      .lean();
-
-    if (existing && existing.status === "registered") {
-      const wasOnRoute =
-        params.direction === "outbound"
-          ? existing.needsOutbound &&
-            String(existing.outboundRouteId) === String(params.routeId)
-          : existing.needsReturn &&
-            String(existing.returnRouteId) === String(params.routeId);
-
-      if (wasOnRoute) {
-        adjusted -= Number(existing.passengerCount || 0);
+  if (params.needsReturn) {
+    if (!params.returnRouteId) {
+      if (outboundReserved && params.outboundRouteId) {
+        await atomicReleaseSeats({
+          eventId: params.eventId,
+          routeId: String(params.outboundRouteId),
+          seats: count,
+        });
       }
+      return {
+        ok: false as const,
+        code: "RETURN_ROUTE_REQUIRED" as const,
+        remaining: 0,
+      };
+    }
+    const ret = await atomicReserveSeats({
+      eventId: params.eventId,
+      routeId: String(params.returnRouteId),
+      seats: count,
+    });
+    if (!ret.ok) {
+      if (outboundReserved && params.outboundRouteId) {
+        await atomicReleaseSeats({
+          eventId: params.eventId,
+          routeId: String(params.outboundRouteId),
+          seats: count,
+        });
+      }
+      return ret;
     }
   }
 
-  const next = adjusted + Number(params.passengerCount || 0);
-  const capacity = Number(route.capacity || 0);
+  return { ok: true as const };
+}
 
-  if (next > capacity) {
-    return {
-      ok: false as const,
-      code: "ROUTE_FULL",
-      message: "Route is at full capacity",
-      registered: adjusted,
-      capacity,
-      requested: params.passengerCount,
-    };
+export async function releaseForRegistration(reg: {
+  eventId: any;
+  passengerCount?: number;
+  needsOutbound?: boolean;
+  outboundRouteId?: any;
+  needsReturn?: boolean;
+  returnRouteId?: any;
+  status?: string;
+}) {
+  if (reg.status && reg.status !== "registered") return;
+
+  const eventId = String(reg.eventId);
+  const count = Math.max(0, Number(reg.passengerCount || 0));
+  if (count <= 0) return;
+
+  if (reg.needsOutbound && reg.outboundRouteId) {
+    await atomicReleaseSeats({
+      eventId,
+      routeId: String(reg.outboundRouteId),
+      seats: count,
+    });
+  }
+  if (reg.needsReturn && reg.returnRouteId) {
+    await atomicReleaseSeats({
+      eventId,
+      routeId: String(reg.returnRouteId),
+      seats: count,
+    });
+  }
+}
+
+/**
+ * Move/edit reservation seats atomically.
+ * Releases old seats first only after new seats are reserved when increasing,
+ * or releases delta when decreasing / changing routes.
+ */
+export async function rebalanceRegistrationSeats(params: {
+  eventId: string;
+  previous: {
+    passengerCount: number;
+    needsOutbound: boolean;
+    outboundRouteId?: string | null;
+    needsReturn: boolean;
+    returnRouteId?: string | null;
+    status: string;
+  };
+  next: {
+    passengerCount: number;
+    needsOutbound: boolean;
+    outboundRouteId?: string | null;
+    needsReturn: boolean;
+    returnRouteId?: string | null;
+  };
+}) {
+  const prev = params.previous;
+  const next = params.next;
+
+  // If previous wasn't holding seats, just reserve next
+  if (prev.status !== "registered") {
+    return reserveForRegistration({
+      eventId: params.eventId,
+      ...next,
+    });
   }
 
-  return {
-    ok: true as const,
-    registered: adjusted,
-    capacity,
-    level: getCapacityLevel(next, capacity),
-  };
+  const prevCount = Number(prev.passengerCount || 0);
+  const nextCount = Number(next.passengerCount || 0);
+
+  // Same outbound route — adjust delta
+  const prevOut = prev.needsOutbound ? String(prev.outboundRouteId || "") : "";
+  const nextOut = next.needsOutbound ? String(next.outboundRouteId || "") : "";
+  const prevRet = prev.needsReturn ? String(prev.returnRouteId || "") : "";
+  const nextRet = next.needsReturn ? String(next.returnRouteId || "") : "";
+
+  // Outbound
+  if (prevOut && nextOut && prevOut === nextOut) {
+    const delta = nextCount - prevCount;
+    const adj = await atomicAdjustSeats({
+      eventId: params.eventId,
+      routeId: nextOut,
+      delta,
+    });
+    if (!adj.ok) return adj;
+  } else {
+    if (nextOut) {
+      const res = await atomicReserveSeats({
+        eventId: params.eventId,
+        routeId: nextOut,
+        seats: nextCount,
+      });
+      if (!res.ok) return res;
+    }
+    if (prevOut) {
+      await atomicReleaseSeats({
+        eventId: params.eventId,
+        routeId: prevOut,
+        seats: prevCount,
+      });
+    }
+  }
+
+  // Return
+  if (prevRet && nextRet && prevRet === nextRet) {
+    const delta = nextCount - prevCount;
+    const adj = await atomicAdjustSeats({
+      eventId: params.eventId,
+      routeId: nextRet,
+      delta,
+    });
+    if (!adj.ok) {
+      // rollback outbound delta if we changed it
+      if (prevOut && nextOut && prevOut === nextOut) {
+        await atomicAdjustSeats({
+          eventId: params.eventId,
+          routeId: nextOut,
+          delta: prevCount - nextCount,
+        });
+      }
+      return adj;
+    }
+  } else {
+    if (nextRet) {
+      const res = await atomicReserveSeats({
+        eventId: params.eventId,
+        routeId: nextRet,
+        seats: nextCount,
+      });
+      if (!res.ok) {
+        if (prevOut && nextOut && prevOut === nextOut) {
+          await atomicAdjustSeats({
+            eventId: params.eventId,
+            routeId: nextOut,
+            delta: prevCount - nextCount,
+          });
+        } else if (nextOut && (!prevOut || prevOut !== nextOut)) {
+          await atomicReleaseSeats({
+            eventId: params.eventId,
+            routeId: nextOut,
+            seats: nextCount,
+          });
+          if (prevOut) {
+            await atomicReserveSeats({
+              eventId: params.eventId,
+              routeId: prevOut,
+              seats: prevCount,
+            });
+          }
+        }
+        return res;
+      }
+    }
+    if (prevRet) {
+      await atomicReleaseSeats({
+        eventId: params.eventId,
+        routeId: prevRet,
+        seats: prevCount,
+      });
+    }
+  }
+
+  return { ok: true as const };
 }
 
 export type RouteCapacitySummary = {
@@ -110,72 +514,61 @@ export type RouteCapacitySummary = {
   registered: number;
   remaining: number;
   level: TransportCapacityLevel;
+  legacyLevel: "ok" | "warning_80" | "warning_90" | "full";
   active: boolean;
   status: string;
   departureTime?: string;
   returnTime?: string;
+  waitlistedCount: number;
+  waitlistedPassengers: number;
+  companyName?: string;
+  driverName?: string;
+  vehicleNumber?: string;
 };
 
 export async function buildEventTransportSummary(eventId: string) {
-  const [routes, stops, registrations] = await Promise.all([
+  const [routes, stops, registrations, waitlisted] = await Promise.all([
     TransportRoute.find({ eventId }).sort({ sortOrder: 1, createdAt: 1 }).lean(),
     TransportStop.find({ eventId }).sort({ sortOrder: 1 }).lean(),
     TransportRegistration.find({ eventId, status: "registered" }).lean(),
+    TransportRegistration.find({ eventId, status: "waitlisted" })
+      .sort({ createdAt: 1 })
+      .lean(),
   ]);
 
   const routeSummaries: RouteCapacitySummary[] = routes.map((route) => {
     const routeId = String(route._id);
-    let registered = 0;
-
-    for (const reg of registrations) {
-      const count = Number(reg.passengerCount || 0);
-      if (
-        (route.direction === "outbound" || route.direction === "round_trip") &&
-        reg.needsOutbound &&
-        String(reg.outboundRouteId) === routeId
-      ) {
-        registered += count;
-      }
-      if (
-        (route.direction === "return" || route.direction === "round_trip") &&
-        reg.needsReturn &&
-        String(reg.returnRouteId) === routeId
-      ) {
-        // For round_trip same vehicle both ways: count outbound toward capacity
-        // for outbound direction display; for pure return routes count return.
-        if (route.direction === "return") {
-          registered += count;
-        } else if (
-          route.direction === "round_trip" &&
-          String(reg.outboundRouteId) !== routeId
-        ) {
-          registered += count;
-        }
-      }
-    }
-
-    // Pure round_trip: capacity is primarily outbound seats on that bus.
-    if (route.direction === "round_trip") {
-      registered = registrations
-        .filter(
-          (r) => r.needsOutbound && String(r.outboundRouteId) === routeId
-        )
-        .reduce((s, r) => s + Number(r.passengerCount || 0), 0);
-    }
-
+    const reservedSeats = Number(route.reservedSeats || 0);
     const capacity = Number(route.capacity || 0);
+    const level = getCapacityLevel(reservedSeats, capacity);
+
+    const routeWaitlisted = waitlisted.filter(
+      (w) =>
+        String(w.outboundRouteId) === routeId ||
+        String(w.returnRouteId) === routeId
+    );
+
     return {
       routeId,
       name: route.name,
       direction: route.direction,
       capacity,
-      registered,
-      remaining: Math.max(0, capacity - registered),
-      level: getCapacityLevel(registered, capacity),
+      registered: reservedSeats,
+      remaining: Math.max(0, capacity - reservedSeats),
+      level,
+      legacyLevel: toLegacyCapacityLevel(level),
       active: Boolean(route.active),
       status: route.status,
       departureTime: route.departureTime || "",
       returnTime: route.returnTime || "",
+      waitlistedCount: routeWaitlisted.length,
+      waitlistedPassengers: routeWaitlisted.reduce(
+        (s, w) => s + Number(w.passengerCount || 0),
+        0
+      ),
+      companyName: route.companyName || "",
+      driverName: route.driverName || "",
+      vehicleNumber: route.vehicleNumber || "",
     };
   });
 
@@ -200,16 +593,34 @@ export async function buildEventTransportSummary(eventId: string) {
     (r) => r.active && r.level === "full"
   ).length;
   const almostFullRoutes = routeSummaries.filter(
-    (r) => r.active && (r.level === "warning_80" || r.level === "warning_90")
+    (r) => r.active && (r.level === "almost_full" || r.level === "filling")
   ).length;
 
   const issues: string[] = [];
   for (const r of routeSummaries) {
     if (!r.active) continue;
-    if (r.level === "full") issues.push(`קו מלא: ${r.name}`);
-    if (r.level === "warning_90") issues.push(`קו כמעט מלא (90%): ${r.name}`);
-    if (r.level === "warning_80") issues.push(`קו ב-80%: ${r.name}`);
+    if (r.level === "full") {
+      issues.push(`קו מלא: ${r.name}`);
+      if (r.waitlistedPassengers > 0) {
+        issues.push(
+          `נפתחו מקומות? ${r.name} מלא — ${r.waitlistedPassengers} בהמתנה`
+        );
+      }
+    }
+    if (r.level === "almost_full") issues.push(`קו כמעט מלא: ${r.name}`);
   }
+
+  // Freed seats vs waitlist opportunities
+  const waitlistOpportunities = routeSummaries
+    .filter((r) => r.active && r.remaining > 0 && r.waitlistedPassengers > 0)
+    .map((r) => ({
+      routeId: r.routeId,
+      name: r.name,
+      remaining: r.remaining,
+      waitlistedCount: r.waitlistedCount,
+      waitlistedPassengers: r.waitlistedPassengers,
+      message: `נפתחו ${r.remaining} מקומות — יש ${r.waitlistedCount} ברשימת המתנה`,
+    }));
 
   const stopCounts = stops.map((stop) => {
     const stopId = String(stop._id);
@@ -253,11 +664,31 @@ export async function buildEventTransportSummary(eventId: string) {
     outboundPassengers,
     returnPassengers,
     registrationCount: registrations.length,
+    waitlistedCount: waitlisted.length,
+    waitlistedPassengers: waitlisted.reduce(
+      (s, w) => s + Number(w.passengerCount || 0),
+      0
+    ),
     fullRoutes,
     almostFullRoutes,
     issues,
+    waitlistOpportunities,
     routes: routeSummaries,
     stops: stopCounts,
+    waitlist: waitlisted.map((w) => ({
+      _id: String(w._id),
+      name: w.name,
+      phone: w.phone || "",
+      passengerCount: w.passengerCount,
+      needsOutbound: w.needsOutbound,
+      outboundRouteId: w.outboundRouteId ? String(w.outboundRouteId) : null,
+      outboundStopId: w.outboundStopId ? String(w.outboundStopId) : null,
+      needsReturn: w.needsReturn,
+      returnRouteId: w.returnRouteId ? String(w.returnRouteId) : null,
+      returnStopId: w.returnStopId ? String(w.returnStopId) : null,
+      notes: w.notes || "",
+      createdAt: w.createdAt,
+    })),
   };
 }
 
