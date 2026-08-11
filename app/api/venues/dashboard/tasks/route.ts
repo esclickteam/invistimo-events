@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 
 import VenueTask from "@/models/VenueTask";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 import { eventHasVerifiedVenueLink } from "@/lib/venues/eventVenueLinkInvariant";
 import Event from "@/models/Event";
 
@@ -161,8 +162,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (venueId || hallId) {
+      const vId = venueId || hallId;
       await writeVenueAudit({
-        venueId: venueId || hallId,
+        venueId: vId,
         ownerId,
         actorUserId,
         action: "task.create",
@@ -172,6 +174,16 @@ export async function POST(req: NextRequest) {
           title: task.title,
           eventId: eventId ? String(eventId) : null,
         },
+      });
+      await createVenueAlert({
+        ownerId,
+        hallId: vId,
+        title: `משימה חדשה: ${task.title}`,
+        description: task.due ? `יעד: ${task.due}` : task.area || "",
+        tone: task.priority === "high" ? "rose" : "amber",
+        type: "tasks",
+        linkHref: `/venues/dashboard/halls/${encodeURIComponent(vId)}`,
+        dedupeKey: `task-create:${String(task._id)}`,
       });
     }
 

@@ -23,6 +23,7 @@ import {
   Wrench,
   X,
   Grid3X3,
+  Package,
 } from "lucide-react";
 import type { VenuePermission } from "@/lib/venues/permissions";
 
@@ -55,6 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "צוות / משמרות", segment: "staff", icon: Wrench, permission: "staff.view" },
   { label: "עובדים והרשאות", segment: "employees", icon: ShieldCheck, permission: "employees.view" },
   { label: "קבצים / חוזים", segment: "files", icon: FolderOpen, permission: "files.view" },
+  { label: "ציוד", segment: "equipment", icon: Package, permission: "settings.view" },
   { label: "דוחות", segment: "reports", icon: PieChart, permission: "reports.view" },
   { label: "הגדרות", segment: "settings", icon: Settings, permission: "settings.view" },
   { label: "יומן פעילות", segment: "activity", icon: Activity, permission: "dashboard.view" },

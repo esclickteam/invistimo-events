@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import VenueAlert from "@/models/VenueAlert";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
-import { createVenueAlert } from "@/lib/venues/alerts";
+import {
+  createVenueAlert,
+  filterAlertsForPermissions,
+  refreshProactiveVenueAlerts,
+} from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,7 +16,18 @@ type Props = {
 };
 
 const allowedTones = ["amber", "rose", "violet", "emerald"] as const;
-const allowedTypes = ["maintenance", "payments", "staff", "menu", "leads"] as const;
+const allowedTypes = [
+  "maintenance",
+  "payments",
+  "staff",
+  "menu",
+  "leads",
+  "tasks",
+  "events",
+  "clients",
+  "files",
+  "day_of",
+] as const;
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -25,6 +40,7 @@ function serializeAlert(alert: any) {
     description: alert.description || "",
     tone: alert.tone || "amber",
     type: alert.type || "maintenance",
+    linkHref: alert.linkHref || "",
     read: Boolean(alert.read),
     hallId: alert.hallId || "",
     createdAt: alert.createdAt
@@ -39,6 +55,11 @@ export async function GET(req: NextRequest, { params }: Props) {
     const { hallId } = await params;
     const { ctx, error } = await requireVenueAccess(req, hallId, "dashboard.view");
     if (error || !ctx) return error!;
+
+    await refreshProactiveVenueAlerts({
+      ownerId: String(ctx.ownerId),
+      hallId: ctx.venueId,
+    });
 
     const url = new URL(req.url);
     const unreadOnly = url.searchParams.get("unreadOnly") === "1";
@@ -60,13 +81,18 @@ export async function GET(req: NextRequest, { params }: Props) {
 
     const alerts = await VenueAlert.find(query)
       .sort({ read: 1, createdAt: -1 })
-      .limit(limit)
+      .limit(Math.min(80, limit * 2))
       .lean();
+
+    const visible = filterAlertsForPermissions(
+      alerts as any[],
+      ctx.permissions
+    ).slice(0, limit);
 
     return NextResponse.json({
       success: true,
-      alerts: alerts.map(serializeAlert),
-      unreadCount: alerts.filter((a: any) => !a.read).length,
+      alerts: visible.map(serializeAlert),
+      unreadCount: visible.filter((a: any) => !a.read).length,
     });
   } catch (err) {
     console.error("GET hall alerts failed:", err);
@@ -161,6 +187,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         description: cleanString(body.description),
         tone,
         type,
+        linkHref: cleanString(body.linkHref),
       });
 
       return NextResponse.json({

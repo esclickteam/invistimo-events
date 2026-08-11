@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import VenueMenuDish from "@/models/VenueMenuDish";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,6 +148,15 @@ export async function POST(req: NextRequest, context: RouteParams) {
       categoryName,
     });
 
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.create",
+      targetType: "VenueMenuDish",
+      targetId: String(dish._id),
+      meta: { name },
+    });
     return NextResponse.json({
       success: true,
       dish: mapDishResponse(dish),
@@ -261,6 +271,15 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
       );
     }
 
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.update",
+      targetType: "VenueMenuDish",
+      targetId: String(dish._id),
+    });
+
     return NextResponse.json({
       success: true,
       dish: mapDishResponse(dish),
@@ -306,6 +325,15 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       _id: dishId,
       ownerId: ctx.ownerId,
       hallId: cleanHallId,
+    });
+
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.delete",
+      targetType: "VenueMenuDish",
+      targetId: dishId,
     });
 
     return NextResponse.json({

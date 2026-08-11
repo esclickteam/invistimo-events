@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Bell, Loader2 } from "lucide-react";
 
 type AlertRow = {
@@ -9,6 +10,7 @@ type AlertRow = {
   description: string;
   tone: "amber" | "rose" | "violet" | "emerald";
   type: string;
+  linkHref?: string;
   read: boolean;
   createdAt: string | null;
 };
@@ -88,7 +90,7 @@ export default function VenueHallAlerts({ hallId }: { hallId: string }) {
         </div>
         <div className="mt-3 text-sm font-black text-[#2b241c]">אין התראות פתוחות</div>
         <p className="mx-auto mt-1 max-w-xs text-xs font-bold leading-5 text-[#8a7b68]">
-          התראות על לידים חדשים, המרות ועדכונים יופיעו כאן.
+          לידים, משימות, אירועים קרובים, קבצים ויום-אירוע יופיעו כאן לפי הרשאות.
         </p>
       </div>
     );
@@ -106,17 +108,25 @@ export default function VenueHallAlerts({ hallId }: { hallId: string }) {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-black text-[#2b241c]">{alert.title}</div>
+              {alert.linkHref ? (
+                <Link
+                  href={alert.linkHref}
+                  className="text-sm font-black text-[#2b241c] underline-offset-2 hover:underline"
+                >
+                  {alert.title}
+                </Link>
+              ) : (
+                <div className="text-sm font-black text-[#2b241c]">{alert.title}</div>
+              )}
               {alert.description ? (
                 <div className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
                   {alert.description}
                 </div>
               ) : null}
-              {alert.createdAt ? (
-                <div className="mt-1 text-[11px] font-bold text-[#9b8a73]">
-                  {formatWhen(alert.createdAt)}
-                </div>
-              ) : null}
+              <div className="mt-1 text-[11px] font-bold text-[#9b8a73]">
+                {alert.type}
+                {alert.createdAt ? ` · ${formatWhen(alert.createdAt)}` : ""}
+              </div>
             </div>
             <button
               type="button"

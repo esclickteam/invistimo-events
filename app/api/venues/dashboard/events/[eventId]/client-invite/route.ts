@@ -8,6 +8,8 @@ import VenueEvent from "@/models/VenueEvent";
 import { syncSeatingTemplateToLinkedEvents } from "@/lib/venues/syncSeatingTemplateToLinkedEvents";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import { eventHasVerifiedVenueLink } from "@/lib/venues/eventVenueLinkInvariant";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -707,6 +709,30 @@ export async function POST(req: NextRequest, { params }: Props) {
     } catch (syncError) {
       console.error("client-invite seating sync failed:", syncError);
     }
+
+    await writeVenueAudit({
+      venueId: venueHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "client_invite.create",
+      targetType: "Event",
+      targetId: String(eventObjectId),
+      meta: {
+        packageType,
+        seatingTemplateId: String(templateObjectId),
+      },
+    });
+
+    await createVenueAlert({
+      ownerId: String(ctx.ownerId),
+      hallId: venueHallId,
+      title: `נפתח קישור לקוח: ${eventTitle || "אירוע"}`,
+      description: selectedTemplateName,
+      tone: "violet",
+      type: "clients",
+      linkHref: `/venues/dashboard/events/${encodeURIComponent(String(eventObjectId))}`,
+      dedupeKey: `client-invite:${String(eventObjectId)}:${token.slice(0, 12)}`,
+    });
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -251,6 +252,16 @@ export async function POST(
         targetType: "ClientContract",
         targetId: serialized.id,
         meta: { eventId, phone: clientPhone },
+      });
+      await createVenueAlert({
+        ownerId: String(guard.ctx.ownerId),
+        hallId: String(guard.ctx.venueId),
+        title: "חוזה נשלח ללקוח",
+        description: clientPhone || eventId,
+        tone: "violet",
+        type: "files",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(eventId)}`,
+        dedupeKey: `contract-send:${serialized.id}`,
       });
     } catch {
       /* audit best-effort */

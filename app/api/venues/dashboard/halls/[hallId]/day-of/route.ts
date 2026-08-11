@@ -11,6 +11,7 @@ import {
   summarizeGuests,
 } from "@/lib/venues/dayOfGuests";
 import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -318,6 +319,19 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         party,
       },
     });
+
+    if (next > 0) {
+      await createVenueAlert({
+        ownerId: String(ctx.ownerId),
+        hallId: ctx.venueId,
+        title: "עדכון הגעות ביום האירוע",
+        description: `${String((guest as any).name || "אורח")} · הגיעו ${next}`,
+        tone: "emerald",
+        type: "day_of",
+        linkHref: `/venues/dashboard/halls/${encodeURIComponent(ctx.venueId)}/day-of?eventId=${encodeURIComponent(eventId)}`,
+        dedupeKey: `dayof-arrival-burst:${ctx.venueId}:${eventId}:${new Date().toISOString().slice(0, 13)}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,
