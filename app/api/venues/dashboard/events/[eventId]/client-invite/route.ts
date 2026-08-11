@@ -3,10 +3,11 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 import VenueEvent from "@/models/VenueEvent";
 import { syncSeatingTemplateToLinkedEvents } from "@/lib/venues/syncSeatingTemplateToLinkedEvents";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { eventHasVerifiedVenueLink } from "@/lib/venues/eventVenueLinkInvariant";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -305,18 +306,6 @@ export async function GET(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { eventId } = await params;
     const eventObjectId = toObjectId(eventId);
 
@@ -342,11 +331,8 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    const ownerValues = getOwnerQueryValues(String(auth.userId));
-
     const event = await events.findOne({
       _id: eventObjectId,
-      venueOwnerId: { $in: ownerValues },
       venueAccessStatus: "linked",
     });
 
@@ -359,6 +345,54 @@ export async function GET(req: NextRequest, { params }: Props) {
         { status: 404 }
       );
     }
+
+    const hallId =
+      cleanString(event?.venueHallId) ||
+      cleanString(
+        (
+          await VenueEvent.findOne({ linkedEventId: eventObjectId })
+            .select("hallId")
+            .lean()
+        )?.hallId
+      );
+
+    if (!hallId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "לא מוגדר אולם לאירוע הזה",
+        },
+        { status: 400 }
+      );
+    }
+
+    const { ctx, error } = await requireVenueAccess(req, hallId, "events.view");
+    if (error || !ctx) return error!;
+
+    if (
+      cleanString(event.venueOwnerId) &&
+      cleanString(event.venueOwnerId) !== cleanString(ctx.ownerId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האירוע לא נמצא או שאין הרשאה",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (!(await eventHasVerifiedVenueLink(event))) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האירוע אינו מקושר לאולם באופן תקין",
+        },
+        { status: 409 }
+      );
+    }
+
+    const ownerValues = getOwnerQueryValues(String(ctx.ownerId));
 
     const linkedInvitation = await findClientInvitationForVenueEvent(event);
 
@@ -429,18 +463,6 @@ export async function POST(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { eventId } = await params;
     const eventObjectId = toObjectId(eventId);
 
@@ -483,11 +505,8 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const ownerValues = getOwnerQueryValues(String(auth.userId));
-
     const event = await events.findOne({
       _id: eventObjectId,
-      venueOwnerId: { $in: ownerValues },
       venueAccessStatus: "linked",
     });
 
@@ -501,7 +520,15 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const venueHallId = cleanString(event?.venueHallId);
+    const venueHallId =
+      cleanString(event?.venueHallId) ||
+      cleanString(
+        (
+          await VenueEvent.findOne({ linkedEventId: eventObjectId })
+            .select("hallId")
+            .lean()
+        )?.hallId
+      );
     const venueHallName = cleanString(event?.venueHallName);
 
     if (!venueHallId) {
@@ -514,8 +541,39 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const venueOwnerObjectId = toObjectId(auth.userId);
-    const venueOwnerIdForTemplate = venueOwnerObjectId || auth.userId;
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      venueHallId,
+      "events.edit"
+    );
+    if (error || !ctx) return error!;
+
+    if (
+      cleanString(event.venueOwnerId) &&
+      cleanString(event.venueOwnerId) !== cleanString(ctx.ownerId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האירוע לא נמצא או שאין הרשאה",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (!(await eventHasVerifiedVenueLink(event))) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האירוע אינו מקושר לאולם באופן תקין",
+        },
+        { status: 409 }
+      );
+    }
+
+    const ownerValues = getOwnerQueryValues(String(ctx.ownerId));
+    const venueOwnerObjectId = toObjectId(ctx.ownerId);
+    const venueOwnerIdForTemplate = venueOwnerObjectId || ctx.ownerId;
 
     const seatingTemplate = await VenueSeatingTemplate.findOne({
       _id: templateObjectId,
@@ -559,7 +617,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       (seatingTemplate as any)?.name || "תבנית הושבה"
     );
 
-    const venueOwnerIdValue = venueOwnerObjectId || String(auth.userId);
+    const venueOwnerIdValue = venueOwnerObjectId || String(ctx.ownerId);
 
     /*
       מאחר שזה קישור חדש וחד פעמי, לא מחברים אותו אוטומטית להזמנה ישנה.

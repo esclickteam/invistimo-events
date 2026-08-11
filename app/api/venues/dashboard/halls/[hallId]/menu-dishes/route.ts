@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import VenueMenuDish from "@/models/VenueMenuDish";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,15 +35,6 @@ export async function GET(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -54,8 +45,15 @@ export async function GET(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.view"
+    );
+    if (error || !ctx) return error!;
+
     const dishes = await VenueMenuDish.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     })
       .sort({ createdAt: -1 })
@@ -82,15 +80,6 @@ export async function POST(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -100,6 +89,13 @@ export async function POST(req: NextRequest, context: RouteParams) {
         { status: 400 }
       );
     }
+
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
 
@@ -141,7 +137,7 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }
 
     const dish = await VenueMenuDish.create({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
       name,
       description,
@@ -172,15 +168,6 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -190,6 +177,13 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
         { status: 400 }
       );
     }
+
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
     const { searchParams } = new URL(req.url);
@@ -242,7 +236,7 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
     const dish = await VenueMenuDish.findOneAndUpdate(
       {
         _id: dishId,
-        ownerId: auth.userId,
+        ownerId: ctx.ownerId,
         hallId: cleanHallId,
       },
       {
@@ -288,15 +282,6 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -310,9 +295,16 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
+
     await VenueMenuDish.deleteOne({
       _id: dishId,
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     });
 

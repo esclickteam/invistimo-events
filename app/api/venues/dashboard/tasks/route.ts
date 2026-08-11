@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireVenueDashboardActor } from "@/lib/venues/requireVenueAccess";
 
 import VenueTask from "@/models/VenueTask";
 
@@ -24,20 +24,14 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
+    const { ctx, error } = await requireVenueDashboardActor(
+      req,
+      "dashboard.view"
+    );
+    if (error || !ctx) return error!;
 
     const tasks = await VenueTask.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
     })
       .sort({
         done: 1,
@@ -66,22 +60,16 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
+    const { ctx, error } = await requireVenueDashboardActor(
+      req,
+      "events.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
 
     const task = await VenueTask.create({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
 
       title: String(body.title || "").trim() || "משימה חדשה",
       area: String(body.area || "").trim() || "כללי",

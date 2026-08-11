@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import VenueHall from "@/models/VenueHall";
 import VenueMenu from "@/models/VenueMenu";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -86,46 +85,31 @@ function serializeMenu(menu: any) {
   };
 }
 
-async function requireAuthAndHall(req: NextRequest, hallId: string) {
-  const auth = await getUserIdFromRequest(req);
-
-  if (!auth?.userId) {
+async function requireAuthAndHall(
+  req: NextRequest,
+  hallId: string,
+  permission: "settings.view" | "settings.edit"
+) {
+  const { ctx, error } = await requireVenueAccess(req, hallId, permission);
+  if (error || !ctx) {
     return {
-      error: NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      ),
+      error:
+        error ||
+        NextResponse.json(
+          { success: false, message: "אין הרשאה" },
+          { status: 403 }
+        ),
       auth: null,
       hall: null,
-    };
-  }
-
-  const hall = await VenueHall.findOne({
-    ownerId: auth.userId,
-    id: hallId,
-  }).lean();
-
-  if (!hall) {
-    return {
-      error: NextResponse.json(
-        {
-          success: false,
-          message: "האולם לא נמצא או שאין הרשאה",
-        },
-        { status: 404 }
-      ),
-      auth,
-      hall: null,
+      ownerId: null as string | null,
     };
   }
 
   return {
     error: null,
-    auth,
-    hall,
+    auth: ctx.auth,
+    hall: ctx.hall,
+    ownerId: ctx.ownerId,
   };
 }
 
@@ -149,11 +133,11 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "settings.view");
     if (guard.error) return guard.error;
 
     const menus = await VenueMenu.find({
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ownerId!,
       hallId,
     })
       .sort({ updatedAt: -1, createdAt: -1 })
@@ -207,7 +191,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "settings.edit");
     if (guard.error) return guard.error;
 
     const body = await req.json();
@@ -234,7 +218,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     const categories = normalizeCategories(body.categories);
 
     const menu = await VenueMenu.create({
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ownerId!,
       hallId,
 
       name,
@@ -287,7 +271,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "settings.edit");
     if (guard.error) return guard.error;
 
     const body = await req.json();
@@ -344,7 +328,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
     const menu = await VenueMenu.findOneAndUpdate(
       {
         _id: menuId,
-        ownerId: guard.auth!.userId,
+        ownerId: guard.ownerId!,
         hallId,
       },
       {
@@ -407,7 +391,7 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "settings.edit");
     if (guard.error) return guard.error;
 
     const url = new URL(req.url);
@@ -434,7 +418,7 @@ export async function DELETE(req: NextRequest, { params }: Props) {
 
     const deleted = await VenueMenu.findOneAndDelete({
       _id: menuId,
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ownerId!,
       hallId,
     });
 
