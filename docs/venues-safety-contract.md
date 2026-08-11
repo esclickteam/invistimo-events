@@ -156,6 +156,20 @@ Regression: inactive/`isActive` must not empty Regular dashboards under valid se
 
 Venue cleanup scripts have **no authority** over records without verified Venue relation.
 
+### Controlled pilot entitlement (venue-layer)
+
+Production Venue Suite rollout must stay allowlisted. Implemented in
+`lib/venues/pilotGate.ts` and enforced inside `requireVenueAccess` /
+hall create — **without** changing global `/api/me` or `getUserIdFromRequest`.
+
+Env (Production):
+
+- `VENUE_PILOT_MODE=true`
+- `VENUE_PILOT_OWNER_IDS=<ownerUserId,...>` and/or
+- `VENUE_PILOT_HALL_IDS=<hallId,...>`
+
+Staging/default: pilot mode OFF so E2E fixtures keep working.
+
 ### Final contract line
 
 ```

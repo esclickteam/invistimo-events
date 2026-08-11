@@ -37,14 +37,20 @@ export async function GET(req: NextRequest, { params }: Props) {
     const url = new URL(req.url);
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 50));
     const skip = Math.max(0, Number(url.searchParams.get("skip")) || 0);
+    const targetId = String(url.searchParams.get("targetId") || "").trim();
+
+    const filter: Record<string, unknown> = { venueId: ctx.venueId };
+    if (targetId) {
+      filter.targetId = targetId;
+    }
 
     const [entries, total] = await Promise.all([
-      VenueAuditLog.find({ venueId: ctx.venueId })
+      VenueAuditLog.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      VenueAuditLog.countDocuments({ venueId: ctx.venueId }),
+      VenueAuditLog.countDocuments(filter),
     ]);
 
     const actorIds = [
