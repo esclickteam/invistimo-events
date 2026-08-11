@@ -60,13 +60,13 @@ async function main() {
   const trueLinks = [];
   for (const e of linked) {
     const id = clean(e._id);
-    const ve = veByLinked.get(id);
+    const ve = veByLinked.get(id) as any | undefined;
     const hallRaw = e.venueHallId ? clean(e.venueHallId) : "";
     const veHall = ve ? clean(ve.hallId || ve.venueId) : "";
+    const hasVe = Boolean(ve) && clean(ve?.linkedEventId) === id;
     const hallOk =
       (Boolean(hallRaw) && hallIds.has(hallRaw)) ||
       (Boolean(veHall) && hallIds.has(veHall));
-    const hasVe = Boolean(ve) && clean(ve.linkedEventId) === id;
 
     const ok = hasVe && hallOk;
     const row = {

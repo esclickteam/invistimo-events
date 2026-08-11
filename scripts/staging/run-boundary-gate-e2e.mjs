@@ -1,12 +1,14 @@
 /**
- * Staging boundary gate:
- *  1) FALSE VENUE LINKS = 0
- *  2) Venue Owner → Lead → Client → Event → VenueEvent → Invitation → RSVP → Seating
- *  3) Golden Regular Customer parity on same eventId/invitationId/guest/RSVP/seating
- *  4) RBAC smoke (menus/tasks/client-invite reject regular customer)
+ * Staging Regular ↔ Venues boundary gate.
  *
- * Usage:
- *   STAGING_BASE_URL=https://staging.invistimo.com node scripts/staging/run-boundary-gate-e2e.mjs
+ * Orchestrates:
+ *  - false-link dry-run (Staging DB)
+ *  - venues HTTP E2E (tenant + regular host)
+ *  - full venue↔customer E2E (invite/RSVP/seating)
+ *  - RBAC smoke for menus/tasks (owner allow, regular deny)
+ *
+ *   STAGING_BASE_URL=https://staging.invistimo.com \
+ *   node scripts/staging/run-boundary-gate-e2e.mjs
  */
 import fs from "node:fs";
 import http from "node:http";
@@ -26,23 +28,18 @@ const PASSWORD = process.env.STAGING_FIXTURE_PASSWORD || "StagingTest123!";
 const REPORT_PATH =
   process.env.BOUNDARY_GATE_REPORT ||
   "/opt/cursor/artifacts/boundary-gate-report.json";
+const MD_PATH =
+  process.env.BOUNDARY_GATE_MD ||
+  "/opt/cursor/artifacts/BOUNDARY-GATE-STAGING.md";
 
 const FIXTURES = {
   owner: "staging-owner-a@invistimo.test",
   hallId: "staging-hall-a",
   regularHost: "staging-regular-host@invistimo.test",
-  // Venue client / golden regular may be seeded by seed-full-venue-e2e
-  venueCustomer:
-    process.env.STAGING_VENUE_CUSTOMER_EMAIL ||
-    "staging-venue-client@invistimo.test",
-  goldenRegular:
-    process.env.STAGING_GOLDEN_REGULAR_EMAIL ||
-    "staging-regular-host@invistimo.test",
 };
 
 function assertSafeBase(url) {
-  const u = new URL(url);
-  const host = u.hostname.toLowerCase();
+  const host = new URL(url).hostname.toLowerCase();
   if (host === "www.invistimo.com" || host === "invistimo.com") {
     throw new Error(`Refusing production host=${host}`);
   }
@@ -72,143 +69,96 @@ function storeSetCookies(setCookie) {
 
 function cookieHeaderFromJar(extraToken) {
   const parts = [];
-  for (const [k, v] of cookieJar.entries()) parts.push(`${k}=${v}`);
-  if (extraToken && !cookieJar.has("token")) parts.push(`token=${extraToken}`);
+  for (const [k, v] of cookieJar.entries()) {
+    if (extraToken && (k === "authToken" || k === "token")) continue;
+    parts.push(`${k}=${v}`);
+  }
+  if (extraToken) {
+    parts.push(`authToken=${extraToken}`);
+    parts.push(`token=${extraToken}`);
+  }
   return parts.join("; ");
 }
 
-function request(method, path, { body, token, headers } = {}) {
-  const url = new URL(path, BASE);
+function request(method, path, { body, token } = {}) {
+  const url = new URL(path.startsWith("http") ? path : `${BASE}${path}`);
   const lib = url.protocol === "https:" ? https : http;
-  const payload = body == null ? null : JSON.stringify(body);
-  const hdrs = {
-    Accept: "application/json",
-    ...(payload
-      ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
-      : {}),
-    ...(BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {}),
-    Cookie: cookieHeaderFromJar(token),
-    ...headers,
+  const headers = {
+    Accept: "application/json,text/html,*/*",
+    "User-Agent": "invistimo-boundary-gate/1.0",
   };
+  if (BYPASS) {
+    headers["x-vercel-protection-bypass"] = BYPASS;
+    headers["x-vercel-set-bypass-cookie"] = "true";
+  }
+  const cookie = cookieHeaderFromJar(token);
+  if (cookie) headers.Cookie = cookie;
 
-  return new Promise((resolve, reject) => {
-    const req = lib.request(
-      url,
-      { method, headers: hdrs },
-      (res) => {
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => {
-          storeSetCookies(res.headers["set-cookie"]);
-          const text = Buffer.concat(chunks).toString("utf8");
-          let json = null;
-          try {
-            json = JSON.parse(text);
-          } catch {
-            /* ignore */
-          }
-          resolve({
-            status: res.statusCode || 0,
-            json,
-            text,
-            headers: res.headers,
-          });
-        });
-      }
+  let payload;
+  if (body !== undefined) {
+    payload = Buffer.from(JSON.stringify(body));
+    headers["Content-Type"] = "application/json";
+    headers["Content-Length"] = String(payload.length);
+  }
+
+  return new Promise((resolve) => {
+    const req = lib.request(url, { method, headers, timeout: 30000 }, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        storeSetCookies(res.headers["set-cookie"] || []);
+        const raw = Buffer.concat(chunks).toString("utf8");
+        let json = null;
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          /* ignore */
+        }
+        resolve({ status: res.statusCode || 0, json, raw: raw.slice(0, 2000) });
+      });
+    });
+    req.on("error", (err) =>
+      resolve({ status: 0, json: null, raw: "", error: String(err) })
     );
-    req.on("error", reject);
     if (payload) req.write(payload);
     req.end();
   });
 }
 
+function extractToken() {
+  return cookieJar.get("authToken") || cookieJar.get("token") || null;
+}
+
 async function login(email) {
-  cookieJar.clear();
+  for (const name of ["authToken", "token", "role", "hasPaid", "isTrial"]) {
+    cookieJar.delete(name);
+  }
   const res = await request("POST", "/api/login", {
     body: { email, password: PASSWORD },
   });
-  const token =
-    res.json?.token ||
-    res.json?.accessToken ||
-    cookieJar.get("token") ||
-    "";
-  return { ok: res.status >= 200 && res.status < 300 && Boolean(token), token, res };
-}
-
-function countRsvp(guests) {
-  let yes = 0;
-  let no = 0;
-  let pending = 0;
-  let totalPeople = 0;
-  for (const g of guests || []) {
-    const status = String(g.status || g.rsvpStatus || "").toLowerCase();
-    const n = Number(g.guestCount || g.count || 1) || 1;
-    totalPeople += n;
-    if (status === "yes" || status === "approved" || status === "coming") yes += n;
-    else if (status === "no" || status === "declined") no += n;
-    else pending += n;
-  }
-  return { yes, no, pending, guestGroups: (guests || []).length, totalPeople };
-}
-
-async function loadCustomerSnapshot(email) {
-  const { ok, token, res } = await login(email);
-  if (!ok) {
-    return { ok: false, error: `login failed ${email}`, status: res.status };
-  }
-
-  const me = await request("GET", "/api/me", { token });
-  const events = await request("GET", "/api/events", { token });
-  const invitations = await request("GET", "/api/invitations/my", { token });
-
-  const eventList = events.json?.events || events.json?.data || [];
-  const invList =
-    invitations.json?.invitations || invitations.json?.data || [];
-  const event = Array.isArray(eventList) ? eventList[0] : null;
-  const invitation = Array.isArray(invList) ? invList[0] : null;
-  const eventId = String(event?._id || event?.id || "");
-  const invitationId = String(invitation?._id || invitation?.id || "");
-
-  let guests = [];
-  if (invitationId) {
-    const g = await request(
-      "GET",
-      `/api/guests?invitationId=${encodeURIComponent(invitationId)}`,
-      { token }
-    );
-    guests = g.json?.guests || g.json?.data || [];
-  }
-
-  let seating = null;
-  if (eventId) {
-    const s = await request("GET", `/api/seating/${eventId}`, { token });
-    seating = s.json;
-  }
-
-  const rsvp = countRsvp(guests);
-  const assignedSeats = Array.isArray(seating?.tables)
-    ? seating.tables.reduce(
-        (acc, t) =>
-          acc +
-          (Array.isArray(t.seats)
-            ? t.seats.filter((x) => x.guestId || x.occupied).length
-            : 0),
-        0
-      )
-    : Number(seating?.assignedCount || 0);
-
+  const token = extractToken();
   return {
-    ok: true,
-    email,
-    userId: me.json?.user?._id || me.json?._id || null,
-    eventId,
-    invitationId,
-    venueAccessStatus: event?.venueAccessStatus || "none",
-    guestCount: rsvp.guestGroups,
-    rsvp,
-    assignedSeats,
-    eventTitle: event?.title || null,
+    ok: Boolean(res.json?.success) && Boolean(token),
+    token,
+    status: res.status,
+    json: res.json,
   };
+}
+
+function run(cmd, args, env = {}) {
+  return spawnSync(cmd, args, {
+    encoding: "utf8",
+    env: { ...process.env, STAGING_BASE_URL: BASE, ...env },
+    timeout: 240000,
+  });
+}
+
+function readJson(path) {
+  try {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -219,51 +169,130 @@ async function main() {
     generatedAt: new Date().toISOString(),
     base: BASE,
     gates: {},
+    details: {},
     recommendation: null,
+    allPass: false,
   };
 
-  // 1) False links dry-run via cleanup script
-  const scan = spawnSync("npx", ["tsx", "scripts/staging/cleanup-false-venue-links.ts"], {
-    encoding: "utf8",
-    env: process.env,
-  });
-  let falseLinks = null;
-  try {
-    const match = (scan.stdout || "").match(/\{[\s\S]*"totals"[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      falseLinks = parsed.totals?.falseLinks ?? null;
-      report.falseLinkScan = parsed.totals;
-    }
-  } catch {
-    report.falseLinkScanRaw = (scan.stdout || "").slice(-2000);
-  }
+  // --- 1) False links dry-run ---
+  const scan = run("npx", ["tsx", "scripts/staging/cleanup-false-venue-links.ts"]);
+  const dryPath =
+    "/opt/cursor/artifacts/false-venue-links-invistimo_staging-dry-run.json";
+  const dry = readJson(dryPath);
+  const falseLinks = dry?.totals?.falseLinks;
+  report.details.falseLinkScan = dry?.totals || {
+    stdoutTail: (scan.stdout || "").slice(-1500),
+    status: scan.status,
+  };
   report.gates.FALSE_VENUE_LINKS =
     falseLinks === 0 ? "PASS" : `FAIL(${falseLinks})`;
 
-  // 2) Venue owner smoke: hall + menus RBAC + tasks
-  const ownerLogin = await login(FIXTURES.owner);
-  report.ownerLogin = { ok: ownerLogin.ok, status: ownerLogin.res.status };
+  // --- 2) Venues staging HTTP E2E ---
+  const venuesE2e = run("node", ["scripts/staging/run-staging-venues-e2e.mjs"]);
+  const venuesReport = readJson("/tmp/staging-e2e-report.json");
+  const venuesPass =
+    venuesE2e.status === 0 &&
+    venuesReport?.summary?.VENUES_STAGING_E2E === "PASS";
+  report.details.venuesE2e = {
+    exitCode: venuesE2e.status,
+    summary: venuesReport?.summary || null,
+  };
+
+  const venueChecks = Array.isArray(venuesReport?.checks)
+    ? venuesReport.checks
+    : [];
+  const venueByName = Object.fromEntries(venueChecks.map((c) => [c.name, c]));
+  const regularChecks = [
+    "regular_host_login",
+    "regular_host_events_list",
+    "regular_host_has_staging_event",
+    "regular_event_no_venueId_required",
+    "regular_host_no_venues",
+  ];
+  const regularPassFromVenues = regularChecks.every(
+    (n) => venueByName[n]?.pass
+  );
+
+  // --- 3) Full venue↔customer E2E (RSVP/seating/day-of) ---
+  const fullE2e = run("node", ["scripts/staging/run-full-venue-browser-e2e.mjs"]);
+  const fullReport = readJson("/tmp/full-venue-e2e-report.json");
+  const fullPass =
+    fullE2e.status === 0 && fullReport?.summary?.FULL_HTTP_E2E === "PASS";
+  report.details.fullVenueE2e = {
+    exitCode: fullE2e.status,
+    summary: fullReport?.summary || null,
+  };
+
+  const fullChecks = Array.isArray(fullReport?.checks) ? fullReport.checks : [];
+  const fullByName = Object.fromEntries(fullChecks.map((c) => [c.name, c]));
+  const regularPassFromFull = [
+    "regular_event_exists",
+    "regular_event_no_venueId",
+    "regular_guests_endpoint",
+    "regular_seating_no_venue_source",
+  ].every((n) => fullByName[n]?.pass);
+
+  const venueCustomerPass = [
+    "customerA_has_linked_event",
+    "customerA_seating_from_venue_template",
+    "customer_rsvp_update",
+    "customer_arrival_update",
+    "venue_sees_customer_guests",
+  ].every((n) => fullByName[n]?.pass);
+
+  report.gates.VENUE_FLOW =
+    venuesPass && fullPass && venueCustomerPass ? "PASS" : "FAIL";
+  report.gates.REGULAR_FLOW =
+    regularPassFromVenues && regularPassFromFull ? "PASS" : "FAIL";
+
+  report.details.regularEvidence = {
+    venuesChecks: Object.fromEntries(
+      regularChecks.map((n) => [n, Boolean(venueByName[n]?.pass)])
+    ),
+    fullChecks: {
+      regular_event_exists: Boolean(fullByName.regular_event_exists?.pass),
+      regular_event_no_venueId: Boolean(fullByName.regular_event_no_venueId?.pass),
+      regular_guests_endpoint: Boolean(fullByName.regular_guests_endpoint?.pass),
+      regular_seating_no_venue_source: Boolean(
+        fullByName.regular_seating_no_venue_source?.pass
+      ),
+    },
+  };
+  report.details.venueCustomerEvidence = {
+    customerA_has_linked_event: Boolean(
+      fullByName.customerA_has_linked_event?.pass
+    ),
+    customer_rsvp_update: Boolean(fullByName.customer_rsvp_update?.pass),
+    customer_arrival_update: Boolean(fullByName.customer_arrival_update?.pass),
+    customerA_seating_from_venue_template: Boolean(
+      fullByName.customerA_seating_from_venue_template?.pass
+    ),
+  };
+
+  // --- 4) RBAC live smoke ---
   let rbacPass = true;
-  if (ownerLogin.ok) {
-    const menus = await request(
+  const ownerLogin = await login(FIXTURES.owner);
+  const regularLogin = await login(FIXTURES.regularHost);
+  report.details.ownerLogin = {
+    ok: ownerLogin.ok,
+    status: ownerLogin.status,
+  };
+  report.details.regularLogin = {
+    ok: regularLogin.ok,
+    status: regularLogin.status,
+  };
+
+  if (!ownerLogin.ok || !regularLogin.ok) {
+    rbacPass = false;
+  } else {
+    const ownerMenus = await request(
       "GET",
       `/api/venues/dashboard/halls/${encodeURIComponent(FIXTURES.hallId)}/menus`,
       { token: ownerLogin.token }
     );
-    const tasks = await request("GET", "/api/venues/dashboard/tasks", {
+    const ownerTasks = await request("GET", "/api/venues/dashboard/tasks", {
       token: ownerLogin.token,
     });
-    report.ownerMenus = { status: menus.status, ok: menus.json?.success === true };
-    report.ownerTasks = { status: tasks.status, ok: tasks.json?.success === true };
-    if (!(menus.status < 400 && tasks.status < 400)) rbacPass = false;
-  } else {
-    rbacPass = false;
-  }
-
-  // Regular host must be denied venue menus/tasks
-  const regularLogin = await login(FIXTURES.regularHost);
-  if (regularLogin.ok) {
     const deniedMenus = await request(
       "GET",
       `/api/venues/dashboard/halls/${encodeURIComponent(FIXTURES.hallId)}/menus`,
@@ -272,76 +301,20 @@ async function main() {
     const deniedTasks = await request("GET", "/api/venues/dashboard/tasks", {
       token: regularLogin.token,
     });
-    report.regularDenied = {
-      menusStatus: deniedMenus.status,
-      tasksStatus: deniedTasks.status,
+
+    report.details.rbac = {
+      ownerMenus: ownerMenus.status,
+      ownerTasks: ownerTasks.status,
+      regularMenus: deniedMenus.status,
+      regularTasks: deniedTasks.status,
     };
-    if (!(deniedMenus.status >= 400 && deniedTasks.status >= 400)) {
-      rbacPass = false;
-    }
-  } else {
-    report.regularDenied = { loginFailed: true, status: regularLogin.res.status };
-    // If fixture missing, do not fail entire RBAC — mark inconclusive
-    report.regularDenied.inconclusive = true;
+
+    if (!(ownerMenus.status >= 200 && ownerMenus.status < 300)) rbacPass = false;
+    if (!(ownerTasks.status >= 200 && ownerTasks.status < 300)) rbacPass = false;
+    if (!(deniedMenus.status >= 400)) rbacPass = false;
+    if (!(deniedTasks.status >= 400)) rbacPass = false;
   }
   report.gates.RBAC = rbacPass ? "PASS" : "FAIL";
-
-  // 3) Prefer existing full venue HTTP e2e if available
-  const venueE2e = spawnSync(
-    "node",
-    ["scripts/staging/run-staging-venues-e2e.mjs"],
-    {
-      encoding: "utf8",
-      env: { ...process.env, STAGING_BASE_URL: BASE },
-      timeout: 180000,
-    }
-  );
-  report.venueE2e = {
-    exitCode: venueE2e.status,
-    tail: (venueE2e.stdout || venueE2e.stderr || "").slice(-2500),
-  };
-  report.gates.VENUE_FLOW = venueE2e.status === 0 ? "PASS" : "FAIL";
-
-  // 4) Golden regular parity (same IDs if shared seed; else regular access health)
-  const golden = await loadCustomerSnapshot(FIXTURES.goldenRegular);
-  report.goldenRegular = golden;
-  const venueCustomer = await loadCustomerSnapshot(FIXTURES.venueCustomer);
-  report.venueCustomer = venueCustomer;
-
-  let regularPass =
-    golden.ok &&
-    Boolean(golden.eventId) &&
-    Boolean(golden.invitationId) &&
-    golden.venueAccessStatus !== "linked";
-
-  if (
-    golden.ok &&
-    venueCustomer.ok &&
-    golden.eventId &&
-    venueCustomer.eventId &&
-    golden.eventId === venueCustomer.eventId
-  ) {
-    regularPass =
-      regularPass &&
-      golden.invitationId === venueCustomer.invitationId &&
-      golden.guestCount === venueCustomer.guestCount &&
-      golden.rsvp.yes === venueCustomer.rsvp.yes &&
-      golden.assignedSeats === venueCustomer.assignedSeats;
-    report.parity = {
-      sameEventId: true,
-      sameInvitationId: golden.invitationId === venueCustomer.invitationId,
-      sameGuestCount: golden.guestCount === venueCustomer.guestCount,
-      sameRsvpYes: golden.rsvp.yes === venueCustomer.rsvp.yes,
-      sameSeating: golden.assignedSeats === venueCustomer.assignedSeats,
-    };
-  } else {
-    report.parity = {
-      note: "Venue client and golden regular are separate fixtures; verified regular access + non-linked status",
-      goldenNonLinked: golden.venueAccessStatus !== "linked",
-    };
-  }
-
-  report.gates.REGULAR_FLOW = regularPass ? "PASS" : "FAIL";
 
   const allPass =
     report.gates.VENUE_FLOW === "PASS" &&
@@ -351,11 +324,55 @@ async function main() {
 
   report.allPass = allPass;
   report.recommendation = allPass
-    ? "Gate PASS on Staging. Safe to recommend opening Venue Suite to real customers AFTER a Production false-link audit (read-only) and a controlled Production code deploy — still NO Production data cleanup in this step."
-    : "Gate NOT PASS. Do NOT open Venue Suite to real customers. Do NOT run Production cleanup.";
+    ? [
+        "STAGING GATE = PASS",
+        "VENUE FLOW = PASS",
+        "REGULAR FLOW = PASS",
+        "FALSE VENUE LINKS = 0",
+        "RBAC = PASS",
+        "",
+        "Recommendation: After this PR is deployed to Staging and this gate is re-confirmed green,",
+        "Venue Suite may be opened to real customers ONLY after:",
+        "1) Production code deploy of this boundary fix",
+        "2) Production READ-ONLY false-link audit (no bulk cleanup)",
+        "3) Explicit product go-ahead",
+        "",
+        "Do NOT run Production data cleanup as part of opening the suite.",
+      ].join("\n")
+    : [
+        "STAGING GATE = NOT PASS",
+        `VENUE FLOW = ${report.gates.VENUE_FLOW}`,
+        `REGULAR FLOW = ${report.gates.REGULAR_FLOW}`,
+        `FALSE VENUE LINKS = ${report.gates.FALSE_VENUE_LINKS}`,
+        `RBAC = ${report.gates.RBAC}`,
+        "",
+        "Recommendation: Do NOT open Venue Suite to real customers.",
+        "Do NOT run Production cleanup.",
+      ].join("\n");
 
   fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ reportPath: REPORT_PATH, gates: report.gates, recommendation: report.recommendation }, null, 2));
+  fs.writeFileSync(
+    MD_PATH,
+    `# Staging Boundary Gate\n\nGenerated: ${report.generatedAt}\nBase: ${BASE}\n\n` +
+      Object.entries(report.gates)
+        .map(([k, v]) => `- **${k}**: ${v}`)
+        .join("\n") +
+      `\n\n## Recommendation\n\n${report.recommendation}\n`
+  );
+
+  console.log(
+    JSON.stringify(
+      {
+        reportPath: REPORT_PATH,
+        mdPath: MD_PATH,
+        gates: report.gates,
+        allPass,
+        recommendation: report.recommendation,
+      },
+      null,
+      2
+    )
+  );
   process.exit(allPass ? 0 : 1);
 }
 
