@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -14,9 +13,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
 const DARK = "#0F1810";
 
@@ -99,46 +98,6 @@ function Blob({ className = "" }: { className?: string }) {
   );
 }
 
-function ForestNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
-  return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all ${
-        scrolled ? "bg-[#0F1810]/90 backdrop-blur-md" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/wedding-website" className="text-xs tracking-widest text-[#7CB87A] hover:text-white">
-          ← תבניות
-        </Link>
-        <nav className="hidden gap-5 md:flex">
-          {NAV.slice(1, 9).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="text-xs text-[#8AA892] transition hover:text-[#7CB87A]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="rounded-full border border-[#7CB87A]/50 px-4 py-2 text-xs text-[#7CB87A] hover:bg-[#7CB87A]/10"
-        >
-          RSVP
-        </a>
-      </div>
-    </header>
-  );
-}
-
 export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
@@ -149,19 +108,12 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
-      <ForestNav embed={embed} />
+    <div className="min-h-screen font-['Heebo'] overflow-x-clip" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
+      <WeddingSmartNav theme={{"bg":"rgba(15,24,16,0.9)","text":"#E8F0E4","muted":"#8AA892","accent":"#7CB87A","border":"rgba(124,184,122,0.28)","fontDisplay":"'Libre Baskerville', serif","dark":true}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* HERO — forest video */}
       <section id="hero" className="relative flex min-h-screen items-end overflow-hidden">
-        <video
-          src={VIDEOS.forest}
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <video src={VIDEOS.forest} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" preload="metadata" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0F1810] via-[#0F1810]/60 to-[#0F1810]/30" />
         <Fireflies />
         <FairyLights />
@@ -340,7 +292,7 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Libre_Baskerville'] text-4xl">סרטון</h2>
           <div className="overflow-hidden rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 shadow-[0_0_60px_rgba(124,184,122,0.15)]">
-            <video src={VIDEOS.forest} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <video src={VIDEOS.forest} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" />
           </div>
         </div>
       </section>
@@ -603,7 +555,7 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
             {upload.items.map((item) => (
               <div key={item.id} className="overflow-hidden rounded-2xl border border-[#7CB87A]/20">
                 {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
+                  <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.url} alt="" className="aspect-square w-full object-cover" />

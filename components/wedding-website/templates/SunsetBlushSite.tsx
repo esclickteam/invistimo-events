@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -14,9 +13,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
 const CORAL = "#FF9A8B";
 
@@ -68,45 +67,6 @@ function HeartParticles() {
   );
 }
 
-function BlushNav({ embed }: { embed?: boolean }) {
-  const [open, setOpen] = useState(false);
-  if (embed) return null;
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/wedding-website" className="text-sm font-medium text-[#E8788A]">
-          ← תבניות
-        </Link>
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-4 py-2 text-xs font-bold text-white md:hidden"
-        >
-          תפריט
-        </button>
-        <nav className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-full flex-col gap-2 bg-white/95 p-4 shadow-lg md:static md:flex md:flex-row md:gap-5 md:bg-transparent md:p-0 md:shadow-none`}>
-          {NAV.slice(1, 10).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              onClick={() => setOpen(false)}
-              className="rounded-full px-3 py-1 text-sm text-[#9A6070] transition hover:bg-[#FFE8EE] hover:text-[#E8788A]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="hidden rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-5 py-2 text-xs font-bold text-white shadow-lg md:inline-block"
-        >
-          RSVP
-        </a>
-      </div>
-    </header>
-  );
-}
-
 export default function SunsetBlushSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
@@ -119,8 +79,8 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
   const polaroidRotations = [-6, 4, -3, 7, -5, 3];
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-[#3D1F28]">
-      <BlushNav embed={embed} />
+    <div className="min-h-screen bg-[#FFF5F7] text-[#3D1F28] overflow-x-clip">
+      <WeddingSmartNav theme={{"bg":"rgba(255,245,247,0.95)","text":"#3D1F28","muted":"#9A6070","accent":"#E8788A","border":"rgba(232,120,138,0.28)","fontDisplay":"'Cormorant Garamond', serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* HERO — gradient mesh + hero image overlay */}
       <section id="hero" className={`relative flex min-h-screen items-center justify-center overflow-hidden ${embed ? "" : "pt-16"}`}>
@@ -313,7 +273,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Cormorant_Garamond'] text-4xl">סרטון</h2>
           <div className="overflow-hidden rounded-[28px] shadow-[0_20px_60px_rgba(232,120,138,0.2)] ring-4 ring-[#FFD4DC]">
-            <video src={VIDEOS.beach} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <video src={VIDEOS.beach} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
           </div>
         </div>
       </section>
@@ -591,7 +551,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
                 style={{ rotate: `${polaroidRotations[i % polaroidRotations.length] / 2}deg` }}
               >
                 {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
+                  <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.url} alt="" className="aspect-square w-full object-cover" />

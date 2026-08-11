@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -14,9 +13,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 
 function NoirRule({ className = "" }: { className?: string }) {
   return <hr className={`border-0 border-t border-black ${className}`} />;
@@ -27,56 +26,6 @@ function NoirLabel({ children }: { children: ReactNode }) {
     <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-neutral-500">
       {children}
     </span>
-  );
-}
-
-function NoirNav({ embed }: { embed?: boolean }) {
-  const [active, setActive] = useState("hero");
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
-      { rootMargin: "-40% 0px -55% 0px" }
-    );
-    NAV.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) obs.observe(el);
-    });
-    return () => obs.disconnect();
-  }, []);
-
-  if (embed) return null;
-
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-black bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link
-          href="/wedding-website"
-          className="font-mono text-[10px] uppercase tracking-widest hover:underline"
-        >
-          ← תבניות
-        </Link>
-        <nav className="hidden gap-0 md:flex">
-          {NAV.slice(0, 8).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className={`border-l border-black px-3 py-1 font-mono text-[9px] uppercase tracking-wider transition ${
-                active === id ? "bg-black text-white" : "hover:bg-neutral-100"
-              }`}
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="border border-black px-3 py-1 font-mono text-[10px] uppercase tracking-widest hover:bg-black hover:text-white"
-        >
-          RSVP
-        </a>
-      </div>
-    </header>
   );
 }
 
@@ -94,8 +43,8 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
   const [namesFirst, namesSecond] = DEMO.coupleNames.split("&").map((s) => s.trim());
 
   return (
-    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
-      <NoirNav embed={embed} />
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white overflow-x-clip">
+      <WeddingSmartNav theme={{"bg":"rgba(250,250,250,0.96)","text":"#111111","muted":"#666666","accent":"#111111","border":"rgba(0,0,0,0.12)","fontDisplay":"'Montserrat', sans-serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* Progress line */}
       <motion.div
@@ -322,14 +271,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
             <h2 className="text-3xl font-black">סרטון</h2>
           </div>
           <div className="md:col-span-2">
-            <video
-              src={VIDEOS.rings}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="aspect-video w-full object-cover"
-            />
+            <video src={VIDEOS.rings} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" />
           </div>
         </div>
       </section>
@@ -604,7 +546,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
             {upload.items.map((item) => (
               <div key={item.id} className="aspect-square border border-black">
                 {item.type === "video" ? (
-                  <video src={item.url} className="h-full w-full object-cover" muted />
+                  <video src={item.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.url} alt="" className="h-full w-full object-cover grayscale" />

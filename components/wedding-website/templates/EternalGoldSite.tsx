@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
@@ -16,7 +17,6 @@ import {
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -51,24 +51,6 @@ function Section({
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 border-b-2 border-transparent px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold tracking-wide text-[#8A7560] transition hover:border-[#C9A962] hover:text-[#2A2118]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
 function HeroSection({ template }: { template: WeddingTemplate }) {
   const DEMO = useWeddingContent();
   return (
@@ -94,11 +76,17 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
         <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#E8D5A8]">
           {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
         </p>
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <a href="#rsvp" className="rounded-sm bg-[#C9A962] px-10 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-[#B8956B]">
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <a
+            href="#rsvp"
+            className="rounded-full bg-[#C9A962] px-9 py-3.5 text-sm font-bold tracking-wide text-white shadow-[0_16px_40px_rgba(201,169,98,0.35)] transition hover:bg-[#B8956B]"
+          >
             אישור הגעה
           </a>
-          <a href="#our-story" className="rounded-sm border border-[#E8D5A8]/60 px-10 py-4 text-sm font-bold text-white transition hover:bg-white/10">
+          <a
+            href="#our-story"
+            className="rounded-full border border-white/50 bg-white/10 px-9 py-3.5 text-sm font-bold tracking-wide text-white backdrop-blur-sm transition hover:bg-white/20"
+          >
             הסיפור שלנו
           </a>
         </div>
@@ -244,18 +232,18 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-7xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">רגעים מהדרך</h2>
         <GoldDivider />
-        <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+        <div className="ww-gallery-grid">
           {images.map((src, i) => (
-            <motion.div
+            <motion.figure
               key={src}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="mb-5 break-inside-avoid border-2 border-[#C9A962]/50 p-1"
+              className="border border-[#C9A962]/35 bg-white p-1.5 shadow-[0_18px_50px_rgba(92,65,35,0.08)]"
             >
-              <img src={src} alt="" className="w-full object-cover transition duration-700 hover:scale-[1.03]" />
-            </motion.div>
+              <img src={src} alt="" className="h-full w-full object-cover" />
+            </motion.figure>
           ))}
         </div>
       </div>
@@ -270,7 +258,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">סרטון Save the Date</h2>
         <GoldDivider />
         <div className="overflow-hidden border-2 border-[#C9A962]/50 shadow-xl">
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -515,7 +503,7 @@ function RsvpSection() {
               type="button"
               onClick={() => void submit()}
               disabled={!rsvp || saving}
-              className="w-full bg-[#C9A962] py-4 text-sm font-bold text-white disabled:opacity-40"
+              className="w-full rounded-full bg-[#C9A962] py-4 text-sm font-bold tracking-wide text-white shadow-[0_14px_34px_rgba(201,169,98,0.28)] transition hover:bg-[#B8956B] disabled:opacity-40"
             >
               {saving ? "שולח..." : "שליחה"}
             </button>
@@ -659,7 +647,7 @@ function FooterSection() {
 
 export default function EternalGoldSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
+    <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth overflow-x-clip">
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
@@ -668,7 +656,9 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(250,247,242,0.92)","text":"#2A2118","muted":"#8A7560","accent":"#C9A962","border":"rgba(201,169,98,0.35)","fontDisplay":"'Cormorant Garamond', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

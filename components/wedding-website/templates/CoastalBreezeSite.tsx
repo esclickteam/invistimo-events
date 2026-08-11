@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
@@ -16,7 +17,6 @@ import {
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -52,25 +52,11 @@ function Section({ id, children, className = "", wave = false }: { id: string; c
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-[#5A7A94] transition hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function HeroSection() {
+function HeroSection({ template }: { template: WeddingTemplate }) {
   const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden">
-      <video src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+      <video src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" preload="metadata" poster={template.heroImage} />
       <div className="absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative z-10 px-6 text-center text-white">
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#B3E0F2]">Coastal Breeze</p>
@@ -207,7 +193,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-3xl shadow-2xl">
-          <video src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -244,7 +230,7 @@ function ScheduleSection() {
     <Section id="schedule" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">לוח זמנים</h2>
-        <div className="mt-12 flex gap-4 overflow-x-auto pb-6 scrollbar-none">
+        <div className="mt-12 grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto gap-4 overflow-x-clip md:overflow-visible pb-6 scrollbar-none ww-no-x-scroll">
           {DEMO.schedule.map((item, i) => (
             <motion.div
               key={item.time}
@@ -513,14 +499,16 @@ function FooterSection() {
 
 export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#F0F8FF] text-[#0D2840] scroll-smooth">
+    <div className="wedding-website-root bg-[#F0F8FF] text-[#0D2840] scroll-smooth overflow-x-clip">
       {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full bg-white px-4 py-2 text-xs font-bold shadow-lg" style={{ color: BLUE }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
-      <HeroSection />
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(240,248,255,0.94)","text":"#0D2840","muted":"#5A7A94","accent":"#3D8BBA","border":"rgba(61,139,186,0.28)","fontDisplay":"'Montserrat', sans-serif"}} hideDemoLink={hideDemoBadge} />
+      )}
+      <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />
       <OurStorySection />

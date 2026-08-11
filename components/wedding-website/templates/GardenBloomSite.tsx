@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
@@ -15,7 +16,6 @@ import {
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const GREEN = "#6B9E78";
 
@@ -72,25 +72,6 @@ function Section({ id, children, className = "", wavy = false }: { id: string; c
       </motion.section>
       {wavy && <WavyDivider />}
     </>
-  );
-}
-
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-[#5C7A62] transition hover:bg-[#6B9E78]/15 hover:text-[#1F3324]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#6B9E78]/40 to-transparent" />
-    </nav>
   );
 }
 
@@ -282,7 +263,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-[2rem] shadow-xl">
-          <video src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -550,13 +531,15 @@ function FooterSection() {
 
 export default function GardenBloomSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#F4FAF4] text-[#1F3324] scroll-smooth">
+    <div className="wedding-website-root bg-[#F4FAF4] text-[#1F3324] scroll-smooth overflow-x-clip">
       {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full bg-white px-4 py-2 text-xs font-bold shadow-lg" style={{ color: GREEN }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(244,250,244,0.94)","text":"#1F3324","muted":"#5C7A62","accent":"#6B9E78","border":"rgba(107,158,120,0.3)","fontDisplay":"'Libre Baskerville', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

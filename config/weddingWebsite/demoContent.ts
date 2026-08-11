@@ -1,4 +1,5 @@
 import type { WeddingSiteContent } from "@/types/weddingWebsite";
+import { WW_IMAGES } from "./media";
 
 export const WEDDING_DEMO_CONTENT: WeddingSiteContent = {
   coupleNames: "עמית & בן",
@@ -72,7 +73,7 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "1",
     type: "image" as const,
-    url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&q=80",
+    url: WW_IMAGES.coupleClose.replace("w=1600", "w=800"),
     name: "rehearsal-dinner.jpg",
     uploadedBy: "שירה",
     createdAt: "2026-07-20",
@@ -80,16 +81,16 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "2",
     type: "image" as const,
-    url: "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=600&q=80",
+    url: WW_IMAGES.aisleWalk.replace("w=1600", "w=800"),
     name: "couple-friends.jpg",
     uploadedBy: "אור",
     createdAt: "2026-07-21",
   },
   {
     id: "3",
-    type: "video" as const,
-    url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=600&q=80",
-    name: "dance-preview.mp4",
+    type: "image" as const,
+    url: WW_IMAGES.florals.replace("w=1600", "w=800"),
+    name: "florals.jpg",
     uploadedBy: "יוני",
     createdAt: "2026-07-22",
   },

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
@@ -15,7 +16,6 @@ import {
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -62,31 +62,13 @@ function Section({ id, children, className = "" }: { id: string; children: React
   );
 }
 
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50 px-4 py-3">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto rounded-full border border-[#D4AF37]/25 bg-black/60 px-4 py-2 backdrop-blur-2xl scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-[#A89BB0] transition hover:bg-[#D4AF37]/15 hover:text-[#D4AF37]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-function HeroSection() {
+function HeroSection({ template }: { template: WeddingTemplate }) {
   const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen flex-col items-center justify-center bg-black px-6 py-16">
       <div className="relative w-full max-w-6xl overflow-hidden rounded-sm shadow-[0_0_80px_rgba(212,175,55,0.15)]">
         <div className="relative aspect-[2.35/1] w-full bg-black">
-          <video src={VIDEOS.rings} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+          <video src={VIDEOS.rings} autoPlay muted loop playsInline className="h-full w-full object-cover" preload="metadata" poster={template.heroImage} />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
           <GoldParticles />
         </div>
@@ -226,7 +208,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
     <Section id="gallery" className="bg-[#16131C] py-24">
       <div className="px-6">
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">גלריה</h2>
-        <div className="mt-10 flex gap-5 overflow-x-auto pb-6 scrollbar-none">
+        <div className="mt-10 grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto gap-5 overflow-x-clip md:overflow-visible pb-6 scrollbar-none ww-no-x-scroll">
           {template.galleryImages.map((src, i) => (
             <motion.div
               key={src}
@@ -245,14 +227,14 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
   );
 }
 
-function VideoSection() {
+function VideoSection({ template }: { template: WeddingTemplate }) {
   return (
     <Section id="video" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">סרטון</h2>
         <Glass className="mt-10 overflow-hidden p-0">
           <div className="relative aspect-[2.35/1]">
-            <video src={VIDEOS.couple} controls className="h-full w-full object-cover" />
+            <video src={VIDEOS.couple} controls className="h-full w-full object-cover" playsInline preload="metadata" poster={template.heroImage} />
           </div>
         </Glass>
       </div>
@@ -496,7 +478,7 @@ function GuestUploadSection() {
             <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={onFileChange} />
           </label>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto gap-4 overflow-x-clip md:overflow-visible pb-4 ww-no-x-scroll">
           {items.map((item) => (
             <div key={item.id} className="h-40 w-40 shrink-0 overflow-hidden rounded-xl border border-[#D4AF37]/20">
               <img src={item.url} alt="" className="h-full w-full object-cover" />
@@ -544,21 +526,23 @@ function FooterSection() {
 
 export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root min-h-screen bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
+    <div className="wedding-website-root min-h-screen bg-[#0D0B10] text-[#F5F0E8] scroll-smooth overflow-x-clip">
       {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#D4AF37]/30 bg-black/80 px-4 py-2 text-xs font-bold text-[#D4AF37] backdrop-blur-md">
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
-      <HeroSection />
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(13,11,16,0.88)","text":"#F5F0E8","muted":"#A89BB0","accent":"#D4AF37","border":"rgba(212,175,55,0.25)","fontDisplay":"'Playfair Display', serif","dark":true}} hideDemoLink={hideDemoBadge} />
+      )}
+      <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />
       <OurStorySection />
       <HowWeMetSection template={template} />
       <ProposalSection template={template} />
       <GallerySection template={template} />
-      <VideoSection />
+      <VideoSection template={template} />
       <EventDetailsSection />
       <ScheduleSection />
       <LocationSection />

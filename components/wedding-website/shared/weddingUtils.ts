@@ -1,4 +1,5 @@
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
+import { WW_VIDEOS } from "@/config/weddingWebsite/media";
 import type { WeddingSiteContent, WeddingTemplate } from "@/types/weddingWebsite";
 import type { WeddingWebsiteGuestContext } from "@/types/weddingWebsite";
 
@@ -7,19 +8,14 @@ export { useWeddingContent as useContent } from "./WeddingSiteContext";
 /** Demo fallback — prefer useWeddingContent() inside React components */
 export const DEMO = WEDDING_DEMO_CONTENT;
 
+/** Verified working videos (Pexels). Keys kept for template compatibility. */
 export const VIDEOS = {
-  couple:
-    "https://assets.mixkit.co/videos/preview/mixkit-wedding-couple-holding-hands-4826-large.mp4",
-  romantic:
-    "https://assets.mixkit.co/videos/preview/mixkit-romantic-couple-looking-at-each-other-4179-large.mp4",
-  beach:
-    "https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4",
-  forest:
-    "https://assets.mixkit.co/videos/preview/mixkit-young-couple-walking-in-a-forest-4256-large.mp4",
-  party:
-    "https://assets.mixkit.co/videos/preview/mixkit-people-dancing-at-a-party-1174-large.mp4",
-  rings:
-    "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-couple-with-wedding-rings-4830-large.mp4",
+  couple: WW_VIDEOS.coupleWalk,
+  romantic: WW_VIDEOS.romantic,
+  beach: WW_VIDEOS.natureSoft,
+  forest: WW_VIDEOS.natureSoft,
+  party: WW_VIDEOS.celebration,
+  rings: WW_VIDEOS.romantic,
 };
 
 export function formatHebrewDate(dateStr: string) {

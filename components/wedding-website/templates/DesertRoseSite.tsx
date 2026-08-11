@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
@@ -15,7 +16,6 @@ import {
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -61,27 +61,6 @@ function Section({ id, children, className = "", diagonal = false }: { id: strin
     >
       {children}
     </motion.section>
-  );
-}
-
-function StickyNav() {
-  return (
-    <nav className="sticky top-0 z-50">
-      <div
-        className="mx-4 mt-2 flex items-center gap-1 overflow-x-auto px-4 py-3 backdrop-blur-md scrollbar-none"
-        style={{
-          background: "linear-gradient(135deg, rgba(251,245,240,0.95), rgba(245,232,222,0.95))",
-          clipPath: "polygon(2% 0, 100% 0, 98% 100%, 0 100%)",
-          borderBottom: `2px solid ${TERRACOTTA}`,
-        }}
-      >
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold text-[#9A7060] transition hover:text-[#C4705A]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
   );
 }
 
@@ -262,7 +241,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">סרטון</h2>
         <div className="relative mt-10 overflow-hidden shadow-2xl" style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}>
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" playsInline preload="metadata" />
         </div>
       </div>
     </Section>
@@ -536,13 +515,15 @@ function FooterSection() {
 
 export default function DesertRoseSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518] scroll-smooth">
+    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518] scroll-smooth overflow-x-clip">
       {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] px-4 py-2 text-xs font-bold text-white shadow-lg" style={{ backgroundColor: TERRACOTTA, clipPath: "polygon(5% 0, 100% 0, 95% 100%, 0 100%)" }}>
           ← כל התבניות
         </Link>
       )}
-      {!embed && <StickyNav />}
+      {!embed && (
+        <WeddingSmartNav theme={{"bg":"rgba(251,245,240,0.94)","text":"#3D2518","muted":"#9A7060","accent":"#C4705A","border":"rgba(196,112,90,0.3)","fontDisplay":"'Cormorant Garamond', serif"}} hideDemoLink={hideDemoBadge} />
+      )}
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

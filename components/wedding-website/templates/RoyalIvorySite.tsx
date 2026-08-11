@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -14,9 +13,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
 
 function LaceBg() {
@@ -51,49 +50,6 @@ function DoubleFrame({ src, alt = "" }: { src: string; alt?: string }) {
   );
 }
 
-function RoyalNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
-  return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-        scrolled ? "bg-[#FDFBF7]/95 shadow-sm backdrop-blur-md" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link
-          href="/wedding-website"
-          className="font-['Playfair_Display'] text-sm italic text-[#8C7B68] hover:text-[#B8956B]"
-        >
-          ← כל התבניות
-        </Link>
-        <nav className="hidden gap-6 lg:flex">
-          {NAV.slice(1, 9).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="font-['Playfair_Display'] text-xs tracking-wide text-[#2C2419]/70 transition hover:text-[#B8956B]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="rounded-full border border-[#B8956B] px-5 py-2 font-['Playfair_Display'] text-xs text-[#B8956B] transition hover:bg-[#B8956B] hover:text-white"
-        >
-          אישור הגעה
-        </a>
-      </div>
-    </header>
-  );
-}
-
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
@@ -105,7 +61,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
 
   return (
     <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
-      <RoyalNav embed={embed} />
+      <WeddingSmartNav theme={{"bg":"rgba(253,251,247,0.95)","text":"#2C2419","muted":"#8C7B68","accent":"#B8956B","border":"rgba(184,149,107,0.32)","fontDisplay":"'Playfair Display', serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
 
       {/* HERO — overlapping double frames */}
       <section id="hero" className={`relative overflow-hidden ${embed ? "pt-0" : "pt-20"}`}>
@@ -269,7 +225,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
         <div className="mb-10 px-6 text-center">
           <h2 className="font-['Playfair_Display'] text-4xl">גלריה</h2>
         </div>
-        <div className="flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-6 scrollbar-hide md:px-12">
+        <div className="grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto snap-x snap-mandatory gap-6 overflow-x-clip md:overflow-visible px-6 pb-6 scrollbar-hide md:px-12 ww-no-x-scroll">
           {template.galleryImages.map((src, i) => (
             <motion.div
               key={src}
@@ -300,7 +256,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Playfair_Display'] text-4xl">סרטון</h2>
           <div className="relative overflow-hidden rounded-3xl border-4 border-white shadow-[0_30px_80px_rgba(100,75,50,0.15)]">
-            <video src={VIDEOS.romantic} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <video src={VIDEOS.romantic} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
           </div>
         </div>
       </section>
@@ -575,11 +531,11 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
               <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={upload.onFileChange} />
             </label>
           </div>
-          <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
+          <div className="mt-8 grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto snap-x snap-mandatory gap-4 overflow-x-clip md:overflow-visible pb-4 ww-no-x-scroll">
             {upload.items.map((item) => (
               <div key={item.id} className="w-40 shrink-0 snap-center overflow-hidden rounded-xl border border-[#B8956B]/20">
                 {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
+                  <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.url} alt="" className="aspect-square w-full object-cover" />
