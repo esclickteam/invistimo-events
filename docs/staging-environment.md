@@ -1,7 +1,9 @@
 # Invistimo Staging Environment
 
 **Goal:** Permanent Staging isolated from Production.  
-**Flow:** Feature/PR → Preview → Staging → E2E/Smoke → Production
+**Flow:** Feature/PR → Preview → Staging → E2E/Smoke → Production  
+
+**Venue work:** See binding rules in [`docs/venues-safety-contract.md`](./venues-safety-contract.md). Venue PRs must pass `npm run test:venue-safety` and Staging golden Regular + Venue regressions before Production.
 
 ---
 
