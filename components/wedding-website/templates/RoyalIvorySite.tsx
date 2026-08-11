@@ -1,587 +1,399 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import {
-  useCountdownTimer,
-  useFaqAccordion,
-  useGuestbook,
-  useGuestUpload,
-  usePlaylistDemo,
-  useWeddingRsvp,
-} from "../shared/useWeddingInteractions";
-import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import type { TemplateProps } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
+import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
+import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const CREAM = "#FDFBF7";
+const ACCENT = "#B8956B";
+const NAV = {
+  bg: "rgba(253,251,247,0.95)",
+  text: "#3A2E22",
+  muted: "#9A8570",
+  accent: ACCENT,
+  border: "rgba(184,149,107,0.35)",
+  fontDisplay: "'Playfair Display', serif",
+};
 
-function LaceBg() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-[0.07]"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23B8956B' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-      }}
-    />
-  );
-}
+const fade = {
+  initial: { opacity: 0, y: 24, scale: 0.98 },
+  whileInView: { opacity: 1, y: 0, scale: 1 },
+  viewport: { once: true, margin: "-70px" as const },
+  transition: { duration: 0.7, ease: "easeOut" as const },
+};
 
-function CrownOrnament({ className = "" }: { className?: string }) {
+function Ornament() {
   return (
-    <svg viewBox="0 0 120 40" className={`h-8 w-24 text-[#B8956B] ${className}`} fill="currentColor">
-      <path d="M10 30 L20 10 L30 22 L40 8 L50 22 L60 10 L70 22 L80 8 L90 22 L100 10 L110 30 Z M10 30 H110 V34 H10 Z" />
-    </svg>
-  );
-}
-
-function DoubleFrame({ src, alt = "" }: { src: string; alt?: string }) {
-  return (
-    <div className="relative">
-      <div className="absolute -left-3 -top-3 h-full w-full border-2 border-[#B8956B]/40" />
-      <div className="relative border-4 border-white shadow-[0_20px_60px_rgba(100,75,50,0.15)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="aspect-[4/5] w-full object-cover" />
-      </div>
-      <div className="absolute -bottom-3 -right-3 h-full w-full border-2 border-[#B8956B]/60" />
+    <div className="mx-auto my-5 flex max-w-[180px] items-center gap-3">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#B8956B]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-[#B8956B]" />
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#B8956B]" />
     </div>
   );
 }
 
+function Section({
+  id,
+  className = "",
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
+      {children}
+    </motion.section>
+  );
+}
+
+function monogramInitials(short: string, names: string) {
+  const fromShort = short
+    .replace(/&/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join("");
+  if (fromShort.length >= 2) return fromShort.slice(0, 2).toUpperCase();
+  const parts = names.split(/[&ו]/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`;
+  return (names.slice(0, 2) || "AB").toUpperCase();
+}
+
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const rsvp = useWeddingRsvp();
-  const guestbook = useGuestbook();
-  const upload = useGuestUpload();
-  const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const [envelopeTouched, setEnvelopeTouched] = useState(false);
+  const envelopeOpen = Boolean(rsvp.rsvp) || envelopeTouched || rsvp.sent;
+  const initials = monogramInitials(DEMO.coupleShort || "", DEMO.coupleNames);
 
   return (
-    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
-      <WeddingSmartNav theme={{"bg":"rgba(253,251,247,0.95)","text":"#2C2419","muted":"#8C7B68","accent":"#B8956B","border":"rgba(184,149,107,0.32)","fontDisplay":"'Playfair Display', serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
+    <div
+      dir="rtl"
+      className="wedding-website-root min-h-screen overflow-x-clip bg-[#FDFBF7] text-[#3A2E22]"
+      style={{ fontFamily: "'Playfair Display', serif" }}
+    >
+      {!embed && <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />}
+      {!embed && !hideDemoBadge && (
+        <Link
+          href="/wedding-website"
+          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#B8956B]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          style={{ fontFamily: "system-ui, sans-serif" }}
+        >
+          ← תבניות
+        </Link>
+      )}
 
-      {/* HERO — overlapping double frames */}
-      <section id="hero" className={`relative overflow-hidden ${embed ? "pt-0" : "pt-20"}`}>
-        <LaceBg />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:grid-cols-2 md:py-32">
-          <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1 }}
-          >
-            <CrownOrnament className="mb-6" />
-            <p className="font-['Playfair_Display'] text-sm italic tracking-[0.3em] text-[#B8956B]">
-              Save the Date
-            </p>
-            <h1 className="mt-4 font-['Playfair_Display'] text-5xl font-semibold leading-tight md:text-7xl">
-              {DEMO.coupleNames}
-            </h1>
-            <div className="my-8 h-px w-32 bg-gradient-to-r from-[#B8956B] to-transparent" />
-            <p className="max-w-md text-lg leading-relaxed text-[#8C7B68]">{DEMO.heroSubtitle}</p>
-            <p className="mt-6 font-['Playfair_Display'] text-sm text-[#B8956B]">
-              {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
-            </p>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <a
-                href="#rsvp"
-                className="rounded-full bg-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-sm text-white shadow-lg transition hover:scale-105"
-              >
-                אישור הגעה
-              </a>
-              <a
-                href="#our-story"
-                className="rounded-full border border-[#B8956B]/40 px-8 py-3 font-['Playfair_Display'] text-sm text-[#B8956B]"
-              >
-                הסיפור שלנו
-              </a>
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.3 }}
-            className="relative mx-auto w-full max-w-sm md:max-w-md"
-          >
-            <DoubleFrame src={template.heroImage} alt="couple" />
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="absolute -bottom-8 -left-8 hidden w-40 md:block"
-            >
-              <DoubleFrame src={template.galleryImages[1] ?? template.galleryImages[0]} />
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* COUNTDOWN — ornate cards */}
-      <section id="countdown" className="relative py-20">
-        <LaceBg />
-        <div className="relative mx-auto max-w-4xl px-6 text-center">
-          <CrownOrnament className="mx-auto mb-4" />
-          <h2 className="font-['Playfair_Display'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-3xl border border-[#B8956B]/25 bg-white p-6 shadow-[0_12px_40px_rgba(100,75,50,0.08)]"
-              >
-                <span className="font-['Playfair_Display'] text-4xl font-semibold text-[#B8956B] md:text-5xl">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-2 font-['Playfair_Display'] text-xs italic text-[#8C7B68]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* INVITATION */}
-      <section id="invitation" className="bg-white py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <CrownOrnament className="mx-auto mb-6" />
-          <h2 className="font-['Playfair_Display'] text-4xl">הזמנה רשמית</h2>
-          <p className="mt-10 font-['Playfair_Display'] text-xl italic leading-[2] text-[#5C4A38]">
-            {DEMO.invitationText}
-          </p>
-          <p className="mt-8 text-sm text-[#B8956B]">{DEMO.venueName}</p>
-        </div>
-      </section>
-
-      {/* OUR STORY */}
-      <section id="our-story" className="relative py-20">
-        <LaceBg />
-        <div className="relative mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">הסיפור שלנו</h2>
-          <div className="mt-16 space-y-12">
-            {DEMO.storyParagraphs.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: i % 2 ? 30 : -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className={`flex gap-8 ${i % 2 ? "md:flex-row-reverse" : ""}`}
-              >
-                <div className="hidden w-32 shrink-0 md:block">
-                  <div className="font-['Playfair_Display'] text-6xl font-light text-[#B8956B]/30">
-                    {String(i + 1).padStart(2, "0")}
-                  </div>
-                </div>
-                <div className="flex-1 rounded-3xl border border-[#B8956B]/20 bg-white p-8 shadow-sm">
-                  <p className="leading-relaxed text-[#5C4A38]">{p}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW WE MET */}
-      <section id="how-we-met" className="bg-white py-20">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
-          <DoubleFrame src={template.galleryImages[0]} />
-          <div>
-            <h2 className="font-['Playfair_Display'] text-4xl">איך נפגשנו</h2>
-            <div className="my-6 h-px w-20 bg-[#B8956B]" />
-            <p className="leading-relaxed text-[#8C7B68]">{DEMO.howWeMet}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* PROPOSAL */}
-      <section id="proposal" className="relative py-24">
-        <LaceBg />
+      {/* HERO — monogram crest, letter invitation */}
+      <section
+        id="hero"
+        className={`relative flex min-h-[100svh] flex-col items-center justify-center overflow-x-clip px-6 text-center ${embed ? "py-20" : "pt-16"}`}
+      >
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage: `url(${DEMO.heroImageUrl || template.heroImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
         <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="relative mx-auto max-w-3xl px-6 text-center"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1 }}
+          className="relative flex h-36 w-36 items-center justify-center rounded-full border-2 border-[#B8956B] bg-white shadow-[0_20px_60px_rgba(184,149,107,0.18)] md:h-44 md:w-44"
         >
-          <CrownOrnament className="mx-auto mb-8" />
-          <h2 className="font-['Playfair_Display'] text-4xl">ההצעה</h2>
-          <blockquote className="mt-10 font-['Playfair_Display'] text-2xl italic leading-relaxed text-[#5C4A38] md:text-3xl">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </blockquote>
+          <span className="absolute inset-2 rounded-full border border-[#B8956B]/40" />
+          <span className="text-4xl tracking-[0.15em] text-[#B8956B] md:text-5xl">{initials}</span>
         </motion.div>
-      </section>
-
-      {/* GALLERY — scroll snap carousel */}
-      <section id="gallery" className="bg-white py-20">
-        <div className="mb-10 px-6 text-center">
-          <h2 className="font-['Playfair_Display'] text-4xl">גלריה</h2>
-        </div>
-        <div className="grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto snap-x snap-mandatory gap-6 overflow-x-clip md:overflow-visible px-6 pb-6 scrollbar-hide md:px-12 ww-no-x-scroll">
-          {template.galleryImages.map((src, i) => (
-            <motion.div
-              key={src}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="w-[280px] shrink-0 snap-center md:w-[360px]"
-            >
-              <div className="relative">
-                <div className="absolute -inset-2 rounded-2xl border border-[#B8956B]/30" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt=""
-                  className="relative aspect-[3/4] w-full rounded-xl object-cover shadow-lg"
-                />
-                <span className="absolute bottom-4 right-4 font-['Playfair_Display'] text-sm italic text-white drop-shadow">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* VIDEO */}
-      <section id="video" className="py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="mb-10 text-center font-['Playfair_Display'] text-4xl">סרטון</h2>
-          <div className="relative overflow-hidden rounded-3xl border-4 border-white shadow-[0_30px_80px_rgba(100,75,50,0.15)]">
-            <video src={VIDEOS.romantic} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
-          </div>
-        </div>
-      </section>
-
-      {/* EVENT DETAILS */}
-      <section id="event-details" className="bg-white py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <CrownOrnament className="mx-auto mb-6" />
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">פרטי האירוע</h2>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {[
-              { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
-              { label: "שעה", value: DEMO.weddingTime },
-              { label: "מקום", value: DEMO.venueName },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-3xl border border-[#B8956B]/20 p-8 text-center"
-                style={{ backgroundColor: CREAM }}
-              >
-                <p className="font-['Playfair_Display'] text-xs italic text-[#B8956B]">{label}</p>
-                <p className="mt-3 font-['Playfair_Display'] text-lg">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SCHEDULE */}
-      <section id="schedule" className="relative py-20">
-        <LaceBg />
-        <div className="relative mx-auto max-w-3xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">לוח זמנים</h2>
-          <div className="relative mt-16">
-            <div className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-[#B8956B]/30 md:block" />
-            {DEMO.schedule.map((item, i) => (
-              <motion.div
-                key={item.time}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className={`relative mb-10 flex ${i % 2 ? "md:justify-start" : "md:justify-end"}`}
-              >
-                <div className="w-full rounded-2xl border border-[#B8956B]/20 bg-white p-6 shadow-sm md:w-[45%]">
-                  <span className="font-['Playfair_Display'] text-sm text-[#B8956B]">{item.time}</span>
-                  <h3 className="mt-1 font-['Playfair_Display'] text-xl">{item.title}</h3>
-                  <p className="mt-2 text-sm text-[#8C7B68]">{item.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* LOCATION */}
-      <section id="location" className="bg-white py-20">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-2">
-          <div>
-            <h2 className="font-['Playfair_Display'] text-4xl">מיקום</h2>
-            <p className="mt-6 font-['Playfair_Display'] text-xl">{DEMO.venueName}</p>
-            <p className="mt-2 text-[#8C7B68]">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-block rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-sm text-[#B8956B]"
-            >
-              ניווט
-            </a>
-          </div>
-          <div className="overflow-hidden rounded-3xl border border-[#B8956B]/20 shadow-lg">
-            <iframe
-              title="map"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
-              className="h-72 w-full"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* DRESS CODE */}
-      <section id="dress-code" className="py-20 text-center">
-        <CrownOrnament className="mx-auto mb-6" />
-        <h2 className="font-['Playfair_Display'] text-4xl">קוד לבוש</h2>
-        <p className="mx-auto mt-8 max-w-xl leading-relaxed text-[#8C7B68]">{DEMO.dressCode}</p>
-      </section>
-
-      {/* ACCOMMODATIONS */}
-      <section id="accommodations" className="bg-white py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">לינה</h2>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {DEMO.accommodations.map((h) => (
-              <div
-                key={h.name}
-                className="rounded-3xl border border-[#B8956B]/20 p-6"
-                style={{ backgroundColor: CREAM }}
-              >
-                <h3 className="font-['Playfair_Display'] text-lg">{h.name}</h3>
-                <p className="mt-2 text-sm text-[#8C7B68]">{h.note}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TRANSPORTATION */}
-      <section id="transportation" className="py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">הגעה</h2>
-        <ShuttleRide accent="#B8956B" className="mb-8 mt-6" />
-          <div className="mt-12 space-y-4">
-            {DEMO.transportation.map((t) => (
-              <div key={t.title} className="rounded-2xl border border-[#B8956B]/20 bg-white p-6">
-                <h3 className="font-['Playfair_Display'] text-[#B8956B]">{t.title}</h3>
-                <p className="mt-2 text-sm text-[#8C7B68]">{t.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="bg-white py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">שאלות נפוצות</h2>
-          <div className="mt-10 space-y-3">
-            {DEMO.faq.map((item, i) => (
-              <div key={item.question} className="overflow-hidden rounded-2xl border border-[#B8956B]/20">
-                <button
-                  type="button"
-                  onClick={() => faq.toggle(i)}
-                  className="flex w-full items-center justify-between p-5 text-right"
-                >
-                  <span className="text-[#B8956B]">{faq.open === i ? "−" : "+"}</span>
-                  <span className="font-['Playfair_Display']">{item.question}</span>
-                </button>
-                {faq.open === i && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="border-t border-[#B8956B]/10 px-5 pb-5 text-sm text-[#8C7B68]"
-                  >
-                    {item.answer}
-                  </motion.p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* RSVP */}
-      <section id="rsvp" className="relative py-24">
-        <LaceBg />
-        <div className="relative mx-auto max-w-lg px-6">
-          <CrownOrnament className="mx-auto mb-6" />
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <p className="mt-10 text-center font-['Playfair_Display'] italic text-[#B8956B]">
-              תודה רבה! נשמח לראותכם.
-            </p>
-          ) : (
-            <div className="mt-10 rounded-3xl border border-[#B8956B]/25 bg-white p-8 shadow-lg">
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 rounded-full py-3 font-['Playfair_Display'] text-sm transition ${
-                      rsvp.rsvp === v
-                        ? "bg-[#B8956B] text-white"
-                        : "border border-[#B8956B]/30 text-[#B8956B]"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <div className="mt-6 flex items-center justify-center gap-4">
-                  <span className="text-sm">מספר אורחים</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-16 rounded-full border border-[#B8956B]/30 px-3 py-2 text-center"
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => void rsvp.submit()}
-                disabled={!rsvp.rsvp || rsvp.saving}
-                className="mt-6 w-full rounded-full bg-[#B8956B] py-3 font-['Playfair_Display'] text-white disabled:opacity-40"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* GIFTS */}
-      <section id="gifts" className="bg-white py-20 text-center">
-        <h2 className="font-['Playfair_Display'] text-4xl">מתנות</h2>
-        <p className="mx-auto mt-8 max-w-lg text-[#8C7B68]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-[#B8956B]"
+        <motion.h1
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.8 }}
+          className="relative mt-10 text-[clamp(2.4rem,7vw,4.5rem)] font-medium leading-tight"
         >
-          Bit / PayBox
-        </button>
+          {DEMO.coupleNames}
+        </motion.h1>
+        <Ornament />
+        <p className="relative max-w-md text-base leading-relaxed text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+          {DEMO.heroSubtitle}
+        </p>
+        <p className="relative mt-4 text-lg text-[#B8956B]">
+          {formatHebrewDate(DEMO.weddingDate)}
+          {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
+        </p>
+        <a
+          href="#rsvp"
+          className="relative mt-10 inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]"
+          style={{ fontFamily: "system-ui, sans-serif" }}
+        >
+          אישור הגעה
+        </a>
       </section>
 
-      {/* GUESTBOOK */}
-      <section id="guestbook" className="py-20">
+      <Section id="invitation" className="py-20">
+        <div className="mx-auto max-w-xl px-6">
+          <div className="border border-[#B8956B]/40 bg-white px-8 py-12 text-center shadow-[0_24px_70px_rgba(100,75,50,0.08)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#B8956B]" style={{ fontFamily: "system-ui, sans-serif" }}>
+              הזמנה
+            </p>
+            <Ornament />
+            <p className="text-lg leading-[2] text-[#9A8570]">
+              {DEMO.invitationText || DEMO.heroSubtitle}
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      <Section id="schedule" className="bg-[#F7F2EA] py-20">
         <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">ספר ברכות</h2>
-          <div className="mt-10 rounded-3xl border border-[#B8956B]/20 bg-white p-6 shadow-sm">
-            <textarea
-              value={guestbook.message}
-              onChange={(e) => guestbook.setMessage(e.target.value)}
-              placeholder="כתבו ברכה חמה..."
-              rows={3}
-              className="w-full resize-none bg-transparent outline-none"
-            />
-            <button
-              type="button"
-              onClick={guestbook.addMessage}
-              className="mt-4 rounded-full bg-[#B8956B] px-6 py-2 font-['Playfair_Display'] text-sm text-white"
-            >
-              שליחה
-            </button>
-          </div>
-          <div className="mt-8 space-y-4">
-            {guestbook.items.map((m) => (
-              <div key={`${m.name}-${m.date}`} className="rounded-2xl border border-[#B8956B]/15 bg-white/80 p-5">
-                <div className="flex justify-between text-xs text-[#B8956B]">
-                  <span>{m.date}</span>
-                  <span className="font-['Playfair_Display']">{m.name}</span>
+          <h2 className="text-center text-4xl font-medium">לוח זמנים</h2>
+          <Ornament />
+          <ol className="mt-2 space-y-4" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.schedule.length
+              ? DEMO.schedule
+              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
+            ).map((item) => (
+              <li
+                key={`${item.time}-${item.title}`}
+                className="flex items-start gap-5 border-b border-[#B8956B]/25 pb-4"
+              >
+                <span className="min-w-[64px] text-lg text-[#B8956B]">{item.time}</span>
+                <div>
+                  <p className="font-semibold text-[#3A2E22]">{item.title}</p>
+                  {item.description ? (
+                    <p className="mt-1 text-sm text-[#9A8570]">{item.description}</p>
+                  ) : null}
                 </div>
-                <p className="mt-2 text-sm text-[#5C4A38]">{m.message}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* GUEST UPLOAD */}
-      <section id="guest-upload" className="bg-white py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">זיכרונות מהאירוע</h2>
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              upload.setDragging(true);
-            }}
-            onDragLeave={() => upload.setDragging(false)}
-            onDrop={upload.onDrop}
-            className={`mt-10 rounded-3xl border-2 border-dashed p-12 text-center transition ${
-              upload.dragging ? "border-[#B8956B] bg-[#FDFBF7]" : "border-[#B8956B]/30"
-            }`}
-          >
-            <p className="font-['Playfair_Display'] italic text-[#8C7B68]">גררו תמונות לכאן</p>
-            <label className="mt-4 inline-block cursor-pointer rounded-full bg-[#B8956B] px-6 py-2 text-sm text-white">
-              העלאת קובץ
-              <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={upload.onFileChange} />
-            </label>
-          </div>
-          <div className="mt-8 grid grid-flow-col auto-cols-[minmax(240px,1fr)] md:grid-flow-row md:grid-cols-3 md:auto-cols-auto snap-x snap-mandatory gap-4 overflow-x-clip md:overflow-visible pb-4 ww-no-x-scroll">
-            {upload.items.map((item) => (
-              <div key={item.id} className="w-40 shrink-0 snap-center overflow-hidden rounded-xl border border-[#B8956B]/20">
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PLAYLIST */}
-      <section id="playlist" className="py-20">
-        <div className="mx-auto max-w-lg px-6">
-          <h2 className="text-center font-['Playfair_Display'] text-4xl">מוזיקה</h2>
-          <p className="mt-4 text-center text-sm text-[#8C7B68]">{DEMO.playlistNote}</p>
-          <div className="mt-8 flex gap-2">
-            <input
-              value={playlist.song}
-              onChange={(e) => playlist.setSong(e.target.value)}
-              placeholder="הציעו שיר..."
-              className="flex-1 rounded-full border border-[#B8956B]/30 px-5 py-3 outline-none"
-            />
-            <button
-              type="button"
-              onClick={playlist.addSong}
-              className="rounded-full bg-[#B8956B] px-5 text-white"
-            >
-              +
-            </button>
-          </div>
-          <ul className="mt-6 space-y-2">
-            {playlist.songs.map((s) => (
-              <li key={s} className="rounded-xl border border-[#B8956B]/15 bg-white px-5 py-3 font-['Playfair_Display'] text-sm">
-                ♪ {s}
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
-      </section>
+      </Section>
 
-      {/* FOOTER */}
-      <footer id="footer" className="border-t border-[#B8956B]/20 bg-white py-16 text-center">
-        <CrownOrnament className="mx-auto mb-6" />
-        <p className="font-['Playfair_Display'] text-3xl">{DEMO.coupleNames}</p>
-        <p className="mt-4 text-sm text-[#B8956B]">{formatHebrewDate(DEMO.weddingDate)}</p>
-        <p className="mx-auto mt-8 max-w-md text-sm text-[#8C7B68]">{DEMO.footerNote}</p>
+      <Section id="our-story" className="py-20">
+        <div className="mx-auto max-w-2xl px-6 text-center">
+          <h2 className="text-4xl font-medium">הסיפור שלנו</h2>
+          <Ornament />
+          <div className="space-y-5 text-base leading-relaxed text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.storyParagraphs.length
+              ? DEMO.storyParagraphs
+              : ["אנחנו שמחים לחלוק איתכם את היום המיוחד שלנו."]
+            ).map((p) => (
+              <p key={p.slice(0, 24)}>{p}</p>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="gallery" className="bg-[#F7F2EA] py-20">
+        <div className="mx-auto max-w-5xl px-6">
+          <h2 className="text-center text-4xl font-medium">רגעים</h2>
+          <Ornament />
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
+            {images.slice(0, 6).map((src, i) => (
+              <motion.figure
+                key={src}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.06 }}
+                className="border-[3px] border-[#B8956B]/35 bg-white p-2 shadow-[0_16px_40px_rgba(100,75,50,0.08)]"
+              >
+                <div className="border border-[#B8956B]/25 p-1">
+                  <img src={src} alt="" className="aspect-[4/5] w-full object-cover" />
+                </div>
+              </motion.figure>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="location" className="py-20">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <MapPinPulse accent={ACCENT} />
+          <h2 className="mt-2 text-4xl font-medium">{DEMO.venueName || "מיקום"}</h2>
+          <p className="mt-2 text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {DEMO.venueAddress}
+          </p>
+          <Ornament />
+          <div className="mb-6 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {DEMO.wazeUrl ? (
+              <a href={DEMO.wazeUrl} target="_blank" rel="noreferrer" className="rounded-full bg-[#B8956B] px-6 py-3 text-sm font-bold text-white">
+                Waze
+              </a>
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a href={DEMO.mapsUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[#B8956B] px-6 py-3 text-sm font-bold text-[#B8956B]">
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+          {DEMO.venueAddress ? (
+            <div className="overflow-hidden border-2 border-[#B8956B]/35">
+              <iframe
+                title="map"
+                className="aspect-[16/9] w-full border-0"
+                loading="lazy"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
+              />
+            </div>
+          ) : null}
+        </div>
+      </Section>
+
+      <Section id="transportation" className="bg-[#F7F2EA] py-20">
+        <div className="mx-auto max-w-4xl px-6">
+          <h2 className="text-center text-4xl font-medium">הגעה והסעות</h2>
+          <Ornament />
+          <ShuttleRide accent={ACCENT} className="mb-8" />
+          <div className="grid gap-4 md:grid-cols-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.transportation.length
+              ? DEMO.transportation
+              : [{ title: "הגעה", description: "פרטי הגעה יתעדכנו לקראת האירוע" }]
+            ).map((item) => (
+              <div key={item.title} className="border border-[#B8956B]/30 bg-white p-5">
+                <h3 className="text-lg font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm text-[#9A8570]">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="rsvp" className="py-20">
+        <div className="mx-auto max-w-lg px-6">
+          <h2 className="text-center text-4xl font-medium">אישור הגעה</h2>
+          <Ornament />
+          <div
+            onFocus={() => setEnvelopeTouched(true)}
+            onClick={() => setEnvelopeTouched(true)}
+            onKeyDown={() => setEnvelopeTouched(true)}
+            role="presentation"
+          >
+            <EnvelopeRsvp accent={ACCENT} open={envelopeOpen}>
+              <div style={{ fontFamily: "system-ui, sans-serif" }}>
+                {rsvp.sent ? (
+                  <p className="py-6 text-center text-lg text-[#B8956B]">תודה! קיבלנו את אישור ההגעה.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {rsvp.guestName ? (
+                      <p className="text-center text-sm text-[#9A8570]">שלום {rsvp.guestName}</p>
+                    ) : null}
+                    <div className="flex gap-3">
+                      {(["yes", "no"] as const).map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => {
+                            setEnvelopeTouched(true);
+                            rsvp.setRsvp(v);
+                          }}
+                          className={`flex-1 rounded-full py-3 text-sm font-bold ${
+                            rsvp.rsvp === v
+                              ? "bg-[#B8956B] text-white"
+                              : "border border-[#B8956B]/40 text-[#9A8570]"
+                          }`}
+                        >
+                          {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
+                        </button>
+                      ))}
+                    </div>
+                    {rsvp.rsvp === "yes" ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-sm text-[#9A8570]">מספר אורחים</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={rsvp.count}
+                          onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                          className="w-20 rounded-full border border-[#B8956B]/40 px-3 py-2 text-center"
+                        />
+                      </div>
+                    ) : null}
+                    {rsvp.error ? (
+                      <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={!rsvp.rsvp || rsvp.saving}
+                      onClick={() => void rsvp.submit()}
+                      className="w-full rounded-full bg-[#B8956B] py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                    >
+                      {rsvp.saving ? "שולח..." : "שליחה"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </EnvelopeRsvp>
+          </div>
+        </div>
+      </Section>
+
+      <Section id="faq" className="bg-[#F7F2EA] py-20">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-center text-4xl font-medium">שאלות נפוצות</h2>
+          <Ornament />
+          <div className="space-y-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.faq.length
+              ? DEMO.faq
+              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
+            ).map((item, i) => (
+              <button
+                key={item.question}
+                type="button"
+                onClick={() => faq.toggle(i)}
+                className="w-full border border-[#B8956B]/30 bg-white px-5 py-4 text-right"
+              >
+                <p className="font-semibold">{item.question}</p>
+                {faq.open === i ? <p className="mt-2 text-sm text-[#9A8570]">{item.answer}</p> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="gifts" className="py-20">
+        <div className="mx-auto max-w-xl px-6 text-center">
+          <h2 className="text-4xl font-medium">מתנות</h2>
+          <Ornament />
+          <p className="text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {DEMO.giftsNote || "הנוכחות שלכם היא המתנה הגדולה מכולן."}
+          </p>
+          {DEMO.giftLinks?.creditUrl ? (
+            <a
+              href={DEMO.giftLinks.creditUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex rounded-full border border-[#B8956B] px-7 py-3 text-sm font-bold text-[#B8956B]"
+              style={{ fontFamily: "system-ui, sans-serif" }}
+            >
+              מתנה דיגיטלית
+            </a>
+          ) : null}
+        </div>
+      </Section>
+
+      <footer id="footer" className="bg-[#3A2E22] px-6 py-16 text-center text-[#FDFBF7]">
+        <p className="text-3xl font-medium">{DEMO.coupleNames}</p>
+        <Ornament />
+        <p className="text-[#B8956B]" style={{ fontFamily: "system-ui, sans-serif" }}>
+          {DEMO.footerNote || "נתראה בחגיגה"}
+        </p>
+        <p className="mt-6 text-xs tracking-[0.25em] text-white/35">
+          {formatHebrewDate(DEMO.weddingDate)}
+        </p>
       </footer>
     </div>
   );

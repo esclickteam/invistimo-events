@@ -1,666 +1,370 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import {
-  useCountdownTimer,
-  useFaqAccordion,
-  useGuestbook,
-  useGuestUpload,
-  usePlaylistDemo,
-  useWeddingRsvp,
-} from "../shared/useWeddingInteractions";
-import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import type { TemplateProps } from "../shared/weddingUtils";
+import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
+import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
 const ACCENT = "#7C9CFF";
-const DARK = "#0A0E17";
+const NAV = {
+  bg: "rgba(10,14,23,0.9)",
+  text: "#F2F5FF",
+  muted: "#8B97B8",
+  accent: ACCENT,
+  border: "rgba(124,156,255,0.28)",
+  fontDisplay: "'Montserrat', sans-serif",
+  dark: true,
+};
 
-function GradientMeshBg() {
-  return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div
-        className="absolute -left-1/4 -top-1/4 h-[80vh] w-[80vh] rounded-full opacity-30 blur-[120px]"
-        style={{ background: `radial-gradient(circle, ${ACCENT} 0%, transparent 70%)` }}
-      />
-      <div
-        className="absolute -bottom-1/4 -right-1/4 h-[70vh] w-[70vh] rounded-full opacity-20 blur-[100px]"
-        style={{ background: "radial-gradient(circle, #A855F7 0%, transparent 70%)" }}
-      />
-      <div
-        className="absolute left-1/2 top-1/2 h-[50vh] w-[50vh] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-15 blur-[80px]"
-        style={{ background: "radial-gradient(circle, #06B6D4 0%, transparent 70%)" }}
-      />
-    </div>
-  );
-}
+const fade = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-70px" as const },
+  transition: { duration: 0.6, ease: "easeOut" as const },
+};
 
-function TiltCard({
-  children,
+function Section({
+  id,
   className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState("perspective(800px) rotateX(0deg) rotateY(0deg)");
-
-  const onMove = (e: MouseEvent) => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTransform(`perspective(800px) rotateX(${-y * 12}deg) rotateY(${x * 12}deg) scale(1.02)`);
-  };
-
-  const onLeave = () => setTransform("perspective(800px) rotateX(0deg) rotateY(0deg)");
-
-  return (
-    <div
-      ref={ref}
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-      style={{ transform, transition: "transform 0.15s ease-out" }}
-      className={className}
-    >
-      {children}
-    </div>
-  );
-}
-
-function GlassPanel({
   children,
-  className = "",
 }: {
-  children: ReactNode;
+  id: string;
   className?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-white/10 bg-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-xl ${className}`}
-    >
+    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
-    </div>
+    </motion.section>
   );
 }
+
+const glass =
+  "rounded-3xl border border-white/15 bg-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl";
 
 export default function ModernGlassSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const rsvp = useWeddingRsvp();
-  const guestbook = useGuestbook();
-  const upload = useGuestUpload();
-  const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const heroImg = DEMO.heroImageUrl || template.heroImage;
 
   return (
-    <div className="min-h-screen font-['Montserrat'] overflow-x-clip" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
-      <GradientMeshBg />
-      <WeddingSmartNav theme={{"bg":"rgba(10,14,23,0.88)","text":"#F0F4FF","muted":"#8892A8","accent":"#7C9CFF","border":"rgba(255,255,255,0.12)","fontDisplay":"'Montserrat', sans-serif","dark":true}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
+    <div
+      dir="rtl"
+      className="wedding-website-root min-h-screen overflow-x-clip bg-[#0A0E17] text-[#F2F5FF]"
+      style={{ fontFamily: "'Montserrat', sans-serif" }}
+    >
+      {!embed && (
+        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+      )}
+      {!embed && !hideDemoBadge && (
+        <Link
+          href="/wedding-website"
+          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#7C9CFF]/40 bg-[#0A0E17]/90 px-4 py-2 text-xs font-bold text-[#F2F5FF] shadow-lg"
+        >
+          ← תבניות
+        </Link>
+      )}
 
-      {/* HERO — bento grid with video cell */}
-      <section id="hero" className={`relative px-4 ${embed ? "pt-4" : "pt-24"} md:px-8`}>
-        <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-4 md:grid-rows-2 md:gap-4">
+      {/* HERO — asymmetric glass bento */}
+      <section
+        id="hero"
+        className={`relative overflow-x-clip px-4 md:px-8 ${embed ? "py-10" : "pb-10 pt-20"}`}
+      >
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            background:
+              "radial-gradient(ellipse at 20% 0%, rgba(124,156,255,0.35), transparent 55%), radial-gradient(ellipse at 90% 40%, rgba(124,156,255,0.15), transparent 45%)",
+          }}
+        />
+        <div className="relative mx-auto grid min-h-[calc(100svh-5rem)] max-w-6xl grid-cols-2 gap-3 md:grid-cols-4 md:grid-rows-2 md:gap-4">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:col-span-2 md:row-span-2"
+            transition={{ duration: 0.7 }}
+            className={`${glass} col-span-2 flex flex-col justify-end p-6 md:row-span-2 md:p-8`}
           >
-            <TiltCard className="h-full">
-              <GlassPanel className="flex h-full min-h-[320px] flex-col justify-end overflow-hidden p-8 md:min-h-[480px]">
-                <div className="absolute inset-0 -z-10">
-                  <video src={VIDEOS.couple} autoPlay muted loop playsInline className="h-full w-full object-cover opacity-60" preload="metadata" poster={template.heroImage} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-[#0A0E17]/50 to-transparent" />
-                </div>
-                <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#7C9CFF]">Wedding</p>
-                <h1 className="mt-4 text-4xl font-bold md:text-6xl">{DEMO.coupleNames}</h1>
-                <p className="mt-4 max-w-md text-sm text-[#8892A8]">{DEMO.heroSubtitle}</p>
-              </GlassPanel>
-            </TiltCard>
+            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C9CFF]">
+              Save the Date
+            </p>
+            <h1 className="mt-4 text-[clamp(2.4rem,6vw,4.2rem)] font-bold leading-[1.05] tracking-tight">
+              {DEMO.coupleNames}
+            </h1>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[#8B97B8]">{DEMO.heroSubtitle}</p>
+            <p className="mt-3 text-sm font-semibold text-[#7C9CFF]">
+              {formatHebrewDate(DEMO.weddingDate)}
+              {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
+            </p>
+            <a
+              href="#rsvp"
+              className="mt-8 inline-flex w-fit rounded-full bg-[#7C9CFF] px-7 py-3 text-sm font-bold text-[#0A0E17]"
+            >
+              אישור הגעה
+            </a>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ duration: 0.7, delay: 0.12 }}
+            className={`${glass} col-span-2 overflow-hidden md:col-span-2`}
           >
-            <TiltCard>
-              <GlassPanel className="flex h-full min-h-[140px] flex-col justify-center p-6">
-                <p className="text-xs text-[#8892A8]">תאריך</p>
-                <p className="mt-2 text-lg font-bold">{formatHebrewDate(DEMO.weddingDate)}</p>
-                <p className="mt-1 text-[#7C9CFF]">{DEMO.weddingTime}</p>
-              </GlassPanel>
-            </TiltCard>
+            <img src={heroImg} alt="" className="h-full min-h-[160px] w-full object-cover md:min-h-[220px]" />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ duration: 0.7, delay: 0.22 }}
+            className={`${glass} relative col-span-1 overflow-hidden`}
           >
-            <TiltCard>
-              <GlassPanel className="relative h-full min-h-[140px] overflow-hidden p-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={template.heroImage} alt="" className="h-full w-full object-cover opacity-70" />
-              </GlassPanel>
-            </TiltCard>
+            <video
+              src={VIDEOS.couple}
+              poster={heroImg}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="h-full min-h-[140px] w-full object-cover"
+            />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="md:col-span-2"
+            transition={{ duration: 0.7, delay: 0.32 }}
+            className={`${glass} col-span-1 flex flex-col justify-center p-5`}
           >
-            <TiltCard>
-              <GlassPanel className="flex min-h-[120px] items-center justify-between gap-4 p-6">
-                <div>
-                  <p className="text-xs text-[#8892A8]">{DEMO.venueName}</p>
-                  <p className="mt-1 text-sm">{DEMO.venueAddress}</p>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href="#rsvp"
-                    className="rounded-xl bg-[#7C9CFF] px-5 py-2.5 text-xs font-bold text-[#0A0E17]"
-                  >
-                    RSVP
-                  </a>
-                  <a
-                    href="#gallery"
-                    className="rounded-xl border border-white/20 px-5 py-2.5 text-xs font-bold backdrop-blur"
-                  >
-                    Gallery
-                  </a>
-                </div>
-              </GlassPanel>
-            </TiltCard>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#7C9CFF]">Venue</p>
+            <p className="mt-2 text-lg font-bold leading-snug">{DEMO.venueName || "מיקום"}</p>
+            <a href="#location" className="mt-4 text-xs font-bold text-[#7C9CFF]">
+              לניווט ←
+            </a>
           </motion.div>
         </div>
       </section>
 
-      {/* COUNTDOWN — glass tiles */}
-      <section id="countdown" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-3xl font-bold">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
-              >
-                <TiltCard>
-                  <GlassPanel className="p-6 text-center">
-                    <span className="text-4xl font-bold tabular-nums text-[#7C9CFF] md:text-5xl">
-                      {String(val).padStart(2, "0")}
-                    </span>
-                    <p className="mt-2 text-xs text-[#8892A8]">{label}</p>
-                  </GlassPanel>
-                </TiltCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* INVITATION */}
-      <section id="invitation" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-3xl">
-          <GlassPanel className="p-10 text-center md:p-16">
-            <h2 className="text-3xl font-bold">הזמנה</h2>
-            <p className="mt-8 leading-relaxed text-[#8892A8]">{DEMO.invitationText}</p>
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* OUR STORY — bento cards */}
-      <section id="our-story" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-center text-3xl font-bold">הסיפור שלנו</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {DEMO.storyParagraphs.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <TiltCard className="h-full">
-                  <GlassPanel className="h-full p-8">
-                    <span className="text-3xl font-bold text-[#7C9CFF]/40">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <p className="mt-4 text-sm leading-relaxed text-[#8892A8]">{p}</p>
-                  </GlassPanel>
-                </TiltCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW WE MET */}
-      <section id="how-we-met" className="px-4 py-20 md:px-8">
-        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-          <TiltCard>
-            <GlassPanel className="overflow-hidden p-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
-            </GlassPanel>
-          </TiltCard>
-          <TiltCard>
-            <GlassPanel className="flex h-full flex-col justify-center p-10">
-              <h2 className="text-3xl font-bold">איך נפגשנו</h2>
-              <p className="mt-6 leading-relaxed text-[#8892A8]">{DEMO.howWeMet}</p>
-            </GlassPanel>
-          </TiltCard>
-        </div>
-      </section>
-
-      {/* PROPOSAL */}
-      <section id="proposal" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-3xl">
-          <GlassPanel className="border-[#7C9CFF]/20 bg-[#7C9CFF]/10 p-12 text-center">
-            <h2 className="text-3xl font-bold text-[#7C9CFF]">ההצעה</h2>
-            <blockquote className="mt-8 text-xl leading-relaxed text-[#F0F4FF]">
-              &ldquo;{DEMO.proposalStory}&rdquo;
-            </blockquote>
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* GALLERY — glass grid */}
-      <section id="gallery" className="px-4 py-20 md:px-8">
-        <h2 className="mb-12 text-center text-3xl font-bold">גלריה</h2>
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-          {template.galleryImages.map((src, i) => (
+      <Section id="event-details" className="py-16">
+        <div className="mx-auto grid max-w-5xl gap-4 px-6 md:grid-cols-3">
+          {[
+            ["תאריך", formatHebrewDate(DEMO.weddingDate)],
+            ["שעה", DEMO.weddingTime || "—"],
+            ["מקום", DEMO.venueName || "—"],
+          ].map(([label, value], i) => (
             <motion.div
-              key={src}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+              key={label}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className={i === 0 ? "col-span-2 row-span-2" : ""}
+              className={`${glass} p-6`}
             >
-              <TiltCard>
-                <GlassPanel className="overflow-hidden p-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="aspect-square w-full object-cover" />
-                </GlassPanel>
-              </TiltCard>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#7C9CFF]">{label}</p>
+              <p className="mt-3 text-xl font-bold leading-snug">{value}</p>
             </motion.div>
           ))}
         </div>
-      </section>
+      </Section>
 
-      {/* VIDEO */}
-      <section id="video" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-4xl">
-          <GlassPanel className="overflow-hidden p-0">
-            <h2 className="p-6 text-2xl font-bold">סרטון</h2>
-            <video src={VIDEOS.party} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* EVENT DETAILS */}
-      <section id="event-details" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="mb-12 text-center text-3xl font-bold">פרטי האירוע</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
-              { label: "שעה", value: DEMO.weddingTime },
-              { label: "מקום", value: DEMO.venueName },
-            ].map(({ label, value }) => (
-              <TiltCard key={label}>
-                <GlassPanel className="p-6 text-center">
-                  <p className="text-xs text-[#7C9CFF]">{label}</p>
-                  <p className="mt-2 font-bold">{value}</p>
-                </GlassPanel>
-              </TiltCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SCHEDULE */}
-      <section id="schedule" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="mb-12 text-center text-3xl font-bold">לוח זמנים</h2>
-          <div className="space-y-3">
-            {DEMO.schedule.map((item, i) => (
-              <motion.div
-                key={item.time}
-                initial={{ opacity: 0, x: -16 }}
-                whileInView={{ opacity: 1, x: 0 }}
+      <Section id="gallery" className="py-16">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">גלריה</h2>
+          <p className="mt-2 text-center text-sm text-[#8B97B8]">פסיפס עריכתי</p>
+          <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-4 md:grid-rows-2">
+            {images.slice(0, 6).map((src, i) => (
+              <motion.figure
+                key={src}
+                initial={{ opacity: 0, scale: 0.96 }}
+                whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
+                className={`overflow-hidden rounded-2xl border border-white/10 ${
+                  i === 0 ? "md:col-span-2 md:row-span-2" : ""
+                }`}
               >
-                <TiltCard>
-                  <GlassPanel className="flex gap-4 p-5">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#7C9CFF]/20 text-xs font-bold text-[#7C9CFF]">
-                      {item.time}
-                    </div>
-                    <div>
-                      <h3 className="font-bold">{item.title}</h3>
-                      <p className="mt-1 text-sm text-[#8892A8]">{item.description}</p>
-                    </div>
-                  </GlassPanel>
-                </TiltCard>
-              </motion.div>
+                <img
+                  src={src}
+                  alt=""
+                  className={`w-full object-cover ${i === 0 ? "aspect-square md:h-full" : "aspect-[4/3]"}`}
+                />
+              </motion.figure>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* LOCATION */}
-      <section id="location" className="px-4 py-20 md:px-8">
-        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-          <TiltCard>
-            <GlassPanel className="p-10">
-              <h2 className="text-3xl font-bold">מיקום</h2>
-              <p className="mt-6 text-xl">{DEMO.venueName}</p>
-              <p className="mt-2 text-[#8892A8]">{DEMO.venueAddress}</p>
-              <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-8 inline-block rounded-xl bg-[#7C9CFF] px-6 py-3 text-sm font-bold text-[#0A0E17]"
+      <Section id="schedule" className="py-16">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">לוח זמנים</h2>
+          <ol className="mt-10 space-y-3">
+            {(DEMO.schedule.length
+              ? DEMO.schedule
+              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
+            ).map((item, i) => (
+              <motion.li
+                key={`${item.time}-${item.title}`}
+                initial={{ opacity: 0, x: 16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.06 }}
+                className={`${glass} grid grid-cols-[80px_1fr] gap-4 px-5 py-4`}
               >
-                ניווט
+                <span className="text-sm font-bold text-[#7C9CFF]">{item.time}</span>
+                <div>
+                  <p className="font-bold">{item.title}</p>
+                  {item.description ? (
+                    <p className="mt-1 text-sm text-[#8B97B8]">{item.description}</p>
+                  ) : null}
+                </div>
+              </motion.li>
+            ))}
+          </ol>
+        </div>
+      </Section>
+
+      <Section id="location" className="py-16">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <MapPinPulse accent={ACCENT} />
+          <h2 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
+            {DEMO.venueName || "מיקום"}
+          </h2>
+          <p className="mt-2 text-[#8B97B8]">{DEMO.venueAddress}</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {DEMO.wazeUrl ? (
+              <a href={DEMO.wazeUrl} target="_blank" rel="noreferrer" className="rounded-full bg-[#7C9CFF] px-6 py-3 text-sm font-bold text-[#0A0E17]">
+                Waze
               </a>
-            </GlassPanel>
-          </TiltCard>
-          <TiltCard>
-            <GlassPanel className="overflow-hidden p-0">
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a href={DEMO.mapsUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[#7C9CFF] px-6 py-3 text-sm font-bold text-[#7C9CFF]">
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+          {DEMO.venueAddress ? (
+            <div className={`mt-8 overflow-hidden ${glass}`}>
               <iframe
                 title="map"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
-                className="h-72 w-full opacity-80"
+                className="aspect-[16/9] w-full border-0"
                 loading="lazy"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
               />
-            </GlassPanel>
-          </TiltCard>
+            </div>
+          ) : null}
         </div>
-      </section>
+      </Section>
 
-      {/* DRESS CODE */}
-      <section id="dress-code" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-2xl">
-          <GlassPanel className="p-10 text-center">
-            <h2 className="text-3xl font-bold">קוד לבוש</h2>
-            <p className="mt-6 text-[#8892A8]">{DEMO.dressCode}</p>
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* ACCOMMODATIONS */}
-      <section id="accommodations" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="mb-12 text-center text-3xl font-bold">לינה</h2>
+      <Section id="transportation" className="py-16">
+        <div className="mx-auto max-w-4xl px-6">
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">הגעה והסעות</h2>
+          <ShuttleRide accent={ACCENT} className="my-8" />
           <div className="grid gap-4 md:grid-cols-3">
-            {DEMO.accommodations.map((h) => (
-              <TiltCard key={h.name}>
-                <GlassPanel className="p-6">
-                  <h3 className="font-bold text-[#7C9CFF]">{h.name}</h3>
-                  <p className="mt-2 text-sm text-[#8892A8]">{h.note}</p>
-                </GlassPanel>
-              </TiltCard>
+            {(DEMO.transportation.length
+              ? DEMO.transportation
+              : [{ title: "הגעה", description: "פרטי הגעה יתעדכנו לקראת האירוע" }]
+            ).map((item) => (
+              <div key={item.title} className={`${glass} p-5`}>
+                <h3 className="text-lg font-bold">{item.title}</h3>
+                <p className="mt-2 text-sm text-[#8B97B8]">{item.description}</p>
+              </div>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* TRANSPORTATION */}
-      <section id="transportation" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-10 text-center text-3xl font-bold">הגעה</h2>
-        <ShuttleRide accent="#7C9CFF" className="mb-8 mt-6" />
-          <div className="space-y-3">
-            {DEMO.transportation.map((t) => (
-              <TiltCard key={t.title}>
-                <GlassPanel className="p-5">
-                  <h3 className="text-sm font-bold text-[#7C9CFF]">{t.title}</h3>
-                  <p className="mt-2 text-sm text-[#8892A8]">{t.description}</p>
-                </GlassPanel>
-              </TiltCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="mb-10 text-center text-3xl font-bold">שאלות נפוצות</h2>
-          <div className="space-y-3">
-            {DEMO.faq.map((item, i) => (
-              <TiltCard key={item.question}>
-                <GlassPanel className="overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => faq.toggle(i)}
-                    className="flex w-full items-center justify-between p-5 text-right"
-                  >
-                    <span className="text-[#7C9CFF]">{faq.open === i ? "−" : "+"}</span>
-                    <span className="font-medium">{item.question}</span>
-                  </button>
-                  {faq.open === i && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="border-t border-white/10 px-5 pb-5 text-sm text-[#8892A8]"
-                    >
-                      {item.answer}
-                    </motion.p>
-                  )}
-                </GlassPanel>
-              </TiltCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* RSVP */}
-      <section id="rsvp" className="px-4 py-24 md:px-8">
-        <TiltCard className="mx-auto max-w-md">
-          <GlassPanel className="border-[#7C9CFF]/30 p-8">
-            <h2 className="text-center text-3xl font-bold">אישור הגעה</h2>
+      <Section id="rsvp" className="py-16">
+        <div className="mx-auto max-w-md px-6">
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">אישור הגעה</h2>
+          <div className={`${glass} mt-8 p-7`}>
             {rsvp.sent ? (
-              <p className="mt-10 text-center text-[#7C9CFF]">✓ תודה! נתראה בחתונה.</p>
+              <p className="text-center text-lg text-[#7C9CFF]">תודה! קיבלנו את אישור ההגעה.</p>
             ) : (
-              <div className="mt-8 space-y-4">
-                <div className="flex gap-2">
+              <div className="space-y-4">
+                {rsvp.guestName ? (
+                  <p className="text-center text-sm text-[#8B97B8]">שלום {rsvp.guestName}</p>
+                ) : null}
+                <div className="flex gap-3">
                   {(["yes", "no"] as const).map((v) => (
                     <button
                       key={v}
                       type="button"
                       onClick={() => rsvp.setRsvp(v)}
-                      className={`flex-1 rounded-xl py-3 text-sm font-bold transition ${
+                      className={`flex-1 rounded-full py-3 text-sm font-bold ${
                         rsvp.rsvp === v
                           ? "bg-[#7C9CFF] text-[#0A0E17]"
-                          : "border border-white/15 text-[#8892A8] hover:border-[#7C9CFF]/50"
+                          : "border border-white/20 text-[#8B97B8]"
                       }`}
                     >
-                      {v === "yes" ? "מגיעים" : "לא מגיעים"}
+                      {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
                     </button>
                   ))}
                 </div>
-                {rsvp.rsvp === "yes" && (
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-center outline-none backdrop-blur"
-                  />
-                )}
+                {rsvp.rsvp === "yes" ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-sm text-[#8B97B8]">מספר אורחים</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={rsvp.count}
+                      onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                      className="w-20 rounded-full border border-white/20 bg-transparent px-3 py-2 text-center"
+                    />
+                  </div>
+                ) : null}
+                {rsvp.error ? (
+                  <p className="text-center text-sm font-bold text-red-300">{rsvp.error}</p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => void rsvp.submit()}
                   disabled={!rsvp.rsvp || rsvp.saving}
-                  className="w-full rounded-xl bg-[#7C9CFF] py-3 font-bold text-[#0A0E17] disabled:opacity-40"
+                  onClick={() => void rsvp.submit()}
+                  className="w-full rounded-full bg-[#7C9CFF] py-3.5 text-sm font-bold text-[#0A0E17] disabled:opacity-40"
                 >
-                  שליחה
+                  {rsvp.saving ? "שולח..." : "שליחה"}
                 </button>
               </div>
             )}
-          </GlassPanel>
-        </TiltCard>
-      </section>
+          </div>
+        </div>
+      </Section>
 
-      {/* GIFTS */}
-      <section id="gifts" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-lg">
-          <GlassPanel className="p-10 text-center">
-            <h2 className="text-3xl font-bold">מתנות</h2>
-            <p className="mt-6 text-[#8892A8]">{DEMO.giftsNote}</p>
-            <button
-              type="button"
-              className="mt-8 rounded-xl border border-[#7C9CFF]/40 px-8 py-3 text-sm font-bold text-[#7C9CFF]"
-            >
-              Bit / PayBox
-            </button>
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* GUESTBOOK */}
-      <section id="guestbook" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-xl">
-          <h2 className="mb-10 text-center text-3xl font-bold">ספר ברכות</h2>
-          <TiltCard>
-            <GlassPanel className="p-6">
-              <textarea
-                value={guestbook.message}
-                onChange={(e) => guestbook.setMessage(e.target.value)}
-                placeholder="ברכה..."
-                rows={3}
-                className="w-full resize-none bg-transparent outline-none placeholder:text-[#8892A8]"
-              />
+      <Section id="faq" className="py-16">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">שאלות נפוצות</h2>
+          <div className="mt-8 space-y-3">
+            {(DEMO.faq.length
+              ? DEMO.faq
+              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
+            ).map((item, i) => (
               <button
+                key={item.question}
                 type="button"
-                onClick={guestbook.addMessage}
-                className="mt-4 rounded-xl bg-[#7C9CFF] px-6 py-2 text-sm font-bold text-[#0A0E17]"
+                onClick={() => faq.toggle(i)}
+                className={`${glass} w-full px-5 py-4 text-right`}
               >
-                שליחה
+                <p className="font-bold">{item.question}</p>
+                {faq.open === i ? <p className="mt-2 text-sm text-[#8B97B8]">{item.answer}</p> : null}
               </button>
-            </GlassPanel>
-          </TiltCard>
-          <div className="mt-6 space-y-3">
-            {guestbook.items.map((m) => (
-              <TiltCard key={`${m.name}-${m.date}`}>
-                <GlassPanel className="p-5">
-                  <div className="flex justify-between text-xs text-[#7C9CFF]">
-                    <span>{m.date}</span>
-                    <span>{m.name}</span>
-                  </div>
-                  <p className="mt-2 text-sm text-[#8892A8]">{m.message}</p>
-                </GlassPanel>
-              </TiltCard>
             ))}
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* GUEST UPLOAD */}
-      <section id="guest-upload" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="mb-10 text-center text-3xl font-bold">זיכרונות</h2>
-          <TiltCard>
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                upload.setDragging(true);
-              }}
-              onDragLeave={() => upload.setDragging(false)}
-              onDrop={upload.onDrop}
-            >
-              <GlassPanel
-                className={`p-12 text-center transition ${
-                  upload.dragging ? "border-[#7C9CFF]/50 bg-[#7C9CFF]/10" : ""
-                }`}
-              >
-                <p className="text-[#8892A8]">גררו קבצים לכאן</p>
-                <label className="mt-4 inline-block cursor-pointer rounded-xl bg-[#7C9CFF] px-6 py-2 text-sm font-bold text-[#0A0E17]">
-                  העלאה
-                  <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={upload.onFileChange} />
-                </label>
-              </GlassPanel>
-            </div>
-          </TiltCard>
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {upload.items.map((item) => (
-              <TiltCard key={item.id}>
-                <GlassPanel className="overflow-hidden p-0">
-                  {item.type === "video" ? (
-                    <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                  )}
-                </GlassPanel>
-              </TiltCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PLAYLIST */}
-      <section id="playlist" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-lg">
-          <GlassPanel className="border-[#7C9CFF]/20 p-8">
-            <h2 className="text-center text-3xl font-bold">מוזיקה</h2>
-            <p className="mt-4 text-center text-sm text-[#8892A8]">{DEMO.playlistNote}</p>
-            <div className="mt-6 flex gap-2">
-              <input
-                value={playlist.song}
-                onChange={(e) => playlist.setSong(e.target.value)}
-                placeholder="שיר..."
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none backdrop-blur"
-              />
-              <button
-                type="button"
-                onClick={playlist.addSong}
-                className="rounded-xl bg-[#7C9CFF] px-4 font-bold text-[#0A0E17]"
-              >
-                +
-              </button>
-            </div>
-            <ul className="mt-6 space-y-2">
-              {playlist.songs.map((s) => (
-                <li key={s} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm backdrop-blur">
-                  ♪ {s}
-                </li>
-              ))}
-            </ul>
-          </GlassPanel>
-        </TiltCard>
-      </section>
-
-      {/* FOOTER */}
-      <footer id="footer" className="px-4 py-16 md:px-8">
-        <GlassPanel className="mx-auto max-w-4xl p-10 text-center">
-          <p className="text-3xl font-bold">{DEMO.coupleNames}</p>
-          <p className="mt-4 text-sm text-[#7C9CFF]">{formatHebrewDate(DEMO.weddingDate)}</p>
-          <p className="mx-auto mt-6 max-w-md text-sm text-[#8892A8]">{DEMO.footerNote}</p>
-        </GlassPanel>
+      <footer id="footer" className="border-t border-white/10 px-6 py-16 text-center">
+        <p className="text-2xl font-bold tracking-tight">{DEMO.coupleNames}</p>
+        <p className="mt-3 text-[#7C9CFF]">{DEMO.footerNote || "נתראה בחגיגה"}</p>
+        <p className="mt-6 text-xs tracking-[0.25em] text-white/30">
+          {formatHebrewDate(DEMO.weddingDate)}
+        </p>
       </footer>
     </div>
   );

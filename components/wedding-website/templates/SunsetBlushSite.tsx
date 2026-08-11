@@ -1,599 +1,369 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import type { TemplateProps } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import WeddingSmartNav from "../shared/WeddingSmartNav";
 import {
   useCountdownTimer,
   useFaqAccordion,
-  useGuestbook,
-  useGuestUpload,
-  usePlaylistDemo,
   useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
-import WeddingSmartNav from "../shared/WeddingSmartNav";
+import PolaroidGallery from "../illustrations/PolaroidGallery";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
-const BLUSH = "#E8788A";
-const CORAL = "#FF9A8B";
+const ACCENT = "#E8788A";
+const NAV = {
+  bg: "rgba(255,245,247,0.95)",
+  text: "#3D1F28",
+  muted: "#9A6070",
+  accent: ACCENT,
+  border: "rgba(232,120,138,0.28)",
+  fontDisplay: "'Cormorant Garamond', serif",
+};
 
-function GradientMeshHero() {
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <motion.div
-        animate={{
-          background: [
-            `radial-gradient(ellipse at 20% 30%, ${BLUSH}88 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, ${CORAL}66 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, #FFD4DC44 0%, #FFF5F7 70%)`,
-            `radial-gradient(ellipse at 70% 20%, ${CORAL}88 0%, transparent 50%), radial-gradient(ellipse at 30% 80%, ${BLUSH}66 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, #FFE8EE44 0%, #FFF5F7 70%)`,
-            `radial-gradient(ellipse at 20% 30%, ${BLUSH}88 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, ${CORAL}66 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, #FFD4DC44 0%, #FFF5F7 70%)`,
-          ],
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute inset-0"
-      />
-    </div>
-  );
-}
+const fade = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-70px" as const },
+  transition: { duration: 0.65, ease: "easeOut" as const },
+};
 
-function HeartParticles() {
-  const hearts = useMemo(
-    () =>
-      Array.from({ length: 18 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        delay: Math.random() * 5,
-        size: 8 + Math.random() * 14,
-        duration: 6 + Math.random() * 8,
-      })),
-    []
-  );
+function Section({
+  id,
+  className = "",
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {hearts.map((h) => (
-        <motion.span
-          key={h.id}
-          initial={{ y: "110%", opacity: 0, x: `${h.x}%` }}
-          animate={{ y: "-10%", opacity: [0, 0.6, 0.6, 0], rotate: [0, 15, -15, 0] }}
-          transition={{ duration: h.duration, repeat: Infinity, delay: h.delay, ease: "easeInOut" }}
-          className="absolute text-[#E8788A]"
-          style={{ fontSize: h.size, left: `${h.x}%` }}
-        >
-          ♥
-        </motion.span>
-      ))}
-    </div>
+    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
+      {children}
+    </motion.section>
   );
 }
 
 export default function SunsetBlushSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const rsvp = useWeddingRsvp();
-  const guestbook = useGuestbook();
-  const upload = useGuestUpload();
-  const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
-
-  const polaroidRotations = [-6, 4, -3, 7, -5, 3];
+  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const heroBg = DEMO.heroImageUrl || template.heroImage;
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-[#3D1F28] overflow-x-clip">
-      <WeddingSmartNav theme={{"bg":"rgba(255,245,247,0.95)","text":"#3D1F28","muted":"#9A6070","accent":"#E8788A","border":"rgba(232,120,138,0.28)","fontDisplay":"'Cormorant Garamond', serif"}} embed={embed} hideDemoLink={hideDemoBadge} mode="fixed" />
+    <div
+      dir="rtl"
+      className="wedding-website-root min-h-screen overflow-x-clip bg-[#FFF5F7] text-[#3D1F28]"
+      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+    >
+      {!embed && (
+        <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
+      )}
+      {!embed && !hideDemoBadge && (
+        <Link
+          href="/wedding-website"
+          className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#E8788A]/35 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          style={{ fontFamily: "system-ui, sans-serif" }}
+        >
+          ← תבניות
+        </Link>
+      )}
 
-      {/* HERO — gradient mesh + hero image overlay */}
-      <section id="hero" className={`relative flex min-h-screen items-center justify-center overflow-hidden ${embed ? "" : "pt-16"}`}>
-        <GradientMeshHero />
-        <HeartParticles />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />
+      {/* HERO — soft dusk gradient */}
+      <section
+        id="hero"
+        className={`relative flex min-h-[100svh] items-center justify-center overflow-hidden px-6 text-center ${embed ? "" : "pt-14"}`}
+      >
         <div
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0"
           style={{
-            backgroundImage: `url(${template.heroImage})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(2px)",
+            background: "linear-gradient(165deg, #FFE8EE 0%, #FFD0DC 42%, #E8788A 100%)",
           }}
         />
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="relative z-10 px-6 text-center"
-        >
-          <p className="font-['Cormorant_Garamond'] text-lg italic tracking-widest text-[#E8788A]">
-            save the date
-          </p>
-          <h1 className="mt-4 bg-gradient-to-r from-[#E8788A] via-[#FF9A8B] to-[#E8788A] bg-clip-text font-['Cormorant_Garamond'] text-6xl font-light md:text-9xl">
-            {DEMO.coupleNames}
-          </h1>
-          <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-[#9A6070]">{DEMO.heroSubtitle}</p>
-          <p className="mt-6 font-['Cormorant_Garamond'] text-xl italic text-[#E8788A]">
-            {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <a
-              href="#rsvp"
-              className="rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-10 py-4 text-sm font-bold text-white shadow-[0_8px_30px_rgba(232,120,138,0.4)] transition hover:scale-105"
-            >
-              אישור הגעה ♥
-            </a>
-            <a
-              href="#gallery"
-              className="rounded-full border-2 border-[#E8788A]/40 px-10 py-4 text-sm font-bold text-[#E8788A]"
-            >
-              הגלריה
-            </a>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* COUNTDOWN — soft gradient pills */}
-      <section id="countdown" className="py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <p className="font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">countdown</p>
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, type: "spring" }}
-                className="min-w-[100px] rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-6 shadow-[0_10px_40px_rgba(232,120,138,0.15)]"
-              >
-                <span className="font-['Cormorant_Garamond'] text-4xl font-semibold text-[#E8788A]">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-1 text-xs text-[#9A6070]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* INVITATION */}
-      <section id="invitation" className="relative overflow-hidden py-20">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#FFE8EE] to-[#FFD4DC]/50" />
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="relative mx-auto max-w-2xl px-6 text-center"
-        >
-          <span className="text-4xl">💌</span>
-          <h2 className="mt-4 font-['Cormorant_Garamond'] text-4xl">הזמנה</h2>
-          <p className="mt-8 font-['Cormorant_Garamond'] text-xl italic leading-[2] text-[#5C3040]">
-            {DEMO.invitationText}
-          </p>
-        </motion.div>
-      </section>
-
-      {/* OUR STORY */}
-      <section id="our-story" className="py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">
-            <span className="italic text-[#E8788A]">our</span> story
-          </h2>
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            {DEMO.storyParagraphs.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                whileHover={{ y: -8 }}
-                className="rounded-[28px] bg-white p-8 shadow-[0_12px_40px_rgba(232,120,138,0.12)]"
-              >
-                <span className="font-['Cormorant_Garamond'] text-3xl italic text-[#FFD4DC]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <p className="mt-4 leading-relaxed text-[#9A6070]">{p}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW WE MET */}
-      <section id="how-we-met" className="bg-gradient-to-b from-[#FFE8EE]/50 to-transparent py-20">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
-          <motion.div
-            initial={{ rotate: -4 }}
-            whileInView={{ rotate: -3 }}
-            className="mx-auto w-full max-w-sm bg-white p-4 pb-12 shadow-[0_20px_60px_rgba(232,120,138,0.2)]"
-            style={{ transform: "rotate(-4deg)" }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
-            <p className="mt-4 text-center font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">
-              how we met ♥
-            </p>
-          </motion.div>
-          <div>
-            <h2 className="font-['Cormorant_Garamond'] text-4xl">איך נפגשנו</h2>
-            <p className="mt-6 leading-relaxed text-[#9A6070]">{DEMO.howWeMet}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* PROPOSAL */}
-      <section id="proposal" className="py-24">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl rounded-[28px] bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] px-8 py-16 text-center text-white shadow-[0_20px_60px_rgba(232,120,138,0.35)]"
-        >
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">ההצעה</h2>
-          <p className="mt-8 font-['Cormorant_Garamond'] text-2xl italic leading-relaxed">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </p>
-        </motion.div>
-      </section>
-
-      {/* GALLERY — polaroids with rotation */}
-      <section id="gallery" className="overflow-hidden py-20">
-        <div className="mb-12 text-center">
-          <h2 className="font-['Cormorant_Garamond'] text-4xl italic text-[#E8788A]">gallery</h2>
-        </div>
-        <div className="flex flex-wrap justify-center gap-8 px-6">
-          {template.galleryImages.map((src, i) => (
-            <motion.div
-              key={src}
-              initial={{ opacity: 0, y: 40, rotate: polaroidRotations[i % polaroidRotations.length] }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.05, rotate: 0, zIndex: 10 }}
-              className="w-56 bg-white p-3 pb-10 shadow-[0_15px_50px_rgba(232,120,138,0.25)] md:w-64"
-              style={{ rotate: `${polaroidRotations[i % polaroidRotations.length]}deg` }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="aspect-[4/5] w-full object-cover" />
-              <p className="mt-3 text-center font-['Cormorant_Garamond'] text-sm italic text-[#9A6070]">
-                moment {i + 1} ♥
-              </p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* VIDEO */}
-      <section id="video" className="py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="mb-10 text-center font-['Cormorant_Garamond'] text-4xl">סרטון</h2>
-          <div className="overflow-hidden rounded-[28px] shadow-[0_20px_60px_rgba(232,120,138,0.2)] ring-4 ring-[#FFD4DC]">
-            <video src={VIDEOS.beach} autoPlay muted loop playsInline className="aspect-video w-full object-cover" preload="metadata" poster={template.heroImage} />
-          </div>
-        </div>
-      </section>
-
-      {/* EVENT DETAILS */}
-      <section id="event-details" className="bg-white py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">פרטי האירוע</h2>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {[
-              { icon: "📅", label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
-              { icon: "🕐", label: "שעה", value: DEMO.weddingTime },
-              { icon: "📍", label: "מקום", value: DEMO.venueName },
-            ].map(({ icon, label, value }) => (
-              <div
-                key={label}
-                className="rounded-[28px] bg-gradient-to-br from-[#FFF5F7] to-[#FFE8EE] p-8"
-              >
-                <span className="text-3xl">{icon}</span>
-                <p className="mt-3 text-xs text-[#E8788A]">{label}</p>
-                <p className="mt-2 font-bold">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SCHEDULE */}
-      <section id="schedule" className="py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">לוח זמנים</h2>
-          <div className="mt-12 space-y-4">
-            {DEMO.schedule.map((item, i) => (
-              <motion.div
-                key={item.time}
-                initial={{ opacity: 0, x: i % 2 ? 20 : -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="flex gap-4 rounded-[28px] bg-white p-5 shadow-sm"
-              >
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] text-sm font-bold text-white">
-                  {item.time}
-                </div>
-                <div>
-                  <h3 className="font-bold">{item.title}</h3>
-                  <p className="mt-1 text-sm text-[#9A6070]">{item.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* LOCATION */}
-      <section id="location" className="bg-gradient-to-b from-[#FFE8EE]/30 to-transparent py-20">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-2">
-          <div>
-            <h2 className="font-['Cormorant_Garamond'] text-4xl">מיקום</h2>
-            <p className="mt-6 text-xl font-bold">{DEMO.venueName}</p>
-            <p className="mt-2 text-[#9A6070]">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-block rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-8 py-3 text-sm font-bold text-white"
-            >
-              ניווט ♥
-            </a>
-          </div>
-          <div className="overflow-hidden rounded-[28px] shadow-lg ring-2 ring-[#FFD4DC]">
-            <iframe
-              title="map"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
-              className="h-72 w-full"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* DRESS CODE */}
-      <section id="dress-code" className="py-20 text-center">
-        <h2 className="font-['Cormorant_Garamond'] text-4xl italic">dress code</h2>
-        <p className="mx-auto mt-8 max-w-xl leading-relaxed text-[#9A6070]">{DEMO.dressCode}</p>
-      </section>
-
-      {/* ACCOMMODATIONS */}
-      <section id="accommodations" className="bg-white py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">לינה</h2>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {DEMO.accommodations.map((h) => (
-              <div key={h.name} className="rounded-[28px] border border-[#FFD4DC] bg-[#FFF5F7] p-6">
-                <h3 className="font-bold text-[#E8788A]">{h.name}</h3>
-                <p className="mt-2 text-sm text-[#9A6070]">{h.note}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TRANSPORTATION */}
-      <section id="transportation" className="py-20">
-        <div className="mx-auto max-w-3xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">הגעה</h2>
-        <ShuttleRide accent="#E8788A" className="mb-8 mt-6" />
-          <div className="mt-10 space-y-4">
-            {DEMO.transportation.map((t) => (
-              <div key={t.title} className="rounded-[28px] bg-white p-6 shadow-sm">
-                <h3 className="font-bold text-[#E8788A]">{t.title}</h3>
-                <p className="mt-2 text-sm text-[#9A6070]">{t.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="bg-white py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">שאלות נפוצות</h2>
-          <div className="mt-10 space-y-3">
-            {DEMO.faq.map((item, i) => (
-              <div key={item.question} className="overflow-hidden rounded-[28px] bg-[#FFF5F7]">
-                <button
-                  type="button"
-                  onClick={() => faq.toggle(i)}
-                  className="flex w-full items-center justify-between p-5 text-right"
-                >
-                  <span className="text-[#E8788A]">{faq.open === i ? "♥" : "♡"}</span>
-                  <span className="font-medium">{item.question}</span>
-                </button>
-                {faq.open === i && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="px-5 pb-5 text-sm text-[#9A6070]"
-                  >
-                    {item.answer}
-                  </motion.p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* RSVP */}
-      <section id="rsvp" className="py-24">
-        <div className="mx-auto max-w-md px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <motion.p
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="mt-10 text-center text-2xl"
-            >
-              ♥ תודה!
-            </motion.p>
-          ) : (
-            <div className="mt-10 rounded-[28px] bg-white p-8 shadow-[0_15px_50px_rgba(232,120,138,0.2)]">
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 rounded-full py-3 text-sm font-bold transition ${
-                      rsvp.rsvp === v
-                        ? "bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] text-white"
-                        : "bg-[#FFE8EE] text-[#E8788A]"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים ♥" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={rsvp.count}
-                  onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                  className="mt-6 w-full rounded-full border border-[#FFD4DC] px-5 py-3 text-center"
-                  placeholder="מספר אורחים"
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => void rsvp.submit()}
-                disabled={!rsvp.rsvp || rsvp.saving}
-                className="mt-6 w-full rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] py-3 font-bold text-white disabled:opacity-40"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* GIFTS */}
-      <section id="gifts" className="py-20 text-center">
-        <span className="text-5xl">🎁</span>
-        <h2 className="mt-4 font-['Cormorant_Garamond'] text-4xl">מתנות</h2>
-        <p className="mx-auto mt-6 max-w-lg text-[#9A6070]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border-2 border-[#E8788A] px-8 py-3 font-bold text-[#E8788A]"
-        >
-          Bit / PayBox
-        </button>
-      </section>
-
-      {/* GUESTBOOK */}
-      <section id="guestbook" className="bg-white py-20">
-        <div className="mx-auto max-w-xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">ספר ברכות</h2>
-          <div className="mt-10 rounded-[28px] bg-[#FFF5F7] p-6">
-            <textarea
-              value={guestbook.message}
-              onChange={(e) => guestbook.setMessage(e.target.value)}
-              placeholder="ברכה חמה..."
-              rows={3}
-              className="w-full resize-none bg-transparent outline-none"
-            />
-            <button
-              type="button"
-              onClick={guestbook.addMessage}
-              className="mt-4 rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-6 py-2 text-sm font-bold text-white"
-            >
-              שליחה ♥
-            </button>
-          </div>
-          <div className="mt-8 space-y-4">
-            {guestbook.items.map((m) => (
-              <div key={`${m.name}-${m.date}`} className="rounded-[28px] border border-[#FFD4DC] p-5">
-                <div className="flex justify-between text-xs text-[#E8788A]">
-                  <span>{m.date}</span>
-                  <span>{m.name}</span>
-                </div>
-                <p className="mt-2 text-sm">{m.message}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* GUEST UPLOAD */}
-      <section id="guest-upload" className="py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">זיכרונות</h2>
+        {heroBg ? (
           <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              upload.setDragging(true);
-            }}
-            onDragLeave={() => upload.setDragging(false)}
-            onDrop={upload.onDrop}
-            className={`mt-10 rounded-[28px] border-2 border-dashed p-12 text-center transition ${
-              upload.dragging ? "border-[#E8788A] bg-[#FFE8EE]" : "border-[#FFD4DC]"
-            }`}
+            className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-soft-light"
+            style={{ backgroundImage: `url(${heroBg})` }}
+          />
+        ) : null}
+        <div className="relative z-10 max-w-2xl py-20">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#9A6070]"
+            style={{ fontFamily: "system-ui, sans-serif" }}
           >
-            <p className="font-['Cormorant_Garamond'] text-xl italic text-[#E8788A]">שתפו תמונות ♥</p>
-            <label className="mt-4 inline-block cursor-pointer rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-6 py-2 text-sm font-bold text-white">
-              העלאה
-              <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={upload.onFileChange} />
-            </label>
-          </div>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            {upload.items.map((item, i) => (
-              <div
-                key={item.id}
-                className="w-32 overflow-hidden bg-white p-2 shadow-md"
-                style={{ rotate: `${polaroidRotations[i % polaroidRotations.length] / 2}deg` }}
-              >
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted playsInline preload="metadata" />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
-              </div>
-            ))}
+            Save the Date
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9 }}
+            className="mt-6 text-[clamp(3rem,10vw,5.5rem)] font-light leading-[1.05] text-[#3D1F28]"
+          >
+            {DEMO.coupleNames}
+          </motion.h1>
+          <p className="mx-auto mt-6 max-w-md text-lg leading-relaxed text-[#9A6070]">
+            {DEMO.heroSubtitle}
+          </p>
+          <p className="mt-4 text-xl text-[#E8788A]">
+            {formatHebrewDate(DEMO.weddingDate)}
+            {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            <a href="#rsvp" className="rounded-full bg-[#E8788A] px-8 py-3.5 text-sm font-bold text-white shadow-[0_14px_36px_rgba(232,120,138,0.35)]">
+              אישור הגעה
+            </a>
+            <a href="#our-story" className="rounded-full border border-white/70 bg-white/50 px-8 py-3.5 text-sm font-bold text-[#3D1F28] backdrop-blur-sm">
+              הסיפור שלנו
+            </a>
           </div>
         </div>
       </section>
 
-      {/* PLAYLIST */}
-      <section id="playlist" className="bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] py-20 text-white">
-        <div className="mx-auto max-w-lg px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">מוזיקה</h2>
-          <p className="mt-4 text-center text-sm text-white/80">{DEMO.playlistNote}</p>
-          <div className="mt-8 flex gap-2">
-            <input
-              value={playlist.song}
-              onChange={(e) => playlist.setSong(e.target.value)}
-              placeholder="שיר..."
-              className="flex-1 rounded-full bg-white/20 px-5 py-3 text-white placeholder:text-white/60 outline-none backdrop-blur"
-            />
-            <button type="button" onClick={playlist.addSong} className="rounded-full bg-white px-5 font-bold text-[#E8788A]">
-              +
-            </button>
+      <Section id="countdown" className="py-20">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <h2 className="text-4xl font-light">הספירה לאחור</h2>
+          <p className="mt-2 text-[#9A6070]">עד היום הגדול</p>
+          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {[
+              ["ימים", time.days],
+              ["שעות", time.hours],
+              ["דקות", time.minutes],
+              ["שניות", time.seconds],
+            ].map(([label, value]) => (
+              <div
+                key={String(label)}
+                className="rounded-[28px] border border-[#E8788A]/25 bg-white/80 px-4 py-7 shadow-[0_12px_40px_rgba(232,120,138,0.1)]"
+              >
+                <p className="text-4xl font-light text-[#E8788A]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                  {value}
+                </p>
+                <p className="mt-2 text-xs font-bold tracking-widest text-[#9A6070]">{label}</p>
+              </div>
+            ))}
           </div>
-          <ul className="mt-6 space-y-2">
-            {playlist.songs.map((s) => (
-              <li key={s} className="rounded-full bg-white/15 px-5 py-3 text-sm backdrop-blur">
-                ♪ {s}
+        </div>
+      </Section>
+
+      <Section id="our-story" className="bg-[#FFE8EE]/50 py-20">
+        <div className="mx-auto max-w-2xl px-6 text-center">
+          <h2 className="text-4xl font-light">הסיפור שלנו</h2>
+          <p className="mt-2 text-[#9A6070]">איך הכל התחיל</p>
+          <div className="mt-8 space-y-5 text-lg leading-relaxed text-[#9A6070]">
+            {(DEMO.storyParagraphs.length
+              ? DEMO.storyParagraphs
+              : ["אנחנו שמחים לחלוק איתכם את היום המיוחד שלנו."]
+            ).map((p) => (
+              <p key={p.slice(0, 24)}>{p}</p>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="gallery" className="py-20">
+        <div className="mx-auto max-w-5xl px-6">
+          <h2 className="text-center text-4xl font-light">רגעים</h2>
+          <p className="mt-2 text-center text-[#9A6070]">כמו פולארוידים מהלב</p>
+          <div className="mt-10">
+            <PolaroidGallery images={images.slice(0, 6)} accent={ACCENT} />
+          </div>
+        </div>
+      </Section>
+
+      <Section id="schedule" className="bg-[#FFE8EE]/50 py-20">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-center text-4xl font-light">לוח זמנים</h2>
+          <ol className="mt-10 space-y-4" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.schedule.length
+              ? DEMO.schedule
+              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
+            ).map((item) => (
+              <li
+                key={`${item.time}-${item.title}`}
+                className="rounded-[24px] border border-[#E8788A]/25 bg-white/90 px-5 py-4 shadow-[0_10px_30px_rgba(232,120,138,0.08)]"
+              >
+                <div className="flex items-baseline gap-4">
+                  <span className="text-lg font-bold text-[#E8788A]">{item.time}</span>
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    {item.description ? (
+                      <p className="mt-1 text-sm text-[#9A6070]">{item.description}</p>
+                    ) : null}
+                  </div>
+                </div>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
-      </section>
+      </Section>
 
-      {/* FOOTER */}
-      <footer id="footer" className="py-16 text-center">
-        <HeartParticles />
-        <h2 className="relative font-['Cormorant_Garamond'] text-4xl text-[#E8788A]">{DEMO.coupleNames}</h2>
-        <p className="relative mt-4 text-sm text-[#9A6070]">{formatHebrewDate(DEMO.weddingDate)}</p>
-        <p className="relative mx-auto mt-6 max-w-md text-sm text-[#9A6070]">{DEMO.footerNote}</p>
+      <Section id="location" className="py-20">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <MapPinPulse accent={ACCENT} />
+          <h2 className="mt-2 text-4xl font-light">{DEMO.venueName || "מיקום"}</h2>
+          <p className="mt-2 text-[#9A6070]">{DEMO.venueAddress}</p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {DEMO.wazeUrl ? (
+              <a href={DEMO.wazeUrl} target="_blank" rel="noreferrer" className="rounded-full bg-[#E8788A] px-6 py-3 text-sm font-bold text-white">
+                Waze
+              </a>
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a href={DEMO.mapsUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[#E8788A] px-6 py-3 text-sm font-bold text-[#E8788A]">
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+          {DEMO.venueAddress ? (
+            <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E8788A]/30 shadow-[0_16px_50px_rgba(232,120,138,0.12)]">
+              <iframe
+                title="map"
+                className="aspect-[16/9] w-full border-0"
+                loading="lazy"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
+              />
+            </div>
+          ) : null}
+        </div>
+      </Section>
+
+      <Section id="transportation" className="bg-[#FFE8EE]/50 py-20">
+        <div className="mx-auto max-w-4xl px-6">
+          <h2 className="text-center text-4xl font-light">הגעה והסעות</h2>
+          <ShuttleRide accent={ACCENT} className="my-8" />
+          <div className="grid gap-4 md:grid-cols-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.transportation.length
+              ? DEMO.transportation
+              : [{ title: "הגעה", description: "פרטי הגעה יתעדכנו לקראת האירוע" }]
+            ).map((item) => (
+              <div
+                key={item.title}
+                className="rounded-[24px] border border-[#E8788A]/25 bg-white/90 p-5 shadow-[0_10px_30px_rgba(232,120,138,0.08)]"
+              >
+                <h3 className="text-lg font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm text-[#9A6070]">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="rsvp" className="py-20">
+        <div className="mx-auto max-w-md px-6">
+          <h2 className="text-center text-4xl font-light">אישור הגעה</h2>
+          <p className="mt-2 text-center text-[#9A6070]">נשמח לדעת אם תגיעו</p>
+          <div
+            className="mt-8 rounded-[32px] border border-[#E8788A]/30 bg-white/90 p-7 shadow-[0_18px_50px_rgba(232,120,138,0.12)]"
+            style={{ fontFamily: "system-ui, sans-serif" }}
+          >
+            {rsvp.sent ? (
+              <p className="text-center text-lg text-[#E8788A]">תודה! קיבלנו את אישור ההגעה.</p>
+            ) : (
+              <div className="space-y-4">
+                {rsvp.guestName ? (
+                  <p className="text-center text-sm text-[#9A6070]">שלום {rsvp.guestName}</p>
+                ) : null}
+                <div className="flex gap-3">
+                  {(["yes", "no"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => rsvp.setRsvp(v)}
+                      className={`flex-1 rounded-full py-3 text-sm font-bold ${
+                        rsvp.rsvp === v
+                          ? "bg-[#E8788A] text-white"
+                          : "border border-[#E8788A]/40 text-[#9A6070]"
+                      }`}
+                    >
+                      {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
+                    </button>
+                  ))}
+                </div>
+                {rsvp.rsvp === "yes" ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-sm text-[#9A6070]">מספר אורחים</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={rsvp.count}
+                      onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                      className="w-20 rounded-full border border-[#E8788A]/40 px-3 py-2 text-center"
+                    />
+                  </div>
+                ) : null}
+                {rsvp.error ? (
+                  <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={!rsvp.rsvp || rsvp.saving}
+                  onClick={() => void rsvp.submit()}
+                  className="w-full rounded-full bg-[#E8788A] py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                >
+                  {rsvp.saving ? "שולח..." : "שליחה"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Section id="gifts" className="bg-[#FFE8EE]/50 py-20">
+        <div className="mx-auto max-w-xl px-6 text-center">
+          <h2 className="text-4xl font-light">מתנות</h2>
+          <p className="mt-4 text-[#9A6070]">
+            {DEMO.giftsNote || "הנוכחות שלכם היא המתנה הגדולה מכולן."}
+          </p>
+          {DEMO.giftLinks?.creditUrl ? (
+            <a
+              href={DEMO.giftLinks.creditUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex rounded-full border border-[#E8788A] px-7 py-3 text-sm font-bold text-[#E8788A]"
+              style={{ fontFamily: "system-ui, sans-serif" }}
+            >
+              מתנה דיגיטלית
+            </a>
+          ) : null}
+        </div>
+      </Section>
+
+      <Section id="faq" className="py-20">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-center text-4xl font-light">שאלות נפוצות</h2>
+          <div className="mt-8 space-y-3" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {(DEMO.faq.length
+              ? DEMO.faq
+              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
+            ).map((item, i) => (
+              <button
+                key={item.question}
+                type="button"
+                onClick={() => faq.toggle(i)}
+                className="w-full rounded-[24px] border border-[#E8788A]/25 bg-white/90 px-5 py-4 text-right shadow-[0_8px_24px_rgba(232,120,138,0.08)]"
+              >
+                <p className="font-semibold">{item.question}</p>
+                {faq.open === i ? <p className="mt-2 text-sm text-[#9A6070]">{item.answer}</p> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <footer id="footer" className="bg-gradient-to-b from-[#E8788A] to-[#D4657A] px-6 py-16 text-center text-white">
+        <p className="text-3xl font-light">{DEMO.coupleNames}</p>
+        <p className="mt-3 text-white/85">{DEMO.footerNote || "נתראה בחגיגה"}</p>
+        <p className="mt-6 text-xs tracking-[0.25em] text-white/50">
+          {formatHebrewDate(DEMO.weddingDate)}
+        </p>
       </footer>
     </div>
   );
