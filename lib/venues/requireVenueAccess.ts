@@ -214,6 +214,148 @@ export async function requireVenueAccess(
   };
 }
 
+/**
+ * For owner-scoped venue resources that are not yet hall-tenanted (e.g. VenueTask).
+ * Requires an authenticated venue principal: admin, venue_owner with owned hall,
+ * or any active VenueMembership. Regular customers are rejected.
+ */
+export async function requireVenueDashboardActor(
+  req: NextRequest | Request | undefined,
+  requiredPermission?: VenuePermission | VenuePermission[]
+): Promise<{
+  ctx: {
+    auth: AuthPayload;
+    ownerId: string;
+    role: VenueRole;
+    permissions: VenuePermission[];
+    isAdmin: boolean;
+    venueIds: string[];
+  } | null;
+  error: NextResponse | null;
+}> {
+  await connectDB();
+
+  const auth = await getUserIdFromRequest(req as any);
+
+  if (!auth?.userId) {
+    return { ctx: null, error: jsonError("לא מחובר", 401) };
+  }
+
+  const user = await User.findById(auth.userId)
+    .select("role isActive venueUser employeeScope staffType")
+    .lean();
+
+  if (!user) {
+    return { ctx: null, error: jsonError("משתמש לא נמצא", 404) };
+  }
+
+  if ((user as any).isActive === false) {
+    return { ctx: null, error: jsonError("המשתמש אינו פעיל", 403) };
+  }
+
+  const isInvistimoStaff =
+    (user as any).role === "staff" && (user as any).employeeScope !== "venue";
+
+  const isAdmin =
+    auth.role === "admin" ||
+    ((user as any).role === "admin" && !auth.impersonated);
+
+  if (isInvistimoStaff && !isAdmin) {
+    return {
+      ctx: null,
+      error: jsonError("אין הרשאה לאזור האולמות", 403),
+    };
+  }
+
+  const memberships = await listUserVenueMemberships(String(auth.userId));
+  const ownedHall = await VenueHall.findOne({ ownerId: auth.userId })
+    .select("ownerId id")
+    .lean();
+
+  // Tenant owner for owner-scoped collections (tasks, etc.)
+  let tenantOwnerId = ownedHall ? String(auth.userId) : "";
+  if (!tenantOwnerId) {
+    const rawMembership = await VenueMembership.findOne({
+      userId: auth.userId,
+      status: "active",
+    })
+      .select("ownerId")
+      .lean();
+    if (rawMembership?.ownerId) {
+      tenantOwnerId = String(rawMembership.ownerId);
+    }
+  }
+
+  if (isAdmin) {
+    const role: VenueRole = "OWNER";
+    const permissions = resolveVenuePermissions(role, []);
+    if (
+      requiredPermission &&
+      !hasVenuePermission(role, [], requiredPermission)
+    ) {
+      return {
+        ctx: null,
+        error: jsonError("אין הרשאה לביצוע פעולה זו", 403),
+      };
+    }
+    return {
+      ctx: {
+        auth,
+        ownerId: tenantOwnerId || String(auth.userId),
+        role,
+        permissions,
+        isAdmin: true,
+        venueIds: memberships.map((m) => m.venueId),
+      },
+      error: null,
+    };
+  }
+
+  if (!memberships.length) {
+    return {
+      ctx: null,
+      error: jsonError("אין הרשאה לאזור האולמות", 403),
+    };
+  }
+
+  if (!tenantOwnerId) {
+    return {
+      ctx: null,
+      error: jsonError("לא נמצא בעלים לאולם", 403),
+    };
+  }
+
+  // Prefer OWNER membership; otherwise first membership.
+  const preferred =
+    memberships.find((m) => m.role === "OWNER") || memberships[0];
+  const role = preferred.role;
+  const permissions = preferred.permissions;
+
+  if (requiredPermission) {
+    const anyOk = memberships.some((m) =>
+      hasVenuePermission(m.role, m.permissions, requiredPermission)
+    );
+    if (!anyOk) {
+      return {
+        ctx: null,
+        error: jsonError("אין הרשאה לביצוע פעולה זו", 403),
+      };
+    }
+  }
+
+  return {
+    ctx: {
+      auth,
+      ownerId: tenantOwnerId,
+      role,
+      permissions,
+      isAdmin: false,
+      venueIds: memberships.map((m) => m.venueId),
+    },
+    error: null,
+  };
+}
+
 export async function listUserVenueMemberships(userId: string) {
   await connectDB();
 

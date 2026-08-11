@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireVenueDashboardActor } from "@/lib/venues/requireVenueAccess";
 
 import VenueTask from "@/models/VenueTask";
 
@@ -30,17 +30,11 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
+    const { ctx, error } = await requireVenueDashboardActor(
+      req,
+      "events.edit"
+    );
+    if (error || !ctx) return error!;
 
     const { taskId } = await params;
     const body = await req.json();
@@ -70,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     const task = await VenueTask.findOneAndUpdate(
       {
         _id: taskId,
-        ownerId: auth.userId,
+        ownerId: ctx.ownerId,
       },
       {
         $set: update,
@@ -112,23 +106,17 @@ export async function DELETE(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
+    const { ctx, error } = await requireVenueDashboardActor(
+      req,
+      "events.edit"
+    );
+    if (error || !ctx) return error!;
 
     const { taskId } = await params;
 
     const deleted = await VenueTask.findOneAndDelete({
       _id: taskId,
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
     }).lean();
 
     if (!deleted) {
