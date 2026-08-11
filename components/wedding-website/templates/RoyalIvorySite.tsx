@@ -10,9 +10,11 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
@@ -92,9 +94,10 @@ function RoyalNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function RoyalIvorySite({ template, embed }: TemplateProps) {
+export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -409,6 +412,7 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
       <section id="transportation" className="py-20">
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="text-center font-['Playfair_Display'] text-4xl">הגעה</h2>
+        <ShuttleRide accent="#B8956B" className="mb-8 mt-6" />
           <div className="mt-12 space-y-4">
             {DEMO.transportation.map((t) => (
               <div key={t.title} className="rounded-2xl border border-[#B8956B]/20 bg-white p-6">
@@ -493,8 +497,8 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
               )}
               <button
                 type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
+                onClick={() => void rsvp.submit()}
+                disabled={!rsvp.rsvp || rsvp.saving}
                 className="mt-6 w-full rounded-full bg-[#B8956B] py-3 font-['Playfair_Display'] text-white disabled:opacity-40"
               >
                 שליחה

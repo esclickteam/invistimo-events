@@ -1,13 +1,15 @@
-import type { WeddingDemoContent } from "@/types/weddingWebsite";
+import type { WeddingSiteContent } from "@/types/weddingWebsite";
 
-export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
+export const WEDDING_DEMO_CONTENT: WeddingSiteContent = {
   coupleNames: "עמית & בן",
   coupleShort: "A & B",
   weddingDate: "2026-09-18",
   weddingTime: "19:30",
   venueName: "אולמי הירקון",
   venueAddress: "רחוב רוקח 12, תל אביב",
-  heroSubtitle: "שמחים ונרגשים להזמינ אתכם לחגוג איתנו את היום הגדול",
+  venueLat: 32.1007,
+  venueLng: 34.7754,
+  heroSubtitle: "שמחים ונרגשים להזמין אתכם לחגוג איתנו את היום הגדול",
   invitationText:
     "באהבה רבה, אנחנו מזמינים אתכם לחגוג איתנו את יום נישואינו. נשמח לראות אתכם בין אורחינו היקרים, לחלוק איתנו רגעים של שמחה, ריקודים ואהבה.",
   storyParagraphs: [
@@ -45,6 +47,16 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   ],
   giftsNote:
     "הנוכחות שלכם היא המתנה הכי משמעותית. לחובבי מתנה דיגיטלית — אפשר דרך הקישור למטה.",
+  giftLinks: {
+    creditUrl: "",
+    payboxUrl: "",
+    bitPhone: "",
+    bitUrl: "",
+  },
+  contactPhone: "",
+  contactNote: "לשאלות דחופות — פנו אלינו בוואטסאפ או בטלפון.",
+  galleryUrls: [],
+  heroImageUrl: "",
   guestbookMessages: [
     { name: "מיכל & יוני", message: "מחכים לחגוג איתכם! אתם זוג מדהים.", date: "12.7.2026" },
     { name: "דנה", message: "כל כך שמחה בשבילכם. יהיה אירוע מושלם!", date: "15.7.2026" },
@@ -52,6 +64,8 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   ],
   playlistNote: "יש לכם שיר שחייב להישמע? שלחו לנו הצעה — נשלב ברשימת השמעה!",
   footerNote: "תודה שאתם חלק מהסיפור שלנו. נתראה בחתונה!",
+  wazeUrl: "https://waze.com/ul?q=%D7%90%D7%95%D7%9C%D7%9E%D7%99%20%D7%94%D7%99%D7%A8%D7%A7%D7%95%D7%9F%20%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91&navigate=yes",
+  mapsUrl: "https://www.google.com/maps/search/?api=1&query=%D7%90%D7%95%D7%9C%D7%9E%D7%99%20%D7%94%D7%99%D7%A8%D7%A7%D7%95%D7%9F%20%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91",
 };
 
 export const DEMO_GUEST_UPLOADS = [
@@ -76,7 +90,28 @@ export const DEMO_GUEST_UPLOADS = [
     type: "video" as const,
     url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=600&q=80",
     name: "dance-preview.mp4",
-    uploadedBy: "יoni",
+    uploadedBy: "יוני",
     createdAt: "2026-07-22",
   },
 ];
+
+/** Empty editable defaults for a new WeddingWebsite document */
+export const EMPTY_WEDDING_CONTENT_OVERRIDES: Partial<WeddingSiteContent> = {
+  heroSubtitle: "",
+  invitationText: "",
+  storyParagraphs: [],
+  howWeMet: "",
+  proposalStory: "",
+  schedule: [],
+  dressCode: "",
+  accommodations: [],
+  transportation: [],
+  faq: [],
+  giftsNote: "",
+  contactPhone: "",
+  contactNote: "",
+  galleryUrls: [],
+  heroImageUrl: "",
+  playlistNote: "",
+  footerNote: "",
+};

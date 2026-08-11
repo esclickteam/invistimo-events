@@ -1,18 +1,29 @@
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
-import type { WeddingTemplate } from "@/types/weddingWebsite";
+import type { WeddingSiteContent, WeddingTemplate } from "@/types/weddingWebsite";
+import type { WeddingWebsiteGuestContext } from "@/types/weddingWebsite";
 
+export { useWeddingContent as useContent } from "./WeddingSiteContext";
+
+/** Demo fallback — prefer useWeddingContent() inside React components */
 export const DEMO = WEDDING_DEMO_CONTENT;
 
 export const VIDEOS = {
-  couple: "https://assets.mixkit.co/videos/preview/mixkit-wedding-couple-holding-hands-4826-large.mp4",
-  romantic: "https://assets.mixkit.co/videos/preview/mixkit-romantic-couple-looking-at-each-other-4179-large.mp4",
-  beach: "https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4",
-  forest: "https://assets.mixkit.co/videos/preview/mixkit-young-couple-walking-in-a-forest-4256-large.mp4",
-  party: "https://assets.mixkit.co/videos/preview/mixkit-people-dancing-at-a-party-1174-large.mp4",
-  rings: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-couple-with-wedding-rings-4830-large.mp4",
+  couple:
+    "https://assets.mixkit.co/videos/preview/mixkit-wedding-couple-holding-hands-4826-large.mp4",
+  romantic:
+    "https://assets.mixkit.co/videos/preview/mixkit-romantic-couple-looking-at-each-other-4179-large.mp4",
+  beach:
+    "https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4",
+  forest:
+    "https://assets.mixkit.co/videos/preview/mixkit-young-couple-walking-in-a-forest-4256-large.mp4",
+  party:
+    "https://assets.mixkit.co/videos/preview/mixkit-people-dancing-at-a-party-1174-large.mp4",
+  rings:
+    "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-couple-with-wedding-rings-4830-large.mp4",
 };
 
 export function formatHebrewDate(dateStr: string) {
+  if (!dateStr) return "";
   try {
     return new Intl.DateTimeFormat("he-IL", {
       weekday: "long",
@@ -26,7 +37,7 @@ export function formatHebrewDate(dateStr: string) {
 }
 
 export function useCountdown(targetDate: string, targetTime: string) {
-  const target = `${targetDate}T${targetTime}:00`;
+  const target = `${targetDate}T${targetTime || "00:00"}:00`;
   const calc = () => {
     const diff = new Date(target).getTime() - Date.now();
     if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
@@ -43,4 +54,9 @@ export function useCountdown(targetDate: string, targetTime: string) {
 export type TemplateProps = {
   template: WeddingTemplate;
   embed?: boolean;
+  content?: WeddingSiteContent;
+  guest?: WeddingWebsiteGuestContext | null;
+  mode?: "demo" | "live";
+  shareId?: string | null;
+  hideDemoBadge?: boolean;
 };

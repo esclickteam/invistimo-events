@@ -10,9 +10,11 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const ACCENT = "#7C9CFF";
@@ -127,9 +129,10 @@ function GlassNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ModernGlassSite({ template, embed }: TemplateProps) {
+export default function ModernGlassSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -475,6 +478,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
       <section id="transportation" className="px-4 py-20 md:px-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-10 text-center text-3xl font-bold">הגעה</h2>
+        <ShuttleRide accent="#7C9CFF" className="mb-8 mt-6" />
           <div className="space-y-3">
             {DEMO.transportation.map((t) => (
               <TiltCard key={t.title}>
@@ -557,8 +561,8 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
                 )}
                 <button
                   type="button"
-                  onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                  disabled={!rsvp.rsvp}
+                  onClick={() => void rsvp.submit()}
+                  disabled={!rsvp.rsvp || rsvp.saving}
                   className="w-full rounded-xl bg-[#7C9CFF] py-3 font-bold text-[#0A0E17] disabled:opacity-40"
                 >
                   שליחה

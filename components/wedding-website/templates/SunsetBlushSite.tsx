@@ -10,9 +10,11 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
@@ -105,9 +107,10 @@ function BlushNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function SunsetBlushSite({ template, embed }: TemplateProps) {
+export default function SunsetBlushSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -416,6 +419,7 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
       <section id="transportation" className="py-20">
         <div className="mx-auto max-w-3xl px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">הגעה</h2>
+        <ShuttleRide accent="#E8788A" className="mb-8 mt-6" />
           <div className="mt-10 space-y-4">
             {DEMO.transportation.map((t) => (
               <div key={t.title} className="rounded-[28px] bg-white p-6 shadow-sm">
@@ -500,8 +504,8 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
               )}
               <button
                 type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
+                onClick={() => void rsvp.submit()}
+                disabled={!rsvp.rsvp || rsvp.saving}
                 className="mt-6 w-full rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] py-3 font-bold text-white disabled:opacity-40"
               >
                 שליחה

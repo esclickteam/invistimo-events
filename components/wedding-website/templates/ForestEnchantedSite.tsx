@@ -10,9 +10,11 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
@@ -137,9 +139,10 @@ function ForestNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ForestEnchantedSite({ template, embed }: TemplateProps) {
+export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -439,6 +442,7 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
       <section id="transportation" className="py-20">
         <div className="mx-auto max-w-3xl px-6">
           <h2 className="text-center font-['Libre_Baskerville'] text-4xl">הגעה</h2>
+        <ShuttleRide accent="#7CB87A" className="mb-8 mt-6" />
           <div className="mt-10 space-y-4">
             {DEMO.transportation.map((t) => (
               <div key={t.title} className="rounded-2xl border border-[#7CB87A]/15 bg-[#1C2A1E] p-5">
@@ -517,8 +521,8 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
               )}
               <button
                 type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
+                onClick={() => void rsvp.submit()}
+                disabled={!rsvp.rsvp || rsvp.saving}
                 className="mt-6 w-full rounded-full bg-[#7CB87A] py-3 font-bold text-[#0F1810] disabled:opacity-40"
               >
                 שליחה

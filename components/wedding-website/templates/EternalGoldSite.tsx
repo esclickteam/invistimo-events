@@ -4,10 +4,13 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import MapPinPulse from "../illustrations/MapPinPulse";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
@@ -67,6 +70,7 @@ function StickyNav() {
 }
 
 function HeroSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen items-end justify-center overflow-hidden">
       <motion.div
@@ -104,6 +108,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -139,6 +144,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -154,6 +160,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -179,6 +186,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -202,6 +210,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
@@ -227,13 +236,16 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
 }
 
 function GallerySection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
+  const images =
+    DEMO.galleryUrls?.length > 0 ? DEMO.galleryUrls : template.galleryImages;
   return (
     <Section id="gallery" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-7xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">רגעים מהדרך</h2>
         <GoldDivider />
         <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
-          {template.galleryImages.map((src, i) => (
+          {images.map((src, i) => (
             <motion.div
               key={src}
               initial={{ opacity: 0, y: 24 }}
@@ -266,6 +278,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -290,6 +303,7 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-2xl px-6">
@@ -322,12 +336,42 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-5xl px-6">
-        <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">איך מגיעים</h2>
+        <div className="flex justify-center">
+          <MapPinPulse accent="#C9A962" />
+        </div>
+        <h2 className="mt-2 text-center font-['Cormorant_Garamond'] text-4xl font-light">
+          {DEMO.venueName || "איך מגיעים"}
+        </h2>
         <p className="mt-2 text-center text-[#8A7560]">{DEMO.venueAddress}</p>
         <GoldDivider />
+        {(DEMO.wazeUrl || DEMO.mapsUrl) && (
+          <div className="mb-6 flex flex-wrap justify-center gap-3">
+            {DEMO.wazeUrl ? (
+              <a
+                href={DEMO.wazeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-[#C9A962] px-6 py-3 text-sm font-bold text-white"
+              >
+                Waze
+              </a>
+            ) : null}
+            {DEMO.mapsUrl ? (
+              <a
+                href={DEMO.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="border border-[#C9A962] px-6 py-3 text-sm font-bold text-[#C9A962]"
+              >
+                Google Maps
+              </a>
+            ) : null}
+          </div>
+        )}
         <div className="overflow-hidden border-2 border-[#C9A962]/40">
           <iframe
             title="map"
@@ -342,6 +386,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -354,6 +399,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -373,11 +419,13 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">הגעה וחנייה</h2>
         <GoldDivider />
+        <ShuttleRide accent="#C9A962" label="הסעה לאירוע" className="mb-8" />
         <div className="grid gap-6 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
             <div key={item.title} className="border border-[#C9A962]/35 bg-white p-6">
@@ -392,6 +440,7 @@ function TransportationSection() {
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#FAF7F2] py-24">
@@ -421,7 +470,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-lg px-6">
@@ -456,13 +505,19 @@ function RsvpSection() {
                 />
               </div>
             )}
+            {guestName ? (
+              <p className="text-center text-sm text-[#8A7560]">שלום {guestName}</p>
+            ) : null}
+            {error ? (
+              <p className="text-center text-sm font-bold text-red-600">{error}</p>
+            ) : null}
             <button
               type="button"
-              onClick={() => rsvp && setSent(true)}
-              disabled={!rsvp}
+              onClick={() => void submit()}
+              disabled={!rsvp || saving}
               className="w-full bg-[#C9A962] py-4 text-sm font-bold text-white disabled:opacity-40"
             >
-              שליחה
+              {saving ? "שולח..." : "שליחה"}
             </button>
           </div>
         )}
@@ -472,6 +527,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -558,6 +614,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#F3EBE0] py-24">
@@ -589,6 +646,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="bg-[#2A2118] py-16 text-center text-white">
       <p className="font-['Cormorant_Garamond'] text-3xl font-light">{DEMO.coupleNames}</p>
@@ -599,10 +657,10 @@ function FooterSection() {
   );
 }
 
-export default function EternalGoldSite({ template, embed }: TemplateProps) {
+export default function EternalGoldSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
     <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
-      {!embed && (
+      {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
           className="fixed bottom-4 left-4 z-[55] rounded-sm border border-[#C9A962]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-md"

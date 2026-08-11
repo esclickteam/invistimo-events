@@ -4,10 +4,12 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import { VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import {
   useCountdownTimer,
-  useRsvpDemo,
+  useWeddingRsvp,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
@@ -79,6 +81,7 @@ function StickyNav() {
 }
 
 function HeroSection() {
+  const DEMO = useWeddingContent();
   return (
     <section id="hero" className="relative flex min-h-screen flex-col items-center justify-center bg-black px-6 py-16">
       <div className="relative w-full max-w-6xl overflow-hidden rounded-sm shadow-[0_0_80px_rgba(212,175,55,0.15)]">
@@ -119,6 +122,7 @@ function HeroSection() {
 }
 
 function CountdownSection() {
+  const DEMO = useWeddingContent();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const units = [
     { label: "ימים", value: time.days },
@@ -146,6 +150,7 @@ function CountdownSection() {
 }
 
 function InvitationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="invitation" className="bg-[#16131C] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -159,6 +164,7 @@ function InvitationSection() {
 }
 
 function OurStorySection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="our-story" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -178,6 +184,7 @@ function OurStorySection() {
 }
 
 function HowWeMetSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="how-we-met" className="bg-[#16131C] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
@@ -195,6 +202,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 }
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
+  const DEMO = useWeddingContent();
   return (
     <Section id="proposal" className="bg-[#0D0B10] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
@@ -253,6 +261,7 @@ function VideoSection() {
 }
 
 function EventDetailsSection() {
+  const DEMO = useWeddingContent();
   const items = [
     { label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
     { label: "שעה", value: DEMO.weddingTime },
@@ -276,6 +285,7 @@ function EventDetailsSection() {
 }
 
 function ScheduleSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="schedule" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-3xl px-6">
@@ -299,6 +309,7 @@ function ScheduleSection() {
 }
 
 function LocationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="location" className="bg-[#16131C] py-24">
       <div className="mx-auto max-w-5xl px-6">
@@ -318,6 +329,7 @@ function LocationSection() {
 }
 
 function DressCodeSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="dress-code" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -331,6 +343,7 @@ function DressCodeSection() {
 }
 
 function AccommodationsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="accommodations" className="bg-[#16131C] py-24">
       <div className="mx-auto max-w-4xl px-6">
@@ -349,9 +362,11 @@ function AccommodationsSection() {
 }
 
 function TransportationSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="transportation" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-4xl px-6">
+        <ShuttleRide accent="#D4AF37" className="mb-8 mt-6" />
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">הגעה</h2>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {DEMO.transportation.map((item) => (
@@ -367,6 +382,7 @@ function TransportationSection() {
 }
 
 function FaqSection() {
+  const DEMO = useWeddingContent();
   const { open, toggle } = useFaqAccordion(0);
   return (
     <Section id="faq" className="bg-[#16131C] py-24">
@@ -388,7 +404,7 @@ function FaqSection() {
 }
 
 function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+  const { rsvp, setRsvp, count, setCount, sent, submit, saving, error, guestName } = useWeddingRsvp();
   return (
     <Section id="rsvp" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-lg px-6">
@@ -412,7 +428,7 @@ function RsvpSection() {
             {rsvp === "yes" && (
               <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-lg border border-[#D4AF37]/30 bg-black/40 px-4 py-3 text-[#F5F0E8]" />
             )}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="w-full rounded-lg bg-[#D4AF37] py-4 font-bold text-black disabled:opacity-40">
+            <button type="button" onClick={() => void submit()} disabled={!rsvp || saving} className="w-full rounded-lg bg-[#D4AF37] py-4 font-bold text-black disabled:opacity-40">
               שליחה
             </button>
           </Glass>
@@ -423,6 +439,7 @@ function RsvpSection() {
 }
 
 function GiftsSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="gifts" className="bg-[#16131C] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
@@ -492,6 +509,7 @@ function GuestUploadSection() {
 }
 
 function PlaylistSection() {
+  const DEMO = useWeddingContent();
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
     <Section id="playlist" className="bg-[#0D0B10] py-24">
@@ -513,6 +531,7 @@ function PlaylistSection() {
 }
 
 function FooterSection() {
+  const DEMO = useWeddingContent();
   return (
     <Section id="footer" className="border-t border-[#D4AF37]/20 bg-black py-20 text-center">
       <h2 className="font-['Playfair_Display'] text-4xl text-[#D4AF37]" style={{ textShadow: "0 0 30px rgba(212,175,55,0.5)" }}>
@@ -523,10 +542,10 @@ function FooterSection() {
   );
 }
 
-export default function MidnightVelvetSite({ template, embed }: TemplateProps) {
+export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: TemplateProps) {
   return (
     <div className="wedding-website-root min-h-screen bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
-      {!embed && (
+      {!embed && !hideDemoBadge && (
         <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#D4AF37]/30 bg-black/80 px-4 py-2 text-xs font-bold text-[#D4AF37] backdrop-blur-md">
           ← כל התבניות
         </Link>

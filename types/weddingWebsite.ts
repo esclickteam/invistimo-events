@@ -19,7 +19,8 @@ export type WeddingSectionId =
   | "guestbook"
   | "guest-upload"
   | "playlist"
-  | "footer";
+  | "footer"
+  | "contact";
 
 export type WeddingTemplateId =
   | "eternal-gold"
@@ -62,13 +63,16 @@ export type WeddingTemplate = {
   mood: string;
 };
 
-export type WeddingDemoContent = {
+/** Editable + resolved content for a live or demo wedding site */
+export type WeddingSiteContent = {
   coupleNames: string;
   coupleShort: string;
   weddingDate: string;
   weddingTime: string;
   venueName: string;
   venueAddress: string;
+  venueLat: number | null;
+  venueLng: number | null;
   heroSubtitle: string;
   invitationText: string;
   storyParagraphs: string[];
@@ -80,10 +84,25 @@ export type WeddingDemoContent = {
   transportation: { title: string; description: string }[];
   faq: { question: string; answer: string }[];
   giftsNote: string;
+  giftLinks: {
+    creditUrl: string;
+    payboxUrl: string;
+    bitPhone: string;
+    bitUrl: string;
+  };
+  contactPhone: string;
+  contactNote: string;
+  galleryUrls: string[];
+  heroImageUrl: string;
   guestbookMessages: { name: string; message: string; date: string }[];
   playlistNote: string;
   footerNote: string;
+  wazeUrl: string;
+  mapsUrl: string;
 };
+
+/** @deprecated alias — prefer WeddingSiteContent */
+export type WeddingDemoContent = WeddingSiteContent;
 
 export type GuestUploadItem = {
   id: string;
@@ -92,4 +111,39 @@ export type GuestUploadItem = {
   name: string;
   uploadedBy: string;
   createdAt: string;
+};
+
+export type WeddingWebsiteStatus = "draft" | "published";
+
+export type WeddingSectionToggles = Partial<Record<WeddingSectionId, boolean>>;
+
+export type WeddingWebsiteGuestContext = {
+  token: string;
+  name: string;
+  rsvp: "yes" | "no" | "pending" | "";
+  guestsCount: number;
+  arrivedCount: number;
+  notes: string;
+  canSubmitRsvp: boolean;
+};
+
+export type WeddingWebsitePublicPayload = {
+  shareId: string;
+  templateId: WeddingTemplateId;
+  status: WeddingWebsiteStatus;
+  content: WeddingSiteContent;
+  sections: WeddingSectionToggles;
+  guest: WeddingWebsiteGuestContext | null;
+  invitationId: string;
+  eventId: string;
+  menuOptions: {
+    vegetarian: boolean;
+    vegan: boolean;
+    glutenFree: boolean;
+    childrenMeal: boolean;
+    kosher: boolean;
+    kosherGlatt: boolean;
+    kosherMahfoud: boolean;
+    transportation: boolean;
+  };
 };

@@ -10,9 +10,11 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
+  useWeddingRsvp,
 } from "../shared/useWeddingInteractions";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
+import ShuttleRide from "../illustrations/ShuttleRide";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 
@@ -78,9 +80,10 @@ function NoirNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function MinimalNoirSite({ template, embed }: TemplateProps) {
+export default function MinimalNoirSite({ template, embed, hideDemoBadge }: TemplateProps) {
+  const DEMO = useWeddingContent();
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
+  const rsvp = useWeddingRsvp();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -436,6 +439,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
         <div className="mx-auto max-w-7xl p-8 md:p-16">
           <NoirLabel>Transportation</NoirLabel>
           <h2 className="mb-8 text-3xl font-black">הגעה</h2>
+        <ShuttleRide accent="#111111" className="mb-8 mt-6" />
           <div className="grid gap-0 md:grid-cols-3">
             {DEMO.transportation.map((t) => (
               <div key={t.title} className="border border-black p-6 md:-mr-px">
@@ -514,8 +518,8 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
               )}
               <button
                 type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
+                onClick={() => void rsvp.submit()}
+                disabled={!rsvp.rsvp || rsvp.saving}
                 className="w-full border border-white py-4 font-mono text-xs uppercase tracking-widest disabled:opacity-30"
               >
                 שליחה

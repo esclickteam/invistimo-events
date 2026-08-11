@@ -1,14 +1,36 @@
 "use client";
 
 import { getWeddingTemplateSite } from "./templates";
-import type { WeddingTemplate } from "@/types/weddingWebsite";
+import { WeddingSiteProvider } from "./shared/WeddingSiteContext";
+import { getDemoWeddingSiteContent } from "@/lib/weddingWebsite/resolveWeddingSiteContent";
+import type {
+  WeddingSectionToggles,
+  WeddingSiteContent,
+  WeddingTemplate,
+  WeddingWebsiteGuestContext,
+} from "@/types/weddingWebsite";
 
 type Props = {
   template: WeddingTemplate;
   embed?: boolean;
+  content?: WeddingSiteContent;
+  guest?: WeddingWebsiteGuestContext | null;
+  sections?: WeddingSectionToggles;
+  mode?: "demo" | "live";
+  shareId?: string | null;
+  hideDemoBadge?: boolean;
 };
 
-export default function WeddingTemplateSiteRenderer({ template, embed }: Props) {
+export default function WeddingTemplateSiteRenderer({
+  template,
+  embed,
+  content,
+  guest = null,
+  sections = {},
+  mode = "demo",
+  shareId = null,
+  hideDemoBadge = false,
+}: Props) {
   const Site = getWeddingTemplateSite(template.id);
 
   if (!Site) {
@@ -19,5 +41,26 @@ export default function WeddingTemplateSiteRenderer({ template, embed }: Props) 
     );
   }
 
-  return <Site template={template} embed={embed} />;
+  const resolvedContent =
+    content || getDemoWeddingSiteContent(template.id);
+
+  return (
+    <WeddingSiteProvider
+      content={resolvedContent}
+      guest={guest}
+      sections={sections}
+      mode={mode}
+      shareId={shareId}
+    >
+      <Site
+        template={template}
+        embed={embed}
+        content={resolvedContent}
+        guest={guest}
+        mode={mode}
+        shareId={shareId}
+        hideDemoBadge={hideDemoBadge || mode === "live"}
+      />
+    </WeddingSiteProvider>
+  );
 }

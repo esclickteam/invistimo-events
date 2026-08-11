@@ -1,7 +1,9 @@
 /**
- * סוג אתר אישורי הגעה להזמנה.
- * standard — הקישור הרגיל הקיים (/invite/[shareId])
- * personal — אתר חתונה אישי (טרם מופעל)
+ * Product preference at invitation level.
+ * standard — Regular personal invitation link (/invite/[shareId]) — PROTECTED CORE
+ * personal — Also manage a separate Wedding Website (/w/[shareId])
+ *
+ * IMPORTANT: This never rewrites SMS/WhatsApp invite links automatically.
  */
 export type RsvpSiteMode = "standard" | "personal";
 
@@ -15,16 +17,16 @@ export const RSVP_SITE_MODE_OPTIONS: {
 }[] = [
   {
     value: "standard",
-    title: "קישור רגיל",
+    title: "הזמנה אישית",
     description:
-      "דף אישור הגעה קצר — תמונת ההזמנה, אישור הגעה, ואפשרויות נוספות. זה מה שעובד היום.",
+      "הקישור הרגיל לאורחים — תמונת ההזמנה ואישור הגעה. לא משתנה כשמפעילים אתר חתונה.",
   },
   {
     value: "personal",
     title: "אתר חתונה אישי",
     description:
-      "אתר מלא ומעוצב עם סיפור, תמונות, לוח זמנים, מתנות ואישור הגעה — חוויה מותאמת אישית.",
-    badge: "בקרוב",
+      "מוצר נפרד: אתר מלא עם תבנית, סיפור, לו״ז, הסעות ו-RSVP בכתובת /w/... ליד ההזמנה הרגילה.",
+    badge: "חדש",
   },
 ];
 
