@@ -79,9 +79,27 @@ const ContentSchema = new Schema(
     contactNote: { type: String, default: "" },
     galleryUrls: { type: [String], default: [] },
     heroImageUrl: { type: String, default: "" },
+    videoUrl: { type: String, default: "" },
+    rsvpText: { type: String, default: "" },
+    parkingText: { type: String, default: "" },
     guestbookMessages: { type: [GuestbookMessageSchema], default: [] },
     playlistNote: { type: String, default: "" },
     footerNote: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const ThemeOverridesSchema = new Schema(
+  {
+    background: { type: String, default: "" },
+    secondary: { type: String, default: "" },
+    accent: { type: String, default: "" },
+    text: { type: String, default: "" },
+    button: { type: String, default: "" },
+    card: { type: String, default: "" },
+    fontFamily: { type: String, default: "" },
+    headingScale: { type: Number, default: 1 },
+    stylePreset: { type: String, default: "" },
   },
   { _id: false }
 );
@@ -143,6 +161,15 @@ const WeddingWebsiteSchema = new Schema(
      */
     sections: {
       type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+
+    /**
+     * Soft color/typography overrides layered onto the chosen template theme.
+     * Does not replace template-specific layout/motion language.
+     */
+    themeOverrides: {
+      type: ThemeOverridesSchema,
       default: () => ({}),
     },
 

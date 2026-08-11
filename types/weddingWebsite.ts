@@ -63,6 +63,19 @@ export type WeddingTemplate = {
   mood: string;
 };
 
+/** Per-site theme overrides — layered onto template defaults, never replace the template language */
+export type WeddingThemeOverrides = {
+  background?: string;
+  secondary?: string;
+  accent?: string;
+  text?: string;
+  button?: string;
+  card?: string;
+  fontFamily?: string;
+  headingScale?: number;
+  stylePreset?: "classic" | "romantic" | "modern" | "bold" | "";
+};
+
 /** Editable + resolved content for a live or demo wedding site */
 export type WeddingSiteContent = {
   coupleNames: string;
@@ -75,6 +88,7 @@ export type WeddingSiteContent = {
   venueLng: number | null;
   heroSubtitle: string;
   invitationText: string;
+  /** Story / about body */
   storyParagraphs: string[];
   howWeMet: string;
   proposalStory: string;
@@ -94,6 +108,9 @@ export type WeddingSiteContent = {
   contactNote: string;
   galleryUrls: string[];
   heroImageUrl: string;
+  videoUrl: string;
+  rsvpText: string;
+  parkingText: string;
   guestbookMessages: { name: string; message: string; date: string }[];
   playlistNote: string;
   footerNote: string;
@@ -133,6 +150,7 @@ export type WeddingWebsitePublicPayload = {
   status: WeddingWebsiteStatus;
   content: WeddingSiteContent;
   sections: WeddingSectionToggles;
+  themeOverrides: WeddingThemeOverrides;
   guest: WeddingWebsiteGuestContext | null;
   invitationId: string;
   eventId: string;

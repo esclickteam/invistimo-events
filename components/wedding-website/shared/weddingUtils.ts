@@ -8,7 +8,7 @@ export { useWeddingContent as useContent } from "./WeddingSiteContext";
 /** Demo fallback — prefer useWeddingContent() inside React components */
 export const DEMO = WEDDING_DEMO_CONTENT;
 
-/** Verified working videos (Pexels). Keys kept for template compatibility. */
+/** Local wedding videos under /public/wedding-media/videos */
 export const VIDEOS = {
   couple: WW_VIDEOS.coupleWalk,
   romantic: WW_VIDEOS.romantic,
@@ -52,7 +52,7 @@ export type TemplateProps = {
   embed?: boolean;
   content?: WeddingSiteContent;
   guest?: WeddingWebsiteGuestContext | null;
-  mode?: "demo" | "live";
+  mode?: "demo" | "live" | "preview";
   shareId?: string | null;
   hideDemoBadge?: boolean;
 };

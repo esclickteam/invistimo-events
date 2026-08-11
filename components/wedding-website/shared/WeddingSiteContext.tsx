@@ -5,6 +5,7 @@ import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
 import type {
   WeddingSectionToggles,
   WeddingSiteContent,
+  WeddingThemeOverrides,
   WeddingWebsiteGuestContext,
 } from "@/types/weddingWebsite";
 
@@ -12,7 +13,8 @@ export type WeddingSiteContextValue = {
   content: WeddingSiteContent;
   guest: WeddingWebsiteGuestContext | null;
   sections: WeddingSectionToggles;
-  mode: "demo" | "live";
+  themeOverrides: WeddingThemeOverrides;
+  mode: "demo" | "live" | "preview";
   shareId: string | null;
 };
 
@@ -20,6 +22,7 @@ const WeddingSiteContext = createContext<WeddingSiteContextValue>({
   content: WEDDING_DEMO_CONTENT,
   guest: null,
   sections: {},
+  themeOverrides: {},
   mode: "demo",
   shareId: null,
 });
@@ -28,6 +31,7 @@ export function WeddingSiteProvider({
   content,
   guest = null,
   sections = {},
+  themeOverrides = {},
   mode = "demo",
   shareId = null,
   children,
@@ -35,13 +39,14 @@ export function WeddingSiteProvider({
   content: WeddingSiteContent;
   guest?: WeddingWebsiteGuestContext | null;
   sections?: WeddingSectionToggles;
-  mode?: "demo" | "live";
+  themeOverrides?: WeddingThemeOverrides;
+  mode?: "demo" | "live" | "preview";
   shareId?: string | null;
   children: ReactNode;
 }) {
   return (
     <WeddingSiteContext.Provider
-      value={{ content, guest, sections, mode, shareId }}
+      value={{ content, guest, sections, themeOverrides, mode, shareId }}
     >
       {children}
     </WeddingSiteContext.Provider>
@@ -55,6 +60,10 @@ export function useWeddingSite() {
 /** Drop-in replacement for the old DEMO constant inside template components */
 export function useWeddingContent(): WeddingSiteContent {
   return useContext(WeddingSiteContext).content;
+}
+
+export function useWeddingThemeOverrides(): WeddingThemeOverrides {
+  return useContext(WeddingSiteContext).themeOverrides;
 }
 
 export function useWeddingGuest() {

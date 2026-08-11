@@ -2,11 +2,13 @@
 
 import { getWeddingTemplateSite } from "./templates";
 import { WeddingSiteProvider } from "./shared/WeddingSiteContext";
+import { WeddingThemeProvider } from "./WeddingThemeProvider";
 import { getDemoWeddingSiteContent } from "@/lib/weddingWebsite/resolveWeddingSiteContent";
 import type {
   WeddingSectionToggles,
   WeddingSiteContent,
   WeddingTemplate,
+  WeddingThemeOverrides,
   WeddingWebsiteGuestContext,
 } from "@/types/weddingWebsite";
 
@@ -16,7 +18,8 @@ type Props = {
   content?: WeddingSiteContent;
   guest?: WeddingWebsiteGuestContext | null;
   sections?: WeddingSectionToggles;
-  mode?: "demo" | "live";
+  themeOverrides?: WeddingThemeOverrides;
+  mode?: "demo" | "live" | "preview";
   shareId?: string | null;
   hideDemoBadge?: boolean;
 };
@@ -27,6 +30,7 @@ export default function WeddingTemplateSiteRenderer({
   content,
   guest = null,
   sections = {},
+  themeOverrides = {},
   mode = "demo",
   shareId = null,
   hideDemoBadge = false,
@@ -41,26 +45,32 @@ export default function WeddingTemplateSiteRenderer({
     );
   }
 
-  const resolvedContent =
-    content || getDemoWeddingSiteContent(template.id);
+  const resolvedContent = content || getDemoWeddingSiteContent(template.id);
 
   return (
     <WeddingSiteProvider
       content={resolvedContent}
       guest={guest}
       sections={sections}
+      themeOverrides={themeOverrides}
       mode={mode}
       shareId={shareId}
     >
-      <Site
+      <WeddingThemeProvider
         template={template}
-        embed={embed}
         content={resolvedContent}
-        guest={guest}
-        mode={mode}
-        shareId={shareId}
-        hideDemoBadge={hideDemoBadge || mode === "live"}
-      />
+        themeOverrides={themeOverrides}
+      >
+        <Site
+          template={template}
+          embed={embed}
+          content={resolvedContent}
+          guest={guest}
+          mode={mode}
+          shareId={shareId}
+          hideDemoBadge={hideDemoBadge || mode === "live" || mode === "preview"}
+        />
+      </WeddingThemeProvider>
     </WeddingSiteProvider>
   );
 }

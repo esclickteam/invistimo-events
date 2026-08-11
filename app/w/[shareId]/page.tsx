@@ -78,6 +78,7 @@ export default async function LiveWeddingWebsitePage({
     <div dir="rtl" lang="he">
       <WeddingTemplateSiteRenderer
         template={liveTemplate}
+        themeOverrides={payload.themeOverrides || {}}
         content={payload.content}
         guest={payload.guest}
         sections={payload.sections}

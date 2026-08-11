@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import MapPinPulse from "../illustrations/MapPinPulse";
@@ -37,6 +39,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -49,9 +53,10 @@ const glass =
 
 export default function ModernGlassSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
   const heroImg = DEMO.heroImageUrl || template.heroImage;
 
   return (
@@ -116,7 +121,7 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
             transition={{ duration: 0.7, delay: 0.12 }}
             className={`${glass} col-span-2 overflow-hidden md:col-span-2`}
           >
-            <img src={heroImg} alt="" className="h-full min-h-[160px] w-full object-cover md:min-h-[220px]" />
+            <SafeImage src={heroImg} alt="" className="h-full min-h-[160px] w-full object-cover md:min-h-[220px]" />
           </motion.div>
 
           <motion.div
@@ -125,8 +130,8 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
             transition={{ duration: 0.7, delay: 0.22 }}
             className={`${glass} relative col-span-1 overflow-hidden`}
           >
-            <video
-              src={VIDEOS.couple}
+            <SafeVideo
+              src={DEMO.videoUrl || VIDEOS.couple}
               poster={heroImg}
               autoPlay
               muted
@@ -190,7 +195,7 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
                   i === 0 ? "md:col-span-2 md:row-span-2" : ""
                 }`}
               >
-                <img
+                <SafeImage
                   src={src}
                   alt=""
                   className={`w-full object-cover ${i === 0 ? "aspect-square md:h-full" : "aspect-[4/3]"}`}

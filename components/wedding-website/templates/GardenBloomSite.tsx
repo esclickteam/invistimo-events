@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import {
   useFaqAccordion,
@@ -53,6 +55,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -62,12 +66,13 @@ function Section({
 
 export default function GardenBloomSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
 
   return (
-    <div className="wedding-website-root overflow-x-clip bg-[#F4FAF4] text-[#2F4A36]" dir="rtl">
+    <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
       {!embed && <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />}
       {!embed && !hideDemoBadge && (
         <Link
@@ -152,7 +157,7 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
                 transition={{ delay: i * 0.06 }}
                 className="overflow-hidden rounded-[1.75rem] border border-[#6B9E78]/20 bg-white p-2 shadow-[0_16px_40px_rgba(47,74,54,0.07)]"
               >
-                <img src={src} alt="" className="aspect-[4/5] w-full rounded-[1.4rem] object-cover" />
+                <SafeImage src={src} alt="" className="aspect-[4/5] w-full rounded-[1.4rem] object-cover" />
               </motion.figure>
             ))}
           </div>

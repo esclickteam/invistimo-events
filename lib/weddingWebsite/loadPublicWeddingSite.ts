@@ -87,6 +87,7 @@ export async function loadPublicWeddingSite(params: {
     status: website.status as "draft" | "published",
     content,
     sections: (website.sections || {}) as any,
+    themeOverrides: (website.themeOverrides || {}) as any,
     guest,
     invitationId: String(invitation._id),
     eventId: String(website.eventId || invitation.eventId || ""),

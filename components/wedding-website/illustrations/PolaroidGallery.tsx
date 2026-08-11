@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage } from "../shared/SafeMedia";
 
 /** Sunset Blush — polaroids entering one by one */
 export default function PolaroidGallery({
@@ -12,12 +14,13 @@ export default function PolaroidGallery({
 }) {
   const reduce = useReducedMotion();
   const rotations = [-6, 4, -3, 5, -5, 3];
+  const safeImages = sanitizeGallery(images);
 
   return (
     <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
-      {images.map((src, i) => (
+      {safeImages.map((src, i) => (
         <motion.figure
-          key={src}
+          key={`${src}-${i}`}
           initial={reduce ? { opacity: 1 } : { opacity: 0, y: 40, rotate: rotations[i % rotations.length] * 2 }}
           whileInView={{ opacity: 1, y: 0, rotate: rotations[i % rotations.length] }}
           viewport={{ once: true, margin: "-40px" }}
@@ -26,7 +29,7 @@ export default function PolaroidGallery({
           style={{ border: `1px solid ${accent}33` }}
         >
           <div className="aspect-[4/5] overflow-hidden bg-[#f3e7ea]">
-            <img src={src} alt="" className="h-full w-full object-cover" />
+            <SafeImage src={src} alt="" className="h-full w-full object-cover" />
           </div>
         </motion.figure>
       ))}

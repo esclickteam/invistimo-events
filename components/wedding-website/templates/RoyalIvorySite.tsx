@@ -5,7 +5,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
@@ -48,6 +50,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -70,9 +74,10 @@ function monogramInitials(short: string, names: string) {
 
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
   const [envelopeTouched, setEnvelopeTouched] = useState(false);
   const envelopeOpen = Boolean(rsvp.rsvp) || envelopeTouched || rsvp.sent;
   const initials = monogramInitials(DEMO.coupleShort || "", DEMO.coupleNames);
@@ -211,7 +216,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
                 className="border-[3px] border-[#B8956B]/35 bg-white p-2 shadow-[0_16px_40px_rgba(100,75,50,0.08)]"
               >
                 <div className="border border-[#B8956B]/25 p-1">
-                  <img src={src} alt="" className="aspect-[4/5] w-full object-cover" />
+                  <SafeImage src={src} alt="" className="aspect-[4/5] w-full object-cover" />
                 </div>
               </motion.figure>
             ))}

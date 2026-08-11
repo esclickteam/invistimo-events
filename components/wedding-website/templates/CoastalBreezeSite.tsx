@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import {
   useCountdownTimer,
@@ -54,6 +56,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -63,13 +67,14 @@ function Section({
 
 export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
 
   return (
-    <div className="wedding-website-root overflow-x-clip bg-[#F0F8FF] text-[#1A3A4A]" dir="rtl">
+    <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
       {!embed && (
         <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
       )}
@@ -84,8 +89,8 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
 
       {/* HERO — full-bleed beach video */}
       <section id="hero" className="relative flex min-h-[100svh] items-end justify-center overflow-hidden">
-        <video
-          src={VIDEOS.beach}
+        <SafeVideo
+          src={DEMO.videoUrl || VIDEOS.beach}
           autoPlay
           muted
           loop
@@ -274,7 +279,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
                 transition={{ delay: i * 0.05 }}
                 className="overflow-hidden rounded-2xl"
               >
-                <img src={src} alt="" className="aspect-[4/3] w-full object-cover" />
+                <SafeImage src={src} alt="" className="aspect-[4/3] w-full object-cover" />
               </motion.figure>
             ))}
           </div>

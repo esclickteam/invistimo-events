@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import {
   useFaqAccordion,
@@ -42,6 +44,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -51,12 +55,13 @@ function Section({
 
 export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
 
   return (
-    <div className="wedding-website-root overflow-x-clip bg-[#0D0B10] text-[#F5F0E8]" dir="rtl">
+    <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
       {!embed && (
         <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} mode="fixed" />
       )}
@@ -74,8 +79,8 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1a1520_0%,_#0D0B10_70%)]" />
         <div className="relative z-10 w-full max-w-6xl">
           <div className="relative aspect-[2.35/1] w-full overflow-hidden rounded-sm border border-[#D4AF37]/25 shadow-[0_0_80px_rgba(212,175,55,0.12)]">
-            <video
-              src={VIDEOS.rings}
+            <SafeVideo
+              src={DEMO.videoUrl || VIDEOS.rings}
               autoPlay
               muted
               loop
@@ -207,7 +212,7 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
                 transition={{ delay: i * 0.05 }}
                 className={`overflow-hidden border border-[#D4AF37]/20 ${i === 0 ? "md:col-span-2 md:row-span-2" : ""}`}
               >
-                <img
+                <SafeImage
                   src={src}
                   alt=""
                   className={`w-full object-cover ${i === 0 ? "h-full min-h-[280px]" : "aspect-square"}`}

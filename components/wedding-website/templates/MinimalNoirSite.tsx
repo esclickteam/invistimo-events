@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
 
@@ -37,6 +39,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -60,9 +64,10 @@ function splitNames(names: string) {
 
 export default function MinimalNoirSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(null);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
   const { scrollYProgress } = useScroll();
   const lineWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
   const [nameA, nameB] = splitNames(DEMO.coupleNames);
@@ -281,7 +286,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
                 transition={{ delay: i * 0.05 }}
                 className="aspect-square overflow-hidden bg-neutral-100"
               >
-                <img src={src} alt="" className="h-full w-full object-cover grayscale" />
+                <SafeImage src={src} alt="" className="h-full w-full object-cover grayscale" />
               </motion.figure>
             ))}
           </div>

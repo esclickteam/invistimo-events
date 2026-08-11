@@ -48,6 +48,7 @@ export async function GET(
       status: website.status,
       content: website.content || {},
       sections: website.sections || {},
+      themeOverrides: website.themeOverrides || {},
       publishedAt: website.publishedAt,
       publicPath: `/w/${website.shareId}`,
       invitationId: String(website.invitationId),
@@ -95,6 +96,16 @@ export async function PATCH(
       website.markModified("sections");
     }
 
+    if (
+      body.themeOverrides !== undefined &&
+      body.themeOverrides &&
+      typeof body.themeOverrides === "object"
+    ) {
+      const prev = website.themeOverrides?.toObject?.() || website.themeOverrides || {};
+      website.themeOverrides = { ...prev, ...body.themeOverrides };
+      website.markModified("themeOverrides");
+    }
+
     if (body.status !== undefined) {
       const status = cleanStr(body.status);
       if (status !== "draft" && status !== "published") {
@@ -120,6 +131,7 @@ export async function PATCH(
         status: website.status,
         content: website.content || {},
         sections: website.sections || {},
+        themeOverrides: website.themeOverrides || {},
         publishedAt: website.publishedAt,
         publicPath: `/w/${website.shareId}`,
       },

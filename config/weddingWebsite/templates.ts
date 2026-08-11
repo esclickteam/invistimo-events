@@ -81,7 +81,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "לילה שחור עם נגיעות זהב",
     description:
       "דרמה מודרנית — רקע כהה, נגיעות זהב, parallax ואפקטים קולנועיים.",
-    previewImage: WW_IMAGES.tableSetting + "&w=900",
+    previewImage: WW_IMAGES.tableSetting,
     heroImage: WW_IMAGES.nightGlow,
     galleryImages: gallerySet(
       "elegantHall",
@@ -115,7 +115,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Garden Bloom",
     tagline: "פרחים, ירוק רך ורומנטיקה",
     description: "אווירת גן — עלים, פרחים, gradients רכים ואנימציות float.",
-    previewImage: WW_IMAGES.florals + "&w=900",
+    previewImage: WW_IMAGES.florals,
     heroImage: WW_IMAGES.kiss,
     galleryImages: gallerySet(
       "florals",
@@ -149,7 +149,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Coastal Breeze",
     tagline: "ים, תכלת ואור ים תיכוני",
     description: "חתונה על חוף — גווני כחול, לבן, גלים ותחושת קיץ.",
-    previewImage: WW_IMAGES.beachCouple + "&w=900",
+    previewImage: WW_IMAGES.beachCouple,
     heroImage: WW_IMAGES.beachCouple,
     galleryImages: gallerySet(
       "beachCouple",
@@ -183,7 +183,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Desert Rose",
     tagline: "טרakota, ורוד עמוק וחול",
     description: "חתונה חמה — גוונים חמים, textures ואנימציות shimmer.",
-    previewImage: WW_IMAGES.aisleWalk + "&w=900",
+    previewImage: WW_IMAGES.aisleWalk,
     heroImage: WW_IMAGES.coupleClose,
     galleryImages: gallerySet(
       "coupleClose",
@@ -217,7 +217,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Minimal Noir",
     tagline: "שחור, לבן, typography בלבד",
     description: "מינימלי יוקרתי — whitespace, קווים דקים, motion עדין.",
-    previewImage: WW_IMAGES.elegantHall + "&w=900",
+    previewImage: WW_IMAGES.elegantHall,
     heroImage: WW_IMAGES.softPortrait,
     galleryImages: gallerySet(
       "softPortrait",
@@ -251,7 +251,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Royal Ivory",
     tagline: "קרם מלכותי עם עיטור עדין",
     description: "palace wedding — ivory, מסגרות עדינות, fade-in אלגנטי.",
-    previewImage: WW_IMAGES.kiss + "&w=900",
+    previewImage: WW_IMAGES.kiss,
     heroImage: WW_IMAGES.venueArch,
     galleryImages: gallerySet(
       "venueArch",
@@ -285,7 +285,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Sunset Blush",
     tagline: "ורוד, כתום ושקיעה",
     description: "שקיעה רומנטית — gradients רכים, קו עדין, אווירה חמה.",
-    previewImage: WW_IMAGES.florals + "&w=900",
+    previewImage: WW_IMAGES.florals,
     heroImage: WW_IMAGES.aisleWalk,
     galleryImages: gallerySet(
       "aisleWalk",
@@ -319,7 +319,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Forest Enchanted",
     tagline: "יער קסום, ירוק עמוק",
     description: "חתונה בטבע — עלים, אור רך, אווירה enchanted.",
-    previewImage: WW_IMAGES.outdoorCouple + "&w=900",
+    previewImage: WW_IMAGES.outdoorCouple,
     heroImage: WW_IMAGES.outdoorCouple,
     galleryImages: gallerySet(
       "outdoorCouple",
@@ -353,7 +353,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Modern Glass",
     tagline: "Glassmorphism עכשווי",
     description: "blur, glass panels, accents קרים — Gen-Z luxury.",
-    previewImage: WW_IMAGES.nightGlow + "&w=900",
+    previewImage: WW_IMAGES.nightGlow,
     heroImage: WW_IMAGES.elegantHall,
     galleryImages: gallerySet(
       "elegantHall",

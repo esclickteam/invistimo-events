@@ -58,6 +58,9 @@ export const WEDDING_DEMO_CONTENT: WeddingSiteContent = {
   contactNote: "לשאלות דחופות — פנו אלינו בוואטסאפ או בטלפון.",
   galleryUrls: [],
   heroImageUrl: "",
+  videoUrl: "",
+  rsvpText: "נשמח לדעת אם תגיעו — אנא אשרו הגעה בהקדם.",
+  parkingText: "חניון תת-קרקעי באולם — חינם לאורחים.",
   guestbookMessages: [
     { name: "מיכל & יוני", message: "מחכים לחגוג איתכם! אתם זוג מדהים.", date: "12.7.2026" },
     { name: "דנה", message: "כל כך שמחה בשבילכם. יהיה אירוע מושלם!", date: "15.7.2026" },
@@ -73,7 +76,7 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "1",
     type: "image" as const,
-    url: WW_IMAGES.coupleClose.replace("w=1600", "w=800"),
+    url: WW_IMAGES.coupleClose,
     name: "rehearsal-dinner.jpg",
     uploadedBy: "שירה",
     createdAt: "2026-07-20",
@@ -81,7 +84,7 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "2",
     type: "image" as const,
-    url: WW_IMAGES.aisleWalk.replace("w=1600", "w=800"),
+    url: WW_IMAGES.aisleWalk,
     name: "couple-friends.jpg",
     uploadedBy: "אור",
     createdAt: "2026-07-21",
@@ -89,7 +92,7 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "3",
     type: "image" as const,
-    url: WW_IMAGES.florals.replace("w=1600", "w=800"),
+    url: WW_IMAGES.florals,
     name: "florals.jpg",
     uploadedBy: "יוני",
     createdAt: "2026-07-22",
@@ -113,6 +116,9 @@ export const EMPTY_WEDDING_CONTENT_OVERRIDES: Partial<WeddingSiteContent> = {
   contactNote: "",
   galleryUrls: [],
   heroImageUrl: "",
+  videoUrl: "",
+  rsvpText: "",
+  parkingText: "",
   playlistNote: "",
   footerNote: "",
 };

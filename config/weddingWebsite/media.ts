@@ -1,42 +1,74 @@
 /**
- * Verified working media only (checked via HTTP).
- * Do not add URLs here without verifying 200/206 + correct content-type.
+ * Local wedding media — served from /public/wedding-media.
+ * Guarantees render-safe assets (no hotlink / referrer breakage).
  */
 
-const u = (id: string, w = 1600, q = 85) =>
-  `https://images.unsplash.com/${id}?w=${w}&q=${q}`;
-
-/** Curated wedding/event stills — all verified 200 */
 export const WW_IMAGES = {
-  ceremony: u("photo-1519741497674-611481863552"),
-  outdoorCouple: u("photo-1469371670807-013ccf25f16a"),
-  venueArch: u("photo-1519225421980-715cb0215aed"),
-  coupleClose: u("photo-1511285560929-80b456fea0bc"),
-  florals: u("photo-1522673607200-164d1b6ce486"),
-  elegantHall: u("photo-1511795409834-ef04bbd61622"),
-  tableSetting: u("photo-1464366400600-7168b8af9bc3"),
-  nightGlow: u("photo-1470229722913-7c0e2dbbafd3"),
-  ringsHands: u("photo-1529636798458-92182e662485"),
-  aisleWalk: u("photo-1606800052052-a08af7148866"),
-  kiss: u("photo-1583939003579-730e3918a45a"),
-  softPortrait: u("photo-1591604466107-ec97de577aff"),
-  bouquet: u("photo-1545232979-8bf68ee9b1af"),
-  celebration: u("photo-1515934751635-c81c6bc9a2d8"),
-  beachCouple: u("photo-1523438885200-e635ba2c371e"),
+  ceremony: "/wedding-media/ceremony.jpg",
+  outdoorCouple: "/wedding-media/outdoorCouple.jpg",
+  venueArch: "/wedding-media/venueArch.jpg",
+  coupleClose: "/wedding-media/coupleClose.jpg",
+  florals: "/wedding-media/florals.jpg",
+  elegantHall: "/wedding-media/elegantHall.jpg",
+  tableSetting: "/wedding-media/tableSetting.jpg",
+  nightGlow: "/wedding-media/nightGlow.jpg",
+  ringsHands: "/wedding-media/ringsHands.jpg",
+  aisleWalk: "/wedding-media/aisleWalk.jpg",
+  kiss: "/wedding-media/kiss.jpg",
+  softPortrait: "/wedding-media/softPortrait.jpg",
+  bouquet: "/wedding-media/bouquet.jpg",
+  celebration: "/wedding-media/celebration.jpg",
+  beachCouple: "/wedding-media/beachCouple.jpg",
 } as const;
 
-/** Verified Pexels MP4s (Range 206 + video/mp4) */
+export type WwImageKey = keyof typeof WW_IMAGES;
+
+/** Local MP4s under /public/wedding-media/videos */
 export const WW_VIDEOS = {
-  coupleWalk:
-    "https://videos.pexels.com/video-files/3255275/3255275-uhd_2560_1440_25fps.mp4",
-  romantic:
-    "https://videos.pexels.com/video-files/3129957/3129957-uhd_2560_1440_25fps.mp4",
-  natureSoft:
-    "https://videos.pexels.com/video-files/2169880/2169880-uhd_2560_1440_30fps.mp4",
-  celebration:
-    "https://videos.pexels.com/video-files/3195394/3195394-uhd_2560_1440_25fps.mp4",
+  coupleWalk: "/wedding-media/videos/couple.mp4",
+  romantic: "/wedding-media/videos/romantic.mp4",
+  natureSoft: "/wedding-media/videos/nature.mp4",
+  celebration: "/wedding-media/videos/celebration.mp4",
 } as const;
 
-export function gallerySet(...keys: (keyof typeof WW_IMAGES)[]) {
-  return keys.map((k) => WW_IMAGES[k]);
+export function gallerySet(...keys: WwImageKey[]) {
+  return keys.map((k) => WW_IMAGES[k]).filter(Boolean);
 }
+
+/** Always return non-empty unique gallery URLs with local fallbacks */
+export function sanitizeGallery(
+  urls: unknown,
+  fallback: string[] = Object.values(WW_IMAGES).slice(0, 6)
+): string[] {
+  const cleaned = Array.isArray(urls)
+    ? urls
+        .map((u) => (typeof u === "string" ? u.trim() : ""))
+        .filter(
+          (u) =>
+            Boolean(u) &&
+            u !== "undefined" &&
+            u !== "null" &&
+            !(u.startsWith("/") && u.includes("&"))
+        )
+    : [];
+  const unique = [...new Set(cleaned)];
+  if (unique.length > 0) return unique;
+  return [...fallback];
+}
+
+export const WW_FONT_OPTIONS = [
+  { id: "cormorant", label: "Cormorant Garamond", css: "'Cormorant Garamond', serif" },
+  { id: "playfair", label: "Playfair Display", css: "'Playfair Display', serif" },
+  { id: "libre", label: "Libre Baskerville", css: "'Libre Baskerville', serif" },
+  { id: "montserrat", label: "Montserrat", css: "'Montserrat', sans-serif" },
+  { id: "heebo", label: "Heebo", css: "'Heebo', sans-serif" },
+] as const;
+
+export type WwFontId = (typeof WW_FONT_OPTIONS)[number]["id"];
+
+export const WW_STYLE_PRESETS = [
+  { id: "classic", label: "קלאסי" },
+  { id: "romantic", label: "רומנטי" },
+  { id: "modern", label: "מודרני" },
+  { id: "bold", label: "בולט" },
+] as const;

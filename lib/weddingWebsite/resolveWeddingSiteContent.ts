@@ -292,6 +292,9 @@ export function resolveWeddingSiteContent(params: {
     contactNote: cleanStr(o.contactNote),
     galleryUrls,
     heroImageUrl,
+    videoUrl: cleanStr(o.videoUrl),
+    rsvpText: cleanStr(o.rsvpText),
+    parkingText: cleanStr(o.parkingText),
     guestbookMessages: Array.isArray(o.guestbookMessages)
       ? o.guestbookMessages
       : [],

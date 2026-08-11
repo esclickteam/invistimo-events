@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
-import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingSmartNav from "../shared/WeddingSmartNav";
 import {
   useCountdownTimer,
@@ -51,6 +53,8 @@ function Section({
   className?: string;
   children: React.ReactNode;
 }) {
+  const { sections } = useWeddingSite();
+  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
   return (
     <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
       {children}
@@ -60,13 +64,14 @@ function Section({
 
 export default function EternalGoldSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const DEMO = useWeddingContent();
+  const themeOverrides = useWeddingThemeOverrides();
   const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   const rsvp = useWeddingRsvp();
   const faq = useFaqAccordion(0);
-  const images = DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages;
+  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
 
   return (
-    <div className="wedding-website-root overflow-x-clip bg-[#FAF7F2] text-[#2A2118]">
+    <div className="wedding-website-root overflow-x-clip bg-[#FAF7F2] text-[#2A2118]" data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }}>
       {!embed && <GoldScrollLine />}
       {!embed && (
         <WeddingSmartNav theme={NAV} hideDemoLink={hideDemoBadge} />
@@ -171,7 +176,7 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
                 transition={{ delay: i * 0.06 }}
                 className="border border-[#C9A962]/35 bg-white p-1.5 shadow-[0_18px_50px_rgba(92,65,35,0.08)]"
               >
-                <img src={src} alt="" className="h-full w-full object-cover" />
+                <SafeImage src={src} alt="" className="h-full w-full object-cover" />
               </motion.figure>
             ))}
           </div>
@@ -350,8 +355,8 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
       <Section id="video" className="bg-[#F3EBE0] py-16">
         <div className="mx-auto max-w-4xl px-6">
           <div className="overflow-hidden border border-[#C9A962]/35 bg-black">
-            <video
-              src={VIDEOS.romantic}
+            <SafeVideo
+              src={DEMO.videoUrl || VIDEOS.romantic}
               poster={DEMO.heroImageUrl || template.heroImage}
               controls
               playsInline

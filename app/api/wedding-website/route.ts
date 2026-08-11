@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
             status: website.status,
             content: website.content || {},
             sections: website.sections || {},
+            themeOverrides: website.themeOverrides || {},
             publishedAt: website.publishedAt,
             publicPath: `/w/${website.shareId}`,
             resolvedContent: resolved,
