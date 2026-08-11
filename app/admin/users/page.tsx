@@ -2178,6 +2178,9 @@ function EditUserModal({
   const [callRoundsSchedule, setCallRoundsSchedule] =
     useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
 
+  const [includeTransportationManagement, setIncludeTransportationManagement] =
+    useState(Boolean(user.includeTransportationManagement));
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -2196,6 +2199,16 @@ function EditUserModal({
       email: form.email,
       phone: form.phone,
       eventDate: form.eventDate,
+      includeTransportationManagement,
+      accessModules: {
+        rsvpSeating: Boolean(
+          user.accessModules?.rsvpSeating ?? user.includeDigitalSeating
+        ),
+        eventProduction: Boolean(
+          user.accessModules?.eventProduction ?? user.includeEventManagement
+        ),
+        transportationManagement: includeTransportationManagement,
+      },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       callRoundsSchedule: {
         ...callRoundsSchedule,
@@ -2371,6 +2384,40 @@ function EditUserModal({
             <span className="text-2xl font-black text-[#B97821]">
               {formatMoney(getUserTotalPaid(user))}
             </span>
+          </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-[#3A2A1C]">
+                ניהול הסעות
+              </h3>
+              <p className="mt-1 text-sm font-bold text-[#7B6754]">
+                הפעלה/כיבוי של מודול ניהול הסעות ללקוח. לא נפתח אוטומטית לכל
+                הלקוחות.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={includeTransportationManagement}
+                onChange={(e) =>
+                  setIncludeTransportationManagement(e.target.checked)
+                }
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+              <span className="text-sm font-black text-[#3A2A1C]">
+                {includeTransportationManagement ? "פעיל" : "כבוי"}
+              </span>
+            </label>
           </div>
         </section>
 
