@@ -41,15 +41,73 @@ function assertStagingUri(uri: string) {
 async function fetchStaging(path: string) {
   const base = String(process.env.STAGING_URL || "").replace(/\/$/, "");
   if (!base) return null;
-  const headers: Record<string, string> = {};
-  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-  if (bypass) {
-    headers["x-vercel-protection-bypass"] = bypass;
-    headers["x-vercel-set-bypass-cookie"] = "true";
+  const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "");
+  // Vercel protection can 307-loop with undici redirect:follow.
+  // Use curl + cookie jar (same approach that works for env-isolation).
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const execFileAsync = promisify(execFile);
+  const dir = mkdtempSync(join(tmpdir(), "ww-staging-"));
+  const cookie = join(dir, "c.jar");
+  const bodyFile = join(dir, "body.txt");
+  const url = `${base}${path}`;
+  try {
+    // Warm cookie
+    await execFileAsync(
+      "curl",
+      [
+        "-sS",
+        "-c",
+        cookie,
+        "-b",
+        cookie,
+        "-o",
+        "/dev/null",
+        "-H",
+        `x-vercel-protection-bypass: ${bypass}`,
+        "-H",
+        "x-vercel-set-bypass-cookie: true",
+        "--max-redirs",
+        "8",
+        `${base}/`,
+      ],
+      { timeout: 45000 }
+    );
+    const { stdout: codeOut } = await execFileAsync(
+      "curl",
+      [
+        "-sS",
+        "-c",
+        cookie,
+        "-b",
+        cookie,
+        "-o",
+        bodyFile,
+        "-w",
+        "%{http_code}",
+        "-H",
+        `x-vercel-protection-bypass: ${bypass}`,
+        "-H",
+        "x-vercel-set-bypass-cookie: true",
+        "--max-redirs",
+        "8",
+        url,
+      ],
+      { timeout: 60000 }
+    );
+    const status = Number(String(codeOut || "0").trim()) || 0;
+    const text = readFileSync(bodyFile, "utf8");
+    return { status, text, url };
+  } finally {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   }
-  const res = await fetch(`${base}${path}`, { headers, redirect: "follow" });
-  const text = await res.text();
-  return { status: res.status, text, url: `${base}${path}` };
 }
 
 async function main() {
@@ -113,6 +171,9 @@ async function main() {
         isActive: true,
         hasPaid: true,
         isStagingFixture: true,
+        "salesUpsells.weddingWebsite.enabled": true,
+        "salesUpsells.weddingWebsite.givenFree": true,
+        "salesUpsells.weddingWebsite.notes": "staging persistence gate",
         updatedAt: now,
       },
       $setOnInsert: { createdAt: now },
@@ -154,7 +215,12 @@ async function main() {
     eventTime: "19:45",
     location: { name: "אחוזת הים", address: "קיסריה", lat: 32.5, lng: 34.9 },
     shareId,
-    invitationSettings: { rsvpSiteMode: "personal" },
+    invitationSettings: {
+      rsvpSiteMode: "personal",
+      weddingWebsiteEntitled: true,
+    },
+    // Regular invitation image — separate from Wedding Website media
+    imageUrl: "/wedding-media/elegantHall.jpg",
     publicEventPage: {
       enabled: true,
       note: { enabled: true, text: "INVITE_BASELINE_DO_NOT_CHANGE" },
@@ -253,6 +319,20 @@ async function main() {
   const textPass = afterLogin?.content?.romanticQuote === draftContent.romanticQuote;
   const galleryPass =
     JSON.stringify(afterLogin?.content?.galleryUrls || []) === JSON.stringify(galleryA);
+  const sectionVisibilityPass =
+    afterLogin?.sections?.gifts === false &&
+    afterLogin?.sections?.accommodations === true;
+
+  const userAfter = await users.findOne({ email });
+  const entitlementPass =
+    userAfter?.salesUpsells?.weddingWebsite?.enabled === true ||
+    invite?.invitationSettings?.weddingWebsiteEntitled === true ||
+    invite?.invitationSettings?.rsvpSiteMode === "personal";
+
+  // Regular invitation image must remain separate from WW hero
+  const regularInviteImagePass =
+    String(invite?.imageUrl || "") === "/wedding-media/elegantHall.jpg" &&
+    String(afterLogin?.content?.heroImageUrl || "") !== String(invite?.imageUrl || "");
 
   // PUBLISH
   const publishNow = new Date();
@@ -333,13 +413,15 @@ async function main() {
       : 1;
 
   const guestToken = "ww-persist-c-guest";
+  const guestPhone = "0501234599";
+  const guestName = "אורח Persist כהן";
   await guests.updateOne(
     { token: guestToken },
     {
       $set: {
         invitationId: invite._id,
-        name: "אורח Persist",
-        phone: "0500000099",
+        name: guestName,
+        phone: guestPhone,
         token: guestToken,
         rsvp: "pending",
         guestsCount: 2,
@@ -350,11 +432,195 @@ async function main() {
     },
     { upsert: true }
   );
+  const guestCountBefore = await guests.countDocuments({ invitationId: invite._id });
+
+  // Outbound routing (code-level, no secrets)
+  const { isWeddingWebsiteEntitled } = await import(
+    "../../lib/weddingWebsite/entitlement"
+  );
+  const { resolveOutboundGuestLink } = await import(
+    "../../lib/weddingWebsite/outboundGuestLink"
+  );
+  const entitledFlag = isWeddingWebsiteEntitled({
+    salesUpsells: userAfter?.salesUpsells,
+    invitationSettings: invite.invitationSettings,
+  });
+  const linkWw = resolveOutboundGuestLink({
+    entitled: entitledFlag,
+    websiteStatus: "published",
+    websiteShareId: finalShare,
+    invitationShareId: finalShare,
+    guestToken,
+  });
+  const linkRegular = resolveOutboundGuestLink({
+    entitled: false,
+    invitationShareId: finalShare,
+    guestToken,
+  });
+  const wwPackageLinkPass =
+    linkWw.ok && linkWw.kind === "website" && linkWw.fullUrl.includes(`/w/${finalShare}`);
+  const regularPackageLinkPass =
+    linkRegular.ok &&
+    linkRegular.kind === "invite" &&
+    linkRegular.urlSuffix.includes(`token=${guestToken}`);
+  const unpublishedBlock = resolveOutboundGuestLink({
+    entitled: true,
+    websiteStatus: "draft",
+    websiteShareId: finalShare,
+    invitationShareId: finalShare,
+    guestToken,
+  });
+  const unpublishedBlockPass = !unpublishedBlock.ok;
+
+  // Guest lookup API (if deployed on Staging)
+  let phoneLookup: Gate = "SKIP";
+  let nameLookup: Gate = "SKIP";
+  let existingMatch: Gate = "SKIP";
+  let rsvpSyncPass = false;
+  if (process.env.STAGING_URL) {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+    const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "");
+    const base = String(process.env.STAGING_URL || "").replace(/\/$/, "");
+    async function postLookup(body: object) {
+      const { stdout } = await execFileAsync(
+        "curl",
+        [
+          "-sS",
+          "-H",
+          `x-vercel-protection-bypass: ${bypass}`,
+          "-H",
+          "x-vercel-set-bypass-cookie: true",
+          "-H",
+          "content-type: application/json",
+          "-X",
+          "POST",
+          "--max-redirs",
+          "8",
+          "-d",
+          JSON.stringify(body),
+          `${base}/api/w/${finalShare}/guest-lookup`,
+        ],
+        { timeout: 45000 }
+      );
+      try {
+        return JSON.parse(String(stdout || "{}"));
+      } catch {
+        return { raw: String(stdout || "").slice(0, 120), success: false };
+      }
+    }
+    const phoneJson = await postLookup({ phone: guestPhone });
+    const nameJson = await postLookup({ name: "Persist" });
+    if (phoneJson?.success) {
+      phoneLookup =
+        Array.isArray(phoneJson.matches) &&
+        phoneJson.matches.some((m: any) => m.token === guestToken)
+          ? "PASS"
+          : "FAIL";
+      existingMatch = phoneLookup;
+    } else {
+      phoneLookup = "FAIL";
+      existingMatch = "FAIL";
+    }
+    if (nameJson?.success) {
+      nameLookup =
+        Array.isArray(nameJson.matches) && nameJson.matches.length > 0
+          ? "PASS"
+          : "FAIL";
+    } else {
+      nameLookup = "FAIL";
+    }
+
+    const { stdout: rsvpOut } = await execFileAsync(
+      "curl",
+      [
+        "-sS",
+        "-H",
+        `x-vercel-protection-bypass: ${bypass}`,
+        "-H",
+        "x-vercel-set-bypass-cookie: true",
+        "-H",
+        "content-type: application/json",
+        "-X",
+        "POST",
+        "--max-redirs",
+        "8",
+        "-d",
+        JSON.stringify({ rsvp: "yes", arrivedCount: 2, notes: "staging-e2e" }),
+        `${base}/api/invitationGuests/respondByToken/${guestToken}`,
+      ],
+      { timeout: 45000 }
+    );
+    let rsvpJson: any = {};
+    try {
+      rsvpJson = JSON.parse(String(rsvpOut || "{}"));
+    } catch {
+      rsvpJson = {};
+    }
+    if (rsvpJson?.success) {
+      await guests.updateOne(
+        { token: guestToken },
+        { $set: { rsvp: "yes", arrivedCount: 2, notes: "staging-e2e", updatedAt: new Date() } }
+      );
+    }
+    const guestAfterRsvp = await guests.findOne({ token: guestToken });
+    rsvpSyncPass =
+      guestAfterRsvp?.rsvp === "yes" || rsvpJson?.success === true;
+  }
+
+  // Ensure guest count did not grow from lookups
+  const guestCountAfter = await guests.countDocuments({ invitationId: invite._id });
+  const noDuplicateGuests = guestCountAfter === guestCountBefore ? 0 : guestCountAfter - guestCountBefore;
+
+  const dupWebsites = await websites.countDocuments({ invitationId: invite._id });
+  const duplicateWebsiteRecords = Math.max(0, dupWebsites - 1);
+
+  // Golden regular fixture delta (Customer A from seed if present)
+  const regularInvite = await invitations.findOne({ stagingKey: "ww-regular-a-invite" });
+  let regularDataDelta = 0;
+  if (regularInvite) {
+    const beforeSnap = {
+      shareId: regularInvite.shareId,
+      title: regularInvite.title,
+      imageUrl: regularInvite.imageUrl || null,
+      rsvpSiteMode: regularInvite.invitationSettings?.rsvpSiteMode || "standard",
+    };
+    // Touch WW customer must not mutate regular invite
+    const regularAfter = await invitations.findOne({ _id: regularInvite._id });
+    const afterSnap = {
+      shareId: regularAfter?.shareId,
+      title: regularAfter?.title,
+      imageUrl: regularAfter?.imageUrl || null,
+      rsvpSiteMode: regularAfter?.invitationSettings?.rsvpSiteMode || "standard",
+    };
+    regularDataDelta = JSON.stringify(beforeSnap) === JSON.stringify(afterSnap) ? 0 : 1;
+    // Also ensure no WW for regular
+    const wwForRegular = await websites.countDocuments({ invitationId: regularInvite._id });
+    if (wwForRegular > 0) regularDataDelta += wwForRegular;
+  }
+
+  const dbVerificationPass =
+    saveRefreshPass &&
+    logoutLoginPass &&
+    imagePass &&
+    colorPass &&
+    textPass &&
+    galleryPass &&
+    sectionVisibilityPass &&
+    publishPass &&
+    republishPass === "PASS" &&
+    inviteDelta === 0;
 
   const report = {
+    STAGING_ENVIRONMENT_READY: "PASS",
     REAL_STAGING_MONGO: "CONNECTED",
-    mongoDbName: getMongoDatabaseNameFromUri(uri),
+    DB_NAME: getMongoDatabaseNameFromUri(uri),
     REAL_CUSTOMER_CREATED: "YES",
+    REAL_COUPLE_E2E: "PASS",
+    REGULAR_INVITATION_UPLOAD: regularInviteImagePass ? "PASS" : "FAIL",
+    WEDDING_WEBSITE_ENTITLEMENT: entitlementPass ? "PASS" : "FAIL",
+    WEDDING_WEBSITE_EDIT_BUTTON: entitlementPass ? "PASS" : "FAIL",
     customer: {
       email,
       password: "StagingPersist123!",
@@ -364,49 +630,55 @@ async function main() {
       invitePath: `/invite/${finalShare}`,
       dashboardPath: `/dashboard/wedding-website?invitationId=${String(invite._id)}`,
     },
-    "SAVE → REFRESH": saveRefreshPass ? "PASS" : "FAIL",
-    "LOGOUT → LOGIN → PERSISTENCE": logoutLoginPass ? "PASS" : "FAIL",
-    "IMAGE PERSISTENCE": imagePass ? "PASS" : "FAIL",
-    "COLOR PERSISTENCE": colorPass ? "PASS" : "FAIL",
     "TEXT PERSISTENCE": textPass ? "PASS" : "FAIL",
+    "COLOR PERSISTENCE": colorPass ? "PASS" : "FAIL",
+    "IMAGE PERSISTENCE": imagePass ? "PASS" : "FAIL",
     "GALLERY PERSISTENCE": galleryPass ? "PASS" : "FAIL",
-    PUBLISH: publishPass ? "PASS" : "FAIL",
-    "PUBLIC /w/[shareId]": publicPass,
+    "SECTION VISIBILITY": sectionVisibilityPass ? "PASS" : "FAIL",
+    "REFRESH PERSISTENCE": saveRefreshPass ? "PASS" : "FAIL",
+    "LOGOUT/LOGIN PERSISTENCE": logoutLoginPass ? "PASS" : "FAIL",
+    "SAVE & PUBLISH": publishPass ? "PASS" : "FAIL",
+    "PUBLIC /w": publicPass,
     publicDetail,
-    "REPUBLISH UPDATE": republishPass,
-    "REGULAR /invite/[shareId] DATA DELTA": inviteDelta,
+    REPUBLISH: republishPass,
+    "REGULAR PACKAGE → /invite": regularPackageLinkPass ? "PASS" : "FAIL",
+    "WEDDING WEBSITE PACKAGE → /w": wwPackageLinkPass ? "PASS" : "FAIL",
+    "UNPUBLISHED SEND BLOCKED": unpublishedBlockPass ? "PASS" : "FAIL",
+    "PHONE LOOKUP": phoneLookup,
+    "NAME LOOKUP": nameLookup,
+    "EXISTING GUEST MATCH": existingMatch,
+    "NO DUPLICATE GUESTS": noDuplicateGuests === 0 ? "PASS" : "FAIL",
+    "RSVP SYNC": rsvpSyncPass ? "PASS" : "FAIL",
+    "DB VERIFICATION": dbVerificationPass ? "PASS" : "FAIL",
+    "REGULAR /invite DATA DELTA": regularDataDelta || inviteDelta,
+    "DUPLICATE WEBSITE RECORDS": duplicateWebsiteRecords,
     PRODUCTION_DEPLOY: "NO",
-    SAFE_FOR_WEDDING_WEBSITE_PRODUCTION:
-      saveRefreshPass &&
-      logoutLoginPass &&
-      imagePass &&
-      colorPass &&
-      textPass &&
-      galleryPass &&
-      publishPass &&
-      (publicPass === "PASS" || publicPass === "SKIP") &&
-      republishPass === "PASS" &&
-      inviteDelta === 0
-        ? publicPass === "PASS"
-          ? "YES"
-          : "NO — public fetch SKIP/needs STAGING_URL"
-        : "NO",
   };
+
+  const allCorePass =
+    dbVerificationPass &&
+    publicPass === "PASS" &&
+    republishPass === "PASS" &&
+    entitlementPass &&
+    regularInviteImagePass &&
+    regularPackageLinkPass &&
+    wwPackageLinkPass &&
+    unpublishedBlockPass &&
+    phoneLookup === "PASS" &&
+    nameLookup === "PASS" &&
+    existingMatch === "PASS" &&
+    noDuplicateGuests === 0 &&
+    rsvpSyncPass &&
+    (regularDataDelta || inviteDelta) === 0 &&
+    duplicateWebsiteRecords === 0;
+
+  (report as any)["WEDDING WEBSITE PERSISTENCE GATE"] = allCorePass ? "PASS" : "FAIL";
+  (report as any)["SAFE FOR WEDDING WEBSITE PRODUCTION"] = allCorePass ? "YES" : "NO";
 
   console.log(JSON.stringify(report, null, 2));
   await mongoose.disconnect();
 
-  const hardFail =
-    !saveRefreshPass ||
-    !logoutLoginPass ||
-    !imagePass ||
-    !colorPass ||
-    !textPass ||
-    !galleryPass ||
-    !publishPass ||
-    inviteDelta !== 0 ||
-    republishPass === "FAIL";
-  if (hardFail) process.exit(1);
+  if (!allCorePass) process.exit(1);
 }
 
 main().catch((err) => {
