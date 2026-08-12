@@ -3509,7 +3509,45 @@ function GoldenActionButtons({
   eventId?: string;
 }) {
 
-    const [openInviteMenu, setOpenInviteMenu] = useState(false);
+  const [openInviteMenu, setOpenInviteMenu] = useState(false);
+  const [wwInviteMenu, setWwInviteMenu] = useState<{
+    entitled: boolean;
+    published: boolean;
+    publicPath: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWwMenu() {
+      if (!invitationId) {
+        setWwInviteMenu(null);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/wedding-website?invitationId=${encodeURIComponent(invitationId)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data?.entitled) {
+          setWwInviteMenu({
+            entitled: true,
+            published: data?.website?.status === "published",
+            publicPath: String(data?.website?.publicPath || ""),
+          });
+        } else {
+          setWwInviteMenu(null);
+        }
+      } catch {
+        if (!cancelled) setWwInviteMenu(null);
+      }
+    }
+    void loadWwMenu();
+    return () => {
+      cancelled = true;
+    };
+  }, [invitationId]);
 
   return (
     <section>
@@ -3593,6 +3631,45 @@ function GoldenActionButtons({
               <span className="text-[#B8844F]">✎</span>
             </button>
 
+            {wwInviteMenu?.entitled ? (
+              <>
+                <div className="h-px bg-[#EFE4D6]" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenInviteMenu(false);
+                    if (isDemo) {
+                      onDemoBlocked();
+                      return;
+                    }
+                    router.push(
+                      `/dashboard/wedding-website?invitationId=${encodeURIComponent(
+                        invitationId
+                      )}`
+                    );
+                  }}
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    justify-between
+                    gap-3
+                    px-5
+                    py-4
+                    text-right
+                    text-sm
+                    font-black
+                    text-[#241A14]
+                    transition
+                    hover:bg-[#FBF7F0]
+                  "
+                >
+                  <span>עריכת אתר חתונה אישי</span>
+                  <span className="text-[#B8844F]">✦</span>
+                </button>
+              </>
+            ) : null}
+
             <div className="h-px bg-[#EFE4D6]" />
 
             <button
@@ -3605,11 +3682,13 @@ function GoldenActionButtons({
                   return;
                 }
 
-                window.open(
-                  `https://www.invistimo.com/invite/${invitation.shareId}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                );
+                const path =
+                  wwInviteMenu?.entitled &&
+                  wwInviteMenu.published &&
+                  wwInviteMenu.publicPath
+                    ? wwInviteMenu.publicPath
+                    : `/invite/${invitation.shareId}`;
+                window.open(path, "_blank", "noopener,noreferrer");
               }}
               className="
                 flex
@@ -3627,7 +3706,11 @@ function GoldenActionButtons({
                 hover:bg-[#FBF7F0]
               "
             >
-              <span>צפייה בהזמנה</span>
+              <span>
+                {wwInviteMenu?.entitled && wwInviteMenu.published
+                  ? "צפייה באתר החתונה"
+                  : "צפייה בהזמנה"}
+              </span>
               <span className="text-[#241A14]">◉</span>
             </button>
           </div>
