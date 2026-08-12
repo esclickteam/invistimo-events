@@ -4,8 +4,13 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import User from "@/models/User";
+import VenueEvent from "@/models/VenueEvent";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  eventHasVerifiedVenueLink,
+  findVenueHallByAnyId,
+} from "@/lib/venues/eventVenueLinkInvariant";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -180,7 +185,7 @@ function serializeEvent(event: any) {
 }
 
 /* ============================================================
-   Sync Venue Event
+   Sync invitation pointers — NEVER promotes Regular → Venue-linked
 ============================================================ */
 
 async function syncVenueEventWithInvitation({
@@ -199,6 +204,32 @@ async function syncVenueEventWithInvitation({
 
   if (!eventObjectId || !invitationObjectId) return null;
 
+  const event = await Event.findById(eventObjectId).lean();
+  if (!event) return null;
+
+  // Always keep the user's primary invitationId for Regular + Venue customers.
+  await User.updateOne(
+    { _id: new mongoose.Types.ObjectId(userId) },
+    {
+      $set: {
+        invitationId: invitationObjectId,
+      },
+    }
+  ).catch((err) => {
+    console.warn("User invitationId sync skipped:", err);
+  });
+
+  /**
+   * Invariant:
+   * Regular Events must never receive venueAccessStatus=linked from invitation sync.
+   * Only events with a verified VenueHall + VenueEvent(linkedEventId) may update
+   * venueClient* invitation pointers — and we never invent a link here.
+   */
+  const verified = await eventHasVerifiedVenueLink(event);
+  if (!verified) {
+    return event;
+  }
+
   const updatedEvent = await Event.findByIdAndUpdate(
     eventObjectId,
     {
@@ -206,9 +237,6 @@ async function syncVenueEventWithInvitation({
         venueClientInvitationId: invitationObjectId,
         venueClientEventId: eventObjectId,
         venueClientUserId: new mongoose.Types.ObjectId(userId),
-        venueClientRecordsCount: 0,
-        venueAccessStatus: "linked",
-        venueLinkedAt: new Date(),
         updatedAt: new Date(),
       },
     },
@@ -263,6 +291,8 @@ async function createOrUpdateEventForInvitation({
   if (!shouldCreateEvent && bodyEventId) {
     const eventObjectId = toObjectId(bodyEventId);
 
+    // Do NOT match bare venueAccessStatus=linked — that lets any caller
+    // attach to an unrelated venue event and previously triggered false links.
     const existingEvent = await Event.findOne({
       _id: eventObjectId || bodyEventId,
       $or: [
@@ -270,7 +300,10 @@ async function createOrUpdateEventForInvitation({
         { userId: new mongoose.Types.ObjectId(userId) },
         { venueClientUserId: userId },
         { venueClientUserId: new mongoose.Types.ObjectId(userId) },
-        { venueAccessStatus: "linked" },
+        { "venueClient.clientUserId": userId },
+        {
+          "venueClient.clientUserId": new mongoose.Types.ObjectId(userId),
+        },
       ],
     }).lean();
 
@@ -330,7 +363,8 @@ async function createOrUpdateEventForInvitation({
   }
 
   /**
-   * יצירת/עדכון Event אמיתי עם שיוך לאולם.
+   * יצירת/עדכון Event עם שיוך לאולם — רק אם VenueHall קיים,
+   * ורק אחרי יצירת/קישור VenueEvent.linkedEventId (invariant).
    */
   const venueOwnerObjectId = toObjectId(body.venueOwnerId);
 
@@ -343,6 +377,20 @@ async function createOrUpdateEventForInvitation({
   if (!venueHallId) {
     throw new Error("MISSING_VENUE_HALL_ID");
   }
+
+  const hall = await findVenueHallByAnyId(venueHallId);
+  if (!hall) {
+    throw new Error("VENUE_HALL_NOT_FOUND");
+  }
+
+  const hallOwnerId = cleanString((hall as any).ownerId);
+  if (hallOwnerId && hallOwnerId !== String(venueOwnerObjectId)) {
+    throw new Error("VENUE_HALL_OWNER_MISMATCH");
+  }
+
+  const resolvedHallId = cleanString((hall as any).id || (hall as any)._id);
+  const resolvedHallName =
+    cleanString(body.venueHallName) || cleanString((hall as any).name);
 
   const eventTitle =
     cleanString(body.eventTitle) ||
@@ -370,7 +418,6 @@ async function createOrUpdateEventForInvitation({
   );
 
   const location = normalizeLocation(body.location);
-  const venueHallName = cleanString(body.venueHallName);
   const budgetTotal = Math.max(0, toNumber(body.budgetTotal, 0));
 
   const eventPayload: any = {
@@ -382,9 +429,10 @@ async function createOrUpdateEventForInvitation({
         : undefined,
 
     venueOwnerId: venueOwnerObjectId,
-    venueHallId,
-    venueHallName,
-    venueAccessStatus: "linked",
+    venueHallId: resolvedHallId,
+    venueHallName: resolvedHallName,
+    // linked only after VenueEvent exists (set below)
+    venueAccessStatus: "none",
     venueClientUserId: new mongoose.Types.ObjectId(userId),
 
     email: user.email || cleanString(body.email) || "noemail@placeholder.com",
@@ -422,7 +470,6 @@ async function createOrUpdateEventForInvitation({
       {
         $set: eventPayload,
         $setOnInsert: {
-          venueLinkedAt: new Date(),
           zones: [],
           planning: {
             eventDefinition: {
@@ -443,7 +490,6 @@ async function createOrUpdateEventForInvitation({
   } else {
     eventDoc = await Event.create({
       ...eventPayload,
-      venueLinkedAt: new Date(),
       zones: [],
       planning: {
         eventDefinition: {
@@ -457,7 +503,59 @@ async function createOrUpdateEventForInvitation({
     });
   }
 
-  return eventDoc.toObject ? eventDoc.toObject() : eventDoc;
+  const plain = eventDoc.toObject ? eventDoc.toObject() : eventDoc;
+  const linkedEventObjectId = toObjectId(plain._id);
+  if (!linkedEventObjectId) {
+    throw new Error("EVENT_ID_INVALID_AFTER_CREATE");
+  }
+
+  await VenueEvent.findOneAndUpdate(
+    {
+      linkedEventId: linkedEventObjectId,
+      hallId: resolvedHallId,
+      ownerId: venueOwnerObjectId,
+    },
+    {
+      $set: {
+        hallName: resolvedHallName,
+        title: eventTitle,
+        eventType,
+        clientName: cleanString(body.clientName) || cleanString(user.email),
+        clientEmail: user.email || cleanString(body.email) || "",
+        date: eventDate,
+        startTime: eventTime,
+        guests: estimatedGuests || 0,
+        budget: budgetTotal,
+        updatedAt: new Date(),
+      },
+      $setOnInsert: {
+        ownerId: venueOwnerObjectId,
+        hallId: resolvedHallId,
+        linkedEventId: linkedEventObjectId,
+        status: "confirmed",
+        paidAmount: 0,
+        createdAt: new Date(),
+      },
+    },
+    { upsert: true, new: true }
+  );
+
+  const linkedEvent = await Event.findByIdAndUpdate(
+    linkedEventObjectId,
+    {
+      $set: {
+        venueAccessStatus: "linked",
+        venueLinkedAt: new Date(),
+        venueHallId: resolvedHallId,
+        venueHallName: resolvedHallName,
+        venueOwnerId: venueOwnerObjectId,
+        updatedAt: new Date(),
+      },
+    },
+    { new: true }
+  ).lean();
+
+  return linkedEvent || plain;
 }
 
 /* ============================================================

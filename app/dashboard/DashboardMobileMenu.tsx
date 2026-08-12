@@ -14,6 +14,7 @@ import {
   Sparkles,
   ChevronLeft,
   ClipboardList,
+  Bus,
 } from "lucide-react";
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   invitationShareId?: string;
   eventId?: string;
   canOpenEventManagement?: boolean;
+  canOpenTransportationManagement?: boolean;
   isDemo?: boolean;
 };
 
@@ -33,6 +35,7 @@ export default function DashboardMobileMenu({
   invitationShareId,
   eventId,
   canOpenEventManagement = false,
+  canOpenTransportationManagement = false,
   isDemo = false,
 }: Props) {
   const router = useRouter();
@@ -148,6 +151,24 @@ export default function DashboardMobileMenu({
       badge: "ניהול",
       hidden: !canOpenEventManagement,
       onClick: openEventManagement,
+    },
+    {
+      title: "ניהול הסעות",
+      subtitle: "קווים, תחנות, נוסעים וניהול ביום האירוע",
+      icon: Bus,
+      badge: "הסעות",
+      hidden: !canOpenTransportationManagement,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        if (!eventId) {
+          go("/dashboard");
+          return;
+        }
+        go(`/dashboard/transportation?eventId=${eventId}`);
+      },
     },
     {
       title: "שליחת הודעות",

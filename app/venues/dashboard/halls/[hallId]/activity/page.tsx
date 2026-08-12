@@ -33,12 +33,29 @@ export default function VenueActivityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [q, setQ] = useState("");
+  const [action, setAction] = useState("");
+  const [targetType, setTargetType] = useState("");
+  const [actor, setActor] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
   const load = async () => {
     setLoading(true);
     setError("");
     try {
+      const qs = new URLSearchParams({ limit: "80" });
+      if (q.trim()) qs.set("q", q.trim());
+      if (action.trim()) qs.set("action", action.trim());
+      if (targetType.trim()) qs.set("targetType", targetType.trim());
+      if (actor.trim()) qs.set("actorUserId", actor.trim());
+      if (from) qs.set("from", from);
+      if (to) qs.set("to", to);
+
       const res = await fetch(
-        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/activity?limit=50`,
+        `/api/venues/dashboard/halls/${encodeURIComponent(
+          hallId
+        )}/activity?${qs.toString()}`,
         { cache: "no-store" }
       );
       const data = await res.json();
@@ -55,11 +72,12 @@ export default function VenueActivityPage() {
   };
 
   useEffect(() => {
-    if (hallId) load();
+    if (hallId) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hallId]);
 
   return (
-    <div className="mx-auto max-w-[1000px] px-4 py-6 md:px-7">
+    <div className="mx-auto max-w-[1100px] px-4 py-6 md:px-7">
       <header className="mb-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -69,16 +87,79 @@ export default function VenueActivityPage() {
               Activity Log
             </h1>
             <p className="mt-2 text-sm font-bold text-[#7f705d]">
-              יומן פעילות מהמערכת — {total} רשומות.
+              יומן פעילות מהמערכת — {total} רשומות תואמות.
             </p>
           </div>
           <button
             type="button"
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             רענון
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-3 lg:grid-cols-6">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="חיפוש חופשי"
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+          <input
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            placeholder="action (למשל lead.)"
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+          <input
+            value={targetType}
+            onChange={(e) => setTargetType(e.target.value)}
+            placeholder="entity (VenueLead...)"
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+          <input
+            value={actor}
+            onChange={(e) => setActor(e.target.value)}
+            placeholder="actor userId"
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="h-10 rounded-xl border border-[#eadfce] px-3 text-sm font-bold"
+          />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="h-10 rounded-xl bg-[#b98121] px-4 text-sm font-black text-white"
+          >
+            סינון
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setQ("");
+              setAction("");
+              setTargetType("");
+              setActor("");
+              setFrom("");
+              setTo("");
+              setTimeout(() => void load(), 0);
+            }}
+            className="h-10 rounded-xl border border-[#eadfce] px-4 text-sm font-black"
+          >
+            נקה
           </button>
         </div>
       </header>
@@ -98,10 +179,7 @@ export default function VenueActivityPage() {
         ) : activity.length === 0 ? (
           <div className="py-16 text-center">
             <Activity size={40} className="mx-auto text-[#d5b36d]" />
-            <p className="mt-3 text-sm font-black text-[#2b241c]">אין פעילות עדיין</p>
-            <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-              פעולות במערכת יופיעו כאן אוטומטית.
-            </p>
+            <p className="mt-3 text-sm font-black text-[#2b241c]">אין פעילות תואמת</p>
           </div>
         ) : (
           <ul className="divide-y divide-[#f4ead9]">
@@ -118,13 +196,13 @@ export default function VenueActivityPage() {
                     </div>
                     {entry.actorName ? (
                       <div className="mt-1 text-xs font-bold text-[#9b8a73]">
-                        על ידי {entry.actorName}
+                        {entry.actorName}
                       </div>
                     ) : null}
                   </div>
-                  <time className="text-xs font-bold text-[#9b8a73] shrink-0">
+                  <div className="text-xs font-bold text-[#9b8a73]">
                     {formatDate(entry.createdAt)}
-                  </time>
+                  </div>
                 </div>
               </li>
             ))}

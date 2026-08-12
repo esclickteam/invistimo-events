@@ -7,7 +7,12 @@ export type VenueAlertType =
   | "payments"
   | "staff"
   | "menu"
-  | "leads";
+  | "leads"
+  | "tasks"
+  | "events"
+  | "clients"
+  | "files"
+  | "day_of";
 
 export type VenueAlertDocument = {
   _id: Types.ObjectId;
@@ -19,6 +24,9 @@ export type VenueAlertDocument = {
 
   tone: VenueAlertTone;
   type: VenueAlertType;
+  linkHref?: string;
+  dedupeKey?: string;
+  meta?: Record<string, unknown>;
 
   read: boolean;
 
@@ -61,8 +69,36 @@ const VenueAlertSchema = new Schema<VenueAlertDocument>(
 
     type: {
       type: String,
-      enum: ["maintenance", "payments", "staff", "menu", "leads"],
+      enum: [
+        "maintenance",
+        "payments",
+        "staff",
+        "menu",
+        "leads",
+        "tasks",
+        "events",
+        "clients",
+        "files",
+        "day_of",
+      ],
       default: "maintenance",
+    },
+
+    linkHref: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    dedupeKey: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+
+    meta: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
 
     read: {
@@ -78,6 +114,10 @@ const VenueAlertSchema = new Schema<VenueAlertDocument>(
 
 VenueAlertSchema.index({ ownerId: 1, read: 1, createdAt: -1 });
 VenueAlertSchema.index({ ownerId: 1, hallId: 1, read: 1, createdAt: -1 });
+VenueAlertSchema.index(
+  { ownerId: 1, dedupeKey: 1 },
+  { unique: true, partialFilterExpression: { dedupeKey: { $type: "string" } } }
+);
 
 export default mongoose.models.VenueAlert ||
   mongoose.model<VenueAlertDocument>("VenueAlert", VenueAlertSchema);

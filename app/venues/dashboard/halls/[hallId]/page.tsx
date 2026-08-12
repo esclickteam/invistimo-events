@@ -318,6 +318,7 @@ export default async function VenueHallPage({ params }: Props) {
   const hallReportsHref = `/venues/dashboard/halls/${encodedHallId}/reports`;
   const hallFilesHref = `/venues/dashboard/halls/${encodedHallId}/files`;
   const hallCustomersHref = `/venues/dashboard/halls/${encodedHallId}/customers`;
+  const hallDayOfHref = `/venues/dashboard/halls/${encodedHallId}/day-of`;
   const hallSeatingTemplatesHref =
     `/venues/dashboard/halls/${encodedHallId}/seating-templates`;
 
@@ -513,6 +514,7 @@ export default async function VenueHallPage({ params }: Props) {
                 { label: "כספים", href: hallReportsHref },
                 { label: "קבצים", href: hallFilesHref },
                 { label: "לקוחות", href: hallCustomersHref },
+                { label: "יום אירוע", href: hallDayOfHref },
                 { label: "הגדרות", href: hallSettingsHref },
               ].map((tab, index) => {
                 const isActive = index === 0;
@@ -626,6 +628,7 @@ export default async function VenueHallPage({ params }: Props) {
               <div className="flex flex-wrap gap-2">
                 <QuickLink href={hallCrmHref} label="לידים CRM" />
                 <QuickLink href={hallCalendarHref} label="יומן אירועים" />
+                <QuickLink href={hallDayOfHref} label="יום אירוע / Reception" />
                 <QuickLink href={hallEmployeesHref} label="עובדים" />
                 <QuickLink href={hallReportsHref} label="דוחות" />
                 <QuickLink href={hallFilesHref} label="קבצים" />
@@ -826,13 +829,18 @@ export default async function VenueHallPage({ params }: Props) {
                 <DashboardCard
                   title="ציוד ותחזוקה"
                   icon={<Wrench size={20} />}
-                  footer="ניהול ציוד ותחזוקה"
+                  footer="ניהול מלאי ושיוך לאירועים"
                 >
-                  <EmptyFeature
-                    title="אין משימות תחזוקה"
-                    text="משימות תחזוקה, ציוד ובדיקות אולם יופיעו כאן אחרי שנחבר את המודול."
-                    icon={<Wrench size={24} />}
-                  />
+                  <p className="text-sm font-bold leading-6 text-[#7f705d]">
+                    מלאי ציוד, כמויות זמינות, שיוך לאירועים מאומתים והחזרות —
+                    במסך הציוד של האולם.
+                  </p>
+                  <Link
+                    href={`/venues/dashboard/halls/${encodedHallId}/equipment`}
+                    className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-[#1f1b17] px-5 text-sm font-black text-white"
+                  >
+                    פתיחת מסך ציוד
+                  </Link>
                 </DashboardCard>
               </div>
             </section>

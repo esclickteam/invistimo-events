@@ -224,12 +224,12 @@ export default function VenueReportsPage() {
 
           <section className="rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
             <h2 className="text-lg font-black text-[#2b241c]">סיכום אירועים</h2>
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <StatBox label="סה״כ" value={reports.totalEvents} />
               <StatBox label="עתידיים" value={reports.upcomingCount} tone="amber" />
               <StatBox label="הושלמו" value={reports.completedCount} tone="green" />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <StatBox label="אורחים" value={reports.totalGuests || 0} />
               <StatBox label="תקציב" value={reports.budgetTotal || 0} />
               <StatBox label="שולם" value={reports.paidTotal || 0} tone="green" />

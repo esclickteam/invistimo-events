@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
 import VenueMenuDishCategory from "@/models/VenueMenuDishCategory";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,15 +41,6 @@ export async function GET(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -59,8 +51,15 @@ export async function GET(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.view"
+    );
+    if (error || !ctx) return error!;
+
     const categories = await VenueMenuDishCategory.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     })
       .sort({ sortOrder: 1, createdAt: 1 })
@@ -87,15 +86,6 @@ export async function POST(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -105,6 +95,13 @@ export async function POST(req: NextRequest, context: RouteParams) {
         { status: 400 }
       );
     }
+
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
     const name = cleanString(body?.name);
@@ -120,7 +117,7 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }
 
     const existingCategory = await VenueMenuDishCategory.findOne({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
       name,
     }).lean();
@@ -134,15 +131,25 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }
 
     const count = await VenueMenuDishCategory.countDocuments({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     });
 
     const category = await VenueMenuDishCategory.create({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
       name,
       sortOrder: count,
+    });
+
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_category.create",
+      targetType: "VenueMenuDishCategory",
+      targetId: String(category._id),
+      meta: { name },
     });
 
     return NextResponse.json({
@@ -154,15 +161,19 @@ export async function POST(req: NextRequest, context: RouteParams) {
     console.error("POST menu-dish-categories failed:", error);
 
     if (error?.code === 11000) {
-      const auth = await getUserIdFromRequest(req);
       const { hallId } = await context.params;
       const cleanHallId = cleanString(hallId);
+      const { ctx } = await requireVenueAccess(
+        req,
+        cleanHallId,
+        "settings.edit"
+      );
 
       const body = await req.json().catch(() => null);
       const name = cleanString(body?.name);
 
       const existingCategory = await VenueMenuDishCategory.findOne({
-        ownerId: auth?.userId,
+        ownerId: ctx?.ownerId,
         hallId: cleanHallId,
         name,
       }).lean();
@@ -199,15 +210,6 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -234,9 +236,16 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
+
     const deleted = await VenueMenuDishCategory.findOneAndDelete({
       _id: categoryId,
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     }).lean();
 
@@ -249,6 +258,15 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
         { status: 404 }
       );
     }
+
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_category.delete",
+      targetType: "VenueMenuDishCategory",
+      targetId: categoryId,
+    });
 
     return NextResponse.json({
       success: true,

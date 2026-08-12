@@ -20,6 +20,8 @@
     "test:wedding-website:visual": "node scripts/tests/wedding-website-visual-qa.mjs",
     "staging:seed-wedding-website": "npx tsx scripts/staging/seed-wedding-website-e2e.ts",
     "staging:wedding-website-persistence": "npx tsx scripts/staging/wedding-website-persistence-e2e.ts",
+    "test:venue-safety": "node scripts/ci/venue-pr-protected-core-guard.mjs && node --test scripts/tests/venue-safety-contract.test.mjs scripts/tests/venue-regular-boundary.test.mjs scripts/tests/regular-customer-event-access.test.mjs scripts/tests/venue-day-of-and-pilot.test.mjs scripts/tests/venue-complete-gate.test.mjs scripts/tests/venue-client-seating-upsert.test.mjs scripts/tests/venue-pilot-and-gate.test.mjs",
+    "test:venues:full-scale-lab": "node scripts/staging/run-full-scale-venue-lab.mjs",
     "venues:backfill:dry": "npx tsx scripts/venues/backfill-venue-event-links.ts",
     "venues:backfill:write": "npx tsx scripts/venues/backfill-venue-event-links.ts --write",
     "venues:check-cloudinary-env": "node scripts/venues/check-cloudinary-env.mjs"

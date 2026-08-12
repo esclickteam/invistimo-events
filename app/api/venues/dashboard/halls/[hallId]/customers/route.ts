@@ -22,6 +22,10 @@ type CustomerRow = {
   notes: string;
   lastActivity: string;
   lastActivityAt: string | null;
+  leadId: string | null;
+  linkedEventId: string | null;
+  crmHref: string | null;
+  eventHref: string | null;
 };
 
 function normalizeKey(name: string, phone: string, email: string) {
@@ -35,9 +39,14 @@ function normalizeKey(name: string, phone: string, email: string) {
 function mergeCustomer(
   map: Map<string, CustomerRow>,
   key: string,
-  partial: Omit<CustomerRow, "id" | "eventCount" | "sources"> & {
+  partial: Omit<
+    CustomerRow,
+    "id" | "eventCount" | "sources" | "crmHref" | "eventHref"
+  > & {
     source?: string;
     eventCountDelta?: number;
+    crmHref?: string | null;
+    eventHref?: string | null;
   }
 ) {
   const existing = map.get(key);
@@ -55,6 +64,10 @@ function mergeCustomer(
       notes: partial.notes,
       lastActivity: partial.lastActivity,
       lastActivityAt: partial.lastActivityAt,
+      leadId: partial.leadId || null,
+      linkedEventId: partial.linkedEventId || null,
+      crmHref: partial.crmHref || null,
+      eventHref: partial.eventHref || null,
     });
     return;
   }
@@ -63,6 +76,10 @@ function mergeCustomer(
   if (partial.phone && !existing.phone) existing.phone = partial.phone;
   if (partial.email && !existing.email) existing.email = partial.email;
   if (partial.notes && !existing.notes) existing.notes = partial.notes;
+  if (partial.leadId && !existing.leadId) existing.leadId = partial.leadId;
+  if (partial.linkedEventId) existing.linkedEventId = partial.linkedEventId;
+  if (partial.crmHref && !existing.crmHref) existing.crmHref = partial.crmHref;
+  if (partial.eventHref) existing.eventHref = partial.eventHref;
 
   existing.eventCount += partial.eventCountDelta || 0;
   if (source && !existing.sources.includes(source)) {
@@ -114,16 +131,29 @@ export async function GET(req: NextRequest, { params }: Props) {
         ? new Date((lead as any).updatedAt).toISOString()
         : null;
 
+      const leadId = String((lead as any)._id);
+      const linkedFromLead = String(
+        (lead as any).linkedEventId || (lead as any).eventId || ""
+      ).trim();
+
       mergeCustomer(map, key, {
         name,
         phone,
         email,
         status: String((lead as any).status || "lead"),
         source: String((lead as any).source || "ליד"),
-        eventCountDelta: (lead as any).venueEventId || (lead as any).eventId ? 1 : 0,
+        eventCountDelta: (lead as any).venueEventId || linkedFromLead ? 1 : 0,
         notes: String((lead as any).lastActivity || ""),
         lastActivity: String((lead as any).lastActivity || "ליד"),
         lastActivityAt: updatedAt,
+        leadId,
+        linkedEventId: linkedFromLead || null,
+        crmHref: `/venues/dashboard/halls/${encodeURIComponent(
+          ctx.venueId
+        )}/crm?leadId=${encodeURIComponent(leadId)}`,
+        eventHref: linkedFromLead
+          ? `/venues/dashboard/events/${encodeURIComponent(linkedFromLead)}`
+          : null,
       });
     }
 
@@ -138,6 +168,9 @@ export async function GET(req: NextRequest, { params }: Props) {
       const updatedAt = (event as any).updatedAt
         ? new Date((event as any).updatedAt).toISOString()
         : null;
+      const linkedEventId = String(
+        (event as any).linkedEventId || (event as any).eventId || (event as any).id || ""
+      ).trim();
 
       mergeCustomer(map, key, {
         name,
@@ -149,6 +182,12 @@ export async function GET(req: NextRequest, { params }: Props) {
         notes: String((event as any).notes || ""),
         lastActivity: `אירוע: ${String((event as any).title || name)}`,
         lastActivityAt: updatedAt,
+        leadId: null,
+        linkedEventId: linkedEventId || null,
+        crmHref: null,
+        eventHref: linkedEventId
+          ? `/venues/dashboard/events/${encodeURIComponent(linkedEventId)}`
+          : null,
       });
     }
 

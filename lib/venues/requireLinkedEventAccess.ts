@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Event from "@/models/Event";
+import VenueEvent from "@/models/VenueEvent";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import {
+  assessEventVenueLink,
+  eventHasVerifiedVenueLink,
+} from "@/lib/venues/eventVenueLinkInvariant";
 import type { VenuePermission } from "@/lib/venues/permissions";
 
 /**
- * Guard for venue event-detail APIs that key by Invistimo Event._id
- * but must be scoped to a linked venue hall.
+ * Guard for venue event-detail APIs that key by Invistimo Event._id.
+ *
+ * SAFETY CONTRACT: Venue Suite may access an Event only when there is a
+ * verified VenueHall + VenueEvent.linkedEventId relation. Bare
+ * venueAccessStatus / venueHallId metadata is NOT enough.
  */
 export async function requireLinkedVenueEventAccess(
   req: NextRequest | Request,
@@ -24,6 +32,7 @@ export async function requireLinkedVenueEventAccess(
         { status: 401 }
       ),
       event: null,
+      venueEvent: null,
       ctx: null,
     };
   }
@@ -36,25 +45,32 @@ export async function requireLinkedVenueEventAccess(
         { status: 404 }
       ),
       event: null,
+      venueEvent: null,
       ctx: null,
     };
   }
 
-  const venueHallId = String((event as any).venueHallId || "");
-  const venueOwnerId = String((event as any).venueOwnerId || "");
-  const access = String((event as any).venueAccessStatus || "none");
+  const assessment = await assessEventVenueLink(event);
+  const verified = await eventHasVerifiedVenueLink(event);
 
-  if (!venueHallId || access !== "linked") {
-    // Not a venue-linked event — deny venue APIs (protect regular events)
+  if (!verified || assessment.classification !== "TRUE_VENUE_LINK") {
+    // Protect Regular Events (including those with stale venue metadata)
     return {
       error: NextResponse.json(
-        { success: false, message: "האירוע אינו מקושר לאולם" },
+        { success: false, message: "האירוע אינו מקושר לאולם באופן מאומת" },
         { status: 403 }
       ),
       event: null,
+      venueEvent: null,
       ctx: null,
     };
   }
+
+  const venueHallId =
+    assessment.venueHallId ||
+    assessment.venueEventHallId ||
+    String((event as any).venueHallId || "");
+  const venueOwnerId = String((event as any).venueOwnerId || "");
 
   const { ctx, error } = await requireVenueAccess(
     req as any,
@@ -63,7 +79,7 @@ export async function requireLinkedVenueEventAccess(
   );
 
   if (error || !ctx) {
-    return { error: error!, event: null, ctx: null };
+    return { error: error!, event: null, venueEvent: null, ctx: null };
   }
 
   // Extra isolation: membership venue must match event hall;
@@ -75,9 +91,14 @@ export async function requireLinkedVenueEventAccess(
         { status: 403 }
       ),
       event: null,
+      venueEvent: null,
       ctx: null,
     };
   }
 
-  return { error: null, event, ctx };
+  const venueEvent = assessment.venueEventId
+    ? await VenueEvent.findById(assessment.venueEventId).lean()
+    : null;
+
+  return { error: null, event, venueEvent, ctx };
 }

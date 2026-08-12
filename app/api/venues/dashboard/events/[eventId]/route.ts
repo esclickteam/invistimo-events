@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Event from "@/models/Event";
 import VenueHall from "@/models/VenueHall";
 import {
@@ -14,6 +13,9 @@ import {
   updateVenueCalendarEvent,
   type VenueEventPatch,
 } from "@/lib/venues/venueEventsService";
+import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1109,18 +1111,6 @@ export async function GET(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { eventId } = await params;
 
     if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
@@ -1133,29 +1123,24 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    let event: any = await Event.findOne({
-      _id: eventId,
-      venueOwnerId: auth.userId,
-      venueAccessStatus: "linked",
-    }).lean();
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.view"
+    );
+    if (guard.error || !guard.ctx || !guard.event) return guard.error!;
 
-    if (!event) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "האירוע לא נמצא או שאין הרשאה",
-        },
-        { status: 404 }
-      );
-    }
+    const ownerId = String(guard.ctx.ownerId);
+    let event: any = guard.event;
 
-    const synced = await syncEventToLatestInvitation(event, auth.userId);
+    const synced = await syncEventToLatestInvitation(event, ownerId);
     event = synced.event;
 
     const invitation =
-      synced.invitation || (await findInvitationForEvent(event, auth.userId));
+      synced.invitation || (await findInvitationForEvent(event, ownerId));
 
-    const hall = await getVenueHallForEvent(event, auth.userId);
+    const hall =
+      guard.ctx.hall || (await getVenueHallForEvent(event, ownerId));
     const venueCanonical = await resolveVenueEventCanonical(event, hall);
     const stats = await buildStats(event, invitation);
 
@@ -1194,18 +1179,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { eventId } = await params;
 
     if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
@@ -1218,11 +1191,15 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       );
     }
 
-    let existingEvent = await Event.findOne({
-      _id: eventId,
-      venueOwnerId: auth.userId,
-      venueAccessStatus: "linked",
-    });
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.edit"
+    );
+    if (guard.error || !guard.ctx || !guard.event) return guard.error!;
+
+    const ownerId = String(guard.ctx.ownerId);
+    let existingEvent = await Event.findById(eventId);
 
     if (!existingEvent) {
       return NextResponse.json(
@@ -1238,7 +1215,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     const syncedBeforePatch = await syncEventToLatestInvitation(
       existingEvent.toObject ? existingEvent.toObject() : existingEvent,
-      auth.userId
+      ownerId
     );
 
     const invitation = syncedBeforePatch.invitation;
@@ -1263,7 +1240,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       );
     }
 
-    const hallBeforePatch = await getVenueHallForEvent(workingEvent, auth.userId);
+    const hallBeforePatch = await getVenueHallForEvent(workingEvent, ownerId);
     const venueCanonicalBefore = await resolveVenueEventCanonical(
       workingEvent,
       hallBeforePatch
@@ -1279,18 +1256,17 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     // When a linked VenueEvent exists, patch lifecycle (+ synced fields) via service
     if (venueCanonicalBefore?.venueEvent?._id) {
-      const ownerId =
-        cleanString(workingEvent.venueOwnerId) ||
-        cleanString(auth.userId);
+      const tenantOwnerId =
+        cleanString(workingEvent.venueOwnerId) || cleanString(ownerId);
       const venueId =
         cleanString(workingEvent.venueHallId) ||
         cleanString(hallBeforePatch?.id || hallBeforePatch?._id) ||
         cleanString(venueCanonicalBefore.venueEvent.hallId);
 
       if (
-        ownerId &&
+        tenantOwnerId &&
         venueId &&
-        mongoose.Types.ObjectId.isValid(ownerId)
+        mongoose.Types.ObjectId.isValid(tenantOwnerId)
       ) {
         const venuePatch: VenueEventPatch = {};
 
@@ -1356,7 +1332,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
         if (Object.keys(venuePatch).length > 0) {
           const venueUpdate = await updateVenueCalendarEvent({
-            ownerId,
+            ownerId: tenantOwnerId,
             venueId,
             venueEventId: String(venueCanonicalBefore.venueEvent._id),
             patch: venuePatch,
@@ -1485,7 +1461,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     const ensuredAfterSave = await ensureEventVenueFields(
       existingEvent.toObject ? existingEvent.toObject() : existingEvent,
-      auth.userId
+      ownerId
     );
 
     if (invitation?._id) {
@@ -1570,15 +1546,43 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     const updatedEvent = await Event.findById(existingEvent._id).lean();
 
     const syncedAfterPatch = updatedEvent
-      ? await syncEventToLatestInvitation(updatedEvent, auth.userId)
+      ? await syncEventToLatestInvitation(updatedEvent, ownerId)
       : { event: ensuredAfterSave, invitation };
 
     const finalEvent = syncedAfterPatch.event || updatedEvent || ensuredAfterSave;
     const finalInvitation = syncedAfterPatch.invitation || invitation;
 
-    const hall = await getVenueHallForEvent(finalEvent, auth.userId);
+    const hall = await getVenueHallForEvent(finalEvent, ownerId);
     const venueCanonical = await resolveVenueEventCanonical(finalEvent, hall);
     const stats = await buildStats(finalEvent, finalInvitation);
+
+    await writeVenueAudit({
+      venueId: String(guard.ctx.venueId),
+      ownerId: String(guard.ctx.ownerId),
+      actorUserId: String(guard.ctx.auth.userId),
+      action: "event.update",
+      targetType: "Event",
+      targetId: String(eventId),
+      meta: {
+        title: requestedTitle || undefined,
+        date: requestedDate || undefined,
+        status: lifecycleStatus || requestedStatus || undefined,
+        venueLifecycleStatus: lifecycleStatus || undefined,
+      },
+    });
+
+    if (lifecycleStatus) {
+      await createVenueAlert({
+        ownerId: String(guard.ctx.ownerId),
+        hallId: String(guard.ctx.venueId),
+        title: `סטטוס אירוע עודכן: ${lifecycleStatus}`,
+        description: requestedTitle || cleanString((finalEvent as any)?.title) || "אירוע",
+        tone: lifecycleStatus === "cancelled" ? "rose" : "amber",
+        type: "events",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(String(eventId))}`,
+        dedupeKey: `event-status:${eventId}:${lifecycleStatus}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -1616,18 +1620,6 @@ export async function DELETE(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { eventId } = await params;
 
     if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
@@ -1640,11 +1632,14 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       );
     }
 
-    const event = await Event.findOne({
-      _id: eventId,
-      venueOwnerId: auth.userId,
-      venueAccessStatus: "linked",
-    });
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.delete"
+    );
+    if (guard.error || !guard.ctx || !guard.event) return guard.error!;
+
+    const event = await Event.findById(eventId);
 
     if (!event) {
       return NextResponse.json(
@@ -1656,10 +1651,20 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       );
     }
 
+    // Soft-unlink from venue only — do not delete Event / Invitation / Guests
     event.venueAccessStatus = "disabled";
     event.venueLinkedAt = event.venueLinkedAt || new Date();
 
     await event.save();
+
+    await writeVenueAudit({
+      venueId: String(guard.ctx.venueId),
+      ownerId: String(guard.ctx.ownerId),
+      actorUserId: String(guard.ctx.auth.userId),
+      action: "event.unlink",
+      targetType: "Event",
+      targetId: String(eventId),
+    });
 
     return NextResponse.json({
       success: true,

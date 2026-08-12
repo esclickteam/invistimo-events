@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
+import TransportationGuestSection from "@/app/components/TransportationGuestSection";
 
 /* ============================================================
    MENU LABELS
@@ -938,6 +939,13 @@ export default function PublicInvitePage({ params }: any) {
           <div className="mt-7 w-full max-w-md rounded-[30px] border border-emerald-100 bg-white px-6 py-6 text-center font-black text-emerald-700 shadow-[0_20px_70px_rgba(92,66,38,0.12)]">
             ✓ תודה! תשובתך התקבלה
           </div>
+        )}
+
+        {shareId && !isStaffPreview && (
+          <TransportationGuestSection
+            shareId={shareId}
+            guestToken={cleanStr(selectedGuest?.token || token) || undefined}
+          />
         )}
 
         <div className="mt-7 w-full max-w-md">

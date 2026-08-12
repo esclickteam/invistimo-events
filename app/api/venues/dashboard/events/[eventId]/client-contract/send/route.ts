@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
+import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,12 +148,24 @@ export async function POST(
       );
     }
 
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.edit"
+    );
+    if (guard.error || !guard.ctx) return guard.error!;
+
     const body = await req.json().catch(() => ({}));
 
     const contractId = String(body?.contractId || "").trim();
-    const hallId = String(body?.hallId || "").trim();
-    const hallName = String(body?.hallName || "").trim();
-    const eventTitle = String(body?.eventTitle || "").trim();
+    const hallId =
+      String(body?.hallId || "").trim() || String(guard.ctx.venueId || "");
+    const hallName =
+      String(body?.hallName || "").trim() ||
+      String((guard.ctx.hall as any)?.name || "");
+    const eventTitle =
+      String(body?.eventTitle || "").trim() ||
+      String((guard.event as any)?.title || "");
     const clientPhone = normalizePhone(body?.clientPhone);
 
     if (!contractId) {
@@ -227,6 +242,30 @@ export async function POST(
       signingLink,
       contractId: serialized.id,
     });
+
+    try {
+      await writeVenueAudit({
+        venueId: String(guard.ctx.venueId),
+        ownerId: String(guard.ctx.ownerId),
+        actorUserId: String(guard.ctx.auth.userId),
+        action: "contract.send",
+        targetType: "ClientContract",
+        targetId: serialized.id,
+        meta: { eventId, phone: clientPhone },
+      });
+      await createVenueAlert({
+        ownerId: String(guard.ctx.ownerId),
+        hallId: String(guard.ctx.venueId),
+        title: "חוזה נשלח ללקוח",
+        description: clientPhone || eventId,
+        tone: "violet",
+        type: "files",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(eventId)}`,
+        dedupeKey: `contract-send:${serialized.id}`,
+      });
+    } catch {
+      /* audit best-effort */
+    }
 
     return NextResponse.json({
       success: true,
