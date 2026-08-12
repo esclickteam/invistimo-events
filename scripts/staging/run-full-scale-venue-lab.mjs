@@ -53,7 +53,7 @@ const ROLES = [
 ];
 
 const VENUE_DEFS = [
-  { key: "A", name: "Hall A Garden", capacity: 400, events: 3, guestsBig: true },
+  { key: "A", name: "Hall A Garden", capacity: 400, couples: 3, guestsBig: true },
   { key: "B", name: "Hall B Ballroom", capacity: 280, couples: 3, guestsBig: false },
   { key: "C", name: "Hall C Rooftop", capacity: 180, couples: 2, guestsBig: false },
   { key: "D", name: "Hall D Boutique", capacity: 120, couples: 2, guestsBig: true },
