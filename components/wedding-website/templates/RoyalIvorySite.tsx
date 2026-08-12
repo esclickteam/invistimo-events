@@ -12,6 +12,7 @@ import WeddingActionBar from "../shared/WeddingActionBar";
 import { useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import GuestIdentifyRsvp from "../shared/GuestIdentifyRsvp";
 import {
   type BlockTone,
   SiteSection,
@@ -291,62 +292,74 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
             onKeyDown={() => setEnvelopeTouched(true)}
             role="presentation"
           >
-            <EnvelopeRsvp accent={BURGUNDY} open={envelopeOpen}>
-              <div style={{ fontFamily: "system-ui, sans-serif" }}>
-                {rsvp.sent ? (
-                  <p className="py-6 text-center text-lg text-[#4A1C2F]">תודה! קיבלנו את אישור ההגעה.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {rsvp.guestName ? (
-                      <p className="text-center text-sm text-[#7A5C66]">שלום {rsvp.guestName}</p>
-                    ) : null}
-                    <div className="flex gap-3">
-                      {(["yes", "no"] as const).map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => {
-                            setEnvelopeTouched(true);
-                            rsvp.setRsvp(v);
-                          }}
-                          className={`flex-1 py-3 text-sm font-bold ${
-                            rsvp.rsvp === v
-                              ? "bg-[#4A1C2F] text-[#F7F1E6]"
-                              : "border border-[#4A1C2F]/30 text-[#7A5C66]"
-                          }`}
-                        >
-                          {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                        </button>
-                      ))}
-                    </div>
-                    {rsvp.rsvp === "yes" ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <span className="text-sm text-[#7A5C66]">מספר אורחים</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          value={rsvp.count}
-                          onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                          className="w-20 border border-[#4A1C2F]/30 px-3 py-2 text-center"
-                        />
+            <div className="mb-6 space-y-4 border border-[#4A1C2F]/15 bg-[#F7F1E6] p-6">
+              <GuestIdentifyRsvp
+                accent={BURGUNDY}
+                identified={rsvp.identified}
+                onBind={(token, meta) => {
+                  setEnvelopeTouched(true);
+                  rsvp.bindToken?.(token, meta);
+                }}
+              />
+            </div>
+            {rsvp.identified ? (
+              <EnvelopeRsvp accent={BURGUNDY} open={envelopeOpen || rsvp.identified}>
+                <div style={{ fontFamily: "system-ui, sans-serif" }}>
+                  {rsvp.sent ? (
+                    <p className="py-6 text-center text-lg text-[#4A1C2F]">תודה! קיבלנו את אישור ההגעה.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {rsvp.guestName ? (
+                        <p className="text-center text-sm text-[#7A5C66]">שלום {rsvp.guestName}</p>
+                      ) : null}
+                      <div className="flex gap-3">
+                        {(["yes", "no"] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => {
+                              setEnvelopeTouched(true);
+                              rsvp.setRsvp(v);
+                            }}
+                            className={`flex-1 py-3 text-sm font-bold ${
+                              rsvp.rsvp === v
+                                ? "bg-[#4A1C2F] text-[#F7F1E6]"
+                                : "border border-[#4A1C2F]/30 text-[#7A5C66]"
+                            }`}
+                          >
+                            {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
+                          </button>
+                        ))}
                       </div>
-                    ) : null}
-                    {rsvp.error ? (
-                      <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
-                    ) : null}
-                    <button
-                      type="button"
-                      disabled={!rsvp.rsvp || rsvp.saving}
-                      onClick={() => void rsvp.submit()}
-                      className="w-full bg-[#4A1C2F] py-3.5 text-sm font-bold text-[#F7F1E6] disabled:opacity-40"
-                    >
-                      {rsvp.saving ? "שולח..." : "שליחה"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </EnvelopeRsvp>
+                      {rsvp.rsvp === "yes" ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-sm text-[#7A5C66]">מספר אורחים</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={rsvp.count}
+                            onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                            className="w-20 border border-[#4A1C2F]/30 px-3 py-2 text-center"
+                          />
+                        </div>
+                      ) : null}
+                      {rsvp.error ? (
+                        <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={!rsvp.rsvp || rsvp.saving}
+                        onClick={() => void rsvp.submit()}
+                        className="w-full bg-[#4A1C2F] py-3.5 text-sm font-bold text-[#F7F1E6] disabled:opacity-40"
+                      >
+                        {rsvp.saving ? "שולח..." : "שליחה"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </EnvelopeRsvp>
+            ) : null}
           </div>
         </div>
       </SiteSection>
