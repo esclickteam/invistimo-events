@@ -202,9 +202,16 @@ async function main() {
         (desktop?.brokenVideos.length || 0) > 0 ||
         (mobile?.brokenImages.length || 0) > 0 ||
         (mobile?.emptyGalleryCards || 0) > 0;
+      const lengthFail = !(desktop?.fullLengthPass);
+      const hScroll =
+        desktop?.hasHorizontalOverflow || mobile?.hasHorizontalOverflow;
       return {
         id,
         media: mediaFail ? "FAIL" : "PASS",
+        fullLength: lengthFail ? "FAIL" : "PASS",
+        horizontalScroll: hScroll ? "FAIL" : "PASS",
+        sectionCount: desktop?.sectionCount || 0,
+        scrollHeight: desktop?.scrollHeight || 0,
         desktop,
         mobile,
       };
@@ -213,22 +220,33 @@ async function main() {
       brokenImages: results.reduce((n, r) => n + r.brokenImages.length, 0),
       brokenVideos: results.reduce((n, r) => n + r.brokenVideos.length, 0),
       emptyGalleryCards: results.reduce((n, r) => n + r.emptyGalleryCards, 0),
+      horizontalScrollFails: results.filter((r) => r.hasHorizontalOverflow).length,
+      fullLengthFails: TEMPLATES.filter((id) => {
+        const d = results.find((r) => r.label === `${id}:desktop`);
+        return !d?.fullLengthPass;
+      }).length,
     },
   };
 
   fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify(summary, null, 2));
   console.log("\n=== SUMMARY ===");
   for (const t of summary.templates) {
-    console.log(`TEMPLATE ${t.id} media = ${t.media}`);
+    console.log(
+      `TEMPLATE ${t.id} media=${t.media} fullLength=${t.fullLength} sections=${t.sectionCount} height=${t.scrollHeight} hScroll=${t.horizontalScroll}`
+    );
   }
   console.log(`BROKEN IMAGES = ${summary.totals.brokenImages}`);
   console.log(`BROKEN VIDEOS = ${summary.totals.brokenVideos}`);
   console.log(`EMPTY GALLERY CARDS = ${summary.totals.emptyGalleryCards}`);
+  console.log(`HORIZONTAL SCROLL FAILS = ${summary.totals.horizontalScrollFails}`);
+  console.log(`FULL LENGTH FAILS = ${summary.totals.fullLengthFails}`);
 
   if (
     summary.totals.brokenImages > 0 ||
     summary.totals.brokenVideos > 0 ||
-    summary.totals.emptyGalleryCards > 0
+    summary.totals.emptyGalleryCards > 0 ||
+    summary.totals.horizontalScrollFails > 0 ||
+    summary.totals.fullLengthFails > 0
   ) {
     process.exit(1);
   }

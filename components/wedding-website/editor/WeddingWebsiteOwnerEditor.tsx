@@ -587,6 +587,32 @@ export default function WeddingWebsiteOwnerEditor({
                     }
                   />
                 </Field>
+                <Field label="לינה (שם | הערה)">
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    value={(draftContent.accommodations || [])
+                      .map((a) => `${a.name} | ${a.note}`)
+                      .join("\n")}
+                    onChange={(e) =>
+                      updateField(
+                        "accommodations",
+                        e.target.value
+                          .split("\n")
+                          .map((line) => line.trim())
+                          .filter(Boolean)
+                          .map((line) => {
+                            const [name, ...rest] = line.split("|");
+                            return {
+                              name: (name || "").trim(),
+                              note: rest.join("|").trim(),
+                              link: "",
+                            };
+                          })
+                      )
+                    }
+                  />
+                </Field>
                 <Field label="מתנות">
                   <textarea
                     className={inputClass}
