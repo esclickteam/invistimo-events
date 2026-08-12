@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import User from "@/models/User";
 import Group from "@/models/Group";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
@@ -406,11 +405,6 @@ async function cancelCallTasksForDeletedGuest(guest: any) {
 /* ============================================
    Helpers
 ============================================ */
-async function getMaxGuestsForInvitationOwner(ownerId: string) {
-  const owner = await User.findById(ownerId).lean();
-  return owner?.planLimits?.maxGuests ?? 100;
-}
-
 async function getInvitationProducerPermission(auth: any, invitation: any) {
   const producerIdStr = invitation.producerId?.toString?.() || null;
 
@@ -1378,6 +1372,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const beforeGroupId = guest.groupId ? String(guest.groupId) : null;
 
+    // קישור אישי נשמר לפי guest.token + invitation.shareId.
+    // אסור לשנות אותם מעריכת אורח — גם אם נשלחו ב-payload.
+    // (RSVP worker / שליחות משתמשים באותו token קיים.)
+
     /* ===============================
        שדות כלליים
     =============================== */
@@ -1473,43 +1471,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ===============================
-       guestsCount
+       guestsCount (כמות מוזמנים ברשומה)
+       המכסה היא על מספר רשומות (בעת הוספה), לא על סכום guestsCount.
+       לכן בעריכה מאפשרים לשנות את כמות המוזמנים בחופשיות.
+       token / קישור אישי — לא נוגעים כאן לעולם.
     =============================== */
     if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
-      const nextGuestsCount = data.guestsCount;
-      const prevGuestsCount = guest.guestsCount ?? 1;
-
-      if (nextGuestsCount !== prevGuestsCount) {
-        const maxGuests = await getMaxGuestsForInvitationOwner(
-          invitation.ownerId.toString()
-        );
-
-        const aggregate = await InvitationGuest.aggregate([
-          { $match: { invitationId: invitation._id } },
-          { $group: { _id: null, total: { $sum: "$guestsCount" } } },
-        ]);
-
-        const currentTotalGuestsCount = aggregate?.[0]?.total ?? 0;
-
-        const nextTotalGuestsCount =
-          currentTotalGuestsCount - prevGuestsCount + nextGuestsCount;
-
-        if (nextTotalGuestsCount > maxGuests) {
-          return NextResponse.json(
-            {
-              success: false,
-              code: "PLAN_GUEST_LIMIT_EXCEEDED",
-              error: `לא ניתן לעדכן. חבילת המשתמש מוגבלת ל-${maxGuests} מוזמנים (כמות מוזמנים כוללת).`,
-              limit: maxGuests,
-              currentTotal: currentTotalGuestsCount,
-              requestedTotal: nextTotalGuestsCount,
-            },
-            { status: 409 }
-          );
-        }
-
-        guest.guestsCount = nextGuestsCount;
-      }
+      guest.guestsCount = Math.max(1, Math.floor(data.guestsCount));
     }
 
     /* ===============================
