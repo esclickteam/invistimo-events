@@ -31,7 +31,6 @@ import {
 const CYAN = "#5EEAD4";
 const VIOLET = "#A78BFA";
 const MUTED = "#8B97B8";
-const INK = "#070B14";
 
 const tone: BlockTone = {
   accent: CYAN,
