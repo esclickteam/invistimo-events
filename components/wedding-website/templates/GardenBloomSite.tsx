@@ -13,6 +13,7 @@ import PolaroidGallery from "../illustrations/PolaroidGallery";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
+import GuestIdentifyRsvp from "../shared/GuestIdentifyRsvp";
 import {
   type BlockTone,
   SiteSection,
@@ -211,57 +212,66 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
           {c.rsvpText ? (
             <p className="mb-4 text-center text-sm text-[#4A6B52]">{c.rsvpText}</p>
           ) : null}
-          <EnvelopeRsvp accent={GREEN} open={rsvp.rsvp === "yes" || rsvp.sent}>
-            {rsvp.sent ? (
-              <p className="text-center text-lg text-[#6B9E78]">תודה! קיבלנו את אישור ההגעה.</p>
-            ) : (
-              <div className="space-y-4">
-                {rsvp.guestName ? (
-                  <p className="text-center text-sm text-[#4A6B52]">שלום {rsvp.guestName}</p>
-                ) : null}
-                <div className="flex gap-3">
-                  {(["yes", "no"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => rsvp.setRsvp(v)}
-                      className={`flex-1 rounded-full py-3 text-sm font-bold ${
-                        rsvp.rsvp === v
-                          ? "bg-[#6B9E78] text-white"
-                          : "border border-[#6B9E78]/40 text-[#4A6B52]"
-                      }`}
-                    >
-                      {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                    </button>
-                  ))}
-                </div>
-                {rsvp.rsvp === "yes" ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="text-sm text-[#4A6B52]">מספר אורחים</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={rsvp.count}
-                      onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                      className="w-20 rounded-full border border-[#6B9E78]/40 px-3 py-2 text-center"
-                    />
+          <div className="mb-6 space-y-4 rounded-[1.75rem] border border-[#6B9E78]/30 bg-white/85 p-6">
+            <GuestIdentifyRsvp
+              accent={GREEN}
+              identified={rsvp.identified}
+              onBind={(token, meta) => rsvp.bindToken?.(token, meta)}
+            />
+          </div>
+          {rsvp.identified ? (
+            <EnvelopeRsvp accent={GREEN} open={rsvp.rsvp === "yes" || rsvp.sent}>
+              {rsvp.sent ? (
+                <p className="text-center text-lg text-[#6B9E78]">תודה! קיבלנו את אישור ההגעה.</p>
+              ) : (
+                <div className="space-y-4">
+                  {rsvp.guestName ? (
+                    <p className="text-center text-sm text-[#4A6B52]">שלום {rsvp.guestName}</p>
+                  ) : null}
+                  <div className="flex gap-3">
+                    {(["yes", "no"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => rsvp.setRsvp(v)}
+                        className={`flex-1 rounded-full py-3 text-sm font-bold ${
+                          rsvp.rsvp === v
+                            ? "bg-[#6B9E78] text-white"
+                            : "border border-[#6B9E78]/40 text-[#4A6B52]"
+                        }`}
+                      >
+                        {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
+                      </button>
+                    ))}
                   </div>
-                ) : null}
-                {rsvp.error ? (
-                  <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={!rsvp.rsvp || rsvp.saving}
-                  onClick={() => void rsvp.submit()}
-                  className="w-full rounded-full bg-[#6B9E78] py-3.5 text-sm font-bold text-white disabled:opacity-40"
-                >
-                  {rsvp.saving ? "שולח..." : "שליחה"}
-                </button>
-              </div>
-            )}
-          </EnvelopeRsvp>
+                  {rsvp.rsvp === "yes" ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-sm text-[#4A6B52]">מספר אורחים</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={rsvp.count}
+                        onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                        className="w-20 rounded-full border border-[#6B9E78]/40 px-3 py-2 text-center"
+                      />
+                    </div>
+                  ) : null}
+                  {rsvp.error ? (
+                    <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={!rsvp.rsvp || rsvp.saving}
+                    onClick={() => void rsvp.submit()}
+                    className="w-full rounded-full bg-[#6B9E78] py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                  >
+                    {rsvp.saving ? "שולח..." : "שליחה"}
+                  </button>
+                </div>
+              )}
+            </EnvelopeRsvp>
+          ) : null}
         </div>
       </SiteSection>
 
