@@ -285,7 +285,77 @@ export default function VenueEmployeesPermissionsPage() {
         ) : null}
 
         <section className="overflow-hidden rounded-[28px] border border-[#eadfce] bg-white shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="space-y-2 p-3 md:hidden">
+            {loading ? (
+              <div className="py-10 text-center">
+                <Loader2 className="mx-auto animate-spin text-[#b98121]" />
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="py-10 text-center text-sm font-bold text-[#8a7b68]">
+                אין עדיין משתמשי מערכת לאולם זה
+              </div>
+            ) : (
+              rows.map((row) => (
+                <article
+                  key={`card-${row.membershipId}`}
+                  className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-black text-[#2b241c]">
+                        {row.name || "—"}
+                      </div>
+                      <div className="mt-1 truncate text-xs font-bold text-[#6f6252]">
+                        {row.email || "—"}
+                      </div>
+                    </div>
+                    <span
+                      className={[
+                        "shrink-0 rounded-full px-3 py-1 text-xs font-black",
+                        row.status === "active"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-rose-50 text-rose-700",
+                      ].join(" ")}
+                    >
+                      {row.status === "active" ? "פעיל" : "חסום"}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs font-bold text-[#8a7b68]">
+                    {VENUE_ROLE_LABELS[row.role] || row.role}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(row)}
+                      className="min-h-10 rounded-xl border border-[#eadfce] bg-white px-3 text-xs font-black"
+                    >
+                      עריכה
+                    </button>
+                    {row.status === "active" ? (
+                      <button
+                        type="button"
+                        onClick={() => requestDisable(row)}
+                        className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-rose-200 px-3 text-xs font-black text-rose-700"
+                      >
+                        <Lock size={12} />
+                        חסימה
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setStatus(row.membershipId, "enable")}
+                        className="min-h-10 rounded-xl border border-emerald-200 px-3 text-xs font-black text-emerald-700"
+                      >
+                        פתיחה
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full text-right text-sm">
               <thead className="bg-[#fbf5ea] text-[#7f705d]">
                 <tr>

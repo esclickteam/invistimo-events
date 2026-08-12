@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
+  ClipboardList,
   FileText,
   FolderOpen,
   LayoutDashboard,
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "סקירה", segment: "", icon: LayoutDashboard, permission: "dashboard.view" },
   { label: "לידים", segment: "crm", icon: FileText, permission: "leads.view" },
   { label: "אירועים / יומן", segment: "calendar", icon: CalendarDays, permission: "events.view" },
+  { label: "יום האירוע", segment: "day-of", icon: ClipboardList, permission: "events.view" },
   { label: "לקוחות", segment: "customers", icon: UsersRound, permission: "guests.view" },
   { label: "תפריטים", segment: "menus", icon: UtensilsCrossed, permission: "settings.view" },
   { label: "הושבה", segment: "seating-templates", icon: Grid3X3, permission: "seating.view" },
@@ -95,6 +97,24 @@ function writeCollapsedPreference(collapsed: boolean) {
   } catch {
     /* ignore */
   }
+}
+
+function RailTooltip({
+  label,
+  show,
+}: {
+  label: string;
+  show: boolean;
+}) {
+  if (!show) return null;
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 hidden -translate-y-1/2 whitespace-nowrap rounded-xl bg-[#1c1712] px-3 py-1.5 text-xs font-bold text-[#f7efe3] opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100 lg:block"
+    >
+      {label}
+    </span>
+  );
 }
 
 export default function VenueShell({
@@ -202,6 +222,16 @@ export default function VenueShell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Lock body scroll while mobile drawer is open
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
       const next = !prev;
@@ -256,12 +286,15 @@ export default function VenueShell({
     router.refresh();
   };
 
-  // On mobile overlay the drawer is always "expanded" (labels visible).
-  // On lg+ the sticky rail respects collapsed.
+  // Desktop/tablet sticky rail respects collapsed; mobile drawer always shows labels.
   const railCollapsed = collapsed;
+  const showIconTooltips = railCollapsed;
 
   return (
-    <div dir="rtl" className="relative min-h-screen bg-[#f6efe4] text-[#1f2933]">
+    <div
+      dir="rtl"
+      className="relative min-h-screen overflow-x-hidden bg-[#f6efe4] text-[#1f2933]"
+    >
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -right-32 top-0 h-[460px] w-[460px] rounded-full bg-[#e8c982]/25 blur-3xl" />
         <div className="absolute -left-40 top-40 h-[560px] w-[560px] rounded-full bg-[#b98121]/10 blur-3xl" />
@@ -273,7 +306,7 @@ export default function VenueShell({
             type="button"
             aria-label="סגירת תפריט"
             onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/35 lg:hidden"
           />
         )}
 
@@ -281,14 +314,14 @@ export default function VenueShell({
           aria-label="תפריט ניהול אולם"
           data-collapsed={railCollapsed ? "true" : "false"}
           className={[
-            "fixed right-0 top-0 z-50 flex h-full flex-col border-l border-[#eadfce] bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-xl transition-[width,transform] duration-300 ease-out",
+            "fixed right-0 top-0 z-50 flex h-[100dvh] flex-col border-l border-[#eadfce] bg-white/95 shadow-2xl shadow-black/5 backdrop-blur-xl transition-[width,transform,padding] duration-300 ease-out",
             "lg:sticky lg:top-0 lg:z-40 lg:h-screen lg:translate-x-0 lg:shadow-none",
-            // Mobile: full drawer width when open
-            "w-[min(290px,88vw)] px-4 py-4",
+            // Mobile: drawer width when open (never a permanent icon rail)
+            "w-[min(300px,88vw)] px-4 py-4",
             mobileOpen ? "translate-x-0" : "translate-x-full",
-            // Desktop widths
+            // Desktop / tablet rail widths
             railCollapsed
-              ? "lg:w-[76px] lg:px-2 lg:py-4"
+              ? "lg:w-[72px] lg:px-2 lg:py-4"
               : "lg:w-[290px] lg:px-5 lg:py-5",
           ].join(" ")}
         >
@@ -313,11 +346,16 @@ export default function VenueShell({
                 ].join(" ")}
               >
                 {railCollapsed ? (
-                  <span className="hidden lg:inline" title="INVISTIMO Venue Suite">
+                  <span
+                    className="hidden lg:inline"
+                    title="INVISTIMO Venue Suite"
+                  >
                     INV
                   </span>
                 ) : null}
-                <span className={railCollapsed ? "lg:hidden" : ""}>INVISTIMO</span>
+                <span className={railCollapsed ? "lg:hidden" : ""}>
+                  INVISTIMO
+                </span>
               </div>
               <div
                 className={[
@@ -340,7 +378,7 @@ export default function VenueShell({
                   railCollapsed ? "הרחב תפריט צד" : "כווץ תפריט צד לאייקונים"
                 }
                 title={railCollapsed ? "הרחב תפריט" : "כווץ לאייקונים"}
-                className="hidden h-9 w-9 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:border-[#d5b36d] hover:bg-[#fbf5ea] hover:text-[#b98121] lg:flex"
+                className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:border-[#d5b36d] hover:bg-[#fbf5ea] hover:text-[#b98121] lg:flex"
               >
                 {railCollapsed ? (
                   <ChevronsLeft size={18} />
@@ -353,7 +391,7 @@ export default function VenueShell({
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="סגור תפריט"
-                className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] lg:hidden"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] lg:hidden"
               >
                 <X size={18} />
               </button>
@@ -364,11 +402,11 @@ export default function VenueShell({
             <button
               type="button"
               onClick={() => setSwitcherOpen((v) => !v)}
-              title={displayName}
+              aria-label={`החלף אולם · ${displayName}`}
               aria-expanded={switcherOpen}
               aria-haspopup="listbox"
               className={[
-                "flex w-full items-center rounded-3xl border border-[#eadfce] bg-[#fbfaf7] text-right transition hover:border-[#d5b36d]",
+                "group relative flex w-full items-center rounded-3xl border border-[#eadfce] bg-[#fbfaf7] text-right transition hover:border-[#d5b36d]",
                 railCollapsed
                   ? "justify-center gap-0 p-2 lg:rounded-2xl"
                   : "gap-3 p-3",
@@ -379,7 +417,7 @@ export default function VenueShell({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={hallImage}
-                    alt={displayName}
+                    alt=""
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -417,6 +455,7 @@ export default function VenueShell({
                   ].join(" ")}
                 />
               )}
+              <RailTooltip label={displayName} show={showIconTooltips} />
             </button>
 
             {switcherOpen && !loadingVenues && venues.length === 0 && (
@@ -424,7 +463,7 @@ export default function VenueShell({
                 className={[
                   "absolute z-50 rounded-2xl border border-[#eadfce] bg-white p-4 shadow-xl",
                   railCollapsed
-                    ? "left-auto right-0 top-[calc(100%+6px)] w-[240px] lg:right-full lg:top-0 lg:ml-0 lg:mr-2"
+                    ? "left-auto right-0 top-[calc(100%+6px)] w-[240px] lg:right-full lg:top-0 lg:mr-2"
                     : "left-0 right-0 top-[calc(100%+6px)]",
                 ].join(" ")}
               >
@@ -460,7 +499,7 @@ export default function VenueShell({
                     aria-selected={venue.venueId === hallId}
                     onClick={() => switchVenue(venue.venueId)}
                     className={[
-                      "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-right text-sm font-bold transition",
+                      "flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-right text-sm font-bold transition",
                       venue.venueId === hallId
                         ? "bg-[#fff8eb] text-[#9f6f1a]"
                         : "text-[#6f6252] hover:bg-[#fbf5ea]",
@@ -472,7 +511,7 @@ export default function VenueShell({
                 ))}
                 <Link
                   href="/venues/dashboard"
-                  className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                  className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-[#6f6252] transition hover:bg-[#fbf5ea]"
                   onClick={() => setSwitcherOpen(false)}
                 >
                   <LayoutDashboard size={16} />
@@ -494,14 +533,13 @@ export default function VenueShell({
                 <Link
                   key={item.label}
                   href={href}
-                  title={item.label}
                   aria-label={item.label}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => setMobileOpen(false)}
                   className={[
-                    "group flex h-12 w-full items-center rounded-2xl text-sm font-extrabold transition",
+                    "group relative flex min-h-12 w-full items-center rounded-2xl text-sm font-extrabold transition",
                     railCollapsed
-                      ? "justify-center gap-0 px-0 lg:h-11"
+                      ? "justify-center gap-0 px-0 lg:h-11 lg:min-h-11"
                       : "gap-3 px-4",
                     isActive
                       ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
@@ -517,6 +555,7 @@ export default function VenueShell({
                   >
                     {item.label}
                   </span>
+                  <RailTooltip label={item.label} show={showIconTooltips} />
                 </Link>
               );
             })}
@@ -531,20 +570,22 @@ export default function VenueShell({
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#c58b2c] shadow-sm">
               <UtensilsCrossed size={19} />
             </div>
-            <div className="mt-3 text-sm font-black text-[#2b241c]">ניהול אולם</div>
+            <div className="mt-3 text-sm font-black text-[#2b241c]">
+              ניהול אולם
+            </div>
             <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
               לידים, אירועים, לקוחות, צוות ודוחות — כל האולם במקום אחד.
             </p>
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1">
-          <div className="sticky top-[56px] z-30 flex items-center gap-3 border-b border-[#eadfce] bg-white/80 px-3 py-3 backdrop-blur sm:px-4 lg:hidden">
+        <section className="min-w-0 flex-1 overflow-x-hidden">
+          <div className="sticky top-[64px] z-30 flex items-center gap-3 border-b border-[#eadfce] bg-white/85 px-3 py-3 backdrop-blur sm:px-4 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
               aria-label="פתח תפריט ניהול"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347]"
             >
               <Menu size={20} />
             </button>
@@ -557,9 +598,52 @@ export default function VenueShell({
                   "סקירה"}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setSwitcherOpen((v) => !v)}
+              aria-label="החלף אולם"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#b98121] lg:hidden"
+            >
+              <Building2 size={18} />
+            </button>
           </div>
 
-          <div className="min-h-screen">{children}</div>
+          {/* Mobile venue switcher sheet from header bar */}
+          {switcherOpen && (
+            <div className="fixed inset-0 z-[55] lg:hidden">
+              <button
+                type="button"
+                aria-label="סגור החלפת אולם"
+                className="absolute inset-0 bg-black/30"
+                onClick={() => setSwitcherOpen(false)}
+              />
+              <div className="absolute inset-x-3 top-[120px] max-h-[60vh] overflow-y-auto rounded-3xl border border-[#eadfce] bg-white p-3 shadow-2xl">
+                <div className="mb-2 px-2 text-xs font-black text-[#8a7b68]">
+                  בחירת אולם
+                </div>
+                {venues.map((venue) => (
+                  <button
+                    key={venue.venueId}
+                    type="button"
+                    onClick={() => switchVenue(venue.venueId)}
+                    className={[
+                      "flex min-h-12 w-full items-center gap-2 rounded-2xl px-3 py-2 text-right text-sm font-bold",
+                      venue.venueId === hallId
+                        ? "bg-[#fff8eb] text-[#9f6f1a]"
+                        : "text-[#6f6252]",
+                    ].join(" ")}
+                  >
+                    <Building2 size={16} className="text-[#b98121]" />
+                    <span className="truncate">{venue.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="min-h-screen w-full max-w-[100vw] lg:max-w-none">
+            {children}
+          </div>
         </section>
       </div>
     </div>

@@ -252,7 +252,31 @@ export default function VenueEquipmentPage() {
             אין פריטי ציוד עדיין
           </div>
         ) : (
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 space-y-2 md:hidden">
+            {activeItems.map((item) => (
+              <article
+                key={`card-${item.id}`}
+                className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3"
+              >
+                <div className="text-sm font-black text-[#2b241c]">{item.name}</div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                  <div className="rounded-xl bg-white px-2 py-2">
+                    <div className="text-[#8a7b68]">כמות</div>
+                    <div className="text-[#2b241c]">{item.quantity}</div>
+                  </div>
+                  <div className="rounded-xl bg-white px-2 py-2">
+                    <div className="text-[#8a7b68]">שמור</div>
+                    <div className="text-[#2b241c]">{item.reserved}</div>
+                  </div>
+                  <div className="rounded-xl bg-white px-2 py-2">
+                    <div className="text-[#8a7b68]">זמין</div>
+                    <div className="text-emerald-700">{item.available}</div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="mt-3 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[700px] text-right text-sm">
               <thead>
                 <tr className="border-b border-[#eadfce] text-xs font-black text-[#8a7b68]">
