@@ -1,45 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import FilmStripGallery from "../illustrations/FilmStripGallery";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
-import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
+import {
+  type BlockTone,
+  WelcomeBlock,
+  StoryBlock,
+  DateRevealBlock,
+  CountdownBlock,
+  ScheduleBlock,
+  LocationBlock,
+  DressCodeBlock,
+  TransportationBlock,
+  QuoteBlock,
+  FaqBlock,
+  RsvpBlock,
+  ContactPeopleBlock,
+  FinalMomentBlock,
+  FullBleedPhoto,
+  ScrollProgressLine,
+} from "../shared/FullLengthBlocks";
 
-
-const fade = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-60px" as const },
-  transition: { duration: 0.55, ease: "easeOut" as const },
+const tone: BlockTone = {
+  accent: "#111111",
+  muted: "#666666",
+  surface: "#ffffff",
+  border: "#111111",
+  fontDisplay: "'Montserrat', sans-serif",
+  radius: "0",
+  buttonClass:
+    "bg-black px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white",
+  outlineButtonClass:
+    "border border-black px-6 py-3 text-xs font-bold uppercase tracking-[0.2em]",
 };
+
+const sectionPad = "border-t border-black py-16 md:py-20";
 
 function Rule({ className = "" }: { className?: string }) {
   return <div className={`h-px w-full bg-black ${className}`} />;
-}
-
-function Section({
-  id,
-  className = "",
-  children,
-}: {
-  id: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const { sections } = useWeddingSite();
-  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
-  return (
-    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
-      {children}
-    </motion.section>
-  );
 }
 
 function splitNames(names: string) {
@@ -57,14 +61,14 @@ function splitNames(names: string) {
 }
 
 export default function MinimalNoirSite({ template, embed, hideDemoBadge }: TemplateProps) {
-  const DEMO = useWeddingContent();
-  const themeOverrides = useWeddingThemeOverrides();
-  const rsvp = useWeddingRsvp();
-  const faq = useFaqAccordion(null);
-  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
-  const { scrollYProgress } = useScroll();
-  const lineWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
-  const [nameA, nameB] = splitNames(DEMO.coupleNames);
+  const c = useWeddingContent();
+  useWeddingThemeOverrides();
+  const images = sanitizeGallery(
+    c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
+    template.galleryImages
+  );
+  const gallery = images.slice(0, 9);
+  const [nameA, nameB] = splitNames(c.coupleNames);
 
   return (
     <div
@@ -80,12 +84,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
           border="rgba(0,0,0,0.2)"
         />
       )}
-      {!embed && (
-        <motion.div
-          style={{ width: lineWidth }}
-          className="fixed left-0 top-0 z-[60] h-px bg-black"
-        />
-      )}
+      {!embed && <ScrollProgressLine color="#111" />}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
@@ -95,7 +94,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
         </Link>
       )}
 
-      {/* HERO — typography only, split names */}
+      {/* 1 — Hero typography */}
       <section
         id="hero"
         className={`relative flex min-h-[100svh] flex-col justify-center overflow-x-clip px-6 md:px-12 lg:px-16 ${embed ? "py-16" : "pt-10"}`}
@@ -118,7 +117,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
             transition={{ duration: 0.8, delay: 0.15 }}
             className="text-[clamp(3.2rem,12vw,9rem)] font-black leading-[0.85] tracking-[-0.04em] md:self-end md:text-left"
           >
-            {nameB ? (DEMO.coupleNames.includes("&") ? `& ${nameB}` : `ו${nameB}`) : ""}
+            {nameB ? (c.coupleNames.includes("&") ? `& ${nameB}` : `ו${nameB}`) : ""}
           </motion.h1>
         </div>
         <Rule className="my-8 max-w-md" />
@@ -128,216 +127,104 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
           transition={{ delay: 0.5 }}
           className="max-w-md text-sm leading-relaxed text-neutral-600"
         >
-          {DEMO.heroSubtitle}
+          {c.heroSubtitle}
         </motion.p>
         <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.3em]">
-          {formatHebrewDate(DEMO.weddingDate)}
-          {DEMO.weddingTime ? ` — ${DEMO.weddingTime}` : ""}
+          {formatHebrewDate(c.weddingDate)}
+          {c.weddingTime ? ` — ${c.weddingTime}` : ""}
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
-          <a href="#rsvp" className="bg-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white">
+          <a
+            href="#rsvp"
+            className="bg-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white"
+          >
             אישור הגעה
           </a>
-          <a href="#transportation" className="border border-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em]">
+          <a
+            href="#transportation"
+            className="border border-black px-8 py-3.5 text-xs font-bold uppercase tracking-[0.2em]"
+          >
             הזמנת הסעה
           </a>
         </div>
       </section>
 
-      <Section id="event-details" className="border-t border-black py-16">
-        <div className="mx-auto grid max-w-5xl gap-0 px-6 md:grid-cols-3">
-          {[
-            ["תאריך", formatHebrewDate(DEMO.weddingDate)],
-            ["שעה", DEMO.weddingTime || "—"],
-            ["מקום", DEMO.venueName || "—"],
-          ].map(([label, value], i) => (
-            <div
-              key={label}
-              className={`py-6 md:px-8 ${i > 0 ? "border-t border-black md:border-t-0 md:border-r" : ""}`}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-neutral-500">{label}</p>
-              <p className="mt-3 text-xl font-bold leading-snug">{value}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
+      {/* 2 — Welcome */}
+      <WelcomeBlock
+        tone={tone}
+        className={sectionPad}
+        title="ברוכים הבאים"
+      />
 
-      <Section id="schedule" className="border-t border-black py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-xs font-bold uppercase tracking-[0.4em]">לוח זמנים</h2>
-          <Rule className="mt-4 mb-10" />
-          <ol className="space-y-0">
-            {(DEMO.schedule.length
-              ? DEMO.schedule
-              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
-            ).map((item) => (
-              <li
-                key={`${item.time}-${item.title}`}
-                className="grid grid-cols-[72px_1fr] gap-4 border-b border-black/20 py-5"
-              >
-                <span className="text-sm font-bold tabular-nums">{item.time}</span>
-                <div>
-                  <p className="font-bold">{item.title}</p>
-                  {item.description ? (
-                    <p className="mt-1 text-sm text-neutral-500">{item.description}</p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Section>
+      {/* 3 — FullBleed break */}
+      {gallery[0] ? (
+        <FullBleedPhoto src={gallery[0]} caption={c.romanticQuote || undefined} />
+      ) : null}
 
-      <Section id="location" className="border-t border-black py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-xs font-bold uppercase tracking-[0.4em]">מיקום</h2>
-          <Rule className="mx-auto mt-4 mb-8 max-w-[120px]" />
-          <p className="text-3xl font-black tracking-tight">{DEMO.venueName || "מיקום"}</p>
-          <p className="mt-2 text-sm text-neutral-500">{DEMO.venueAddress}</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {DEMO.wazeUrl ? (
-              <a href={DEMO.wazeUrl} target="_blank" rel="noreferrer" className="bg-black px-6 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white">
-                Waze
-              </a>
-            ) : null}
-            {DEMO.mapsUrl ? (
-              <a href={DEMO.mapsUrl} target="_blank" rel="noreferrer" className="border border-black px-6 py-3 text-xs font-bold uppercase tracking-[0.2em]">
-                Maps
-              </a>
-            ) : null}
-          </div>
-          {DEMO.venueAddress ? (
-            <div className="mt-8 overflow-hidden border border-black">
-              <iframe
-                title="map"
-                className="aspect-[16/9] w-full border-0"
-                loading="lazy"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
-              />
-            </div>
-          ) : null}
-        </div>
-      </Section>
+      {/* 4 — Story sparse */}
+      <StoryBlock tone={tone} className={`${sectionPad} max-w-2xl mx-auto`} title="הסיפור שלנו" />
 
-      <Section id="transportation" className="border-t border-black py-20">
-        <div className="mx-auto max-w-2xl px-6 text-center">
-          <h2 className="text-xs font-bold uppercase tracking-[0.4em]">הסעות</h2>
-          <Rule className="mx-auto mt-4 mb-8 max-w-[80px]" />
-          <p className="text-sm leading-relaxed text-neutral-600">
-            {DEMO.parkingText ||
-              DEMO.transportation?.[0]?.description ||
-              "פרטי הסעות יישלחו לאורחים שאישרו הגעה."}
-          </p>
-          <div className="mt-8 space-y-3 text-left" dir="rtl">
-            {(DEMO.transportation.length
-              ? DEMO.transportation
-              : [
-                  { title: "הסעה", description: "קווי הסעה ממרכז ומצפון" },
-                  { title: "חנייה", description: DEMO.parkingText || "חניה במתחם" },
-                ]
-            ).map((item) => (
-              <div key={item.title} className="border border-black px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-[0.2em]">{item.title}</p>
-                <p className="mt-1 text-sm text-neutral-600">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 5 — Date reveal */}
+      <DateRevealBlock tone={tone} className={sectionPad} />
 
-      <Section id="rsvp" className="border-t border-black bg-black py-20 text-white">
-        <div className="mx-auto max-w-md px-6">
-          <h2 className="text-center text-xs font-bold uppercase tracking-[0.4em]">אישור הגעה</h2>
-          <Rule className="mx-auto mt-4 mb-10 max-w-[80px] bg-white" />
-          {rsvp.sent ? (
-            <p className="text-center text-lg">תודה. קיבלנו את האישור.</p>
-          ) : (
-            <div className="space-y-4">
-              {rsvp.guestName ? (
-                <p className="text-center text-sm text-white/60">שלום {rsvp.guestName}</p>
-              ) : null}
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-[0.15em] ${
-                      rsvp.rsvp === v ? "bg-white text-black" : "border border-white/40 text-white"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" ? (
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-xs uppercase tracking-[0.2em] text-white/60">אורחים</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-20 border border-white/40 bg-transparent px-3 py-2 text-center"
-                  />
-                </div>
-              ) : null}
-              {rsvp.error ? <p className="text-center text-sm text-red-300">{rsvp.error}</p> : null}
-              <button
-                type="button"
-                disabled={!rsvp.rsvp || rsvp.saving}
-                onClick={() => void rsvp.submit()}
-                className="w-full bg-white py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-black disabled:opacity-40"
-              >
-                {rsvp.saving ? "שולח..." : "שליחה"}
-              </button>
-            </div>
-          )}
-        </div>
-      </Section>
+      {/* 6 — Countdown */}
+      <CountdownBlock tone={tone} className={`${sectionPad} bg-neutral-50`} variant="editorial" />
 
-      <Section id="gallery" className="border-t border-black py-20">
+      {/* 7 — Schedule */}
+      <ScheduleBlock tone={tone} className={sectionPad}>
+        <Rule className="mx-auto mt-4 mb-8 max-w-[120px]" />
+      </ScheduleBlock>
+
+      {/* 8 — Location */}
+      <LocationBlock tone={tone} className={`${sectionPad} bg-neutral-50`}>
+        <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.35em] text-neutral-500">
+          Venue
+        </p>
+      </LocationBlock>
+
+      {/* 9 — Dress code */}
+      <DressCodeBlock tone={tone} className={sectionPad} />
+
+      {/* 10 — Transportation */}
+      <TransportationBlock tone={tone} className={`${sectionPad} bg-neutral-50`} />
+
+      {/* 11 — Film strip gallery */}
+      <section id="gallery" className={`${sectionPad} overflow-x-clip px-0`}>
         <div className="mx-auto max-w-5xl px-6">
           <h2 className="text-center text-xs font-bold uppercase tracking-[0.4em]">גלריה</h2>
           <Rule className="mx-auto mt-4 mb-10 max-w-[80px]" />
         </div>
-        <FilmStripGallery images={images.slice(0, 6)} />
-      </Section>
+        <FilmStripGallery images={gallery.slice(0, 8)} />
+      </section>
 
-      <Section id="faq" className="border-t border-black py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center text-xs font-bold uppercase tracking-[0.4em]">שאלות</h2>
-          <Rule className="mx-auto mt-4 mb-10 max-w-[80px]" />
-          <div className="space-y-0">
-            {(DEMO.faq.length
-              ? DEMO.faq
-              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
-            ).map((item, i) => (
-              <button
-                key={item.question}
-                type="button"
-                onClick={() => faq.toggle(i)}
-                className="w-full border-b border-black/20 py-5 text-right"
-              >
-                <p className="font-bold">{item.question}</p>
-                {faq.open === i ? (
-                  <p className="mt-2 text-sm text-neutral-500">{item.answer}</p>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 12 — Quote */}
+      <QuoteBlock tone={tone} className="border-t border-black" />
 
+      {/* 13 — FAQ */}
+      <FaqBlock tone={tone} className={sectionPad} />
+
+      {/* 14 — RSVP */}
+      <RsvpBlock tone={tone} className={`${sectionPad} bg-neutral-50`} />
+
+      {/* 15 — Contact */}
+      <ContactPeopleBlock tone={tone} className={sectionPad} />
+
+      {/* 16 — Final moment */}
+      {gallery[1] ? (
+        <FinalMomentBlock tone={tone} image={gallery[1]} />
+      ) : (
+        <FinalMomentBlock tone={tone} className="border-t border-black" />
+      )}
+
+      {/* Footer */}
       <footer id="footer" className="border-t border-black px-6 py-16 text-center">
-        <p className="text-2xl font-black tracking-tight">{DEMO.coupleNames}</p>
+        <p className="text-2xl font-black tracking-tight">{c.coupleNames}</p>
         <Rule className="mx-auto my-6 max-w-[60px]" />
         <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-neutral-500">
-          {DEMO.footerNote || "נתראה"}
+          {c.footerNote || "נתראה"}
         </p>
         <p className="mt-4 text-[10px] tracking-[0.25em] text-neutral-400">
-          {formatHebrewDate(DEMO.weddingDate)}
+          {formatHebrewDate(c.weddingDate)}
         </p>
       </footer>
     </div>
