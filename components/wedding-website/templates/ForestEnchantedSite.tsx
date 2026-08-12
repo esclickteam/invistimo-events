@@ -17,7 +17,6 @@ import {
   type BlockTone,
   SiteSection,
   WelcomeBlock,
-  StoryBlock,
   ProposalBlock,
   CountdownBlock,
   LocationBlock,

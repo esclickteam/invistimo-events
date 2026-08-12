@@ -54,10 +54,15 @@ const SECTION_KEYS = [
   "countdown",
   "invitation",
   "our-story",
+  "how-we-met",
+  "proposal",
   "gallery",
   "video",
+  "event-details",
   "schedule",
   "location",
+  "dress-code",
+  "accommodations",
   "transportation",
   "rsvp",
   "faq",
@@ -425,6 +430,14 @@ export default function WeddingWebsiteOwnerEditor({
                     onChange={(e) => updateField("invitationText", e.target.value)}
                   />
                 </Field>
+                <Field label="ברוכים הבאים (Intro)">
+                  <textarea
+                    className={inputClass}
+                    rows={2}
+                    value={draftContent.welcomeText || ""}
+                    onChange={(e) => updateField("welcomeText", e.target.value)}
+                  />
+                </Field>
                 <Field label="סיפור / About (שורה = פסקה)">
                   <textarea
                     className={inputClass}
@@ -439,6 +452,47 @@ export default function WeddingWebsiteOwnerEditor({
                           .filter(Boolean)
                       )
                     }
+                  />
+                </Field>
+                <Field label="איך נפגשנו">
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    value={draftContent.howWeMet || ""}
+                    onChange={(e) => updateField("howWeMet", e.target.value)}
+                  />
+                </Field>
+                <Field label="ההצעה">
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    value={draftContent.proposalStory || ""}
+                    onChange={(e) => updateField("proposalStory", e.target.value)}
+                  />
+                </Field>
+                <Field label="ציטוט / מסר רומנטי">
+                  <textarea
+                    className={inputClass}
+                    rows={2}
+                    value={draftContent.romanticQuote || ""}
+                    onChange={(e) => updateField("romanticQuote", e.target.value)}
+                  />
+                </Field>
+                <Field label="האשטאג">
+                  <input
+                    className={inputClass}
+                    value={draftContent.hashtag || ""}
+                    onChange={(e) => updateField("hashtag", e.target.value)}
+                    placeholder="#OurWedding"
+                    dir="ltr"
+                  />
+                </Field>
+                <Field label="קוד לבוש">
+                  <textarea
+                    className={inputClass}
+                    rows={2}
+                    value={draftContent.dressCode || ""}
+                    onChange={(e) => updateField("dressCode", e.target.value)}
                   />
                 </Field>
                 <Field label="טקסט RSVP">

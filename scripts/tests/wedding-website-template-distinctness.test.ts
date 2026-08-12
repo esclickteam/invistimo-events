@@ -11,14 +11,58 @@ import { getWeddingTemplateIds } from "../../config/weddingWebsite/templates";
 
 const ROOT = path.join(process.cwd(), "components/wedding-website/templates");
 
+const BLOCK_TO_SECTION: Record<string, string> = {
+  WelcomeBlock: "invitation",
+  CountdownBlock: "countdown",
+  StoryBlock: "our-story",
+  HowWeMetBlock: "how-we-met",
+  ProposalBlock: "proposal",
+  DateRevealBlock: "event-details",
+  CouplePhotosBlock: "video",
+  FullBleedPhoto: "full-bleed",
+  QuoteBlock: "quote",
+  ScheduleBlock: "schedule",
+  LocationBlock: "location",
+  DressCodeBlock: "dress-code",
+  TransportationBlock: "transportation",
+  AccommodationsBlock: "accommodations",
+  FaqBlock: "faq",
+  GiftsBlock: "gifts",
+  RsvpBlock: "rsvp",
+  ContactPeopleBlock: "contact",
+  FinalMomentBlock: "final",
+  RichGalleryGrid: "gallery",
+  FilmStripGallery: "gallery",
+  PolaroidGallery: "gallery",
+  EnvelopeRsvp: "rsvp",
+  PathDrawTimeline: "schedule",
+};
+
 function extractSectionOrder(src: string): string[] {
-  const re = /\bid=["']([a-z0-9-]+)["']/g;
   const order: string[] = [];
+  const push = (id: string) => {
+    if (!id || order.includes(id)) return;
+    order.push(id);
+  };
+
+  // Ignore helper components above the default export (e.g. WatercolorStoryBlock)
+  const start = src.indexOf("export default function");
+  const body = start >= 0 ? src.slice(start) : src;
+
+  // Walk source in order: either JSX id= or known block components
+  const tokenRe =
+    /\bid=["']([a-z0-9-]+)["']|<(WelcomeBlock|CountdownBlock|StoryBlock|HowWeMetBlock|ProposalBlock|DateRevealBlock|CouplePhotosBlock|FullBleedPhoto|QuoteBlock|ScheduleBlock|LocationBlock|DressCodeBlock|TransportationBlock|AccommodationsBlock|FaqBlock|GiftsBlock|RsvpBlock|ContactPeopleBlock|FinalMomentBlock|RichGalleryGrid|FilmStripGallery|PolaroidGallery|EnvelopeRsvp|PathDrawTimeline|WatercolorStoryBlock)\b/g;
+
   let m: RegExpExecArray | null;
-  while ((m = re.exec(src))) {
-    if (!order.includes(m[1])) order.push(m[1]);
+  while ((m = tokenRe.exec(body))) {
+    if (m[1]) {
+      push(m[1]);
+    } else if (m[2]) {
+      if (m[2] === "WatercolorStoryBlock") push("our-story");
+      else push(BLOCK_TO_SECTION[m[2]] || m[2]);
+    }
   }
-  return order.filter((id) => id !== "footer" || true);
+  return order;
 }
 
 function main() {
@@ -30,18 +74,6 @@ function main() {
     const concept = TEMPLATE_CONCEPTS[id as keyof typeof TEMPLATE_CONCEPTS];
     assert.ok(concept, `missing concept for ${id}`);
 
-    const fileGuess = [
-      "EternalGoldSite",
-      "MidnightVelvetSite",
-      "GardenBloomSite",
-      "CoastalBreezeSite",
-      "DesertRoseSite",
-      "MinimalNoirSite",
-      "RoyalIvorySite",
-      "SunsetBlushSite",
-      "ForestEnchantedSite",
-      "ModernGlassSite",
-    ];
     const map: Record<string, string> = {
       "eternal-gold": "EternalGoldSite.tsx",
       "midnight-velvet": "MidnightVelvetSite.tsx",
@@ -57,15 +89,28 @@ function main() {
     const file = map[id];
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     assert.ok(!src.includes("overflow-x-auto"), `${id} still has overflow-x-auto`);
-    assert.ok(src.includes("useWeddingRsvp") || src.includes("WeddingRsvp"), `${id} missing RSVP hook`);
+    assert.ok(
+      src.includes("useWeddingRsvp") ||
+        src.includes("RsvpBlock") ||
+        src.includes("EnvelopeRsvp") ||
+        src.includes("WeddingRsvp"),
+      `${id} missing RSVP`
+    );
     assert.ok(src.includes("WeddingActionBar"), `${id} missing action bar CTAs`);
     assert.ok(src.includes("overflow-x-clip"), `${id} missing overflow-x-clip`);
+    assert.ok(
+      src.includes("FullLengthBlocks") || src.includes("FullBleedPhoto"),
+      `${id} should use full-length block system`
+    );
 
     const order = extractSectionOrder(src);
-    assert.ok(order[0] === "hero", `${id} must start with hero`);
+    assert.ok(order[0] === "hero", `${id} must start with hero, got ${order[0]}`);
+    assert.ok(
+      order.length >= 12,
+      `${id} too short: ${order.length} sections (${order.join(">")})`
+    );
     orders[id] = order.join(">");
 
-    // signature presence
     const sig = concept.signatureElement.toLowerCase();
     if (sig.includes("goldscroll")) assert.ok(src.includes("GoldScrollLine"), id);
     if (sig.includes("starfield")) assert.ok(src.includes("Starfield"), id);
@@ -85,9 +130,9 @@ function main() {
     `section orders not unique:\n${JSON.stringify(orders, null, 2)}`
   );
 
-  console.log("✓ 10 templates structurally distinct");
+  console.log("✓ 10 templates structurally distinct + full-length");
   for (const [id, order] of Object.entries(orders)) {
-    console.log(`  - ${id}: ${order}`);
+    console.log(`  - ${id}: ${order.split(">").length} · ${order}`);
   }
 }
 

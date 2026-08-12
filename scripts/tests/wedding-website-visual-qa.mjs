@@ -96,6 +96,16 @@ async function auditPage(page, label) {
       (img) => !(img.getAttribute("src") || "").trim() || img.naturalWidth === 0
     ).length;
 
+    const sectionIds = [
+      ...document.querySelectorAll("section[id], footer[id]"),
+    ].map((el) => el.id);
+    const scrollHeight = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    );
+    const hasHorizontalOverflow =
+      document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;
+
     return {
       imageCount: imgs.length,
       videoCount: videos.length,
@@ -109,6 +119,13 @@ async function auditPage(page, label) {
       hasRsvp: !!document.querySelector("#rsvp"),
       hasLocation: !!document.querySelector("#location"),
       hasTransport: !!document.querySelector("#transportation"),
+      hasSchedule: !!document.querySelector("#schedule"),
+      hasFooter: !!document.querySelector("#footer, footer"),
+      sectionCount: sectionIds.length,
+      sectionIds,
+      scrollHeight,
+      hasHorizontalOverflow,
+      fullLengthPass: scrollHeight >= 6000 && sectionIds.length >= 10,
     };
   });
 

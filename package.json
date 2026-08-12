@@ -19,6 +19,7 @@
     "test:wedding-website": "npx tsx scripts/tests/wedding-website-separation.test.ts && npx tsx scripts/tests/wedding-website-media.test.ts && npx tsx scripts/tests/wedding-website-template-distinctness.test.ts && npx tsx --test --test-force-exit scripts/tests/wedding-website-e2e-memory.test.ts",
     "test:wedding-website:visual": "node scripts/tests/wedding-website-visual-qa.mjs",
     "staging:seed-wedding-website": "npx tsx scripts/staging/seed-wedding-website-e2e.ts",
+    "staging:wedding-website-persistence": "npx tsx scripts/staging/wedding-website-persistence-e2e.ts",
     "venues:backfill:dry": "npx tsx scripts/venues/backfill-venue-event-links.ts",
     "venues:backfill:write": "npx tsx scripts/venues/backfill-venue-event-links.ts --write",
     "venues:check-cloudinary-env": "node scripts/venues/check-cloudinary-env.mjs"

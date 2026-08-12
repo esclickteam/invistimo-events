@@ -88,6 +88,12 @@ export type WeddingSiteContent = {
   venueLng: number | null;
   heroSubtitle: string;
   invitationText: string;
+  /** Optional welcome / intro override */
+  welcomeText: string;
+  /** Romantic quote / message break */
+  romanticQuote: string;
+  /** Social hashtag e.g. #AmitAndBen */
+  hashtag: string;
   /** Story / about body */
   storyParagraphs: string[];
   howWeMet: string;
