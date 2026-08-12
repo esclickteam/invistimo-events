@@ -46,12 +46,15 @@ export function useRsvpDemo() {
 }
 
 /**
- * Live RSVP when guest token exists; falls back to local demo state otherwise.
+ * Live RSVP when guest token exists (from ?token= or phone/name identify).
  * Uses the same backend as /invite — never duplicates InvitationGuest records.
  */
 export function useWeddingRsvp() {
   const { mode } = useWeddingSite();
   const guest = useWeddingGuest();
+  const [identifiedToken, setIdentifiedToken] = useState("");
+  const [identifiedName, setIdentifiedName] = useState("");
+  const [identifiedMax, setIdentifiedMax] = useState(0);
   const [rsvp, setRsvp] = useState<"yes" | "no" | "">(
     guest?.rsvp === "yes" || guest?.rsvp === "no" ? guest.rsvp : ""
   );
@@ -65,6 +68,9 @@ export function useWeddingRsvp() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const activeToken = guest?.token || identifiedToken;
+  const canSubmitLive = Boolean(activeToken) && (mode === "live" || mode === "preview");
+
   useEffect(() => {
     if (!guest) return;
     if (guest.rsvp === "yes" || guest.rsvp === "no") {
@@ -75,6 +81,28 @@ export function useWeddingRsvp() {
     setNotes(guest.notes || "");
   }, [guest]);
 
+  const bindToken = useCallback(
+    (
+      token: string,
+      meta?: { name?: string; guestsCount?: number; rsvp?: string }
+    ) => {
+      setIdentifiedToken(token);
+      setIdentifiedName(meta?.name || "");
+      setIdentifiedMax(Math.max(0, Number(meta?.guestsCount) || 0));
+      if (meta?.rsvp === "yes" || meta?.rsvp === "no") {
+        setRsvp(meta.rsvp);
+        setSent(true);
+      } else {
+        setSent(false);
+      }
+      if (meta?.guestsCount) {
+        setCount(Math.max(1, Number(meta.guestsCount)));
+      }
+      setError("");
+    },
+    []
+  );
+
   const submit = useCallback(async () => {
     if (!rsvp) {
       setError("נא לבחור האם תגיעו");
@@ -82,17 +110,14 @@ export function useWeddingRsvp() {
     }
 
     // Demo gallery — local only
-    if (mode === "demo" || !guest?.token || !guest.canSubmitRsvp) {
-      if (mode === "demo") {
-        setSent(true);
-        setError("");
-        return true;
-      }
-      setError(
-        guest?.token
-          ? "לא ניתן לשלוח אישור כרגע"
-          : "הקישור האישי חסר — פתחו את האתר מההודעה שקיבלתם"
-      );
+    if (mode === "demo") {
+      setSent(true);
+      setError("");
+      return true;
+    }
+
+    if (!activeToken) {
+      setError("מצאו קודם את ההזמנה שלכם לפי טלפון או שם");
       return false;
     }
 
@@ -100,7 +125,7 @@ export function useWeddingRsvp() {
       setSaving(true);
       setError("");
       const res = await fetch(
-        `/api/invitationGuests/respondByToken/${encodeURIComponent(guest.token)}`,
+        `/api/invitationGuests/respondByToken/${encodeURIComponent(activeToken)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,7 +149,7 @@ export function useWeddingRsvp() {
     } finally {
       setSaving(false);
     }
-  }, [rsvp, count, notes, guest, mode]);
+  }, [rsvp, count, notes, activeToken, mode]);
 
   return {
     rsvp,
@@ -138,9 +163,12 @@ export function useWeddingRsvp() {
     saving,
     error,
     submit,
-    guestName: guest?.name || "",
-    isLive: mode === "live" && Boolean(guest?.token),
-    canSubmit: mode === "demo" || Boolean(guest?.canSubmitRsvp),
+    bindToken,
+    guestName: guest?.name || identifiedName || "",
+    isLive: canSubmitLive,
+    canSubmit: mode === "demo" || canSubmitLive,
+    identified: Boolean(activeToken),
+    maxGuests: guest?.guestsCount || identifiedMax || 0,
   };
 }
 

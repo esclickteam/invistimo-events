@@ -6,6 +6,7 @@ import { useWeddingContent, useWeddingSite, isSectionEnabled } from "./WeddingSi
 import { formatHebrewDate } from "./weddingUtils";
 import { useFaqAccordion, useWeddingRsvp, useCountdownTimer } from "./useWeddingInteractions";
 import AnimatedCountdown from "./AnimatedCountdown";
+import GuestIdentifyRsvp from "./GuestIdentifyRsvp";
 
 export type BlockTone = {
   accent: string;
@@ -696,6 +697,8 @@ export function RsvpBlock({
 }) {
   const c = useWeddingContent();
   const rsvp = useWeddingRsvp();
+  const { mode } = useWeddingSite();
+
   return (
     <SiteSection id="rsvp" className={className}>
       <div className="mx-auto max-w-md px-6">
@@ -716,64 +719,73 @@ export function RsvpBlock({
             borderRadius: tone.radius || "1.25rem",
           }}
         >
-          {rsvp.sent ? (
-            <p className="text-center text-lg" style={{ color: tone.accent }}>
-              תודה! קיבלנו את אישור ההגעה.
-            </p>
-          ) : (
-            <>
-              {rsvp.guestName ? (
-                <p className="text-center text-sm" style={{ color: tone.muted }}>
-                  שלום {rsvp.guestName}
-                </p>
-              ) : null}
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className="flex-1 rounded-full py-3 text-sm font-bold"
-                    style={
-                      rsvp.rsvp === v
-                        ? { background: tone.accent, color: "#fff" }
-                        : { border: `1px solid ${tone.accent}55`, color: tone.muted }
-                    }
-                  >
-                    {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" ? (
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-sm" style={{ color: tone.muted }}>
-                    מספר אורחים
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-20 rounded-full border px-3 py-2 text-center bg-transparent"
-                    style={{ borderColor: `${tone.accent}66` }}
-                  />
+          {mode !== "demo" ? (
+            <GuestIdentifyRsvp
+              accent={tone.accent}
+              identified={rsvp.identified}
+              onBind={(token, meta) => rsvp.bindToken?.(token, meta)}
+            />
+          ) : null}
+          {rsvp.identified || mode === "demo" ? (
+            rsvp.sent ? (
+              <p className="text-center text-lg" style={{ color: tone.accent }}>
+                תודה! קיבלנו את אישור ההגעה.
+              </p>
+            ) : (
+              <>
+                {rsvp.guestName ? (
+                  <p className="text-center text-sm" style={{ color: tone.muted }}>
+                    שלום {rsvp.guestName}
+                  </p>
+                ) : null}
+                <div className="flex gap-3">
+                  {(["yes", "no"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => rsvp.setRsvp(v)}
+                      className="flex-1 rounded-full py-3 text-sm font-bold"
+                      style={
+                        rsvp.rsvp === v
+                          ? { background: tone.accent, color: "#fff" }
+                          : { border: `1px solid ${tone.accent}55`, color: tone.muted }
+                      }
+                    >
+                      {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
+                    </button>
+                  ))}
                 </div>
-              ) : null}
-              {rsvp.error ? (
-                <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
-              ) : null}
-              <button
-                type="button"
-                disabled={!rsvp.rsvp || rsvp.saving}
-                onClick={() => void rsvp.submit()}
-                className="w-full rounded-full py-3.5 text-sm font-bold text-white disabled:opacity-40"
-                style={{ background: tone.accent }}
-              >
-                {rsvp.saving ? "שולח..." : "שליחה"}
-              </button>
-            </>
-          )}
+                {rsvp.rsvp === "yes" ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-sm" style={{ color: tone.muted }}>
+                      מספר אורחים
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={rsvp.maxGuests > 0 ? rsvp.maxGuests : 20}
+                      value={rsvp.count}
+                      onChange={(e) => rsvp.setCount(Number(e.target.value))}
+                      className="w-20 rounded-full border px-3 py-2 text-center bg-transparent"
+                      style={{ borderColor: `${tone.accent}66` }}
+                    />
+                  </div>
+                ) : null}
+                {rsvp.error ? (
+                  <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={!rsvp.rsvp || rsvp.saving || !rsvp.canSubmit}
+                  onClick={() => void rsvp.submit()}
+                  className="w-full rounded-full py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                  style={{ background: tone.accent }}
+                >
+                  {rsvp.saving ? "שולח..." : "שליחה"}
+                </button>
+              </>
+            )
+          ) : null}
         </div>
       </div>
     </SiteSection>

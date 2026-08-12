@@ -24,6 +24,7 @@ function WeddingWebsiteManager() {
     rsvpSiteMode: string;
   } | null>(null);
   const [templateId, setTemplateId] = useState<WeddingTemplateId>("eternal-gold");
+  const [entitled, setEntitled] = useState(true);
 
   const load = useCallback(async () => {
     if (!invitationId) {
@@ -41,6 +42,13 @@ function WeddingWebsiteManager() {
         setMessage(data.error || "שגיאה בטעינה");
         return;
       }
+      if (data.entitled === false) {
+        setEntitled(false);
+        setWebsite(null);
+        setInviteMeta(data.invitation || null);
+        return;
+      }
+      setEntitled(true);
       setInviteMeta(data.invitation);
       if (data.website) {
         setWebsite(data.website);
@@ -99,6 +107,20 @@ function WeddingWebsiteManager() {
     return (
       <div dir="rtl" className="px-4 py-16 text-center text-sm font-bold text-[#8A7B69]">
         טוען אתר חתונה...
+      </div>
+    );
+  }
+
+  if (!entitled) {
+    return (
+      <div dir="rtl" className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <h1 className="text-2xl font-black text-[#241A14]">אתר חתונה אישי</h1>
+        <p className="mt-3 text-sm font-semibold text-[#8A7B69]">
+          החבילה שלכם לא כוללת אתר חתונה אישי. ההזמנה הרגילה ממשיכה לעבוד כרגיל.
+        </p>
+        <Link href="/dashboard" className="mt-6 inline-block text-sm font-bold text-[#B8844F]">
+          חזרה לדשבורד
+        </Link>
       </div>
     );
   }

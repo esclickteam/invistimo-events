@@ -12,6 +12,9 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
+import WeddingWebsite from "@/models/WeddingWebsite";
+import { isWeddingWebsiteEntitled } from "@/lib/weddingWebsite/entitlement";
+import { resolveOutboundGuestLink } from "@/lib/weddingWebsite/outboundGuestLink";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -718,6 +721,40 @@ export async function POST(req: NextRequest) {
 
     const guests = await InvitationGuest.find(guestQuery);
 
+    const ownerForEntitlement = await User.findById(invitation.ownerId)
+      .select("salesUpsells")
+      .lean();
+    const websiteDoc = await WeddingWebsite.findOne({
+      invitationId: invitation._id,
+    })
+      .select("shareId status")
+      .lean();
+    const entitled = isWeddingWebsiteEntitled({
+      salesUpsells: ownerForEntitlement?.salesUpsells as any,
+      invitationSettings: invitation.invitationSettings,
+    });
+
+    // WW package: block RSVP sends until website is published
+    if (entitled && (type === "rsvp" || type === "reminder")) {
+      const probe = resolveOutboundGuestLink({
+        entitled: true,
+        websiteStatus: websiteDoc?.status,
+        websiteShareId: websiteDoc?.shareId || invitation.shareId,
+        invitationShareId: invitation.shareId,
+        guestToken: "probe",
+      });
+      if (!probe.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: probe.reason,
+            message: probe.message,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const queueDocs: any[] = [];
 const sendDateKey = new Date().toISOString().slice(0, 10);
 
@@ -732,8 +769,17 @@ const sendDateKey = new Date().toISOString().slice(0, 10);
           ? `שולחן ${guest.tableNumber}`
           : guest.tableName || "";
 
-      const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
-const rsvpLink = `https://www.invistimo.com/invite/${urlSuffix}`;
+      const link = resolveOutboundGuestLink({
+        entitled,
+        websiteStatus: websiteDoc?.status,
+        websiteShareId: websiteDoc?.shareId || invitation.shareId,
+        invitationShareId: invitation.shareId,
+        guestToken: guest.token,
+      });
+      if (!link.ok) continue;
+
+      const urlSuffix = link.urlSuffix;
+      const rsvpLink = link.fullUrl;
 
 const guestPayload = JSON.parse(JSON.stringify(payload));
 
@@ -741,6 +787,7 @@ guestPayload.name = guest.name || "";
 guestPayload.tableName = tableName;
 guestPayload.rsvpLink = rsvpLink;
 guestPayload.urlSuffix = urlSuffix;
+guestPayload.linkKind = link.kind;
 
       if (Array.isArray(guestPayload.components)) {
         guestPayload.components = JSON.parse(

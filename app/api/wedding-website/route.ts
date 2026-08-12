@@ -3,10 +3,12 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import WeddingWebsite from "@/models/WeddingWebsite";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { canManageInvitation } from "@/lib/canManageInvitation";
 import { getWeddingTemplateIds } from "@/config/weddingWebsite/templates";
 import { resolveWeddingSiteContent } from "@/lib/weddingWebsite/resolveWeddingSiteContent";
+import { isWeddingWebsiteEntitled } from "@/lib/weddingWebsite/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,28 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
 
+    const owner = await User.findById(invitation.ownerId || auth.userId)
+      .select("salesUpsells")
+      .lean();
+    const entitled = isWeddingWebsiteEntitled({
+      salesUpsells: owner?.salesUpsells as any,
+      invitationSettings: (invitation as any).invitationSettings,
+    });
+
+    if (!entitled) {
+      return NextResponse.json({
+        success: true,
+        entitled: false,
+        website: null,
+        invitation: {
+          id: String(invitation._id),
+          shareId: invitation.shareId,
+          title: invitation.title,
+          invitePath: `/invite/${invitation.shareId}`,
+        },
+      });
+    }
+
     const website = await WeddingWebsite.findOne({ invitationId }).lean();
     const event = invitation.eventId
       ? await Event.findById(invitation.eventId).lean()
@@ -60,6 +84,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      entitled: true,
       website: website
         ? {
             id: String(website._id),
@@ -120,6 +145,20 @@ export async function POST(req: NextRequest) {
     const invitation = await Invitation.findById(invitationId);
     if (!invitation || !canManageInvitation(auth, invitation)) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    }
+
+    const owner = await User.findById(invitation.ownerId || auth.userId)
+      .select("salesUpsells")
+      .lean();
+    const entitled = isWeddingWebsiteEntitled({
+      salesUpsells: owner?.salesUpsells as any,
+      invitationSettings: (invitation as any).invitationSettings,
+    });
+    if (!entitled) {
+      return NextResponse.json(
+        { success: false, error: "WEDDING_WEBSITE_NOT_ENTITLED", entitled: false },
+        { status: 403 }
+      );
     }
 
     const existing = await WeddingWebsite.findOne({ invitationId: invitation._id });

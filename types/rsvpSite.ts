@@ -1,9 +1,13 @@
 /**
- * Product preference at invitation level.
- * standard — Regular personal invitation link (/invite/[shareId]) — PROTECTED CORE
- * personal — Also manage a separate Wedding Website (/w/[shareId])
+ * Legacy invitation preference (kept for compatibility).
+ * Prefer salesUpsells.weddingWebsite.enabled for purchase entitlement.
  *
- * IMPORTANT: This never rewrites SMS/WhatsApp invite links automatically.
+ * Package model:
+ * - Regular: WhatsApp → guest-specific /invite/[shareId]?token=...
+ * - Wedding Website (entitled + published): WhatsApp → /w/[shareId]
+ *   (via /invite/site/[shareId] bridge for Meta button base URL)
+ *
+ * Regular invitation image/upload remains required in BOTH packages.
  */
 export type RsvpSiteMode = "standard" | "personal";
 
