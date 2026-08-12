@@ -251,7 +251,7 @@ export default function VenueDayOfPage() {
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-xl bg-[#2b211c] px-5 py-3 text-sm font-medium text-white"
+            className="min-h-12 rounded-xl bg-[#2b211c] px-5 py-3 text-sm font-semibold text-white"
           >
             רענון
           </button>
@@ -426,7 +426,7 @@ export default function VenueDayOfPage() {
                           onClick={() =>
                             void mutateGuest(g.id, { action: "mark_arrived" })
                           }
-                          className="rounded-xl bg-[#2b211c] px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+                          className="min-h-11 min-w-[96px] rounded-xl bg-[#2b211c] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
                         >
                           הגיע
                         </button>
@@ -438,7 +438,7 @@ export default function VenueDayOfPage() {
                               action: "mark_not_arrived",
                             })
                           }
-                          className="rounded-xl border border-[#d9cfc3] bg-[#faf7f2] px-3 py-2 text-sm disabled:opacity-40"
+                          className="min-h-11 min-w-[96px] rounded-xl border border-[#d9cfc3] bg-[#faf7f2] px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
                         >
                           לא הגיע
                         </button>

@@ -702,7 +702,67 @@ export default function HallCalendarPage() {
             </Panel>
           </aside>
 
-          <section className="overflow-x-auto rounded-[30px] border border-[#eadfce] bg-white shadow-sm">
+          {/* Mobile / tablet: agenda list — avoids crushing the week grid */}
+          <section className="rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-sm lg:hidden">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-base font-black text-[#2b241c]">רשימת אירועים</h2>
+              <span className="text-xs font-bold text-[#8a7b68]">
+                {visibleItems.length} פריטים
+              </span>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm font-bold text-[#8a7b68]">
+                <Loader2 className="animate-spin text-[#b98121]" size={22} />
+                טוען יומן...
+              </div>
+            ) : visibleItems.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-6 text-center">
+                <CalendarDays className="mx-auto text-[#b98121]" size={28} />
+                <p className="mt-3 text-sm font-black text-[#2b241c]">אין אירועים בטווח</p>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white"
+                >
+                  <Plus size={16} />
+                  אירוע חדש
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {visibleItems.map((item) => (
+                  <button
+                    key={item.venueEventId || item.id}
+                    type="button"
+                    onClick={() => openEdit(item)}
+                    className={[
+                      "flex min-h-[72px] w-full flex-col gap-1 rounded-2xl border px-3 py-3 text-right transition",
+                      itemColorClass(item.status),
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-black">{item.title}</div>
+                        <div className="mt-0.5 text-xs font-bold opacity-80">
+                          {item.date} · {item.startTime}
+                          {item.endTime ? `–${item.endTime}` : ""}
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-white/70 px-2 py-1 text-[10px] font-black">
+                        {statusLabel(item.status)}
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold opacity-80">
+                      {item.clientName || "ללא לקוח"}
+                      {item.guests ? ` · ${item.guests} אורחים` : ""}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="hidden overflow-x-auto rounded-[30px] border border-[#eadfce] bg-white shadow-sm lg:block">
             <div className="min-w-[1050px]">
               <div className="grid grid-cols-[70px_repeat(7,minmax(130px,1fr))] border-b border-[#eadfce] bg-[#fffdf8]">
                 <div className="border-l border-[#eadfce] p-3 text-center text-xs font-black text-[#9b8a73]">

@@ -135,7 +135,44 @@ export default function VenueCustomersPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="space-y-2 p-3 md:hidden">
+            {filtered.map((customer) => (
+              <article
+                key={`card-${customer.id}`}
+                className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {customer.eventHref || customer.crmHref ? (
+                      <Link
+                        href={customer.eventHref || customer.crmHref || "#"}
+                        className="block truncate text-sm font-black text-[#b98121]"
+                      >
+                        {customer.name}
+                      </Link>
+                    ) : (
+                      <div className="truncate text-sm font-black text-[#2b241c]">
+                        {customer.name}
+                      </div>
+                    )}
+                    <div className="mt-1 text-xs font-bold text-[#6f6252]">
+                      {customer.phone || "—"}
+                      {customer.email ? ` · ${customer.email}` : ""}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[#f4ead9] px-2.5 py-1 text-xs font-black text-[#b98121]">
+                    {customer.status}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs font-bold text-[#8a7b68]">
+                  {customer.eventCount} אירועים · {customer.lastActivity}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[800px] text-right text-sm">
               <thead>
                 <tr className="border-b border-[#eadfce] bg-[#fffdf8] text-xs font-black text-[#8a7b68]">
@@ -219,6 +256,7 @@ export default function VenueCustomersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
