@@ -47,7 +47,14 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     totalAfterStaff: number;
   };
 
-  salesUpsells?: {
+    salesUpsells?: {
+    weddingWebsite?: {
+      enabled: boolean;
+      price?: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
     digitalSeating?: {
       enabled: boolean;
       price: number;
@@ -398,6 +405,27 @@ const UserSchema = new Schema<IUser>(
     },
 
     salesUpsells: {
+      weddingWebsite: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+        price: {
+          type: Number,
+          default: 0,
+        },
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
       digitalSeating: {
         enabled: {
           type: Boolean,
@@ -1199,6 +1227,13 @@ UserSchema.pre("validate", function () {
   );
 
   doc.salesUpsells = {
+    weddingWebsite: {
+      enabled: Boolean(currentSalesUpsells.weddingWebsite?.enabled),
+      price: Number(currentSalesUpsells.weddingWebsite?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.weddingWebsite?.givenFree),
+      notes: String(currentSalesUpsells.weddingWebsite?.notes || ""),
+    },
+
     digitalSeating: {
       enabled: Boolean(
         currentSalesUpsells.digitalSeating?.enabled || doc.includeDigitalSeating

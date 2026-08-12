@@ -132,7 +132,10 @@ function normalizeAuthVersion(raw: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
-async function getFreshUserAuthFields(userId: string) {
+async function getFreshUserAuthFields(
+  userId: string,
+  options?: { allowInactive?: boolean }
+) {
   try {
     await connectDB();
 
@@ -142,13 +145,21 @@ async function getFreshUserAuthFields(userId: string) {
 
     if (!user) return null;
 
-    if ((user as any).isActive === false) return null;
+    const isActive = (user as any).isActive !== false;
+
+    /*
+      Regular customer sessions must not authenticate when isActive=false.
+      Admin/producer impersonation MUST still resolve the target user so
+      Event/Invitation/Guest APIs keep working (PR #48 regression).
+    */
+    if (!isActive && !options?.allowInactive) return null;
 
     return {
       role: normalizeRole((user as any).role),
       staffType: (user as any).staffType ?? null,
       employeeScope: normalizeEmployeeScope((user as any).employeeScope),
       authVersion: normalizeAuthVersion((user as any).authVersion),
+      isActive,
     };
   } catch (err) {
     console.error("❌ getFreshUserAuthFields error:", err);
@@ -228,7 +239,22 @@ export async function getUserIdFromRequest(
     const userId = getDecodedUserId(activeDecoded);
     if (!userId) return null;
 
-    const freshUserAuthFields = await getFreshUserAuthFields(String(userId));
+    /*
+      Impersonation tokens must resolve even when the target customer was
+      marked isActive=false (common for completed/paid events). Otherwise
+      Admin "login as user" gets /api/me OK but /api/events → 401 and the
+      dashboard looks like the Event was deleted.
+    */
+    const isImpersonationSession =
+      Boolean(impersonationDecoded) ||
+      activeDecoded?.impersonated === true ||
+      activeDecoded?.impersonatedByAdmin === true ||
+      activeDecoded?.impersonationSourceRole === "admin" ||
+      impersonationDecoded?.impersonationSourceRole === "admin";
+
+    const freshUserAuthFields = await getFreshUserAuthFields(String(userId), {
+      allowInactive: isImpersonationSession,
+    });
     if (!freshUserAuthFields) return null;
 
     if (
@@ -277,7 +303,9 @@ export async function getUserIdFromRequest(
       impersonationDecoded?.impersonationSourceRole === "admin";
 
     if (authUserId && authUserId !== String(userId)) {
-      const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId));
+      const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId), {
+        allowInactive: true,
+      });
 
       if (freshOriginalAuth?.role === "admin") {
         impersonatedByAdmin = true;
@@ -285,7 +313,9 @@ export async function getUserIdFromRequest(
     }
 
     if (!impersonatedByAdmin && adminUserId) {
-      const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId));
+      const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId), {
+        allowInactive: true,
+      });
 
       if (
         freshAdminAuth?.role === "admin" ||
@@ -293,6 +323,15 @@ export async function getUserIdFromRequest(
       ) {
         impersonatedByAdmin = true;
       }
+    }
+
+    // Non-impersonation sessions still cannot use deactivated accounts.
+    if (
+      freshUserAuthFields.isActive === false &&
+      !isImpersonationSession &&
+      !impersonatedByAdmin
+    ) {
+      return null;
     }
 
     /* ---------------------------------
