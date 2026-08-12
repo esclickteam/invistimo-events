@@ -5,12 +5,16 @@
  *
  * Env:
  * - VENUE_PILOT_MODE=1|true → enforce allowlist
- * - VENUE_PILOT_OWNER_IDS=comma-separated User ids (hall owners) and/or
- * - VENUE_PILOT_HALL_IDS=comma-separated VenueHall.id values
+ * - VENUE_PILOT_OWNER_IDS=comma-separated User ids (hall owners)
+ * - VENUE_PILOT_HALL_IDS=comma-separated VenueHall.id values (string `id` and/or ObjectId)
  *
  * When pilot mode is OFF (default): all venue membership/owner checks apply as usual.
- * When pilot mode is ON: hall ownerId must be in owner allowlist OR hall id in hall allowlist.
+ * When pilot mode is ON:
+ * - If BOTH owner and hall allowlists are set → require BOTH (AND). This prevents a
+ *   listed owner from accessing a second non-listed hall.
+ * - If only one list is set → that list alone gates access.
  * Admins bypass the pilot gate (still subject to requireVenueAccess RBAC).
+ * Creating new halls is blocked when a hall allowlist is configured.
  */
 
 function parseList(raw: string | undefined) {
@@ -64,6 +68,17 @@ export function isVenuePilotAllowed(params: {
   const hallOk =
     hallIds.length > 0 && hallIds.includes(String(params.hallId));
 
+  // Both lists configured → require intersection (one approved owner + one approved hall)
+  if (ownerIds.length > 0 && hallIds.length > 0) {
+    if (ownerOk && hallOk) {
+      return { allowed: true };
+    }
+    return {
+      allowed: false,
+      reason: "האולם אינו ברשימת הפיילוט המאושרת",
+    };
+  }
+
   if (ownerOk || hallOk) {
     return { allowed: true };
   }
@@ -84,15 +99,18 @@ export function isVenuePilotOwnerAllowed(params: {
   if (params.isAdmin) {
     return { allowed: true };
   }
+
+  // Controlled one-hall pilot: never allow creating additional halls once a
+  // hall allowlist is in force.
+  if (getVenuePilotHallIds().length) {
+    return {
+      allowed: false,
+      reason: "יצירת אולם חדש חסומה במצב פיילוט (רק אולמות ברשימה)",
+    };
+  }
+
   const ownerIds = getVenuePilotOwnerIds();
   if (!ownerIds.length) {
-    // Hall-only allowlist: owner create still blocked until hall exists & is listed
-    if (getVenuePilotHallIds().length) {
-      return {
-        allowed: false,
-        reason: "יצירת אולם חדש חסומה במצב פיילוט (רק אולמות ברשימה)",
-      };
-    }
     return {
       allowed: false,
       reason: "מצב פיילוט פעיל ללא VENUE_PILOT_OWNER_IDS",

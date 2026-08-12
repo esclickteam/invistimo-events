@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
+import { copySeatingTemplateToClientEvent } from "@/lib/venues/copySeatingTemplateToClientEvent";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
 export type VenueClientPackageType =
@@ -216,69 +217,6 @@ async function createOrUpdateInvitation({
     _id: inserted.insertedId,
     shareId,
   };
-}
-
-async function copySeatingTemplateToClientEvent({
-  event,
-  invitation,
-  userId,
-  template,
-}: {
-  event: any;
-  invitation: any;
-  userId: mongoose.Types.ObjectId;
-  template: any;
-}) {
-  const seatingTables = getCollection("seatingtables");
-
-  if (!seatingTables) {
-    throw new Error("לא נמצאה קולקשן seatingtables");
-  }
-
-  const canvas = template?.canvas || {};
-  const now = new Date();
-
-  /*
-    חשוב:
-    upsert לפי eventId + invitationId.
-    אם כבר קיימת הושבה לאותו אירוע/הזמנה — לא יוצרים כפילות.
-    זה עדיין לא נוגע בהושבה של משתמשים רגילים ולא בלייב.
-  */
-  await seatingTables.updateOne(
-    {
-      eventId: event._id,
-      invitationId: invitation._id,
-    },
-    {
-      $set: {
-        userId,
-
-        eventId: event._id,
-        invitationId: invitation._id,
-        shareId: cleanString(invitation.shareId),
-
-        venueOwnerId: event.venueOwnerId,
-        venueHallId: cleanString(event.venueHallId),
-        venueHallName: cleanString(event.venueHallName),
-
-        source: "venue_seating_template",
-        sourceTemplateId: template._id,
-
-        tables: Array.isArray(template.tables) ? template.tables : [],
-        background: canvas.background || null,
-        canvasView: canvas.canvasView || null,
-        zones: Array.isArray(canvas.zones) ? canvas.zones : [],
-
-        updatedAt: now,
-      },
-      $setOnInsert: {
-        createdAt: now,
-      },
-    },
-    {
-      upsert: true,
-    }
-  );
 }
 
 async function updateUserPermissions({
