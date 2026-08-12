@@ -7,11 +7,11 @@ import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import { useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
-import ShuttleRide from "../illustrations/ShuttleRide";
 import {
   type BlockTone,
   SiteSection,
@@ -19,38 +19,41 @@ import {
   DateRevealBlock,
   StoryBlock,
   CouplePhotosBlock,
-  FullBleedPhoto,
   ScheduleBlock,
   LocationBlock,
   DressCodeBlock,
   TransportationBlock,
   AccommodationsBlock,
-  RichGalleryGrid,
+  QuoteBlock,
   GiftsBlock,
   FaqBlock,
   ContactPeopleBlock,
   FinalMomentBlock,
 } from "../shared/FullLengthBlocks";
 
-const ACCENT = "#B8956B";
+const BURGUNDY = "#4A1C2F";
+const IVORY = "#F7F1E6";
+const GOLD = "#C4A962";
+const MUTED = "#7A5C66";
 
 const tone: BlockTone = {
-  accent: ACCENT,
-  muted: "#9A8570",
+  accent: BURGUNDY,
+  muted: MUTED,
   surface: "#FFFFFF",
-  border: ACCENT,
+  border: BURGUNDY,
   fontDisplay: "Playfair Display",
   radius: "0",
-  buttonClass: "rounded-full bg-[#B8956B] px-6 py-3 text-sm font-bold text-white",
-  outlineButtonClass: "rounded-full border border-[#B8956B] px-6 py-3 text-sm font-bold text-[#B8956B]",
+  buttonClass: "rounded-none bg-[#4A1C2F] px-6 py-3 text-sm font-bold text-[#F7F1E6]",
+  outlineButtonClass:
+    "rounded-none border border-[#4A1C2F] px-6 py-3 text-sm font-bold text-[#4A1C2F]",
 };
 
 function Ornament() {
   return (
-    <div className="mx-auto my-5 flex max-w-[180px] items-center gap-3">
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#B8956B]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-[#B8956B]" />
-      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#B8956B]" />
+    <div className="mx-auto my-5 flex max-w-[200px] items-center gap-3">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#C4A962]/70" />
+      <span className="text-[10px] text-[#C4A962]">✦</span>
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C4A962]/70" />
     </div>
   );
 }
@@ -68,6 +71,23 @@ function monogramInitials(short: string, names: string) {
   return (names.slice(0, 2) || "AB").toUpperCase();
 }
 
+function TransportLineIllustration() {
+  return (
+    <svg viewBox="0 0 280 48" className="mx-auto mb-6 h-12 w-full max-w-xs opacity-70" aria-hidden>
+      <path
+        d="M8 32 H272 M40 32 V18 M240 32 V18 M56 18 H224"
+        fill="none"
+        stroke={BURGUNDY}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="40" cy="32" r="5" fill="none" stroke={GOLD} strokeWidth="1" />
+      <circle cx="240" cy="32" r="5" fill="none" stroke={GOLD} strokeWidth="1" />
+      <rect x="72" y="22" width="136" height="10" rx="1" fill="none" stroke={BURGUNDY} strokeWidth="1" />
+    </svg>
+  );
+}
+
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
   const rsvp = useWeddingRsvp();
@@ -79,137 +99,187 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
   const [envelopeTouched, setEnvelopeTouched] = useState(false);
   const envelopeOpen = Boolean(rsvp.rsvp) || envelopeTouched || rsvp.sent;
   const initials = monogramInitials(c.coupleShort || "", c.coupleNames);
+  const salonImages = images.slice(0, 5);
 
   return (
     <div
       dir="rtl"
-      className="wedding-website-root min-h-screen overflow-x-clip bg-[#FDFBF7] text-[#3A2E22]"
+      className="wedding-website-root min-h-screen overflow-x-clip bg-[#F7F1E6] text-[#4A1C2F]"
       style={{ fontFamily: "'Playfair Display', serif" }}
     >
       {!embed && (
         <WeddingActionBar
-          accent={ACCENT}
-          text="#FFFFFF"
-          surface="rgba(253,251,247,0.94)"
-          border="rgba(184,149,107,0.35)"
+          accent={BURGUNDY}
+          text="#F7F1E6"
+          surface="rgba(247,241,230,0.94)"
+          border="rgba(74,28,47,0.25)"
         />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed top-4 left-4 z-[55] rounded-full border border-[#B8956B]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          className="fixed top-4 left-4 z-[55] rounded-none border border-[#4A1C2F]/30 bg-[#F7F1E6]/95 px-4 py-2 text-xs font-bold shadow-lg"
           style={{ fontFamily: "system-ui, sans-serif" }}
         >
           ← תבניות
         </Link>
       )}
 
-      {/* 1 · Hero — monogram crest */}
+      {/* 1 · Hero — split stationery + burgundy crest panel */}
       <section
         id="hero"
-        className={`relative flex min-h-[100svh] flex-col items-center justify-center overflow-x-clip px-6 text-center ${embed ? "py-20" : "pt-16"}`}
+        className={`relative grid min-h-[100svh] overflow-x-clip md:grid-cols-2 ${embed ? "" : "pt-14"}`}
       >
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: `url(${heroImg})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
         <motion.div
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1 }}
-          className="relative flex h-36 w-36 items-center justify-center rounded-full border-2 border-[#B8956B] bg-white shadow-[0_20px_60px_rgba(184,149,107,0.18)] md:h-44 md:w-44"
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.9 }}
+          className="relative flex flex-col items-center justify-center bg-[#4A1C2F] px-8 py-16 text-[#F7F1E6] md:py-0"
         >
-          <span className="absolute inset-2 rounded-full border border-[#B8956B]/40" />
-          <span className="text-4xl tracking-[0.15em] text-[#B8956B] md:text-5xl">{initials}</span>
+          <div className="absolute inset-6 border border-[#C4A962]/25" />
+          <div className="absolute inset-10 border border-[#C4A962]/15" />
+          <div className="relative flex h-40 w-40 items-center justify-center border border-[#C4A962]/50 bg-[#3A1526] shadow-[0_24px_60px_rgba(0,0,0,0.35)] md:h-48 md:w-48">
+            <span className="absolute inset-3 border border-[#C4A962]/30" />
+            <span className="text-5xl tracking-[0.2em] text-[#C4A962] md:text-6xl">{initials}</span>
+          </div>
+          <p
+            className="relative mt-8 text-[10px] font-bold uppercase tracking-[0.45em] text-[#C4A962]/80"
+            style={{ fontFamily: "system-ui, sans-serif" }}
+          >
+            Royal Ivory
+          </p>
         </motion.div>
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.8 }}
-          className="relative mt-10 text-[clamp(2.4rem,7vw,4.5rem)] font-medium leading-tight"
+          transition={{ duration: 0.9, delay: 0.15 }}
+          className="flex flex-col justify-center px-8 py-16 text-center md:px-14 md:text-right"
         >
-          {c.coupleNames}
-        </motion.h1>
-        <Ornament />
-        <p className="relative max-w-md text-base leading-relaxed text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
-          {c.heroSubtitle}
-        </p>
-        <p className="relative mt-4 text-lg text-[#B8956B]">
-          {formatHebrewDate(c.weddingDate)}
-          {c.weddingTime ? ` · ${c.weddingTime}` : ""}
-        </p>
-        <div className="relative mt-10 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
-          <a href="#rsvp" className="inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]">
-            אישור הגעה
-          </a>
-          <a href="#transportation" className="inline-flex rounded-full border border-[#B8956B] bg-white/70 px-9 py-3.5 text-sm font-bold text-[#B8956B]">
-            הזמנת הסעה
-          </a>
-        </div>
+          <p
+            className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#7A5C66]"
+            style={{ fontFamily: "system-ui, sans-serif" }}
+          >
+            הזמנה לחגיגה
+          </p>
+          <h1 className="mt-6 text-[clamp(2.2rem,6vw,4rem)] font-medium leading-tight">{c.coupleNames}</h1>
+          <Ornament />
+          <p className="max-w-md text-base leading-relaxed text-[#7A5C66]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            {c.heroSubtitle}
+          </p>
+          <p className="mt-5 text-lg text-[#4A1C2F]">
+            {formatHebrewDate(c.weddingDate)}
+            {c.weddingTime ? ` · ${c.weddingTime}` : ""}
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3 md:justify-start" style={{ fontFamily: "system-ui, sans-serif" }}>
+            <a
+              href="#rsvp"
+              className="inline-flex bg-[#4A1C2F] px-9 py-3.5 text-sm font-bold text-[#F7F1E6] shadow-[0_12px_32px_rgba(74,28,47,0.25)]"
+            >
+              אישור הגעה
+            </a>
+            <a
+              href="#transportation"
+              className="inline-flex border border-[#4A1C2F]/40 bg-white/60 px-9 py-3.5 text-sm font-bold text-[#4A1C2F]"
+            >
+              הזמנת הסעה
+            </a>
+          </div>
+        </motion.div>
       </section>
 
       {/* 2 · Formal invitation card */}
       <SiteSection id="invitation" className="py-20">
         <div className="mx-auto max-w-xl px-6">
-          <div className="border border-[#B8956B]/40 bg-white px-8 py-12 text-center shadow-[0_24px_70px_rgba(100,75,50,0.08)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#B8956B]" style={{ fontFamily: "system-ui, sans-serif" }}>
+          <div className="border border-[#4A1C2F]/25 bg-white px-10 py-14 text-center shadow-[0_20px_60px_rgba(74,28,47,0.08)]">
+            <p
+              className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#C4A962]"
+              style={{ fontFamily: "system-ui, sans-serif" }}
+            >
               הזמנה רשמית
             </p>
             <Ornament />
-            <p className="text-lg leading-[2] text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            <p className="text-lg leading-[2.1] text-[#7A5C66]" style={{ fontFamily: "system-ui, sans-serif" }}>
               {c.invitationText || c.welcomeText || c.heroSubtitle}
             </p>
+            <div className="mx-auto mt-8 h-px w-16 bg-[#C4A962]/50" />
           </div>
         </div>
       </SiteSection>
 
       {/* 3 · Date reveal */}
-      <DateRevealBlock tone={tone} className="bg-[#F7F2EA] py-20" />
+      <DateRevealBlock tone={tone} className="border-y border-[#4A1C2F]/10 bg-white py-20" />
 
       {/* 4 · Countdown */}
       <CountdownBlock tone={tone} variant="editorial" className="py-20" />
 
       {/* 5 · Schedule */}
-      <ScheduleBlock tone={tone} className="bg-[#F7F2EA] py-20">
+      <ScheduleBlock tone={tone} className="border-t border-[#4A1C2F]/10 bg-white py-20">
         <Ornament />
       </ScheduleBlock>
 
       {/* 6 · Dress code */}
       <DressCodeBlock tone={tone} className="py-20" />
 
-      {/* 7 · Location */}
-      <LocationBlock tone={tone} className="bg-[#F7F2EA] py-20">
-        <MapPinPulse accent={ACCENT} />
+      {/* 7 · Story */}
+      <StoryBlock tone={tone} className="border-y border-[#4A1C2F]/10 bg-white py-20" />
+
+      {/* 8 · Couple photos — framed portraits */}
+      <CouplePhotosBlock images={images} tone={tone} layout="framed" className="py-20" />
+
+      {/* 9 · Salon wall gallery — single elegant row */}
+      <SiteSection id="gallery" className="border-y border-[#4A1C2F]/10 bg-white py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="text-center text-4xl font-medium" style={{ fontFamily: tone.fontDisplay }}>
+            קיר הגלריה
+          </h2>
+          <p className="mt-2 text-center text-sm text-[#7A5C66]" style={{ fontFamily: "system-ui, sans-serif" }}>
+            מסגרות סלון — שורה אחת אלגנטית
+          </p>
+          <Ornament />
+          <div className="mt-10 flex flex-wrap items-end justify-center gap-4 md:flex-nowrap md:gap-5">
+            {salonImages.map((src, i) => (
+              <motion.figure
+                key={`${src}-${i}`}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                className="w-[42%] shrink-0 border border-[#4A1C2F]/20 bg-[#F7F1E6] p-2 shadow-[0_8px_28px_rgba(74,28,47,0.08)] md:w-[18%]"
+                style={{ marginBottom: i % 2 === 0 ? "0" : "12px" }}
+              >
+                <div className="border border-[#C4A962]/30 bg-white p-1.5">
+                  <SafeImage src={src} alt="" className="aspect-[3/4] w-full object-cover" />
+                </div>
+                <figcaption
+                  className="mt-2 text-center text-[10px] tracking-[0.2em] text-[#7A5C66]"
+                  style={{ fontFamily: "system-ui, sans-serif" }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </figcaption>
+              </motion.figure>
+            ))}
+          </div>
+        </div>
+      </SiteSection>
+
+      {/* 10 · Location */}
+      <LocationBlock tone={tone} className="py-20">
+        <MapPinPulse accent={BURGUNDY} />
         <Ornament />
       </LocationBlock>
 
-      {/* 8 · Story */}
-      <StoryBlock tone={tone} className="py-20" />
+      {/* 11 · Quote */}
+      <QuoteBlock tone={tone} className="border-y border-[#4A1C2F]/10 bg-[#F7F1E6] py-16" />
 
-      {/* 9 · Couple photos */}
-      <CouplePhotosBlock images={images} tone={tone} layout="framed" className="bg-[#F7F2EA] py-20" />
-
-      {/* 10 · Visual break */}
-      <FullBleedPhoto src={images[2] || heroImg} caption="באהבה ובשמחה — נתראה בחגיגה" />
-
-      {/* 11 · Gallery */}
-      <RichGalleryGrid images={images} tone={tone} title="רגעים" max={9} className="py-20" />
-
-      {/* 12 · Accommodations */}
-      <AccommodationsBlock tone={tone} className="bg-[#F7F2EA] py-20" />
-
-      {/* 13 · Transportation */}
-      <TransportationBlock tone={tone} className="py-20">
-        <ShuttleRide accent={ACCENT} className="mb-8" />
+      {/* 12 · Transportation — refined cards only */}
+      <TransportationBlock tone={tone} className="bg-white py-20">
+        <TransportLineIllustration />
         <Ornament />
       </TransportationBlock>
 
-      {/* 14 · RSVP — envelope */}
-      <SiteSection id="rsvp" className="bg-[#F7F2EA] py-20">
+      {/* 13 · RSVP — envelope */}
+      <SiteSection id="rsvp" className="py-20">
         <div className="mx-auto max-w-lg px-6">
           <h2 className="text-center text-4xl font-medium" style={{ fontFamily: tone.fontDisplay }}>
             אישור הגעה
@@ -221,14 +291,14 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
             onKeyDown={() => setEnvelopeTouched(true)}
             role="presentation"
           >
-            <EnvelopeRsvp accent={ACCENT} open={envelopeOpen}>
+            <EnvelopeRsvp accent={BURGUNDY} open={envelopeOpen}>
               <div style={{ fontFamily: "system-ui, sans-serif" }}>
                 {rsvp.sent ? (
-                  <p className="py-6 text-center text-lg text-[#B8956B]">תודה! קיבלנו את אישור ההגעה.</p>
+                  <p className="py-6 text-center text-lg text-[#4A1C2F]">תודה! קיבלנו את אישור ההגעה.</p>
                 ) : (
                   <div className="space-y-4">
                     {rsvp.guestName ? (
-                      <p className="text-center text-sm text-[#9A8570]">שלום {rsvp.guestName}</p>
+                      <p className="text-center text-sm text-[#7A5C66]">שלום {rsvp.guestName}</p>
                     ) : null}
                     <div className="flex gap-3">
                       {(["yes", "no"] as const).map((v) => (
@@ -239,10 +309,10 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
                             setEnvelopeTouched(true);
                             rsvp.setRsvp(v);
                           }}
-                          className={`flex-1 rounded-full py-3 text-sm font-bold ${
+                          className={`flex-1 py-3 text-sm font-bold ${
                             rsvp.rsvp === v
-                              ? "bg-[#B8956B] text-white"
-                              : "border border-[#B8956B]/40 text-[#9A8570]"
+                              ? "bg-[#4A1C2F] text-[#F7F1E6]"
+                              : "border border-[#4A1C2F]/30 text-[#7A5C66]"
                           }`}
                         >
                           {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
@@ -251,14 +321,14 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
                     </div>
                     {rsvp.rsvp === "yes" ? (
                       <div className="flex items-center justify-center gap-3">
-                        <span className="text-sm text-[#9A8570]">מספר אורחים</span>
+                        <span className="text-sm text-[#7A5C66]">מספר אורחים</span>
                         <input
                           type="number"
                           min={1}
                           max={20}
                           value={rsvp.count}
                           onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                          className="w-20 rounded-full border border-[#B8956B]/40 px-3 py-2 text-center"
+                          className="w-20 border border-[#4A1C2F]/30 px-3 py-2 text-center"
                         />
                       </div>
                     ) : null}
@@ -269,7 +339,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
                       type="button"
                       disabled={!rsvp.rsvp || rsvp.saving}
                       onClick={() => void rsvp.submit()}
-                      className="w-full rounded-full bg-[#B8956B] py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                      className="w-full bg-[#4A1C2F] py-3.5 text-sm font-bold text-[#F7F1E6] disabled:opacity-40"
                     >
                       {rsvp.saving ? "שולח..." : "שליחה"}
                     </button>
@@ -281,11 +351,14 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
         </div>
       </SiteSection>
 
+      {/* 14 · Accommodations */}
+      <AccommodationsBlock tone={tone} className="border-t border-[#4A1C2F]/10 bg-white py-20" />
+
       {/* 15 · Gifts */}
       <GiftsBlock tone={tone} className="py-20" />
 
       {/* 16 · FAQ */}
-      <FaqBlock tone={tone} className="bg-[#F7F2EA] py-20" />
+      <FaqBlock tone={tone} className="border-y border-[#4A1C2F]/10 bg-white py-20" />
 
       {/* 17 · Contact */}
       <ContactPeopleBlock tone={tone} className="py-20" />
@@ -293,10 +366,10 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
       {/* 18 · Final moment */}
       <FinalMomentBlock tone={tone} image={images[4] || heroImg} />
 
-      <footer id="footer" className="bg-[#3A2E22] px-6 py-12 text-center text-[#FDFBF7]">
+      <footer id="footer" className="bg-[#4A1C2F] px-6 py-12 text-center text-[#F7F1E6]">
         <p className="text-2xl font-medium">{c.coupleNames}</p>
         <Ornament />
-        <p className="text-xs tracking-[0.25em] text-white/35">{formatHebrewDate(c.weddingDate)}</p>
+        <p className="text-xs tracking-[0.25em] text-[#F7F1E6]/40">{formatHebrewDate(c.weddingDate)}</p>
       </footer>
     </div>
   );
