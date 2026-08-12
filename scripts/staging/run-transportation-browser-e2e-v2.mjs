@@ -116,6 +116,38 @@ async function clickTab(page, label) {
   return ok;
 }
 
+/** Click a route card by exact visible name (button inside .tx-route-card). */
+async function selectRouteByName(page, name) {
+  const ok = await page.evaluate((routeName) => {
+    const buttons = Array.from(
+      document.querySelectorAll("article.tx-route-card button, button")
+    );
+    const exact = buttons.find((b) => {
+      const t = (b.textContent || "").replace(/\s+/g, " ").trim();
+      return t.includes(routeName) && !t.includes("↑") && !t.includes("↓");
+    });
+    if (!exact) return false;
+    exact.click();
+    return true;
+  }, name);
+  await delay(1000);
+  return ok;
+}
+
+async function clickWorkspaceTab(page, label) {
+  const ok = await page.evaluate((lab) => {
+    const btn = Array.from(document.querySelectorAll("button")).find((x) => {
+      const t = (x.textContent || "").replace(/\s+/g, " ").trim();
+      return t === lab || t.includes(lab);
+    });
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }, label);
+  await delay(900);
+  return ok;
+}
+
 async function bodyHas(page, text) {
   return page.evaluate((t) => (document.body.innerText || "").includes(t), text);
 }
@@ -312,13 +344,8 @@ async function main() {
     );
 
     // Select outbound route in UI
-    await page.evaluate(() => {
-      const el = Array.from(document.querySelectorAll("button, article")).find((n) =>
-        (n.textContent || "").includes("קו הלוך E2E")
-      );
-      el?.click();
-    });
-    await delay(1200);
+    await selectRouteByName(page, "קו הלוך E2E");
+    await clickWorkspaceTab(page, "מסלול ותחנות");
     await shot(page, "12-route-workspace");
 
     const outboundId = out.json?.route?._id;
@@ -383,24 +410,16 @@ async function main() {
     await delay(1500);
     await clickTab(page, "קווים");
     await delay(800);
-    await page.evaluate(() => {
-      const el = Array.from(document.querySelectorAll("button, article")).find((n) =>
-        (n.textContent || "").includes("קו הלוך E2E")
-      );
-      el?.click();
-    });
-    await delay(1000);
-    await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll("button")).find((x) =>
-        (x.textContent || "").includes("מסלול ותחנות")
-      );
-      b?.click();
-    });
-    await delay(800);
+    const selectedOutbound = await selectRouteByName(page, "קו הלוך E2E");
+    await clickWorkspaceTab(page, "מסלול ותחנות");
     await shot(page, "13-stops");
     const stopsVisible =
       (await bodyHas(page, "תחנה 1 E2E")) || (await bodyHas(page, "תחנה 3 E2E"));
-    mark("STOPS", createdStops.length >= 3 && stopsVisible, `created=${createdStops.length}`);
+    mark(
+      "STOPS",
+      createdStops.length >= 3 && selectedOutbound && stopsVisible,
+      `created=${createdStops.length}; selected=${selectedOutbound}; visible=${stopsVisible}`
+    );
 
     // Also add a stop via UI button if present
     const uiAdd = await page.evaluate(() => {
@@ -538,51 +557,43 @@ async function main() {
     mark("WAITLIST", waitOk);
     mark("MANUAL_PROMOTION", promoOk);
 
-    // UI passenger lists
+    // UI passenger lists — use capacity route (has registered + waitlist passengers)
     await goto(page, `/dashboard/transportation?eventId=${EVENT_A}`);
     await delay(1500);
     await clickTab(page, "קווים");
     await delay(800);
-    await page.evaluate(() => {
-      const el = Array.from(document.querySelectorAll("button, article")).find((n) =>
-        (n.textContent || "").includes("קו הלוך E2E")
-      );
-      el?.click();
-    });
-    await delay(1000);
-    await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll("button")).find((x) =>
-        (x.textContent || "").includes("הנרשמים לקו")
-      );
-      b?.click();
-    });
-    await delay(1000);
+    const selectedCap = await selectRouteByName(page, "קו קיבולת E2E");
+    await clickWorkspaceTab(page, "הנרשמים לקו");
     await shot(page, "15-passengers-per-route");
+    const routePassengersVisible =
+      (await bodyHas(page, "נוסע מלא 1")) ||
+      (await bodyHas(page, "נוסע המתנה")) ||
+      (await bodyHas(page, "נוסע מלא 2"));
     mark(
       "PASSENGER_LIST_PER_ROUTE",
-      (await bodyHas(page, "נוסע מלא 1")) || (await bodyHas(page, "נוסע המתנה")),
-      "route passenger tab"
+      selectedCap && routePassengersVisible,
+      `selected=${selectedCap}; visible=${routePassengersVisible}`
     );
 
-    await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll("button")).find((x) =>
-        (x.textContent || "").includes("מסלול ותחנות")
-      );
-      b?.click();
-    });
-    await delay(800);
-    await page.evaluate(() => {
+    await clickWorkspaceTab(page, "מסלול ותחנות");
+    const expandedStop = await page.evaluate(() => {
       const b = Array.from(document.querySelectorAll("button")).find((x) =>
         (x.textContent || "").includes("נוסעי התחנה")
       );
-      b?.click();
+      if (!b) return false;
+      b.click();
+      return true;
     });
     await delay(800);
     await shot(page, "16-passengers-per-stop");
+    const stopPassengersVisible =
+      (await bodyHas(page, "נוסע מלא")) ||
+      (await bodyHas(page, "נוסע המתנה")) ||
+      (await bodyHas(page, "הסתר נוסעים"));
     mark(
       "PASSENGERS_PER_STOP",
-      (await bodyHas(page, "נוסע מלא")) || (await bodyHas(page, "נוסעי התחנה")),
-      "stop passenger expand"
+      expandedStop && stopPassengersVisible,
+      `expanded=${expandedStop}; visible=${stopPassengersVisible}`
     );
 
     // Guest invite
