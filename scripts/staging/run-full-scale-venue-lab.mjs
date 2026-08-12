@@ -324,9 +324,15 @@ async function ensureRegulars(mongo) {
       .collection("invitationguests")
       .countDocuments({ invitationId: inv._id });
     if (gCount < 15) {
-      await mongo
-        .collection("invitationguests")
-        .deleteMany({ invitationId: inv._id, isStagingFixture: true });
+      // Only remove prior FS-LAB regular fixtures — never wipe real Regular guests.
+      await mongo.collection("invitationguests").deleteMany({
+        invitationId: inv._id,
+        $or: [
+          { isStagingFixture: true },
+          { name: { $regex: "^\\[FS-LAB-REG\\]" } },
+          { token: { $regex: `^(fslab-reg-${i}-|${PREFIX}-reg-${i}-)` } },
+        ],
+      });
       const docs = [];
       for (let g = 1; g <= 20; g += 1) {
         const rsvp = g % 5 === 0 ? "no" : g % 3 === 0 ? "pending" : "yes";
@@ -340,7 +346,7 @@ async function ensureRegulars(mongo) {
           status: rsvp,
           guestsCount: g % 2 === 0 ? 2 : 1,
           actualArrivedCount: rsvp === "yes" && g <= 2 ? 1 : 0,
-          token: `fslab-reg-${i}-${g}`,
+          token: `${PREFIX}-reg-${i}-${g}-${String(inv._id).slice(-4)}`,
           isStagingFixture: true,
           createdAt: now,
           updatedAt: now,
@@ -981,18 +987,25 @@ async function main() {
     );
     check(`shifts_${v.key}`, sched.status === 200, sched.status);
 
-    // Leads: new/contacted/proposal/booked(convert)/lost
+    // Leads: pipeline statuses + one dedicated convert lead per couple
     const leadStatuses = [
       { key: "new", status: "new" },
       { key: "contacted", status: "contacted" },
       { key: "proposal", status: "proposal" },
-      { key: "convert1", status: "negotiation" },
-      { key: "convert2", status: "meeting" },
       { key: "lost", status: "lost" },
     ];
+    for (let ci = 1; ci <= v.couples; ci += 1) {
+      leadStatuses.push({
+        key: `convert${ci}`,
+        status: ci % 2 === 0 ? "meeting" : "negotiation",
+      });
+    }
+    // Fresh owner session before CRM mutations (avoid stale cookie jar)
+    let venueOwner = await login(owners[v.key].email);
+    check(`owner_relogin_${v.key}`, venueOwner.ok, venueOwner.status);
     for (const ld of leadStatuses) {
       const res = await request("POST", `/api/venues/dashboard/halls/${H}/crm`, {
-        token: ownerLogin.token,
+        token: venueOwner.token,
         body: {
           name: `[FS-LAB] ${v.key} Lead ${ld.key}`,
           phone: "0501234567",
@@ -1007,7 +1020,10 @@ async function main() {
         },
       });
       const id = res.json?.lead?.id || res.json?.lead?._id;
-      check(`lead_${v.key}_${ld.key}`, res.status === 200 && !!id, res.status);
+      check(`lead_${v.key}_${ld.key}`, res.status === 200 && !!id, {
+        status: res.status,
+        msg: res.json?.message,
+      });
       if (id) {
         report.venues[v.key].leads[ld.key] = String(id);
         report.stats.leadsCreated += 1;
@@ -1015,41 +1031,26 @@ async function main() {
       }
     }
 
-    // Convert 2 leads → couples
+    // Convert N unique leads → couples (one fresh lead per couple; never reuse)
     const templates = report.venues[v.key].templates;
     const menuIds = report.venues[v.key].menus;
-    for (let ci = 1; ci <= v.couples; ci += 1) {
-      const leadKey = ci === 1 ? "convert1" : "convert2";
-      // For 3rd couple on A/B create an extra lead
-      let leadId = report.venues[v.key].leads[leadKey];
-      if (!leadId && ci === 3) {
-        const extra = await request(
-          "POST",
-          `/api/venues/dashboard/halls/${H}/crm`,
-          {
-            token: ownerLogin.token,
-            body: {
-              name: `[FS-LAB] ${v.key} Lead convert3`,
-              phone: "0509998877",
-              email: `${PREFIX}-${v.key.toLowerCase()}-convert3@example.com`,
-              eventType: "wedding",
-              requestedDate: "2026-12-10",
-              guests: 150,
-              status: "new",
-              source: "full-scale-lab",
-            },
-          }
-        );
-        leadId = extra.json?.lead?.id || extra.json?.lead?._id;
-        report.stats.leadsCreated += 1;
-      }
+    const coupleTarget = Number(v.couples) || 0;
+    check(`couple_target_${v.key}`, coupleTarget >= 2, coupleTarget);
+    for (let ci = 1; ci <= coupleTarget; ci += 1) {
+      try {
+      venueOwner = await login(owners[v.key].email);
+      const leadId = report.venues[v.key].leads[`convert${ci}`] || null;
+      check(`convert_${v.key}_${ci}_lead`, !!leadId, {
+        leadKey: `convert${ci}`,
+        leads: Object.keys(report.venues[v.key].leads),
+      });
       if (!leadId) continue;
-      const date = `2026-11-${String(10 + ci).padStart(2, "0")}`;
+      const date = `2026-11-${String(10 + ci + (v.key.charCodeAt(0) % 5)).padStart(2, "0")}`;
       const convert = await request(
         "PUT",
         `/api/venues/dashboard/halls/${H}/crm`,
         {
-          token: ownerLogin.token,
+          token: venueOwner.token,
           body: {
             action: "closeEvent",
             leadId,
@@ -1061,11 +1062,20 @@ async function main() {
         }
       );
       const eventId =
-        convert.json?.eventId || convert.json?.linkedEventId || null;
+        convert.json?.eventId ||
+        convert.json?.linkedEventId ||
+        convert.json?.event?._id ||
+        convert.json?.event?.id ||
+        null;
       check(
         `convert_${v.key}_${ci}`,
         convert.status === 200 && !!eventId,
-        { status: convert.status, eventId, msg: convert.json?.message }
+        {
+          status: convert.status,
+          eventId,
+          msg: convert.json?.message,
+          keys: convert.json ? Object.keys(convert.json) : [],
+        }
       );
       if (!eventId) continue;
       report.stats.leadsConverted += 1;
@@ -1077,7 +1087,7 @@ async function main() {
         "PUT",
         `/api/venues/dashboard/halls/${H}/crm`,
         {
-          token: ownerLogin.token,
+          token: venueOwner.token,
           body: { action: "closeEvent", leadId, date },
         }
       );
@@ -1098,7 +1108,7 @@ async function main() {
           "POST",
           `/api/venues/dashboard/events/${eventId}/menu`,
           {
-            token: ownerLogin.token,
+            token: venueOwner.token,
             body: { templateId: menuId, hallId },
           }
         );
@@ -1114,7 +1124,7 @@ async function main() {
         "POST",
         `/api/venues/dashboard/events/${eventId}/client-invite`,
         {
-          token: ownerLogin.token,
+          token: venueOwner.token,
           body: { seatingTemplateId: tplId, packageType: "seating_only" },
         }
       );
@@ -1323,8 +1333,8 @@ async function main() {
         }
       }
 
-      // Day-of for first couple of A and B
-      if ((v.key === "A" || v.key === "B") && ci === 1 && guests[0]) {
+      // Day-of for first couple of A, B, and C
+      if ((v.key === "A" || v.key === "B" || v.key === "C") && ci === 1 && guests[0]) {
         const reception = report.venues[v.key].employees.RECEPTION?.email;
         const rLogin = reception
           ? await login(reception)
@@ -1394,7 +1404,21 @@ async function main() {
           pass: true,
         });
       }
+      } catch (coupleErr) {
+        check(`couple_exception_${v.key}_${ci}`, false, {
+          error: String(coupleErr?.message || coupleErr),
+          stack: String(coupleErr?.stack || "").slice(0, 400),
+        });
+      }
     }
+    check(
+      `venue_${v.key}_couples_count`,
+      report.venues[v.key].couples.length >= coupleTarget,
+      {
+        got: report.venues[v.key].couples.length,
+        want: coupleTarget,
+      }
+    );
 
     // Reports / activity / alerts / calendar / customers
     for (const [name, path] of [
@@ -1682,7 +1706,10 @@ async function main() {
       2
     )
   );
-  process.exit(failed.length ? 1 : 0);
+  const validationFailed =
+    failed.length > 0 ||
+    report.FINAL.VENUE_SUITE_LARGE_SCALE_STAGING_VALIDATION !== "PASS";
+  process.exit(validationFailed ? 1 : 0);
 }
 
 main().catch((e) => {
