@@ -252,6 +252,7 @@ export default function VenueEquipmentPage() {
             אין פריטי ציוד עדיין
           </div>
         ) : (
+          <>
           <div className="mt-3 space-y-2 md:hidden">
             {activeItems.map((item) => (
               <article
@@ -304,6 +305,7 @@ export default function VenueEquipmentPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 

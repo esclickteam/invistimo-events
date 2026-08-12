@@ -135,6 +135,7 @@ export default function VenueCustomersPage() {
             </p>
           </div>
         ) : (
+          <>
           <div className="space-y-2 p-3 md:hidden">
             {filtered.map((customer) => (
               <article
@@ -255,6 +256,7 @@ export default function VenueCustomersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
