@@ -142,6 +142,8 @@ export async function atomicReleaseSeats(params: {
 
   const { reservedField } = legFields(leg, route);
 
+  // Mongoose 9+ requires updatePipeline for aggregation-pipeline updates.
+  // Without it, cancel/delete/promote seat release throws SERVER_ERROR.
   await TransportRoute.findOneAndUpdate(
     {
       _id: params.routeId,
@@ -155,7 +157,8 @@ export async function atomicReleaseSeats(params: {
           },
         },
       },
-    ]
+    ],
+    { updatePipeline: true }
   );
 
   return { ok: true as const };
