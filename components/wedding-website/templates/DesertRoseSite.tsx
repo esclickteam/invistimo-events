@@ -4,60 +4,107 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
-import {
-  useFaqAccordion,
-  useWeddingRsvp,
-} from "../shared/useWeddingInteractions";
 import WatercolorReveal from "../illustrations/WatercolorReveal";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ScrollRoute from "../illustrations/ScrollRoute";
-
+import {
+  type BlockTone,
+  SiteSection,
+  WelcomeBlock,
+  HowWeMetBlock,
+  CountdownBlock,
+  DateRevealBlock,
+  CouplePhotosBlock,
+  FullBleedPhoto,
+  ScheduleBlock,
+  LocationBlock,
+  DressCodeBlock,
+  TransportationBlock,
+  AccommodationsBlock,
+  QuoteBlock,
+  RsvpBlock,
+  GiftsBlock,
+  FaqBlock,
+  FinalMomentBlock,
+} from "../shared/FullLengthBlocks";
+import { SafeImage } from "../shared/SafeMedia";
 
 const ROSE = "#C4705A";
 
-const fade = {
-  initial: { opacity: 0, y: 28 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-70px" as const },
-  transition: { duration: 0.7, ease: "easeOut" as const },
+const tone: BlockTone = {
+  accent: ROSE,
+  muted: "#9A6B5C",
+  surface: "#FBF5F0",
+  border: ROSE,
+  fontDisplay: "Cormorant Garamond",
+  radius: "0",
+  buttonClass: "bg-[#C4705A] px-6 py-3 text-sm font-bold text-white",
+  outlineButtonClass: "border border-[#C4705A] px-6 py-3 text-sm font-bold text-[#C4705A]",
 };
 
-function Section({
-  id,
-  className = "",
-  children,
-}: {
-  id: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const { sections } = useWeddingSite();
-  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
+function RoseBar() {
   return (
-    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
-      {children}
-    </motion.section>
+    <div
+      className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
+      style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
+    />
+  );
+}
+
+/** Story wrapped in watercolor reveal */
+function WatercolorStoryBlock({ tone: t, className = "" }: { tone: BlockTone; className?: string }) {
+  const content = useWeddingContent();
+  const paragraphs =
+    content.storyParagraphs?.length > 0
+      ? content.storyParagraphs
+      : ["אנחנו שמחים לחלוק איתכם את היום המיוחד שלנו."];
+  return (
+    <SiteSection id="our-story" className={className}>
+      <div className="mx-auto max-w-3xl px-6 text-center">
+        <h2 className="font-['Cormorant_Garamond'] text-4xl font-light" style={{ fontFamily: t.fontDisplay }}>
+          הסיפור שלנו
+        </h2>
+        <RoseBar />
+        <WatercolorReveal className="rounded-sm">
+          <div className="space-y-5 bg-[#FBF5F0]/80 px-6 py-10 text-base leading-relaxed text-[#9A6B5C] md:text-lg">
+            {paragraphs.map((p) => (
+              <p key={p.slice(0, 32)}>{p}</p>
+            ))}
+          </div>
+        </WatercolorReveal>
+      </div>
+    </SiteSection>
   );
 }
 
 export default function DesertRoseSite({ template, embed, hideDemoBadge }: TemplateProps) {
-  const DEMO = useWeddingContent();
+  const c = useWeddingContent();
   const themeOverrides = useWeddingThemeOverrides();
-  const rsvp = useWeddingRsvp();
-  const faq = useFaqAccordion(0);
-  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
+  const images = sanitizeGallery(
+    c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
+    template.galleryImages,
+  );
+  const heroImg = c.heroImageUrl || template.heroImage;
 
   return (
-    <div className="wedding-website-root overflow-x-clip " data-style-preset={themeOverrides.stylePreset || ""} style={{ backgroundColor: "var(--ww-bg)", color: "var(--ww-text)", fontFamily: "var(--ww-font-body)", ["--ww-heading-scale" as any]: themeOverrides.headingScale || 1 }} dir="rtl">
+    <div
+      dir="rtl"
+      className="wedding-website-root overflow-x-clip"
+      data-style-preset={themeOverrides.stylePreset || ""}
+      style={{
+        backgroundColor: "var(--ww-bg)",
+        color: "var(--ww-text)",
+        fontFamily: "var(--ww-font-body)",
+        ["--ww-heading-scale" as string]: themeOverrides.headingScale || 1,
+      }}
+    >
       {!embed && (
         <WeddingActionBar
-          accent="#C4705A"
+          accent={ROSE}
           text="#FFFFFF"
           surface="rgba(251,245,240,0.94)"
           border="rgba(196,112,90,0.35)"
@@ -77,12 +124,12 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
         </Link>
       )}
 
-      {/* HERO — diagonal clip-path image */}
+      {/* 1 · Hero — diagonal clip-path */}
       <section id="hero" className="relative min-h-[100svh] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url(${DEMO.heroImageUrl || template.heroImage})`,
+            backgroundImage: `url(${heroImg})`,
             clipPath: "polygon(0 0, 100% 0, 100% 78%, 0 100%)",
           }}
         />
@@ -94,14 +141,12 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
           <div className="max-w-xl">
             <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#C4705A]">Desert Rose</p>
             <h1 className="mt-4 font-['Cormorant_Garamond'] text-[clamp(3rem,9vw,5.8rem)] font-light leading-[0.95]">
-              {DEMO.coupleNames}
+              {c.coupleNames}
             </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-[#9A6B5C] md:text-lg">
-              {DEMO.heroSubtitle}
-            </p>
+            <p className="mt-6 max-w-md text-base leading-relaxed text-[#9A6B5C] md:text-lg">{c.heroSubtitle}</p>
             <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#C4705A]">
-              {formatHebrewDate(DEMO.weddingDate)}
-              {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
+              {formatHebrewDate(c.weddingDate)}
+              {c.weddingTime ? ` · ${c.weddingTime}` : ""}
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
               <a
@@ -123,52 +168,58 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
         </div>
       </section>
 
-      <Section id="invitation" className="py-20">
-        <div className="mx-auto max-w-2xl px-6 text-center">
-          <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">הזמנה</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <p className="text-lg leading-[2] text-[#9A6B5C]">
-            {DEMO.invitationText || DEMO.heroSubtitle}
-          </p>
-        </div>
-      </Section>
+      {/* 2 · Welcome */}
+      <WelcomeBlock tone={tone} title="הזמנה חמה" className="py-20" />
 
-      <Section id="our-story" className="bg-[#F3E8E0] py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">הסיפור שלנו</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <WatercolorReveal className="rounded-sm">
-            <div className="space-y-5 bg-[#FBF5F0]/80 px-6 py-10 text-base leading-relaxed text-[#9A6B5C] md:text-lg">
-              {(DEMO.storyParagraphs.length
-                ? DEMO.storyParagraphs
-                : ["אנחנו שמחים לחלוק איתכם את היום המיוחד שלנו."]
-              ).map((p) => (
-                <p key={p.slice(0, 24)}>{p}</p>
-              ))}
-            </div>
-          </WatercolorReveal>
-        </div>
-      </Section>
+      {/* 3 · How we met */}
+      <HowWeMetBlock tone={tone} image={images[0]} className="bg-[#F3E8E0] py-20" />
 
-      <Section id="gallery" className="py-20">
+      {/* 4 · Story — watercolor */}
+      <WatercolorStoryBlock tone={tone} className="py-20" />
+
+      {/* 5 · Date reveal */}
+      <DateRevealBlock tone={tone} className="bg-[#F3E8E0] py-20" />
+
+      {/* 6 · Visual break */}
+      <FullBleedPhoto src={images[2] || heroImg} caption="שמש, חול ופרחים — כמו האהבה שלנו" />
+
+      {/* 7 · Countdown */}
+      <CountdownBlock tone={tone} variant="editorial" className="py-20" />
+
+      {/* 8 · Schedule */}
+      <ScheduleBlock tone={tone} className="bg-[#F3E8E0] py-20">
+        <RoseBar />
+      </ScheduleBlock>
+
+      {/* 9 · Couple photos */}
+      <CouplePhotosBlock images={images} tone={tone} layout="split" className="py-20" />
+
+      {/* 10 · Location + route */}
+      <LocationBlock tone={tone} className="bg-[#F3E8E0] py-20">
+        <ScrollRoute accent={ROSE} />
+        <MapPinPulse accent={ROSE} />
+        <RoseBar />
+      </LocationBlock>
+
+      {/* 11 · Dress code */}
+      <DressCodeBlock tone={tone} className="py-20" />
+
+      {/* 12 · Transportation */}
+      <TransportationBlock tone={tone} className="bg-[#F3E8E0] py-20">
+        <ShuttleRide accent={ROSE} className="mb-8" />
+      </TransportationBlock>
+
+      {/* 13 · Gallery — watercolor frame */}
+      <SiteSection id="gallery" className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">גלריה</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
+          <RoseBar />
           <WatercolorReveal>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-              {images.slice(0, 6).map((src, i) => (
+            <div className="mt-8 columns-2 gap-3 md:columns-3">
+              {images.slice(0, 9).map((src, i) => (
                 <figure
-                  key={src}
-                  className="overflow-hidden"
+                  key={`${src}-${i}`}
+                  className="mb-3 break-inside-avoid overflow-hidden"
                   style={{
                     clipPath:
                       i % 2 === 0
@@ -176,233 +227,40 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
                         : "polygon(4% 0, 100% 0, 100% 96%, 0 100%)",
                   }}
                 >
-                  <SafeImage src={src} alt="" className="aspect-[4/5] w-full object-cover" />
+                  <SafeImage
+                    src={src}
+                    alt=""
+                    className={`w-full object-cover ${i % 3 === 1 ? "aspect-[3/4]" : "aspect-square"}`}
+                  />
                 </figure>
               ))}
             </div>
           </WatercolorReveal>
         </div>
-      </Section>
+      </SiteSection>
 
-      <Section id="schedule" className="bg-[#F3E8E0] py-20">
-        <div className="mx-auto max-w-3xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">לוח זמנים</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <ol className="space-y-3">
-            {(DEMO.schedule.length
-              ? DEMO.schedule
-              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
-            ).map((item) => (
-              <li
-                key={`${item.time}-${item.title}`}
-                className="grid grid-cols-[88px_1fr] gap-4 bg-[#FBF5F0] px-5 py-4"
-                style={{ clipPath: "polygon(2% 0, 100% 0, 98% 100%, 0 100%)" }}
-              >
-                <span className="font-['Cormorant_Garamond'] text-xl text-[#C4705A]">{item.time}</span>
-                <div>
-                  <p className="font-semibold">{item.title}</p>
-                  {item.description ? <p className="mt-1 text-sm text-[#9A6B5C]">{item.description}</p> : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Section>
+      {/* 14 · Accommodations */}
+      <AccommodationsBlock tone={tone} className="bg-[#F3E8E0] py-20" />
 
-      <Section id="location" className="py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <ScrollRoute accent="#C4705A" />
-          <MapPinPulse accent={ROSE} />
-          <h2 className="mt-3 font-['Cormorant_Garamond'] text-4xl font-light">
-            {DEMO.venueName || "מיקום"}
-          </h2>
-          <p className="mt-2 text-[#9A6B5C]">{DEMO.venueAddress}</p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            {DEMO.wazeUrl ? (
-              <a
-                href={DEMO.wazeUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-[#C4705A] px-6 py-3 text-sm font-bold text-white"
-                style={{ clipPath: "polygon(6% 0, 100% 0, 94% 100%, 0 100%)" }}
-              >
-                Waze
-              </a>
-            ) : null}
-            {DEMO.mapsUrl ? (
-              <a
-                href={DEMO.mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="border border-[#C4705A] px-6 py-3 text-sm font-bold text-[#C4705A]"
-                style={{ clipPath: "polygon(6% 0, 100% 0, 94% 100%, 0 100%)" }}
-              >
-                Google Maps
-              </a>
-            ) : null}
-          </div>
-          {DEMO.venueAddress ? (
-            <div
-              className="mt-8 overflow-hidden"
-              style={{ clipPath: "polygon(0 0, 100% 3%, 97% 100%, 0 97%)" }}
-            >
-              <iframe
-                title="map"
-                className="aspect-[16/9] w-full border-0"
-                loading="lazy"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
-              />
-            </div>
-          ) : null}
-        </div>
-      </Section>
+      {/* 15 · Quote */}
+      <QuoteBlock tone={tone} />
 
-      <Section id="transportation" className="bg-[#F3E8E0] py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">הגעה והסעות</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <ShuttleRide accent={ROSE} className="mb-8" />
-          <div className="grid gap-4 md:grid-cols-3">
-            {(DEMO.transportation.length
-              ? DEMO.transportation
-              : [{ title: "הגעה", description: "פרטי הגעה יתעדכנו לקראת האירוע" }]
-            ).map((item) => (
-              <div
-                key={item.title}
-                className="bg-[#FBF5F0] p-5"
-                style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}
-              >
-                <h3 className="font-['Cormorant_Garamond'] text-xl">{item.title}</h3>
-                <p className="mt-2 text-sm text-[#9A6B5C]">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 16 · RSVP */}
+      <RsvpBlock tone={tone} className="py-20" />
 
-      <Section id="rsvp" className="py-20">
-        <div className="mx-auto max-w-md px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">אישור הגעה</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          {rsvp.sent ? (
-            <p className="text-center text-lg text-[#C4705A]">תודה! קיבלנו את אישור ההגעה.</p>
-          ) : (
-            <div
-              className="space-y-4 bg-white p-7 shadow-[0_18px_50px_rgba(74,46,40,0.08)]"
-              style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}
-            >
-              {rsvp.guestName ? (
-                <p className="text-center text-sm text-[#9A6B5C]">שלום {rsvp.guestName}</p>
-              ) : null}
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 py-3 text-sm font-bold ${
-                      rsvp.rsvp === v
-                        ? "bg-[#C4705A] text-white"
-                        : "border border-[#C4705A]/40 text-[#9A6B5C]"
-                    }`}
-                    style={{ clipPath: "polygon(6% 0, 100% 0, 94% 100%, 0 100%)" }}
-                  >
-                    {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" ? (
-                <div className="flex items-center justify-center gap-3">
-                  <span className="text-sm text-[#9A6B5C]">מספר אורחים</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-20 border border-[#C4705A]/40 px-3 py-2 text-center"
-                  />
-                </div>
-              ) : null}
-              {rsvp.error ? <p className="text-center text-sm font-bold text-red-600">{rsvp.error}</p> : null}
-              <button
-                type="button"
-                disabled={!rsvp.rsvp || rsvp.saving}
-                onClick={() => void rsvp.submit()}
-                className="w-full bg-[#C4705A] py-3.5 text-sm font-bold text-white disabled:opacity-40"
-                style={{ clipPath: "polygon(4% 0, 100% 0, 96% 100%, 0 100%)" }}
-              >
-                {rsvp.saving ? "שולח..." : "שליחה"}
-              </button>
-            </div>
-          )}
-        </div>
-      </Section>
+      {/* 17 · Gifts */}
+      <GiftsBlock tone={tone} className="bg-[#F3E8E0] py-20" />
 
-      <Section id="gifts" className="bg-[#F3E8E0] py-20">
-        <div className="mx-auto max-w-xl px-6 text-center">
-          <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">מתנות</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <p className="text-[#9A6B5C]">{DEMO.giftsNote || "הנוכחות שלכם היא המתנה הגדולה מכולן."}</p>
-          {DEMO.giftLinks?.creditUrl ? (
-            <a
-              href={DEMO.giftLinks.creditUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-flex border border-[#C4705A] px-7 py-3 text-sm font-bold text-[#C4705A]"
-              style={{ clipPath: "polygon(6% 0, 100% 0, 94% 100%, 0 100%)" }}
-            >
-              מתנה דיגיטלית
-            </a>
-          ) : null}
-        </div>
-      </Section>
+      {/* 18 · FAQ */}
+      <FaqBlock tone={tone} className="py-20" />
 
-      <Section id="faq" className="py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">שאלות נפוצות</h2>
-          <div
-            className="mx-auto my-6 h-1 w-16 bg-[#C4705A]"
-            style={{ clipPath: "polygon(10% 0, 100% 0, 90% 100%, 0 100%)" }}
-          />
-          <div className="space-y-3">
-            {(DEMO.faq.length
-              ? DEMO.faq
-              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
-            ).map((item, i) => (
-              <button
-                key={item.question}
-                type="button"
-                onClick={() => faq.toggle(i)}
-                className="w-full bg-white px-5 py-4 text-right shadow-[0_8px_28px_rgba(74,46,40,0.05)]"
-                style={{ clipPath: "polygon(2% 0, 100% 0, 98% 100%, 0 100%)" }}
-              >
-                <p className="font-semibold">{item.question}</p>
-                {faq.open === i ? <p className="mt-2 text-sm text-[#9A6B5C]">{item.answer}</p> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 19 · Final moment */}
+      <FinalMomentBlock tone={tone} image={images[7] || heroImg} />
 
-      <footer id="footer" className="bg-[#4A2E28] px-6 py-16 text-center text-[#FBF5F0]">
-        <p className="font-['Cormorant_Garamond'] text-3xl font-light">{DEMO.coupleNames}</p>
-        <p className="mt-4 text-[#E8C4B8]">{DEMO.footerNote || "נתראה במדבר הפורח"}</p>
-        <p className="mt-6 text-xs tracking-[0.25em] text-white/35">
-          {formatHebrewDate(DEMO.weddingDate)}
-        </p>
+      <footer id="footer" className="bg-[#4A2E28] px-6 py-12 text-center text-[#FBF5F0]">
+        <p className="font-['Cormorant_Garamond'] text-2xl font-light">{c.coupleNames}</p>
+        <p className="mt-3 text-sm text-[#E8C4B8]">{c.footerNote || "נתראה במדבר הפורח"}</p>
+        <p className="mt-4 text-xs tracking-[0.25em] text-white/35">{formatHebrewDate(c.weddingDate)}</p>
       </footer>
     </div>
   );

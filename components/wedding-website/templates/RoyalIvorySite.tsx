@@ -5,23 +5,44 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
-import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
+import { useWeddingContent } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
-import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
+import { useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
+import {
+  type BlockTone,
+  SiteSection,
+  CountdownBlock,
+  DateRevealBlock,
+  StoryBlock,
+  CouplePhotosBlock,
+  FullBleedPhoto,
+  ScheduleBlock,
+  LocationBlock,
+  DressCodeBlock,
+  TransportationBlock,
+  AccommodationsBlock,
+  RichGalleryGrid,
+  GiftsBlock,
+  FaqBlock,
+  ContactPeopleBlock,
+  FinalMomentBlock,
+} from "../shared/FullLengthBlocks";
 
 const ACCENT = "#B8956B";
 
-const fade = {
-  initial: { opacity: 0, y: 24, scale: 0.98 },
-  whileInView: { opacity: 1, y: 0, scale: 1 },
-  viewport: { once: true, margin: "-70px" as const },
-  transition: { duration: 0.7, ease: "easeOut" as const },
+const tone: BlockTone = {
+  accent: ACCENT,
+  muted: "#9A8570",
+  surface: "#FFFFFF",
+  border: ACCENT,
+  fontDisplay: "Playfair Display",
+  radius: "0",
+  buttonClass: "rounded-full bg-[#B8956B] px-6 py-3 text-sm font-bold text-white",
+  outlineButtonClass: "rounded-full border border-[#B8956B] px-6 py-3 text-sm font-bold text-[#B8956B]",
 };
 
 function Ornament() {
@@ -31,24 +52,6 @@ function Ornament() {
       <span className="h-1.5 w-1.5 rounded-full bg-[#B8956B]" />
       <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#B8956B]" />
     </div>
-  );
-}
-
-function Section({
-  id,
-  className = "",
-  children,
-}: {
-  id: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const { sections } = useWeddingSite();
-  if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
-  return (
-    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
-      {children}
-    </motion.section>
   );
 }
 
@@ -66,14 +69,16 @@ function monogramInitials(short: string, names: string) {
 }
 
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
-  const DEMO = useWeddingContent();
-  const themeOverrides = useWeddingThemeOverrides();
+  const c = useWeddingContent();
   const rsvp = useWeddingRsvp();
-  const faq = useFaqAccordion(0);
-  const images = sanitizeGallery(DEMO.galleryUrls?.length ? DEMO.galleryUrls : template.galleryImages, template.galleryImages);
+  const images = sanitizeGallery(
+    c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
+    template.galleryImages,
+  );
+  const heroImg = c.heroImageUrl || template.heroImage;
   const [envelopeTouched, setEnvelopeTouched] = useState(false);
   const envelopeOpen = Boolean(rsvp.rsvp) || envelopeTouched || rsvp.sent;
-  const initials = monogramInitials(DEMO.coupleShort || "", DEMO.coupleNames);
+  const initials = monogramInitials(c.coupleShort || "", c.coupleNames);
 
   return (
     <div
@@ -83,7 +88,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
     >
       {!embed && (
         <WeddingActionBar
-          accent="#B8956B"
+          accent={ACCENT}
           text="#FFFFFF"
           surface="rgba(253,251,247,0.94)"
           border="rgba(184,149,107,0.35)"
@@ -99,7 +104,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
         </Link>
       )}
 
-      {/* HERO — monogram crest, letter invitation */}
+      {/* 1 · Hero — monogram crest */}
       <section
         id="hero"
         className={`relative flex min-h-[100svh] flex-col items-center justify-center overflow-x-clip px-6 text-center ${embed ? "py-20" : "pt-16"}`}
@@ -107,7 +112,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{
-            backgroundImage: `url(${DEMO.heroImageUrl || template.heroImage})`,
+            backgroundImage: `url(${heroImg})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -127,165 +132,88 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
           transition={{ delay: 0.35, duration: 0.8 }}
           className="relative mt-10 text-[clamp(2.4rem,7vw,4.5rem)] font-medium leading-tight"
         >
-          {DEMO.coupleNames}
+          {c.coupleNames}
         </motion.h1>
         <Ornament />
         <p className="relative max-w-md text-base leading-relaxed text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
-          {DEMO.heroSubtitle}
+          {c.heroSubtitle}
         </p>
         <p className="relative mt-4 text-lg text-[#B8956B]">
-          {formatHebrewDate(DEMO.weddingDate)}
-          {DEMO.weddingTime ? ` · ${DEMO.weddingTime}` : ""}
+          {formatHebrewDate(c.weddingDate)}
+          {c.weddingTime ? ` · ${c.weddingTime}` : ""}
         </p>
         <div className="relative mt-10 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
-          <a
-            href="#rsvp"
-            className="inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]"
-          >
+          <a href="#rsvp" className="inline-flex rounded-full bg-[#B8956B] px-9 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_rgba(184,149,107,0.35)]">
             אישור הגעה
           </a>
-          <a
-            href="#transportation"
-            className="inline-flex rounded-full border border-[#B8956B] bg-white/70 px-9 py-3.5 text-sm font-bold text-[#B8956B]"
-          >
+          <a href="#transportation" className="inline-flex rounded-full border border-[#B8956B] bg-white/70 px-9 py-3.5 text-sm font-bold text-[#B8956B]">
             הזמנת הסעה
           </a>
         </div>
       </section>
 
-      <Section id="invitation" className="py-20">
+      {/* 2 · Formal invitation card */}
+      <SiteSection id="invitation" className="py-20">
         <div className="mx-auto max-w-xl px-6">
           <div className="border border-[#B8956B]/40 bg-white px-8 py-12 text-center shadow-[0_24px_70px_rgba(100,75,50,0.08)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#B8956B]" style={{ fontFamily: "system-ui, sans-serif" }}>
-              הזמנה
+              הזמנה רשמית
             </p>
             <Ornament />
-            <p className="text-lg leading-[2] text-[#9A8570]">
-              {DEMO.invitationText || DEMO.heroSubtitle}
+            <p className="text-lg leading-[2] text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
+              {c.invitationText || c.welcomeText || c.heroSubtitle}
             </p>
           </div>
         </div>
-      </Section>
+      </SiteSection>
 
-      <Section id="schedule" className="bg-[#F7F2EA] py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center text-4xl font-medium">לוח זמנים</h2>
-          <Ornament />
-          <ol className="mt-2 space-y-4" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {(DEMO.schedule.length
-              ? DEMO.schedule
-              : [{ time: DEMO.weddingTime || "19:30", title: "תחילת האירוע", description: "" }]
-            ).map((item) => (
-              <li
-                key={`${item.time}-${item.title}`}
-                className="flex items-start gap-5 border-b border-[#B8956B]/25 pb-4"
-              >
-                <span className="min-w-[64px] text-lg text-[#B8956B]">{item.time}</span>
-                <div>
-                  <p className="font-semibold text-[#3A2E22]">{item.title}</p>
-                  {item.description ? (
-                    <p className="mt-1 text-sm text-[#9A8570]">{item.description}</p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Section>
+      {/* 3 · Date reveal */}
+      <DateRevealBlock tone={tone} className="bg-[#F7F2EA] py-20" />
 
-      <Section id="our-story" className="py-20">
-        <div className="mx-auto max-w-2xl px-6 text-center">
-          <h2 className="text-4xl font-medium">הסיפור שלנו</h2>
-          <Ornament />
-          <div className="space-y-5 text-base leading-relaxed text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {(DEMO.storyParagraphs.length
-              ? DEMO.storyParagraphs
-              : ["אנחנו שמחים לחלוק איתכם את היום המיוחד שלנו."]
-            ).map((p) => (
-              <p key={p.slice(0, 24)}>{p}</p>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 4 · Countdown */}
+      <CountdownBlock tone={tone} variant="editorial" className="py-20" />
 
-      <Section id="gallery" className="bg-[#F7F2EA] py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center text-4xl font-medium">רגעים</h2>
-          <Ornament />
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
-            {images.slice(0, 6).map((src, i) => (
-              <motion.figure
-                key={src}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
-                className="border-[3px] border-[#B8956B]/35 bg-white p-2 shadow-[0_16px_40px_rgba(100,75,50,0.08)]"
-              >
-                <div className="border border-[#B8956B]/25 p-1">
-                  <SafeImage src={src} alt="" className="aspect-[4/5] w-full object-cover" />
-                </div>
-              </motion.figure>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 5 · Schedule */}
+      <ScheduleBlock tone={tone} className="bg-[#F7F2EA] py-20">
+        <Ornament />
+      </ScheduleBlock>
 
-      <Section id="location" className="py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <MapPinPulse accent={ACCENT} />
-          <h2 className="mt-2 text-4xl font-medium">{DEMO.venueName || "מיקום"}</h2>
-          <p className="mt-2 text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {DEMO.venueAddress}
-          </p>
-          <Ornament />
-          <div className="mb-6 flex flex-wrap justify-center gap-3" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {DEMO.wazeUrl ? (
-              <a href={DEMO.wazeUrl} target="_blank" rel="noreferrer" className="rounded-full bg-[#B8956B] px-6 py-3 text-sm font-bold text-white">
-                Waze
-              </a>
-            ) : null}
-            {DEMO.mapsUrl ? (
-              <a href={DEMO.mapsUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[#B8956B] px-6 py-3 text-sm font-bold text-[#B8956B]">
-                Google Maps
-              </a>
-            ) : null}
-          </div>
-          {DEMO.venueAddress ? (
-            <div className="overflow-hidden border-2 border-[#B8956B]/35">
-              <iframe
-                title="map"
-                className="aspect-[16/9] w-full border-0"
-                loading="lazy"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
-              />
-            </div>
-          ) : null}
-        </div>
-      </Section>
+      {/* 6 · Dress code */}
+      <DressCodeBlock tone={tone} className="py-20" />
 
-      <Section id="transportation" className="bg-[#F7F2EA] py-20">
-        <div className="mx-auto max-w-4xl px-6">
-          <h2 className="text-center text-4xl font-medium">הגעה והסעות</h2>
-          <Ornament />
-          <ShuttleRide accent={ACCENT} className="mb-8" />
-          <div className="grid gap-4 md:grid-cols-3" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {(DEMO.transportation.length
-              ? DEMO.transportation
-              : [{ title: "הגעה", description: "פרטי הגעה יתעדכנו לקראת האירוע" }]
-            ).map((item) => (
-              <div key={item.title} className="border border-[#B8956B]/30 bg-white p-5">
-                <h3 className="text-lg font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm text-[#9A8570]">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 7 · Location */}
+      <LocationBlock tone={tone} className="bg-[#F7F2EA] py-20">
+        <MapPinPulse accent={ACCENT} />
+        <Ornament />
+      </LocationBlock>
 
-      <Section id="rsvp" className="py-20">
+      {/* 8 · Story */}
+      <StoryBlock tone={tone} className="py-20" />
+
+      {/* 9 · Couple photos */}
+      <CouplePhotosBlock images={images} tone={tone} layout="framed" className="bg-[#F7F2EA] py-20" />
+
+      {/* 10 · Visual break */}
+      <FullBleedPhoto src={images[2] || heroImg} caption="באהבה ובשמחה — נתראה בחגיגה" />
+
+      {/* 11 · Gallery */}
+      <RichGalleryGrid images={images} tone={tone} title="רגעים" max={9} className="py-20" />
+
+      {/* 12 · Accommodations */}
+      <AccommodationsBlock tone={tone} className="bg-[#F7F2EA] py-20" />
+
+      {/* 13 · Transportation */}
+      <TransportationBlock tone={tone} className="py-20">
+        <ShuttleRide accent={ACCENT} className="mb-8" />
+        <Ornament />
+      </TransportationBlock>
+
+      {/* 14 · RSVP — envelope */}
+      <SiteSection id="rsvp" className="bg-[#F7F2EA] py-20">
         <div className="mx-auto max-w-lg px-6">
-          <h2 className="text-center text-4xl font-medium">אישור הגעה</h2>
+          <h2 className="text-center text-4xl font-medium" style={{ fontFamily: tone.fontDisplay }}>
+            אישור הגעה
+          </h2>
           <Ornament />
           <div
             onFocus={() => setEnvelopeTouched(true)}
@@ -351,61 +279,24 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
             </EnvelopeRsvp>
           </div>
         </div>
-      </Section>
+      </SiteSection>
 
-      <Section id="faq" className="bg-[#F7F2EA] py-20">
-        <div className="mx-auto max-w-2xl px-6">
-          <h2 className="text-center text-4xl font-medium">שאלות נפוצות</h2>
-          <Ornament />
-          <div className="space-y-3" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {(DEMO.faq.length
-              ? DEMO.faq
-              : [{ question: "איך מאשרים הגעה?", answer: "דרך טופס אישור ההגעה בעמוד זה." }]
-            ).map((item, i) => (
-              <button
-                key={item.question}
-                type="button"
-                onClick={() => faq.toggle(i)}
-                className="w-full border border-[#B8956B]/30 bg-white px-5 py-4 text-right"
-              >
-                <p className="font-semibold">{item.question}</p>
-                {faq.open === i ? <p className="mt-2 text-sm text-[#9A8570]">{item.answer}</p> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* 15 · Gifts */}
+      <GiftsBlock tone={tone} className="py-20" />
 
-      <Section id="gifts" className="py-20">
-        <div className="mx-auto max-w-xl px-6 text-center">
-          <h2 className="text-4xl font-medium">מתנות</h2>
-          <Ornament />
-          <p className="text-[#9A8570]" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {DEMO.giftsNote || "הנוכחות שלכם היא המתנה הגדולה מכולן."}
-          </p>
-          {DEMO.giftLinks?.creditUrl ? (
-            <a
-              href={DEMO.giftLinks.creditUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-flex rounded-full border border-[#B8956B] px-7 py-3 text-sm font-bold text-[#B8956B]"
-              style={{ fontFamily: "system-ui, sans-serif" }}
-            >
-              מתנה דיגיטלית
-            </a>
-          ) : null}
-        </div>
-      </Section>
+      {/* 16 · FAQ */}
+      <FaqBlock tone={tone} className="bg-[#F7F2EA] py-20" />
 
-      <footer id="footer" className="bg-[#3A2E22] px-6 py-16 text-center text-[#FDFBF7]">
-        <p className="text-3xl font-medium">{DEMO.coupleNames}</p>
+      {/* 17 · Contact */}
+      <ContactPeopleBlock tone={tone} className="py-20" />
+
+      {/* 18 · Final moment */}
+      <FinalMomentBlock tone={tone} image={images[4] || heroImg} />
+
+      <footer id="footer" className="bg-[#3A2E22] px-6 py-12 text-center text-[#FDFBF7]">
+        <p className="text-2xl font-medium">{c.coupleNames}</p>
         <Ornament />
-        <p className="text-[#B8956B]" style={{ fontFamily: "system-ui, sans-serif" }}>
-          {DEMO.footerNote || "נתראה בחגיגה"}
-        </p>
-        <p className="mt-6 text-xs tracking-[0.25em] text-white/35">
-          {formatHebrewDate(DEMO.weddingDate)}
-        </p>
+        <p className="text-xs tracking-[0.25em] text-white/35">{formatHebrewDate(c.weddingDate)}</p>
       </footer>
     </div>
   );
