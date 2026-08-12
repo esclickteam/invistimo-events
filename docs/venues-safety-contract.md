@@ -165,8 +165,12 @@ hall create — **without** changing global `/api/me` or `getUserIdFromRequest`.
 Env (Production):
 
 - `VENUE_PILOT_MODE=true`
-- `VENUE_PILOT_OWNER_IDS=<ownerUserId,...>` and/or
-- `VENUE_PILOT_HALL_IDS=<hallId,...>`
+- `VENUE_PILOT_OWNER_IDS=<ownerUserId,...>`
+- `VENUE_PILOT_HALL_IDS=<VenueHall.id and/or ObjectId,...>`
+
+When **both** owner and hall lists are set, access requires **both** (AND) so a
+listed owner cannot open a second non-listed hall. Hall create is blocked while
+a hall allowlist is configured. No wildcards / no role-wide rollout.
 
 Staging/default: pilot mode OFF so E2E fixtures keep working.
 

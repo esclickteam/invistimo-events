@@ -436,6 +436,9 @@ export async function listUserVenueMemberships(userId: string) {
     const venueId = String((m as any).venueId);
     const hall = byId.get(venueId);
     if (!hall || seen.has(venueId)) continue;
+    const ownerId = String((hall as any).ownerId || userId);
+    const pilot = isVenuePilotAllowed({ ownerId, hallId: venueId });
+    if (!pilot.allowed) continue;
     seen.add(venueId);
     const role: VenueRole = isVenueRole((m as any).role)
       ? (m as any).role
@@ -454,6 +457,9 @@ export async function listUserVenueMemberships(userId: string) {
   for (const h of ownedHalls) {
     const venueId = String((h as any).id || (h as any)._id);
     if (seen.has(venueId)) continue;
+    const ownerId = String((h as any).ownerId || userId);
+    const pilot = isVenuePilotAllowed({ ownerId, hallId: venueId });
+    if (!pilot.allowed) continue;
     seen.add(venueId);
     result.push({
       venueId,

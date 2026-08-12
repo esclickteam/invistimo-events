@@ -38,6 +38,7 @@ test("pilotGate is venue-layer only and wired into requireVenueAccess", () => {
   assert.match(gate, /VENUE_PILOT_MODE/);
   assert.match(gate, /VENUE_PILOT_OWNER_IDS/);
   assert.match(gate, /isVenuePilotAllowed/);
+  assert.match(gate, /ownerOk && hallOk/);
   assert.match(access, /isVenuePilotAllowed/);
   assert.ok(
     !gate.includes("getUserIdFromRequest"),
