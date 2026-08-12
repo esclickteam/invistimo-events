@@ -81,8 +81,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "לילה שחור עם נגיעות זהב",
     description:
       "דרמה מודרנית — רקע כהה, נגיעות זהב, parallax ואפקטים קולנועיים.",
-    previewImage: WW_IMAGES.tableSetting,
-    heroImage: WW_IMAGES.nightGlow,
+    previewImage: WW_IMAGES.elegantHall,
+    heroImage: WW_IMAGES.elegantHall,
     galleryImages: gallerySet(
       "elegantHall",
       "kiss",
@@ -353,7 +353,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     name: "Modern Glass",
     tagline: "Glassmorphism עכשווי",
     description: "blur, glass panels, accents קרים — Gen-Z luxury.",
-    previewImage: WW_IMAGES.nightGlow,
+    previewImage: WW_IMAGES.elegantHall,
     heroImage: WW_IMAGES.elegantHall,
     galleryImages: gallerySet(
       "elegantHall",

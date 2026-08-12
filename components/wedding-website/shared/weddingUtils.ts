@@ -11,11 +11,11 @@ export const DEMO = WEDDING_DEMO_CONTENT;
 /** Local wedding videos under /public/wedding-media/videos */
 export const VIDEOS = {
   couple: WW_VIDEOS.coupleWalk,
-  romantic: WW_VIDEOS.romantic,
+  romantic: WW_VIDEOS.weddingDance,
   beach: WW_VIDEOS.natureSoft,
   forest: WW_VIDEOS.natureSoft,
   party: WW_VIDEOS.celebration,
-  rings: WW_VIDEOS.romantic,
+  rings: WW_VIDEOS.weddingDance,
 };
 
 export function formatHebrewDate(dateStr: string) {
