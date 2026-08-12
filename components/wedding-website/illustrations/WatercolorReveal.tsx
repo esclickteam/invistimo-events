@@ -3,7 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 
-/** Desert Rose — soft watercolor-style mask reveal */
+/** Desert Rose — soft wash-in reveal (no tiny circle that can stick mid-animation) */
 export default function WatercolorReveal({
   children,
   className = "",
@@ -15,11 +15,15 @@ export default function WatercolorReveal({
 
   return (
     <motion.div
-      className={`relative overflow-hidden ${className}`}
-      initial={reduce ? { opacity: 1, clipPath: "circle(100% at 50% 50%)" } : { opacity: 0.2, clipPath: "circle(8% at 50% 45%)" }}
-      whileInView={{ opacity: 1, clipPath: "circle(120% at 50% 45%)" }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={{ duration: 1.25, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative ${className}`}
+      initial={
+        reduce
+          ? { opacity: 1, filter: "blur(0px)", y: 0 }
+          : { opacity: 0, filter: "blur(10px)", y: 28 }
+      }
+      whileInView={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 1.05, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

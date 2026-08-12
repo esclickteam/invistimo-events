@@ -208,22 +208,21 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
         <ShuttleRide accent={ROSE} className="mb-8" />
       </TransportationBlock>
 
-      {/* 13 · Gallery — watercolor frame */}
+      {/* 13 · Gallery — torn-edge desert masonry */}
       <SiteSection id="gallery" className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">גלריה</h2>
           <RoseBar />
-          <WatercolorReveal>
-            <div className="mt-8 columns-2 gap-3 md:columns-3">
-              {images.slice(0, 9).map((src, i) => (
+          <div className="mt-8 columns-2 gap-3 md:columns-3">
+            {images.slice(0, 9).map((src, i) => (
+              <WatercolorReveal key={`${src}-${i}`} className="mb-3 break-inside-avoid">
                 <figure
-                  key={`${src}-${i}`}
-                  className="mb-3 break-inside-avoid overflow-hidden"
+                  className="overflow-hidden border border-[#C4705A]/25 bg-[#FBF5F0] p-1.5 shadow-[0_12px_40px_rgba(74,46,40,0.08)]"
                   style={{
                     clipPath:
                       i % 2 === 0
-                        ? "polygon(0 0, 100% 4%, 96% 100%, 0 96%)"
-                        : "polygon(4% 0, 100% 0, 100% 96%, 0 100%)",
+                        ? "polygon(0 0, 100% 3%, 97% 100%, 0 97%)"
+                        : "polygon(3% 0, 100% 0, 100% 97%, 0 100%)",
                   }}
                 >
                   <SafeImage
@@ -232,9 +231,9 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
                     className={`w-full object-cover ${i % 3 === 1 ? "aspect-[3/4]" : "aspect-square"}`}
                   />
                 </figure>
-              ))}
-            </div>
-          </WatercolorReveal>
+              </WatercolorReveal>
+            ))}
+          </div>
         </div>
       </SiteSection>
 
