@@ -4,7 +4,9 @@ import db from "@/lib/db";
 import Event from "@/models/Event";
 import VenueMenu from "@/models/VenueMenu";
 import VenueEventMenu from "@/models/VenueEventMenu";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -313,18 +315,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const { eventId } = await context.params;
 
-    const auth = await getUserIdFromRequest();
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.view"
+    );
+    if (guard.error || !guard.ctx) return guard.error!;
 
     const eventMenu = await VenueEventMenu.findOne({
       eventId,
-      venueOwnerId: auth.userId,
+      venueOwnerId: guard.ctx.ownerId,
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -368,14 +368,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const { eventId } = await context.params;
 
-    const auth = await getUserIdFromRequest();
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.edit"
+    );
+    if (guard.error || !guard.ctx || !guard.event) return guard.error!;
 
     const body = await req.json().catch(() => ({}));
 
@@ -388,34 +386,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const event = await Event.findOne({
-      _id: eventId,
-      venueOwnerId: auth.userId,
-    }).lean();
-
-    if (!event) {
-      return NextResponse.json(
-        { success: false, message: "האירוע לא נמצא או שאין הרשאה" },
-        { status: 404 }
-      );
-    }
+    const event = guard.event;
+    const ownerId = String(guard.ctx.ownerId);
 
     const menuTemplate = await VenueMenu.findOne({
       _id: templateId,
       $or: [
-        { ownerId: auth.userId },
-        { venueOwnerId: auth.userId },
-        { userId: auth.userId },
-        { createdBy: auth.userId },
+        { ownerId },
+        { venueOwnerId: ownerId },
         { hallId: (event as any).venueHallId },
         { hallId: String((event as any).venueHallId || "") },
+        { hallId: guard.ctx.venueId },
       ],
     }).lean();
 
     if (!menuTemplate) {
       console.error("Venue menu template not found", {
         templateId,
-        authUserId: auth.userId,
+        ownerId,
         eventHallId: (event as any).venueHallId,
       });
 
@@ -427,7 +415,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const existing = await VenueEventMenu.findOne({
       eventId,
-      venueOwnerId: auth.userId,
+      venueOwnerId: ownerId,
     });
 
     const selectionToken = existing?.selectionToken || createSelectionToken();
@@ -456,7 +444,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           (menuTemplate as any).hallId ||
           ""
       ),
-      venueOwnerId: String(auth.userId),
+      venueOwnerId: ownerId,
       templateId: String((menuTemplate as any)._id),
 
       name: String((menuTemplate as any).name || "תפריט אירוע"),
@@ -521,6 +509,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const selectionLink = `${baseUrl}/menus/choose/${selectionToken}`;
     const normalizedMenu = buildMenuResponse(savedMenu, selectionLink);
 
+    await writeVenueAudit({
+      venueId: String(guard.ctx.venueId),
+      ownerId,
+      actorUserId: String(guard.ctx.auth.userId),
+      action: existing ? "event_menu.update" : "event_menu.assign",
+      targetType: "VenueEventMenu",
+      targetId: String(savedMenu._id),
+      meta: { eventId, templateId },
+    });
+
+    await createVenueAlert({
+      ownerId,
+      hallId: String(guard.ctx.venueId),
+      title: `תפריט שויך לאירוע`,
+      description: String((menuTemplate as any).name || "תפריט"),
+      tone: "emerald",
+      type: "menu",
+      linkHref: `/venues/dashboard/events/${encodeURIComponent(eventId)}`,
+      dedupeKey: `event-menu:${eventId}:${String(savedMenu._id)}`,
+    });
+
     return NextResponse.json({
       success: true,
       message: "התפריט נשמר לאירוע ונוצר קישור אישי",
@@ -548,20 +557,19 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { eventId } = await context.params;
 
-    const auth = await getUserIdFromRequest();
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
+    const guard = await requireLinkedVenueEventAccess(
+      req,
+      eventId,
+      "events.edit"
+    );
+    if (guard.error || !guard.ctx) return guard.error!;
 
     const body = await req.json().catch(() => ({}));
+    const ownerId = String(guard.ctx.ownerId);
 
     const existing = await VenueEventMenu.findOne({
       eventId,
-      venueOwnerId: auth.userId,
+      venueOwnerId: ownerId,
     });
 
     if (!existing) {
@@ -654,7 +662,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         existing.kitchenReportSubmittedAt =
           normalizeDateOrNull(body?.kitchenReportSubmittedAt) || new Date();
 
-        existing.kitchenReportSubmittedBy = auth.userId;
+        existing.kitchenReportSubmittedBy = guard.ctx.auth.userId;
       } else if (body?.kitchenReportSubmittedAt !== undefined) {
         existing.kitchenReportSubmittedAt = normalizeDateOrNull(
           body?.kitchenReportSubmittedAt
@@ -682,6 +690,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       venueEventKitchenReportStatus: savedMenu.kitchenReportStatus || "draft",
       venueEventKitchenReportUpdatedAt: savedMenu.kitchenReportUpdatedAt || null,
       venueEventKitchenReportSubmittedAt: savedMenu.kitchenReportSubmittedAt || null,
+    });
+
+    await writeVenueAudit({
+      venueId: String(guard.ctx.venueId),
+      ownerId,
+      actorUserId: String(guard.ctx.auth.userId),
+      action: shouldUpdateKitchenReport ? "event_menu.kitchen" : "event_menu.update",
+      targetType: "VenueEventMenu",
+      targetId: String(savedMenu._id),
+      meta: { eventId },
     });
 
     return NextResponse.json({

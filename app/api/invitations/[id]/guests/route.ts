@@ -453,6 +453,13 @@ export async function PUT(
     // ✅ נרמול groupId כדי שלא יישמר null/""/"null"/"undefined"
     const normalizedUpdates: any = { ...updates };
 
+    // קישור אישי / זהות — לא ניתנים לשינוי מעריכה
+    delete normalizedUpdates.token;
+    delete normalizedUpdates.invitationId;
+    delete normalizedUpdates._id;
+    delete normalizedUpdates.id;
+    delete normalizedUpdates.shareId;
+
     if ("relation" in normalizedUpdates) {
   normalizedUpdates.relation = normalizeGroupName(normalizedUpdates.relation);
 

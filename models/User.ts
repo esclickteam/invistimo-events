@@ -120,6 +120,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       eventDayBalance: number;
       notes?: string;
     };
+
+    transportationManagement?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
   };
 
   /**
@@ -218,10 +225,12 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
+  includeTransportationManagement: boolean;
 
   accessModules?: {
     rsvpSeating: boolean;
     eventProduction: boolean;
+    transportationManagement?: boolean;
 
     venues?: boolean;
     venueDashboard?: boolean;
@@ -246,6 +255,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     seatingEnabled: boolean;
     remindersEnabled: boolean;
     callsEnabled?: boolean;
+    transportationEnabled?: boolean;
   };
 
   smsBalance: number;
@@ -669,6 +679,30 @@ preRsvpMessages: {
           default: "",
         },
       },
+
+      transportationManagement: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
     },
 
     /**
@@ -973,6 +1007,12 @@ preRsvpMessages: {
       default: false,
     },
 
+    includeTransportationManagement: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     accessModules: {
       rsvpSeating: {
         type: Boolean,
@@ -981,6 +1021,12 @@ preRsvpMessages: {
       },
 
       eventProduction: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      transportationManagement: {
         type: Boolean,
         default: false,
         index: true,
@@ -1081,6 +1127,11 @@ preRsvpMessages: {
       },
 
       callsEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      transportationEnabled: {
         type: Boolean,
         default: false,
       },
@@ -1317,10 +1368,26 @@ UserSchema.pre("validate", function () {
       ),
       notes: String(currentSalesUpsells.alcoholManagement?.notes || ""),
     },
+
+    transportationManagement: {
+      enabled: Boolean(
+        currentSalesUpsells.transportationManagement?.enabled ||
+          doc.includeTransportationManagement
+      ),
+      price: Number(currentSalesUpsells.transportationManagement?.price || 0),
+      givenFree: Boolean(
+        currentSalesUpsells.transportationManagement?.givenFree
+      ),
+      notes: String(currentSalesUpsells.transportationManagement?.notes || ""),
+    },
   };
 
   if (doc.salesUpsells.digitalSeating?.enabled) {
     doc.includeDigitalSeating = true;
+  }
+
+  if (doc.salesUpsells.transportationManagement?.enabled) {
+    doc.includeTransportationManagement = true;
   }
 
   if (doc.salesUpsells.thirdRsvpRound?.enabled) {
@@ -1401,10 +1468,18 @@ UserSchema.pre("validate", function () {
     doc.customDesignEnabled = true;
   }
 
+  if (doc.includeTransportationManagement) {
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      transportationEnabled: true,
+    };
+  }
+
   /*
     הרשאות מודולים:
     rsvpSeating = אישורי הגעה / הושבה
     eventProduction = הפקת אירוע
+    transportationManagement = ניהול הסעות
     venues = מערכת אולמות
   */
   const isVenueOwner = doc.role === "venue_owner";
@@ -1416,6 +1491,12 @@ UserSchema.pre("validate", function () {
 
     eventProduction: Boolean(
       doc.accessModules?.eventProduction || doc.includeEventManagement
+    ),
+
+    transportationManagement: Boolean(
+      doc.accessModules?.transportationManagement ||
+        doc.includeTransportationManagement ||
+        doc.salesUpsells?.transportationManagement?.enabled
     ),
 
     venues: Boolean(doc.accessModules?.venues ?? isVenueOwner),
@@ -1674,6 +1755,8 @@ UserSchema.index({ "salesUpsells.preRsvpMessages.saveTheDateSentAt": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.invitationOnlySentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
+UserSchema.index({ "salesUpsells.transportationManagement.enabled": 1 });
+UserSchema.index({ includeTransportationManagement: 1 });
 
 UserSchema.index({ hasPaid: 1, paidAmount: 1, paidAt: 1 });
 UserSchema.index({ hasPaid: 1, paidAmount: 1, createdAt: 1 });

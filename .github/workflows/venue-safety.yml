@@ -1,0 +1,38 @@
+name: Venue Safety Contract
+
+on:
+  pull_request:
+    paths:
+      - "app/venues/**"
+      - "app/api/venues/**"
+      - "lib/venues/**"
+      - "models/Venue*"
+      - "docs/venues*"
+      - "scripts/staging/**"
+      - "scripts/tests/venue*"
+      - "scripts/tests/regular*"
+      - "scripts/ci/**"
+      - ".github/workflows/venue-safety.yml"
+
+jobs:
+  venue-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Protected core guard
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/ci/venue-pr-protected-core-guard.mjs
+
+      - name: Venue boundary + regular access regression
+        run: |
+          node --test scripts/tests/venue-regular-boundary.test.mjs
+          node --test scripts/tests/regular-customer-event-access.test.mjs
+          node --test scripts/tests/venue-safety-contract.test.mjs

@@ -62,6 +62,10 @@ function DashboardLayoutInner({
     user?.includeEventManagement === true ||
     user?.selfManageEnabled === true;
 
+  const canOpenTransportationManagement =
+    user?.accessModules?.transportationManagement === true ||
+    user?.includeTransportationManagement === true;
+
   /*
     ✅ תומך גם בנתיב החדש:
     /dashboard/invitations/[id]/edit
@@ -186,6 +190,7 @@ function DashboardLayoutInner({
         invitationShareId={invitation?.shareId}
         eventId={eventIdForMenu}
         canOpenEventManagement={canOpenEventManagement}
+        canOpenTransportationManagement={canOpenTransportationManagement}
         isDemo={isDemo}
       />
 

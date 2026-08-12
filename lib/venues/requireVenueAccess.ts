@@ -15,6 +15,10 @@ import {
   type VenuePermission,
   type VenueRole,
 } from "@/lib/venues/permissions";
+import {
+  isVenuePilotAllowed,
+  isVenuePilotOwnerAllowed,
+} from "@/lib/venues/pilotGate";
 
 export type VenueAccessContext = {
   auth: AuthPayload;
@@ -115,6 +119,18 @@ export async function requireVenueAccess(
   const safeVenueId = String((hall as any).id || (hall as any)._id);
   const ownerId = String((hall as any).ownerId);
 
+  const pilot = isVenuePilotAllowed({
+    ownerId,
+    hallId: safeVenueId,
+    isAdmin,
+  });
+  if (!pilot.allowed) {
+    return {
+      ctx: null,
+      error: jsonError(pilot.reason || "אין גישה לפיילוט האולמות", 403),
+    };
+  }
+
   let membership = await VenueMembership.findOne({
     userId: auth.userId,
     venueId: safeVenueId,
@@ -214,6 +230,173 @@ export async function requireVenueAccess(
   };
 }
 
+/**
+ * For owner-scoped venue resources that are not yet hall-tenanted (e.g. VenueTask).
+ * Requires an authenticated venue principal: admin, venue_owner with owned hall,
+ * or any active VenueMembership. Regular customers are rejected.
+ */
+export async function requireVenueDashboardActor(
+  req: NextRequest | Request | undefined,
+  requiredPermission?: VenuePermission | VenuePermission[]
+): Promise<{
+  ctx: {
+    auth: AuthPayload;
+    ownerId: string;
+    role: VenueRole;
+    permissions: VenuePermission[];
+    isAdmin: boolean;
+    venueIds: string[];
+  } | null;
+  error: NextResponse | null;
+}> {
+  await connectDB();
+
+  const auth = await getUserIdFromRequest(req as any);
+
+  if (!auth?.userId) {
+    return { ctx: null, error: jsonError("לא מחובר", 401) };
+  }
+
+  const user = await User.findById(auth.userId)
+    .select("role isActive venueUser employeeScope staffType")
+    .lean();
+
+  if (!user) {
+    return { ctx: null, error: jsonError("משתמש לא נמצא", 404) };
+  }
+
+  if ((user as any).isActive === false) {
+    return { ctx: null, error: jsonError("המשתמש אינו פעיל", 403) };
+  }
+
+  const isInvistimoStaff =
+    (user as any).role === "staff" && (user as any).employeeScope !== "venue";
+
+  const isAdmin =
+    auth.role === "admin" ||
+    ((user as any).role === "admin" && !auth.impersonated);
+
+  if (isInvistimoStaff && !isAdmin) {
+    return {
+      ctx: null,
+      error: jsonError("אין הרשאה לאזור האולמות", 403),
+    };
+  }
+
+  const memberships = await listUserVenueMemberships(String(auth.userId));
+  const ownedHall = await VenueHall.findOne({ ownerId: auth.userId })
+    .select("ownerId id")
+    .lean();
+
+  // Tenant owner for owner-scoped collections (tasks, etc.)
+  let tenantOwnerId = ownedHall ? String(auth.userId) : "";
+  if (!tenantOwnerId) {
+    const rawMembership = await VenueMembership.findOne({
+      userId: auth.userId,
+      status: "active",
+    })
+      .select("ownerId")
+      .lean();
+    if (rawMembership?.ownerId) {
+      tenantOwnerId = String(rawMembership.ownerId);
+    }
+  }
+
+  if (isAdmin) {
+    const role: VenueRole = "OWNER";
+    const permissions = resolveVenuePermissions(role, []);
+    if (
+      requiredPermission &&
+      !hasVenuePermission(role, [], requiredPermission)
+    ) {
+      return {
+        ctx: null,
+        error: jsonError("אין הרשאה לביצוע פעולה זו", 403),
+      };
+    }
+    return {
+      ctx: {
+        auth,
+        ownerId: tenantOwnerId || String(auth.userId),
+        role,
+        permissions,
+        isAdmin: true,
+        venueIds: memberships.map((m) => m.venueId),
+      },
+      error: null,
+    };
+  }
+
+  if (!memberships.length) {
+    return {
+      ctx: null,
+      error: jsonError("אין הרשאה לאזור האולמות", 403),
+    };
+  }
+
+  if (!tenantOwnerId) {
+    return {
+      ctx: null,
+      error: jsonError("לא נמצא בעלים לאולם", 403),
+    };
+  }
+
+  const pilotOwner = isVenuePilotOwnerAllowed({
+    ownerId: tenantOwnerId,
+    isAdmin: false,
+  });
+  if (!pilotOwner.allowed) {
+    // Allow if any membership hall is on the hall allowlist
+    const anyHallOk = memberships.some(
+      (m) =>
+        isVenuePilotAllowed({
+          ownerId: tenantOwnerId,
+          hallId: m.venueId,
+          isAdmin: false,
+        }).allowed
+    );
+    if (!anyHallOk) {
+      return {
+        ctx: null,
+        error: jsonError(
+          pilotOwner.reason || "אין גישה לפיילוט האולמות",
+          403
+        ),
+      };
+    }
+  }
+
+  // Prefer OWNER membership; otherwise first membership.
+  const preferred =
+    memberships.find((m) => m.role === "OWNER") || memberships[0];
+  const role = preferred.role;
+  const permissions = preferred.permissions;
+
+  if (requiredPermission) {
+    const anyOk = memberships.some((m) =>
+      hasVenuePermission(m.role, m.permissions, requiredPermission)
+    );
+    if (!anyOk) {
+      return {
+        ctx: null,
+        error: jsonError("אין הרשאה לביצוע פעולה זו", 403),
+      };
+    }
+  }
+
+  return {
+    ctx: {
+      auth,
+      ownerId: tenantOwnerId,
+      role,
+      permissions,
+      isAdmin: false,
+      venueIds: memberships.map((m) => m.venueId),
+    },
+    error: null,
+  };
+}
+
 export async function listUserVenueMemberships(userId: string) {
   await connectDB();
 
@@ -253,6 +436,9 @@ export async function listUserVenueMemberships(userId: string) {
     const venueId = String((m as any).venueId);
     const hall = byId.get(venueId);
     if (!hall || seen.has(venueId)) continue;
+    const ownerId = String((hall as any).ownerId || userId);
+    const pilot = isVenuePilotAllowed({ ownerId, hallId: venueId });
+    if (!pilot.allowed) continue;
     seen.add(venueId);
     const role: VenueRole = isVenueRole((m as any).role)
       ? (m as any).role
@@ -271,6 +457,9 @@ export async function listUserVenueMemberships(userId: string) {
   for (const h of ownedHalls) {
     const venueId = String((h as any).id || (h as any)._id);
     if (seen.has(venueId)) continue;
+    const ownerId = String((h as any).ownerId || userId);
+    const pilot = isVenuePilotAllowed({ ownerId, hallId: venueId });
+    if (!pilot.allowed) continue;
     seen.add(venueId);
     result.push({
       venueId,

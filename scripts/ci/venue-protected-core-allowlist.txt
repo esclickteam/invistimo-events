@@ -1,0 +1,4 @@
+# Paths allowed to change in a Venue PR despite protected-core rules.
+# One path per line. Only add with explicit human approval in the PR.
+# Example:
+# lib/getUserIdFromRequest.ts

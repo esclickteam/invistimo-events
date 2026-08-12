@@ -902,7 +902,7 @@ export default function HallCrmPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex h-10 w-[280px] items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3">
+                <div className="flex h-11 w-full max-w-full items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 sm:w-[280px]">
                   <Search size={16} className="text-[#a2937f]" />
                   <input
                     value={search}
@@ -923,7 +923,75 @@ export default function HallCrmPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[24px] border border-[#eadfce]">
+            {/* Mobile card list */}
+            <div className="space-y-2 md:hidden">
+              {loading ? (
+                <div className="py-10 text-center text-sm font-black text-[#8a7b68]">
+                  <Loader2 className="mx-auto mb-3 animate-spin text-[#b98121]" size={28} />
+                  טוען לידים...
+                </div>
+              ) : filteredLeads.length ? (
+                filteredLeads.map((lead) => (
+                  <article
+                    key={`card-${lead.id}`}
+                    className={[
+                      "w-full rounded-2xl border p-4 text-right transition",
+                      selectedLeadId === lead.id
+                        ? "border-[#d5b36d] bg-[#fff7e6]"
+                        : "border-[#eadfce] bg-white",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      className="w-full text-right"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-black text-[#2b241c]">
+                            {lead.name}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                            {lead.phone || "אין טלפון"}
+                            {lead.requestedDate ? ` · ${lead.requestedDate}` : ""}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${statusClass(lead.status)}`}
+                        >
+                          {statusLabel(lead.status)}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[#6f6252]">
+                        <span>{lead.eventType || "אירוע"}</span>
+                        <span>·</span>
+                        <span>{lead.guests || 0} אורחים</span>
+                        <span>·</span>
+                        <span>{formatCurrency(lead.budget)}</span>
+                      </div>
+                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLeadId(lead.id);
+                          setClientFileOpen(true);
+                        }}
+                        className="inline-flex min-h-10 items-center rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]"
+                      >
+                        תיק לקוח
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fffdf8] p-6 text-center">
+                  <div className="text-sm font-black text-[#2b241c]">אין לידים</div>
+                </div>
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-[24px] border border-[#eadfce] md:block">
               <table className="w-full min-w-[1180px] border-collapse text-right">
                 <thead className="bg-[#fffdf8]">
                   <tr className="border-b border-[#eadfce] text-xs font-black text-[#8a7b68]">

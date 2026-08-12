@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import VenueEventPayment from "@/models/VenueEventPayment";
 import { connectDB } from "@/lib/db";
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 function n(value: unknown) {
   const parsed = Number(value);
@@ -176,6 +178,30 @@ export async function PUT(
         setDefaultsOnInsert: true,
       }
     ).lean();
+
+    const ctx = guard.ctx!;
+    await writeVenueAudit({
+      venueId: String(ctx.venueId),
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "hall_payments.update",
+      targetType: "VenueEventPayment",
+      targetId: String((doc as any)?._id || eventId),
+      meta: { eventId, status },
+    });
+
+    if (status === "closed") {
+      await createVenueAlert({
+        ownerId: String(ctx.ownerId),
+        hallId: String(ctx.venueId),
+        title: "תשלומי אולם נסגרו",
+        description: `אירוע ${eventId}`,
+        tone: "emerald",
+        type: "payments",
+        linkHref: `/venues/dashboard/events/${encodeURIComponent(eventId)}`,
+        dedupeKey: `payments-closed:${eventId}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,

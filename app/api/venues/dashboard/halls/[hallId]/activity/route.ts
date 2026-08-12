@@ -37,14 +37,59 @@ export async function GET(req: NextRequest, { params }: Props) {
     const url = new URL(req.url);
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 50));
     const skip = Math.max(0, Number(url.searchParams.get("skip")) || 0);
+    const targetId = String(url.searchParams.get("targetId") || "").trim();
+    const action = String(url.searchParams.get("action") || "").trim();
+    const targetType = String(url.searchParams.get("targetType") || "").trim();
+    const actorUserId = String(url.searchParams.get("actorUserId") || "").trim();
+    const from = String(url.searchParams.get("from") || "").trim();
+    const to = String(url.searchParams.get("to") || "").trim();
+    const q = String(url.searchParams.get("q") || "").trim();
+
+    const filter: Record<string, unknown> = { venueId: ctx.venueId };
+    if (targetId) filter.targetId = targetId;
+    if (action) {
+      filter.action = { $regex: action.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    }
+    if (targetType) {
+      filter.targetType = {
+        $regex: targetType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        $options: "i",
+      };
+    }
+    if (actorUserId) filter.actorUserId = actorUserId;
+
+    if (from || to) {
+      const createdAt: Record<string, Date> = {};
+      if (from) {
+        const d = new Date(from);
+        if (!Number.isNaN(d.getTime())) createdAt.$gte = d;
+      }
+      if (to) {
+        const d = new Date(to);
+        if (!Number.isNaN(d.getTime())) {
+          // inclusive end-of-day when date-only
+          if (/^\d{4}-\d{2}-\d{2}$/.test(to)) d.setHours(23, 59, 59, 999);
+          createdAt.$lte = d;
+        }
+      }
+      if (Object.keys(createdAt).length) filter.createdAt = createdAt;
+    }
+
+    if (q) {
+      filter.$or = [
+        { action: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+        { targetType: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+        { targetId: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+      ];
+    }
 
     const [entries, total] = await Promise.all([
-      VenueAuditLog.find({ venueId: ctx.venueId })
+      VenueAuditLog.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      VenueAuditLog.countDocuments({ venueId: ctx.venueId }),
+      VenueAuditLog.countDocuments(filter),
     ]);
 
     const actorIds = [
@@ -74,6 +119,7 @@ export async function GET(req: NextRequest, { params }: Props) {
       total,
       limit,
       skip,
+      filters: { action, targetType, actorUserId, from, to, q, targetId },
     });
   } catch (err) {
     console.error("GET activity failed:", err);
