@@ -8,7 +8,7 @@ import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionE
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
+import AnimatedCountdown from "../shared/AnimatedCountdown";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -134,19 +134,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="text-4xl font-light">הספירה לאחור</h2>
           <p className="mt-2 text-[#9A6070]">עד היום הגדול</p>
-          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {getFlippedCountdownUnits(time).map(({ label, value }) => (
-              <div
-                key={String(label)}
-                className="rounded-[28px] border border-[#E8788A]/25 bg-white/80 px-4 py-7 shadow-[0_12px_40px_rgba(232,120,138,0.1)]"
-              >
-                <p className="text-4xl font-light text-[#E8788A]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                  {value}
-                </p>
-                <p className="mt-2 text-xs font-bold tracking-widest text-[#9A6070]">{label}</p>
-              </div>
-            ))}
-          </div>
+          <AnimatedCountdown time={time} accent="#E8788A" variant="cards" />
         </div>
       </Section>
 

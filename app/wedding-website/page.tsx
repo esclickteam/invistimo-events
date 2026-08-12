@@ -2,74 +2,90 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
-import TemplateLivePreview from "@/components/wedding-website/TemplateLivePreview";
+import TemplateHeroCard from "@/components/wedding-website/TemplateHeroCard";
 
 export default function WeddingWebsiteGalleryPage() {
   return (
-    <div dir="rtl" className="min-h-screen overflow-x-clip bg-[#0a0a0a] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+    <div
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-[linear-gradient(180deg,#FFFDF9_0%,#F7F1E8_45%,#F3EBE0_100%)] text-[#2A2118]"
+    >
+      <header className="sticky top-0 z-40 border-b border-[#E8DFD2]/80 bg-[#FFFDF9]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:px-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm font-semibold text-white/60 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            חזרה
-          </Link>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#C9A962]" />
-            <span className="text-sm font-bold tracking-wide">Invistimo Wedding</span>
+          <div className="flex items-center gap-3">
+            <span
+              className="text-xl font-light tracking-wide text-[#2A2118]"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            >
+              Invistimo Wedding
+            </span>
+            <span className="hidden text-xs font-bold text-[#A09080] sm:inline">
+              אוסף תבניות פרימיום
+            </span>
           </div>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 rounded-full border border-[#E0D4C4] bg-white px-4 py-2 text-sm font-bold text-[#6E6256] transition hover:border-[#D4AF7A]"
+          >
+            לדשבורד
+            <ArrowRight className="h-4 w-4 rotate-180" />
+          </Link>
         </div>
       </header>
 
-      <section className="relative overflow-x-clip px-5 py-16 md:px-8 md:py-24">
-        <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-[#C9A962]/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#7C9CFF]/10 blur-3xl" />
-
+      <section className="relative overflow-x-clip px-5 pb-10 pt-14 md:px-8 md:pb-14 md:pt-20">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,_rgba(201,169,98,0.18),_transparent_60%)]" />
         <div className="relative mx-auto max-w-3xl text-center">
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-5 text-[11px] font-bold uppercase tracking-[0.35em] text-[#C9A962]"
+            className="mb-4 text-[11px] font-black uppercase tracking-[0.32em] text-[#B8844F]"
           >
-            Premium Collection · Live Preview
+            Wedding Website Collection
           </motion.p>
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="font-['Cormorant_Garamond'] text-[clamp(2.4rem,6vw,4.5rem)] font-light leading-[1.1]"
+            transition={{ delay: 0.08 }}
+            className="text-[clamp(2.4rem,5.5vw,4.2rem)] font-light leading-[1.12] text-[#2A2118]"
+            style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            10 אתרי חתונה
+            בחרו את האווירה
             <br />
-            <span className="font-semibold text-white/70">כל אחד עולם אחר לגמרי</span>
+            <span className="font-semibold text-[#8A7560]">של אתר החתונה שלכם</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.25 }}
-            className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-white/55 md:text-lg"
+            transition={{ delay: 0.18 }}
+            className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#6E6256] md:text-lg"
           >
-            עיצוב ייחודי לכל תבנית — בלי scrollbar מיותר, עם מדיה תקינה וחוויה פרימיום.
+            כל כרטיס מציג את ה-Hero האמיתי של התבנית — טיפוגרפיה, צבעים, מדיה וכפתורים —
+            לפני שבוחרים ומתחילים לערוך.
           </motion.p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 pb-24">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
-          {WEDDING_TEMPLATES.map((template, index) => (
-            <motion.div
-              key={template.id}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ delay: index * 0.05, duration: 0.7 }}
+      <section className="mx-auto max-w-7xl px-5 pb-24 md:px-8">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <h2
+              className="text-2xl font-light text-[#2A2118] md:text-3xl"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              <TemplateLivePreview template={template} index={index} />
-            </motion.div>
+              10 תבניות ייחודיות
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-[#8A7560]">
+              לחיצה על «תצוגה מקדימה» פותחת את האתר המלא עם נתוני דוגמה
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-2">
+          {WEDDING_TEMPLATES.map((template, index) => (
+            <TemplateHeroCard key={template.id} template={template} index={index} />
           ))}
         </div>
       </section>

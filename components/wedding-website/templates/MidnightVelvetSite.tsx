@@ -16,6 +16,7 @@ import {
 import Starfield from "../illustrations/Starfield";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import ScrollRoute from "../illustrations/ScrollRoute";
 
 
 const GOLD = "#D4AF37";
@@ -222,6 +223,7 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
 
       <Section id="location" className="bg-[#141018] py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <ScrollRoute accent="#D4AF37" />
           <MapPinPulse accent={GOLD} />
           <h2 className="mt-3 font-['Playfair_Display'] text-4xl text-[#D4AF37]">
             {DEMO.venueName || "מיקום"}

@@ -23,12 +23,14 @@ export const WW_IMAGES = {
 
 export type WwImageKey = keyof typeof WW_IMAGES;
 
-/** Local MP4s under /public/wedding-media/videos */
+/** Local wedding-only MP4s under /public/wedding-media/videos */
 export const WW_VIDEOS = {
   coupleWalk: "/wedding-media/videos/couple.mp4",
   romantic: "/wedding-media/videos/romantic.mp4",
-  natureSoft: "/wedding-media/videos/nature.mp4",
+  /** Wedding dance / reception — not landscape stock */
+  natureSoft: "/wedding-media/videos/wedding-dance.mp4",
   celebration: "/wedding-media/videos/celebration.mp4",
+  weddingDance: "/wedding-media/videos/wedding-dance.mp4",
 } as const;
 
 export function gallerySet(...keys: WwImageKey[]) {

@@ -58,7 +58,7 @@ function main() {
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     assert.ok(!src.includes("overflow-x-auto"), `${id} still has overflow-x-auto`);
     assert.ok(src.includes("useWeddingRsvp") || src.includes("WeddingRsvp"), `${id} missing RSVP hook`);
-    assert.ok(src.includes("WeddingSmartNav"), `${id} missing smart nav`);
+    assert.ok(src.includes("WeddingActionBar"), `${id} missing action bar CTAs`);
     assert.ok(src.includes("overflow-x-clip"), `${id} missing overflow-x-clip`);
 
     const order = extractSectionOrder(src);

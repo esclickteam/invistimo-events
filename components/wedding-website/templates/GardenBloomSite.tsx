@@ -16,6 +16,8 @@ import {
 import FloatingPetals from "../illustrations/FloatingPetals";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import VineGrow from "../illustrations/VineGrow";
+import ScrollRoute from "../illustrations/ScrollRoute";
 
 
 const GREEN = "#6B9E78";
@@ -192,6 +194,8 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
 
       <Section id="location" className="py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <VineGrow color={GREEN} className="mb-4" />
+          <ScrollRoute accent={GREEN} />
           <MapPinPulse accent={GREEN} />
           <h2 className="mt-3 font-['Libre_Baskerville'] text-4xl">{DEMO.venueName || "מיקום"}</h2>
           <p className="mt-2 text-[#4A6B52]">{DEMO.venueAddress}</p>

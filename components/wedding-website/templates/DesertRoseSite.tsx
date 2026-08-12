@@ -16,6 +16,7 @@ import {
 import WatercolorReveal from "../illustrations/WatercolorReveal";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import ScrollRoute from "../illustrations/ScrollRoute";
 
 
 const ROSE = "#C4705A";
@@ -213,6 +214,7 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
 
       <Section id="location" className="py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <ScrollRoute accent="#C4705A" />
           <MapPinPulse accent={ROSE} />
           <h2 className="mt-3 font-['Cormorant_Garamond'] text-4xl font-light">
             {DEMO.venueName || "מיקום"}

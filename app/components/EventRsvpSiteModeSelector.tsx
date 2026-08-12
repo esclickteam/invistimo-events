@@ -334,7 +334,7 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
             href={`/dashboard/wedding-website?invitationId=${encodeURIComponent(invitationId)}`}
             className="mt-4 inline-flex rounded-full bg-[#B8844F] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:brightness-105"
           >
-            ניהול אתר החתונה · תבניות ופרסום
+            עריכת אתר החתונה
           </Link>
         ) : null}
       </div>

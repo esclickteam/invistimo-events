@@ -8,7 +8,7 @@ import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionE
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
+import AnimatedCountdown from "../shared/AnimatedCountdown";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -16,6 +16,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import ScrollRoute from "../illustrations/ScrollRoute";
 import WaveMotion from "../illustrations/WaveMotion";
 
 
@@ -146,14 +147,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="font-['Montserrat'] text-3xl font-light tracking-wide">הספירה לאחור</h2>
           <p className="mt-2 text-sm text-[#5A8499]">{formatHebrewDate(DEMO.weddingDate)}</p>
-          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {getFlippedCountdownUnits(time).map(({ label, value }) => (
-              <div key={String(label)} className="rounded-2xl bg-white/80 px-4 py-6 shadow-[0_12px_40px_rgba(26,58,74,0.06)]">
-                <p className="font-['Montserrat'] text-4xl font-light text-[#3D8BBA]">{value}</p>
-                <p className="mt-2 text-xs font-semibold tracking-widest text-[#5A8499]">{label}</p>
-              </div>
-            ))}
-          </div>
+          <AnimatedCountdown time={time} accent="#3D8BBA" variant="cards" />
         </div>
       </Section>
 
@@ -184,6 +178,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
 
       <Section id="location" className="bg-[#E8F4FC] py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <ScrollRoute accent="#3D8BBA" />
           <MapPinPulse accent={BLUE} />
           <h2 className="mt-3 font-['Montserrat'] text-3xl font-light">{DEMO.venueName || "מיקום"}</h2>
           <p className="mt-2 text-[#5A8499]">{DEMO.venueAddress}</p>

@@ -13,6 +13,7 @@ import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteraction
 import PathDrawTimeline from "../illustrations/PathDrawTimeline";
 import FloatingPetals from "../illustrations/FloatingPetals";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import ScrollRoute from "../illustrations/ScrollRoute";
 import ShuttleRide from "../illustrations/ShuttleRide";
 
 const ACCENT = "#7CB87A";
@@ -176,6 +177,7 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
 
       <Section id="location" className="relative bg-[#132018] py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <ScrollRoute accent="#7CB87A" />
           <MapPinPulse accent={ACCENT} />
           <h2 className="mt-2 text-4xl font-normal">{DEMO.venueName || "מיקום"}</h2>
           <p className="mt-2 text-[#8AA892]">{DEMO.venueAddress}</p>

@@ -9,7 +9,7 @@ import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionE
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage, SafeVideo } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
-import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
+import AnimatedCountdown from "../shared/AnimatedCountdown";
 import {
   useCountdownTimer,
   useFaqAccordion,
@@ -18,6 +18,7 @@ import {
 import GoldScrollLine from "../illustrations/GoldScrollLine";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import MapPinPulse from "../illustrations/MapPinPulse";
+import ScrollRoute from "../illustrations/ScrollRoute";
 
 
 const fade = {
@@ -119,14 +120,7 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">הספירה לאחור</h2>
           <Divider />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {getFlippedCountdownUnits(time).map(({ label, value }) => (
-              <div key={String(label)} className="border border-[#C9A962]/35 bg-white px-4 py-6">
-                <p className="font-['Cormorant_Garamond'] text-4xl text-[#C9A962]">{value}</p>
-                <p className="mt-2 text-xs font-bold tracking-widest text-[#8A7560]">{label}</p>
-              </div>
-            ))}
-          </div>
+          <AnimatedCountdown time={time} accent="#C9A962" variant="cards" />
         </div>
       </Section>
 
@@ -202,6 +196,7 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
 
       <Section id="location" className="py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
+          <ScrollRoute accent="#C9A962" />
           <MapPinPulse accent="#C9A962" />
           <h2 className="mt-3 font-['Cormorant_Garamond'] text-4xl font-light">
             {DEMO.venueName || "מיקום"}

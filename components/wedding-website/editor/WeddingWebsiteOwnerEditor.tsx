@@ -81,6 +81,13 @@ function Field({
   );
 }
 
+function normalizeHex(v: string) {
+  const s = v.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s;
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return `#${s}`;
+  return s;
+}
+
 function ColorField({
   label,
   value,
@@ -90,15 +97,27 @@ function ColorField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const hex = normalizeHex(value || "#ffffff");
+  const pickerValue = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#ffffff";
   return (
-    <label className="flex items-center justify-between gap-3 rounded-xl border border-[#EFE4D6] bg-[#FCFAF6] px-3 py-2">
+    <label className="flex flex-col gap-2 rounded-xl border border-[#EFE4D6] bg-[#FCFAF6] px-3 py-2.5">
       <span className="text-xs font-black text-[#8A7B69]">{label}</span>
-      <input
-        type="color"
-        value={value || "#ffffff"}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={pickerValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 cursor-pointer rounded border-0 bg-transparent"
+        />
+        <input
+          type="text"
+          value={hex}
+          onChange={(e) => onChange(normalizeHex(e.target.value))}
+          className="w-full rounded-lg border border-[#E7DED1] bg-white px-3 py-2 font-mono text-xs font-bold text-[#241A14] outline-none focus:border-[#D9B46F]"
+          placeholder="#FFFFFF"
+          dir="ltr"
+        />
+      </div>
     </label>
   );
 }
@@ -122,6 +141,7 @@ export default function WeddingWebsiteOwnerEditor({
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState(website.status);
 
@@ -237,24 +257,67 @@ export default function WeddingWebsiteOwnerEditor({
       ? `/w/${website.shareId}`
       : `/w/${website.shareId}?preview=1`;
 
+  const uploadImageFile = async (file: File): Promise<string | null> => {
+    if (!file.type.startsWith("image/")) {
+      setMessage("יש להעלות קובץ תמונה בלבד");
+      return null;
+    }
+    setUploading(true);
+    setMessage("");
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch("/api/wedding-website/upload", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ websiteId: website.id, base64Image: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.url) {
+        setMessage(data.error || "העלאה נכשלה — ניתן לבחור מתמונות מאושרות");
+        return null;
+      }
+      setMessage("התמונה הועלתה — לחצו שמירת טיוטה כדי לשמור");
+      return data.url as string;
+    } catch {
+      setMessage("שגיאה בהעלאת תמונה");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div dir="rtl" className="space-y-5">
       <div className="rounded-[28px] border border-[#E3D0B8] bg-[#FFFDF9] p-5 shadow-sm">
         <p className="text-xs font-black text-[#B8844F]">עריכת אתר החתונה · מוצר נפרד מההזמנה</p>
         <h1 className="mt-1 text-3xl font-black text-[#241A14]">עריכת אתר החתונה</h1>
         <p className="mt-2 max-w-3xl text-sm font-semibold text-[#8A7B69]">
-          שינויים נשמרים ב-DB של אתר החתונה בלבד. קישור ההזמנה הרגילה{" "}
+          עריכת צבעים, כיתובים ותמונות בלבד — בלי page builder. השינויים חלים רק על{" "}
+          <span className="font-black text-[#241A14]">/w/{website.shareId}</span>. הזמנה רגילה{" "}
           <span className="font-black text-[#241A14]">{inviteMeta.invitePath}</span> לא משתנה.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             disabled={saving}
-            onClick={() => void save()}
+            onClick={() => void save({ status: "draft" })}
             className="rounded-full bg-[#241A14] px-5 py-2.5 text-sm font-black text-white disabled:opacity-50"
           >
-            {saving ? "שומר..." : "שמור"}
+            {saving ? "שומר..." : "שמירת טיוטה"}
           </button>
+          <Link
+            href={previewUrl}
+            target="_blank"
+            className="rounded-full border border-[#D9B46F] bg-[#FFF9EF] px-5 py-2.5 text-sm font-black text-[#8B5E34]"
+          >
+            תצוגה מקדימה
+          </Link>
           {status === "published" ? (
             <button
               type="button"
@@ -271,16 +334,9 @@ export default function WeddingWebsiteOwnerEditor({
               onClick={() => void save({ status: "published" })}
               className="rounded-full bg-[#B8844F] px-5 py-2.5 text-sm font-black text-white"
             >
-              פרסם אתר
+              פרסום
             </button>
           )}
-          <Link
-            href={previewUrl}
-            target="_blank"
-            className="rounded-full border border-[#D9B46F] bg-[#FFF9EF] px-5 py-2.5 text-sm font-black text-[#8B5E34]"
-          >
-            פתח /w/{website.shareId}
-          </Link>
           <Link
             href={`/dashboard/invitations/${invitationId}/edit`}
             className="rounded-full px-4 py-2.5 text-sm font-bold text-[#8A7B69]"
@@ -289,6 +345,7 @@ export default function WeddingWebsiteOwnerEditor({
           </Link>
         </div>
         {message ? <p className="mt-3 text-sm font-bold text-[#B8844F]">{message}</p> : null}
+        {uploading ? <p className="mt-2 text-xs font-bold text-[#8A7B69]">מעלה תמונה...</p> : null}
       </div>
 
       <section className="rounded-[28px] border border-[#E7DED1] bg-white p-5">
@@ -513,32 +570,32 @@ export default function WeddingWebsiteOwnerEditor({
             {tab === "colors" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <ColorField
-                  label="רקע ראשי"
+                  label="Background"
                   value={themeOverrides.background || template.theme.bg}
                   onChange={(v) => updateTheme("background", v)}
                 />
                 <ColorField
-                  label="צבע משני"
+                  label="Primary"
+                  value={themeOverrides.accent || template.theme.accent}
+                  onChange={(v) => updateTheme("accent", v)}
+                />
+                <ColorField
+                  label="Secondary"
                   value={themeOverrides.secondary || template.theme.bgAlt}
                   onChange={(v) => updateTheme("secondary", v)}
                 />
                 <ColorField
                   label="Accent"
-                  value={themeOverrides.accent || template.theme.accent}
-                  onChange={(v) => updateTheme("accent", v)}
-                />
-                <ColorField
-                  label="טקסט"
-                  value={themeOverrides.text || template.theme.text}
-                  onChange={(v) => updateTheme("text", v)}
-                />
-                <ColorField
-                  label="כפתורים"
                   value={themeOverrides.button || template.theme.accent}
                   onChange={(v) => updateTheme("button", v)}
                 />
                 <ColorField
-                  label="Sections / Cards"
+                  label="Text"
+                  value={themeOverrides.text || template.theme.text}
+                  onChange={(v) => updateTheme("text", v)}
+                />
+                <ColorField
+                  label="Buttons / Cards"
                   value={themeOverrides.card || template.theme.surface}
                   onChange={(v) => updateTheme("card", v)}
                 />
@@ -547,7 +604,7 @@ export default function WeddingWebsiteOwnerEditor({
                   className="sm:col-span-2 rounded-full border border-[#E7DED1] px-4 py-2 text-xs font-black text-[#8A7B69]"
                   onClick={() => setThemeOverrides({})}
                 >
-                  איפוס צבעים לברירת התבנית ({template.name})
+                  איפוס לברירת התבנית ({template.name})
                 </button>
               </div>
             )}
@@ -611,6 +668,24 @@ export default function WeddingWebsiteOwnerEditor({
                     alt="hero"
                     className="mb-3 h-36 w-full rounded-2xl object-cover"
                   />
+                  <label className="mb-3 inline-flex cursor-pointer rounded-full bg-[#B8844F] px-4 py-2 text-xs font-black text-white">
+                    {uploading ? "מעלה..." : "העלאת / החלפת Hero"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        void uploadImageFile(file).then((url) => {
+                          if (url) updateField("heroImageUrl", url);
+                        });
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <p className="mb-2 text-[11px] font-semibold text-[#8A7B69]">או בחרו מספריית החתונה</p>
                   <div className="grid grid-cols-4 gap-2 md:grid-cols-5">
                     {Object.values(WW_IMAGES).map((url) => (
                       <button
@@ -637,7 +712,31 @@ export default function WeddingWebsiteOwnerEditor({
                 </div>
 
                 <div>
-                  <p className="mb-2 text-xs font-black text-[#8A7B69]">גלריה — החלף / מחק / סדר</p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-black text-[#8A7B69]">גלריה — החלף / מחק / סדר</p>
+                    <label className="inline-flex cursor-pointer rounded-full border border-[#D9B46F] bg-[#FFF9EF] px-3 py-1.5 text-[11px] font-black text-[#8B5E34]">
+                      העלאת תמונה לגלריה
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          void uploadImageFile(file).then((url) => {
+                            if (url) {
+                              updateField(
+                                "galleryUrls",
+                                sanitizeGallery([...gallery, url], template.galleryImages)
+                              );
+                            }
+                          });
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
                   <div className="space-y-2">
                     {gallery.map((url, idx) => (
                       <div
