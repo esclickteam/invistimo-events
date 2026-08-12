@@ -4,10 +4,10 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
+import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import AnimatedCountdown from "../shared/AnimatedCountdown";
 import {
@@ -341,14 +341,12 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
       </Section>
 
       <Section id="video" className="bg-[#F3EBE0] py-16">
-        <div className="mx-auto max-w-4xl px-6">
-          <div className="overflow-hidden border border-[#C9A962]/35 bg-black">
-            <SafeVideo
-              src={DEMO.videoUrl || VIDEOS.romantic}
-              poster={DEMO.heroImageUrl || template.heroImage}
-              controls
-              playsInline
-              preload="metadata"
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <h2 className="mb-6 font-['Cormorant_Garamond'] text-3xl font-light">רגע מהחתונה</h2>
+          <div className="overflow-hidden border border-[#C9A962]/35">
+            <SafeImage
+              src={DEMO.heroImageUrl || template.heroImage}
+              alt=""
               className="aspect-video w-full object-cover"
             />
           </div>

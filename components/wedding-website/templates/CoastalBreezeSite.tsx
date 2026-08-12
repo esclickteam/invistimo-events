@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
+import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import AnimatedCountdown from "../shared/AnimatedCountdown";
 import {
@@ -89,15 +89,10 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
 
       {/* HERO — full-bleed beach video */}
       <section id="hero" className="relative flex min-h-[100svh] items-end justify-center overflow-hidden">
-        <SafeVideo
-          src={DEMO.videoUrl || VIDEOS.beach}
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster={DEMO.heroImageUrl || template.heroImage}
+        <SafeImage
+          src={DEMO.heroImageUrl || template.heroImage}
+          alt=""
           className="absolute inset-0 h-full w-full object-cover"
-          preload="metadata"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#1A3A4A]/85 via-[#1A3A4A]/25 to-transparent" />
         <div className="relative z-10 w-full px-6 pb-24 text-center text-white">

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
+import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import { useFaqAccordion, useWeddingRsvp } from "../shared/useWeddingInteractions";
@@ -137,16 +137,12 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
             transition={{ duration: 0.7, delay: 0.22 }}
             className={`${glass} relative col-span-1 overflow-hidden`}
           >
-            <SafeVideo
-              src={DEMO.videoUrl || VIDEOS.couple}
-              poster={heroImg}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
+            <SafeImage
+              src={heroImg}
+              alt=""
               className="h-full min-h-[140px] w-full object-cover"
             />
+            <GlassShimmer />
           </motion.div>
 
           <motion.div

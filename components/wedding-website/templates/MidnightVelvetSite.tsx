@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
-import { formatHebrewDate, VIDEOS } from "../shared/weddingUtils";
+import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides, useWeddingSite, isSectionEnabled } from "../shared/WeddingSiteContext";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
-import { SafeImage, SafeVideo } from "../shared/SafeMedia";
+import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import { getFlippedCountdownUnits } from "../shared/CountdownUnits";
 import {
@@ -77,15 +77,10 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#1a1520_0%,_#0D0B10_70%)]" />
         <div className="relative z-10 w-full max-w-6xl">
           <div className="relative aspect-[2.35/1] w-full overflow-hidden rounded-sm border border-[#D4AF37]/25 shadow-[0_0_80px_rgba(212,175,55,0.12)]">
-            <SafeVideo
-              src={DEMO.videoUrl || VIDEOS.rings}
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster={DEMO.heroImageUrl || template.heroImage}
+            <SafeImage
+              src={DEMO.heroImageUrl || template.heroImage}
+              alt=""
               className="h-full w-full object-cover"
-              preload="metadata"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/50" />
             <Starfield count={32} />
