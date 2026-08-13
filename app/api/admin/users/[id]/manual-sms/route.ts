@@ -146,12 +146,87 @@ async function findMatchingGuest(invitationId: string, normalizedPhone: string) 
   if (!targetSuffix) return null;
 
   const guests = await InvitationGuest.find({ invitationId })
-    .select("phone token name")
+    .select("phone token name tableName tableNumber")
     .lean();
 
   return (
     guests.find((guest) => phoneSuffix(guest.phone) === targetSuffix) || null
   );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildPersonalRsvpLink(shareId: string, token?: string) {
+  const cleanShareId = String(shareId || "").trim();
+
+  if (!cleanShareId) return "";
+
+  const cleanToken = String(token || "").trim();
+
+  return cleanToken
+    ? `https://www.invistimo.com/invite/${cleanShareId}?token=${cleanToken}`
+    : `https://www.invistimo.com/invite/${cleanShareId}`;
+}
+
+function guestTableLabel(guest: any) {
+  const tableName = String(guest?.tableName || "").trim();
+
+  if (tableName) return tableName;
+
+  if (typeof guest?.tableNumber === "number") {
+    return `שולחן ${guest.tableNumber}`;
+  }
+
+  return "";
+}
+
+function applyGuestPersonalization({
+  message,
+  invitation,
+  guest,
+}: {
+  message: string;
+  invitation: any;
+  guest: any;
+}) {
+  const shareId = String(invitation?.shareId || "").trim();
+  const personalRsvp = buildPersonalRsvpLink(shareId, guest?.token);
+  const eventLink = shareId ? `https://www.invistimo.com/e/${shareId}` : "";
+  const tableName = guestTableLabel(guest);
+
+  let text = String(message || "");
+
+  text = text
+    .replace(/{{name}}/g, String(guest?.name || "").trim())
+    .replace(/{{rsvpLink}}/g, personalRsvp)
+    .replace(/{{tableName}}/g, tableName)
+    .replace(/{{navigationLink}}/g, eventLink);
+
+  if (shareId && personalRsvp) {
+    text = text.replace(
+      new RegExp(
+        `https://www\\.invistimo\\.com/invite/${escapeRegExp(shareId)}(?:\\?[^\\s]*)?`,
+        "g"
+      ),
+      personalRsvp
+    );
+  }
+
+  return text;
+}
+
+async function loadInvitation(userId: string, invitationId?: string) {
+  const query = invitationId
+    ? { _id: invitationId, ownerId: userId }
+    : { ownerId: userId };
+
+  return Invitation.findOne(query)
+    .select(
+      "title shareId eventDate eventTime location address eventLocation headerImageUrl previewImageUrl imageUrl canvasImageUrl ownerId"
+    )
+    .lean();
 }
 
 export async function POST(
@@ -229,15 +304,7 @@ export async function POST(
         );
       }
 
-      const invitationQuery = invitationId
-        ? { _id: invitationId, ownerId: userId }
-        : { ownerId: userId };
-
-      const invitation: any = await Invitation.findOne(invitationQuery)
-        .select(
-          "title shareId eventDate eventTime location address eventLocation headerImageUrl previewImageUrl imageUrl canvasImageUrl ownerId"
-        )
-        .lean();
+      const invitation: any = await loadInvitation(userId, invitationId);
 
       if (!invitation) {
         return NextResponse.json(
@@ -335,6 +402,8 @@ export async function POST(
           phone: normalizedPhone,
           templateName,
           sent: 1,
+          guestName: guest?.name || null,
+          personalLinkUsed: Boolean(guest?.token),
         },
         {
           headers: {
@@ -344,7 +413,18 @@ export async function POST(
       );
     }
 
-    const finalMessage = await shortenLinksInMessage(message);
+    const invitation: any = await loadInvitation(userId, invitationId);
+    const guest = invitation?._id
+      ? await findMatchingGuest(String(invitation._id), normalizedPhone)
+      : null;
+
+    const personalizedMessage = applyGuestPersonalization({
+      message,
+      invitation,
+      guest,
+    });
+
+    const finalMessage = await shortenLinksInMessage(personalizedMessage);
     const parts = countBusinessSms(finalMessage);
 
     if (parts === -1) {
@@ -390,7 +470,10 @@ export async function POST(
     console.log("✅ ADMIN MANUAL SMS SENT:", {
       adminUserId: auth.userId,
       targetUserId: userId,
+      invitationId: invitation?._id ? String(invitation._id) : null,
       phone: normalizedPhone,
+      guestId: guest?._id ? String(guest._id) : null,
+      personalLinkUsed: Boolean(guest?.token),
       parts,
       chars: [...finalMessage].length,
     });
@@ -402,6 +485,8 @@ export async function POST(
         parts,
         totalChars: [...finalMessage].length,
         phone: normalizedPhone,
+        guestName: guest?.name || null,
+        personalLinkUsed: Boolean(guest?.token),
       },
       {
         headers: {
@@ -414,6 +499,102 @@ export async function POST(
 
     return NextResponse.json(
       { success: false, error: "SEND_FAILED" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest(req);
+
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    if (!isAdminContext(auth)) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const { id: userId } = await context.params;
+    const { searchParams } = new URL(req.url);
+    const phone = String(searchParams.get("phone") || "").trim();
+    const invitationId = String(searchParams.get("invitationId") || "").trim();
+
+    if (!userId || !phone) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_PARAMS" },
+        { status: 400 }
+      );
+    }
+
+    const user = await User.findById(userId).select("_id").lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const normalizedPhone = normalizeSmsPhone(phone);
+
+    if (!normalizedPhone || normalizedPhone.length < 11) {
+      return NextResponse.json({
+        success: true,
+        guest: null,
+      });
+    }
+
+    const invitation: any = await loadInvitation(userId, invitationId);
+
+    if (!invitation?._id) {
+      return NextResponse.json({
+        success: true,
+        guest: null,
+      });
+    }
+
+    const guest = await findMatchingGuest(
+      String(invitation._id),
+      normalizedPhone
+    );
+
+    if (!guest) {
+      return NextResponse.json({
+        success: true,
+        guest: null,
+      });
+    }
+
+    const shareId = String(invitation.shareId || "").trim();
+    const rsvpLink = buildPersonalRsvpLink(shareId, guest.token);
+
+    return NextResponse.json({
+      success: true,
+      guest: {
+        name: String(guest.name || "").trim(),
+        rsvpLink,
+        tableName: guestTableLabel(guest),
+        personalLinkUsed: Boolean(String(guest.token || "").trim()),
+      },
+    });
+  } catch (err) {
+    console.error("❌ ADMIN MANUAL GUEST LOOKUP ERROR:", err);
+
+    return NextResponse.json(
+      { success: false, error: "LOOKUP_FAILED" },
       { status: 500 }
     );
   }

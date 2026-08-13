@@ -1,9 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ManualTemplateKey = "rsvp" | "rsvp_reminder" | "reminder";
 type Channel = "sms" | "whatsapp";
+
+type MatchedGuest = {
+  name: string;
+  rsvpLink: string;
+  tableName?: string;
+  personalLinkUsed?: boolean;
+};
 
 type Props = {
   userId: string;
@@ -39,18 +46,25 @@ function buildTemplateText({
   key,
   invitationTitle,
   invitationShareId,
+  personalRsvpLink,
+  tableName,
 }: {
   key: ManualTemplateKey;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
+  personalRsvpLink?: string | null;
+  tableName?: string | null;
 }) {
   const title = String(invitationTitle || "").trim() || "האירוע";
-  const inviteLink = invitationShareId
-    ? `https://www.invistimo.com/invite/${invitationShareId}`
-    : "{{rsvpLink}}";
+  const inviteLink =
+    String(personalRsvpLink || "").trim() ||
+    (invitationShareId
+      ? `https://www.invistimo.com/invite/${invitationShareId}`
+      : "{{rsvpLink}}");
   const eventLink = invitationShareId
     ? `https://www.invistimo.com/e/${invitationShareId}`
     : "{{navigationLink}}";
+  const tableLabel = String(tableName || "").trim() || "{{tableName}}";
 
   if (key === "rsvp") {
     return (
@@ -72,6 +86,9 @@ function buildTemplateText({
 
   return (
     `תזכורת לאירוע ${title}.\n\n` +
+    (String(tableName || "").trim()
+      ? `מספר השולחן שלך:\n${tableLabel}\n\n`
+      : "") +
     "לכל פרטי האירוע והניווט:\n" +
     `${eventLink}\n\n` +
     "נשמח לראותכם ❤️"
@@ -91,6 +108,8 @@ export default function AdminManualSmsPanel({
     useState<ManualTemplateKey | "">("");
   const [channel, setChannel] = useState<Channel>("sms");
   const [sending, setSending] = useState(false);
+  const [matchedGuest, setMatchedGuest] = useState<MatchedGuest | null>(null);
+  const [lookupDone, setLookupDone] = useState(false);
   const [status, setStatus] = useState<{
     type: "success" | "error";
     text: string;
@@ -116,6 +135,69 @@ export default function AdminManualSmsPanel({
     return Boolean(message.trim() && !tooLong);
   }, [phone, sending, isWhatsapp, isRsvpTemplate, message, tooLong]);
 
+  useEffect(() => {
+    const digits = phone.replace(/\D/g, "");
+
+    if (digits.length < 9) {
+      setMatchedGuest(null);
+      setLookupDone(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ phone: phone.trim() });
+
+        if (invitationId) {
+          params.set("invitationId", invitationId);
+        }
+
+        const res = await fetch(
+          `/api/admin/users/${userId}/manual-sms?${params.toString()}`,
+          {
+            credentials: "include",
+            signal: controller.signal,
+          }
+        );
+        const data = await res.json().catch(() => null);
+
+        if (controller.signal.aborted) return;
+
+        setMatchedGuest(data?.guest || null);
+        setLookupDone(true);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setMatchedGuest(null);
+        setLookupDone(true);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [phone, userId, invitationId]);
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+
+    setMessage(
+      buildTemplateText({
+        key: selectedTemplate,
+        invitationTitle,
+        invitationShareId,
+        personalRsvpLink: matchedGuest?.rsvpLink,
+        tableName: matchedGuest?.tableName,
+      })
+    );
+  }, [
+    selectedTemplate,
+    matchedGuest,
+    invitationTitle,
+    invitationShareId,
+  ]);
+
   function applyTemplate(key: ManualTemplateKey) {
     setSelectedTemplate(key);
     setMessage(
@@ -123,6 +205,8 @@ export default function AdminManualSmsPanel({
         key,
         invitationTitle,
         invitationShareId,
+        personalRsvpLink: matchedGuest?.rsvpLink,
+        tableName: matchedGuest?.tableName,
       })
     );
 
@@ -139,6 +223,9 @@ export default function AdminManualSmsPanel({
     const channelLabel = isWhatsapp ? "WhatsApp" : "SMS";
     const confirmText =
       `לשלוח ${channelLabel} למספר ${phone.trim()} בלבד?\n\n` +
+      (matchedGuest?.name
+        ? `נמצא ברשימה: ${matchedGuest.name}. יישלח עם הקישור האישי שלו.\n\n`
+        : "") +
       "השליחה ידנית ולא מסמנת סבב כנשלח.";
 
     if (!confirm(confirmText)) return;
@@ -187,11 +274,16 @@ export default function AdminManualSmsPanel({
         return;
       }
 
+      const guestLabel = data?.guestName ? ` ל-${data.guestName}` : "";
+      const personalLabel = data?.personalLinkUsed
+        ? " עם קישור אישי"
+        : "";
+
       setStatus({
         type: "success",
         text: isWhatsapp
-          ? "הודעת WhatsApp נשלחה בהצלחה למספר הזה בלבד"
-          : `ההודעה נשלחה בהצלחה · ${data.parts} חלקי SMS`,
+          ? `הודעת WhatsApp נשלחה בהצלחה${guestLabel}${personalLabel}`
+          : `ההודעה נשלחה בהצלחה${guestLabel}${personalLabel} · ${data.parts} חלקי SMS`,
       });
 
       if (!isWhatsapp) {
@@ -214,8 +306,8 @@ export default function AdminManualSmsPanel({
       <div className="mb-3">
         <div className="font-black text-[#3A2A1C]">שליחה ידנית</div>
         <p className="mt-1 text-xs font-bold text-[#8A7867]">
-          שליחה למספר אחד בלבד. באישורי הגעה אפשר לבחור SMS או WhatsApp.
-          השליחה לא נועלת סבב ולא מחייבת את מכסת הלקוח.
+          שליחה למספר אחד בלבד. אם המספר ברשימת המוזמנים, נשלח הקישור האישי
+          של אותו אורח. באישורי הגעה אפשר לבחור SMS או WhatsApp.
         </p>
       </div>
 
@@ -278,7 +370,7 @@ export default function AdminManualSmsPanel({
         </div>
       )}
 
-      <label className="mb-3 block">
+      <label className="mb-2 block">
         <span className="mb-2 block text-xs font-black text-[#6B5A48]">
           מספר טלפון
         </span>
@@ -304,11 +396,20 @@ export default function AdminManualSmsPanel({
         />
       </label>
 
+      {matchedGuest?.name ? (
+        <div className="mb-3 rounded-2xl bg-[#EAF8EF] px-4 py-2 text-xs font-bold text-[#1F9A55]">
+          נמצא ברשימה: {matchedGuest.name} · יישלח עם הקישור האישי שלו
+        </div>
+      ) : lookupDone && phone.replace(/\D/g, "").length >= 10 ? (
+        <div className="mb-3 rounded-2xl bg-[#FFF7E8] px-4 py-2 text-xs font-bold text-[#8A5A24]">
+          המספר לא נמצא ברשימת המוזמנים · יישלח קישור כללי
+        </div>
+      ) : null}
+
       {isWhatsapp ? (
         <div className="mb-3 rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-3 text-xs font-bold leading-6 text-[#8A7867]">
           WhatsApp שולח את תבנית אישור ההגעה הרשמית עם תמונת ההזמנה, רק למספר
-          הזה. לא נשלחת הודעת טקסט חופשית, לא נשלח לשאר המוזמנים, ולא נוגעים
-          בתזמון.
+          הזה. אם המספר ברשימה, הכפתור ייפתח עם הקישור האישי של האורח.
         </div>
       ) : (
         <>
