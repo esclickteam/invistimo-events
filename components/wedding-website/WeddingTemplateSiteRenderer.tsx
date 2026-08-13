@@ -12,6 +12,7 @@ import type {
   WeddingWebsiteGuestContext,
 } from "@/types/weddingWebsite";
 import type { WeddingEditApi } from "./editor/EditablePrimitives";
+import EditFloatingToolbar from "./editor/EditFloatingToolbar";
 
 type Props = {
   template: WeddingTemplate;
@@ -80,6 +81,17 @@ export default function WeddingTemplateSiteRenderer({
             mode === "edit"
           }
         />
+        {mode === "edit" && edit?.enabled ? (
+          <EditFloatingToolbar
+            themeOverrides={themeOverrides}
+            defaults={{
+              accent: template.theme.accent,
+              background: template.theme.bg,
+              text: template.theme.text,
+              button: template.theme.accent,
+            }}
+          />
+        ) : null}
       </WeddingThemeProvider>
     </WeddingSiteProvider>
   );

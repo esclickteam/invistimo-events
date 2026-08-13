@@ -10,6 +10,7 @@ import {
 } from "@/config/weddingWebsite/media";
 import { getDemoWeddingSiteContent } from "@/lib/weddingWebsite/resolveWeddingSiteContent";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
+import { WeddingSiteProvider } from "@/components/wedding-website/shared/WeddingSiteContext";
 import type {
   WeddingSectionToggles,
   WeddingSiteContent,
@@ -69,8 +70,10 @@ export default function WeddingWebsiteOwnerEditor({
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<WeddingEditSelection>(null);
   const [inspector, setInspector] = useState<InspectorTab>("selection");
-  const [panelOpen, setPanelOpen] = useState(true);
+  /** Full-bleed canvas by default — side panel is optional. */
+  const [panelOpen, setPanelOpen] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [imageModalOpen, setImageModalOpen] = useState(false);
 
   useEffect(() => {
     setTemplateId(website.templateId);
@@ -127,8 +130,6 @@ export default function WeddingWebsiteOwnerEditor({
   const updateTheme = useCallback(
     <K extends keyof WeddingThemeOverrides>(key: K, value: WeddingThemeOverrides[K]) => {
       setThemeOverrides((prev) => ({ ...prev, [key]: value }));
-      setInspector("colors");
-      setPanelOpen(true);
     },
     []
   );
@@ -136,8 +137,7 @@ export default function WeddingWebsiteOwnerEditor({
   const openImagePicker = useCallback(
     (field: "heroImageUrl" | "galleryUrls", index?: number) => {
       setSelected({ kind: "image", field, index });
-      setInspector("selection");
-      setPanelOpen(true);
+      setImageModalOpen(true);
     },
     []
   );
@@ -148,9 +148,8 @@ export default function WeddingWebsiteOwnerEditor({
       selected,
       setSelected: (next) => {
         setSelected(next);
-        if (next) {
-          setInspector("selection");
-          setPanelOpen(true);
+        if (next?.kind === "image") {
+          setImageModalOpen(true);
         }
       },
       updateField,
@@ -231,6 +230,14 @@ export default function WeddingWebsiteOwnerEditor({
       : `/w/${website.shareId}?preview=1`;
 
   return (
+    <WeddingSiteProvider
+      content={previewContent}
+      sections={sections}
+      themeOverrides={themeOverrides}
+      mode="edit"
+      shareId={website.shareId}
+      edit={editApi}
+    >
     <div className="fixed inset-0 z-[80] flex flex-col bg-[#1a1410] text-white" dir="rtl">
       {/* Top toolbar */}
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#241A14] px-3 py-2.5">
@@ -243,7 +250,7 @@ export default function WeddingWebsiteOwnerEditor({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-black">עריכת אתר החתונה</p>
           <p className="truncate text-[11px] text-white/55">
-            לחצו על טקסט / תמונה באתר כדי לערוך · {inviteMeta.title}
+            לחצו על טקסט להקלדה · על תמונה להחלפה · על סקשן לצבע · {inviteMeta.title}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -335,7 +342,7 @@ export default function WeddingWebsiteOwnerEditor({
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        {/* Canvas */}
+        {/* Full-bleed live template canvas */}
         <div className="relative min-w-0 flex-1 overflow-auto bg-[#2a211c]">
           <div
             className={`mx-auto min-h-full ${
@@ -367,6 +374,24 @@ export default function WeddingWebsiteOwnerEditor({
               />
             </div>
           </div>
+
+          {imageModalOpen && selected?.kind === "image" ? (
+            <div
+              className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4"
+              onClick={() => setImageModalOpen(false)}
+            >
+              <div
+                className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-3xl bg-[#FFFDF9] p-4 text-[#241A14] shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ImagePickerPanel
+                  field={selected.field}
+                  index={selected.index}
+                  onClose={() => setImageModalOpen(false)}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Inspector */}
@@ -533,5 +558,6 @@ export default function WeddingWebsiteOwnerEditor({
         ) : null}
       </div>
     </div>
+    </WeddingSiteProvider>
   );
 }

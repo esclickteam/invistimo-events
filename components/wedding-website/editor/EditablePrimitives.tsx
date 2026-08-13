@@ -7,6 +7,9 @@ import {
   useState,
   type CSSProperties,
   type ElementType,
+  type FocusEvent,
+  type FormEvent,
+  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -18,6 +21,7 @@ import type { BlockTone } from "../shared/FullLengthBlocks";
 export type WeddingEditSelection =
   | { kind: "text"; field: keyof WeddingSiteContent }
   | { kind: "image"; field: "heroImageUrl" | "galleryUrls"; index?: number }
+  | { kind: "section"; id: string }
   | { kind: "color"; key: keyof WeddingThemeOverrides }
   | null;
 
@@ -101,11 +105,22 @@ export function EditableText({
       : Array.isArray(raw)
         ? raw.join("\n")
         : String(children ?? "");
+  const elRef = useRef<HTMLElement | null>(null);
+  const focusedRef = useRef(false);
 
   const selected =
     edit?.enabled &&
     edit.selected?.kind === "text" &&
     edit.selected.field === field;
+
+  useEffect(() => {
+    const node = elRef.current;
+    if (!node || focusedRef.current) return;
+    const next = text?.trim() ? text : "";
+    if ((node.textContent || "") !== next) {
+      node.textContent = next || placeholder;
+    }
+  }, [text, placeholder, field]);
 
   if (!edit?.enabled) {
     return (
@@ -115,8 +130,25 @@ export function EditableText({
     );
   }
 
+  const commitFromDom = (node: HTMLElement) => {
+    const next = (node.innerText || "").replace(/\u00a0/g, " ").trimEnd();
+    const display = next.trim() ? next : "";
+    if (field === "storyParagraphs") {
+      edit.updateField(
+        "storyParagraphs",
+        display
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+    } else {
+      edit.updateField(field, display as never);
+    }
+  };
+
   return (
     <Tag
+      ref={elRef as never}
       className={`${className} ww-editable-text ${selected ? "ww-editable-selected" : ""}`}
       style={{
         ...style,
@@ -125,21 +157,46 @@ export function EditableText({
         outlineOffset: 4,
         borderRadius: 4,
         minHeight: multiline ? 48 : undefined,
+        whiteSpace: multiline ? "pre-wrap" : undefined,
       }}
       data-ww-field={String(field)}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onFocus={() => {
+        focusedRef.current = true;
+        edit.setSelected({ kind: "text", field });
+        const node = elRef.current;
+        if (node && !(node.textContent || "").trim()) {
+          node.textContent = "";
+        }
+      }}
+      onBlur={(e: FocusEvent<HTMLElement>) => {
+        focusedRef.current = false;
+        commitFromDom(e.currentTarget);
+      }}
+      onInput={(e: FormEvent<HTMLElement>) => {
+        commitFromDom(e.currentTarget);
+      }}
       onClick={(e: MouseEvent) => {
-        e.preventDefault();
         e.stopPropagation();
         edit.setSelected({ kind: "text", field });
       }}
-      role="button"
+      onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
+        if (!multiline && e.key === "Enter") {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
+          edit.setSelected(null);
+        }
+      }}
+      role="textbox"
       tabIndex={0}
-      title="לחצו לעריכת הטקסט"
-    >
-      {text?.trim() ? children ?? text : (
-        <span style={{ opacity: 0.45 }}>{placeholder}</span>
-      )}
-    </Tag>
+      title="לחצו והקלידו לעריכה"
+    />
   );
 }
 
@@ -181,6 +238,7 @@ export function EditableImage({
         outlineOffset: 2,
       }}
       data-ww-image={field}
+      data-ww-index={typeof index === "number" ? String(index) : undefined}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -226,21 +284,24 @@ export function InlineTextEditor({
     ref.current?.focus();
   }, [field, initial]);
 
-  const commit = useCallback(() => {
-    if (!edit) return;
-    if (field === "storyParagraphs") {
-      edit.updateField(
-        "storyParagraphs",
-        value
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      );
-    } else {
-      edit.updateField(field, value as never);
-    }
-    onClose();
-  }, [edit, field, onClose, value]);
+  const applyLive = useCallback(
+    (next: string) => {
+      if (!edit) return;
+      setValue(next);
+      if (field === "storyParagraphs") {
+        edit.updateField(
+          "storyParagraphs",
+          next
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        );
+      } else {
+        edit.updateField(field, next as never);
+      }
+    },
+    [edit, field]
+  );
 
   if (!edit) return null;
 
@@ -250,15 +311,17 @@ export function InlineTextEditor({
   return (
     <div className="space-y-2" dir="rtl">
       <p className="text-xs font-black text-[#8A7B69]">עריכת טקסט · {String(field)}</p>
+      <p className="text-[11px] font-semibold text-[#8A7B69]">
+        השינוי מופיע מיד על האתר. אפשר גם להקליד ישירות על הטקסט בקנבס.
+      </p>
       {multiline || field === "storyParagraphs" || field === "invitationText" || field === "welcomeText" ? (
         <textarea
           ref={ref as React.RefObject<HTMLTextAreaElement>}
           className={`${shared} min-h-[120px]`}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => applyLive(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") commit();
           }}
         />
       ) : (
@@ -266,29 +329,20 @@ export function InlineTextEditor({
           ref={ref as React.RefObject<HTMLInputElement>}
           className={shared}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => applyLive(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
-            if (e.key === "Enter") commit();
+            if (e.key === "Enter") onClose();
           }}
         />
       )}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={commit}
-          className="rounded-full bg-[#B8844F] px-4 py-2 text-xs font-black text-white"
-        >
-          החל
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-[#E7DED1] px-4 py-2 text-xs font-bold text-[#8A7B69]"
-        >
-          ביטול
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-full border border-[#E7DED1] px-4 py-2 text-xs font-bold text-[#8A7B69]"
+      >
+        סיום
+      </button>
     </div>
   );
 }

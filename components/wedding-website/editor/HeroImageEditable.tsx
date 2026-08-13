@@ -44,6 +44,8 @@ export default function HeroImageEditable({
         outline: selected ? "3px solid #B8844F" : undefined,
         outlineOffset: -3,
       }}
+      data-ww-hero="1"
+      data-ww-image="heroImageUrl"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

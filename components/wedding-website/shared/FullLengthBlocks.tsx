@@ -36,10 +36,41 @@ export function SiteSection({
   className?: string;
   children: React.ReactNode;
 }) {
-  const { sections } = useWeddingSite();
+  const { sections, edit } = useWeddingSite();
   if (id !== "hero" && !isSectionEnabled(sections, id)) return null;
+  const selected =
+    edit?.enabled && edit.selected?.kind === "section" && edit.selected.id === id;
   return (
-    <motion.section id={id} {...fade} className={`scroll-mt-24 overflow-x-clip ${className}`}>
+    <motion.section
+      id={id}
+      {...fade}
+      data-ww-section={id}
+      className={`scroll-mt-24 overflow-x-clip ${className} ${
+        edit?.enabled ? "ww-editable-section" : ""
+      } ${selected ? "ww-editable-section-selected" : ""}`}
+      onClick={
+        edit?.enabled
+          ? (e) => {
+              // Only select section when clicking empty section chrome, not nested editables
+              const target = e.target as HTMLElement;
+              if (
+                target.closest(
+                  "[data-ww-field], [data-ww-image], [data-ww-hero], a, button, input, textarea"
+                )
+              ) {
+                return;
+              }
+              e.stopPropagation();
+              edit.setSelected({ kind: "section", id });
+            }
+          : undefined
+      }
+    >
+      {edit?.enabled ? (
+        <span className="ww-section-edit-badge" aria-hidden>
+          סקשן · לחצו לשינוי צבע
+        </span>
+      ) : null}
       {children}
     </motion.section>
   );
