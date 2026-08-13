@@ -483,6 +483,9 @@ export function ColorEditorPanel({
               <input
                 type="color"
                 value={hex}
+                onInput={(e) =>
+                  edit.updateTheme(f.key, (e.target as HTMLInputElement).value)
+                }
                 onChange={(e) => edit.updateTheme(f.key, e.target.value)}
                 className="h-9 w-10 cursor-pointer rounded border-0 bg-transparent"
               />

@@ -145,6 +145,9 @@ export default function EditFloatingToolbar({ themeOverrides, defaults }: Props)
               <input
                 type="color"
                 value={hex}
+                onInput={(e) =>
+                  edit.updateTheme(key, (e.target as HTMLInputElement).value)
+                }
                 onChange={(e) => edit.updateTheme(key, e.target.value)}
                 className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent"
                 title={label}
