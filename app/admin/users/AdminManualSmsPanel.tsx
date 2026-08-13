@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 
-type ManualSmsTemplateKey = "rsvp" | "rsvp_reminder" | "reminder";
+type ManualTemplateKey = "rsvp" | "rsvp_reminder" | "reminder";
+type Channel = "sms" | "whatsapp";
 
 type Props = {
   userId: string;
+  invitationId?: string | null;
   defaultPhone?: string;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
@@ -15,7 +17,7 @@ const SMS_LIMIT_1 = 200;
 const SMS_LIMIT_2 = 320;
 
 const TEMPLATE_OPTIONS: {
-  key: ManualSmsTemplateKey;
+  key: ManualTemplateKey;
   label: string;
 }[] = [
   { key: "rsvp", label: "אישור הגעה" },
@@ -38,7 +40,7 @@ function buildTemplateText({
   invitationTitle,
   invitationShareId,
 }: {
-  key: ManualSmsTemplateKey;
+  key: ManualTemplateKey;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
 }) {
@@ -78,6 +80,7 @@ function buildTemplateText({
 
 export default function AdminManualSmsPanel({
   userId,
+  invitationId,
   defaultPhone = "",
   invitationTitle,
   invitationShareId,
@@ -85,22 +88,35 @@ export default function AdminManualSmsPanel({
   const [phone, setPhone] = useState(defaultPhone);
   const [message, setMessage] = useState("");
   const [selectedTemplate, setSelectedTemplate] =
-    useState<ManualSmsTemplateKey | "">("");
+    useState<ManualTemplateKey | "">("");
+  const [channel, setChannel] = useState<Channel>("sms");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
+  const isRsvpTemplate =
+    selectedTemplate === "rsvp" || selectedTemplate === "rsvp_reminder";
+  const whatsappAllowed = isRsvpTemplate;
+  const activeChannel = whatsappAllowed ? channel : "sms";
+  const isWhatsapp = activeChannel === "whatsapp";
+
   const totalChars = [...message.trim()].length;
   const parts = countBusinessSms(message);
-  const tooLong = parts === -1;
+  const tooLong = !isWhatsapp && parts === -1;
 
   const canSend = useMemo(() => {
-    return Boolean(phone.trim() && message.trim() && !tooLong && !sending);
-  }, [phone, message, tooLong, sending]);
+    if (!phone.trim() || sending) return false;
 
-  function applyTemplate(key: ManualSmsTemplateKey) {
+    if (isWhatsapp) {
+      return Boolean(isRsvpTemplate);
+    }
+
+    return Boolean(message.trim() && !tooLong);
+  }, [phone, sending, isWhatsapp, isRsvpTemplate, message, tooLong]);
+
+  function applyTemplate(key: ManualTemplateKey) {
     setSelectedTemplate(key);
     setMessage(
       buildTemplateText({
@@ -109,14 +125,20 @@ export default function AdminManualSmsPanel({
         invitationShareId,
       })
     );
+
+    if (key === "reminder") {
+      setChannel("sms");
+    }
+
     setStatus(null);
   }
 
-  async function sendManualSms() {
+  async function sendManualMessage() {
     if (!canSend) return;
 
+    const channelLabel = isWhatsapp ? "WhatsApp" : "SMS";
     const confirmText =
-      `לשלוח SMS למספר ${phone.trim()}?\n\n` +
+      `לשלוח ${channelLabel} למספר ${phone.trim()} בלבד?\n\n` +
       "השליחה ידנית ולא מסמנת סבב כנשלח.";
 
     if (!confirm(confirmText)) return;
@@ -134,6 +156,9 @@ export default function AdminManualSmsPanel({
         body: JSON.stringify({
           phone: phone.trim(),
           message: message.trim(),
+          channel: activeChannel,
+          templateKey: selectedTemplate || undefined,
+          invitationId: invitationId || undefined,
         }),
       });
 
@@ -148,6 +173,11 @@ export default function AdminManualSmsPanel({
           USER_NOT_FOUND: "המשתמש לא נמצא",
           FORBIDDEN: "אין הרשאה לשליחה",
           SEND_FAILED: "שליחת ההודעה נכשלה",
+          WHATSAPP_ONLY_FOR_RSVP:
+            "WhatsApp זמין רק לאישור הגעה ולתזכורת אישור הגעה",
+          INVITATION_NOT_FOUND: "לא נמצאה הזמנה למשתמש הזה",
+          INVITE_LINK_MISSING: "חסר קישור הזמנה לשליחת WhatsApp",
+          INVITATION_IMAGE_MISSING: "חסרה תמונת הזמנה לשליחת WhatsApp",
         };
 
         setStatus({
@@ -159,10 +189,15 @@ export default function AdminManualSmsPanel({
 
       setStatus({
         type: "success",
-        text: `ההודעה נשלחה בהצלחה · ${data.parts} חלקי SMS`,
+        text: isWhatsapp
+          ? "הודעת WhatsApp נשלחה בהצלחה למספר הזה בלבד"
+          : `ההודעה נשלחה בהצלחה · ${data.parts} חלקי SMS`,
       });
-      setMessage("");
-      setSelectedTemplate("");
+
+      if (!isWhatsapp) {
+        setMessage("");
+        setSelectedTemplate("");
+      }
     } catch (err) {
       console.error(err);
       setStatus({
@@ -179,8 +214,8 @@ export default function AdminManualSmsPanel({
       <div className="mb-3">
         <div className="font-black text-[#3A2A1C]">שליחה ידנית</div>
         <p className="mt-1 text-xs font-bold text-[#8A7867]">
-          שליחת SMS חופשית לכל מספר. אפשר להתחיל מתבנית סבב קיימת ולערוך
-          אותה. השליחה לא נועלת סבב ולא מחייבת את מכסת הלקוח.
+          שליחה למספר אחד בלבד. באישורי הגעה אפשר לבחור SMS או WhatsApp.
+          השליחה לא נועלת סבב ולא מחייבת את מכסת הלקוח.
         </p>
       </div>
 
@@ -203,6 +238,45 @@ export default function AdminManualSmsPanel({
           </button>
         ))}
       </div>
+
+      {whatsappAllowed && (
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setChannel("whatsapp");
+              setStatus(null);
+            }}
+            className={`
+              h-11 rounded-2xl border text-sm font-black transition
+              ${
+                activeChannel === "whatsapp"
+                  ? "border-[#B97821] bg-[#FFF2D8] text-[#8A5A24]"
+                  : "border-[#E7D8C6] bg-[#FFFDF8] text-[#7B6754]"
+              }
+            `}
+          >
+            WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setChannel("sms");
+              setStatus(null);
+            }}
+            className={`
+              h-11 rounded-2xl border text-sm font-black transition
+              ${
+                activeChannel === "sms"
+                  ? "border-[#B97821] bg-[#FFF2D8] text-[#8A5A24]"
+                  : "border-[#E7D8C6] bg-[#FFFDF8] text-[#7B6754]"
+              }
+            `}
+          >
+            SMS
+          </button>
+        </div>
+      )}
 
       <label className="mb-3 block">
         <span className="mb-2 block text-xs font-black text-[#6B5A48]">
@@ -230,44 +304,53 @@ export default function AdminManualSmsPanel({
         />
       </label>
 
-      <label className="mb-2 block">
-        <span className="mb-2 block text-xs font-black text-[#6B5A48]">
-          תוכן ההודעה
-        </span>
-        <textarea
-          rows={7}
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            setSelectedTemplate("");
-            setStatus(null);
-          }}
-          placeholder="כתבו כאן כל הודעה שתרצו לשלוח"
-          className="
-            w-full resize-y rounded-2xl
-            border border-[#E7D8C6]
-            bg-[#FFFDF8] px-4 py-3
-            text-sm font-bold
-            text-[#3A2A1C]
-            outline-none
-            transition
-            focus:border-[#C8944E]
-          "
-        />
-      </label>
+      {isWhatsapp ? (
+        <div className="mb-3 rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-3 text-xs font-bold leading-6 text-[#8A7867]">
+          WhatsApp שולח את תבנית אישור ההגעה הרשמית עם תמונת ההזמנה, רק למספר
+          הזה. לא נשלחת הודעת טקסט חופשית, לא נשלח לשאר המוזמנים, ולא נוגעים
+          בתזמון.
+        </div>
+      ) : (
+        <>
+          <label className="mb-2 block">
+            <span className="mb-2 block text-xs font-black text-[#6B5A48]">
+              תוכן ההודעה
+            </span>
+            <textarea
+              rows={7}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                setStatus(null);
+              }}
+              placeholder="כתבו כאן כל הודעה שתרצו לשלוח"
+              className="
+                w-full resize-y rounded-2xl
+                border border-[#E7D8C6]
+                bg-[#FFFDF8] px-4 py-3
+                text-sm font-bold
+                text-[#3A2A1C]
+                outline-none
+                transition
+                focus:border-[#C8944E]
+              "
+            />
+          </label>
 
-      <div className="mb-3 flex items-center justify-between text-xs font-bold text-[#8A7867]">
-        <span>
-          {totalChars} / {SMS_LIMIT_2} תווים
-        </span>
-        <span className={tooLong ? "text-red-600" : ""}>
-          {tooLong
-            ? "ההודעה ארוכה מדי"
-            : parts > 0
-              ? `${parts} חלקי SMS`
-              : "אין תוכן"}
-        </span>
-      </div>
+          <div className="mb-3 flex items-center justify-between text-xs font-bold text-[#8A7867]">
+            <span>
+              {totalChars} / {SMS_LIMIT_2} תווים
+            </span>
+            <span className={tooLong ? "text-red-600" : ""}>
+              {tooLong
+                ? "ההודעה ארוכה מדי"
+                : parts > 0
+                  ? `${parts} חלקי SMS`
+                  : "אין תוכן"}
+            </span>
+          </div>
+        </>
+      )}
 
       {status && (
         <div
@@ -287,7 +370,7 @@ export default function AdminManualSmsPanel({
       <button
         type="button"
         disabled={!canSend}
-        onClick={sendManualSms}
+        onClick={sendManualMessage}
         className="
           h-11 w-full rounded-full
           bg-[#2F3742]
@@ -300,7 +383,11 @@ export default function AdminManualSmsPanel({
           disabled:opacity-50
         "
       >
-        {sending ? "שולח…" : "שלח SMS"}
+        {sending
+          ? "שולח…"
+          : isWhatsapp
+            ? "שלח WhatsApp"
+            : "שלח SMS"}
       </button>
     </div>
   );

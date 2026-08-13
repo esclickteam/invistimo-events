@@ -2972,6 +2972,7 @@ function AdminMessageRoundsPanel({
         <AdminManualSmsPanel
           key={user._id}
           userId={user._id}
+          invitationId={user.invitationId}
           defaultPhone={user.phone || ""}
           invitationTitle={user.invitationTitle}
           invitationShareId={user.invitationShareId}
