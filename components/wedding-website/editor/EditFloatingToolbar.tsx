@@ -74,6 +74,8 @@ export default function EditFloatingToolbar({ themeOverrides, defaults }: Props)
   }, [selected]);
 
   if (!edit?.enabled || !selected || !pos) return null;
+  // Image replace uses a centered modal — hide the mini toolbar underneath it.
+  if (selected.kind === "image") return null;
 
   const accent = String(themeOverrides.accent || defaults.accent);
   const background = String(themeOverrides.background || defaults.background);
