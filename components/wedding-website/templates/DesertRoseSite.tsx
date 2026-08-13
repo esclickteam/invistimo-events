@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import WatercolorReveal from "../illustrations/WatercolorReveal";
@@ -34,7 +35,7 @@ import { SafeImage } from "../shared/SafeMedia";
 
 const ROSE = "#C4705A";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: ROSE,
   muted: "#9A6B5C",
   surface: "#FBF5F0",
@@ -82,6 +83,7 @@ function WatercolorStoryBlock({ tone: t, className = "" }: { tone: BlockTone; cl
 
 export default function DesertRoseSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const themeOverrides = useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -140,9 +142,9 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
           <div className="max-w-xl">
             <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#C4705A]">Desert Rose</p>
             <h1 className="mt-4 font-['Cormorant_Garamond'] text-[clamp(3rem,9vw,5.8rem)] font-light leading-[0.95]">
-              {c.coupleNames}
+              <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
             </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-[#9A6B5C] md:text-lg">{c.heroSubtitle}</p>
+            <p className="mt-6 max-w-md text-base leading-relaxed text-[#9A6B5C] md:text-lg"><EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText></p>
             <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#C4705A]">
               {formatHebrewDate(c.weddingDate)}
               {c.weddingTime ? ` · ${c.weddingTime}` : ""}
@@ -256,7 +258,7 @@ export default function DesertRoseSite({ template, embed, hideDemoBadge }: Templ
       <FinalMomentBlock tone={tone} image={images[7] || heroImg} />
 
       <footer id="footer" className="bg-[#4A2E28] px-6 py-12 text-center text-[#FBF5F0]">
-        <p className="font-['Cormorant_Garamond'] text-2xl font-light">{c.coupleNames}</p>
+        <p className="font-['Cormorant_Garamond'] text-2xl font-light"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <p className="mt-3 text-sm text-[#E8C4B8]">{c.footerNote || "נתראה במדבר הפורח"}</p>
         <p className="mt-4 text-xs tracking-[0.25em] text-white/35">{formatHebrewDate(c.weddingDate)}</p>
       </footer>

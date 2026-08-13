@@ -52,7 +52,7 @@ export type TemplateProps = {
   embed?: boolean;
   content?: WeddingSiteContent;
   guest?: WeddingWebsiteGuestContext | null;
-  mode?: "demo" | "live" | "preview";
+  mode?: "demo" | "live" | "preview" | "edit";
   shareId?: string | null;
   hideDemoBadge?: boolean;
 };

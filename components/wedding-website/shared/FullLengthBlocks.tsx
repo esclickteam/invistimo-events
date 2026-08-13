@@ -7,6 +7,7 @@ import { formatHebrewDate } from "./weddingUtils";
 import { useFaqAccordion, useWeddingRsvp, useCountdownTimer } from "./useWeddingInteractions";
 import AnimatedCountdown from "./AnimatedCountdown";
 import GuestIdentifyRsvp from "./GuestIdentifyRsvp";
+import { EditableImage, EditableText } from "../editor/EditablePrimitives";
 
 export type BlockTone = {
   accent: string;
@@ -69,9 +70,15 @@ export function WelcomeBlock({
         >
           {title}
         </h2>
-        <p className="mx-auto mt-6 max-w-xl text-base leading-[1.9] md:text-lg" style={{ color: tone.muted }}>
+        <EditableText
+          field={c.welcomeText ? "welcomeText" : c.invitationText ? "invitationText" : "heroSubtitle"}
+          as="p"
+          multiline
+          className="mx-auto mt-6 max-w-xl text-base leading-[1.9] md:text-lg"
+          style={{ color: tone.muted }}
+        >
           {c.welcomeText || c.invitationText || c.heroSubtitle}
-        </p>
+        </EditableText>
       </div>
     </SiteSection>
   );
@@ -132,11 +139,15 @@ export function StoryBlock({
         <h2 className="text-4xl font-light md:text-5xl" style={{ fontFamily: tone.fontDisplay }}>
           {title}
         </h2>
-        <div className="mt-8 space-y-5 text-base leading-relaxed md:text-lg" style={{ color: tone.muted }}>
-          {paragraphs.map((p) => (
-            <p key={p.slice(0, 32)}>{p}</p>
-          ))}
-        </div>
+        <EditableText
+          field="storyParagraphs"
+          as="div"
+          multiline
+          className="mt-8 space-y-5 text-base leading-relaxed md:text-lg whitespace-pre-line"
+          style={{ color: tone.muted }}
+        >
+          {paragraphs.join("\n\n")}
+        </EditableText>
       </div>
     </SiteSection>
   );
@@ -168,9 +179,16 @@ export function HowWeMetBlock({
           <h2 className="text-3xl font-light md:text-4xl" style={{ fontFamily: tone.fontDisplay }}>
             איך נפגשנו
           </h2>
-          <p className="mt-5 text-base leading-[1.9]" style={{ color: tone.muted }}>
+          <EditableText
+            field="howWeMet"
+            as="p"
+            multiline
+            className="mt-5 text-base leading-[1.9]"
+            style={{ color: tone.muted }}
+            placeholder="ספרו איך נפגשתם"
+          >
             {c.howWeMet || "הסיפור שלנו התחיל במבט אחד — ומאז לא הפסקנו לחייך."}
-          </p>
+          </EditableText>
         </div>
       </div>
     </SiteSection>
@@ -193,9 +211,16 @@ export function ProposalBlock({
         <h2 className="text-3xl font-light md:text-4xl" style={{ fontFamily: tone.fontDisplay }}>
           ההצעה
         </h2>
-        <p className="mt-5 text-base leading-[1.9] md:text-lg" style={{ color: tone.muted }}>
+        <EditableText
+          field="proposalStory"
+          as="p"
+          multiline
+          className="mt-5 text-base leading-[1.9] md:text-lg"
+          style={{ color: tone.muted }}
+          placeholder="ספרו על ההצעה"
+        >
           {c.proposalStory || "רגע אחד, שאלה אחת — ותשובה של כן לנצח."}
-        </p>
+        </EditableText>
         {image ? (
           <div
             className="mx-auto mt-8 max-w-md overflow-hidden"
@@ -346,17 +371,29 @@ export function QuoteBlock({
           className="mx-auto mb-6 h-px w-16"
           style={{ background: `linear-gradient(90deg, transparent, ${tone.accent}, transparent)` }}
         />
-        <blockquote
+        <EditableText
+          field="romanticQuote"
+          as="blockquote"
+          multiline
           className="text-2xl font-light leading-relaxed md:text-3xl"
           style={{ fontFamily: tone.fontDisplay }}
+          placeholder="הוסיפו ציטוט רומנטי"
         >
           “{quote}”
-        </blockquote>
-        {c.hashtag ? (
-          <p className="mt-6 text-sm font-bold tracking-[0.2em]" style={{ color: tone.accent }}>
-            {c.hashtag.startsWith("#") ? c.hashtag : `#${c.hashtag}`}
-          </p>
-        ) : null}
+        </EditableText>
+        <EditableText
+          field="hashtag"
+          as="p"
+          className="mt-6 text-sm font-bold tracking-[0.2em]"
+          style={{ color: tone.accent }}
+          placeholder="#YourHashtag"
+        >
+          {c.hashtag
+            ? c.hashtag.startsWith("#")
+              ? c.hashtag
+              : `#${c.hashtag}`
+            : ""}
+        </EditableText>
       </div>
     </motion.section>
   );
@@ -495,9 +532,15 @@ export function DressCodeBlock({
         <h2 className="text-4xl font-light md:text-5xl" style={{ fontFamily: tone.fontDisplay }}>
           קוד לבוש
         </h2>
-        <p className="mt-6 text-base leading-[1.9] md:text-lg" style={{ color: tone.muted }}>
+        <EditableText
+          field="dressCode"
+          as="p"
+          multiline
+          className="mt-6 text-base leading-[1.9] md:text-lg"
+          style={{ color: tone.muted }}
+        >
           {c.dressCode || "חגיגי אלגנטי — בואו מוקפדים ומרגשים."}
-        </p>
+        </EditableText>
       </div>
     </SiteSection>
   );
@@ -667,9 +710,15 @@ export function GiftsBlock({
         <h2 className="text-4xl font-light md:text-5xl" style={{ fontFamily: tone.fontDisplay }}>
           מתנות
         </h2>
-        <p className="mt-6" style={{ color: tone.muted }}>
+        <EditableText
+          field="giftsNote"
+          as="p"
+          multiline
+          className="mt-6"
+          style={{ color: tone.muted }}
+        >
           {c.giftsNote || "הנוכחות שלכם היא המתנה הגדולה מכולן."}
-        </p>
+        </EditableText>
         {c.giftLinks?.creditUrl ? (
           <a
             href={c.giftLinks.creditUrl}
@@ -705,11 +754,16 @@ export function RsvpBlock({
         <h2 className="text-center text-4xl font-light md:text-5xl" style={{ fontFamily: tone.fontDisplay }}>
           אישור הגעה
         </h2>
-        {c.rsvpText ? (
-          <p className="mt-3 text-center text-sm" style={{ color: tone.muted }}>
-            {c.rsvpText}
-          </p>
-        ) : null}
+        <EditableText
+          field="rsvpText"
+          as="p"
+          multiline
+          className="mt-3 text-center text-sm"
+          style={{ color: tone.muted }}
+          placeholder="טקסט לאישור הגעה"
+        >
+          {c.rsvpText || ""}
+        </EditableText>
         {children}
         <div
           className="mt-8 space-y-4 p-7"
@@ -806,19 +860,24 @@ export function ContactPeopleBlock({
         <h2 className="text-3xl font-light md:text-4xl" style={{ fontFamily: tone.fontDisplay }}>
           ליצירת קשר
         </h2>
-        <p className="mt-4" style={{ color: tone.muted }}>
+        <EditableText
+          field="contactNote"
+          as="p"
+          multiline
+          className="mt-4"
+          style={{ color: tone.muted }}
+        >
           {c.contactNote || "לשאלות דחופות — פנו אלינו."}
-        </p>
-        {c.contactPhone ? (
-          <a
-            href={`tel:${c.contactPhone}`}
-            className="mt-4 inline-block text-lg font-bold"
-            style={{ color: tone.accent }}
-            dir="ltr"
-          >
-            {c.contactPhone}
-          </a>
-        ) : null}
+        </EditableText>
+        <EditableText
+          field="contactPhone"
+          as="p"
+          className="mt-4 inline-block text-lg font-bold"
+          style={{ color: tone.accent }}
+          placeholder="טלפון ליצירת קשר"
+        >
+          {c.contactPhone || ""}
+        </EditableText>
       </div>
     </SiteSection>
   );
@@ -848,13 +907,21 @@ export function FinalMomentBlock({
         <p className="text-[11px] font-bold uppercase tracking-[0.4em]" style={{ color: image ? "#fff" : tone.accent }}>
           See you there
         </p>
-        <h2
+        <EditableText
+          field="coupleNames"
+          as="h2"
           className="mt-4 text-[clamp(2rem,6vw,3.5rem)] font-light"
           style={{ fontFamily: tone.fontDisplay }}
         >
           {c.coupleNames}
-        </h2>
-        <p className="mt-4 text-sm opacity-80">{c.footerNote || "נתראה בחגיגה"}</p>
+        </EditableText>
+        <EditableText
+          field="footerNote"
+          as="p"
+          className="mt-4 text-sm opacity-80"
+        >
+          {c.footerNote || "נתראה בחגיגה"}
+        </EditableText>
         {c.hashtag ? (
           <p className="mt-6 text-sm font-bold tracking-[0.25em]" style={{ color: image ? "#fff" : tone.accent }}>
             {c.hashtag.startsWith("#") ? c.hashtag : `#${c.hashtag}`}

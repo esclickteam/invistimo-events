@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -37,7 +38,7 @@ const IVORY = "#F7F1E6";
 const GOLD = "#C4A962";
 const MUTED = "#7A5C66";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: BURGUNDY,
   muted: MUTED,
   surface: "#FFFFFF",
@@ -91,6 +92,7 @@ function TransportLineIllustration() {
 
 export default function RoyalIvorySite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const rsvp = useWeddingRsvp();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -163,10 +165,10 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
           >
             הזמנה לחגיגה
           </p>
-          <h1 className="mt-6 text-[clamp(2.2rem,6vw,4rem)] font-medium leading-tight">{c.coupleNames}</h1>
+          <h1 className="mt-6 text-[clamp(2.2rem,6vw,4rem)] font-medium leading-tight"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></h1>
           <Ornament />
           <p className="max-w-md text-base leading-relaxed text-[#7A5C66]" style={{ fontFamily: "system-ui, sans-serif" }}>
-            {c.heroSubtitle}
+            <EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText>
           </p>
           <p className="mt-5 text-lg text-[#4A1C2F]">
             {formatHebrewDate(c.weddingDate)}
@@ -380,7 +382,7 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
       <FinalMomentBlock tone={tone} image={images[4] || heroImg} />
 
       <footer id="footer" className="bg-[#4A1C2F] px-6 py-12 text-center text-[#F7F1E6]">
-        <p className="text-2xl font-medium">{c.coupleNames}</p>
+        <p className="text-2xl font-medium"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <Ornament />
         <p className="text-xs tracking-[0.25em] text-[#F7F1E6]/40">{formatHebrewDate(c.weddingDate)}</p>
       </footer>

@@ -8,14 +8,16 @@ import type {
   WeddingThemeOverrides,
   WeddingWebsiteGuestContext,
 } from "@/types/weddingWebsite";
+import type { WeddingEditApi } from "../editor/EditablePrimitives";
 
 export type WeddingSiteContextValue = {
   content: WeddingSiteContent;
   guest: WeddingWebsiteGuestContext | null;
   sections: WeddingSectionToggles;
   themeOverrides: WeddingThemeOverrides;
-  mode: "demo" | "live" | "preview";
+  mode: "demo" | "live" | "preview" | "edit";
   shareId: string | null;
+  edit: WeddingEditApi | null;
 };
 
 const WeddingSiteContext = createContext<WeddingSiteContextValue>({
@@ -25,6 +27,7 @@ const WeddingSiteContext = createContext<WeddingSiteContextValue>({
   themeOverrides: {},
   mode: "demo",
   shareId: null,
+  edit: null,
 });
 
 export function WeddingSiteProvider({
@@ -34,19 +37,21 @@ export function WeddingSiteProvider({
   themeOverrides = {},
   mode = "demo",
   shareId = null,
+  edit = null,
   children,
 }: {
   content: WeddingSiteContent;
   guest?: WeddingWebsiteGuestContext | null;
   sections?: WeddingSectionToggles;
   themeOverrides?: WeddingThemeOverrides;
-  mode?: "demo" | "live" | "preview";
+  mode?: "demo" | "live" | "preview" | "edit";
   shareId?: string | null;
+  edit?: WeddingEditApi | null;
   children: ReactNode;
 }) {
   return (
     <WeddingSiteContext.Provider
-      value={{ content, guest, sections, themeOverrides, mode, shareId }}
+      value={{ content, guest, sections, themeOverrides, mode, shareId, edit }}
     >
       {children}
     </WeddingSiteContext.Provider>

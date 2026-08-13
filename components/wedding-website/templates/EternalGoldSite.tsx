@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import GoldScrollLine from "../illustrations/GoldScrollLine";
@@ -33,7 +34,7 @@ import {
 
 const ACCENT = "#C9A962";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: ACCENT,
   muted: "#8A7560",
   surface: "#FFFFFF",
@@ -56,6 +57,7 @@ function Divider() {
 
 export default function EternalGoldSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const themeOverrides = useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -106,10 +108,10 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
         <div className="relative z-10 w-full px-6 pb-20 text-center text-white">
           <p className="text-[11px] font-bold uppercase tracking-[0.45em] text-[#E8D5A8]">Save the Date</p>
           <h1 className="mt-4 font-['Cormorant_Garamond'] text-[clamp(3rem,10vw,6.5rem)] font-light leading-none">
-            {c.coupleNames}
+            <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </h1>
           <Divider />
-          <p className="mx-auto max-w-xl text-base text-white/85 md:text-lg">{c.heroSubtitle}</p>
+          <p className="mx-auto max-w-xl text-base text-white/85 md:text-lg"><EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText></p>
           <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#E8D5A8]">
             {formatHebrewDate(c.weddingDate)}
             {c.weddingTime ? ` · ${c.weddingTime}` : ""}
@@ -192,7 +194,7 @@ export default function EternalGoldSite({ template, embed, hideDemoBadge }: Temp
 
       {/* Footer */}
       <footer id="footer" className="bg-[#2A2118] px-6 py-12 text-center text-white">
-        <p className="font-['Cormorant_Garamond'] text-2xl font-light">{c.coupleNames}</p>
+        <p className="font-['Cormorant_Garamond'] text-2xl font-light"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <p className="mt-4 text-xs tracking-[0.25em] text-white/35">{formatHebrewDate(c.weddingDate)}</p>
       </footer>
     </div>

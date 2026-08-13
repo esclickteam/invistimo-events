@@ -77,6 +77,21 @@ body:has(.wedding-website-root)::-webkit-scrollbar,
   line-height: 1.15;
 }
 
+/* Owner WYSIWYG click-to-edit affordances */
+.ww-editable-text {
+  transition: outline-color 0.15s ease, background-color 0.15s ease;
+}
+.ww-editable-text:hover {
+  outline: 1.5px dashed rgba(184, 132, 79, 0.7);
+  outline-offset: 4px;
+  background-color: rgba(184, 132, 79, 0.08);
+}
+.ww-editable-selected {
+  outline: 2px solid #b8844f !important;
+  outline-offset: 4px;
+  background-color: rgba(184, 132, 79, 0.12);
+}
+
 .ww-section {
   position: relative;
   overflow-x: clip;

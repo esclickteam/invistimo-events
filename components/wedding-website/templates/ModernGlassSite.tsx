@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -32,7 +33,7 @@ const CYAN = "#5EEAD4";
 const VIOLET = "#A78BFA";
 const MUTED = "#8B97B8";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: CYAN,
   muted: MUTED,
   surface: "rgba(255,255,255,0.06)",
@@ -74,6 +75,7 @@ function GlassRouteVisual() {
 
 export default function ModernGlassSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -127,9 +129,9 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
           >
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#5EEAD4]">Save the Date</p>
             <h1 className="mt-4 text-[clamp(2.4rem,6vw,4.2rem)] font-bold leading-[1.05] tracking-tight">
-              {c.coupleNames}
+              <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
             </h1>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[#8B97B8]">{c.heroSubtitle}</p>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[#8B97B8]"><EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText></p>
             <p className="mt-3 text-sm font-semibold text-[#A78BFA]">
               {formatHebrewDate(c.weddingDate)}
               {c.weddingTime ? ` · ${c.weddingTime}` : ""}
@@ -277,7 +279,7 @@ export default function ModernGlassSite({ template, embed, hideDemoBadge }: Temp
       <FinalMomentBlock tone={tone} image={gallery[3] || heroImg} />
 
       <footer id="footer" className="border-t border-[#5EEAD4]/20 px-6 py-16 text-center">
-        <p className="text-2xl font-bold tracking-tight">{c.coupleNames}</p>
+        <p className="text-2xl font-bold tracking-tight"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <p className="mt-3 text-[#5EEAD4]">{c.footerNote || "נתראה בחגיגה"}</p>
         <p className="mt-6 text-xs tracking-[0.25em] text-white/30">{formatHebrewDate(c.weddingDate)}</p>
       </footer>

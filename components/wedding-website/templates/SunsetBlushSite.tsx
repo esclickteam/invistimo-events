@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import PolaroidGallery from "../illustrations/PolaroidGallery";
@@ -34,7 +35,7 @@ import {
 
 const ACCENT = "#E8788A";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: ACCENT,
   muted: "#9A6070",
   surface: "rgba(255,255,255,0.9)",
@@ -47,6 +48,7 @@ const tone: BlockTone = {
 
 export default function SunsetBlushSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
     template.galleryImages,
@@ -109,9 +111,9 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
             transition={{ duration: 0.9 }}
             className="mt-6 text-[clamp(3rem,10vw,5.5rem)] font-light leading-[1.05] text-[#3D1F28]"
           >
-            {c.coupleNames}
+            <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </motion.h1>
-          <p className="mx-auto mt-6 max-w-md text-lg leading-relaxed text-[#9A6070]">{c.heroSubtitle}</p>
+          <p className="mx-auto mt-6 max-w-md text-lg leading-relaxed text-[#9A6070]"><EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText></p>
           <p className="mt-4 text-xl text-[#E8788A]">
             {formatHebrewDate(c.weddingDate)}
             {c.weddingTime ? ` · ${c.weddingTime}` : ""}
@@ -196,7 +198,7 @@ export default function SunsetBlushSite({ template, embed, hideDemoBadge }: Temp
       <FinalMomentBlock tone={tone} image={images[6] || heroImg} />
 
       <footer id="footer" className="bg-gradient-to-b from-[#E8788A] to-[#D4657A] px-6 py-12 text-center text-white">
-        <p className="text-2xl font-light">{c.coupleNames}</p>
+        <p className="text-2xl font-light"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <p className="mt-3 text-sm text-white/85">{c.footerNote || "נתראה בחגיגה"}</p>
         <p className="mt-4 text-xs tracking-[0.25em] text-white/50">{formatHebrewDate(c.weddingDate)}</p>
       </footer>

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -35,7 +36,7 @@ import {
 
 const GOLD = "#D4AF37";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: GOLD,
   muted: "#A89BB0",
   surface: "#141018",
@@ -52,6 +53,7 @@ function GoldLine() {
 
 export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const themeOverrides = useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -112,7 +114,7 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
                 className="font-['Playfair_Display'] text-[clamp(2.4rem,7vw,5.5rem)] font-semibold leading-none"
                 style={{ textShadow: "0 0 48px rgba(212,175,55,0.45)" }}
               >
-                {c.coupleNames}
+                <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
@@ -120,7 +122,7 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
                 transition={{ delay: 0.8 }}
                 className="mt-5 max-w-lg text-sm text-[#F5F0E8]/75 md:text-base"
               >
-                {c.heroSubtitle}
+                <EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText>
               </motion.p>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -207,7 +209,7 @@ export default function MidnightVelvetSite({ template, embed, hideDemoBadge }: T
       <FinalMomentBlock tone={tone} image={images[5] || heroImg} />
 
       <footer id="footer" className="border-t border-[#D4AF37]/20 px-6 py-12 text-center">
-        <p className="font-['Playfair_Display'] text-2xl text-[#D4AF37]">{c.coupleNames}</p>
+        <p className="font-['Playfair_Display'] text-2xl text-[#D4AF37]"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <p className="mt-3 text-xs tracking-[0.25em] text-[#A89BB0]/50">{formatHebrewDate(c.weddingDate)}</p>
       </footer>
     </div>

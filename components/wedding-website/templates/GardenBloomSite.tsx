@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
+import HeroImageEditable from "../editor/HeroImageEditable";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import FloatingPetals from "../illustrations/FloatingPetals";
@@ -37,7 +39,7 @@ import { useWeddingRsvp } from "../shared/useWeddingInteractions";
 const GREEN = "#6B9E78";
 const MUTED = "#4A6B52";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: GREEN,
   muted: MUTED,
   surface: "rgba(255,255,255,0.85)",
@@ -66,6 +68,7 @@ function Leaf() {
 
 export default function GardenBloomSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const themeOverrides = useWeddingThemeOverrides();
   const rsvp = useWeddingRsvp();
   const images = sanitizeGallery(
@@ -106,34 +109,48 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
 
       {/* 1 — Hero with petals */}
       <section id="hero" className="relative flex min-h-[100svh] items-end justify-center overflow-hidden">
-        <motion.div
+        <HeroImageEditable
+          src={heroImg}
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImg})` }}
-          initial={{ scale: 1.08 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 14, ease: "linear" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#F4FAF4] via-[#F4FAF4]/55 to-[#2F4A36]/25" />
-        <FloatingPetals color={GREEN} count={12} />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#F4FAF4] via-[#F4FAF4]/55 to-[#2F4A36]/25" />
+        <FloatingPetals color={tone.accent || GREEN} count={12} />
         <div className="relative z-10 w-full px-6 pb-20 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#6B9E78]">Garden Bloom</p>
-          <h1
-            className="mt-4 text-[clamp(2.6rem,8vw,5.2rem)] font-normal leading-tight text-[#2F4A36]"
-            style={{ fontFamily: tone.fontDisplay }}
+          <p
+            className="text-[11px] font-bold uppercase tracking-[0.4em]"
+            style={{ color: tone.accent }}
           >
-            {c.coupleNames}
+            Garden Bloom
+          </p>
+          <h1
+            className="mt-4 text-[clamp(2.6rem,8vw,5.2rem)] font-normal leading-tight"
+            style={{ fontFamily: tone.fontDisplay, color: tone.muted === MUTED ? "#2F4A36" : undefined }}
+          >
+            <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </h1>
           <Leaf />
-          <p className="mx-auto max-w-lg text-base text-[#4A6B52] md:text-lg">{c.heroSubtitle}</p>
-          <p className="mt-4 text-lg text-[#6B9E78]" style={{ fontFamily: tone.fontDisplay }}>
+          <p className="mx-auto max-w-lg text-base md:text-lg" style={{ color: tone.muted }}>
+            <EditableText field="heroSubtitle" as="span" multiline>
+              {c.heroSubtitle}
+            </EditableText>
+          </p>
+          <p className="mt-4 text-lg" style={{ fontFamily: tone.fontDisplay, color: tone.accent }}>
             {formatHebrewDate(c.weddingDate)}
             {c.weddingTime ? ` · ${c.weddingTime}` : ""}
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <a href="#rsvp" className={tone.buttonClass}>
+            <a
+              href="#rsvp"
+              className={tone.buttonClass}
+              style={{ background: tone.accent, color: "#fff" }}
+            >
               אישור הגעה
             </a>
-            <a href="#transportation" className={tone.outlineButtonClass + " bg-white/70 backdrop-blur-sm"}>
+            <a
+              href="#transportation"
+              className={tone.outlineButtonClass + " bg-white/70 backdrop-blur-sm"}
+              style={{ borderColor: tone.accent, color: tone.accent }}
+            >
               הזמנת הסעה
             </a>
           </div>
@@ -283,7 +300,7 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
 
       <footer id="footer" className="bg-[#2F4A36] px-6 py-16 text-center text-[#F4FAF4]">
         <p className="text-3xl" style={{ fontFamily: tone.fontDisplay }}>
-          {c.coupleNames}
+          <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
         </p>
         <Leaf />
         <p className="text-[#B8D4BE]">{c.footerNote || "נתראה בגן"}</p>

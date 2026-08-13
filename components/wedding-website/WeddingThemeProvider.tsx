@@ -34,13 +34,18 @@ export function buildThemeCssVars(
       ? overrides.headingScale
       : 1;
 
+  const accent = overrides.accent || template.theme.accent;
+  const bg = overrides.background || template.theme.bg;
+  const text = overrides.text || template.theme.text;
+  const button = overrides.button || overrides.accent || template.theme.accent;
+
   return {
-    "--ww-bg": overrides.background || template.theme.bg,
+    "--ww-bg": bg,
     "--ww-bg-alt": overrides.secondary || template.theme.bgAlt,
     "--ww-surface": overrides.card || template.theme.surface,
-    "--ww-text": overrides.text || template.theme.text,
+    "--ww-text": text,
     "--ww-text-muted": template.theme.textMuted,
-    "--ww-accent": overrides.accent || template.theme.accent,
+    "--ww-accent": accent,
     "--ww-accent-soft": template.theme.accentSoft,
     "--ww-border": template.theme.border,
     "--ww-hero-overlay": template.theme.heroOverlay,
@@ -48,9 +53,13 @@ export function buildThemeCssVars(
     "--ww-font-body": template.theme.fontBody,
     "--ww-radius": template.theme.radius,
     "--ww-shadow": template.theme.shadow,
-    "--ww-button": overrides.button || overrides.accent || template.theme.accent,
+    "--ww-button": button,
     "--ww-heading-scale": String(scale),
     "--ww-style-preset": overrides.stylePreset || "classic",
+    // Force visible theme application even when templates hardcode some colors
+    backgroundColor: bg,
+    color: text,
+    ...(font ? { fontFamily: font } : {}),
   } as CSSProperties;
 }
 

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import FilmStripGallery from "../illustrations/FilmStripGallery";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -27,7 +28,7 @@ import {
   ScrollProgressLine,
 } from "../shared/FullLengthBlocks";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: "#111111",
   muted: "#666666",
   surface: "#ffffff",
@@ -62,6 +63,7 @@ function splitNames(names: string) {
 
 export default function MinimalNoirSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -102,24 +104,30 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
         <p className="text-[10px] font-bold uppercase tracking-[0.45em] text-neutral-500">
           Save the Date
         </p>
-        <div className="mt-8 grid gap-2 md:grid-cols-2 md:gap-8">
-          <motion.h1
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-[clamp(3.2rem,12vw,9rem)] font-black leading-[0.85] tracking-[-0.04em]"
-          >
-            {nameA}
-          </motion.h1>
-          <motion.h1
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.15 }}
-            className="text-[clamp(3.2rem,12vw,9rem)] font-black leading-[0.85] tracking-[-0.04em] md:self-end md:text-left"
-          >
-            {nameB ? (c.coupleNames.includes("&") ? `& ${nameB}` : `ו${nameB}`) : ""}
-          </motion.h1>
-        </div>
+        <EditableText
+          field="coupleNames"
+          as="div"
+          className="mt-8"
+        >
+          <div className="grid gap-2 md:grid-cols-2 md:gap-8">
+            <motion.h1
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-[clamp(3.2rem,12vw,9rem)] font-black leading-[0.85] tracking-[-0.04em]"
+            >
+              {nameA}
+            </motion.h1>
+            <motion.h1
+              initial={{ opacity: 0, x: -40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.15 }}
+              className="text-[clamp(3.2rem,12vw,9rem)] font-black leading-[0.85] tracking-[-0.04em] md:self-end md:text-left"
+            >
+              {nameB ? (c.coupleNames.includes("&") ? `& ${nameB}` : `ו${nameB}`) : ""}
+            </motion.h1>
+          </div>
+        </EditableText>
         <Rule className="my-8 max-w-md" />
         <motion.p
           initial={{ opacity: 0 }}
@@ -127,7 +135,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
           transition={{ delay: 0.5 }}
           className="max-w-md text-sm leading-relaxed text-neutral-600"
         >
-          {c.heroSubtitle}
+          <EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText>
         </motion.p>
         <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.3em]">
           {formatHebrewDate(c.weddingDate)}
@@ -218,7 +226,7 @@ export default function MinimalNoirSite({ template, embed, hideDemoBadge }: Temp
 
       {/* Footer */}
       <footer id="footer" className="border-t border-black px-6 py-16 text-center">
-        <p className="text-2xl font-black tracking-tight">{c.coupleNames}</p>
+        <p className="text-2xl font-black tracking-tight"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <Rule className="mx-auto my-6 max-w-[60px]" />
         <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-neutral-500">
           {c.footerNote || "נתראה"}

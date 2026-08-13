@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -34,7 +35,7 @@ import {
 const ACCENT = "#7CB87A";
 const MUTED = "#8AA892";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: ACCENT,
   muted: MUTED,
   surface: "#132018",
@@ -87,6 +88,7 @@ function Chapter({
 
 export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -142,10 +144,10 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
             Under the Trees
           </p>
           <h1 className="mt-4 text-[clamp(2.6rem,8vw,5rem)] font-normal leading-tight">
-            {c.coupleNames}
+            <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </h1>
           <MossRule />
-          <p className="mx-auto max-w-lg text-base text-[#8AA892] md:text-lg">{c.heroSubtitle}</p>
+          <p className="mx-auto max-w-lg text-base text-[#8AA892] md:text-lg"><EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText></p>
           <p className="mt-4 text-lg text-[#7CB87A]">
             {formatHebrewDate(c.weddingDate)}
             {c.weddingTime ? ` · ${c.weddingTime}` : ""}
@@ -264,7 +266,7 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
       <FinalMomentBlock tone={tone} image={gallery[3] || heroImg} />
 
       <footer id="footer" className="relative border-t border-[#7CB87A]/20 px-6 py-16 text-center">
-        <p className="text-3xl font-normal">{c.coupleNames}</p>
+        <p className="text-3xl font-normal"><EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText></p>
         <MossRule />
         <p className="text-[#7CB87A]">{c.footerNote || "נתראה ביער"}</p>
         <p className="mt-6 text-xs tracking-[0.25em] text-[#8AA892]/60">

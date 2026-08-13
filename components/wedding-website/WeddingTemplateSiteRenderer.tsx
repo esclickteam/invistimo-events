@@ -11,6 +11,7 @@ import type {
   WeddingThemeOverrides,
   WeddingWebsiteGuestContext,
 } from "@/types/weddingWebsite";
+import type { WeddingEditApi } from "./editor/EditablePrimitives";
 
 type Props = {
   template: WeddingTemplate;
@@ -19,9 +20,10 @@ type Props = {
   guest?: WeddingWebsiteGuestContext | null;
   sections?: WeddingSectionToggles;
   themeOverrides?: WeddingThemeOverrides;
-  mode?: "demo" | "live" | "preview";
+  mode?: "demo" | "live" | "preview" | "edit";
   shareId?: string | null;
   hideDemoBadge?: boolean;
+  edit?: WeddingEditApi | null;
 };
 
 export default function WeddingTemplateSiteRenderer({
@@ -34,6 +36,7 @@ export default function WeddingTemplateSiteRenderer({
   mode = "demo",
   shareId = null,
   hideDemoBadge = false,
+  edit = null,
 }: Props) {
   const Site = getWeddingTemplateSite(template.id);
 
@@ -46,6 +49,7 @@ export default function WeddingTemplateSiteRenderer({
   }
 
   const resolvedContent = content || getDemoWeddingSiteContent(template.id);
+  const siteMode = mode === "edit" ? "preview" : mode;
 
   return (
     <WeddingSiteProvider
@@ -55,6 +59,7 @@ export default function WeddingTemplateSiteRenderer({
       themeOverrides={themeOverrides}
       mode={mode}
       shareId={shareId}
+      edit={edit}
     >
       <WeddingThemeProvider
         template={template}
@@ -63,12 +68,17 @@ export default function WeddingTemplateSiteRenderer({
       >
         <Site
           template={template}
-          embed={embed}
+          embed={embed || mode === "edit"}
           content={resolvedContent}
           guest={guest}
-          mode={mode}
+          mode={siteMode}
           shareId={shareId}
-          hideDemoBadge={hideDemoBadge || mode === "live" || mode === "preview"}
+          hideDemoBadge={
+            hideDemoBadge ||
+            mode === "live" ||
+            mode === "preview" ||
+            mode === "edit"
+          }
         />
       </WeddingThemeProvider>
     </WeddingSiteProvider>

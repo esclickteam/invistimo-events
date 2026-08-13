@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { formatHebrewDate } from "../shared/weddingUtils";
 import { useWeddingContent, useWeddingThemeOverrides } from "../shared/WeddingSiteContext";
+import { EditableText, useResolvedTone } from "../editor/EditablePrimitives";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
 import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
@@ -34,7 +35,7 @@ import {
 const BLUE = "#3D8BBA";
 const MUTED = "#5A8499";
 
-const tone: BlockTone = {
+const baseTone: BlockTone = {
   accent: BLUE,
   muted: MUTED,
   surface: "#ffffff",
@@ -62,6 +63,7 @@ function Wave({ flip = false }: { flip?: boolean }) {
 
 export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: TemplateProps) {
   const c = useWeddingContent();
+  const tone = useResolvedTone(baseTone);
   const themeOverrides = useWeddingThemeOverrides();
   const images = sanitizeGallery(
     c.galleryUrls?.length ? c.galleryUrls : template.galleryImages,
@@ -118,7 +120,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
             className="mt-4 text-[clamp(2.4rem,8vw,5rem)] font-light tracking-wide"
             style={{ fontFamily: tone.fontDisplay }}
           >
-            {c.coupleNames}
+            <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -126,7 +128,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
             transition={{ delay: 0.5 }}
             className="mx-auto mt-5 max-w-lg font-light text-white/85"
           >
-            {c.heroSubtitle}
+            <EditableText field="heroSubtitle" as="span" multiline>{c.heroSubtitle}</EditableText>
           </motion.p>
           <motion.div
             initial={{ opacity: 0 }}
@@ -233,7 +235,7 @@ export default function CoastalBreezeSite({ template, embed, hideDemoBadge }: Te
 
       <footer id="footer" className="bg-[#1A3A4A] px-6 py-16 text-center text-white">
         <p className="text-2xl font-light tracking-wide" style={{ fontFamily: tone.fontDisplay }}>
-          {c.coupleNames}
+          <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
         </p>
         <p className="mt-4 text-sm text-white/70">{c.footerNote || "נתראה על החוף"}</p>
         <p className="mt-6 text-xs tracking-[0.3em] text-white/35">
