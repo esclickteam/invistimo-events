@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
+import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import {
   Search,
@@ -37,6 +38,8 @@ type AdminRole = "admin" | "user" | "producer" | "staff" | "client" | string;
 type AdminUser = {
   _id: string;
   invitationId?: string;
+  invitationTitle?: string | null;
+  invitationShareId?: string | null;
   name?: string;
   email: string;
   phone?: string;
@@ -2924,7 +2927,8 @@ function AdminMessageRoundsPanel({
           </h3>
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
-            אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה ופתיחה מחדש.
+            אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה, פתיחה מחדש
+            ושליחה ידנית לכל מספר.
           </p>
         </div>
 
@@ -2962,6 +2966,16 @@ function AdminMessageRoundsPanel({
         >
           📊 דוח WhatsApp לסבבים
         </button>
+      </div>
+
+      <div className="mb-5">
+        <AdminManualSmsPanel
+          key={user._id}
+          userId={user._id}
+          defaultPhone={user.phone || ""}
+          invitationTitle={user.invitationTitle}
+          invitationShareId={user.invitationShareId}
+        />
       </div>
 
       <div className="space-y-5">
