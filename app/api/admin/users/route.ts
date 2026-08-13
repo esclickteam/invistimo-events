@@ -618,6 +618,8 @@ packageName
           })
             .select(`
               ownerId
+              title
+              shareId
               eventDate
               rsvpRoundSent
 
@@ -963,6 +965,8 @@ packageName
             paymentTypes: payment?.paymentTypes || [],
 
             invitationId: null,
+            invitationTitle: null,
+            invitationShareId: null,
             eventDate: u.eventDate || null,
 
             messageRounds: buildMessageRounds(null, [], u),
@@ -1061,6 +1065,10 @@ packageName
           lastPaymentAt: payment?.lastPaymentAt || null,
           paymentTypes: payment?.paymentTypes || [],
           invitationId: invitation?._id ? String(invitation._id) : null,
+          invitationTitle: invitation?.title ? String(invitation.title) : null,
+          invitationShareId: invitation?.shareId
+            ? String(invitation.shareId)
+            : null,
 
           // מקור האמת לתאריך אירוע: ההזמנה במונגו
           eventDate: invitation?.eventDate || u.eventDate || null,
