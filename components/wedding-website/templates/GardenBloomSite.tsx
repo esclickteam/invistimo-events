@@ -15,6 +15,7 @@ import PolaroidGallery from "../illustrations/PolaroidGallery";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
+import RsvpCelebrate from "../illustrations/RsvpCelebrate";
 import GuestIdentifyRsvp from "../shared/GuestIdentifyRsvp";
 import {
   type BlockTone,
@@ -226,9 +227,20 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
             אישור הגעה
           </h2>
           <Leaf />
-          {c.rsvpText ? (
-            <p className="mb-4 text-center text-sm text-[#4A6B52]">{c.rsvpText}</p>
-          ) : null}
+          <EditableText
+            field="rsvpText"
+            as="p"
+            multiline
+            className="mb-4 text-center text-sm text-[#4A6B52]"
+            placeholder="טקסט לאישור הגעה"
+          >
+            {c.rsvpText || ""}
+          </EditableText>
+          <RsvpCelebrate
+            accent={GREEN}
+            active={rsvp.rsvp === "yes" || rsvp.sent}
+            className="mb-2"
+          />
           <div className="mb-6 space-y-4 rounded-[1.75rem] border border-[#6B9E78]/30 bg-white/85 p-6">
             <GuestIdentifyRsvp
               accent={GREEN}

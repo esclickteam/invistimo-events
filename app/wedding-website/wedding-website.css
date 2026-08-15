@@ -50,8 +50,26 @@ body:has(.wedding-website-root)::-webkit-scrollbar,
 .ww-site img,
 .ww-site video {
   max-width: 100%;
-  height: auto;
   display: block;
+}
+
+/* Only auto-height when the image is not explicitly filling a frame */
+.wedding-website-root img:not([style*="object-fit"]):not(.object-cover):not(.ww-media-fill),
+.ww-site img:not([style*="object-fit"]):not(.object-cover):not(.ww-media-fill) {
+  height: auto;
+}
+
+.wedding-website-root img.object-cover,
+.wedding-website-root img.ww-media-fill,
+.ww-site img.object-cover,
+.ww-site img.ww-media-fill,
+.wedding-website-root .ww-media-fill img,
+.ww-site .ww-media-fill img,
+.wedding-website-root button.ww-media-fill img {
+  height: 100% !important;
+  width: 100% !important;
+  max-width: none;
+  object-fit: cover !important;
 }
 
 .wedding-website-root iframe,

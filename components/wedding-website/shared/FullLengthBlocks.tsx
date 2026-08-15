@@ -8,6 +8,13 @@ import { useFaqAccordion, useWeddingRsvp, useCountdownTimer } from "./useWedding
 import AnimatedCountdown from "./AnimatedCountdown";
 import GuestIdentifyRsvp from "./GuestIdentifyRsvp";
 import { EditableImage, EditableText } from "../editor/EditablePrimitives";
+import HowWeMetPaths from "../illustrations/HowWeMetPaths";
+import ProposalKneel from "../illustrations/ProposalKneel";
+import ChuppahMeet from "../illustrations/ChuppahMeet";
+import BuffetSpread from "../illustrations/BuffetSpread";
+import ShuttleRide from "../illustrations/ShuttleRide";
+import RsvpCelebrate from "../illustrations/RsvpCelebrate";
+import DanceParty from "../illustrations/DanceParty";
 
 export type BlockTone = {
   accent: string;
@@ -188,38 +195,55 @@ export function HowWeMetBlock({
   tone,
   className = "",
   image,
+  imageIndex = 0,
 }: {
   tone: BlockTone;
   className?: string;
   image?: string;
+  imageIndex?: number;
 }) {
   const c = useWeddingContent();
   if (!c.howWeMet && !image) return null;
   return (
     <SiteSection id="how-we-met" className={className}>
-      <div className="mx-auto grid max-w-5xl items-center gap-8 px-6 md:grid-cols-2">
-        {image ? (
-          <div
-            className="overflow-hidden"
-            style={{ borderRadius: tone.radius || "1.25rem", border: `1px solid ${tone.border || tone.accent}55` }}
-          >
-            <SafeImage src={image} alt="" className="aspect-[4/5] w-full object-cover" />
+      <div className="mx-auto max-w-5xl px-6">
+        <HowWeMetPaths accent={tone.accent} className="mb-6" />
+        <div className="grid items-center gap-8 md:grid-cols-2">
+          {image ? (
+            <div
+              className="overflow-hidden"
+              style={{
+                borderRadius: tone.radius || "1.25rem",
+                border: `1px solid ${tone.border || tone.accent}55`,
+              }}
+            >
+              <EditableImage
+                field="galleryUrls"
+                index={imageIndex}
+                src={image}
+                className="aspect-[4/5] w-full"
+                style={{ height: "100%", objectFit: "cover" }}
+              />
+            </div>
+          ) : null}
+          <div className={image ? "" : "md:col-span-2 text-center"}>
+            <h2
+              className="text-3xl font-light md:text-4xl"
+              style={{ fontFamily: tone.fontDisplay }}
+            >
+              איך נפגשנו
+            </h2>
+            <EditableText
+              field="howWeMet"
+              as="p"
+              multiline
+              className="mt-5 min-h-[6rem] text-base leading-[1.9]"
+              style={{ color: tone.muted }}
+              placeholder="ספרו בקצרה איך נפגשתם"
+            >
+              {c.howWeMet || "נפגשנו במבט אחד — ומאז אנחנו ביחד."}
+            </EditableText>
           </div>
-        ) : null}
-        <div className={image ? "" : "md:col-span-2 text-center"}>
-          <h2 className="text-3xl font-light md:text-4xl" style={{ fontFamily: tone.fontDisplay }}>
-            איך נפגשנו
-          </h2>
-          <EditableText
-            field="howWeMet"
-            as="p"
-            multiline
-            className="mt-5 text-base leading-[1.9]"
-            style={{ color: tone.muted }}
-            placeholder="ספרו איך נפגשתם"
-          >
-            {c.howWeMet || "הסיפור שלנו התחיל במבט אחד — ומאז לא הפסקנו לחייך."}
-          </EditableText>
         </div>
       </div>
     </SiteSection>
@@ -230,10 +254,12 @@ export function ProposalBlock({
   tone,
   className = "",
   image,
+  imageIndex = 2,
 }: {
   tone: BlockTone;
   className?: string;
   image?: string;
+  imageIndex?: number;
 }) {
   const c = useWeddingContent();
   return (
@@ -242,22 +268,29 @@ export function ProposalBlock({
         <h2 className="text-3xl font-light md:text-4xl" style={{ fontFamily: tone.fontDisplay }}>
           ההצעה
         </h2>
+        <ProposalKneel accent={tone.accent} className="mt-4" />
         <EditableText
           field="proposalStory"
           as="p"
           multiline
-          className="mt-5 text-base leading-[1.9] md:text-lg"
+          className="mt-5 min-h-[5rem] text-base leading-[1.9] md:text-lg"
           style={{ color: tone.muted }}
           placeholder="ספרו על ההצעה"
         >
-          {c.proposalStory || "רגע אחד, שאלה אחת — ותשובה של כן לנצח."}
+          {c.proposalStory || "כריעה על ברך אחת — והתשובה הייתה כן."}
         </EditableText>
         {image ? (
           <div
             className="mx-auto mt-8 max-w-md overflow-hidden"
             style={{ borderRadius: tone.radius || "1.25rem" }}
           >
-            <SafeImage src={image} alt="" className="aspect-[3/4] w-full object-cover" />
+            <EditableImage
+              field="galleryUrls"
+              index={imageIndex}
+              src={image}
+              className="aspect-[3/4] w-full"
+              style={{ height: "100%", objectFit: "cover" }}
+            />
           </div>
         ) : null}
       </div>
@@ -363,15 +396,23 @@ export function FullBleedPhoto({
   src,
   caption,
   className = "",
+  imageIndex = 1,
 }: {
   src: string;
   caption?: string;
   className?: string;
+  imageIndex?: number;
 }) {
   return (
     <section className={`relative min-h-[55vh] overflow-hidden ${className}`}>
-      <SafeImage src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+      <EditableImage
+        field="galleryUrls"
+        index={imageIndex}
+        src={src}
+        className="absolute inset-0 h-full w-full"
+        style={{ height: "100%", width: "100%" }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
       {caption ? (
         <div className="relative z-10 flex min-h-[55vh] items-end justify-center px-6 pb-12 text-center text-white">
           <p className="max-w-xl text-lg font-light md:text-2xl">{caption}</p>
@@ -451,7 +492,10 @@ export function ScheduleBlock({
           לוח זמנים
         </h2>
         {children}
-        <ol className="mt-10 space-y-3">
+        <ChuppahMeet accent={tone.accent} className="mt-4" />
+        <BuffetSpread accent={tone.accent} className="mt-2 mb-2" />
+        <DanceParty accent={tone.accent} className="mb-4" />
+        <ol className="mt-6 space-y-3">
           {items.map((item) => (
             <li
               key={`${item.time}-${item.title}`}
@@ -600,7 +644,7 @@ export function TransportationBlock({
         <h2 className="text-center text-4xl font-light md:text-5xl" style={{ fontFamily: tone.fontDisplay }}>
           הגעה והסעות
         </h2>
-        {children}
+        {children ?? <ShuttleRide accent={tone.accent} className="mt-6 mb-2" />}
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {items.map((item) => (
             <div
@@ -619,11 +663,16 @@ export function TransportationBlock({
             </div>
           ))}
         </div>
-        {c.parkingText ? (
-          <p className="mt-6 text-center text-sm" style={{ color: tone.muted }}>
-            {c.parkingText}
-          </p>
-        ) : null}
+        <EditableText
+          field="parkingText"
+          as="p"
+          multiline
+          className="mt-6 min-h-[2.5rem] text-center text-sm"
+          style={{ color: tone.muted }}
+          placeholder="פרטי חניה / הגעה"
+        >
+          {c.parkingText || ""}
+        </EditableText>
       </div>
     </SiteSection>
   );
@@ -778,6 +827,7 @@ export function RsvpBlock({
   const c = useWeddingContent();
   const rsvp = useWeddingRsvp();
   const { mode } = useWeddingSite();
+  const celebrate = rsvp.rsvp === "yes" || rsvp.sent;
 
   return (
     <SiteSection id="rsvp" className={className}>
@@ -796,6 +846,7 @@ export function RsvpBlock({
           {c.rsvpText || ""}
         </EditableText>
         {children}
+        <RsvpCelebrate accent={tone.accent} active={celebrate} className="mt-2" />
         <div
           className="mt-8 space-y-4 p-7"
           style={{
@@ -994,10 +1045,12 @@ export function RichGalleryGrid({
               className="mb-3 break-inside-avoid overflow-hidden"
               style={{ borderRadius: tone.radius || "0.75rem" }}
             >
-              <SafeImage
+              <EditableImage
+                field="galleryUrls"
+                index={i}
                 src={src}
-                alt=""
-                className={`w-full object-cover ${i % 3 === 1 ? "aspect-[3/4]" : "aspect-square"}`}
+                className={`w-full ${i % 3 === 1 ? "aspect-[3/4]" : "aspect-square"}`}
+                style={{ objectFit: "cover", height: "100%", width: "100%" }}
               />
             </motion.figure>
           ))}

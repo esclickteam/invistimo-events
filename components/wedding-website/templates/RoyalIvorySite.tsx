@@ -12,6 +12,7 @@ import { SafeImage } from "../shared/SafeMedia";
 import WeddingActionBar from "../shared/WeddingActionBar";
 import { useWeddingRsvp } from "../shared/useWeddingInteractions";
 import EnvelopeRsvp from "../illustrations/EnvelopeRsvp";
+import RsvpCelebrate from "../illustrations/RsvpCelebrate";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import GuestIdentifyRsvp from "../shared/GuestIdentifyRsvp";
 import {
@@ -288,6 +289,11 @@ export default function RoyalIvorySite({ template, embed, hideDemoBadge }: Templ
             אישור הגעה
           </h2>
           <Ornament />
+          <RsvpCelebrate
+            accent={BURGUNDY}
+            active={rsvp.rsvp === "yes" || rsvp.sent}
+            className="mb-2"
+          />
           <div
             onFocus={() => setEnvelopeTouched(true)}
             onClick={() => setEnvelopeTouched(true)}

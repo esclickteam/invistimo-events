@@ -118,12 +118,12 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     previewImage: WW_IMAGES.florals,
     heroImage: WW_IMAGES.kiss,
     galleryImages: gallerySet(
+      "kiss",
       "florals",
-      "bouquet",
+      "beachCouple",
       "outdoorCouple",
-      "venueArch",
-      "softPortrait",
-      "aisleWalk"
+      "bouquet",
+      "venueArch"
     ),
     mood: "floral",
     theme: {

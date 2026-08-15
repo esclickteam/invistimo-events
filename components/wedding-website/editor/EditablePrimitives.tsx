@@ -224,13 +224,20 @@ export function EditableImage({
 
   if (!edit?.enabled) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} className={className} style={style} />;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={`ww-media-fill object-cover ${className}`}
+        style={{ objectFit: "cover", ...style }}
+      />
+    );
   }
 
   return (
     <button
       type="button"
-      className={`group relative block w-full overflow-hidden p-0 ${className}`}
+      className={`group relative block w-full overflow-hidden p-0 ww-media-fill ${className}`}
       style={{
         ...style,
         cursor: "pointer",
@@ -248,7 +255,12 @@ export function EditableImage({
       title="לחצו להחלפת תמונה"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className="h-full w-full object-cover" />
+      <img
+        src={src}
+        alt={alt}
+        className="ww-media-fill absolute inset-0 h-full w-full object-cover"
+        style={{ height: "100%", width: "100%", objectFit: "cover" }}
+      />
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/35">
         <span className="rounded-full bg-white/95 px-4 py-2 text-xs font-black text-[#241A14] opacity-0 shadow group-hover:opacity-100">
           החלפת תמונה

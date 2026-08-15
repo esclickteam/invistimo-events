@@ -85,11 +85,9 @@ export default function EditFloatingToolbar({ themeOverrides, defaults }: Props)
   const title =
     selected.kind === "text"
       ? "עריכת טקסט — הקלידו ישירות על האתר"
-      : selected.kind === "image"
-        ? "החלפת תמונה"
-        : selected.kind === "section"
-          ? `סקשן · ${selected.id} — שנו צבע`
-          : "צבעים";
+      : selected.kind === "section"
+        ? `סקשן · ${selected.id} — שנו צבע`
+        : "צבעים";
 
   return (
     <div
@@ -109,16 +107,6 @@ export default function EditFloatingToolbar({ themeOverrides, defaults }: Props)
           סגור
         </button>
       </div>
-
-      {selected.kind === "image" ? (
-        <button
-          type="button"
-          className="mt-2 w-full rounded-full bg-[#241A14] px-3 py-2 text-[11px] font-black text-white"
-          onClick={() => edit.openImagePicker(selected.field, selected.index)}
-        >
-          בחירת / העלאת תמונה
-        </button>
-      ) : null}
 
       {selected.kind === "text" ? (
         <p className="mt-1 text-[10px] font-semibold text-[#8A7B69]">

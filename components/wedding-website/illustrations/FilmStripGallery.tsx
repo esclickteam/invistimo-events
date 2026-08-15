@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { sanitizeGallery } from "@/config/weddingWebsite/media";
+import { EditableImage, useWeddingEdit } from "../editor/EditablePrimitives";
 import { SafeImage } from "../shared/SafeMedia";
 
 /** Minimal Noir — editorial film-strip transitions */
@@ -11,6 +12,7 @@ export default function FilmStripGallery({
   images: string[];
 }) {
   const reduce = useReducedMotion();
+  const edit = useWeddingEdit();
   const safe = sanitizeGallery(images);
 
   return (
@@ -30,8 +32,23 @@ export default function FilmStripGallery({
                 <span key={d} className="h-1.5 w-2.5 rounded-[1px] bg-white/35" />
               ))}
             </div>
-            <div className="aspect-[3/4] overflow-hidden">
-              <SafeImage src={src} alt="" className="h-full w-full object-cover grayscale" />
+            <div className="relative aspect-[3/4] overflow-hidden">
+              {edit?.enabled ? (
+                <EditableImage
+                  field="galleryUrls"
+                  index={i}
+                  src={src}
+                  className="absolute inset-0 h-full w-full"
+                  style={{ height: "100%", width: "100%" }}
+                />
+              ) : (
+                <SafeImage
+                  src={src}
+                  alt=""
+                  className="ww-media-fill absolute inset-0 h-full w-full object-cover grayscale"
+                  style={{ height: "100%", width: "100%", objectFit: "cover" }}
+                />
+              )}
             </div>
             <div className="mt-1 flex justify-between px-1">
               {Array.from({ length: 6 }).map((_, d) => (
