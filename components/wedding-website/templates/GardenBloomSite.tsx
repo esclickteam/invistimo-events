@@ -47,22 +47,20 @@ const baseTone: BlockTone = {
   border: "rgba(107,158,120,0.35)",
   fontDisplay: "'Libre Baskerville', serif",
   radius: "1.75rem",
-  buttonClass:
-    "rounded-full bg-[#6B9E78] px-6 py-3 text-sm font-bold text-white shadow-[0_14px_36px_rgba(107,158,120,0.3)]",
-  outlineButtonClass:
-    "rounded-full border border-[#6B9E78] px-6 py-3 text-sm font-bold text-[#6B9E78]",
+  buttonClass: "ww-cta-primary rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg",
+  outlineButtonClass: "ww-tint-btn-outline rounded-full border px-6 py-3 text-sm font-bold",
 };
 
 const sectionPad = "py-16 md:py-20";
 
-function Leaf() {
+function Leaf({ color = GREEN }: { color?: string }) {
   return (
     <div className="mx-auto my-5 flex items-center justify-center gap-2">
-      <span className="h-px w-10 bg-[#6B9E78]/50" />
+      <span className="h-px w-10" style={{ background: `${color}80` }} />
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-        <path d="M9 2C6 5 4 8 4 11a5 5 0 0 0 10 0c0-3-2-6-5-9Z" fill="#6B9E78" fillOpacity="0.55" />
+        <path d="M9 2C6 5 4 8 4 11a5 5 0 0 0 10 0c0-3-2-6-5-9Z" fill={color} fillOpacity="0.55" />
       </svg>
-      <span className="h-px w-10 bg-[#6B9E78]/50" />
+      <span className="h-px w-10" style={{ background: `${color}80` }} />
     </div>
   );
 }
@@ -93,16 +91,17 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
     >
       {!embed && (
         <WeddingActionBar
-          accent={GREEN}
+          accent={tone.accent}
           text="#FFFFFF"
           surface="rgba(244,250,244,0.94)"
-          border="rgba(107,158,120,0.35)"
+          border={`${tone.accent}55`}
         />
       )}
       {!embed && !hideDemoBadge && (
         <Link
           href="/wedding-website"
-          className="fixed top-4 left-4 z-[55] rounded-full border border-[#6B9E78]/40 bg-white/90 px-4 py-2 text-xs font-bold text-[#6B9E78] shadow-lg"
+          className="ww-tint-btn-outline fixed top-4 left-4 z-[55] rounded-full border bg-white/90 px-4 py-2 text-xs font-bold shadow-lg"
+          style={{ borderColor: `${tone.accent}66`, color: tone.accent }}
         >
           ← תבניות
         </Link>
@@ -129,7 +128,7 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
           >
             <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
           </h1>
-          <Leaf />
+          <Leaf color={tone.accent} />
           <p className="mx-auto max-w-lg text-base md:text-lg" style={{ color: tone.muted }}>
             <EditableText field="heroSubtitle" as="span" multiline>
               {c.heroSubtitle}
@@ -162,7 +161,7 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
       <WelcomeBlock tone={tone} className={sectionPad} title="הזמנה לגן" />
 
       {/* 3 — How we met */}
-      <HowWeMetBlock tone={tone} className={`${sectionPad} bg-[#E8F3EA]`} image={gallery[0]} />
+      <HowWeMetBlock tone={tone} className={`${sectionPad} ww-tint-alt`} image={gallery[0]} />
 
       {/* 4 — FullBleed garden moment */}
       {gallery[1] ? (
@@ -173,24 +172,24 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
       <StoryBlock tone={tone} className={sectionPad} />
 
       {/* 6 — Proposal */}
-      <ProposalBlock tone={tone} className={`${sectionPad} bg-[#E8F3EA]`} image={gallery[2]} />
+      <ProposalBlock tone={tone} className={`${sectionPad} ww-tint-alt`} image={gallery[2]} />
 
       {/* 7 — Countdown */}
       <CountdownBlock tone={tone} className={sectionPad} variant="cards" />
 
       {/* 8 — Schedule */}
-      <ScheduleBlock tone={tone} className={`${sectionPad} bg-[#E8F3EA]`}>
-        <Leaf />
+      <ScheduleBlock tone={tone} className={`${sectionPad} ww-tint-alt`}>
+        <Leaf color={tone.accent} />
       </ScheduleBlock>
 
       {/* 9 — Location with vine */}
       <LocationBlock tone={tone} className={sectionPad}>
-        <VineGrow color={GREEN} className="mb-2" />
-        <MapPinPulse accent={GREEN} />
+        <VineGrow color={tone.accent} className="mb-2" />
+        <MapPinPulse accent={tone.accent} />
       </LocationBlock>
 
       {/* 10 — Dress code */}
-      <DressCodeBlock tone={tone} className={`${sectionPad} bg-[#E8F3EA]`} />
+      <DressCodeBlock tone={tone} className={`${sectionPad} ww-tint-alt`} />
 
       {/* 11 — Polaroid gallery */}
       <SiteSection id="gallery" className={sectionPad}>
@@ -201,24 +200,24 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
           >
             רגעים מהגן
           </h2>
-          <Leaf />
-          <PolaroidGallery images={gallery.slice(0, 8)} accent={GREEN} />
+          <Leaf color={tone.accent} />
+          <PolaroidGallery images={gallery.slice(0, 8)} accent={tone.accent} />
         </div>
       </SiteSection>
 
       {/* 12 — Quote */}
-      <QuoteBlock tone={tone} className="bg-[#E8F3EA]" />
+      <QuoteBlock tone={tone} className="ww-tint-alt" />
 
       {/* 13 — Transportation */}
       <TransportationBlock tone={tone} className={sectionPad}>
-        <ShuttleRide accent={GREEN} className="mb-8" />
+        <ShuttleRide accent={tone.accent} className="mb-8" />
       </TransportationBlock>
 
       {/* 14 — FAQ */}
-      <FaqBlock tone={tone} className={`${sectionPad} bg-[#E8F3EA]`} />
+      <FaqBlock tone={tone} className={`${sectionPad} ww-tint-alt`} />
 
       {/* 15 — RSVP with envelope */}
-      <SiteSection id="rsvp" className={`${sectionPad} bg-[#E8F3EA]`}>
+      <SiteSection id="rsvp" className={`${sectionPad} ww-tint-alt`}>
         <div className="mx-auto max-w-md px-6">
           <h2
             className="text-center text-4xl font-normal"
@@ -226,36 +225,36 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
           >
             אישור הגעה
           </h2>
-          <Leaf />
+          <Leaf color={tone.accent} />
           <EditableText
             field="rsvpText"
             as="p"
             multiline
-            className="mb-4 text-center text-sm text-[#4A6B52]"
+            className="mb-4 text-center text-sm ww-tint-muted"
             placeholder="טקסט לאישור הגעה"
           >
             {c.rsvpText || ""}
           </EditableText>
           <RsvpCelebrate
-            accent={GREEN}
+            accent={tone.accent}
             active={rsvp.rsvp === "yes" || rsvp.sent}
             className="mb-2"
           />
-          <div className="mb-6 space-y-4 rounded-[1.75rem] border border-[#6B9E78]/30 bg-white/85 p-6">
+          <div className="mb-6 space-y-4 rounded-[1.75rem] border bg-white/85 p-6" style={{ borderColor: `${tone.accent}4D` }}>
             <GuestIdentifyRsvp
-              accent={GREEN}
+              accent={tone.accent}
               identified={rsvp.identified}
               onBind={(token, meta) => rsvp.bindToken?.(token, meta)}
             />
           </div>
           {rsvp.identified ? (
-            <EnvelopeRsvp accent={GREEN} open={rsvp.rsvp === "yes" || rsvp.sent}>
+            <EnvelopeRsvp accent={tone.accent} open={rsvp.rsvp === "yes" || rsvp.sent}>
               {rsvp.sent ? (
-                <p className="text-center text-lg text-[#6B9E78]">תודה! קיבלנו את אישור ההגעה.</p>
+                <p className="text-center text-lg" style={{ color: tone.accent }}>תודה! קיבלנו את אישור ההגעה.</p>
               ) : (
                 <div className="space-y-4">
                   {rsvp.guestName ? (
-                    <p className="text-center text-sm text-[#4A6B52]">שלום {rsvp.guestName}</p>
+                    <p className="text-center text-sm" style={{ color: tone.muted }}>שלום {rsvp.guestName}</p>
                   ) : null}
                   <div className="flex gap-3">
                     {(["yes", "no"] as const).map((v) => (
@@ -263,11 +262,12 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
                         key={v}
                         type="button"
                         onClick={() => rsvp.setRsvp(v)}
-                        className={`flex-1 rounded-full py-3 text-sm font-bold ${
+                        className="flex-1 rounded-full py-3 text-sm font-bold"
+                        style={
                           rsvp.rsvp === v
-                            ? "bg-[#6B9E78] text-white"
-                            : "border border-[#6B9E78]/40 text-[#4A6B52]"
-                        }`}
+                            ? { background: tone.accent, color: "#fff" }
+                            : { border: `1px solid ${tone.accent}66`, color: tone.muted }
+                        }
                       >
                         {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
                       </button>
@@ -275,14 +275,15 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
                   </div>
                   {rsvp.rsvp === "yes" ? (
                     <div className="flex items-center justify-center gap-3">
-                      <span className="text-sm text-[#4A6B52]">מספר אורחים</span>
+                      <span className="text-sm" style={{ color: tone.muted }}>מספר אורחים</span>
                       <input
                         type="number"
                         min={1}
                         max={20}
                         value={rsvp.count}
                         onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                        className="w-20 rounded-full border border-[#6B9E78]/40 px-3 py-2 text-center"
+                        className="w-20 rounded-full border px-3 py-2 text-center"
+                        style={{ borderColor: `${tone.accent}66` }}
                       />
                     </div>
                   ) : null}
@@ -293,7 +294,8 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
                     type="button"
                     disabled={!rsvp.rsvp || rsvp.saving}
                     onClick={() => void rsvp.submit()}
-                    className="w-full rounded-full bg-[#6B9E78] py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                    className="w-full rounded-full py-3.5 text-sm font-bold text-white disabled:opacity-40"
+                    style={{ background: tone.accent }}
                   >
                     {rsvp.saving ? "שולח..." : "שליחה"}
                   </button>
@@ -310,12 +312,12 @@ export default function GardenBloomSite({ template, embed, hideDemoBadge }: Temp
       {/* Final moment */}
       <FinalMomentBlock tone={tone} image={gallery[3] || heroImg} />
 
-      <footer id="footer" className="bg-[#2F4A36] px-6 py-16 text-center text-[#F4FAF4]">
+      <footer id="footer" className="px-6 py-16 text-center text-white" style={{ background: "color-mix(in srgb, var(--ww-accent) 55%, #1a2418)" }}>
         <p className="text-3xl" style={{ fontFamily: tone.fontDisplay }}>
           <EditableText field="coupleNames" as="span">{c.coupleNames}</EditableText>
         </p>
-        <Leaf />
-        <p className="text-[#B8D4BE]">{c.footerNote || "נתראה בגן"}</p>
+        <Leaf color="#fff" />
+        <p className="opacity-80">{c.footerNote || "נתראה בגן"}</p>
         <p className="mt-6 text-xs tracking-[0.25em] text-white/35">
           {formatHebrewDate(c.weddingDate)}
         </p>

@@ -495,6 +495,11 @@ export function ScheduleBlock({
     return null;
   };
 
+  const matchedScenes = new Set(
+    items.map((item) => sceneFor(item.title, item.description)).filter(Boolean)
+  );
+  const showFallbackStory = matchedScenes.size === 0;
+
   return (
     <SiteSection id="schedule" className={className}>
       <div className="mx-auto max-w-3xl px-6">
@@ -540,6 +545,13 @@ export function ScheduleBlock({
             );
           })}
         </ol>
+        {showFallbackStory ? (
+          <div className="mt-8 space-y-4">
+            <ChuppahMeet accent={tone.accent} />
+            <BuffetSpread accent={tone.accent} />
+            <DanceParty accent={tone.accent} />
+          </div>
+        ) : null}
       </div>
     </SiteSection>
   );

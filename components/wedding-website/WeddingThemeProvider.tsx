@@ -38,16 +38,25 @@ export function buildThemeCssVars(
   const bg = overrides.background || template.theme.bg;
   const text = overrides.text || template.theme.text;
   const button = overrides.button || overrides.accent || template.theme.accent;
+  const bgAlt = overrides.secondary || template.theme.bgAlt;
+  const surface = overrides.card || template.theme.surface;
+  const muted = overrides.text
+    ? softenHex(overrides.text, 0.42)
+    : template.theme.textMuted;
 
   return {
     "--ww-bg": bg,
-    "--ww-bg-alt": overrides.secondary || template.theme.bgAlt,
-    "--ww-surface": overrides.card || template.theme.surface,
+    "--ww-bg-alt": bgAlt,
+    "--ww-surface": surface,
     "--ww-text": text,
-    "--ww-text-muted": template.theme.textMuted,
+    "--ww-text-muted": muted,
     "--ww-accent": accent,
-    "--ww-accent-soft": template.theme.accentSoft,
-    "--ww-border": template.theme.border,
+    "--ww-accent-soft": overrides.accent
+      ? softenHex(accent, 0.75)
+      : template.theme.accentSoft,
+    "--ww-border": overrides.accent
+      ? `${accent}55`
+      : template.theme.border,
     "--ww-hero-overlay": template.theme.heroOverlay,
     "--ww-font-display": font || template.theme.fontDisplay,
     "--ww-font-body": template.theme.fontBody,
@@ -56,11 +65,22 @@ export function buildThemeCssVars(
     "--ww-button": button,
     "--ww-heading-scale": String(scale),
     "--ww-style-preset": overrides.stylePreset || "classic",
-    // Force visible theme application even when templates hardcode some colors
     backgroundColor: bg,
     color: text,
     ...(font ? { fontFamily: font } : {}),
   } as CSSProperties;
+}
+
+function softenHex(hex: string, amount: number) {
+  const raw = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(raw)) return hex;
+  const r = parseInt(raw.slice(0, 2), 16);
+  const g = parseInt(raw.slice(2, 4), 16);
+  const b = parseInt(raw.slice(4, 6), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  return `#${[mix(r), mix(g), mix(b)]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("")}`;
 }
 
 export function WeddingThemeProvider({

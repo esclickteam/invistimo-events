@@ -38,6 +38,8 @@ export type WeddingEditApi = {
     value: WeddingThemeOverrides[K]
   ) => void;
   openImagePicker: (field: "heroImageUrl" | "galleryUrls", index?: number) => void;
+  /** Direct upload — returns CDN URL or throws with Hebrew message */
+  uploadImage?: (dataUrl: string) => Promise<string>;
 };
 
 export function useWeddingEdit(): WeddingEditApi | null {
@@ -372,6 +374,7 @@ export function ImagePickerPanel({
   const { content } = useWeddingSite();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!edit) return null;
 
@@ -398,40 +401,58 @@ export function ImagePickerPanel({
         onClick={() => fileRef.current?.click()}
         className="w-full rounded-full bg-[#241A14] px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
       >
-        {uploading ? "מעלה..." : "העלאה מהמחשב"}
+        {uploading ? "מעלה מהמחשב..." : "העלאה מהמחשב"}
       </button>
+      {error ? (
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-[11px] font-bold text-red-700">
+          {error}
+        </p>
+      ) : null}
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         className="hidden"
         onChange={async (e) => {
           const file = e.target.files?.[0];
+          e.target.value = "";
           if (!file || !edit) return;
-          // Parent editor listens via custom event for upload with website id
+          if (file.size > 8 * 1024 * 1024) {
+            setError("הקובץ גדול מדי (מקס׳ 8MB)");
+            return;
+          }
+          setError("");
           setUploading(true);
           try {
-            const reader = new FileReader();
             const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
               reader.onload = () => resolve(String(reader.result || ""));
               reader.onerror = () => reject(new Error("read failed"));
               reader.readAsDataURL(file);
             });
-            window.dispatchEvent(
-              new CustomEvent("ww-upload-image", {
-                detail: {
-                  dataUrl,
-                  field,
-                  index,
-                  onDone: (url: string) => {
-                    applyUrl(url);
-                    setUploading(false);
+            if (edit.uploadImage) {
+              const url = await edit.uploadImage(dataUrl);
+              applyUrl(url);
+            } else {
+              // Fallback: custom event (legacy) + local preview
+              const localUrl = URL.createObjectURL(file);
+              applyUrl(localUrl);
+              window.dispatchEvent(
+                new CustomEvent("ww-upload-image", {
+                  detail: {
+                    dataUrl,
+                    field,
+                    index,
+                    onDone: (url: string) => applyUrl(url),
+                    onFail: () =>
+                      setError("ההעלאה לשרת נכשלה — התמונה מוצגת מקומית עד שמירה"),
                   },
-                  onFail: () => setUploading(false),
-                },
-              })
-            );
-          } catch {
+                })
+              );
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "העלאה נכשלה");
+          } finally {
             setUploading(false);
           }
         }}

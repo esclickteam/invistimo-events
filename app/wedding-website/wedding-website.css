@@ -189,6 +189,41 @@ body:has(.wedding-website-root)::-webkit-scrollbar,
   color: var(--ww-text-muted, #7a6a5a);
 }
 
+/* Theme overrides must visibly recolor sections / accents across templates */
+.wedding-website-root .ww-tint-alt {
+  background: var(--ww-bg-alt) !important;
+  color: var(--ww-text);
+}
+.wedding-website-root .ww-tint-surface {
+  background: var(--ww-surface) !important;
+  color: var(--ww-text);
+}
+.wedding-website-root .ww-tint-accent-text {
+  color: var(--ww-accent) !important;
+}
+.wedding-website-root .ww-tint-muted {
+  color: var(--ww-text-muted) !important;
+}
+.wedding-website-root .ww-tint-btn {
+  background: var(--ww-button) !important;
+  border-color: var(--ww-button) !important;
+  color: #fff !important;
+}
+.wedding-website-root .ww-tint-btn-outline {
+  border-color: var(--ww-accent) !important;
+  color: var(--ww-accent) !important;
+}
+.wedding-website-root h1,
+.wedding-website-root h2,
+.wedding-website-root h3 {
+  color: var(--ww-text);
+}
+.wedding-website-root a.ww-cta-primary,
+.wedding-website-root button.ww-cta-primary {
+  background: var(--ww-button) !important;
+  color: #fff !important;
+}
+
 .ww-btn {
   display: inline-flex;
   align-items: center;

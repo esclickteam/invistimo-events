@@ -142,6 +142,26 @@ export default function WeddingWebsiteOwnerEditor({
     []
   );
 
+  const uploadImage = useCallback(async (dataUrl: string) => {
+    const res = await fetch("/api/wedding-website/upload", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ websiteId: website.id, base64Image: dataUrl }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success || !data.url) {
+      const msg =
+        data.error === "Upload service not configured"
+          ? "שירות ההעלאה לא מוגדר בשרת"
+          : data.error === "Unauthorized"
+            ? "יש להתחבר מחדש כדי להעלות תמונה"
+            : data.error || "העלאה נכשלה";
+      throw new Error(msg);
+    }
+    return String(data.url);
+  }, [website.id]);
+
   const editApi: WeddingEditApi = useMemo(
     () => ({
       enabled: true,
@@ -155,41 +175,29 @@ export default function WeddingWebsiteOwnerEditor({
       updateField,
       updateTheme,
       openImagePicker,
+      uploadImage,
     }),
-    [selected, updateField, updateTheme, openImagePicker]
+    [selected, updateField, updateTheme, openImagePicker, uploadImage]
   );
 
   useEffect(() => {
     const onUpload = async (ev: Event) => {
       const detail = (ev as CustomEvent).detail as {
         dataUrl: string;
-        field: "heroImageUrl" | "galleryUrls";
-        index?: number;
         onDone: (url: string) => void;
         onFail: () => void;
       };
       try {
-        const res = await fetch("/api/wedding-website/upload", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ websiteId: website.id, base64Image: detail.dataUrl }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success || !data.url) {
-          detail.onFail();
-          setMessage(data.error || "העלאה נכשלה");
-          return;
-        }
-        detail.onDone(String(data.url));
-      } catch {
+        const url = await uploadImage(detail.dataUrl);
+        detail.onDone(url);
+      } catch (err) {
         detail.onFail();
-        setMessage("שגיאה בהעלאת תמונה");
+        setMessage(err instanceof Error ? err.message : "שגיאה בהעלאת תמונה");
       }
     };
     window.addEventListener("ww-upload-image", onUpload as EventListener);
     return () => window.removeEventListener("ww-upload-image", onUpload as EventListener);
-  }, [website.id]);
+  }, [uploadImage]);
 
   const save = async (extra: Record<string, unknown> = {}) => {
     setSaving(true);
