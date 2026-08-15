@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
-/** Buffet tables spread outward with dishes appearing above. */
+/** Banquet tables slide in from the sides; dishes and candles appear on top. */
 export default function BuffetSpread({
   accent = "#B8844F",
   className = "",
@@ -11,65 +11,86 @@ export default function BuffetSpread({
   className?: string;
 }) {
   const reduce = useReducedMotion();
-  const tables = [-1, 0, 1];
+  const tables = [
+    { x: -1, delay: 0 },
+    { x: 0, delay: 0.15 },
+    { x: 1, delay: 0.3 },
+  ];
 
   return (
     <div
-      className={`relative mx-auto h-36 w-full max-w-2xl overflow-hidden ${className}`}
+      className={`relative mx-auto w-full max-w-2xl overflow-hidden rounded-3xl ${className}`}
       aria-hidden
+      style={{
+        background: `linear-gradient(180deg, ${accent}10 0%, transparent 100%)`,
+        minHeight: 180,
+      }}
     >
-      <div
-        className="absolute inset-x-0 bottom-6 h-px opacity-30"
-        style={{ background: accent }}
-      />
-      <div className="absolute inset-0 flex items-end justify-center gap-3 pb-4 md:gap-6">
-        {tables.map((slot, i) => (
-          <motion.div
-            key={slot}
-            className="relative flex flex-col items-center"
+      <svg className="mx-auto block h-[170px] w-full max-w-xl" viewBox="0 0 420 170" fill="none">
+        <ellipse cx="210" cy="155" rx="160" ry="8" fill={`${accent}22`} />
+
+        {tables.map((t, i) => (
+          <motion.g
+            key={t.x}
             initial={
               reduce
-                ? { opacity: 1, x: 0, scale: 1 }
-                : { opacity: 0, x: slot * 80, scale: 0.7 }
+                ? { opacity: 1, x: 0 }
+                : { opacity: 0, x: t.x * 100, scale: 0.85 }
             }
             whileInView={{ opacity: 1, x: 0, scale: 1 }}
-            viewport={{ once: true, margin: "-30px" }}
-            transition={{ duration: 0.85, delay: 0.15 * i, ease: "easeOut" }}
+            viewport={{ once: true, margin: "-20px" }}
+            transition={{ duration: 0.9, delay: t.delay, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Food plates */}
-            <motion.div
-              className="mb-1 flex gap-1"
-              initial={reduce ? { y: 0, opacity: 1 } : { y: -12, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.45 + i * 0.12, duration: 0.5 }}
-            >
-              {[0, 1, 2].map((d) => (
-                <span
-                  key={d}
-                  className="block h-3 w-3 rounded-full md:h-3.5 md:w-3.5"
-                  style={{
-                    background:
-                      d === 1 ? accent : d === 0 ? `${accent}99` : `${accent}55`,
-                  }}
-                />
-              ))}
-            </motion.div>
-            {/* Table top */}
-            <div
-              className="h-3 w-20 rounded-full md:w-24"
-              style={{ background: accent, opacity: 0.85 }}
-            />
-            {/* Legs */}
-            <div className="mt-0.5 flex w-16 justify-between md:w-20">
-              <span className="h-5 w-0.5" style={{ background: accent }} />
-              <span className="h-5 w-0.5" style={{ background: accent }} />
-            </div>
-          </motion.div>
+            <g transform={`translate(${90 + i * 105} 55)`}>
+              {/* Candle glow */}
+              <motion.circle
+                cx="55"
+                cy="8"
+                r="14"
+                fill={accent}
+                fillOpacity="0.12"
+                animate={reduce ? undefined : { opacity: [0.15, 0.35, 0.15] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.3 }}
+              />
+              <rect x="52" y="10" width="6" height="18" rx="2" fill={accent} fillOpacity="0.7" />
+              <motion.ellipse
+                cx="55"
+                cy="8"
+                rx="3"
+                ry="5"
+                fill="#F5D76E"
+                animate={reduce ? undefined : { scaleY: [1, 1.25, 1] }}
+                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+              />
+
+              {/* Food plates */}
+              <motion.g
+                initial={reduce ? false : { y: -16, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.55 + i * 0.12, duration: 0.5 }}
+              >
+                <ellipse cx="22" cy="38" rx="14" ry="5" fill={accent} fillOpacity="0.25" />
+                <circle cx="22" cy="34" r="7" fill={accent} fillOpacity="0.55" />
+                <ellipse cx="55" cy="40" rx="16" ry="5" fill={accent} fillOpacity="0.2" />
+                <circle cx="50" cy="36" r="5" fill={accent} fillOpacity="0.65" />
+                <circle cx="60" cy="35" r="4" fill={accent} fillOpacity="0.45" />
+                <ellipse cx="88" cy="38" rx="14" ry="5" fill={accent} fillOpacity="0.25" />
+                <circle cx="88" cy="34" r="6" fill={accent} fillOpacity="0.5" />
+              </motion.g>
+
+              {/* Table top */}
+              <rect x="4" y="48" width="102" height="12" rx="6" fill={accent} fillOpacity="0.85" />
+              <rect x="8" y="46" width="94" height="4" rx="2" fill="#fff" fillOpacity="0.35" />
+              {/* Legs */}
+              <rect x="18" y="60" width="5" height="28" rx="2" fill={accent} fillOpacity="0.55" />
+              <rect x="88" y="60" width="5" height="28" rx="2" fill={accent} fillOpacity="0.55" />
+            </g>
+          </motion.g>
         ))}
-      </div>
+      </svg>
       <p
-        className="absolute inset-x-0 bottom-0 text-center text-[10px] font-bold tracking-wide"
+        className="pb-3 text-center text-[11px] font-bold tracking-[0.18em]"
         style={{ color: accent }}
       >
         שולחנות האירוע נפרסים

@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
-/** Couples dancing — looping silhouette animation for reception / dance schedule. */
+/** Reception dance — couples sway with dress swirl and music notes. */
 export default function DanceParty({
   accent = "#B8844F",
   className = "",
@@ -14,69 +14,110 @@ export default function DanceParty({
 
   return (
     <div
-      className={`relative mx-auto h-36 w-full max-w-lg overflow-hidden ${className}`}
+      className={`relative mx-auto w-full max-w-2xl overflow-hidden rounded-3xl ${className}`}
       aria-hidden
+      style={{
+        background: `radial-gradient(ellipse at 50% 80%, ${accent}22 0%, transparent 70%)`,
+        minHeight: 190,
+      }}
     >
+      {/* Soft spotlight */}
       <div
-        className="absolute inset-x-0 bottom-4 h-px opacity-40"
-        style={{ background: accent }}
+        className="pointer-events-none absolute inset-x-16 bottom-8 h-24 rounded-full blur-3xl"
+        style={{ background: `${accent}28` }}
       />
-      <div className="absolute inset-0 flex items-end justify-center gap-4 pb-5 md:gap-8">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
+
+      <svg className="mx-auto block h-[180px] w-full max-w-lg" viewBox="0 0 400 180" fill="none">
+        <ellipse cx="200" cy="160" rx="140" ry="8" fill={`${accent}20`} />
+
+        {/* Music notes */}
+        {!reduce
+          ? [0, 1, 2].map((i) => (
+              <motion.g
+                key={i}
+                animate={{ y: [0, -18, 0], opacity: [0.3, 0.8, 0.3] }}
+                transition={{ duration: 2.4, repeat: Infinity, delay: i * 0.5 }}
+              >
+                <text
+                  x={70 + i * 120}
+                  y={36}
+                  fill={accent}
+                  fontSize="18"
+                  fontFamily="serif"
+                  opacity="0.7"
+                >
+                  ♪
+                </text>
+              </motion.g>
+            ))
+          : null}
+
+        {[0, 1].map((pair) => (
+          <motion.g
+            key={pair}
             animate={
               reduce
-                ? { y: 0, rotate: 0 }
+                ? undefined
                 : {
-                    y: [0, -6, 0, -4, 0],
-                    rotate: i % 2 === 0 ? [0, -6, 4, -3, 0] : [0, 5, -4, 3, 0],
+                    y: [0, -5, 0, -3, 0],
+                    rotate: pair === 0 ? [0, -4, 3, -2, 0] : [0, 4, -3, 2, 0],
                   }
             }
             transition={{
-              duration: 1.4 + i * 0.15,
+              duration: 1.5,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: i * 0.12,
+              delay: pair * 0.2,
             }}
+            style={{ transformOrigin: `${140 + pair * 120}px 120px` }}
           >
-            <DanceCouple accent={accent} mirror={i === 1} />
-          </motion.div>
+            <g transform={`translate(${95 + pair * 115} 55)`}>
+              {/* Bride / dress dancer */}
+              <circle cx="28" cy="16" r="10" fill={accent} fillOpacity="0.9" />
+              <motion.path
+                d="M12 30 C16 55 20 95 28 105 C36 95 40 55 44 30 Z"
+                fill={accent}
+                fillOpacity="0.45"
+                animate={
+                  reduce
+                    ? undefined
+                    : {
+                        d: [
+                          "M12 30 C16 55 20 95 28 105 C36 95 40 55 44 30 Z",
+                          "M10 30 C14 55 18 95 28 105 C38 95 42 55 46 30 Z",
+                          "M12 30 C16 55 20 95 28 105 C36 95 40 55 44 30 Z",
+                        ],
+                      }
+                }
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              />
+              {/* Partner */}
+              <circle cx="58" cy="14" r="9" fill={accent} />
+              <rect x="48" y="26" width="20" height="34" rx="5" fill={accent} fillOpacity="0.85" />
+              <path
+                d="M50 40 L38 28"
+                stroke={accent}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M66 40 L78 50"
+                stroke={accent}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
+              <rect x="50" y="58" width="7" height="22" rx="3" fill={accent} fillOpacity="0.7" />
+              <rect x="60" y="58" width="7" height="22" rx="3" fill={accent} fillOpacity="0.7" />
+            </g>
+          </motion.g>
         ))}
-      </div>
+      </svg>
       <p
-        className="absolute inset-x-0 bottom-0 text-center text-[10px] font-bold tracking-wide"
+        className="pb-3 text-center text-[11px] font-bold tracking-[0.18em]"
         style={{ color: accent }}
       >
         רוקדים יחד
       </p>
     </div>
-  );
-}
-
-function DanceCouple({ accent, mirror }: { accent: string; mirror?: boolean }) {
-  return (
-    <svg
-      width="56"
-      height="72"
-      viewBox="0 0 56 72"
-      fill="none"
-      style={{ transform: mirror ? "scaleX(-1)" : undefined }}
-    >
-      {/* left dancer */}
-      <circle cx="18" cy="12" r="6" fill={accent} fillOpacity="0.9" />
-      <path
-        d="M10 22 C12 36 14 52 18 58 C22 52 24 36 26 22 Z"
-        fill={accent}
-        fillOpacity="0.55"
-      />
-      <path d="M12 28 L6 40" stroke={accent} strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M24 28 L32 24" stroke={accent} strokeWidth="2.5" strokeLinecap="round" />
-      {/* right dancer */}
-      <circle cx="38" cy="12" r="6" fill={accent} />
-      <rect x="30" y="20" width="16" height="28" rx="4" fill={accent} fillOpacity="0.75" />
-      <path d="M32 28 L26 24" stroke={accent} strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M44 28 L50 38" stroke={accent} strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
   );
 }

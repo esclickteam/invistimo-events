@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
-/** Proposal scene — groom kneels, offers a ring to the bride. */
+/** Proposal scene — groom kneels with a glowing ring; bride reacts with hearts. */
 export default function ProposalKneel({
   accent = "#B8844F",
   className = "",
@@ -14,99 +14,139 @@ export default function ProposalKneel({
 
   return (
     <div
-      className={`relative mx-auto flex h-44 w-full max-w-md items-end justify-center gap-6 ${className}`}
+      className={`relative mx-auto w-full max-w-lg overflow-hidden rounded-3xl ${className}`}
       aria-hidden
+      style={{
+        background: `radial-gradient(ellipse at 50% 70%, ${accent}20 0%, ${accent}08 45%, transparent 75%)`,
+        minHeight: 230,
+      }}
     >
-      {/* Soft glow */}
-      <motion.div
-        className="pointer-events-none absolute inset-x-10 bottom-0 h-16 rounded-full blur-2xl"
-        style={{ background: `${accent}33` }}
-        animate={reduce ? { opacity: 0.4 } : { opacity: [0.25, 0.55, 0.25] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-      />
+      <svg className="mx-auto block h-[220px] w-full max-w-md" viewBox="0 0 360 220" fill="none">
+        <ellipse cx="180" cy="200" rx="120" ry="10" fill={`${accent}22`} />
 
-      {/* Kneeling groom */}
-      <motion.div
-        initial={reduce ? { y: 0, opacity: 1 } : { y: 24, opacity: 0 }}
-        whileInView={{ y: 0, opacity: 1 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 0.8 }}
-      >
-        <svg width="70" height="110" viewBox="0 0 70 110" fill="none">
-          <circle cx="34" cy="18" r="10" fill={accent} />
-          {/* torso leaning */}
-          <path
-            d="M22 32 C24 48 28 58 34 62 C40 58 44 48 46 32 Z"
-            fill={accent}
-            fillOpacity="0.85"
-          />
-          {/* kneeling leg */}
-          <path
-            d="M30 62 L22 92 L34 94 L38 66 Z"
-            fill={accent}
-            fillOpacity="0.7"
-          />
-          <path
-            d="M38 64 L52 88 L60 84 L46 60 Z"
-            fill={accent}
-            fillOpacity="0.65"
-          />
-          {/* arm with ring */}
-          <motion.g
-            initial={reduce ? { rotate: 0 } : { rotate: 18 }}
-            whileInView={{ rotate: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.5, duration: 0.7 }}
-            style={{ originX: "34px", originY: "40px" }}
-          >
-            <path
-              d="M44 40 L58 48"
-              stroke={accent}
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-            <circle cx="60" cy="50" r="5" fill="#F5D76E" stroke={accent} strokeWidth="1.5" />
-            <circle cx="60" cy="50" r="2" fill="#fff" fillOpacity="0.7" />
-          </motion.g>
-        </svg>
-      </motion.div>
+        {/* Sparkles */}
+        {!reduce
+          ? [0, 1, 2, 3].map((i) => (
+              <motion.circle
+                key={i}
+                cx={90 + i * 50}
+                cy={30 + (i % 2) * 18}
+                r="2.5"
+                fill={accent}
+                animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.3, 0.8] }}
+                transition={{ duration: 2, repeat: Infinity, delay: i * 0.35 }}
+              />
+            ))
+          : null}
 
-      {/* Standing bride */}
-      <motion.div
-        initial={reduce ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 0.7, delay: 0.15 }}
-      >
-        <svg width="56" height="120" viewBox="0 0 56 120" fill="none">
-          <circle cx="28" cy="16" r="10" fill={accent} fillOpacity="0.9" />
-          <path
-            d="M12 30 C14 70 18 108 28 112 C38 108 42 70 44 30 Z"
-            fill={accent}
-            fillOpacity="0.45"
-          />
-          <path
-            d="M10 32 Q28 42 46 32"
-            stroke={accent}
-            strokeWidth="2"
-            fill="none"
-            opacity="0.4"
-          />
-          {/* happy hearts */}
-          <motion.g
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 1, duration: 0.6 }}
-          >
+        {/* Bride standing */}
+        <motion.g
+          initial={reduce ? false : { opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+        >
+          <g transform="translate(200 48)">
+            <circle cx="28" cy="16" r="12" fill={accent} fillOpacity="0.92" />
+            <path d="M16 12 Q28 -4 40 12" fill={accent} fillOpacity="0.18" />
             <path
-              d="M40 8 C40 5 44 4 45 7 C46 4 50 5 50 8 C50 12 45 15 45 15 C45 15 40 12 40 8Z"
+              d="M10 34 C14 70 18 120 28 132 C38 120 42 70 46 34 Z"
               fill={accent}
-              fillOpacity="0.7"
+              fillOpacity="0.42"
             />
-          </motion.g>
-        </svg>
-      </motion.div>
+            <path
+              d="M8 36 Q28 48 48 36"
+              stroke={accent}
+              strokeWidth="2"
+              fill="none"
+              opacity="0.35"
+            />
+            {/* Hands to face / surprise */}
+            <motion.g
+              initial={reduce ? false : { opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 1.2 }}
+            >
+              <path
+                d="M48 8 C48 4 54 2 56 7 C58 2 64 4 64 8 C64 14 56 18 56 18 C56 18 48 14 48 8Z"
+                fill={accent}
+                fillOpacity="0.75"
+              />
+            </motion.g>
+          </g>
+        </motion.g>
+
+        {/* Groom kneels */}
+        <motion.g
+          initial={reduce ? false : { opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.85, delay: 0.15 }}
+        >
+          <g transform="translate(70 70)">
+            <circle cx="40" cy="18" r="12" fill={accent} />
+            {/* Torso leaning forward */}
+            <path
+              d="M24 34 C28 55 34 70 42 76 C50 70 56 55 60 34 Z"
+              fill={accent}
+              fillOpacity="0.88"
+            />
+            {/* Kneeling legs */}
+            <path
+              d="M36 74 L24 118 L42 122 L50 80 Z"
+              fill={accent}
+              fillOpacity="0.72"
+            />
+            <path
+              d="M50 76 L72 112 L88 106 L64 72 Z"
+              fill={accent}
+              fillOpacity="0.65"
+            />
+            {/* Arm offering ring */}
+            <motion.g
+              initial={reduce ? false : { rotate: 22 }}
+              whileInView={{ rotate: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.7, duration: 0.8, ease: "easeOut" }}
+              style={{ transformOrigin: "58px 48px" }}
+            >
+              <path
+                d="M54 44 L92 58"
+                stroke={accent}
+                strokeWidth="5"
+                strokeLinecap="round"
+              />
+              {/* Ring box */}
+              <rect
+                x="88"
+                y="48"
+                width="22"
+                height="16"
+                rx="3"
+                fill={accent}
+                fillOpacity="0.9"
+              />
+              <motion.circle
+                cx="99"
+                cy="56"
+                r="5"
+                fill="#F5D76E"
+                stroke="#fff"
+                strokeWidth="1"
+                animate={reduce ? undefined : { scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity, delay: 1.2 }}
+              />
+            </motion.g>
+          </g>
+        </motion.g>
+      </svg>
+      <p
+        className="pb-3 text-center text-[11px] font-bold tracking-[0.18em]"
+        style={{ color: accent }}
+      >
+        הרגע שבו הוא כרע ברך
+      </p>
     </div>
   );
 }

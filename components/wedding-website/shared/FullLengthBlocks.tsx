@@ -485,6 +485,16 @@ export function ScheduleBlock({
     c.schedule?.length > 0
       ? c.schedule
       : [{ time: c.weddingTime || "19:30", title: "תחילת האירוע", description: "" }];
+
+  const sceneFor = (title: string, description?: string) => {
+    const hay = `${title} ${description || ""}`;
+    if (/חופה|ceremony|chuppah/i.test(hay)) return "chuppah" as const;
+    if (/ריקוד|dance|מסיב|party/i.test(hay)) return "dance" as const;
+    if (/קבלה|בופה|ארוחה|כיבוד|שולח|buffet|reception|עוגה/i.test(hay))
+      return "buffet" as const;
+    return null;
+  };
+
   return (
     <SiteSection id="schedule" className={className}>
       <div className="mx-auto max-w-3xl px-6">
@@ -492,33 +502,43 @@ export function ScheduleBlock({
           לוח זמנים
         </h2>
         {children}
-        <ChuppahMeet accent={tone.accent} className="mt-4" />
-        <BuffetSpread accent={tone.accent} className="mt-2 mb-2" />
-        <DanceParty accent={tone.accent} className="mb-4" />
-        <ol className="mt-6 space-y-3">
-          {items.map((item) => (
-            <li
-              key={`${item.time}-${item.title}`}
-              className="grid grid-cols-[88px_1fr] gap-4 px-5 py-4"
-              style={{
-                border: `1px solid ${tone.border || tone.accent}40`,
-                background: tone.surface || "transparent",
-                borderRadius: tone.radius || "1rem",
-              }}
-            >
-              <span className="text-lg font-semibold tabular-nums" style={{ color: tone.accent }}>
-                {item.time}
-              </span>
-              <div>
-                <p className="font-semibold">{item.title}</p>
-                {item.description ? (
-                  <p className="mt-1 text-sm" style={{ color: tone.muted }}>
-                    {item.description}
-                  </p>
+        <ol className="mt-8 space-y-5">
+          {items.map((item) => {
+            const scene = sceneFor(item.title, item.description);
+            return (
+              <li key={`${item.time}-${item.title}`} className="space-y-3">
+                <div
+                  className="grid grid-cols-[88px_1fr] gap-4 px-5 py-4"
+                  style={{
+                    border: `1px solid ${tone.border || tone.accent}40`,
+                    background: tone.surface || "transparent",
+                    borderRadius: tone.radius || "1rem",
+                  }}
+                >
+                  <span className="text-lg font-semibold tabular-nums" style={{ color: tone.accent }}>
+                    {item.time}
+                  </span>
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    {item.description ? (
+                      <p className="mt-1 text-sm" style={{ color: tone.muted }}>
+                        {item.description}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                {scene === "chuppah" ? (
+                  <ChuppahMeet accent={tone.accent} />
                 ) : null}
-              </div>
-            </li>
-          ))}
+                {scene === "buffet" ? (
+                  <BuffetSpread accent={tone.accent} />
+                ) : null}
+                {scene === "dance" ? (
+                  <DanceParty accent={tone.accent} />
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </div>
     </SiteSection>

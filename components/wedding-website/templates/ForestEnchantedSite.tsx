@@ -15,7 +15,6 @@ import PathDrawTimeline from "../illustrations/PathDrawTimeline";
 import MapPinPulse from "../illustrations/MapPinPulse";
 import ShuttleRide from "../illustrations/ShuttleRide";
 import ChuppahMeet from "../illustrations/ChuppahMeet";
-import BuffetSpread from "../illustrations/BuffetSpread";
 import DanceParty from "../illustrations/DanceParty";
 import {
   type BlockTone,
@@ -224,9 +223,10 @@ export default function ForestEnchantedSite({ template, embed, hideDemoBadge }: 
             <p className="mb-8 text-center text-sm text-[#8AA892]">השביל אל החגיגה</p>
           </Chapter>
           <PathDrawTimeline items={schedule} accent={ACCENT} text="#E8F0E4" muted={MUTED} />
-          <ChuppahMeet accent={ACCENT} className="mt-6" />
-          <BuffetSpread accent={ACCENT} className="mt-2" />
-          <DanceParty accent={ACCENT} className="mt-2" />
+          {/* Scenes are attached per schedule row via ScheduleBlock elsewhere;
+              Forest keeps path timeline — add one signature chuppah scene */}
+          <ChuppahMeet accent={ACCENT} className="mt-8" />
+          <DanceParty accent={ACCENT} className="mt-4" />
         </div>
       </SiteSection>
 

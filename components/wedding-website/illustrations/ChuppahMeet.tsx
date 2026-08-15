@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
-/** Bride & groom walk from opposite sides and meet under a chuppah. */
+/** Cinematic scene: bride & groom walk from opposite sides and meet under a floral chuppah. */
 export default function ChuppahMeet({
   accent = "#B8844F",
   className = "",
@@ -11,98 +11,137 @@ export default function ChuppahMeet({
   className?: string;
 }) {
   const reduce = useReducedMotion();
+  const soft = `${accent}33`;
+  const mid = `${accent}88`;
 
   return (
     <div
-      className={`relative mx-auto h-40 w-full max-w-xl overflow-hidden ${className}`}
+      className={`relative mx-auto w-full max-w-2xl overflow-hidden rounded-3xl ${className}`}
       aria-hidden
+      style={{
+        background: `linear-gradient(180deg, ${accent}12 0%, ${accent}08 55%, transparent 100%)`,
+        minHeight: 200,
+      }}
     >
-      {/* Ground */}
-      <div
-        className="absolute inset-x-0 bottom-3 h-px opacity-50"
-        style={{ background: accent }}
-      />
+      {/* Floating petals */}
+      {!reduce
+        ? [0, 1, 2, 3, 4].map((i) => (
+            <motion.span
+              key={i}
+              className="pointer-events-none absolute block h-2 w-2 rounded-full"
+              style={{
+                background: accent,
+                opacity: 0.35,
+                left: `${12 + i * 18}%`,
+                top: 8,
+              }}
+              animate={{ y: [0, 120], opacity: [0.4, 0], rotate: [0, 80] }}
+              transition={{
+                duration: 4 + i * 0.4,
+                repeat: Infinity,
+                delay: i * 0.6,
+                ease: "easeIn",
+              }}
+            />
+          ))
+        : null}
 
-      {/* Chuppah */}
-      <motion.div
-        className="absolute left-1/2 top-2 -translate-x-1/2"
-        initial={reduce ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.85 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 0.7 }}
+      <svg
+        className="mx-auto block h-[200px] w-full max-w-xl"
+        viewBox="0 0 420 200"
+        fill="none"
       >
-        <svg width="120" height="90" viewBox="0 0 120 90" fill="none">
+        {/* Soft ground */}
+        <ellipse cx="210" cy="188" rx="150" ry="10" fill={soft} />
+
+        {/* Chuppah poles + canopy */}
+        <motion.g
+          initial={reduce ? false : { opacity: 0, y: -12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+        >
+          <line x1="130" y1="48" x2="130" y2="170" stroke={accent} strokeWidth="4" strokeLinecap="round" />
+          <line x1="290" y1="48" x2="290" y2="170" stroke={accent} strokeWidth="4" strokeLinecap="round" />
+          {/* Canopy fabric */}
           <path
-            d="M10 28 L60 8 L110 28"
+            d="M118 52 Q210 18 302 52 L296 78 Q210 52 124 78 Z"
+            fill={mid}
             stroke={accent}
-            strokeWidth="3"
-            strokeLinecap="round"
-            fill="none"
+            strokeWidth="2"
           />
-          <path d="M18 28 h84 v8 H18Z" fill={accent} fillOpacity="0.35" />
-          <line x1="22" y1="36" x2="22" y2="82" stroke={accent} strokeWidth="2.5" />
-          <line x1="98" y1="36" x2="98" y2="82" stroke={accent} strokeWidth="2.5" />
-          <line x1="40" y1="36" x2="40" y2="70" stroke={accent} strokeWidth="1.5" opacity="0.5" />
-          <line x1="80" y1="36" x2="80" y2="70" stroke={accent} strokeWidth="1.5" opacity="0.5" />
-          {/* flowers on poles */}
-          <circle cx="22" cy="34" r="4" fill={accent} fillOpacity="0.7" />
-          <circle cx="98" cy="34" r="4" fill={accent} fillOpacity="0.7" />
-        </svg>
-      </motion.div>
+          <path d="M124 78 Q210 58 296 78" stroke={accent} strokeWidth="1.5" opacity="0.5" />
+          {/* Floral clusters on poles */}
+          <circle cx="130" cy="46" r="10" fill={accent} fillOpacity="0.55" />
+          <circle cx="122" cy="40" r="6" fill={accent} fillOpacity="0.4" />
+          <circle cx="140" cy="42" r="5" fill={accent} fillOpacity="0.45" />
+          <circle cx="290" cy="46" r="10" fill={accent} fillOpacity="0.55" />
+          <circle cx="282" cy="40" r="6" fill={accent} fillOpacity="0.4" />
+          <circle cx="300" cy="42" r="5" fill={accent} fillOpacity="0.45" />
+        </motion.g>
 
-      {/* Groom from right (LTR visual: right side) */}
-      <motion.div
-        className="absolute bottom-4"
-        style={{ right: "8%" }}
-        initial={reduce ? { x: 0, opacity: 1 } : { x: 90, opacity: 0 }}
-        whileInView={{ x: 28, opacity: 1 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 1.4, ease: "easeOut", delay: 0.2 }}
-      >
-        <PersonSilhouette accent={accent} variant="groom" />
-      </motion.div>
+        {/* Groom walks from right */}
+        <motion.g
+          initial={reduce ? { x: 0 } : { x: 110 }}
+          whileInView={{ x: 0 }}
+          viewport={{ once: true, margin: "-20px" }}
+          transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
+        >
+          <g transform="translate(232 96)">
+            <circle cx="18" cy="14" r="11" fill={accent} />
+            <rect x="8" y="28" width="20" height="36" rx="6" fill={accent} fillOpacity="0.9" />
+            <rect x="4" y="30" width="8" height="22" rx="3" fill={accent} fillOpacity="0.65" />
+            <rect x="24" y="30" width="8" height="22" rx="3" fill={accent} fillOpacity="0.65" />
+            <rect x="10" y="62" width="7" height="22" rx="3" fill={accent} fillOpacity="0.75" />
+            <rect x="20" y="62" width="7" height="22" rx="3" fill={accent} fillOpacity="0.75" />
+          </g>
+        </motion.g>
 
-      {/* Bride from left */}
-      <motion.div
-        className="absolute bottom-4"
-        style={{ left: "8%" }}
-        initial={reduce ? { x: 0, opacity: 1 } : { x: -90, opacity: 0 }}
-        whileInView={{ x: -28, opacity: 1 }}
-        viewport={{ once: true, margin: "-40px" }}
-        transition={{ duration: 1.4, ease: "easeOut", delay: 0.2 }}
-      >
-        <PersonSilhouette accent={accent} variant="bride" />
-      </motion.div>
-    </div>
-  );
-}
+        {/* Bride walks from left */}
+        <motion.g
+          initial={reduce ? { x: 0 } : { x: -110 }}
+          whileInView={{ x: 0 }}
+          viewport={{ once: true, margin: "-20px" }}
+          transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
+        >
+          <g transform="translate(132 90)">
+            <circle cx="22" cy="14" r="11" fill={accent} fillOpacity="0.95" />
+            {/* veil */}
+            <path d="M12 10 Q22 -6 32 10" fill={accent} fillOpacity="0.2" />
+            {/* dress */}
+            <path
+              d="M10 30 C12 48 14 78 22 92 C30 78 32 48 34 30 Z"
+              fill={accent}
+              fillOpacity="0.5"
+            />
+            <path
+              d="M8 32 Q22 42 36 32"
+              stroke={accent}
+              strokeWidth="2"
+              fill="none"
+              opacity="0.35"
+            />
+          </g>
+        </motion.g>
 
-function PersonSilhouette({
-  accent,
-  variant,
-}: {
-  accent: string;
-  variant: "bride" | "groom";
-}) {
-  if (variant === "bride") {
-    return (
-      <svg width="36" height="56" viewBox="0 0 36 56" fill="none">
-        <circle cx="18" cy="10" r="7" fill={accent} fillOpacity="0.9" />
-        <path
-          d="M8 22 C8 22 10 50 18 52 C26 50 28 22 28 22 Z"
+        {/* Heart when they meet */}
+        <motion.path
+          d="M210 110 C208 104 200 102 198 108 C196 102 188 104 190 110 C190 118 210 128 210 128 C210 128 230 118 230 110 C232 104 224 102 222 108 C220 102 212 104 210 110Z"
           fill={accent}
-          fillOpacity="0.55"
+          initial={reduce ? { scale: 1, opacity: 0.85 } : { scale: 0, opacity: 0 }}
+          whileInView={{ scale: 1, opacity: 0.9 }}
+          viewport={{ once: true }}
+          transition={{ delay: 1.7, type: "spring", stiffness: 220, damping: 12 }}
+          style={{ transformOrigin: "210px 115px" }}
         />
-        <path d="M6 24 Q18 30 30 24" stroke={accent} strokeWidth="1.5" fill="none" opacity="0.5" />
       </svg>
-    );
-  }
-  return (
-    <svg width="32" height="56" viewBox="0 0 32 56" fill="none">
-      <circle cx="16" cy="10" r="7" fill={accent} fillOpacity="0.95" />
-      <rect x="8" y="20" width="16" height="28" rx="4" fill={accent} fillOpacity="0.75" />
-      <rect x="6" y="22" width="6" height="18" rx="2" fill={accent} fillOpacity="0.55" />
-      <rect x="20" y="22" width="6" height="18" rx="2" fill={accent} fillOpacity="0.55" />
-    </svg>
+
+      <p
+        className="pb-3 text-center text-[11px] font-bold tracking-[0.18em]"
+        style={{ color: accent }}
+      >
+        פגישה תחת החופה
+      </p>
+    </div>
   );
 }
