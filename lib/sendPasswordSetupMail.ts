@@ -39,13 +39,12 @@ export async function sendPasswordSetupMail(
   }
 
   /* ===== LINK ===== */
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://invistimo.com";
 
-  if (!baseUrl) {
-    throw new Error("MISSING_NEXT_PUBLIC_SITE_URL");
-  }
-
-  const link = `${baseUrl}/set-password?token=${token}`;
+  const link = `${baseUrl.replace(/\/$/, "")}/set-password?token=${token}`;
   const email = String(user.email || "").trim().toLowerCase();
   const phone = String(user.phone || "").trim();
 
@@ -57,13 +56,18 @@ export async function sendPasswordSetupMail(
     smsSent: false,
   };
 
+  /*
+    The reset token is already saved on the user. Missing phone or SMS
+    gateway errors must not fail account creation — callers can still
+    share the setup link manually.
+  */
   if (!phone) {
     result.smsError = "MISSING_PHONE_FOR_PASSWORD_SMS";
     console.error("SEND PASSWORD SETUP SMS FAILED: missing phone", {
       userId,
       email,
     });
-    throw new Error(result.smsError);
+    return result;
   }
 
   try {
@@ -76,7 +80,6 @@ export async function sendPasswordSetupMail(
     result.smsError =
       smsError instanceof Error ? smsError.message : String(smsError);
     console.error("SEND PASSWORD SETUP SMS FAILED:", smsError);
-    throw new Error(result.smsError || "PASSWORD_SETUP_SMS_FAILED");
   }
 
   return result;

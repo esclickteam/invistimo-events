@@ -86,6 +86,7 @@ export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
   const [staffCreateType, setStaffCreateType] =
@@ -340,6 +341,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         ? {
             name,
             email,
+            phone,
             role,
             billing: {
               pricePerRecord: producerPricePerRecord,
@@ -350,6 +352,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             ? {
                 name,
                 email,
+                phone,
                 role: "staff",
 
                 // עובד של מפיק
@@ -394,10 +397,11 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 hasPaid: true,
                 isActive: true,
               }
-            : staffCreateType === "seating"
+              : staffCreateType === "seating"
               ? {
                   name,
                   email,
+                  phone,
                   role: "staff",
 
                   // עובד הושבה פנימי של Invistimo
@@ -447,6 +451,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 ? {
                     name,
                     email,
+                    phone,
                     role: "staff",
 
                     // דייל / דיילת פנימי של Invistimo
@@ -494,6 +499,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 : {
                   name,
                   email,
+                  phone,
                   role: "staff",
 
                   // עובד פנימי של Invistimo
@@ -543,6 +549,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             ? {
                 name,
                 email,
+                phone,
                 role: "venue_owner",
 
                 /*
@@ -588,6 +595,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             : {
                 name,
                 email,
+                phone,
                 role,
                 plan,
 
@@ -693,17 +701,30 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!data.success) {
-        throw new Error("CREATE_USER_FAILED");
+      if (!res.ok || !data?.success) {
+        throw new Error(
+          data?.message || data?.error || "CREATE_USER_FAILED"
+        );
       }
 
+      if (data?.passwordSetup && data.passwordSetup.smsSent === false) {
+        alert(
+          "המשתמש נוצר בהצלחה, אבל לא נשלח SMS להגדרת סיסמה. בדקי שמספר הטלפון תקין, או שלחי קישור ידנית."
+        );
+      }
 
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
-      alert("שגיאה ביצירת משתמש");
+      const message =
+        err instanceof Error &&
+        err.message &&
+        err.message !== "CREATE_USER_FAILED"
+          ? err.message
+          : "שגיאה ביצירת משתמש";
+      alert(message);
     }
   }
 
@@ -712,6 +733,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
     ? false
     : !name ||
       !email ||
+      !phone.trim() ||
       (role === "producer" && !producerPricePerRecord) ||
       (role === "staff" &&
         staffCreateType === "producer" &&
@@ -776,6 +798,21 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
               />
+
+              {role !== "user" && (
+                <label className="space-y-2 block">
+                  <input
+                    type="tel"
+                    placeholder="טלפון ל־SMS הגדרת סיסמה"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                  />
+                  <p className="text-xs text-[#8b7b68]">
+                    חובה. לינק הגדרת הסיסמה נשלח ב־SMS למספר הזה.
+                  </p>
+                </label>
+              )}
 
               <select
                 value={role}
