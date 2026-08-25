@@ -155,10 +155,20 @@ const VenueLeadSchema = new Schema(
       trim: true,
     },
 
+    /**
+     * Prefer Invistimo Event._id after conversion (string for backward compat).
+     */
     eventId: {
       type: String,
       default: "",
       trim: true,
+    },
+
+    venueEventId: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
     },
 
     meetingAt: {
@@ -189,6 +199,34 @@ const VenueLeadSchema = new Schema(
       type: String,
       default: "",
       trim: true,
+    },
+
+    proposalFile: {
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
+      originalName: { type: String, default: "" },
+      mimeType: { type: String, default: "" },
+      size: { type: Number, default: 0 },
+      uploadedAt: { type: Date, default: null },
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    },
+
+    contractFile: {
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
+      originalName: { type: String, default: "" },
+      mimeType: { type: String, default: "" },
+      size: { type: Number, default: 0 },
+      uploadedAt: { type: Date, default: null },
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
     },
 
     activities: {

@@ -180,6 +180,9 @@ export default function VenueDashboardClient() {
   const [serverError, setServerError] = useState("");
   const [savingHallId, setSavingHallId] = useState<string | null>(null);
   const [creatingHall, setCreatingHall] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
 
   const fetchDashboard = async () => {
     setLoadingDashboard(true);
@@ -223,6 +226,80 @@ export default function VenueDashboardClient() {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  const createTask = async () => {
+    const title = newTaskTitle.trim();
+    if (!title || creatingTask) return;
+    setCreatingTask(true);
+    try {
+      const hallId = halls[0]?.id || "";
+      const res = await fetch("/api/venues/dashboard/tasks", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          area: "תפעול",
+          due: "היום",
+          priority: "medium",
+          hallId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "יצירת משימה נכשלה");
+      }
+      setNewTaskTitle("");
+      if (data.task) {
+        setTasks((prev) => [data.task, ...prev]);
+      } else {
+        await fetchDashboard();
+      }
+    } catch (error) {
+      console.error("POST task failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "יצירת משימה נכשלה"
+      );
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  const toggleTaskDone = async (task: Task) => {
+    if (togglingTaskId) return;
+    setTogglingTaskId(task.id);
+    const nextDone = !task.done;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, done: nextDone } : t))
+    );
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/tasks/${encodeURIComponent(task.id)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ done: nextDone }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "עדכון משימה נכשל");
+      }
+      if (data.task) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, ...data.task } : t))
+        );
+      }
+    } catch (error) {
+      console.error("PATCH task failed:", error);
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, done: task.done } : t))
+      );
+    } finally {
+      setTogglingTaskId(null);
+    }
+  };
 
   const stats = useMemo(() => {
     const monthlyEvents = halls.reduce((sum, hall) => sum + hall.monthlyEvents, 0);
@@ -284,6 +361,9 @@ export default function VenueDashboardClient() {
 
       if (data.hall) {
         setHalls((prev) => [...prev, data.hall]);
+        router.push(
+          `/venues/dashboard/halls/${encodeURIComponent(data.hall.id)}`
+        );
       }
 
       setCreateHallOpen(false);
@@ -406,33 +486,27 @@ export default function VenueDashboardClient() {
           </div>
 
           <nav className="mt-7 space-y-1">
-            {[
-              { label: "דשבורד בעלים", icon: LayoutDashboard, active: true },
-              { label: "יומן אירועים", icon: CalendarDays },
-              { label: "הצעות מחיר", icon: FileText },
-              { label: "תשלומים וחשבונות", icon: CreditCard },
-              { label: "תחזוקה ותפעול", icon: Wrench },
-              { label: "צוות ועובדים", icon: ShieldCheck },
-              { label: "הגדרות מתחם", icon: Settings },
-            ].map((item) => {
-              const Icon = item.icon;
+            <button
+              type="button"
+              onClick={() => router.push("/venues/dashboard")}
+              className="group flex h-12 w-full items-center gap-3 rounded-2xl bg-gradient-to-l from-[#b98121] to-[#d5b36d] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#b98121]/15 transition"
+            >
+              <LayoutDashboard size={18} />
+              <span className="flex-1 text-right">סקירה מתחם</span>
+            </button>
 
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={[
-                    "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
-                    item.active
-                      ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
-                      : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
-                  ].join(" ")}
-                >
-                  <Icon size={18} />
-                  <span className="flex-1 text-right">{item.label}</span>
-                </button>
-              );
-            })}
+            {halls.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => goToHall(halls[0].id)}
+                className="group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold text-[#736657] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+              >
+                <Building2 size={18} />
+                <span className="flex-1 text-right">
+                  ניהול {halls[0].name || "אולם"}
+                </span>
+              </button>
+            ) : null}
           </nav>
 
           <div className="mt-7 rounded-3xl border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4">
@@ -501,11 +575,26 @@ export default function VenueDashboardClient() {
 
                   <button
                     type="button"
-                    onClick={() => router.push("/venues/dashboard/events")}
+                    onClick={() => {
+                      const firstHallId =
+                        halls?.[0]?.id ||
+                        (typeof window !== "undefined"
+                          ? localStorage.getItem("venue.activeHallId")
+                          : null);
+                      if (firstHallId) {
+                        router.push(
+                          `/venues/dashboard/halls/${encodeURIComponent(
+                            String(firstHallId)
+                          )}/calendar`
+                        );
+                      } else {
+                        setCreateHallOpen(true);
+                      }
+                    }}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
                   >
                     <CalendarDays size={17} />
-                    יומן כל המתחם
+                    יומן אולם
                   </button>
                 </div>
               </div>
@@ -784,7 +873,20 @@ export default function VenueDashboardClient() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/venues/dashboard/events")}
+                  onClick={() => {
+                    const firstHallId =
+                      halls?.[0]?.id ||
+                      (typeof window !== "undefined"
+                        ? localStorage.getItem("venue.activeHallId")
+                        : null);
+                    if (firstHallId) {
+                      router.push(
+                        `/venues/dashboard/halls/${encodeURIComponent(
+                          String(firstHallId)
+                        )}/calendar`
+                      );
+                    }
+                  }}
                   className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                 >
                   הצג את כל האירועים
@@ -876,6 +978,29 @@ export default function VenueDashboardClient() {
                   </div>
                 </div>
 
+                <div className="mt-4 flex gap-2">
+                  <input
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="משימה חדשה..."
+                    className="h-11 flex-1 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void createTask();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={creatingTask || !newTaskTitle.trim()}
+                    onClick={() => void createTask()}
+                    className="h-11 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white disabled:opacity-40"
+                  >
+                    הוסף
+                  </button>
+                </div>
+
                 <div className="mt-5 space-y-3">
                   {tasks.length ? (
                     tasks.map((task) => (
@@ -885,7 +1010,9 @@ export default function VenueDashboardClient() {
                       >
                         <input
                           type="checkbox"
-                          defaultChecked={task.done}
+                          checked={task.done}
+                          disabled={togglingTaskId === task.id}
+                          onChange={() => void toggleTaskDone(task)}
                           className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
                         />
 
@@ -930,7 +1057,7 @@ export default function VenueDashboardClient() {
                     <EmptySmall
                       icon={<ShieldCheck size={22} />}
                       title="אין משימות פתוחות"
-                      description="בהמשך נוסיף יצירת משימות לצוות ולתפעול."
+                      description="הוסיפי משימה חדשה בשדה למעלה."
                     />
                   )}
                 </div>
@@ -1038,7 +1165,7 @@ export default function VenueDashboardClient() {
                     <EmptySmall
                       icon={<Bell size={22} />}
                       title="אין התראות כרגע"
-                      description="התראות תחזוקה, תשלומים וצוות יופיעו כאן בהמשך."
+                      description="התראות לידים, המרות ועדכוני אולם יופיעו כאן."
                     />
                   )}
                 </div>
@@ -1219,6 +1346,8 @@ function EditHallModal({
   onAutoSaved: (hall: Hall) => void;
 }) {
   const [form, setForm] = useState<Hall>(hall);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const { state: autoSaveState, error: autoSaveError } = useAutoSaveHall(
     form,
@@ -1229,12 +1358,49 @@ function EditHallModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    updateField("image", previewUrl);
+    setUploadingImage(true);
+    setImageError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hall.id)}/image`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "העלאת תמונה נכשלה");
+      }
+
+      const imageUrl = String(data.image || data.hall?.image || "");
+
+      if (imageUrl) {
+        updateField("image", imageUrl);
+        onAutoSaved(data.hall || { ...form, image: imageUrl });
+      }
+    } catch (error) {
+      console.error("Hall image upload failed:", error);
+      setImageError(
+        error instanceof Error ? error.message : "העלאת תמונה נכשלה"
+      );
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1292,20 +1458,30 @@ function EditHallModal({
               </div>
 
               <label className="mt-4 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]">
-                <ImagePlus size={17} />
-                החלפת תמונה זמנית
+                {uploadingImage ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <ImagePlus size={17} />
+                )}
+                {uploadingImage ? "מעלה תמונה..." : "החלפת תמונת אולם"}
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  disabled={uploadingImage}
                   onChange={handleImageChange}
                 />
               </label>
 
-              <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
-                העלאת קובץ כאן היא תצוגה זמנית בלבד. כדי שתמונה תישמר אחרי רענון,
-                הזיני קישור תמונה או נחבר בהמשך Cloudinary.
-              </p>
+              {imageError ? (
+                <p className="mt-3 text-xs font-bold leading-5 text-rose-700">
+                  {imageError}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
+                  התמונה נשמרת בשרת (Cloudinary) ומוצגת בכרטיס האולם.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

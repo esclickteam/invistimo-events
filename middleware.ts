@@ -87,7 +87,11 @@ function isProtectedDashboardPath(pathname: string): boolean {
     pathname.startsWith("/producer-staff") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/staff") ||
-    pathname.startsWith("/employee")
+    pathname.startsWith("/employee") ||
+    // Venue Owner Suite (exclude public client registration)
+    (pathname.startsWith("/venues") &&
+      !pathname.startsWith("/venue-client") &&
+      !pathname.startsWith("/venues/public"))
   );
 }
 
@@ -95,13 +99,30 @@ function isAuthEntryPath(pathname: string): boolean {
   return pathname === "/" || pathname === "/login" || pathname.startsWith("/login/");
 }
 
+function isTrueProductionHost(hostname: string) {
+  // Never force-www for staging / preview hosts
+  if (
+    hostname === "staging.invistimo.com" ||
+    hostname.endsWith(".vercel.app") ||
+    hostname.includes("localhost")
+  ) {
+    return false;
+  }
+  const appEnv = String(process.env.APP_ENV || "").toLowerCase();
+  if (appEnv === "staging" || appEnv === "preview" || appEnv === "development") {
+    return false;
+  }
+  return (
+    process.env.NODE_ENV === "production" &&
+    (appEnv === "production" || !appEnv) &&
+    hostname === "invistimo.com"
+  );
+}
+
 function redirectLoggedInUserFromAuthEntry(req: NextRequest, dashboardPath: string) {
   const url = req.nextUrl.clone();
 
-  if (
-    process.env.NODE_ENV === "production" &&
-    url.hostname === "invistimo.com"
-  ) {
+  if (isTrueProductionHost(url.hostname)) {
     url.hostname = "www.invistimo.com";
   }
 
@@ -152,8 +173,8 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  /* 2) Force www (production) */
-  if (process.env.NODE_ENV === "production" && hostname === "invistimo.com") {
+  /* 2) Force www (true Production only — never staging/preview) */
+  if (isTrueProductionHost(hostname)) {
     const url = nextUrl.clone();
     url.hostname = "www.invistimo.com";
     return NextResponse.redirect(url);
@@ -263,5 +284,6 @@ export const config = {
     "/admin/:path*",
     "/staff/:path*",
     "/employee/:path*",
+    "/venues/:path*",
   ],
 };

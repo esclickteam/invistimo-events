@@ -90,3 +90,4 @@ tmp/
 # Generated artifacts
 dist/
 build/
+.vercel

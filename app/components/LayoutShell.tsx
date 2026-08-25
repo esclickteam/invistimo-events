@@ -37,6 +37,9 @@ export default function LayoutShell({
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
 
+  // ❌ ניהול אולמות – בלי Header/Footer שיווקי (VenueAppHeader נפרד)
+  const isVenues = pathname.startsWith("/venues");
+
   // ❌ עורך הזמנות – בלי Footer בלבד
   const hideFooterOnly =
     pathname === "/dashboard/create-invite" ||
@@ -47,11 +50,16 @@ export default function LayoutShell({
   /* =========================================================
      החלטות תצוגה
   ========================================================= */
+  // Venues keeps VenueAppHeader (passed from ClientShell) but never marketing Footer
   const shouldHideHeader =
     hideHeaderAndFooter || isDashboard || isProducer;
 
   const shouldHideFooter =
-    hideHeaderAndFooter || hideFooterOnly || isDashboard || isProducer;
+    hideHeaderAndFooter ||
+    hideFooterOnly ||
+    isDashboard ||
+    isProducer ||
+    isVenues;
 
   /* =========================================================
      Render

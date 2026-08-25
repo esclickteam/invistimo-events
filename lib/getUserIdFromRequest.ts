@@ -127,25 +127,53 @@ function getDecodedUserId(decoded: any) {
   return decoded?.userId || decoded?.id || decoded?._id || null;
 }
 
-async function getFreshUserAuthFields(userId: string) {
+function normalizeAuthVersion(raw: unknown) {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function getFreshUserAuthFields(
+  userId: string,
+  options?: { allowInactive?: boolean }
+) {
   try {
     await connectDB();
 
     const user = await User.findById(userId)
-      .select("role staffType employeeScope")
+      .select("role staffType employeeScope authVersion isActive")
       .lean();
 
     if (!user) return null;
+
+    const isActive = (user as any).isActive !== false;
+
+    /*
+      Regular customer sessions must not authenticate when isActive=false.
+      Admin/producer impersonation MUST still resolve the target user so
+      Event/Invitation/Guest APIs keep working (PR #48 regression).
+    */
+    if (!isActive && !options?.allowInactive) return null;
 
     return {
       role: normalizeRole((user as any).role),
       staffType: (user as any).staffType ?? null,
       employeeScope: normalizeEmployeeScope((user as any).employeeScope),
+      authVersion: normalizeAuthVersion((user as any).authVersion),
+      isActive,
     };
   } catch (err) {
     console.error("❌ getFreshUserAuthFields error:", err);
     return null;
   }
+}
+
+function isTokenAuthVersionValid(
+  decoded: any,
+  freshAuthVersion: number | undefined
+) {
+  if (freshAuthVersion === undefined) return false;
+  const tokenAuthVersion = normalizeAuthVersion(decoded?.authVersion);
+  return tokenAuthVersion === freshAuthVersion;
 }
 
 /* =========================
@@ -211,16 +239,35 @@ export async function getUserIdFromRequest(
     const userId = getDecodedUserId(activeDecoded);
     if (!userId) return null;
 
-    const freshUserAuthFields = await getFreshUserAuthFields(String(userId));
+    /*
+      Impersonation tokens must resolve even when the target customer was
+      marked isActive=false (common for completed/paid events). Otherwise
+      Admin "login as user" gets /api/me OK but /api/events → 401 and the
+      dashboard looks like the Event was deleted.
+    */
+    const isImpersonationSession =
+      Boolean(impersonationDecoded) ||
+      activeDecoded?.impersonated === true ||
+      activeDecoded?.impersonatedByAdmin === true ||
+      activeDecoded?.impersonationSourceRole === "admin" ||
+      impersonationDecoded?.impersonationSourceRole === "admin";
 
-    const role = freshUserAuthFields?.role ?? normalizeRole(activeDecoded.role);
+    const freshUserAuthFields = await getFreshUserAuthFields(String(userId), {
+      allowInactive: isImpersonationSession,
+    });
+    if (!freshUserAuthFields) return null;
 
-    const staffType =
-      freshUserAuthFields?.staffType ?? activeDecoded.staffType ?? null;
+    if (
+      !isTokenAuthVersionValid(activeDecoded, freshUserAuthFields.authVersion)
+    ) {
+      return null;
+    }
 
-    const employeeScope =
-      freshUserAuthFields?.employeeScope ??
-      normalizeEmployeeScope(activeDecoded.employeeScope);
+    const role = freshUserAuthFields.role;
+
+    const staffType = freshUserAuthFields.staffType ?? null;
+
+    const employeeScope = freshUserAuthFields.employeeScope;
 
     /* ---------------------------------
        3) Find original impersonator
@@ -256,7 +303,9 @@ export async function getUserIdFromRequest(
       impersonationDecoded?.impersonationSourceRole === "admin";
 
     if (authUserId && authUserId !== String(userId)) {
-      const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId));
+      const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId), {
+        allowInactive: true,
+      });
 
       if (freshOriginalAuth?.role === "admin") {
         impersonatedByAdmin = true;
@@ -264,7 +313,9 @@ export async function getUserIdFromRequest(
     }
 
     if (!impersonatedByAdmin && adminUserId) {
-      const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId));
+      const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId), {
+        allowInactive: true,
+      });
 
       if (
         freshAdminAuth?.role === "admin" ||
@@ -272,6 +323,15 @@ export async function getUserIdFromRequest(
       ) {
         impersonatedByAdmin = true;
       }
+    }
+
+    // Non-impersonation sessions still cannot use deactivated accounts.
+    if (
+      freshUserAuthFields.isActive === false &&
+      !isImpersonationSession &&
+      !impersonatedByAdmin
+    ) {
+      return null;
     }
 
     /* ---------------------------------

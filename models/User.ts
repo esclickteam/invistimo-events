@@ -113,6 +113,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       eventDayBalance: number;
       notes?: string;
     };
+
+    transportationManagement?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
   };
 
   /**
@@ -161,6 +168,14 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   venueClientSource?: boolean;
   venueOwnerId?: mongoose.Types.ObjectId | null;
 
+  /**
+   * Venue system user (login for a hall) — NOT Invistimo Staff.
+   * Access is always via VenueMembership, never via staffType.
+   */
+  venueUser?: boolean;
+  mustChangePassword?: boolean;
+  authVersion?: number;
+
   venueHallId?: string;
   venueHallName?: string;
 
@@ -203,10 +218,12 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
+  includeTransportationManagement: boolean;
 
   accessModules?: {
     rsvpSeating: boolean;
     eventProduction: boolean;
+    transportationManagement?: boolean;
 
     venues?: boolean;
     venueDashboard?: boolean;
@@ -231,6 +248,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     seatingEnabled: boolean;
     remindersEnabled: boolean;
     callsEnabled?: boolean;
+    transportationEnabled?: boolean;
   };
 
   smsBalance: number;
@@ -633,6 +651,30 @@ preRsvpMessages: {
           default: "",
         },
       },
+
+      transportationManagement: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
     },
 
     /**
@@ -937,6 +979,12 @@ preRsvpMessages: {
       default: false,
     },
 
+    includeTransportationManagement: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     accessModules: {
       rsvpSeating: {
         type: Boolean,
@@ -945,6 +993,12 @@ preRsvpMessages: {
       },
 
       eventProduction: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      transportationManagement: {
         type: Boolean,
         default: false,
         index: true,
@@ -1048,6 +1102,11 @@ preRsvpMessages: {
         type: Boolean,
         default: false,
       },
+
+      transportationEnabled: {
+        type: Boolean,
+        default: false,
+      },
     },
 
     smsBalance: {
@@ -1088,6 +1147,26 @@ preRsvpMessages: {
     needsPasswordSetup: {
       type: Boolean,
       default: true,
+    },
+
+    /**
+     * Venue tenant login user (hall employee with system access).
+     * Must never set staffType / Invistimo staff portals.
+     */
+    venueUser: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+
+    authVersion: {
+      type: Number,
+      default: 0,
     },
 
     resetPasswordToken: {
@@ -1254,10 +1333,26 @@ UserSchema.pre("validate", function () {
       ),
       notes: String(currentSalesUpsells.alcoholManagement?.notes || ""),
     },
+
+    transportationManagement: {
+      enabled: Boolean(
+        currentSalesUpsells.transportationManagement?.enabled ||
+          doc.includeTransportationManagement
+      ),
+      price: Number(currentSalesUpsells.transportationManagement?.price || 0),
+      givenFree: Boolean(
+        currentSalesUpsells.transportationManagement?.givenFree
+      ),
+      notes: String(currentSalesUpsells.transportationManagement?.notes || ""),
+    },
   };
 
   if (doc.salesUpsells.digitalSeating?.enabled) {
     doc.includeDigitalSeating = true;
+  }
+
+  if (doc.salesUpsells.transportationManagement?.enabled) {
+    doc.includeTransportationManagement = true;
   }
 
   if (doc.salesUpsells.thirdRsvpRound?.enabled) {
@@ -1338,10 +1433,18 @@ UserSchema.pre("validate", function () {
     doc.customDesignEnabled = true;
   }
 
+  if (doc.includeTransportationManagement) {
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      transportationEnabled: true,
+    };
+  }
+
   /*
     הרשאות מודולים:
     rsvpSeating = אישורי הגעה / הושבה
     eventProduction = הפקת אירוע
+    transportationManagement = ניהול הסעות
     venues = מערכת אולמות
   */
   const isVenueOwner = doc.role === "venue_owner";
@@ -1353,6 +1456,12 @@ UserSchema.pre("validate", function () {
 
     eventProduction: Boolean(
       doc.accessModules?.eventProduction || doc.includeEventManagement
+    ),
+
+    transportationManagement: Boolean(
+      doc.accessModules?.transportationManagement ||
+        doc.includeTransportationManagement ||
+        doc.salesUpsells?.transportationManagement?.enabled
     ),
 
     venues: Boolean(doc.accessModules?.venues ?? isVenueOwner),
@@ -1492,8 +1601,14 @@ if (
   doc.role === "producer" ||
   doc.role === "venue_owner"
 ) {
+  // Venue login users keep employeeScope="venue" and never get Invistimo staffType.
+  // Regular clients/producers/owners stay outside Invistimo Staff portals.
   doc.staffType = null;
-  doc.employeeScope = null;
+  if (doc.role === "user" && doc.venueUser) {
+    doc.employeeScope = "venue";
+  } else {
+    doc.employeeScope = null;
+  }
 }
 
 /*
@@ -1605,6 +1720,8 @@ UserSchema.index({ "salesUpsells.preRsvpMessages.saveTheDateSentAt": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.invitationOnlySentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
+UserSchema.index({ "salesUpsells.transportationManagement.enabled": 1 });
+UserSchema.index({ includeTransportationManagement: 1 });
 
 UserSchema.index({ hasPaid: 1, paidAmount: 1, paidAt: 1 });
 UserSchema.index({ hasPaid: 1, paidAmount: 1, createdAt: 1 });

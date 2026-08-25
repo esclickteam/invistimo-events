@@ -59,29 +59,13 @@ const SHIFT_COLLECTIONS_TO_TRY = [
   "employeeshiftschedules",
 ];
 
+/*
+  מקור האמת לשעות בפועל: רק סשנים מכפתורי התחל/סיים משמרת.
+  עריכת אדמין נשמרת ב-employeehoursapprovals עם manualOverride.
+*/
 const SOFTPHONE_COLLECTIONS_TO_TRY = [
   "softphoneworksessions",
   "softphone_work_sessions",
-  "softphonesessions",
-  "softphone_sessions",
-  "softphoneworklogs",
-  "softphone_work_logs",
-  "softphonelogs",
-  "softphone_logs",
-  "staffsoftphonesessions",
-  "staff_softphone_sessions",
-  "employeehours",
-  "employee_hours",
-  "employeehourlogs",
-  "employee_hour_logs",
-  "worklogs",
-  "work_logs",
-  "shiftlogs",
-  "shift_logs",
-  "telnyxsessions",
-  "telnyx_sessions",
-  "calllogs",
-  "call_logs",
 ];
 
 function cleanStr(value: unknown) {
@@ -176,9 +160,14 @@ function getMonthParts(monthValue: string) {
 }
 
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate()
-  )}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
 }
 
 function makeMonthDateRange(monthKey: string) {
@@ -257,10 +246,11 @@ function formatTime(value: any) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleTimeString("he-IL", {
+  return date.toLocaleTimeString("en-GB", {
     timeZone: "Asia/Jerusalem",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
@@ -440,6 +430,12 @@ function dateQuery(monthKey: string) {
   const { start, end } = makeMonthDateRange(monthKey);
 
   return [
+    // SoftphoneWorkSession — שדה month/date בפורמט ישראל
+    { month: monthKey },
+    { date: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+    { workDate: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+    { dayKey: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+
     { date: { $gte: start, $lt: end } },
     { workDate: { $gte: start, $lt: end } },
     { day: { $gte: start, $lt: end } },
@@ -775,25 +771,34 @@ function sessionsSignature(sessions: WorkSession[]) {
 }
 
 function hasManualOverride(saved: any, sourceRow: DayRow) {
+  /*
+    עדיפות לעריכת אדמין מפורשת.
+    אם אין דגל manualOverride — רק כשיש הבדל אמיתי בשעות/מקטעים
+    (לא הערה בלבד) נחשב לדריסה, כדי לא לאבד כניסה/יציאה מהסופטפון.
+  */
   if (saved?.manualOverride === true) return true;
 
-  const savedSessions = normalizeWorkSessions(saved);
-  const sourceSessions = normalizeWorkSessions(sourceRow);
+  const savedSessions = normalizeWorkSessions(saved).filter(
+    (session: WorkSession) => session.start || session.end,
+  );
+  const sourceSessions = normalizeWorkSessions(sourceRow).filter(
+    (session: WorkSession) => session.start || session.end,
+  );
 
   const savedSessionSignature = sessionsSignature(savedSessions);
   const sourceSessionSignature = sessionsSignature(sourceSessions);
 
-  const savedNote = cleanStr(saved?.note);
-  const sourceNote = cleanStr(sourceRow.note);
-  const savedMinutes = Number(saved?.totalMinutes);
-  const sourceMinutes = Number(sourceRow.totalMinutes || 0);
+  // הערה בלבד / רשומה ריקה לא דורסת את שעון הסופטפון
+  if (!savedSessionSignature && !Number(saved?.totalMinutes)) {
+    return false;
+  }
 
-  // כולל מקרה של מחיקת שעות (חתימה ריקה מול מקור עם שעות)
   if (savedSessionSignature !== sourceSessionSignature) {
     return true;
   }
 
-  if (savedNote !== sourceNote) return true;
+  const savedMinutes = Number(saved?.totalMinutes);
+  const sourceMinutes = Number(sourceRow.totalMinutes || 0);
 
   if (
     Number.isFinite(savedMinutes) &&

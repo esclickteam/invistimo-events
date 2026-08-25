@@ -4,6 +4,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  VENUE_EVENT_STATUSES,
+  VENUE_EVENT_STATUS_LABELS,
+  getVenueEventStatusStyle,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
+import {
   ArrowRight,
   Building2,
   CalendarDays,
@@ -15,9 +21,11 @@ import {
   Grid3X3,
   ListChecks,
   Loader2,
+  Pencil,
   Plus,
   Save,
   Search,
+  Trash2,
   Settings2,
   Sparkles,
   UsersRound,
@@ -31,19 +39,11 @@ import {
 
 type CalendarView = "day" | "week" | "month";
 
-type VenueEventStatus =
-  | "lead"
-  | "proposal"
-  | "closed"
-  | "confirmed"
-  | "preparing"
-  | "live"
-  | "done"
-  | "cancelled";
-
 type VenueEvent = {
   id: string;
   _id?: string;
+  venueEventId?: string;
+  linkedEventId?: string;
 
   ownerId?: string;
   hallId: string;
@@ -59,7 +59,7 @@ type VenueEvent = {
   endTime: string;
 
   guests: number;
-  status: VenueEventStatus;
+  status: VenueEventLifecycleStatus;
 
   budget?: number;
   paidAmount?: number;
@@ -90,9 +90,17 @@ type NewEventForm = {
   startTime: string;
   endTime: string;
   guests: string;
-  status: VenueEventStatus;
+  status: VenueEventLifecycleStatus;
   budget: string;
   paidAmount: string;
+  notes: string;
+};
+
+type EditEventForm = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: VenueEventLifecycleStatus;
   notes: string;
 };
 
@@ -186,26 +194,13 @@ function getEventHour(time: string, fallback: number) {
   return hour + minute / 60;
 }
 
-function statusLabel(status: VenueEventStatus) {
-  if (status === "lead") return "ליד";
-  if (status === "proposal") return "בהצעה";
-  if (status === "closed") return "סגור";
-  if (status === "confirmed") return "מאושר";
-  if (status === "preparing") return "בהכנות";
-  if (status === "live") return "פעיל עכשיו";
-  if (status === "done") return "הסתיים";
-  return "בוטל";
+function statusLabel(status: VenueEventLifecycleStatus) {
+  return VENUE_EVENT_STATUS_LABELS[status] || status;
 }
 
-function itemColorClass(status: VenueEventStatus) {
-  if (status === "closed") return "border-[#d6a33a] bg-[#fff4dc] text-[#7b4e09]";
-  if (status === "confirmed") return "border-emerald-300 bg-emerald-50 text-emerald-800";
-  if (status === "preparing") return "border-sky-300 bg-sky-50 text-sky-800";
-  if (status === "proposal") return "border-rose-300 bg-rose-50 text-rose-800";
-  if (status === "lead") return "border-violet-300 bg-violet-50 text-violet-800";
-  if (status === "live") return "border-emerald-400 bg-emerald-100 text-emerald-900";
-  if (status === "done") return "border-slate-300 bg-slate-50 text-slate-700";
-  return "border-rose-300 bg-rose-50 text-rose-800";
+function itemColorClass(status: VenueEventLifecycleStatus) {
+  const style = getVenueEventStatusStyle(status);
+  return `border ${style.border} ${style.bg} ${style.text}`;
 }
 
 function getTodayYmd() {
@@ -235,6 +230,12 @@ export default function HallCalendarPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<VenueEvent | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const weekDays = useMemo(() => buildWeekDays(currentDate), [currentDate]);
   const weekFrom = weekDays[0]?.date;
@@ -312,7 +313,125 @@ export default function HallCalendarPage() {
   }, [events]);
 
   const goToEvent = (item: VenueEvent) => {
-    router.push(`/venues/dashboard/events/${item.id}`);
+    const eventId = item.linkedEventId || item.id;
+    if (!eventId) return;
+    router.push(`/venues/dashboard/events/${eventId}`);
+  };
+
+  const openEdit = (item: VenueEvent) => {
+    setEditingEvent(item);
+    setEditOpen(true);
+    setServerError("");
+    setSuccessMessage("");
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditingEvent(null);
+  };
+
+  const updateEvent = async (form: EditEventForm) => {
+    if (!editingEvent) return;
+
+    const venueEventId = editingEvent.venueEventId || editingEvent._id;
+    if (!venueEventId) {
+      setServerError("מזהה אירוע חסר");
+      return;
+    }
+
+    setSaving(true);
+    setServerError("");
+    setSuccessMessage("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/halls/${hallId}/calendar`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          venueEventId,
+          date: form.date,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          status: form.status,
+          notes: form.notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "עדכון אירוע נכשל");
+      }
+
+      if (data.event) {
+        setEvents((prev) =>
+          prev.map((item) =>
+            (item.venueEventId || item._id) === venueEventId ? data.event : item
+          )
+        );
+      }
+
+      setSuccessMessage(data.message || "האירוע עודכן בהצלחה");
+      closeEdit();
+    } catch (error) {
+      console.error("PATCH hall calendar failed:", error);
+      setServerError(error instanceof Error ? error.message : "עדכון אירוע נכשל");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelEvent = async () => {
+    if (!editingEvent) return;
+
+    const venueEventId = editingEvent.venueEventId || editingEvent._id;
+    if (!venueEventId) {
+      setServerError("מזהה אירוע חסר");
+      return;
+    }
+
+    if (!window.confirm("לבטל את האירוע? האירוע יסומן כבוטל ולא יימחק לצמיתות.")) {
+      return;
+    }
+
+    setCancelling(true);
+    setServerError("");
+    setSuccessMessage("");
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/calendar?venueEventId=${encodeURIComponent(venueEventId)}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "ביטול אירוע נכשל");
+      }
+
+      if (data.event) {
+        setEvents((prev) =>
+          prev.map((item) =>
+            (item.venueEventId || item._id) === venueEventId ? data.event : item
+          )
+        );
+      }
+
+      setSuccessMessage(data.message || "האירוע בוטל בהצלחה");
+      closeEdit();
+    } catch (error) {
+      console.error("DELETE hall calendar failed:", error);
+      setServerError(error instanceof Error ? error.message : "ביטול אירוע נכשל");
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const goPrevious = () => {
@@ -374,6 +493,7 @@ export default function HallCalendarPage() {
       }
 
       setCreateOpen(false);
+      setSuccessMessage("האירוע נוסף ליומן בהצלחה");
     } catch (error) {
       console.error("POST hall calendar failed:", error);
       setServerError(error instanceof Error ? error.message : "יצירת אירוע נכשלה");
@@ -527,6 +647,12 @@ export default function HallCalendarPage() {
               {serverError}
             </div>
           ) : null}
+
+          {successMessage ? (
+            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+              {successMessage}
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-5 grid gap-5 xl:grid-cols-[280px_1fr_330px]">
@@ -576,7 +702,67 @@ export default function HallCalendarPage() {
             </Panel>
           </aside>
 
-          <section className="overflow-x-auto rounded-[30px] border border-[#eadfce] bg-white shadow-sm">
+          {/* Mobile / tablet: agenda list — avoids crushing the week grid */}
+          <section className="rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-sm lg:hidden">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-base font-black text-[#2b241c]">רשימת אירועים</h2>
+              <span className="text-xs font-bold text-[#8a7b68]">
+                {visibleItems.length} פריטים
+              </span>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm font-bold text-[#8a7b68]">
+                <Loader2 className="animate-spin text-[#b98121]" size={22} />
+                טוען יומן...
+              </div>
+            ) : visibleItems.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-6 text-center">
+                <CalendarDays className="mx-auto text-[#b98121]" size={28} />
+                <p className="mt-3 text-sm font-black text-[#2b241c]">אין אירועים בטווח</p>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white"
+                >
+                  <Plus size={16} />
+                  אירוע חדש
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {visibleItems.map((item) => (
+                  <button
+                    key={item.venueEventId || item.id}
+                    type="button"
+                    onClick={() => openEdit(item)}
+                    className={[
+                      "flex min-h-[72px] w-full flex-col gap-1 rounded-2xl border px-3 py-3 text-right transition",
+                      itemColorClass(item.status),
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-black">{item.title}</div>
+                        <div className="mt-0.5 text-xs font-bold opacity-80">
+                          {item.date} · {item.startTime}
+                          {item.endTime ? `–${item.endTime}` : ""}
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-white/70 px-2 py-1 text-[10px] font-black">
+                        {statusLabel(item.status)}
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold opacity-80">
+                      {item.clientName || "ללא לקוח"}
+                      {item.guests ? ` · ${item.guests} אורחים` : ""}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="hidden overflow-x-auto rounded-[30px] border border-[#eadfce] bg-white shadow-sm lg:block">
             <div className="min-w-[1050px]">
               <div className="grid grid-cols-[70px_repeat(7,minmax(130px,1fr))] border-b border-[#eadfce] bg-[#fffdf8]">
                 <div className="border-l border-[#eadfce] p-3 text-center text-xs font-black text-[#9b8a73]">
@@ -646,8 +832,9 @@ export default function HallCalendarPage() {
 
                   return (
                     <button
-                      key={item.id}
+                      key={item.venueEventId || item.id}
                       type="button"
+                      onClick={() => openEdit(item)}
                       onDoubleClick={() => goToEvent(item)}
                       className={[
                         "absolute z-20 overflow-hidden rounded-2xl border p-3 text-right shadow-sm transition hover:z-30 hover:-translate-y-1 hover:shadow-xl",
@@ -659,7 +846,7 @@ export default function HallCalendarPage() {
                         right: `calc(${right} + 6px)`,
                         width,
                       }}
-                      title="קליק כפול לפתיחת האירוע"
+                      title="לחיצה לעריכה, קליק כפול לפתיחת האירוע"
                     >
                       <div className="text-sm font-black">{item.title}</div>
                       <div className="mt-1 text-xs font-bold opacity-80">
@@ -730,7 +917,7 @@ export default function HallCalendarPage() {
         </section>
 
         <p className="mt-4 text-center text-xs font-bold text-[#9b8a73]">
-          טיפ: קליק כפול על אירוע פותח את עמוד האירוע המלא.
+          טיפ: לחיצה על אירוע לעריכה, קליק כפול לפתיחת עמוד האירוע המלא.
         </p>
       </div>
 
@@ -740,6 +927,18 @@ export default function HallCalendarPage() {
           defaultDate={getTodayYmd()}
           onClose={() => setCreateOpen(false)}
           onCreate={createEvent}
+        />
+      )}
+
+      {editOpen && editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          saving={saving}
+          cancelling={cancelling}
+          onClose={closeEdit}
+          onSave={updateEvent}
+          onCancel={cancelEvent}
+          onOpenFull={() => goToEvent(editingEvent)}
         />
       )}
     </main>
@@ -853,17 +1052,16 @@ function CreateEventModal({
               <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס</span>
               <select
                 value={form.status}
-                onChange={(event) => updateField("status", event.target.value as VenueEventStatus)}
+                onChange={(event) =>
+                  updateField("status", event.target.value as VenueEventLifecycleStatus)
+                }
                 className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
               >
-                <option value="lead">ליד</option>
-                <option value="proposal">בהצעה</option>
-                <option value="closed">סגור</option>
-                <option value="confirmed">מאושר</option>
-                <option value="preparing">בהכנות</option>
-                <option value="live">פעיל עכשיו</option>
-                <option value="done">הסתיים</option>
-                <option value="cancelled">בוטל</option>
+                {VENUE_EVENT_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {VENUE_EVENT_STATUS_LABELS[status]}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -894,6 +1092,189 @@ function CreateEventModal({
               {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
               שמירת אירוע
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ======================================================
+   EDIT EVENT MODAL
+====================================================== */
+
+function EditEventModal({
+  event,
+  saving,
+  cancelling,
+  onClose,
+  onSave,
+  onCancel,
+  onOpenFull,
+}: {
+  event: VenueEvent;
+  saving: boolean;
+  cancelling: boolean;
+  onClose: () => void;
+  onSave: (form: EditEventForm) => void;
+  onCancel: () => void;
+  onOpenFull: () => void;
+}) {
+  const [form, setForm] = useState<EditEventForm>({
+    date: event.date || "",
+    startTime: event.startTime || "",
+    endTime: event.endTime || "",
+    status: event.status || "confirmed",
+    notes: event.notes || "",
+  });
+
+  const updateField = <K extends keyof EditEventForm>(
+    key: K,
+    value: EditEventForm[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!form.date) {
+      alert("חובה להזין תאריך");
+      return;
+    }
+
+    if (!form.startTime) {
+      alert("חובה להזין שעת התחלה");
+      return;
+    }
+
+    onSave(form);
+  };
+
+  const isCancelled = event.status === "cancelled";
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eadfce] bg-white/95 p-5 backdrop-blur">
+          <div>
+            <h2 className="text-xl font-black text-[#2b241c]">עריכת אירוע</h2>
+            <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+              {event.title}
+              {event.clientName ? ` · ${event.clientName}` : ""}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:bg-[#fbf5ea]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormInput
+              label="תאריך"
+              type="date"
+              value={form.date}
+              onChange={(value) => updateField("date", value)}
+            />
+
+            <FormInput
+              label="שעת התחלה"
+              type="time"
+              value={form.startTime}
+              onChange={(value) => updateField("startTime", value)}
+            />
+
+            <FormInput
+              label="שעת סיום"
+              type="time"
+              value={form.endTime}
+              onChange={(value) => updateField("endTime", value)}
+            />
+
+            <label>
+              <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס</span>
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  updateField("status", e.target.value as VenueEventLifecycleStatus)
+                }
+                disabled={isCancelled}
+                className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
+              >
+                {VENUE_EVENT_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {VENUE_EVENT_STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="md:col-span-2">
+              <span className="mb-2 block text-sm font-black text-[#6f6252]">הערות</span>
+              <textarea
+                value={form.notes}
+                onChange={(e) => updateField("notes", e.target.value)}
+                className="min-h-[110px] w-full rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+              />
+            </label>
+          </div>
+
+          {isCancelled ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">
+              אירוע זה כבר מסומן כבוטל.
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-col gap-3 border-t border-[#eadfce] pt-5">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={cancelling || isCancelled}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-6 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancelling ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <Trash2 size={17} />
+                )}
+                ביטול אירוע
+              </button>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={onOpenFull}
+                  className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                >
+                  <Pencil size={17} />
+                  עמוד אירוע מלא
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-12 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                >
+                  סגירה
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving || isCancelled}
+                  className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+                  שמירה
+                </button>
+              </div>
+            </div>
           </div>
         </form>
       </div>

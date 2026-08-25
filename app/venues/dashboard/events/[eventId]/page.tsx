@@ -7,6 +7,11 @@ import EventMenuTab from "./_components/EventMenuTab";
 import EventHallPaymentsTab from "./_components/EventHallPaymentsTab";
 import EventClientTab from "./_components/EventClientTab";
 import {
+  VENUE_EVENT_STATUS_LABELS,
+  isVenueEventStatus,
+  type VenueEventLifecycleStatus,
+} from "@/lib/venues/statuses";
+import {
   ArrowRight,
   Bell,
   CalendarDays,
@@ -64,6 +69,11 @@ type EventDashboardData = {
   venueLinkedAt?: string;
   venueAccessStatus?: VenueAccessStatus;
 
+  /** Linked VenueEvent id when calendar lifecycle SoT exists */
+  venueEventId?: string;
+  /** Venue lifecycle from VenueEvent.status — not Invistimo Event.status */
+  venueLifecycleStatus?: VenueEventLifecycleStatus | null;
+
   venueClientUserId?: string;
 venueClientInvitationId?: string;
 venueClientPackageType?: string;
@@ -85,6 +95,7 @@ fullName?: string;
   budgetTotal?: number;
   estimatedGuests?: number | null;
   estimatedGuestCount?: number | null;
+  paidAmount?: number;
 
   date: string;
   time?: string;
@@ -100,6 +111,7 @@ fullName?: string;
   maxGuests: number;
 
   paymentStatus: EventPaymentStatus;
+  /** Invistimo Event.status — active/archived */
   status: EventStatus;
 
   notes?: string;
@@ -161,9 +173,10 @@ type TaskRow = {
 type FileRow = {
   id: string;
   title: string;
-  type: "pdf" | "image" | "excel";
+  type: "pdf" | "image" | "excel" | "file";
   date: string;
   size: string;
+  url?: string;
 };
 
 type ActivityRow = {
@@ -741,14 +754,41 @@ function formatDateTime(value?: string) {
   }).format(date);
 }
 
-function eventStatusLabel(status?: EventStatus) {
+function invistimoStatusLabel(status?: EventStatus) {
   if (status === "active") return "פעיל";
   if (status === "archived") return "בארכיון";
   return "פעיל";
 }
 
-function eventStatusTone(status?: EventStatus): "green" | "amber" | "rose" | "gray" | "gold" {
-  if (status === "archived") return "gray";
+function venueLifecycleLabel(status?: VenueEventLifecycleStatus | null) {
+  if (status && isVenueEventStatus(status)) {
+    return VENUE_EVENT_STATUS_LABELS[status];
+  }
+  return "";
+}
+
+function displayEventStatusLabel(event?: EventDashboardData | null) {
+  if (!event) return "פעיל";
+
+  const lifecycleLabel = venueLifecycleLabel(event.venueLifecycleStatus);
+  if (lifecycleLabel) return lifecycleLabel;
+
+  return invistimoStatusLabel(event.status);
+}
+
+function eventStatusTone(
+  event?: EventDashboardData | null
+): "green" | "amber" | "rose" | "gray" | "gold" {
+  const lifecycle = event?.venueLifecycleStatus;
+
+  if (lifecycle === "cancelled") return "rose";
+  if (lifecycle === "done" || lifecycle === "closed") return "gray";
+  if (lifecycle === "live" || lifecycle === "confirmed") return "green";
+  if (lifecycle === "preparing" || lifecycle === "proposal" || lifecycle === "lead") {
+    return "amber";
+  }
+
+  if (event?.status === "archived") return "gray";
   return "green";
 }
 
@@ -824,6 +864,11 @@ export default function VenueEventPage() {
   const [serverError, setServerError] = useState("");
 
   const [activeTab, setActiveTab] = useState<EventActiveTab>("overview");
+  const [venueTasks, setVenueTasks] = useState<TaskRow[]>([]);
+  const [venueFiles, setVenueFiles] = useState<FileRow[]>([]);
+  const [venueActivities, setVenueActivities] = useState<ActivityRow[]>([]);
+  const [newEventTaskTitle, setNewEventTaskTitle] = useState("");
+  const [savingEventTask, setSavingEventTask] = useState(false);
 
   const [actionsOpen, setActionsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -1204,61 +1249,123 @@ const eventTitle = eventData?.title || "אירוע ללא שם";
     return rows;
   }, [eventData, financial]);
 
-  const tasks = useMemo<TaskRow[]>(() => {
-    const total = eventStats.production.tasksTotal || 0;
-    const done = eventStats.production.tasksDone || 0;
-    const open = Math.max(0, total - done);
+  const tasks = venueTasks;
+  const files = venueFiles;
+  const activities = venueActivities;
 
-    if (!total) return [];
-
-    return [
-      {
-        id: "production-tasks",
-        title: `משימות הפקה פתוחות: ${open}`,
-        dueDate: "מתוך מערכת ניהול האירוע",
-        status: open === 0 ? "done" : "open",
-      },
-    ];
-  }, [eventStats]);
-
-  const files = useMemo<FileRow[]>(() => {
-    return [];
-  }, []);
-
-  const activities = useMemo<ActivityRow[]>(() => {
-    if (!eventData) return [];
-
-    const rows: ActivityRow[] = [];
-
-    if (eventData.createdAt) {
-      rows.push({
-        id: "created",
-        title: "אירוע נוצר במערכת",
-        date: formatDateTime(eventData.createdAt),
-        description: "האירוע נשמר במודל Event של Invistimo.",
-      });
+  useEffect(() => {
+    if (!hallId || !eventId) {
+      setVenueTasks([]);
+      setVenueFiles([]);
+      setVenueActivities([]);
+      return;
     }
 
-    if (eventData.venueLinkedAt) {
-      rows.push({
-        id: "venue-linked",
-        title: "האירוע שויך לאולם",
-        date: formatDateTime(eventData.venueLinkedAt),
-        description: `האירוע שויך לאולם ${hallName}.`,
-      });
+    let cancelled = false;
+
+    async function loadOpsPanels() {
+      try {
+        const [tasksRes, filesRes, activityRes] = await Promise.all([
+          fetch(
+            `/api/venues/dashboard/tasks?hallId=${encodeURIComponent(
+              hallId
+            )}&eventId=${encodeURIComponent(eventId)}`,
+            { credentials: "include", cache: "no-store" }
+          ),
+          fetch(
+            `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/files`,
+            { credentials: "include", cache: "no-store" }
+          ),
+          fetch(
+            `/api/venues/dashboard/halls/${encodeURIComponent(
+              hallId
+            )}/activity?limit=30&targetId=${encodeURIComponent(eventId)}`,
+            { credentials: "include", cache: "no-store" }
+          ),
+        ]);
+
+        const [tasksData, filesData, activityData] = await Promise.all([
+          tasksRes.json().catch(() => ({})),
+          filesRes.json().catch(() => ({})),
+          activityRes.json().catch(() => ({})),
+        ]);
+
+        if (cancelled) return;
+
+        if (tasksRes.ok && Array.isArray(tasksData.tasks)) {
+          setVenueTasks(
+            tasksData.tasks.map((t: any) => ({
+              id: String(t.id),
+              title: String(t.title || "משימה"),
+              dueDate: String(t.due || t.area || ""),
+              status: t.done ? ("done" as const) : ("open" as const),
+            }))
+          );
+        }
+
+        if (filesRes.ok && Array.isArray(filesData.files)) {
+          setVenueFiles(
+            filesData.files.slice(0, 40).map((f: any) => {
+              const mime = String(f.type || "").toLowerCase();
+              let type: FileRow["type"] = "file";
+              if (mime.includes("pdf")) type = "pdf";
+              else if (mime.includes("image") || mime.includes("png") || mime.includes("jpg"))
+                type = "image";
+              else if (mime.includes("sheet") || mime.includes("excel") || mime.includes("csv"))
+                type = "excel";
+              return {
+                id: String(f.id),
+                title: String(f.name || "קובץ"),
+                type,
+                date: f.uploadedAt
+                  ? formatDateTime(String(f.uploadedAt))
+                  : "",
+                size: f.size ? `${Math.round(Number(f.size) / 1024)} KB` : "",
+                url: String(f.url || ""),
+              };
+            })
+          );
+        }
+
+        const baseActivities: ActivityRow[] = [];
+        if (eventData?.createdAt) {
+          baseActivities.push({
+            id: "created",
+            title: "אירוע נוצר במערכת",
+            date: formatDateTime(eventData.createdAt),
+            description: "האירוע נשמר במודל Event של Invistimo.",
+          });
+        }
+        if (eventData?.venueLinkedAt) {
+          baseActivities.push({
+            id: "venue-linked",
+            title: "האירוע שויך לאולם",
+            date: formatDateTime(eventData.venueLinkedAt),
+            description: `האירוע שויך לאולם ${hallName}.`,
+          });
+        }
+
+        const auditRows: ActivityRow[] =
+          activityRes.ok && Array.isArray(activityData.activity)
+            ? activityData.activity.map((a: any) => ({
+                id: String(a.id),
+                title: String(a.action || "פעילות"),
+                date: a.createdAt ? formatDateTime(String(a.createdAt)) : "",
+                description: `${a.actorName || "משתמש"} · ${a.targetType || ""}`,
+              }))
+            : [];
+
+        setVenueActivities([...auditRows, ...baseActivities].slice(0, 40));
+      } catch (error) {
+        console.error("load event ops panels failed:", error);
+      }
     }
 
-    if (eventData.updatedAt && eventData.updatedAt !== eventData.createdAt) {
-      rows.push({
-        id: "updated",
-        title: "אירוע עודכן",
-        date: formatDateTime(eventData.updatedAt),
-        description: "פרטי האירוע עודכנו לאחרונה.",
-      });
-    }
-
-    return rows;
-  }, [eventData, hallName]);
+    void loadOpsPanels();
+    return () => {
+      cancelled = true;
+    };
+  }, [hallId, eventId, eventData?.createdAt, eventData?.venueLinkedAt, hallName]);
 
   const progress = useMemo(() => {
     const paymentProgress =
@@ -1885,7 +1992,7 @@ const sendMenuSmsToCouple = async () => {
                     </h1>
 
                     <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#b98121]">
-                      {eventStatusLabel(eventData.status)}
+                      {displayEventStatusLabel(eventData)}
                     </span>
 
                     <span
@@ -2015,8 +2122,8 @@ const sendMenuSmsToCouple = async () => {
           <div className="grid gap-3 lg:grid-cols-6">
             <StatusTile
               label="סטטוס אירוע"
-              value={eventStatusLabel(eventData.status)}
-              tone={eventStatusTone(eventData.status)}
+              value={displayEventStatusLabel(eventData)}
+              tone={eventStatusTone(eventData)}
             />
 
             <StatusTile
@@ -2188,19 +2295,37 @@ const sendMenuSmsToCouple = async () => {
 
             <SideCard title="פרטי לקוח" icon={<UsersRound size={18} />}>
               <div className="space-y-3">
-                <InfoLine label="אימייל לקוח" value={clientName} />
-                <InfoLine label="בעל האירוע" value={eventData.userId || "לא הוגדר"} />
-                <InfoLine label="מפיק" value={eventData.producerId || "לא הוגדר"} />
-                <InfoLine label="מקור" value="Event" />
+                <InfoLine label="שם לקוח" value={clientName} />
+                <InfoLine label="טלפון" value={clientPhone || "לא הוגדר"} />
+                <InfoLine label="אימייל" value={clientEmail || "לא הוגדר"} />
+                <InfoLine label="מקור" value="Venue Customer" />
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button className="h-10 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]">
-                  שיחה
-                </button>
-                <button className="h-10 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]">
-                  מייל
-                </button>
+                {clientPhone ? (
+                  <a
+                    href={`tel:${clientPhone}`}
+                    className="flex h-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                  >
+                    שיחה
+                  </a>
+                ) : (
+                  <span className="flex h-10 items-center justify-center rounded-2xl border border-dashed border-[#eadfce] text-sm font-bold text-[#9b8a73]">
+                    אין טלפון
+                  </span>
+                )}
+                {clientEmail ? (
+                  <a
+                    href={`mailto:${clientEmail}`}
+                    className="flex h-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                  >
+                    מייל
+                  </a>
+                ) : (
+                  <span className="flex h-10 items-center justify-center rounded-2xl border border-dashed border-[#eadfce] text-sm font-bold text-[#9b8a73]">
+                    אין מייל
+                  </span>
+                )}
               </div>
             </SideCard>
 
@@ -2715,28 +2840,189 @@ const sendMenuSmsToCouple = async () => {
               />
             )}
 
-            {activeTab !== "overview" &&
-              activeTab !== "details" &&
-              activeTab !== "client-invite" &&
-              activeTab !== "payments" &&
-                activeTab !== "client" &&
-              activeTab !== "rsvp" &&
-              activeTab !== "seating" &&
-              activeTab !== "menu" && (
-                <MainCard title={tabTitle(activeTab)} icon={<Sparkles size={19} />}>
-                  <div className="rounded-3xl border border-dashed border-[#d9bd83] bg-[#fffaf0] p-8 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-white text-[#b98121]">
-                      <Sparkles size={26} />
-                    </div>
-                    <h2 className="mt-4 text-xl font-black text-[#2b241c]">
-                      {tabTitle(activeTab)}
-                    </h2>
-                    <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
-                      כאן ייכנס המסך המלא של הטאב הזה מתוך מערכת Event.
-                    </p>
-                  </div>
-                </MainCard>
-              )}
+            {activeTab === "tasks" && (
+              <MainCard title="משימות אירוע" icon={<CheckCircle2 size={19} />}>
+                <div className="mb-4 flex gap-2">
+                  <input
+                    value={newEventTaskTitle}
+                    onChange={(e) => setNewEventTaskTitle(e.target.value)}
+                    placeholder="משימה חדשה לאירוע..."
+                    className="h-11 flex-1 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={savingEventTask || !newEventTaskTitle.trim() || !hallId}
+                    onClick={async () => {
+                      const title = newEventTaskTitle.trim();
+                      if (!title || !hallId) return;
+                      setSavingEventTask(true);
+                      try {
+                        const res = await fetch("/api/venues/dashboard/tasks", {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            title,
+                            hallId,
+                            eventId,
+                            area: "אירוע",
+                            due: formatDate(eventData?.date || ""),
+                            priority: "medium",
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || data?.success === false) {
+                          throw new Error(data?.message || "יצירה נכשלה");
+                        }
+                        setNewEventTaskTitle("");
+                        if (data.task) {
+                          setVenueTasks((prev) => [
+                            {
+                              id: String(data.task.id),
+                              title: String(data.task.title),
+                              dueDate: String(data.task.due || ""),
+                              status: data.task.done ? "done" : "open",
+                            },
+                            ...prev,
+                          ]);
+                        }
+                      } catch (error) {
+                        setServerError(
+                          error instanceof Error ? error.message : "יצירת משימה נכשלה"
+                        );
+                      } finally {
+                        setSavingEventTask(false);
+                      }
+                    }}
+                    className="h-11 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white disabled:opacity-40"
+                  >
+                    הוסף
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {tasks.length ? (
+                    tasks.map((task) => (
+                      <label
+                        key={task.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={task.status === "done"}
+                          onChange={async () => {
+                            const nextDone = task.status !== "done";
+                            setVenueTasks((prev) =>
+                              prev.map((t) =>
+                                t.id === task.id
+                                  ? { ...t, status: nextDone ? "done" : "open" }
+                                  : t
+                              )
+                            );
+                            try {
+                              const res = await fetch(
+                                `/api/venues/dashboard/tasks/${encodeURIComponent(task.id)}`,
+                                {
+                                  method: "PATCH",
+                                  credentials: "include",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ done: nextDone }),
+                                }
+                              );
+                              if (!res.ok) throw new Error("update failed");
+                            } catch {
+                              setVenueTasks((prev) =>
+                                prev.map((t) =>
+                                  t.id === task.id
+                                    ? { ...t, status: task.status }
+                                    : t
+                                )
+                              );
+                            }
+                          }}
+                          className="mt-1 h-4 w-4"
+                        />
+                        <div>
+                          <div
+                            className={[
+                              "text-sm font-black",
+                              task.status === "done"
+                                ? "text-[#9b8a73] line-through"
+                                : "text-[#2b241c]",
+                            ].join(" ")}
+                          >
+                            {task.title}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                            {task.dueDate || taskStatusLabel(task.status)}
+                          </div>
+                        </div>
+                      </label>
+                    ))
+                  ) : (
+                    <EmptyBox text="אין משימות לאירוע זה עדיין." />
+                  )}
+                </div>
+              </MainCard>
+            )}
+
+            {activeTab === "files" && (
+              <MainCard title="קבצים ומסמכים" icon={<FolderOpen size={19} />}>
+                <div className="mb-4">
+                  <Link
+                    href={`/venues/dashboard/halls/${encodeURIComponent(
+                      hallId
+                    )}/files`}
+                    className="inline-flex h-11 items-center rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]"
+                  >
+                    ניהול קבצי האולם
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {files.length ? (
+                    files.map((file) => <FileItem key={file.id} file={file} />)
+                  ) : (
+                    <EmptyBox text="אין קבצים באולם עדיין." />
+                  )}
+                </div>
+              </MainCard>
+            )}
+
+            {activeTab === "staff" && (
+              <MainCard title="צוות וספקים" icon={<ShieldCheck size={19} />}>
+                <p className="mb-4 text-sm font-bold leading-7 text-[#7f705d]">
+                  ניהול משמרות, עובדים והקצאות מתבצע במסכי האולם. מכאן ניתן לפתוח
+                  ישירות את מסכי הצוות והעובדים של האולם המקושר.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Link
+                    href={`/venues/dashboard/halls/${encodeURIComponent(
+                      hallId
+                    )}/staff`}
+                    className="flex h-12 items-center justify-center rounded-2xl bg-[#1f1b17] px-5 text-sm font-black text-white"
+                  >
+                    משמרות וצוות
+                  </Link>
+                  <Link
+                    href={`/venues/dashboard/halls/${encodeURIComponent(
+                      hallId
+                    )}/employees`}
+                    className="flex h-12 items-center justify-center rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252]"
+                  >
+                    עובדים והרשאות
+                  </Link>
+                  <Link
+                    href={`/venues/dashboard/halls/${encodeURIComponent(
+                      hallId
+                    )}/day-of?date=${encodeURIComponent(
+                      String(eventData?.date || "").slice(0, 10)
+                    )}&eventId=${encodeURIComponent(eventId)}`}
+                    className="flex h-12 items-center justify-center rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white sm:col-span-2"
+                  >
+                    מצב יום אירוע / Reception
+                  </Link>
+                </div>
+              </MainCard>
+            )}
           </div>
         </section>
       </div>
@@ -2744,10 +3030,44 @@ const sendMenuSmsToCouple = async () => {
       {actionsOpen && (
         <Modal title="פעולות נוספות" onClose={() => setActionsOpen(false)}>
           <div className="grid gap-3">
-            <ActionButton icon={<FileText size={17} />} label="הפקת חוזה" />
-            <ActionButton icon={<Mail size={17} />} label="שליחת עדכון ללקוח" />
-            <ActionButton icon={<Bell size={17} />} label="יצירת תזכורת" />
-            <ActionButton icon={<FolderOpen size={17} />} label="העלאת קובץ" />
+            <ActionButton
+              icon={<FolderOpen size={17} />}
+              label="העלאת קובץ באולם"
+              href={
+                hallId
+                  ? `/venues/dashboard/halls/${encodeURIComponent(hallId)}/files`
+                  : undefined
+              }
+            />
+            <ActionButton
+              icon={<CheckCircle2 size={17} />}
+              label="משימות אירוע"
+              onClick={() => {
+                setActionsOpen(false);
+                setActiveTab("tasks");
+              }}
+            />
+            <ActionButton
+              icon={<Bell size={17} />}
+              label="יום אירוע / קבלה"
+              href={
+                hallId
+                  ? `/venues/dashboard/halls/${encodeURIComponent(
+                      hallId
+                    )}/day-of?date=${encodeURIComponent(
+                      String(eventData?.date || "").slice(0, 10)
+                    )}&eventId=${encodeURIComponent(eventId)}`
+                  : undefined
+              }
+            />
+            <ActionButton
+              icon={<Mail size={17} />}
+              label="פתיחת לקוח Invistimo"
+              onClick={() => {
+                setActionsOpen(false);
+                setActiveTab("client-invite");
+              }}
+            />
           </div>
         </Modal>
       )}
@@ -3793,19 +4113,45 @@ function FileItem({ file }: { file: FileRow }) {
           </div>
         </div>
       </div>
-      <button type="button" className="text-sm font-black text-[#b98121]">
-        פתיחה
-      </button>
+      {file.url ? (
+        <a
+          href={file.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-black text-[#b98121]"
+        >
+          פתיחה
+        </a>
+      ) : (
+        <span className="text-sm font-bold text-[#9b8a73]">אין קישור</span>
+      )}
     </div>
   );
 }
 
-function ActionButton({ icon, label }: { icon: React.ReactNode; label: string }) {
+function ActionButton({
+  icon,
+  label,
+  href,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const className =
+    "flex h-12 items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]";
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {icon}
+        {label}
+      </Link>
+    );
+  }
   return (
-    <button
-      type="button"
-      className="flex h-12 items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
-    >
+    <button type="button" onClick={onClick} className={className}>
       {icon}
       {label}
     </button>

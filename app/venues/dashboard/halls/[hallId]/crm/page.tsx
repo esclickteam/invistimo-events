@@ -54,6 +54,14 @@ type VenueLeadActivity = {
   date: string;
 };
 
+type VenueLeadFileMeta = {
+  url?: string;
+  publicId?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+};
+
 type VenueLead = {
   id: string;
   _id?: string;
@@ -82,6 +90,8 @@ type VenueLead = {
   contractFileName?: string;
   proposalSignature?: string;
   contractSignature?: string;
+  proposalFile?: VenueLeadFileMeta | null;
+  contractFile?: VenueLeadFileMeta | null;
 
   activities: VenueLeadActivity[];
 };
@@ -187,6 +197,8 @@ function normalizeLead(lead: any): VenueLead {
     contractFileName: String(lead.contractFileName || ""),
     proposalSignature: String(lead.proposalSignature || ""),
     contractSignature: String(lead.contractSignature || ""),
+    proposalFile: lead.proposalFile || null,
+    contractFile: lead.contractFile || null,
 
     activities: safeArray<VenueLeadActivity>(lead.activities),
   };
@@ -291,10 +303,11 @@ export default function HallCrmPage() {
     notes: "",
   });
 
-  const [proposalFileName, setProposalFileName] = useState("");
-  const [contractFileName, setContractFileName] = useState("");
+  const [proposalFile, setProposalFile] = useState<File | null>(null);
+  const [contractFile, setContractFile] = useState<File | null>(null);
   const [proposalSignature, setProposalSignature] = useState("");
   const [contractSignature, setContractSignature] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const selectedLead =
     leads.find((lead) => lead.id === selectedLeadId) || leads[0] || null;
@@ -572,44 +585,148 @@ export default function HallCrmPage() {
     }
   };
 
+  const uploadCrmFile = async (
+    leadId: string,
+    kind: "proposal" | "contract",
+    file: File
+  ) => {
+    const formData = new FormData();
+    formData.append("leadId", leadId);
+    formData.append("kind", kind);
+    formData.append("file", file);
+
+    const res = await fetch(
+      `/api/venues/dashboard/halls/${encodedHallId}/crm/upload`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || "העלאת קובץ נכשלה");
+    }
+
+    return data;
+  };
+
   const sendProposal = async () => {
     if (!selectedLead) return;
 
-    await saveLeadPatch(selectedLead.id, {
-      proposalFileName,
-      proposalSignature,
-    });
+    setUploadingFile(true);
+    setServerError("");
 
-    const data = await addActivity(selectedLead, {
-      type: "proposal",
-      title: "הצעת מחיר נשלחה",
-      description: `נשלחה הצעת מחיר בסך ${formatCurrency(selectedLead.budget)}.`,
-      date: "עכשיו",
-      status: "proposal",
-    });
+    try {
+      if (proposalFile) {
+        const uploadData = await uploadCrmFile(
+          selectedLead.id,
+          "proposal",
+          proposalFile
+        );
 
-    if (data?.success) {
-      setProposalOpen(false);
+        if (uploadData.leadId) {
+          updateLeadInState(
+            normalizeLead({
+              ...selectedLead,
+              proposalFileName:
+                uploadData.proposalFileName || proposalFile.name,
+              proposalFile: uploadData.proposalFile || {
+                url: uploadData.file?.url,
+                originalName: uploadData.file?.originalName,
+              },
+            })
+          );
+        }
+      }
+
+      if (proposalSignature) {
+        await saveLeadPatch(selectedLead.id, {
+          proposalSignature,
+        });
+      }
+
+      const data = await addActivity(selectedLead, {
+        type: "proposal",
+        title: "הצעת מחיר נשלחה",
+        description: proposalFile
+          ? `הועלתה הצעת מחיר (${proposalFile.name}) בסך ${formatCurrency(selectedLead.budget)}.`
+          : `נשלחה הצעת מחיר בסך ${formatCurrency(selectedLead.budget)}.`,
+        date: "עכשיו",
+        status: "proposal",
+      });
+
+      if (data?.success) {
+        setProposalOpen(false);
+        setProposalFile(null);
+      }
+    } catch (error) {
+      console.error("sendProposal failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "שליחת הצעה נכשלה"
+      );
+    } finally {
+      setUploadingFile(false);
     }
   };
 
   const sendContract = async () => {
     if (!selectedLead) return;
 
-    await saveLeadPatch(selectedLead.id, {
-      contractFileName,
-      contractSignature,
-    });
+    setUploadingFile(true);
+    setServerError("");
 
-    const data = await addActivity(selectedLead, {
-      type: "contract",
-      title: "חוזה נשלח ללקוח",
-      description: "נשלח חוזה לסגירה וחתימה.",
-      date: "עכשיו",
-    });
+    try {
+      if (contractFile) {
+        const uploadData = await uploadCrmFile(
+          selectedLead.id,
+          "contract",
+          contractFile
+        );
 
-    if (data?.success) {
-      setContractOpen(false);
+        if (uploadData.leadId) {
+          updateLeadInState(
+            normalizeLead({
+              ...selectedLead,
+              contractFileName:
+                uploadData.contractFileName || contractFile.name,
+              contractFile: uploadData.contractFile || {
+                url: uploadData.file?.url,
+                originalName: uploadData.file?.originalName,
+              },
+            })
+          );
+        }
+      }
+
+      if (contractSignature) {
+        await saveLeadPatch(selectedLead.id, {
+          contractSignature,
+        });
+      }
+
+      const data = await addActivity(selectedLead, {
+        type: "contract",
+        title: "חוזה נשלח ללקוח",
+        description: contractFile
+          ? `הועלה חוזה (${contractFile.name}) לסגירה וחתימה.`
+          : "נשלח חוזה לסגירה וחתימה.",
+        date: "עכשיו",
+      });
+
+      if (data?.success) {
+        setContractOpen(false);
+        setContractFile(null);
+      }
+    } catch (error) {
+      console.error("sendContract failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "שליחת חוזה נכשלה"
+      );
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -785,7 +902,7 @@ export default function HallCrmPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex h-10 w-[280px] items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3">
+                <div className="flex h-11 w-full max-w-full items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 sm:w-[280px]">
                   <Search size={16} className="text-[#a2937f]" />
                   <input
                     value={search}
@@ -806,7 +923,75 @@ export default function HallCrmPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[24px] border border-[#eadfce]">
+            {/* Mobile card list */}
+            <div className="space-y-2 md:hidden">
+              {loading ? (
+                <div className="py-10 text-center text-sm font-black text-[#8a7b68]">
+                  <Loader2 className="mx-auto mb-3 animate-spin text-[#b98121]" size={28} />
+                  טוען לידים...
+                </div>
+              ) : filteredLeads.length ? (
+                filteredLeads.map((lead) => (
+                  <article
+                    key={`card-${lead.id}`}
+                    className={[
+                      "w-full rounded-2xl border p-4 text-right transition",
+                      selectedLeadId === lead.id
+                        ? "border-[#d5b36d] bg-[#fff7e6]"
+                        : "border-[#eadfce] bg-white",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      className="w-full text-right"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-black text-[#2b241c]">
+                            {lead.name}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                            {lead.phone || "אין טלפון"}
+                            {lead.requestedDate ? ` · ${lead.requestedDate}` : ""}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${statusClass(lead.status)}`}
+                        >
+                          {statusLabel(lead.status)}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[#6f6252]">
+                        <span>{lead.eventType || "אירוע"}</span>
+                        <span>·</span>
+                        <span>{lead.guests || 0} אורחים</span>
+                        <span>·</span>
+                        <span>{formatCurrency(lead.budget)}</span>
+                      </div>
+                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLeadId(lead.id);
+                          setClientFileOpen(true);
+                        }}
+                        className="inline-flex min-h-10 items-center rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]"
+                      >
+                        תיק לקוח
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fffdf8] p-6 text-center">
+                  <div className="text-sm font-black text-[#2b241c]">אין לידים</div>
+                </div>
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-[24px] border border-[#eadfce] md:block">
               <table className="w-full min-w-[1180px] border-collapse text-right">
                 <thead className="bg-[#fffdf8]">
                   <tr className="border-b border-[#eadfce] text-xs font-black text-[#8a7b68]">
@@ -1306,9 +1491,15 @@ export default function HallCrmPage() {
 
               <FileUploadBox
                 title="העלאת קובץ הצעת מחיר"
-                description="כרגע נשמר שם הקובץ בתיק הלקוח. בהמשך נחבר העלאה אמיתית לשרת."
-                fileName={proposalFileName}
-                onChange={(name) => setProposalFileName(name)}
+                description="PDF או תמונה — הקובץ יישמר בשרת ויוצמד לתיק הלקוח."
+                fileName={
+                  proposalFile?.name ||
+                  selectedLeadForUi.proposalFileName ||
+                  selectedLeadForUi.proposalFile?.originalName ||
+                  ""
+                }
+                existingUrl={selectedLeadForUi.proposalFile?.url}
+                onChange={setProposalFile}
               />
 
               <SignatureBox
@@ -1335,10 +1526,14 @@ export default function HallCrmPage() {
               <button
                 type="button"
                 onClick={sendProposal}
-                disabled={saving}
+                disabled={saving || uploadingFile}
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                {saving || uploadingFile ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
                 סמן כהצעה נשלחה
               </button>
             </aside>
@@ -1359,9 +1554,15 @@ export default function HallCrmPage() {
 
               <FileUploadBox
                 title="העלאת חוזה / הסכם"
-                description="כרגע נשמר שם הקובץ בתיק הלקוח. בהמשך נחבר העלאה אמיתית לשרת."
-                fileName={contractFileName}
-                onChange={(name) => setContractFileName(name)}
+                description="PDF או תמונה — הקובץ יישמר בשרת ויוצמד לתיק הלקוח."
+                fileName={
+                  contractFile?.name ||
+                  selectedLeadForUi.contractFileName ||
+                  selectedLeadForUi.contractFile?.originalName ||
+                  ""
+                }
+                existingUrl={selectedLeadForUi.contractFile?.url}
+                onChange={setContractFile}
               />
 
               <SignatureBox
@@ -1388,10 +1589,14 @@ export default function HallCrmPage() {
               <button
                 type="button"
                 onClick={sendContract}
-                disabled={saving}
+                disabled={saving || uploadingFile}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <FileSignature size={16} />}
+                {saving || uploadingFile ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <FileSignature size={16} />
+                )}
                 סמן כחוזה נשלח
               </button>
 
@@ -1783,12 +1988,14 @@ function FileUploadBox({
   title,
   description,
   fileName,
+  existingUrl,
   onChange,
 }: {
   title: string;
   description: string;
   fileName: string;
-  onChange: (name: string) => void;
+  existingUrl?: string;
+  onChange: (file: File | null) => void;
 }) {
   return (
     <div className="rounded-[24px] border border-dashed border-[#d9bd83] bg-[#fffdf8] p-4">
@@ -1803,6 +2010,16 @@ function FileUploadBox({
               קובץ נבחר: {fileName}
             </div>
           ) : null}
+          {existingUrl ? (
+            <a
+              href={existingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex text-xs font-black text-[#b98121] underline"
+            >
+              צפייה בקובץ קיים
+            </a>
+          ) : null}
         </div>
 
         <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]">
@@ -1810,11 +2027,11 @@ function FileUploadBox({
           העלאת קובץ
           <input
             type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,image/*,application/pdf"
             className="hidden"
             onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onChange(file.name);
+              const file = event.target.files?.[0] || null;
+              onChange(file);
             }}
           />
         </label>

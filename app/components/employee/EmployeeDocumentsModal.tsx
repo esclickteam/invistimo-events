@@ -314,9 +314,17 @@ function pad2(value: number) {
 }
 
 function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+  });
+
+  // en-CA with year+month gives YYYY-MM
+  return formatter.format(new Date());
 }
+
+const SOFTPHONE_HOURS_CHANGED_EVENT = "invistimo:softphone:hours-changed";
 
 function monthInputToLabel(monthKey: string) {
   const [year, month] = monthKey.split("-").map((item) => Number(item));
@@ -621,23 +629,21 @@ function normalizeHoursRows(data: any, monthKey: string): {
   const summaryFromResponse =
     data?.summary || data?.data?.summary || data?.monthSummary || {};
 
-  const totalMinutes =
-    Number(summaryFromResponse.totalMinutes) ||
-    rows.reduce((sum, row) => sum + Number(row.totalMinutes || 0), 0);
+  // הסיכום תמיד לפי השורות המוצגות — לא נתונים ישנים/רועשים מהשרת בלבד
+  const totalMinutes = rows.reduce(
+    (sum, row) => sum + Number(row.totalMinutes || 0),
+    0,
+  );
 
-  const scheduledDays =
-    Number(summaryFromResponse.scheduledDays) ||
-    rows.filter((row) => row.isScheduled).length;
+  const scheduledDays = rows.filter((row) => row.isScheduled).length;
 
-  const workedDays =
-    Number(summaryFromResponse.workedDays) ||
-    rows.filter(
-      (row) =>
-        row.workSessions.length > 0 ||
-        row.actualStart ||
-        row.actualEnd ||
-        row.totalMinutes > 0,
-    ).length;
+  const workedDays = rows.filter(
+    (row) =>
+      row.workSessions.some((session) => session.start || session.end) ||
+      row.actualStart ||
+      row.actualEnd ||
+      row.totalMinutes > 0,
+  ).length;
 
   const status =
     cleanString(
@@ -1737,6 +1743,27 @@ export default function EmployeeDocumentsModal({
     void loadEmployeeHours(hoursMonth);
   }, [activeTab, hoursMonth, loadEmployeeHours, open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    function handleSoftphoneHoursChanged() {
+      if (activeTab !== "hours") return;
+      void loadEmployeeHours(hoursMonth);
+    }
+
+    window.addEventListener(
+      SOFTPHONE_HOURS_CHANGED_EVENT,
+      handleSoftphoneHoursChanged,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SOFTPHONE_HOURS_CHANGED_EVENT,
+        handleSoftphoneHoursChanged,
+      );
+    };
+  }, [activeTab, hoursMonth, loadEmployeeHours, open]);
+
   const tabs = useMemo(
     () => [
       {
@@ -2466,10 +2493,10 @@ export default function EmployeeDocumentsModal({
                     </h3>
 
                     <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-slate-500">
-                      הטבלה מציגה כל תאריך בחודש, שיבוץ משמרת, זמני כניסה
-                      ויציאה לפי הסופטפון, סיכום שעות למשמרת וסיכום חודשי.
-                      השדה היחיד שניתן לעריכה מצד העובד או העובדת הוא הערה
-                      לאדמין.
+                      כניסה ויציאה נרשמות אוטומטית רק מכפתורי התחל משמרת
+                      וסיום משמרת. כל מקטע באותו יום מוצג בנפרד. אם האדמין
+                      ערך שעות — העריכה שלו קובעת ומסתנכרנת לכאן. השדה היחיד
+                      שניתן לעריכה מצד העובד או העובדת הוא הערה לאדמין.
                     </p>
                   </div>
 

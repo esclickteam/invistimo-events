@@ -6,6 +6,11 @@ export type VenueTaskDocument = {
   _id: Types.ObjectId;
   ownerId: Types.ObjectId | string;
 
+  /** Hall/tenant scope (optional for legacy rows). */
+  hallId?: string;
+  /** Optional link to Invistimo Event / VenueEvent.linkedEventId */
+  eventId?: Types.ObjectId | string | null;
+
   title: string;
   area: string;
   due: string;
@@ -22,6 +27,20 @@ const VenueTaskSchema = new Schema<VenueTaskDocument>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
+    },
+
+    hallId: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    eventId: {
+      type: Schema.Types.ObjectId,
+      ref: "Event",
+      default: null,
       index: true,
     },
 
@@ -61,6 +80,7 @@ const VenueTaskSchema = new Schema<VenueTaskDocument>(
 );
 
 VenueTaskSchema.index({ ownerId: 1, done: 1, createdAt: -1 });
+VenueTaskSchema.index({ ownerId: 1, hallId: 1, done: 1, createdAt: -1 });
 
 export default mongoose.models.VenueTask ||
   mongoose.model<VenueTaskDocument>("VenueTask", VenueTaskSchema);

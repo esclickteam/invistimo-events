@@ -74,8 +74,11 @@ function pad2(value: number) {
 }
 
 function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date());
 }
 
 function getParamValue(value: string | string[] | undefined) {

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import VenueHall from "@/models/VenueHall";
 import VenueLead from "@/models/VenueLead";
-import VenueEvent from "@/models/VenueEvent";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { convertLeadToVenueEvent } from "@/lib/venues/convertLeadToEvent";
+import { writeVenueAudit } from "@/lib/venues/audit";
+import { createVenueAlert } from "@/lib/venues/alerts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -77,12 +77,15 @@ function serializeLead(lead: any) {
     lastActivity: lead.lastActivity || "",
 
     eventId: lead.eventId || "",
+    venueEventId: lead.venueEventId || "",
     meetingAt: lead.meetingAt || "",
 
     proposalFileName: lead.proposalFileName || "",
     contractFileName: lead.contractFileName || "",
     proposalSignature: lead.proposalSignature || "",
     contractSignature: lead.contractSignature || "",
+    proposalFile: lead.proposalFile || null,
+    contractFile: lead.contractFile || null,
 
     activities: Array.isArray(lead.activities) ? lead.activities : [],
 
@@ -91,60 +94,34 @@ function serializeLead(lead: any) {
   };
 }
 
-async function requireAuthAndHall(req: NextRequest, hallId: string) {
-  const auth = await getUserIdFromRequest(req);
+async function requireAuthAndHall(
+  req: NextRequest,
+  hallId: string,
+  permission?: Parameters<typeof requireVenueAccess>[2]
+) {
+  const { ctx, error } = await requireVenueAccess(req, hallId, permission);
 
-  if (!auth?.userId) {
+  if (error || !ctx) {
     return {
-      error: NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      ),
+      error:
+        error ||
+        NextResponse.json(
+          { success: false, message: "אין הרשאה" },
+          { status: 403 }
+        ),
       auth: null,
       hall: null,
       safeHallId: "",
-    };
-  }
-
-  const decodedHallId = decodeURIComponent(hallId);
-
-  const hallOrConditions: any[] = [
-    { id: hallId },
-    { id: decodedHallId },
-  ];
-
-  if (mongoose.Types.ObjectId.isValid(hallId)) {
-    hallOrConditions.push({ _id: hallId });
-  }
-
-  const hall = await VenueHall.findOne({
-    ownerId: auth.userId,
-    $or: hallOrConditions,
-  }).lean();
-
-  if (!hall) {
-    return {
-      error: NextResponse.json(
-        {
-          success: false,
-          message: "האולם לא נמצא או שאין הרשאה",
-        },
-        { status: 404 }
-      ),
-      auth,
-      hall: null,
-      safeHallId: "",
+      ctx: null,
     };
   }
 
   return {
     error: null,
-    auth,
-    hall,
-    safeHallId: String((hall as any).id || (hall as any)._id),
+    auth: ctx.auth,
+    hall: ctx.hall,
+    safeHallId: ctx.venueId,
+    ctx,
   };
 }
 
@@ -167,7 +144,7 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "leads.view");
     if (guard.error) return guard.error;
 
     const url = new URL(req.url);
@@ -175,7 +152,7 @@ export async function GET(req: NextRequest, { params }: Props) {
     const search = cleanString(url.searchParams.get("search"));
 
     const query: Record<string, any> = {
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ctx!.ownerId,
       hallId: guard.safeHallId,
     };
 
@@ -240,7 +217,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "leads.create");
     if (guard.error) return guard.error;
 
     const body = await req.json();
@@ -263,7 +240,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       : "new";
 
     const lead = await VenueLead.create({
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ctx!.ownerId,
       hallId: guard.safeHallId,
 
       name,
@@ -292,6 +269,27 @@ export async function POST(req: NextRequest, { params }: Props) {
           date: todayLabel(),
         },
       ],
+    });
+
+    await createVenueAlert({
+      ownerId: String(guard.ctx!.ownerId),
+      hallId: guard.safeHallId,
+      title: `ליד חדש: ${name}`,
+      description: `נוצר ליד חדש ב-CRM${cleanString(body.eventType) ? ` · ${cleanString(body.eventType)}` : ""}`,
+      tone: "violet",
+      type: "leads",
+      linkHref: `/venues/dashboard/halls/${encodeURIComponent(guard.safeHallId)}/crm?leadId=${encodeURIComponent(String(lead._id))}`,
+      dedupeKey: `lead-create:${String(lead._id)}`,
+    });
+
+    await writeVenueAudit({
+      venueId: guard.safeHallId,
+      ownerId: String(guard.ctx!.ownerId),
+      actorUserId: String(guard.ctx!.auth.userId),
+      action: "lead.create",
+      targetType: "VenueLead",
+      targetId: String(lead._id),
+      meta: { name },
     });
 
     return NextResponse.json({
@@ -332,10 +330,18 @@ export async function PUT(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
-    if (guard.error) return guard.error;
+    const body = await req.json().catch(() => ({}));
+    const action = cleanString(body.action || "update");
 
-    const body = await req.json();
+    const neededPermission =
+      action === "closeEvent"
+        ? "leads.convert"
+        : action === "activity"
+          ? "leads.edit"
+          : "leads.edit";
+
+    const guard = await requireAuthAndHall(req, hallId, neededPermission);
+    if (guard.error) return guard.error;
 
     const leadId = cleanString(body.leadId || body.id || body._id);
 
@@ -349,11 +355,9 @@ export async function PUT(req: NextRequest, { params }: Props) {
       );
     }
 
-    const action = cleanString(body.action || "update");
-
     const lead = await VenueLead.findOne({
       _id: leadId,
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ctx!.ownerId,
       hallId: guard.safeHallId,
     });
 
@@ -403,48 +407,51 @@ export async function PUT(req: NextRequest, { params }: Props) {
     }
 
     if (action === "closeEvent") {
-      const event = await VenueEvent.create({
-        ownerId: guard.auth!.userId,
-        hallId: guard.safeHallId,
-
-        title: lead.eventType || `אירוע של ${lead.name}`,
-        eventType: lead.eventType || "",
-        clientName: lead.name,
-        clientPhone: lead.phone,
-        clientEmail: lead.email,
-
-        date: cleanString(body.date) || lead.requestedDate,
-        startTime: cleanString(body.startTime) || "19:30",
-        endTime: cleanString(body.endTime) || "00:30",
-
-        guests: Math.max(0, Number(lead.guests || 0)),
-        status: "closed",
-
-        budget: Math.max(0, Number(lead.budget || 0)),
-        paidAmount: Math.max(0, toNumber(body.paidAmount)),
-
+      const result = await convertLeadToVenueEvent({
+        leadId: String(lead._id),
+        venueId: guard.safeHallId,
+        ownerId: guard.ctx!.ownerId,
+        actorUserId: guard.auth!.userId,
+        hallName: (guard.hall as any)?.name || "",
+        date: cleanString(body.date),
+        startTime: cleanString(body.startTime),
+        endTime: cleanString(body.endTime),
         notes: cleanString(body.notes),
+        paidAmount: toNumber(body.paidAmount),
+        lifecycleStatus: "confirmed",
       });
 
-      lead.status = "closed";
-      lead.eventId = String(event._id);
-      lead.lastActivity = "נסגר אירוע ונוצר ביומן";
+      if (!result.ok) {
+        return NextResponse.json(
+          { success: false, message: result.message },
+          { status: result.status }
+        );
+      }
 
-      lead.activities.unshift({
-        id: makeId("activity"),
-        type: "contract",
-        title: "אירוע נסגר ונוצר ביומן",
-        description: "הליד נסגר ונוצר אירוע ביומן האולם.",
-        date: todayLabel(),
-      });
+      if (!result.alreadyExisted) {
+        await createVenueAlert({
+          ownerId: String(guard.ctx!.ownerId),
+          hallId: guard.safeHallId,
+          title: `ליד הומר לאירוע: ${lead.name || ""}`,
+          description: `הליד נסגר ונוצר אירוע ביומן${cleanString(body.date) ? ` · ${cleanString(body.date)}` : ""}`,
+          tone: "emerald",
+          type: "leads",
+        });
+      }
 
-      await lead.save();
+      const freshLead =
+        result.lead ||
+        (await VenueLead.findById(lead._id));
 
       return NextResponse.json({
         success: true,
-        message: "האירוע נסגר ונוצר ביומן",
-        lead: serializeLead(lead),
-        eventId: String(event._id),
+        message: result.alreadyExisted
+          ? "האירוע כבר נוצר בעבר"
+          : "האירוע נסגר ונוצר ביומן",
+        lead: serializeLead(freshLead),
+        eventId: result.eventId,
+        venueEventId: result.venueEventId,
+        alreadyExisted: result.alreadyExisted,
       });
     }
 
@@ -490,7 +497,7 @@ export async function PUT(req: NextRequest, { params }: Props) {
     const updatedLead = await VenueLead.findOneAndUpdate(
       {
         _id: leadId,
-        ownerId: guard.auth!.userId,
+        ownerId: guard.ctx!.ownerId,
         hallId: guard.safeHallId,
       },
       {
@@ -501,6 +508,15 @@ export async function PUT(req: NextRequest, { params }: Props) {
         runValidators: true,
       }
     );
+
+    await writeVenueAudit({
+      venueId: guard.safeHallId,
+      ownerId: guard.ctx!.ownerId,
+      actorUserId: guard.auth!.userId,
+      action: "lead.update",
+      targetType: "VenueLead",
+      targetId: leadId,
+    });
 
     return NextResponse.json({
       success: true,
@@ -539,7 +555,7 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       );
     }
 
-    const guard = await requireAuthAndHall(req, hallId);
+    const guard = await requireAuthAndHall(req, hallId, "leads.delete");
     if (guard.error) return guard.error;
 
     const url = new URL(req.url);
@@ -557,7 +573,7 @@ export async function DELETE(req: NextRequest, { params }: Props) {
 
     const deleted = await VenueLead.findOneAndDelete({
       _id: leadId,
-      ownerId: guard.auth!.userId,
+      ownerId: guard.ctx!.ownerId,
       hallId: guard.safeHallId,
     });
 
@@ -570,6 +586,15 @@ export async function DELETE(req: NextRequest, { params }: Props) {
         { status: 404 }
       );
     }
+
+    await writeVenueAudit({
+      venueId: guard.safeHallId,
+      ownerId: guard.ctx!.ownerId,
+      actorUserId: guard.auth!.userId,
+      action: "lead.delete",
+      targetType: "VenueLead",
+      targetId: leadId,
+    });
 
     return NextResponse.json({
       success: true,

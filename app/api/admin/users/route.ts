@@ -77,6 +77,63 @@ function normalizeString(value?: unknown) {
   return String(value || "").trim();
 }
 
+function serializePasswordSetup(
+  passwordSetup: Awaited<ReturnType<typeof sendPasswordSetupMail>> | null,
+) {
+  if (!passwordSetup) {
+    return {
+      link: null,
+      email: "",
+      phone: "",
+      emailSent: false,
+      smsSent: false,
+      emailError: "PASSWORD_SETUP_DELIVERY_FAILED",
+      smsError: null as string | null,
+    };
+  }
+
+  return {
+    link: passwordSetup.link,
+    email: passwordSetup.email,
+    phone: passwordSetup.phone,
+    emailSent: passwordSetup.emailSent,
+    smsSent: passwordSetup.smsSent,
+    emailError: passwordSetup.emailError || null,
+    smsError: passwordSetup.smsError || null,
+  };
+}
+
+async function deliverPasswordSetup(userId: string) {
+  try {
+    return await sendPasswordSetupMail(userId);
+  } catch (err) {
+    console.error("SEND PASSWORD SETUP MAIL FAILED:", err);
+    return null;
+  }
+}
+
+const CREATE_USER_ERROR_MESSAGES: Record<string, string> = {
+  UNAUTHORIZED: "יש להתחבר מחדש",
+  FORBIDDEN: "אין הרשאה ליצירת משתמש",
+  MISSING_REQUIRED_FIELDS: "חסרים שם, אימייל או סוג משתמש",
+  INVALID_ROLE: "סוג משתמש לא תקין",
+  EMAIL_ALREADY_EXISTS: "האימייל כבר קיים במערכת",
+  ASSIGNED_PRODUCER_REQUIRED: "חסר מזהה מפיק עבור עובד מפיק",
+  INVALID_LIMITS_OR_BILLING: "נתוני תמחור או מגבלות לא תקינים",
+  SERVER_ERROR: "שגיאת שרת ביצירת משתמש",
+};
+
+function jsonError(error: string, status: number) {
+  return NextResponse.json(
+    {
+      success: false,
+      error,
+      message: CREATE_USER_ERROR_MESSAGES[error] || error,
+    },
+    { status },
+  );
+}
+
 function isAdminContext(auth: any) {
   return (
     auth?.role === "admin" ||
@@ -618,6 +675,8 @@ packageName
           })
             .select(`
               ownerId
+              title
+              shareId
               eventDate
               rsvpRoundSent
 
@@ -963,6 +1022,8 @@ packageName
             paymentTypes: payment?.paymentTypes || [],
 
             invitationId: null,
+            invitationTitle: null,
+            invitationShareId: null,
             eventDate: u.eventDate || null,
 
             messageRounds: buildMessageRounds(null, [], u),
@@ -987,6 +1048,12 @@ packageName
           Boolean(u.includeEventManagement) ||
           Boolean(u.selfManageEnabled);
 
+        const includeTransportationManagement =
+          Boolean(u.accessModules?.transportationManagement) ||
+          Boolean(u.includeTransportationManagement) ||
+          Boolean(u.salesUpsells?.transportationManagement?.enabled) ||
+          Boolean(u.planLimits?.transportationEnabled);
+
         const includeCustomDesign =
           Boolean(u.includeCustomDesign) ||
           Boolean(u.customDesignEnabled);
@@ -997,6 +1064,10 @@ packageName
           ),
           eventProduction: Boolean(
             u.accessModules?.eventProduction ?? includeEventManagement
+          ),
+          transportationManagement: Boolean(
+            u.accessModules?.transportationManagement ??
+              includeTransportationManagement
           ),
         };
 
@@ -1041,6 +1112,7 @@ packageName
 
           includeDigitalSeating,
           includeEventManagement,
+          includeTransportationManagement,
           includeCustomDesign,
 
           accessModules,
@@ -1050,6 +1122,10 @@ packageName
           lastPaymentAt: payment?.lastPaymentAt || null,
           paymentTypes: payment?.paymentTypes || [],
           invitationId: invitation?._id ? String(invitation._id) : null,
+          invitationTitle: invitation?.title ? String(invitation.title) : null,
+          invitationShareId: invitation?.shareId
+            ? String(invitation.shareId)
+            : null,
 
           // מקור האמת לתאריך אירוע: ההזמנה במונגו
           eventDate: invitation?.eventDate || u.eventDate || null,
@@ -1120,68 +1196,46 @@ export async function POST(req: Request) {
     const auth = await getUserIdFromRequest(req as NextRequest);
 
     if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "UNAUTHORIZED",
-        },
-        { status: 401 }
-      );
+      return jsonError("UNAUTHORIZED", 401);
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "FORBIDDEN",
-        },
-        { status: 403 }
-      );
+      return jsonError("FORBIDDEN", 403);
     }
 
     const body = await req.json().catch(() => null);
 
     const {
-  name,
-  email,
-  role,
-  limits,
-  billing,
-  addons,
-  plan,
-  accessModules,
-  callRoundsSchedule,
+      name,
+      email,
+      phone,
+      role,
+      limits,
+      billing,
+      addons,
+      plan,
+      accessModules,
+      callRoundsSchedule,
 
-  // staff fields
-  staffType,
-  employeeScope,
-  assignedProducerId,
-} = body || {};
+      // staff fields
+      staffType,
+      employeeScope,
+      assignedProducerId,
+    } = body || {};
 
     const safeName = normalizeString(name);
     const safeEmail = normalizeEmail(email);
+    const safePhone = normalizeString(phone);
     const safeRole = normalizeString(role);
 
     if (!safeName || !safeEmail || !safeRole) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "MISSING_REQUIRED_FIELDS",
-        },
-        { status: 400 }
-      );
+      return jsonError("MISSING_REQUIRED_FIELDS", 400);
     }
 
     const allowedRoles = ["user", "producer", "staff", "venue_owner"];
 
     if (!allowedRoles.includes(safeRole)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "INVALID_ROLE",
-        },
-        { status: 400 }
-      );
+      return jsonError("INVALID_ROLE", 400);
     }
 
     const existing = await User.findOne({
@@ -1191,13 +1245,7 @@ export async function POST(req: Request) {
       .lean();
 
     if (existing) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "EMAIL_ALREADY_EXISTS",
-        },
-        { status: 409 }
-      );
+      return jsonError("EMAIL_ALREADY_EXISTS", 409);
     }
 
     /* =========================
@@ -1207,6 +1255,7 @@ export async function POST(req: Request) {
       const user = await User.create({
         name: safeName,
         email: safeEmail,
+        phone: safePhone,
         role: "venue_owner",
 
         plan: "basic",
@@ -1258,13 +1307,14 @@ export async function POST(req: Request) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      const passwordSetup = await deliverPasswordSetup(String(user._id));
 
       return NextResponse.json(
         {
           success: true,
           userId: String(user._id),
           role: "venue_owner",
+          passwordSetup: serializePasswordSetup(passwordSetup),
         },
         { status: 201 }
       );
@@ -1279,7 +1329,25 @@ export async function POST(req: Request) {
       const user = await User.create({
         name: safeName,
         email: safeEmail,
+        phone: safePhone,
         role: "producer",
+
+        plan: "basic",
+        priceKey: "producer_manual",
+        packageName: "מפיק",
+
+        guests: 0,
+        maxGuests: 0,
+        allowedMessageRounds: 2,
+        maxMessages: 0,
+        smsLimit: 0,
+        smsUsed: 0,
+
+        includeCalls: false,
+        includeCreditGifts: false,
+        includeDigitalSeating: false,
+        includeEventManagement: false,
+        includeCustomDesign: false,
 
         producerPricePerRecord: pricePerRecord,
 
@@ -1292,13 +1360,14 @@ export async function POST(req: Request) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      const passwordSetup = await deliverPasswordSetup(String(user._id));
 
       return NextResponse.json(
         {
           success: true,
           userId: String(user._id),
           role: "producer",
+          passwordSetup: serializePasswordSetup(passwordSetup),
         },
         { status: 201 }
       );
@@ -1325,13 +1394,7 @@ export async function POST(req: Request) {
         safeStaffType === "producer_staff" ? "producer" : "system";
 
       if (safeStaffType === "producer_staff" && !assignedProducerId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "ASSIGNED_PRODUCER_REQUIRED",
-          },
-          { status: 400 }
-        );
+        return jsonError("ASSIGNED_PRODUCER_REQUIRED", 400);
       }
 
       const staffMeta: Record<
@@ -1365,6 +1428,7 @@ export async function POST(req: Request) {
       const user = await User.create({
         name: safeName,
         email: safeEmail,
+        phone: safePhone,
         role: "staff",
 
         staffType: safeStaffType,
@@ -1425,7 +1489,7 @@ export async function POST(req: Request) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      const passwordSetup = await deliverPasswordSetup(String(user._id));
 
       return NextResponse.json(
         {
@@ -1436,6 +1500,7 @@ export async function POST(req: Request) {
           employeeScope: safeEmployeeScope,
           priceKey: selectedStaffMeta.priceKey,
           packageName: selectedStaffMeta.packageName,
+          passwordSetup: serializePasswordSetup(passwordSetup),
         },
         { status: 201 }
       );
@@ -1462,13 +1527,7 @@ export async function POST(req: Request) {
       recordsNum <= 0 ||
       Number.isNaN(priceNum)
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "INVALID_LIMITS_OR_BILLING",
-        },
-        { status: 400 }
-      );
+      return jsonError("INVALID_LIMITS_OR_BILLING", 400);
     }
 
     const finalIncludeCalls =
@@ -1521,6 +1580,7 @@ export async function POST(req: Request) {
     const user = await User.create({
       name: safeName,
       email: safeEmail,
+      phone: safePhone,
       role: "user",
 
       plan: selectedPlanKey,
@@ -1640,25 +1700,20 @@ export async function POST(req: Request) {
       });
     }
 
-    await sendPasswordSetupMail(String(user._id));
+    const passwordSetup = await deliverPasswordSetup(String(user._id));
 
     return NextResponse.json(
       {
         success: true,
         userId: String(user._id),
         role: "user",
+        passwordSetup: serializePasswordSetup(passwordSetup),
       },
       { status: 201 }
     );
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "SERVER_ERROR",
-      },
-      { status: 500 }
-    );
+    return jsonError("SERVER_ERROR", 500);
   }
 }

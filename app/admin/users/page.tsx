@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
+import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import {
   Search,
@@ -37,6 +38,8 @@ type AdminRole = "admin" | "user" | "producer" | "staff" | "client" | string;
 type AdminUser = {
   _id: string;
   invitationId?: string;
+  invitationTitle?: string | null;
+  invitationShareId?: string | null;
   name?: string;
   email: string;
   phone?: string;
@@ -61,6 +64,12 @@ type AdminUser = {
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
+  includeTransportationManagement?: boolean;
+  accessModules?: {
+    rsvpSeating?: boolean;
+    eventProduction?: boolean;
+    transportationManagement?: boolean;
+  };
 
   paidAmount?: number;
   totalPaid?: number;
@@ -122,6 +131,7 @@ type AdminPricingPlan = {
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
+  includeTransportationManagement?: boolean;
 };
 
 type AdminRecordOption = {
@@ -148,6 +158,7 @@ type UpgradeFormState = {
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
+  includeTransportationManagement: boolean;
 };
 
 type UpgradePaymentMode = "manual_paid" | "stripe";
@@ -176,6 +187,11 @@ const ADDONS = [
   {
     key: "includeEventManagement",
     label: "מערכת ניהול אירוע",
+    price: 0,
+  },
+  {
+    key: "includeTransportationManagement",
+    label: "ניהול הסעות",
     price: 0,
   },
   {
@@ -480,6 +496,11 @@ function getPurchasedItems(
       label: "מערכת ניהול אירוע",
       value: user.includeEventManagement ? "פעיל" : "לא פעיל",
       active: Boolean(user.includeEventManagement),
+    },
+    {
+      label: "ניהול הסעות",
+      value: user.includeTransportationManagement ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeTransportationManagement),
     },
     {
       label: "עיצוב בהתאמה אישית",
@@ -2165,6 +2186,9 @@ function EditUserModal({
   const [callRoundsSchedule, setCallRoundsSchedule] =
     useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
 
+  const [includeTransportationManagement, setIncludeTransportationManagement] =
+    useState(Boolean(user.includeTransportationManagement));
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -2183,6 +2207,16 @@ function EditUserModal({
       email: form.email,
       phone: form.phone,
       eventDate: form.eventDate,
+      includeTransportationManagement,
+      accessModules: {
+        rsvpSeating: Boolean(
+          user.accessModules?.rsvpSeating ?? user.includeDigitalSeating
+        ),
+        eventProduction: Boolean(
+          user.accessModules?.eventProduction ?? user.includeEventManagement
+        ),
+        transportationManagement: includeTransportationManagement,
+      },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       callRoundsSchedule: {
         ...callRoundsSchedule,
@@ -2358,6 +2392,40 @@ function EditUserModal({
             <span className="text-2xl font-black text-[#B97821]">
               {formatMoney(getUserTotalPaid(user))}
             </span>
+          </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-[#3A2A1C]">
+                ניהול הסעות
+              </h3>
+              <p className="mt-1 text-sm font-bold text-[#7B6754]">
+                הפעלה/כיבוי של מודול ניהול הסעות ללקוח. לא נפתח אוטומטית לכל
+                הלקוחות.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={includeTransportationManagement}
+                onChange={(e) =>
+                  setIncludeTransportationManagement(e.target.checked)
+                }
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+              <span className="text-sm font-black text-[#3A2A1C]">
+                {includeTransportationManagement ? "פעיל" : "כבוי"}
+              </span>
+            </label>
           </div>
         </section>
 
@@ -2859,7 +2927,8 @@ function AdminMessageRoundsPanel({
           </h3>
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
-            אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה ופתיחה מחדש.
+            אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה, פתיחה מחדש
+            ושליחה ידנית לכל מספר.
           </p>
         </div>
 
@@ -2897,6 +2966,17 @@ function AdminMessageRoundsPanel({
         >
           📊 דוח WhatsApp לסבבים
         </button>
+      </div>
+
+      <div className="mb-5">
+        <AdminManualSmsPanel
+          key={user._id}
+          userId={user._id}
+          invitationId={user.invitationId}
+          defaultPhone={user.phone || ""}
+          invitationTitle={user.invitationTitle}
+          invitationShareId={user.invitationShareId}
+        />
       </div>
 
       <div className="space-y-5">
@@ -3446,6 +3526,9 @@ function UpgradeUserModal({
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
     includeCustomDesign: Boolean(user.includeCustomDesign),
+    includeTransportationManagement: Boolean(
+      user.includeTransportationManagement
+    ),
   });
 
   const [selectedRecords, setSelectedRecords] = useState<number>(
@@ -3555,15 +3638,18 @@ const calculatedTotalToPay =
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
+      includeTransportationManagement: form.includeTransportationManagement,
 
       /*
         ✅ הרשאות מודולים:
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
+        transportationManagement = ניהול הסעות
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
+        transportationManagement: Boolean(form.includeTransportationManagement),
       },
 
       extraRecords,
@@ -3611,15 +3697,18 @@ const calculatedTotalToPay =
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
+      includeTransportationManagement: form.includeTransportationManagement,
 
       /*
         ✅ הרשאות מודולים:
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
+        transportationManagement = ניהול הסעות
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
+        transportationManagement: Boolean(form.includeTransportationManagement),
       },
 
       extraRecords,

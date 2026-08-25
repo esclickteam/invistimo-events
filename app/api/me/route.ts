@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
+import { getAuthCookieDomain } from "@/lib/env/appEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +39,7 @@ function expireCookie(
 }
 
 function clearAuthCookies(res: NextResponse) {
-  const cookieDomain =
-    process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+  const cookieDomain = getAuthCookieDomain();
 
   const cookieNames = [
     "authToken",
@@ -143,6 +143,12 @@ function normalizeAccessModules(user: any) {
     Boolean(user?.includeEventManagement) ||
     Boolean(user?.selfManageEnabled);
 
+  const includeTransportationManagement =
+    Boolean(user?.includeTransportationManagement) ||
+    Boolean(user?.accessModules?.transportationManagement) ||
+    Boolean(user?.salesUpsells?.transportationManagement?.enabled) ||
+    Boolean(user?.planLimits?.transportationEnabled);
+
   const isVenueOwner = user?.role === "venue_owner" || user?.venueOwner === true;
 
   return {
@@ -162,6 +168,11 @@ function normalizeAccessModules(user: any) {
 
     eventProduction: Boolean(
       user?.accessModules?.eventProduction ?? includeEventManagement
+    ),
+
+    transportationManagement: Boolean(
+      user?.accessModules?.transportationManagement ??
+        includeTransportationManagement
     ),
 
     venues: Boolean(user?.accessModules?.venues ?? isVenueOwner),
@@ -584,6 +595,10 @@ type JwtPayload = {
     | "staff_producer"
     | "venue_owner";
 
+  impersonationSourceRole?: "admin" | "producer" | string;
+
+  authVersion?: number;
+
   iat?: number;
   exp?: number;
 };
@@ -745,6 +760,34 @@ export async function GET() {
         },
         {
           status: 404,
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+
+      clearAuthCookies(res);
+      return res;
+    }
+
+    const isImpersonationSession =
+      tokenResult.source === "impersonationToken" ||
+      decoded?.impersonated === true ||
+      decoded?.impersonatedByAdmin === true ||
+      decoded?.impersonationSourceRole === "admin";
+
+    /*
+      Keep /api/me aligned with getUserIdFromRequest:
+      deactivated customers must not look "logged in" with an empty dashboard.
+      Admin impersonation is allowed so support can still open their Event.
+    */
+    if ((user as any).isActive === false && !isImpersonationSession) {
+      const res = NextResponse.json(
+        {
+          success: false,
+          user: null,
+          error: "USER_INACTIVE",
+        },
+        {
+          status: 403,
           headers: { "Cache-Control": "no-store" },
         }
       );
@@ -1039,6 +1082,8 @@ export async function GET() {
           includeSeating: currentUser.includeSeating === true,
           includeDigitalSeating: accessModules.rsvpSeating,
           includeEventManagement: accessModules.eventProduction,
+          includeTransportationManagement:
+            accessModules.transportationManagement === true,
           selfManageEnabled: accessModules.eventProduction,
 
           plan: currentUser.plan ?? "basic",

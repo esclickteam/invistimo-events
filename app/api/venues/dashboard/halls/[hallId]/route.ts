@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
 import VenueHall from "@/models/VenueHall";
 
 export const dynamic = "force-dynamic";
@@ -58,39 +58,17 @@ function serializeHall(hall: any) {
 export async function GET(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
-
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await params;
-
-    const hall = await VenueHall.findOne({
-      ownerId: auth.userId,
-      id: hallId,
-    }).lean();
-
-    if (!hall) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "האולם לא נמצא",
-        },
-        { status: 404 }
-      );
-    }
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      hallId,
+      "dashboard.view"
+    );
+    if (error || !ctx) return error!;
 
     return NextResponse.json({
       success: true,
-      hall: serializeHall(hall),
+      hall: serializeHall(ctx.hall),
     });
   } catch (error) {
     console.error("GET /api/venues/dashboard/halls/[hallId] failed:", error);
@@ -108,42 +86,50 @@ export async function GET(req: NextRequest, { params }: Props) {
 export async function PUT(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
-
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא מחובר",
-        },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await params;
-    const body = await req.json();
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      hallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
+    const body = await req.json();
     const update = sanitizeHallBody(body);
 
     const hall = await VenueHall.findOneAndUpdate(
       {
-        ownerId: auth.userId,
-        id: hallId,
+        ownerId: ctx.ownerId,
+        id: ctx.venueId,
       },
       {
         $set: update,
-        $setOnInsert: {
-          ownerId: auth.userId,
-          id: hallId,
-        },
       },
       {
         new: true,
-        upsert: true,
         runValidators: true,
       }
     ).lean();
+
+    if (!hall) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האולם לא נמצא",
+        },
+        { status: 404 }
+      );
+    }
+
+    await writeVenueAudit({
+      venueId: ctx.venueId,
+      ownerId: ctx.ownerId,
+      actorUserId: String(ctx.auth.userId),
+      action: "hall.update",
+      targetType: "VenueHall",
+      targetId: ctx.venueId,
+      meta: { name: update.name, status: update.status },
+    });
 
     return NextResponse.json({
       success: true,

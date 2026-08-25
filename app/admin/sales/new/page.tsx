@@ -56,7 +56,8 @@ type UpsellKey =
   | "thirdRsvpRound"
   | "preRsvpMessages"
   | "suppliersBudgetSystem"
-  | "alcoholManagement";
+  | "alcoholManagement"
+  | "transportationManagement";
 
 type SelectedUpsells = Record<UpsellKey, boolean>;
 type VenueSeatingStaffCount = 1 | 2 | 3;
@@ -881,6 +882,34 @@ const UPSELLS: UpsellItem[] = [
     ],
   },
   {
+    key: "transportationManagement",
+    title: "ניהול הסעות",
+    price: 250,
+    description:
+      "מודול מקצועי לניהול קווי הסעה, תחנות, הרשמות נוסעים וניהול ביום האירוע.",
+    note: "לא נפתח אוטומטית לכל הלקוחות — רק עם הפעלה מפורשת.",
+    customerDetails: [
+      {
+        title: "מה כולל",
+        items: [
+          "ניהול קווי הלוך וחזור",
+          "נקודות איסוף והורדה",
+          "הרשמת אורחים וכמויות נוסעים",
+          "ניהול קיבולת ומניפסט לנהג",
+        ],
+      },
+    ],
+    employeeDetails: [
+      {
+        title: "הפעלה",
+        items: [
+          "מוסיף includeTransportationManagement + accessModules.transportationManagement",
+          "לא משנה הזמנה רגילה / אתר חתונה / RSVP",
+        ],
+      },
+    ],
+  },
+  {
     key: "alcoholManagement",
     title: "ניהול אלכוהול באולם",
     price: 1200,
@@ -923,6 +952,7 @@ function createEmptyUpsells(): SelectedUpsells {
     preRsvpMessages: false,
     suppliersBudgetSystem: false,
     alcoholManagement: false,
+    transportationManagement: false,
   };
 }
 

@@ -5,6 +5,8 @@ import db from "@/lib/db";
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import VenueEvent from "@/models/VenueEvent";
+import { findVenueHallByAnyId } from "@/lib/venues/eventVenueLinkInvariant";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -356,27 +358,71 @@ async function linkExistingEventToVenue({
     throw new Error("MISSING_OR_INVALID_VENUE_OWNER_ID");
   }
 
-  const venueHallId = cleanString(body.venueHallId || invitation.venueHallId);
-  const venueHallName = cleanString(body.venueHallName || invitation.venueHallName);
+  const venueHallIdRaw = cleanString(
+    body.venueHallId || invitation.venueHallId
+  );
+  const venueHallNameRaw = cleanString(
+    body.venueHallName || invitation.venueHallName
+  );
 
-  if (!venueHallId) {
+  if (!venueHallIdRaw) {
     throw new Error("MISSING_VENUE_HALL_ID");
   }
 
+  const hall = await findVenueHallByAnyId(venueHallIdRaw);
+  if (!hall) {
+    throw new Error("VENUE_HALL_NOT_FOUND");
+  }
+
+  const resolvedHallId = cleanString((hall as any).id || (hall as any)._id);
+  const resolvedHallName =
+    venueHallNameRaw || cleanString((hall as any).name);
+
   const eventObjectId = new mongoose.Types.ObjectId(existingEventId);
+
+  // VenueEvent must exist (or be created) before Event may be marked linked.
+  await VenueEvent.findOneAndUpdate(
+    {
+      linkedEventId: eventObjectId,
+      hallId: resolvedHallId,
+      ownerId: venueOwnerObjectId,
+    },
+    {
+      $set: {
+        hallName: resolvedHallName,
+        updatedAt: new Date(),
+      },
+      $setOnInsert: {
+        ownerId: venueOwnerObjectId,
+        hallId: resolvedHallId,
+        linkedEventId: eventObjectId,
+        title: cleanString(invitation.title) || "אירוע אולם",
+        eventType: cleanString(invitation.eventType) || "wedding",
+        clientName: "",
+        date:
+          cleanString(invitation.eventDate) ||
+          new Date().toISOString().slice(0, 10),
+        startTime: cleanString(invitation.eventTime) || "00:00",
+        guests: 0,
+        status: "confirmed",
+        budget: 0,
+        paidAmount: 0,
+        createdAt: new Date(),
+      },
+    },
+    { upsert: true, new: true }
+  );
 
   const eventDoc = await Event.findByIdAndUpdate(
     eventObjectId,
     {
       $set: {
         venueOwnerId: venueOwnerObjectId,
-        venueHallId,
-        venueHallName,
+        venueHallId: resolvedHallId,
+        venueHallName: resolvedHallName,
         venueAccessStatus: "linked",
-        updatedAt: new Date(),
-      },
-      $setOnInsert: {
         venueLinkedAt: new Date(),
+        updatedAt: new Date(),
       },
     },
     {
@@ -400,8 +446,8 @@ async function linkExistingEventToVenue({
         linkedEventId: eventObjectId,
 
         venueOwnerId: venueOwnerObjectId,
-        venueHallId,
-        venueHallName,
+        venueHallId: resolvedHallId,
+        venueHallName: resolvedHallName,
 
         updatedAt: new Date(),
       },
@@ -491,12 +537,25 @@ async function createOrUpdateEventForInvitation({
 
   const location = normalizeLocation(body.location || invitation.location);
 
-  const venueHallId = cleanString(body.venueHallId || invitation.venueHallId);
-  const venueHallName = cleanString(body.venueHallName || invitation.venueHallName);
+  const venueHallIdRaw = cleanString(
+    body.venueHallId || invitation.venueHallId
+  );
+  const venueHallNameRaw = cleanString(
+    body.venueHallName || invitation.venueHallName
+  );
 
-  if (!venueHallId) {
+  if (!venueHallIdRaw) {
     throw new Error("MISSING_VENUE_HALL_ID");
   }
+
+  const hall = await findVenueHallByAnyId(venueHallIdRaw);
+  if (!hall) {
+    throw new Error("VENUE_HALL_NOT_FOUND");
+  }
+
+  const venueHallId = cleanString((hall as any).id || (hall as any)._id);
+  const venueHallName =
+    venueHallNameRaw || cleanString((hall as any).name);
 
   const budgetTotal = Math.max(0, toNumber(body.budgetTotal, 0));
 
@@ -506,7 +565,8 @@ async function createOrUpdateEventForInvitation({
     venueOwnerId: venueOwnerObjectId,
     venueHallId,
     venueHallName,
-    venueAccessStatus: "linked",
+    // linked after VenueEvent upsert below
+    venueAccessStatus: "none",
 
     email:
       cleanString(invitation.email) ||
@@ -550,7 +610,6 @@ async function createOrUpdateEventForInvitation({
       {
         $set: eventPayload,
         $setOnInsert: {
-          venueLinkedAt: new Date(),
           zones: [],
           planning: {
             eventDefinition: {
@@ -571,7 +630,6 @@ async function createOrUpdateEventForInvitation({
   } else {
     eventDoc = await Event.create({
       ...eventPayload,
-      venueLinkedAt: new Date(),
       zones: [],
       planning: {
         eventDefinition: {
@@ -590,6 +648,52 @@ async function createOrUpdateEventForInvitation({
   if (!savedEventId) {
     throw new Error("EVENT_SAVE_FAILED");
   }
+
+  await VenueEvent.findOneAndUpdate(
+    {
+      linkedEventId: savedEventId,
+      hallId: venueHallId,
+      ownerId: venueOwnerObjectId,
+    },
+    {
+      $set: {
+        hallName: venueHallName,
+        title: eventTitle,
+        eventType,
+        clientEmail: eventPayload.email,
+        date: eventDate,
+        startTime: eventTime,
+        guests: estimatedGuests || 0,
+        budget: budgetTotal,
+        updatedAt: new Date(),
+      },
+      $setOnInsert: {
+        ownerId: venueOwnerObjectId,
+        hallId: venueHallId,
+        linkedEventId: savedEventId,
+        clientName: "",
+        status: "confirmed",
+        paidAmount: 0,
+        createdAt: new Date(),
+      },
+    },
+    { upsert: true, new: true }
+  );
+
+  eventDoc = await Event.findByIdAndUpdate(
+    savedEventId,
+    {
+      $set: {
+        venueAccessStatus: "linked",
+        venueLinkedAt: new Date(),
+        venueHallId,
+        venueHallName,
+        venueOwnerId: venueOwnerObjectId,
+        updatedAt: new Date(),
+      },
+    },
+    { new: true }
+  );
 
   await Invitation.collection.updateOne(
     {

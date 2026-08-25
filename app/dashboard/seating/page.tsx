@@ -146,6 +146,7 @@ function SeatingPageInner() {
 
   const seatingMode = searchParams.get("mode");
   const hallId = searchParams.get("hallId");
+  const templateId = firstString(searchParams.get("templateId"));
 
   const eventIdFromQuery = firstString(
     searchParams.get("eventId"),
@@ -199,6 +200,7 @@ function SeatingPageInner() {
 
   const [eventId, setEventId] = useState<string | null>(null);
   const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [venueTemplateName, setVenueTemplateName] = useState("");
 
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -282,8 +284,22 @@ function SeatingPageInner() {
       return;
     }
 
-    if (user.planLimits?.seatingEnabled !== true) {
+    const u = user as any;
+    const venueClientSeating =
+      u.venueClientSource === true ||
+      u.includeSeating === true ||
+      u.includeDigitalSeating === true ||
+      Boolean(u.venueClientPackageType) ||
+      Boolean(u.venueSeatingTemplateId) ||
+      u.accessModules?.rsvpSeating === true ||
+      u.planLimits?.seatingEnabled === true ||
+      u.plan === "premium" ||
+      ["seating_only", "rsvp_seating", "full"].includes(String(u.plan || ""));
+
+    if (!venueClientSeating) {
       setBlockReason("no-plan");
+    } else {
+      setBlockReason(null);
     }
   }, [user, isVenueTemplateMode, isVenueView]);
 
@@ -445,8 +461,39 @@ function SeatingPageInner() {
         const seatingState = useSeatingStore.getState();
 
         if (isVenueTemplateMode) {
-          seatingState.init([], [], null, null);
-          useZoneStore.getState().setZones([]);
+          if (templateId && hallId) {
+            const res = await fetch(
+              `/api/venues/dashboard/seating-templates?hallId=${encodeURIComponent(
+                hallId
+              )}&templateId=${encodeURIComponent(templateId)}`,
+              {
+                credentials: "include",
+                cache: "no-store",
+              }
+            );
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok && data?.success && data?.template) {
+              const template = data.template;
+              const canvas = template.canvas || {};
+
+              seatingState.init(
+                template.tables || [],
+                [],
+                canvas.background ?? null,
+                canvas.canvasView ?? null
+              );
+              useZoneStore.getState().setZones(canvas.zones || []);
+              setVenueTemplateName(String(template.name || ""));
+            } else {
+              seatingState.init([], [], null, null);
+              useZoneStore.getState().setZones([]);
+            }
+          } else {
+            seatingState.init([], [], null, null);
+            useZoneStore.getState().setZones([]);
+          }
 
           setInvitationId(null);
           setEventId(null);
@@ -551,6 +598,8 @@ function SeatingPageInner() {
   }, [
     isDemo,
     isVenueTemplateMode,
+    templateId,
+    hallId,
     loadSeatingData,
     user?._id,
     eventIdFromQuery,
@@ -624,6 +673,79 @@ function SeatingPageInner() {
     eventId,
     invitationId,
     refreshLiveSeatingData,
+  ]);
+
+  /* ===============================
+     VENUE TEMPLATE → EVENT LIVE SYNC
+     When hall updates a seating template, linked event seating refreshes.
+  =============================== */
+  const venueTemplateSyncInFlightRef = useRef(false);
+  const lastVenueTemplateSyncAtRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isDemo) return;
+    if (isVenueTemplateMode) return;
+    if (!eventId) return;
+
+    const poll = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (venueTemplateSyncInFlightRef.current) return;
+      venueTemplateSyncInFlightRef.current = true;
+      try {
+        const qs = invitationId
+          ? `?invitationId=${encodeURIComponent(invitationId)}${
+              isVenueView ? "&venueView=1" : ""
+            }`
+          : isVenueView
+            ? "?venueView=1"
+            : "";
+        const res = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data?.success) return;
+        if (data.source !== "venue_seating_template") return;
+
+        const stamp = String(
+          data.sourceTemplateUpdatedAt || data.updatedAt || ""
+        );
+        if (!stamp) return;
+        if (lastVenueTemplateSyncAtRef.current === stamp) return;
+        lastVenueTemplateSyncAtRef.current = stamp;
+
+        // Reload full seating (guests + tables) when template version changes
+        if (invitationId) {
+          await loadSeatingData(eventId, invitationId);
+        } else {
+          init(
+            data.tables || [],
+            useSeatingStore.getState().guests || [],
+            data.background ?? null,
+            data.canvasView ?? useSeatingStore.getState().canvasView
+          );
+          if (Array.isArray(data.zones)) setZones(data.zones);
+        }
+      } catch {
+        /* ignore transient poll errors */
+      } finally {
+        venueTemplateSyncInFlightRef.current = false;
+      }
+    };
+
+    poll();
+    const interval = window.setInterval(poll, 8000);
+    return () => window.clearInterval(interval);
+  }, [
+    isDemo,
+    isVenueTemplateMode,
+    eventId,
+    invitationId,
+    isVenueView,
+    loadSeatingData,
+    init,
+    setZones,
   ]);
 
   /* ===============================
@@ -706,35 +828,51 @@ function SeatingPageInner() {
       return;
     }
 
-    const templateName = window.prompt("שם תבנית ההושבה:");
+    const isEditing = Boolean(templateId);
+    let templateName = venueTemplateName.trim();
 
-    if (!templateName || templateName.trim().length < 2) {
-      alert("חובה להזין שם תבנית");
-      return;
+    if (!isEditing) {
+      const prompted = window.prompt("שם תבנית ההושבה:");
+      if (!prompted || prompted.trim().length < 2) {
+        alert("חובה להזין שם תבנית");
+        return;
+      }
+      templateName = prompted.trim();
     }
 
     try {
       const zones = useZoneStore.getState().zones;
       const seatingState = useSeatingStore.getState();
 
+      const payload = {
+        hallId,
+        name: templateName,
+        tables: seatingState.tables || [],
+        canvas: {
+          background: seatingState.background || null,
+          canvasView: seatingState.canvasView || null,
+          zones,
+        },
+        settings: {
+          source: "venue-template",
+        },
+      };
+
       const res = await fetch("/api/venues/dashboard/seating-templates", {
-        method: "POST",
+        method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          hallId,
-          name: templateName.trim(),
-          tables: seatingState.tables || [],
-          canvas: {
-            background: seatingState.background || null,
-            canvasView: seatingState.canvasView || null,
-            zones,
-          },
-          settings: {
-            source: "venue-template",
-          },
-        }),
+        credentials: "include",
+        body: JSON.stringify(
+          isEditing
+            ? {
+                ...payload,
+                templateId,
+                id: templateId,
+              }
+            : payload
+        ),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -743,13 +881,15 @@ function SeatingPageInner() {
         throw new Error(data?.error || "שגיאה בשמירת תבנית");
       }
 
-      alert("התבנית נשמרה בהצלחה");
-      router.push(`/venues/dashboard/halls/${encodeURIComponent(hallId)}`);
+      alert(isEditing ? "התבנית עודכנה בהצלחה" : "התבנית נשמרה בהצלחה");
+      router.push(
+        `/venues/dashboard/halls/${encodeURIComponent(hallId)}/seating-templates`
+      );
     } catch (error: any) {
       console.error("saveVenueSeatingTemplate error:", error);
       alert(error?.message || "שגיאה בשמירת תבנית הושבה");
     }
-  }, [hallId, router]);
+  }, [hallId, templateId, venueTemplateName, router]);
 
   /* ===============================
      SMART SEATING BY GROUPS
@@ -1048,7 +1188,9 @@ function SeatingPageInner() {
               <div className="flex items-center gap-2">
                 <h1 className="whitespace-nowrap text-xl font-black tracking-tight text-[#2b2119] md:text-2xl">
                   {isVenueTemplateMode
-                    ? "יצירת תבנית הושבה לאולם"
+                    ? templateId
+                      ? "עריכת תבנית הושבה לאולם"
+                      : "יצירת תבנית הושבה לאולם"
                     : "הושבה באולם"}
                 </h1>
 

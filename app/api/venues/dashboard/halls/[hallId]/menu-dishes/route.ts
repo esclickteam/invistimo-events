@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import VenueMenuDish from "@/models/VenueMenuDish";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
+import { writeVenueAudit } from "@/lib/venues/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,15 +36,6 @@ export async function GET(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -54,8 +46,15 @@ export async function GET(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.view"
+    );
+    if (error || !ctx) return error!;
+
     const dishes = await VenueMenuDish.find({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
     })
       .sort({ createdAt: -1 })
@@ -82,15 +81,6 @@ export async function POST(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -100,6 +90,13 @@ export async function POST(req: NextRequest, context: RouteParams) {
         { status: 400 }
       );
     }
+
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
 
@@ -141,7 +138,7 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }
 
     const dish = await VenueMenuDish.create({
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
       name,
       description,
@@ -151,6 +148,15 @@ export async function POST(req: NextRequest, context: RouteParams) {
       categoryName,
     });
 
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.create",
+      targetType: "VenueMenuDish",
+      targetId: String(dish._id),
+      meta: { name },
+    });
     return NextResponse.json({
       success: true,
       dish: mapDishResponse(dish),
@@ -172,15 +178,6 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -190,6 +187,13 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
         { status: 400 }
       );
     }
+
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
 
     const body = await req.json();
     const { searchParams } = new URL(req.url);
@@ -242,7 +246,7 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
     const dish = await VenueMenuDish.findOneAndUpdate(
       {
         _id: dishId,
-        ownerId: auth.userId,
+        ownerId: ctx.ownerId,
         hallId: cleanHallId,
       },
       {
@@ -267,6 +271,15 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
       );
     }
 
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.update",
+      targetType: "VenueMenuDish",
+      targetId: String(dish._id),
+    });
+
     return NextResponse.json({
       success: true,
       dish: mapDishResponse(dish),
@@ -288,15 +301,6 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
-
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
-    }
-
     const { hallId } = await context.params;
     const cleanHallId = cleanString(hallId);
 
@@ -310,10 +314,26 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       );
     }
 
+    const { ctx, error } = await requireVenueAccess(
+      req,
+      cleanHallId,
+      "settings.edit"
+    );
+    if (error || !ctx) return error!;
+
     await VenueMenuDish.deleteOne({
       _id: dishId,
-      ownerId: auth.userId,
+      ownerId: ctx.ownerId,
       hallId: cleanHallId,
+    });
+
+    await writeVenueAudit({
+      venueId: cleanHallId,
+      ownerId: String(ctx.ownerId),
+      actorUserId: String(ctx.auth.userId),
+      action: "menu_dish.delete",
+      targetType: "VenueMenuDish",
+      targetId: dishId,
     });
 
     return NextResponse.json({

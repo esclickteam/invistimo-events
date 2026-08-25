@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -73,114 +73,7 @@ type AbsenceRequest = {
   status: "pending" | "approved" | "declined";
 };
 
-const workersInitial: Worker[] = [
-  {
-    id: "w1",
-    name: "דניאל מזרחי",
-    phone: "052-1111111",
-    role: "מנהל אולם",
-    initials: "דמ",
-    status: "working",
-  },
-  {
-    id: "w2",
-    name: "מיכל אדרי",
-    phone: "052-2222222",
-    role: "אחראי משמרת",
-    initials: "מא",
-    status: "working",
-  },
-  {
-    id: "w3",
-    name: "יונתן כהן",
-    phone: "052-3333333",
-    role: "מלצר",
-    initials: "יכ",
-    status: "working",
-  },
-  {
-    id: "w4",
-    name: "רועי לוי",
-    phone: "052-4444444",
-    role: "מלצר",
-    initials: "רל",
-    status: "replacement_pending",
-  },
-  {
-    id: "w5",
-    name: "איתי פרץ",
-    phone: "052-5555555",
-    role: "ברמן",
-    initials: "אפ",
-    status: "available",
-  },
-  {
-    id: "w6",
-    name: "שיר לוי",
-    phone: "052-6666666",
-    role: "מטבח",
-    initials: "של",
-    status: "sick",
-  },
-  {
-    id: "w7",
-    name: "נועה ביטון",
-    phone: "052-7777777",
-    role: "מלצר",
-    initials: "נב",
-    status: "available",
-  },
-  {
-    id: "w8",
-    name: "אוראל דהן",
-    phone: "052-8888888",
-    role: "ניקיון",
-    initials: "אד",
-    status: "vacation",
-  },
-  {
-    id: "w9",
-    name: "ליאור חן",
-    phone: "052-9999999",
-    role: "אבטחה",
-    initials: "לח",
-    status: "available",
-  },
-  {
-    id: "w10",
-    name: "תמר סגל",
-    phone: "053-1111111",
-    role: "מלצר",
-    initials: "תס",
-    status: "available",
-  },
-  {
-    id: "w11",
-    name: "עידן בר",
-    phone: "053-2222222",
-    role: "ברמן",
-    initials: "עב",
-    status: "available",
-  },
-  {
-    id: "w12",
-    name: "רוני מנור",
-    phone: "053-3333333",
-    role: "מלצר",
-    initials: "רמ",
-    status: "available",
-  },
-];
-
-const weekDays = [
-  { date: "18.05", day: "ראשון" },
-  { date: "19.05", day: "שני" },
-  { date: "20.05", day: "שלישי" },
-  { date: "21.05", day: "רביעי" },
-  { date: "22.05", day: "חמישי" },
-  { date: "23.05", day: "שישי" },
-  { date: "24.05", day: "שבת" },
-];
+const DAY_LABELS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 const shiftTypes: Array<{
   type: ShiftType;
@@ -193,71 +86,71 @@ const shiftTypes: Array<{
   { type: "night", title: "לילה", time: "23:00 - 07:00" },
 ];
 
-function createInitialShifts(): Shift[] {
-  const baseWorkerMap: Record<ShiftType, string[]> = {
-    morning: ["w1", "w6", "w9"],
-    noon: ["w2", "w5", "w10"],
-    evening: ["w1", "w2", "w3", "w4", "w5", "w7", "w10", "w11", "w12"],
-    night: ["w8", "w9"],
-  };
+function startOfWeekSunday(base: Date) {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
 
-  return weekDays.flatMap((day, dayIndex) =>
-    shiftTypes.map((shiftType, shiftIndex) => {
-      const extra =
-        dayIndex % 2 === 0 && shiftType.type === "evening"
-          ? ["w6"]
-          : dayIndex % 3 === 0 && shiftType.type === "morning"
-            ? ["w7"]
-            : [];
+function toIsoDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-      return {
-        id: `${day.date}-${shiftType.type}`,
-        date: day.date,
-        dayLabel: day.day,
-        type: shiftType.type,
-        title: shiftType.title,
-        time: shiftType.time,
-        required:
-          shiftType.type === "evening"
-            ? 12
-            : shiftType.type === "noon"
-              ? 8
-              : shiftType.type === "morning"
-                ? 5
-                : 4,
-        workerIds: [...baseWorkerMap[shiftType.type], ...extra],
-      };
-    })
+function toDisplayDate(d: Date) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${day}.${m}`;
+}
+
+function getWeekDays(weekOffset: number) {
+  const start = startOfWeekSunday(new Date());
+  start.setDate(start.getDate() + weekOffset * 7);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    return {
+      date: toDisplayDate(day),
+      day: DAY_LABELS[i],
+      iso: toIsoDate(day),
+    };
+  });
+}
+
+function getWeekStartKey(weekOffset: number) {
+  const start = startOfWeekSunday(new Date());
+  start.setDate(start.getDate() + weekOffset * 7);
+  return toIsoDate(start);
+}
+
+function createEmptyShifts(weekOffset: number): Shift[] {
+  const days = getWeekDays(weekOffset);
+  return days.flatMap((day) =>
+    shiftTypes.map((shiftType) => ({
+      id: `${day.iso}-${shiftType.type}`,
+      date: day.date,
+      dayLabel: day.day,
+      type: shiftType.type,
+      title: shiftType.title,
+      time: shiftType.time,
+      required:
+        shiftType.type === "evening"
+          ? 12
+          : shiftType.type === "noon"
+            ? 8
+            : shiftType.type === "morning"
+              ? 5
+              : 4,
+      workerIds: [] as string[],
+    }))
   );
 }
 
-const initialAbsences: AbsenceRequest[] = [
-  {
-    id: "a1",
-    workerId: "w6",
-    workerName: "שיר לוי",
-    type: "מחלה",
-    fromDate: "2026-05-20",
-    toDate: "2026-05-22",
-    reason: "אישור מחלה",
-    status: "pending",
-  },
-  {
-    id: "a2",
-    workerId: "w8",
-    workerName: "אוראל דהן",
-    type: "חופש",
-    fromDate: "2026-05-18",
-    toDate: "2026-05-24",
-    reason: "חופשה מראש",
-    status: "approved",
-  },
-];
-
 function getHallName(hallId: string) {
-  if (hallId === "garden-hall") return "גן אירועים";
-  if (hallId === "sky-hall") return "SKY Hall";
-  return "אולם הזהב";
+  return hallId || "אולם";
 }
 
 function statusLabel(status: WorkerStatus) {
@@ -293,10 +186,18 @@ export default function HallStaffShiftsPage() {
   const hallId = params?.hallId || "main-gold-hall";
   const hallName = getHallName(hallId);
 
-  const [workers, setWorkers] = useState<Worker[]>(workersInitial);
-  const [shifts, setShifts] = useState<Shift[]>(createInitialShifts);
-  const [absences, setAbsences] = useState<AbsenceRequest[]>(initialAbsences);
+  const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWeekOffset, setSelectedWeekOffset] = useState(0);
+  const weekDays = useMemo(
+    () => getWeekDays(selectedWeekOffset),
+    [selectedWeekOffset]
+  );
+  const weekStartKey = useMemo(
+    () => getWeekStartKey(selectedWeekOffset),
+    [selectedWeekOffset]
+  );
+  const [shifts, setShifts] = useState<Shift[]>(() => createEmptyShifts(0));
+  const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
   const [draggedWorkerId, setDraggedWorkerId] = useState<string | null>(null);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
@@ -304,33 +205,102 @@ export default function HallStaffShiftsPage() {
   const [absenceOpen, setAbsenceOpen] = useState(false);
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [newWorkerName, setNewWorkerName] = useState("");
+  const [newWorkerPhone, setNewWorkerPhone] = useState("");
+  const [newWorkerRole, setNewWorkerRole] = useState<WorkerRole>("מלצר");
 
   const [absenceForm, setAbsenceForm] = useState({
-    workerId: "w1",
+    workerId: "",
     type: "חופש" as AbsenceType,
     fromDate: "2026-05-25",
     toDate: "2026-05-27",
     reason: "",
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const res = await fetch(
+          `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/staff?weekStart=${weekStartKey}`,
+          { cache: "no-store" }
+        );
+        const data = await res.json();
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || "טעינת צוות נכשלה");
+        }
+        if (cancelled) return;
+
+        const mapped: Worker[] = (data.employees || []).map((e: any) => ({
+          id: String(e.id || e._id),
+          name: e.name || e.fullName || "",
+          phone: e.phone || "",
+          role: (e.role || e.jobTitle || "מלצר") as WorkerRole,
+          initials: e.initials || "?",
+          status: e.status === "inactive" ? "vacation" : "available",
+        }));
+        setWorkers(mapped);
+
+        if (data.schedule?.shifts?.length) {
+          setShifts(data.schedule.shifts);
+        } else {
+          setShifts(createEmptyShifts(selectedWeekOffset));
+        }
+        if (Array.isArray(data.schedule?.absences)) {
+          setAbsences(data.schedule.absences);
+        } else {
+          setAbsences([]);
+        }
+        if (mapped[0]) {
+          setAbsenceForm((f) => ({
+            ...f,
+            workerId: mapped[0].id,
+            fromDate: weekStartKey,
+            toDate: weekStartKey,
+          }));
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setLoadError(err?.message || "טעינת צוות נכשלה");
+          setWorkers([]);
+          setShifts(createEmptyShifts(selectedWeekOffset));
+          setAbsences([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [hallId, weekStartKey, selectedWeekOffset]);
+
   const selectedWorker = workers.find((worker) => worker.id === selectedWorkerId) || null;
   const selectedShift = shifts.find((shift) => shift.id === selectedShiftId) || null;
 
   const stats = useMemo(() => {
+    const todayDisplay = toDisplayDate(new Date());
     const todayWorkerIds = new Set<string>();
 
     shifts.forEach((shift) => {
-      if (shift.date === "19.05") {
+      if (shift.date === todayDisplay) {
         shift.workerIds.forEach((id) => todayWorkerIds.add(id));
       }
     });
 
     const eveningShift = shifts.find(
-      (shift) => shift.date === "19.05" && shift.type === "evening"
+      (shift) => shift.date === todayDisplay && shift.type === "evening"
     );
 
     const missingToday = shifts
-      .filter((shift) => shift.date === "19.05")
+      .filter((shift) => shift.date === todayDisplay)
       .reduce((sum, shift) => sum + Math.max(shift.required - shift.workerIds.length, 0), 0);
 
     return {
@@ -338,6 +308,7 @@ export default function HallStaffShiftsPage() {
       eveningWorkers: eveningShift?.workerIds.length || 0,
       missingToday,
       pendingAbsences: absences.filter((absence) => absence.status === "pending").length,
+      todayDisplay,
     };
   }, [shifts, absences]);
 
@@ -471,27 +442,75 @@ export default function HallStaffShiftsPage() {
     );
   };
 
-  const addWorker = () => {
-    const id = `w-${Date.now()}`;
-
-    setWorkers((current) => [
-      ...current,
-      {
-        id,
-        name: "עובד חדש",
-        phone: "050-0000000",
-        role: "מלצר",
-        initials: "ח",
-        status: "available",
-      },
-    ]);
-
-    setAddWorkerOpen(false);
+  const addWorker = async () => {
+    const name = newWorkerName.trim() || "עובד חדש";
+    setSaving(true);
+    setLoadError("");
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/staff`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fullName: name,
+            phone: newWorkerPhone.trim(),
+            jobTitle: newWorkerRole,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "יצירת עובד נכשלה");
+      }
+      const e = data.employee;
+      setWorkers((current) => [
+        ...current,
+        {
+          id: String(e.id || e._id),
+          name: e.name || e.fullName || name,
+          phone: e.phone || newWorkerPhone.trim(),
+          role: (e.role || e.jobTitle || newWorkerRole) as WorkerRole,
+          initials: e.initials || "?",
+          status: "available",
+        },
+      ]);
+      setNewWorkerName("");
+      setNewWorkerPhone("");
+      setAddWorkerOpen(false);
+    } catch (err: any) {
+      setLoadError(err?.message || "יצירת עובד נכשלה");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const saveMock = () => {
+  const saveSchedule = async () => {
     setSaving(true);
-    window.setTimeout(() => setSaving(false), 700);
+    setLoadError("");
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/staff`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "saveSchedule",
+            weekStart: weekStartKey,
+            shifts,
+            absences,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "שמירת שיבוץ נכשלה");
+      }
+    } catch (err: any) {
+      setLoadError(err?.message || "שמירת שיבוץ נכשלה");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -520,6 +539,9 @@ export default function HallStaffShiftsPage() {
                   <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
                     שיבוץ עובדים לחודש קדימה, תצוגה שבועית, גרירת עובדים למשמרות,
                     החלפות, חופשות, ימי מחלה ואישור היעדרות מיוחד.
+                  </p>
+                  <p className="mt-2 text-xs font-bold text-[#9b8a73]">
+                    טיפ: גררי עובד מהמאגר לתא משמרת, ושמרי שיבוץ בסיום העבודה.
                   </p>
                 </div>
               </div>
@@ -554,8 +576,9 @@ export default function HallStaffShiftsPage() {
 
               <button
                 type="button"
-                onClick={saveMock}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                onClick={saveSchedule}
+                disabled={saving || loading}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:opacity-60"
               >
                 {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
                 שמירת שיבוץ
@@ -563,6 +586,18 @@ export default function HallStaffShiftsPage() {
             </div>
           </div>
         </header>
+
+        {loadError ? (
+          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            {loadError}
+          </div>
+        ) : null}
+        {loading ? (
+          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-[#8a7b68]">
+            <Loader2 className="animate-spin" size={16} />
+            טוען צוות מהשרת...
+          </div>
+        ) : null}
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -639,13 +674,13 @@ export default function HallStaffShiftsPage() {
                   הוספת עובד
                 </button>
 
-                <button
-                  type="button"
+                <Link
+                  href={`/venues/dashboard/halls/${encodeURIComponent(hallId)}/employees`}
                   className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
                 >
                   <Send size={16} />
-                  שליחת הודעה לצוות
-                </button>
+                  ניהול עובדים והרשאות
+                </Link>
               </div>
             </Panel>
           </aside>
@@ -662,7 +697,7 @@ export default function HallStaffShiftsPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedWeekOffset((current) => Math.max(0, current - 1))}
+                  onClick={() => setSelectedWeekOffset((current) => current - 1)}
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-[#6f6252]"
                 >
                   <ChevronRight size={18} />
@@ -670,12 +705,12 @@ export default function HallStaffShiftsPage() {
 
                 <div className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#2b241c]">
                   <CalendarDays size={16} className="text-[#b98121]" />
-                  שבוע {selectedWeekOffset + 1} מתוך 4
+                  {weekDays[0]?.date} – {weekDays[6]?.date}
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setSelectedWeekOffset((current) => Math.min(3, current + 1))}
+                  onClick={() => setSelectedWeekOffset((current) => current + 1)}
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-[#6f6252]"
                 >
                   <ChevronLeft size={18} />
@@ -880,9 +915,27 @@ export default function HallStaffShiftsPage() {
 
             <Panel title="התראות" icon={<MessageCircle size={18} />}>
               <div className="space-y-2">
-                <AlertLine title="חסר עובד בערב" text="19.05 · משמרת ערב חסר תקן חלקי" />
-                <AlertLine title="מחלה פתוחה" text="שיר לוי ממתינה לאישור מנהל" />
-                <AlertLine title="החלפה ממתינה" text="רועי לוי ביקש החלפה במשמרת ערב" />
+                {absences.some((a) => a.status === "pending") ? (
+                  absences
+                    .filter((a) => a.status === "pending")
+                    .slice(0, 5)
+                    .map((a) => (
+                      <AlertLine
+                        key={a.id}
+                        title="בקשת היעדרות ממתינה"
+                        text={`${a.workerName} · ${a.fromDate}${
+                          a.toDate && a.toDate !== a.fromDate
+                            ? ` - ${a.toDate}`
+                            : ""
+                        }`}
+                      />
+                    ))
+                ) : (
+                  <AlertLine
+                    title="אין התראות פתוחות"
+                    text="אין בקשות היעדרות ממתינות לאישור"
+                  />
+                )}
               </div>
             </Panel>
           </aside>
@@ -1086,16 +1139,56 @@ export default function HallStaffShiftsPage() {
       {addWorkerOpen && (
         <Modal title="הוספת עובד" onClose={() => setAddWorkerOpen(false)}>
           <div className="grid gap-3">
-            <InputLike label="שם עובד" value="עובד חדש" />
-            <InputLike label="טלפון" value="050-0000000" />
-            <InputLike label="תפקיד" value="מלצר" />
+            <label className="grid gap-1 text-sm font-bold text-[#6f6252]">
+              שם עובד
+              <input
+                className="h-11 rounded-2xl border border-[#eadfce] px-3"
+                value={newWorkerName}
+                onChange={(e) => setNewWorkerName(e.target.value)}
+                placeholder="שם מלא"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-bold text-[#6f6252]">
+              טלפון
+              <input
+                className="h-11 rounded-2xl border border-[#eadfce] px-3"
+                value={newWorkerPhone}
+                onChange={(e) => setNewWorkerPhone(e.target.value)}
+                placeholder="050-0000000"
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-bold text-[#6f6252]">
+              תפקיד
+              <select
+                className="h-11 rounded-2xl border border-[#eadfce] px-3"
+                value={newWorkerRole}
+                onChange={(e) => setNewWorkerRole(e.target.value as WorkerRole)}
+              >
+                {(
+                  [
+                    "מנהל אולם",
+                    "אחראי משמרת",
+                    "מלצר",
+                    "ברמן",
+                    "מטבח",
+                    "ניקיון",
+                    "אבטחה",
+                  ] as WorkerRole[]
+                ).map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <button
               type="button"
               onClick={addWorker}
-              className="mt-2 h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              disabled={saving}
+              className="mt-2 h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:opacity-60"
             >
-              הוספת עובד
+              {saving ? "שומר..." : "הוספת עובד"}
             </button>
           </div>
         </Modal>

@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import User from "@/models/User";
 import Group from "@/models/Group";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
@@ -406,11 +405,6 @@ async function cancelCallTasksForDeletedGuest(guest: any) {
 /* ============================================
    Helpers
 ============================================ */
-async function getMaxGuestsForInvitationOwner(ownerId: string) {
-  const owner = await User.findById(ownerId).lean();
-  return owner?.planLimits?.maxGuests ?? 100;
-}
-
 async function getInvitationProducerPermission(auth: any, invitation: any) {
   const producerIdStr = invitation.producerId?.toString?.() || null;
 
@@ -1252,7 +1246,16 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isOwner = auth.userId.toString() === invitation.ownerId.toString();
+    const ownerIdStr = invitation.ownerId
+      ? String(invitation.ownerId)
+      : "";
+    const invitationUserIdStr = invitation.userId
+      ? String(invitation.userId)
+      : "";
+    const authUserIdStr = String(auth.userId);
+    const isOwner =
+      (ownerIdStr && authUserIdStr === ownerIdStr) ||
+      (invitationUserIdStr && authUserIdStr === invitationUserIdStr);
     const isAdmin =
       effectiveRole === "admin" ||
       auth?.role === "admin" ||
@@ -1265,12 +1268,84 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const { producerIdStr, isProducerByInvitation } =
       await getInvitationProducerPermission(auth, invitation);
 
+    // Venue owners/managers access linked client guests via venueView=1
+    // (JWT role is often a normal user, not "venue_owner").
+    const isVenueView =
+      req.nextUrl.searchParams.get("venueView") === "1" ||
+      data?.venueView === true ||
+      data?.venueView === 1 ||
+      data?.venueView === "1";
+    let isLinkedVenueActor = false;
+    if (isVenueView || isVenueOwnerRole) {
+      try {
+        const dbConn = mongoose.connection?.db;
+        if (dbConn && invitation.eventId) {
+          const linked = await dbConn.collection("events").findOne(
+            {
+              _id: invitation.eventId,
+              venueOwnerId: {
+                $in: [
+                  auth.userId,
+                  ...(mongoose.Types.ObjectId.isValid(authUserIdStr)
+                    ? [new mongoose.Types.ObjectId(authUserIdStr)]
+                    : []),
+                ],
+              },
+              venueAccessStatus: "linked",
+            },
+            { projection: { _id: 1 } }
+          );
+          isLinkedVenueActor = Boolean(linked);
+        }
+        // Also allow venue membership on the hall (employees with guest access)
+        if (!isLinkedVenueActor && dbConn && invitation.eventId) {
+          const ev = await dbConn.collection("events").findOne(
+            { _id: invitation.eventId, venueAccessStatus: "linked" },
+            { projection: { venueHallId: 1, venueOwnerId: 1 } }
+          );
+          const hallId = String(ev?.venueHallId || "");
+          if (hallId) {
+            const membership = await dbConn
+              .collection("venuememberships")
+              .findOne({
+                venueId: hallId,
+                userId: {
+                  $in: [
+                    auth.userId,
+                    ...(mongoose.Types.ObjectId.isValid(authUserIdStr)
+                      ? [new mongoose.Types.ObjectId(authUserIdStr)]
+                      : []),
+                  ],
+                },
+                status: "active",
+              });
+            if (membership) {
+              const role = String(membership.role || "");
+              const perms = Array.isArray(membership.permissions)
+                ? membership.permissions.map(String)
+                : [];
+              isLinkedVenueActor =
+                ["OWNER", "MANAGER"].includes(role) ||
+                perms.includes("guests.edit") ||
+                perms.includes("guests.view") ||
+                perms.includes("events.manage") ||
+                perms.includes("calendar.edit");
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("venue linked actor check failed", e);
+      }
+    }
+
     console.log("🔐 Permissions:", {
       isOwner,
       isAdmin,
       isProducerRole,
       isWorkerRole,
       isVenueOwnerRole,
+      isLinkedVenueActor,
+      isVenueView,
       isProducerByInvitation,
       producerIdStr,
       userId: auth.userId?.toString?.(),
@@ -1285,6 +1360,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       !isProducerRole &&
       !isWorkerRole &&
       !isVenueOwnerRole &&
+      !isLinkedVenueActor &&
       !isProducerByInvitation
     ) {
       console.warn("⛔ Not authorized to update guest");
@@ -1295,6 +1371,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const beforeGroupId = guest.groupId ? String(guest.groupId) : null;
+
+    // קישור אישי נשמר לפי guest.token + invitation.shareId.
+    // אסור לשנות אותם מעריכת אורח — גם אם נשלחו ב-payload.
+    // (RSVP worker / שליחות משתמשים באותו token קיים.)
 
     /* ===============================
        שדות כלליים
@@ -1391,43 +1471,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ===============================
-       guestsCount
+       guestsCount (כמות מוזמנים ברשומה)
+       המכסה היא על מספר רשומות (בעת הוספה), לא על סכום guestsCount.
+       לכן בעריכה מאפשרים לשנות את כמות המוזמנים בחופשיות.
+       token / קישור אישי — לא נוגעים כאן לעולם.
     =============================== */
     if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
-      const nextGuestsCount = data.guestsCount;
-      const prevGuestsCount = guest.guestsCount ?? 1;
-
-      if (nextGuestsCount !== prevGuestsCount) {
-        const maxGuests = await getMaxGuestsForInvitationOwner(
-          invitation.ownerId.toString()
-        );
-
-        const aggregate = await InvitationGuest.aggregate([
-          { $match: { invitationId: invitation._id } },
-          { $group: { _id: null, total: { $sum: "$guestsCount" } } },
-        ]);
-
-        const currentTotalGuestsCount = aggregate?.[0]?.total ?? 0;
-
-        const nextTotalGuestsCount =
-          currentTotalGuestsCount - prevGuestsCount + nextGuestsCount;
-
-        if (nextTotalGuestsCount > maxGuests) {
-          return NextResponse.json(
-            {
-              success: false,
-              code: "PLAN_GUEST_LIMIT_EXCEEDED",
-              error: `לא ניתן לעדכן. חבילת המשתמש מוגבלת ל-${maxGuests} מוזמנים (כמות מוזמנים כוללת).`,
-              limit: maxGuests,
-              currentTotal: currentTotalGuestsCount,
-              requestedTotal: nextTotalGuestsCount,
-            },
-            { status: 409 }
-          );
-        }
-
-        guest.guestsCount = nextGuestsCount;
-      }
+      guest.guestsCount = Math.max(1, Math.floor(data.guestsCount));
     }
 
     /* ===============================
@@ -1500,6 +1550,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         isProducerRole ||
         isWorkerRole ||
         isVenueOwnerRole ||
+        isLinkedVenueActor ||
         isProducerByInvitation;
 
       if (!canUpdateActualArrived) {

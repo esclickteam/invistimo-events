@@ -292,7 +292,7 @@ export async function POST(req: Request) {
 
     const user: any = await User.findById(userId)
       .select(
-        "_id role staffType producerId assignedProducerId createdByProducer email name hasPaid isTrial trialExpiresAt"
+        "_id role staffType producerId assignedProducerId createdByProducer email name hasPaid isTrial trialExpiresAt authVersion isActive"
       )
       .lean();
 
@@ -322,6 +322,8 @@ export async function POST(req: Request) {
        Impersonation Token
     ========================= */
 
+    const targetAuthVersion = Number((user as any)?.authVersion ?? 0);
+
     const impersonationToken = jwt.sign(
       {
         userId: String(user._id),
@@ -341,6 +343,9 @@ export async function POST(req: Request) {
         trialExpiresAt: user.trialExpiresAt
           ? new Date(user.trialExpiresAt).getTime()
           : null,
+
+        // Must match User.authVersion for getUserIdFromRequest
+        authVersion: Number.isFinite(targetAuthVersion) ? targetAuthVersion : 0,
 
         // מצב התחזות
         impersonated: true,

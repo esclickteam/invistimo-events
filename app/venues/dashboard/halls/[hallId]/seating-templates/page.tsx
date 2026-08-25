@@ -1,5 +1,4 @@
 import Link from "next/link";
-import mongoose from "mongoose";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -13,8 +12,7 @@ import {
 } from "lucide-react";
 
 import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import VenueHall from "@/models/VenueHall";
+import { requireVenueAccess } from "@/lib/venues/requireVenueAccess";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
 export const dynamic = "force-dynamic";
@@ -94,34 +92,25 @@ function serializeSeatingTemplate(template: any): SerializedSeatingTemplate {
 }
 
 export default async function VenueSeatingTemplatesPage({ params }: Props) {
-  await connectDB();
-
-  const auth = await getUserIdFromRequest();
-
-  if (!auth?.userId) {
-    redirect("/login");
-  }
-
   const { hallId } = await params;
-  const decodedHallId = decodeURIComponent(hallId);
 
-  const hallOrConditions: any[] = [{ id: hallId }, { id: decodedHallId }];
+  const { ctx, error } = await requireVenueAccess(
+    undefined,
+    hallId,
+    "seating.view"
+  );
 
-  if (mongoose.Types.ObjectId.isValid(hallId)) {
-    hallOrConditions.push({ _id: hallId });
-  }
-
-  const rawHall = await VenueHall.findOne({
-    ownerId: auth.userId,
-    $or: hallOrConditions,
-  }).lean();
-
-  if (!rawHall) {
+  if (error || !ctx) {
+    if (error?.status === 401) {
+      redirect("/login");
+    }
     notFound();
   }
 
-  const hall = serializeHall(rawHall);
-  const safeHallId = hall.id || decodedHallId;
+  await connectDB();
+
+  const hall = serializeHall(ctx.hall);
+  const safeHallId = ctx.venueId;
   const encodedHallId = encodeHallPath(safeHallId);
 
   const hallPageHref = `/venues/dashboard/halls/${encodedHallId}`;
@@ -130,9 +119,11 @@ export default async function VenueSeatingTemplatesPage({ params }: Props) {
   const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
   const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
   const createTemplateHref = `/dashboard/seating?mode=venue-template&hallId=${encodedHallId}`;
+  const editTemplateHref = (templateId: string) =>
+    `/dashboard/seating?mode=venue-template&hallId=${encodedHallId}&templateId=${encodeURIComponent(templateId)}`;
 
   const templatesRaw = await VenueSeatingTemplate.find({
-    ownerId: auth.userId,
+    ownerId: ctx.ownerId,
     hallId: safeHallId,
     isActive: true,
   })
@@ -364,6 +355,13 @@ export default async function VenueSeatingTemplatesPage({ params }: Props) {
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-2">
+                    <Link
+                      href={editTemplateHref(template.id)}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[#B8872E] px-4 text-xs font-black text-white transition hover:bg-[#9f7427]"
+                    >
+                      <LayoutTemplate size={15} />
+                      עריכת תבנית
+                    </Link>
                     <Link
                       href={createTemplateHref}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-xs font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"

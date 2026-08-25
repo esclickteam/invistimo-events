@@ -377,6 +377,21 @@ export async function POST(req: NextRequest) {
     const guestName = cleanStr(body?.guestName || body?.label);
     const localCallId = cleanStr(body?.localCallId || body?.callId);
 
+    const shiftStartedRaw = body?.shiftStarted;
+    const shiftStarted =
+      shiftStartedRaw === true ||
+      shiftStartedRaw === "true" ||
+      shiftStartedRaw === 1 ||
+      shiftStartedRaw === "1";
+
+    const shiftStartedAtRaw = body?.shiftStartedAt
+      ? new Date(body.shiftStartedAt)
+      : null;
+    const shiftStartedAt =
+      shiftStartedAtRaw && !Number.isNaN(shiftStartedAtRaw.getTime())
+        ? shiftStartedAtRaw
+        : null;
+
     const statusStartedAt = body?.statusStartedAt
       ? new Date(body.statusStartedAt)
       : now;
@@ -456,6 +471,24 @@ export async function POST(req: NextRequest) {
           currentCall,
 
           shiftSessionId,
+          shiftStarted,
+          shiftActive: shiftStarted,
+          active: shiftStarted || activeCall,
+          isActive: shiftStarted || activeCall,
+          ...(shiftStartedAt
+            ? {
+                shiftStartedAt,
+                workStartedAt: shiftStartedAt,
+                sessionStartedAt: shiftStartedAt,
+              }
+            : {}),
+          ...(!shiftStarted
+            ? {
+                shiftStartedAt: null,
+                workStartedAt: null,
+                sessionStartedAt: null,
+              }
+            : {}),
           lastSeenAt: now,
           updatedAt: now,
           statusStartedAt,
