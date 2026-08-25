@@ -6,6 +6,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
 import { requireSeating } from "@/lib/guards/requireSeating";
+import { planInvitationGuestSeatingWrites } from "@/lib/invitationGuestWrites";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -663,17 +664,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    await InvitationGuest.updateMany(
-      { invitationId },
-      {
-        $unset: {
-          tableId: "",
-          tableName: "",
-          tableNumber: "",
-          seatNumber: "",
-        },
-      }
-    );
+    const desiredByGuestId = new Map<
+      string,
+      { tableId: string | null; tableNumber: number | null; tableName: string }
+    >();
 
     const groupedMap = new Map<string, GroupBucket>();
     const noGroupBuckets: GroupBucket[] = [];
@@ -893,29 +887,63 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
+    const seatNumberByGuestId = new Map<string, number>();
+
     for (const tableState of tableStates) {
       let seatIndex = 0;
 
       for (const guest of tableState.seatedGuests) {
-        const guestSeats = getGuestCount(guest);
-
-        await InvitationGuest.updateOne(
-          {
-            _id: guest._id,
-            invitationId,
-          },
-          {
-            $set: {
-              tableId: tableState.tableId,
-              tableName: tableState.tableName,
-              tableNumber: tableState.tableNumber,
-              seatNumber: seatIndex + 1,
-            },
-          }
-        );
-
-        seatIndex += guestSeats;
+        const guestId = String(guest._id);
+        desiredByGuestId.set(guestId, {
+          tableId: tableState.tableId || null,
+          tableNumber: tableState.tableNumber || null,
+          tableName: tableState.tableName || "",
+        });
+        seatNumberByGuestId.set(guestId, seatIndex + 1);
+        seatIndex += getGuestCount(guest);
       }
+    }
+
+    const seatingPlan = planInvitationGuestSeatingWrites({
+      guests: allGuests,
+      desiredByGuestId,
+      source: "seating.smart-seat-by-groups",
+      eventId,
+      invitationId: String(invitationId),
+    });
+
+    if (seatingPlan.writes.length) {
+      const now = new Date();
+
+      await InvitationGuest.bulkWrite(
+        seatingPlan.writes.map((write) => {
+          const seatNumber = seatNumberByGuestId.get(write.guestId);
+          const update: Record<string, unknown> = {
+            $set: {
+              tableId: write.fields.tableId,
+              tableNumber: write.fields.tableNumber,
+              tableName: write.fields.tableName,
+              updatedAt: now,
+              ...(typeof seatNumber === "number" ? { seatNumber } : {}),
+            },
+          };
+
+          if (typeof seatNumber !== "number") {
+            update.$unset = { seatNumber: "" };
+          }
+
+          return {
+            updateOne: {
+              filter: {
+                _id: write.guestId,
+                invitationId,
+              },
+              update,
+            },
+          };
+        }),
+        { ordered: false }
+      );
     }
 
     const seatedGuestCount = tableStates.reduce(

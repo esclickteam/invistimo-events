@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import InvitationGuest from "@/models/InvitationGuest";
+import { planSingleGuestWrite } from "@/lib/invitationGuestWrites";
 import { NextResponse } from "next/server";
 
 export async function PATCH(req: Request) {
@@ -35,8 +36,19 @@ export async function PATCH(req: Request) {
       nextArrived: safeArrived,
     });
 
-    guest.arrivedCount = safeArrived;
-    await guest.save();
+    const writePlan = planSingleGuestWrite({
+      source: "live-guests.arrived",
+      guestId: String(guest._id),
+      invitationId: guest.invitationId ? String(guest.invitationId) : null,
+      current: { arrivedCount: guest.arrivedCount },
+      next: { arrivedCount: safeArrived },
+      keys: ["arrivedCount"],
+    });
+
+    if (writePlan.shouldWrite) {
+      guest.arrivedCount = safeArrived;
+      await guest.save();
+    }
 
     console.log("🟢 [API arrived] AFTER save:", {
       guestId: guest._id.toString(),

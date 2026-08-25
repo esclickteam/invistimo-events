@@ -186,6 +186,8 @@ function SeatingPageInner() {
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveInFlightRef = useRef(false);
+  const autoSaveQueuedRef = useRef(false);
   const liveRefreshInFlightRef = useRef(false);
 
   /* ===============================
@@ -872,6 +874,34 @@ function SeatingPageInner() {
   /* ===============================
      AUTO SAVE EVENT SEATING
   =============================== */
+  const runAutoSave = useCallback(async () => {
+    if (autoSaveInFlightRef.current) {
+      autoSaveQueuedRef.current = true;
+      return;
+    }
+
+    autoSaveInFlightRef.current = true;
+    setIsAutoSaving(true);
+
+    try {
+      const ok = await saveSeating(false);
+
+      if (ok) {
+        setLastAutoSavedAt(new Date());
+      }
+    } finally {
+      autoSaveInFlightRef.current = false;
+      setIsAutoSaving(false);
+
+      if (autoSaveQueuedRef.current) {
+        autoSaveQueuedRef.current = false;
+        autoSaveTimerRef.current = setTimeout(() => {
+          void runAutoSave();
+        }, 1500);
+      }
+    }
+  }, [saveSeating]);
+
   useEffect(() => {
     if (isVenueTemplateMode) return;
     if (isDemo) return;
@@ -885,17 +915,9 @@ function SeatingPageInner() {
       clearTimeout(autoSaveTimerRef.current);
     }
 
-    autoSaveTimerRef.current = setTimeout(async () => {
-      setIsAutoSaving(true);
-
-      const ok = await saveSeating(false);
-
-      if (ok) {
-        setLastAutoSavedAt(new Date());
-      }
-
-      setIsAutoSaving(false);
-    }, 900);
+    autoSaveTimerRef.current = setTimeout(() => {
+      void runAutoSave();
+    }, 1500);
 
     return () => {
       if (autoSaveTimerRef.current) {
@@ -910,7 +932,7 @@ function SeatingPageInner() {
     invitationId,
     isDemo,
     blockReason,
-    saveSeating,
+    runAutoSave,
     isVenueTemplateMode,
     isLiveSeatingView,
   ]);

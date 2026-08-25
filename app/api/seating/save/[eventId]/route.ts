@@ -7,6 +7,10 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  planInvitationGuestSeatingWrites,
+  type PlannedSeatingGuestWrite,
+} from "@/lib/invitationGuestWrites";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -233,6 +237,75 @@ function normalizeBackground(rawBackground: any): BackgroundPayload | null {
   return null;
 }
 
+function toGuestIdFilter(guestId: string) {
+  return toObjectId(guestId) || guestId;
+}
+
+function seatingGuestBulkOps(
+  writes: PlannedSeatingGuestWrite[],
+  invitationId: unknown
+) {
+  const now = new Date();
+
+  return writes.map((write) => ({
+    updateOne: {
+      filter: {
+        _id: toGuestIdFilter(write.guestId),
+        invitationId,
+      },
+      update: {
+        $set: {
+          tableId: write.fields.tableId,
+          tableNumber: write.fields.tableNumber,
+          tableName: write.fields.tableName,
+          updatedAt: now,
+        },
+      },
+    },
+  }));
+}
+
+async function syncInvitationGuestsFromSeating({
+  invitationId,
+  eventId,
+  tables,
+}: {
+  invitationId: unknown;
+  eventId: string;
+  tables: any[];
+}) {
+  const guests = await InvitationGuest.find({ invitationId })
+    .select("_id tableId tableNumber tableName")
+    .lean();
+
+  const plan = planInvitationGuestSeatingWrites({
+    guests,
+    tables,
+    source: "seating.save",
+    eventId,
+    invitationId: String(invitationId),
+  });
+
+  if (!plan.writes.length) {
+    return {
+      writes: 0,
+      skippedUnchanged: plan.skippedUnchanged,
+    };
+  }
+
+  const bulkResult = await InvitationGuest.bulkWrite(
+    seatingGuestBulkOps(plan.writes, invitationId),
+    { ordered: false }
+  );
+
+  return {
+    writes: plan.writes.length,
+    skippedUnchanged: plan.skippedUnchanged,
+    matchedCount: bulkResult.matchedCount,
+    modifiedCount: bulkResult.modifiedCount,
+  };
+}
+
 function normalizeCanvasView(rawCanvasView: any) {
   if (
     rawCanvasView &&
@@ -436,61 +509,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    const updatedGuestIds = new Set<string>();
-
-    for (const table of tables) {
-      if (!Array.isArray(table.seatedGuests)) continue;
-
-      const tableNumber =
-        typeof table.name === "string"
-          ? Number(table.name.replace(/\D/g, "")) || null
-          : null;
-
-      for (const seated of table.seatedGuests) {
-        if (!seated?.guestId) continue;
-
-        const guestId = String(seated.guestId);
-        const guestObjectId = toObjectId(guestId);
-
-        updatedGuestIds.add(guestId);
-
-        await InvitationGuest.findOneAndUpdate(
-          {
-            _id: guestObjectId || guestId,
-            invitationId,
-          },
-          {
-            $set: {
-              tableId: cleanString(table.id || table._id || ""),
-              tableNumber,
-              tableName: table.name ?? "",
-              updatedAt: new Date(),
-            },
-          }
-        );
-      }
-    }
-
-    const updatedGuestObjectIds = Array.from(updatedGuestIds)
-      .map((id) => toObjectId(id))
-      .filter(Boolean) as mongoose.Types.ObjectId[];
-
-    await InvitationGuest.updateMany(
-      {
-        invitationId,
-        ...(updatedGuestObjectIds.length
-          ? { _id: { $nin: updatedGuestObjectIds } }
-          : {}),
-      },
-      {
-        $set: {
-          tableId: null,
-          tableNumber: null,
-          tableName: "",
-          updatedAt: new Date(),
-        },
-      }
-    );
+    const guestWriteStats = await syncInvitationGuestsFromSeating({
+      invitationId,
+      eventId,
+      tables,
+    });
 
     return NextResponse.json({
       success: true,
@@ -499,6 +522,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       invitationId: String(invitationId),
       tablesCount: tables.length,
       zonesCount: zones.length,
+      guestWrites: guestWriteStats.writes,
+      guestWritesSkipped: guestWriteStats.skippedUnchanged,
     });
   } catch (err: any) {
     console.error("❌ Save seating error:", err);

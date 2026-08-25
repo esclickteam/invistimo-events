@@ -1566,10 +1566,9 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
     }
 
-    /* ===============================
-       callRounds
-    =============================== */
-    if (Array.isArray(data.callRounds)) {
+    const callRoundsTouched = Array.isArray(data.callRounds);
+
+    if (callRoundsTouched) {
       const canUpdateCallRounds =
         isOwner ||
         isAdmin ||
@@ -1585,6 +1584,36 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
 
       guest.callRounds = normalizeCallRounds(data.callRounds);
+    }
+
+    if (!callRoundsTouched && !guest.isModified()) {
+      const syncedTables = (guest as any).__syncedTables || null;
+      const seatStatus = (guest as any).__seatStatus || null;
+      const suggestedTables = (guest as any).__suggestedTables || [];
+      const currentTable = (guest as any).__currentTable || null;
+
+      delete (guest as any).__syncedTables;
+      delete (guest as any).__seatStatus;
+      delete (guest as any).__suggestedTables;
+      delete (guest as any).__currentTable;
+
+      console.info("[invitationGuestWrite]", {
+        source: "guests.put",
+        guestId: String(guest._id),
+        skipped: true,
+        skipReason: "unchanged",
+        valuesChanged: false,
+      });
+
+      return NextResponse.json({
+        success: true,
+        guest,
+        skippedWrite: true,
+        tables: syncedTables,
+        seatStatus,
+        suggestedTables,
+        currentTable,
+      });
     }
 
     if (Array.isArray((guest as any).callRounds)) {

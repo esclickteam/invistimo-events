@@ -8,7 +8,8 @@
     "start": "next start",
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
     "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs",
-    "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs"
+    "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
+    "test:invitation-guest-writes": "npx tsx --test scripts/test-invitation-guest-writes.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

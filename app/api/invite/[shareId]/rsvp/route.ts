@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import { planSingleGuestWrite } from "@/lib/invitationGuestWrites";
 
 /* ============================================================
    POST — עדכון RSVP לפי shareId + token של האורח
@@ -57,25 +58,51 @@ export async function POST(
        עדכון נתוני האורח
        ❗️ guestsCount (מוזמנים) — לא נוגעים
     ============================================================ */
-    if (rsvp === "yes" || rsvp === "no" || rsvp === "pending") {
-      guest.rsvp = rsvp;
-    }
+    const nextRsvp =
+      rsvp === "yes" || rsvp === "no" || rsvp === "pending"
+        ? rsvp
+        : String(guest.rsvp || "pending");
 
-    if (notes !== undefined) {
-      guest.notes = notes;
-    }
-
-    // ✅ arrivedCount בלבד
-    if (rsvp === "yes") {
-      guest.arrivedCount =
-        typeof arrivedCount === "number" && arrivedCount >= 0
+    const nextNotes = notes !== undefined ? notes : guest.notes;
+    const nextArrivedCount =
+      nextRsvp === "yes"
+        ? typeof arrivedCount === "number" && arrivedCount >= 0
           ? arrivedCount
-          : guest.arrivedCount;
-    } else {
-      guest.arrivedCount = 0;
-    }
+          : guest.arrivedCount
+        : 0;
 
-    await guest.save();
+    const writePlan = planSingleGuestWrite({
+      source: "invite.rsvp",
+      guestId: String(guest._id),
+      invitationId: String(invitation._id),
+      current: {
+        rsvp: guest.rsvp,
+        notes: guest.notes,
+        arrivedCount: guest.arrivedCount,
+      },
+      next: {
+        rsvp: nextRsvp,
+        notes: nextNotes,
+        arrivedCount: nextArrivedCount,
+      },
+      keys: ["rsvp", "notes", "arrivedCount"],
+    });
+
+    if (writePlan.shouldWrite) {
+      guest.rsvp = nextRsvp;
+      if (notes !== undefined) {
+        guest.notes = notes;
+      }
+      guest.arrivedCount = nextArrivedCount;
+      await guest.save();
+    } else {
+      return NextResponse.json({
+        success: true,
+        guest,
+        stats: invitation.stats,
+        skippedWrite: true,
+      });
+    }
 
     /* ============================================================
        חישוב סטטיסטיקות כלליות להזמנה
