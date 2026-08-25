@@ -4,6 +4,11 @@ import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
 import Invitation from "@/models/Invitation";
+import {
+  seatingAssignmentFromGuest,
+  seatingAssignmentsEqual,
+  instrumentGuestWrite,
+} from "@/lib/invitationGuestWrites";
 
 type Body = {
   guestId?: string;
@@ -156,6 +161,48 @@ export async function POST(req: Request) {
       normalizeTableNumber(incomingTableNumber) ??
       normalizeTableNumber(foundTable.tableNumber) ??
       extractNumberFromName(finalTableName);
+
+    const nextAssignment = {
+      tableId: String(tableId),
+      tableName: finalTableName,
+      tableNumber:
+        typeof finalTableNumber === "number" ? finalTableNumber : null,
+    };
+
+    const currentAssignment = seatingAssignmentFromGuest(guest);
+    const alreadyAssigned = seatingAssignmentsEqual(currentAssignment, {
+      tableId: nextAssignment.tableId,
+      tableName: nextAssignment.tableName,
+      tableNumber: nextAssignment.tableNumber,
+    });
+
+    instrumentGuestWrite({
+      source: "guests.assign-table",
+      guestId: String(guestId),
+      invitationId: effectiveInvitationId,
+      fieldsAttempted: ["tableId", "tableName", "tableNumber", "seatIndex"],
+      changedFields: alreadyAssigned ? [] : ["tableId", "tableName", "tableNumber"],
+      valuesChanged: !alreadyAssigned,
+      skipped: alreadyAssigned,
+      skipReason: alreadyAssigned ? "unchanged" : undefined,
+      recentAttempts: 0,
+    });
+
+    if (alreadyAssigned && seatIndex === undefined) {
+      return NextResponse.json({
+        success: true,
+        matched: 1,
+        modified: 0,
+        skippedWrite: true,
+        guestId,
+        invitationId: effectiveInvitationId,
+        tableId: String(tableId),
+        tableName: finalTableName,
+        ...(typeof finalTableNumber === "number"
+          ? { tableNumber: finalTableNumber }
+          : {}),
+      });
+    }
 
     const updateSet: Record<string, unknown> = {
       tableId: String(tableId),

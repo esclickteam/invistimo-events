@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Event from "@/models/Event";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
+import { getChangedFields } from "@/lib/invitationGuestWrites";
 
 import Group from "@/models/Group";
 
@@ -506,6 +507,35 @@ export async function PUT(
     }
 
     const before = await InvitationGuest.findById(guestId).lean();
+
+    const nextPayload: Record<string, unknown> = {
+      ...normalizedUpdates,
+      ...(typeof guestsCount === "number" ? { guestsCount } : {}),
+    };
+
+    const ignoredKeys = new Set([
+      "_id",
+      "id",
+      "invitationId",
+      "token",
+      "createdAt",
+      "updatedAt",
+      "__v",
+    ]);
+
+    const changedFields = getChangedFields(
+      (before || {}) as Record<string, unknown>,
+      nextPayload,
+      Object.keys(nextPayload).filter((key) => !ignoredKeys.has(key))
+    );
+
+    if (!changedFields.length) {
+      return NextResponse.json({
+        success: true,
+        guest: before,
+        skippedWrite: true,
+      });
+    }
 
     const updated = await InvitationGuest.findByIdAndUpdate(
       guestId,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
+import { planSingleGuestWrite } from "@/lib/invitationGuestWrites";
 
 export const dynamic = "force-dynamic"; // מבטל cache של Next.js
 
@@ -49,6 +50,37 @@ export async function POST(request: Request, context: any) {
       rsvp === "yes"
         ? Number(before.guestsCount || 1)
         : 0;
+
+    const writePlan = planSingleGuestWrite({
+      source: "invitationGuests.respond",
+      guestId: String(before._id),
+      current: {
+        rsvp: before.rsvp,
+        arrivedCount: before.arrivedCount,
+        notes: before.notes,
+      },
+      next: {
+        rsvp,
+        arrivedCount,
+        notes: typeof notes === "string" ? notes : before.notes,
+      },
+      keys: [
+        "rsvp",
+        "arrivedCount",
+        ...(typeof notes === "string" ? ["notes"] : []),
+      ],
+    });
+
+    if (!writePlan.shouldWrite) {
+      return NextResponse.json(
+        {
+          success: true,
+          guest: before,
+          skippedWrite: true,
+        },
+        { status: 200 }
+      );
+    }
 
     /* -------------------------------
        💾 עדכון האורח

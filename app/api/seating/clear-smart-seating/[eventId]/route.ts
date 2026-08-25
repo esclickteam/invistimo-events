@@ -72,7 +72,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     const guestsResult = await InvitationGuest.updateMany(
-      { invitationId },
+      {
+        invitationId,
+        $or: [
+          { tableId: { $gt: "" } },
+          { tableName: { $gt: "" } },
+          { tableNumber: { $gt: 0 } },
+          { seatNumber: { $gt: 0 } },
+        ],
+      },
       {
         $unset: {
           tableId: "",

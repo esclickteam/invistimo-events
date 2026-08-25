@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
+import { planSingleGuestWrite } from "@/lib/invitationGuestWrites";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -115,12 +116,38 @@ export async function POST(
       status: rsvp,
       arrivedCount: validatedArrivedCount,
       amount: validatedArrivedCount,
-      updatedAt: new Date(),
     };
 
     if (notes !== undefined) {
       updateSet.notes = normalizeNotes(notes);
     }
+
+    const writePlan = planSingleGuestWrite({
+      source: "invitationGuests.respondByToken",
+      guestId: String(guest._id),
+      current: {
+        rsvp: guest.rsvp,
+        status: guest.status,
+        arrivedCount: guest.arrivedCount,
+        amount: guest.amount,
+        notes: guest.notes,
+      },
+      next: updateSet,
+      keys: Object.keys(updateSet),
+    });
+
+    if (!writePlan.shouldWrite) {
+      return NextResponse.json(
+        {
+          success: true,
+          guest,
+          skippedWrite: true,
+        },
+        { status: 200 }
+      );
+    }
+
+    updateSet.updatedAt = new Date();
 
     const fresh = await InvitationGuest.findOneAndUpdate(
       { token },

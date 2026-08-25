@@ -5,6 +5,12 @@ import { connectDB } from "@/lib/db";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
+import {
+  seatingAssignmentFromGuest,
+  seatingAssignmentsEqual,
+  instrumentGuestWrite,
+  normalizeTableNumber,
+} from "@/lib/invitationGuestWrites";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -447,9 +453,39 @@ function serializeTables(tables: any[]) {
 }
 
 async function updateGuestFields(guest: any, table: any | null) {
-  guest.tableId = table ? getTableStableId(table) : null;
-  guest.tableName = table ? getTableLabel(table) : "";
-  guest.tableNumber = table ? getTableNumber(table) : undefined;
+  const nextTableId = table ? getTableStableId(table) || null : null;
+  const nextTableName = table ? getTableLabel(table) : "";
+  const nextTableNumber = table ? getTableNumber(table) : undefined;
+
+  const previous = seatingAssignmentFromGuest(guest);
+  const next = {
+    tableId: nextTableId,
+    tableName: nextTableName,
+    tableNumber: nextTableNumber ?? null,
+  };
+  const unchanged = seatingAssignmentsEqual(previous, {
+    tableId: next.tableId,
+    tableName: next.tableName,
+    tableNumber: normalizeTableNumber(next.tableNumber),
+  });
+
+  instrumentGuestWrite({
+    source: "seating.live.move-guest-table",
+    guestId: String(guest?._id || ""),
+    invitationId: guest?.invitationId ? String(guest.invitationId) : null,
+    fieldsAttempted: ["tableId", "tableName", "tableNumber"],
+    changedFields: unchanged ? [] : ["tableId", "tableName", "tableNumber"],
+    valuesChanged: !unchanged,
+    skipped: unchanged,
+    skipReason: unchanged ? "unchanged" : undefined,
+    recentAttempts: 0,
+  });
+
+  if (unchanged) return;
+
+  guest.tableId = nextTableId;
+  guest.tableName = nextTableName;
+  guest.tableNumber = nextTableNumber;
 
   sanitizeGuestBeforeSave(guest);
 
