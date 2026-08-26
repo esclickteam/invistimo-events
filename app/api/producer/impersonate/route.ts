@@ -3,11 +3,13 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  getUserIdFromRequest,
+  type AuthPayload,
+} from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
    Constants
@@ -19,11 +21,6 @@ const SESSION_EXPIRES_IN = "7d";
 /* =========================================================
    Cookie helpers
 ========================================================= */
-
-async function getCookieStore() {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
-}
 
 function getCookieDomain() {
   return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
@@ -77,6 +74,99 @@ function expireCookie(res: NextResponse, name: string, httpOnly = true) {
   res.cookies.set(name, "", deleteCookieOptions(httpOnly, false));
 }
 
+function decodeCookieValue(raw: string) {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function getCookieHeaderValues(req: NextRequest, name: string): string[] {
+  const values: string[] = [];
+  const header = req.headers.get("cookie") || "";
+
+  for (const part of header.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(`${name}=`)) continue;
+    const value = decodeCookieValue(trimmed.slice(name.length + 1));
+    if (value && !values.includes(value)) values.push(value);
+  }
+
+  try {
+    const fromReq = req.cookies.get(name)?.value;
+    if (fromReq && !values.includes(fromReq)) values.push(fromReq);
+  } catch {
+    /* NextRequest.cookies may be unavailable in some test contexts */
+  }
+
+  return values;
+}
+
+function isAdminActingAsProducer(auth: AuthPayload | null) {
+  if (!auth?.userId || !auth.impersonated) return false;
+  if (auth.role !== "producer") return false;
+
+  const sourceRole = String(auth.impersonationSourceRole || "").toLowerCase();
+
+  return auth.impersonatedByAdmin === true || sourceRole === "admin";
+}
+
+/**
+ * Real logged-in producer, or admin impersonating that producer.
+ * Never treats the original admin userId as the producerId.
+ */
+function resolveProducerActor(auth: AuthPayload | null): {
+  producerId: string;
+  adminActingAsProducer: boolean;
+} | null {
+  if (!auth?.userId) return null;
+  if (auth.role !== "producer") return null;
+
+  return {
+    producerId: String(auth.userId),
+    adminActingAsProducer: isAdminActingAsProducer(auth),
+  };
+}
+
+function pickProducerSessionToken(
+  req: NextRequest,
+  producerId: string
+): string | null {
+  if (!process.env.JWT_SECRET) return null;
+
+  const candidates = [
+    ...getCookieHeaderValues(req, "impersonationToken"),
+    ...getCookieHeaderValues(req, "authToken"),
+    ...getCookieHeaderValues(req, "token"),
+    ...getCookieHeaderValues(req, "producerAuthToken"),
+  ];
+
+  for (const token of candidates) {
+    try {
+      const decoded: any = jwt.verify(token, process.env.JWT_SECRET);
+      const tokenUserId = String(
+        decoded?.userId || decoded?.id || decoded?._id || ""
+      );
+      const tokenRole = String(decoded?.role || "").toLowerCase();
+      const tokenImpersonationRole = String(
+        decoded?.impersonationRole || ""
+      ).toLowerCase();
+
+      if (
+        tokenUserId === String(producerId) &&
+        (tokenRole === "producer" || tokenImpersonationRole === "producer")
+      ) {
+        return token;
+      }
+    } catch {
+      /* skip invalid */
+    }
+  }
+
+  return null;
+}
+
 /* =========================================================
    POST /api/producer/impersonate
 ========================================================= */
@@ -102,11 +192,16 @@ export async function POST(req: NextRequest) {
 
     /* =========================
        Auth – Producer
+       Supports:
+         1) logged-in producer
+         2) admin impersonating that producer
+       Never uses the original admin userId as producerId.
     ========================= */
 
-    const auth: any = await getUserIdFromRequest(req);
+    const auth = await getUserIdFromRequest(req);
+    const producerActor = resolveProducerActor(auth);
 
-    if (!auth?.userId || auth.role !== "producer") {
+    if (!producerActor) {
       return NextResponse.json(
         {
           success: false,
@@ -119,17 +214,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { producerId, adminActingAsProducer } = producerActor;
+
     /*
       אדמין שמתחזה למפיק כבר מסומן כ־impersonated.
       עדיין צריך לאפשר לו להיכנס ללקוח (התחזות מקוננת).
       חוסמים רק התחזות כפולה שאינה admin→producer.
     */
-    const isAdminActingAsProducer =
-      Boolean(auth.impersonated) &&
-      (auth.impersonatedByAdmin === true ||
-        auth.impersonationSourceRole === "admin");
-
-    if (auth.impersonated && !isAdminActingAsProducer) {
+    if (auth?.impersonated && !adminActingAsProducer) {
       return NextResponse.json(
         {
           success: true,
@@ -142,8 +234,6 @@ export async function POST(req: NextRequest) {
         }
       );
     }
-
-    const producerId = String(auth.userId);
 
     /* =========================
        Input
@@ -176,7 +266,7 @@ export async function POST(req: NextRequest) {
         { assignedProducerIds: producerId },
       ],
     })
-      .select("_id role name email hasPaid isTrial trialExpiresAt")
+      .select("_id role name email hasPaid isTrial trialExpiresAt authVersion")
       .lean();
 
     if (!client) {
@@ -193,20 +283,15 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       Cookies
+       Producer session token
+       When admin impersonates a producer, the active producer session lives
+       on impersonationToken (and often authToken). Do not 401 just because
+       cookies().get("authToken") missed a duplicate/host-only leftover.
     ========================= */
 
-    const cookieStore = await getCookieStore();
+    const currentProducerToken = pickProducerSessionToken(req, producerId);
 
-    const currentAuthToken =
-      cookieStore.get("authToken")?.value ||
-      cookieStore.get("token")?.value ||
-      null;
-
-    const existingProducerToken =
-      cookieStore.get("producerAuthToken")?.value || null;
-
-    if (!currentAuthToken) {
+    if (!currentProducerToken) {
       return NextResponse.json(
         {
           success: false,
@@ -219,29 +304,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* =========================
-       Verify current producer token
-    ========================= */
-
-    try {
-      jwt.verify(currentAuthToken, process.env.JWT_SECRET);
-    } catch (err) {
-      console.error("❌ Invalid producer session token:", err);
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid producer session",
-        },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        }
-      );
-    }
+    const existingProducerToken =
+      getCookieHeaderValues(req, "producerAuthToken")[0] || null;
 
     const hasPaid = client.hasPaid ?? true;
     const isTrial = Boolean(client.isTrial);
+    const clientAuthVersion = Number(client.authVersion ?? 0);
 
     /* =========================
        Impersonation token – 7 ימים
@@ -254,19 +322,22 @@ export async function POST(req: NextRequest) {
 
         hasPaid,
         isTrial,
+        authVersion: Number.isFinite(clientAuthVersion) ? clientAuthVersion : 0,
 
         impersonated: true,
         impersonatedBy: producerId,
         impersonationRole: "producer",
 
         // שומרים שהמקור הוא אדמין (כשמתחזים דרך admin→producer→client)
-        ...(isAdminActingAsProducer
+        ...(adminActingAsProducer
           ? {
               impersonatedByAdmin: true,
               impersonationSourceRole: "admin",
-              adminId: auth.impersonatedBy ? String(auth.impersonatedBy) : null,
+              adminId: auth?.impersonatedBy ? String(auth.impersonatedBy) : null,
             }
-          : {}),
+          : {
+              impersonationSourceRole: "producer",
+            }),
       },
       process.env.JWT_SECRET,
       {
@@ -322,7 +393,7 @@ export async function POST(req: NextRequest) {
     if (!existingProducerToken) {
       res.cookies.set(
         "producerAuthToken",
-        currentAuthToken,
+        currentProducerToken,
         httpOnlyCookieOptions()
       );
     }

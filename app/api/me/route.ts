@@ -596,6 +596,7 @@ type JwtPayload = {
     | "venue_owner";
 
   impersonationSourceRole?: "admin" | "producer" | string;
+  originalTargetRole?: string;
 
   authVersion?: number;
 
@@ -1187,6 +1188,8 @@ export async function GET() {
           impersonatedByAdmin: !!decoded.impersonatedByAdmin,
           adminId: decoded.adminId ?? null,
           impersonationRole,
+          impersonationSourceRole: decoded.impersonationSourceRole ?? null,
+          originalTargetRole: decoded.originalTargetRole ?? null,
 
           tokenSource: tokenResult.source,
 
