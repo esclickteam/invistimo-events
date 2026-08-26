@@ -277,7 +277,7 @@ export async function POST() {
 
     const admin: any = await User.findById(adminId)
       .select(
-        "_id name email role hasPaid isTrial trialExpiresAt smsUsed planLimits"
+        "_id name email role hasPaid isTrial trialExpiresAt smsUsed planLimits authVersion"
       )
       .lean();
 
@@ -304,6 +304,7 @@ export async function POST() {
         role: "admin",
         hasPaid: true,
         isTrial: false,
+        authVersion: Number(admin.authVersion ?? 0),
       },
       process.env.JWT_SECRET,
       {

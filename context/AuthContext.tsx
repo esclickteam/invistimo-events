@@ -272,8 +272,21 @@ export function getUserRedirectPath(nextUser: User) {
 }
 
 function getExitImpersonationRedirectPath(currentUser: User | null) {
+  const role = cleanRole(currentUser?.role);
   const sourceRole = cleanRole(currentUser?.impersonationSourceRole);
   const returnRole = cleanRole(currentUser?.impersonationRole);
+
+  /*
+    Nested producer→client (including admin→producer→client):
+    unwind back to the producer dashboard, not all the way to admin.
+  */
+  const inClientAccount = role === "client" || role === "user";
+  if (inClientAccount && (returnRole === "producer_staff" || returnRole === "staff_producer")) {
+    return "/producer-staff/dashboard";
+  }
+  if (inClientAccount && (returnRole === "producer" || sourceRole === "producer")) {
+    return "/producer/dashboard";
+  }
 
   if (
     currentUser?.impersonatedByAdmin === true ||
@@ -515,13 +528,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   -------------------------------------------------- */
   const exitImpersonation = async () => {
     try {
+      const role = cleanRole(user?.role);
+      const impersonationRole = cleanRole(user?.impersonationRole);
+      const sourceRole = cleanRole(user?.impersonationSourceRole);
+      const inClientAsProducer =
+        (role === "client" || role === "user") &&
+        (impersonationRole === "producer" ||
+          impersonationRole === "producer_staff" ||
+          impersonationRole === "staff_producer");
+
       const redirectPath = getExitImpersonationRedirectPath(user);
 
-      await fetch("/api/producer/stop-impersonation", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
+      if (inClientAsProducer) {
+        await fetch("/api/producer/stop-impersonation", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      } else if (
+        user?.impersonatedByAdmin === true ||
+        sourceRole === "admin"
+      ) {
+        await fetch("/api/admin/stop-impersonation", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      } else {
+        await fetch("/api/producer/stop-impersonation", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      }
 
       setUser(null);
 

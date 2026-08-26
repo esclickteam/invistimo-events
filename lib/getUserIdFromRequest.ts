@@ -38,26 +38,70 @@ export type AuthPayload = {
   impersonationRole?: ImpersonationRole | null;
   /** true when the active session is an admin impersonating another user */
   impersonatedByAdmin?: boolean;
+  /** who started the impersonation chain: admin / producer / ... */
+  impersonationSourceRole?: string | null;
 };
 
 /* =========================
    Helpers
 ========================= */
 
-function getCookieFromReq(req: Request | undefined, name: string) {
+function decodeCookieValue(raw: string) {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function getAllCookiesFromReq(req: Request | undefined, name: string): string[] {
   try {
     const cookieHeader = req?.headers?.get("cookie");
-    if (!cookieHeader) return null;
+    if (!cookieHeader) return [];
 
-    const match = cookieHeader
-      .split(";")
-      .map((c) => c.trim())
-      .find((c) => c.startsWith(`${name}=`));
-
-    return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
+    const values: string[] = [];
+    for (const part of cookieHeader.split(";")) {
+      const trimmed = part.trim();
+      if (!trimmed.startsWith(`${name}=`)) continue;
+      const raw = trimmed.slice(name.length + 1);
+      const value = decodeCookieValue(raw);
+      if (value && !values.includes(value)) values.push(value);
+    }
+    return values;
   } catch {
-    return null;
+    return [];
   }
+}
+
+function getCookieFromReq(req: Request | undefined, name: string) {
+  const all = getAllCookiesFromReq(req, name);
+  return all.length ? all[all.length - 1] : null;
+}
+
+function isImpersonationJwt(decoded: any) {
+  return (
+    decoded?.impersonated === true ||
+    decoded?.impersonatedByAdmin === true ||
+    decoded?.impersonationSourceRole === "admin" ||
+    Boolean(decoded?.impersonatedBy)
+  );
+}
+
+function pickPreferredDecodedToken(tokens: Array<string | null | undefined>) {
+  const unique = Array.from(
+    new Set(tokens.filter((value): value is string => Boolean(value)))
+  );
+
+  const decodedList = unique
+    .map((token) => ({ token, decoded: decodeJwtToken(token) }))
+    .filter((item) => item.decoded);
+
+  if (!decodedList.length) return null;
+
+  return (
+    decodedList.find((item) => isImpersonationJwt(item.decoded)) ||
+    decodedList[0]
+  );
 }
 
 async function getCookieFromHeadersStore(name: string) {
@@ -191,24 +235,35 @@ export async function getUserIdFromRequest(
 
     /* ---------------------------------
        1) Read cookies
+       Duplicate host/domain cookies are common after admin impersonation.
+       Collect every value and prefer the impersonation/target JWT over a
+       leftover admin login cookie.
     ---------------------------------- */
-    const impersonationToken =
-      getCookieFromReq(req, "impersonationToken") ??
-      (await getCookieFromHeadersStore("impersonationToken"));
+    const impersonationTokens = [
+      ...getAllCookiesFromReq(req, "impersonationToken"),
+      await getCookieFromHeadersStore("impersonationToken"),
+    ];
+    const authTokens = [
+      ...getAllCookiesFromReq(req, "authToken"),
+      ...getAllCookiesFromReq(req, "token"),
+      await getCookieFromHeadersStore("authToken"),
+      await getCookieFromHeadersStore("token"),
+    ];
+    const producerAuthTokens = [
+      ...getAllCookiesFromReq(req, "producerAuthToken"),
+      await getCookieFromHeadersStore("producerAuthToken"),
+    ];
+    const adminAuthTokens = [
+      ...getAllCookiesFromReq(req, "adminAuthToken"),
+      ...getAllCookiesFromReq(req, "adminToken"),
+      await getCookieFromHeadersStore("adminAuthToken"),
+      await getCookieFromHeadersStore("adminToken"),
+    ];
 
-    const authToken =
-      getCookieFromReq(req, "authToken") ??
-      (await getCookieFromHeadersStore("authToken"));
-
-    const producerAuthToken =
-      getCookieFromReq(req, "producerAuthToken") ??
-      (await getCookieFromHeadersStore("producerAuthToken"));
-
-    const adminAuthToken =
-      getCookieFromReq(req, "adminAuthToken") ??
-      (await getCookieFromHeadersStore("adminAuthToken")) ??
-      getCookieFromReq(req, "adminToken") ??
-      (await getCookieFromHeadersStore("adminToken"));
+    const impersonationToken = impersonationTokens.find(Boolean) ?? null;
+    const authToken = authTokens.find(Boolean) ?? null;
+    const producerAuthToken = producerAuthTokens.find(Boolean) ?? null;
+    const adminAuthToken = adminAuthTokens.find(Boolean) ?? null;
 
     const staffOriginalUserId =
       getCookieFromReq(req, "staffOriginalUserId") ??
@@ -221,18 +276,29 @@ export async function getUserIdFromRequest(
     /* ---------------------------------
        2) Decode tokens
     ---------------------------------- */
-    const impersonationDecoded = decodeJwtToken(impersonationToken);
-    const authDecoded = decodeJwtToken(authToken);
-    const producerDecoded = decodeJwtToken(producerAuthToken);
-    const adminDecoded = decodeJwtToken(adminAuthToken);
+    const impersonationPick = pickPreferredDecodedToken(impersonationTokens);
+    const authPick = pickPreferredDecodedToken(authTokens);
+    const producerPick = pickPreferredDecodedToken(producerAuthTokens);
+    const adminPick = pickPreferredDecodedToken(adminAuthTokens);
+
+    const impersonationDecoded = impersonationPick?.decoded ?? null;
+    const authDecoded = authPick?.decoded ?? null;
+    const producerDecoded = producerPick?.decoded ?? null;
+    const adminDecoded = adminPick?.decoded ?? null;
 
     /*
       חשוב:
       activeDecoded הוא המשתמש הפעיל בפועל.
-      בזמן התחזות זה הלקוח.
+      בזמן התחזות זה היעד (מפיק / לקוח), לא האדמין המקורי.
+      אם נשארו גם authToken של אדמין וגם טוקן התחזות, מעדיפים את ההתחזות.
     */
-    const activeDecoded =
-      impersonationDecoded || authDecoded || producerDecoded;
+    const activePick =
+      impersonationPick ||
+      (authPick && isImpersonationJwt(authPick.decoded) ? authPick : null) ||
+      authPick ||
+      producerPick;
+
+    const activeDecoded = activePick?.decoded ?? null;
 
     if (!activeDecoded) return null;
 
@@ -288,8 +354,9 @@ export async function getUserIdFromRequest(
     const impersonationRole =
       normalizeImpersonationRole(activeDecoded.impersonationRole) ||
       normalizeImpersonationRole(impersonationDecoded?.impersonationRole) ||
-      normalizeImpersonationRole(authDecoded?.role) ||
-      normalizeImpersonationRole(producerDecoded?.role);
+      (isImpersonationJwt(activeDecoded)
+        ? normalizeImpersonationRole(activeDecoded.role)
+        : null);
 
     /*
       אל תשנה impersonationRole ל-"admin" בזמן התחזות ללקוח —
@@ -353,14 +420,22 @@ export async function getUserIdFromRequest(
         impersonatedBy: String(userId),
         impersonationRole: "admin",
         impersonatedByAdmin: true,
+        impersonationSourceRole: "admin",
       };
     }
 
     /* ---------------------------------
        5) Unified impersonation detection
     ---------------------------------- */
+    const impersonationSourceRole =
+      String(
+        activeDecoded.impersonationSourceRole ||
+          impersonationDecoded?.impersonationSourceRole ||
+          ""
+      ).trim() || (impersonatedByAdmin ? "admin" : null);
+
     const isImpersonated =
-      Boolean(impersonationToken) ||
+      Boolean(impersonationDecoded) ||
       Boolean(activeDecoded.impersonated) ||
       Boolean(activeDecoded.impersonatedBy) ||
       Boolean(staffOriginalUserId) ||
@@ -376,6 +451,7 @@ export async function getUserIdFromRequest(
         impersonatedBy: impersonatedBy ? String(impersonatedBy) : null,
         impersonationRole,
         impersonatedByAdmin,
+        impersonationSourceRole,
       };
     }
 
@@ -391,6 +467,7 @@ export async function getUserIdFromRequest(
       impersonatedBy: null,
       impersonationRole: null,
       impersonatedByAdmin: false,
+      impersonationSourceRole: null,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);
