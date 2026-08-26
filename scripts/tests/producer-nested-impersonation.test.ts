@@ -74,6 +74,7 @@ test("producer nested impersonation suite", async (t) => {
     /* already exists */
   }
 
+  try {
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
   const admin = await User.create({
