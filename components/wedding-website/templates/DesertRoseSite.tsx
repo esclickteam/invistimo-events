@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -45,7 +46,7 @@ function ArchMask({ src, className = "" }: { src: string; className?: string }) 
       className={`overflow-hidden shadow-xl ${className}`}
       style={{ borderRadius: "50% 50% 20% 20% / 60% 60% 40% 40%" }}
     >
-      <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full object-cover" />
+      <WeddingMedia src={src} alt="" className="aspect-[3/4] w-full object-cover" />
     </div>
   );
 }
@@ -255,7 +256,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">סרטון</h2>
         <div className="relative mt-10 overflow-hidden shadow-2xl" style={{ clipPath: "polygon(3% 0, 100% 0, 97% 100%, 0 100%)" }}>
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <WeddingMedia slot={`videos.romantic`} src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
         </div>
       </div>
     </Section>

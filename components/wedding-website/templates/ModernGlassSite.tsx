@@ -12,6 +12,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 
@@ -151,8 +152,8 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
             <TiltCard className="h-full">
               <GlassPanel className="flex h-full min-h-[320px] flex-col justify-end overflow-hidden p-8 md:min-h-[480px]">
                 <div className="absolute inset-0 -z-10">
-                  <video
-                    src={VIDEOS.couple}
+                  <WeddingMedia
+                    slot={`videos.couple`} src={VIDEOS.couple}
                     autoPlay
                     muted
                     loop
@@ -190,7 +191,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
             <TiltCard>
               <GlassPanel className="relative h-full min-h-[140px] overflow-hidden p-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={template.heroImage} alt="" className="h-full w-full object-cover opacity-70" />
+                <WeddingMedia slot="hero" src={template.heroImage} alt="" className="h-full w-full object-cover opacity-70" />
               </GlassPanel>
             </TiltCard>
           </motion.div>
@@ -304,7 +305,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
           <TiltCard>
             <GlassPanel className="overflow-hidden p-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+              <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
             </GlassPanel>
           </TiltCard>
           <TiltCard>
@@ -344,7 +345,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
               <TiltCard>
                 <GlassPanel className="overflow-hidden p-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
+                  <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
                 </GlassPanel>
               </TiltCard>
             </motion.div>
@@ -357,7 +358,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
         <TiltCard className="mx-auto max-w-4xl">
           <GlassPanel className="overflow-hidden p-0">
             <h2 className="p-6 text-2xl font-bold">סרטון</h2>
-            <video src={VIDEOS.party} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <WeddingMedia slot={`videos.party`} src={VIDEOS.party} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
           </GlassPanel>
         </TiltCard>
       </section>

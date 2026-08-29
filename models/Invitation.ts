@@ -405,6 +405,7 @@ preRsvpMedia: {
         templateId: { type: String },
         published: { type: Boolean },
         content: { type: Schema.Types.Mixed },
+        draftContent: { type: Schema.Types.Mixed },
       },
       default: undefined,
     },

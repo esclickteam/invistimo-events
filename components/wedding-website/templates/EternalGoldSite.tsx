@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -191,7 +192,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
           viewport={{ once: true }}
           className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
         >
-          <img src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </motion.div>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#C9A962]">Chapter I</p>
@@ -215,7 +216,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
             viewport={{ once: true }}
             className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
           >
-            <img src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">
@@ -245,7 +246,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               transition={{ delay: i * 0.08 }}
               className="mb-5 break-inside-avoid border-2 border-[#C9A962]/50 p-1"
             >
-              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover object-center transition duration-700 hover:scale-[1.03]" />
+              <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover object-center transition duration-700 hover:scale-[1.03]" />
             </motion.div>
           ))}
         </div>
@@ -261,7 +262,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">סרטון Save the Date</h2>
         <GoldDivider />
         <div className="overflow-hidden border-2 border-[#C9A962]/50 shadow-xl">
-          <video src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <WeddingMedia slot={`videos.romantic`} src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
         </div>
       </div>
     </Section>

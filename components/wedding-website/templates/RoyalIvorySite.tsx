@@ -12,6 +12,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 
@@ -43,7 +44,7 @@ function DoubleFrame({ src, alt = "" }: { src: string; alt?: string }) {
       <div className="absolute -left-3 -top-3 h-full w-full border-2 border-[#B8956B]/40" />
       <div className="relative border-4 border-white shadow-[0_20px_60px_rgba(100,75,50,0.15)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="aspect-[4/5] w-full object-cover" />
+        <WeddingMedia src={src} alt={alt} className="aspect-[4/5] w-full object-cover" />
       </div>
       <div className="absolute -bottom-3 -right-3 h-full w-full border-2 border-[#B8956B]/60" />
     </div>
@@ -275,8 +276,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
               <div className="relative">
                 <div className="absolute -inset-2 rounded-2xl border border-[#B8956B]/30" />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
+                <WeddingMedia slot={`gallery.${i}`} src={src}
                   alt=""
                   loading="lazy"
                   decoding="async"
@@ -296,7 +296,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Playfair_Display'] text-4xl">סרטון</h2>
           <div className="relative overflow-hidden rounded-3xl border-4 border-white shadow-[0_30px_80px_rgba(100,75,50,0.15)]">
-            <video src={VIDEOS.romantic} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <WeddingMedia slot={`videos.romantic`} src={VIDEOS.romantic} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
           </div>
         </div>
       </section>

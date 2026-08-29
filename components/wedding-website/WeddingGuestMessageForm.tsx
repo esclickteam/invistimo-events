@@ -54,8 +54,12 @@ export default function WeddingGuestMessageForm({
   return (
     <div dir="rtl" id="guestbook" data-live="1" className="mx-auto max-w-lg px-4 pb-8">
       <div className="rounded-[32px] border border-black/10 bg-white/90 p-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-        <h2 className="text-center text-3xl font-black">{title}</h2>
-        <p className="mt-2 text-center text-sm font-semibold text-black/55">{description}</p>
+        <h2 className="text-center text-3xl font-black" data-ww-path="guestMessageTitle" data-ww-label="כותרת הודעה לזוג">
+          {title}
+        </h2>
+        <p className="mt-2 text-center text-sm font-semibold text-black/55" data-ww-path="guestMessageDescription" data-ww-label="תיאור הודעה לזוג">
+          {description}
+        </p>
 
         {saved ? (
           <p className="mt-6 rounded-3xl bg-rose-50 px-5 py-6 text-center text-lg font-black text-rose-800">

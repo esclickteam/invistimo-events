@@ -11,19 +11,25 @@ import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import { getOptimizedWeddingImageUrl } from "@/lib/weddingWebsite/images";
+import { collectContentMediaLibrary, mediaSlotFromImageUrl } from "@/lib/weddingWebsite/media";
+import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_IMAGE_MB = 8;
+const MAX_VIDEO_MB = 40;
 const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
-const ALLOWED_TYPES = new Set([
+const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
 ]);
+const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const ALLOWED_TYPES = ALLOWED_IMAGE_TYPES;
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -65,12 +71,14 @@ async function findManagedInvitation(auth: any, invitationId?: string | null) {
   return null;
 }
 
-async function uploadImageToCloudinary({
+async function uploadMediaToCloudinary({
   file,
   invitationId,
+  resourceType,
 }: {
   file: File;
   invitationId: string;
+  resourceType: "image" | "video" | "auto";
 }) {
   assertCloudinaryConfig();
 
@@ -99,7 +107,7 @@ async function uploadImageToCloudinary({
       {
         folder,
         public_id: publicId,
-        resource_type: "image",
+        resource_type: resourceType,
         overwrite: false,
         invalidate: true,
       },
@@ -138,8 +146,8 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const invitationId = cleanString(formData.get("invitationId"));
-    const imageEntry = formData.get("image") || formData.get("file");
-    const imageFile = imageEntry instanceof File ? imageEntry : null;
+    const imageEntry = formData.get("image") || formData.get("file") || formData.get("video");
+    const mediaFile = imageEntry instanceof File ? imageEntry : null;
 
     const invitation = await findManagedInvitation(auth, invitationId || null);
     if (!invitation) {
@@ -162,55 +170,99 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!imageFile) {
+    if (!mediaFile) {
       return NextResponse.json(
         { success: false, error: "MISSING_IMAGE" },
         { status: 400 }
       );
     }
 
-    const mime = cleanString(imageFile.type).toLowerCase();
-    if (!ALLOWED_TYPES.has(mime) && !mime.startsWith("image/")) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_IMAGE_TYPE" },
-        { status: 400 }
-      );
-    }
-    if (!mime.startsWith("image/")) {
+    const mime = cleanString(mediaFile.type).toLowerCase();
+    const isVideo = mime.startsWith("video/") || ALLOWED_VIDEO_TYPES.has(mime);
+    const isImage = mime.startsWith("image/") || ALLOWED_IMAGE_TYPES.has(mime);
+    if (!isVideo && !isImage) {
       return NextResponse.json(
         { success: false, error: "INVALID_IMAGE_TYPE" },
         { status: 400 }
       );
     }
 
-    if (imageFile.size > MAX_IMAGE_BYTES) {
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const maxMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+    if (mediaFile.size > maxBytes) {
       return NextResponse.json(
         {
           success: false,
           error: "IMAGE_TOO_LARGE",
-          message: `התמונה גדולה מדי. ניתן להעלות עד ${MAX_IMAGE_MB}MB.`,
+          message: `הקובץ גדול מדי. ניתן להעלות עד ${maxMb}MB.`,
         },
         { status: 400 }
       );
     }
 
-    const uploaded = await uploadImageToCloudinary({
-      file: imageFile,
+    const uploaded = await uploadMediaToCloudinary({
+      file: mediaFile,
       invitationId: String(invitation._id),
+      resourceType: isVideo ? "video" : "image",
     });
 
     return NextResponse.json({
       success: true,
       url: uploaded.url,
-      optimizedUrl: getOptimizedWeddingImageUrl(uploaded.url, 1600),
+      optimizedUrl: isVideo ? uploaded.url : getOptimizedWeddingImageUrl(uploaded.url, 1600),
       publicId: uploaded.publicId,
       width: uploaded.width,
       height: uploaded.height,
       format: uploaded.format,
       bytes: uploaded.bytes,
+      resourceType: isVideo ? "video" : "image",
     });
   } catch (error) {
     console.error("WEDDING WEBSITE MEDIA UPLOAD FAILED:", error);
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    await db();
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const invitationId = req.nextUrl.searchParams.get("invitationId");
+    const invitation = await findManagedInvitation(auth, invitationId);
+    if (!invitation) {
+      return NextResponse.json({ success: false, error: "INVITATION_NOT_FOUND" }, { status: 404 });
+    }
+
+    const draft = serializeWeddingWebsite(invitation, { draft: true });
+    const items = collectContentMediaLibrary(draft.draftContent || draft.content);
+
+    try {
+      assertCloudinaryConfig();
+      const folder = cloudinaryFolder("wedding-website", String(invitation._id));
+      const result = await cloudinary.search
+        .expression(`folder:"${folder}"`)
+        .max_results(40)
+        .execute();
+      for (const resource of result.resources || []) {
+        const url = resource.secure_url;
+        if (!url) continue;
+        if (items.some((item) => item.src === url)) continue;
+        items.push({
+          ...mediaSlotFromImageUrl(url),
+          type: resource.resource_type === "video" ? "video" : "image",
+        });
+      }
+    } catch {
+      // library listing is best-effort
+    }
+
+    return NextResponse.json({ success: true, items });
+  } catch (error) {
+    console.error("WEDDING WEBSITE MEDIA LIST FAILED:", error);
     return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }

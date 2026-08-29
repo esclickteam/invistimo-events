@@ -12,6 +12,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 
@@ -247,8 +248,8 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
         <div className="grid md:grid-cols-2">
           <div className="relative aspect-square border-b border-black md:border-b-0 md:border-l">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={template.galleryImages[0]}
+            <WeddingMedia
+              slot={`gallery.0`} src={template.galleryImages[0]}
               alt=""
               className="h-full w-full object-cover grayscale"
             />
@@ -295,8 +296,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
               className="group relative aspect-square border-l border-t border-black"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
+              <WeddingMedia slot={`gallery.${i}`} src={src}
                 alt=""
                 loading="lazy"
                 decoding="async"
@@ -318,8 +318,8 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             <h2 className="text-3xl font-black">סרטון</h2>
           </div>
           <div className="md:col-span-2">
-            <video
-              src={VIDEOS.rings}
+            <WeddingMedia
+              slot={`videos.rings`} src={VIDEOS.rings}
               autoPlay
               muted
               loop

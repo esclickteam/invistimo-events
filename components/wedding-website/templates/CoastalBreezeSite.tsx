@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -67,7 +68,7 @@ function StickyNav() {
 function HeroSection() {
   return (
     <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden">
-      <video src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+      <WeddingMedia slot="hero" src={VIDEOS.beach} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative z-10 px-6 text-center text-white">
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#B3E0F2]">Coastal Breeze</p>
@@ -147,7 +148,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#F5E6C8] pt-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="overflow-hidden rounded-3xl shadow-xl">
-          <img src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </motion.div>
         <div>
           <h2 className="font-['Montserrat'] text-4xl font-light text-[#0D2840]">איך נפגשנו</h2>
@@ -164,7 +165,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="overflow-hidden rounded-3xl shadow-xl">
-            <img src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">
@@ -184,7 +185,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
         <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
           {template.galleryImages.map((src, i) => (
             <motion.div key={src} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className="overflow-hidden rounded-2xl shadow-lg">
-              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full object-cover transition hover:scale-105" />
+              <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full object-cover transition hover:scale-105" />
             </motion.div>
           ))}
         </div>
@@ -199,7 +200,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-3xl shadow-2xl">
-          <video src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <WeddingMedia slot={`videos.beach`} src={VIDEOS.beach} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
         </div>
       </div>
     </Section>

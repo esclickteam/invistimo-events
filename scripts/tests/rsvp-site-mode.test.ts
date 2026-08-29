@@ -329,22 +329,27 @@ test("realtime opened filter uses existing guest tracking fields", () => {
 });
 
 test("wedding website editor can upload replace remove and reorder images", () => {
-  const editor = read("app/dashboard/wedding-website/page.tsx");
+  const page = read("app/dashboard/wedding-website/page.tsx");
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
   const media = read("app/api/wedding-website/media/route.ts");
   const content = read("lib/weddingWebsite/content.ts");
   const images = read("lib/weddingWebsite/images.ts");
   const publicApi = read("app/api/w/[shareId]/route.ts");
 
-  assert.match(editor, /\/api\/wedding-website\/media/);
-  assert.match(editor, /heroImage/);
-  assert.match(editor, /galleryImages/);
-  assert.match(editor, /moveGalleryImage/);
+  assert.match(page, /\/api\/wedding-website\/media/);
+  assert.match(page, /heroImage/);
+  assert.match(page, /galleryImages/);
+  assert.match(page, /moveGalleryImage/);
+  assert.match(page, /WeddingTemplateSiteRenderer/);
   assert.match(editor, /WeddingTemplateSiteRenderer/);
+  assert.match(editor, /\/api\/wedding-website\/media/);
   assert.match(media, /ALLOWED_TYPES/);
   assert.match(media, /MAX_IMAGE_BYTES/);
   assert.match(media, /cloudinary/);
+  assert.match(media, /video\/mp4/);
   assert.match(content, /heroImage/);
   assert.match(content, /galleryImages/);
+  assert.match(content, /draftContent/);
   assert.match(images, /overlayWeddingTemplateImages/);
   assert.match(publicApi, /overlayWeddingTemplateImages/);
 });

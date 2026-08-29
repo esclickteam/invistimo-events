@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     }
 
     const invitationId = req.nextUrl.searchParams.get("invitationId");
+    const useDraft = req.nextUrl.searchParams.get("draft") === "1";
     const invitation = await findManagedInvitation(auth, invitationId);
     const owner = invitation
       ? await User.findById(invitation.ownerId)
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
         eventDate: invitation.eventDate || null,
         eventTime: invitation.eventTime || "",
       },
-      weddingWebsite: serializeWeddingWebsite(invitation),
+      weddingWebsite: serializeWeddingWebsite(invitation, { draft: useDraft }),
       publicPath: isPersonalRsvpSite(rsvpSiteMode) ? `/w/${invitation.shareId}` : null,
     });
   } catch (error) {
@@ -125,24 +126,46 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const current = serializeWeddingWebsite(invitation);
-    const nextWebsite = {
-      templateId: normalizeWeddingTemplateId(
-        body?.templateId ?? body?.weddingWebsite?.templateId ?? current.templateId
-      ),
-      published:
-        typeof (body?.published ?? body?.weddingWebsite?.published) === "boolean"
-          ? Boolean(body?.published ?? body?.weddingWebsite?.published)
-          : current.published,
-      content: {
-        ...current.content,
-        ...(body?.content || body?.weddingWebsite?.content || {}),
-      },
+    const currentPublished = serializeWeddingWebsite(invitation);
+    const currentDraft = serializeWeddingWebsite(invitation, { draft: true });
+    const templateId = normalizeWeddingTemplateId(
+      body?.templateId ?? body?.weddingWebsite?.templateId ?? currentDraft.templateId
+    );
+    const incomingContent = body?.content || body?.weddingWebsite?.content || {};
+    const saveDraft = body?.draft !== false && body?.publish !== true;
+    const nextDraftContent = {
+      ...currentDraft.draftContent,
+      ...incomingContent,
     };
+
+    const $set: Record<string, unknown> = {
+      "weddingWebsite.templateId": templateId,
+      "weddingWebsite.draftContent": nextDraftContent,
+    };
+
+    if (!saveDraft) {
+      $set["weddingWebsite.content"] = {
+        ...currentPublished.content,
+        ...incomingContent,
+      };
+      if (typeof (body?.published ?? body?.weddingWebsite?.published) === "boolean") {
+        $set["weddingWebsite.published"] = Boolean(
+          body?.published ?? body?.weddingWebsite?.published
+        );
+      }
+    } else if (typeof (body?.published ?? body?.weddingWebsite?.published) === "boolean") {
+      $set["weddingWebsite.published"] = Boolean(
+        body?.published ?? body?.weddingWebsite?.published
+      );
+    }
+
+    if (!invitation.weddingWebsite?.templateId) {
+      $set["weddingWebsite.published"] = false;
+    }
 
     const updated = await Invitation.findByIdAndUpdate(
       invitation._id,
-      { $set: { weddingWebsite: nextWebsite } },
+      { $set },
       { new: true }
     ).lean();
 
@@ -154,7 +177,7 @@ export async function PATCH(req: NextRequest) {
         shareId: updated?.shareId || invitation.shareId,
         title: updated?.title || invitation.title || "",
       },
-      weddingWebsite: serializeWeddingWebsite(updated || invitation),
+      weddingWebsite: serializeWeddingWebsite(updated || invitation, { draft: true }),
       publicPath: `/w/${updated?.shareId || invitation.shareId}`,
     });
   } catch (error) {
