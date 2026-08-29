@@ -26,6 +26,7 @@ import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
+import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 
 type EventModel = {
