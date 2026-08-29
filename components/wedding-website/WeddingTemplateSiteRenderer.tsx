@@ -3,6 +3,8 @@
 import { getWeddingTemplateSite } from "./templates";
 import { setLiveWeddingContent } from "./shared/weddingUtils";
 import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
+import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
+import type { ReactNode } from "react";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
 type Props = {
@@ -10,6 +12,8 @@ type Props = {
   embed?: boolean;
   live?: boolean;
   content?: WeddingDemoContent | null;
+  rsvpController?: GuestRsvpController | null;
+  guestMessageSlot?: ReactNode;
 };
 
 export default function WeddingTemplateSiteRenderer({
@@ -17,6 +21,8 @@ export default function WeddingTemplateSiteRenderer({
   embed,
   live,
   content,
+  rsvpController,
+  guestMessageSlot,
 }: Props) {
   setLiveWeddingContent(content || null);
 
@@ -33,15 +39,35 @@ export default function WeddingTemplateSiteRenderer({
   }
 
   return (
-    <>
+    <div className="ww-site overflow-x-hidden">
       <style>{`
         a[href="/wedding-website"]{display:none!important}
+        a[href="/"]{ }
         img[src=""], img:not([src]){display:none!important}
         .ww-site img {
           max-width: 100%;
         }
+        .ww-site .ww-cover,
+        .ww-site .ww-cover img,
+        .ww-hero-media {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+        }
+        .ww-site header.invistimo-header,
+        .ww-site footer.invistimo-footer,
+        [data-invistimo-chrome] {
+          display: none !important;
+        }
       `}</style>
-      <Site template={resolvedTemplate} embed={embed} live={live} />
-    </>
+      <Site
+        template={resolvedTemplate}
+        embed={embed}
+        live={live}
+        rsvpController={rsvpController}
+        guestMessageSlot={guestMessageSlot}
+      />
+    </div>
   );
 }

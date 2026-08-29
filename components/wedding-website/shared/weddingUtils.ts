@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
+import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 
 let liveContent: WeddingDemoContent | null = null;
 
@@ -55,4 +57,6 @@ export type TemplateProps = {
   template: WeddingTemplate;
   embed?: boolean;
   live?: boolean;
+  rsvpController?: GuestRsvpController | null;
+  guestMessageSlot?: ReactNode;
 };

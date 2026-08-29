@@ -17,7 +17,13 @@ export default function Header() {
     pathname === "/staff" ||
     pathname.startsWith("/staff/");
 
-  const shouldHideHeader = isStaffPage;
+  const isWeddingWebsite =
+    pathname === "/w" ||
+    pathname.startsWith("/w/") ||
+    pathname === "/wedding-website" ||
+    pathname.startsWith("/wedding-website/");
+
+  const shouldHideHeader = isStaffPage || isWeddingWebsite;
 
   const dashboardHref = user ? getUserRedirectPath(user) : "/dashboard";
   const logoHref = dashboardHref;

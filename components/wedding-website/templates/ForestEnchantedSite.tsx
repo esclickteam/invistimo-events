@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
@@ -10,8 +9,8 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -114,9 +113,9 @@ function ForestNav({ embed }: { embed?: boolean }) {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/wedding-website" className="text-xs tracking-widest text-[#7CB87A] hover:text-white">
-          ← תבניות
-        </Link>
+        <span className="text-xs tracking-widest text-[#7CB87A]">
+          {DEMO.coupleShort}
+        </span>
         <nav className="hidden gap-5 md:flex">
           {NAV.slice(1, 9).map(({ id, navLabel }) => (
             <a
@@ -139,16 +138,15 @@ function ForestNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ForestEnchantedSite({ template, embed }: TemplateProps) {
+export default function ForestEnchantedSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
+    <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
       <ForestNav embed={embed} />
 
       {/* HERO — forest video */}
@@ -487,53 +485,15 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
       </section>
 
       {/* RSVP */}
+      {!(live && !rsvpController) && (
       <section id="rsvp" className="relative py-24">
         <Fireflies />
         <div className="relative mx-auto max-w-lg px-6">
           <h2 className="text-center font-['Libre_Baskerville'] text-4xl">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <p className="mt-10 text-center text-[#7CB87A]">🌿 תודה! נשמח לראותכם ביער.</p>
-          ) : (
-            <div className="mt-10 rounded-3xl border border-[#7CB87A]/25 bg-[#1C2A1E] p-8">
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 rounded-full py-3 text-sm transition ${
-                      rsvp.rsvp === v
-                        ? "bg-[#7CB87A] text-[#0F1810] font-bold"
-                        : "border border-[#7CB87A]/30 text-[#7CB87A]"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={rsvp.count}
-                  onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                  className="mt-6 w-full rounded-full border border-[#7CB87A]/30 bg-transparent px-5 py-3 text-center outline-none"
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
-                className="mt-6 w-full rounded-full bg-[#7CB87A] py-3 font-bold text-[#0F1810] disabled:opacity-40"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
+          <WeddingTemplateRsvp templateId="forest-enchanted" controller={rsvpController} />
         </div>
       </section>
-
+      )}
       {/* GIFTS */}
       <section id="gifts" className="py-20 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl">מתנות</h2>
@@ -547,6 +507,9 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
       </section>
 
       {/* GUESTBOOK */}
+      {live ? (
+        guestMessageSlot ? <section id="guestbook" className="py-16">{guestMessageSlot}</section> : null
+      ) : (
       <section id="guestbook" className="py-20">
         <div className="mx-auto max-w-xl px-6">
           <h2 className="text-center font-['Libre_Baskerville'] text-4xl">ספר ברכות</h2>
@@ -580,6 +543,7 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
         </div>
       </section>
 
+      )}
       {/* GUEST UPLOAD */}
       <section id="guest-upload" className="py-20">
         <div className="mx-auto max-w-5xl px-6">

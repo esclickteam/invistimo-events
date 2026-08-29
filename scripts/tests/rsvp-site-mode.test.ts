@@ -171,17 +171,21 @@ test("sales creation persists rsvpSiteMode and entitlements without forcing pers
 });
 
 test("wedding website RSVP reuses existing guest token API", () => {
-  const actions = read("components/wedding-website/WeddingGuestActions.tsx");
+  const form = read("components/rsvp/GuestRsvpForm.tsx");
+  const controller = read("lib/rsvp/useGuestRsvpController.ts");
   const publicApi = read("app/api/w/[shareId]/route.ts");
   const publicPage = read("app/w/[shareId]/page.tsx");
+  const invitePage = read("app/invite/[shareId]/page.tsx");
+  const messageForm = read("components/wedding-website/WeddingGuestMessageForm.tsx");
 
-  assert.match(actions, /invitationGuests\/respondByToken/);
-  assert.match(actions, /TransportationGuestSection/);
-  assert.match(actions, /\/api\/w\/\$\{shareId\}\/message/);
-  assert.doesNotMatch(actions, /guest\.name/);
-  assert.doesNotMatch(publicApi, /name: guest\.name/);
-  assert.match(publicPage, /WeddingGuestActions/);
+  assert.match(controller, /invitationGuests\/respondByToken/);
+  assert.match(form, /TransportationGuestSection/);
+  assert.match(messageForm, /\/api\/w\/\$\{shareId\}\/message/);
+  assert.match(invitePage, /useGuestRsvpController/);
+  assert.match(publicPage, /useGuestRsvpController/);
+  assert.doesNotMatch(publicPage, /WeddingGuestActions/);
   assert.doesNotMatch(publicPage, /היי \$\{/);
+  assert.doesNotMatch(publicApi, /name: guest\.name/);
 });
 
 test("guest messages are a separate model from RSVP notes", () => {

@@ -21,6 +21,12 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   const isVenues = pathname.startsWith("/venues");
 
+  const isWeddingWebsite =
+    pathname === "/w" ||
+    pathname.startsWith("/w/") ||
+    pathname === "/wedding-website" ||
+    pathname.startsWith("/wedding-website/");
+
   /* =====================================================
      ❌ דפי הצעת מחיר / הסכם – בלי Header / Footer / SupportBot
   ===================================================== */
@@ -89,7 +95,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   /* =====================================================
      📄 הצעת מחיר / הסכם – בלי Header / Footer בכלל
   ===================================================== */
-  if (isSalesDocumentPage) {
+  if (isSalesDocumentPage || isWeddingWebsite) {
     return <>{children}</>;
   }
 

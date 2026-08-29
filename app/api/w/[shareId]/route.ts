@@ -19,15 +19,7 @@ import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const MENU_LABELS: Record<string, string> = {
-  vegetarian: "צמחוני",
-  vegan: "טבעוני",
-  glutenFree: "ללא גלוטן",
-  childrenMeal: "מנת ילדים",
-  kosher: "כשר",
-  kosherGlatt: "כשר גלאט",
-  kosherMahfoud: "כשר מחפוד",
-};
+import { getActiveMenuOptions } from "@/lib/rsvp/guestRsvpLogic";
 
 export async function GET(
   req: NextRequest,
@@ -90,10 +82,7 @@ export async function GET(
       }
     }
 
-    const menu = invitation.invitationSettings?.menuOptions || {};
-    const menuOptions = Object.entries(menu)
-      .filter(([key, enabled]) => enabled && MENU_LABELS[key] && key !== "transportation")
-      .map(([key]) => ({ key, label: MENU_LABELS[key] }));
+    const menuOptions = getActiveMenuOptions(invitation.invitationSettings?.menuOptions);
 
     if (token) {
       emitWeddingInternalEvent({
