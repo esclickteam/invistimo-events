@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { compressInviteImageFile } from "@/lib/compressInviteImage";
 import { getApiErrorMessage, parseApiResponse } from "@/lib/parseApiResponse";
+import WeddingWebsitePackagePanel from "@/app/components/WeddingWebsitePackagePanel";
 
 /* =========================================================
    Types
@@ -124,6 +125,7 @@ function getStringValue(...values: unknown[]) {
 
 export default function EditInvitePage() {
   const params = useParams();
+  const router = useRouter();
   const inviteId = params?.id as string | undefined;
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -132,6 +134,9 @@ export default function EditInvitePage() {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [wwEntitled, setWwEntitled] = useState(false);
+  const [wwPublicPath, setWwPublicPath] = useState("");
+  const [wwPublished, setWwPublished] = useState(false);
 
   const [imageMode, setImageMode] = useState<InviteImageMode>("portrait");
   const [uploadedImage, setUploadedImage] = useState<UploadedImageState | null>(
@@ -172,6 +177,31 @@ export default function EditInvitePage() {
   }, [invite]);
 
   const previewUrl = previewId ? `/invite/${previewId}` : "";
+
+  useEffect(() => {
+    const id = String(inviteId || "").trim();
+    if (!id) return;
+    let cancelled = false;
+    async function loadWw() {
+      try {
+        const res = await fetch(
+          `/api/wedding-website?invitationId=${encodeURIComponent(id)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        setWwEntitled(Boolean(data?.entitled));
+        setWwPublicPath(String(data?.website?.publicPath || ""));
+        setWwPublished(data?.website?.status === "published");
+      } catch {
+        if (!cancelled) setWwEntitled(false);
+      }
+    }
+    void loadWw();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteId]);
 
   const sendLivePreviewToIframe = useCallback(() => {
     if (!phonePreviewRef.current?.contentWindow) return;
@@ -483,6 +513,18 @@ export default function EditInvitePage() {
   };
 
   const handlePreview = () => {
+    if (wwEntitled) {
+      if (wwPublished && wwPublicPath) {
+        window.open(wwPublicPath, "_blank");
+        return;
+      }
+      router.push(
+        `/dashboard/wedding-website?invitationId=${encodeURIComponent(
+          String(inviteId || "")
+        )}`
+      );
+      return;
+    }
     if (!previewUrl) {
       alert("לא נמצאה תצוגה מקדימה");
       return;
@@ -532,12 +574,29 @@ export default function EditInvitePage() {
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                עדכון תמונת ההזמנה בלבד. פרטי האירוע והאולם מנוהלים מתוך האירוע.
+                {wwEntitled
+                  ? "תמונת ההזמנה הרגילה נשארת נפרדת מאתר החתונה. עריכת האתר דרך הכפתור הייעודי."
+                  : "עדכון תמונת ההזמנה בלבד. פרטי האירוע והאולם מנוהלים מתוך האירוע."}
               </p>
             </div>
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
+            {wwEntitled ? (
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    `/dashboard/wedding-website?invitationId=${encodeURIComponent(
+                      String(inviteId || "")
+                    )}`
+                  )
+                }
+                className="rounded-full bg-[#B8844F] px-5 py-2.5 text-sm font-black text-white shadow-sm"
+              >
+                עריכת אתר חתונה אישי
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handlePreview}
@@ -563,6 +622,11 @@ export default function EditInvitePage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6">
+        {inviteId ? (
+          <div className="mb-6">
+            <WeddingWebsitePackagePanel invitationId={String(inviteId)} />
+          </div>
+        ) : null}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
 
@@ -813,68 +877,107 @@ export default function EditInvitePage() {
 
           <aside className="space-y-6">
             <div className="xl:sticky xl:top-24 space-y-6">
-              <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
-                <div className="mb-4">
+              {wwEntitled ? (
+                <div className="rounded-[32px] border border-[#E7D0B0] bg-[#FFF9F1] p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
                   <p className="text-sm font-semibold text-[#b58a55]">
-                    תצוגה בטלפון
+                    חבילת אתר חתונה אישי
                   </p>
-
-                  <h3 className="text-xl font-black text-[#2d241c]">
-                    כך העמוד נראה במובייל
+                  <h3 className="mt-1 text-xl font-black text-[#2d241c]">
+                    אין תצוגת קישור אישי כאן
                   </h3>
-
-                  <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
-                    כאן מוצגת תצוגה של עמוד ההזמנה ואישור ההגעה.
+                  <p className="mt-2 text-sm leading-6 text-[#7b6a58]">
+                    האורחים נכנסים לאתר החתונה (`/w/...`) ומזדהים בטלפון/שם.
+                    כאן מעדכנים רק את תמונת ההזמנה הרגילה.
                   </p>
+                  <div className="mt-5 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/wedding-website?invitationId=${encodeURIComponent(
+                            String(inviteId || "")
+                          )}`
+                        )
+                      }
+                      className="w-full rounded-2xl bg-[#B8844F] px-5 py-3.5 text-sm font-black text-white shadow-lg"
+                    >
+                      עריכת אתר חתונה אישי
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePreview}
+                      className="w-full rounded-2xl border border-[#D9B46F] bg-white px-5 py-3 text-sm font-black text-[#B8844F]"
+                    >
+                      {wwPublished ? "צפייה באתר הציבורי" : "מעבר לעריכת האתר"}
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-[#b58a55]">
+                      תצוגת תמונה
+                    </p>
 
-                <div className="mx-auto w-full max-w-[330px]">
-                  <div className="rounded-[42px] bg-[#1f1f1f] p-[10px] shadow-[0_30px_90px_rgba(0,0,0,0.28)]">
-                    <div className="relative overflow-hidden rounded-[34px] bg-black">
-                      <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center justify-center">
-                        <div className="h-7 w-32 rounded-full bg-black shadow-inner" />
-                      </div>
+                    <h3 className="text-xl font-black text-[#2d241c]">
+                      תמונת ההזמנה במובייל
+                    </h3>
 
-                      <div className="absolute right-4 top-5 z-20 h-2.5 w-2.5 rounded-full bg-[#1a1a1a] ring-2 ring-[#2f2f2f]" />
+                    <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
+                      תצוגה של תמונת ההזמנה — בלי מסך RSVP מדומה.
+                    </p>
+                  </div>
 
-                      <div className="relative h-[690px] w-full overflow-hidden rounded-[34px] bg-[#f4efe8] pt-12">
-                        {previewUrl ? (
-                          <iframe
-                            ref={phonePreviewRef}
-                            key={`${previewUrl}-${previewRefreshKey}`}
-                            src={previewUrl}
-                            title="Mobile invitation preview"
-                            className="h-full w-full bg-white"
-                            onLoad={sendLivePreviewToIframe}
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-[#6d5b49]">
-                            אין כרגע תצוגה זמינה
-                          </div>
-                        )}
+                  <div className="mx-auto w-full max-w-[330px]">
+                    <div className="rounded-[42px] bg-[#1f1f1f] p-[10px] shadow-[0_30px_90px_rgba(0,0,0,0.28)]">
+                      <div className="relative overflow-hidden rounded-[34px] bg-black">
+                        <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center justify-center">
+                          <div className="h-7 w-32 rounded-full bg-black shadow-inner" />
+                        </div>
+
+                        <div className="absolute right-4 top-5 z-20 h-2.5 w-2.5 rounded-full bg-[#1a1a1a] ring-2 ring-[#2f2f2f]" />
+
+                        <div className="relative flex h-[520px] w-full items-center justify-center overflow-hidden rounded-[34px] bg-[#f4efe8] p-4 pt-12">
+                          {displayImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={displayImageUrl}
+                              alt="תמונת הזמנה"
+                              className={`max-h-full w-full rounded-2xl object-contain ${
+                                imageMode === "square"
+                                  ? "aspect-square"
+                                  : "aspect-[9/16]"
+                              }`}
+                            />
+                          ) : (
+                            <div className="px-6 text-center text-sm text-[#6d5b49]">
+                              אין כרגע תמונה זמינה
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="rounded-2xl border border-[#d8c7ad] bg-white px-4 py-3 text-sm font-bold text-[#4b3828] shadow-sm transition hover:bg-[#fbf7f0]"
-                  >
-                    החלפת תמונה
-                  </button>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => uploadInputRef.current?.click()}
+                      className="rounded-2xl border border-[#d8c7ad] bg-white px-4 py-3 text-sm font-bold text-[#4b3828] shadow-sm transition hover:bg-[#fbf7f0]"
+                    >
+                      החלפת תמונה
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handlePreview}
-                    className="rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:shadow-xl"
-                  >
-                    תצוגה מקדימה
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handlePreview}
+                      className="rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:shadow-xl"
+                    >
+                      תצוגה מקדימה
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
                 <p className="text-sm font-semibold text-[#b58a55]">פעולות</p>

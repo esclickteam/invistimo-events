@@ -1,22 +1,247 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Heebo:wght@300;400;500;600;700;800&display=swap");
 
-.wedding-website-root {
-  color: var(--ww-text);
-  font-family: var(--ww-font-body), "Heebo", sans-serif;
+/* ========== Global polish + overflow safety ========== */
+
+html {
   scroll-behavior: smooth;
 }
 
+/* No visible scrollbars on wedding sites (scroll still works for CTAs) */
+html:has(.wedding-website-root),
+body:has(.wedding-website-root),
+.wedding-website-root,
+.ww-site,
+.wedding-website-root *,
+.ww-site * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html:has(.wedding-website-root)::-webkit-scrollbar,
+body:has(.wedding-website-root)::-webkit-scrollbar,
+.wedding-website-root::-webkit-scrollbar,
+.ww-site::-webkit-scrollbar,
+.wedding-website-root *::-webkit-scrollbar,
+.ww-site *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+.wedding-website-root,
 .ww-site {
-  overflow-x: hidden;
+  overflow-x: clip;
+  max-width: 100vw;
+  color: var(--ww-text, inherit);
+  font-family: var(--ww-font-body), "Heebo", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  padding-bottom: 5.5rem; /* room for floating action bar */
+}
+
+.wedding-website-root *,
+.ww-site * {
+  min-width: 0;
+}
+
+.wedding-website-root img,
+.wedding-website-root video,
+.ww-site img,
+.ww-site video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.wedding-website-root iframe,
+.ww-site iframe {
+  max-width: 100%;
+}
+
+/* Kill accidental horizontal scrollbars inside sections */
+.wedding-website-root,
+.ww-site,
+.ww-smart-nav {
+  scrollbar-width: thin;
+}
+
+.wedding-website-root ::-webkit-scrollbar:horizontal {
+  height: 0;
+  display: none;
 }
 
 .ww-display {
   color: var(--ww-text);
   letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* Owner WYSIWYG click-to-edit affordances */
+.ww-editable-text {
+  transition: outline-color 0.15s ease, background-color 0.15s ease;
+  caret-color: #b8844f;
+}
+.ww-editable-text:hover {
+  outline: 1.5px dashed rgba(184, 132, 79, 0.7);
+  outline-offset: 4px;
+  background-color: rgba(184, 132, 79, 0.08);
+}
+.ww-editable-selected {
+  outline: 2px solid #b8844f !important;
+  outline-offset: 4px;
+  background-color: rgba(184, 132, 79, 0.12);
+}
+.ww-editable-section {
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, outline-color 0.15s ease;
+}
+.ww-editable-section:hover {
+  outline: 1.5px dashed rgba(184, 132, 79, 0.45);
+  outline-offset: -2px;
+}
+.ww-editable-section-selected {
+  outline: 2px solid #b8844f !important;
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 9999px rgba(184, 132, 79, 0.04);
+}
+.ww-section-edit-badge {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 12px;
+  z-index: 5;
+  border-radius: 999px;
+  background: rgba(36, 26, 20, 0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.ww-editable-section:hover .ww-section-edit-badge,
+.ww-editable-section-selected .ww-section-edit-badge {
+  opacity: 1;
+}
+.ww-float-toolbar {
+  position: fixed;
+  z-index: 95;
+  width: 280px;
+  transform: translateY(-100%);
+  border-radius: 16px;
+  border: 1px solid rgba(231, 208, 176, 0.95);
+  background: #fffdf9;
+  box-shadow: 0 18px 40px rgba(36, 26, 20, 0.22);
+  padding: 10px;
 }
 
 .ww-section {
   position: relative;
+  overflow-x: clip;
+}
+
+.ww-section-inner {
+  margin-inline: auto;
+  width: min(1120px, calc(100% - 2rem));
+}
+
+.ww-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.ww-title {
+  font-family: var(--ww-font-display), serif;
+  font-weight: 400;
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.ww-lead {
+  max-width: 36rem;
+  margin-inline: auto;
+  font-size: 1.05rem;
+  line-height: 1.85;
+  color: var(--ww-text-muted, #7a6a5a);
+}
+
+.ww-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.9rem 1.6rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: transform 0.25s ease, filter 0.25s ease, background-color 0.25s ease;
+}
+
+.ww-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.ww-btn-primary {
+  background: var(--ww-accent);
+  color: #fff;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ww-accent) 28%, transparent);
+}
+
+.ww-btn-ghost {
+  border: 1px solid color-mix(in srgb, var(--ww-accent) 45%, transparent);
+  color: inherit;
+  background: transparent;
+}
+
+.ww-media {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ww-bg-alt, #eee) 80%, #ddd);
+  border-radius: var(--ww-radius, 20px);
+}
+
+.ww-media img,
+.ww-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ww-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .ww-gallery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.1rem;
+  }
+}
+
+.ww-gallery-grid figure {
+  overflow: hidden;
+  border-radius: calc(var(--ww-radius, 20px) * 0.7);
+  aspect-ratio: 4 / 5;
+  background: #ddd;
+}
+
+.ww-gallery-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ww-gallery-grid figure:hover img {
+  transform: scale(1.04);
 }
 
 .ww-grain::before {
@@ -25,7 +250,7 @@
   position: fixed;
   inset: 0;
   z-index: 9998;
-  opacity: 0.04;
+  opacity: 0.035;
   background-image: url("https://grainy-gradients.vercel.app/noise.svg");
   mix-blend-mode: overlay;
 }
@@ -36,6 +261,31 @@
 
 .ww-card:hover {
   transform: translateY(-2px);
+}
+
+.ww-smart-nav button:focus-visible,
+.wedding-website-root a:focus-visible,
+.ww-site a:focus-visible {
+  outline: 2px solid var(--ww-accent, #c9a962);
+  outline-offset: 2px;
+}
+
+/* Hide leftover utility scrollbars if any class remains */
+.scrollbar-none,
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Prefer grids over horizontal carousels — if overflow-x remains, clip it */
+.ww-no-x-scroll {
+  overflow-x: clip !important;
 }
 
 @keyframes ww-shimmer {
@@ -88,11 +338,24 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .wedding-website-root *,
   .wedding-website-root *::before,
-  .wedding-website-root *::after {
+  .wedding-website-root *::after,
+  .ww-site *,
+  .ww-site *::before,
+  .ww-site *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .ww-title {
+    font-size: clamp(1.75rem, 8vw, 2.4rem);
   }
 }

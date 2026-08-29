@@ -55,7 +55,12 @@ function isPublicEventRoute(pathname: string | null) {
 
 function isWeddingWebsiteRoute(pathname: string | null) {
   const path = String(pathname || "");
-  return path === "/wedding-website" || path.startsWith("/wedding-website/");
+  return (
+    path === "/wedding-website" ||
+    path.startsWith("/wedding-website/") ||
+    path === "/w" ||
+    path.startsWith("/w/")
+  );
 }
 
 function isSalesDocumentRoute(pathname: string | null) {
