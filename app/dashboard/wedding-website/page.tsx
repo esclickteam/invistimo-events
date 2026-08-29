@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
 import type { WeddingDemoContent, WeddingTemplateId } from "@/types/weddingWebsite";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
+import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
 
 type EditorState = {
   templateId: WeddingTemplateId;
@@ -36,6 +37,8 @@ const emptyContent: WeddingDemoContent = {
   footerNote: "",
   guestMessageTitle: "השאירו לנו כמה מילים ❤️",
   guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+  heroImage: "",
+  galleryImages: [],
   sections: {
     rsvp: true,
     transportation: true,
@@ -53,6 +56,10 @@ export default function DashboardWeddingWebsitePage() {
   const [saved, setSaved] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [shareId, setShareId] = useState("");
+  const [invitationId, setInvitationId] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const heroInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [invitationTitle, setInvitationTitle] = useState("");
   const [eventData, setEventData] = useState({
     coupleNames: "",
@@ -88,6 +95,7 @@ export default function DashboardWeddingWebsitePage() {
         );
         setEnabled(nextEnabled);
         setShareId(data?.invitation?.shareId || "");
+        setInvitationId(data?.invitation?._id || "");
         setInvitationTitle(data?.invitation?.title || "");
         if (data?.weddingWebsite?.event || data?.invitation) {
           setEventData({
@@ -119,6 +127,10 @@ export default function DashboardWeddingWebsitePage() {
               storyParagraphs: data.weddingWebsite.content?.storyParagraphs?.length
                 ? data.weddingWebsite.content.storyParagraphs
                 : emptyContent.storyParagraphs,
+              heroImage: data.weddingWebsite.content?.heroImage || "",
+              galleryImages: Array.isArray(data.weddingWebsite.content?.galleryImages)
+                ? data.weddingWebsite.content.galleryImages
+                : [],
             },
           });
         }
@@ -195,6 +207,66 @@ export default function DashboardWeddingWebsitePage() {
     setDirty(true);
   }
 
+  async function uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append("image", file);
+    if (invitationId) formData.append("invitationId", invitationId);
+
+    const res = await fetch("/api/wedding-website/media", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.url) {
+      throw new Error(data?.message || data?.error || "UPLOAD_FAILED");
+    }
+    return String(data.url);
+  }
+
+  async function onHeroFile(file?: File | null) {
+    if (!file) return;
+    try {
+      setUploading(true);
+      const url = await uploadImage(file);
+      updateContent("heroImage", url);
+    } catch (error) {
+      console.error(error);
+      alert("לא הצלחנו להעלות את תמונת הפתיחה");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onGalleryFiles(files?: FileList | null) {
+    if (!files?.length) return;
+    try {
+      setUploading(true);
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        uploaded.push(await uploadImage(file));
+      }
+      updateContent("galleryImages", [
+        ...(editor.content.galleryImages || []),
+        ...uploaded,
+      ]);
+    } catch (error) {
+      console.error(error);
+      alert("לא הצלחנו להעלות תמונות לגלריה");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function moveGalleryImage(index: number, direction: -1 | 1) {
+    const current = [...(editor.content.galleryImages || [])];
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= current.length) return;
+    const [item] = current.splice(index, 1);
+    current.splice(nextIndex, 0, item);
+    updateContent("galleryImages", current);
+  }
+
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirty) return;
@@ -221,7 +293,7 @@ export default function DashboardWeddingWebsitePage() {
           <h1 className="mt-3 text-3xl font-black text-[#241A14]">האתר לא פתוח ללקוח הזה</h1>
           <p className="mt-3 text-sm font-semibold leading-7 text-[#8A7B69]">
             לקוחות קיימים נשארים עם קישור אישי לכל אורח. אתר חתונה אישי נפתח רק
-            בהקמת משתמש חדש, או בהפעלה ידנית לאותו לקוח באדמין.
+            בהקמת משתמש חדש, או בעריכת הלקוח הקיים במסך המשתמשים.
           </p>
           <Link
             href="/wedding-website"
@@ -312,6 +384,115 @@ export default function DashboardWeddingWebsitePage() {
               תאריך, שעה ואולם מגיעים מפרטי האירוע ולא נשמרים פעמיים באתר.
             </p>
           </div>
+          <div className="rounded-2xl border border-[#eadfce] p-4">
+            <p className="text-sm font-black text-[#3f3327]">תמונות האתר</p>
+            <p className="mt-1 text-xs font-semibold text-[#8A7B69]">
+              תמונות הדמו של התבנית לא נשמרות כלקוח. כאן מעלים את התמונות של הזוג.
+            </p>
+            <div className="mt-4">
+              <p className="text-xs font-black text-[#B8844F]">תמונת פתיחה</p>
+              {editor.content.heroImage ? (
+                <img
+                  src={editor.content.heroImage}
+                  alt="Hero"
+                  className="mt-2 h-36 w-full rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="mt-2 flex h-28 items-center justify-center rounded-2xl border border-dashed border-[#eadfce] text-xs font-semibold text-[#8A7B69]">
+                  אין תמונת פתיחה עדיין
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => heroInputRef.current?.click()}
+                  className="rounded-xl bg-[#B8844F] px-3 py-2 text-xs font-black text-white disabled:opacity-60"
+                >
+                  {editor.content.heroImage ? "החלפת תמונה" : "העלאת תמונה"}
+                </button>
+                {editor.content.heroImage ? (
+                  <button
+                    type="button"
+                    onClick={() => updateContent("heroImage", "")}
+                    className="rounded-xl border border-[#eadfce] px-3 py-2 text-xs font-black text-[#7B6754]"
+                  >
+                    הסרה
+                  </button>
+                ) : null}
+              </div>
+              <input
+                ref={heroInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => {
+                  onHeroFile(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </div>
+            <div className="mt-5">
+              <p className="text-xs font-black text-[#B8844F]">גלריה</p>
+              <div className="mt-2 space-y-2">
+                {(editor.content.galleryImages || []).map((src, index) => (
+                  <div
+                    key={`${src}-${index}`}
+                    className="flex items-center gap-3 rounded-2xl border border-[#eadfce] p-2"
+                  >
+                    <img src={src} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                    <div className="flex flex-1 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => moveGalleryImage(index, -1)}
+                        className="rounded-lg border border-[#eadfce] px-2 py-1 text-xs font-black"
+                      >
+                        למעלה
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveGalleryImage(index, 1)}
+                        className="rounded-lg border border-[#eadfce] px-2 py-1 text-xs font-black"
+                      >
+                        למטה
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateContent(
+                            "galleryImages",
+                            (editor.content.galleryImages || []).filter((_, i) => i !== index)
+                          )
+                        }
+                        className="rounded-lg border border-[#eadfce] px-2 py-1 text-xs font-black text-red-600"
+                      >
+                        הסרה
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => galleryInputRef.current?.click()}
+                className="mt-3 rounded-xl border border-[#eadfce] px-3 py-2 text-xs font-black text-[#241A14] disabled:opacity-60"
+              >
+                {uploading ? "מעלה..." : "הוספת תמונות לגלריה"}
+              </button>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  onGalleryFiles(event.target.files);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </div>
+          </div>
           <Field label="משפט פתיחה" value={editor.content.heroSubtitle} onChange={(value) => updateContent("heroSubtitle", value)} textarea />
           <Field label="טקסט הזמנה" value={editor.content.invitationText} onChange={(value) => updateContent("invitationText", value)} textarea />
           <Field label="איך נפגשנו" value={editor.content.howWeMet} onChange={(value) => updateContent("howWeMet", value)} textarea />
@@ -334,6 +515,7 @@ export default function DashboardWeddingWebsitePage() {
             <p className="text-sm font-black text-[#3f3327]">הצגת אזורים</p>
             {[
               ["our-story", "הסיפור שלנו"],
+              ["gallery", "גלריה"],
               ["faq", "שאלות נפוצות"],
               ["rsvp", "אישור הגעה"],
               ["transportation", "הסעות"],
@@ -376,19 +558,24 @@ export default function DashboardWeddingWebsitePage() {
               </button>
             </div>
           </div>
-          {publicPath ? (
-            <iframe
-              title="תצוגת אתר חתונה"
-              src={`${publicPath}?embed=1`}
-              className={`bg-white ${
+          {selectedTemplate ? (
+            <div
+              className={`overflow-auto bg-white ${
                 previewMode === "mobile"
                   ? "mx-auto h-[720px] w-[390px] max-w-full"
                   : "h-[820px] w-full"
               }`}
-            />
+            >
+              <WeddingTemplateSiteRenderer
+                template={selectedTemplate}
+                content={editor.content}
+                live
+                embed
+              />
+            </div>
           ) : (
             <div className="flex h-[420px] items-center justify-center text-sm text-white/60">
-              אין עדיין קישור לאתר
+              אין תבנית נבחרת
             </div>
           )}
         </div>

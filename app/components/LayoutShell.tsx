@@ -25,7 +25,11 @@ export default function LayoutShell({
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
-    pathname.startsWith("/invitation/");
+    pathname.startsWith("/invitation/") ||
+    pathname === "/w" ||
+    pathname.startsWith("/w/") ||
+    pathname === "/wedding-website" ||
+    pathname.startsWith("/wedding-website/");
 
   // ❌ דשבורדים – בלי Header/Footer של האתר
   const isDashboard =

@@ -8,7 +8,10 @@ import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
-import { normalizeRsvpSiteMode } from "@/types/rsvpSite";
+import {
+  guestExperienceFromRsvpSiteMode,
+  normalizeRsvpSiteMode,
+} from "@/types/rsvpSite";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -648,6 +651,8 @@ packageName
         selfManageEnabled
         customDesignEnabled
         rsvpSiteMode
+        guestExperienceType
+        features
 
         createdByProducer
         producerId
@@ -1119,7 +1124,12 @@ packageName
 
           accessModules,
 
-          rsvpSiteMode: normalizeRsvpSiteMode(u.rsvpSiteMode),
+          rsvpSiteMode: normalizeRsvpSiteMode(
+            u.rsvpSiteMode ?? u.guestExperienceType
+          ),
+          guestExperienceType: guestExperienceFromRsvpSiteMode(
+            u.rsvpSiteMode ?? u.guestExperienceType
+          ),
 
           totalPaid: Number(payment?.totalPaid || u.paidAmount || 0),
           paymentsCount: Number(payment?.paymentsCount || 0),

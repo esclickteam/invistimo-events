@@ -244,7 +244,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               transition={{ delay: i * 0.08 }}
               className="mb-5 break-inside-avoid border-2 border-[#C9A962]/50 p-1"
             >
-              <img src={src} alt="" className="w-full object-cover transition duration-700 hover:scale-[1.03]" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="w-full object-cover transition duration-700 hover:scale-[1.03]" />
             </motion.div>
           ))}
         </div>

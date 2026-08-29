@@ -5,6 +5,12 @@ import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
+import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import {
+  guestExperienceFromRsvpSiteMode,
+  normalizeRsvpSiteMode,
+  type RsvpSiteMode,
+} from "@/types/rsvpSite";
 import {
   Search,
   Users,
@@ -65,6 +71,8 @@ type AdminUser = {
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
   includeTransportationManagement?: boolean;
+  rsvpSiteMode?: "standard" | "personal" | string;
+  guestExperienceType?: "personal_invitation" | "wedding_website" | string;
   accessModules?: {
     rsvpSeating?: boolean;
     eventProduction?: boolean;
@@ -1605,7 +1613,10 @@ export default function AdminUsersPage() {
 }`}
 >
                   <td className="p-4 font-black text-[#3A2A1C]">
-                    {u.name || "—"}
+                    <div className="flex flex-col items-start gap-2">
+                      <span>{u.name || "—"}</span>
+                      <GuestExperienceBadge user={u} />
+                    </div>
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">{u.email}</td>
@@ -1690,6 +1701,9 @@ export default function AdminUsersPage() {
                 <div>
                   <div className="text-lg font-black text-[#3A2A1C]">
                     {u.name || "—"}
+                  </div>
+                  <div className="mt-2">
+                    <GuestExperienceBadge user={u} />
                   </div>
 
                   <div className="mt-1 text-sm font-semibold text-[#7B6754]">
@@ -2189,6 +2203,10 @@ function EditUserModal({
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
+  const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(
+    normalizeRsvpSiteMode(user.rsvpSiteMode ?? user.guestExperienceType)
+  );
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -2208,6 +2226,7 @@ function EditUserModal({
       phone: form.phone,
       eventDate: form.eventDate,
       includeTransportationManagement,
+      rsvpSiteMode,
       accessModules: {
         rsvpSeating: Boolean(
           user.accessModules?.rsvpSeating ?? user.includeDigitalSeating
@@ -2532,6 +2551,10 @@ function EditUserModal({
             value={form.phone}
             onChange={(value) => setForm((p) => ({ ...p, phone: value }))}
           />
+        </section>
+
+        <section className="border-t border-[#EFE2D1] pt-6">
+          <RsvpSiteModeField value={rsvpSiteMode} onChange={setRsvpSiteMode} />
         </section>
 
         <section className="border-t border-[#EFE2D1] pt-6">
@@ -2976,6 +2999,8 @@ function AdminMessageRoundsPanel({
           defaultPhone={user.phone || ""}
           invitationTitle={user.invitationTitle}
           invitationShareId={user.invitationShareId}
+          rsvpSiteMode={user.rsvpSiteMode}
+          guestExperienceType={user.guestExperienceType}
         />
       </div>
 
@@ -4443,6 +4468,32 @@ function SummaryBox({
       <div className="text-xs font-black text-[#8A7867]">{label}</div>
       <div className="mt-1 text-xl font-black text-[#B97821]">{value}</div>
     </div>
+  );
+}
+
+function GuestExperienceBadge({
+  user,
+}: {
+  user: Pick<AdminUser, "rsvpSiteMode" | "guestExperienceType">;
+}) {
+  const experience = guestExperienceFromRsvpSiteMode(
+    user.rsvpSiteMode ?? user.guestExperienceType
+  );
+  const isWeddingWebsite = experience === "wedding_website";
+
+  return (
+    <span
+      className={`
+        inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-black
+        ${
+          isWeddingWebsite
+            ? "bg-[#FFF3DF] text-[#B8844F]"
+            : "bg-[#F6F1EA] text-[#6B5A48]"
+        }
+      `}
+    >
+      {isWeddingWebsite ? "אתר חתונה" : "קישור אישי"}
+    </span>
   );
 }
 

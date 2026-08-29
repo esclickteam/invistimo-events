@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 export default function InvitationDashboardPage({ params }: any) {
   const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<any>(null);
   const [guests, setGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,6 +17,7 @@ export default function InvitationDashboardPage({ params }: any) {
 
       const res = await fetch(`/api/invitations/${resolved.id}`);
       const data = await res.json();
+      setInvitation(data?.invitation || null);
       setGuests(data?.invitation?.guests || []);
       setLoading(false);
     }
@@ -28,7 +31,11 @@ export default function InvitationDashboardPage({ params }: any) {
   }
 
   function sendWhatsappInvite(guest: any) {
-    const link = `${process.env.NEXT_PUBLIC_SITE_URL}/invite/${guest._id}`;
+    const link = getGuestInvitationUrl({
+      shareId: invitation?.shareId || "",
+      token: guest.token,
+      rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    });
     const message =
       `היי ${guest.name}! 🎉\nהוזמנת לאירוע שלנו.\n` +
       `נא לאשר הגעה כאן:\n${link}`;

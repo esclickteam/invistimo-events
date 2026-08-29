@@ -349,6 +349,9 @@ export async function GET(req: Request) {
         maxMessages
         remainingMessages
         shareId
+        invitationSettings
+        rsvpSiteMode
+        guestExperienceType
 
         producerId
         ownerId

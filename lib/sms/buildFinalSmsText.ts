@@ -1,5 +1,5 @@
 import { shortenUrl } from "@/lib/shortenUrl";
-import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -71,7 +71,7 @@ export async function buildFinalSmsText({
 
   /* ================= RSVP ================= */
 
-  const personalRsvpUrl = buildGuestInviteUrl({
+  const personalRsvpUrl = getGuestInvitationUrl({
     shareId: invitation.shareId,
     token: guest.token,
     rsvpSiteMode: getInvitationRsvpSiteMode(invitation),

@@ -1,5 +1,9 @@
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
+import {
+  sanitizeWeddingImageUrl,
+  sanitizeWeddingImageUrls,
+} from "@/lib/weddingWebsite/images";
 import type { WeddingDemoContent, WeddingTemplateId } from "@/types/weddingWebsite";
 
 export const DEFAULT_WEDDING_TEMPLATE_ID: WeddingTemplateId = "eternal-gold";
@@ -177,6 +181,14 @@ export function mergeWeddingWebsiteContent(
       cleanString(raw.guestMessageDescription) ||
       base.guestMessageDescription ||
       "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+    heroImage: Object.prototype.hasOwnProperty.call(raw, "heroImage")
+      ? sanitizeWeddingImageUrl(raw.heroImage)
+      : sanitizeWeddingImageUrl(base.heroImage),
+    galleryImages: Array.isArray(raw.galleryImages)
+      ? sanitizeWeddingImageUrls(raw.galleryImages)
+      : Array.isArray(base.galleryImages)
+        ? sanitizeWeddingImageUrls(base.galleryImages)
+        : undefined,
     sections: {
       ...(base.sections || {}),
       ...((raw.sections && typeof raw.sections === "object"

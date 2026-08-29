@@ -45,8 +45,34 @@ export default function DashboardHeader({
       })
       .catch(() => {});
 
+    function onActivity(event: Event) {
+      const unread = Number(
+        (event as CustomEvent)?.detail?.unreadGuestMessages
+      );
+      if (Number.isFinite(unread)) setUnreadGuestMessages(unread);
+    }
+
+    window.addEventListener("invistimo:guest-activity", onActivity);
+
+    let source: EventSource | null = null;
+    if (typeof EventSource !== "undefined") {
+      source = new EventSource("/api/dashboard/guest-activity/stream");
+      source.addEventListener("snapshot", (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data);
+          if (typeof data?.unreadGuestMessages === "number") {
+            setUnreadGuestMessages(data.unreadGuestMessages);
+          }
+        } catch {
+          // ignore
+        }
+      });
+    }
+
     return () => {
       cancelled = true;
+      window.removeEventListener("invistimo:guest-activity", onActivity);
+      source?.close();
     };
   }, [canOpenGuestMessages, isDemo]);
 

@@ -261,7 +261,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               className="overflow-hidden rounded-full shadow-lg"
               style={{ border: `3px solid ${GREEN}` }}
             >
-              <img src={src} alt="" className="aspect-square w-full object-cover transition hover:scale-110" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-110" />
             </motion.div>
           ))}
         </div>

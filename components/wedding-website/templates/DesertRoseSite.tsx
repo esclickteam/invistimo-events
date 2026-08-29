@@ -46,7 +46,7 @@ function ArchMask({ src, className = "" }: { src: string; className?: string }) 
       className={`overflow-hidden shadow-xl ${className}`}
       style={{ borderRadius: "50% 50% 20% 20% / 60% 60% 40% 40%" }}
     >
-      <img src={src} alt="" className="aspect-[3/4] w-full object-cover" />
+      <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full object-cover" />
     </div>
   );
 }

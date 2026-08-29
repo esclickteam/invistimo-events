@@ -17,14 +17,16 @@ import {
   Bus,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
+import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   invitationId?: string;
   invitationShareId?: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
   eventId?: string;
   canOpenEventManagement?: boolean;
   canOpenTransportationManagement?: boolean;
@@ -36,6 +38,8 @@ export default function DashboardMobileMenu({
   onClose,
   invitationId,
   invitationShareId,
+  rsvpSiteMode,
+  guestExperienceType,
   eventId,
   canOpenEventManagement = false,
   canOpenTransportationManagement = false,
@@ -72,9 +76,12 @@ export default function DashboardMobileMenu({
     onClose();
 
     window.open(
-      canOpenWeddingWebsite
-        ? `/w/${invitationShareId}`
-        : `https://www.invistimo.com/invite/${invitationShareId}`,
+      getGuestInvitationUrl({
+        shareId: invitationShareId,
+        rsvpSiteMode: rsvpSiteMode ?? (canOpenWeddingWebsite ? "personal" : "standard"),
+        guestExperienceType,
+        origin: "",
+      }),
       "_blank",
       "noopener,noreferrer"
     );

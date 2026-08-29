@@ -13,6 +13,7 @@ import {
 } from "../../types/rsvpSite";
 import {
   buildGuestInviteUrl,
+  getGuestInvitationUrl,
   getInvitationRsvpSiteMode,
 } from "../../lib/guestInviteUrl";
 import {
@@ -61,8 +62,10 @@ test("guest invite URL stays on /invite unless wedding website is explicit", () 
   assert.equal(getInvitationRsvpSiteMode(personalInvitation), "personal");
   assert.equal(getInvitationRsvpSiteMode(experienceInvitation), "personal");
 
+  assert.equal(getGuestInvitationUrl, buildGuestInviteUrl);
+
   assert.equal(
-    buildGuestInviteUrl({
+    getGuestInvitationUrl({
       shareId: "abc123",
       token: "tok1",
     }),
@@ -70,7 +73,7 @@ test("guest invite URL stays on /invite unless wedding website is explicit", () 
   );
 
   assert.equal(
-    buildGuestInviteUrl({
+    getGuestInvitationUrl({
       shareId: "abc123",
       token: "tokA",
       rsvpSiteMode: "personal",
@@ -79,12 +82,21 @@ test("guest invite URL stays on /invite unless wedding website is explicit", () 
   );
 
   assert.equal(
-    buildGuestInviteUrl({
+    getGuestInvitationUrl({
       shareId: "abc123",
       token: "tokB",
       guestExperienceType: "wedding_website",
     }),
     "https://www.invistimo.com/w/abc123?token=tokB"
+  );
+
+  assert.equal(
+    getGuestInvitationUrl({
+      shareId: "abc123",
+      token: "tokC",
+      guestExperienceType: "personal_invitation",
+    }),
+    "https://www.invistimo.com/invite/abc123?token=tokC"
   );
 });
 
@@ -228,3 +240,121 @@ test("link-open tracking is recorded outside RSVP and guest-message flows", () =
   assert.doesNotMatch(rsvp, /recordGuestLinkOpen/);
   assert.doesNotMatch(message, /recordGuestLinkOpen/);
 });
+
+test("admin has no separate wedding website customer list", () => {
+  const layout = read("app/admin/layout.tsx");
+  const usersPage = read("app/admin/users/page.tsx");
+  const wwAdminPage = read("app/admin/wedding-websites/page.tsx");
+
+  assert.doesNotMatch(layout, /href: "\/admin\/wedding-websites"/);
+  assert.doesNotMatch(layout, /אתרי חתונה/);
+  assert.match(usersPage, /GuestExperienceBadge/);
+  assert.match(usersPage, /RsvpSiteModeField/);
+  assert.match(usersPage, /קישור אישי/);
+  assert.match(usersPage, /אתר חתונה/);
+  assert.match(wwAdminPage, /redirect\("\/admin\/users"\)/);
+});
+
+test("guest invitation URL helper is the single source for guest-facing links", () => {
+  const helper = read("lib/guestInviteUrl.ts");
+  assert.match(helper, /export function getGuestInvitationUrl/);
+  assert.match(helper, /export const buildGuestInviteUrl = getGuestInvitationUrl/);
+
+  const sendFiles = [
+    "lib/messageTemplates.ts",
+    "lib/sms/buildFinalSmsText.ts",
+    "app/api/sms/send/route.ts",
+    "app/api/whatsapp/send-template/route.ts",
+    "workers/sendScheduledSms.ts",
+    "app/api/employee/call-tasks/[taskId]/send-rsvp-invite/route.ts",
+    "app/dashboard/messages/MessagesClient.tsx",
+    "app/dashboard/messages/new/tabs/RsvpTab.tsx",
+    "app/dashboard/messages/new/tabs/RsvpSmsTab.tsx",
+    "app/dashboard/messages/new/shared/WhatsappTemplatePreview.tsx",
+    "app/admin/users/AdminManualSmsPanel.tsx",
+    "app/dashboard/page.tsx",
+    "app/components/GuestsTable.tsx",
+    "app/dashboard/DashboardMobileMenu.tsx",
+  ];
+
+  for (const rel of sendFiles) {
+    const src = read(rel);
+    assert.match(
+      src,
+      /getGuestInvitationUrl|buildGuestInviteUrl/,
+      `${rel} should use the shared guest URL helper`
+    );
+    assert.doesNotMatch(
+      src,
+      /https:\/\/www\.invistimo\.com\/invite\/\$\{/,
+      `${rel} still hardcodes /invite/`
+    );
+    assert.doesNotMatch(
+      src,
+      /https:\/\/invistimo\.com\/invite\//,
+      `${rel} still hardcodes invistimo.com/invite`
+    );
+  }
+});
+
+test("dashboard guest row and my-invitation expose rsvp site mode for the helper", () => {
+  const dashboard = read("app/dashboard/page.tsx");
+  const myInvitation = read("app/api/invitations/my/route.ts");
+  const guestsTable = read("app/components/GuestsTable.tsx");
+
+  assert.match(dashboard, /getGuestInviteLink/);
+  assert.match(dashboard, /getGuestInvitationUrl/);
+  assert.match(dashboard, /EventSource/);
+  assert.match(dashboard, /mergeGuestActivity/);
+  assert.match(dashboard, /firstOpenedAt/);
+  assert.match(myInvitation, /invitationSettings/);
+  assert.match(guestsTable, /getGuestInvitationUrl/);
+});
+
+test("realtime opened filter uses existing guest tracking fields", () => {
+  const stream = read("app/api/dashboard/guest-activity/stream/route.ts");
+  const merge = read("lib/dashboardGuestActivity.ts");
+  const dashboard = read("app/dashboard/page.tsx");
+
+  assert.match(stream, /text\/event-stream/);
+  assert.match(stream, /firstOpenedAt/);
+  assert.match(stream, /unreadGuestMessages/);
+  assert.match(merge, /export function mergeGuestActivity/);
+  assert.match(dashboard, /matchesGuestLinkOpenFilter/);
+  assert.match(dashboard, /guest-activity\/stream/);
+});
+
+test("wedding website editor can upload replace remove and reorder images", () => {
+  const editor = read("app/dashboard/wedding-website/page.tsx");
+  const media = read("app/api/wedding-website/media/route.ts");
+  const content = read("lib/weddingWebsite/content.ts");
+  const images = read("lib/weddingWebsite/images.ts");
+  const publicApi = read("app/api/w/[shareId]/route.ts");
+
+  assert.match(editor, /\/api\/wedding-website\/media/);
+  assert.match(editor, /heroImage/);
+  assert.match(editor, /galleryImages/);
+  assert.match(editor, /moveGalleryImage/);
+  assert.match(editor, /WeddingTemplateSiteRenderer/);
+  assert.match(media, /ALLOWED_TYPES/);
+  assert.match(media, /MAX_IMAGE_BYTES/);
+  assert.match(media, /cloudinary/);
+  assert.match(content, /heroImage/);
+  assert.match(content, /galleryImages/);
+  assert.match(images, /overlayWeddingTemplateImages/);
+  assert.match(publicApi, /overlayWeddingTemplateImages/);
+});
+
+test("public wedding website and demo templates hide Invistimo chrome", () => {
+  const shell = read("app/PublicPageShell.tsx");
+  const renderer = read("components/wedding-website/WeddingTemplateSiteRenderer.tsx");
+  const sections = read("components/wedding-website/WeddingWebsiteSections.tsx");
+  const layoutShell = read("app/components/LayoutShell.tsx");
+
+  assert.match(shell, /isWeddingWebsiteRoute/);
+  assert.match(renderer, /a\[href="\/wedding-website"\]/);
+  assert.doesNotMatch(sections, /Invistimo Wedding · Preview/);
+  assert.match(layoutShell, /pathname.startsWith\("\/w\/"\)/);
+  assert.match(layoutShell, /pathname.startsWith\("\/wedding-website\/"\)/);
+});
+

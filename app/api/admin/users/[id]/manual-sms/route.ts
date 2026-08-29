@@ -7,7 +7,7 @@ import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { sendSMS } from "@/lib/sendSMS";
 import { shortenUrl } from "@/lib/shortenUrl";
-import { buildGuestInviteUrl } from "@/lib/guestInviteUrl";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -164,7 +164,7 @@ function buildPersonalRsvpLink(
   token?: string,
   rsvpSiteMode?: unknown
 ) {
-  return buildGuestInviteUrl({
+  return getGuestInvitationUrl({
     shareId,
     token,
     rsvpSiteMode,
@@ -196,7 +196,7 @@ function applyGuestPersonalization({
   const personalRsvp = buildPersonalRsvpLink(
     shareId,
     guest?.token,
-    invitation?.invitationSettings?.rsvpSiteMode
+    getInvitationRsvpSiteMode(invitation)
   );
   const eventLink = shareId ? `https://www.invistimo.com/e/${shareId}` : "";
   const tableName = guestTableLabel(guest);
@@ -210,9 +210,10 @@ function applyGuestPersonalization({
     .replace(/{{navigationLink}}/g, eventLink);
 
   if (shareId && personalRsvp) {
+    const escapedShareId = escapeRegExp(shareId);
     text = text.replace(
       new RegExp(
-        `https://www\\.invistimo\\.com/invite/${escapeRegExp(shareId)}(?:\\?[^\\s]*)?`,
+        `https://www\\.invistimo\\.com/(?:invite|w)/${escapedShareId}(?:\\?[^\\s]*)?`,
         "g"
       ),
       personalRsvp

@@ -1,5 +1,7 @@
 "use client";
 
+import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
+
 type Props = {
   templateKey:
     | "rsvp_invitation_media"
@@ -15,6 +17,8 @@ type Props = {
   eventTime?: string;
   eventLocation?: string;
   shareId?: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
   rsvpUrl?: string;
 };
 
@@ -93,6 +97,8 @@ export default function WhatsappTemplatePreview({
   eventTime,
   eventLocation,
   shareId,
+  rsvpSiteMode,
+  guestExperienceType,
   rsvpUrl,
 }: Props) {
   const isRsvp =
@@ -110,7 +116,13 @@ export default function WhatsappTemplatePreview({
 
   const finalRsvpUrl =
     rsvpUrl ||
-    (shareId ? `https://www.invistimo.com/invite/${shareId}` : "");
+    (shareId
+      ? getGuestInvitationUrl({
+          shareId,
+          rsvpSiteMode,
+          guestExperienceType,
+        })
+      : "");
 
   return (
     <div

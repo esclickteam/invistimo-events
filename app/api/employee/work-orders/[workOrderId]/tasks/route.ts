@@ -9,6 +9,7 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -373,10 +374,15 @@ function getInvitationShareId(invitation: any, order: any) {
   );
 }
 
-function buildInvitationPreviewUrl(shareId: string) {
+function buildInvitationPreviewUrl(shareId: string, invitation?: any) {
   if (!shareId) return "";
 
-  return `/invite/${encodeURIComponent(shareId)}?preview=staff`;
+  return getGuestInvitationUrl({
+    shareId,
+    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    origin: "",
+    preview: "staff",
+  });
 }
 
 async function getInvitationForWorkOrder(order: any) {
@@ -392,7 +398,7 @@ async function getInvitationForWorkOrder(order: any) {
   if (!invitationObjectId) return null;
 
   return Invitation.findById(invitationObjectId)
-    .select("_id shareId shareID slug publicId")
+    .select("_id shareId shareID slug publicId invitationSettings rsvpSiteMode guestExperienceType")
     .lean();
 }
 
@@ -405,7 +411,10 @@ function serializeWorkOrder(
   const remaining = Math.max(0, counts.total - completed);
 
   const invitationShareId = getInvitationShareId(invitation, order);
-  const invitationPreviewUrl = buildInvitationPreviewUrl(invitationShareId);
+  const invitationPreviewUrl = buildInvitationPreviewUrl(
+    invitationShareId,
+    invitation
+  );
 
   return {
     id: String(order?._id || ""),
@@ -425,6 +434,10 @@ function serializeWorkOrder(
     previewUrl: invitationPreviewUrl,
     invitationUrl: invitationPreviewUrl,
     inviteUrl: invitationPreviewUrl,
+    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    guestExperienceType:
+      invitation?.invitationSettings?.guestExperienceType ||
+      invitation?.guestExperienceType,
 
     clientName: cleanStr(order?.clientName),
     clientEmail: cleanStr(order?.clientEmail),

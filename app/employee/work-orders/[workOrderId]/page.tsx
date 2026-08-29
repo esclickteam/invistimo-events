@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import SendRsvpInviteModal from "@/app/components/SendRsvpInviteModal";
+import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
 
 /* ============================================================
    Constants
@@ -72,6 +73,8 @@ type WorkOrder = {
   inviteUrl?: string;
   previewUrl?: string;
   invitationPreviewUrl?: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 
   clientName: string;
   clientEmail: string;
@@ -440,7 +443,13 @@ function getWorkOrderInvitationPreviewUrl(workOrder?: WorkOrder | null) {
   if (!shareId) return "";
 
   return buildAbsoluteUrl(
-    `/invite/${encodeURIComponent(shareId)}?preview=staff&readonly=1`
+    getGuestInvitationUrl({
+      shareId,
+      rsvpSiteMode: workOrder.rsvpSiteMode ?? workOrder.guestExperienceType,
+      origin: "",
+      preview: "staff",
+      extraParams: { readonly: "1" },
+    })
   );
 }
 

@@ -11,6 +11,7 @@ import {
   ScheduleTimeField,
 } from "../shared/ScheduleDateTimeFields";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 
 /* ================= TYPES ================= */
@@ -111,6 +112,8 @@ const [round2Locked, setRound2Locked] = useState(true);
 
   const [savingGift, setSavingGift] = useState(false);
   const [giftSaveError, setGiftSaveError] = useState<string>("");
+  const [invitationShareId, setInvitationShareId] = useState("");
+  const [rsvpSiteMode, setRsvpSiteMode] = useState<unknown>("standard");
 
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
@@ -238,6 +241,8 @@ setRound2Locked(
 );
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
+        setInvitationShareId(inv?.shareId || "");
+        setRsvpSiteMode(getInvitationRsvpSiteMode(inv));
         didInitGift.current = true;
       } catch (e) {
         console.error("❌ Failed to load guests/invitation", e);
@@ -337,13 +342,17 @@ setRound2Locked(
   const g = guestsToSend[0];
   if (!g || !g.token) return "";
 
-  const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
+  const rsvpLink = getGuestInvitationUrl({
+    shareId: invitationShareId || invitationId,
+    token: g.token,
+    rsvpSiteMode,
+  });
 
   return message
     .replace(/{{name}}/g, g.name || "")
     .replace(/{{invitationTitle}}/g, invitationTitle || "")
     .replace(/{{rsvpLink}}/g, rsvpLink);
-}, [guestsToSend, invitationId, invitationTitle, message]);
+}, [guestsToSend, invitationId, invitationShareId, rsvpSiteMode, invitationTitle, message]);
 
   if (loading) return <p>טוען אורחים…</p>;
 

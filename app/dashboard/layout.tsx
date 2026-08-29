@@ -16,6 +16,12 @@ type Invitation = {
   shareId: string;
   title?: string;
   eventId?: string;
+  invitationSettings?: {
+    rsvpSiteMode?: unknown;
+    guestExperienceType?: unknown;
+  };
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 };
 
 /* ============================================================
@@ -188,6 +194,13 @@ function DashboardLayoutInner({
         onClose={() => setMenuOpen(false)}
         invitationId={invitation?._id || resolvedInvitationId}
         invitationShareId={invitation?.shareId}
+        rsvpSiteMode={
+          invitation?.invitationSettings?.rsvpSiteMode ?? invitation?.rsvpSiteMode
+        }
+        guestExperienceType={
+          invitation?.invitationSettings?.guestExperienceType ??
+          invitation?.guestExperienceType
+        }
         eventId={eventIdForMenu}
         canOpenEventManagement={canOpenEventManagement}
         canOpenTransportationManagement={canOpenTransportationManagement}

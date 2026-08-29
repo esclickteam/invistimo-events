@@ -6,6 +6,7 @@ import User from "@/models/User";
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
+import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
 import { resolvePublicGuestActions } from "@/lib/weddingWebsite/guestContext";
 import { emitWeddingInternalEvent } from "@/lib/weddingWebsite/events";
 import {
@@ -60,7 +61,10 @@ export async function GET(
     }
 
     const website = serializeWeddingWebsite(invitation);
-    const template = getWeddingTemplate(website.templateId);
+    const template = overlayWeddingTemplateImages(
+      getWeddingTemplate(website.templateId),
+      website.content
+    );
     const token = req.nextUrl.searchParams.get("token") || "";
     const features = getCustomerFeatures(owner);
     const guest = await resolvePublicGuestActions({
