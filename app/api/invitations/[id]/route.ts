@@ -1069,6 +1069,10 @@ export async function PATCH(
       updatePayload.invitationSettings = body.invitationSettings;
     }
 
+    if (body?.weddingWebsite !== undefined) {
+      updatePayload.weddingWebsite = body.weddingWebsite;
+    }
+
     if (
       body?.eventId !== undefined &&
       mongoose.Types.ObjectId.isValid(body.eventId)

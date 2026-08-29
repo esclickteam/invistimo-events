@@ -9,7 +9,7 @@ import {
 } from "next/navigation";
 import EventDetailsForm from "@/app/components/EventDetailsForm";
 import EventInvitationSettings from "@/app/components/EventInvitationSettings";
-import EventRsvpSiteModeSelector from "@/app/components/EventRsvpSiteModeSelector";
+import WeddingWebsiteEditAccess from "@/app/components/WeddingWebsiteEditAccess";
 
 export default function EditEventPage() {
   return (
@@ -573,9 +573,8 @@ function EditEventPageInner() {
           </div>
         </section>
 
-        {/* סוג אתר אישורי הגעה */}
         <section className="mb-6">
-          <EventRsvpSiteModeSelector invitationId={invitation._id} />
+          <WeddingWebsiteEditAccess />
         </section>
 
         {/* CONTENT */}

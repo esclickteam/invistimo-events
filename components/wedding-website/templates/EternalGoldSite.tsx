@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
   useRsvpDemo,
@@ -326,7 +328,20 @@ function LocationSection() {
     <Section id="location" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">איך מגיעים</h2>
-        <p className="mt-2 text-center text-[#8A7560]">{DEMO.venueAddress}</p>
+        <LocationDisplay
+          name={DEMO.venueName}
+          address={DEMO.venueAddress}
+          align="center"
+          className="mt-4"
+          nameClassName="text-xl font-semibold text-[#3D2E1F]"
+          addressClassName="mt-2 text-[#8A7560]"
+          iconClassName="h-5 w-5 shrink-0 text-[#C9A962]"
+        />
+        <WeddingVenueNav
+          address={DEMO.venueAddress}
+          className="mt-5 flex flex-wrap items-center justify-center gap-3"
+          linkClassName="inline-flex min-h-[44px] items-center gap-2 border border-[#C9A962] px-5 py-2 text-sm font-bold text-[#C9A962]"
+        />
         <GoldDivider />
         <div className="overflow-hidden border-2 border-[#C9A962]/40">
           <iframe

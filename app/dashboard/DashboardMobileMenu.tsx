@@ -16,6 +16,9 @@ import {
   ClipboardList,
   Bus,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 
 type Props = {
   open: boolean;
@@ -39,7 +42,10 @@ export default function DashboardMobileMenu({
   isDemo = false,
 }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
+  const canOpenGuestMessages = hasGuestMessagesFeature(user);
 
   const hasInvitation = Boolean(invitationId);
 
@@ -66,7 +72,9 @@ export default function DashboardMobileMenu({
     onClose();
 
     window.open(
-      `https://www.invistimo.com/invite/${invitationShareId}`,
+      canOpenWeddingWebsite
+        ? `/w/${invitationShareId}`
+        : `https://www.invistimo.com/invite/${invitationShareId}`,
       "_blank",
       "noopener,noreferrer"
     );
@@ -108,6 +116,34 @@ export default function DashboardMobileMenu({
       },
     },
 
+    {
+      title: "עריכת אתר חתונה",
+      subtitle: "תבנית, תוכן וצפייה באתר האישי",
+      icon: Sparkles,
+      badge: "אתר",
+      hidden: !canOpenWeddingWebsite,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/wedding-website");
+      },
+    },
+    {
+      title: "הודעות מהאורחים",
+      subtitle: "ברכות והודעות שנשלחו מהאתר",
+      icon: MessageCircle,
+      badge: "הודעות",
+      hidden: !canOpenGuestMessages,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/guest-messages");
+      },
+    },
     {
       title: "עריכת פרטי האירוע",
       subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",

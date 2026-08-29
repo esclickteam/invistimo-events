@@ -6,6 +6,10 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  buildInvitationRsvpFields,
+  getOwnerRsvpSiteMode,
+} from "@/lib/weddingWebsite/rsvpSiteMode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -669,8 +673,11 @@ export async function POST(req: Request) {
     }).lean();
 
     if (!invitation) {
+      const ownerId = event.userId ?? userId;
+      const rsvpSiteMode = await getOwnerRsvpSiteMode(ownerId);
+
       invitation = await Invitation.create({
-        ownerId: event.userId ?? userId,
+        ownerId,
         producerId: producerIdObj ?? null,
         eventId: event._id,
         guests: [],
@@ -686,6 +693,12 @@ export async function POST(req: Request) {
           invitationOnlyImageUrl: "",
           invitationOnlyImagePublicId: "",
         },
+        ...buildInvitationRsvpFields(rsvpSiteMode, {
+          title: event.title,
+          eventDate: event.date || event.eventDate || null,
+          eventTime: event.time || "",
+          location: event.location || {},
+        }),
       });
     }
 

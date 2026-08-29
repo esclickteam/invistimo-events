@@ -1,9 +1,11 @@
 "use client";
 
-import { Menu, Home, MessageCircle, LogOut, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu, Home, MessageCircle, LogOut, LogIn, Heart } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerDashboardHeader from "./ProducerDashboardHeader";
+import { hasGuestMessagesFeature } from "@/lib/features/entitlements";
 
 /* ============================================================
    Types
@@ -29,6 +31,24 @@ export default function DashboardHeader({
 
   const { user, logout } = useAuth();
   const role = user?.role;
+  const canOpenGuestMessages = hasGuestMessagesFeature(user);
+  const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
+
+  useEffect(() => {
+    if (!canOpenGuestMessages || isDemo) return;
+
+    let cancelled = false;
+    fetch("/api/guest-messages", { credentials: "include", cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setUnreadGuestMessages(Number(data?.unreadCount || 0));
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canOpenGuestMessages, isDemo]);
 
   /* ============================================================
      Seating page – hide dashboard header completely
@@ -162,6 +182,30 @@ export default function DashboardHeader({
                 <MessageCircle size={17} className="text-[#B88A2D]" />
                 תמיכה
               </button>
+              {canOpenGuestMessages ? (
+                <button
+                  onClick={() => router.push("/dashboard/guest-messages")}
+                  className="
+                    relative inline-flex items-center gap-2
+                    whitespace-nowrap
+                    rounded-[13px]
+                    px-4 py-2.5
+                    text-[15px] font-bold
+                    text-[#4A3A2A]
+                    transition
+                    hover:bg-[#F8EEDB]
+                    hover:text-[#B88A2D]
+                  "
+                >
+                  <Heart size={17} className="text-[#B88A2D]" />
+                  הודעות מהאורחים
+                  {unreadGuestMessages > 0 ? (
+                    <span className="absolute -left-1 -top-1 rounded-full bg-[#B8844F] px-1.5 text-[10px] font-black text-white">
+                      {unreadGuestMessages}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
             </div>
           </div>
 

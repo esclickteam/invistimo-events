@@ -83,6 +83,17 @@ export type WeddingDemoContent = {
   guestbookMessages: { name: string; message: string; date: string }[];
   playlistNote: string;
   footerNote: string;
+  guestMessageTitle?: string;
+  guestMessageDescription?: string;
+  sections?: Partial<Record<WeddingSectionId | "guest-message", boolean>>;
+};
+
+export type WeddingEventData = {
+  coupleNames: string;
+  weddingDate: string;
+  weddingTime: string;
+  venueName: string;
+  venueAddress: string;
 };
 
 export type GuestUploadItem = {

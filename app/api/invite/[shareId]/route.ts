@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
+import { recordGuestLinkOpen } from "@/lib/guestLinkTracking";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,22 @@ export async function GET(
             ? foundGuest.arrivedCount
             : 0,
       };
+
+      try {
+        after(() =>
+          recordGuestLinkOpen({
+            token,
+            invitationId: (invitation as any)._id,
+            userAgent: req.headers.get("user-agent"),
+            isPreview: isStaffPreview,
+            purpose:
+              req.headers.get("sec-fetch-purpose") ||
+              req.headers.get("purpose"),
+          })
+        );
+      } catch {
+        // tracking is best-effort and must never block the invite
+      }
     }
 
     /* ============================================================

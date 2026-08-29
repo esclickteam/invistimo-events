@@ -3,6 +3,8 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CUSTOMER_PAYMENT_TERMS } from "@/lib/salesDocumentTerms";
+import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 
 const VAT_RATE = 0.18;
 const COMMISSION_RATE = 0.05;
@@ -1293,6 +1295,7 @@ export default function AdminSalesNewPage() {
   const [eventDate, setEventDate] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
   const [records, setRecords] = useState("300");
@@ -2016,6 +2019,7 @@ export default function AdminSalesNewPage() {
           eventDate,
           eventCity: eventCity.trim(),
           venueName: venueName.trim(),
+          rsvpSiteMode,
 
           plan: selectedPlan.key,
           packageName: selectedPlan.title,
@@ -2300,6 +2304,8 @@ export default function AdminSalesNewPage() {
                       required
                     />
                   </label>
+
+                  <RsvpSiteModeField value={rsvpSiteMode} onChange={setRsvpSiteMode} />
                 </div>
               </div>
             </section>

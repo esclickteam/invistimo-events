@@ -7,6 +7,11 @@ import User from "@/models/User";
 import EmployeeSale from "@/models/EmployeeSale";
 import CustomerFile from "@/models/CustomerFile";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import {
+  featuresForExperience,
+  guestExperienceFromRsvpSiteMode,
+  normalizeRsvpSiteMode,
+} from "@/types/rsvpSite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1039,6 +1044,9 @@ export async function POST(req: NextRequest) {
     const eventDateRaw = cleanString(body?.eventDate);
     const eventCity = cleanString(body?.eventCity);
     const venueName = cleanString(body?.venueName);
+    const rsvpSiteMode = normalizeRsvpSiteMode(body?.rsvpSiteMode);
+    const guestExperienceType = guestExperienceFromRsvpSiteMode(rsvpSiteMode);
+    const customerFeatures = featuresForExperience(guestExperienceType);
 
     const packageName = cleanString(body?.packageName);
     const plan = cleanString(body?.plan) || "premium";
@@ -1170,6 +1178,10 @@ export async function POST(req: NextRequest) {
       hasDashboardAccess: isManualPaid,
 
       eventDate,
+
+      rsvpSiteMode,
+      guestExperienceType,
+      features: customerFeatures,
 
       includeCalls: isManualPaid ? hasCallsPackage : false,
       callsRounds: isManualPaid && hasCallsPackage ? 3 : 0,

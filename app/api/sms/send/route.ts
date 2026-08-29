@@ -9,6 +9,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import {
   AUTO_REMINDER_BY_TABLE,
   REMINDER_WITH_TABLE_SERVER_TEMPLATE,
@@ -982,7 +983,11 @@ if (inv.shareId) {
           phone = "972" + phone;
         }
 
-        const personalRsvpUrl = `https://www.invistimo.com/invite/${inv.shareId}?token=${freshGuest.token}`;
+        const personalRsvpUrl = buildGuestInviteUrl({
+          shareId: inv.shareId,
+          token: freshGuest.token,
+          rsvpSiteMode: getInvitationRsvpSiteMode(inv),
+        });
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
         /**

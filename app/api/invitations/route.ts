@@ -8,6 +8,10 @@ import VenueEvent from "@/models/VenueEvent";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  buildInvitationRsvpFields,
+  getOwnerRsvpSiteMode,
+} from "@/lib/weddingWebsite/rsvpSiteMode";
+import {
   eventHasVerifiedVenueLink,
   findVenueHallByAnyId,
 } from "@/lib/venues/eventVenueLinkInvariant";
@@ -676,6 +680,9 @@ export async function POST(req: NextRequest) {
         ? "square"
         : "portrait";
 
+    const invitationTitle = event.title || cleanString(body.title) || "הזמנה חדשה";
+    const rsvpSiteMode = await getOwnerRsvpSiteMode(userId);
+
     const invitation = await Invitation.create({
       ownerId: userId,
       producerId,
@@ -684,11 +691,17 @@ export async function POST(req: NextRequest) {
       productionEventId: event._id,
       linkedEventId: event._id,
 
-      title: event.title || cleanString(body.title) || "הזמנה חדשה",
+      title: invitationTitle,
       eventType: event.eventType || "",
       eventDate: event.date || null,
       eventTime: event.time || "",
       location: event.location || {},
+      ...buildInvitationRsvpFields(rsvpSiteMode, {
+        title: invitationTitle,
+        eventDate: event.date || null,
+        eventTime: event.time || "",
+        location: event.location || {},
+      }),
 
       estimatedGuests: maxGuests,
       estimatedGuestCount: maxGuests,

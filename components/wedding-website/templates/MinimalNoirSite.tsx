@@ -13,6 +13,8 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 
@@ -383,16 +385,20 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
           <div className="p-8 md:p-16">
             <NoirLabel>Location</NoirLabel>
             <h2 className="mt-2 text-3xl font-black">מיקום</h2>
-            <p className="mt-6 font-bold">{DEMO.venueName}</p>
-            <p className="mt-2 font-mono text-sm text-neutral-600">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-block border border-black px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-black hover:text-white"
-            >
-              Waze / Maps
-            </a>
+            <LocationDisplay
+              name={DEMO.venueName}
+              address={DEMO.venueAddress}
+              className="mt-6"
+              nameClassName="font-bold"
+              addressClassName="mt-2 font-mono text-sm text-neutral-600"
+              iconClassName="h-5 w-5 shrink-0"
+            />
+            <WeddingVenueNav
+              address={DEMO.venueAddress}
+              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              className="mt-6 flex flex-wrap gap-3"
+              linkClassName="inline-flex min-h-[44px] items-center gap-2 border border-black px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-black hover:text-white"
+            />
           </div>
           <div className="min-h-[280px] border-t border-black bg-neutral-200 md:border-t-0 md:border-l">
             <iframe

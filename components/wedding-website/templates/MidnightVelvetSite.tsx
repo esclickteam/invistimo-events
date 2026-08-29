@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
   useRsvpDemo,
@@ -303,7 +305,20 @@ function LocationSection() {
     <Section id="location" className="bg-[#16131C] py-24">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">מיקום</h2>
-        <p className="mt-2 text-center text-[#A89BB0]">{DEMO.venueAddress}</p>
+        <LocationDisplay
+          name={DEMO.venueName}
+          address={DEMO.venueAddress}
+          align="center"
+          className="mt-4"
+          nameClassName="text-xl text-[#F5F0E8]"
+          addressClassName="mt-2 text-[#A89BB0]"
+          iconClassName="h-5 w-5 shrink-0 text-[#C9A962]"
+        />
+        <WeddingVenueNav
+          address={DEMO.venueAddress}
+          className="mt-5 flex flex-wrap items-center justify-center gap-3"
+          linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#C9A962]/50 px-5 py-2 text-sm font-bold text-[#F5F0E8]"
+        />
         <Glass className="mt-10 overflow-hidden p-0">
           <iframe
             title="map"

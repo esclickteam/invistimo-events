@@ -6,6 +6,7 @@ import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { getAuthCookieDomain } from "@/lib/env/appEnv";
+import { getCustomerFeatures, getGuestExperienceType } from "@/lib/features/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1079,6 +1080,13 @@ export async function GET() {
           hasDashboardAccess: currentUser.hasDashboardAccess === true,
 
           accessModules,
+
+          rsvpSiteMode:
+            getGuestExperienceType(currentUser) === "wedding_website"
+              ? "personal"
+              : "standard",
+          guestExperienceType: getGuestExperienceType(currentUser),
+          features: getCustomerFeatures(currentUser),
 
           includeSeating: currentUser.includeSeating === true,
           includeDigitalSeating: accessModules.rsvpSeating,

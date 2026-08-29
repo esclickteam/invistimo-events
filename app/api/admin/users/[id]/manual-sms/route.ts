@@ -7,6 +7,7 @@ import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { sendSMS } from "@/lib/sendSMS";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { buildGuestInviteUrl } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -158,16 +159,16 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildPersonalRsvpLink(shareId: string, token?: string) {
-  const cleanShareId = String(shareId || "").trim();
-
-  if (!cleanShareId) return "";
-
-  const cleanToken = String(token || "").trim();
-
-  return cleanToken
-    ? `https://www.invistimo.com/invite/${cleanShareId}?token=${cleanToken}`
-    : `https://www.invistimo.com/invite/${cleanShareId}`;
+function buildPersonalRsvpLink(
+  shareId: string,
+  token?: string,
+  rsvpSiteMode?: unknown
+) {
+  return buildGuestInviteUrl({
+    shareId,
+    token,
+    rsvpSiteMode,
+  });
 }
 
 function guestTableLabel(guest: any) {
@@ -192,7 +193,11 @@ function applyGuestPersonalization({
   guest: any;
 }) {
   const shareId = String(invitation?.shareId || "").trim();
-  const personalRsvp = buildPersonalRsvpLink(shareId, guest?.token);
+  const personalRsvp = buildPersonalRsvpLink(
+    shareId,
+    guest?.token,
+    invitation?.invitationSettings?.rsvpSiteMode
+  );
   const eventLink = shareId ? `https://www.invistimo.com/e/${shareId}` : "";
   const tableName = guestTableLabel(guest);
 
@@ -342,9 +347,11 @@ export async function POST(
         normalizedPhone
       );
       const token = String(guest?.token || "").trim();
-      const rsvpLink = token
-        ? `https://www.invistimo.com/invite/${shareId}?token=${token}`
-        : `https://www.invistimo.com/invite/${shareId}`;
+      const rsvpLink = buildPersonalRsvpLink(
+        shareId,
+        token,
+        invitation?.invitationSettings?.rsvpSiteMode
+      );
 
       const gate = assertExternalSendAllowed({
         channel: "whatsapp",
@@ -579,7 +586,11 @@ export async function GET(
     }
 
     const shareId = String(invitation.shareId || "").trim();
-    const rsvpLink = buildPersonalRsvpLink(shareId, guest.token);
+    const rsvpLink = buildPersonalRsvpLink(
+      shareId,
+      guest.token,
+      invitation?.invitationSettings?.rsvpSiteMode
+    );
 
     return NextResponse.json({
       success: true,

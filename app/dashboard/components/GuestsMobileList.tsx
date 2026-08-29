@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { RSVP_LABELS } from "@/lib/rsvp";
+import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 
 /* ============================================================
    Types
@@ -29,6 +30,10 @@ export type Guest = {
   actualArrivedCount?: number;
 
   notes?: string;
+
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  openCount?: number;
 
   createdAt?: string;
   updatedAt?: string;
@@ -307,6 +312,10 @@ export default function GuestsMobileList({
               </div>
 
               <StatusBadge rsvp={g.rsvp} />
+            </div>
+
+            <div className="mt-3">
+              <GuestLinkOpenBadge guest={g} />
             </div>
 
             {/* ================= Stats ================= */}

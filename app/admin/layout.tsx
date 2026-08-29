@@ -53,6 +53,12 @@ export default function AdminLayout({
       description: "ניהול חשבונות והרשאות",
     },
     {
+      href: "/admin/wedding-websites",
+      label: "אתרי חתונה",
+      icon: "wedding",
+      description: "צפייה והפעלה ללקוח ספציפי",
+    },
+    {
       href: "/admin/employees",
       label: "עובדים",
       icon: "employees",
@@ -366,6 +372,16 @@ function NavIcon({ name }: { name: string }) {
         <path d="M16 14h.01" />
         <path d="M8 18h.01" />
         <path d="M12 18h.01" />
+      </svg>
+    );
+  }
+
+  if (name === "wedding") {
+    return (
+      <svg {...common}>
+        <path d="M12 3 9 8l3 2 3-2z" />
+        <path d="M8 10c-2 2-3 4-3 6a7 7 0 0 0 14 0c0-2-1-4-3-6" />
+        <path d="M12 10v10" />
       </svg>
     );
   }

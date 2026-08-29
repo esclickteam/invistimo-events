@@ -13,6 +13,8 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const ACCENT = "#7C9CFF";
@@ -419,16 +421,20 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
           <TiltCard>
             <GlassPanel className="p-10">
               <h2 className="text-3xl font-bold">מיקום</h2>
-              <p className="mt-6 text-xl">{DEMO.venueName}</p>
-              <p className="mt-2 text-[#8892A8]">{DEMO.venueAddress}</p>
-              <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-8 inline-block rounded-xl bg-[#7C9CFF] px-6 py-3 text-sm font-bold text-[#0A0E17]"
-              >
-                ניווט
-              </a>
+              <LocationDisplay
+                name={DEMO.venueName}
+                address={DEMO.venueAddress}
+                className="mt-6"
+                nameClassName="text-xl"
+                addressClassName="mt-2 text-[#8892A8]"
+                iconClassName="h-5 w-5 shrink-0 text-[#7C9CFF]"
+              />
+              <WeddingVenueNav
+                address={DEMO.venueAddress}
+                googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+                className="mt-8 flex flex-wrap gap-3"
+                linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#7C9CFF] px-6 py-3 text-sm font-bold text-[#0A0E17]"
+              />
             </GlassPanel>
           </TiltCard>
           <TiltCard>

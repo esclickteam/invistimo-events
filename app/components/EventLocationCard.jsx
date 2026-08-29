@@ -1,6 +1,7 @@
 "use client";
 
 import EventNavigationButtons from "@/app/components/EventNavigationButtons";
+import LocationDisplay from "@/app/components/LocationDisplay";
 
 export default function EventLocationCard({ location }) {
   if (!location) return null;
@@ -28,12 +29,16 @@ export default function EventLocationCard({ location }) {
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow p-5 mt-8">
       {/* כותרת + כתובת */}
-      {hasAddress && (
+      {(hasAddress || location.name) && (
         <div className="text-center mb-4">
-          <div className="text-sm text-[#6b5b3e] leading-relaxed">
-            {location.address}
-          </div>
-          <div className="text-[#6b5b3e] text-sm mt-1">📍 מיקום האירוע</div>
+          <LocationDisplay
+            name={location.name || "מיקום האירוע"}
+            address={hasAddress ? location.address : ""}
+            align="center"
+            nameClassName="text-sm font-semibold text-[#6b5b3e]"
+            addressClassName="mt-1 text-sm leading-relaxed text-[#6b5b3e]"
+            iconClassName="h-4 w-4 shrink-0 text-[#6b5b3e]"
+          />
         </div>
       )}
 

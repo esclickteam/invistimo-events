@@ -220,6 +220,25 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
 
+  /**
+   * סוג אתר לאורחים.
+   * standard — קישור אישי לכל אורח (ברירת מחדל, לקוחות קיימים)
+   * personal — אתר חתונה אישי
+   */
+  rsvpSiteMode?: "standard" | "personal";
+
+  /**
+   * חוויית אורח המפורשת.
+   * personal_invitation — ברירת מחדל, לקוחות קיימים
+   * wedding_website — רק אם נבחר במפורש
+   */
+  guestExperienceType?: "personal_invitation" | "wedding_website";
+
+  features?: {
+    weddingWebsite?: boolean;
+    guestMessages?: boolean;
+  };
+
   accessModules?: {
     rsvpSeating: boolean;
     eventProduction: boolean;
@@ -983,6 +1002,33 @@ preRsvpMessages: {
       type: Boolean,
       default: false,
       index: true,
+    },
+
+    rsvpSiteMode: {
+      type: String,
+      enum: ["standard", "personal"],
+      default: "standard",
+      index: true,
+    },
+
+    guestExperienceType: {
+      type: String,
+      enum: ["personal_invitation", "wedding_website"],
+      default: "personal_invitation",
+      index: true,
+    },
+
+    features: {
+      weddingWebsite: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+      guestMessages: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
     },
 
     accessModules: {

@@ -140,7 +140,9 @@ function isBaseFilter(filter: QuickFilter) {
     filter === "yes" ||
     filter === "no" ||
     filter === "pending" ||
-    filter === "noTable"
+    filter === "noTable" ||
+    filter === "opened" ||
+    filter === "notOpened"
   );
 }
 
@@ -168,6 +170,8 @@ export default function GuestsControls({
     label: string;
   }[] = [
     { key: "all", label: "הכל" },
+    { key: "opened", label: "נפתח" },
+    { key: "notOpened", label: "לא נפתח" },
     { key: "yes", label: "מגיעים" },
     { key: "no", label: "לא מגיעים" },
     { key: "pending", label: "בהמתנה" },

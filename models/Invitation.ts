@@ -98,13 +98,20 @@ const InvitationSettingsSchema = new Schema(
 
     /*
       סוג אתר אישורי הגעה:
-      standard — הקישור הרגיל (/invite/[shareId])
-      personal — אתר חתונה אישי (הגדרה בלבד, טרם מופעל)
+      standard — קישור אישי לכל אורח (/invite/[shareId])
+      personal — אתר חתונה אישי (/w/[shareId])
+      ברירת מחדל standard — לקוחות קיימים לא משתנים.
     */
     rsvpSiteMode: {
       type: String,
       enum: ["standard", "personal"],
       default: "standard",
+    },
+
+    guestExperienceType: {
+      type: String,
+      enum: ["personal_invitation", "wedding_website"],
+      default: "personal_invitation",
     },
 
     menuOptions: {
@@ -391,6 +398,15 @@ preRsvpMedia: {
     invitationSettings: {
       type: InvitationSettingsSchema,
       default: () => ({}),
+    },
+
+    weddingWebsite: {
+      type: {
+        templateId: { type: String },
+        published: { type: Boolean },
+        content: { type: Schema.Types.Mixed },
+      },
+      default: undefined,
     },
 
     /* =========================================================
