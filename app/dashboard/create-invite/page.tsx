@@ -136,45 +136,6 @@ function CreatePhonePreview({
           )}
         </section>
 
-        <section className="relative mt-7 w-full overflow-hidden rounded-[34px] border border-white/80 bg-white/92 p-6 shadow-[0_28px_90px_rgba(92,66,38,0.16)] backdrop-blur">
-          <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#dfc08f]/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-[#fff2d9]/80 blur-3xl" />
-
-          <div className="relative">
-            <div className="mb-6 text-center">
-              <h2 className="text-2xl font-black leading-tight text-[#2d241c]">
-                נשמח לדעת אם תגיעו לחגוג איתנו
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                disabled
-                className="rounded-2xl border border-[#eadfce] bg-[#fbf8f2] px-4 py-4 text-sm font-black text-[#5a4634]"
-              >
-                מגיע/ה
-              </button>
-
-              <button
-                type="button"
-                disabled
-                className="rounded-2xl border border-[#eadfce] bg-[#fbf8f2] px-4 py-4 text-sm font-black text-[#5a4634]"
-              >
-                לא מגיע/ה
-              </button>
-            </div>
-
-            <button
-              type="button"
-              disabled
-              className="mt-6 w-full rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-5 py-4 text-lg font-black text-white opacity-90 shadow-[0_18px_45px_rgba(143,100,55,0.28)]"
-            >
-              שליחת אישור הגעה
-            </button>
-          </div>
-        </section>
-
         <footer className="mt-10 flex flex-col items-center gap-2 pb-4 text-center">
           <div className="h-px w-24 bg-gradient-to-l from-transparent via-[#d7b98b] to-transparent" />
 
@@ -183,7 +144,7 @@ function CreatePhonePreview({
           </div>
 
           <p className="text-[11px] font-medium text-[#9a8771]">
-            Digital invitation & RSVP
+            תמונת הזמנה בלבד
           </p>
         </footer>
       </main>
@@ -228,6 +189,12 @@ function CreateInvitePageInner() {
   const [eventForm, setEventForm] = useState<EventForm>({
     eventId: "",
   });
+  const [wwPackage, setWwPackage] = useState<{
+    entitled: boolean;
+    invitationId: string;
+    publicPath: string;
+    published: boolean;
+  } | null>(null);
 
   const displayImageUrl = uploadedImage?.base64 || "";
   const imageInfo = uploadedImage?.info || null;
@@ -245,6 +212,61 @@ function CreateInvitePageInner() {
       ...prev,
       eventId: eventIdFromUrl,
     }));
+  }, [eventIdFromUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function detectWeddingWebsitePackage() {
+      try {
+        const meRes = await fetch("/api/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const me = await meRes.json().catch(() => ({}));
+        if (!meRes.ok || !me?.success) return;
+
+        const eventsRes = await fetch("/api/events", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const eventsData = await eventsRes.json().catch(() => ({}));
+        const eventId =
+          eventIdFromUrl ||
+          String(eventsData?.event?._id || eventsData?.event?.id || "");
+        if (!eventId) return;
+
+        const invRes = await fetch(
+          `/api/invitations?eventId=${encodeURIComponent(eventId)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const invData = await invRes.json().catch(() => ({}));
+        const invitationId = String(
+          invData?.invitation?._id || invData?.invitation?.id || ""
+        );
+        if (!invitationId) return;
+
+        const wwRes = await fetch(
+          `/api/wedding-website?invitationId=${encodeURIComponent(invitationId)}`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const wwData = await wwRes.json().catch(() => ({}));
+        if (cancelled) return;
+        if (wwData?.entitled) {
+          setWwPackage({
+            entitled: true,
+            invitationId,
+            publicPath: String(wwData?.website?.publicPath || ""),
+            published: wwData?.website?.status === "published",
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    void detectWeddingWebsitePackage();
+    return () => {
+      cancelled = true;
+    };
   }, [eventIdFromUrl]);
 
   /* =========================================================
@@ -349,7 +371,13 @@ function CreateInvitePageInner() {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      alert(data.error || data.message || "❌ שגיאה ביצירת הזמנה");
+      const raw = String(data.error || data.message || "");
+      if (raw === "UNAUTHORIZED" || res.status === 401) {
+        alert("ההתחברות פגה — התחברו מחדש ונסו שוב");
+        router.push("/login");
+        return;
+      }
+      alert(raw || "❌ שגיאה ביצירת הזמנה");
       return;
     }
 
@@ -708,18 +736,74 @@ function CreateInvitePageInner() {
 
           <aside className="space-y-6">
             <div className="space-y-6 xl:sticky xl:top-24">
+              {wwPackage?.entitled ? (
+                <div className="rounded-[32px] border border-[#E7D0B0] bg-[#FFF9F1] p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
+                  <p className="text-sm font-semibold text-[#b58a55]">
+                    חבילת אתר חתונה אישי
+                  </p>
+                  <h3 className="mt-1 text-xl font-black text-[#2d241c]">
+                    האורחים מקבלים אתר חתונה — לא קישור אישי
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#7b6a58]">
+                    כאן מעלים רק את תמונת ההזמנה הרגילה (לשליחה/ארכיון). עריכת האתר,
+                    הצבעים, התמונות וה-RSVP נעשים במסך אתר החתונה.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/wedding-website?invitationId=${encodeURIComponent(
+                            wwPackage.invitationId
+                          )}`
+                        )
+                      }
+                      className="w-full rounded-2xl bg-[#B8844F] px-5 py-3.5 text-sm font-black text-white shadow-lg"
+                    >
+                      עריכת אתר חתונה אישי
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/invitations/${encodeURIComponent(
+                            wwPackage.invitationId
+                          )}/edit`
+                        )
+                      }
+                      className="w-full rounded-2xl border border-[#D9B46F] bg-white px-5 py-3 text-sm font-black text-[#B8844F]"
+                    >
+                      עריכת ההזמנה הרגילה
+                    </button>
+                    {wwPackage.published && wwPackage.publicPath ? (
+                      <a
+                        href={wwPackage.publicPath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex w-full items-center justify-center rounded-2xl border border-[#E7DED1] bg-white px-5 py-3 text-sm font-bold text-[#4b3828]"
+                      >
+                        צפייה באתר הציבורי
+                      </a>
+                    ) : (
+                      <p className="text-xs font-bold text-[#8A7B69]">
+                        טרם פורסם — יש לפרסם את האתר לפני שליחה לאורחים
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
               <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
                 <div className="mb-4">
                   <p className="text-sm font-semibold text-[#b58a55]">
-                    תצוגה בטלפון
+                    תצוגת תמונה
                   </p>
 
                   <h3 className="text-xl font-black text-[#2d241c]">
-                    כך העמוד ייראה במובייל
+                    תמונת ההזמנה במובייל
                   </h3>
 
                   <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
-                    כאן מוצגת תצוגה של ההזמנה ואישור ההגעה לפני יצירה.
+                    תצוגה של תמונת ההזמנה בלבד — בלי מסך RSVP אישי.
                   </p>
                 </div>
 
@@ -765,6 +849,7 @@ function CreateInvitePageInner() {
                   </button>
                 </div>
               </div>
+              )}
 
               <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
                 <p className="text-sm font-semibold text-[#b58a55]">פעולות</p>

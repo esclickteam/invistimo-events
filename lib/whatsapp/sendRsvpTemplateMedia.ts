@@ -122,11 +122,22 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
   const parts = u.pathname.split("/").filter(Boolean);
 
+  // Wedding Website public URL → WhatsApp /invite/ button bridge
+  const wIndex = parts.findIndex((p) => p.toLowerCase() === "w");
+  if (wIndex >= 0 && parts[wIndex + 1]) {
+    return `site/${parts[wIndex + 1]}`;
+  }
+
   const inviteIndex = parts.findIndex((p) => p.toLowerCase() === "invite");
   const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
 
   if (!inviteId) {
     throw new Error("Invalid rsvpLink: inviteId not found");
+  }
+
+  // Already a bridge path: /invite/site/SHAREID
+  if (inviteId.toLowerCase() === "site" && parts[inviteIndex + 2]) {
+    return `site/${parts[inviteIndex + 2]}`;
   }
 
   return `${inviteId}${u.search || ""}`;

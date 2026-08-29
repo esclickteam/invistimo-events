@@ -19,7 +19,8 @@ export type WeddingSectionId =
   | "guestbook"
   | "guest-upload"
   | "playlist"
-  | "footer";
+  | "footer"
+  | "contact";
 
 export type WeddingTemplateId =
   | "eternal-gold"
@@ -62,15 +63,38 @@ export type WeddingTemplate = {
   mood: string;
 };
 
-export type WeddingDemoContent = {
+/** Per-site theme overrides — layered onto template defaults, never replace the template language */
+export type WeddingThemeOverrides = {
+  background?: string;
+  secondary?: string;
+  accent?: string;
+  text?: string;
+  button?: string;
+  card?: string;
+  fontFamily?: string;
+  headingScale?: number;
+  stylePreset?: "classic" | "romantic" | "modern" | "bold" | "";
+};
+
+/** Editable + resolved content for a live or demo wedding site */
+export type WeddingSiteContent = {
   coupleNames: string;
   coupleShort: string;
   weddingDate: string;
   weddingTime: string;
   venueName: string;
   venueAddress: string;
+  venueLat: number | null;
+  venueLng: number | null;
   heroSubtitle: string;
   invitationText: string;
+  /** Optional welcome / intro override */
+  welcomeText: string;
+  /** Romantic quote / message break */
+  romanticQuote: string;
+  /** Social hashtag e.g. #AmitAndBen */
+  hashtag: string;
+  /** Story / about body */
   storyParagraphs: string[];
   howWeMet: string;
   proposalStory: string;
@@ -80,10 +104,28 @@ export type WeddingDemoContent = {
   transportation: { title: string; description: string }[];
   faq: { question: string; answer: string }[];
   giftsNote: string;
+  giftLinks: {
+    creditUrl: string;
+    payboxUrl: string;
+    bitPhone: string;
+    bitUrl: string;
+  };
+  contactPhone: string;
+  contactNote: string;
+  galleryUrls: string[];
+  heroImageUrl: string;
+  videoUrl: string;
+  rsvpText: string;
+  parkingText: string;
   guestbookMessages: { name: string; message: string; date: string }[];
   playlistNote: string;
   footerNote: string;
+  wazeUrl: string;
+  mapsUrl: string;
 };
+
+/** @deprecated alias — prefer WeddingSiteContent */
+export type WeddingDemoContent = WeddingSiteContent;
 
 export type GuestUploadItem = {
   id: string;
@@ -92,4 +134,40 @@ export type GuestUploadItem = {
   name: string;
   uploadedBy: string;
   createdAt: string;
+};
+
+export type WeddingWebsiteStatus = "draft" | "published";
+
+export type WeddingSectionToggles = Partial<Record<WeddingSectionId, boolean>>;
+
+export type WeddingWebsiteGuestContext = {
+  token: string;
+  name: string;
+  rsvp: "yes" | "no" | "pending" | "";
+  guestsCount: number;
+  arrivedCount: number;
+  notes: string;
+  canSubmitRsvp: boolean;
+};
+
+export type WeddingWebsitePublicPayload = {
+  shareId: string;
+  templateId: WeddingTemplateId;
+  status: WeddingWebsiteStatus;
+  content: WeddingSiteContent;
+  sections: WeddingSectionToggles;
+  themeOverrides: WeddingThemeOverrides;
+  guest: WeddingWebsiteGuestContext | null;
+  invitationId: string;
+  eventId: string;
+  menuOptions: {
+    vegetarian: boolean;
+    vegan: boolean;
+    glutenFree: boolean;
+    childrenMeal: boolean;
+    kosher: boolean;
+    kosherGlatt: boolean;
+    kosherMahfoud: boolean;
+    transportation: boolean;
+  };
 };

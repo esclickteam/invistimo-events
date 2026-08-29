@@ -170,9 +170,16 @@ function DashboardLayoutInner({
     };
   }, [isDemo, resolvedInvitationId, eventIdFromUrl]);
 
+  const isWeddingWebsiteEditor = pathname.startsWith("/dashboard/wedding-website");
+
   /* ============================================================
      Render
   ============================================================ */
+  if (isWeddingWebsiteEditor) {
+    // Full-bleed WYSIWYG editor — no dashboard chrome
+    return <div className="min-h-screen bg-[#1a1410]">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
       {/* ========================= Header ========================= */}
