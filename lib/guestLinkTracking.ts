@@ -17,6 +17,8 @@ export type GuestLinkOpenNextState = {
   lastOpenedAt: Date;
   openCount: number;
   counted: boolean;
+  /** False inside the 5-minute window: no InvitationGuest write at all. */
+  write: boolean;
 };
 
 export type GuestLinkTimelineItem = {
@@ -54,29 +56,31 @@ export function nextGuestLinkOpenState(
 ): GuestLinkOpenNextState {
   const now = nowInput instanceof Date ? nowInput : new Date(nowInput);
   const firstOpenedAt = toDate(current?.firstOpenedAt);
-  const lastOpenedAt = toDate(current?.lastOpenedAt);
+  const lastCountedAt = toDate(current?.lastOpenedAt) || firstOpenedAt;
   const openCount = Math.max(0, Number(current?.openCount || 0));
 
+  // lastOpenedAt is the last counted open, not the last page refresh.
   const withinDedup =
-    Boolean(lastOpenedAt) &&
-    now.getTime() - lastOpenedAt!.getTime() >= 0 &&
-    now.getTime() - lastOpenedAt!.getTime() < LINK_OPEN_DEDUP_MS;
+    Boolean(lastCountedAt) &&
+    now.getTime() - lastCountedAt!.getTime() < LINK_OPEN_DEDUP_MS;
 
   if (!firstOpenedAt) {
     return {
       firstOpenedAt: now,
       lastOpenedAt: now,
-      openCount: Math.max(1, openCount + 1),
+      openCount: 1,
       counted: true,
+      write: true,
     };
   }
 
   if (withinDedup) {
     return {
       firstOpenedAt,
-      lastOpenedAt: now,
+      lastOpenedAt: lastCountedAt!,
       openCount: Math.max(1, openCount),
       counted: false,
+      write: false,
     };
   }
 
@@ -85,6 +89,7 @@ export function nextGuestLinkOpenState(
     lastOpenedAt: now,
     openCount: openCount + 1,
     counted: true,
+    write: true,
   };
 }
 
@@ -178,6 +183,14 @@ export function buildGuestLinkTimeline(guest?: {
 /**
  * Best-effort write. Never throws to callers.
  * Does not touch RSVP, notes, seating, or updatedAt.
+ *
+ * Writes only on a counted open:
+ * - first open: firstOpenedAt + lastOpenedAt + openCount=1
+ * - after the 5-minute window: lastOpenedAt + $inc openCount
+ * Refreshes inside the window do not call updateOne at all.
+ *
+ * Counted writes are filtered atomically so parallel opens of the same
+ * token cannot double-count or clobber a newer lastOpenedAt.
  */
 export async function recordGuestLinkOpen(input: {
   token?: string | null;
@@ -210,16 +223,37 @@ export async function recordGuestLinkOpen(input: {
 
     if (!guest?._id) return false;
 
-    const next = nextGuestLinkOpenState(guest, new Date());
+    const now = new Date();
+    const next = nextGuestLinkOpenState(guest, now);
+    if (!next.write) return true;
 
-    await InvitationGuest.updateOne(
-      { _id: guest._id },
-      {
-        $set: {
-          firstOpenedAt: next.firstOpenedAt,
-          lastOpenedAt: next.lastOpenedAt,
-          openCount: next.openCount,
+    if (!toDate(guest.firstOpenedAt)) {
+      await InvitationGuest.updateOne(
+        {
+          _id: guest._id,
+          $or: [{ firstOpenedAt: null }, { firstOpenedAt: { $exists: false } }],
         },
+        {
+          $set: {
+            firstOpenedAt: next.firstOpenedAt,
+            lastOpenedAt: next.lastOpenedAt,
+            openCount: 1,
+          },
+        },
+        { timestamps: false }
+      );
+      return true;
+    }
+
+    const cutoff = new Date(now.getTime() - LINK_OPEN_DEDUP_MS);
+    await InvitationGuest.updateOne(
+      {
+        _id: guest._id,
+        lastOpenedAt: { $type: "date", $lte: cutoff },
+      },
+      {
+        $set: { lastOpenedAt: now },
+        $inc: { openCount: 1 },
       },
       { timestamps: false }
     );

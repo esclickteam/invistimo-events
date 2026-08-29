@@ -13,6 +13,45 @@ import {
   recordGuestLinkOpen,
 } from "../../lib/guestLinkTracking";
 
+function spyInvitationGuestWrites() {
+  const collection = InvitationGuest.collection;
+  const methods = [
+    "updateOne",
+    "updateMany",
+    "replaceOne",
+    "findOneAndUpdate",
+    "bulkWrite",
+    "findOneAndReplace",
+  ] as const;
+  const originals = new Map<string, (...args: unknown[]) => unknown>();
+  let count = 0;
+
+  for (const method of methods) {
+    const original = (collection[method] as (...args: unknown[]) => unknown).bind(
+      collection
+    );
+    originals.set(method, original);
+    (collection as unknown as Record<string, unknown>)[method] = (
+      ...args: unknown[]
+    ) => {
+      count += 1;
+      return original(...args);
+    };
+  }
+
+  return {
+    get count() {
+      return count;
+    },
+    restore() {
+      for (const method of methods) {
+        (collection as unknown as Record<string, unknown>)[method] =
+          originals.get(method);
+      }
+    },
+  };
+}
+
 test("guest link-open tracking against a real MongoDB", async (t) => {
   let mongod: MongoMemoryServer | null = null;
 
@@ -76,7 +115,7 @@ test("guest link-open tracking against a real MongoDB", async (t) => {
     assert.equal(fresh?.rsvp, "pending");
   });
 
-  await t.test("refresh inside 5 minutes does not increment openCount and does not touch updatedAt", async () => {
+  await t.test("refresh inside 5 minutes does not write lastOpenedAt or openCount", async () => {
     const before = await InvitationGuest.findById(guest._id).lean();
     await new Promise((r) => setTimeout(r, 25));
 
@@ -89,14 +128,44 @@ test("guest link-open tracking against a real MongoDB", async (t) => {
 
     const fresh = await InvitationGuest.findById(guest._id).lean();
     assert.equal(fresh?.openCount, 1);
-    assert.ok(
-      new Date(fresh!.lastOpenedAt).getTime() >=
-        new Date(before!.lastOpenedAt).getTime()
+    assert.equal(
+      new Date(fresh!.lastOpenedAt).getTime(),
+      new Date(before!.lastOpenedAt).getTime()
     );
     assert.equal(
       new Date(fresh!.firstOpenedAt).getTime(),
       new Date(before!.firstOpenedAt).getTime()
     );
+    assert.equal(new Date(fresh!.updatedAt).getTime(), createdUpdatedAt);
+  });
+
+  await t.test("20 refreshes inside 5 minutes stay at openCount=1 with no Guest writes", async () => {
+    const before = await InvitationGuest.findById(guest._id).lean();
+    const lastOpenedAtMs = new Date(before!.lastOpenedAt).getTime();
+    const spy = spyInvitationGuestWrites();
+
+    try {
+      for (let i = 0; i < 20; i++) {
+        const ok = await recordGuestLinkOpen({
+          token: "token-real-guest",
+          invitationId,
+          userAgent: "Mozilla/5.0",
+        });
+        assert.equal(ok, true);
+      }
+    } finally {
+      spy.restore();
+    }
+
+    const fresh = await InvitationGuest.findById(guest._id).lean();
+    assert.equal(spy.count, 0);
+    assert.equal(fresh?.openCount, 1);
+    assert.equal(new Date(fresh!.lastOpenedAt).getTime(), lastOpenedAtMs);
+    assert.equal(
+      new Date(fresh!.firstOpenedAt).getTime(),
+      new Date(before!.firstOpenedAt).getTime()
+    );
+    assert.equal(fresh?.rsvp, "pending");
     assert.equal(new Date(fresh!.updatedAt).getTime(), createdUpdatedAt);
   });
 
@@ -118,6 +187,35 @@ test("guest link-open tracking against a real MongoDB", async (t) => {
     const fresh = await InvitationGuest.findById(guest._id).lean();
     assert.equal(fresh?.openCount, 2);
     assert.ok(new Date(fresh!.lastOpenedAt).getTime() > agedLast.getTime());
+    assert.equal(new Date(fresh!.updatedAt).getTime(), createdUpdatedAt);
+  });
+
+  await t.test("parallel opens after the 5 minute window increment openCount only once", async () => {
+    const agedLast = new Date(Date.now() - LINK_OPEN_DEDUP_MS - 1000);
+    await InvitationGuest.updateOne(
+      { _id: guest._id },
+      { $set: { lastOpenedAt: agedLast } },
+      { timestamps: false }
+    );
+
+    const before = await InvitationGuest.findById(guest._id).lean();
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        recordGuestLinkOpen({
+          token: "token-real-guest",
+          invitationId,
+          userAgent: "Mozilla/5.0",
+        })
+      )
+    );
+
+    const fresh = await InvitationGuest.findById(guest._id).lean();
+    assert.equal(fresh?.openCount, Number(before?.openCount || 0) + 1);
+    assert.ok(new Date(fresh!.lastOpenedAt).getTime() > agedLast.getTime());
+    assert.equal(
+      new Date(fresh!.firstOpenedAt).getTime(),
+      new Date(before!.firstOpenedAt).getTime()
+    );
     assert.equal(new Date(fresh!.updatedAt).getTime(), createdUpdatedAt);
   });
 

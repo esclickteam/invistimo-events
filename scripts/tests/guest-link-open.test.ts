@@ -24,12 +24,13 @@ test("first valid open sets firstOpenedAt, lastOpenedAt and openCount=1", () => 
   const next = nextGuestLinkOpenState({}, now);
 
   assert.equal(next.counted, true);
+  assert.equal(next.write, true);
   assert.equal(next.openCount, 1);
   assert.equal(next.firstOpenedAt.toISOString(), now.toISOString());
   assert.equal(next.lastOpenedAt.toISOString(), now.toISOString());
 });
 
-test("refresh inside 5 minutes updates lastOpenedAt but does not increment openCount", () => {
+test("refresh inside 5 minutes does not write and keeps lastOpenedAt as the last counted open", () => {
   const first = new Date("2026-08-29T05:00:00.000Z");
   const refresh = new Date(first.getTime() + 4 * 60 * 1000);
   const next = nextGuestLinkOpenState(
@@ -42,10 +43,33 @@ test("refresh inside 5 minutes updates lastOpenedAt but does not increment openC
   );
 
   assert.equal(next.counted, false);
+  assert.equal(next.write, false);
   assert.equal(next.openCount, 1);
   assert.equal(next.firstOpenedAt.toISOString(), first.toISOString());
-  assert.equal(next.lastOpenedAt.toISOString(), refresh.toISOString());
+  assert.equal(next.lastOpenedAt.toISOString(), first.toISOString());
   assert.ok(LINK_OPEN_DEDUP_MS === 5 * 60 * 1000);
+});
+
+test("20 refreshes inside 5 minutes stay at openCount=1 with no extra writes", () => {
+  const first = new Date("2026-08-29T05:00:00.000Z");
+  let current = nextGuestLinkOpenState({}, first);
+  assert.equal(current.write, true);
+  assert.equal(current.openCount, 1);
+
+  for (let i = 1; i <= 20; i++) {
+    current = nextGuestLinkOpenState(
+      {
+        firstOpenedAt: first,
+        lastOpenedAt: current.lastOpenedAt,
+        openCount: current.openCount,
+      },
+      new Date(first.getTime() + i * 10 * 1000)
+    );
+    assert.equal(current.write, false);
+    assert.equal(current.counted, false);
+    assert.equal(current.openCount, 1);
+    assert.equal(current.lastOpenedAt.toISOString(), first.toISOString());
+  }
 });
 
 test("open after the 5 minute window increments openCount", () => {
@@ -61,6 +85,7 @@ test("open after the 5 minute window increments openCount", () => {
   );
 
   assert.equal(next.counted, true);
+  assert.equal(next.write, true);
   assert.equal(next.openCount, 2);
   assert.equal(next.firstOpenedAt.toISOString(), first.toISOString());
   assert.equal(next.lastOpenedAt.toISOString(), later.toISOString());
@@ -206,6 +231,9 @@ test("tracking writes stay best-effort and do not use updatedAt timestamps", () 
   assert.match(src, /timestamps: false/);
   assert.match(src, /best-effort skipped/);
   assert.match(src, /shouldSkipGuestLinkTracking/);
+  assert.match(src, /if \(!next\.write\) return true/);
+  assert.match(src, /\$inc:\s*\{\s*openCount:\s*1\s*\}/);
+  assert.match(src, /lastOpenedAt:\s*\{\s*\$type:\s*"date",\s*\$lte:\s*cutoff\s*\}/);
   assert.match(invite, /after\(/);
   assert.match(ww, /after\(/);
 });
