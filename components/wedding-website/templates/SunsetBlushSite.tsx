@@ -13,6 +13,7 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { MapPin } from "lucide-react";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 
@@ -325,13 +326,17 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
             {[
               { icon: "📅", label: "תאריך", value: formatHebrewDate(DEMO.weddingDate) },
               { icon: "🕐", label: "שעה", value: DEMO.weddingTime },
-              { icon: "📍", label: "מקום", value: DEMO.venueName },
+              { icon: "pin", label: "מקום", value: DEMO.venueName },
             ].map(({ icon, label, value }) => (
               <div
                 key={label}
                 className="rounded-[28px] bg-gradient-to-br from-[#FFF5F7] to-[#FFE8EE] p-8"
               >
-                <span className="text-3xl">{icon}</span>
+                {icon === "pin" ? (
+                  <MapPin className="mx-auto h-8 w-8 text-[#E8788A]" aria-hidden />
+                ) : (
+                  <span className="text-3xl">{icon}</span>
+                )}
                 <p className="mt-3 text-xs text-[#E8788A]">{label}</p>
                 <p className="mt-2 font-bold">{value}</p>
               </div>
