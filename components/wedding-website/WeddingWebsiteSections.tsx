@@ -836,6 +836,25 @@ export function FooterSection() {
   );
 }
 
+function ContactSection() {
+  const { content } = useWeddingTheme();
+  return (
+    <AnimatedSection id="contact" className="py-20">
+      <SectionHeading title="יצירת קשר" subtitle={content.contactNote || ""} />
+      {content.contactPhone ? (
+        <GlassCard className="mx-auto mt-8 max-w-md text-center">
+          <a
+            href={`tel:${content.contactPhone}`}
+            className="text-lg font-bold text-[var(--ww-accent)]"
+          >
+            {content.contactPhone}
+          </a>
+        </GlassCard>
+      ) : null}
+    </AnimatedSection>
+  );
+}
+
 export const WEDDING_SECTION_COMPONENTS: Record<
   WeddingSectionId,
   () => React.JSX.Element
@@ -860,5 +879,6 @@ export const WEDDING_SECTION_COMPONENTS: Record<
   guestbook: GuestbookSection,
   "guest-upload": GuestUploadSection,
   playlist: PlaylistSection,
+  contact: ContactSection,
   footer: FooterSection,
 };

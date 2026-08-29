@@ -68,6 +68,9 @@ export async function buildFinalSmsText({
 
   /* ================= RSVP ================= */
 
+  // SMS keeps guest-specific invite unless caller already resolved a WW link into messageTemplate.
+  // WhatsApp RSVP routing (package-aware) lives in send-template; SMS stays on personal invite
+  // unless template explicitly embeds a /w/ URL.
   const personalRsvpUrl =
     `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
