@@ -1,6 +1,5 @@
 import type { Guest } from "@/types/guest";
-import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 export type MessageTemplateType = "rsvp" | "table" | "custom";
 
@@ -39,13 +38,11 @@ export function buildMessage({
   if (message.includes("{{rsvpLink}}")) {
     message = message.replace(
       "{{rsvpLink}}",
-      isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation))
-        ? buildGuestInviteUrl({
-            shareId: invitation.shareId,
-            token: guest.token,
-            rsvpSiteMode: "personal",
-          })
-        : `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`
+      getGuestInvitationUrl({
+        shareId: invitation.shareId,
+        token: guest.token,
+        rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+      })
     );
   }
 

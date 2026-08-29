@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import GuestsMobileList from "@/app/dashboard/components/GuestsMobileList";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import { guestLinkWasOpened } from "@/lib/guestLinkTracking";
+import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
 
 /* ============================================================
    Types
@@ -33,6 +34,9 @@ type SortDir = "asc" | "desc";
 
 type Props = {
   guests: Guest[];
+  shareId?: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 
   isDemo?: boolean;
   readonly?: boolean;
@@ -59,6 +63,9 @@ function formatPhone(phone?: string) {
 ============================================================ */
 export default function GuestsTable({
   guests,
+  shareId,
+  rsvpSiteMode,
+  guestExperienceType,
   isDemo,
   readonly,
   onEdit,
@@ -235,9 +242,13 @@ export default function GuestsTable({
     onMessage={onMessage}
     onSeat={onSeat}
     onInviteLink={(g) => {
-      // כאן אין invitation/shareId,
-      // אז לפחות לא שוברים את הטייפים
-      const link = `https://www.invistimo.com/invite/${g.token}`;
+      const link = getGuestInvitationUrl({
+        shareId: shareId || "",
+        token: g.token,
+        rsvpSiteMode,
+        guestExperienceType,
+      });
+      if (!link) return;
       window.open(link, "_blank", "noopener,noreferrer");
     }}
   />

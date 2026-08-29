@@ -23,10 +23,10 @@ import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
-import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
-import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
+import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 
 type EventModel = {
   title?: string;
@@ -707,7 +707,10 @@ const canViewActualArrived =
             String(guest.tableId || "") === String(next.tableId || "") &&
             String(guest.name || "") === String(next.name || "") &&
             String(guest.phone || "") === String(next.phone || "") &&
-            String(guest.groupId || "") === String(next.groupId || "")
+            String(guest.groupId || "") === String(next.groupId || "") &&
+            String(guest.firstOpenedAt || "") === String(next.firstOpenedAt || "") &&
+            String(guest.lastOpenedAt || "") === String(next.lastOpenedAt || "") &&
+            Number(guest.openCount || 0) === Number(next.openCount || 0)
           );
         })
       ) {
@@ -1192,6 +1195,49 @@ if (!canDeleteAllGuests) {
   useEffect(() => {
     if (isDemo) return;
     if (!invitationId) return;
+    if (typeof window === "undefined" || typeof EventSource === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams({ invitationId });
+    const source = new EventSource(
+      `/api/dashboard/guest-activity/stream?${params.toString()}`
+    );
+
+    const applySnapshot = (raw: string) => {
+      try {
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data?.guests)) return;
+
+        setGuests((prev) => mergeGuestActivity(prev, data.guests));
+
+        if (typeof data.unreadGuestMessages === "number") {
+          window.dispatchEvent(
+            new CustomEvent("invistimo:guest-activity", {
+              detail: {
+                unreadGuestMessages: data.unreadGuestMessages,
+              },
+            })
+          );
+        }
+      } catch {
+        // snapshot parse is best-effort
+      }
+    };
+
+    source.addEventListener("snapshot", (event) => {
+      applySnapshot((event as MessageEvent).data);
+    });
+    source.onmessage = (event) => applySnapshot(event.data);
+
+    return () => {
+      source.close();
+    };
+  }, [invitationId, isDemo]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    if (!invitationId) return;
 
     loadGroups(invitationId);
   }, [invitationId, isDemo, loadGroups]);
@@ -1360,7 +1406,7 @@ const pending = guests.filter(
   ============================================================ */
   const getGuestInviteLink = (guest: Guest) => {
     if (!invitation?.shareId) return "";
-    return buildGuestInviteUrl({
+    return getGuestInvitationUrl({
       shareId: invitation.shareId,
       token: guest.token,
       rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
@@ -3638,7 +3684,7 @@ function GoldenActionButtons({
                 }
 
                 window.open(
-                  buildGuestInviteUrl({
+                  getGuestInvitationUrl({
                     shareId: invitation.shareId,
                     rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
                   }),

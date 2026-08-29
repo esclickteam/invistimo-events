@@ -283,6 +283,8 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
                 <img
                   src={src}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="relative aspect-[3/4] w-full rounded-xl object-cover shadow-lg"
                 />
                 <span className="absolute bottom-4 right-4 font-['Playfair_Display'] text-sm italic text-white drop-shadow">

@@ -327,7 +327,7 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="aspect-square w-full object-cover transition hover:scale-105" />
+                <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-105" />
               </div>
             </motion.div>
           ))}

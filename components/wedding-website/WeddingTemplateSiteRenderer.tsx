@@ -2,6 +2,7 @@
 
 import { getWeddingTemplateSite } from "./templates";
 import { setLiveWeddingContent } from "./shared/weddingUtils";
+import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
 type Props = {
@@ -20,6 +21,8 @@ export default function WeddingTemplateSiteRenderer({
   setLiveWeddingContent(content || null);
 
   const Site = getWeddingTemplateSite(template.id);
+  const resolvedTemplate =
+    overlayWeddingTemplateImages(template, content) || template;
 
   if (!Site) {
     return (
@@ -31,10 +34,14 @@ export default function WeddingTemplateSiteRenderer({
 
   return (
     <>
-      {live ? (
-        <style>{`a[href="/wedding-website"]{display:none!important}`}</style>
-      ) : null}
-      <Site template={template} embed={embed} live={live} />
+      <style>{`
+        a[href="/wedding-website"]{display:none!important}
+        img[src=""], img:not([src]){display:none!important}
+        .ww-site img {
+          max-width: 100%;
+        }
+      `}</style>
+      <Site template={resolvedTemplate} embed={embed} live={live} />
     </>
   );
 }

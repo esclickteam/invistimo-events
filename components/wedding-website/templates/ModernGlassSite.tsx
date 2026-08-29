@@ -346,7 +346,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
               <TiltCard>
                 <GlassPanel className="overflow-hidden p-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="aspect-square w-full object-cover" />
+                  <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
                 </GlassPanel>
               </TiltCard>
             </motion.div>

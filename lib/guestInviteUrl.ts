@@ -6,14 +6,18 @@ import {
 
 export const DEFAULT_PUBLIC_ORIGIN = "https://www.invistimo.com";
 
-export function getInvitationRsvpSiteMode(invitation?: {
+export type GuestInvitationSource = {
   invitationSettings?: {
     rsvpSiteMode?: unknown;
     guestExperienceType?: unknown;
   };
   rsvpSiteMode?: unknown;
   guestExperienceType?: unknown;
-} | null): RsvpSiteMode {
+} | null;
+
+export function getInvitationRsvpSiteMode(
+  invitation?: GuestInvitationSource
+): RsvpSiteMode {
   return normalizeRsvpSiteMode(
     invitation?.invitationSettings?.rsvpSiteMode ??
       invitation?.invitationSettings?.guestExperienceType ??
@@ -34,29 +38,75 @@ export function buildGuestInvitePath(
     : `/invite/${cleanShareId}`;
 }
 
-export function buildGuestInviteUrl({
+type GuestInvitationUrlInput = {
+  shareId: string;
+  token?: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
+  /**
+   * Public origin for messages and copy-link.
+   * Pass `""` for a same-origin relative URL (dashboard preview, staff).
+   */
+  origin?: string | null;
+  preview?: string | null;
+  extraParams?: Record<string, string | number | boolean | null | undefined>;
+};
+
+function appendSearchParams(
+  base: string,
+  params: URLSearchParams
+) {
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+/**
+ * Single source of truth for the guest-facing invitation URL.
+ *
+ * personal_invitation → `/invite/[shareId]?token=`
+ * wedding_website     → `/w/[shareId]?token=`
+ *
+ * Tokens are never rewritten when guestExperienceType changes.
+ */
+export function getGuestInvitationUrl({
   shareId,
   token,
   rsvpSiteMode,
   guestExperienceType,
   origin = DEFAULT_PUBLIC_ORIGIN,
-}: {
-  shareId: string;
-  token?: string;
-  rsvpSiteMode?: unknown;
-  guestExperienceType?: unknown;
-  origin?: string;
-}) {
+  preview,
+  extraParams,
+}: GuestInvitationUrlInput) {
   const path = buildGuestInvitePath(
     shareId,
     rsvpSiteMode ?? guestExperienceType
   );
   if (!path) return "";
 
-  const base = `${String(origin || DEFAULT_PUBLIC_ORIGIN).replace(/\/$/, "")}${path}`;
+  const originValue =
+    origin === "" || origin === null
+      ? ""
+      : String(origin || DEFAULT_PUBLIC_ORIGIN).replace(/\/$/, "");
+  const base = `${originValue}${path}`;
+  const params = new URLSearchParams();
+
   const cleanToken = String(token || "").trim();
+  if (cleanToken) params.set("token", cleanToken);
 
-  if (!cleanToken) return base;
+  const cleanPreview = String(preview || "").trim();
+  if (cleanPreview) params.set("preview", cleanPreview);
 
-  return `${base}?token=${encodeURIComponent(cleanToken)}`;
+  if (extraParams) {
+    for (const [key, value] of Object.entries(extraParams)) {
+      if (value === undefined || value === null || value === false) continue;
+      const text = String(value).trim();
+      if (!text) continue;
+      params.set(key, text);
+    }
+  }
+
+  return appendSearchParams(base, params);
 }
+
+/** @deprecated Use getGuestInvitationUrl — kept as a compatible alias. */
+export const buildGuestInviteUrl = getGuestInvitationUrl;

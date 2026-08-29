@@ -15,6 +15,7 @@ import {
   formatScheduleDate,
   formatScheduleTime,
 } from "@/lib/formatScheduleDateTime";
+import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 
 /* ================= TYPES ================= */
@@ -50,6 +51,8 @@ type InvitationPreviewData = {
   eventLocation: string;
   headerImageUrl: string;
   shareId: string;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 };
 
 type Channel = "whatsapp" | "sms";
@@ -526,6 +529,10 @@ export default function RsvpTab({
           eventLocation: getInvitationLocation(inv, eventLocation),
           headerImageUrl: getInvitationHeaderImage(inv, headerImageUrl || ""),
           shareId: inv?.shareId || "",
+          rsvpSiteMode: getInvitationRsvpSiteMode(inv),
+          guestExperienceType:
+            inv?.invitationSettings?.guestExperienceType ||
+            inv?.guestExperienceType,
         });
 
         const r1Sent = Boolean(inv?.rsvpRoundSent?.round1);
@@ -791,9 +798,12 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
     const fallbackName = "אורח/ת יקר/ה";
     const fallbackToken = "preview-token";
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${
-      g?.token || fallbackToken
-    }`;
+    const rsvpLink = getGuestInvitationUrl({
+      shareId: invitationPreview.shareId || invitationId,
+      token: g?.token || fallbackToken,
+      rsvpSiteMode: invitationPreview.rsvpSiteMode,
+      guestExperienceType: invitationPreview.guestExperienceType,
+    });
 
     return currentSmsMessage
       .replace(/{{name}}/g, g?.name || fallbackName)
@@ -807,6 +817,9 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
     invitationId,
     invitationTitle,
     invitationPreview.title,
+    invitationPreview.shareId,
+    invitationPreview.rsvpSiteMode,
+    invitationPreview.guestExperienceType,
     currentSmsMessage,
   ]);
 
@@ -960,6 +973,13 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
                     eventTime={invitationPreview.eventTime}
                     eventLocation={invitationPreview.eventLocation}
                     shareId={invitationPreview.shareId}
+                    rsvpSiteMode={invitationPreview.rsvpSiteMode}
+                    guestExperienceType={invitationPreview.guestExperienceType}
+                    rsvpUrl={getGuestInvitationUrl({
+                      shareId: invitationPreview.shareId,
+                      rsvpSiteMode: invitationPreview.rsvpSiteMode,
+                      guestExperienceType: invitationPreview.guestExperienceType,
+                    })}
                   />
                 ) : (
                   <TextMessagePreview channel="sms" text={smsPreviewText} />

@@ -299,7 +299,7 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
               style={{ rotate: `${polaroidRotations[i % polaroidRotations.length]}deg` }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="aspect-[4/5] w-full object-cover" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
               <p className="mt-3 text-center font-['Cormorant_Garamond'] text-sm italic text-[#9A6070]">
                 moment {i + 1} ♥
               </p>

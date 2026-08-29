@@ -185,7 +185,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
         <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
           {template.galleryImages.map((src, i) => (
             <motion.div key={src} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} className="overflow-hidden rounded-2xl shadow-lg">
-              <img src={src} alt="" className="aspect-[3/4] w-full object-cover transition hover:scale-105" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full object-cover transition hover:scale-105" />
             </motion.div>
           ))}
         </div>

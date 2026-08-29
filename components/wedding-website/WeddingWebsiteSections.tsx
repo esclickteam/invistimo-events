@@ -288,7 +288,7 @@ export function GallerySection() {
               transition={{ delay: i * 0.08 }}
               className="mb-4 break-inside-avoid overflow-hidden rounded-[var(--ww-radius)]"
             >
-              <img src={src} alt="" className="w-full object-cover transition duration-700 hover:scale-105" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="w-full object-cover transition duration-700 hover:scale-105" />
             </motion.div>
           ))}
         </div>
@@ -840,9 +840,6 @@ export function FooterSection() {
           {content.coupleNames}
         </p>
         <p className="mx-auto mt-4 max-w-md text-sm text-[var(--ww-text-muted)]">{content.footerNote}</p>
-        <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--ww-text-muted)]">
-          Invistimo Wedding · Preview
-        </p>
       </motion.div>
     </footer>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
 
 type ManualTemplateKey = "rsvp" | "rsvp_reminder" | "reminder";
 type Channel = "sms" | "whatsapp";
@@ -18,6 +19,8 @@ type Props = {
   defaultPhone?: string;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 };
 
 const SMS_LIMIT_1 = 200;
@@ -48,18 +51,26 @@ function buildTemplateText({
   invitationShareId,
   personalRsvpLink,
   tableName,
+  rsvpSiteMode,
+  guestExperienceType,
 }: {
   key: ManualTemplateKey;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
   personalRsvpLink?: string | null;
   tableName?: string | null;
+  rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 }) {
   const title = String(invitationTitle || "").trim() || "האירוע";
   const inviteLink =
     String(personalRsvpLink || "").trim() ||
     (invitationShareId
-      ? `https://www.invistimo.com/invite/${invitationShareId}`
+      ? getGuestInvitationUrl({
+          shareId: invitationShareId,
+          rsvpSiteMode,
+          guestExperienceType,
+        })
       : "{{rsvpLink}}");
   const eventLink = invitationShareId
     ? `https://www.invistimo.com/e/${invitationShareId}`
@@ -101,6 +112,8 @@ export default function AdminManualSmsPanel({
   defaultPhone = "",
   invitationTitle,
   invitationShareId,
+  rsvpSiteMode,
+  guestExperienceType,
 }: Props) {
   const [phone, setPhone] = useState(defaultPhone);
   const [message, setMessage] = useState("");
@@ -189,6 +202,8 @@ export default function AdminManualSmsPanel({
         invitationShareId,
         personalRsvpLink: matchedGuest?.rsvpLink,
         tableName: matchedGuest?.tableName,
+        rsvpSiteMode,
+        guestExperienceType,
       })
     );
   }, [
@@ -196,6 +211,8 @@ export default function AdminManualSmsPanel({
     matchedGuest,
     invitationTitle,
     invitationShareId,
+    rsvpSiteMode,
+    guestExperienceType,
   ]);
 
   function applyTemplate(key: ManualTemplateKey) {
@@ -207,6 +224,8 @@ export default function AdminManualSmsPanel({
         invitationShareId,
         personalRsvpLink: matchedGuest?.rsvpLink,
         tableName: matchedGuest?.tableName,
+        rsvpSiteMode,
+        guestExperienceType,
       })
     );
 

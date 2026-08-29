@@ -64,7 +64,11 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
-    pathname.startsWith("/invitation/");
+    pathname.startsWith("/invitation/") ||
+    pathname === "/w" ||
+    pathname.startsWith("/w/") ||
+    pathname === "/wedding-website" ||
+    pathname.startsWith("/wedding-website/");
 
   /* =====================================================
      ✅ כל דף חיצוני לפני התחברות

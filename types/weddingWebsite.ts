@@ -85,6 +85,8 @@ export type WeddingDemoContent = {
   footerNote: string;
   guestMessageTitle?: string;
   guestMessageDescription?: string;
+  heroImage?: string;
+  galleryImages?: string[];
   sections?: Partial<Record<WeddingSectionId | "guest-message", boolean>>;
 };
 

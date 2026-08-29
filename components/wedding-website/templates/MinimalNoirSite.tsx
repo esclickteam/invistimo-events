@@ -303,6 +303,8 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
               <img
                 src={src}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover grayscale transition group-hover:grayscale-0"
               />
               <span className="absolute bottom-2 left-2 font-mono text-[10px] text-white">
