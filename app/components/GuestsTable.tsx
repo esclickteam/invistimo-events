@@ -22,6 +22,9 @@ export type Guest = {
   guestsCount: number;
   arrivedCount?: number;
   notes?: string;
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  openCount?: number;
 };
 
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable" | "opened" | "notOpened";

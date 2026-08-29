@@ -1,4 +1,4 @@
-import InvitationGuest from "@/models/InvitationGuest";
+/** Client-safe helpers. Mongo writes live in the server-only tracking module. */
 
 export const LINK_OPEN_DEDUP_MS = 5 * 60 * 1000;
 
@@ -178,89 +178,4 @@ export function buildGuestLinkTimeline(guest?: {
   }
 
   return items.sort((a, b) => a.at.getTime() - b.at.getTime());
-}
-
-/**
- * Best-effort write. Never throws to callers.
- * Does not touch RSVP, notes, seating, or updatedAt.
- *
- * Writes only on a counted open:
- * - first open: firstOpenedAt + lastOpenedAt + openCount=1
- * - after the 5-minute window: lastOpenedAt + $inc openCount
- * Refreshes inside the window do not call updateOne at all.
- *
- * Counted writes are filtered atomically so parallel opens of the same
- * token cannot double-count or clobber a newer lastOpenedAt.
- */
-export async function recordGuestLinkOpen(input: {
-  token?: string | null;
-  invitationId?: unknown;
-  userAgent?: string | null;
-  isPreview?: boolean;
-  purpose?: string | null;
-}): Promise<boolean> {
-  try {
-    const token = String(input.token || "").trim();
-    if (
-      shouldSkipGuestLinkTracking({
-        token,
-        userAgent: input.userAgent,
-        isPreview: input.isPreview,
-        purpose: input.purpose,
-      })
-    ) {
-      return false;
-    }
-
-    if (!input.invitationId) return false;
-
-    const guest = await InvitationGuest.findOne({
-      token,
-      invitationId: input.invitationId,
-    })
-      .select("_id firstOpenedAt lastOpenedAt openCount")
-      .lean();
-
-    if (!guest?._id) return false;
-
-    const now = new Date();
-    const next = nextGuestLinkOpenState(guest, now);
-    if (!next.write) return true;
-
-    if (!toDate(guest.firstOpenedAt)) {
-      await InvitationGuest.updateOne(
-        {
-          _id: guest._id,
-          $or: [{ firstOpenedAt: null }, { firstOpenedAt: { $exists: false } }],
-        },
-        {
-          $set: {
-            firstOpenedAt: next.firstOpenedAt,
-            lastOpenedAt: next.lastOpenedAt,
-            openCount: 1,
-          },
-        },
-        { timestamps: false }
-      );
-      return true;
-    }
-
-    const cutoff = new Date(now.getTime() - LINK_OPEN_DEDUP_MS);
-    await InvitationGuest.updateOne(
-      {
-        _id: guest._id,
-        lastOpenedAt: { $type: "date", $lte: cutoff },
-      },
-      {
-        $set: { lastOpenedAt: now },
-        $inc: { openCount: 1 },
-      },
-      { timestamps: false }
-    );
-
-    return true;
-  } catch (error) {
-    console.warn("[guest-link-open] best-effort skipped", error);
-    return false;
-  }
 }

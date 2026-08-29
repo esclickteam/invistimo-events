@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
-import { recordGuestLinkOpen } from "@/lib/guestLinkTracking";
+import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
 
 export const dynamic = "force-dynamic";
 

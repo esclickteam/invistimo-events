@@ -13,7 +13,7 @@ import {
   hasWeddingWebsiteFeature,
 } from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
-import { recordGuestLinkOpen } from "@/lib/guestLinkTracking";
+import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
