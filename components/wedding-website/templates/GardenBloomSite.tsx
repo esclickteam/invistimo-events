@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -104,7 +105,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           transition={{ duration: 1 }}
           className="relative h-[50vh] lg:h-auto"
         >
-          <img src={template.heroImage} alt="" className="h-full w-full object-cover" />
+          <WeddingMedia slot="hero" src={template.heroImage} alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#F4FAF4]/80 lg:to-[#F4FAF4]" />
         </motion.div>
         <div className="flex flex-col justify-center px-8 py-16 lg:px-16">
@@ -215,7 +216,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <motion.div initial={{ opacity: 0, rotate: -3 }} whileInView={{ opacity: 1, rotate: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-full shadow-xl" style={{ border: `4px solid ${GREEN}` }}>
-          <img src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
+          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
         </motion.div>
         <div>
           <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">איך נפגשנו</h2>
@@ -232,7 +233,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div initial={{ opacity: 0, rotate: 3 }} whileInView={{ opacity: 1, rotate: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-full shadow-xl" style={{ border: `4px solid ${GREEN}` }}>
-            <img src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
+            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">
@@ -260,7 +261,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               className="overflow-hidden rounded-full shadow-lg"
               style={{ border: `3px solid ${GREEN}` }}
             >
-              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-110" />
+              <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-110" />
             </motion.div>
           ))}
         </div>
@@ -275,7 +276,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-[2rem] shadow-xl">
-          <video src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <WeddingMedia slot={`videos.forest`} src={VIDEOS.forest} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
         </div>
       </div>
     </Section>

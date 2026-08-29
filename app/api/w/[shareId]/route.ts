@@ -53,6 +53,12 @@ export async function GET(
     }
 
     const website = serializeWeddingWebsite(invitation);
+    if (invitation.weddingWebsite?.published === false) {
+      return NextResponse.json(
+        { success: false, error: "UNPUBLISHED", message: "אתר החתונה עדיין לא פורסם." },
+        { status: 404 }
+      );
+    }
     const template = overlayWeddingTemplateImages(
       getWeddingTemplate(website.templateId),
       website.content

@@ -62,6 +62,41 @@ export type WeddingTemplate = {
   mood: string;
 };
 
+export type WeddingMediaType = "image" | "video";
+
+export type WeddingMediaFit = "cover" | "contain";
+
+export type WeddingMediaSlot = {
+  type: WeddingMediaType;
+  src: string;
+  alt?: string;
+  poster?: string;
+  fit?: WeddingMediaFit;
+  position?: string;
+  zoom?: number;
+  autoplay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+};
+
+export type WeddingTextStyle = {
+  fontFamily?: string;
+  fontSize?: string;
+  fontWeight?: string | number;
+  fontStyle?: string;
+  color?: string;
+  textAlign?: "right" | "center" | "left";
+  lineHeight?: string | number;
+  letterSpacing?: string;
+};
+
+export type WeddingSectionStyle = {
+  backgroundColor?: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+  backgroundMedia?: WeddingMediaSlot | null;
+};
+
 export type WeddingDemoContent = {
   coupleNames: string;
   coupleShort: string;
@@ -85,8 +120,17 @@ export type WeddingDemoContent = {
   footerNote: string;
   guestMessageTitle?: string;
   guestMessageDescription?: string;
+  rsvpTitle?: string;
+  rsvpSubtitle?: string;
+  transportationTitle?: string;
+  transportationDescription?: string;
   heroImage?: string;
   galleryImages?: string[];
+  media?: Record<string, WeddingMediaSlot>;
+  styles?: Record<string, WeddingTextStyle>;
+  sectionStyles?: Record<string, WeddingSectionStyle>;
+  sectionOrder?: Array<WeddingSectionId | "guest-message">;
+  copy?: Record<string, string>;
   sections?: Partial<Record<WeddingSectionId | "guest-message", boolean>>;
 };
 

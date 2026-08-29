@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -84,7 +85,7 @@ function HeroSection() {
     <section id="hero" className="relative flex min-h-screen flex-col items-center justify-center bg-black px-6 py-16">
       <div className="relative w-full max-w-6xl overflow-hidden rounded-sm shadow-[0_0_80px_rgba(212,175,55,0.15)]">
         <div className="relative aspect-[2.35/1] w-full bg-black">
-          <video src={VIDEOS.rings} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+          <WeddingMedia slot="hero" src={VIDEOS.rings} autoPlay muted loop playsInline className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
           <GoldParticles />
         </div>
@@ -183,7 +184,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#16131C] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
         <Glass className="overflow-hidden p-0">
-          <img src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </Glass>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#D4AF37]">Chapter I</p>
@@ -201,7 +202,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
         <div className="lg:order-2">
           <Glass className="overflow-hidden p-0">
-            <img src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </Glass>
         </div>
         <div className="lg:order-1">
@@ -229,7 +230,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               transition={{ delay: i * 0.1 }}
               className="h-80 w-64 shrink-0 overflow-hidden rounded-xl border border-[#D4AF37]/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]"
             >
-              <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 hover:scale-110" />
+              <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 hover:scale-110" />
             </motion.div>
           ))}
         </div>
@@ -245,7 +246,7 @@ function VideoSection() {
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">סרטון</h2>
         <Glass className="mt-10 overflow-hidden p-0">
           <div className="relative aspect-[2.35/1]">
-            <video src={VIDEOS.couple} controls className="h-full w-full object-cover" />
+            <WeddingMedia slot={`videos.couple`} src={VIDEOS.couple} controls className="h-full w-full object-cover" />
           </div>
         </Glass>
       </div>

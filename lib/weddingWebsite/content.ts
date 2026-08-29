@@ -4,7 +4,15 @@ import {
   sanitizeWeddingImageUrl,
   sanitizeWeddingImageUrls,
 } from "@/lib/weddingWebsite/images";
-import type { WeddingDemoContent, WeddingTemplateId } from "@/types/weddingWebsite";
+import { normalizeWeddingMediaSlot } from "@/lib/weddingWebsite/media";
+import { sanitizeSectionStyle, sanitizeTextStyle } from "@/lib/weddingWebsite/styles";
+import type {
+  WeddingDemoContent,
+  WeddingMediaSlot,
+  WeddingSectionStyle,
+  WeddingTextStyle,
+  WeddingTemplateId,
+} from "@/types/weddingWebsite";
 
 export const DEFAULT_WEDDING_TEMPLATE_ID: WeddingTemplateId = "eternal-gold";
 
@@ -181,6 +189,13 @@ export function mergeWeddingWebsiteContent(
       cleanString(raw.guestMessageDescription) ||
       base.guestMessageDescription ||
       "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+    rsvpTitle: cleanString((raw as WeddingDemoContent).rsvpTitle) || base.rsvpTitle,
+    rsvpSubtitle: cleanString((raw as WeddingDemoContent).rsvpSubtitle) || base.rsvpSubtitle,
+    transportationTitle:
+      cleanString((raw as WeddingDemoContent).transportationTitle) || base.transportationTitle,
+    transportationDescription:
+      cleanString((raw as WeddingDemoContent).transportationDescription) ||
+      base.transportationDescription,
     heroImage: Object.prototype.hasOwnProperty.call(raw, "heroImage")
       ? sanitizeWeddingImageUrl(raw.heroImage)
       : sanitizeWeddingImageUrl(base.heroImage),
@@ -189,6 +204,21 @@ export function mergeWeddingWebsiteContent(
       : Array.isArray(base.galleryImages)
         ? sanitizeWeddingImageUrls(base.galleryImages)
         : undefined,
+    media: mergeMediaMap(base.media, (raw as WeddingDemoContent).media),
+    styles: mergeStyleMap(base.styles, (raw as WeddingDemoContent).styles),
+    sectionStyles: mergeSectionStyleMap(
+      base.sectionStyles,
+      (raw as WeddingDemoContent).sectionStyles
+    ),
+    sectionOrder: Array.isArray((raw as WeddingDemoContent).sectionOrder)
+      ? ((raw as WeddingDemoContent).sectionOrder as WeddingDemoContent["sectionOrder"])
+      : base.sectionOrder,
+    copy: {
+      ...(base.copy || {}),
+      ...(((raw as WeddingDemoContent).copy && typeof (raw as WeddingDemoContent).copy === "object"
+        ? (raw as WeddingDemoContent).copy
+        : {}) as Record<string, string>),
+    },
     sections: {
       ...(base.sections || {}),
       ...((raw.sections && typeof raw.sections === "object"
@@ -246,21 +276,67 @@ export function serializeWeddingWebsite(
       templateId?: unknown;
       published?: unknown;
       content?: Partial<WeddingDemoContent> | null;
+      draftContent?: Partial<WeddingDemoContent> | null;
     } | null;
-  } | null
+  } | null,
+  options?: { draft?: boolean }
 ) {
   const stored = invitation?.weddingWebsite;
   const templateId = normalizeWeddingTemplateId(stored?.templateId);
   const event = extractInvitationEventData(invitation);
-  const content = applyEventDataToWebsiteContent(
+  const publishedContent = applyEventDataToWebsiteContent(
     seedWeddingWebsiteContent(stored?.content, invitation),
+    event
+  );
+  const draftContent = applyEventDataToWebsiteContent(
+    seedWeddingWebsiteContent(stored?.draftContent || stored?.content, invitation),
     event
   );
 
   return {
     templateId,
     published: stored?.published !== false,
+    hasSite: Boolean(cleanString(stored?.templateId)),
     event,
-    content,
+    content: options?.draft ? draftContent : publishedContent,
+    draftContent,
+    publishedContent,
   };
+}
+
+function mergeMediaMap(
+  base?: Record<string, WeddingMediaSlot>,
+  stored?: Record<string, WeddingMediaSlot>
+) {
+  const raw = stored && typeof stored === "object" ? stored : {};
+  const next: Record<string, WeddingMediaSlot> = { ...(base || {}) };
+  for (const [key, value] of Object.entries(raw)) {
+    const slot = normalizeWeddingMediaSlot(value);
+    if (slot) next[key] = slot;
+  }
+  return next;
+}
+
+function mergeStyleMap(
+  base?: Record<string, WeddingTextStyle>,
+  stored?: Record<string, WeddingTextStyle>
+) {
+  const raw = stored && typeof stored === "object" ? stored : {};
+  const next: Record<string, WeddingTextStyle> = { ...(base || {}) };
+  for (const [key, value] of Object.entries(raw)) {
+    next[key] = sanitizeTextStyle(value);
+  }
+  return next;
+}
+
+function mergeSectionStyleMap(
+  base?: Record<string, WeddingSectionStyle>,
+  stored?: Record<string, WeddingSectionStyle>
+) {
+  const raw = stored && typeof stored === "object" ? stored : {};
+  const next: Record<string, WeddingSectionStyle> = { ...(base || {}) };
+  for (const [key, value] of Object.entries(raw)) {
+    next[key] = sanitizeSectionStyle(value);
+  }
+  return next;
 }

@@ -56,7 +56,10 @@ export function overlayWeddingTemplateImages(
 ): WeddingTemplate | null {
   if (!template) return null;
 
-  const heroImage = sanitizeWeddingImageUrl(content?.heroImage);
+  const heroSlot = content?.media?.hero;
+  const heroFromSlot = heroSlot?.type === "image" ? sanitizeWeddingImageUrl(heroSlot.src) : "";
+  const heroRemoved = Boolean(heroSlot) && !sanitizeWeddingImageUrl(heroSlot?.src) && heroSlot?.type !== "video";
+  const heroImage = heroFromSlot || sanitizeWeddingImageUrl(content?.heroImage);
   const hasCustomGallery = Array.isArray(content?.galleryImages);
   const galleryImages = hasCustomGallery
     ? sanitizeWeddingImageUrls(content?.galleryImages)
@@ -64,7 +67,9 @@ export function overlayWeddingTemplateImages(
 
   return {
     ...template,
-    heroImage: getOptimizedWeddingImageUrl(heroImage || template.heroImage, 1800) || template.heroImage,
+    heroImage: heroRemoved
+      ? ""
+      : getOptimizedWeddingImageUrl(heroImage || template.heroImage, 1800) || template.heroImage,
     galleryImages:
       galleryImages && galleryImages.length > 0
         ? galleryImages.map((src) => getOptimizedWeddingImageUrl(src, 1100) || src)

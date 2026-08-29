@@ -12,6 +12,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import { MapPin } from "lucide-react";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -125,8 +126,8 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
         <GradientMeshHero />
         <HeartParticles />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />
-        <img
-          src={template.heroImage}
+        <WeddingMedia
+          slot="hero" src={template.heroImage}
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-center opacity-20 blur-[2px]"
         />
@@ -249,7 +250,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
             style={{ transform: "rotate(-4deg)" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
+            <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
             <p className="mt-4 text-center font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">
               how we met ♥
             </p>
@@ -293,7 +294,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
               style={{ rotate: `${polaroidRotations[i % polaroidRotations.length]}deg` }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
+              <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
               <p className="mt-3 text-center font-['Cormorant_Garamond'] text-sm italic text-[#9A6070]">
                 moment {i + 1} ♥
               </p>
@@ -307,7 +308,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Cormorant_Garamond'] text-4xl">סרטון</h2>
           <div className="overflow-hidden rounded-[28px] shadow-[0_20px_60px_rgba(232,120,138,0.2)] ring-4 ring-[#FFD4DC]">
-            <video src={VIDEOS.beach} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <WeddingMedia slot={`videos.beach`} src={VIDEOS.beach} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
           </div>
         </div>
       </section>

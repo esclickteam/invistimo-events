@@ -12,7 +12,7 @@
     "test:invitation-guest-writes": "npx tsx --test scripts/test-invitation-guest-writes.ts",
     "test:rsvp-site-mode": "npx tsx --test scripts/tests/rsvp-site-mode.test.ts",
     "test:guest-rsvp-shared": "npx tsx --test scripts/tests/guest-rsvp-shared.test.ts",
-    "test:guest-invitation-url": "npx tsx --test scripts/tests/guest-invitation-url.test.ts",
+    "test:ww-visual-editor": "npx tsx --test scripts/tests/ww-visual-editor.test.ts",
     "test:guest-link-open": "npx tsx --test scripts/tests/guest-link-open.test.ts",
     "test:guest-link-open-db": "npx tsx --test --test-force-exit scripts/tests/guest-link-open-db.test.ts",
     "test:staging-safety": "node --test --import tsx scripts/tests/staging-env-safety.test.mjs",

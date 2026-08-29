@@ -12,6 +12,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 
@@ -151,8 +152,8 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
 
       {/* HERO — forest video */}
       <section id="hero" className="relative flex min-h-screen items-end overflow-hidden">
-        <video
-          src={VIDEOS.forest}
+        <WeddingMedia
+          slot="hero" src={VIDEOS.forest}
           autoPlay
           muted
           loop
@@ -269,8 +270,8 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
               className="absolute -inset-4 rounded-[50%_50%_45%_55%/55%_45%_55%_45%] border border-[#7CB87A]/30"
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={template.galleryImages[0]}
+            <WeddingMedia
+              slot={`gallery.0`} src={template.galleryImages[0]}
               alt=""
               className="relative aspect-[4/5] w-full rounded-[40%_60%_55%_45%/50%_45%_55%_50%] object-cover"
             />
@@ -325,7 +326,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-105" />
+                <WeddingMedia slot={`gallery.${i}`} src={src} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover transition hover:scale-105" />
               </div>
             </motion.div>
           ))}
@@ -337,7 +338,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
         <div className="mx-auto max-w-4xl px-6">
           <h2 className="mb-10 text-center font-['Libre_Baskerville'] text-4xl">סרטון</h2>
           <div className="overflow-hidden rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 shadow-[0_0_60px_rgba(124,184,122,0.15)]">
-            <video src={VIDEOS.forest} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
+            <WeddingMedia slot={`videos.forest`} src={VIDEOS.forest} autoPlay muted loop playsInline className="aspect-video w-full object-cover" />
           </div>
         </div>
       </section>
