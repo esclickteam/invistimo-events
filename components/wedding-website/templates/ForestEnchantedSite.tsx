@@ -13,6 +13,8 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
@@ -391,16 +393,20 @@ export default function ForestEnchantedSite({ template, embed }: TemplateProps) 
         <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-2">
           <div>
             <h2 className="font-['Libre_Baskerville'] text-4xl">מיקום</h2>
-            <p className="mt-6 text-xl">{DEMO.venueName}</p>
-            <p className="mt-2 text-[#8AA892]">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-block rounded-full bg-[#7CB87A] px-8 py-3 text-sm font-bold text-[#0F1810]"
-            >
-              ניווט
-            </a>
+            <LocationDisplay
+              name={DEMO.venueName}
+              address={DEMO.venueAddress}
+              className="mt-6"
+              nameClassName="text-xl"
+              addressClassName="mt-2 text-[#8AA892]"
+              iconClassName="h-5 w-5 shrink-0 text-[#7CB87A]"
+            />
+            <WeddingVenueNav
+              address={DEMO.venueAddress}
+              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              className="mt-8 flex flex-wrap gap-3"
+              linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#7CB87A] px-8 py-3 text-sm font-bold text-[#0F1810]"
+            />
           </div>
           <div className="overflow-hidden rounded-3xl border border-[#7CB87A]/20">
             <iframe

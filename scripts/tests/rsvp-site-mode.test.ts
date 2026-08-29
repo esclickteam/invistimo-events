@@ -186,6 +186,28 @@ test("guest messages are a separate model from RSVP notes", () => {
   assert.match(dashboard, /הודעות מהאורחים/);
 });
 
+test("location pin is UI-only and keeps existing map URLs", () => {
+  const inviteCard = read("app/components/EventLocationCard.jsx");
+  const navButtons = read("app/components/EventNavigationButtons.tsx");
+  const navLinks = read("lib/navigationLinks.ts");
+  const display = read("app/components/LocationDisplay.tsx");
+  const wwLocation = read("components/wedding-website/WeddingWebsiteSections.tsx");
+  const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+
+  assert.match(display, /lucide-react/);
+  assert.match(display, /MapPin/);
+  assert.match(inviteCard, /LocationDisplay/);
+  assert.doesNotMatch(inviteCard, /📍/);
+  assert.match(navButtons, /getGoogleMapsLink/);
+  assert.match(navButtons, /getWazeLink/);
+  assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
+  assert.match(navLinks, /https:\/\/waze\.com\/ul\?ll=/);
+  assert.match(wwLocation, /https:\/\/waze\.com\/ul\?q=\$\{encodeURIComponent\(content\.venueAddress\)\}/);
+  assert.match(wwLocation, /https:\/\/maps\.google\.com\/\?q=\$\{encodeURIComponent\(content\.venueAddress\)\}/);
+  assert.match(eternal, /LocationDisplay/);
+  assert.match(eternal, /WeddingVenueNav/);
+});
+
 test("dashboard wedding website route is feature-guarded", () => {
   const editor = read("app/dashboard/wedding-website/page.tsx");
   const editorApi = read("app/api/wedding-website/route.ts");

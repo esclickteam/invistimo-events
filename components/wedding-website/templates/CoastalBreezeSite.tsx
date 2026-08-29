@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
   useRsvpDemo,
@@ -260,7 +262,20 @@ function LocationSection() {
     <Section id="location" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Montserrat'] text-4xl font-light text-[#0D2840]">מיקום</h2>
-        <p className="mt-2 text-center text-[#5A7A94]">{DEMO.venueAddress}</p>
+        <LocationDisplay
+          name={DEMO.venueName}
+          address={DEMO.venueAddress}
+          align="center"
+          className="mt-4"
+          nameClassName="text-xl text-[#0D2840]"
+          addressClassName="mt-2 text-[#5A7A94]"
+          iconClassName="h-5 w-5 shrink-0 text-[#0D2840]"
+        />
+        <WeddingVenueNav
+          address={DEMO.venueAddress}
+          className="mt-5 flex flex-wrap items-center justify-center gap-3"
+          linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#0D2840] px-5 py-2 text-sm font-bold text-white"
+        />
         <div
           className="relative mx-auto mt-10 max-w-3xl overflow-hidden shadow-2xl"
           style={{

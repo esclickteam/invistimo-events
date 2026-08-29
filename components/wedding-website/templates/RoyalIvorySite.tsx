@@ -13,6 +13,8 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
@@ -357,16 +359,20 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
         <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-2">
           <div>
             <h2 className="font-['Playfair_Display'] text-4xl">מיקום</h2>
-            <p className="mt-6 font-['Playfair_Display'] text-xl">{DEMO.venueName}</p>
-            <p className="mt-2 text-[#8C7B68]">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-block rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-sm text-[#B8956B]"
-            >
-              ניווט
-            </a>
+            <LocationDisplay
+              name={DEMO.venueName}
+              address={DEMO.venueAddress}
+              className="mt-6"
+              nameClassName="font-['Playfair_Display'] text-xl"
+              addressClassName="mt-2 text-[#8C7B68]"
+              iconClassName="h-5 w-5 shrink-0 text-[#B8956B]"
+            />
+            <WeddingVenueNav
+              address={DEMO.venueAddress}
+              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              className="mt-8 flex flex-wrap gap-3"
+              linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-sm text-[#B8956B]"
+            />
           </div>
           <div className="overflow-hidden rounded-3xl border border-[#B8956B]/20 shadow-lg">
             <iframe

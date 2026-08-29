@@ -13,6 +13,8 @@ import {
   useRsvpDemo,
 } from "../shared/useWeddingInteractions";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
@@ -369,16 +371,20 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
         <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-2">
           <div>
             <h2 className="font-['Cormorant_Garamond'] text-4xl">מיקום</h2>
-            <p className="mt-6 text-xl font-bold">{DEMO.venueName}</p>
-            <p className="mt-2 text-[#9A6070]">{DEMO.venueAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-block rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-8 py-3 text-sm font-bold text-white"
-            >
-              ניווט ♥
-            </a>
+            <LocationDisplay
+              name={DEMO.venueName}
+              address={DEMO.venueAddress}
+              className="mt-6"
+              nameClassName="text-xl font-bold"
+              addressClassName="mt-2 text-[#9A6070]"
+              iconClassName="h-5 w-5 shrink-0 text-[#E8788A]"
+            />
+            <WeddingVenueNav
+              address={DEMO.venueAddress}
+              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              className="mt-8 flex flex-wrap gap-3"
+              linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-8 py-3 text-sm font-bold text-white"
+            />
           </div>
           <div className="overflow-hidden rounded-[28px] shadow-lg ring-2 ring-[#FFD4DC]">
             <iframe

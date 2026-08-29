@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import LocationDisplay from "@/app/components/LocationDisplay";
+import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
   useRsvpDemo,
@@ -317,7 +319,20 @@ function LocationSection() {
     <Section id="location" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto max-w-5xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">מיקום</h2>
-        <p className="mt-2 text-center text-[#9A7060]">{DEMO.venueAddress}</p>
+        <LocationDisplay
+          name={DEMO.venueName}
+          address={DEMO.venueAddress}
+          align="center"
+          className="mt-4"
+          nameClassName="text-xl text-[#3D2518]"
+          addressClassName="mt-2 text-[#9A7060]"
+          iconClassName="h-5 w-5 shrink-0 text-[#C4785A]"
+        />
+        <WeddingVenueNav
+          address={DEMO.venueAddress}
+          className="mt-5 flex flex-wrap items-center justify-center gap-3"
+          linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold text-[#3D2518]"
+        />
         <div className="relative mx-auto mt-10 max-w-2xl overflow-hidden shadow-xl" style={{ borderRadius: "50% 50% 25% 25% / 40% 40% 60% 60%", border: `3px solid ${TERRACOTTA}` }}>
           <iframe title="map" className="aspect-[4/3] w-full border-0 sepia-[20%]" loading="lazy" src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`} />
         </div>

@@ -19,6 +19,7 @@ import {
   Hotel,
 } from "lucide-react";
 import AnimatedSection, { GlassCard, SectionHeading } from "./AnimatedSection";
+import LocationDisplay from "@/app/components/LocationDisplay";
 import FloatingParticles, { HeroParallax, ScrollIndicator } from "./effects/WeddingEffects";
 import { useWeddingTheme } from "./WeddingThemeProvider";
 import { DEMO_GUEST_UPLOADS } from "@/config/weddingWebsite/demoContent";
@@ -390,7 +391,16 @@ export function LocationSection() {
   return (
     <AnimatedSection id="location" className="py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
-        <SectionHeading eyebrow="Location" title="איך מגיעים" subtitle={content.venueAddress} />
+        <SectionHeading eyebrow="Location" title="איך מגיעים" />
+        <LocationDisplay
+          name={content.venueName}
+          address={content.venueAddress}
+          align="center"
+          className="mb-8"
+          nameClassName="text-xl font-black"
+          addressClassName="mt-2 text-sm text-[var(--ww-text-muted)]"
+          iconClassName="h-5 w-5 shrink-0 text-[var(--ww-accent)]"
+        />
         <GlassCard className="overflow-hidden p-0">
           <div className="relative aspect-[16/9] bg-[var(--ww-bg-alt)]">
             <iframe
@@ -406,16 +416,18 @@ export function LocationSection() {
               href={`https://waze.com/ul?q=${encodeURIComponent(content.venueAddress)}`}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
             >
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
               Waze
             </a>
             <a
               href={`https://maps.google.com/?q=${encodeURIComponent(content.venueAddress)}`}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
             >
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
               Google Maps
             </a>
           </div>
