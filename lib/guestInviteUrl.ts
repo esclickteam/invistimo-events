@@ -7,11 +7,18 @@ import {
 export const DEFAULT_PUBLIC_ORIGIN = "https://www.invistimo.com";
 
 export function getInvitationRsvpSiteMode(invitation?: {
-  invitationSettings?: { rsvpSiteMode?: unknown };
+  invitationSettings?: {
+    rsvpSiteMode?: unknown;
+    guestExperienceType?: unknown;
+  };
   rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
 } | null): RsvpSiteMode {
   return normalizeRsvpSiteMode(
-    invitation?.invitationSettings?.rsvpSiteMode ?? invitation?.rsvpSiteMode
+    invitation?.invitationSettings?.rsvpSiteMode ??
+      invitation?.invitationSettings?.guestExperienceType ??
+      invitation?.rsvpSiteMode ??
+      invitation?.guestExperienceType
   );
 }
 
@@ -31,14 +38,19 @@ export function buildGuestInviteUrl({
   shareId,
   token,
   rsvpSiteMode,
+  guestExperienceType,
   origin = DEFAULT_PUBLIC_ORIGIN,
 }: {
   shareId: string;
   token?: string;
   rsvpSiteMode?: unknown;
+  guestExperienceType?: unknown;
   origin?: string;
 }) {
-  const path = buildGuestInvitePath(shareId, rsvpSiteMode);
+  const path = buildGuestInvitePath(
+    shareId,
+    rsvpSiteMode ?? guestExperienceType
+  );
   if (!path) return "";
 
   const base = `${String(origin || DEFAULT_PUBLIC_ORIGIN).replace(/\/$/, "")}${path}`;

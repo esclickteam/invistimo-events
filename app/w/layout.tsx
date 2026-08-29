@@ -11,5 +11,5 @@ export default function PublicWeddingWebsiteLayout({
 }: {
   children: ReactNode;
 }) {
-  return <>{children}</>;
+  return <div className="overflow-x-hidden">{children}</div>;
 }

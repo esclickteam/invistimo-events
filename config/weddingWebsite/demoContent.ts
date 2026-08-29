@@ -52,6 +52,26 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   ],
   playlistNote: "יש לכם שיר שחייב להישמע? שלחו לנו הצעה — נשלב ברשימת השמעה!",
   footerNote: "תודה שאתם חלק מהסיפור שלנו. נתראה בחתונה!",
+  guestMessageTitle: "השאירו לנו כמה מילים ❤️",
+  guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+  sections: {
+    hero: true,
+    countdown: true,
+    invitation: true,
+    "our-story": true,
+    gallery: true,
+    "event-details": true,
+    schedule: true,
+    location: true,
+    "dress-code": true,
+    transportation: true,
+    faq: true,
+    rsvp: true,
+    gifts: true,
+    guestbook: false,
+    "guest-message": true,
+    footer: true,
+  },
 };
 
 export const DEMO_GUEST_UPLOADS = [

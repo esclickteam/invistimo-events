@@ -108,6 +108,12 @@ const InvitationSettingsSchema = new Schema(
       default: "standard",
     },
 
+    guestExperienceType: {
+      type: String,
+      enum: ["personal_invitation", "wedding_website"],
+      default: "personal_invitation",
+    },
+
     menuOptions: {
       vegetarian: { type: Boolean, default: false },
       vegan: { type: Boolean, default: false },

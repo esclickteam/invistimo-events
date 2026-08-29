@@ -32,15 +32,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
     }
 
-    const users = await User.find({ rsvpSiteMode: "personal", role: "user" })
-      .select("name email phone rsvpSiteMode eventDate")
+    const users = await User.find({
+      role: "user",
+      $or: [
+        { rsvpSiteMode: "personal" },
+        { guestExperienceType: "wedding_website" },
+        { "features.weddingWebsite": true },
+      ],
+    })
+      .select("name email phone rsvpSiteMode guestExperienceType features eventDate createdAt updatedAt")
       .sort({ updatedAt: -1 })
       .lean();
 
     const userIds = users.map((user) => user._id);
     const invitations = userIds.length
       ? await Invitation.find({ ownerId: { $in: userIds } })
-          .select("ownerId title shareId eventDate eventTime location invitationSettings weddingWebsite")
+          .select("ownerId title shareId eventDate eventTime location invitationSettings weddingWebsite createdAt updatedAt")
           .sort({ updatedAt: -1 })
           .lean()
       : [];
@@ -63,12 +70,21 @@ export async function GET(req: NextRequest) {
         email: user.email || "",
         phone: user.phone || "",
         rsvpSiteMode: "personal" as const,
+        guestExperienceType: "wedding_website" as const,
+        features: {
+          weddingWebsite: true,
+          guestMessages: user.features?.guestMessages !== false,
+        },
         invitationId: invitation ? String(invitation._id) : null,
         invitationTitle: invitation?.title || "",
+        coupleNames: invitation?.title || user.name || "",
         shareId: invitation?.shareId || "",
         eventDate: invitation?.eventDate || user.eventDate || null,
         templateId: website?.templateId || null,
+        status: website?.published === false ? "draft" : "published",
         published: website?.published ?? false,
+        createdAt: invitation?.createdAt || user.createdAt || null,
+        updatedAt: invitation?.updatedAt || user.updatedAt || null,
         publicPath: invitation?.shareId ? `/w/${invitation.shareId}` : null,
         publicUrl: invitation?.shareId
           ? buildGuestInviteUrl({
@@ -106,7 +122,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const userId = String(body?.userId || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();
-    const rsvpSiteMode = normalizeRsvpSiteMode(body?.rsvpSiteMode);
+    const rsvpSiteMode = normalizeRsvpSiteMode(
+      body?.guestExperienceType ?? body?.rsvpSiteMode
+    );
 
     const user = userId
       ? await User.findById(userId).select("_id name email")
@@ -124,7 +142,15 @@ export async function POST(req: NextRequest) {
     const result = await applyUserRsvpSiteMode({
       userId: String(user._id),
       rsvpSiteMode,
+      guestExperienceType: body?.guestExperienceType,
     });
+
+    if (body?.templateId && result?.rsvpSiteMode === "personal") {
+      await Invitation.updateMany(
+        { ownerId: user._id },
+        { $set: { "weddingWebsite.templateId": String(body.templateId) } }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -132,6 +158,8 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       rsvpSiteMode: result?.rsvpSiteMode || rsvpSiteMode,
+      guestExperienceType: result?.guestExperienceType,
+      features: result?.features,
       invitationsUpdated: result?.invitationsUpdated || 0,
     });
   } catch (error) {

@@ -11,6 +11,7 @@ import {
 } from "@/lib/weddingWebsite/content";
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite, normalizeRsvpSiteMode } from "@/types/rsvpSite";
+import { getCustomerFeatures, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,17 +47,25 @@ export async function GET(req: NextRequest) {
     const invitationId = req.nextUrl.searchParams.get("invitationId");
     const invitation = await findManagedInvitation(auth, invitationId);
     const owner = invitation
-      ? await User.findById(invitation.ownerId).select("name email rsvpSiteMode").lean()
-      : await User.findById(auth.userId).select("name email rsvpSiteMode").lean();
+      ? await User.findById(invitation.ownerId)
+          .select("name email rsvpSiteMode guestExperienceType features")
+          .lean()
+      : await User.findById(auth.userId)
+          .select("name email rsvpSiteMode guestExperienceType features")
+          .lean();
 
     const rsvpSiteMode = invitation
       ? getInvitationRsvpSiteMode(invitation)
       : normalizeRsvpSiteMode((owner as any)?.rsvpSiteMode);
+    const features = getCustomerFeatures(owner);
+    const enabled = hasWeddingWebsiteFeature(owner) || isPersonalRsvpSite(rsvpSiteMode);
 
     if (!invitation) {
       return NextResponse.json({
         success: true,
         rsvpSiteMode,
+        features,
+        enabled,
         invitation: null,
         weddingWebsite: null,
       });
@@ -65,7 +74,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       rsvpSiteMode,
-      enabled: isPersonalRsvpSite(rsvpSiteMode),
+      features,
+      enabled,
       invitation: {
         _id: String(invitation._id),
         shareId: invitation.shareId,
@@ -98,8 +108,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: "INVITATION_NOT_FOUND" }, { status: 404 });
     }
 
+    const owner = invitation.ownerId
+      ? await User.findById(invitation.ownerId)
+          .select("rsvpSiteMode guestExperienceType features")
+          .lean()
+      : null;
     const rsvpSiteMode = getInvitationRsvpSiteMode(invitation);
-    if (!isPersonalRsvpSite(rsvpSiteMode)) {
+    if (!hasWeddingWebsiteFeature(owner) && !isPersonalRsvpSite(rsvpSiteMode)) {
       return NextResponse.json(
         {
           success: false,

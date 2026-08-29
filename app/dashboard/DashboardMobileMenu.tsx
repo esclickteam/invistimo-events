@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 
 type Props = {
   open: boolean;
@@ -43,7 +44,8 @@ export default function DashboardMobileMenu({
   const router = useRouter();
   const { user } = useAuth();
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const canOpenWeddingWebsite = isPersonalRsvpSite(user?.rsvpSiteMode);
+  const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
+  const canOpenGuestMessages = hasGuestMessagesFeature(user);
 
   const hasInvitation = Boolean(invitationId);
 
@@ -126,6 +128,20 @@ export default function DashboardMobileMenu({
           return;
         }
         go("/dashboard/wedding-website");
+      },
+    },
+    {
+      title: "הודעות מהאורחים",
+      subtitle: "ברכות והודעות שנשלחו מהאתר",
+      icon: MessageCircle,
+      badge: "הודעות",
+      hidden: !canOpenGuestMessages,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/guest-messages");
       },
     },
     {

@@ -169,6 +169,58 @@ export function mergeWeddingWebsiteContent(
     ),
     playlistNote: cleanString(raw.playlistNote) || base.playlistNote,
     footerNote: cleanString(raw.footerNote) || base.footerNote,
+    guestMessageTitle:
+      cleanString(raw.guestMessageTitle) ||
+      base.guestMessageTitle ||
+      "השאירו לנו כמה מילים ❤️",
+    guestMessageDescription:
+      cleanString(raw.guestMessageDescription) ||
+      base.guestMessageDescription ||
+      "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+    sections: {
+      ...(base.sections || {}),
+      ...((raw.sections && typeof raw.sections === "object"
+        ? raw.sections
+        : {}) as WeddingDemoContent["sections"]),
+    },
+  };
+}
+
+export function extractInvitationEventData(invitation?: {
+  title?: string;
+  eventDate?: Date | string | null;
+  eventTime?: string;
+  location?: { name?: string; address?: string };
+} | null) {
+  return {
+    coupleNames: cleanString(invitation?.title),
+    weddingDate: toIsoDate(invitation?.eventDate),
+    weddingTime: cleanString(invitation?.eventTime),
+    venueName: cleanString(invitation?.location?.name),
+    venueAddress: cleanString(invitation?.location?.address),
+  };
+}
+
+export function applyEventDataToWebsiteContent(
+  content: WeddingDemoContent,
+  event?: ReturnType<typeof extractInvitationEventData> | null
+): WeddingDemoContent {
+  if (!event) return content;
+
+  return {
+    ...content,
+    coupleNames: event.coupleNames || content.coupleNames,
+    coupleShort: event.coupleNames
+      ? event.coupleNames
+          .split(/[&+|]/)
+          .map((part) => part.trim().charAt(0))
+          .filter(Boolean)
+          .join(" & ") || content.coupleShort
+      : content.coupleShort,
+    weddingDate: event.weddingDate || content.weddingDate,
+    weddingTime: event.weddingTime || content.weddingTime,
+    venueName: event.venueName || content.venueName,
+    venueAddress: event.venueAddress || content.venueAddress,
   };
 }
 
@@ -187,10 +239,16 @@ export function serializeWeddingWebsite(
 ) {
   const stored = invitation?.weddingWebsite;
   const templateId = normalizeWeddingTemplateId(stored?.templateId);
+  const event = extractInvitationEventData(invitation);
+  const content = applyEventDataToWebsiteContent(
+    seedWeddingWebsiteContent(stored?.content, invitation),
+    event
+  );
 
   return {
     templateId,
     published: stored?.published !== false,
-    content: seedWeddingWebsiteContent(stored?.content, invitation),
+    event,
+    content,
   };
 }

@@ -3686,6 +3686,23 @@ function GoldenActionButtons({
       />
     )}
 
+    {isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation)) && (
+      <GoldenActionButton
+        label="הודעות מהאורחים"
+        icon="♡"
+        tone="gold"
+        disabled={!invitation}
+        onClick={() => {
+          if (!invitation) return;
+          if (isDemo) {
+            onDemoBlocked();
+            return;
+          }
+          router.push("/dashboard/guest-messages");
+        }}
+      />
+    )}
+
     {/* 3️⃣ ניהול אירוע */}
     {canOpenEventManagement && (
       <GoldenActionButton

@@ -86,6 +86,11 @@ interface User {
   includeTransportationManagement?: boolean;
   selfManageEnabled?: boolean;
   rsvpSiteMode?: "standard" | "personal";
+  guestExperienceType?: "personal_invitation" | "wedding_website";
+  features?: {
+    weddingWebsite?: boolean;
+    guestMessages?: boolean;
+  };
 
   // ⭐ producer only
   producerPricePerRecord?: number;

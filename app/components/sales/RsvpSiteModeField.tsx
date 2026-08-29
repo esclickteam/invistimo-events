@@ -14,7 +14,7 @@ type Props = {
 export default function RsvpSiteModeField({ value, onChange }: Props) {
   return (
     <div className="md:col-span-2 rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4">
-      <p className="text-sm font-black text-[#3f3327]">סוג אתר לאורחים</p>
+      <p className="text-sm font-black text-[#3f3327]">סוג הזמנה / חוויית אורח</p>
       <p className="mt-1 text-xs font-semibold leading-6 text-[#7b6a58]">
         בחירה רק ללקוח הזה. לקוחות קיימים נשארים עם קישור אישי לכל אורח.
       </p>

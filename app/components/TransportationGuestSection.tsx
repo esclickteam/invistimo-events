@@ -47,6 +47,7 @@ type PublicStop = {
 type Props = {
   shareId: string;
   guestToken?: string;
+  hideGuestIdentity?: boolean;
 };
 
 const LEVEL_LABEL: Record<CapacityLevel, string> = {
@@ -80,7 +81,11 @@ function capacityPct(route?: PublicRoute | null) {
   return Math.min(100, Math.round((route.registered / route.capacity) * 100));
 }
 
-export default function TransportationGuestSection({ shareId, guestToken }: Props) {
+export default function TransportationGuestSection({
+  shareId,
+  guestToken,
+  hideGuestIdentity = false,
+}: Props) {
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [eventTitle, setEventTitle] = useState("");
@@ -305,7 +310,7 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
     setError("");
     setCanJoinWaitlist(false);
     try {
-      if (!form.name.trim()) {
+      if (!hideGuestIdentity && !form.name.trim()) {
         setError("שם מלא נדרש כדי לשמור את ההרשמה.");
         setBusy(false);
         return;
@@ -429,10 +434,12 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
           </p>
           {existing ? (
             <div className="tg-summary">
+              {hideGuestIdentity ? null : (
               <div>
                 <span>שם</span>
                 <strong>{existing.name}</strong>
               </div>
+              )}
               <div>
                 <span>נוסעים</span>
                 <strong>{existing.passengerCount}</strong>
@@ -705,6 +712,7 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
             <div className="tg-step">
               <h3>אישור פרטים</h3>
               <p>בדקו שהכל נכון לפני שמירת המקום.</p>
+              {hideGuestIdentity ? null : (
               <div className="tg-fields">
                 <input
                   placeholder="שם מלא"
@@ -717,6 +725,7 @@ export default function TransportationGuestSection({ shareId, guestToken }: Prop
                   onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
                 />
               </div>
+              )}
               <div className="tg-summary">
                 <div>
                   <span>נוסעים</span>

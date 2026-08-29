@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
-import WeddingGuestRsvpBar from "@/components/wedding-website/WeddingGuestRsvpBar";
+import WeddingGuestActions from "@/components/wedding-website/WeddingGuestActions";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
 type PublicSiteResponse = {
@@ -15,11 +15,22 @@ type PublicSiteResponse = {
     published: boolean;
     content: WeddingDemoContent;
   };
+  features?: {
+    weddingWebsite?: boolean;
+    guestMessages?: boolean;
+  };
+  settings?: {
+    allowGuestNote?: boolean;
+    menuOptions?: { key: string; label: string }[];
+  };
   guest?: {
-    name?: string;
-    token: string;
-    rsvp?: "yes" | "no" | "pending" | null;
-    guestsCount?: number;
+    authenticated: true;
+    rsvp: "yes" | "no" | "pending";
+    arrivedCount: number;
+    guestsCount: number;
+    notes: string;
+    canRsvp: boolean;
+    canMessage: boolean;
   } | null;
 };
 
@@ -63,6 +74,20 @@ export default function PublicWeddingWebsitePage() {
     };
   }, [shareId, token]);
 
+  useEffect(() => {
+    if (!data?.template) return;
+
+    const timer = window.setTimeout(() => {
+      document.querySelectorAll("#rsvp, #guestbook").forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        if (node.dataset.live === "1") return;
+        node.remove();
+      });
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [data]);
+
   if (error) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#111] px-6 text-center text-white">
@@ -82,16 +107,31 @@ export default function PublicWeddingWebsitePage() {
     );
   }
 
+  const content = data.weddingWebsite.content;
+  const showGuestMessage = content.sections?.["guest-message"] !== false;
+  const showRsvp = content.sections?.rsvp !== false;
+
   return (
-    <>
+    <div className="overflow-x-hidden">
       <WeddingTemplateSiteRenderer
         template={data.template}
-        content={data.weddingWebsite.content}
+        content={content}
         live
       />
-      {data.guest?.token ? (
-        <WeddingGuestRsvpBar shareId={shareId} guest={data.guest} />
+      {data.guest?.authenticated ? (
+        <WeddingGuestActions
+          shareId={shareId}
+          token={token}
+          guest={data.guest}
+          allowGuestNote={data.settings?.allowGuestNote !== false}
+          menuOptions={data.settings?.menuOptions || []}
+          guestMessagesEnabled={Boolean(data.features?.guestMessages && data.guest.canMessage)}
+          guestMessageTitle={content.guestMessageTitle}
+          guestMessageDescription={content.guestMessageDescription}
+          showGuestMessage={showGuestMessage}
+          showRsvp={showRsvp}
+        />
       ) : null}
-    </>
+    </div>
   );
 }

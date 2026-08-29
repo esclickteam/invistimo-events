@@ -9,8 +9,13 @@ type WeddingWebsiteItem = {
   email: string;
   phone?: string;
   invitationTitle?: string;
+  coupleNames?: string;
   shareId?: string;
   templateId?: string | null;
+  status?: string;
+  eventDate?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   publicPath?: string | null;
   publicUrl?: string | null;
 };
@@ -137,22 +142,41 @@ export default function AdminWeddingWebsitesPage() {
                 <div>
                   <p className="text-sm font-black text-slate-950">{item.name || item.email}</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {item.email} · {item.invitationTitle || "אין הזמנה עדיין"}
+                    {item.coupleNames || item.invitationTitle || "אין הזמנה עדיין"}
+                    {item.eventDate ? ` · ${String(item.eventDate).slice(0, 10)}` : ""}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {item.email} · {item.templateId || "אין תבנית"} · {item.status || "published"}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-indigo-500">
                     {item.publicPath || "האתר ייפתח אחרי יצירת הזמנה"}
                   </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    נוצר: {item.createdAt ? new Date(item.createdAt).toLocaleDateString("he-IL") : "—"}
+                    {" · "}
+                    עודכן: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("he-IL") : "—"}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {item.publicPath ? (
+                    <>
                     <a
                       href={item.publicPath}
                       target="_blank"
                       rel="noreferrer"
                       className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700"
                     >
-                      צפייה באתר
+                      פתיחת האתר
                     </a>
+                    <a
+                      href={`${item.publicPath}?embed=1`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700"
+                    >
+                      Preview
+                    </a>
+                    </>
                   ) : null}
                   <Link
                     href="/admin/users"

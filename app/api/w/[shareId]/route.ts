@@ -2,14 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
-import InvitationGuest from "@/models/InvitationGuest";
+import User from "@/models/User";
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
+import { resolvePublicGuestActions } from "@/lib/weddingWebsite/guestContext";
+import { emitWeddingInternalEvent } from "@/lib/weddingWebsite/events";
+import {
+  getCustomerFeatures,
+  hasWeddingWebsiteFeature,
+} from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const MENU_LABELS: Record<string, string> = {
+  vegetarian: "צמחוני",
+  vegan: "טבעוני",
+  glutenFree: "ללא גלוטן",
+  childrenMeal: "מנת ילדים",
+  kosher: "כשר",
+  kosherGlatt: "כשר גלאט",
+  kosherMahfoud: "כשר מחפוד",
+};
 
 export async function GET(
   req: NextRequest,
@@ -25,7 +41,17 @@ export async function GET(
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
-    if (!isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation))) {
+    const owner = invitation.ownerId
+      ? await User.findById(invitation.ownerId)
+          .select("rsvpSiteMode guestExperienceType features")
+          .lean()
+      : null;
+
+    const entitled =
+      hasWeddingWebsiteFeature(owner) ||
+      isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation));
+
+    if (!entitled) {
       return NextResponse.json(
         { success: false, error: "NOT_PERSONAL_SITE", shareId },
         { status: 404 }
@@ -35,31 +61,51 @@ export async function GET(
     const website = serializeWeddingWebsite(invitation);
     const template = getWeddingTemplate(website.templateId);
     const token = req.nextUrl.searchParams.get("token") || "";
+    const features = getCustomerFeatures(owner);
+    const guest = await resolvePublicGuestActions({
+      invitationId: invitation._id,
+      token,
+      owner,
+    });
 
-    let guest = null;
+    const menu = invitation.invitationSettings?.menuOptions || {};
+    const menuOptions = Object.entries(menu)
+      .filter(([key, enabled]) => enabled && MENU_LABELS[key] && key !== "transportation")
+      .map(([key]) => ({ key, label: MENU_LABELS[key] }));
+
     if (token) {
-      guest = await InvitationGuest.findOne({
-        invitationId: invitation._id,
-        token,
-      })
-        .select("name token rsvp status guestsCount")
-        .lean();
+      emitWeddingInternalEvent({
+        name: "wedding_site_opened",
+        invitationId: String(invitation._id),
+        eventId: invitation.eventId ? String(invitation.eventId) : undefined,
+        shareId,
+        guestId: guest ? "authenticated" : undefined,
+      });
+    } else {
+      emitWeddingInternalEvent({
+        name: "wedding_site_opened",
+        invitationId: String(invitation._id),
+        eventId: invitation.eventId ? String(invitation.eventId) : undefined,
+        shareId,
+      });
     }
 
     return NextResponse.json({
       success: true,
       shareId,
-      title: invitation.title || website.content.coupleNames,
+      title: website.event?.coupleNames || invitation.title || website.content.coupleNames,
       template,
       weddingWebsite: website,
-      guest: guest
-        ? {
-            name: guest.name || "",
-            token: guest.token,
-            rsvp: guest.rsvp || guest.status || null,
-            guestsCount: guest.guestsCount || 0,
-          }
-        : null,
+      event: website.event,
+      features: {
+        weddingWebsite: true,
+        guestMessages: features.guestMessages,
+      },
+      settings: {
+        allowGuestNote: Boolean(invitation.invitationSettings?.allowGuestNote),
+        menuOptions,
+      },
+      guest,
     });
   } catch (error) {
     console.error("PUBLIC WEDDING WEBSITE GET FAILED:", error);

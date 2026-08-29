@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
 import type { WeddingDemoContent, WeddingTemplateId } from "@/types/weddingWebsite";
-import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 
 type EditorState = {
   templateId: WeddingTemplateId;
@@ -34,6 +34,16 @@ const emptyContent: WeddingDemoContent = {
   guestbookMessages: [],
   playlistNote: "",
   footerNote: "",
+  guestMessageTitle: "השאירו לנו כמה מילים ❤️",
+  guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+  sections: {
+    rsvp: true,
+    transportation: true,
+    "guest-message": true,
+    faq: true,
+    "our-story": true,
+    gallery: true,
+  },
 };
 
 export default function DashboardWeddingWebsitePage() {
@@ -44,6 +54,15 @@ export default function DashboardWeddingWebsitePage() {
   const [enabled, setEnabled] = useState(false);
   const [shareId, setShareId] = useState("");
   const [invitationTitle, setInvitationTitle] = useState("");
+  const [eventData, setEventData] = useState({
+    coupleNames: "",
+    weddingDate: "",
+    weddingTime: "",
+    venueName: "",
+    venueAddress: "",
+  });
+  const [dirty, setDirty] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("mobile");
   const [editor, setEditor] = useState<EditorState>({
     templateId: "eternal-gold",
     published: true,
@@ -64,10 +83,31 @@ export default function DashboardWeddingWebsitePage() {
         const data = await res.json().catch(() => null);
         if (cancelled) return;
 
-        const nextEnabled = Boolean(data?.enabled || isPersonalRsvpSite(data?.rsvpSiteMode));
+        const nextEnabled = Boolean(
+          data?.enabled || hasWeddingWebsiteFeature(data)
+        );
         setEnabled(nextEnabled);
         setShareId(data?.invitation?.shareId || "");
         setInvitationTitle(data?.invitation?.title || "");
+        if (data?.weddingWebsite?.event || data?.invitation) {
+          setEventData({
+            coupleNames:
+              data.weddingWebsite?.event?.coupleNames ||
+              data.invitation?.title ||
+              "",
+            weddingDate:
+              data.weddingWebsite?.event?.weddingDate ||
+              (data.invitation?.eventDate
+                ? String(data.invitation.eventDate).slice(0, 10)
+                : ""),
+            weddingTime:
+              data.weddingWebsite?.event?.weddingTime ||
+              data.invitation?.eventTime ||
+              "",
+            venueName: data.weddingWebsite?.event?.venueName || "",
+            venueAddress: data.weddingWebsite?.event?.venueAddress || "",
+          });
+        }
 
         if (data?.weddingWebsite) {
           setEditor({
@@ -118,6 +158,7 @@ export default function DashboardWeddingWebsitePage() {
       }
 
       setSaved(true);
+      setDirty(false);
       if (data.publicPath) setShareId(String(data.publicPath).replace("/w/", ""));
     } catch (error) {
       console.error("Failed saving wedding website", error);
@@ -136,7 +177,33 @@ export default function DashboardWeddingWebsitePage() {
       content: { ...prev.content, [key]: value },
     }));
     setSaved(false);
+    setDirty(true);
   }
+
+  function updateSection(key: string, value: boolean) {
+    setEditor((prev) => ({
+      ...prev,
+      content: {
+        ...prev.content,
+        sections: {
+          ...(prev.content.sections || {}),
+          [key]: value,
+        },
+      },
+    }));
+    setSaved(false);
+    setDirty(true);
+  }
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   if (loading) {
     return (
@@ -146,7 +213,7 @@ export default function DashboardWeddingWebsitePage() {
     );
   }
 
-  if (!enabled && !isPersonalRsvpSite(user?.rsvpSiteMode)) {
+  if (!enabled && !hasWeddingWebsiteFeature(user)) {
     return (
       <div dir="rtl" className="mx-auto max-w-3xl px-4 py-16">
         <div className="rounded-[32px] border border-[#E7DED1] bg-white p-8 text-center shadow-sm">
@@ -197,7 +264,7 @@ export default function DashboardWeddingWebsitePage() {
             disabled={saving}
             className="rounded-2xl bg-[#B8844F] px-5 py-3 text-sm font-black text-white disabled:opacity-60"
           >
-            {saving ? "שומר..." : saved ? "נשמר" : "שמירת האתר"}
+            {saving ? "שומר..." : saved ? "שינויים נשמרו" : "שמירת האתר"}
           </button>
         </div>
       </div>
@@ -233,12 +300,18 @@ export default function DashboardWeddingWebsitePage() {
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-4 rounded-[28px] border border-[#E7DED1] bg-white p-5">
           <h2 className="text-lg font-black text-[#241A14]">תוכן האתר</h2>
-          <Field label="שמות בני הזוג" value={editor.content.coupleNames} onChange={(value) => updateContent("coupleNames", value)} />
-          <Field label="ראשי תיבות" value={editor.content.coupleShort} onChange={(value) => updateContent("coupleShort", value)} />
-          <Field label="תאריך" type="date" value={editor.content.weddingDate} onChange={(value) => updateContent("weddingDate", value)} />
-          <Field label="שעה" type="time" value={editor.content.weddingTime} onChange={(value) => updateContent("weddingTime", value)} />
-          <Field label="שם האולם" value={editor.content.venueName} onChange={(value) => updateContent("venueName", value)} />
-          <Field label="כתובת" value={editor.content.venueAddress} onChange={(value) => updateContent("venueAddress", value)} />
+          <div className="rounded-2xl bg-[#FFF9EF] p-4">
+            <p className="text-xs font-black text-[#B8844F]">נתוני האירוע מהדשבורד</p>
+            <p className="mt-2 text-sm font-semibold text-[#3f3327]">
+              {eventData.coupleNames || invitationTitle || "—"} · {eventData.weddingDate || "—"} {eventData.weddingTime}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-[#8A7B69]">
+              {eventData.venueName} {eventData.venueAddress}
+            </p>
+            <p className="mt-2 text-xs font-semibold text-[#8A7B69]">
+              תאריך, שעה ואולם מגיעים מפרטי האירוע ולא נשמרים פעמיים באתר.
+            </p>
+          </div>
           <Field label="משפט פתיחה" value={editor.content.heroSubtitle} onChange={(value) => updateContent("heroSubtitle", value)} textarea />
           <Field label="טקסט הזמנה" value={editor.content.invitationText} onChange={(value) => updateContent("invitationText", value)} textarea />
           <Field label="איך נפגשנו" value={editor.content.howWeMet} onChange={(value) => updateContent("howWeMet", value)} textarea />
@@ -246,18 +319,72 @@ export default function DashboardWeddingWebsitePage() {
           <Field label="קוד לבוש" value={editor.content.dressCode} onChange={(value) => updateContent("dressCode", value)} textarea />
           <Field label="הערת מתנות" value={editor.content.giftsNote} onChange={(value) => updateContent("giftsNote", value)} textarea />
           <Field label="סיום" value={editor.content.footerNote} onChange={(value) => updateContent("footerNote", value)} textarea />
+          <Field
+            label="כותרת הודעה לזוג"
+            value={editor.content.guestMessageTitle || ""}
+            onChange={(value) => updateContent("guestMessageTitle", value)}
+          />
+          <Field
+            label="תיאור הודעה לזוג"
+            value={editor.content.guestMessageDescription || ""}
+            onChange={(value) => updateContent("guestMessageDescription", value)}
+            textarea
+          />
+          <div className="rounded-2xl border border-[#eadfce] p-4">
+            <p className="text-sm font-black text-[#3f3327]">הצגת אזורים</p>
+            {[
+              ["our-story", "הסיפור שלנו"],
+              ["faq", "שאלות נפוצות"],
+              ["rsvp", "אישור הגעה"],
+              ["transportation", "הסעות"],
+              ["guest-message", "הודעה לזוג"],
+            ].map(([key, label]) => (
+              <label key={key} className="mt-3 flex items-center justify-between text-sm font-semibold">
+                <span>{label}</span>
+                <input
+                  type="checkbox"
+                  checked={editor.content.sections?.[key as keyof typeof editor.content.sections] !== false}
+                  onChange={(event) => updateSection(key, event.target.checked)}
+                />
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-[28px] border border-[#E7DED1] bg-[#111]">
           <div className="border-b border-white/10 px-5 py-4 text-white">
             <p className="text-xs font-black text-[#E8D5A8]">תצוגה חיה</p>
             <p className="mt-1 text-sm font-bold">{selectedTemplate?.name}</p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewMode("mobile")}
+                className={`rounded-full px-3 py-1 text-xs font-black ${
+                  previewMode === "mobile" ? "bg-white text-black" : "bg-white/10 text-white"
+                }`}
+              >
+                Mobile
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode("desktop")}
+                className={`rounded-full px-3 py-1 text-xs font-black ${
+                  previewMode === "desktop" ? "bg-white text-black" : "bg-white/10 text-white"
+                }`}
+              >
+                Desktop
+              </button>
+            </div>
           </div>
           {publicPath ? (
             <iframe
               title="תצוגת אתר חתונה"
               src={`${publicPath}?embed=1`}
-              className="h-[820px] w-full bg-white"
+              className={`bg-white ${
+                previewMode === "mobile"
+                  ? "mx-auto h-[720px] w-[390px] max-w-full"
+                  : "h-[820px] w-full"
+              }`}
             />
           ) : (
             <div className="flex h-[420px] items-center justify-center text-sm text-white/60">
