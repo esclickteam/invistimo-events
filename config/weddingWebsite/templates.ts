@@ -1,4 +1,5 @@
 import type { WeddingSectionId, WeddingTemplate } from "@/types/weddingWebsite";
+import { WW_IMAGES, gallerySet } from "./media";
 
 export const WEDDING_SECTIONS: {
   id: WeddingSectionId;
@@ -28,22 +29,33 @@ export const WEDDING_SECTIONS: {
   { id: "footer", label: "Footer", navLabel: "סיום" },
 ];
 
+/** Primary sticky-nav items — rest go into "עוד" menu (no horizontal scroll) */
+export const WEDDING_NAV_PRIMARY: WeddingSectionId[] = [
+  "our-story",
+  "gallery",
+  "schedule",
+  "location",
+  "faq",
+  "rsvp",
+];
+
 export const WEDDING_TEMPLATES: WeddingTemplate[] = [
   {
     id: "eternal-gold",
     name: "Eternal Gold",
     tagline: "יוקרה קלאסית בזהב ושמפניה",
-    description: "תבנית אלגנטית עם זהב עדין, טיפוגרפיה serif ואנימציות רכות — מושלמת לחתונה formal.",
-    previewImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-    ],
+    description:
+      "תבנית אלגנטית עם זהב עדין, טיפוגרפיה serif ואנימציות רכות — מושלמת לחתונה formal.",
+    previewImage: WW_IMAGES.ceremony,
+    heroImage: WW_IMAGES.outdoorCouple,
+    galleryImages: gallerySet(
+      "venueArch",
+      "coupleClose",
+      "florals",
+      "aisleWalk",
+      "ringsHands",
+      "celebration"
+    ),
     mood: "classic",
     theme: {
       bg: "#FAF7F2",
@@ -54,7 +66,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#C9A962",
       accentSoft: "#E8D5A8",
       border: "rgba(201, 169, 98, 0.35)",
-      heroOverlay: "linear-gradient(180deg, rgba(20,14,8,0.35) 0%, rgba(20,14,8,0.75) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(20,14,8,0.25) 0%, rgba(20,14,8,0.72) 100%)",
       fontDisplay: "'Cormorant Garamond', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "28px",
@@ -66,17 +79,18 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "midnight-velvet",
     name: "Midnight Velvet",
     tagline: "לילה שחור עם נגיעות זהב",
-    description: "דרama מודרני — רקע כהה, particles זהב, parallax ואפקטים קולנועיים.",
-    previewImage:
-      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
-      "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=800&q=80",
-    ],
+    description:
+      "דרמה מודרנית — רקע כהה, נגיעות זהב, parallax ואפקטים קולנועיים.",
+    previewImage: WW_IMAGES.elegantHall,
+    heroImage: WW_IMAGES.elegantHall,
+    galleryImages: gallerySet(
+      "elegantHall",
+      "kiss",
+      "ringsHands",
+      "celebration",
+      "outdoorCouple",
+      "softPortrait"
+    ),
     mood: "dramatic",
     theme: {
       bg: "#0D0B10",
@@ -87,7 +101,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#D4AF37",
       accentSoft: "#3D3520",
       border: "rgba(212, 175, 55, 0.25)",
-      heroOverlay: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.85) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.85) 100%)",
       fontDisplay: "'Playfair Display', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "20px",
@@ -99,17 +114,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "garden-bloom",
     name: "Garden Bloom",
     tagline: "פרחים, ירוק רך ורומנטיקה",
-    description: "אווירה גן קסum — עלים, פרחים, גradients רכים ואנימציות float.",
-    previewImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-    ],
+    description: "אווירת גן — עלים, פרחים, gradients רכים ואנימציות float.",
+    previewImage: WW_IMAGES.florals,
+    heroImage: WW_IMAGES.kiss,
+    galleryImages: gallerySet(
+      "kiss",
+      "florals",
+      "beachCouple",
+      "outdoorCouple",
+      "bouquet",
+      "venueArch"
+    ),
     mood: "floral",
     theme: {
       bg: "#F4FAF4",
@@ -120,7 +135,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#6B9E78",
       accentSoft: "#C8E6C9",
       border: "rgba(107, 158, 120, 0.3)",
-      heroOverlay: "linear-gradient(180deg, rgba(30,50,35,0.25) 0%, rgba(30,50,35,0.7) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(30,50,35,0.22) 0%, rgba(30,50,35,0.68) 100%)",
       fontDisplay: "'Libre Baskerville', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "32px",
@@ -132,17 +148,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "coastal-breeze",
     name: "Coastal Breeze",
     tagline: "ים, תכלת ואור ים תיכוני",
-    description: "חתונה על חוף — גווני כחול, לבן, גלים animated ותחושת קיץ.",
-    previewImage:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=800&q=80",
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-    ],
+    description: "חתונה על חוף — גווני כחול, לבן, גלים ותחושת קיץ.",
+    previewImage: WW_IMAGES.beachCouple,
+    heroImage: WW_IMAGES.beachCouple,
+    galleryImages: gallerySet(
+      "beachCouple",
+      "coupleClose",
+      "outdoorCouple",
+      "ceremony",
+      "florals",
+      "softPortrait"
+    ),
     mood: "coastal",
     theme: {
       bg: "#F0F8FF",
@@ -153,7 +169,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#3D8BBA",
       accentSoft: "#B3E0F2",
       border: "rgba(61, 139, 186, 0.28)",
-      heroOverlay: "linear-gradient(180deg, rgba(10,40,60,0.2) 0%, rgba(10,40,60,0.65) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(10,40,60,0.18) 0%, rgba(10,40,60,0.62) 100%)",
       fontDisplay: "'Montserrat', sans-serif",
       fontBody: "'Heebo', sans-serif",
       radius: "24px",
@@ -165,17 +182,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "desert-rose",
     name: "Desert Rose",
     tagline: "טרakota, ורוד עמוק וחול",
-    description: "חתונה מדברית — גוונים חמים, textures ואנימציות shimmer.",
-    previewImage:
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-    ],
+    description: "חתונה חמה — גוונים חמים, textures ואנימציות shimmer.",
+    previewImage: WW_IMAGES.aisleWalk,
+    heroImage: WW_IMAGES.coupleClose,
+    galleryImages: gallerySet(
+      "coupleClose",
+      "aisleWalk",
+      "kiss",
+      "venueArch",
+      "bouquet",
+      "ringsHands"
+    ),
     mood: "warm",
     theme: {
       bg: "#FBF5F0",
@@ -186,7 +203,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#C4705A",
       accentSoft: "#E8C4B8",
       border: "rgba(196, 112, 90, 0.3)",
-      heroOverlay: "linear-gradient(180deg, rgba(60,30,20,0.3) 0%, rgba(60,30,20,0.72) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(60,30,20,0.28) 0%, rgba(60,30,20,0.7) 100%)",
       fontDisplay: "'Cormorant Garamond', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "26px",
@@ -198,17 +216,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "minimal-noir",
     name: "Minimal Noir",
     tagline: "שחור, לבן, typography בלבד",
-    description: "מינimal יוקרתי — הרבה whitespace, קווים דקים, motion עדין.",
-    previewImage:
-      "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
-      "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
-    ],
+    description: "מינימלי יוקרתי — whitespace, קווים דקים, motion עדין.",
+    previewImage: WW_IMAGES.elegantHall,
+    heroImage: WW_IMAGES.softPortrait,
+    galleryImages: gallerySet(
+      "softPortrait",
+      "elegantHall",
+      "ringsHands",
+      "nightGlow",
+      "ceremony",
+      "kiss"
+    ),
     mood: "minimal",
     theme: {
       bg: "#FAFAFA",
@@ -219,7 +237,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#111111",
       accentSoft: "#E5E5E5",
       border: "rgba(0, 0, 0, 0.12)",
-      heroOverlay: "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.65) 100%)",
       fontDisplay: "'Montserrat', sans-serif",
       fontBody: "'Heebo', sans-serif",
       radius: "8px",
@@ -230,18 +249,18 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
   {
     id: "royal-ivory",
     name: "Royal Ivory",
-    tagline: "קרם מלכותי עם עitור עדין",
-    description: "palace wedding — ivory, lace patterns, fade-in אלגנטי.",
-    previewImage:
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
-    ],
+    tagline: "קרם מלכותי עם עיטור עדין",
+    description: "palace wedding — ivory, מסגרות עדינות, fade-in אלגנטי.",
+    previewImage: WW_IMAGES.kiss,
+    heroImage: WW_IMAGES.venueArch,
+    galleryImages: gallerySet(
+      "venueArch",
+      "outdoorCouple",
+      "ceremony",
+      "kiss",
+      "ringsHands",
+      "aisleWalk"
+    ),
     mood: "royal",
     theme: {
       bg: "#FDFBF7",
@@ -252,7 +271,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#B8956B",
       accentSoft: "#E8DDD0",
       border: "rgba(184, 149, 107, 0.32)",
-      heroOverlay: "linear-gradient(180deg, rgba(40,30,20,0.28) 0%, rgba(40,30,20,0.68) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(40,30,20,0.24) 0%, rgba(40,30,20,0.66) 100%)",
       fontDisplay: "'Playfair Display', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "30px",
@@ -264,17 +284,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "sunset-blush",
     name: "Sunset Blush",
     tagline: "ורוד, כתום ושקיעה",
-    description: "gradient שקיעה animated, hearts float, romantica מקסימלית.",
-    previewImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-    ],
+    description: "שקיעה רומנטית — gradients רכים, קו עדין, אווירה חמה.",
+    previewImage: WW_IMAGES.florals,
+    heroImage: WW_IMAGES.aisleWalk,
+    galleryImages: gallerySet(
+      "aisleWalk",
+      "florals",
+      "coupleClose",
+      "ceremony",
+      "softPortrait",
+      "bouquet"
+    ),
     mood: "romantic",
     theme: {
       bg: "#FFF5F7",
@@ -285,7 +305,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#E8788A",
       accentSoft: "#FFD4DC",
       border: "rgba(232, 120, 138, 0.28)",
-      heroOverlay: "linear-gradient(180deg, rgba(80,20,40,0.25) 0%, rgba(80,20,40,0.68) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(80,20,40,0.22) 0%, rgba(80,20,40,0.66) 100%)",
       fontDisplay: "'Cormorant Garamond', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "28px",
@@ -297,17 +318,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "forest-enchanted",
     name: "Forest Enchanted",
     tagline: "יער קסום, ירוק עמוק",
-    description: "חתונה בטבע — עלים, fireflies animation, אווירה enchanted.",
-    previewImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-    ],
+    description: "חתונה בטבע — עלים, אור רך, אווירה enchanted.",
+    previewImage: WW_IMAGES.outdoorCouple,
+    heroImage: WW_IMAGES.outdoorCouple,
+    galleryImages: gallerySet(
+      "outdoorCouple",
+      "florals",
+      "kiss",
+      "venueArch",
+      "bouquet",
+      "softPortrait"
+    ),
     mood: "nature",
     theme: {
       bg: "#0F1810",
@@ -318,7 +339,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#7CB87A",
       accentSoft: "#2A4030",
       border: "rgba(124, 184, 122, 0.28)",
-      heroOverlay: "linear-gradient(180deg, rgba(5,15,8,0.35) 0%, rgba(5,15,8,0.82) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(5,15,8,0.3) 0%, rgba(5,15,8,0.8) 100%)",
       fontDisplay: "'Libre Baskerville', serif",
       fontBody: "'Heebo', sans-serif",
       radius: "24px",
@@ -330,17 +352,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     id: "modern-glass",
     name: "Modern Glass",
     tagline: "Glassmorphism עכשווי",
-    description: "blur, glass cards, gradients neon עדינים — Gen-Z luxury.",
-    previewImage:
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=900&q=85",
-    heroImage:
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=1920&q=85",
-    galleryImages: [
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
-      "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
-    ],
+    description: "blur, glass panels, accents קרים — Gen-Z luxury.",
+    previewImage: WW_IMAGES.elegantHall,
+    heroImage: WW_IMAGES.elegantHall,
+    galleryImages: gallerySet(
+      "elegantHall",
+      "nightGlow",
+      "softPortrait",
+      "celebration",
+      "ringsHands",
+      "ceremony"
+    ),
     mood: "modern",
     theme: {
       bg: "#0A0E17",
@@ -351,7 +373,8 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       accent: "#7C9CFF",
       accentSoft: "rgba(124, 156, 255, 0.18)",
       border: "rgba(255, 255, 255, 0.12)",
-      heroOverlay: "linear-gradient(180deg, rgba(5,10,20,0.3) 0%, rgba(5,10,20,0.88) 100%)",
+      heroOverlay:
+        "linear-gradient(180deg, rgba(5,10,20,0.28) 0%, rgba(5,10,20,0.86) 100%)",
       fontDisplay: "'Montserrat', sans-serif",
       fontBody: "'Heebo', sans-serif",
       radius: "20px",

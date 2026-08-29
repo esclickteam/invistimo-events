@@ -1,7 +1,13 @@
 /**
- * סוג אתר אישורי הגעה להזמנה.
- * standard — הקישור הרגיל הקיים (/invite/[shareId])
- * personal — אתר חתונה אישי (טרם מופעל)
+ * Legacy invitation preference (kept for compatibility).
+ * Prefer salesUpsells.weddingWebsite.enabled for purchase entitlement.
+ *
+ * Package model:
+ * - Regular: WhatsApp → guest-specific /invite/[shareId]?token=...
+ * - Wedding Website (entitled + published): WhatsApp → /w/[shareId]
+ *   (via /invite/site/[shareId] bridge for Meta button base URL)
+ *
+ * Regular invitation image/upload remains required in BOTH packages.
  */
 export type RsvpSiteMode = "standard" | "personal";
 
@@ -15,16 +21,16 @@ export const RSVP_SITE_MODE_OPTIONS: {
 }[] = [
   {
     value: "standard",
-    title: "קישור רגיל",
+    title: "הזמנה אישית",
     description:
-      "דף אישור הגעה קצר — תמונת ההזמנה, אישור הגעה, ואפשרויות נוספות. זה מה שעובד היום.",
+      "הקישור הרגיל לאורחים — תמונת ההזמנה ואישור הגעה. לא משתנה כשמפעילים אתר חתונה.",
   },
   {
     value: "personal",
     title: "אתר חתונה אישי",
     description:
-      "אתר מלא ומעוצב עם סיפור, תמונות, לוח זמנים, מתנות ואישור הגעה — חוויה מותאמת אישית.",
-    badge: "בקרוב",
+      "מוצר נפרד: אתר מלא עם תבנית, סיפור, לו״ז, הסעות ו-RSVP בכתובת /w/... ליד ההזמנה הרגילה.",
+    badge: "חדש",
   },
 ];
 
