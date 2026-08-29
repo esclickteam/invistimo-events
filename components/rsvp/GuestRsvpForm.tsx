@@ -52,7 +52,7 @@ export default function GuestRsvpForm({
     return (
       <div data-rsvp-core="1" data-rsvp-state="success">
         <div className={appearance.success}>
-          {RSVP_COPY.success}
+          <p>{RSVP_COPY.success}</p>
           {allowUpdateAfterSubmit ? (
             <button type="button" onClick={resetSent} className={appearance.updateLink}>
               רוצים לעדכן?
