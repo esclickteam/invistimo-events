@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  buildGuestLinkTimeline,
+  formatGuestLinkOpenedAt,
+  guestLinkWasOpened,
+} from "@/lib/guestLinkTracking";
 
 interface EditGuestModalProps {
   guest: any;
@@ -343,6 +348,8 @@ export default function EditGuestModal({
             </Field>
           </div>
 
+          <GuestLinkOpenDetails guest={guest} />
+
           <div
             className="
               mt-4
@@ -466,6 +473,59 @@ function Field({
       </label>
 
       {children}
+    </div>
+  );
+}
+
+function formatTimelineTime(value: Date) {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(value);
+}
+
+function GuestLinkOpenDetails({ guest }: { guest: any }) {
+  const opened = guestLinkWasOpened(guest);
+  const timeline = buildGuestLinkTimeline(guest);
+
+  return (
+    <div
+      className="
+        mt-4
+        rounded-[20px]
+        border
+        border-[#EADBC4]
+        bg-[#FFFDF8]
+        px-4
+        py-4
+      "
+    >
+      <p className="text-xs font-black text-[#5A4635]">פתיחת קישור</p>
+      {opened ? (
+        <div className="mt-3 space-y-1.5 text-sm font-bold text-[#241A14]">
+          <p>
+            נפתח לראשונה: {formatGuestLinkOpenedAt(guest.firstOpenedAt) || "—"}
+          </p>
+          <p>
+            נפתח לאחרונה: {formatGuestLinkOpenedAt(guest.lastOpenedAt) || "—"}
+          </p>
+          <p>מספר פתיחות: {Number(guest.openCount || 0)}</p>
+        </div>
+      ) : (
+        <p className="mt-2 text-sm font-bold text-[#8A7A68]">לא נפתח</p>
+      )}
+
+      {timeline.length > 0 ? (
+        <ul className="mt-3 space-y-1.5 border-t border-[#EADBC4] pt-3 text-xs font-bold text-[#5A4635]">
+          {timeline.map((item, index) => (
+            <li key={`${item.at.toISOString()}-${index}`}>
+              {formatTimelineTime(item.at)} — {item.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

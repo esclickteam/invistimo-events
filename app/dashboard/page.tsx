@@ -25,6 +25,7 @@ import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 
 type EventModel = {
   title?: string;
@@ -61,6 +62,10 @@ type Guest = {
   arrivedCount?: number;
   actualArrivedCount?: number;
   notes?: string;
+
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  openCount?: number;
 
   createdAt?: string;
   updatedAt?: string;
@@ -2493,13 +2498,14 @@ const canOpenTransportationManagement =
     shadow-[0_18px_50px_rgba(30,27,46,0.07)]
   "
 >
-        <table className="w-full min-w-[1180px] table-fixed">
+        <table className="w-full min-w-[1270px] table-fixed">
   <colgroup>
     <col className="w-[210px]" /> {/* שם מלא */}
     <col className="w-[115px]" /> {/* טלפון */}
     <col className="w-[130px]" /> {/* קרבה */}
     <col className="w-[180px]" /> {/* קבוצה */}
     <col className="w-[105px]" /> {/* סטטוס */}
+    <col className="w-[90px]" /> {/* קישור */}
     <col className="w-[75px]" /> {/* מוזמנים */}
     <col className="w-[75px]" /> {/* מגיעים */}
 
@@ -2540,6 +2546,10 @@ const canOpenTransportationManagement =
                 onClick={() => toggleSort("rsvp")}
               >
                 סטטוס{sortArrow("rsvp")}
+              </th>
+
+              <th className="p-4 text-right text-xs font-black text-[#5F564D]">
+                קישור
               </th>
 
               <th
@@ -2674,6 +2684,10 @@ const canOpenTransportationManagement =
 
                     {RSVP_STATUS_LABELS[g.rsvp]}
                   </span>
+                </td>
+
+                <td className="p-4">
+                  <GuestLinkOpenBadge guest={g} />
                 </td>
 
                 <td className="p-4 font-bold text-[#1E1B2E]">
@@ -2921,7 +2935,7 @@ const canOpenTransportationManagement =
             {displayGuests.length === 0 && (
               <tr>
                 <td
-                  colSpan={canShowActualArrived ? 13 : 11}
+                  colSpan={canShowActualArrived ? 14 : 12}
                   className="p-10 text-center text-gray-500"
                 >
                   לא נמצאו תוצאות.

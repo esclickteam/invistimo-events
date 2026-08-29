@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
@@ -13,6 +13,7 @@ import {
   hasWeddingWebsiteFeature,
 } from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
+import { recordGuestLinkOpen } from "@/lib/guestLinkTracking";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -67,6 +68,23 @@ export async function GET(
       token,
       owner,
     });
+
+    if (guest && token) {
+      try {
+        after(() =>
+          recordGuestLinkOpen({
+            token,
+            invitationId: invitation._id,
+            userAgent: req.headers.get("user-agent"),
+            purpose:
+              req.headers.get("sec-fetch-purpose") ||
+              req.headers.get("purpose"),
+          })
+        );
+      } catch {
+        // tracking is best-effort and must never block the wedding website
+      }
+    }
 
     const menu = invitation.invitationSettings?.menuOptions || {};
     const menuOptions = Object.entries(menu)

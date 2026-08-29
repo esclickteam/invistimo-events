@@ -11,6 +11,7 @@
     "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
     "test:invitation-guest-writes": "npx tsx --test scripts/test-invitation-guest-writes.ts",
     "test:rsvp-site-mode": "npx tsx --test scripts/tests/rsvp-site-mode.test.ts",
+    "test:guest-link-open": "npx tsx --test scripts/tests/guest-link-open.test.ts",
     "test:staging-safety": "node --test --import tsx scripts/tests/staging-env-safety.test.mjs",
     "staging:seed": "npx tsx scripts/staging/seed-staging-fixtures.ts",
     "staging:isolation": "node -e \"fetch(process.env.STAGING_URL+'/api/system/env-isolation',{headers:process.env.VERCEL_AUTOMATION_BYPASS_SECRET?{'x-vercel-protection-bypass':process.env.VERCEL_AUTOMATION_BYPASS_SECRET}:{}}).then(r=>r.json()).then(j=>{console.log(JSON.stringify(j,null,2)); if(!j.ok) process.exit(1)})\"",

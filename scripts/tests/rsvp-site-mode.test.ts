@@ -215,3 +215,13 @@ test("dashboard wedding website route is feature-guarded", () => {
   assert.match(editorApi, /hasWeddingWebsiteFeature/);
   assert.match(editorApi, /WEDDING_WEBSITE_NOT_ENABLED/);
 });
+
+test("link-open tracking is recorded outside RSVP and guest-message flows", () => {
+  const rsvp = read("app/api/invitationGuests/respondByToken/[token]/route.ts");
+  const message = read("app/api/w/[shareId]/message/route.ts");
+  const tracking = read("lib/guestLinkTracking.ts");
+
+  assert.match(tracking, /firstOpenedAt/);
+  assert.doesNotMatch(rsvp, /recordGuestLinkOpen/);
+  assert.doesNotMatch(message, /recordGuestLinkOpen/);
+});

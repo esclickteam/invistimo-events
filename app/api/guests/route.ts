@@ -155,6 +155,9 @@ function normalizeEmbeddedGuest(row: any, invitationId: string) {
           : 0,
     actualArrivedCount: Number(row?.actualArrivedCount || 0),
     notes: cleanString(row?.notes),
+    firstOpenedAt: row?.firstOpenedAt || null,
+    lastOpenedAt: row?.lastOpenedAt || null,
+    openCount: Number(row?.openCount || 0),
   };
 }
 

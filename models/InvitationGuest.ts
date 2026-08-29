@@ -257,6 +257,28 @@ const InvitationGuestSchema = new Schema(
       index: true,
     },
 
+    /* ===============================
+       🔗 מעקב פתיחת קישור אישי
+       לא נוגע ב-RSVP / הערות / הושבה.
+       אורחים קיימים נשארים "לא נפתח" עד פתיחה אמיתית.
+    =============================== */
+    firstOpenedAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastOpenedAt: {
+      type: Date,
+      default: null,
+    },
+
+    openCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      set: (v: unknown) => toNumber(v, 0),
+    },
+
     tableNumber: {
       type: Number,
       default: null,
