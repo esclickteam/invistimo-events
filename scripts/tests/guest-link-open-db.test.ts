@@ -8,10 +8,8 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 
 import InvitationGuest from "../../models/InvitationGuest";
-import {
-  LINK_OPEN_DEDUP_MS,
-  recordGuestLinkOpen,
-} from "../../lib/guestLinkTracking";
+import { LINK_OPEN_DEDUP_MS } from "../../lib/guestLinkTracking";
+import { recordGuestLinkOpen } from "../../lib/guestLinkTracking.server";
 
 function spyInvitationGuestWrites() {
   const collection = InvitationGuest.collection;

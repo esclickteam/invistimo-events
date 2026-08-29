@@ -220,8 +220,11 @@ test("link-open tracking is recorded outside RSVP and guest-message flows", () =
   const rsvp = read("app/api/invitationGuests/respondByToken/[token]/route.ts");
   const message = read("app/api/w/[shareId]/message/route.ts");
   const tracking = read("lib/guestLinkTracking.ts");
+  const trackingServer = read("lib/guestLinkTracking.server.ts");
 
   assert.match(tracking, /firstOpenedAt/);
+  assert.doesNotMatch(tracking, /from ["']@\/models\/InvitationGuest["']/);
+  assert.match(trackingServer, /recordGuestLinkOpen/);
   assert.doesNotMatch(rsvp, /recordGuestLinkOpen/);
   assert.doesNotMatch(message, /recordGuestLinkOpen/);
 });

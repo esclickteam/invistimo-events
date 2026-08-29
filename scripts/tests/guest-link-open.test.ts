@@ -225,15 +225,20 @@ test("dashboard guest list and expanded modal show opened / not opened", () => {
 });
 
 test("tracking writes stay best-effort and do not use updatedAt timestamps", () => {
-  const src = read("lib/guestLinkTracking.ts");
+  const src = read("lib/guestLinkTracking.server.ts");
+  const helpers = read("lib/guestLinkTracking.ts");
   const invite = read("app/api/invite/[shareId]/route.ts");
   const ww = read("app/api/w/[shareId]/route.ts");
+  assert.doesNotMatch(helpers, /from ["']@\/models\/InvitationGuest["']/);
+  assert.doesNotMatch(helpers, /from ["']mongoose["']/);
   assert.match(src, /timestamps: false/);
   assert.match(src, /best-effort skipped/);
   assert.match(src, /shouldSkipGuestLinkTracking/);
   assert.match(src, /if \(!next\.write\) return true/);
   assert.match(src, /\$inc:\s*\{\s*openCount:\s*1\s*\}/);
   assert.match(src, /lastOpenedAt:\s*\{\s*\$type:\s*"date",\s*\$lte:\s*cutoff\s*\}/);
+  assert.match(invite, /guestLinkTracking\.server/);
+  assert.match(ww, /guestLinkTracking\.server/);
   assert.match(invite, /after\(/);
   assert.match(ww, /after\(/);
 });
