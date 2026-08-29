@@ -16,6 +16,15 @@ export type WeddingSiteSelection =
   | { type: "gallery"; path: string; label: string }
   | null;
 
+export type WeddingLiveRole = "demo" | "guest" | "couple";
+
+export type WeddingLiveMeta = {
+  shareId?: string;
+  token?: string;
+  invitationId?: string;
+  role: WeddingLiveRole;
+};
+
 export type WeddingSiteEditorApi = {
   selection: WeddingSiteSelection;
   setSelection: (selection: WeddingSiteSelection) => void;
@@ -35,6 +44,7 @@ type WeddingSiteContextValue = {
   template: WeddingTemplate;
   content: WeddingDemoContent;
   editor: WeddingSiteEditorApi | null;
+  live?: WeddingLiveMeta | null;
 };
 
 const WeddingSiteContext = createContext<WeddingSiteContextValue | null>(null);
@@ -44,10 +54,11 @@ export function WeddingSiteProvider({
   template,
   content,
   editor = null,
+  live = null,
   children,
 }: WeddingSiteContextValue & { children: ReactNode }) {
   return (
-    <WeddingSiteContext.Provider value={{ mode, template, content, editor }}>
+    <WeddingSiteContext.Provider value={{ mode, template, content, editor, live }}>
       {children}
     </WeddingSiteContext.Provider>
   );

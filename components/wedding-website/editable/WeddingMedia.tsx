@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   inferMediaSlotId,
@@ -44,6 +44,7 @@ export default function WeddingMedia({
   style,
 }: Props) {
   const site = useWeddingSite();
+  const [broken, setBroken] = useState<"none" | "media" | "all">("none");
   const fallback = useMemo(() => {
     const base = mediaSlotFromImageUrl(src, alt);
     return {
@@ -68,17 +69,44 @@ export default function WeddingMedia({
     ...style,
   };
   const url = optimizedMediaUrl(resolved, 1800);
+  const posterUrl = resolved.poster || poster || "";
   const isEditor = site?.mode === "editor" && editable;
 
-  if (!url) {
-    if (!isEditor) return null;
+  useEffect(() => {
+    setBroken("none");
+  }, [url, posterUrl]);
+
+  if (!url || broken !== "none") {
+    if (broken === "media" && posterUrl && posterUrl !== url) {
+      return (
+        <img
+          src={posterUrl}
+          alt={resolved.alt || alt}
+          className={className}
+          style={mediaStyle}
+          data-ww-edit={isEditor ? "media" : undefined}
+          data-ww-path={isEditor ? slotId : undefined}
+          data-ww-label={isEditor ? "מדיה" : undefined}
+          onError={() => setBroken("all")}
+        />
+      );
+    }
+    if (!isEditor) {
+      return (
+        <div
+          className={`bg-[#efe6d8] ${className}`}
+          style={{ minHeight: "8rem", ...style }}
+          aria-hidden
+        />
+      );
+    }
     return (
       <button
         type="button"
         data-ww-edit="media"
         data-ww-path={slotId}
         data-ww-label="מדיה"
-        className={`flex min-h-[160px] w-full items-center justify-center border border-dashed border-white/40 bg-black/20 text-sm font-semibold text-white/80 ${className}`}
+        className={`flex min-h-[160px] w-full items-center justify-center border border-dashed border-[#C9A962]/50 bg-[#f7f1e8] text-sm font-semibold text-[#8A7B69] ${className}`}
       >
         הוסיפו תמונה או סרטון
       </button>
@@ -89,7 +117,7 @@ export default function WeddingMedia({
     return (
       <video
         src={url}
-        poster={resolved.poster || poster}
+        poster={posterUrl || undefined}
         autoPlay={resolved.autoplay}
         muted={resolved.autoplay ? true : resolved.muted}
         loop={resolved.loop}
@@ -100,6 +128,7 @@ export default function WeddingMedia({
         data-ww-edit={isEditor ? "media" : undefined}
         data-ww-path={isEditor ? slotId : undefined}
         data-ww-label={isEditor ? "מדיה" : undefined}
+        onError={() => setBroken("media")}
       />
     );
   }
@@ -113,6 +142,7 @@ export default function WeddingMedia({
       data-ww-edit={isEditor ? "media" : undefined}
       data-ww-path={isEditor ? slotId : undefined}
       data-ww-label={isEditor ? "מדיה" : undefined}
+      onError={() => setBroken("media")}
     />
   );
 }

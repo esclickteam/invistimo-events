@@ -101,6 +101,54 @@ test("media slots support image and video without persisting template demo URLs"
   assert.ok(live?.heroImage);
 });
 
+test("unique media slots keep story images independent from the gallery", () => {
+  const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+  const desert = read("components/wedding-website/templates/DesertRoseSite.tsx");
+  const royal = read("components/wedding-website/templates/RoyalIvorySite.tsx");
+  assert.match(eternal, /slot="how-we-met"/);
+  assert.match(eternal, /slot="proposal"/);
+  assert.match(desert, /slot="how-we-met"/);
+  assert.match(desert, /slot="proposal"/);
+  assert.match(royal, /slot="hero"/);
+  assert.match(royal, /slot="how-we-met"/);
+
+  const withStory = applyMediaToContent(WEDDING_DEMO_CONTENT, "how-we-met", {
+    type: "image",
+    src: "https://res.cloudinary.com/demo/image/upload/story.jpg",
+  });
+  assert.equal(withStory.media?.["how-we-met"]?.src, "https://res.cloudinary.com/demo/image/upload/story.jpg");
+  assert.notEqual(withStory.galleryImages?.[0], "https://res.cloudinary.com/demo/image/upload/story.jpg");
+});
+
+test("empty custom gallery falls back to template images instead of leaving holes", () => {
+  const template = {
+    id: "eternal-gold",
+    name: "Eternal",
+    tagline: "",
+    description: "",
+    previewImage: "https://example.com/preview.jpg",
+    heroImage: "https://example.com/demo-hero.jpg",
+    galleryImages: ["https://example.com/demo-1.jpg", "https://example.com/demo-2.jpg"],
+    theme: {} as WeddingTemplate["theme"],
+    mood: "romantic",
+  } as WeddingTemplate;
+  const live = overlayWeddingTemplateImages(template, { galleryImages: [] });
+  assert.equal(live?.galleryImages.length, 2);
+  assert.equal(live?.galleryImages[0], "https://example.com/demo-1.jpg");
+});
+
+test("inline text helpers keep line breaks and skip hydrating while typing", () => {
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const textEditing = read("lib/weddingWebsite/textEditing.ts");
+  assert.match(overlay, /insertLineBreak/);
+  assert.match(overlay, /pointerEvents: "none"/);
+  assert.doesNotMatch(overlay, /innerText\.trim\(\)/);
+  assert.match(hydrator, /isActivelyEditingText/);
+  assert.match(hydrator, /contenteditable='true'/);
+  assert.match(textEditing, /<br/);
+});
+
 test("serialize exposes draft separately from published content", () => {
   const serialized = serializeWeddingWebsite({
     title: "עמית & בן",

@@ -1,5 +1,6 @@
 export type WeddingInternalEventName =
   | "wedding_guest_message_received"
+  | "wedding_guest_message_replied"
   | "wedding_site_opened"
   | "wedding_site_rsvp_started"
   | "wedding_site_rsvp_completed"

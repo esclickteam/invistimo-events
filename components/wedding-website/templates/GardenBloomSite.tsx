@@ -216,7 +216,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#F4FAF4] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <motion.div initial={{ opacity: 0, rotate: -3 }} whileInView={{ opacity: 1, rotate: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-full shadow-xl" style={{ border: `4px solid ${GREEN}` }}>
-          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
+          <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
         </motion.div>
         <div>
           <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">איך נפגשנו</h2>
@@ -233,7 +233,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div initial={{ opacity: 0, rotate: 3 }} whileInView={{ opacity: 1, rotate: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-full shadow-xl" style={{ border: `4px solid ${GREEN}` }}>
-            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">

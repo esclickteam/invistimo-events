@@ -129,8 +129,45 @@ function GlassNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ModernGlassSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="px-4 py-20 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-center text-3xl font-bold">הספירה לאחור</h2>
+          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            {(
+              [
+                ["ימים", countdown.days],
+                ["שעות", countdown.hours],
+                ["דקות", countdown.minutes],
+                ["שניות", countdown.seconds],
+              ] as const
+            ).map(([label, val], i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+              >
+                <TiltCard>
+                  <GlassPanel className="p-6 text-center">
+                    <span className="text-4xl font-bold tabular-nums text-[#7C9CFF] md:text-5xl">
+                      {String(val).padStart(2, "0")}
+                    </span>
+                    <p className="mt-2 text-xs text-[#8892A8]">{label}</p>
+                  </GlassPanel>
+                </TiltCard>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+}
+
+export default function ModernGlassSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -229,38 +266,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
       </section>
 
       {/* COUNTDOWN — glass tiles */}
-      <section id="countdown" className="px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-3xl font-bold">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
-              >
-                <TiltCard>
-                  <GlassPanel className="p-6 text-center">
-                    <span className="text-4xl font-bold tabular-nums text-[#7C9CFF] md:text-5xl">
-                      {String(val).padStart(2, "0")}
-                    </span>
-                    <p className="mt-2 text-xs text-[#8892A8]">{label}</p>
-                  </GlassPanel>
-                </TiltCard>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="px-4 py-20 md:px-8">
@@ -305,7 +311,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
           <TiltCard>
             <GlassPanel className="overflow-hidden p-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+              <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
             </GlassPanel>
           </TiltCard>
           <TiltCard>

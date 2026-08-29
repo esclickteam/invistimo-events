@@ -139,8 +139,45 @@ function ForestNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ForestEnchantedSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="relative overflow-hidden py-20">
+        <Blob className="-left-20 top-0 h-64 w-64" />
+        <Blob className="-right-10 bottom-0 h-48 w-48" />
+        <Fireflies />
+        <div className="relative mx-auto max-w-4xl px-6 text-center">
+          <h2 className="font-['Libre_Baskerville'] text-4xl">הספירה לאחור</h2>
+          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {(
+              [
+                ["ימים", countdown.days],
+                ["שעות", countdown.hours],
+                ["דקות", countdown.minutes],
+                ["שניות", countdown.seconds],
+              ] as const
+            ).map(([label, val], i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/25 bg-[#1C2A1E] p-8"
+              >
+                <span className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A] md:text-5xl">
+                  {String(val).padStart(2, "0")}
+                </span>
+                <p className="mt-2 text-xs text-[#8AA892]">{label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+}
+
+export default function ForestEnchantedSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -154,6 +191,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       <section id="hero" className="relative flex min-h-screen items-end overflow-hidden">
         <WeddingMedia
           slot="hero" src={VIDEOS.forest}
+          poster={template.heroImage}
           autoPlay
           muted
           loop
@@ -195,38 +233,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       </section>
 
       {/* COUNTDOWN — organic blobs */}
-      <section id="countdown" className="relative overflow-hidden py-20">
-        <Blob className="-left-20 top-0 h-64 w-64" />
-        <Blob className="-right-10 bottom-0 h-48 w-48" />
-        <Fireflies />
-        <div className="relative mx-auto max-w-4xl px-6 text-center">
-          <h2 className="font-['Libre_Baskerville'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/25 bg-[#1C2A1E] p-8"
-              >
-                <span className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A] md:text-5xl">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-2 text-xs text-[#8AA892]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="relative py-20">
@@ -271,7 +278,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <WeddingMedia
-              slot={`gallery.0`} src={template.galleryImages[0]}
+              slot="how-we-met" src={template.galleryImages[0]}
               alt=""
               className="relative aspect-[4/5] w-full rounded-[40%_60%_55%_45%/50%_45%_55%_50%] object-cover"
             />

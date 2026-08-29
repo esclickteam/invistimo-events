@@ -46,7 +46,6 @@ const emptyContent: WeddingDemoContent = {
   guestMessageTitle: "השאירו לנו כמה מילים ❤️",
   guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
   heroImage: "",
-  galleryImages: [],
   media: {},
   styles: {},
   sectionStyles: {},
@@ -113,13 +112,17 @@ export default function WeddingVisualEditor() {
         setHasSite(configured);
         setPickerOpen(!configured);
         if (website) {
+          const stored = website.draftContent || website.content || {};
           const nextContent = {
             ...emptyContent,
-            ...(website.draftContent || website.content),
-            galleryImages: Array.isArray((website.draftContent || website.content)?.galleryImages)
-              ? (website.draftContent || website.content).galleryImages
-              : [],
-          };
+            ...stored,
+          } as WeddingDemoContent;
+          if (!Array.isArray(nextContent.galleryImages) || nextContent.galleryImages.length === 0) {
+            delete nextContent.galleryImages;
+          }
+          if (!nextContent.heroImage) {
+            delete nextContent.heroImage;
+          }
           setTemplateId(website.templateId);
           setPublished(website.published !== false);
           setContent(nextContent);
@@ -444,6 +447,11 @@ export default function WeddingVisualEditor() {
               template={selectedTemplate}
               content={content}
               editor={editorApi}
+              live={{
+                shareId,
+                invitationId,
+                role: "couple",
+              }}
             >
               <div className="relative min-w-0 flex-1 overflow-auto bg-[#2a2118] p-4">
                 <div

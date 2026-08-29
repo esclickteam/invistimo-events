@@ -117,6 +117,11 @@ export default function PublicWeddingWebsitePage() {
             />
           ) : null
         }
+        liveMeta={{
+          shareId,
+          token,
+          role: token ? "guest" : "demo",
+        }}
       />
     </div>
   );

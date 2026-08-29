@@ -27,6 +27,12 @@ const GuestWeddingMessageSchema = new Schema(
       default: "",
       trim: true,
     },
+    sender: {
+      type: String,
+      enum: ["guest", "couple"],
+      default: "guest",
+      index: true,
+    },
     message: {
       type: String,
       required: true,

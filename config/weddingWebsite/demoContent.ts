@@ -93,10 +93,10 @@ export const DEMO_GUEST_UPLOADS = [
   },
   {
     id: "3",
-    type: "video" as const,
+    type: "image" as const,
     url: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=600&q=80",
-    name: "dance-preview.mp4",
-    uploadedBy: "יoni",
+    name: "dance-preview.jpg",
+    uploadedBy: "יוני",
     createdAt: "2026-07-22",
   },
 ];

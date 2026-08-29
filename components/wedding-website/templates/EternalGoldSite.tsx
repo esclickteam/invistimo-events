@@ -192,7 +192,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
           viewport={{ once: true }}
           className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
         >
-          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </motion.div>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#C9A962]">Chapter I</p>
@@ -216,7 +216,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
             viewport={{ once: true }}
             className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
           >
-            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">
@@ -513,12 +513,14 @@ function GuestbookSection({
 }
 
 function GuestUploadSection() {
-  const { items, dragging, setDragging, uploaderName, setUploaderName, onDrop, onFileChange } = useGuestUpload();
+  const { items, dragging, setDragging, uploaderName, setUploaderName, onDrop, onFileChange, uploadHint, error } = useGuestUpload();
   return (
     <Section id="guest-upload" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">זיכרונות מהאירוע</h2>
         <GoldDivider />
+        <p className="text-center text-sm text-[#8A7560]">{uploadHint}</p>
+        {error ? <p className="mt-2 text-center text-sm font-bold text-red-600">{error}</p> : null}
         <input
           value={uploaderName}
           onChange={(e) => setUploaderName(e.target.value)}

@@ -6,11 +6,18 @@ import {
   BUSINESS_LOGIC_SKIP,
   buildTextIndex,
   defaultSectionOrder,
+  getByPath,
   isSectionVisible,
+  LOCKED_EVENT_PATHS,
   matchTextField,
 } from "@/lib/weddingWebsite/editorSchema";
 import { textStyleToCss } from "@/lib/weddingWebsite/styles";
 import { collectUsedWeddingFonts, loadWeddingFont } from "@/lib/weddingWebsite/fonts";
+import {
+  htmlToPlainTextWithBreaks,
+  isActivelyEditingText,
+  textHasBreaks,
+} from "@/lib/weddingWebsite/textEditing";
 import type { WeddingDemoContent } from "@/types/weddingWebsite";
 import { useWeddingSite } from "./WeddingSiteContext";
 
@@ -72,31 +79,40 @@ export function WeddingSiteRuntimeStyles() {
       ${mode === "editor"
         ? `
         [data-ww-edit]{cursor:pointer}
-        [data-ww-edit="text"]{cursor:text}
+        [data-ww-edit="text"]{cursor:text;white-space:pre-wrap}
+        [data-ww-edit="text"][contenteditable="true"]{outline:none!important;box-shadow:none!important;cursor:text}
         .ww-site img[data-ww-edit], .ww-site video[data-ww-edit]{cursor:pointer}
+        .ww-edit-text{display:contents}
       `
-        : ""}
+        : `
+        [data-ww-path]{white-space:pre-wrap}
+      `}
+      ${fonts.length ? "" : ""}
     `}</style>
   );
 }
 
 export function WeddingSiteHydrator({ children }: { children: ReactNode }) {
   const site = useWeddingSite();
+  const content = site?.content;
+  const mode = site?.mode;
 
   useLayoutEffect(() => {
-    if (!site) return;
-    const fonts = collectUsedWeddingFonts(site.content.styles);
+    if (!content) return;
+    const fonts = collectUsedWeddingFonts(content.styles);
     fonts.forEach((font) => loadWeddingFont(font.family));
-    hydrateEditableNodes(site.content, site.mode === "editor");
-  }, [site]);
+    hydrateEditableNodes(content, mode === "editor");
+  }, [content, mode]);
 
   return <>{children}</>;
 }
 
 export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: boolean) {
   if (typeof document === "undefined") return;
-  const root = document.querySelector(".ww-site") || document.querySelector(".wedding-website-root");
+  const root =
+    document.querySelector(".ww-site") || document.querySelector(".wedding-website-root");
   if (!root) return;
+  if (isActivelyEditingText(root)) return;
 
   const index = buildTextIndex(content);
 
@@ -108,6 +124,9 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
       if (!parent) return NodeFilter.FILTER_REJECT;
       if (parent.closest(SKIP)) return NodeFilter.FILTER_REJECT;
       if (["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA"].includes(parent.tagName)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      if (parent.isContentEditable || parent.closest("[contenteditable='true']")) {
         return NodeFilter.FILTER_REJECT;
       }
       return NodeFilter.FILTER_ACCEPT;
@@ -123,26 +142,15 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     const matched = matchTextField(node.textContent || "", index);
     if (!matched) continue;
 
-    const override =
-      matched.path.startsWith("copy.")
-        ? content.copy?.[matched.path.slice(5)] || content.copy?.[matched.path]
-        : undefined;
-    if (override && node.textContent?.trim() !== override) {
-      node.textContent = override;
-    }
-
-    const target =
-      parent.childNodes.length === 1 || parent.dataset.wwPath === matched.path
-        ? parent
-        : wrapTextNode(node);
-
+    const target = resolveTextTarget(node, parent, matched.path);
     if (!target) continue;
+
+    applySavedText(target, content, matched.path);
+
     target.dataset.wwPath = matched.path;
     target.dataset.wwLabel = matched.label;
     if (isEditor) target.dataset.wwEdit = "text";
-    else {
-      delete target.dataset.wwEdit;
-    }
+    else delete target.dataset.wwEdit;
   }
 
   if (!isEditor) return;
@@ -151,18 +159,57 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     const id = section.getAttribute("id");
     if (!id) return;
     if (section.closest(SKIP)) return;
+    if (section.getAttribute("data-ww-edit") === "text") return;
+    if (section.getAttribute("data-ww-edit") === "media") return;
     section.setAttribute("data-ww-edit", "section");
     section.setAttribute("data-ww-path", id);
     section.setAttribute("data-ww-label", "מקטע");
   });
 }
 
+function meaningfulChildNodes(el: HTMLElement) {
+  return Array.from(el.childNodes).filter((node) => {
+    if (node.nodeType !== Node.TEXT_NODE) return true;
+    return Boolean((node.textContent || "").trim());
+  });
+}
+
+function resolveTextTarget(node: Text, parent: HTMLElement, path: string) {
+  if (parent.dataset.wwPath === path) return parent;
+  const meaningful = meaningfulChildNodes(parent);
+  const onlyThisText =
+    meaningful.length === 1 && (meaningful[0] === node || meaningful[0] === parent.firstElementChild);
+  if (onlyThisText || parent.childNodes.length === 1) return parent;
+  return wrapTextNode(node);
+}
+
 function wrapTextNode(node: Text) {
   if (!node.parentElement) return null;
   if (node.parentElement.dataset.wwPath) return node.parentElement;
+  if (node.parentElement.classList.contains("ww-edit-text")) return node.parentElement;
   const span = document.createElement("span");
   span.className = "ww-edit-text";
   node.parentElement.insertBefore(span, node);
   span.appendChild(node);
   return span;
+}
+
+function applySavedText(target: HTMLElement, content: WeddingDemoContent, path: string) {
+  if (LOCKED_EVENT_PATHS.has(path)) return;
+  const savedRaw = getByPath(content, path);
+  const saved = typeof savedRaw === "string" ? savedRaw : "";
+  if (!saved) return;
+
+  const current = htmlToPlainTextWithBreaks(target);
+  if (current === saved) {
+    if (textHasBreaks(saved)) target.style.whiteSpace = "pre-wrap";
+    return;
+  }
+
+  const collapsedSaved = saved.replace(/\s+/g, " ").trim();
+  const collapsedCurrent = current.replace(/\s+/g, " ").trim();
+  if (collapsedSaved === collapsedCurrent && !textHasBreaks(saved)) return;
+
+  target.innerText = saved;
+  if (textHasBreaks(saved)) target.style.whiteSpace = "pre-wrap";
 }
