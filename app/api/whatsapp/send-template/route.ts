@@ -12,6 +12,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -733,7 +734,11 @@ const sendDateKey = new Date().toISOString().slice(0, 10);
           : guest.tableName || "";
 
       const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
-const rsvpLink = `https://www.invistimo.com/invite/${urlSuffix}`;
+const rsvpLink = buildGuestInviteUrl({
+  shareId: invitation.shareId,
+  token: guest.token,
+  rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+});
 
 const guestPayload = JSON.parse(JSON.stringify(payload));
 

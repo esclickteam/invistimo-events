@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import db from "@/lib/db";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 
 import InvitationGuest from "@/models/InvitationGuest";
@@ -335,7 +336,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const urlSuffix = `${shareId}?token=${token}`;
-    const rsvpLink = `https://www.invistimo.com/invite/${urlSuffix}`;
+    const rsvpLink = buildGuestInviteUrl({
+      shareId,
+      token,
+      rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    });
     const invitationTitle = cleanStr(invitation.title) || "האירוע שלנו";
     const eventDate = formatEventDateTime(
       invitation.eventDate || invitation.date,

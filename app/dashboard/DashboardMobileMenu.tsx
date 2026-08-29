@@ -16,6 +16,8 @@ import {
   ClipboardList,
   Bus,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { isPersonalRsvpSite } from "@/types/rsvpSite";
 
 type Props = {
   open: boolean;
@@ -39,7 +41,9 @@ export default function DashboardMobileMenu({
   isDemo = false,
 }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const canOpenWeddingWebsite = isPersonalRsvpSite(user?.rsvpSiteMode);
 
   const hasInvitation = Boolean(invitationId);
 
@@ -66,7 +70,9 @@ export default function DashboardMobileMenu({
     onClose();
 
     window.open(
-      `https://www.invistimo.com/invite/${invitationShareId}`,
+      canOpenWeddingWebsite
+        ? `/w/${invitationShareId}`
+        : `https://www.invistimo.com/invite/${invitationShareId}`,
       "_blank",
       "noopener,noreferrer"
     );
@@ -108,6 +114,20 @@ export default function DashboardMobileMenu({
       },
     },
 
+    {
+      title: "עריכת אתר חתונה",
+      subtitle: "תבנית, תוכן וצפייה באתר האישי",
+      icon: Sparkles,
+      badge: "אתר",
+      hidden: !canOpenWeddingWebsite,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/wedding-website");
+      },
+    },
     {
       title: "עריכת פרטי האירוע",
       subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",

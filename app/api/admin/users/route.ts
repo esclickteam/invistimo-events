@@ -8,6 +8,7 @@ import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import { normalizeRsvpSiteMode } from "@/types/rsvpSite";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -646,6 +647,7 @@ packageName
         accessModules
         selfManageEnabled
         customDesignEnabled
+        rsvpSiteMode
 
         createdByProducer
         producerId
@@ -1117,6 +1119,8 @@ packageName
 
           accessModules,
 
+          rsvpSiteMode: normalizeRsvpSiteMode(u.rsvpSiteMode),
+
           totalPaid: Number(payment?.totalPaid || u.paidAmount || 0),
           paymentsCount: Number(payment?.paymentsCount || 0),
           lastPaymentAt: payment?.lastPaymentAt || null,
@@ -1216,6 +1220,7 @@ export async function POST(req: Request) {
       plan,
       accessModules,
       callRoundsSchedule,
+      rsvpSiteMode,
 
       // staff fields
       staffType,
@@ -1593,6 +1598,8 @@ export async function POST(req: Request) {
       maxGuests: recordsNum,
 
       allowedMessageRounds,
+
+      rsvpSiteMode: normalizeRsvpSiteMode(rsvpSiteMode),
 
       maxMessages: 0,
       smsLimit: 0,

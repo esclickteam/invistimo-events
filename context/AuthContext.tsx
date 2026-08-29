@@ -85,6 +85,7 @@ interface User {
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;
   selfManageEnabled?: boolean;
+  rsvpSiteMode?: "standard" | "personal";
 
   // ⭐ producer only
   producerPricePerRecord?: number;

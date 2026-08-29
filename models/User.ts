@@ -220,6 +220,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
 
+  /**
+   * סוג אתר לאורחים.
+   * standard — קישור אישי לכל אורח (ברירת מחדל, לקוחות קיימים)
+   * personal — אתר חתונה אישי
+   */
+  rsvpSiteMode?: "standard" | "personal";
+
   accessModules?: {
     rsvpSeating: boolean;
     eventProduction: boolean;
@@ -982,6 +989,13 @@ preRsvpMessages: {
     includeTransportationManagement: {
       type: Boolean,
       default: false,
+      index: true,
+    },
+
+    rsvpSiteMode: {
+      type: String,
+      enum: ["standard", "personal"],
+      default: "standard",
       index: true,
     },
 

@@ -8,6 +8,10 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Event from "@/models/Event";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 import { getChangedFields } from "@/lib/invitationGuestWrites";
+import {
+  buildInvitationRsvpFields,
+  getOwnerRsvpSiteMode,
+} from "@/lib/weddingWebsite/rsvpSiteMode";
 
 import Group from "@/models/Group";
 
@@ -137,6 +141,8 @@ export async function POST(
       }
 
       // 4️⃣ עכשיו ליצור Invitation עם eventId תקין
+      const rsvpSiteMode = await getOwnerRsvpSiteMode(userId);
+
       invitation = await Invitation.create({
   ownerId: userId,
   producerId: producerId,
@@ -156,6 +162,12 @@ export async function POST(
   maxGuests: HARD_GUEST_CAP,
   sentSmsCount: 0,
   guests: [],
+  ...buildInvitationRsvpFields(rsvpSiteMode, {
+    title: event.title || "הזמנה חדשה",
+    eventDate: event.date || null,
+    eventTime: event.time || "",
+    location: event.location || {},
+  }),
 });
 
 

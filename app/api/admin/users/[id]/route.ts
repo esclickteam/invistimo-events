@@ -9,6 +9,8 @@ import Invitation from "@/models/Invitation";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
 import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
+import { normalizeRsvpSiteMode } from "@/types/rsvpSite";
+import { applyUserRsvpSiteMode } from "@/lib/weddingWebsite/rsvpSiteMode";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -648,6 +650,10 @@ export async function PATCH(
         ? body.assignedProducerIds
         : undefined,
 
+      rsvpSiteMode: hasField(body, "rsvpSiteMode")
+        ? normalizeRsvpSiteMode(body.rsvpSiteMode)
+        : undefined,
+
       assignedClientIds: hasField(body, "assignedClientIds")
         ? body.assignedClientIds
         : undefined,
@@ -724,6 +730,13 @@ export async function PATCH(
         { ownerId: id },
         { $set: { eventDate: nextEventDate } }
       );
+    }
+
+    if (hasField(body, "rsvpSiteMode")) {
+      await applyUserRsvpSiteMode({
+        userId: String(id),
+        rsvpSiteMode: body.rsvpSiteMode,
+      });
     }
 
     /* =====================================================

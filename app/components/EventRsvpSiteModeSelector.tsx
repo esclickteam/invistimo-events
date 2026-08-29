@@ -3,17 +3,21 @@
 import { useEffect, useState } from "react";
 import { Link2, Sparkles } from "lucide-react";
 import {
+  isPersonalRsvpSite,
   normalizeRsvpSiteMode,
   RSVP_SITE_MODE_DEFAULT,
   RSVP_SITE_MODE_OPTIONS,
   type RsvpSiteMode,
 } from "@/types/rsvpSite";
+import { useAuth } from "@/context/AuthContext";
 
 type Props = {
   invitationId: string;
 };
 
 export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
+  const { user } = useAuth();
+  const userAllowsPersonal = isPersonalRsvpSite(user?.rsvpSiteMode);
   const [mode, setMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
   const [invitationSettings, setInvitationSettings] = useState<
     Record<string, unknown>
@@ -193,13 +197,19 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
         </h2>
 
         <p className="mt-2 max-w-[720px] text-sm font-semibold leading-relaxed text-[#8A7B69]">
-          בחרו איך האורחים יגיעו לאישור ההגעה — קישור רגיל או אתר חתונה אישי.
-          כרגע שני הסוגים נשמרים כהגדרה בלבד; הקישור הרגיל ממשיך לעבוד כרגיל.
+          {userAllowsPersonal || mode === "personal"
+            ? "ללקוח הזה נפתח אתר חתונה אישי. אפשר לערוך אותו מדשבורד אתר החתונה."
+            : "הלקוח הזה מקבל קישור אישי לכל אורח, כמו הלקוחות הקיימים. אתר חתונה נפתח רק בהקמת משתמש או בהפעלה ידנית באדמין."}
         </p>
       </div>
 
       <div className="relative z-10 grid grid-cols-1 gap-4 px-7 py-6 lg:grid-cols-2">
-        {RSVP_SITE_MODE_OPTIONS.map((option) => {
+        {RSVP_SITE_MODE_OPTIONS.filter((option) => {
+          if (option.value === "personal") {
+            return userAllowsPersonal || mode === "personal";
+          }
+          return true;
+        }).map((option) => {
           const selected = mode === option.value;
           const isPersonal = option.value === "personal";
 
@@ -322,11 +332,19 @@ export default function EventRsvpSiteModeSelector({ invitationId }: Props) {
           {saving
             ? "שומר בחירה..."
             : saved
-              ? "הבחירה נשמרה. האתר האישי יופעל בשלב הבא."
+              ? "הבחירה נשמרה."
               : mode === "personal"
-                ? "נבחר אתר אישי — ההגדרה נשמרת, אך האורחים עדיין מקבלים את הקישור הרגיל."
-                : "נבחר קישור רגיל — זה מה שהאורחים מקבלים היום."}
+                ? "נבחר אתר חתונה אישי — האורחים יקבלו קישור לאתר."
+                : "נבחר קישור אישי לכל אורח — זה מה שהלקוחות הקיימים מקבלים."}
         </p>
+        {mode === "personal" ? (
+          <a
+            href="/dashboard/wedding-website"
+            className="mt-3 inline-flex text-sm font-black text-[#B8844F]"
+          >
+            לעריכת אתר החתונה
+          </a>
+        ) : null}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import {
   AUTO_REMINDER_BY_TABLE,
   resolveReminderSmsTemplate,
@@ -220,7 +221,11 @@ async function buildSmsText({
 }) {
   const invitationTitle = invitation?.title?.trim() || "האירוע שלנו";
 
-  const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+  const personalUrl = buildGuestInviteUrl({
+    shareId: invitation.shareId,
+    token: guest.token,
+    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+  });
   const shortUrl = await shortenUrl(personalUrl);
 
   const tableName = getTableName(guest);
@@ -949,7 +954,11 @@ export async function sendScheduledWhatsapp() {
         const tableName = getTableName(guest);
 
         const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
-const personalUrl = `https://www.invistimo.com/invite/${urlSuffix}`;
+const personalUrl = buildGuestInviteUrl({
+  shareId: invitation.shareId,
+  token: guest.token,
+  rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+});
 
         const replacements = {
           name: guest.name || "",

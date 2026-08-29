@@ -12,6 +12,7 @@ import {
   formatScheduleDate,
   formatScheduleTime,
 } from "@/lib/formatScheduleDateTime";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 /* ================= TYPES ================= */
 
@@ -406,7 +407,11 @@ const navigationLink =
     ? `https://www.invistimo.com/e/${invitation.shareId}`
     : "";
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    const rsvpLink = buildGuestInviteUrl({
+      shareId: invitation.shareId,
+      token: guest.token,
+      rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    });
 
     // 🪑 מספר שולחן
     const tableName =
@@ -683,7 +688,11 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
 
     console.groupEnd();
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    const rsvpLink = buildGuestInviteUrl({
+      shareId: invitation.shareId,
+      token: guest.token,
+      rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    });
 
     const tableName =
       guest.tableName ||

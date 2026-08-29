@@ -1,4 +1,5 @@
 import { shortenUrl } from "@/lib/shortenUrl";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -14,6 +15,8 @@ type BuildSmsParams = {
 
   invitation: {
     shareId: string;
+    invitationSettings?: { rsvpSiteMode?: unknown };
+    rsvpSiteMode?: unknown;
     eventLocation?: {
       lat?: number;
       lng?: number;
@@ -68,8 +71,11 @@ export async function buildFinalSmsText({
 
   /* ================= RSVP ================= */
 
-  const personalRsvpUrl =
-    `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+  const personalRsvpUrl = buildGuestInviteUrl({
+    shareId: invitation.shareId,
+    token: guest.token,
+    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+  });
 
   const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 

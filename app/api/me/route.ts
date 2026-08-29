@@ -1080,6 +1080,9 @@ export async function GET() {
 
           accessModules,
 
+          rsvpSiteMode:
+            currentUser.rsvpSiteMode === "personal" ? "personal" : "standard",
+
           includeSeating: currentUser.includeSeating === true,
           includeDigitalSeating: accessModules.rsvpSeating,
           includeEventManagement: accessModules.eventProduction,

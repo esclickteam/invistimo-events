@@ -1,7 +1,18 @@
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
-import type { WeddingTemplate } from "@/types/weddingWebsite";
+import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
-export const DEMO = WEDDING_DEMO_CONTENT;
+let liveContent: WeddingDemoContent | null = null;
+
+export function setLiveWeddingContent(content: WeddingDemoContent | null) {
+  liveContent = content;
+}
+
+export const DEMO = new Proxy(WEDDING_DEMO_CONTENT, {
+  get(_target, prop) {
+    const source = liveContent || WEDDING_DEMO_CONTENT;
+    return source[prop as keyof WeddingDemoContent];
+  },
+});
 
 export const VIDEOS = {
   couple: "https://assets.mixkit.co/videos/preview/mixkit-wedding-couple-holding-hands-4826-large.mp4",
@@ -43,4 +54,5 @@ export function useCountdown(targetDate: string, targetTime: string) {
 export type TemplateProps = {
   template: WeddingTemplate;
   embed?: boolean;
+  live?: boolean;
 };

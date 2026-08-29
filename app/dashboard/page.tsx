@@ -23,6 +23,8 @@ import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
+import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { isPersonalRsvpSite } from "@/types/rsvpSite";
 
 type EventModel = {
   title?: string;
@@ -1352,7 +1354,11 @@ const pending = guests.filter(
   ============================================================ */
   const getGuestInviteLink = (guest: Guest) => {
     if (!invitation?.shareId) return "";
-    return `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    return buildGuestInviteUrl({
+      shareId: invitation.shareId,
+      token: guest.token,
+      rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+    });
   };
 
   /* ============================================================
@@ -3613,7 +3619,10 @@ function GoldenActionButtons({
                 }
 
                 window.open(
-                  `https://www.invistimo.com/invite/${invitation.shareId}`,
+                  buildGuestInviteUrl({
+                    shareId: invitation.shareId,
+                    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+                  }),
                   "_blank",
                   "noopener,noreferrer"
                 );
@@ -3659,6 +3668,23 @@ function GoldenActionButtons({
         router.push(`/dashboard/invitations/${invitationId}/edit`);
       }}
     />
+
+    {isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation)) && (
+      <GoldenActionButton
+        label="אתר חתונה"
+        icon="✦"
+        tone="gold"
+        disabled={!invitation}
+        onClick={() => {
+          if (!invitation) return;
+          if (isDemo) {
+            onDemoBlocked();
+            return;
+          }
+          router.push("/dashboard/wedding-website");
+        }}
+      />
+    )}
 
     {/* 3️⃣ ניהול אירוע */}
     {canOpenEventManagement && (
