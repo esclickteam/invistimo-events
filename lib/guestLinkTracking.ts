@@ -97,6 +97,15 @@ export function guestLinkWasOpened(guest?: {
   return Number(guest.openCount || 0) > 0;
 }
 
+export function matchesGuestLinkOpenFilter(
+  guest: { firstOpenedAt?: unknown; openCount?: unknown } | null | undefined,
+  filter: string
+): boolean {
+  if (filter === "opened") return guestLinkWasOpened(guest);
+  if (filter === "notOpened") return !guestLinkWasOpened(guest);
+  return true;
+}
+
 export function formatGuestLinkOpenedAt(value: unknown): string {
   const date = toDate(value);
   if (!date) return "";

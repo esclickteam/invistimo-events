@@ -8,6 +8,7 @@ import {
   buildGuestLinkTimeline,
   formatGuestLinkOpenedAt,
   guestLinkWasOpened,
+  matchesGuestLinkOpenFilter,
   nextGuestLinkOpenState,
   shouldSkipGuestLinkTracking,
 } from "../../lib/guestLinkTracking";
@@ -71,6 +72,23 @@ test("existing guests without tracking fields are not opened", () => {
   assert.equal(guestLinkWasOpened({ firstOpenedAt: null, openCount: 0 }), false);
   assert.equal(guestLinkWasOpened({ firstOpenedAt: "2026-08-29T05:00:00.000Z" }), true);
   assert.equal(guestLinkWasOpened({ openCount: 2 }), true);
+});
+
+test("opened / notOpened filters only query existing tracking fields", () => {
+  const opened = { firstOpenedAt: "2026-08-29T05:00:00.000Z", openCount: 1 };
+  const closed = { firstOpenedAt: null, openCount: 0 };
+
+  assert.equal(matchesGuestLinkOpenFilter(opened, "opened"), true);
+  assert.equal(matchesGuestLinkOpenFilter(closed, "opened"), false);
+  assert.equal(matchesGuestLinkOpenFilter(opened, "notOpened"), false);
+  assert.equal(matchesGuestLinkOpenFilter(closed, "notOpened"), true);
+  assert.equal(matchesGuestLinkOpenFilter(closed, "all"), true);
+
+  const controls = read("app/components/GuestsControls.tsx");
+  const dashboard = read("app/dashboard/page.tsx");
+  assert.match(controls, /נפתח/);
+  assert.match(controls, /לא נפתח/);
+  assert.match(dashboard, /matchesGuestLinkOpenFilter/);
 });
 
 test("bot and preview traffic is skipped without counting", () => {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import GuestsMobileList from "@/app/dashboard/components/GuestsMobileList";
 import { RSVP_LABELS } from "@/lib/rsvp";
+import { guestLinkWasOpened } from "@/lib/guestLinkTracking";
 
 /* ============================================================
    Types
@@ -23,7 +24,7 @@ export type Guest = {
   notes?: string;
 };
 
-type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
+type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable" | "opened" | "notOpened";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
@@ -78,6 +79,10 @@ export default function GuestsTable({
     if (quickFilter === "pending") list = list.filter((g) => g.rsvp === "pending");
     if (quickFilter === "noTable")
       list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+    if (quickFilter === "opened")
+      list = list.filter((g) => guestLinkWasOpened(g));
+    if (quickFilter === "notOpened")
+      list = list.filter((g) => !guestLinkWasOpened(g));
 
     const q = search.trim().toLowerCase();
     if (q) {
@@ -144,6 +149,8 @@ export default function GuestsTable({
         <div className="flex flex-wrap gap-2">
           {[
             ["all", "הכל"],
+            ["opened", "נפתח"],
+            ["notOpened", "לא נפתח"],
             ["yes", "מגיעים"],
             ["pending", "ממתינים"],
             ["no", "לא מגיעים"],

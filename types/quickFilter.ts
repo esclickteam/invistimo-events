@@ -4,6 +4,8 @@ export type QuickFilter =
   | "no"
   | "pending"
   | "noTable"
+  | "opened"
+  | "notOpened"
 
   // 🔽 סבבי שיחות
   | "call_round_1" // סבב 1

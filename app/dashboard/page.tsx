@@ -26,6 +26,7 @@ import type { QuickFilter } from "@/types/quickFilter";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
+import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
 
 type EventModel = {
   title?: string;
@@ -1792,6 +1793,10 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
 
     if (quickFilterValue === "pending") {
       list = list.filter((g) => getGuestRsvp(g) === "pending");
+    }
+
+    if (quickFilterValue === "opened" || quickFilterValue === "notOpened") {
+      list = list.filter((g) => matchesGuestLinkOpenFilter(g, quickFilterValue));
     }
 
     if (isCallFilter(quickFilter)) {
