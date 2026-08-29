@@ -17,7 +17,13 @@ export default function Footer() {
     pathname === "/staff" ||
     pathname.startsWith("/staff/");
 
-  if (isStaffPage) {
+  const isWeddingWebsite =
+    pathname === "/w" ||
+    pathname.startsWith("/w/") ||
+    pathname === "/wedding-website" ||
+    pathname.startsWith("/wedding-website/");
+
+  if (isStaffPage || isWeddingWebsite) {
     return null;
   }
 

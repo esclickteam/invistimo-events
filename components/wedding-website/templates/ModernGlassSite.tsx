@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
@@ -10,8 +9,8 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -104,9 +103,9 @@ function GlassNav({ embed }: { embed?: boolean }) {
           scrolled ? "shadow-[0_8px_40px_rgba(124,156,255,0.15)]" : ""
         }`}
       >
-        <Link href="/wedding-website" className="text-xs font-medium text-[#7C9CFF]">
-          ← תבניות
-        </Link>
+        <span className="text-xs font-medium text-[#7C9CFF]">
+          {DEMO.coupleShort}
+        </span>
         <nav className="hidden gap-1 md:flex">
           {NAV.slice(1, 10).map(({ id, navLabel }) => (
             <a
@@ -129,16 +128,15 @@ function GlassNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ModernGlassSite({ template, embed }: TemplateProps) {
+export default function ModernGlassSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
+    <div className="min-h-screen overflow-x-hidden font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
       <GradientMeshBg />
       <GlassNav embed={embed} />
 
@@ -527,54 +525,16 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* RSVP */}
+      {!(live && !rsvpController) && (
       <section id="rsvp" className="px-4 py-24 md:px-8">
         <TiltCard className="mx-auto max-w-md">
           <GlassPanel className="border-[#7C9CFF]/30 p-8">
             <h2 className="text-center text-3xl font-bold">אישור הגעה</h2>
-            {rsvp.sent ? (
-              <p className="mt-10 text-center text-[#7C9CFF]">✓ תודה! נתראה בחתונה.</p>
-            ) : (
-              <div className="mt-8 space-y-4">
-                <div className="flex gap-2">
-                  {(["yes", "no"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => rsvp.setRsvp(v)}
-                      className={`flex-1 rounded-xl py-3 text-sm font-bold transition ${
-                        rsvp.rsvp === v
-                          ? "bg-[#7C9CFF] text-[#0A0E17]"
-                          : "border border-white/15 text-[#8892A8] hover:border-[#7C9CFF]/50"
-                      }`}
-                    >
-                      {v === "yes" ? "מגיעים" : "לא מגיעים"}
-                    </button>
-                  ))}
-                </div>
-                {rsvp.rsvp === "yes" && (
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-center outline-none backdrop-blur"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                  disabled={!rsvp.rsvp}
-                  className="w-full rounded-xl bg-[#7C9CFF] py-3 font-bold text-[#0A0E17] disabled:opacity-40"
-                >
-                  שליחה
-                </button>
-              </div>
-            )}
+            <WeddingTemplateRsvp templateId="modern-glass" controller={rsvpController} />
           </GlassPanel>
         </TiltCard>
       </section>
-
+      )}
       {/* GIFTS */}
       <section id="gifts" className="px-4 py-20 md:px-8">
         <TiltCard className="mx-auto max-w-lg">
@@ -592,6 +552,9 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* GUESTBOOK */}
+      {live ? (
+        guestMessageSlot ? <section id="guestbook" className="py-16">{guestMessageSlot}</section> : null
+      ) : (
       <section id="guestbook" className="px-4 py-20 md:px-8">
         <div className="mx-auto max-w-xl">
           <h2 className="mb-10 text-center text-3xl font-bold">ספר ברכות</h2>
@@ -629,6 +592,7 @@ export default function ModernGlassSite({ template, embed }: TemplateProps) {
         </div>
       </section>
 
+      )}
       {/* GUEST UPLOAD */}
       <section id="guest-upload" className="px-4 py-20 md:px-8">
         <div className="mx-auto max-w-5xl">

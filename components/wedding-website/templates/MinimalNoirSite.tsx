@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
@@ -10,8 +9,8 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -50,12 +49,9 @@ function NoirNav({ embed }: { embed?: boolean }) {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-black bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link
-          href="/wedding-website"
-          className="font-mono text-[10px] uppercase tracking-widest hover:underline"
-        >
-          ← תבניות
-        </Link>
+        <span className="font-mono text-[10px] uppercase tracking-widest">
+          {DEMO.coupleShort}
+        </span>
         <nav className="hidden gap-0 md:flex">
           {NAV.slice(0, 8).map(({ id, navLabel }) => (
             <a
@@ -80,9 +76,8 @@ function NoirNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function MinimalNoirSite({ template, embed }: TemplateProps) {
+export default function MinimalNoirSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -93,7 +88,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
   const [namesFirst, namesSecond] = DEMO.coupleNames.split("&").map((s) => s.trim());
 
   return (
-    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
+    <div className="min-h-screen overflow-x-hidden bg-white text-black selection:bg-black selection:text-white">
       <NoirNav embed={embed} />
 
       {/* Progress line */}
@@ -485,54 +480,15 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* RSVP */}
+      {!(live && !rsvpController) && (
       <section id="rsvp" className="border-t border-black bg-black text-white">
         <div className="mx-auto max-w-xl p-8 md:p-16">
           <NoirLabel>RSVP</NoirLabel>
           <h2 className="mb-8 text-3xl font-black">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <p className="font-mono text-sm">תודה! קיבלנו את אישור ההגעה שלכם.</p>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-0 border border-white">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`py-4 font-mono text-xs uppercase tracking-widest ${
-                      rsvp.rsvp === v ? "bg-white text-black" : "hover:bg-white/10"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <div className="flex items-center gap-4">
-                  <span className="font-mono text-xs">מספר אורחים</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-16 border border-white bg-transparent px-2 py-1 font-mono text-center"
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
-                className="w-full border border-white py-4 font-mono text-xs uppercase tracking-widest disabled:opacity-30"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
+          <WeddingTemplateRsvp templateId="minimal-noir" controller={rsvpController} />
         </div>
       </section>
-
+      )}
       {/* GIFTS */}
       <section id="gifts" className="border-t border-black">
         <div className="mx-auto max-w-2xl p-8 py-20 text-center md:p-16">
@@ -549,6 +505,9 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* GUESTBOOK */}
+      {live ? (
+        guestMessageSlot ? <section id="guestbook" className="py-16">{guestMessageSlot}</section> : null
+      ) : (
       <section id="guestbook" className="border-t border-black bg-neutral-50">
         <div className="mx-auto max-w-3xl p-8 md:p-16">
           <NoirLabel>Guestbook</NoirLabel>
@@ -582,6 +541,7 @@ export default function MinimalNoirSite({ template, embed }: TemplateProps) {
         </div>
       </section>
 
+      )}
       {/* GUEST UPLOAD */}
       <section id="guest-upload" className="border-t border-black">
         <div className="mx-auto max-w-7xl p-8 md:p-16">

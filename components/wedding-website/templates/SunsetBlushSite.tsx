@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
@@ -10,8 +9,8 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import { MapPin } from "lucide-react";
 import LocationDisplay from "@/app/components/LocationDisplay";
@@ -75,9 +74,9 @@ function BlushNav({ embed }: { embed?: boolean }) {
   return (
     <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/wedding-website" className="text-sm font-medium text-[#E8788A]">
-          ← תבניות
-        </Link>
+        <span className="text-sm font-medium text-[#E8788A]">
+          {DEMO.coupleShort}
+        </span>
         <button
           type="button"
           onClick={() => setOpen(!open)}
@@ -108,9 +107,8 @@ function BlushNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function SunsetBlushSite({ template, embed }: TemplateProps) {
+export default function SunsetBlushSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -119,7 +117,7 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
   const polaroidRotations = [-6, 4, -3, 7, -5, 3];
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-[#3D1F28]">
+    <div className="min-h-screen overflow-x-hidden bg-[#FFF5F7] text-[#3D1F28]">
       <BlushNav embed={embed} />
 
       {/* HERO — gradient mesh + hero image overlay */}
@@ -127,14 +125,10 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
         <GradientMeshHero />
         <HeartParticles />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url(${template.heroImage})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(2px)",
-          }}
+        <img
+          src={template.heroImage}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-20 blur-[2px]"
         />
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -469,59 +463,14 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* RSVP */}
+      {!(live && !rsvpController) && (
       <section id="rsvp" className="py-24">
         <div className="mx-auto max-w-md px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <motion.p
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="mt-10 text-center text-2xl"
-            >
-              ♥ תודה!
-            </motion.p>
-          ) : (
-            <div className="mt-10 rounded-[28px] bg-white p-8 shadow-[0_15px_50px_rgba(232,120,138,0.2)]">
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 rounded-full py-3 text-sm font-bold transition ${
-                      rsvp.rsvp === v
-                        ? "bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] text-white"
-                        : "bg-[#FFE8EE] text-[#E8788A]"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים ♥" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={rsvp.count}
-                  onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                  className="mt-6 w-full rounded-full border border-[#FFD4DC] px-5 py-3 text-center"
-                  placeholder="מספר אורחים"
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
-                className="mt-6 w-full rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] py-3 font-bold text-white disabled:opacity-40"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
+          <WeddingTemplateRsvp templateId="sunset-blush" controller={rsvpController} />
         </div>
       </section>
-
+      )}
       {/* GIFTS */}
       <section id="gifts" className="py-20 text-center">
         <span className="text-5xl">🎁</span>
@@ -536,6 +485,9 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
       </section>
 
       {/* GUESTBOOK */}
+      {live ? (
+        guestMessageSlot ? <section id="guestbook" className="py-16">{guestMessageSlot}</section> : null
+      ) : (
       <section id="guestbook" className="bg-white py-20">
         <div className="mx-auto max-w-xl px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">ספר ברכות</h2>
@@ -569,6 +521,7 @@ export default function SunsetBlushSite({ template, embed }: TemplateProps) {
         </div>
       </section>
 
+      )}
       {/* GUEST UPLOAD */}
       <section id="guest-upload" className="py-20">
         <div className="mx-auto max-w-5xl px-6">

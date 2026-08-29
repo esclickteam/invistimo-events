@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
@@ -9,12 +8,12 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
-  useRsvpDemo,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const TERRACOTTA = "#C4705A";
@@ -407,30 +406,18 @@ function FaqSection() {
   );
 }
 
-function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+function RsvpSection({
+  live,
+  rsvpController,
+}: Pick<TemplateProps, "live" | "rsvpController">) {
+  if (live && !rsvpController) return null;
   return (
     <Section id="rsvp" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-lg px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">אישור הגעה</h2>
-        {sent ? (
-          <p className="mt-10 text-center text-xl" style={{ color: TERRACOTTA }}>תודה רבה! 🌵</p>
-        ) : (
-          <div className="relative mt-10 space-y-4 bg-[#FBF5F0] p-8 shadow-lg">
-            <SandShimmer />
-            <div className="relative flex gap-3">
-              {(["yes", "no"] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setRsvp(v)} className={`flex-1 py-3 text-sm font-bold ${rsvp === v ? "text-white" : "border-2"}`} style={rsvp === v ? { backgroundColor: TERRACOTTA } : { borderColor: TERRACOTTA, color: TERRACOTTA }}>
-                  {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                </button>
-              ))}
-            </div>
-            {rsvp === "yes" && <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="relative w-full border bg-white px-4 py-3 text-center" style={{ borderColor: TERRACOTTA }} />}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="relative w-full py-4 text-sm font-bold text-white disabled:opacity-40" style={{ backgroundColor: TERRACOTTA }}>
-              שליחה
-            </button>
-          </div>
-        )}
+        <div className="mt-10">
+          <WeddingTemplateRsvp templateId="desert-rose" controller={rsvpController} />
+        </div>
       </div>
     </Section>
   );
@@ -450,8 +437,19 @@ function GiftsSection() {
   );
 }
 
-function GuestbookSection() {
+function GuestbookSection({
+  live,
+  guestMessageSlot,
+}: Pick<TemplateProps, "live" | "guestMessageSlot">) {
   const { message, setMessage, items, addMessage } = useGuestbook();
+  if (live) {
+    if (!guestMessageSlot) return null;
+    return (
+      <Section id="guestbook" className="bg-[#F5E8DE] py-24" diagonal>
+        {guestMessageSlot}
+      </Section>
+    );
+  }
   return (
     <Section id="guestbook" className="bg-[#F5E8DE] py-24" diagonal>
       <div className="mx-auto max-w-3xl px-6">
@@ -530,14 +528,15 @@ function FooterSection() {
   );
 }
 
-export default function DesertRoseSite({ template, embed }: TemplateProps) {
+export default function DesertRoseSite({
+  template,
+  embed,
+  live,
+  rsvpController,
+  guestMessageSlot,
+}: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518] scroll-smooth">
-      {!embed && (
-        <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] px-4 py-2 text-xs font-bold text-white shadow-lg" style={{ backgroundColor: TERRACOTTA, clipPath: "polygon(5% 0, 100% 0, 95% 100%, 0 100%)" }}>
-          ← כל התבניות
-        </Link>
-      )}
+    <div className="wedding-website-root overflow-x-hidden bg-[#FBF5F0] text-[#3D2518] scroll-smooth">
       {!embed && <StickyNav />}
       <HeroSection template={template} />
       <CountdownSection />
@@ -554,9 +553,9 @@ export default function DesertRoseSite({ template, embed }: TemplateProps) {
       <AccommodationsSection />
       <TransportationSection />
       <FaqSection />
-      <RsvpSection />
+      <RsvpSection live={live} rsvpController={rsvpController} />
       <GiftsSection />
-      <GuestbookSection />
+      <GuestbookSection live={live} guestMessageSlot={guestMessageSlot} />
       <GuestUploadSection />
       <PlaylistSection />
       <FooterSection />

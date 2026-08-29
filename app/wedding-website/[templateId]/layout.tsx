@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export default function PublicWeddingSiteLayout({ children }: { children: ReactNode }) {
+export default function WeddingTemplateDemoLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <style>{`

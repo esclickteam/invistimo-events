@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
@@ -10,8 +9,8 @@ import {
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
-  useRsvpDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -66,12 +65,9 @@ function RoyalNav({ embed }: { embed?: boolean }) {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link
-          href="/wedding-website"
-          className="font-['Playfair_Display'] text-sm italic text-[#8C7B68] hover:text-[#B8956B]"
-        >
-          ← כל התבניות
-        </Link>
+        <span className="font-['Playfair_Display'] text-sm italic text-[#8C7B68]">
+          {DEMO.coupleShort}
+        </span>
         <nav className="hidden gap-6 lg:flex">
           {NAV.slice(1, 9).map(({ id, navLabel }) => (
             <a
@@ -94,16 +90,15 @@ function RoyalNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function RoyalIvorySite({ template, embed }: TemplateProps) {
+export default function RoyalIvorySite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const rsvp = useRsvpDemo();
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
+    <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
       <RoyalNav embed={embed} />
 
       {/* HERO — overlapping double frames */}
@@ -459,59 +454,16 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
       </section>
 
       {/* RSVP */}
+      {!(live && !rsvpController) && (
       <section id="rsvp" className="relative py-24">
         <LaceBg />
         <div className="relative mx-auto max-w-lg px-6">
           <CrownOrnament className="mx-auto mb-6" />
           <h2 className="text-center font-['Playfair_Display'] text-4xl">אישור הגעה</h2>
-          {rsvp.sent ? (
-            <p className="mt-10 text-center font-['Playfair_Display'] italic text-[#B8956B]">
-              תודה רבה! נשמח לראותכם.
-            </p>
-          ) : (
-            <div className="mt-10 rounded-3xl border border-[#B8956B]/25 bg-white p-8 shadow-lg">
-              <div className="flex gap-3">
-                {(["yes", "no"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => rsvp.setRsvp(v)}
-                    className={`flex-1 rounded-full py-3 font-['Playfair_Display'] text-sm transition ${
-                      rsvp.rsvp === v
-                        ? "bg-[#B8956B] text-white"
-                        : "border border-[#B8956B]/30 text-[#B8956B]"
-                    }`}
-                  >
-                    {v === "yes" ? "מגיעים" : "לא מגיעים"}
-                  </button>
-                ))}
-              </div>
-              {rsvp.rsvp === "yes" && (
-                <div className="mt-6 flex items-center justify-center gap-4">
-                  <span className="text-sm">מספר אורחים</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rsvp.count}
-                    onChange={(e) => rsvp.setCount(Number(e.target.value))}
-                    className="w-16 rounded-full border border-[#B8956B]/30 px-3 py-2 text-center"
-                  />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => rsvp.rsvp && rsvp.setSent(true)}
-                disabled={!rsvp.rsvp}
-                className="mt-6 w-full rounded-full bg-[#B8956B] py-3 font-['Playfair_Display'] text-white disabled:opacity-40"
-              >
-                שליחה
-              </button>
-            </div>
-          )}
+          <WeddingTemplateRsvp templateId="royal-ivory" controller={rsvpController} />
         </div>
       </section>
-
+      )}
       {/* GIFTS */}
       <section id="gifts" className="bg-white py-20 text-center">
         <h2 className="font-['Playfair_Display'] text-4xl">מתנות</h2>
@@ -525,6 +477,9 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
       </section>
 
       {/* GUESTBOOK */}
+      {live ? (
+        guestMessageSlot ? <section id="guestbook" className="py-16">{guestMessageSlot}</section> : null
+      ) : (
       <section id="guestbook" className="py-20">
         <div className="mx-auto max-w-2xl px-6">
           <h2 className="text-center font-['Playfair_Display'] text-4xl">ספר ברכות</h2>
@@ -558,6 +513,7 @@ export default function RoyalIvorySite({ template, embed }: TemplateProps) {
         </div>
       </section>
 
+      )}
       {/* GUEST UPLOAD */}
       <section id="guest-upload" className="bg-white py-20">
         <div className="mx-auto max-w-5xl px-6">

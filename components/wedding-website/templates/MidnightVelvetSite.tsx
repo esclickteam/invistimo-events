@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
@@ -9,12 +8,12 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
-  useRsvpDemo,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const fadeIn = {
@@ -402,36 +401,18 @@ function FaqSection() {
   );
 }
 
-function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+function RsvpSection({
+  live,
+  rsvpController,
+}: Pick<TemplateProps, "live" | "rsvpController">) {
+  if (live && !rsvpController) return null;
   return (
     <Section id="rsvp" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-lg px-6">
         <h2 className="text-center font-['Playfair_Display'] text-4xl text-[#F5F0E8]">אישור הגעה</h2>
-        {sent ? (
-          <p className="mt-10 text-center text-[#D4AF37]">תודה רבה!</p>
-        ) : (
-          <Glass className="mt-10 space-y-4">
-            <div className="flex gap-3">
-              {(["yes", "no"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setRsvp(v)}
-                  className={`flex-1 rounded-lg py-3 text-sm font-bold ${rsvp === v ? "bg-[#D4AF37] text-black" : "border border-[#D4AF37]/30 text-[#A89BB0]"}`}
-                >
-                  {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                </button>
-              ))}
-            </div>
-            {rsvp === "yes" && (
-              <input type="number" min={1} max={10} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-lg border border-[#D4AF37]/30 bg-black/40 px-4 py-3 text-[#F5F0E8]" />
-            )}
-            <button type="button" onClick={() => rsvp && setSent(true)} disabled={!rsvp} className="w-full rounded-lg bg-[#D4AF37] py-4 font-bold text-black disabled:opacity-40">
-              שליחה
-            </button>
-          </Glass>
-        )}
+        <div className="mt-10">
+          <WeddingTemplateRsvp templateId="midnight-velvet" controller={rsvpController} />
+        </div>
       </div>
     </Section>
   );
@@ -453,8 +434,19 @@ function GiftsSection() {
   );
 }
 
-function GuestbookSection() {
+function GuestbookSection({
+  live,
+  guestMessageSlot,
+}: Pick<TemplateProps, "live" | "guestMessageSlot">) {
   const { message, setMessage, items, addMessage } = useGuestbook();
+  if (live) {
+    if (!guestMessageSlot) return null;
+    return (
+      <Section id="guestbook" className="bg-[#0D0B10] py-24">
+        {guestMessageSlot}
+      </Section>
+    );
+  }
   return (
     <Section id="guestbook" className="bg-[#0D0B10] py-24">
       <div className="mx-auto max-w-3xl px-6">
@@ -538,14 +530,15 @@ function FooterSection() {
   );
 }
 
-export default function MidnightVelvetSite({ template, embed }: TemplateProps) {
+export default function MidnightVelvetSite({
+  template,
+  embed,
+  live,
+  rsvpController,
+  guestMessageSlot,
+}: TemplateProps) {
   return (
-    <div className="wedding-website-root min-h-screen bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
-      {!embed && (
-        <Link href="/wedding-website" className="fixed bottom-4 left-4 z-[55] rounded-full border border-[#D4AF37]/30 bg-black/80 px-4 py-2 text-xs font-bold text-[#D4AF37] backdrop-blur-md">
-          ← כל התבניות
-        </Link>
-      )}
+    <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
       {!embed && <StickyNav />}
       <HeroSection />
       <CountdownSection />
@@ -562,9 +555,9 @@ export default function MidnightVelvetSite({ template, embed }: TemplateProps) {
       <AccommodationsSection />
       <TransportationSection />
       <FaqSection />
-      <RsvpSection />
+      <RsvpSection live={live} rsvpController={rsvpController} />
       <GiftsSection />
-      <GuestbookSection />
+      <GuestbookSection live={live} guestMessageSlot={guestMessageSlot} />
       <GuestUploadSection />
       <PlaylistSection />
       <FooterSection />

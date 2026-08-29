@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
@@ -9,12 +8,13 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
   useCountdownTimer,
-  useRsvpDemo,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
+import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import WeddingCoverImage from "../WeddingCoverImage";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 
 const fadeUp = {
@@ -70,14 +70,15 @@ function StickyNav() {
 
 function HeroSection({ template }: { template: WeddingTemplate }) {
   return (
-    <section id="hero" className="relative flex min-h-screen items-end justify-center overflow-hidden">
+    <section id="hero" className="relative flex min-h-[100svh] items-end justify-center overflow-hidden">
       <motion.div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${template.heroImage})` }}
+        className="absolute inset-0"
         initial={{ scale: 1.12 }}
         animate={{ scale: 1 }}
         transition={{ duration: 18, ease: "linear" }}
-      />
+      >
+        <WeddingCoverImage src={template.heroImage} alt="" />
+      </motion.div>
       <div className="absolute inset-0 bg-gradient-to-t from-[#2A2118]/85 via-[#2A2118]/35 to-transparent" />
       <motion.div
         initial={{ opacity: 0, y: 50 }}
@@ -244,7 +245,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               transition={{ delay: i * 0.08 }}
               className="mb-5 break-inside-avoid border-2 border-[#C9A962]/50 p-1"
             >
-              <img src={src} alt="" loading="lazy" decoding="async" className="w-full object-cover transition duration-700 hover:scale-[1.03]" />
+              <img src={src} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover object-center transition duration-700 hover:scale-[1.03]" />
             </motion.div>
           ))}
         </div>
@@ -435,52 +436,17 @@ function FaqSection() {
   );
 }
 
-function RsvpSection() {
-  const { rsvp, setRsvp, count, setCount, sent, setSent } = useRsvpDemo();
+function RsvpSection({
+  live,
+  rsvpController,
+}: Pick<TemplateProps, "live" | "rsvpController">) {
+  if (live && !rsvpController) return null;
   return (
     <Section id="rsvp" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-lg px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">אישור הגעה</h2>
         <GoldDivider />
-        {sent ? (
-          <p className="text-center text-lg text-[#C9A962]">תודה! קיבלנו את אישור ההגעה שלכם.</p>
-        ) : (
-          <div className="space-y-4 border border-[#C9A962]/35 bg-white p-8">
-            <div className="flex gap-3">
-              {(["yes", "no"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setRsvp(v)}
-                  className={`flex-1 py-3 text-sm font-bold transition ${rsvp === v ? "bg-[#C9A962] text-white" : "border border-[#C9A962]/40 text-[#8A7560]"}`}
-                >
-                  {v === "yes" ? "מגיע/ה" : "לא מגיע/ה"}
-                </button>
-              ))}
-            </div>
-            {rsvp === "yes" && (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-[#8A7560]">מספר אורחים</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                  className="w-20 border border-[#C9A962]/40 px-3 py-2 text-center"
-                />
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => rsvp && setSent(true)}
-              disabled={!rsvp}
-              className="w-full bg-[#C9A962] py-4 text-sm font-bold text-white disabled:opacity-40"
-            >
-              שליחה
-            </button>
-          </div>
-        )}
+        <WeddingTemplateRsvp templateId="eternal-gold" controller={rsvpController} />
       </div>
     </Section>
   );
@@ -501,8 +467,19 @@ function GiftsSection() {
   );
 }
 
-function GuestbookSection() {
+function GuestbookSection({
+  live,
+  guestMessageSlot,
+}: Pick<TemplateProps, "live" | "guestMessageSlot">) {
   const { message, setMessage, items, addMessage } = useGuestbook();
+  if (live) {
+    if (!guestMessageSlot) return null;
+    return (
+      <Section id="guestbook" className="bg-[#F3EBE0] py-24">
+        {guestMessageSlot}
+      </Section>
+    );
+  }
   return (
     <Section id="guestbook" className="bg-[#F3EBE0] py-24">
       <div className="mx-auto max-w-3xl px-6">
@@ -614,17 +591,15 @@ function FooterSection() {
   );
 }
 
-export default function EternalGoldSite({ template, embed }: TemplateProps) {
+export default function EternalGoldSite({
+  template,
+  embed,
+  live,
+  rsvpController,
+  guestMessageSlot,
+}: TemplateProps) {
   return (
-    <div className="wedding-website-root bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
-      {!embed && (
-        <Link
-          href="/wedding-website"
-          className="fixed bottom-4 left-4 z-[55] rounded-sm border border-[#C9A962]/40 bg-white/90 px-4 py-2 text-xs font-bold shadow-lg backdrop-blur-md"
-        >
-          ← כל התבניות
-        </Link>
-      )}
+    <div className="wedding-website-root overflow-x-hidden bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
       {!embed && <StickyNav />}
       <HeroSection template={template} />
       <CountdownSection />
@@ -641,9 +616,9 @@ export default function EternalGoldSite({ template, embed }: TemplateProps) {
       <AccommodationsSection />
       <TransportationSection />
       <FaqSection />
-      <RsvpSection />
+      <RsvpSection live={live} rsvpController={rsvpController} />
       <GiftsSection />
-      <GuestbookSection />
+      <GuestbookSection live={live} guestMessageSlot={guestMessageSlot} />
       <GuestUploadSection />
       <PlaylistSection />
       <FooterSection />
