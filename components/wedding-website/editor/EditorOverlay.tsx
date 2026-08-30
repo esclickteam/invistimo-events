@@ -125,44 +125,45 @@ export default function EditorOverlay() {
   }, [editor]);
 
   useEffect(() => {
-    const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
-    if (!canvas || !editor?.selection) {
+    const pane = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
+    if (!pane || !editor?.selection) {
       setToolbarRect(null);
       return;
     }
+    const root: HTMLElement = pane;
 
     function measure() {
-      const selection = editor.selection;
+      const selection = editor?.selection;
       if (!selection) {
         setToolbarRect(null);
         return;
       }
-      const el =
-        (selectedElRef.current?.isConnected &&
-        selectedElRef.current.dataset.wwPath === selection.path
+      const fromRef =
+        selectedElRef.current?.isConnected && selectedElRef.current.dataset.wwPath === selection.path
           ? selectedElRef.current
-          : null) || findSelectedElement(canvas, selection);
+          : null;
+      const el = fromRef || findSelectedElement(root, selection);
       selectedElRef.current = el;
       if (!el) {
         setToolbarRect(null);
         return;
       }
-      setToolbarRect(clampRect(el.getBoundingClientRect(), canvas.getBoundingClientRect()));
+      setToolbarRect(clampRect(el.getBoundingClientRect(), root.getBoundingClientRect()));
     }
 
     measure();
     window.addEventListener("scroll", measure, true);
     window.addEventListener("resize", measure);
-    canvas.addEventListener("scroll", measure);
-    const parent = canvas.parentElement;
+    root.addEventListener("scroll", measure);
+    const parent = root.parentElement;
     parent?.addEventListener("scroll", measure);
     return () => {
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
-      canvas.removeEventListener("scroll", measure);
+      root.removeEventListener("scroll", measure);
       parent?.removeEventListener("scroll", measure);
     };
-  }, [editor?.selection, site?.content]);
+  }, [editor, editor?.selection, site?.content]);
 
   if (!site || site.mode !== "editor") return null;
 
