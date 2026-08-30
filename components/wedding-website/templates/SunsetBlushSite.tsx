@@ -127,7 +127,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
   const polaroidRotations = [-6, 4, -3, 7, -5, 3];
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#FFF5F7] text-[#3D1F28]">
+    <div className="min-h-screen bg-[#FFF5F7] text-[#3D1F28]">
       <BlushNav />
 
       {/* HERO — gradient mesh + hero image overlay */}

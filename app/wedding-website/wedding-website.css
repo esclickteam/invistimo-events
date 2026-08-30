@@ -5,12 +5,25 @@
   font-family: var(--ww-font-body), "Heebo", sans-serif;
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
-  overflow-x: clip;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
 }
 
 .ww-site {
-  overflow-x: clip;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
   touch-action: pan-y;
+}
+
+html:has(.ww-public-page) {
+  direction: ltr;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+html:has(.ww-public-page) body {
+  direction: rtl;
+  overflow: visible;
 }
 
 .ww-display {
@@ -96,7 +109,8 @@
 @media (max-width: 767px) {
   .ww-site,
   .wedding-website-root {
-    overflow-x: clip;
+    overflow-x: clip !important;
+    overflow-y: visible !important;
     scroll-behavior: auto !important;
     -webkit-overflow-scrolling: touch;
   }
@@ -147,8 +161,16 @@
 }
 
 .ww-editor-scroll {
+  direction: ltr;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+.ww-editor-scroll > .ww-editor-canvas {
+  direction: rtl;
+  overflow: visible !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

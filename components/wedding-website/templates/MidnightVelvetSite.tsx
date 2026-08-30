@@ -530,7 +530,7 @@ export default function MidnightVelvetSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8]">
+    <div className="wedding-website-root min-h-screen bg-[#0D0B10] text-[#F5F0E8]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />

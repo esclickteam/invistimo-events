@@ -526,7 +526,7 @@ export default function GardenBloomSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root overflow-x-hidden bg-[#F4FAF4] text-[#1F3324]">
+    <div className="wedding-website-root bg-[#F4FAF4] text-[#1F3324]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />

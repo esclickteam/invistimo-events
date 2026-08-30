@@ -85,7 +85,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
   const lineWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-black selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white">
       <NoirNav />
 
       {/* Progress line */}

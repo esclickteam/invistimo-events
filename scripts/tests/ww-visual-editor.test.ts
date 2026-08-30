@@ -384,9 +384,10 @@ test("editor selection targets inner text and countdown instead of the whole sec
 
 test("editor canvas has a single scrollbar and can switch templates", () => {
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
-  assert.match(editor, /overflow-x-hidden overflow-y-auto/);
-  assert.match(editor, /ww-editor-canvas mx-auto overflow-x-hidden/);
+  assert.match(editor, /ww-editor-scroll relative min-h-0 min-w-0 flex-1 overflow-y-auto/);
+  assert.match(editor, /ww-editor-canvas mx-auto bg-white/);
   assert.doesNotMatch(editor, /ww-editor-canvas mx-auto overflow-auto/);
+  assert.doesNotMatch(editor, /overflow-x-hidden overflow-y-auto/);
   assert.match(editor, /החלפת תבנית/);
   assert.match(editor, /חזרה לעורך/);
   assert.match(editor, /setPickerOpen\(true\)/);
@@ -435,8 +436,11 @@ test("site navigation uses a hamburger on mobile and compact links on desktop", 
   assert.match(hydrator, /ww-nav-hamburger/);
   assert.match(hydrator, /@container \(min-width: 700px\)/);
   assert.match(css, /overflow-x: clip/);
+  assert.match(css, /html:has\(\.ww-public-page\)/);
+  assert.match(css, /overflow-y: visible !important/);
   assert.match(css, /scroll-behavior: auto/);
   const renderer = read("components/wedding-website/WeddingTemplateSiteRenderer.tsx");
+  assert.match(renderer, /ww-public-page/);
   assert.match(renderer, /WeddingMotionRoot/);
   const motion = read("components/wedding-website/shared/weddingMotion.tsx");
   assert.match(motion, /reducedMotion/);
@@ -462,6 +466,7 @@ test("site navigation uses a hamburger on mobile and compact links on desktop", 
     assert.doesNotMatch(src, /{!embed && <StickyNav \/>}/);
     assert.doesNotMatch(src, /if \(embed\) return null/);
     assert.doesNotMatch(src, /scroll-smooth/);
+    assert.doesNotMatch(src, /overflow-x-hidden/);
   }
 });
 
