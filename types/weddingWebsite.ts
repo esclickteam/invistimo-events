@@ -73,6 +73,8 @@ export type WeddingMediaSlot = {
   poster?: string;
   fit?: WeddingMediaFit;
   position?: string;
+  /** Focal point used on narrow screens; falls back to `position`. */
+  positionMobile?: string;
   zoom?: number;
   autoplay?: boolean;
   muted?: boolean;
@@ -90,11 +92,25 @@ export type WeddingTextStyle = {
   letterSpacing?: string;
 };
 
+export type WeddingSectionAlign = "right" | "center" | "left";
+
 export type WeddingSectionStyle = {
   backgroundColor?: string;
   paddingTop?: string;
   paddingBottom?: string;
   backgroundMedia?: WeddingMediaSlot | null;
+  align?: WeddingSectionAlign;
+  /** Max content width, e.g. `64rem`. */
+  width?: string;
+  columns?: number;
+  gap?: string;
+  radius?: string;
+  imageFit?: WeddingMediaFit;
+  /** Hero only: 0-100 darkening of the background media. */
+  overlayOpacity?: number;
+  /** Hero only: viewport height percentage. */
+  heroHeight?: number;
+  heroHeightMobile?: number;
 };
 
 export type WeddingDemoContent = {
@@ -130,10 +146,24 @@ export type WeddingDemoContent = {
   galleryImages?: string[];
   media?: Record<string, WeddingMediaSlot>;
   styles?: Record<string, WeddingTextStyle>;
+  /** Narrow-screen overrides layered on top of `styles` for the same paths. */
+  mobileStyles?: Record<string, WeddingTextStyle>;
   sectionStyles?: Record<string, WeddingSectionStyle>;
   sectionOrder?: Array<WeddingSectionId | "guest-message">;
   copy?: Record<string, string>;
   sections?: Partial<Record<WeddingSectionId | "guest-message", boolean>>;
+  /** Global look-and-feel overrides on top of the template's own theme. */
+  theme?: WeddingThemeOverrides;
+};
+
+export type WeddingThemeOverrides = {
+  colors?: Partial<
+    Record<"accent" | "accentSoft" | "bg" | "bgAlt" | "surface" | "text" | "textMuted", string>
+  >;
+  headingFont?: string;
+  bodyFont?: string;
+  radius?: "template" | "sharp" | "soft" | "round";
+  spacing?: "template" | "compact" | "airy";
 };
 
 export type WeddingEventData = {

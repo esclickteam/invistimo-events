@@ -61,6 +61,8 @@ export function normalizeWeddingMediaSlot(
     poster: sanitizeWeddingMediaUrl(raw?.poster ?? fallback?.poster) || undefined,
     fit,
     position: String(raw?.position || fallback?.position || "50% 50%").trim() || "50% 50%",
+    positionMobile:
+      String(raw?.positionMobile || fallback?.positionMobile || "").trim() || undefined,
     zoom:
       typeof raw?.zoom === "number" && Number.isFinite(raw.zoom)
         ? Math.min(Math.max(raw.zoom, 1), 2.5)

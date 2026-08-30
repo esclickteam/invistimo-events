@@ -7,6 +7,7 @@ import {
 } from "@/lib/weddingWebsite/images";
 import { normalizeWeddingMediaSlot } from "@/lib/weddingWebsite/media";
 import { sanitizeSectionStyle, sanitizeTextStyle } from "@/lib/weddingWebsite/styles";
+import { sanitizeWeddingThemeOverride } from "@/lib/weddingWebsite/editorTheme";
 import type {
   WeddingDemoContent,
   WeddingMediaSlot,
@@ -213,10 +214,14 @@ export function mergeWeddingWebsiteContent(
         : undefined,
     media: mergeMediaMap(base.media, (raw as WeddingDemoContent).media),
     styles: mergeStyleMap(base.styles, (raw as WeddingDemoContent).styles),
+    mobileStyles: mergeStyleMap(base.mobileStyles, (raw as WeddingDemoContent).mobileStyles),
     sectionStyles: mergeSectionStyleMap(
       base.sectionStyles,
       (raw as WeddingDemoContent).sectionStyles
     ),
+    theme:
+      sanitizeWeddingThemeOverride((raw as WeddingDemoContent).theme) ??
+      sanitizeWeddingThemeOverride(base.theme),
     sectionOrder: Array.isArray((raw as WeddingDemoContent).sectionOrder)
       ? ((raw as WeddingDemoContent).sectionOrder as WeddingDemoContent["sectionOrder"])
       : base.sectionOrder,

@@ -5,6 +5,7 @@ import "@/app/wedding-website/wedding-website.css";
 import { getWeddingTemplateSite } from "./templates";
 import { setLiveWeddingContent } from "./shared/weddingUtils";
 import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
+import { WEDDING_THEME_SCOPE, weddingThemeCssVars } from "@/lib/weddingWebsite/editorTheme";
 import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import type { ReactNode } from "react";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
@@ -83,7 +84,10 @@ const RenderedSite = memo(function RenderedSite({
       <WeddingSiteRuntimeStyles />
       <WeddingSiteHydrator>
         <WeddingMotionRoot>
-        <div className={`ww-site ${site?.mode === "editor" ? "" : "ww-public-page"}`}>
+        <div
+          className={`ww-site ${WEDDING_THEME_SCOPE} ${site?.mode === "editor" ? "" : "ww-public-page"}`}
+          style={weddingThemeCssVars(template, site?.content?.theme)}
+        >
           <style>{`
             a[href="/wedding-website"]{display:none!important}
             a[href="/"]{ }

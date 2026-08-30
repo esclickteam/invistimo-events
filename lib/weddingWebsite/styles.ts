@@ -35,6 +35,14 @@ export function sanitizeTextStyle(value: unknown): WeddingTextStyle {
   return next;
 }
 
+const LENGTH_PATTERN = /^\d+(?:\.\d+)?(?:px|rem|em|%|svh|vh)$/;
+
+function clampNumber(value: unknown, min: number, max: number) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return undefined;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
 export function sanitizeSectionStyle(value: unknown): WeddingSectionStyle {
   const raw = value && typeof value === "object" ? (value as WeddingSectionStyle) : {};
   const next: WeddingSectionStyle = {};
@@ -43,6 +51,27 @@ export function sanitizeSectionStyle(value: unknown): WeddingSectionStyle {
   }
   if (typeof raw.paddingTop === "string") next.paddingTop = raw.paddingTop.trim().slice(0, 16);
   if (typeof raw.paddingBottom === "string") next.paddingBottom = raw.paddingBottom.trim().slice(0, 16);
+  if (raw.align === "right" || raw.align === "center" || raw.align === "left") {
+    next.align = raw.align;
+  }
+  if (typeof raw.width === "string" && LENGTH_PATTERN.test(raw.width.trim())) {
+    next.width = raw.width.trim();
+  }
+  const columns = clampNumber(raw.columns, 1, 6);
+  if (columns !== undefined) next.columns = columns;
+  if (typeof raw.gap === "string" && LENGTH_PATTERN.test(raw.gap.trim())) {
+    next.gap = raw.gap.trim();
+  }
+  if (typeof raw.radius === "string" && LENGTH_PATTERN.test(raw.radius.trim())) {
+    next.radius = raw.radius.trim();
+  }
+  if (raw.imageFit === "cover" || raw.imageFit === "contain") next.imageFit = raw.imageFit;
+  const overlay = clampNumber(raw.overlayOpacity, 0, 100);
+  if (overlay !== undefined) next.overlayOpacity = overlay;
+  const heroHeight = clampNumber(raw.heroHeight, 40, 130);
+  if (heroHeight !== undefined) next.heroHeight = heroHeight;
+  const heroHeightMobile = clampNumber(raw.heroHeightMobile, 40, 130);
+  if (heroHeightMobile !== undefined) next.heroHeightMobile = heroHeightMobile;
   return next;
 }
 
@@ -58,6 +87,34 @@ export function textStyleToCss(style?: WeddingTextStyle | null): CSSProperties {
     lineHeight: style.lineHeight,
     letterSpacing: style.letterSpacing,
   };
+}
+
+function relativeLuminance(hex: string) {
+  const color = hex.replace("#", "");
+  const full =
+    color.length === 3
+      ? color
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : color;
+  const toLin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const r = toLin(parseInt(full.slice(0, 2), 16) / 255);
+  const g = toLin(parseInt(full.slice(2, 4), 16) / 255);
+  const b = toLin(parseInt(full.slice(4, 6), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two hex colors, or 0 when either is unusable. */
+export function contrastRatio(foreground?: string | null, background?: string | null) {
+  const isHex = (value?: string | null) =>
+    typeof value === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
+  if (!isHex(foreground) || !isHex(background)) return 0;
+  const a = relativeLuminance(String(foreground).trim());
+  const b = relativeLuminance(String(background).trim());
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
 }
 
 export function contrastOn(hex?: string | null) {
