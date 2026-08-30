@@ -101,30 +101,15 @@ export function getLocationQuery(location: NavLocation) {
   return firstText(location.address, location.name);
 }
 
-export function getWazePlaceLabel(location: NavLocation) {
-  const name = firstText(location.name);
-  const address = firstText(location.address);
-
-  if (name && address && name !== address) {
-    if (address.includes(name)) return address;
-    if (name.includes(address)) return name;
-    return `${name}, ${address}`;
-  }
-
-  return name || address;
-}
-
 function buildWazeUrl(base: "https://waze.com/ul" | "waze://", location: NavLocation) {
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
 
-  // Never search by name alone — that can open a different city.
-  // Coordinates keep the pin; the label is only added together with ll.
+  // Coordinates only. Never add q= — Waze treats q as a search, even
+  // when ll is present, and can open a different venue in another city.
   if (lat == null || lng == null) return null;
 
-  const label = getWazePlaceLabel(location);
-  const labeled = label ? `&q=${encodeURIComponent(label)}` : "";
-  return `${base}?ll=${lat},${lng}&navigate=yes${labeled}`;
+  return `${base}?ll=${lat},${lng}&navigate=yes`;
 }
 
 export function getWazeLink(location: NavLocation) {

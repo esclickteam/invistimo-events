@@ -27,9 +27,7 @@ test("navigation links prefer the exact event coordinates", () => {
   );
   assert.equal(
     getWazeLink(location),
-    `https://waze.com/ul?ll=32.0961,34.7732&navigate=yes&q=${encodeURIComponent(
-      "אולמי הירקון, רחוב רוקח 12, תל אביב"
-    )}`
+    "https://waze.com/ul?ll=32.0961,34.7732&navigate=yes"
   );
   assert.equal(
     getGoogleMapsEmbedUrl(location, 16),
@@ -44,21 +42,24 @@ test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
   assert.doesNotMatch(url || "", /%2C/);
 });
 
-test("Waze shows the venue name with the exact pin", () => {
+test("Waze never appends a name search even when the venue has a label", () => {
   const url = getWazeLink({
     name: "שיבולים גן אירועים",
     address: "רמת צבי, ישראל",
     lat: 32.5942,
     lng: 35.3611,
   });
+  assert.equal(url, "https://waze.com/ul?ll=32.5942,35.3611&navigate=yes");
+  assert.doesNotMatch(url || "", /[?&]q=/);
   assert.equal(
-    url,
-    `https://waze.com/ul?ll=32.5942,35.3611&navigate=yes&q=${encodeURIComponent(
-      "שיבולים גן אירועים, רמת צבי, ישראל"
-    )}`
+    getWazeAppLink({
+      name: "שיבולים גן אירועים",
+      address: "רמת צבי, ישראל",
+      lat: 32.5942,
+      lng: 35.3611,
+    }),
+    "waze://?ll=32.5942,35.3611&navigate=yes"
   );
-  assert.match(url || "", /ll=32\.5942,35\.3611/);
-  assert.match(url || "", /q=/);
 });
 
 test("Waze never searches by venue name because that opens the wrong place", () => {
