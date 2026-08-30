@@ -42,20 +42,24 @@ test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
   assert.doesNotMatch(url || "", /%2C/);
 });
 
-test("Google Maps opens the saved Google place id with the venue name", () => {
-  const url = getGoogleMapsLink({
+test("Google Maps and Waze use the same saved coordinates", () => {
+  const location = {
     name: "שיבולים גן אירועים",
     address: "רמת צבי, ישראל",
     lat: 32.5927,
     lng: 35.4143,
     placeId: "ChIJGardenRamatZvi",
-  });
+  };
+
   assert.equal(
-    url,
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      "שיבולים גן אירועים"
-    )}&query_place_id=${encodeURIComponent("ChIJGardenRamatZvi")}`
+    getGoogleMapsLink(location),
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("32.5927,35.4143")}`
   );
+  assert.equal(
+    getWazeLink(location),
+    "https://waze.com/ul?ll=32.5927,35.4143&navigate=yes"
+  );
+  assert.doesNotMatch(getWazeLink(location) || "", /[?&]q=/);
 });
 
 test("Waze never appends a name search even when the venue has a label", () => {

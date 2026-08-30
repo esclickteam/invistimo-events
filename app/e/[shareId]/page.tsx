@@ -23,9 +23,13 @@ import WazeNavButton from "@/app/components/WazeNavButton";
 import {
   getGoogleMapsLink,
   getWazeLink,
+  hasExactCoordinates,
   parseCoord,
-  resolveEventLocation,
 } from "@/lib/navigationLinks";
+import {
+  persistParkingPin,
+  resolveAndPersistEventLocation,
+} from "@/lib/persistEventMapPin";
 import { withResolvedMapPin } from "@/lib/resolveMapPin";
 
 export const dynamic = "force-dynamic";
@@ -118,10 +122,6 @@ function formatHebrewDate(value: unknown) {
   }).format(date);
 }
 
-function getLocationValue(invitation: any, event: any): SafeLocation {
-  return resolveEventLocation(invitation, event);
-}
-
 function buildGoogleMapsUrl(location: SafeLocation, customUrl?: unknown) {
   const fromEvent = getGoogleMapsLink(location);
   if (fromEvent) return fromEvent;
@@ -131,7 +131,10 @@ function buildGoogleMapsUrl(location: SafeLocation, customUrl?: unknown) {
 function buildWazeUrl(location: SafeLocation, customUrl?: unknown) {
   const fromEvent = getWazeLink(location);
   if (fromEvent) return fromEvent;
-  return normalizeUrl(customUrl);
+
+  const custom = normalizeUrl(customUrl);
+  if (custom && /[?&]ll=/.test(custom) && !/[?&]q=/.test(custom)) return custom;
+  return "";
 }
 
 function getInvitationTitle(invitation: any, event: any) {
@@ -462,15 +465,18 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
   const dateLabel = formatHebrewDate(eventDate);
 
-  const baseLocation = getLocationValue(invitation, event);
   const navigationSettings = getNavigationSettings(publicEventPage);
 
-  const location: SafeLocation = await withResolvedMapPin({
-    name: baseLocation.name || navigationSettings.venueName,
-    address: baseLocation.address || navigationSettings.address,
-    lat: baseLocation.lat,
-    lng: baseLocation.lng,
-  });
+  const location: SafeLocation = await resolveAndPersistEventLocation(
+    invitation,
+    event
+  );
+  if (!location.name && navigationSettings.venueName) {
+    location.name = navigationSettings.venueName;
+  }
+  if (!location.address && navigationSettings.address) {
+    location.address = navigationSettings.address;
+  }
 
   const wazeUrl = buildWazeUrl(location, navigationSettings.wazeUrl);
   const googleMapsUrl = buildGoogleMapsUrl(
@@ -491,6 +497,19 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
     lat: parking.lat,
     lng: parking.lng,
   });
+  const parkingLat = parseCoord(parkingLocation.lat);
+  const parkingLng = parseCoord(parkingLocation.lng);
+  if (
+    parking.enabled &&
+    !hasExactCoordinates(parking) &&
+    parkingLat != null &&
+    parkingLng != null
+  ) {
+    await persistParkingPin({
+      invitationId: invitation._id,
+      pin: { lat: parkingLat, lng: parkingLng },
+    });
+  }
 
   const parkingWazeUrl =
     parking.enabled &&

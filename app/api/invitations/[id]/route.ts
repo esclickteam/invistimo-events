@@ -8,6 +8,7 @@ import Event from "@/models/Event";
 import VenueEvent from "@/models/VenueEvent";
 import { findVenueHallByAnyId } from "@/lib/venues/eventVenueLinkInvariant";
 import { parseCoord } from "@/lib/navigationLinks";
+import { resolveMapPin } from "@/lib/resolveMapPin";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -100,14 +101,8 @@ function normalizePublicEventPage(input: any) {
       enabled: parking?.enabled === true,
       name: cleanString(parking?.name),
       address: cleanString(parking?.address),
-      lat:
-        parking?.lat === undefined || parking?.lat === null
-          ? null
-          : toNumber(parking?.lat, null as any),
-      lng:
-        parking?.lng === undefined || parking?.lng === null
-          ? null
-          : toNumber(parking?.lng, null as any),
+      lat: parseCoord(parking?.lat),
+      lng: parseCoord(parking?.lng),
       instructions: cleanString(parking?.instructions),
     },
 
@@ -871,12 +866,41 @@ export async function PUT(
         placeId:
           typeof location.placeId === "string" ? location.placeId.trim() : "",
       };
+
+      if (
+        updatePayload.location.lat == null ||
+        updatePayload.location.lng == null
+      ) {
+        const pin = await resolveMapPin(updatePayload.location);
+        if (pin) {
+          updatePayload.location.lat = pin.lat;
+          updatePayload.location.lng = pin.lng;
+        }
+      }
     }
 
     if (body.publicEventPage !== undefined) {
       updatePayload.publicEventPage = normalizePublicEventPage(
         body.publicEventPage
       );
+
+      const parking = updatePayload.publicEventPage.parking;
+      if (
+        parking?.enabled &&
+        (parking.address || parking.name) &&
+        (parking.lat == null || parking.lng == null)
+      ) {
+        const pin = await resolveMapPin({
+          name: parking.name,
+          address: parking.address,
+          lat: parking.lat,
+          lng: parking.lng,
+        });
+        if (pin) {
+          parking.lat = pin.lat;
+          parking.lng = pin.lng;
+        }
+      }
     }
 
     if (body.estimatedGuests !== undefined) {
