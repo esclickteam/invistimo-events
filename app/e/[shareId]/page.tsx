@@ -20,11 +20,12 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import CopyButton from "./CopyButton";
 import WazeNavButton from "@/app/components/WazeNavButton";
+import PersistMissingEventPin from "@/app/components/PersistMissingEventPin";
 import {
-  getGoogleMapsLink,
-  getWazeLink,
+  getGoogleMapsLinkForTarget,
   hasExactCoordinates,
   parseCoord,
+  resolveNavTarget,
 } from "@/lib/navigationLinks";
 import {
   persistParkingPin,
@@ -122,19 +123,14 @@ function formatHebrewDate(value: unknown) {
   }).format(date);
 }
 
-function buildGoogleMapsUrl(location: SafeLocation, customUrl?: unknown) {
-  const fromEvent = getGoogleMapsLink(location);
-  if (fromEvent) return fromEvent;
-  return normalizeUrl(customUrl);
-}
-
-function buildWazeUrl(location: SafeLocation, customUrl?: unknown) {
-  const fromEvent = getWazeLink(location);
-  if (fromEvent) return fromEvent;
-
-  const custom = normalizeUrl(customUrl);
-  if (custom && /[?&]ll=/.test(custom) && !/[?&]q=/.test(custom)) return custom;
-  return "";
+function eventNavCustom(settings: {
+  wazeUrl?: string;
+  googleMapsUrl?: string;
+}) {
+  return {
+    wazeUrl: settings.wazeUrl || "",
+    googleMapsUrl: settings.googleMapsUrl || "",
+  };
 }
 
 function getInvitationTitle(invitation: any, event: any) {
@@ -478,10 +474,13 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
     location.address = navigationSettings.address;
   }
 
-  const wazeUrl = buildWazeUrl(location, navigationSettings.wazeUrl);
-  const googleMapsUrl = buildGoogleMapsUrl(
-    location,
-    navigationSettings.googleMapsUrl
+  const navCustom = eventNavCustom(navigationSettings);
+  const navTarget = resolveNavTarget(location, navCustom);
+  const googleMapsUrl = getGoogleMapsLinkForTarget(navTarget);
+  const hasWaze = Boolean(
+    (navTarget.lat != null && navTarget.lng != null) ||
+      navTarget.query ||
+      navTarget.wazeUrlOnly
   );
 
   const parking = getParkingSettings(publicEventPage);
@@ -511,16 +510,19 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
     });
   }
 
-  const parkingWazeUrl =
-    parking.enabled &&
-    (parkingName || parkingAddress || parking.lat || parking.lng)
-      ? buildWazeUrl(parkingLocation)
-      : "";
-
+  const parkingTarget = resolveNavTarget(parkingLocation);
   const parkingGoogleMapsUrl =
     parking.enabled &&
     (parkingName || parkingAddress || parking.lat || parking.lng)
-      ? buildGoogleMapsUrl(parkingLocation)
+      ? getGoogleMapsLinkForTarget(parkingTarget)
+      : "";
+  const parkingWazeUrl =
+    parking.enabled &&
+    (parkingName || parkingAddress || parking.lat || parking.lng) &&
+    ((parkingTarget.lat != null && parkingTarget.lng != null) ||
+      parkingTarget.query ||
+      parkingTarget.wazeUrlOnly)
+      ? "waze"
       : "";
 
   const schedule = getScheduleSettings(publicEventPage);
@@ -601,7 +603,11 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
           </div>
 
           <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-8">
-            {(location.name || location.address || wazeUrl || googleMapsUrl) && (
+            <PersistMissingEventPin
+              shareId={safeShareId}
+              location={location}
+            />
+            {(location.name || location.address || hasWaze || googleMapsUrl) && (
               <SectionShell
                 title="הגעה וניווט לאירוע"
                 icon={
@@ -623,10 +629,11 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     </p>
                   )}
 
-                {(location.name || location.address || wazeUrl || googleMapsUrl) && (
+                {(location.name || location.address || hasWaze || googleMapsUrl) && (
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     <WazeNavButton
                       location={location}
+                      custom={navCustom}
                       className={darkNavButtonClassName}
                     >
                       <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />

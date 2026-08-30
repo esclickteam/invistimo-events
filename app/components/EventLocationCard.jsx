@@ -1,28 +1,47 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import EventNavigationButtons from "@/app/components/EventNavigationButtons";
 import LocationDisplay from "@/app/components/LocationDisplay";
+import PersistMissingEventPin from "@/app/components/PersistMissingEventPin";
 import {
   getGoogleMapsEmbedUrl,
   getGoogleMapsLink,
 } from "@/lib/navigationLinks";
 
-export default function EventLocationCard({ location }) {
-  if (!location) return null;
+export default function EventLocationCard({ location, shareId }) {
+  const [resolvedPin, setResolvedPin] = useState(null);
 
-  const hasAddress = !!location.address?.trim() || !!location.name?.trim();
-  const mapUrl = getGoogleMapsLink(location);
-  const mapEmbedUrl = getGoogleMapsEmbedUrl(location);
+  const pinnedLocation = useMemo(() => {
+    if (!location) return null;
+    if (resolvedPin) {
+      return { ...location, lat: resolvedPin.lat, lng: resolvedPin.lng };
+    }
+    return location;
+  }, [location, resolvedPin]);
+
+  if (!pinnedLocation) return null;
+
+  const hasAddress =
+    !!pinnedLocation.address?.trim() || !!pinnedLocation.name?.trim();
+  const mapUrl = getGoogleMapsLink(pinnedLocation);
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(pinnedLocation);
 
   if (!hasAddress && !mapUrl) return null;
 
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow p-5 mt-8">
-      {(hasAddress || location.name) && (
+      <PersistMissingEventPin
+        shareId={shareId}
+        location={location}
+        onResolved={setResolvedPin}
+      />
+
+      {(hasAddress || pinnedLocation.name) && (
         <div className="text-center mb-4">
           <LocationDisplay
-            name={location.name || "מיקום האירוע"}
-            address={hasAddress ? location.address : ""}
+            name={pinnedLocation.name || "מיקום האירוע"}
+            address={hasAddress ? pinnedLocation.address : ""}
             align="center"
             nameClassName="text-sm font-semibold text-[#6b5b3e]"
             addressClassName="mt-1 text-sm leading-relaxed text-[#6b5b3e]"
@@ -52,7 +71,7 @@ export default function EventLocationCard({ location }) {
 
       {mapUrl && (
         <div className="flex justify-center gap-3">
-          <EventNavigationButtons location={location} />
+          <EventNavigationButtons location={pinnedLocation} />
         </div>
       )}
     </div>

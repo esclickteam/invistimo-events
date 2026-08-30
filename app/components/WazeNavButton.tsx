@@ -4,12 +4,13 @@ import { type MouseEvent, type ReactNode } from "react";
 import {
   getWazeAppLink,
   getWazeLink,
-  hasExactCoordinates,
+  type NavCustomLinks,
   type NavLocation,
 } from "@/lib/navigationLinks";
 
 type Props = {
   location?: NavLocation | null;
+  custom?: NavCustomLinks;
   className?: string;
   children: ReactNode;
 };
@@ -19,11 +20,16 @@ function isMobileNav() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
-export default function WazeNavButton({ location, className, children }: Props) {
-  const href =
-    location && hasExactCoordinates(location) ? getWazeLink(location) : null;
-  const appHref =
-    location && hasExactCoordinates(location) ? getWazeAppLink(location) : null;
+export default function WazeNavButton({
+  location,
+  custom,
+  className,
+  children,
+}: Props) {
+  const href = location ? getWazeLink(location, custom) : getWazeLink({}, custom);
+  const appHref = location
+    ? getWazeAppLink(location, custom)
+    : getWazeAppLink({}, custom);
 
   if (!href) return null;
 

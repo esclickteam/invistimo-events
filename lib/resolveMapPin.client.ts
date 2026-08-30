@@ -6,7 +6,6 @@ import {
   asMapPin,
   chooseMapPin,
   hintQueries,
-  pickHintPin,
   placeSearchQuery,
 } from "@/lib/mapPinChoice";
 import type { MapPin, PinCandidate } from "@/lib/mapPinChoice";
@@ -159,32 +158,25 @@ export async function resolveMapPinInBrowser(
   const venueName = String(location.name || "").trim();
 
   const ready = await waitForGoogleMaps();
-  if (!ready) {
-    return chooseMapPin({
-      saved,
-      hint: null,
-      candidates: [],
-      query: searchQuery,
-      venueName,
-    });
-  }
+  if (!ready) return null;
 
   const geoResults: PinCandidate[] = [];
+  let hint: MapPin | null = null;
+
+  // Same order as the server resolver: the locality anchors the search so a
+  // venue name cannot pull the pin into another city.
   for (const query of hintQueries(location)) {
-    geoResults.push(...(await geocodePins(query)));
+    const results = await geocodePins(query);
+    geoResults.push(...results);
+    if (!hint && results[0]) {
+      hint = { lat: results[0].lat, lng: results[0].lng };
+    }
   }
 
-  const hint = pickHintPin(geoResults, searchQuery);
   const candidates = [
     ...geoResults,
     ...(searchQuery ? await placesTextSearch(searchQuery, hint) : []),
   ];
 
-  return chooseMapPin({
-    saved,
-    hint,
-    candidates,
-    query: searchQuery,
-    venueName,
-  });
+  return chooseMapPin({ saved, hint, candidates, venueName });
 }

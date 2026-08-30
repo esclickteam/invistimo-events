@@ -6,30 +6,42 @@ import {
 import {
   asMapPin,
   chooseMapPin,
-  geographicQuery,
   hintQueries,
-  pickHintPin,
+  localityQuery,
   placeSearchQuery,
   type MapPin,
   type PinCandidate,
 } from "@/lib/mapPinChoice";
+import { getGoogleMapsServerKey } from "@/lib/googleMapsServerKey";
 
 export type { MapPin };
+
+export type MapPinFailure =
+  | "NO_QUERY"
+  | "NO_API_KEY"
+  | "PROVIDER_REJECTED"
+  | "NOT_FOUND";
+
+export type MapPinResolution = {
+  pin: MapPin | null;
+  /** Where the pin came from, for logging and for the couple's warning text. */
+  source: "saved" | "geocode" | "none";
+  failure: MapPinFailure | null;
+  /** Raw Google status (REQUEST_DENIED, OVER_QUERY_LIMIT, ...) when it failed. */
+  providerStatus: string;
+  providerMessage: string;
+};
 
 const pinCache = new Map<string, MapPin>();
 
 function googleMapsKey() {
-  return (
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    ""
-  );
+  return getGoogleMapsServerKey();
 }
 
 function cacheKey(location: NavLocation) {
   const saved = asMapPin(location);
   return JSON.stringify({
-    geo: geographicQuery(location),
+    locality: localityQuery(location),
     search: placeSearchQuery(location),
     saved,
   });
@@ -55,13 +67,48 @@ function toCandidate(
   };
 }
 
-async function fetchGoogleJson(url: string): Promise<any | null> {
+type ProviderResult = {
+  candidates: PinCandidate[];
+  status: string;
+  message: string;
+};
+
+const PROVIDER_OK = new Set(["OK", "ZERO_RESULTS"]);
+
+/**
+ * Google answers with HTTP 200 and a status field even when it refuses the
+ * call, so a rejected key looks exactly like an address that does not exist.
+ * Keep the status around: a silent empty result is what left events pinless.
+ */
+async function fetchGoogleJson(
+  api: string,
+  url: string
+): Promise<{ data: any | null; status: string; message: string }> {
   try {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+    if (!res.ok) {
+      return { data: null, status: `HTTP_${res.status}`, message: "" };
+    }
+
+    const data = await res.json();
+    const status = String(data?.status || "");
+    const message = String(data?.error_message || "");
+
+    if (status && !PROVIDER_OK.has(status)) {
+      console.error(
+        `❌ Google Maps ${api} refused the request (${status}): ${
+          message || "no error_message"
+        }`
+      );
+    }
+
+    return { data, status, message };
+  } catch (error: any) {
+    console.error(
+      `❌ Google Maps ${api} request failed:`,
+      error?.message || error
+    );
+    return { data: null, status: "FETCH_FAILED", message: "" };
   }
 }
 
@@ -69,7 +116,7 @@ async function findPlacePins(
   query: string,
   key: string,
   bias?: MapPin | null
-): Promise<PinCandidate[]> {
+): Promise<ProviderResult> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
   );
@@ -85,19 +132,23 @@ async function findPlacePins(
     );
   }
 
-  const data = await fetchGoogleJson(url.toString());
+  const { data, status, message } = await fetchGoogleJson(
+    "findplacefromtext",
+    url.toString()
+  );
   const candidate = toCandidate(data?.candidates?.[0]?.geometry?.location, {
     name: data?.candidates?.[0]?.name,
     address: data?.candidates?.[0]?.formatted_address,
   });
-  return candidate ? [candidate] : [];
+
+  return { candidates: candidate ? [candidate] : [], status, message };
 }
 
 async function textSearchPins(
   query: string,
   key: string,
   bias?: MapPin | null
-): Promise<PinCandidate[]> {
+): Promise<ProviderResult> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/textsearch/json"
   );
@@ -110,88 +161,158 @@ async function textSearchPins(
     url.searchParams.set("radius", "25000");
   }
 
-  const data = await fetchGoogleJson(url.toString());
+  const { data, status, message } = await fetchGoogleJson(
+    "textsearch",
+    url.toString()
+  );
   const results = Array.isArray(data?.results) ? data.results : [];
-  return results
-    .slice(0, 8)
-    .map((result: any) =>
-      toCandidate(result?.geometry?.location, {
-        name: result?.name,
-        address: result?.formatted_address,
-      })
-    )
-    .filter(Boolean) as PinCandidate[];
+
+  return {
+    candidates: results
+      .slice(0, 8)
+      .map((result: any) =>
+        toCandidate(result?.geometry?.location, {
+          name: result?.name,
+          address: result?.formatted_address,
+        })
+      )
+      .filter(Boolean) as PinCandidate[],
+    status,
+    message,
+  };
 }
 
-async function geocodePins(
-  query: string,
-  key: string
-): Promise<PinCandidate[]> {
+async function geocodePins(query: string, key: string): Promise<ProviderResult> {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", query);
   url.searchParams.set("region", "il");
   url.searchParams.set("language", "he");
   url.searchParams.set("key", key);
 
-  const data = await fetchGoogleJson(url.toString());
+  const { data, status, message } = await fetchGoogleJson(
+    "geocode",
+    url.toString()
+  );
   const results = Array.isArray(data?.results) ? data.results : [];
-  return results
-    .slice(0, 5)
-    .map((result: any) =>
-      toCandidate(result?.geometry?.location, {
-        name: result?.formatted_address,
-        address: result?.formatted_address,
-      })
-    )
-    .filter(Boolean) as PinCandidate[];
+
+  return {
+    candidates: results
+      .slice(0, 5)
+      .map((result: any) =>
+        toCandidate(result?.geometry?.location, {
+          name: result?.formatted_address,
+          address: result?.formatted_address,
+        })
+      )
+      .filter(Boolean) as PinCandidate[],
+    status,
+    message,
+  };
+}
+
+function failureFromStatuses(statuses: string[]): MapPinFailure {
+  const rejected = statuses.find(
+    (status) => status && !PROVIDER_OK.has(status)
+  );
+  return rejected ? "PROVIDER_REJECTED" : "NOT_FOUND";
+}
+
+export async function resolveMapPinDetailed(
+  location?: NavLocation | null
+): Promise<MapPinResolution> {
+  const empty: MapPinResolution = {
+    pin: null,
+    source: "none",
+    failure: "NO_QUERY",
+    providerStatus: "",
+    providerMessage: "",
+  };
+
+  if (!location) return empty;
+
+  const saved = asMapPin(location);
+  if (saved) {
+    return { ...empty, pin: saved, source: "saved", failure: null };
+  }
+
+  const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
+  const venueName = String(location.name || "").trim();
+  if (!searchQuery) return empty;
+
+  const key = cacheKey(location);
+  const cached = pinCache.get(key);
+  if (cached) {
+    return { ...empty, pin: cached, source: "geocode", failure: null };
+  }
+
+  const apiKey = googleMapsKey();
+  if (!apiKey) {
+    console.error(
+      "❌ Cannot resolve an event pin: GOOGLE_MAPS_API_KEY is not configured."
+    );
+    return { ...empty, failure: "NO_API_KEY" };
+  }
+
+  const statuses: string[] = [];
+  let providerMessage = "";
+  const geoResults: PinCandidate[] = [];
+  let hint: MapPin | null = null;
+
+  // The locality is resolved first and anchors everything else: a venue name
+  // alone can match a hall with the same name in another city.
+  for (const query of hintQueries(location)) {
+    const result = await geocodePins(query, apiKey);
+    statuses.push(result.status);
+    providerMessage = providerMessage || result.message;
+    geoResults.push(...result.candidates);
+
+    if (!hint && result.candidates[0]) {
+      hint = { lat: result.candidates[0].lat, lng: result.candidates[0].lng };
+    }
+  }
+
+  const searches = await Promise.all([
+    textSearchPins(searchQuery, apiKey, hint),
+    findPlacePins(searchQuery, apiKey, hint),
+  ]);
+  for (const result of searches) {
+    statuses.push(result.status);
+    providerMessage = providerMessage || result.message;
+  }
+
+  const candidates = [
+    ...geoResults,
+    ...searches.flatMap((result) => result.candidates),
+  ];
+
+  const pin = chooseMapPin({ saved, hint, candidates, venueName });
+  const providerStatus =
+    statuses.find((status) => status && !PROVIDER_OK.has(status)) || "";
+
+  if (!pin) {
+    return {
+      ...empty,
+      failure: failureFromStatuses(statuses),
+      providerStatus,
+      providerMessage,
+    };
+  }
+
+  pinCache.set(key, pin);
+
+  return {
+    pin,
+    source: "geocode",
+    failure: null,
+    providerStatus,
+    providerMessage,
+  };
 }
 
 export async function resolveMapPin(
   location?: NavLocation | null
 ): Promise<MapPin | null> {
-  if (!location) return null;
-
-  const saved = asMapPin(location);
-  if (saved) return saved;
-
-  const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
-  const venueName = String(location.name || "").trim();
-
-  const key = cacheKey(location);
-  const cached = pinCache.get(key);
-  if (cached) return cached;
-
-  const apiKey = googleMapsKey();
-  if (!apiKey) {
-    return chooseMapPin({
-      saved,
-      hint: null,
-      candidates: [],
-      query: searchQuery,
-      venueName,
-    });
-  }
-
-  const geoResults: PinCandidate[] = [];
-  for (const query of hintQueries(location)) {
-    geoResults.push(...(await geocodePins(query, apiKey)));
-  }
-
-  const hint = pickHintPin(geoResults, searchQuery);
-  const candidates = [
-    ...geoResults,
-    ...(searchQuery ? await textSearchPins(searchQuery, apiKey, hint) : []),
-    ...(searchQuery ? await findPlacePins(searchQuery, apiKey, hint) : []),
-  ];
-
-  const pin = chooseMapPin({
-    saved,
-    hint,
-    candidates,
-    query: searchQuery,
-    venueName,
-  });
-  if (pin) pinCache.set(key, pin);
+  const { pin } = await resolveMapPinDetailed(location);
   return pin;
 }
 

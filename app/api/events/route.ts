@@ -3,6 +3,7 @@ import connectDB from "@/lib/db";
 import Event from "@/models/Event";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { prepareEventLocation } from "@/lib/eventLocation";
 
 export const dynamic = "force-dynamic";
 
@@ -61,25 +62,20 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
+    const existingEvent = await Event.findOne({ userId: auth.userId });
+
+    const preparedLocation = await prepareEventLocation({
+      input: body.location,
+      previous: existingEvent?.location,
+    });
+
     const payload: any = {
       title: body.title?.trim() || "",
       eventType: body.eventType || "wedding",
       date: body.date || "",
       time: body.time || "",
 
-      location: body.location
-        ? {
-            address: body.location.address || "",
-            lat:
-              typeof body.location.lat === "number"
-                ? body.location.lat
-                : null,
-            lng:
-              typeof body.location.lng === "number"
-                ? body.location.lng
-                : null,
-          }
-        : { address: "", lat: null, lng: null },
+      location: preparedLocation.location,
 
       /* 🎁 NEW – קישור מתנות באשראי */
       giftCreditUrl:
@@ -93,7 +89,7 @@ export async function POST(req: NextRequest) {
       payload.budgetTotal = body.budgetTotal;
     }
 
-    let event = await Event.findOne({ userId: auth.userId });
+    let event = existingEvent;
 
     if (!event) {
       event = await Event.create({
@@ -111,6 +107,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       event,
+      locationWarning: preparedLocation.warning,
     });
   } catch (err) {
     console.error("❌ POST /api/events failed:", err);

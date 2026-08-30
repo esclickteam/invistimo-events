@@ -15,6 +15,7 @@ import {
   eventHasVerifiedVenueLink,
   findVenueHallByAnyId,
 } from "@/lib/venues/eventVenueLinkInvariant";
+import { prepareEventLocation } from "@/lib/eventLocation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -97,36 +98,6 @@ function normalizeEventDate(value: unknown) {
   }
 
   return date.toISOString().slice(0, 10);
-}
-
-function normalizeLocation(input: any) {
-  if (!input) {
-    return {
-      address: "",
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  if (typeof input === "string") {
-    return {
-      address: input.trim(),
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  return {
-    address: cleanString(input.address || input.name),
-    lat:
-      input.lat === undefined || input.lat === null
-        ? undefined
-        : toNumber(input.lat, undefined as any),
-    lng:
-      input.lng === undefined || input.lng === null
-        ? undefined
-        : toNumber(input.lng, undefined as any),
-  };
 }
 
 function serializeEvent(event: any) {
@@ -323,6 +294,10 @@ async function createOrUpdateEventForInvitation({
    * יוצרים Event בסיסי חדש.
    */
   if (!shouldCreateEvent) {
+    const fallbackLocation = await prepareEventLocation({
+      input: body.location,
+    });
+
     const fallbackEvent = await Event.create({
       userId: new mongoose.Types.ObjectId(userId),
       producerId:
@@ -347,7 +322,7 @@ async function createOrUpdateEventForInvitation({
 
       maxGuests: 100,
 
-      location: normalizeLocation(body.location),
+      location: fallbackLocation.location,
 
       zones: [],
       planning: {
@@ -421,7 +396,7 @@ async function createOrUpdateEventForInvitation({
     )
   );
 
-  const location = normalizeLocation(body.location);
+  const { location } = await prepareEventLocation({ input: body.location });
   const budgetTotal = Math.max(0, toNumber(body.budgetTotal, 0));
 
   const eventPayload: any = {
