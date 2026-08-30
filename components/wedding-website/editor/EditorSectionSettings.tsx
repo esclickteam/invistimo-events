@@ -236,6 +236,21 @@ export default function EditorSectionSettings({ sectionId }: { sectionId: string
               onApplyToTheme={(role, color) => editor.updateTheme({ colors: { [role]: color } })}
             />
           </div>
+          {sectionId === "rsvp" ? (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black text-white/60">רקע כרטיס התודה / הטופס</span>
+              <EditorColorField
+                label="רקע כרטיס RSVP"
+                compact
+                value={style.cardBackgroundColor || ""}
+                against={style.cardBackgroundColor || style.backgroundColor || site.template.theme.bg}
+                onChange={(cardBackgroundColor) =>
+                  patch({ cardBackgroundColor: cardBackgroundColor || undefined })
+                }
+                onApplyToTheme={(role, color) => editor.updateTheme({ colors: { [role]: color } })}
+              />
+            </div>
+          ) : null}
         </EditorPanelSection>
       ) : null}
     </div>

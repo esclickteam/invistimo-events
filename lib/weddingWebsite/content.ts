@@ -199,6 +199,14 @@ export function mergeWeddingWebsiteContent(
       "נשמח לקרוא ברכה, איחול או הודעה מכם.",
     rsvpTitle: cleanString((raw as WeddingDemoContent).rsvpTitle) || base.rsvpTitle,
     rsvpSubtitle: cleanString((raw as WeddingDemoContent).rsvpSubtitle) || base.rsvpSubtitle,
+    rsvpSuccessMessage:
+      cleanString((raw as WeddingDemoContent).rsvpSuccessMessage) ||
+      base.rsvpSuccessMessage ||
+      "✓ תודה! תשובתך התקבלה",
+    rsvpUpdateLabel:
+      cleanString((raw as WeddingDemoContent).rsvpUpdateLabel) ||
+      base.rsvpUpdateLabel ||
+      "רוצים לעדכן?",
     transportationTitle:
       cleanString((raw as WeddingDemoContent).transportationTitle) || base.transportationTitle,
     transportationDescription:

@@ -90,6 +90,26 @@ test("theme accent and text recolor the countdown clock site-wide", () => {
   assert.match(css, /\[data-ww-countdown="units"\] > \*\{background-color:/);
 });
 
+test("RSVP thank-you state is editable on the wedding website", () => {
+  const form = read("components/rsvp/GuestRsvpForm.tsx");
+  const templateRsvp = read("components/wedding-website/WeddingTemplateRsvp.tsx");
+  const schema = read("lib/weddingWebsite/editorSchema.ts");
+  const settings = read("components/wedding-website/editor/EditorSectionSettings.tsx");
+  const siteCss = read("lib/weddingWebsite/siteCss.ts");
+
+  assert.match(schema, /rsvpSuccessMessage/);
+  assert.match(schema, /rsvpUpdateLabel/);
+  assert.match(schema, /data-rsvp-state='form'/);
+  assert.match(form, /forceSent/);
+  assert.match(form, /data-rsvp-card/);
+  assert.match(form, /copy\?\.success/);
+  assert.match(templateRsvp, /forceSent/);
+  assert.match(templateRsvp, /rsvpSuccessMessage/);
+  assert.match(templateRsvp, /תצוגת דף תודה/);
+  assert.match(settings, /cardBackgroundColor/);
+  assert.match(siteCss, /data-rsvp-card/);
+});
+
 test("changing the text colour does not repaint hero scrims or dark panels", () => {
   // Eternal Gold reuses its ink hex (#2A2118) for the hero gradient and for a
   // dark section background, so the text role must stay limited to `color`.

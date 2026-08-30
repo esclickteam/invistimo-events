@@ -2,6 +2,8 @@
 
 import GuestRsvpForm from "@/components/rsvp/GuestRsvpForm";
 import { getRsvpAppearance } from "@/components/rsvp/rsvpAppearances";
+import { useWeddingSite } from "@/components/wedding-website/editable/WeddingSiteContext";
+import { RSVP_COPY } from "@/lib/rsvp/guestRsvpLogic";
 import {
   useGuestRsvpDemoController,
   type GuestRsvpController,
@@ -18,9 +20,17 @@ export default function WeddingTemplateRsvp({
   controller,
   showHeading = false,
 }: Props) {
+  const site = useWeddingSite();
   const demo = useGuestRsvpDemoController();
   const rsvp = controller || demo;
   const isLive = Boolean(controller?.shareId);
+  const isEditor = site?.mode === "editor";
+  const appearance = getRsvpAppearance(templateId);
+  const copy = {
+    heading: site?.content.rsvpSubtitle || RSVP_COPY.heading,
+    success: site?.content.rsvpSuccessMessage || RSVP_COPY.success,
+    updateLabel: site?.content.rsvpUpdateLabel || "רוצים לעדכן?",
+  };
 
   if (controller?.loading) {
     return (
@@ -31,13 +41,34 @@ export default function WeddingTemplateRsvp({
   }
 
   return (
-    <GuestRsvpForm
-      controller={rsvp}
-      appearance={getRsvpAppearance(templateId)}
-      showHeading={showHeading}
-      showTransportation={isLive}
-      showGiftAndNote={isLive}
-      allowUpdateAfterSubmit
-    />
+    <div className="space-y-8">
+      <GuestRsvpForm
+        controller={rsvp}
+        appearance={appearance}
+        showHeading={showHeading}
+        showTransportation={isLive && !isEditor}
+        showGiftAndNote={isLive && !isEditor}
+        allowUpdateAfterSubmit
+        copy={copy}
+      />
+
+      {isEditor ? (
+        <div data-ww-thankyou-preview="1">
+          <p className="mb-3 text-center text-[11px] font-black tracking-wide opacity-55">
+            תצוגת דף תודה — ערכו כאן טקסט וצבעים
+          </p>
+          <GuestRsvpForm
+            controller={rsvp}
+            appearance={appearance}
+            showHeading={false}
+            showTransportation={false}
+            showGiftAndNote={false}
+            allowUpdateAfterSubmit
+            copy={copy}
+            forceSent
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
