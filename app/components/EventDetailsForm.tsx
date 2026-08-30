@@ -64,6 +64,7 @@ export default function EventDetailsForm({
       address: "",
       lat: null as number | null,
       lng: null as number | null,
+      placeId: "" as string,
     },
     publicEventPage: {
       enabled: true,
@@ -122,6 +123,7 @@ export default function EventDetailsForm({
         address: event.location?.address ?? "",
         lat: event.location?.lat ?? null,
         lng: event.location?.lng ?? null,
+        placeId: event.location?.placeId ?? "",
       },
       publicEventPage: {
         enabled: true,
@@ -301,6 +303,7 @@ export default function EventDetailsForm({
           address: form.location.address,
           lat: form.location.lat,
           lng: form.location.lng,
+          placeId: form.location.placeId || "",
         },
         publicEventPage: {
           enabled: true,
@@ -627,7 +630,7 @@ export default function EventDetailsForm({
                     ? `${form.location.name}, ${form.location.address}`
                     : form.location.name || form.location.address
                 }
-                onSelect={({ name, address, lat, lng }) =>
+                onSelect={({ name, address, lat, lng, placeId }) =>
                   setForm((f) => ({
                     ...f,
                     location: {
@@ -635,6 +638,7 @@ export default function EventDetailsForm({
                       address,
                       lat,
                       lng,
+                      placeId: placeId || "",
                     },
                   }))
                 }

@@ -23,9 +23,7 @@ test("navigation links prefer the exact event coordinates", () => {
   assert.equal(hasExactCoordinates(location), true);
   assert.equal(
     getGoogleMapsLink(location),
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      "אולמי הירקון, רחוב רוקח 12, תל אביב"
-    )}`
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("32.0961,34.7732")}`
   );
   assert.equal(
     getWazeLink(location),
@@ -33,9 +31,7 @@ test("navigation links prefer the exact event coordinates", () => {
   );
   assert.equal(
     getGoogleMapsEmbedUrl(location, 16),
-    `https://www.google.com/maps?q=${encodeURIComponent(
-      "אולמי הירקון, רחוב רוקח 12, תל אביב"
-    )}&z=16&output=embed`
+    "https://www.google.com/maps?q=32.0961,34.7732&z=16&output=embed"
   );
 });
 
@@ -44,6 +40,22 @@ test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
   assert.equal(url, "https://waze.com/ul?ll=32.5942,35.3611&navigate=yes");
   assert.equal(getWazeAppLink({ lat: 32.5942, lng: 35.3611 }), "waze://?ll=32.5942,35.3611&navigate=yes");
   assert.doesNotMatch(url || "", /%2C/);
+});
+
+test("Google Maps opens the saved Google place id with the venue name", () => {
+  const url = getGoogleMapsLink({
+    name: "שיבולים גן אירועים",
+    address: "רמת צבי, ישראל",
+    lat: 32.5927,
+    lng: 35.4143,
+    placeId: "ChIJGardenRamatZvi",
+  });
+  assert.equal(
+    url,
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      "שיבולים גן אירועים"
+    )}&query_place_id=${encodeURIComponent("ChIJGardenRamatZvi")}`
+  );
 });
 
 test("Waze never appends a name search even when the venue has a label", () => {
@@ -108,6 +120,7 @@ test("resolved event location uses invitation details before event fallback", ()
     address: "דרך היין 8, זכרון יעקב",
     lat: 32.5731,
     lng: 34.9552,
+    placeId: "",
   });
 });
 

@@ -3,6 +3,7 @@ export type NavLocation = {
   address?: string | null;
   lat?: number | string | null;
   lng?: number | string | null;
+  placeId?: string | null;
 };
 
 export type ResolvedEventLocation = {
@@ -10,6 +11,7 @@ export type ResolvedEventLocation = {
   address: string;
   lat: number | null;
   lng: number | null;
+  placeId: string;
 };
 
 export function parseCoord(value: unknown): number | null {
@@ -76,24 +78,41 @@ export function resolveEventLocation(
     ),
     lat: parseCoord(coords?.lat),
     lng: parseCoord(coords?.lng),
+    placeId: firstText(
+      invitationLocation.placeId,
+      eventLocation.placeId,
+      extraLocation.placeId
+    ),
   };
 }
 
 function queryFromLocation(location: NavLocation) {
+  const lat = parseCoord(location.lat);
+  const lng = parseCoord(location.lng);
+  if (lat != null && lng != null) return `${lat},${lng}`;
+
   const name = firstText(location.name);
   const address = firstText(location.address);
   if (name && address && !address.includes(name) && !name.includes(address)) {
     return `${name}, ${address}`;
   }
-  if (address || name) return address || name;
-
-  const lat = parseCoord(location.lat);
-  const lng = parseCoord(location.lng);
-  if (lat != null && lng != null) return `${lat},${lng}`;
-  return null;
+  return address || name || null;
 }
 
 export function getGoogleMapsLink(location: NavLocation) {
+  const lat = parseCoord(location.lat);
+  const lng = parseCoord(location.lng);
+  const name = firstText(location.name, location.address);
+  const placeId = firstText(location.placeId);
+
+  if (placeId) {
+    const query = name || (lat != null && lng != null ? `${lat},${lng}` : "");
+    if (!query) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      query
+    )}&query_place_id=${encodeURIComponent(placeId)}`;
+  }
+
   const query = queryFromLocation(location);
   if (!query) return null;
 
@@ -126,6 +145,12 @@ export function getWazeAppLink(location: NavLocation) {
 }
 
 export function getGoogleMapsEmbedUrl(location: NavLocation, zoom = 16) {
+  const lat = parseCoord(location.lat);
+  const lng = parseCoord(location.lng);
+  if (lat != null && lng != null) {
+    return `https://www.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`;
+  }
+
   const query = queryFromLocation(location);
   if (!query) return null;
 
