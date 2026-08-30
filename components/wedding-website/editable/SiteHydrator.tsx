@@ -247,11 +247,9 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     const edit = section.getAttribute("data-ww-edit");
     if (edit === "text" || edit === "media" || edit === "countdown") return;
     section.setAttribute("data-ww-section", id);
-    if (edit === "section") {
-      section.removeAttribute("data-ww-edit");
-      section.removeAttribute("data-ww-path");
-      section.removeAttribute("data-ww-label");
-    }
+    section.setAttribute("data-ww-edit", "section");
+    section.setAttribute("data-ww-path", id);
+    section.setAttribute("data-ww-label", "עריכת רקע המקטע");
     if (section.querySelector(":scope > .ww-section-handle")) return;
     const handle = document.createElement("button");
     handle.type = "button";

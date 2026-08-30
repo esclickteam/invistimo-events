@@ -419,6 +419,9 @@ test("editor selection targets inner text and countdown instead of the whole sec
   const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
 
   assert.match(overlay, /data-ww-edit="countdown"/);
+  assert.match(overlay, /closest\("\[data-ww-section\]"\)/);
+  assert.match(overlay, /עריכת רקע המקטע/);
+  assert.match(hydrator, /setAttribute\("data-ww-edit", "section"\)/);
   assert.match(overlay, /clampRect/);
   assert.match(overlay, /addEventListener\("scroll"/);
   assert.match(overlay, /selectedElRef/);

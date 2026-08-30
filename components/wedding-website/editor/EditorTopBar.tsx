@@ -37,8 +37,6 @@ export default function EditorTopBar({
   livePath,
   unpublishedCount,
   onPublish,
-  sidebarOpen,
-  onToggleSidebar,
 }: {
   siteTitle: string;
   device: WeddingEditorDevice;
@@ -55,8 +53,6 @@ export default function EditorTopBar({
   livePath: string;
   unpublishedCount: number;
   onPublish: () => void;
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
 }) {
   const saveLabel = saveState === "idle" && !dirty ? SAVE_LABELS.saved : SAVE_LABELS[saveState];
 
@@ -67,12 +63,6 @@ export default function EditorTopBar({
       className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/10 bg-[#16110d] px-3 py-2 text-white"
     >
       <div className="flex min-w-0 items-center gap-2">
-        <EditorButton
-          label={sidebarOpen ? "הסתרת המקטעים" : "מקטעים"}
-          icon={<span aria-hidden>☰</span>}
-          onClick={onToggleSidebar}
-          tone="outline"
-        />
         <div className="min-w-0">
           <p className="text-[10px] font-black text-[#E8D5A8]">עורך אתר החתונה</p>
           <h1 className="truncate text-sm font-black">{siteTitle || "אתר החתונה"}</h1>
