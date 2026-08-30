@@ -5,6 +5,7 @@ import {
   getGoogleMapsEmbedUrl,
   getGoogleMapsLink,
   getWazeLink,
+  getWazeAppLink,
   hasExactCoordinates,
   parseCoord,
   resolveEventLocation,
@@ -26,7 +27,7 @@ test("navigation links prefer the exact event coordinates", () => {
   );
   assert.equal(
     getWazeLink(location),
-    "https://www.waze.com/ul?ll=32.0961,34.7732&navigate=yes"
+    "https://waze.com/ul?ll=32.0961,34.7732&navigate=yes"
   );
   assert.equal(
     getGoogleMapsEmbedUrl(location, 16),
@@ -36,7 +37,8 @@ test("navigation links prefer the exact event coordinates", () => {
 
 test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
   const url = getWazeLink({ lat: 32.5942, lng: 35.3611 });
-  assert.equal(url, "https://www.waze.com/ul?ll=32.5942,35.3611&navigate=yes");
+  assert.equal(url, "https://waze.com/ul?ll=32.5942,35.3611&navigate=yes");
+  assert.equal(getWazeAppLink({ lat: 32.5942, lng: 35.3611 }), "waze://?ll=32.5942,35.3611&navigate=yes");
   assert.doesNotMatch(url || "", /%2C|\?q=/);
 });
 

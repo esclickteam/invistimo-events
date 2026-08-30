@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import {
-  getWazeLink,
   getLocationQuery,
+  getWazeAppLink,
+  getWazeLink,
   type NavLocation,
 } from "@/lib/navigationLinks";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
@@ -14,39 +15,70 @@ type Props = {
   children: ReactNode;
 };
 
+function isMobileNav() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
 export default function WazeNavButton({ location, className, children }: Props) {
-  const [opening, setOpening] = useState(false);
-  const href = location ? getWazeLink(location) : null;
-  const canResolve = Boolean(href || (location && getLocationQuery(location)));
+  const [resolved, setResolved] = useState<NavLocation | null>(location || null);
+  const href = resolved ? getWazeLink(resolved) : null;
+  const appHref = resolved ? getWazeAppLink(resolved) : null;
+  const canShow = Boolean(
+    href || (location && getLocationQuery(location))
+  );
 
-  if (!location || !canResolve) return null;
+  useEffect(() => {
+    if (!location) {
+      setResolved(null);
+      return;
+    }
 
-  async function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (href) return;
+    if (getWazeLink(location)) {
+      setResolved(location);
+      return;
+    }
+
+    let cancelled = false;
+
+    resolveMapPinInBrowser(location).then((pin) => {
+      if (cancelled || !pin) return;
+      setResolved({ ...location, ...pin });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location?.lat, location?.lng, location?.address, location?.name]);
+
+  if (!location || !canShow) return null;
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (!href) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!isMobileNav()) return;
 
     event.preventDefault();
-    if (opening) return;
+    const appUrl = appHref || href;
+    window.location.assign(appUrl);
 
-    setOpening(true);
-    try {
-      const pin = await resolveMapPinInBrowser(location);
-      const url = pin ? getWazeLink({ ...location, ...pin }) : null;
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    } finally {
-      setOpening(false);
-    }
+    window.setTimeout(() => {
+      if (document.visibilityState === "hidden") return;
+      window.location.assign(href);
+    }, 900);
   }
 
   return (
     <a
-      href={href || "#"}
+      href={href || undefined}
       onClick={handleClick}
-      target={href ? "_blank" : undefined}
+      target="_blank"
       rel="noopener noreferrer"
-      aria-busy={opening}
       className={className}
+      aria-disabled={!href}
     >
       {children}
     </a>

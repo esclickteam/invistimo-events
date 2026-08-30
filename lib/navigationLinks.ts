@@ -110,7 +110,14 @@ export function getWazeLink(location: NavLocation) {
   // Always navigate by the exact pin — never by business-name search.
   if (lat == null || lng == null) return null;
 
-  return `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+}
+
+export function getWazeAppLink(location: NavLocation) {
+  const lat = parseCoord(location.lat);
+  const lng = parseCoord(location.lng);
+  if (lat == null || lng == null) return null;
+  return `waze://?ll=${lat},${lng}&navigate=yes`;
 }
 
 export function getGoogleMapsEmbedUrl(location: NavLocation, zoom = 16) {
