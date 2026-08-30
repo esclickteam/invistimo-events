@@ -34,6 +34,9 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/sales-documents") ||
     pathname.startsWith("/client-contracts/sign");
 
+  const isSetPasswordPage =
+    pathname === "/set-password" || pathname.startsWith("/set-password/");
+
   /* =====================================================
      ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
      שימי לב:
@@ -61,7 +64,9 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password");
+    pathname.startsWith("/reset-password") ||
+    pathname === "/set-password" ||
+    pathname.startsWith("/set-password/");
 
   /* =====================================================
      ❌ דפי הזמנות / RSVP / תודה – בלי SupportBot
@@ -95,7 +100,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   /* =====================================================
      📄 הצעת מחיר / הסכם – בלי Header / Footer בכלל
   ===================================================== */
-  if (isSalesDocumentPage || isWeddingWebsite) {
+  if (isSalesDocumentPage || isWeddingWebsite || isSetPasswordPage) {
     return <>{children}</>;
   }
 

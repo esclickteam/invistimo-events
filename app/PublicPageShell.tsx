@@ -72,6 +72,11 @@ function isSalesDocumentRoute(pathname: string | null) {
   );
 }
 
+function isSetPasswordRoute(pathname: string | null) {
+  const path = String(pathname || "");
+  return path === "/set-password" || path.startsWith("/set-password/");
+}
+
 export default function PublicPageShell({ children }: PublicPageShellProps) {
   const pathname = usePathname();
 
@@ -113,6 +118,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
   const shouldHidePublicShell = useMemo(() => {
     if (isSalesDocumentRoute(pathname)) return true;
 
+    if (isSetPasswordRoute(pathname)) return true;
+
     if (isWeddingWebsiteRoute(pathname)) return true;
 
     if (isPublicEventRoute(pathname)) return true;
@@ -131,6 +138,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
 
   const shouldShowSupportBot = useMemo(() => {
     if (isSalesDocumentRoute(pathname)) return false;
+
+    if (isSetPasswordRoute(pathname)) return false;
 
     if (isWeddingWebsiteRoute(pathname)) return false;
 
