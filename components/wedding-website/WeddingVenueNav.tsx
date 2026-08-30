@@ -1,7 +1,8 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { getGoogleMapsLink, getWazeLink } from "@/lib/navigationLinks";
+import { getGoogleMapsLink } from "@/lib/navigationLinks";
+import WazeNavButton from "@/app/components/WazeNavButton";
 import { DEMO } from "./shared/weddingUtils";
 
 type Props = {
@@ -19,7 +20,6 @@ export default function WeddingVenueNav({
   lat,
   lng,
   googleHref,
-  wazeHref,
   className,
   linkClassName,
 }: Props) {
@@ -30,26 +30,21 @@ export default function WeddingVenueNav({
   };
 
   const google = googleHref || getGoogleMapsLink(location);
-  const waze = wazeHref || getWazeLink(location);
 
-  if (!google && !waze) return null;
+  if (!google && !location.address && location.lat == null) return null;
 
   return (
     <div className={className || "mt-6 flex flex-wrap items-center gap-3"}>
-      {waze && (
-        <a
-          href={waze}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={
-            linkClassName ||
-            "inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold"
-          }
-        >
-          <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-          Waze
-        </a>
-      )}
+      <WazeNavButton
+        location={location}
+        className={
+          linkClassName ||
+          "inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold"
+        }
+      >
+        <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+        Waze
+      </WazeNavButton>
       {google && (
         <a
           href={google}

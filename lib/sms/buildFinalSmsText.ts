@@ -1,6 +1,7 @@
 import { shortenUrl } from "@/lib/shortenUrl";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getWazeLink, resolveEventLocation } from "@/lib/navigationLinks";
+import { withResolvedMapPin } from "@/lib/resolveMapPin";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -62,7 +63,7 @@ export async function buildFinalSmsText({
 
   /* ================= NAVIGATION ================= */
 
-  const location = resolveEventLocation(invitation, event);
+  const location = await withResolvedMapPin(resolveEventLocation(invitation, event));
   let navigationLink = "";
 
   const wazeUrl = getWazeLink(location);

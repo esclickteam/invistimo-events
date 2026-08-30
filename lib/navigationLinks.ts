@@ -97,20 +97,20 @@ export function getGoogleMapsLink(location: NavLocation) {
   )}`;
 }
 
+export function getLocationQuery(location: NavLocation) {
+  return firstText(location.address, location.name);
+}
+
 export function getWazeLink(location: NavLocation) {
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
 
-  if (lat != null && lng != null) {
-    return `https://waze.com/ul?ll=${encodeURIComponent(
-      `${lat},${lng}`
-    )}&navigate=yes`;
-  }
+  // Waze search (`q=`) matches a different index than Google Maps.
+  // A venue name like "שיבולים גן אירועים" can open the wrong city.
+  // Always navigate by the exact pin — never by business-name search.
+  if (lat == null || lng == null) return null;
 
-  const address = firstText(location.address, location.name);
-  if (!address) return null;
-
-  return `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+  return `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
 }
 
 export function getGoogleMapsEmbedUrl(location: NavLocation, zoom = 16) {

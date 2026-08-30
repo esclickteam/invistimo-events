@@ -26,8 +26,8 @@ import { useWeddingTheme } from "./WeddingThemeProvider";
 import {
   getGoogleMapsEmbedUrl,
   getGoogleMapsLink,
-  getWazeLink,
 } from "@/lib/navigationLinks";
+import WazeNavButton from "@/app/components/WazeNavButton";
 import { DEMO_GUEST_UPLOADS } from "@/config/weddingWebsite/demoContent";
 import type { GuestUploadItem, WeddingSectionId } from "@/types/weddingWebsite";
 
@@ -379,7 +379,6 @@ export function LocationSection() {
     lat: content.venueLat,
     lng: content.venueLng,
   };
-  const wazeHref = getWazeLink(venueLocation);
   const googleHref = getGoogleMapsLink(venueLocation);
   const mapEmbedUrl = getGoogleMapsEmbedUrl(venueLocation);
   return (
@@ -406,17 +405,13 @@ export function LocationSection() {
             />
           </div>
           <div className="flex flex-wrap gap-3 p-6">
-            {wazeHref && (
-              <a
-                href={wazeHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
-              >
-                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-                Waze
-              </a>
-            )}
+            <WazeNavButton
+              location={venueLocation}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
+            >
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+              Waze
+            </WazeNavButton>
             {googleHref && (
               <a
                 href={googleHref}

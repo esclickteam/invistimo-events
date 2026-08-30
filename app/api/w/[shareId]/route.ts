@@ -16,6 +16,7 @@ import {
 } from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
+import { withResolvedMapPin } from "@/lib/resolveMapPin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,6 +55,14 @@ export async function GET(
     }
 
     const website = serializeWeddingWebsite(invitation);
+    const venuePin = await withResolvedMapPin({
+      name: website.content.venueName,
+      address: website.content.venueAddress,
+      lat: website.content.venueLat,
+      lng: website.content.venueLng,
+    });
+    website.content.venueLat = venuePin.lat;
+    website.content.venueLng = venuePin.lng;
     if (invitation.weddingWebsite?.published === false) {
       return NextResponse.json(
         { success: false, error: "UNPUBLISHED", message: "אתר החתונה עדיין לא פורסם." },
