@@ -359,6 +359,29 @@ test("editor controls are keyboard reachable and labelled", () => {
   assert.match(ui, /event\.key !== "Tab"/);
 });
 
+test("one edit records one history entry", () => {
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  // Saving and history are side effects, so the next value is computed outside
+  // the state updater. React may call an updater more than once, which would
+  // otherwise record every edit twice and make undo need two presses.
+  assert.match(editor, /const next = updater\(contentRef\.current\);/);
+  assert.doesNotMatch(editor, /setContent\(\(current\) => \{[\s\S]{0,200}pushHistory/);
+  assert.doesNotMatch(editor, /setHistoryIndex\(\(currentIndex\) =>/);
+  assert.match(editor, /historyIndexRef/);
+});
+
+test("the published site carries no editing attributes", () => {
+  const grid = read("components/wedding-website/shared/WeddingCountdownGrid.tsx");
+  const media = read("components/wedding-website/editable/WeddingMedia.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+
+  assert.match(grid, /const isEditor = site\?\.mode === "editor"/);
+  assert.match(grid, /data-ww-edit=\{isEditor \? "countdown" : undefined\}/);
+  assert.match(media, /data-ww-edit=\{isEditor \? "media" : undefined\}/);
+  // The hydrator strips section handles and contenteditable outside the editor.
+  assert.match(hydrator, /root\.querySelectorAll\("\.ww-section-handle"\)\.forEach/);
+});
+
 test("keyboard shortcuts cover undo, redo, save and deselect", () => {
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
   assert.match(editor, /event\.key === "Escape"/);

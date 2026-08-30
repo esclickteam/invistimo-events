@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { DEMO } from "./weddingUtils";
 import { useCountdownTimer } from "./useWeddingInteractions";
+import { useWeddingSite } from "../editable/WeddingSiteContext";
 
 export type WeddingCountdownUnit = {
   label: string;
@@ -34,19 +35,23 @@ export function WeddingCountdownGrid({
   weddingDate?: string;
   weddingTime?: string;
 }) {
+  const site = useWeddingSite();
   const time = useCountdownTimer(
     weddingDate || DEMO.weddingDate,
     weddingTime || DEMO.weddingTime
   );
   const units = weddingCountdownUnits(time);
+  // The selection hooks belong to the editor only; the published site must not
+  // carry any editing attributes.
+  const isEditor = site?.mode === "editor";
 
   return (
     <div
       dir="ltr"
       data-ww-countdown="units"
-      data-ww-edit="countdown"
-      data-ww-path="countdown"
-      data-ww-label="ספירה לאחור"
+      data-ww-edit={isEditor ? "countdown" : undefined}
+      data-ww-path={isEditor ? "countdown" : undefined}
+      data-ww-label={isEditor ? "ספירה לאחור" : undefined}
       className={className}
       style={{ direction: "ltr" }}
     >

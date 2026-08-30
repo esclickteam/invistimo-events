@@ -58,7 +58,12 @@ export default function EditorOverlay() {
     }
 
     function onPointerMove(event: PointerEvent) {
-      setHover(fromTarget(event.target));
+      const next = fromTarget(event.target);
+      // Only re-render when the hovered element actually changes, otherwise
+      // every mouse move would repaint the canvas.
+      setHover((current) =>
+        current?.el === next?.el && current?.path === next?.path ? current : next
+      );
     }
 
     function onPointerDown(event: PointerEvent) {
@@ -150,7 +155,11 @@ export default function EditorOverlay() {
         setToolbarRect(null);
         return;
       }
-      setToolbarRect(clampRect(el.getBoundingClientRect(), root.getBoundingClientRect()));
+      const next = clampRect(el.getBoundingClientRect(), root.getBoundingClientRect());
+      // Measuring allocates a fresh rect every time. Keeping the previous
+      // object when the geometry is unchanged stops the render that this
+      // effect would otherwise trigger on itself.
+      setToolbarRect((current) => (sameRect(current, next) ? current : next));
     }
 
     measure();
@@ -315,6 +324,17 @@ function findSelectedElement(canvas: Element, selection: NonNullable<WeddingSite
     `[data-ww-path="${path}"]${INNER_EDIT}`
   ) as HTMLElement | null;
   return inner;
+}
+
+function sameRect(a: DOMRect | null, b: DOMRect | null) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a.top - b.top) < 0.5 &&
+    Math.abs(a.left - b.left) < 0.5 &&
+    Math.abs(a.width - b.width) < 0.5 &&
+    Math.abs(a.height - b.height) < 0.5
+  );
 }
 
 function clampRect(rect: DOMRect, bounds?: DOMRect | null) {

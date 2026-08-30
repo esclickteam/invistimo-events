@@ -123,6 +123,10 @@ export default function WeddingVisualEditor() {
   ]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyContentRef = useRef<WeddingDemoContent[]>([emptyContent]);
+  const historyEntriesRef = useRef<HistoryEntry[]>([
+    { id: 0, label: "פתיחת העורך", at: Date.now() },
+  ]);
+  const historyIndexRef = useRef(0);
   const historyIdRef = useRef(1);
   const skipHistoryRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
@@ -177,8 +181,11 @@ export default function WeddingVisualEditor() {
           setTemplateId(website.templateId);
           setPublished(website.published !== false);
           setContent(nextContent);
+          contentRef.current = nextContent;
           historyContentRef.current = [nextContent];
-          setHistory([{ id: 0, label: "פתיחת העורך", at: Date.now() }]);
+          historyEntriesRef.current = [{ id: 0, label: "פתיחת העורך", at: Date.now() }];
+          historyIndexRef.current = 0;
+          setHistory(historyEntriesRef.current);
           setHistoryIndex(0);
           setPublishedContent((website.publishedContent || website.content || null) as WeddingDemoContent | null);
         }
@@ -263,34 +270,34 @@ export default function WeddingVisualEditor() {
 
   const pushHistory = useCallback((next: WeddingDemoContent, label: string) => {
     if (skipHistoryRef.current) return;
-    setHistoryIndex((currentIndex) => {
-      const contents = historyContentRef.current.slice(0, currentIndex + 1);
-      contents.push(next);
-      let dropped = 0;
-      while (contents.length > MAX_HISTORY) {
-        contents.shift();
-        dropped += 1;
-      }
-      historyContentRef.current = contents;
-
-      setHistory((entries) => {
-        const list = entries.slice(0, currentIndex + 1);
-        list.push({ id: historyIdRef.current++, label, at: Date.now() });
-        return list.slice(dropped);
-      });
-
-      return contents.length - 1;
-    });
+    const index = historyIndexRef.current;
+    const contents = historyContentRef.current.slice(0, index + 1);
+    const entries = historyEntriesRef.current.slice(0, index + 1);
+    contents.push(next);
+    entries.push({ id: historyIdRef.current++, label, at: Date.now() });
+    while (contents.length > MAX_HISTORY) {
+      contents.shift();
+      entries.shift();
+    }
+    historyContentRef.current = contents;
+    historyEntriesRef.current = entries;
+    historyIndexRef.current = contents.length - 1;
+    setHistory(entries);
+    setHistoryIndex(contents.length - 1);
   }, []);
 
+  /**
+   * Applies an edit. The next value is computed outside the state updater
+   * because saving and history are side effects: React is free to invoke an
+   * updater more than once, which would otherwise record every edit twice.
+   */
   const updateContent = useCallback(
     (updater: (current: WeddingDemoContent) => WeddingDemoContent, label = "עריכה") => {
-      setContent((current) => {
-        const next = updater(current);
-        pushHistory(next, label);
-        scheduleSave(next);
-        return next;
-      });
+      const next = updater(contentRef.current);
+      contentRef.current = next;
+      setContent(next);
+      pushHistory(next, label);
+      scheduleSave(next);
     },
     [pushHistory, scheduleSave]
   );
@@ -300,6 +307,8 @@ export default function WeddingVisualEditor() {
       const next = historyContentRef.current[index];
       if (!next) return;
       skipHistoryRef.current = true;
+      historyIndexRef.current = index;
+      contentRef.current = next;
       setHistoryIndex(index);
       setContent(next);
       scheduleSave(next);
@@ -309,14 +318,14 @@ export default function WeddingVisualEditor() {
   );
 
   const undo = useCallback(() => {
-    if (historyIndex <= 0) return;
-    jumpToHistory(historyIndex - 1);
-  }, [historyIndex, jumpToHistory]);
+    if (historyIndexRef.current <= 0) return;
+    jumpToHistory(historyIndexRef.current - 1);
+  }, [jumpToHistory]);
 
   const redo = useCallback(() => {
-    if (historyIndex >= historyContentRef.current.length - 1) return;
-    jumpToHistory(historyIndex + 1);
-  }, [historyIndex, jumpToHistory]);
+    if (historyIndexRef.current >= historyContentRef.current.length - 1) return;
+    jumpToHistory(historyIndexRef.current + 1);
+  }, [jumpToHistory]);
 
   const saveNow = useCallback(() => {
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
@@ -633,7 +642,7 @@ export default function WeddingVisualEditor() {
         saveState={saveState}
         dirty={dirty}
         canUndo={historyIndex > 0}
-        canRedo={historyIndex < historyContentRef.current.length - 1}
+        canRedo={historyIndex < history.length - 1}
         onUndo={undo}
         onRedo={redo}
         onHistory={() => setHistoryDialogOpen(true)}

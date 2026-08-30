@@ -382,8 +382,11 @@ test("editor selection targets inner text and countdown instead of the whole sec
   assert.match(hydrator, /ww-section-handle/);
   assert.match(hydrator, /data-ww-section/);
   assert.match(hydrator, /container-type: inline-size/);
-  assert.match(grid, /data-ww-edit="countdown"/);
-  assert.match(grid, /data-ww-path="countdown"/);
+  // Selectable in the editor, and only there: the published site carries no
+  // editing attributes.
+  assert.match(grid, /data-ww-edit=\{isEditor \? "countdown" : undefined\}/);
+  assert.match(grid, /data-ww-path=\{isEditor \? "countdown" : undefined\}/);
+  assert.match(grid, /const isEditor = site\?\.mode === "editor"/);
   assert.match(toolbar, /selection.type === "countdown"/);
 });
 
