@@ -6,7 +6,7 @@ import path from "node:path";
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
 import { WEDDING_MOBILE_NAV_IDS, WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
-import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
+import { overlayWeddingTemplateImages, repairWeddingImageUrl, getOptimizedWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
 import {
   buildTextIndex,
@@ -36,6 +36,7 @@ test("visual editor overlays the existing renderer instead of copying templates"
   assert.match(overlay, /insertLineBreak/);
   assert.match(renderer, /WeddingSiteProvider/);
   assert.match(media, /type === "video"/);
+  assert.match(media, /if \(isEditor\) return;/);
   assert.doesNotMatch(editor, /eternal-gold-editor/);
 });
 
@@ -44,13 +45,15 @@ test("draft autosave does not publish the live site", () => {
   const publish = read("app/api/wedding-website/publish/route.ts");
   const publicApi = read("app/api/w/[shareId]/route.ts");
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const topBar = read("components/wedding-website/editor/EditorTopBar.tsx");
 
   assert.match(api, /weddingWebsite\.draftContent/);
   assert.match(api, /searchParams.get\("draft"\) === "1"/);
   assert.match(publish, /weddingWebsite\.published": true/);
   assert.match(publicApi, /UNPUBLISHED/);
-  assert.match(editor, /שומר/);
-  assert.match(editor, /Undo/);
+  assert.match(topBar, /שומר\.\.\./);
+  assert.match(topBar, /Undo/);
+  assert.match(topBar, /Redo/);
   assert.match(editor, /beforeunload/);
   assert.match(editor, /\?draft=1/);
 });
@@ -96,6 +99,16 @@ test("media slots support image and video without persisting template demo URLs"
   const withImage = applyMediaToContent(merged, "gallery.0", mediaSlotFromImageUrl("https://res.cloudinary.com/demo/image/upload/g1.jpg"));
   assert.equal(withImage.galleryImages?.[0], "https://res.cloudinary.com/demo/image/upload/g1.jpg");
 
+  const withVideo = applyMediaToContent(withImage, "gallery.0", {
+    type: "video",
+    src: "https://res.cloudinary.com/demo/video/upload/g0.mp4",
+    autoplay: true,
+    muted: true,
+    loop: true,
+  });
+  assert.equal(withVideo.media?.["gallery.0"]?.type, "video");
+  assert.equal(withVideo.galleryImages?.[0], "https://res.cloudinary.com/demo/image/upload/g1.jpg");
+
   const template = {
     id: "eternal-gold",
     name: "Eternal",
@@ -109,6 +122,22 @@ test("media slots support image and video without persisting template demo URLs"
   } as WeddingTemplate;
   const live = overlayWeddingTemplateImages(template, merged);
   assert.ok(live?.heroImage);
+  assert.equal(
+    getOptimizedWeddingImageUrl("https://res.cloudinary.com/demo/video/upload/dog.mp4"),
+    "https://res.cloudinary.com/demo/video/upload/dog.mp4"
+  );
+
+  const videoGallery = overlayWeddingTemplateImages(template, {
+    galleryImages: ["https://res.cloudinary.com/demo/video/upload/g0.mp4"],
+    media: {
+      "gallery.0": {
+        type: "video",
+        src: "https://res.cloudinary.com/demo/video/upload/g0.mp4",
+        poster: "https://example.com/demo-1.jpg",
+      },
+    },
+  });
+  assert.equal(videoGallery?.galleryImages[0], "https://example.com/demo-1.jpg");
 });
 
 test("unique media slots keep story images independent from the gallery", () => {
@@ -203,13 +232,16 @@ test("editor text stays selectable and the color picker includes a spectrum", ()
   const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
   const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
   const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
+  const colorField = read("components/wedding-website/editor/EditorColorField.tsx");
   assert.match(hydrator, /contentEditable = "true"/);
   assert.match(hydrator, /overflow-anchor: none/);
   assert.match(hydrator, /user-select:text/);
   assert.doesNotMatch(overlay, /el\.focus\(\)/);
   assert.doesNotMatch(overlay, /contentEditable = "false"/);
-  assert.match(toolbar, /type="color"/);
-  assert.match(toolbar, /פלטת צבעים/);
+  assert.match(toolbar, /EditorColorField/);
+  assert.match(colorField, /type="color"/);
+  assert.match(colorField, /פלטת צבעים של התבנית/);
+  assert.match(colorField, /HEX/);
 });
 
 test("gifts reuse invitation Bit, credit, and PayBox settings", () => {
@@ -248,6 +280,18 @@ test("broken unsplash urls are repaired and guest messages stay visible", () => 
     "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=1920&q=85";
   assert.match(repairWeddingImageUrl(broken), /1519741497674-611481863552/);
   assert.match(repairWeddingImageUrl(truncated), /1519225421980-715cb0215aed/);
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800"),
+    /1519741497674-611481863552/
+  );
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800"),
+    /1470229722913-7c0e2dbbafd3/
+  );
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800"),
+    /1511285560929-80b456fea0bc/
+  );
 
   const templates = read("config/weddingWebsite/templates.ts");
   const demo = read("config/weddingWebsite/demoContent.ts");
@@ -377,21 +421,31 @@ test("editor selection targets inner text and countdown instead of the whole sec
   assert.match(hydrator, /ww-section-handle/);
   assert.match(hydrator, /data-ww-section/);
   assert.match(hydrator, /container-type: inline-size/);
-  assert.match(grid, /data-ww-edit="countdown"/);
-  assert.match(grid, /data-ww-path="countdown"/);
+  // Selectable in the editor, and only there: the published site carries no
+  // editing attributes.
+  assert.match(grid, /data-ww-edit=\{isEditor \? "countdown" : undefined\}/);
+  assert.match(grid, /data-ww-path=\{isEditor \? "countdown" : undefined\}/);
+  assert.match(grid, /const isEditor = site\?\.mode === "editor"/);
   assert.match(toolbar, /selection.type === "countdown"/);
 });
 
 test("editor canvas has a single scrollbar and can switch templates", () => {
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const dialogs = read("components/wedding-website/editor/EditorDialogs.tsx");
+  const themePanel = read("components/wedding-website/editor/EditorThemePanel.tsx");
   assert.match(editor, /ww-editor-scroll relative min-h-0 min-w-0 flex-1 overflow-y-auto/);
   assert.match(editor, /ww-editor-canvas mx-auto bg-white/);
   assert.doesNotMatch(editor, /ww-editor-canvas mx-auto overflow-auto/);
   assert.doesNotMatch(editor, /overflow-x-hidden overflow-y-auto/);
-  assert.match(editor, /החלפת תבנית/);
   assert.match(editor, /חזרה לעורך/);
-  assert.match(editor, /setPickerOpen\(true\)/);
   assert.match(editor, /setPickerOpen\(false\)/);
+
+  // Switching templates lives in the design tab and previews before applying.
+  assert.match(themePanel, /החלפת תבנית/);
+  assert.match(dialogs, /TemplateGalleryDialog/);
+  assert.match(dialogs, /הצגת התבנית/);
+  assert.match(dialogs, /החלת התבנית/);
+  assert.match(editor, /setTemplateDialogOpen\(true\)/);
 });
 
 test("site navigation uses a hamburger on mobile and compact links on desktop", () => {

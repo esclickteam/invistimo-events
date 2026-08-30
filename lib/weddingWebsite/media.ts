@@ -61,6 +61,8 @@ export function normalizeWeddingMediaSlot(
     poster: sanitizeWeddingMediaUrl(raw?.poster ?? fallback?.poster) || undefined,
     fit,
     position: String(raw?.position || fallback?.position || "50% 50%").trim() || "50% 50%",
+    positionMobile:
+      String(raw?.positionMobile || fallback?.positionMobile || "").trim() || undefined,
     zoom:
       typeof raw?.zoom === "number" && Number.isFinite(raw.zoom)
         ? Math.min(Math.max(raw.zoom, 1), 2.5)
@@ -162,6 +164,10 @@ export function applyMediaToContent(
     const gallery = [...(content.galleryImages || [])];
     if (!slot?.src) {
       gallery[index] = "";
+    } else if (slot.type === "video") {
+      // The image list is what the templates iterate. Keep a still there so
+      // React keys stay stable; the video itself lives in content.media.
+      gallery[index] = slot.poster || gallery[index] || "";
     } else {
       gallery[index] = slot.src;
     }

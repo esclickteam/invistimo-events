@@ -23,13 +23,16 @@ export default function EditorOverlay() {
   const editor = site?.editor;
   const [hover, setHover] = useState<HoverState | null>(null);
   const [toolbarRect, setToolbarRect] = useState<DOMRect | null>(null);
+  const [placement, setPlacement] = useState<{ top: number; left: number } | null>(null);
   const persistTimer = useRef<number | null>(null);
   const selectedElRef = useRef<HTMLElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
     if (!canvas || !editor) return;
-    const api = editor;
 
     function fromTarget(target: EventTarget | null): HoverState | null {
       const el = target instanceof Element ? target : null;
@@ -52,11 +55,16 @@ export default function EditorOverlay() {
     function persistText(el: HTMLElement) {
       const path = el.dataset.wwPath || "";
       if (!path || LOCKED_EVENT_PATHS.has(path)) return;
-      api.updateText(path, htmlToPlainTextWithBreaks(el));
+      editorRef.current?.updateText(path, htmlToPlainTextWithBreaks(el));
     }
 
     function onPointerMove(event: PointerEvent) {
-      setHover(fromTarget(event.target));
+      const next = fromTarget(event.target);
+      // Only re-render when the hovered element actually changes, otherwise
+      // every mouse move would repaint the canvas.
+      setHover((current) =>
+        current?.el === next?.el && current?.path === next?.path ? current : next
+      );
     }
 
     function onPointerDown(event: PointerEvent) {
@@ -64,12 +72,12 @@ export default function EditorOverlay() {
       const next = fromTarget(event.target);
       if (!next) {
         selectedElRef.current = null;
-        api.setSelection(null);
+        editorRef.current?.setSelection(null);
         return;
       }
 
       selectedElRef.current = next.el;
-      api.setSelection(toSelection(next));
+      editorRef.current?.setSelection(toSelection(next));
 
       if (next.type === "text") {
         return;
@@ -122,33 +130,41 @@ export default function EditorOverlay() {
       canvas.removeEventListener("input", onInput);
       if (persistTimer.current) window.clearTimeout(persistTimer.current);
     };
-  }, [editor]);
+  }, [Boolean(editor)]);
 
   useEffect(() => {
     const pane = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
-    if (!pane || !editor?.selection) {
+    const selection = editor?.selection;
+    if (!pane || !selection) {
       setToolbarRect(null);
       return;
     }
     const root: HTMLElement = pane;
+    let frame = 0;
 
     function measure() {
-      const selection = editor?.selection;
-      if (!selection) {
-        setToolbarRect(null);
-        return;
-      }
-      const fromRef =
-        selectedElRef.current?.isConnected && selectedElRef.current.dataset.wwPath === selection.path
-          ? selectedElRef.current
-          : null;
-      const el = fromRef || findSelectedElement(root, selection);
-      selectedElRef.current = el;
-      if (!el) {
-        setToolbarRect(null);
-        return;
-      }
-      setToolbarRect(clampRect(el.getBoundingClientRect(), root.getBoundingClientRect()));
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const currentSelection = editorRef.current?.selection;
+        if (!currentSelection) {
+          setToolbarRect(null);
+          return;
+        }
+        const fromRef =
+          selectedElRef.current?.isConnected &&
+          selectedElRef.current.dataset.wwPath === currentSelection.path
+            ? selectedElRef.current
+            : null;
+        const el = fromRef || findSelectedElement(root, currentSelection);
+        selectedElRef.current = el;
+        if (!el) {
+          setToolbarRect(null);
+          return;
+        }
+        const next = clampRect(el.getBoundingClientRect(), root.getBoundingClientRect());
+        setToolbarRect((current) => (sameRect(current, next) ? current : next));
+      });
     }
 
     measure();
@@ -157,13 +173,74 @@ export default function EditorOverlay() {
     root.addEventListener("scroll", measure);
     const parent = root.parentElement;
     parent?.addEventListener("scroll", measure);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    const selected = findSelectedElement(root, selection);
+    if (selected) observer?.observe(selected);
+    observer?.observe(root);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
       root.removeEventListener("scroll", measure);
       parent?.removeEventListener("scroll", measure);
+      observer?.disconnect();
     };
-  }, [editor, editor?.selection, site?.content]);
+  }, [editor?.selection?.path, editor?.selection?.type]);
+
+  // Keeps the floating toolbar inside the work area: above the selection when
+  // there is room, below it otherwise, and never underneath the top bar.
+  useEffect(() => {
+    const wrap = toolbarRef.current;
+    if (!wrap || !toolbarRect) {
+      setPlacement(null);
+      return;
+    }
+    const pane = document.querySelector(".ww-editor-scroll")?.getBoundingClientRect();
+    const bounds = {
+      top: (pane?.top ?? 0) + 8,
+      bottom: (pane?.bottom ?? window.innerHeight) - 8,
+      left: (pane?.left ?? 0) + 12,
+      right: (pane?.right ?? window.innerWidth) - 12,
+    };
+
+    function reposition() {
+      const size = wrap!.getBoundingClientRect();
+      let top = toolbarRect!.top - size.height - 10;
+      if (top < bounds.top) top = toolbarRect!.bottom + 10;
+      top = Math.min(Math.max(top, bounds.top), Math.max(bounds.top, bounds.bottom - size.height));
+      const left = Math.min(
+        Math.max(toolbarRect!.left, bounds.left),
+        Math.max(bounds.left, bounds.right - size.width)
+      );
+      setPlacement((current) =>
+        current && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1
+          ? current
+          : { top, left }
+      );
+    }
+
+    reposition();
+    if (typeof ResizeObserver === "undefined") return;
+    // Opening a sub-panel (focal pad, video settings) changes the height.
+    const observer = new ResizeObserver(reposition);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [toolbarRect]);
+
+  // Mirrors the current selection onto the section wrapper so the canvas can
+  // show which block is active without React re-rendering the whole template.
+  useEffect(() => {
+    const canvas = document.querySelector(".ww-editor-canvas");
+    if (!canvas) return;
+    const activeSection = sectionIdForSelection(editor?.selection ?? null);
+    canvas.querySelectorAll("[data-ww-section]").forEach((node) => {
+      if (node.getAttribute("data-ww-section") === activeSection) {
+        node.setAttribute("data-ww-active", "1");
+      } else {
+        node.removeAttribute("data-ww-active");
+      }
+    });
+  }, [editor?.selection, site?.content]);
 
   if (!site || site.mode !== "editor") return null;
 
@@ -178,8 +255,6 @@ export default function EditorOverlay() {
           label: hover.label,
         }
       : null;
-  const canvasTop = document.querySelector(".ww-editor-canvas")?.getBoundingClientRect().top ?? 72;
-
   return createPortal(
     <div className="ww-editor-ui pointer-events-none fixed inset-0 z-[80]" data-ww-chrome="1">
       {outline && outline.rect.width > 2 && outline.rect.height > 2 ? (
@@ -190,10 +265,12 @@ export default function EditorOverlay() {
       ) : null}
       {selected && toolbarRect ? (
         <div
+          ref={toolbarRef}
           className="pointer-events-auto absolute"
           style={{
-            top: Math.max(canvasTop + 8, toolbarRect.top - 56),
-            left: Math.min(window.innerWidth - 24, Math.max(12, toolbarRect.left)),
+            top: placement?.top ?? toolbarRect.top,
+            left: placement?.left ?? toolbarRect.left,
+            visibility: placement ? "visible" : "hidden",
           }}
         >
           <EditorSelectionToolbar selection={selected} />
@@ -260,6 +337,17 @@ function findSelectedElement(canvas: Element, selection: NonNullable<WeddingSite
   return inner;
 }
 
+function sameRect(a: DOMRect | null, b: DOMRect | null) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.round(a.top) === Math.round(b.top) &&
+    Math.round(a.left) === Math.round(b.left) &&
+    Math.round(a.width) === Math.round(b.width) &&
+    Math.round(a.height) === Math.round(b.height)
+  );
+}
+
 function clampRect(rect: DOMRect, bounds?: DOMRect | null) {
   if (!bounds) return rect;
   const top = Math.max(rect.top, bounds.top);
@@ -270,10 +358,22 @@ function clampRect(rect: DOMRect, bounds?: DOMRect | null) {
 }
 
 function labelFor(type: string) {
-  if (type === "media") return "החלפת מדיה";
+  if (type === "media") return "החלפת תמונה או סרטון";
   if (type === "section") return "עריכת מקטע";
   if (type === "countdown") return "ספירה לאחור";
   return "עריכת טקסט";
+}
+
+/** Nearest section id for a selection, used to highlight the active block. */
+function sectionIdForSelection(selection: WeddingSiteSelection) {
+  if (!selection) return "";
+  if (selection.type === "section" || selection.type === "countdown") return selection.path;
+  const canvas = document.querySelector(".ww-editor-canvas");
+  if (!canvas) return "";
+  const element = canvas.querySelector(
+    `[data-ww-path="${cssAttr(selection.path)}"]`
+  ) as HTMLElement | null;
+  return element?.closest("[data-ww-section]")?.getAttribute("data-ww-section") || "";
 }
 
 function cssAttr(value: string) {

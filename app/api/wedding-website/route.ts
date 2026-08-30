@@ -136,10 +136,13 @@ export async function PATCH(req: NextRequest) {
     );
     const incomingContent = body?.content || body?.weddingWebsite?.content || {};
     const saveDraft = body?.draft !== false && body?.publish !== true;
-    const nextDraftContent = {
+    const nextDraftContent: Record<string, unknown> = {
       ...currentDraft.draftContent,
       ...incomingContent,
     };
+    if (incomingContent.theme === null) {
+      delete nextDraftContent.theme;
+    }
 
     const $set: Record<string, unknown> = {
       "weddingWebsite.templateId": templateId,
@@ -147,10 +150,14 @@ export async function PATCH(req: NextRequest) {
     };
 
     if (!saveDraft) {
-      $set["weddingWebsite.content"] = {
+      const nextPublished: Record<string, unknown> = {
         ...currentPublished.content,
         ...incomingContent,
       };
+      if (incomingContent.theme === null) {
+        delete nextPublished.theme;
+      }
+      $set["weddingWebsite.content"] = nextPublished;
       if (typeof (body?.published ?? body?.weddingWebsite?.published) === "boolean") {
         $set["weddingWebsite.published"] = Boolean(
           body?.published ?? body?.weddingWebsite?.published

@@ -12,7 +12,12 @@ import {
   matchTextField,
   sectionTitleFields,
 } from "@/lib/weddingWebsite/editorSchema";
-import { textStyleToCss } from "@/lib/weddingWebsite/styles";
+import { buildWeddingThemeCss } from "@/lib/weddingWebsite/editorTheme";
+import {
+  buildMobileCss,
+  buildSectionStyleCss,
+  buildTextStyleCss,
+} from "@/lib/weddingWebsite/siteCss";
 import { collectUsedWeddingFonts, loadWeddingFont } from "@/lib/weddingWebsite/fonts";
 import {
   htmlToPlainTextWithBreaks,
@@ -37,7 +42,8 @@ export function WeddingSiteRuntimeStyles() {
   const order = content.sectionOrder?.length
     ? content.sectionOrder
     : defaultSectionOrder();
-  const fonts = collectUsedWeddingFonts(content.styles);
+  const themeCss = buildWeddingThemeCss(site.template, content.theme);
+  const mobileCss = buildMobileCss(content);
 
   return (
     <style data-ww-runtime="1">{`
@@ -62,29 +68,11 @@ export function WeddingSiteRuntimeStyles() {
         return `#${section.id}{display:none!important}`;
       }).join("")}
       ${!isSectionVisible(content, "guestbook") ? `#guestbook{display:none!important}` : ""}
-      ${Object.entries(content.sectionStyles || {})
-        .map(([id, style]) => {
-          const rules: string[] = [];
-          if (style.backgroundColor) rules.push(`background-color:${style.backgroundColor}`);
-          if (style.paddingTop) rules.push(`padding-top:${style.paddingTop}`);
-          if (style.paddingBottom) rules.push(`padding-bottom:${style.paddingBottom}`);
-          return rules.length ? `#${cssEscape(id)}{${rules.join(";")}}` : "";
-        })
-        .join("")}
-      ${Object.entries(content.styles || {})
-        .map(([path, style]) => {
-          const css = textStyleToCss(style);
-          const rules = Object.entries(css)
-            .filter(([, value]) => value !== undefined && value !== "")
-            .map(([key, value]) => {
-              const prop = key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
-              return `${prop}:${value}`;
-            });
-          return rules.length
-            ? `[data-ww-path="${cssEscape(path)}"]{${rules.join(";")}}`
-            : "";
-        })
-        .join("")}
+      ${themeCss}
+      ${buildSectionStyleCss(content)}
+      ${buildTextStyleCss(content.styles)}
+      ${mobileCss ? `@media (max-width: 767px){${mobileCss}}` : ""}
+      ${mode === "editor" && mobileCss ? `@container (max-width: 700px){${mobileCss}}` : ""}
       ${mode === "editor"
         ? `
         .ww-editor-canvas { overflow-anchor: none; overflow-x: clip; overflow-y: visible; container-type: inline-size; }
@@ -134,18 +122,23 @@ export function WeddingSiteRuntimeStyles() {
           z-index:30;
           border:0;
           border-radius:999px;
-          background:#C9A962;
+          background:rgba(24,18,14,0.72);
           color:#fff;
           font-size:10px;
           font-weight:900;
           padding:4px 10px;
           cursor:pointer;
+          opacity:0;
+          transition:opacity .15s ease;
         }
+        [data-ww-section]:hover > .ww-section-handle,
+        .ww-section-handle:focus-visible{opacity:1}
+        [data-ww-section][data-ww-active="1"]{outline:2px solid #C9A962;outline-offset:-2px}
+        [data-ww-section][data-ww-active="1"] > .ww-section-handle{opacity:1}
       `
         : `
         [data-ww-path]{white-space:pre-wrap}
       `}
-      ${fonts.length ? "" : ""}
     `}</style>
   );
 }
@@ -157,7 +150,14 @@ export function WeddingSiteHydrator({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     if (!content) return;
-    const fonts = collectUsedWeddingFonts(content.styles);
+    const fonts = [
+      ...collectUsedWeddingFonts(content.styles),
+      ...collectUsedWeddingFonts(content.mobileStyles),
+      ...collectUsedWeddingFonts({
+        heading: { fontFamily: content.theme?.headingFont },
+        body: { fontFamily: content.theme?.bodyFont },
+      }),
+    ];
     fonts.forEach((font) => loadWeddingFont(font.family));
     hydrateEditableNodes(content, mode === "editor");
   }, [content, mode]);

@@ -13,6 +13,7 @@ import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import { getOptimizedWeddingImageUrl } from "@/lib/weddingWebsite/images";
 import { collectContentMediaLibrary, mediaSlotFromImageUrl } from "@/lib/weddingWebsite/media";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
+import type { WeddingMediaSlot } from "@/types/weddingWebsite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,9 +31,22 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const ALLOWED_TYPES = new Set([...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES]);
+const MEDIA_LIBRARY_LIMIT = 100;
+
+type MediaLibraryItem = WeddingMediaSlot & {
+  publicId?: string;
+  createdAt?: string;
+  name?: string;
+};
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
+}
+
+function fileNameFromUrl(url: string) {
+  const path = url.split("?")[0];
+  const last = path.slice(path.lastIndexOf("/") + 1);
+  return decodeURIComponent(last.replace(/\.[^.]+$/, "")).replace(/-\d{10,}$/, "");
 }
 
 function assertCloudinaryConfig() {
@@ -238,22 +252,33 @@ export async function GET(req: NextRequest) {
     }
 
     const draft = serializeWeddingWebsite(invitation, { draft: true });
-    const items = collectContentMediaLibrary(draft.draftContent || draft.content);
+    const items: MediaLibraryItem[] = collectContentMediaLibrary(
+      draft.draftContent || draft.content
+    ).map((slot) => ({ ...slot, name: fileNameFromUrl(slot.src) }));
 
     try {
       assertCloudinaryConfig();
       const folder = cloudinaryFolder("wedding-website", String(invitation._id));
       const result = await cloudinary.search
         .expression(`folder:"${folder}"`)
-        .max_results(40)
+        .sort_by("created_at", "desc")
+        .max_results(MEDIA_LIBRARY_LIMIT)
         .execute();
       for (const resource of result.resources || []) {
         const url = resource.secure_url;
         if (!url) continue;
-        if (items.some((item) => item.src === url)) continue;
+        const existing = items.find((item) => item.src === url);
+        if (existing) {
+          existing.publicId = resource.public_id;
+          existing.createdAt = resource.created_at;
+          continue;
+        }
         items.push({
           ...mediaSlotFromImageUrl(url),
           type: resource.resource_type === "video" ? "video" : "image",
+          publicId: resource.public_id,
+          createdAt: resource.created_at,
+          name: fileNameFromUrl(url),
         });
       }
     } catch {
@@ -263,6 +288,47 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, items });
   } catch (error) {
     console.error("WEDDING WEBSITE MEDIA LIST FAILED:", error);
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+  }
+}
+
+/**
+ * Removes an asset the couple uploaded. Scoped to the invitation's own
+ * Cloudinary folder so a crafted `publicId` cannot reach another customer.
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    await db();
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => null);
+    const publicId = cleanString(body?.publicId);
+    if (!publicId) {
+      return NextResponse.json({ success: false, error: "MISSING_PUBLIC_ID" }, { status: 400 });
+    }
+
+    const invitation = await findManagedInvitation(auth, cleanString(body?.invitationId) || null);
+    if (!invitation) {
+      return NextResponse.json({ success: false, error: "INVITATION_NOT_FOUND" }, { status: 404 });
+    }
+
+    const folder = cloudinaryFolder("wedding-website", String(invitation._id));
+    if (!publicId.startsWith(`${folder}/`)) {
+      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+    }
+
+    assertCloudinaryConfig();
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: body?.resourceType === "video" ? "video" : "image",
+      invalidate: true,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("WEDDING WEBSITE MEDIA DELETE FAILED:", error);
     return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
