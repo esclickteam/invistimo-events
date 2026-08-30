@@ -370,6 +370,21 @@ test("one edit records one history entry", () => {
   assert.match(editor, /historyIndexRef/);
 });
 
+test("toolbar measuring stays off the content update path", () => {
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const api = read("app/api/wedding-website/route.ts");
+  // Pointer handlers read the latest api through a ref so the listener effect
+  // does not rebind on every selection or content change.
+  assert.match(overlay, /editorRef\.current = editor/);
+  assert.match(overlay, /\[Boolean\(editor\)\]/);
+  assert.match(overlay, /Math\.round\(a\.top\) === Math\.round\(b\.top\)/);
+  assert.match(overlay, /\[editor\?\.selection\?\.path, editor\?\.selection\?\.type\]/);
+  // Clearing theme must survive a save round trip (null, not omitted).
+  assert.match(editor, /theme: nextContent\.theme \?\? null/);
+  assert.match(api, /incomingContent\.theme === null/);
+});
+
 test("the published site carries no editing attributes", () => {
   const grid = read("components/wedding-website/shared/WeddingCountdownGrid.tsx");
   const media = read("components/wedding-website/editable/WeddingMedia.tsx");

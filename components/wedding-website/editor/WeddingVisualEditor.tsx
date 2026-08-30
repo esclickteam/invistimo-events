@@ -238,7 +238,7 @@ export default function WeddingVisualEditor() {
           body: JSON.stringify({
             draft: true,
             templateId: nextTemplate,
-            content: nextContent,
+            content: { ...nextContent, theme: nextContent.theme ?? null },
             invitationId,
           }),
         });

@@ -27,11 +27,12 @@ export default function EditorOverlay() {
   const persistTimer = useRef<number | null>(null);
   const selectedElRef = useRef<HTMLElement | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
     if (!canvas || !editor) return;
-    const api = editor;
 
     function fromTarget(target: EventTarget | null): HoverState | null {
       const el = target instanceof Element ? target : null;
@@ -54,7 +55,7 @@ export default function EditorOverlay() {
     function persistText(el: HTMLElement) {
       const path = el.dataset.wwPath || "";
       if (!path || LOCKED_EVENT_PATHS.has(path)) return;
-      api.updateText(path, htmlToPlainTextWithBreaks(el));
+      editorRef.current?.updateText(path, htmlToPlainTextWithBreaks(el));
     }
 
     function onPointerMove(event: PointerEvent) {
@@ -71,12 +72,12 @@ export default function EditorOverlay() {
       const next = fromTarget(event.target);
       if (!next) {
         selectedElRef.current = null;
-        api.setSelection(null);
+        editorRef.current?.setSelection(null);
         return;
       }
 
       selectedElRef.current = next.el;
-      api.setSelection(toSelection(next));
+      editorRef.current?.setSelection(toSelection(next));
 
       if (next.type === "text") {
         return;
@@ -129,37 +130,41 @@ export default function EditorOverlay() {
       canvas.removeEventListener("input", onInput);
       if (persistTimer.current) window.clearTimeout(persistTimer.current);
     };
-  }, [editor]);
+  }, [Boolean(editor)]);
 
   useEffect(() => {
     const pane = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
-    if (!pane || !editor?.selection) {
+    const selection = editor?.selection;
+    if (!pane || !selection) {
       setToolbarRect(null);
       return;
     }
     const root: HTMLElement = pane;
+    let frame = 0;
 
     function measure() {
-      const selection = editor?.selection;
-      if (!selection) {
-        setToolbarRect(null);
-        return;
-      }
-      const fromRef =
-        selectedElRef.current?.isConnected && selectedElRef.current.dataset.wwPath === selection.path
-          ? selectedElRef.current
-          : null;
-      const el = fromRef || findSelectedElement(root, selection);
-      selectedElRef.current = el;
-      if (!el) {
-        setToolbarRect(null);
-        return;
-      }
-      const next = clampRect(el.getBoundingClientRect(), root.getBoundingClientRect());
-      // Measuring allocates a fresh rect every time. Keeping the previous
-      // object when the geometry is unchanged stops the render that this
-      // effect would otherwise trigger on itself.
-      setToolbarRect((current) => (sameRect(current, next) ? current : next));
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const currentSelection = editorRef.current?.selection;
+        if (!currentSelection) {
+          setToolbarRect(null);
+          return;
+        }
+        const fromRef =
+          selectedElRef.current?.isConnected &&
+          selectedElRef.current.dataset.wwPath === currentSelection.path
+            ? selectedElRef.current
+            : null;
+        const el = fromRef || findSelectedElement(root, currentSelection);
+        selectedElRef.current = el;
+        if (!el) {
+          setToolbarRect(null);
+          return;
+        }
+        const next = clampRect(el.getBoundingClientRect(), root.getBoundingClientRect());
+        setToolbarRect((current) => (sameRect(current, next) ? current : next));
+      });
     }
 
     measure();
@@ -168,13 +173,19 @@ export default function EditorOverlay() {
     root.addEventListener("scroll", measure);
     const parent = root.parentElement;
     parent?.addEventListener("scroll", measure);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    const selected = findSelectedElement(root, selection);
+    if (selected) observer?.observe(selected);
+    observer?.observe(root);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
       root.removeEventListener("scroll", measure);
       parent?.removeEventListener("scroll", measure);
+      observer?.disconnect();
     };
-  }, [editor, editor?.selection, site?.content]);
+  }, [editor?.selection?.path, editor?.selection?.type]);
 
   // Keeps the floating toolbar inside the work area: above the selection when
   // there is room, below it otherwise, and never underneath the top bar.
@@ -330,10 +341,10 @@ function sameRect(a: DOMRect | null, b: DOMRect | null) {
   if (a === b) return true;
   if (!a || !b) return false;
   return (
-    Math.abs(a.top - b.top) < 0.5 &&
-    Math.abs(a.left - b.left) < 0.5 &&
-    Math.abs(a.width - b.width) < 0.5 &&
-    Math.abs(a.height - b.height) < 0.5
+    Math.round(a.top) === Math.round(b.top) &&
+    Math.round(a.left) === Math.round(b.left) &&
+    Math.round(a.width) === Math.round(b.width) &&
+    Math.round(a.height) === Math.round(b.height)
   );
 }
 
