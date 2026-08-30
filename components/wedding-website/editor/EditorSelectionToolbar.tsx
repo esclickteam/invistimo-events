@@ -20,7 +20,9 @@ export default function EditorSelectionToolbar({
 }) {
   if (selection.type === "text") return <TextToolbar path={selection.path} />;
   if (selection.type === "media") return <MediaToolbar slotId={selection.path} />;
-  if (selection.type === "section") return <SectionToolbar id={selection.path} />;
+  if (selection.type === "section" || selection.type === "countdown") {
+    return <SectionToolbar id={selection.path} />;
+  }
   return null;
 }
 

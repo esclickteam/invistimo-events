@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useFaqAccordion,
   useGuestbook,
@@ -18,8 +17,8 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
 const CORAL = "#FF9A8B";
 
@@ -71,42 +70,23 @@ function HeartParticles() {
   );
 }
 
-function BlushNav({ embed }: { embed?: boolean }) {
-  const [open, setOpen] = useState(false);
-  if (embed) return null;
+function BlushNav() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <span className="text-sm font-medium text-[#E8788A]">
-          {DEMO.coupleShort}
-        </span>
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-4 py-2 text-xs font-bold text-white md:hidden"
-        >
-          תפריט
-        </button>
-        <nav className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-full flex-col gap-2 bg-white/95 p-4 shadow-lg md:static md:flex md:flex-row md:gap-5 md:bg-transparent md:p-0 md:shadow-none`}>
-          {NAV.slice(1, 10).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              onClick={() => setOpen(false)}
-              className="rounded-full px-3 py-1 text-sm text-[#9A6070] transition hover:bg-[#FFE8EE] hover:text-[#E8788A]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl"
+      brand={<span className="text-sm font-medium text-[#E8788A]">{DEMO.coupleShort}</span>}
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] text-white"
+      panelClassName="border-t border-[#E8788A]/20 bg-white/95"
+      linkClassName="rounded-full px-4 py-3 text-right text-sm text-[#9A6070] hover:bg-[#FFE8EE] hover:text-[#E8788A]"
+      extra={
         <a
           href="#rsvp"
-          className="hidden rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-5 py-2 text-xs font-bold text-white shadow-lg md:inline-block"
+          className="rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-5 py-2 text-xs font-bold text-white shadow-lg"
         >
           RSVP
         </a>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -148,10 +128,10 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#FFF5F7] text-[#3D1F28]">
-      <BlushNav embed={embed} />
+      <BlushNav />
 
       {/* HERO — gradient mesh + hero image overlay */}
-      <section id="hero" className={`relative flex min-h-screen items-center justify-center overflow-hidden ${embed ? "" : "pt-16"}`}>
+      <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden">
         <GradientMeshHero />
         <HeartParticles />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />

@@ -374,22 +374,33 @@ export default function WeddingVisualEditor() {
         <p className="text-xs font-black text-[#B8844F]">בחירת תבנית</p>
         <h1 className="mt-2 text-3xl font-black text-[#241A14]">בחרו תבנית לאתר החתונה</h1>
         <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-[#8A7B69]">
-          אחרי הבחירה התבנית נפתחת כאתר אמיתי — לוחצים על טקסט, תמונה או מקטע ועורכים במקום.
+          אפשר להחליף תבנית בכל רגע. התוכן שכבר ערכתם נשמר.
         </p>
+        {hasSite ? (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(false)}
+            className="mt-4 rounded-xl border border-[#E7DED1] bg-white px-4 py-2 text-sm font-black text-[#241A14]"
+          >
+            חזרה לעורך
+          </button>
+        ) : null}
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {WEDDING_TEMPLATES.map((template) => (
             <button
               key={template.id}
               type="button"
               onClick={() => useTemplate(template.id)}
-              className="overflow-hidden rounded-[24px] border border-[#EFE4D6] bg-white text-right shadow-sm"
+              className={`overflow-hidden rounded-[24px] border bg-white text-right shadow-sm ${
+                template.id === templateId ? "border-[#B8844F] ring-2 ring-[#B8844F]/30" : "border-[#EFE4D6]"
+              }`}
             >
               <img src={template.previewImage} alt={template.name} className="h-40 w-full object-cover" />
               <div className="p-4">
                 <p className="text-sm font-black text-[#241A14]">{template.name}</p>
                 <p className="mt-1 text-xs font-semibold text-[#8A7B69]">{template.tagline}</p>
                 <span className="mt-3 inline-flex rounded-xl bg-[#B8844F] px-3 py-2 text-xs font-black text-white">
-                  השתמשו בתבנית
+                  {template.id === templateId ? "תבנית נוכחית" : "השתמשו בתבנית"}
                 </span>
               </div>
             </button>
@@ -417,6 +428,13 @@ export default function WeddingVisualEditor() {
             </button>
             <button type="button" onClick={redo} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-black">
               Redo
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="rounded-lg border border-white/15 px-3 py-1 text-xs font-black"
+            >
+              החלפת תבנית
             </button>
             <div className="rounded-full bg-white/10 p-1 text-[11px] font-black">
               <button
@@ -459,10 +477,10 @@ export default function WeddingVisualEditor() {
                 gifts,
               }}
             >
-              <div className="relative min-w-0 flex-1 overflow-auto bg-[#2a2118] p-4">
+              <div className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#2a2118] p-4">
                 <div
-                  className={`ww-editor-canvas mx-auto overflow-auto bg-white shadow-2xl ${
-                    previewMode === "mobile" ? "h-full w-[390px] max-w-full" : "h-full w-full max-w-6xl"
+                  className={`ww-editor-canvas mx-auto overflow-x-hidden bg-white shadow-2xl ${
+                    previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full max-w-6xl"
                   }`}
                 >
                   <WeddingTemplateSiteRenderer

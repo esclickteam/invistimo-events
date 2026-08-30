@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useFaqAccordion,
   useGuestbook,
@@ -17,8 +16,8 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
 const DARK = "#0F1810";
 
@@ -101,43 +100,23 @@ function Blob({ className = "" }: { className?: string }) {
   );
 }
 
-function ForestNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
+function ForestNav() {
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all ${
-        scrolled ? "bg-[#0F1810]/90 backdrop-blur-md" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <span className="text-xs tracking-widest text-[#7CB87A]">
-          {DEMO.coupleShort}
-        </span>
-        <nav className="hidden gap-5 md:flex">
-          {NAV.slice(1, 9).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="text-xs text-[#8AA892] transition hover:text-[#7CB87A]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 bg-[#0F1810]/90 backdrop-blur-md"
+      brand={<span className="text-xs tracking-widest text-[#7CB87A]">{DEMO.coupleShort}</span>}
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#7CB87A]/50 text-[#7CB87A]"
+      panelClassName="border-t border-[#7CB87A]/20 bg-[#0F1810]"
+      linkClassName="rounded-xl px-4 py-3 text-right text-xs text-[#8AA892] hover:text-[#7CB87A]"
+      extra={
         <a
           href="#rsvp"
           className="rounded-full border border-[#7CB87A]/50 px-4 py-2 text-xs text-[#7CB87A] hover:bg-[#7CB87A]/10"
         >
           RSVP
         </a>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -179,7 +158,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
 
   return (
     <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
-      <ForestNav embed={embed} />
+      <ForestNav />
 
       {/* HERO — forest video */}
       <section id="hero" className="relative flex min-h-screen items-end overflow-hidden">

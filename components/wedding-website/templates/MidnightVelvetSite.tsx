@@ -15,9 +15,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -66,19 +66,13 @@ function Section({ id, children, className = "" }: { id: string; children: React
 
 function StickyNav() {
   return (
-    <nav className="sticky top-0 z-50 px-4 py-3">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto rounded-full border border-[#D4AF37]/25 bg-black/60 px-4 py-2 backdrop-blur-2xl scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-[#A89BB0] transition hover:bg-[#D4AF37]/15 hover:text-[#D4AF37]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 px-4 py-3"
+      barClassName="rounded-full border border-[#D4AF37]/25 bg-black/60 backdrop-blur-2xl"
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D4AF37]/40 text-[#D4AF37]"
+      panelClassName="border-t border-[#D4AF37]/20 bg-[#0D0B10]"
+      linkClassName="rounded-full px-4 py-3 text-right text-xs font-bold text-[#A89BB0] hover:bg-[#D4AF37]/15 hover:text-[#D4AF37]"
+    />
   );
 }
 
@@ -536,7 +530,7 @@ export default function MidnightVelvetSite({
 }: TemplateProps) {
   return (
     <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
-      {!embed && <StickyNav />}
+      <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

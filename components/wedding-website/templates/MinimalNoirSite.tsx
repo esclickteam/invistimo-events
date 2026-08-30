@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useFaqAccordion,
   useGuestbook,
@@ -17,8 +16,7 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
-
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 function NoirRule({ className = "" }: { className?: string }) {
   return <hr className={`border-0 border-t border-black ${className}`} />;
@@ -32,50 +30,27 @@ function NoirLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function NoirNav({ embed }: { embed?: boolean }) {
-  const [active, setActive] = useState("hero");
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
-      { rootMargin: "-40% 0px -55% 0px" }
-    );
-    NAV.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) obs.observe(el);
-    });
-    return () => obs.disconnect();
-  }, []);
-
-  if (embed) return null;
-
+function NoirNav() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-black bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 border-b border-black bg-white"
+      brand={
         <span className="font-mono text-[10px] uppercase tracking-widest">
           {DEMO.coupleShort}
         </span>
-        <nav className="hidden gap-0 md:flex">
-          {NAV.slice(0, 8).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className={`border-l border-black px-3 py-1 font-mono text-[9px] uppercase tracking-wider transition ${
-                active === id ? "bg-black text-white" : "hover:bg-neutral-100"
-              }`}
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
+      }
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center border border-black"
+      panelClassName="border-t border-black bg-white"
+      linkClassName="border-b border-black px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wider hover:bg-neutral-100"
+      extra={
         <a
           href="#rsvp"
           className="border border-black px-3 py-1 font-mono text-[10px] uppercase tracking-widest hover:bg-black hover:text-white"
         >
           RSVP
         </a>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -123,7 +98,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-black selection:bg-black selection:text-white">
-      <NoirNav embed={embed} />
+      <NoirNav />
 
       {/* Progress line */}
       <motion.div
@@ -134,7 +109,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
       {/* HERO — typography, optional photo or video background */}
       <section
         id="hero"
-        className={`relative grid min-h-screen grid-rows-[1fr_auto] ${embed ? "" : "pt-14"}`}
+        className="relative grid min-h-screen grid-rows-[1fr_auto]"
       >
         <div className="absolute inset-0">
           <WeddingMedia

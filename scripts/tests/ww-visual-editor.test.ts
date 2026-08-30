@@ -362,3 +362,59 @@ test("the hero block can be replaced with an image or a looping video", () => {
   assert.equal(withImage.heroImage, "https://res.cloudinary.com/demo/image/upload/hero.jpg");
 });
 
+test("editor selection targets inner text and countdown instead of the whole section", () => {
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const grid = read("components/wedding-website/shared/WeddingCountdownGrid.tsx");
+  const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
+
+  assert.match(overlay, /data-ww-edit="countdown"/);
+  assert.match(overlay, /clampRect/);
+  assert.match(overlay, /addEventListener\("scroll"/);
+  assert.match(overlay, /selectedElRef/);
+  assert.match(hydrator, /ww-section-handle/);
+  assert.match(hydrator, /data-ww-section/);
+  assert.match(grid, /data-ww-edit="countdown"/);
+  assert.match(grid, /data-ww-path="countdown"/);
+  assert.match(toolbar, /selection.type === "countdown"/);
+});
+
+test("editor canvas has a single scrollbar and can switch templates", () => {
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  assert.match(editor, /overflow-x-hidden overflow-y-auto/);
+  assert.match(editor, /ww-editor-canvas mx-auto overflow-x-hidden/);
+  assert.doesNotMatch(editor, /ww-editor-canvas mx-auto overflow-auto/);
+  assert.match(editor, /החלפת תבנית/);
+  assert.match(editor, /חזרה לעורך/);
+  assert.match(editor, /setPickerOpen\(true\)/);
+  assert.match(editor, /setPickerOpen\(false\)/);
+});
+
+test("site navigation is a hamburger on desktop and mobile", () => {
+  const menu = read("components/wedding-website/WeddingSiteMenu.tsx");
+  const nav = read("components/wedding-website/WeddingNav.tsx");
+  assert.match(menu, /aria-label="תפריט"/);
+  assert.doesNotMatch(menu, /overflow-x-auto/);
+  assert.match(nav, /WeddingSiteMenu/);
+  assert.doesNotMatch(nav, /hidden lg:flex/);
+
+  const templates = [
+    "components/wedding-website/templates/EternalGoldSite.tsx",
+    "components/wedding-website/templates/MidnightVelvetSite.tsx",
+    "components/wedding-website/templates/GardenBloomSite.tsx",
+    "components/wedding-website/templates/CoastalBreezeSite.tsx",
+    "components/wedding-website/templates/DesertRoseSite.tsx",
+    "components/wedding-website/templates/ForestEnchantedSite.tsx",
+    "components/wedding-website/templates/SunsetBlushSite.tsx",
+    "components/wedding-website/templates/MinimalNoirSite.tsx",
+    "components/wedding-website/templates/ModernGlassSite.tsx",
+    "components/wedding-website/templates/RoyalIvorySite.tsx",
+  ];
+  for (const file of templates) {
+    const src = read(file);
+    assert.match(src, /WeddingSiteMenu/);
+    assert.doesNotMatch(src, /{!embed && <StickyNav \/>}/);
+    assert.doesNotMatch(src, /if \(embed\) return null/);
+  }
+});
+

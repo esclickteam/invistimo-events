@@ -15,9 +15,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const GREEN = "#6B9E78";
 
@@ -79,20 +79,12 @@ function Section({ id, children, className = "", wavy = false }: { id: string; c
 
 function StickyNav() {
   return (
-    <nav className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full px-4 py-2 text-sm font-medium text-[#5C7A62] transition hover:bg-[#6B9E78]/15 hover:text-[#1F3324]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#6B9E78]/40 to-transparent" />
-    </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md"
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#6B9E78]/40 text-[#1F3324]"
+      panelClassName="border-t border-[#6B9E78]/20 bg-[#F4FAF4]"
+      linkClassName="rounded-full px-4 py-3 text-right text-sm font-medium text-[#5C7A62] hover:bg-[#6B9E78]/15 hover:text-[#1F3324]"
+    />
   );
 }
 
@@ -551,7 +543,7 @@ export default function GardenBloomSite({
 }: TemplateProps) {
   return (
     <div className="wedding-website-root overflow-x-hidden bg-[#F4FAF4] text-[#1F3324] scroll-smooth">
-      {!embed && <StickyNav />}
+      <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

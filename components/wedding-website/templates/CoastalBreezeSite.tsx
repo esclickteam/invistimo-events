@@ -15,9 +15,9 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -55,15 +55,12 @@ function Section({ id, children, className = "", wave = false }: { id: string; c
 
 function StickyNav() {
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-[#5A7A94] transition hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md"
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#3D8BBA]/30 text-[#0D2840]"
+      panelClassName="border-t border-[#3D8BBA]/20 bg-[#F0F8FF]"
+      linkClassName="rounded-xl px-4 py-3 text-right text-sm font-semibold text-[#5A7A94] hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA]"
+    />
   );
 }
 
@@ -481,7 +478,7 @@ export default function CoastalBreezeSite({
 }: TemplateProps) {
   return (
     <div className="wedding-website-root overflow-x-hidden bg-[#F0F8FF] text-[#0D2840] scroll-smooth">
-      {!embed && <StickyNav />}
+      <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

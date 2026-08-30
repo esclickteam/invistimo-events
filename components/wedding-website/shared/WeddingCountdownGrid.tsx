@@ -41,7 +41,15 @@ export function WeddingCountdownGrid({
   const units = weddingCountdownUnits(time);
 
   return (
-    <div dir="ltr" data-ww-countdown="units" className={className} style={{ direction: "ltr" }}>
+    <div
+      dir="ltr"
+      data-ww-countdown="units"
+      data-ww-edit="countdown"
+      data-ww-path="countdown"
+      data-ww-label="ספירה לאחור"
+      className={className}
+      style={{ direction: "ltr" }}
+    >
       {units.map((unit, index) => children(unit, index))}
     </div>
   );
