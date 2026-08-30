@@ -920,6 +920,11 @@ export default function SalesDocumentPage() {
     readOnly ||
     isSigned ||
     expired ||
+    !signatureFullName.trim() ||
+    !signatureIdNumber.trim() ||
+    !signatureAddress.trim() ||
+    !signaturePhone.trim() ||
+    !signatureDate.trim() ||
     !signatureDataUrl.trim();
 
   async function handleSign() {
@@ -938,10 +943,10 @@ export default function SalesDocumentPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fullName: signatureFullName.trim() || cleanStr(document?.client?.fullName),
+          fullName: signatureFullName.trim(),
           idNumber: signatureIdNumber.trim(),
           address: signatureAddress.trim(),
-          phone: signaturePhone.trim() || cleanStr(document?.client?.phone),
+          phone: signaturePhone.trim(),
           date: signatureDate,
           signatureDataUrl,
           acceptedTerms: true,
@@ -1328,12 +1333,56 @@ export default function SalesDocumentPage() {
                 ) : (
                   <div className="space-y-5">
                     <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4 text-sm font-bold leading-7 text-[#6d5840]">
-                      יש לחתום בציור בלבד. החתימה נשמרת במערכת יחד עם פרטי ההסכם.
+                      יש למלא את כל השדות ולחתום בציור. בלי זה אי אפשר להמשיך.
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <TextInput
+                        label="שם מלא"
+                        value={signatureFullName}
+                        onChange={setSignatureFullName}
+                        placeholder="שם מלא"
+                        required
+                        disabled={!canSign || readOnly || expired}
+                      />
+                      <TextInput
+                        label="תעודת זהות"
+                        value={signatureIdNumber}
+                        onChange={setSignatureIdNumber}
+                        placeholder="מספר תעודת זהות"
+                        required
+                        disabled={!canSign || readOnly || expired}
+                      />
+                      <TextInput
+                        label="כתובת"
+                        value={signatureAddress}
+                        onChange={setSignatureAddress}
+                        placeholder="כתובת מלאה"
+                        required
+                        disabled={!canSign || readOnly || expired}
+                      />
+                      <TextInput
+                        label="טלפון"
+                        value={signaturePhone}
+                        onChange={setSignaturePhone}
+                        placeholder="מספר טלפון"
+                        type="tel"
+                        required
+                        disabled={!canSign || readOnly || expired}
+                      />
+                      <TextInput
+                        label="תאריך חתימה"
+                        value={signatureDate}
+                        onChange={setSignatureDate}
+                        type="date"
+                        required
+                        disabled={!canSign || readOnly || expired}
+                      />
                     </div>
 
                     <div>
                       <p className="mb-2 text-sm font-black text-[#3f3327]">
-                        חתימה
+                        חתימה <span className="text-red-600">*</span>
                       </p>
 
                       <SignatureCanvas
