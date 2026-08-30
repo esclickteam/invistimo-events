@@ -6,6 +6,10 @@ const CLOUDINARY_UPLOAD_MARKER = "/upload/";
 const BROKEN_UNSPLASH_REPLACEMENTS: Array<[RegExp, string]> = [
   [/photo-1465495976277-4387d110b3ca/g, "photo-1519741497674-611481863552"],
   [/photo-1523438885200-e635ba2c371(?!e)/g, "photo-1519225421980-715cb0215aed"],
+  // Demo Unsplash IDs that now 404; keep templates untouched and repair at render time.
+  [/photo-1520854221256-17451af3e865/g, "photo-1519741497674-611481863552"],
+  [/photo-1470225620780-dba8ba403148/g, "photo-1470229722913-7c0e2dbbafd3"],
+  [/photo-1504196606676-a8c059a252b5/g, "photo-1511285560929-80b456fea0bc"],
 ];
 
 function cleanString(value: unknown) {

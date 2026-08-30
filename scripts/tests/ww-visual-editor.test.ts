@@ -280,6 +280,18 @@ test("broken unsplash urls are repaired and guest messages stay visible", () => 
     "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=1920&q=85";
   assert.match(repairWeddingImageUrl(broken), /1519741497674-611481863552/);
   assert.match(repairWeddingImageUrl(truncated), /1519225421980-715cb0215aed/);
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800"),
+    /1519741497674-611481863552/
+  );
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800"),
+    /1470229722913-7c0e2dbbafd3/
+  );
+  assert.match(
+    repairWeddingImageUrl("https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800"),
+    /1511285560929-80b456fea0bc/
+  );
 
   const templates = read("config/weddingWebsite/templates.ts");
   const demo = read("config/weddingWebsite/demoContent.ts");
