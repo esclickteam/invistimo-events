@@ -86,6 +86,7 @@ type AdminUser = {
   totalPaid?: number;
   createdAt?: string;
   eventDate?: string;
+  termsAcceptedAt?: string | null;
 
   assignedProducerId?: string | null;
   assignedProducerIds?: string[];
@@ -682,6 +683,23 @@ function formatDateTime(value?: string | null) {
     });
   } catch {
     return null;
+  }
+}
+
+function formatTermsAcceptedAt(value?: string | null) {
+  if (!value) return "לא אושר";
+
+  try {
+    return new Date(value).toLocaleString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return "לא אושר";
   }
 }
 
@@ -1630,6 +1648,7 @@ export default function AdminUsersPage() {
                 <th className="p-4">חבילה</th>
                 <th className="p-4">רשומות</th>
                 <th className="p-4">תאריך אירוע</th>
+                <th className="p-4">אישור תקנון</th>
                 <th className="p-4">מפיקים מטפלים</th>
                 <th className="p-4">עובדים מטפלים</th>
                 <th className="p-4">שירות שיחות</th>
@@ -1672,6 +1691,10 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
+                    {formatTermsAcceptedAt(u.termsAcceptedAt)}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">
                     {formatAssigneeNames(
                       resolveAssignedProducerIds(u),
                       producerOptions
@@ -1710,7 +1733,7 @@ export default function AdminUsersPage() {
 
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-[#7B6754]">
+                  <td colSpan={11} className="p-8 text-center text-[#7B6754]">
                     לא נמצאו משתמשים
                   </td>
                 </tr>
@@ -1760,6 +1783,10 @@ export default function AdminUsersPage() {
                 <MiniDetail
                   label="תאריך אירוע"
                   value={formatDate(u.eventDate)}
+                />
+                <MiniDetail
+                  label="אישור תקנון"
+                  value={formatTermsAcceptedAt(u.termsAcceptedAt)}
                 />
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>

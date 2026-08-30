@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 type SetPasswordBody = {
   token?: string;
   password?: string;
+  action?: string;
+  acceptedTerms?: boolean;
 };
 
 function normalizeAllowedMessageRounds(value: any): 2 | 3 {
@@ -111,6 +113,7 @@ export async function GET(req: Request) {
         requireAgreementBeforePassword
         onboardingAgreementToken
         onboardingAgreementSignedAt
+        termsAcceptedAt
       `
       )
       .lean();
@@ -143,6 +146,9 @@ export async function GET(req: Request) {
       agreementToken: agreementState.agreementToken,
       agreementUrl: agreementState.agreementUrl,
       agreementSigned: agreementState.agreementSigned,
+      termsAcceptedAt: (user as any).termsAcceptedAt
+        ? new Date((user as any).termsAcceptedAt).toISOString()
+        : null,
     });
   } catch (error) {
     console.error("SET PASSWORD STATUS FAILED:", error);
@@ -161,6 +167,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as SetPasswordBody;
     const rawToken = body?.token;
     const rawPassword = body?.password;
+    const action = String(body?.action || "").trim();
 
     console.log("📦 BODY RECEIVED:", {
       hasToken: !!rawToken,
@@ -169,23 +176,26 @@ export async function POST(req: Request) {
 
     const token = String(rawToken ?? "").trim();
     const password = String(rawPassword ?? "");
+    const isAcceptTerms = action === "accept-terms";
 
     /* =========================
        VALIDATION
     ========================= */
-    if (!token || !password) {
-      console.log("❌ MISSING DATA", {
-        hasToken: !!token,
-        hasPassword: !!password,
-      });
-
+    if (!token) {
       return NextResponse.json(
         { success: false, message: "חסרים נתונים" },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
+    if (!isAcceptTerms && !password) {
+      return NextResponse.json(
+        { success: false, message: "חסרים נתונים" },
+        { status: 400 }
+      );
+    }
+
+    if (!isAcceptTerms && password.length < 6) {
       console.log("❌ PASSWORD TOO SHORT");
 
       return NextResponse.json(
@@ -194,7 +204,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!process.env.JWT_SECRET) {
+    if (!isAcceptTerms && !process.env.JWT_SECRET) {
       console.error("❌ JWT_SECRET IS MISSING");
 
       return NextResponse.json(
@@ -223,6 +233,7 @@ export async function POST(req: Request) {
     requireAgreementBeforePassword
     onboardingAgreementToken
     onboardingAgreementSignedAt
+    termsAcceptedAt
 
     producerPricePerRecord
     staffType
@@ -266,6 +277,34 @@ export async function POST(req: Request) {
 
     const agreementState = await getOnboardingAgreementState(user);
 
+    if (isAcceptTerms) {
+      const existing = (user as any).termsAcceptedAt;
+      const acceptedAt = existing ? new Date(existing) : new Date();
+
+      if (!existing) {
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { termsAcceptedAt: acceptedAt } }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        termsAcceptedAt: acceptedAt.toISOString(),
+      });
+    }
+
+    if (!(user as any).termsAcceptedAt && !body?.acceptedTerms) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "TERMS_REQUIRED",
+          message: "יש לקרוא ולאשר את התקנון לפני שמירת הסיסמה",
+        },
+        { status: 403 }
+      );
+    }
+
     if (
       agreementState.requireAgreementBeforePassword &&
       !agreementState.agreementSigned
@@ -274,7 +313,7 @@ export async function POST(req: Request) {
         {
           success: false,
           error: "AGREEMENT_SIGNATURE_REQUIRED",
-          message: "יש לחתום על ההסכם לפני הגדרת הסיסמה",
+          message: "יש לחתום על ההסכם לפני שמירת הסיסמה והפעלת המשתמש",
           requireAgreementBeforePassword: true,
           agreementToken: agreementState.agreementToken,
           agreementUrl: agreementState.agreementUrl,
@@ -338,6 +377,9 @@ export async function POST(req: Request) {
     console.log("🔑 HASHING PASSWORD...");
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const termsAcceptedAt = (user as any).termsAcceptedAt
+      ? new Date((user as any).termsAcceptedAt)
+      : new Date();
 
     /*
       חשוב מאוד:
@@ -354,6 +396,7 @@ export async function POST(req: Request) {
         $set: {
           password: hashedPassword,
           needsPasswordSetup: false,
+          termsAcceptedAt,
 
           allowedMessageRounds,
           "planLimits.allowedMessageRounds": allowedMessageRounds,

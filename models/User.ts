@@ -284,6 +284,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   requireAgreementBeforePassword?: boolean;
   onboardingAgreementToken?: string;
   onboardingAgreementSignedAt?: Date | null;
+  termsAcceptedAt?: Date | null;
 
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -1213,6 +1214,12 @@ preRsvpMessages: {
     onboardingAgreementSignedAt: {
       type: Date,
       default: null,
+    },
+
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
 
     /**

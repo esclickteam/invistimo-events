@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
 type ApiUserRole =
@@ -59,22 +58,48 @@ function getRedirectPath(user?: ApiUser | null, redirectTo?: string) {
   return "/dashboard";
 }
 
+function draftKey(token: string) {
+  return `set-password-draft:${token}`;
+}
+
+function termsReadKey(token: string) {
+  return `set-password-terms-read:${token}`;
+}
+
+function formatAcceptedAt(value?: string | null) {
+  if (!value) return "";
+
+  try {
+    return new Date(value).toLocaleString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return value;
+  }
+}
+
 export default function SetPasswordPage() {
   const { setUser, setIsAuthenticated, refreshUser } = useAuth();
 
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [hasReadTerms, setHasReadTerms] = useState(false);
+  const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
 
   const [requireAgreement, setRequireAgreement] = useState(false);
   const [agreementSigned, setAgreementSigned] = useState(true);
-  const [agreementToken, setAgreementToken] = useState("");
-  const [agreementUrl, setAgreementUrl] = useState("");
+  const [agreementHref, setAgreementHref] = useState("");
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [acceptingTerms, setAcceptingTerms] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -87,7 +112,42 @@ export default function SetPasswordPage() {
     }
 
     setToken(tokenFromUrl);
+
+    try {
+      const draftRaw = sessionStorage.getItem(draftKey(tokenFromUrl));
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw) as {
+          password?: string;
+          confirmPassword?: string;
+        };
+        setPassword(String(draft.password || ""));
+        setConfirmPassword(String(draft.confirmPassword || ""));
+      }
+    } catch {
+      // ignore
+    }
+
+    const readFromQuery = params.get("termsRead") === "1";
+    const readFromStorage =
+      sessionStorage.getItem(termsReadKey(tokenFromUrl)) === "1";
+    if (readFromQuery || readFromStorage) {
+      setHasReadTerms(true);
+      sessionStorage.setItem(termsReadKey(tokenFromUrl), "1");
+    }
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    try {
+      sessionStorage.setItem(
+        draftKey(token),
+        JSON.stringify({ password, confirmPassword }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [confirmPassword, password, token]);
 
   useEffect(() => {
     if (!token) return;
@@ -114,12 +174,24 @@ export default function SetPasswordPage() {
         }
 
         const needsAgreement = Boolean(data.requireAgreementBeforePassword);
-        const signed = data.agreementSigned !== false;
+        const signed = data.agreementSigned === true;
+        const agreementUrl =
+          String(data.agreementUrl || "").trim() ||
+          (data.agreementToken
+            ? `/sales-documents/${data.agreementToken}`
+            : "");
+        const next = encodeURIComponent(`/set-password?token=${token}`);
+        const href = agreementUrl
+          ? `${agreementUrl}${agreementUrl.includes("?") ? "&" : "?"}next=${next}`
+          : "";
 
         setRequireAgreement(needsAgreement);
         setAgreementSigned(!needsAgreement || signed);
-        setAgreementToken(String(data.agreementToken || ""));
-        setAgreementUrl(String(data.agreementUrl || ""));
+        setAgreementHref(href);
+        if (data.termsAcceptedAt) {
+          setTermsAcceptedAt(String(data.termsAcceptedAt));
+          setHasReadTerms(true);
+        }
         setMessage("");
       } catch {
         if (!cancelled) {
@@ -137,46 +209,53 @@ export default function SetPasswordPage() {
     };
   }, [token]);
 
-  useEffect(() => {
-    if (!requireAgreement || agreementSigned) return;
+  const persistDraftAndGo = (href: string) => {
+    if (token) {
+      try {
+        sessionStorage.setItem(
+          draftKey(token),
+          JSON.stringify({ password, confirmPassword }),
+        );
+      } catch {
+        // ignore
+      }
+    }
+    window.location.assign(href);
+  };
 
-    function onMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "invistimo-agreement-signed") return;
-      setAgreementSigned(true);
-      setMessage("ההסכם נחתם. אפשר להמשיך להגדרת סיסמה.");
+  const handleAcceptTerms = async () => {
+    if (!token || !hasReadTerms) {
+      setMessage("יש לקרוא את התקנון לפני האישור");
+      return;
     }
 
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [agreementSigned, requireAgreement]);
+    try {
+      setAcceptingTerms(true);
+      setMessage("");
 
-  useEffect(() => {
-    if (!token || !requireAgreement || agreementSigned) return;
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          token,
+          action: "accept-terms",
+        }),
+      });
+      const data = await res.json().catch(() => null);
 
-    const interval = window.setInterval(async () => {
-      try {
-        const res = await fetch(
-          `/api/auth/set-password?token=${encodeURIComponent(token)}`,
-          {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-          },
-        );
-        const data = await res.json().catch(() => null);
-
-        if (res.ok && data?.success && data.agreementSigned) {
-          setAgreementSigned(true);
-          setMessage("ההסכם נחתם. אפשר להמשיך להגדרת סיסמה.");
-        }
-      } catch {
-        // ignore polling errors
+      if (!res.ok || !data?.success) {
+        setMessage(data?.message || "לא ניתן לשמור את אישור התקנון");
+        return;
       }
-    }, 3000);
 
-    return () => window.clearInterval(interval);
-  }, [agreementSigned, requireAgreement, token]);
+      setTermsAcceptedAt(String(data.termsAcceptedAt || new Date().toISOString()));
+    } catch {
+      setMessage("שגיאת רשת, נסה שוב");
+    } finally {
+      setAcceptingTerms(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,8 +265,13 @@ export default function SetPasswordPage() {
       return;
     }
 
+    if (!termsAcceptedAt) {
+      setMessage("יש לקרוא ולאשר את התקנון");
+      return;
+    }
+
     if (requireAgreement && !agreementSigned) {
-      setMessage("יש לחתום על ההסכם לפני הגדרת הסיסמה");
+      setMessage("יש לחתום על ההסכם לפני שמירת הסיסמה");
       return;
     }
 
@@ -206,11 +290,6 @@ export default function SetPasswordPage() {
       return;
     }
 
-    if (!acceptedTerms) {
-      setMessage("יש לאשר את תקנון השימוש ומדיניות הפרטיות");
-      return;
-    }
-
     try {
       setLoading(true);
       setMessage("");
@@ -222,6 +301,7 @@ export default function SetPasswordPage() {
         body: JSON.stringify({
           token,
           password,
+          acceptedTerms: true,
         }),
       });
 
@@ -238,10 +318,16 @@ export default function SetPasswordPage() {
         if (data?.requireAgreementBeforePassword) {
           setRequireAgreement(true);
           setAgreementSigned(false);
-          setAgreementUrl(String(data.agreementUrl || agreementUrl));
         }
         setMessage(data?.message || "אירעה שגיאה");
         return;
+      }
+
+      try {
+        sessionStorage.removeItem(draftKey(token));
+        sessionStorage.removeItem(termsReadKey(token));
+      } catch {
+        // ignore
       }
 
       let resolvedUser: ApiUser | null = data.user || null;
@@ -275,65 +361,23 @@ export default function SetPasswordPage() {
     }
   };
 
-  const showPasswordForm = !statusLoading && (!requireAgreement || agreementSigned);
-  const agreementSrc =
-    agreementUrl ||
-    (agreementToken ? `/sales-documents/${agreementToken}` : "");
-  const agreementSrcWithReturn =
-    agreementSrc && token
-      ? `${agreementSrc}${agreementSrc.includes("?") ? "&" : "?"}next=${encodeURIComponent(`/set-password?token=${token}`)}`
-      : agreementSrc;
+  const termsHref = token
+    ? `/terms?from=set-password&token=${encodeURIComponent(token)}`
+    : "/terms";
+  const canSave =
+    Boolean(termsAcceptedAt) && (!requireAgreement || agreementSigned);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
-      <div className="w-full max-w-4xl rounded-xl border border-[#eadfce] bg-white p-8 text-right shadow-lg">
+      <div className="w-full max-w-md rounded-xl border border-[#eadfce] bg-white p-8 text-right shadow-lg">
         <h1 className="mb-6 text-center text-2xl font-bold text-[#3f3327]">
-          {showPasswordForm ? "הגדרת סיסמה" : "חתימה על ההסכם לפני הגדרת סיסמה"}
+          הגדרת סיסמה
         </h1>
 
         {statusLoading ? (
           <p className="text-center text-sm text-gray-700">טוען...</p>
-        ) : null}
-
-        {!statusLoading && requireAgreement && !agreementSigned ? (
-          <div className="mb-6 space-y-4">
-            <p className="text-sm font-bold leading-6 text-[#5d4c3b]">
-              לפני הגדרת הסיסמה יש לקרוא את ההסכם ולחתום עליו. לאחר החתימה ייפתח
-              טופס הגדרת הסיסמה.
-            </p>
-
-            {agreementSrcWithReturn ? (
-              <>
-                <iframe
-                  title="הסכם לחתימה"
-                  src={agreementSrcWithReturn}
-                  className="h-[70vh] w-full rounded-2xl border border-[#eadfce] bg-white"
-                />
-                <a
-                  href={agreementSrcWithReturn}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex text-sm font-bold underline"
-                >
-                  פתיחת ההסכם בחלון חדש
-                </a>
-              </>
-            ) : (
-              <p className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
-                לא נמצא הסכם לחתימה. פנו לאדמין.
-              </p>
-            )}
-          </div>
-        ) : null}
-
-        {showPasswordForm ? (
-          <form onSubmit={handleSubmit} className="mx-auto max-w-md space-y-4">
-            {requireAgreement && agreementSigned ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
-                ההסכם נחתם. אפשר להגדיר סיסמה.
-              </div>
-            ) : null}
-
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="password"
               placeholder="סיסמה חדשה"
@@ -352,40 +396,88 @@ export default function SetPasswordPage() {
               className="w-full rounded-lg border p-2 text-right"
             />
 
-            <div className="flex items-start gap-3 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                disabled={loading}
-                className="mt-1 h-4 w-4"
-              />
+            <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 text-sm text-[#5d4c3b]">
+              {!hasReadTerms && !termsAcceptedAt ? (
+                <>
+                  <p className="font-bold leading-6">
+                    חובה לקרוא את התקנון במלואו לפני האישור.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => persistDraftAndGo(termsHref)}
+                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white"
+                  >
+                    לקריאת התקנון
+                  </button>
+                </>
+              ) : null}
 
-              <span>
-                הנני מאשר/ת את{" "}
-                <Link href="/terms" className="underline">
-                  תקנון השימוש
-                </Link>{" "}
-                ו{" "}
-                <Link href="/privacy" className="underline">
-                  מדיניות הפרטיות
-                </Link>
-              </span>
+              {hasReadTerms && !termsAcceptedAt ? (
+                <>
+                  <p className="font-bold leading-6">
+                    קראת את התקנון. יש לאשר כדי להמשיך.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAcceptTerms}
+                    disabled={acceptingTerms}
+                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white disabled:opacity-50"
+                  >
+                    {acceptingTerms ? "שומר אישור..." : "אני מאשר/ת את התקנון"}
+                  </button>
+                </>
+              ) : null}
+
+              {termsAcceptedAt ? (
+                <p className="font-bold leading-6 text-emerald-800">
+                  התקנון אושר ב-{formatAcceptedAt(termsAcceptedAt)}
+                </p>
+              ) : null}
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !token || !acceptedTerms}
-              className={`w-full rounded-lg py-2 text-white transition ${
-                loading || !token || !acceptedTerms
-                  ? "cursor-not-allowed bg-gray-400"
-                  : "bg-[#3f3327] hover:bg-[#2f251d]"
-              }`}
-            >
-              {loading ? "שומר..." : "שמור סיסמה"}
-            </button>
+            {requireAgreement && termsAcceptedAt && !agreementSigned ? (
+              <div className="space-y-3">
+                <p className="text-sm font-bold leading-6 text-[#5d4c3b]">
+                  לאחר אישור התקנון יש לחתום על ההסכם. ייפתח עמוד ההסכם הרגיל,
+                  ולאחר החתימה תחזרו לכאן לשמירה והפעלת המשתמש.
+                </p>
+                {agreementHref ? (
+                  <button
+                    type="button"
+                    onClick={() => persistDraftAndGo(agreementHref)}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white"
+                  >
+                    חתימה על ההסכם
+                  </button>
+                ) : (
+                  <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+                    לא נמצא הסכם לחתימה. פנו לאדמין.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {requireAgreement && agreementSigned && termsAcceptedAt ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
+                ההסכם נחתם. אפשר לשמור ולהפעיל את המשתמש.
+              </div>
+            ) : null}
+
+            {canSave ? (
+              <button
+                type="submit"
+                disabled={loading || !token}
+                className={`w-full rounded-lg py-2 text-white transition ${
+                  loading || !token
+                    ? "cursor-not-allowed bg-gray-400"
+                    : "bg-[#3f3327] hover:bg-[#2f251d]"
+                }`}
+              >
+                {loading ? "שומר..." : "שמור סיסמה והפעל משתמש"}
+              </button>
+            ) : null}
           </form>
-        ) : null}
+        )}
 
         {message && (
           <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
