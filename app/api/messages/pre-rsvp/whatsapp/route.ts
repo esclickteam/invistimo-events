@@ -9,6 +9,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -873,10 +874,14 @@ export async function POST(req: NextRequest) {
     }
 
     const ownerUser: any = await User.findById(toObjectId(ownerId))
-      .select("salesUpsells.preRsvpMessages")
+      .select("email salesUpsells.preRsvpMessages")
       .lean();
 
-    const preRsvpUpsell = ownerUser?.salesUpsells?.preRsvpMessages;
+    const grantedPreRsvp = await ensurePreRsvpInvitationGrant(ownerUser);
+    const preRsvpUpsell = {
+      ...(ownerUser?.salesUpsells?.preRsvpMessages || {}),
+      ...grantedPreRsvp,
+    };
 
     const hasPreRsvpAccess = Boolean(preRsvpUpsell?.enabled);
     const messageTypeAllowed = canUsePreRsvpMessageType({

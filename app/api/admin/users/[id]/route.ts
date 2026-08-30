@@ -11,6 +11,10 @@ import EmployeeAgreement from "@/models/EmployeeAgreement";
 import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 import { normalizeRsvpSiteMode } from "@/types/rsvpSite";
 import { applyUserRsvpSiteMode } from "@/lib/weddingWebsite/rsvpSiteMode";
+import {
+  buildPreRsvpMessagesSet,
+  readPreRsvpFlags,
+} from "@/lib/preRsvp/entitlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -429,6 +433,20 @@ export async function PATCH(
       ? Boolean(body.includeTransportationManagement)
       : undefined;
 
+    const nextIncludePreRsvpInvitation = hasField(
+      body,
+      "includePreRsvpInvitation"
+    )
+      ? Boolean(body.includePreRsvpInvitation)
+      : undefined;
+
+    const nextIncludePreRsvpSaveTheDate = hasField(
+      body,
+      "includePreRsvpSaveTheDate"
+    )
+      ? Boolean(body.includePreRsvpSaveTheDate)
+      : undefined;
+
     /*
       ✅ הרשאות מודולים:
       אם הקליינט שלח accessModules — זה המקור החדש.
@@ -539,6 +557,25 @@ export async function PATCH(
       planLimitsPatch["planLimits.remindersEnabled"] = true;
     }
 
+    const currentPreRsvp = readPreRsvpFlags(currentUser);
+    const preRsvpUpdate =
+      nextIncludePreRsvpInvitation !== undefined ||
+      nextIncludePreRsvpSaveTheDate !== undefined
+        ? buildPreRsvpMessagesSet({
+            saveTheDateEnabled:
+              nextIncludePreRsvpSaveTheDate ??
+              currentPreRsvp.saveTheDateEnabled,
+            invitationOnlyEnabled:
+              nextIncludePreRsvpInvitation ??
+              currentPreRsvp.invitationOnlyEnabled,
+            givenFree:
+              (nextIncludePreRsvpInvitation === true &&
+                !currentPreRsvp.invitationOnlyEnabled) ||
+              (nextIncludePreRsvpSaveTheDate === true &&
+                !currentPreRsvp.saveTheDateEnabled),
+          })
+        : {};
+
     /* =====================================================
        UPDATE OBJECT
     ===================================================== */
@@ -626,6 +663,8 @@ export async function PATCH(
         nextIncludeTransportationManagement !== undefined
           ? finalIncludeTransportationManagement
           : undefined,
+
+      ...preRsvpUpdate,
 
       customDesignEnabled:
         nextIncludeCustomDesign !== undefined

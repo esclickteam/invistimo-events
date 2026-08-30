@@ -7,6 +7,7 @@ import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { getAuthCookieDomain } from "@/lib/env/appEnv";
 import { getCustomerFeatures, getGuestExperienceType } from "@/lib/features/entitlements";
+import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -800,7 +801,14 @@ export async function GET() {
 
     const currentUser = user as any;
 
-    const preRsvpMessages = normalizePreRsvpMessagesAccess(currentUser);
+    const grantedPreRsvp = await ensurePreRsvpInvitationGrant(currentUser);
+    const preRsvpMessages = {
+      ...normalizePreRsvpMessagesAccess(currentUser),
+      enabled: grantedPreRsvp.enabled,
+      mode: grantedPreRsvp.mode,
+      saveTheDateEnabled: grantedPreRsvp.saveTheDateEnabled,
+      invitationOnlyEnabled: grantedPreRsvp.invitationOnlyEnabled,
+    };
 
     const safeRole = (currentUser.role as UserRole) ?? "user";
 

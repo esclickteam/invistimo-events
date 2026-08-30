@@ -8,10 +8,11 @@ import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import { guestExperienceFromRsvpSiteMode, normalizeRsvpSiteMode } from "@/types/rsvpSite";
 import {
-  guestExperienceFromRsvpSiteMode,
-  normalizeRsvpSiteMode,
-} from "@/types/rsvpSite";
+  ensurePreRsvpInvitationGrant,
+  readPreRsvpFlags,
+} from "@/lib/preRsvp/entitlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -647,12 +648,15 @@ packageName
         includeDigitalSeating
         includeEventManagement
         includeCustomDesign
+        includeTransportationManagement
         accessModules
         selfManageEnabled
         customDesignEnabled
         rsvpSiteMode
         guestExperienceType
         features
+        salesUpsells.preRsvpMessages
+        salesUpsells.transportationManagement
 
         createdByProducer
         producerId
@@ -668,6 +672,15 @@ packageName
       `)
       .sort({ createdAt: -1 })
       .lean();
+
+    for (const u of users as any[]) {
+      const granted = await ensurePreRsvpInvitationGrant(u);
+      if (!u.salesUpsells) u.salesUpsells = {};
+      u.salesUpsells.preRsvpMessages = {
+        ...(u.salesUpsells.preRsvpMessages || {}),
+        ...granted,
+      };
+    }
 
     const userIds = users.map((u: any) => u._id);
 
@@ -1121,6 +1134,8 @@ packageName
           includeEventManagement,
           includeTransportationManagement,
           includeCustomDesign,
+          includePreRsvpInvitation: readPreRsvpFlags(u).invitationOnlyEnabled,
+          includePreRsvpSaveTheDate: readPreRsvpFlags(u).saveTheDateEnabled,
 
           accessModules,
 
