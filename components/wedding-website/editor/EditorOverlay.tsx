@@ -67,8 +67,24 @@ export default function EditorOverlay() {
       );
     }
 
+    function sectionIdFromHashLink(target: EventTarget | null) {
+      const el = target instanceof Element ? target : null;
+      const anchor = el?.closest("a[href^='#']") as HTMLAnchorElement | null;
+      if (!anchor) return "";
+      const href = anchor.getAttribute("href") || "";
+      const id = decodeURIComponent(href.replace(/^#/, "")).trim();
+      return /^[a-z0-9-]+$/i.test(id) ? id : "";
+    }
+
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0) return;
+      const sectionId = sectionIdFromHashLink(event.target);
+      if (sectionId) {
+        event.preventDefault();
+        event.stopPropagation();
+        editorRef.current?.scrollToSection(sectionId);
+        return;
+      }
       const next = fromTarget(event.target);
       if (!next) {
         selectedElRef.current = null;

@@ -372,10 +372,16 @@ export default function WeddingVisualEditor() {
   const scrollToSection = useCallback((id: string) => {
     setSelection({ type: "section", path: id, label: editorSectionLabel(id) });
     setActiveSectionId(id);
-    const canvas = document.querySelector(".ww-editor-canvas");
-    canvas?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({
+    const pane = document.querySelector(".ww-editor-scroll") as HTMLElement | null;
+    const target = document.querySelector(
+      `.ww-editor-canvas #${CSS.escape(id)}`
+    ) as HTMLElement | null;
+    if (!pane || !target) return;
+    const paneRect = pane.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    pane.scrollTo({
+      top: pane.scrollTop + (targetRect.top - paneRect.top) - 28,
       behavior: "smooth",
-      block: "start",
     });
   }, []);
 

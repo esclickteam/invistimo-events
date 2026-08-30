@@ -15,6 +15,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
@@ -401,7 +402,7 @@ function RsvpSection({
   live,
   rsvpController,
 }: Pick<TemplateProps, "live" | "rsvpController">) {
-  if (live && !rsvpController) return null;
+  if (!useShowWeddingRsvp(live, rsvpController)) return null;
   return (
     <Section id="rsvp" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-lg px-6">

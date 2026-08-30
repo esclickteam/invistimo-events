@@ -10,6 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
@@ -150,6 +151,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const showRsvp = useShowWeddingRsvp(live, rsvpController);
 
   return (
     <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
@@ -473,7 +475,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       </section>
 
       {/* RSVP */}
-      {!(live && !rsvpController) && (
+      {showRsvp && (
       <section id="rsvp" className="relative py-24">
         <Fireflies />
         <div className="relative mx-auto max-w-lg px-6">
