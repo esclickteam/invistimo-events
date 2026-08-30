@@ -24,6 +24,16 @@ function hasManualWazeDest(location?: {
   );
 }
 
+function isWazeShareUrl(value?: string | null) {
+  return /^(https?:\/\/|waze:\/\/|geo:)/i.test(String(value || "").trim());
+}
+
+function wazeInputModeFromLocation(location?: {
+  wazeUrl?: string | null;
+} | null): "search" | "link" {
+  return isWazeShareUrl(location?.wazeUrl) ? "link" : "search";
+}
+
 const EMPTY_WAZE_DEST = {
   wazeLat: null as number | null,
   wazeLng: null as number | null,
@@ -76,6 +86,9 @@ export default function EventDetailsForm({
   const [locationWarning, setLocationWarning] = useState("");
 
   const [wazeOverrideEnabled, setWazeOverrideEnabled] = useState(false);
+  const [wazeInputMode, setWazeInputMode] = useState<"search" | "link">(
+    "search"
+  );
   const [form, setForm] = useState({
     title: "",
     eventType: "wedding",
@@ -139,6 +152,7 @@ export default function EventDetailsForm({
       : [];
 
     setWazeOverrideEnabled(hasManualWazeDest(event.location));
+    setWazeInputMode(wazeInputModeFromLocation(event.location));
     setForm({
       title: event.title ?? "",
       eventType: event.eventType ?? "wedding",
@@ -724,6 +738,7 @@ export default function EventDetailsForm({
                   formattedAddress,
                 }) => {
                   setWazeOverrideEnabled(false);
+                  setWazeInputMode("search");
                   setForm((f) => ({
                     ...f,
                     location: {
@@ -759,10 +774,13 @@ export default function EventDetailsForm({
                   const enabled = e.target.checked;
                   setWazeOverrideEnabled(enabled);
                   if (!enabled) {
+                    setWazeInputMode("search");
                     setForm((f) => ({
                       ...f,
                       location: { ...f.location, ...EMPTY_WAZE_DEST },
                     }));
+                  } else {
+                    setWazeInputMode("search");
                   }
                 }}
                 className="h-4 w-4 accent-[#B8844F]"
@@ -774,49 +792,105 @@ export default function EventDetailsForm({
 
             {wazeOverrideEnabled && (
               <div className="mt-3">
-                <WazePlacePicker
-                  value={
-                    form.location.wazeUrl ||
-                    (form.location.wazeLat != null &&
-                    form.location.wazeLng != null
-                      ? `${form.location.wazeLat},${form.location.wazeLng}`
-                      : "")
-                  }
-                  biasLat={form.location.lat}
-                  biasLng={form.location.lng}
-                  onChange={(parsed) =>
-                    setForm((f) => ({
-                      ...f,
-                      location: {
-                        ...f.location,
-                        wazeUrl: parsed.wazeUrl,
-                        wazeLat: parsed.wazeLat,
-                        wazeLng: parsed.wazeLng,
-                      },
-                    }))
-                  }
-                  onSelect={(place) =>
-                    setForm((f) => ({
-                      ...f,
-                      location: {
-                        ...f.location,
-                        wazeUrl: place.name,
-                        wazeLat: place.lat,
-                        wazeLng: place.lng,
-                      },
-                    }))
-                  }
-                />
+                <div className="mb-3 flex gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-full px-3 py-2 text-xs font-black ${
+                      wazeInputMode === "search"
+                        ? "bg-[#B8844F] text-white"
+                        : "bg-[#FCFAF6] text-[#6B5B4A] border border-[#E3D6C3]"
+                    }`}
+                    onClick={() => {
+                      setWazeInputMode("search");
+                      if (isWazeShareUrl(form.location.wazeUrl)) {
+                        setForm((f) => ({
+                          ...f,
+                          location: { ...f.location, ...EMPTY_WAZE_DEST },
+                        }));
+                      }
+                    }}
+                  >
+                    חיפוש ב-Waze
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-full px-3 py-2 text-xs font-black ${
+                      wazeInputMode === "link"
+                        ? "bg-[#B8844F] text-white"
+                        : "bg-[#FCFAF6] text-[#6B5B4A] border border-[#E3D6C3]"
+                    }`}
+                    onClick={() => {
+                      setWazeInputMode("link");
+                      if (!isWazeShareUrl(form.location.wazeUrl)) {
+                        setForm((f) => ({
+                          ...f,
+                          location: { ...f.location, ...EMPTY_WAZE_DEST },
+                        }));
+                      }
+                    }}
+                  >
+                    קישור Waze ידני
+                  </button>
+                </div>
+
+                {wazeInputMode === "search" ? (
+                  <WazePlacePicker
+                    value={form.location.wazeUrl}
+                    biasLat={form.location.lat}
+                    biasLng={form.location.lng}
+                    onQueryChange={(raw) =>
+                      setForm((f) => ({
+                        ...f,
+                        location: {
+                          ...f.location,
+                          wazeUrl: raw,
+                          wazeLat: null,
+                          wazeLng: null,
+                        },
+                      }))
+                    }
+                    onSelect={(place) =>
+                      setForm((f) => ({
+                        ...f,
+                        location: {
+                          ...f.location,
+                          wazeUrl: place.name,
+                          wazeLat: place.lat,
+                          wazeLng: place.lng,
+                        },
+                      }))
+                    }
+                  />
+                ) : (
+                  <input
+                    dir="ltr"
+                    className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+                    placeholder="הדביקו קישור מ-Waze"
+                    value={form.location.wazeUrl}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        location: {
+                          ...f.location,
+                          wazeUrl: e.target.value,
+                          wazeLat: null,
+                          wazeLng: null,
+                        },
+                      }))
+                    }
+                  />
+                )}
                 <p className="mt-2 px-1 text-xs font-semibold text-[#9B8D7D]">
-                  בחרו מקום מתוך רשימת Waze. אפשר גם להדביק קישור או קואורדינטות.
-                  כפתור Waze של האורחים יפתח רק ליעד הזה. Google Maps ממשיך
-                  להשתמש במיקום האירוע.
+                  {wazeInputMode === "search"
+                    ? "בחרו מקום מהרשימה. כפתור Waze של האורחים יפתח ליעד הזה."
+                    : "האורחים יופנו בדיוק לקישור Waze שתדביקו כאן. Google Maps לא משתנה."}
                 </p>
                 <button
                   type="button"
                   className="mt-2 px-1 text-xs font-black text-[#8B5E34] underline-offset-2 hover:underline"
                   onClick={() => {
                     setWazeOverrideEnabled(false);
+                    setWazeInputMode("search");
                     setForm((f) => ({
                       ...f,
                       location: { ...f.location, ...EMPTY_WAZE_DEST },
