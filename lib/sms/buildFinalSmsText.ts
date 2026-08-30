@@ -1,5 +1,6 @@
 import { shortenUrl } from "@/lib/shortenUrl";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getWazeLink, resolveEventLocation } from "@/lib/navigationLinks";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -61,11 +62,11 @@ export async function buildFinalSmsText({
 
   /* ================= NAVIGATION ================= */
 
-  const location = invitation.eventLocation ?? event?.location;
+  const location = resolveEventLocation(invitation, event);
   let navigationLink = "";
 
-  if (location?.lat && location?.lng) {
-    const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+  const wazeUrl = getWazeLink(location);
+  if (wazeUrl) {
     navigationLink = await shortenUrl(wazeUrl);
   }
 

@@ -19,6 +19,12 @@ import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import CopyButton from "./CopyButton";
+import {
+  getGoogleMapsLink,
+  getWazeLink,
+  parseCoord,
+  resolveEventLocation,
+} from "@/lib/navigationLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -111,80 +117,19 @@ function formatHebrewDate(value: unknown) {
 }
 
 function getLocationValue(invitation: any, event: any): SafeLocation {
-  const invitationLocation = invitation?.location || {};
-  const eventLocation = event?.location || {};
-
-  return {
-    name:
-      cleanString(invitationLocation?.name) ||
-      cleanString(eventLocation?.name) ||
-      cleanString(invitation?.venueName) ||
-      cleanString(event?.venueName),
-
-    address:
-      cleanString(invitationLocation?.address) ||
-      cleanString(eventLocation?.address) ||
-      cleanString(invitation?.address) ||
-      cleanString(event?.address),
-
-    lat:
-      invitationLocation?.lat ??
-      eventLocation?.lat ??
-      invitation?.lat ??
-      event?.lat ??
-      null,
-
-    lng:
-      invitationLocation?.lng ??
-      eventLocation?.lng ??
-      invitation?.lng ??
-      event?.lng ??
-      null,
-  };
+  return resolveEventLocation(invitation, event);
 }
 
 function buildGoogleMapsUrl(location: SafeLocation, customUrl?: unknown) {
-  const savedUrl = normalizeUrl(customUrl);
-  if (savedUrl) return savedUrl;
-
-  const lat = cleanString(location.lat);
-  const lng = cleanString(location.lng);
-  const address = cleanString(location.address || location.name);
-
-  if (lat && lng) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      `${lat},${lng}`
-    )}`;
-  }
-
-  if (address) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      address
-    )}`;
-  }
-
-  return "";
+  const fromEvent = getGoogleMapsLink(location);
+  if (fromEvent) return fromEvent;
+  return normalizeUrl(customUrl);
 }
 
 function buildWazeUrl(location: SafeLocation, customUrl?: unknown) {
-  const savedUrl = normalizeUrl(customUrl);
-  if (savedUrl) return savedUrl;
-
-  const lat = cleanString(location.lat);
-  const lng = cleanString(location.lng);
-  const address = cleanString(location.address || location.name);
-
-  if (lat && lng) {
-    return `https://waze.com/ul?ll=${encodeURIComponent(
-      `${lat},${lng}`
-    )}&navigate=yes`;
-  }
-
-  if (address) {
-    return `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
-  }
-
-  return "";
+  const fromEvent = getWazeLink(location);
+  if (fromEvent) return fromEvent;
+  return normalizeUrl(customUrl);
 }
 
 function getInvitationTitle(invitation: any, event: any) {
@@ -250,8 +195,8 @@ function getParkingSettings(publicEventPage: any): ParkingSettings {
     enabled: parking?.enabled === true,
     name: cleanString(parking?.name),
     address: cleanString(parking?.address),
-    lat: parking?.lat ?? null,
-    lng: parking?.lng ?? null,
+    lat: parseCoord(parking?.lat),
+    lng: parseCoord(parking?.lng),
     instructions: cleanString(parking?.instructions),
   };
 }
@@ -536,8 +481,8 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
   const navigationSettings = getNavigationSettings(publicEventPage);
 
   const location: SafeLocation = {
-    name: navigationSettings.venueName || baseLocation.name,
-    address: navigationSettings.address || baseLocation.address,
+    name: baseLocation.name || navigationSettings.venueName,
+    address: baseLocation.address || navigationSettings.address,
     lat: baseLocation.lat,
     lng: baseLocation.lng,
   };

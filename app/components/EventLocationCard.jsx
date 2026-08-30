@@ -2,33 +2,22 @@
 
 import EventNavigationButtons from "@/app/components/EventNavigationButtons";
 import LocationDisplay from "@/app/components/LocationDisplay";
+import {
+  getGoogleMapsEmbedUrl,
+  getGoogleMapsLink,
+} from "@/lib/navigationLinks";
 
 export default function EventLocationCard({ location }) {
   if (!location) return null;
 
-  const hasAddress = !!location.address?.trim();
-  const hasCoords =
-    typeof location.lat === "number" &&
-    typeof location.lng === "number";
+  const hasAddress = !!location.address?.trim() || !!location.name?.trim();
+  const mapUrl = getGoogleMapsLink(location);
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(location);
 
-  // אם אין כלום – לא מציגים
-  if (!hasAddress && !hasCoords) return null;
-
-  const mapUrl = hasCoords
-    ? `https://www.google.com/maps?q=${location.lat},${location.lng}&z=16`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        location.address
-      )}`;
-
-  const mapEmbedUrl = hasCoords
-    ? `https://www.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed`
-    : `https://www.google.com/maps?q=${encodeURIComponent(
-        location.address
-      )}&z=16&output=embed`;
+  if (!hasAddress && !mapUrl) return null;
 
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow p-5 mt-8">
-      {/* כותרת + כתובת */}
       {(hasAddress || location.name) && (
         <div className="text-center mb-4">
           <LocationDisplay
@@ -42,10 +31,9 @@ export default function EventLocationCard({ location }) {
         </div>
       )}
 
-      {/* 🗺️ מפה לחיצה */}
-      {(hasCoords || hasAddress) && (
+      {mapEmbedUrl && (
         <a
-          href={mapUrl}
+          href={mapUrl || mapEmbedUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="block w-full h-[250px] rounded-2xl overflow-hidden border border-[#e6dccb] shadow-sm mb-5"
@@ -62,8 +50,7 @@ export default function EventLocationCard({ location }) {
         </a>
       )}
 
-      {/* כפתורי ניווט */}
-      {(hasCoords || hasAddress) && (
+      {mapUrl && (
         <div className="flex justify-center gap-3">
           <EventNavigationButtons location={location} />
         </div>

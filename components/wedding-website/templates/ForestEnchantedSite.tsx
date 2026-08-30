@@ -10,7 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -383,7 +383,8 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
             />
             <WeddingVenueNav
               address={DEMO.venueAddress}
-              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              lat={DEMO.venueLat}
+              lng={DEMO.venueLng}
               className="mt-8 flex flex-wrap gap-3"
               linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#7CB87A] px-8 py-3 text-sm font-bold text-[#0F1810]"
             />
@@ -391,7 +392,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
           <div className="overflow-hidden rounded-3xl border border-[#7CB87A]/20">
             <iframe
               title="map"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
+              src={getVenueMapEmbedUrl()}
               className="h-72 w-full opacity-80"
               loading="lazy"
             />

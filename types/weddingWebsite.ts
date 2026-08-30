@@ -104,6 +104,8 @@ export type WeddingDemoContent = {
   weddingTime: string;
   venueName: string;
   venueAddress: string;
+  venueLat?: number | null;
+  venueLng?: number | null;
   heroSubtitle: string;
   invitationText: string;
   storyParagraphs: string[];
@@ -140,6 +142,8 @@ export type WeddingEventData = {
   weddingTime: string;
   venueName: string;
   venueAddress: string;
+  venueLat?: number | null;
+  venueLng?: number | null;
 };
 
 export type GuestUploadItem = {

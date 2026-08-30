@@ -10,7 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -363,7 +363,8 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             />
             <WeddingVenueNav
               address={DEMO.venueAddress}
-              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              lat={DEMO.venueLat}
+              lng={DEMO.venueLng}
               className="mt-6 flex flex-wrap gap-3"
               linkClassName="inline-flex min-h-[44px] items-center gap-2 border border-black px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-black hover:text-white"
             />
@@ -371,7 +372,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           <div className="min-h-[280px] border-t border-black bg-neutral-200 md:border-t-0 md:border-l">
             <iframe
               title="map"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
+              src={getVenueMapEmbedUrl()}
               className="h-full min-h-[280px] w-full grayscale"
               loading="lazy"
             />

@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
+import {
+  getGoogleMapsEmbedUrl,
+  getGoogleMapsLink,
+  getWazeLink,
+} from "@/lib/navigationLinks";
 
 let liveContent: WeddingDemoContent | null = null;
 
@@ -15,6 +20,27 @@ export const DEMO = new Proxy(WEDDING_DEMO_CONTENT, {
     return source[prop as keyof WeddingDemoContent];
   },
 });
+
+export function getVenueLocation() {
+  return {
+    name: String(DEMO.venueName || "").trim(),
+    address: String(DEMO.venueAddress || "").trim(),
+    lat: DEMO.venueLat ?? null,
+    lng: DEMO.venueLng ?? null,
+  };
+}
+
+export function getVenueMapEmbedUrl(zoom = 14) {
+  return getGoogleMapsEmbedUrl(getVenueLocation(), zoom) || "";
+}
+
+export function getVenueGoogleMapsLink() {
+  return getGoogleMapsLink(getVenueLocation()) || "";
+}
+
+export function getVenueWazeLink() {
+  return getWazeLink(getVenueLocation()) || "";
+}
 
 export const VIDEOS = {
   couple: "https://assets.mixkit.co/videos/preview/mixkit-wedding-couple-holding-hands-4826-large.mp4",

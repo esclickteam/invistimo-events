@@ -642,7 +642,7 @@ export default function EventDetailsForm({
             </div>
 
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">
-              ניתן לבחור מיקום מהרשימה או להקליד ידנית
+              בחירה מהרשימה שומרת את הנקודה המדויקת לווייז ולגוגל מפות
             </p>
           </div>
 

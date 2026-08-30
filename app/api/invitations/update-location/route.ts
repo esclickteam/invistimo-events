@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { parseCoord } from "@/lib/navigationLinks";
+import Event from "@/models/Event";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,9 @@ const userId = auth.userId;
       );
     }
 
-    const { name, address, lat, lng } = location;
+    const { name, address } = location;
+    const lat = parseCoord(location.lat);
+    const lng = parseCoord(location.lng);
 
     if (!address || lat == null || lng == null) {
       return NextResponse.json(
@@ -62,6 +67,30 @@ const userId = auth.userId;
     };
 
     await invitation.save();
+
+    const eventIds = [
+      invitation.eventId,
+      invitation.productionEventId,
+      invitation.linkedEventId,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter((value) => mongoose.Types.ObjectId.isValid(value));
+
+    if (eventIds.length) {
+      await Event.updateOne(
+        {
+          _id: { $in: eventIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        },
+        {
+          $set: {
+            "location.address": address,
+            "location.lat": lat,
+            "location.lng": lng,
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
 
     return NextResponse.json({
       success: true,

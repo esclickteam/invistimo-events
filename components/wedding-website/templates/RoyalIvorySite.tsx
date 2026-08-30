@@ -9,7 +9,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
+import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -341,7 +341,8 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
             />
             <WeddingVenueNav
               address={DEMO.venueAddress}
-              googleHref={`https://maps.google.com/?q=${encodeURIComponent(DEMO.venueAddress)}`}
+              lat={DEMO.venueLat}
+              lng={DEMO.venueLng}
               className="mt-8 flex flex-wrap gap-3"
               linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-sm text-[#B8956B]"
             />
@@ -349,7 +350,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
           <div className="overflow-hidden rounded-3xl border border-[#B8956B]/20 shadow-lg">
             <iframe
               title="map"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&output=embed`}
+              src={getVenueMapEmbedUrl()}
               className="h-72 w-full"
               loading="lazy"
             />

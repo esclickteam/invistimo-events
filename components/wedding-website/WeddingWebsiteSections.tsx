@@ -23,6 +23,11 @@ import WeddingCountdownGrid from "./shared/WeddingCountdownGrid";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import FloatingParticles, { HeroParallax, ScrollIndicator } from "./effects/WeddingEffects";
 import { useWeddingTheme } from "./WeddingThemeProvider";
+import {
+  getGoogleMapsEmbedUrl,
+  getGoogleMapsLink,
+  getWazeLink,
+} from "@/lib/navigationLinks";
 import { DEMO_GUEST_UPLOADS } from "@/config/weddingWebsite/demoContent";
 import type { GuestUploadItem, WeddingSectionId } from "@/types/weddingWebsite";
 
@@ -369,6 +374,14 @@ export function ScheduleSection() {
 
 export function LocationSection() {
   const { content } = useWeddingTheme();
+  const venueLocation = {
+    address: content.venueAddress,
+    lat: content.venueLat,
+    lng: content.venueLng,
+  };
+  const wazeHref = getWazeLink(venueLocation);
+  const googleHref = getGoogleMapsLink(venueLocation);
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(venueLocation);
   return (
     <AnimatedSection id="location" className="py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
@@ -389,28 +402,32 @@ export function LocationSection() {
               className="absolute inset-0 h-full w-full border-0 grayscale-[30%]"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(content.venueAddress)}&z=14&output=embed`}
+              src={mapEmbedUrl || ""}
             />
           </div>
           <div className="flex flex-wrap gap-3 p-6">
-            <a
-              href={`https://waze.com/ul?q=${encodeURIComponent(content.venueAddress)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
-            >
-              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-              Waze
-            </a>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(content.venueAddress)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
-            >
-              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-              Google Maps
-            </a>
+            {wazeHref && (
+              <a
+                href={wazeHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
+              >
+                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                Waze
+              </a>
+            )}
+            {googleHref && (
+              <a
+                href={googleHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
+              >
+                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                Google Maps
+              </a>
+            )}
           </div>
         </GlassCard>
       </div>
