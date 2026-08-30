@@ -737,7 +737,7 @@ export default function EventDetailsForm({
                       ...EMPTY_WAZE_DEST,
                     },
                   }));
-                }
+                }}
               />
             </div>
 
