@@ -46,8 +46,21 @@ function asDate(value: unknown) {
  * השליחה נכתבת לפעמים ל-rsvpRoundSent ולפעמים ל-rsvpRoundsSent.
  * אובייקט סבב בלי sentAt עדיין נחשב "נשלח" אם יש ערוץ/ספירה.
  */
-export function getRsvpRoundSentSnapshot(invitation: any, round: RsvpRound) {
-  const roundData = getRoundSentObject(invitation, round);
+export function getRsvpRoundSentSnapshot(
+  invitation: any,
+  round: RsvpRound | number
+) {
+  const normalized = normalizeRsvpRound(round);
+
+  if (!normalized) {
+    return {
+      done: false,
+      sentAt: null,
+      channel: null,
+    };
+  }
+
+  const roundData = getRoundSentObject(invitation, normalized);
 
   const sentAt =
     asDate(roundData?.sentAt) ||
@@ -56,22 +69,22 @@ export function getRsvpRoundSentSnapshot(invitation: any, round: RsvpRound) {
     asDate(roundData?.sentAtWhatsapp) ||
     asDate(roundData?.smsSentAt) ||
     asDate(roundData?.whatsappSentAt) ||
-    asDate(invitation?.[`rsvpRound${round}SentAt`]) ||
-    asDate(invitation?.[`rsvpRound${round}sentAt`]) ||
-    asDate(invitation?.[`rsvpSmsRound${round}SentAt`]) ||
-    asDate(invitation?.[`rsvpSmsRound${round}sentAt`]) ||
-    asDate(invitation?.[`rsvpWhatsappRound${round}SentAt`]) ||
-    asDate(invitation?.[`rsvpWhatsappRound${round}sentAt`]) ||
+    asDate(invitation?.[`rsvpRound${normalized}SentAt`]) ||
+    asDate(invitation?.[`rsvpRound${normalized}sentAt`]) ||
+    asDate(invitation?.[`rsvpSmsRound${normalized}SentAt`]) ||
+    asDate(invitation?.[`rsvpSmsRound${normalized}sentAt`]) ||
+    asDate(invitation?.[`rsvpWhatsappRound${normalized}SentAt`]) ||
+    asDate(invitation?.[`rsvpWhatsappRound${normalized}sentAt`]) ||
     null;
 
   const channel =
     roundData?.channel ||
-    (invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
-    invitation?.[`rsvpWhatsappRound${round}sentAt`]
+    (invitation?.[`rsvpWhatsappRound${normalized}SentAt`] ||
+    invitation?.[`rsvpWhatsappRound${normalized}sentAt`]
       ? "whatsapp"
       : null) ||
-    (invitation?.[`rsvpSmsRound${round}SentAt`] ||
-    invitation?.[`rsvpSmsRound${round}sentAt`]
+    (invitation?.[`rsvpSmsRound${normalized}SentAt`] ||
+    invitation?.[`rsvpSmsRound${normalized}sentAt`]
       ? "sms"
       : null) ||
     null;
