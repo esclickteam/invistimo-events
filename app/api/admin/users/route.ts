@@ -324,7 +324,7 @@ function buildMessageRounds(
   user: any = null
 ) {
   const locks = invitation?.adminMessageRoundLocks || {};
-  const rsvpRounds = [1, 2, 3];
+  const rsvpRounds = [1, 2, 3] as const;
   const callRounds = [1, 2, 3];
 
   if (!invitation) {
