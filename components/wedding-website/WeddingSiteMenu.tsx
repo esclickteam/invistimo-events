@@ -1,74 +1,50 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Menu, X } from "lucide-react";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import type { ReactNode } from "react";
+import { WEDDING_PRIMARY_NAV_IDS, WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import { isSectionVisible } from "@/lib/weddingWebsite/editorSchema";
+import { useWeddingSite } from "./editable/WeddingSiteContext";
 
 type Props = {
   brand?: ReactNode;
   className?: string;
   barClassName?: string;
-  buttonClassName?: string;
-  panelClassName?: string;
   linkClassName?: string;
-  extra?: ReactNode;
 };
 
 export default function WeddingSiteMenu({
   brand,
   className = "",
   barClassName = "",
-  buttonClassName = "",
-  panelClassName = "",
   linkClassName = "",
-  extra,
 }: Props) {
-  const [open, setOpen] = useState(false);
-  const items = WEDDING_SECTIONS.filter((section) => section.id !== "footer");
+  const site = useWeddingSite();
+  const items = WEDDING_PRIMARY_NAV_IDS.map((id) => WEDDING_SECTIONS.find((section) => section.id === id)).filter(
+    (section): section is NonNullable<typeof section> => Boolean(section)
+  ).filter((section) => isSectionVisible(site?.content, section.id));
 
   return (
     <nav className={`relative z-50 ${className}`} data-ww-chrome="1">
-      <div className={`mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 ${barClassName}`}>
-        <div className="min-w-0">{brand}</div>
-        <div className="flex items-center gap-2">
-          {extra}
-          <button
-            type="button"
-            className={
-              buttonClassName ||
-              "inline-flex h-10 w-10 items-center justify-center rounded-xl border border-current/20"
-            }
-            aria-label="תפריט"
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-          >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+      <div
+        className={`mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2 sm:px-4 ${barClassName}`}
+      >
+        <div className="min-w-0 shrink-0">{brand}</div>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-1 gap-y-1">
+          {items.map((item) => (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              data-ww-nav={item.id}
+              className={`${
+                linkClassName ||
+                "whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5 sm:text-sm"
+              } ${item.id === "rsvp" ? "font-black" : ""}`}
+            >
+              {item.navLabel}
+            </a>
+          ))}
         </div>
       </div>
-      {open ? (
-        <div
-          className={`absolute inset-x-0 top-full z-[60] max-h-[min(80vh,640px)] overflow-y-auto p-4 shadow-2xl ${
-            panelClassName || "border-t bg-white"
-          }`}
-        >
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-1 sm:grid-cols-2">
-            {items.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className={
-                  linkClassName ||
-                  "rounded-xl px-4 py-3 text-right text-sm font-bold hover:bg-black/5"
-                }
-                onClick={() => setOpen(false)}
-              >
-                {item.navLabel}
-              </a>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </nav>
   );
 }

@@ -105,17 +105,7 @@ function ForestNav() {
     <WeddingSiteMenu
       className="sticky top-0 z-50 bg-[#0F1810]/90 backdrop-blur-md"
       brand={<span className="text-xs tracking-widest text-[#7CB87A]">{DEMO.coupleShort}</span>}
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#7CB87A]/50 text-[#7CB87A]"
-      panelClassName="border-t border-[#7CB87A]/20 bg-[#0F1810]"
-      linkClassName="rounded-xl px-4 py-3 text-right text-xs text-[#8AA892] hover:text-[#7CB87A]"
-      extra={
-        <a
-          href="#rsvp"
-          className="rounded-full border border-[#7CB87A]/50 px-4 py-2 text-xs text-[#7CB87A] hover:bg-[#7CB87A]/10"
-        >
-          RSVP
-        </a>
-      }
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs text-[#8AA892] hover:text-[#7CB87A] sm:text-sm"
     />
   );
 }
@@ -183,7 +173,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
           <p className="font-['Libre_Baskerville'] text-sm italic tracking-[0.3em] text-[#7CB87A]">
             enchanted forest wedding
           </p>
-          <h1 className="mt-4 font-['Libre_Baskerville'] text-5xl font-bold md:text-8xl">{DEMO.coupleNames}</h1>
+          <h1 className="mt-4 font-['Libre_Baskerville'] text-4xl font-bold sm:text-5xl md:text-8xl">{DEMO.coupleNames}</h1>
           <p className="mt-6 max-w-lg text-lg text-[#8AA892]">{DEMO.heroSubtitle}</p>
           <p className="mt-4 text-sm text-[#7CB87A]">
             {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}

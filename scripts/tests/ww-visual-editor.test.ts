@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
+import { WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
 import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
 import {
@@ -375,6 +376,7 @@ test("editor selection targets inner text and countdown instead of the whole sec
   assert.match(overlay, /const root: HTMLElement = pane/);
   assert.match(hydrator, /ww-section-handle/);
   assert.match(hydrator, /data-ww-section/);
+  assert.match(hydrator, /container-type: inline-size/);
   assert.match(grid, /data-ww-edit="countdown"/);
   assert.match(grid, /data-ww-path="countdown"/);
   assert.match(toolbar, /selection.type === "countdown"/);
@@ -391,11 +393,24 @@ test("editor canvas has a single scrollbar and can switch templates", () => {
   assert.match(editor, /setPickerOpen\(false\)/);
 });
 
-test("site navigation is a hamburger on desktop and mobile", () => {
+test("site navigation shows only the important header links", () => {
   const menu = read("components/wedding-website/WeddingSiteMenu.tsx");
   const nav = read("components/wedding-website/WeddingNav.tsx");
-  assert.match(menu, /aria-label="תפריט"/);
+  const config = read("config/weddingWebsite/templates.ts");
+  assert.match(config, /WEDDING_PRIMARY_NAV_IDS/);
+  assert.deepEqual([...WEDDING_PRIMARY_NAV_IDS], [
+    "invitation",
+    "gallery",
+    "event-details",
+    "location",
+    "schedule",
+    "rsvp",
+  ]);
+  assert.match(menu, /WEDDING_PRIMARY_NAV_IDS/);
+  assert.match(menu, /flex-wrap/);
+  assert.doesNotMatch(menu, /aria-label="תפריט"/);
   assert.doesNotMatch(menu, /overflow-x-auto/);
+  assert.doesNotMatch(menu, /from "lucide-react"/);
   assert.match(nav, /WeddingSiteMenu/);
   assert.doesNotMatch(nav, /hidden lg:flex/);
 
@@ -414,6 +429,8 @@ test("site navigation is a hamburger on desktop and mobile", () => {
   for (const file of templates) {
     const src = read(file);
     assert.match(src, /WeddingSiteMenu/);
+    assert.doesNotMatch(src, /aria-label="תפריט"/);
+    assert.doesNotMatch(src, /buttonClassName/);
     assert.doesNotMatch(src, /{!embed && <StickyNav \/>}/);
     assert.doesNotMatch(src, /if \(embed\) return null/);
   }

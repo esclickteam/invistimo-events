@@ -81,9 +81,7 @@ function StickyNav() {
   return (
     <WeddingSiteMenu
       className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md"
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#6B9E78]/40 text-[#1F3324]"
-      panelClassName="border-t border-[#6B9E78]/20 bg-[#F4FAF4]"
-      linkClassName="rounded-full px-4 py-3 text-right text-sm font-medium text-[#5C7A62] hover:bg-[#6B9E78]/15 hover:text-[#1F3324]"
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium text-[#5C7A62] hover:bg-[#6B9E78]/15 hover:text-[#1F3324] sm:text-sm"
     />
   );
 }
@@ -110,7 +108,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-4 font-['Libre_Baskerville'] text-5xl leading-tight text-[#1F3324] md:text-6xl"
+            className="mt-4 font-['Libre_Baskerville'] text-4xl leading-tight text-[#1F3324] sm:text-5xl md:text-6xl"
           >
             {DEMO.coupleNames}
           </motion.h1>

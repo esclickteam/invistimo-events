@@ -57,9 +57,7 @@ function StickyNav() {
   return (
     <WeddingSiteMenu
       className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md"
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#3D8BBA]/30 text-[#0D2840]"
-      panelClassName="border-t border-[#3D8BBA]/20 bg-[#F0F8FF]"
-      linkClassName="rounded-xl px-4 py-3 text-right text-sm font-semibold text-[#5A7A94] hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA]"
+      linkClassName="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#5A7A94] hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA] sm:text-sm"
     />
   );
 }
@@ -71,7 +69,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative z-10 px-6 text-center text-white">
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#B3E0F2]">Coastal Breeze</p>
-        <h1 className="font-['Montserrat'] text-5xl font-light md:text-7xl">{DEMO.coupleNames}</h1>
+        <h1 className="font-['Montserrat'] text-4xl font-light sm:text-5xl md:text-7xl">{DEMO.coupleNames}</h1>
         <div className="mx-auto my-8 h-1 w-24 bg-gradient-to-r from-transparent via-white to-transparent" />
         <p className="mx-auto max-w-xl text-lg text-white/90">{DEMO.heroSubtitle}</p>
         <p className="mt-6 font-['Montserrat'] text-lg text-[#B3E0F2]">{formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}</p>

@@ -18,17 +18,7 @@ export default function WeddingNav() {
           {content.coupleShort}
         </a>
       }
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--ww-border)]"
-      panelClassName="border-t border-[var(--ww-border)] bg-[var(--ww-bg)]"
-      linkClassName="rounded-xl px-4 py-3 text-right text-sm font-bold text-[var(--ww-text)] hover:bg-[var(--ww-accent-soft)]"
-      extra={
-        <a
-          href="#rsvp"
-          className="rounded-full bg-[var(--ww-accent)] px-5 py-2.5 text-xs font-black text-white shadow-lg"
-        >
-          אישור הגעה
-        </a>
-      }
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-bold text-[var(--ww-text-muted)] hover:bg-[var(--ww-accent-soft)] hover:text-[var(--ww-accent)] sm:text-sm"
     />
   );
 }

@@ -44,6 +44,13 @@ export function WeddingSiteRuntimeStyles() {
       .wedding-website-root {
         display: flex;
         flex-direction: column;
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+      .wedding-website-root img,
+      .wedding-website-root video,
+      .wedding-website-root iframe {
+        max-width: 100%;
       }
       ${order
         .map((id, index) => `#${cssEscape(String(id))}{order:${index + 2};}`)
@@ -79,10 +86,19 @@ export function WeddingSiteRuntimeStyles() {
         .join("")}
       ${mode === "editor"
         ? `
-        .ww-editor-canvas { overflow-anchor: none; overflow-x: hidden; }
+        .ww-editor-canvas { overflow-anchor: none; overflow-x: hidden; container-type: inline-size; }
         .ww-editor-canvas .ww-site,
         .ww-editor-canvas .wedding-website-root { max-width: 100%; overflow-x: hidden; }
         .ww-editor-canvas .w-screen { width: 100% !important; max-width: 100% !important; }
+        .ww-editor-canvas img, .ww-editor-canvas video, .ww-editor-canvas iframe { max-width: 100%; }
+        @container (max-width: 700px) {
+          .ww-editor-canvas [class*="md:grid-cols-2"],
+          .ww-editor-canvas [class*="lg:grid-cols-2"],
+          .ww-editor-canvas [class*="md:grid-cols-5"],
+          .ww-editor-canvas [class*="lg:grid-cols-12"] { grid-template-columns: 1fr !important; }
+          .ww-editor-canvas [class*="md:grid-cols-4"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .ww-editor-canvas h1 { font-size: clamp(1.75rem, 9cqi, 3.25rem) !important; line-height: 1.15 !important; }
+        }
         [data-ww-edit]{cursor:pointer}
         [data-ww-edit="text"]{
           cursor:text;

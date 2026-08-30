@@ -67,11 +67,9 @@ function Section({ id, children, className = "" }: { id: string; children: React
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 px-4 py-3"
+      className="sticky top-0 z-50 px-2 py-2 sm:px-4"
       barClassName="rounded-full border border-[#D4AF37]/25 bg-black/60 backdrop-blur-2xl"
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D4AF37]/40 text-[#D4AF37]"
-      panelClassName="border-t border-[#D4AF37]/20 bg-[#0D0B10]"
-      linkClassName="rounded-full px-4 py-3 text-right text-xs font-bold text-[#A89BB0] hover:bg-[#D4AF37]/15 hover:text-[#D4AF37]"
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-bold text-[#A89BB0] hover:bg-[#D4AF37]/15 hover:text-[#D4AF37] sm:text-xs"
     />
   );
 }
@@ -98,7 +96,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4, duration: 1 }}
-            className="font-['Playfair_Display'] text-5xl font-semibold md:text-7xl"
+            className="font-['Playfair_Display'] text-4xl font-semibold sm:text-5xl md:text-7xl"
             style={{ textShadow: "0 0 40px rgba(212,175,55,0.4)" }}
           >
             {DEMO.coupleNames}
