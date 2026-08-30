@@ -8,7 +8,7 @@ export default function WeddingNav() {
 
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 border-b border-[var(--ww-border)] bg-[var(--ww-bg)]/88 backdrop-blur-xl"
+      className="border-b border-[var(--ww-border)] bg-[var(--ww-bg)]"
       brand={
         <a
           href="#hero"

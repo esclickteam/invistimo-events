@@ -63,7 +63,7 @@ function Section({ id, children, className = "", wave = false }: { id: string; c
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 bg-gradient-to-b from-[#F0F8FF] to-[#F0F8FF]/90 backdrop-blur-md"
+      className="bg-[#F0F8FF]"
       linkClassName="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#5A7A94] hover:bg-[#3D8BBA]/10 hover:text-[#3D8BBA] sm:text-sm"
     />
   );

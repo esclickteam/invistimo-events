@@ -54,7 +54,7 @@ function DoubleFrame({ src, alt = "", slot }: { src: string; alt?: string; slot?
 function RoyalNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 bg-[#FDFBF7]/95 shadow-sm backdrop-blur-md"
+      className="bg-[#FDFBF7] shadow-sm"
       brand={
         <span className="font-['Playfair_Display'] text-sm italic text-[#8C7B68]">
           {DEMO.coupleShort}

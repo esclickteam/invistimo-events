@@ -66,7 +66,7 @@ function Section({ id, children, className = "" }: { id: string; children: React
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 bg-[#F4FAF4]/90 backdrop-blur-md"
+      className="bg-[#F4FAF4]"
       linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium text-[#5C7A62] hover:bg-[#6B9E78]/15 hover:text-[#1F3324] sm:text-sm"
     />
   );

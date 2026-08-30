@@ -27,7 +27,7 @@ function ToolbarShell({ children }: { children: ReactNode }) {
   return (
     <div
       dir="rtl"
-      className="flex max-w-[min(94vw,760px)] flex-wrap items-center gap-1 rounded-2xl border border-[#eadfce] bg-white/97 p-1.5 text-[#241A14] shadow-[0_18px_50px_rgba(36,26,20,0.22)] backdrop-blur"
+      className="flex max-w-[min(94vw,760px)] flex-wrap items-center gap-1 rounded-2xl border border-[#eadfce] bg-white p-1.5 text-[#241A14] shadow-[0_18px_50px_rgba(36,26,20,0.28)]"
     >
       {children}
     </div>

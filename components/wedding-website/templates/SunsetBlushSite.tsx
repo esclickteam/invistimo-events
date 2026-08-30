@@ -83,7 +83,7 @@ function HeartParticles() {
 function BlushNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl"
+      className="bg-white"
       brand={<span className="text-sm font-medium text-[#E8788A]">{DEMO.coupleShort}</span>}
       linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs text-[#9A6070] hover:bg-[#FFE8EE] hover:text-[#E8788A] sm:text-sm"
     />

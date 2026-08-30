@@ -92,13 +92,13 @@ function GlassPanel({
 
 function GlassNav() {
   return (
-    <div className="sticky top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
-      <GlassPanel>
+    <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+      <div className="rounded-2xl border border-white/10 bg-[#0A0E17]">
         <WeddingSiteMenu
           brand={<span className="text-xs font-medium text-[#7C9CFF]">{DEMO.coupleShort}</span>}
           linkClassName="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs text-[#8892A8] hover:bg-white/5 hover:text-white"
         />
-      </GlassPanel>
+      </div>
     </div>
   );
 }

@@ -75,7 +75,19 @@ test("theme css outranks Tailwind classes and preserves opacity modifiers", () =
   assert.match(css, /\.border-\\\[\\#C9A962\\\]\\\/30\{border-color:rgb\(61 139 186 \/ 0\.3\)\}/);
   // Gradient stops go through Tailwind's custom properties, not plain colors.
   assert.match(css, /--tw-gradient-from:#3D8BBA var\(--tw-gradient-from-position\)/);
-  assert.doesNotMatch(css, /!important/);
+  // Class remaps stay !important-free; countdown overrides may use it to beat inline styles.
+  const withoutCountdown = css.replace(/\.ww-themed \[data-ww-countdown="units"\][^}]+\}/g, "");
+  assert.doesNotMatch(withoutCountdown, /!important/);
+});
+
+test("theme accent and text recolor the countdown clock site-wide", () => {
+  const css = buildWeddingThemeCss(ETERNAL_GOLD, {
+    colors: { accent: "#3D8BBA", text: "#111111", textMuted: "#555555", surface: "#FFFFFF" },
+  });
+  assert.match(css, /\[data-ww-countdown="units"\] span\{color:#3D8BBA!important\}/);
+  assert.match(css, /\[data-ww-countdown="units"\] p\{color:#555555!important\}/);
+  assert.match(css, /#countdown h2/);
+  assert.match(css, /\[data-ww-countdown="units"\] > \*\{background-color:/);
 });
 
 test("changing the text colour does not repaint hero scrims or dark panels", () => {
