@@ -347,36 +347,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const ownerId = invitation.ownerId || invitation.userId || null;
+    const relatedInvitations: any[] = [invitation];
 
-    const relatedInvitations: any[] = isAdmin && ownerId
-      ? await Invitation.find({
-          $or: [
-            { _id: invitationObjectId },
-            { ownerId },
-            { userId: ownerId },
-          ],
-        })
-          .select("_id title eventDate ownerId")
-          .sort({ eventDate: -1, updatedAt: -1, createdAt: -1 })
-          .lean()
-      : [invitation];
-
-    const invitationIds = relatedInvitations
-      .map((item) => item._id)
-      .filter(Boolean);
-
-    const queueQuery =
-      invitationIds.length > 1
-        ? {
-            $or: invitationIds.flatMap((id) => [
-              { invitationId: id },
-              { invitationId: String(id) },
-            ]),
-          }
-        : invitationIdQuery(invitationObjectId);
-
-    const queueItems: any[] = await WhatsappQueue.find(queueQuery)
+    const queueItems: any[] = await WhatsappQueue.find(
+      invitationIdQuery(invitationObjectId)
+    )
       .sort({
         createdAt: -1,
         updatedAt: -1,

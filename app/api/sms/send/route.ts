@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 import {
   AUTO_REMINDER_BY_TABLE,
   REMINDER_WITH_TABLE_SERVER_TEMPLATE,
@@ -620,15 +621,8 @@ if (isDirectSmsRequest) {
     ====================================================== */
 
     if (templateKey === "rsvp") {
-      const roundKey = `round${round}`;
-      const roundData = inv.rsvpRoundSent?.[roundKey];
-
       const alreadySent = Boolean(
-        roundData?.sentAt ||
-          roundData?.sentAtSms ||
-          roundData?.sentAtWhatsapp ||
-          roundData?.smsSentAt ||
-          roundData?.whatsappSentAt ||
+        getRsvpRoundSentSnapshot(inv, round).done ||
           inv.adminMessageRoundLocks?.[`rsvp_${round}`]
       );
 
@@ -1085,6 +1079,10 @@ if (inv.shareId) {
                 sentAt: now,
                 sentCount: sent,
               },
+              [`rsvpRoundsSent.round${round}.channel`]: "sms",
+              [`rsvpRoundsSent.round${round}.sentAt`]: now,
+              [`rsvpSmsRound${round}SentAt`]: now,
+              [`rsvpRound${round}SentAt`]: now,
               updatedAt: now,
             },
             $unset: {
