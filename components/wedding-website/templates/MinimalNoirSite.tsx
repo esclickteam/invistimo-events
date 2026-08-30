@@ -84,8 +84,6 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
   const { scrollYProgress } = useScroll();
   const lineWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
-  const [namesFirst, namesSecond] = DEMO.coupleNames.split("&").map((s) => s.trim());
-
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-black selection:bg-black selection:text-white">
       <NoirNav />
@@ -114,29 +112,14 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
         </div>
         <div className="relative z-10 flex flex-col justify-center px-6 md:px-12 lg:px-20">
           <NoirLabel>Save the Date · {DEMO.coupleShort}</NoirLabel>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2 }}
-            className="mt-8 grid gap-0 md:grid-cols-2"
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mt-8 max-w-5xl text-[clamp(2.5rem,10vw,7rem)] font-black leading-[0.9] tracking-[-0.04em]"
           >
-            <motion.h1
-              initial={{ x: -80, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-[clamp(3.5rem,14vw,11rem)] font-black leading-[0.85] tracking-[-0.04em]"
-            >
-              {namesFirst}
-            </motion.h1>
-            <motion.h1
-              initial={{ x: 80, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-right text-[clamp(3.5rem,14vw,11rem)] font-black leading-[0.85] tracking-[-0.04em] md:text-left"
-            >
-              & {namesSecond}
-            </motion.h1>
-          </motion.div>
+            {DEMO.coupleNames}
+          </motion.h1>
           <NoirRule className="my-8" />
           <motion.p
             initial={{ opacity: 0 }}

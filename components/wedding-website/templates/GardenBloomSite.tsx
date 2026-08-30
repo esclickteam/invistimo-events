@@ -28,19 +28,6 @@ const fadeUp = {
   transition: { duration: 0.7 },
 };
 
-function WavyDivider({ flip = false }: { flip?: boolean }) {
-  return (
-    <div className={`relative h-16 w-full ${flip ? "rotate-180" : ""}`}>
-      <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path
-          d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z"
-          fill={flip ? "#E8F3E8" : "#F4FAF4"}
-        />
-      </svg>
-    </div>
-  );
-}
-
 function FloatingPetals() {
   const petals = Array.from({ length: 12 }, (_, i) => ({
     id: i,
@@ -65,15 +52,11 @@ function FloatingPetals() {
   );
 }
 
-function Section({ id, children, className = "", wavy = false }: { id: string; children: React.ReactNode; className?: string; wavy?: boolean }) {
+function Section({ id, children, className = "" }: { id: string; children: React.ReactNode; className?: string }) {
   return (
-    <>
-      {wavy && <WavyDivider flip />}
-      <motion.section id={id} {...fadeUp} className={`relative scroll-mt-24 ${className}`}>
-        {children}
-      </motion.section>
-      {wavy && <WavyDivider />}
-    </>
+    <motion.section id={id} {...fadeUp} className={`relative scroll-mt-24 ${className}`}>
+      {children}
+    </motion.section>
   );
 }
 
@@ -134,7 +117,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 
 function CountdownSection() {
   return (
-    <Section id="countdown" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="countdown" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-5xl px-6 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הספירה לאחור</h2>
         <WeddingCountdownGrid className="mt-12 flex flex-wrap justify-center gap-6">
@@ -174,7 +157,7 @@ function InvitationSection() {
 
 function OurStorySection() {
   return (
-    <Section id="our-story" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="our-story" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הסיפור שלנו</h2>
         <div className="mt-12 space-y-6">
@@ -214,7 +197,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
 
 function ProposalSection({ template }: { template: WeddingTemplate }) {
   return (
-    <Section id="proposal" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="proposal" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div initial={{ opacity: 0, rotate: 3 }} whileInView={{ opacity: 1, rotate: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-full shadow-xl" style={{ border: `4px solid ${GREEN}` }}>
@@ -257,7 +240,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
 
 function VideoSection({ template }: { template: WeddingTemplate }) {
   return (
-    <Section id="video" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="video" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">סרטון</h2>
         <div className="mt-10 overflow-hidden rounded-[2rem] shadow-xl">
@@ -293,7 +276,7 @@ function EventDetailsSection() {
 
 function ScheduleSection() {
   return (
-    <Section id="schedule" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="schedule" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">לוח זמנים</h2>
         <div className="mt-10 space-y-4">
@@ -347,7 +330,7 @@ function LocationSection() {
 
 function DressCodeSection() {
   return (
-    <Section id="dress-code" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="dress-code" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">קוד לבוש</h2>
         <p className="mt-8 text-lg text-[#5C7A62]">{DEMO.dressCode}</p>
@@ -376,7 +359,7 @@ function AccommodationsSection() {
 
 function TransportationSection() {
   return (
-    <Section id="transportation" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="transportation" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הגעה</h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
@@ -417,7 +400,7 @@ function RsvpSection({
 }: Pick<TemplateProps, "live" | "rsvpController">) {
   if (live && !rsvpController) return null;
   return (
-    <Section id="rsvp" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="rsvp" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-lg px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">אישור הגעה</h2>
         <div className="mt-10">
@@ -451,13 +434,13 @@ function GuestbookSection({
   if (live) {
     if (!guestMessageSlot) return null;
     return (
-      <Section id="guestbook" className="bg-[#E8F3E8] py-24" wavy>
+      <Section id="guestbook" className="bg-[#E8F3E8] py-24">
         {guestMessageSlot}
       </Section>
     );
   }
   return (
-    <Section id="guestbook" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="guestbook" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">ספר ברכות</h2>
         <div className="mt-10 mb-6 flex gap-3">
@@ -505,7 +488,7 @@ function GuestUploadSection() {
 function PlaylistSection() {
   const { song, setSong, songs, addSong } = usePlaylistDemo();
   return (
-    <Section id="playlist" className="bg-[#E8F3E8] py-24" wavy>
+    <Section id="playlist" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-3xl px-6">
         <h2 className="text-center font-['Libre_Baskerville'] text-4xl text-[#1F3324]">מוזיקה</h2>
         <p className="mt-4 text-center text-[#5C7A62]">{DEMO.playlistNote}</p>
