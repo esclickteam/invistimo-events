@@ -79,10 +79,8 @@ function StickyNav() {
   return (
     <WeddingSiteMenu
       className="sticky top-0 z-50"
-      barClassName="mx-4 mt-2 backdrop-blur-md"
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C4705A]/40 text-[#3D2518]"
-      panelClassName="border-t border-[#C4705A]/20 bg-[#FBF5F0]"
-      linkClassName="rounded-xl px-4 py-3 text-right font-['Cormorant_Garamond'] text-sm font-semibold text-[#9A7060] hover:text-[#C4705A]"
+      barClassName="mx-2 mt-2 backdrop-blur-md sm:mx-4"
+      linkClassName="whitespace-nowrap rounded-xl px-2.5 py-1.5 font-['Cormorant_Garamond'] text-xs font-semibold text-[#9A7060] hover:text-[#C4705A] sm:text-sm"
     />
   );
 }
@@ -99,7 +97,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           className="relative z-10 flex flex-col justify-center px-8 py-20 lg:col-span-5 lg:px-12"
         >
           <p className="text-xs font-bold uppercase tracking-[0.5em]" style={{ color: TERRACOTTA }}>Desert Rose</p>
-          <h1 className="mt-4 font-['Cormorant_Garamond'] text-6xl font-light leading-none text-[#3D2518] md:text-7xl">{DEMO.coupleNames}</h1>
+          <h1 className="mt-4 font-['Cormorant_Garamond'] text-4xl font-light leading-none text-[#3D2518] sm:text-6xl md:text-7xl">{DEMO.coupleNames}</h1>
           <p className="mt-8 max-w-md text-lg leading-relaxed text-[#9A7060]">{DEMO.heroSubtitle}</p>
           <p className="mt-6 font-['Cormorant_Garamond'] text-xl italic" style={{ color: TERRACOTTA }}>
             {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}

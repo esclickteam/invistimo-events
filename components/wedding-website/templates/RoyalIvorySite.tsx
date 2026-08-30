@@ -60,17 +60,7 @@ function RoyalNav() {
           {DEMO.coupleShort}
         </span>
       }
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#B8956B] text-[#B8956B]"
-      panelClassName="border-t border-[#B8956B]/20 bg-[#FDFBF7]"
-      linkClassName="rounded-xl px-4 py-3 text-right font-['Playfair_Display'] text-xs tracking-wide text-[#2C2419]/70 hover:text-[#B8956B]"
-      extra={
-        <a
-          href="#rsvp"
-          className="rounded-full border border-[#B8956B] px-5 py-2 font-['Playfair_Display'] text-xs text-[#B8956B] transition hover:bg-[#B8956B] hover:text-white"
-        >
-          אישור הגעה
-        </a>
-      }
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 font-['Playfair_Display'] text-xs tracking-wide text-[#2C2419]/70 hover:text-[#B8956B] sm:text-sm"
     />
   );
 }
@@ -127,7 +117,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
             <p className="font-['Playfair_Display'] text-sm italic tracking-[0.3em] text-[#B8956B]">
               Save the Date
             </p>
-            <h1 className="mt-4 font-['Playfair_Display'] text-5xl font-semibold leading-tight md:text-7xl">
+            <h1 className="mt-4 font-['Playfair_Display'] text-4xl font-semibold leading-tight sm:text-5xl md:text-7xl">
               {DEMO.coupleNames}
             </h1>
             <div className="my-8 h-px w-32 bg-gradient-to-r from-[#B8956B] to-transparent" />

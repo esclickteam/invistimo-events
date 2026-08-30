@@ -75,17 +75,7 @@ function BlushNav() {
     <WeddingSiteMenu
       className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl"
       brand={<span className="text-sm font-medium text-[#E8788A]">{DEMO.coupleShort}</span>}
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] text-white"
-      panelClassName="border-t border-[#E8788A]/20 bg-white/95"
-      linkClassName="rounded-full px-4 py-3 text-right text-sm text-[#9A6070] hover:bg-[#FFE8EE] hover:text-[#E8788A]"
-      extra={
-        <a
-          href="#rsvp"
-          className="rounded-full bg-gradient-to-r from-[#E8788A] to-[#FF9A8B] px-5 py-2 text-xs font-bold text-white shadow-lg"
-        >
-          RSVP
-        </a>
-      }
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs text-[#9A6070] hover:bg-[#FFE8EE] hover:text-[#E8788A] sm:text-sm"
     />
   );
 }
@@ -149,7 +139,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
           <p className="font-['Cormorant_Garamond'] text-lg italic tracking-widest text-[#E8788A]">
             save the date
           </p>
-          <h1 className="mt-4 bg-gradient-to-r from-[#E8788A] via-[#FF9A8B] to-[#E8788A] bg-clip-text font-['Cormorant_Garamond'] text-6xl font-light md:text-9xl">
+          <h1 className="mt-4 bg-gradient-to-r from-[#E8788A] via-[#FF9A8B] to-[#E8788A] bg-clip-text font-['Cormorant_Garamond'] text-4xl font-light sm:text-6xl md:text-9xl">
             {DEMO.coupleNames}
           </h1>
           <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-[#9A6070]">{DEMO.heroSubtitle}</p>

@@ -57,9 +57,7 @@ function StickyNav() {
   return (
     <WeddingSiteMenu
       className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md"
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C9A962]/40 text-[#2A2118]"
-      panelClassName="border-t border-[#C9A962]/30 bg-[#FAF7F2]"
-      linkClassName="rounded-xl px-4 py-3 text-right font-['Cormorant_Garamond'] text-sm font-semibold text-[#8A7560] hover:bg-[#C9A962]/10 hover:text-[#2A2118]"
+      linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 font-['Cormorant_Garamond'] text-xs font-semibold text-[#8A7560] hover:bg-[#C9A962]/10 hover:text-[#2A2118] sm:text-sm"
     />
   );
 }
@@ -83,7 +81,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
         className="relative z-10 px-6 pb-24 text-center text-white"
       >
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#E8D5A8]">Save the Date</p>
-        <h1 className="font-['Cormorant_Garamond'] text-6xl font-light md:text-8xl">{DEMO.coupleNames}</h1>
+        <h1 className="font-['Cormorant_Garamond'] text-4xl font-light sm:text-6xl md:text-8xl">{DEMO.coupleNames}</h1>
         <GoldDivider />
         <p className="mx-auto max-w-xl text-lg text-white/85">{DEMO.heroSubtitle}</p>
         <p className="mt-4 font-['Cormorant_Garamond'] text-xl text-[#E8D5A8]">

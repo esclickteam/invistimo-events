@@ -39,17 +39,7 @@ function NoirNav() {
           {DEMO.coupleShort}
         </span>
       }
-      buttonClassName="inline-flex h-10 w-10 items-center justify-center border border-black"
-      panelClassName="border-t border-black bg-white"
-      linkClassName="border-b border-black px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wider hover:bg-neutral-100"
-      extra={
-        <a
-          href="#rsvp"
-          className="border border-black px-3 py-1 font-mono text-[10px] uppercase tracking-widest hover:bg-black hover:text-white"
-        >
-          RSVP
-        </a>
-      }
+      linkClassName="whitespace-nowrap border border-transparent px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider hover:bg-neutral-100 sm:text-[11px]"
     />
   );
 }

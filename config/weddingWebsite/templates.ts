@@ -1,5 +1,14 @@
 import type { WeddingSectionId, WeddingTemplate } from "@/types/weddingWebsite";
 
+export const WEDDING_PRIMARY_NAV_IDS = [
+  "invitation",
+  "gallery",
+  "event-details",
+  "location",
+  "schedule",
+  "rsvp",
+] as const satisfies readonly WeddingSectionId[];
+
 export const WEDDING_SECTIONS: {
   id: WeddingSectionId;
   label: string;
