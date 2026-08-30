@@ -6,6 +6,7 @@ import {
 import {
   asMapPin,
   chooseMapPin,
+  choosePlaceMetaNearPin,
   hintQueries,
   localityQuery,
   placeSearchQuery,
@@ -25,7 +26,7 @@ export type MapPinFailure =
 export type MapPinResolution = {
   pin: MapPin | null;
   /** Where the pin came from, for logging and for the couple's warning text. */
-  source: "saved" | "geocode" | "none";
+  source: "saved" | "geocode" | "place_meta" | "none";
   failure: MapPinFailure | null;
   /** Raw Google status (REQUEST_DENIED, OVER_QUERY_LIMIT, ...) when it failed. */
   providerStatus: string;
@@ -33,6 +34,7 @@ export type MapPinResolution = {
 };
 
 const pinCache = new Map<string, MapPin>();
+const placeMetaCache = new Map<string, MapPin | null>();
 
 function googleMapsKey() {
   return getGoogleMapsServerKey();
@@ -44,6 +46,15 @@ function cacheKey(location: NavLocation) {
     locality: localityQuery(location),
     search: placeSearchQuery(location),
     saved,
+  });
+}
+
+function placeMetaCacheKey(location: NavLocation, pin: MapPin) {
+  return JSON.stringify({
+    lat: pin.lat,
+    lng: pin.lng,
+    search: placeSearchQuery(location) || getLocationQuery(location),
+    name: String(location.name || "").trim(),
   });
 }
 
@@ -186,6 +197,42 @@ async function textSearchPins(
   };
 }
 
+async function nearbyPlacePins(
+  pin: MapPin,
+  keyword: string,
+  key: string
+): Promise<ProviderResult> {
+  const url = new URL(
+    "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+  );
+  url.searchParams.set("location", `${pin.lat},${pin.lng}`);
+  url.searchParams.set("radius", "200");
+  url.searchParams.set("language", "he");
+  url.searchParams.set("key", key);
+  if (keyword) url.searchParams.set("keyword", keyword);
+
+  const { data, status, message } = await fetchGoogleJson(
+    "nearbysearch",
+    url.toString()
+  );
+  const results = Array.isArray(data?.results) ? data.results : [];
+
+  return {
+    candidates: results
+      .slice(0, 8)
+      .map((result: any) =>
+        toCandidate(result?.geometry?.location, {
+          name: result?.name,
+          address: result?.vicinity || result?.formatted_address,
+          placeId: result?.place_id,
+        })
+      )
+      .filter(Boolean) as PinCandidate[],
+    status,
+    message,
+  };
+}
+
 async function geocodePins(query: string, key: string): Promise<ProviderResult> {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", query);
@@ -222,6 +269,104 @@ function failureFromStatuses(statuses: string[]): MapPinFailure {
   return rejected ? "PROVIDER_REJECTED" : "NOT_FOUND";
 }
 
+/**
+ * Look up a Google Place card for an already-saved pin.
+ * Keeps the exact lat/lng (for Waze) and only fills placeId / place labels.
+ */
+export async function enrichPlaceMetaNearPin(
+  location?: NavLocation | null
+): Promise<MapPinResolution> {
+  const empty: MapPinResolution = {
+    pin: null,
+    source: "none",
+    failure: "NO_QUERY",
+    providerStatus: "",
+    providerMessage: "",
+  };
+
+  if (!location) return empty;
+
+  const saved = asMapPin(location);
+  if (!saved) return empty;
+
+  const existingPlaceId = String(location.placeId || "").trim();
+  if (existingPlaceId) {
+    return {
+      ...empty,
+      pin: {
+        ...saved,
+        placeId: existingPlaceId,
+        placeName: String(location.placeName || "").trim() || undefined,
+        formattedAddress:
+          String(location.formattedAddress || "").trim() || undefined,
+      },
+      source: "saved",
+      failure: null,
+    };
+  }
+
+  const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
+  const venueName = String(location.name || location.placeName || "").trim();
+  if (!searchQuery && !venueName) {
+    return { ...empty, failure: "NO_QUERY" };
+  }
+
+  const cacheKeyValue = placeMetaCacheKey(location, saved);
+  if (placeMetaCache.has(cacheKeyValue)) {
+    const cached = placeMetaCache.get(cacheKeyValue) || null;
+    return cached
+      ? { ...empty, pin: cached, source: "place_meta", failure: null }
+      : { ...empty, failure: "NOT_FOUND" };
+  }
+
+  const apiKey = googleMapsKey();
+  if (!apiKey) {
+    return { ...empty, failure: "NO_API_KEY" };
+  }
+
+  const keyword = venueName || searchQuery;
+  const statuses: string[] = [];
+  let providerMessage = "";
+
+  const searches = await Promise.all([
+    nearbyPlacePins(saved, keyword, apiKey),
+    textSearchPins(searchQuery || keyword, apiKey, saved),
+    findPlacePins(searchQuery || keyword, apiKey, saved),
+  ]);
+
+  for (const result of searches) {
+    statuses.push(result.status);
+    providerMessage = providerMessage || result.message;
+  }
+
+  const candidates = searches.flatMap((result) => result.candidates);
+  const enriched = choosePlaceMetaNearPin({
+    pin: saved,
+    candidates,
+    venueName: venueName || searchQuery,
+  });
+
+  placeMetaCache.set(cacheKeyValue, enriched);
+
+  if (!enriched?.placeId) {
+    return {
+      ...empty,
+      failure: failureFromStatuses(statuses),
+      providerStatus:
+        statuses.find((status) => status && !PROVIDER_OK.has(status)) || "",
+      providerMessage,
+    };
+  }
+
+  return {
+    pin: enriched,
+    source: "place_meta",
+    failure: null,
+    providerStatus: "",
+    providerMessage: "",
+  };
+}
+
 export async function resolveMapPinDetailed(
   location?: NavLocation | null
 ): Promise<MapPinResolution> {
@@ -237,6 +382,27 @@ export async function resolveMapPinDetailed(
 
   const saved = asMapPin(location);
   if (saved) {
+    const existingPlaceId = String(location.placeId || "").trim();
+    if (existingPlaceId) {
+      return {
+        ...empty,
+        pin: {
+          ...saved,
+          placeId: existingPlaceId,
+          placeName: String(location.placeName || "").trim() || undefined,
+          formattedAddress:
+            String(location.formattedAddress || "").trim() || undefined,
+        },
+        source: "saved",
+        failure: null,
+      };
+    }
+
+    // Coords exist but the Google place card is missing — look it up without
+    // moving the pin so Maps can open the venue by placeId.
+    const enriched = await enrichPlaceMetaNearPin(location);
+    if (enriched.pin?.placeId) return enriched;
+
     return { ...empty, pin: saved, source: "saved", failure: null };
   }
 

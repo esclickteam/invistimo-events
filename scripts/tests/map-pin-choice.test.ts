@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   chooseMapPin,
+  choosePlaceMetaNearPin,
   distanceKm,
   geographicQuery,
   hintQueries,
@@ -119,4 +120,49 @@ test("geographic query prefers the city address over the venue name", () => {
     }),
     "שיבולים גן אירועים, רמת צבי, ישראל"
   );
+});
+
+test("choosePlaceMetaNearPin keeps the saved pin and attaches a nearby placeId", () => {
+  const pin = { lat: 32.591962, lng: 35.414497 };
+  const chosen = choosePlaceMetaNearPin({
+    pin,
+    venueName: "שיבולים גן ארועים, רמת צבי, ישראל",
+    candidates: [
+      {
+        lat: 32.2764,
+        lng: 34.8582,
+        name: "שיבולים אירועים",
+        address: "נתניה",
+        placeId: "ChIJNetanya",
+      },
+      {
+        lat: 32.5919,
+        lng: 35.4145,
+        name: "שיבולים גן אירועים",
+        address: "רמת צבי",
+        placeId: "ChIJShibolimGarden",
+      },
+    ],
+  });
+
+  assert.equal(chosen?.lat, pin.lat);
+  assert.equal(chosen?.lng, pin.lng);
+  assert.equal(chosen?.placeId, "ChIJShibolimGarden");
+  assert.equal(chosen?.placeName, "שיבולים גן אירועים");
+});
+
+test("choosePlaceMetaNearPin ignores candidates without a placeId", () => {
+  const chosen = choosePlaceMetaNearPin({
+    pin: { lat: 32.591962, lng: 35.414497 },
+    venueName: "שיבולים",
+    candidates: [
+      {
+        lat: 32.5919,
+        lng: 35.4145,
+        name: "שיבולים גן אירועים",
+        address: "רמת צבי",
+      },
+    ],
+  });
+  assert.equal(chosen, null);
 });
