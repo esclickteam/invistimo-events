@@ -77,7 +77,7 @@ const OVERRIDES: Partial<Record<WeddingSectionId, Partial<EditorSectionMeta>>> =
     label: "אישור הגעה",
     core: true,
     settings: ["background", "spacing", "align", "radius", "typography"],
-    hint: "הטופס זהה לזה שבהזמנה האישית. בעורך משנים רק עיצוב וכותרות.",
+    hint: "אפשר לערוך גם את דף התודה אחרי שליחה: כותרות, הודעה, צבעים ורקע.",
   },
   gifts: { label: "מתנות" },
   guestbook: {

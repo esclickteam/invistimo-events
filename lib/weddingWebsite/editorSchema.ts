@@ -29,6 +29,8 @@ export const EDITOR_TEXT_FIELDS: EditorField[] = [
   { path: "guestMessageDescription", type: "text", label: "תיאור הודעה לזוג", sectionId: "guestbook" },
   { path: "rsvpTitle", type: "text", label: "כותרת אישור הגעה", sectionId: "rsvp" },
   { path: "rsvpSubtitle", type: "text", label: "משנה לאישור הגעה", sectionId: "rsvp" },
+  { path: "rsvpSuccessMessage", type: "text", label: "הודעת תודה", sectionId: "rsvp" },
+  { path: "rsvpUpdateLabel", type: "text", label: "קישור עדכון תשובה", sectionId: "rsvp" },
   { path: "transportationTitle", type: "text", label: "כותרת הגעה", sectionId: "transportation" },
   { path: "transportationDescription", type: "text", label: "תיאור הגעה", sectionId: "transportation" },
 ];
@@ -58,7 +60,7 @@ export const STATIC_COPY_FIELDS: Array<{ path: string; match: string; label: str
 ];
 
 export const BUSINESS_LOGIC_SKIP =
-  "[data-rsvp-core],[data-rsvp-state],input,textarea,select,button,[contenteditable='true']";
+  "[data-rsvp-core][data-rsvp-state='form'],[data-rsvp-core][data-rsvp-state='loading'],input,textarea,select,[contenteditable='true']";
 
 export const SECTION_LABELS: Record<string, string> = Object.fromEntries(
   WEDDING_SECTIONS.map((section) => [section.id, section.navLabel])

@@ -62,6 +62,11 @@ function sectionRules(id: string, style: WeddingSectionStyle) {
   if (style.imageFit) {
     blocks.push(`${selector} img,${selector} video{object-fit:${style.imageFit}}`);
   }
+  if (style.cardBackgroundColor) {
+    blocks.push(
+      `${selector} [data-rsvp-card]{background-color:${style.cardBackgroundColor}!important}`
+    );
+  }
   if (id === "hero" && style.overlayOpacity !== undefined) {
     blocks.push(
       `${selector} [class*="bg-gradient-to"]{opacity:${Math.max(0, Math.min(100, style.overlayOpacity)) / 100}}`

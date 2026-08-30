@@ -54,6 +54,8 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   footerNote: "תודה שאתם חלק מהסיפור שלנו. נתראה בחתונה!",
   guestMessageTitle: "השאירו לנו כמה מילים ❤️",
   guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
+  rsvpSuccessMessage: "✓ תודה! תשובתך התקבלה",
+  rsvpUpdateLabel: "רוצים לעדכן?",
   sections: {
     hero: true,
     countdown: true,

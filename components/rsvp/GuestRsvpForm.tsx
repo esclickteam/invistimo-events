@@ -8,6 +8,12 @@ import { GiftSection, PublicEventNoteSection } from "./GuestRsvpExtras";
 import type { RsvpAppearance } from "./rsvpAppearances";
 import { personalRsvpAppearance } from "./rsvpAppearances";
 
+export type GuestRsvpCopy = {
+  heading?: string;
+  success?: string;
+  updateLabel?: string;
+};
+
 type Props = {
   controller: GuestRsvpController;
   appearance?: RsvpAppearance;
@@ -15,6 +21,10 @@ type Props = {
   showTransportation?: boolean;
   showGiftAndNote?: boolean;
   allowUpdateAfterSubmit?: boolean;
+  /** Override default Hebrew strings (wedding-site editor). */
+  copy?: GuestRsvpCopy;
+  /** Editor-only: render the thank-you state so it can be styled on canvas. */
+  forceSent?: boolean;
 };
 
 export default function GuestRsvpForm({
@@ -24,6 +34,8 @@ export default function GuestRsvpForm({
   showTransportation = false,
   showGiftAndNote = true,
   allowUpdateAfterSubmit = true,
+  copy,
+  forceSent = false,
 }: Props) {
   const {
     sent,
@@ -47,17 +59,28 @@ export default function GuestRsvpForm({
   } = controller;
 
   const guestToken = String(selectedGuest?.token || token || "").trim();
+  const heading = copy?.heading || RSVP_COPY.heading;
+  const successMessage = copy?.success || RSVP_COPY.success;
+  const updateLabel = copy?.updateLabel || "רוצים לעדכן?";
 
-  if (sent) {
+  if (sent || forceSent) {
     return (
       <div data-rsvp-core="1" data-rsvp-state="success">
-        <div className={appearance.success}>
-          <p>{RSVP_COPY.success}</p>
-          {allowUpdateAfterSubmit ? (
-            <button type="button" onClick={resetSent} className={appearance.updateLink}>
-              רוצים לעדכן?
-            </button>
-          ) : null}
+        <div data-rsvp-card="1" className={appearance.form}>
+          {appearance.glowA ? <div className={appearance.glowA} /> : null}
+          {appearance.glowB ? <div className={appearance.glowB} /> : null}
+          <div className={appearance.inner}>
+            <p className={appearance.success}>{successMessage}</p>
+            {allowUpdateAfterSubmit ? (
+              forceSent ? (
+                <p className={appearance.updateLink}>{updateLabel}</p>
+              ) : (
+                <button type="button" onClick={resetSent} className={appearance.updateLink}>
+                  {updateLabel}
+                </button>
+              )
+            ) : null}
+          </div>
         </div>
         {showTransportation && shareId && guestToken ? (
           <div className="mt-6">
@@ -73,17 +96,17 @@ export default function GuestRsvpForm({
       <HeartBurst triggerKey={heartTrigger} />
       <HeartBurstStyles />
 
-      <form onSubmit={handleSubmit} className={appearance.form}>
+      <form onSubmit={handleSubmit} data-rsvp-card="1" className={appearance.form}>
         {appearance.glowA ? <div className={appearance.glowA} /> : null}
         {appearance.glowB ? <div className={appearance.glowB} /> : null}
 
         <div className={appearance.inner}>
           {showHeading ? (
             <div className={appearance.headingWrap}>
-              <h2 className={appearance.heading}>{RSVP_COPY.heading}</h2>
+              <h2 className={appearance.heading}>{heading}</h2>
             </div>
           ) : (
-            <h2 className="sr-only">{RSVP_COPY.heading}</h2>
+            <h2 className="sr-only">{heading}</h2>
           )}
 
           <div className={appearance.yesNoGrid}>
