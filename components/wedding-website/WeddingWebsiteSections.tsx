@@ -379,6 +379,9 @@ export function LocationSection() {
     address: content.venueAddress,
     lat: content.venueLat,
     lng: content.venueLng,
+    wazeLat: content.venueWazeLat,
+    wazeLng: content.venueWazeLng,
+    wazeUrl: content.venueWazeUrl || "",
   };
   const googleHref = getGoogleMapsLink(venueLocation);
   const mapEmbedUrl = getGoogleMapsEmbedUrl(venueLocation);

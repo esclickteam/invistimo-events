@@ -27,6 +27,9 @@ export function getVenueLocation() {
     address: String(DEMO.venueAddress || "").trim(),
     lat: DEMO.venueLat ?? null,
     lng: DEMO.venueLng ?? null,
+    wazeLat: DEMO.venueWazeLat ?? null,
+    wazeLng: DEMO.venueWazeLng ?? null,
+    wazeUrl: DEMO.venueWazeUrl || "",
   };
 }
 

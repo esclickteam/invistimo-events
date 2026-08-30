@@ -247,6 +247,19 @@ const EventSchema = new mongoose.Schema(
         default: "",
         trim: true,
       },
+      wazeLat: {
+        type: Number,
+        default: undefined,
+      },
+      wazeLng: {
+        type: Number,
+        default: undefined,
+      },
+      wazeUrl: {
+        type: String,
+        default: "",
+        trim: true,
+      },
     },
 
     /* =========================

@@ -26,6 +26,7 @@ import {
   hasExactCoordinates,
   parseCoord,
   resolveNavTarget,
+  resolveWazeNavTarget,
 } from "@/lib/navigationLinks";
 import {
   persistParkingPin,
@@ -476,11 +477,12 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
   const navCustom = eventNavCustom(navigationSettings);
   const navTarget = resolveNavTarget(location, navCustom);
+  const wazeTarget = resolveWazeNavTarget(location, navCustom);
   const googleMapsUrl = getGoogleMapsLinkForTarget(navTarget);
   const hasWaze = Boolean(
-    (navTarget.lat != null && navTarget.lng != null) ||
-      navTarget.query ||
-      navTarget.wazeUrlOnly
+    (wazeTarget.lat != null && wazeTarget.lng != null) ||
+      wazeTarget.query ||
+      wazeTarget.wazeUrlOnly
   );
 
   const parking = getParkingSettings(publicEventPage);
