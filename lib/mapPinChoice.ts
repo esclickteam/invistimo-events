@@ -3,12 +3,34 @@ import { parseCoord, type NavLocation } from "@/lib/navigationLinks";
 export type MapPin = {
   lat: number;
   lng: number;
+  placeId?: string;
+  placeName?: string;
+  formattedAddress?: string;
 };
 
 export type PinCandidate = MapPin & {
   name?: string;
   address?: string;
 };
+
+function pinWithPlaceMeta(
+  pin: MapPin,
+  meta?: { placeId?: string; name?: string; address?: string }
+): MapPin {
+  const placeId = String(meta?.placeId || pin.placeId || "").trim();
+  const placeName = String(meta?.name || pin.placeName || "").trim();
+  const formattedAddress = String(
+    meta?.address || pin.formattedAddress || ""
+  ).trim();
+
+  return {
+    lat: pin.lat,
+    lng: pin.lng,
+    ...(placeId ? { placeId } : {}),
+    ...(placeName ? { placeName } : {}),
+    ...(formattedAddress ? { formattedAddress } : {}),
+  };
+}
 
 export const MAX_PIN_HINT_KM = 30;
 
@@ -151,10 +173,11 @@ export function chooseMapPin(options: {
     .sort((a, b) => b.score - a.score);
 
   if (scored[0]) {
-    return { lat: scored[0].pin.lat, lng: scored[0].pin.lng };
+    return pinWithPlaceMeta(scored[0].pin, scored[0].pin);
   }
 
-  if (saved && pinIsNear(saved, hint)) return { lat: saved.lat, lng: saved.lng };
+  if (saved && pinIsNear(saved, hint)) return pinWithPlaceMeta(saved);
 
+  // Locality geocode is only an anchor — keep coords, not a venue label.
   return { lat: hint.lat, lng: hint.lng };
 }

@@ -5,6 +5,7 @@
  * Opening /api/invite/... should persist a pin server-side when
  * GOOGLE_MAPS_API_KEY is set. A second fetch must return the same pin.
  * Waze must use ll=, never q=, and must not resolve to Netanya.
+ * Google Maps must show a readable place label, not bare coordinates.
  */
 const SHARE_ID = process.env.INVITE_SHARE_ID || "Ty4ZfA_Owk";
 const BASE = (process.env.SITE_URL || "https://www.invistimo.com").replace(
@@ -22,6 +23,49 @@ function distanceKm(a, b) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text) return text;
+  }
+  return "";
+}
+
+/** Mirror lib/navigationLinks getGoogleMapsLinkForTarget for production checks. */
+function buildGoogleMapsLink(location) {
+  const label = firstText(
+    location.placeName,
+    location.name,
+    location.formattedAddress,
+    location.address
+  );
+  const placeId = firstText(location.placeId);
+  const lat = location.lat;
+  const lng = location.lng;
+
+  if (placeId && label) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      label
+    )}&query_place_id=${encodeURIComponent(placeId)}`;
+  }
+  if (placeId) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      placeId
+    )}&query_place_id=${encodeURIComponent(placeId)}`;
+  }
+  if (label && lat != null && lng != null) {
+    return `https://www.google.com/maps/place/${encodeURIComponent(
+      label
+    )}/@${lat},${lng},17z`;
+  }
+  if (lat != null && lng != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      `${lat},${lng}`
+    )}`;
+  }
+  return null;
 }
 
 async function fetchInvite() {
@@ -71,9 +115,7 @@ async function main() {
   }
 
   const waze = `https://waze.com/ul?ll=${pin2.lat},${pin2.lng}&navigate=yes`;
-  const google = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${pin2.lat},${pin2.lng}`
-  )}`;
+  const google = buildGoogleMapsLink(pin2);
   console.log({ waze, google });
 
   if (!/[?&]ll=/.test(waze) || /[?&]q=/.test(waze)) {
@@ -82,10 +124,34 @@ async function main() {
     ok("Waze uses ll= without q=");
   }
 
-  if (!google.includes(String(pin2.lat)) || !google.includes(String(pin2.lng))) {
-    fail("Google Maps is not using the saved coordinates");
+  if (!google) {
+    fail("could not build a Google Maps link");
+  } else if (
+    /query=\d+\.\d+%2C\d+\.\d+/.test(google) ||
+    /query=\d+\.\d+,\d+\.\d+/.test(google)
+  ) {
+    fail("Google Maps link is still bare coordinates with no place label");
+  } else if (google.includes("query_place_id=")) {
+    ok("Google Maps uses query_place_id with a place label");
+  } else if (
+    google.includes("/maps/place/") &&
+    google.includes(`@${pin2.lat},${pin2.lng}`)
+  ) {
+    ok("Google Maps uses a place label pinned to the same coordinates");
   } else {
-    ok("Google Maps uses the same coordinates");
+    fail(`unexpected Google Maps link shape: ${google}`);
+  }
+
+  const label = firstText(
+    pin2.placeName,
+    pin2.name,
+    pin2.formattedAddress,
+    pin2.address
+  );
+  if (!label || /^\d+\.\d+/.test(label)) {
+    fail("location has no readable place label for Google Maps");
+  } else {
+    ok(`Google Maps label: ${label}`);
   }
 
   if (distanceKm({ lat: pin2.lat, lng: pin2.lng }, NETANYA) < 20) {

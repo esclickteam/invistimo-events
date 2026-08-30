@@ -15,7 +15,7 @@ import {
   resolveNavTarget,
 } from "../../lib/navigationLinks";
 
-test("navigation links prefer the exact event coordinates", () => {
+test("Google Maps prefers a place label over bare coordinates", () => {
   const location = {
     name: "אולמי הירקון",
     address: "רחוב רוקח 12, תל אביב",
@@ -27,16 +27,15 @@ test("navigation links prefer the exact event coordinates", () => {
   assert.equal(hasExactCoordinates(location), true);
   assert.equal(
     getGoogleMapsLink(location),
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("32.0961,34.7732")}`
+    `https://www.google.com/maps/place/${encodeURIComponent(
+      "אולמי הירקון"
+    )}/@32.0961,34.7732,17z`
   );
   assert.equal(
     getWazeLink(location),
     "https://waze.com/ul?ll=32.0961,34.7732&navigate=yes"
   );
-  assert.equal(
-    getGoogleMapsEmbedUrl(location, 16),
-    "https://www.google.com/maps?q=32.0961,34.7732&z=16&output=embed"
-  );
+  assert.match(getGoogleMapsEmbedUrl(location, 16) || "", /אולמי|32\.0961/);
 });
 
 test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
@@ -46,7 +45,7 @@ test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
   assert.doesNotMatch(url || "", /%2C/);
 });
 
-test("Google Maps and Waze use the same saved coordinates", () => {
+test("Google Maps uses query_place_id when a placeId is saved", () => {
   const location = {
     name: "שיבולים גן אירועים",
     address: "רמת צבי, ישראל",
@@ -57,13 +56,33 @@ test("Google Maps and Waze use the same saved coordinates", () => {
 
   assert.equal(
     getGoogleMapsLink(location),
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("32.5927,35.4143")}`
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      "שיבולים גן אירועים"
+    )}&query_place_id=${encodeURIComponent("ChIJGardenRamatZvi")}`
   );
   assert.equal(
     getWazeLink(location),
     "https://waze.com/ul?ll=32.5927,35.4143&navigate=yes"
   );
   assert.doesNotMatch(getWazeLink(location) || "", /[?&]q=/);
+});
+
+test("without placeId, Google Maps keeps the exact pin with a readable label", () => {
+  const location = {
+    name: "שיבולים גן אירועים",
+    address: "רמת צבי, ישראל",
+    lat: 32.5927,
+    lng: 35.4143,
+  };
+
+  const google = getGoogleMapsLink(location) || "";
+  assert.match(google, /\/maps\/place\//);
+  assert.match(google, /@32\.5927,35\.4143,17z/);
+  assert.doesNotMatch(google, /query=32\.5927/);
+  assert.equal(
+    getWazeLink(location),
+    "https://waze.com/ul?ll=32.5927,35.4143&navigate=yes"
+  );
 });
 
 test("Waze never appends a name search even when the venue has a label", () => {
@@ -107,9 +126,7 @@ test("a custom Waze pin is the shared destination for both buttons", () => {
   );
   assert.equal(
     getGoogleMapsLinkForTarget(target),
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      "32.5927,35.4143"
-    )}`
+    `https://www.google.com/maps/place/${encodeURIComponent("אולם ישן")}/@32.5927,35.4143,17z`
   );
 });
 
@@ -139,6 +156,12 @@ test("coordsFromNavUrl reads a Waze ll and a Google Maps q", () => {
     ),
     { lat: 32.5927, lng: 35.4143 }
   );
+  assert.deepEqual(
+    coordsFromNavUrl(
+      "https://www.google.com/maps/place/Garden/@32.5927,35.4143,17z"
+    ),
+    { lat: 32.5927, lng: 35.4143 }
+  );
 });
 
 test("Waze falls back to an address search when the event has no saved pin", () => {
@@ -164,10 +187,19 @@ test("Waze falls back to an address search when the event has no saved pin", () 
   assert.equal(
     getGoogleMapsLink(location),
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      "שיבולים גן אירועים, רמת צבי, ישראל"
+      "שיבולים גן אירועים"
     )}`
   );
   assert.doesNotMatch(getGoogleMapsLink(location) || "", /waze/);
+});
+
+test("bare coordinates remain a last-resort Google Maps fallback", () => {
+  assert.equal(
+    getGoogleMapsLink({ lat: 32.1, lng: 34.8 }),
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      "32.1,34.8"
+    )}`
+  );
 });
 
 test("resolved event location uses invitation details before event fallback", () => {
@@ -196,6 +228,8 @@ test("resolved event location uses invitation details before event fallback", ()
     lat: 32.5731,
     lng: 34.9552,
     placeId: "",
+    placeName: "",
+    formattedAddress: "",
   });
 });
 
@@ -219,4 +253,23 @@ test("resolved event location keeps invitation address and event pin when needed
   assert.equal(resolved.address, "הרצל 10, ראשון לציון");
   assert.equal(resolved.lat, 31.964);
   assert.equal(resolved.lng, 34.804);
+});
+
+test("placeName beats the typed name for the Google Maps label", () => {
+  const location = {
+    name: "שיבולים גן ארועים, רמת צבי, ישראל",
+    address: "שיבולים גן ארועים, רמת צבי, ישראל",
+    placeName: "שיבולים גן אירועים",
+    formattedAddress: "רמת צבי, ישראל",
+    lat: 32.591962,
+    lng: 35.414497,
+    placeId: "ChIJShibolim",
+  };
+
+  assert.equal(
+    getGoogleMapsLink(location),
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      "שיבולים גן אירועים"
+    )}&query_place_id=${encodeURIComponent("ChIJShibolim")}`
+  );
 });

@@ -3,24 +3,23 @@
 import { useEffect, useRef } from "react";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 
-type SelectedPlace = {
-  inputValue: string;
+type PlaceSelection = {
   name?: string;
   address: string;
   lat: number | null;
   lng: number | null;
   placeId?: string | null;
+  placeName?: string | null;
+  formattedAddress?: string | null;
+};
+
+type SelectedPlace = PlaceSelection & {
+  inputValue: string;
 };
 
 type Props = {
   value: string;
-  onSelect: (data: {
-    name?: string;
-    address: string;
-    lat: number | null;
-    lng: number | null;
-    placeId?: string | null;
-  }) => void;
+  onSelect: (data: PlaceSelection) => void;
 };
 
 function samePlaceText(typedValue: string, selected: SelectedPlace) {
@@ -81,6 +80,8 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         lat,
         lng,
         placeId,
+        placeName: name || "",
+        formattedAddress: address,
       };
 
       selectedPlaceRef.current = selected;
@@ -90,6 +91,8 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         lat: selected.lat,
         lng: selected.lng,
         placeId: selected.placeId,
+        placeName: selected.placeName,
+        formattedAddress: selected.formattedAddress,
       });
     });
   }, [onSelect]);
@@ -121,6 +124,8 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
           lat: null,
           lng: null,
           placeId: null,
+          placeName: null,
+          formattedAddress: null,
         });
 
         void resolveMapPinInBrowser({
@@ -130,21 +135,25 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
           if (!pin) return;
           if (inputRef.current?.value.trim() !== typedValue) return;
 
-          const selected: SelectedPlace = {
+          const next: SelectedPlace = {
             inputValue: typedValue,
             name: typedValue,
             address: typedValue,
             lat: pin.lat,
             lng: pin.lng,
-            placeId: null,
+            placeId: pin.placeId || null,
+            placeName: pin.placeName || null,
+            formattedAddress: pin.formattedAddress || null,
           };
-          selectedPlaceRef.current = selected;
+          selectedPlaceRef.current = next;
           onSelect({
             name: typedValue,
             address: typedValue,
             lat: pin.lat,
             lng: pin.lng,
-            placeId: null,
+            placeId: pin.placeId || null,
+            placeName: pin.placeName || null,
+            formattedAddress: pin.formattedAddress || null,
           });
         });
       }}

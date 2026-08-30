@@ -215,6 +215,8 @@ export async function GET(
           lat: event.location?.lat ?? null,
           lng: event.location?.lng ?? null,
           placeId: event.location?.placeId || "",
+          placeName: event.location?.placeName || "",
+          formattedAddress: event.location?.formattedAddress || "",
         },
 
         userId: event.userId,
@@ -436,6 +438,9 @@ export async function PATCH(
       updateFields["location.lat"] = prepared.location.lat;
       updateFields["location.lng"] = prepared.location.lng;
       updateFields["location.placeId"] = prepared.location.placeId;
+      updateFields["location.placeName"] = prepared.location.placeName;
+      updateFields["location.formattedAddress"] =
+        prepared.location.formattedAddress;
 
       locationWarning = prepared.warning;
     }
@@ -526,6 +531,8 @@ export async function PATCH(
           lat: event.location?.lat ?? null,
           lng: event.location?.lng ?? null,
           placeId: event.location?.placeId || "",
+          placeName: event.location?.placeName || "",
+          formattedAddress: event.location?.formattedAddress || "",
         },
 
         userId: event.userId,
