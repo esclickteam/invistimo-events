@@ -477,7 +477,7 @@ export default function WeddingVisualEditor() {
                 gifts,
               }}
             >
-              <div className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#2a2118] p-4">
+              <div className="ww-editor-scroll relative min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#2a2118] p-4">
                 <div
                   className={`ww-editor-canvas mx-auto overflow-x-hidden bg-white shadow-2xl ${
                     previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full max-w-6xl"

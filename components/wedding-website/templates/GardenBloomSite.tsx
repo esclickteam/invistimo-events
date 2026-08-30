@@ -36,7 +36,7 @@ function FloatingPetals() {
     duration: 10 + (i % 5),
   }));
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
       {petals.map((p) => (
         <motion.span
           key={p.id}
@@ -101,11 +101,11 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="mt-4 font-['Libre_Baskerville'] italic" style={{ color: GREEN }}>
             {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
           </motion.p>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="mt-10 flex gap-4">
-            <a href="#rsvp" className="rounded-full px-8 py-4 text-sm font-bold text-white shadow-lg" style={{ backgroundColor: GREEN }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="mt-10 flex flex-wrap justify-center gap-3 sm:gap-4">
+            <a href="#rsvp" className="rounded-full px-6 py-3 text-sm font-bold text-white shadow-lg sm:px-8 sm:py-4" style={{ backgroundColor: GREEN }}>
               אישור הגעה
             </a>
-            <a href="#gallery" className="rounded-full border-2 px-8 py-4 text-sm font-bold" style={{ borderColor: GREEN, color: GREEN }}>
+            <a href="#gallery" className="rounded-full border-2 px-6 py-3 text-sm font-bold sm:px-8 sm:py-4" style={{ borderColor: GREEN, color: GREEN }}>
               גלריה
             </a>
           </motion.div>
@@ -120,7 +120,7 @@ function CountdownSection() {
     <Section id="countdown" className="bg-[#E8F3E8] py-24">
       <div className="mx-auto max-w-5xl px-6 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הספירה לאחור</h2>
-        <WeddingCountdownGrid className="mt-12 flex flex-wrap justify-center gap-6">
+        <WeddingCountdownGrid className="mt-12 grid grid-cols-2 justify-items-center gap-4 md:grid-cols-4 md:gap-6">
           {(u, i) => (
             <motion.div
               key={u.label}
@@ -128,7 +128,7 @@ function CountdownSection() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white shadow-lg"
+              className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white shadow-lg sm:h-28 sm:w-28"
               style={{ border: `3px solid ${GREEN}` }}
             >
               <span className="font-['Libre_Baskerville'] text-3xl" style={{ color: GREEN }}>{String(u.value).padStart(2, "0")}</span>
@@ -523,7 +523,7 @@ export default function GardenBloomSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root overflow-x-hidden bg-[#F4FAF4] text-[#1F3324] scroll-smooth">
+    <div className="wedding-website-root overflow-x-hidden bg-[#F4FAF4] text-[#1F3324]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />

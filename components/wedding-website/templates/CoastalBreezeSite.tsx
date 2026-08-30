@@ -475,7 +475,7 @@ export default function CoastalBreezeSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root overflow-x-hidden bg-[#F0F8FF] text-[#0D2840] scroll-smooth">
+    <div className="wedding-website-root overflow-x-hidden bg-[#F0F8FF] text-[#0D2840]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />

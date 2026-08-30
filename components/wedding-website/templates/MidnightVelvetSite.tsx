@@ -34,7 +34,7 @@ function GoldParticles() {
     size: 2 + (i % 4),
   }));
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
       {particles.map((p) => (
         <motion.span
           key={p.id}
@@ -527,7 +527,7 @@ export default function MidnightVelvetSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
+    <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
