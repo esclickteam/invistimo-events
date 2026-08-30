@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
-  useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
@@ -132,22 +132,14 @@ function GlassNav({ embed }: { embed?: boolean }) {
 }
 
 function CountdownBlock() {
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   return (
       <section id="countdown" className="px-4 py-20 md:px-8">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-3xl font-bold">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
+          <WeddingCountdownGrid className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            {(u, i) => (
               <motion.div
-                key={label}
+                key={u.label}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -156,14 +148,14 @@ function CountdownBlock() {
                 <TiltCard>
                   <GlassPanel className="p-6 text-center">
                     <span className="text-4xl font-bold tabular-nums text-[#7C9CFF] md:text-5xl">
-                      {String(val).padStart(2, "0")}
+                      {String(u.value).padStart(2, "0")}
                     </span>
-                    <p className="mt-2 text-xs text-[#8892A8]">{label}</p>
+                    <p className="mt-2 text-xs text-[#8892A8]">{u.label}</p>
                   </GlassPanel>
                 </TiltCard>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </WeddingCountdownGrid>
         </div>
       </section>
   );

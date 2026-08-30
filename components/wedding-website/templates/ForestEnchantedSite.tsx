@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
-  useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
@@ -142,7 +142,6 @@ function ForestNav({ embed }: { embed?: boolean }) {
 }
 
 function CountdownBlock() {
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   return (
       <section id="countdown" className="relative overflow-hidden py-20">
         <Blob className="-left-20 top-0 h-64 w-64" />
@@ -150,17 +149,10 @@ function CountdownBlock() {
         <Fireflies />
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <h2 className="font-['Libre_Baskerville'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
+          <WeddingCountdownGrid className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {(u, i) => (
               <motion.div
-                key={label}
+                key={u.label}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -168,12 +160,12 @@ function CountdownBlock() {
                 className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/25 bg-[#1C2A1E] p-8"
               >
                 <span className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A] md:text-5xl">
-                  {String(val).padStart(2, "0")}
+                  {String(u.value).padStart(2, "0")}
                 </span>
-                <p className="mt-2 text-xs text-[#8AA892]">{label}</p>
+                <p className="mt-2 text-xs text-[#8AA892]">{u.label}</p>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </WeddingCountdownGrid>
         </div>
       </section>
   );

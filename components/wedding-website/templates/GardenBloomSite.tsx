@@ -8,12 +8,12 @@ import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
-  useCountdownTimer,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
@@ -143,19 +143,12 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
-  const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const units = [
-    { label: "ימים", value: time.days },
-    { label: "שעות", value: time.hours },
-    { label: "דקות", value: time.minutes },
-    { label: "שניות", value: time.seconds },
-  ];
   return (
     <Section id="countdown" className="bg-[#E8F3E8] py-24" wavy>
       <div className="mx-auto max-w-5xl px-6 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הספירה לאחור</h2>
-        <div className="mt-12 flex flex-wrap justify-center gap-6">
-          {units.map((u, i) => (
+        <WeddingCountdownGrid className="mt-12 flex flex-wrap justify-center gap-6">
+          {(u, i) => (
             <motion.div
               key={u.label}
               initial={{ opacity: 0, scale: 0.8 }}
@@ -168,8 +161,8 @@ function CountdownSection() {
               <span className="font-['Libre_Baskerville'] text-3xl" style={{ color: GREEN }}>{String(u.value).padStart(2, "0")}</span>
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#5C7A62]">{u.label}</span>
             </motion.div>
-          ))}
-        </div>
+          )}
+        </WeddingCountdownGrid>
       </div>
     </Section>
   );

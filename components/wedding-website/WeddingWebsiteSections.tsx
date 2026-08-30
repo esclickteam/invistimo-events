@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ChangeEvent, type DragEvent, type JSX } from "react";
+import { useCallback, useState, type ChangeEvent, type DragEvent, type JSX } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -19,21 +19,12 @@ import {
   Hotel,
 } from "lucide-react";
 import AnimatedSection, { GlassCard, SectionHeading } from "./AnimatedSection";
+import WeddingCountdownGrid from "./shared/WeddingCountdownGrid";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import FloatingParticles, { HeroParallax, ScrollIndicator } from "./effects/WeddingEffects";
 import { useWeddingTheme } from "./WeddingThemeProvider";
 import { DEMO_GUEST_UPLOADS } from "@/config/weddingWebsite/demoContent";
 import type { GuestUploadItem, WeddingSectionId } from "@/types/weddingWebsite";
-
-function formatCountdown(target: string) {
-  const diff = new Date(target).getTime() - Date.now();
-  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((diff / (1000 * 60)) % 60);
-  const seconds = Math.floor((diff / 1000) % 60);
-  return { days, hours, minutes, seconds };
-}
 
 function formatHebrewDate(dateStr: string) {
   try {
@@ -129,27 +120,17 @@ export function HeroSection() {
 
 export function CountdownSection() {
   const { content } = useWeddingTheme();
-  const target = `${content.weddingDate}T${content.weddingTime}:00`;
-  const [time, setTime] = useState(formatCountdown(target));
-
-  useEffect(() => {
-    const t = setInterval(() => setTime(formatCountdown(target)), 1000);
-    return () => clearInterval(t);
-  }, [target]);
-
-  const units = [
-    { label: "ימים", value: time.days },
-    { label: "שעות", value: time.hours },
-    { label: "דקות", value: time.minutes },
-    { label: "שניות", value: time.seconds },
-  ];
 
   return (
     <AnimatedSection id="countdown" className="bg-[var(--ww-bg-alt)] py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
         <SectionHeading eyebrow="Countdown" title="הספירה לאחור" />
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-          {units.map((u, i) => (
+        <WeddingCountdownGrid
+          className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6"
+          weddingDate={content.weddingDate}
+          weddingTime={content.weddingTime}
+        >
+          {(u, i) => (
             <motion.div
               key={u.label}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -169,8 +150,8 @@ export function CountdownSection() {
                 </p>
               </GlassCard>
             </motion.div>
-          ))}
-        </div>
+          )}
+        </WeddingCountdownGrid>
       </div>
     </AnimatedSection>
   );
