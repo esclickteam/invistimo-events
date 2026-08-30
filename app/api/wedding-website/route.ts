@@ -12,6 +12,7 @@ import {
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite, normalizeRsvpSiteMode } from "@/types/rsvpSite";
 import { getCustomerFeatures, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
+import { resolveWeddingGifts } from "@/lib/weddingWebsite/gifts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
         enabled,
         invitation: null,
         weddingWebsite: null,
+        gifts: null,
       });
     }
 
@@ -85,6 +87,7 @@ export async function GET(req: NextRequest) {
         eventTime: invitation.eventTime || "",
       },
       weddingWebsite: serializeWeddingWebsite(invitation, { draft: useDraft }),
+      gifts: resolveWeddingGifts(invitation),
       publicPath: isPersonalRsvpSite(rsvpSiteMode) ? `/w/${invitation.shareId}` : null,
     });
   } catch (error) {

@@ -5,9 +5,10 @@ import path from "node:path";
 
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
-import { overlayWeddingTemplateImages } from "../../lib/weddingWebsite/images";
+import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
-import { buildTextIndex, matchTextField, setByPath } from "../../lib/weddingWebsite/editorSchema";
+import { buildTextIndex, isSectionVisible, matchTextField, setByPath } from "../../lib/weddingWebsite/editorSchema";
+import { resolveWeddingGifts } from "../../lib/weddingWebsite/gifts";
 import type { WeddingTemplate } from "../../types/weddingWebsite";
 
 function read(rel: string) {
@@ -19,11 +20,13 @@ test("visual editor overlays the existing renderer instead of copying templates"
   const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
   const renderer = read("components/wedding-website/WeddingTemplateSiteRenderer.tsx");
   const media = read("components/wedding-website/editable/WeddingMedia.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
 
   assert.match(editor, /WeddingTemplateSiteRenderer/);
   assert.match(editor, /mode="editor"/);
   assert.match(overlay, /data-ww-edit/);
-  assert.match(overlay, /contentEditable/);
+  assert.match(hydrator, /contentEditable = "true"/);
+  assert.match(overlay, /insertLineBreak/);
   assert.match(renderer, /WeddingSiteProvider/);
   assert.match(media, /type === "video"/);
   assert.doesNotMatch(editor, /eternal-gold-editor/);
@@ -105,12 +108,21 @@ test("unique media slots keep story images independent from the gallery", () => 
   const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
   const desert = read("components/wedding-website/templates/DesertRoseSite.tsx");
   const royal = read("components/wedding-website/templates/RoyalIvorySite.tsx");
+  const sunset = read("components/wedding-website/templates/SunsetBlushSite.tsx");
+  const forest = read("components/wedding-website/templates/ForestEnchantedSite.tsx");
+  const noir = read("components/wedding-website/templates/MinimalNoirSite.tsx");
+  const glass = read("components/wedding-website/templates/ModernGlassSite.tsx");
   assert.match(eternal, /slot="how-we-met"/);
   assert.match(eternal, /slot="proposal"/);
   assert.match(desert, /slot="how-we-met"/);
   assert.match(desert, /slot="proposal"/);
   assert.match(royal, /slot="hero"/);
   assert.match(royal, /slot="how-we-met"/);
+  assert.match(royal, /slot="proposal"/);
+  assert.match(sunset, /slot="proposal"/);
+  assert.match(forest, /slot="proposal"/);
+  assert.match(noir, /slot="proposal"/);
+  assert.match(glass, /slot="proposal"/);
 
   const withStory = applyMediaToContent(WEDDING_DEMO_CONTENT, "how-we-met", {
     type: "image",
@@ -179,3 +191,75 @@ test("serialize exposes draft separately from published content", () => {
   );
   assert.equal(draft.content.heroSubtitle, "טיוטה");
 });
+
+test("editor text stays selectable and the color picker includes a spectrum", () => {
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
+  assert.match(hydrator, /contentEditable = "true"/);
+  assert.match(hydrator, /overflow-anchor: none/);
+  assert.match(hydrator, /user-select:text/);
+  assert.doesNotMatch(overlay, /el\.focus\(\)/);
+  assert.doesNotMatch(overlay, /contentEditable = "false"/);
+  assert.match(toolbar, /type="color"/);
+  assert.match(toolbar, /פלטת צבעים/);
+});
+
+test("gifts reuse invitation Bit, credit, and PayBox settings", () => {
+  const gifts = resolveWeddingGifts({
+    giftOptions: {
+      creditEnabled: true,
+      creditUrl: "https://pay.example/credit",
+      payboxEnabled: false,
+      payboxUrl: "https://pay.example/ignored",
+    },
+    publicEventPage: {
+      gifts: {
+        payboxUrl: "paybox.example/gift",
+        bitPhone: "0501234567",
+        bitUrl: "",
+      },
+    },
+  });
+  assert.equal(gifts.creditUrl, "https://pay.example/credit");
+  assert.equal(gifts.payboxUrl, "https://paybox.example/gift");
+  assert.equal(gifts.bitPhone, "0501234567");
+
+  const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+  const actions = read("components/wedding-website/WeddingGiftActions.tsx");
+  assert.match(eternal, /WeddingGiftActions/);
+  assert.doesNotMatch(eternal, /Bit —/);
+  assert.match(actions, /label="Bit"/);
+  assert.match(actions, /label="אשראי"/);
+  assert.match(actions, /label="PayBox"/);
+});
+
+test("broken unsplash urls are repaired and guest messages stay visible", () => {
+  const broken =
+    "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80";
+  const truncated =
+    "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=1920&q=85";
+  assert.match(repairWeddingImageUrl(broken), /1519741497674-611481863552/);
+  assert.match(repairWeddingImageUrl(truncated), /1519225421980-715cb0215aed/);
+
+  const templates = read("config/weddingWebsite/templates.ts");
+  const demo = read("config/weddingWebsite/demoContent.ts");
+  assert.doesNotMatch(templates, /1465495976277-4387d110b3ca/);
+  assert.doesNotMatch(templates, /photo-1523438885200-e635ba2c371\?/);
+  assert.doesNotMatch(demo, /1465495976277-4387d110b3ca/);
+
+  assert.equal(
+    isSectionVisible({ ...WEDDING_DEMO_CONTENT, sections: { guestbook: false, "guest-message": true } }, "guestbook"),
+    true
+  );
+
+  const publicPage = read("app/w/[shareId]/page.tsx");
+  const publish = read("app/api/wedding-website/publish/route.ts");
+  const publicApi = read("app/api/w/[shareId]/route.ts");
+  assert.match(publicPage, /WeddingGuestMessageForm/);
+  assert.doesNotMatch(publicPage, /guestMessagesEnabled/);
+  assert.match(publish, /weddingWebsite\.content": draft\.draftContent/);
+  assert.match(publicApi, /serializeWeddingWebsite\(invitation\)/);
+  assert.match(publicApi, /UNPUBLISHED/);
+});
+

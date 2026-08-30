@@ -16,6 +16,8 @@ import WeddingMedia from "../editable/WeddingMedia";
 import { MapPin } from "lucide-react";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
@@ -270,17 +272,30 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
 
       {/* PROPOSAL */}
       <section id="proposal" className="py-24">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl rounded-[28px] bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] px-8 py-16 text-center text-white shadow-[0_20px_60px_rgba(232,120,138,0.35)]"
-        >
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">ההצעה</h2>
-          <p className="mt-8 font-['Cormorant_Garamond'] text-2xl italic leading-relaxed">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </p>
-        </motion.div>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <motion.div
+            initial={{ rotate: 4 }}
+            whileInView={{ rotate: 3 }}
+            className="mx-auto w-full max-w-sm bg-white p-4 pb-12 shadow-[0_20px_60px_rgba(232,120,138,0.2)]"
+            style={{ transform: "rotate(3deg)" }}
+          >
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
+            <p className="mt-4 text-center font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">
+              the proposal ♥
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="rounded-[28px] bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] px-8 py-16 text-center text-white shadow-[0_20px_60px_rgba(232,120,138,0.35)]"
+          >
+            <h2 className="font-['Cormorant_Garamond'] text-4xl">ההצעה</h2>
+            <p className="mt-8 font-['Cormorant_Garamond'] text-2xl italic leading-relaxed">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </p>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — polaroids with rotation */}
@@ -483,12 +498,10 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
         <span className="text-5xl">🎁</span>
         <h2 className="mt-4 font-['Cormorant_Garamond'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-6 max-w-lg text-[#9A6070]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border-2 border-[#E8788A] px-8 py-3 font-bold text-[#E8788A]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border-2 border-[#E8788A] px-8 py-3 font-bold text-[#E8788A]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -557,12 +570,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
                 className="w-32 overflow-hidden bg-white p-2 shadow-md"
                 style={{ rotate: `${polaroidRotations[i % polaroidRotations.length] / 2}deg` }}
               >
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

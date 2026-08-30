@@ -16,6 +16,8 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -379,7 +381,10 @@ function GiftsSection() {
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-['Montserrat'] text-4xl font-light text-[#0D2840]">מתנות</h2>
         <p className="mt-8 text-[#5A7A94]">{DEMO.giftsNote}</p>
-        <a href="#" className="mt-6 inline-block rounded-full px-8 py-3 text-sm font-bold text-white" style={{ backgroundColor: BLUE }}>Bit</a>
+        <WeddingGiftActions
+          className="mt-6"
+          actionClassName="inline-block rounded-full bg-[#3D8BBA] px-8 py-3 text-sm font-bold text-white"
+        />
       </div>
     </Section>
   );
@@ -435,7 +440,7 @@ function GuestUploadSection() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {items.map((item) => (
             <div key={item.id} className="overflow-hidden rounded-2xl shadow-md">
-              <img src={item.url} alt="" className="aspect-square w-full object-cover" />
+              <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
             </div>
           ))}
         </div>

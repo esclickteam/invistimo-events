@@ -5,6 +5,7 @@ import {
   useContext,
   type ReactNode,
 } from "react";
+import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
 import type { WeddingDemoContent, WeddingMediaSlot, WeddingTemplate, WeddingTextStyle } from "@/types/weddingWebsite";
 
 export type WeddingSiteMode = "public" | "editor";
@@ -23,6 +24,7 @@ export type WeddingLiveMeta = {
   token?: string;
   invitationId?: string;
   role: WeddingLiveRole;
+  gifts?: WeddingGiftLinks | null;
 };
 
 export type WeddingSiteEditorApi = {

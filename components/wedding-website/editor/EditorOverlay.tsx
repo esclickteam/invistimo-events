@@ -22,6 +22,7 @@ export default function EditorOverlay() {
   const editor = site?.editor;
   const [hover, setHover] = useState<HoverState | null>(null);
   const [toolbarRect, setToolbarRect] = useState<DOMRect | null>(null);
+  const persistTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
@@ -46,6 +47,12 @@ export default function EditorOverlay() {
       };
     }
 
+    function persistText(el: HTMLElement) {
+      const path = el.dataset.wwPath || "";
+      if (!path || LOCKED_EVENT_PATHS.has(path)) return;
+      api.updateText(path, htmlToPlainTextWithBreaks(el));
+    }
+
     function onPointerMove(event: PointerEvent) {
       setHover(fromTarget(event.target));
     }
@@ -58,13 +65,9 @@ export default function EditorOverlay() {
         return;
       }
 
-      const selection = toSelection(next);
-      api.setSelection(selection);
+      api.setSelection(toSelection(next));
 
       if (next.type === "text") {
-        if (!LOCKED_EVENT_PATHS.has(next.path)) {
-          enableInlineEdit(event.target, next.path, api.updateText);
-        }
         return;
       }
 
@@ -72,11 +75,48 @@ export default function EditorOverlay() {
       event.stopPropagation();
     }
 
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter") return;
+      const el = event.target instanceof HTMLElement ? event.target : null;
+      if (!el?.isContentEditable) return;
+      if (!el.closest("[data-ww-edit='text']")) return;
+      event.preventDefault();
+      if (!document.execCommand("insertLineBreak")) {
+        insertLineBreakAtCaret();
+      }
+    }
+
+    function onFocusOut(event: FocusEvent) {
+      const el =
+        event.target instanceof HTMLElement
+          ? (event.target.closest("[data-ww-edit='text']") as HTMLElement | null)
+          : null;
+      if (!el) return;
+      persistText(el);
+    }
+
+    function onInput(event: Event) {
+      const el =
+        event.target instanceof HTMLElement
+          ? (event.target.closest("[data-ww-edit='text']") as HTMLElement | null)
+          : null;
+      if (!el) return;
+      if (persistTimer.current) window.clearTimeout(persistTimer.current);
+      persistTimer.current = window.setTimeout(() => persistText(el), 400);
+    }
+
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerdown", onPointerDown, true);
+    canvas.addEventListener("keydown", onKeyDown);
+    canvas.addEventListener("focusout", onFocusOut);
+    canvas.addEventListener("input", onInput);
     return () => {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerdown", onPointerDown, true);
+      canvas.removeEventListener("keydown", onKeyDown);
+      canvas.removeEventListener("focusout", onFocusOut);
+      canvas.removeEventListener("input", onInput);
+      if (persistTimer.current) window.clearTimeout(persistTimer.current);
     };
   }, [editor]);
 
@@ -164,42 +204,6 @@ function labelFor(type: string) {
 
 function cssAttr(value: string) {
   return value.replace(/"/g, "");
-}
-
-function enableInlineEdit(
-  target: EventTarget | null,
-  path: string,
-  updateText: (path: string, value: string) => void
-) {
-  const el =
-    target instanceof Element
-      ? (target.closest("[data-ww-path][data-ww-edit='text']") as HTMLElement | null)
-      : null;
-  if (!el || el.getAttribute("contenteditable") === "true") return;
-
-  el.contentEditable = "true";
-  el.spellcheck = true;
-  el.style.whiteSpace = "pre-wrap";
-  el.style.outline = "none";
-  el.focus();
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    if (!document.execCommand("insertLineBreak")) {
-      insertLineBreakAtCaret();
-    }
-  };
-
-  const finish = () => {
-    el.removeEventListener("keydown", onKeyDown);
-    el.removeEventListener("blur", finish);
-    el.contentEditable = "false";
-    updateText(path, htmlToPlainTextWithBreaks(el));
-  };
-
-  el.addEventListener("keydown", onKeyDown);
-  el.addEventListener("blur", finish);
 }
 
 function insertLineBreakAtCaret() {

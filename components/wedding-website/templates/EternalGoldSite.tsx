@@ -17,6 +17,8 @@ import {
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingCoverImage from "../WeddingCoverImage";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -460,9 +462,10 @@ function GiftsSection() {
         <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">מתנות</h2>
         <GoldDivider />
         <p className="text-lg text-[#8A7560]">{DEMO.giftsNote}</p>
-        <a href="#" className="mt-6 inline-block border border-[#C9A962] px-8 py-3 text-sm font-bold text-[#C9A962]">
-          Bit — {DEMO.coupleShort}
-        </a>
+        <WeddingGiftActions
+          className="mt-6"
+          actionClassName="inline-block border border-[#C9A962] px-8 py-3 text-sm font-bold text-[#C9A962]"
+        />
       </div>
     </Section>
   );
@@ -542,7 +545,7 @@ function GuestUploadSection() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {items.map((item) => (
             <div key={item.id} className="overflow-hidden border border-[#C9A962]/40">
-              <img src={item.url} alt={item.name} className="aspect-square w-full object-cover" />
+              <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               <p className="p-2 text-xs text-[#8A7560]">{item.uploadedBy}</p>
             </div>
           ))}

@@ -14,6 +14,7 @@ import {
   type WeddingLiveMeta,
 } from "./editable/WeddingSiteContext";
 import { WeddingSiteHydrator, WeddingSiteRuntimeStyles } from "./editable/SiteHydrator";
+import WeddingGuestMessageForm from "./WeddingGuestMessageForm";
 
 type Props = {
   template: WeddingTemplate;
@@ -55,7 +56,18 @@ const RenderedSite = memo(function RenderedSite({
   rsvpController,
   guestMessageSlot,
 }: Props) {
+  const site = useWeddingSite();
   const Site = getWeddingTemplateSite(template.id);
+  const resolvedMessageSlot =
+    guestMessageSlot ??
+    (live ? (
+      <WeddingGuestMessageForm
+        shareId={site?.live?.shareId || ""}
+        token={site?.live?.token || ""}
+        title={site?.content.guestMessageTitle}
+        description={site?.content.guestMessageDescription}
+      />
+    ) : null);
 
   if (!Site) {
     return (
@@ -96,7 +108,7 @@ const RenderedSite = memo(function RenderedSite({
             embed={embed}
             live={live}
             rsvpController={rsvpController}
-            guestMessageSlot={guestMessageSlot}
+            guestMessageSlot={resolvedMessageSlot}
           />
         </div>
       </WeddingSiteHydrator>

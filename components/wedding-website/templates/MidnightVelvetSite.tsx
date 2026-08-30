@@ -16,6 +16,8 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -426,9 +428,10 @@ function GiftsSection() {
         <h2 className="font-['Playfair_Display'] text-4xl text-[#F5F0E8]">מתנות</h2>
         <Glass className="mt-10">
           <p className="text-[#A89BB0]">{DEMO.giftsNote}</p>
-          <a href="#" className="mt-6 inline-block rounded-full border border-[#D4AF37] px-8 py-3 text-sm font-bold text-[#D4AF37]">
-            Bit
-          </a>
+          <WeddingGiftActions
+            className="mt-6"
+            actionClassName="inline-block rounded-full border border-[#D4AF37] px-8 py-3 text-sm font-bold text-[#D4AF37]"
+          />
         </Glass>
       </div>
     </Section>
@@ -490,7 +493,7 @@ function GuestUploadSection() {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {items.map((item) => (
             <div key={item.id} className="h-40 w-40 shrink-0 overflow-hidden rounded-xl border border-[#D4AF37]/20">
-              <img src={item.url} alt="" className="h-full w-full object-cover" />
+              <EventUploadMedia item={item} className="h-full w-full object-cover" />
             </div>
           ))}
         </div>

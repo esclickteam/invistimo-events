@@ -78,11 +78,20 @@ export function WeddingSiteRuntimeStyles() {
         .join("")}
       ${mode === "editor"
         ? `
+        .ww-editor-canvas { overflow-anchor: none; }
         [data-ww-edit]{cursor:pointer}
-        [data-ww-edit="text"]{cursor:text;white-space:pre-wrap}
+        [data-ww-edit="text"]{
+          cursor:text;
+          white-space:pre-wrap;
+          user-select:text;
+          -webkit-user-select:text;
+          outline:none!important;
+          box-shadow:none!important;
+          caret-color:currentColor;
+        }
         [data-ww-edit="text"][contenteditable="true"]{outline:none!important;box-shadow:none!important;cursor:text}
         .ww-site img[data-ww-edit], .ww-site video[data-ww-edit]{cursor:pointer}
-        .ww-edit-text{display:contents}
+        .ww-edit-text{display:inline}
       `
         : `
         [data-ww-path]{white-space:pre-wrap}
@@ -149,8 +158,19 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
 
     target.dataset.wwPath = matched.path;
     target.dataset.wwLabel = matched.label;
-    if (isEditor) target.dataset.wwEdit = "text";
-    else delete target.dataset.wwEdit;
+    if (isEditor) {
+      target.dataset.wwEdit = "text";
+      if (!LOCKED_EVENT_PATHS.has(matched.path)) {
+        target.contentEditable = "true";
+        target.spellcheck = true;
+        target.style.whiteSpace = "pre-wrap";
+        target.style.outline = "none";
+        target.style.userSelect = "text";
+      }
+    } else {
+      delete target.dataset.wwEdit;
+      if (target.isContentEditable) target.contentEditable = "false";
+    }
   }
 
   if (!isEditor) return;

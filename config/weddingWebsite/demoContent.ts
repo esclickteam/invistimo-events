@@ -68,7 +68,7 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
     faq: true,
     rsvp: true,
     gifts: true,
-    guestbook: false,
+    guestbook: true,
     "guest-message": true,
     footer: true,
   },
@@ -86,7 +86,7 @@ export const DEMO_GUEST_UPLOADS = [
   {
     id: "2",
     type: "image" as const,
-    url: "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=600&q=80",
+    url: "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&q=80",
     name: "couple-friends.jpg",
     uploadedBy: "אור",
     createdAt: "2026-07-21",

@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
@@ -251,18 +253,21 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       {/* PROPOSAL */}
       <section id="proposal" className="relative py-24">
         <LaceBg />
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="relative mx-auto max-w-3xl px-6 text-center"
-        >
-          <CrownOrnament className="mx-auto mb-8" />
-          <h2 className="font-['Playfair_Display'] text-4xl">ההצעה</h2>
-          <blockquote className="mt-10 font-['Playfair_Display'] text-2xl italic leading-relaxed text-[#5C4A38] md:text-3xl">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </blockquote>
-        </motion.div>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <DoubleFrame slot="proposal" src={template.galleryImages[1] ?? template.galleryImages[0]} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center md:text-right"
+          >
+            <CrownOrnament className="mx-auto mb-8 md:mx-0 md:mr-auto" />
+            <h2 className="font-['Playfair_Display'] text-4xl">ההצעה</h2>
+            <blockquote className="mt-10 font-['Playfair_Display'] text-2xl italic leading-relaxed text-[#5C4A38] md:text-3xl">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </blockquote>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — scroll snap carousel */}
@@ -474,12 +479,10 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       <section id="gifts" className="bg-white py-20 text-center">
         <h2 className="font-['Playfair_Display'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-8 max-w-lg text-[#8C7B68]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-[#B8956B]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-[#B8956B]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -544,12 +547,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
           <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
             {upload.items.map((item) => (
               <div key={item.id} className="w-40 shrink-0 snap-center overflow-hidden rounded-xl border border-[#B8956B]/20">
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
@@ -294,17 +296,28 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       {/* PROPOSAL */}
       <section id="proposal" className="relative py-24">
         <Fireflies />
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 bg-[#1C2A1E] px-8 py-16 text-center"
-        >
-          <h2 className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A]">ההצעה</h2>
-          <blockquote className="mt-8 font-['Libre_Baskerville'] text-xl italic leading-relaxed text-[#E8F0E4]">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </blockquote>
-        </motion.div>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-[55%_45%_50%_50%/45%_55%_45%_55%] border border-[#7CB87A]/30" />
+            <WeddingMedia
+              slot="proposal"
+              src={template.galleryImages[1]}
+              alt=""
+              className="relative aspect-[4/5] w-full rounded-[55%_45%_50%_50%/45%_55%_45%_55%] object-cover"
+            />
+          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 bg-[#1C2A1E] px-8 py-16 text-center"
+          >
+            <h2 className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A]">ההצעה</h2>
+            <blockquote className="mt-8 font-['Libre_Baskerville'] text-xl italic leading-relaxed text-[#E8F0E4]">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </blockquote>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — masonry organic */}
@@ -506,12 +519,10 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       <section id="gifts" className="py-20 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-8 max-w-lg text-[#8AA892]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border border-[#7CB87A] px-8 py-3 text-[#7CB87A]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border border-[#7CB87A] px-8 py-3 text-[#7CB87A]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -576,12 +587,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
           <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
             {upload.items.map((item) => (
               <div key={item.id} className="overflow-hidden rounded-2xl border border-[#7CB87A]/20">
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

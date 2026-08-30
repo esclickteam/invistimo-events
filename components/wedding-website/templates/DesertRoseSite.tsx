@@ -16,6 +16,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -440,9 +441,10 @@ function GiftsSection() {
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">מתנות</h2>
         <p className="mt-8 text-[#9A7060]">{DEMO.giftsNote}</p>
-        <a href="#" className="mt-6 inline-block px-8 py-3 text-sm font-bold text-white" style={{ backgroundColor: TERRACOTTA, clipPath: "polygon(5% 0, 100% 0, 95% 100%, 0 100%)" }}>
-          Bit
-        </a>
+        <WeddingGiftActions
+          className="mt-6"
+          actionClassName="inline-block px-8 py-3 text-sm font-bold text-white bg-[#C4705A]"
+        />
       </div>
     </Section>
   );

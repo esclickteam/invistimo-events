@@ -41,7 +41,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     galleryImages: [
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
     ],
     mood: "classic",
@@ -75,7 +75,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
       "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
       "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=800&q=80",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
     mood: "dramatic",
     theme: {
@@ -105,7 +105,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     heroImage:
       "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
@@ -136,9 +136,9 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     previewImage:
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=1920&q=85",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371?w=800&q=80",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
@@ -167,12 +167,12 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "טרakota, ורוד עמוק וחול",
     description: "חתונה מדברית — גוונים חמים, textures ואנימציות shimmer.",
     previewImage:
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=900&q=85",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
     heroImage:
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1920&q=85",
     galleryImages: [
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
@@ -268,9 +268,9 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     previewImage:
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=1920&q=85",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1465495976277-4387d110b3ca?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",

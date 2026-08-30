@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const ACCENT = "#7C9CFF";
@@ -325,14 +327,21 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
 
       {/* PROPOSAL */}
       <section id="proposal" className="px-4 py-20 md:px-8">
-        <TiltCard className="mx-auto max-w-3xl">
-          <GlassPanel className="border-[#7C9CFF]/20 bg-[#7C9CFF]/10 p-12 text-center">
-            <h2 className="text-3xl font-bold text-[#7C9CFF]">ההצעה</h2>
-            <blockquote className="mt-8 text-xl leading-relaxed text-[#F0F4FF]">
-              &ldquo;{DEMO.proposalStory}&rdquo;
-            </blockquote>
-          </GlassPanel>
-        </TiltCard>
+        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
+          <TiltCard>
+            <GlassPanel className="overflow-hidden p-0">
+              <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            </GlassPanel>
+          </TiltCard>
+          <TiltCard>
+            <GlassPanel className="border-[#7C9CFF]/20 bg-[#7C9CFF]/10 flex h-full flex-col justify-center p-12 text-center">
+              <h2 className="text-3xl font-bold text-[#7C9CFF]">ההצעה</h2>
+              <blockquote className="mt-8 text-xl leading-relaxed text-[#F0F4FF]">
+                &ldquo;{DEMO.proposalStory}&rdquo;
+              </blockquote>
+            </GlassPanel>
+          </TiltCard>
+        </div>
       </section>
 
       {/* GALLERY — glass grid */}
@@ -548,12 +557,10 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
           <GlassPanel className="p-10 text-center">
             <h2 className="text-3xl font-bold">מתנות</h2>
             <p className="mt-6 text-[#8892A8]">{DEMO.giftsNote}</p>
-            <button
-              type="button"
-              className="mt-8 rounded-xl border border-[#7C9CFF]/40 px-8 py-3 text-sm font-bold text-[#7C9CFF]"
-            >
-              Bit / PayBox
-            </button>
+            <WeddingGiftActions
+              className="mt-8"
+              actionClassName="rounded-xl border border-[#7C9CFF]/40 px-8 py-3 text-sm font-bold text-[#7C9CFF]"
+            />
           </GlassPanel>
         </TiltCard>
       </section>
@@ -630,12 +637,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
             {upload.items.map((item) => (
               <TiltCard key={item.id}>
                 <GlassPanel className="overflow-hidden p-0">
-                  {item.type === "video" ? (
-                    <video src={item.url} className="aspect-square w-full object-cover" muted />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                  )}
+                  <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
                 </GlassPanel>
               </TiltCard>
             ))}

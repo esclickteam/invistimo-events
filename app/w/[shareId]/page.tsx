@@ -6,6 +6,7 @@ import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTem
 import WeddingGuestMessageForm from "@/components/wedding-website/WeddingGuestMessageForm";
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
+import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
 
 type PublicSiteResponse = {
   success?: boolean;
@@ -24,6 +25,7 @@ type PublicSiteResponse = {
     authenticated: true;
     canMessage: boolean;
   } | null;
+  gifts?: WeddingGiftLinks | null;
 };
 
 export default function PublicWeddingWebsitePage() {
@@ -96,9 +98,6 @@ export default function PublicWeddingWebsitePage() {
   const content = data.weddingWebsite.content;
   const showGuestMessage = content.sections?.["guest-message"] !== false;
   const showRsvp = content.sections?.rsvp !== false;
-  const guestMessagesEnabled = Boolean(
-    data.features?.guestMessages && data.guest?.authenticated && data.guest.canMessage && token
-  );
 
   return (
     <div className="overflow-x-hidden">
@@ -108,7 +107,7 @@ export default function PublicWeddingWebsitePage() {
         live
         rsvpController={showRsvp ? rsvp : null}
         guestMessageSlot={
-          guestMessagesEnabled && showGuestMessage ? (
+          showGuestMessage ? (
             <WeddingGuestMessageForm
               shareId={shareId}
               token={token}
@@ -121,6 +120,7 @@ export default function PublicWeddingWebsitePage() {
           shareId,
           token,
           role: token ? "guest" : "demo",
+          gifts: data.gifts || null,
         }}
       />
     </div>

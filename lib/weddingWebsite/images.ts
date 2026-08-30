@@ -3,8 +3,22 @@ import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite
 const ALLOWED_IMAGE_HOST_RE = /^https:\/\//i;
 const CLOUDINARY_UPLOAD_MARKER = "/upload/";
 
+const BROKEN_UNSPLASH_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/photo-1465495976277-4387d110b3ca/g, "photo-1519741497674-611481863552"],
+  [/photo-1523438885200-e635ba2c371(?!e)/g, "photo-1519225421980-715cb0215aed"],
+];
+
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+export function repairWeddingImageUrl(value: unknown) {
+  let url = cleanString(value);
+  if (!url) return "";
+  for (const [pattern, replacement] of BROKEN_UNSPLASH_REPLACEMENTS) {
+    url = url.replace(pattern, replacement);
+  }
+  return url;
 }
 
 export function isAllowedWeddingImageUrl(value: unknown) {
@@ -16,7 +30,8 @@ export function isAllowedWeddingImageUrl(value: unknown) {
 }
 
 export function sanitizeWeddingImageUrl(value: unknown) {
-  return isAllowedWeddingImageUrl(value) ? cleanString(value) : "";
+  const url = isAllowedWeddingImageUrl(value) ? repairWeddingImageUrl(value) : "";
+  return url;
 }
 
 export function sanitizeWeddingImageUrls(value: unknown) {
@@ -72,6 +87,6 @@ export function overlayWeddingTemplateImages(
       : getOptimizedWeddingImageUrl(heroImage || template.heroImage, 1800) || template.heroImage,
     galleryImages: galleryImages
       ? galleryImages.map((src) => getOptimizedWeddingImageUrl(src, 1100) || src)
-      : template.galleryImages,
+      : template.galleryImages.map((src) => getOptimizedWeddingImageUrl(src, 1100) || src),
   };
 }

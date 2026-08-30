@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useWeddingSite } from "@/components/wedding-website/editable/WeddingSiteContext";
 
 type ThreadMessage = {
   id: string;
@@ -10,22 +12,25 @@ type ThreadMessage = {
 };
 
 type Props = {
-  shareId: string;
-  token: string;
+  shareId?: string;
+  token?: string;
   title?: string;
   description?: string;
 };
 
 export default function WeddingGuestMessageForm({
-  shareId,
-  token,
+  shareId = "",
+  token = "",
   title = "השאירו לנו כמה מילים ❤️",
   description = "נשמח לקרוא ברכה, איחול או הודעה מכם. אפשר גם להמשיך את השיחה כאן.",
 }: Props) {
+  const site = useWeddingSite();
   const [message, setMessage] = useState("");
   const [items, setItems] = useState<ThreadMessage[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const canSend = Boolean(shareId && token);
+  const isEditor = site?.mode === "editor";
 
   async function loadThread() {
     try {
@@ -48,7 +53,7 @@ export default function WeddingGuestMessageForm({
   }, [shareId, token]);
 
   async function submitMessage() {
-    if (saving) return;
+    if (saving || !canSend) return;
     const text = message.trim();
     if (!text) {
       setError("כתבו הודעה לפני השליחה");
@@ -92,6 +97,20 @@ export default function WeddingGuestMessageForm({
           {description}
         </p>
 
+        {isEditor ? (
+          <p className="mt-4 rounded-2xl bg-[#f7f1e8] px-4 py-3 text-center text-sm font-semibold text-[#5c4632]">
+            אורחים שולחים הודעה מכאן בקישור האישי. אתם עונים ב
+            <Link href="/dashboard/guest-messages" className="mx-1 underline">
+              הודעות מהאורחים
+            </Link>
+            בדשבורד.
+          </p>
+        ) : !canSend ? (
+          <p className="mt-4 rounded-2xl bg-[#f7f1e8] px-4 py-3 text-center text-sm font-semibold text-[#5c4632]">
+            כדי לשלוח הודעה לזוג, השתמשו בקישור האישי שנשלח אליכם.
+          </p>
+        ) : null}
+
         {items.length > 0 ? (
           <div className="mt-6 max-h-72 space-y-3 overflow-auto">
             {items.map((item) => {
@@ -124,14 +143,21 @@ export default function WeddingGuestMessageForm({
             onChange={(event) => setMessage(event.target.value.slice(0, 1000))}
             rows={3}
             maxLength={1000}
-            placeholder={items.length ? "המשיכו את השיחה..." : "כתבו כאן ברכה או הודעה..."}
-            className="w-full rounded-2xl border border-black/10 px-4 py-3 text-sm"
+            disabled={!canSend}
+            placeholder={
+              canSend
+                ? items.length
+                  ? "המשיכו את השיחה..."
+                  : "כתבו כאן ברכה או הודעה..."
+                : "השליחה פתוחה בקישור האישי של האורח"
+            }
+            className="w-full rounded-2xl border border-black/10 px-4 py-3 text-sm disabled:bg-black/5"
           />
           <p className="text-left text-xs text-black/35">{message.length}/1000</p>
           {error ? <p className="text-center text-sm font-bold text-red-600">{error}</p> : null}
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !canSend}
             onClick={submitMessage}
             className="min-h-[54px] w-full rounded-2xl bg-black text-base font-black text-white disabled:opacity-60"
           >
