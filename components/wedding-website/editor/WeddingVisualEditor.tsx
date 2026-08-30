@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
-import { repairWeddingImageUrl } from "@/lib/weddingWebsite/images";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
+import WeddingTemplateThumb from "@/components/wedding-website/WeddingTemplateThumb";
 import {
   WeddingSiteProvider,
   type WeddingEditorDevice,
@@ -611,11 +611,7 @@ export default function WeddingVisualEditor() {
                 template.id === templateId ? "border-[#B8844F] ring-2 ring-[#B8844F]/30" : "border-[#EFE4D6]"
               }`}
             >
-              <img
-                src={repairWeddingImageUrl(template.previewImage)}
-                alt=""
-                className="h-40 w-full object-cover"
-              />
+              <WeddingTemplateThumb template={template} className="h-44 w-full" />
               <div className="p-4">
                 <p className="text-sm font-black text-[#241A14]">{template.name}</p>
                 <p className="mt-1 text-xs font-semibold text-[#8A7B69]">{template.tagline}</p>

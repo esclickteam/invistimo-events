@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
-import { WEDDING_MOBILE_NAV_IDS, WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
+import { WEDDING_MOBILE_NAV_IDS, WEDDING_PRIMARY_NAV_IDS, WEDDING_TEMPLATES } from "../../config/weddingWebsite/templates";
 import { overlayWeddingTemplateImages, repairWeddingImageUrl, getOptimizedWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
 import {
@@ -450,6 +450,26 @@ test("editor canvas has a single scrollbar and can switch templates", () => {
   assert.match(dialogs, /הצגת התבנית/);
   assert.match(dialogs, /החלת התבנית/);
   assert.match(editor, /setTemplateDialogOpen\(true\)/);
+});
+
+test("template picker shows a unique on-theme mockup for every template", () => {
+  const dialogs = read("components/wedding-website/editor/EditorDialogs.tsx");
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const thumb = read("components/wedding-website/WeddingTemplateThumb.tsx");
+  const previews = WEDDING_TEMPLATES.map((template) => template.previewImage);
+  const heroes = WEDDING_TEMPLATES.map((template) => template.heroImage);
+
+  assert.equal(new Set(previews).size, previews.length);
+  assert.equal(new Set(heroes).size, heroes.length);
+  assert.equal(WEDDING_TEMPLATES.length, 10);
+  assert.match(dialogs, /WeddingTemplateThumb/);
+  assert.match(editor, /WeddingTemplateThumb/);
+  assert.match(thumb, /heroOverlay/);
+  assert.match(thumb, /fontDisplay/);
+  assert.match(thumb, /אישור הגעה/);
+  assert.match(thumb, /minimal-noir/);
+  assert.match(thumb, /modern-glass/);
+  assert.match(thumb, /garden-bloom/);
 });
 
 test("site navigation uses a hamburger on mobile and compact links on desktop", () => {
