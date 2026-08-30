@@ -440,3 +440,13 @@ test("site navigation shows only the important header links", () => {
   }
 });
 
+test("couple names keep the ampersand editable and Garden Bloom has no wave stripes", () => {
+  const noir = read("components/wedding-website/templates/MinimalNoirSite.tsx");
+  const garden = read("components/wedding-website/templates/GardenBloomSite.tsx");
+  assert.match(noir, /\{DEMO\.coupleNames\}/);
+  assert.doesNotMatch(noir, /split\("&"\)/);
+  assert.doesNotMatch(noir, /& \{namesSecond\}/);
+  assert.doesNotMatch(garden, /WavyDivider/);
+  assert.doesNotMatch(garden, /\bwavy\b/);
+});
+
