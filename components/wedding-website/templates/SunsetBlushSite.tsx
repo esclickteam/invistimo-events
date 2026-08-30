@@ -53,7 +53,7 @@ function HeartParticles() {
     []
   );
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
       {hearts.map((h) => (
         <motion.span
           key={h.id}
@@ -86,7 +86,7 @@ function CountdownBlock() {
         <div className="mx-auto max-w-4xl px-6 text-center">
           <p className="font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">countdown</p>
           <h2 className="font-['Cormorant_Garamond'] text-4xl">הספירה לאחור</h2>
-          <WeddingCountdownGrid className="mt-12 flex flex-wrap justify-center gap-4">
+          <WeddingCountdownGrid className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             {(u, i) => (
               <motion.div
                 key={u.label}
@@ -94,7 +94,7 @@ function CountdownBlock() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, type: "spring" }}
-                className="min-w-[100px] rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-6 shadow-[0_10px_40px_rgba(232,120,138,0.15)]"
+                className="w-full min-w-0 rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-4 shadow-[0_10px_40px_rgba(232,120,138,0.15)] sm:p-6"
               >
                 <span className="font-['Cormorant_Garamond'] text-4xl font-semibold text-[#E8788A]">
                   {String(u.value).padStart(2, "0")}

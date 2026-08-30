@@ -589,7 +589,7 @@ export default function EternalGoldSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root overflow-x-hidden bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
+    <div className="wedding-website-root overflow-x-hidden bg-[#FAF7F2] text-[#2A2118]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />

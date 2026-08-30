@@ -13,7 +13,7 @@ export default function FloatingParticles({ count = 24 }: { count?: number }) {
   }));
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
       {particles.map((p) => (
         <motion.span
           key={p.id}

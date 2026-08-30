@@ -393,10 +393,12 @@ test("editor canvas has a single scrollbar and can switch templates", () => {
   assert.match(editor, /setPickerOpen\(false\)/);
 });
 
-test("site navigation shows only the important header links", () => {
+test("site navigation uses a hamburger on mobile and compact links on desktop", () => {
   const menu = read("components/wedding-website/WeddingSiteMenu.tsx");
   const nav = read("components/wedding-website/WeddingNav.tsx");
   const config = read("config/weddingWebsite/templates.ts");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const css = read("app/wedding-website/wedding-website.css");
   assert.match(config, /WEDDING_PRIMARY_NAV_IDS/);
   assert.match(config, /navLabel: "ראשי"/);
   assert.deepEqual([...WEDDING_PRIMARY_NAV_IDS], [
@@ -408,15 +410,23 @@ test("site navigation shows only the important header links", () => {
     "rsvp",
   ]);
   assert.match(menu, /WEDDING_PRIMARY_NAV_IDS/);
+  assert.match(menu, /ww-nav-desktop/);
+  assert.match(menu, /ww-nav-hamburger/);
   assert.match(menu, /justify-center/);
   assert.match(menu, /text-center/);
-  assert.doesNotMatch(menu, /justify-end/);
-  assert.doesNotMatch(menu, /"invitation"/);
-  assert.doesNotMatch(menu, /aria-label="תפריט"/);
+  assert.match(menu, /aria-label="תפריט"/);
+  assert.match(menu, /md:hidden/);
+  assert.match(menu, /hidden.*md:flex/);
+  assert.doesNotMatch(menu, /WEDDING_SECTIONS\.filter/);
   assert.doesNotMatch(menu, /overflow-x-auto/);
-  assert.doesNotMatch(menu, /from "lucide-react"/);
+  assert.doesNotMatch(menu, /buttonClassName/);
   assert.match(nav, /WeddingSiteMenu/);
   assert.doesNotMatch(nav, /hidden lg:flex/);
+  assert.match(hydrator, /ww-nav-desktop/);
+  assert.match(hydrator, /ww-nav-hamburger/);
+  assert.match(hydrator, /@container \(min-width: 700px\)/);
+  assert.match(css, /ww-desktop-fx/);
+  assert.match(css, /scroll-behavior: auto/);
 
   const templates = [
     "components/wedding-website/templates/EternalGoldSite.tsx",
@@ -437,7 +447,21 @@ test("site navigation shows only the important header links", () => {
     assert.doesNotMatch(src, /buttonClassName/);
     assert.doesNotMatch(src, /{!embed && <StickyNav \/>}/);
     assert.doesNotMatch(src, /if \(embed\) return null/);
+    assert.doesNotMatch(src, /scroll-smooth/);
   }
+});
+
+test("countdown grids stay two-by-two on narrow screens", () => {
+  const garden = read("components/wedding-website/templates/GardenBloomSite.tsx");
+  const blush = read("components/wedding-website/templates/SunsetBlushSite.tsx");
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const css = read("app/wedding-website/wedding-website.css");
+  assert.match(garden, /grid grid-cols-2.*md:grid-cols-4/);
+  assert.doesNotMatch(garden, /flex flex-wrap justify-center gap-6/);
+  assert.match(blush, /grid grid-cols-2.*md:grid-cols-4/);
+  assert.match(hydrator, /data-ww-countdown="units"/);
+  assert.match(css, /data-ww-countdown="units"/);
+  assert.match(garden, /ww-desktop-fx/);
 });
 
 test("couple names keep the ampersand editable and Garden Bloom has no wave stripes", () => {
