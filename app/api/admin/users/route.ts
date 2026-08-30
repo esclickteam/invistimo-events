@@ -13,7 +13,10 @@ import {
   ensurePreRsvpInvitationGrant,
   readPreRsvpFlags,
 } from "@/lib/preRsvp/entitlement";
-import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
+import {
+  getRsvpRoundSentSnapshot,
+  type RsvpRound,
+} from "@/lib/rsvpRoundLock";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -324,7 +327,7 @@ function buildMessageRounds(
   user: any = null
 ) {
   const locks = invitation?.adminMessageRoundLocks || {};
-  const rsvpRounds = [1, 2, 3];
+  const rsvpRounds: RsvpRound[] = [1, 2, 3];
   const callRounds = [1, 2, 3];
 
   if (!invitation) {
@@ -918,8 +921,8 @@ packageName
     const invitationByUserId = new Map<string, any>();
 
     const invitationHasRoundSend = (invitation: any) => {
-      return [1, 2, 3].some((round) =>
-        getRsvpRoundSentSnapshot(invitation, round as 1 | 2 | 3).done
+      return ([1, 2, 3] as RsvpRound[]).some((round) =>
+        getRsvpRoundSentSnapshot(invitation, round).done
       );
     };
 
