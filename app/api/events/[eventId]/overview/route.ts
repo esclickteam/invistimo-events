@@ -215,6 +215,8 @@ export async function GET(
           lat: event.location?.lat ?? null,
           lng: event.location?.lng ?? null,
           placeId: event.location?.placeId || "",
+          placeName: event.location?.placeName || "",
+          formattedAddress: event.location?.formattedAddress || "",
         },
 
         userId: event.userId,
@@ -529,6 +531,8 @@ export async function PATCH(
           lat: event.location?.lat ?? null,
           lng: event.location?.lng ?? null,
           placeId: event.location?.placeId || "",
+          placeName: event.location?.placeName || "",
+          formattedAddress: event.location?.formattedAddress || "",
         },
 
         userId: event.userId,
