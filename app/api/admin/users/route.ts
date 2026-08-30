@@ -691,13 +691,19 @@ packageName
     const [invitations, paymentsAgg, totalRevenueAgg] = await Promise.all([
       userIds.length > 0
         ? Invitation.find({
-            ownerId: { $in: userIds },
+            $or: [
+              { ownerId: { $in: userIds } },
+              { userId: { $in: userIds } },
+            ],
           })
             .select(`
               ownerId
+              userId
               title
               shareId
               eventDate
+              createdAt
+              updatedAt
               rsvpRoundSent
 
               rsvpRound1SentAt
@@ -783,7 +789,7 @@ packageName
               messageLocks
               adminMessageRoundLocks
             `)
-            .sort({ eventDate: -1 })
+            .sort({ eventDate: -1, updatedAt: -1, createdAt: -1 })
             .lean()
         : [],
 
@@ -926,11 +932,35 @@ packageName
 
     const invitationByUserId = new Map<string, any>();
 
-    for (const invitation of invitations) {
-      const uid = String(invitation.ownerId);
+    const invitationScore = (invitation: any) => {
+      const eventTime = invitation?.eventDate
+        ? new Date(invitation.eventDate).getTime()
+        : 0;
+      const updatedTime = invitation?.updatedAt
+        ? new Date(invitation.updatedAt).getTime()
+        : invitation?.createdAt
+          ? new Date(invitation.createdAt).getTime()
+          : 0;
 
-      if (!invitationByUserId.has(uid)) {
-        invitationByUserId.set(uid, invitation);
+      return (Number.isFinite(eventTime) ? eventTime : 0) * 10 +
+        (Number.isFinite(updatedTime) ? updatedTime : 0);
+    };
+
+    for (const invitation of invitations) {
+      const userKeys = Array.from(
+        new Set(
+          [invitation.ownerId, invitation.userId]
+            .filter(Boolean)
+            .map((id: any) => String(id))
+        )
+      );
+
+      for (const uid of userKeys) {
+        const current = invitationByUserId.get(uid);
+
+        if (!current || invitationScore(invitation) > invitationScore(current)) {
+          invitationByUserId.set(uid, invitation);
+        }
       }
     }
 
