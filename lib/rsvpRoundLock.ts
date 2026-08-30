@@ -25,49 +25,86 @@ export function getRoundKey(round: RsvpRound) {
  * - אם SMS נשלח, WhatsApp נחסם.
  * - אם WhatsApp נשלח, SMS נחסם.
  */
-export function isRsvpRoundAlreadySent(invitation: any, round: RsvpRound) {
+function getRoundSentObject(invitation: any, round: RsvpRound) {
   const key = getRoundKey(round);
-
-  return Boolean(
-    invitation?.rsvpRoundsSent?.[key]?.sentAt ||
-      invitation?.[`rsvpRound${round}SentAt`] ||
-      invitation?.[`rsvpSmsRound${round}SentAt`] ||
-      invitation?.[`rsvpWhatsappRound${round}SentAt`]
+  return (
+    invitation?.rsvpRoundSent?.[key] ||
+    invitation?.rsvpRoundsSent?.[key] ||
+    null
   );
+}
+
+function asDate(value: unknown) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * מקור אמת משולב:
+ * השליחה נכתבת לפעמים ל-rsvpRoundSent ולפעמים ל-rsvpRoundsSent.
+ * אובייקט סבב בלי sentAt עדיין נחשב "נשלח" אם יש ערוץ/ספירה.
+ */
+export function getRsvpRoundSentSnapshot(invitation: any, round: RsvpRound) {
+  const roundData = getRoundSentObject(invitation, round);
+
+  const sentAt =
+    asDate(roundData?.sentAt) ||
+    asDate(roundData instanceof Date ? roundData : null) ||
+    asDate(roundData?.sentAtSms) ||
+    asDate(roundData?.sentAtWhatsapp) ||
+    asDate(roundData?.smsSentAt) ||
+    asDate(roundData?.whatsappSentAt) ||
+    asDate(invitation?.[`rsvpRound${round}SentAt`]) ||
+    asDate(invitation?.[`rsvpRound${round}sentAt`]) ||
+    asDate(invitation?.[`rsvpSmsRound${round}SentAt`]) ||
+    asDate(invitation?.[`rsvpSmsRound${round}sentAt`]) ||
+    asDate(invitation?.[`rsvpWhatsappRound${round}SentAt`]) ||
+    asDate(invitation?.[`rsvpWhatsappRound${round}sentAt`]) ||
+    null;
+
+  const channel =
+    roundData?.channel ||
+    (invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
+    invitation?.[`rsvpWhatsappRound${round}sentAt`]
+      ? "whatsapp"
+      : null) ||
+    (invitation?.[`rsvpSmsRound${round}SentAt`] ||
+    invitation?.[`rsvpSmsRound${round}sentAt`]
+      ? "sms"
+      : null) ||
+    null;
+
+  const done = Boolean(
+    sentAt ||
+      channel ||
+      Number(roundData?.sentCount || 0) > 0 ||
+      roundData === true
+  );
+
+  return {
+    done,
+    sentAt: sentAt ? sentAt.toISOString() : null,
+    channel,
+  };
+}
+
+export function isRsvpRoundAlreadySent(invitation: any, round: RsvpRound) {
+  return getRsvpRoundSentSnapshot(invitation, round).done;
 }
 
 /**
  * מחזיר מידע מסודר לפרונט / API.
  */
 export function getRsvpRoundLockInfo(invitation: any, round: RsvpRound) {
-  const key = getRoundKey(round);
-
-  const sourceOfTruthSentAt =
-    invitation?.rsvpRoundsSent?.[key]?.sentAt || null;
-
-  const genericSentAt = invitation?.[`rsvpRound${round}SentAt`] || null;
-  const smsSentAt = invitation?.[`rsvpSmsRound${round}SentAt`] || null;
-  const whatsappSentAt =
-    invitation?.[`rsvpWhatsappRound${round}SentAt`] || null;
-
-  const sentAt =
-    sourceOfTruthSentAt ||
-    genericSentAt ||
-    smsSentAt ||
-    whatsappSentAt ||
-    null;
-
-  const channel =
-    invitation?.rsvpRoundsSent?.[key]?.channel ||
-    (smsSentAt ? "sms" : null) ||
-    (whatsappSentAt ? "whatsapp" : null) ||
-    null;
+  const snapshot = getRsvpRoundSentSnapshot(invitation, round);
 
   return {
     round,
-    locked: Boolean(sentAt),
-    sentAt,
-    channel,
+    locked: snapshot.done,
+    sentAt: snapshot.sentAt,
+    channel: snapshot.channel,
   };
 }
 
@@ -111,6 +148,8 @@ export async function markRsvpRoundAsActuallySent(params: {
       $or: [
         { [`rsvpRoundsSent.${key}.sentAt`]: { $exists: false } },
         { [`rsvpRoundsSent.${key}.sentAt`]: null },
+        { [`rsvpRoundSent.${key}.sentAt`]: { $exists: false } },
+        { [`rsvpRoundSent.${key}.sentAt`]: null },
 
         // תאימות אחורה:
         // אם כבר היה סימון ישן, לא חייבים לדרוס, אבל כן נרצה שה-update לא ייכשל במקרים ישנים.
@@ -121,6 +160,8 @@ export async function markRsvpRoundAsActuallySent(params: {
       $set: {
         [`rsvpRoundsSent.${key}.sentAt`]: now,
         [`rsvpRoundsSent.${key}.channel`]: channel,
+        [`rsvpRoundSent.${key}.sentAt`]: now,
+        [`rsvpRoundSent.${key}.channel`]: channel,
 
         // שדה כללי ישן לפי סבב
         [`rsvpRound${round}SentAt`]: now,

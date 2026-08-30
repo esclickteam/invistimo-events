@@ -13,6 +13,7 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -525,15 +526,8 @@ export async function POST(req: NextRequest) {
     ====================================================== */
 
     if (type === "rsvp") {
-      const roundKey = `round${round}`;
-      const roundData = invitation.rsvpRoundSent?.[roundKey];
-
       const alreadySent = Boolean(
-        roundData?.sentAt ||
-          roundData?.sentAtSms ||
-          roundData?.sentAtWhatsapp ||
-          roundData?.smsSentAt ||
-          roundData?.whatsappSentAt ||
+        getRsvpRoundSentSnapshot(invitation, round).done ||
           invitation.adminMessageRoundLocks?.[`rsvp_${round}`]
       );
 
@@ -810,6 +804,10 @@ guestPayload.urlSuffix = urlSuffix;
                 sentAt: now,
                 sentCount: queueDocs.length,
               },
+              [`rsvpRoundsSent.round${round}.channel`]: "whatsapp",
+              [`rsvpRoundsSent.round${round}.sentAt`]: now,
+              [`rsvpWhatsappRound${round}SentAt`]: now,
+              [`rsvpRound${round}SentAt`]: now,
               updatedAt: now,
             },
             $unset: {

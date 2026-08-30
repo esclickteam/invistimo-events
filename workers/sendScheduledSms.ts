@@ -6,6 +6,7 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 import {
   AUTO_REMINDER_BY_TABLE,
   resolveReminderSmsTemplate,
@@ -102,14 +103,8 @@ function getThankYouScheduledField(channel: Channel) {
 }
 
 function isRsvpRoundSent(invitation: any, round: RoundNumber) {
-  const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
-
   return Boolean(
-    roundData?.sentAt ||
-      roundData?.sentAtSms ||
-      roundData?.sentAtWhatsapp ||
-      roundData?.smsSentAt ||
-      roundData?.whatsappSentAt ||
+    getRsvpRoundSentSnapshot(invitation, round).done ||
       invitation?.adminMessageRoundLocks?.[`rsvp_${round}`]
   );
 }
@@ -465,6 +460,12 @@ async function markInvitationAfterSend({
             sentCount: sent,
             source: "scheduled",
           },
+          [`rsvpRoundsSent.round${round}.channel`]: channel,
+          [`rsvpRoundsSent.round${round}.sentAt`]: now,
+          [`rsvpRound${round}SentAt`]: now,
+          ...(channel === "sms"
+            ? { [`rsvpSmsRound${round}SentAt`]: now }
+            : { [`rsvpWhatsappRound${round}SentAt`]: now }),
           updatedAt: now,
         },
         $unset: {

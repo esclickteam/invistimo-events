@@ -426,6 +426,11 @@ preRsvpMedia: {
        לא מתעדכן בזמן יצירת תזמון.
     ========================================================= */
 
+    rsvpRoundSent: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
+
     rsvpRoundsSent: {
       type: RsvpRoundsSentSchema,
       default: () => ({}),

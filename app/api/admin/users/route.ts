@@ -13,6 +13,7 @@ import {
   ensurePreRsvpInvitationGrant,
   readPreRsvpFlags,
 } from "@/lib/preRsvp/entitlement";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -382,7 +383,7 @@ function buildMessageRounds(
 
   return {
     rsvp: rsvpRounds.map((round) => {
-      const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
+      const roundSnapshot = getRsvpRoundSentSnapshot(invitation, round);
 
       const scheduledMessage = findScheduledMessage(scheduledMessages, {
         invitationId,
@@ -392,24 +393,10 @@ function buildMessageRounds(
         roundNumber: round,
       });
 
-      const sentAt =
-        roundData?.sentAt ||
-        roundData?.sentAtSms ||
-        roundData?.sentAtWhatsapp ||
-        roundData?.smsSentAt ||
-        roundData?.whatsappSentAt ||
-        invitation?.[`rsvpRound${round}SentAt`] ||
-        invitation?.[`rsvpRound${round}sentAt`] ||
-        invitation?.[`rsvpSmsRound${round}SentAt`] ||
-        invitation?.[`rsvpSmsRound${round}sentAt`] ||
-        invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
-        invitation?.[`rsvpWhatsappRound${round}sentAt`] ||
-        null;
-
       const scheduledAt =
-        roundData?.scheduledAt ||
-        roundData?.smsScheduledAt ||
-        roundData?.whatsappScheduledAt ||
+        invitation?.rsvpRoundSent?.[`round${round}`]?.scheduledAt ||
+        invitation?.rsvpRoundSent?.[`round${round}`]?.smsScheduledAt ||
+        invitation?.rsvpRoundSent?.[`round${round}`]?.whatsappScheduledAt ||
         invitation?.[`rsvpRound${round}ScheduledAt`] ||
         invitation?.[`rsvpRound${round}scheduledAt`] ||
         invitation?.[`rsvpSmsRound${round}ScheduledAt`] ||
@@ -422,10 +409,10 @@ function buildMessageRounds(
       return {
         key: `rsvp_${round}`,
         label: `אישורי הגעה סבב ${round}`,
-        done: Boolean(sentAt),
-        sentAt,
+        done: roundSnapshot.done,
+        sentAt: roundSnapshot.sentAt,
         scheduledAt,
-        channel: scheduledMessage?.channel || null,
+        channel: roundSnapshot.channel || scheduledMessage?.channel || null,
         blocked: Boolean(locks?.[`rsvp_${round}`]),
       };
     }),
@@ -691,10 +678,7 @@ packageName
     const [invitations, paymentsAgg, totalRevenueAgg] = await Promise.all([
       userIds.length > 0
         ? Invitation.find({
-            $or: [
-              { ownerId: { $in: userIds } },
-              { userId: { $in: userIds } },
-            ],
+            ownerId: { $in: userIds },
           })
             .select(`
               ownerId
@@ -705,6 +689,7 @@ packageName
               createdAt
               updatedAt
               rsvpRoundSent
+              rsvpRoundsSent
 
               rsvpRound1SentAt
               rsvpRound2SentAt
@@ -932,7 +917,13 @@ packageName
 
     const invitationByUserId = new Map<string, any>();
 
-    const invitationScore = (invitation: any) => {
+    const invitationHasRoundSend = (invitation: any) => {
+      return [1, 2, 3].some((round) =>
+        getRsvpRoundSentSnapshot(invitation, round as 1 | 2 | 3).done
+      );
+    };
+
+    const invitationScore = (invitation: any, userEventDate?: any) => {
       const eventTime = invitation?.eventDate
         ? new Date(invitation.eventDate).getTime()
         : 0;
@@ -942,25 +933,38 @@ packageName
           ? new Date(invitation.createdAt).getTime()
           : 0;
 
-      return (Number.isFinite(eventTime) ? eventTime : 0) * 10 +
-        (Number.isFinite(updatedTime) ? updatedTime : 0);
+      const userEventTime = userEventDate
+        ? new Date(userEventDate).getTime()
+        : 0;
+
+      const sameEventDay =
+        Number.isFinite(eventTime) &&
+        Number.isFinite(userEventTime) &&
+        eventTime > 0 &&
+        userEventTime > 0 &&
+        Math.abs(eventTime - userEventTime) < 48 * 60 * 60 * 1000;
+
+      return (
+        (invitationHasRoundSend(invitation) ? 1e15 : 0) +
+        (sameEventDay ? 1e14 : 0) +
+        (Number.isFinite(eventTime) ? eventTime : 0) * 10 +
+        (Number.isFinite(updatedTime) ? updatedTime : 0)
+      );
     };
 
     for (const invitation of invitations) {
-      const userKeys = Array.from(
-        new Set(
-          [invitation.ownerId, invitation.userId]
-            .filter(Boolean)
-            .map((id: any) => String(id))
-        )
-      );
+      const uid = invitation.ownerId ? String(invitation.ownerId) : "";
+      if (!uid) continue;
 
-      for (const uid of userKeys) {
-        const current = invitationByUserId.get(uid);
+      const current = invitationByUserId.get(uid);
+      const user = users.find((item: any) => String(item._id) === uid);
+      const score = invitationScore(invitation, user?.eventDate);
+      const currentScore = current
+        ? invitationScore(current, user?.eventDate)
+        : -1;
 
-        if (!current || invitationScore(invitation) > invitationScore(current)) {
-          invitationByUserId.set(uid, invitation);
-        }
+      if (!current || score > currentScore) {
+        invitationByUserId.set(uid, invitation);
       }
     }
 
