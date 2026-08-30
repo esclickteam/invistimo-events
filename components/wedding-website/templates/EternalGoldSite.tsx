@@ -16,9 +16,9 @@ import {
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingCoverImage from "../WeddingCoverImage";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -55,19 +55,12 @@ function Section({
 
 function StickyNav() {
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-3 scrollbar-none">
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 border-b-2 border-transparent px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold tracking-wide text-[#8A7560] transition hover:border-[#C9A962] hover:text-[#2A2118]"
-          >
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md"
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C9A962]/40 text-[#2A2118]"
+      panelClassName="border-t border-[#C9A962]/30 bg-[#FAF7F2]"
+      linkClassName="rounded-xl px-4 py-3 text-right font-['Cormorant_Garamond'] text-sm font-semibold text-[#8A7560] hover:bg-[#C9A962]/10 hover:text-[#2A2118]"
+    />
   );
 }
 
@@ -599,7 +592,7 @@ export default function EternalGoldSite({
 }: TemplateProps) {
   return (
     <div className="wedding-website-root overflow-x-hidden bg-[#FAF7F2] text-[#2A2118] scroll-smooth">
-      {!embed && <StickyNav />}
+      <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />

@@ -9,12 +9,13 @@ import { htmlToPlainTextWithBreaks } from "@/lib/weddingWebsite/textEditing";
 import EditorSelectionToolbar from "./EditorSelectionToolbar";
 
 const SKIP = "[data-ww-chrome],.ww-editor-ui,input,textarea,select,[data-rsvp-core]";
+const INNER_EDIT = '[data-ww-edit="text"],[data-ww-edit="media"],[data-ww-edit="countdown"],[data-ww-edit="gallery"]';
 
 type HoverState = {
   type: string;
   path: string;
   label: string;
-  rect: DOMRect;
+  el: HTMLElement;
 };
 
 export default function EditorOverlay() {
@@ -23,6 +24,7 @@ export default function EditorOverlay() {
   const [hover, setHover] = useState<HoverState | null>(null);
   const [toolbarRect, setToolbarRect] = useState<DOMRect | null>(null);
   const persistTimer = useRef<number | null>(null);
+  const selectedElRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
@@ -33,7 +35,7 @@ export default function EditorOverlay() {
       const el = target instanceof Element ? target : null;
       if (!el) return null;
       if (el.closest(SKIP)) return null;
-      const preferred = el.closest('[data-ww-edit="text"],[data-ww-edit="media"]') as HTMLElement | null;
+      const preferred = el.closest(INNER_EDIT) as HTMLElement | null;
       const hit = (preferred || el.closest("[data-ww-edit]")) as HTMLElement | null;
       if (!hit) return null;
       const type = hit.dataset.wwEdit || "";
@@ -43,7 +45,7 @@ export default function EditorOverlay() {
         type,
         path,
         label: hit.dataset.wwLabel || labelFor(type),
-        rect: hit.getBoundingClientRect(),
+        el: hit,
       };
     }
 
@@ -61,10 +63,12 @@ export default function EditorOverlay() {
       if (event.button !== 0) return;
       const next = fromTarget(event.target);
       if (!next) {
+        selectedElRef.current = null;
         api.setSelection(null);
         return;
       }
 
+      selectedElRef.current = next.el;
       api.setSelection(toSelection(next));
 
       if (next.type === "text") {
@@ -121,33 +125,73 @@ export default function EditorOverlay() {
   }, [editor]);
 
   useEffect(() => {
-    if (!editor?.selection) {
+    const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
+    if (!canvas || !editor?.selection) {
       setToolbarRect(null);
       return;
     }
-    const path = editor.selection.path;
-    const el = document.querySelector(
-      `.ww-editor-canvas [data-ww-path="${cssAttr(path)}"][data-ww-edit]`
-    ) as HTMLElement | null;
-    setToolbarRect(el?.getBoundingClientRect() || null);
+
+    function measure() {
+      const selection = editor.selection;
+      if (!selection) {
+        setToolbarRect(null);
+        return;
+      }
+      const el =
+        (selectedElRef.current?.isConnected &&
+        selectedElRef.current.dataset.wwPath === selection.path
+          ? selectedElRef.current
+          : null) || findSelectedElement(canvas, selection);
+      selectedElRef.current = el;
+      if (!el) {
+        setToolbarRect(null);
+        return;
+      }
+      setToolbarRect(clampRect(el.getBoundingClientRect(), canvas.getBoundingClientRect()));
+    }
+
+    measure();
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    canvas.addEventListener("scroll", measure);
+    const parent = canvas.parentElement;
+    parent?.addEventListener("scroll", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+      canvas.removeEventListener("scroll", measure);
+      parent?.removeEventListener("scroll", measure);
+    };
   }, [editor?.selection, site?.content]);
 
   if (!site || site.mode !== "editor") return null;
 
   const selected = editor?.selection;
-  const outline = hover && hover.path !== selected?.path ? hover : null;
+  const outline =
+    hover && hover.path !== selected?.path
+      ? {
+          rect: clampRect(
+            hover.el.getBoundingClientRect(),
+            document.querySelector(".ww-editor-canvas")?.getBoundingClientRect()
+          ),
+          label: hover.label,
+        }
+      : null;
+  const canvasTop = document.querySelector(".ww-editor-canvas")?.getBoundingClientRect().top ?? 72;
 
   return createPortal(
     <div className="ww-editor-ui pointer-events-none fixed inset-0 z-[80]" data-ww-chrome="1">
-      {outline ? <OutlineBox rect={outline.rect} label={outline.label} muted /> : null}
-      {selected && toolbarRect ? (
+      {outline && outline.rect.width > 2 && outline.rect.height > 2 ? (
+        <OutlineBox rect={outline.rect} label={outline.label} muted />
+      ) : null}
+      {selected && toolbarRect && toolbarRect.width > 2 && toolbarRect.height > 2 ? (
         <OutlineBox rect={toolbarRect} label={selected.label} />
       ) : null}
       {selected && toolbarRect ? (
         <div
           className="pointer-events-auto absolute"
           style={{
-            top: Math.max(8, toolbarRect.top - 56),
+            top: Math.max(canvasTop + 8, toolbarRect.top - 56),
             left: Math.min(window.innerWidth - 24, Math.max(12, toolbarRect.left)),
           }}
         >
@@ -193,12 +237,41 @@ function toSelection(hover: HoverState): WeddingSiteSelection {
   if (hover.type === "media") return { type: "media", path: hover.path, label: hover.label };
   if (hover.type === "section") return { type: "section", path: hover.path, label: hover.label };
   if (hover.type === "gallery") return { type: "gallery", path: hover.path, label: hover.label };
+  if (hover.type === "countdown") return { type: "countdown", path: hover.path, label: hover.label };
   return { type: "text", path: hover.path, label: hover.label };
+}
+
+function findSelectedElement(canvas: Element, selection: NonNullable<WeddingSiteSelection>) {
+  const path = cssAttr(selection.path);
+  const typed = canvas.querySelector(
+    `[data-ww-path="${path}"][data-ww-edit="${selection.type}"]`
+  ) as HTMLElement | null;
+  if (typed) return typed;
+  if (selection.type === "section") {
+    const handle = canvas.querySelector(
+      `.ww-section-handle[data-ww-path="${path}"]`
+    ) as HTMLElement | null;
+    if (handle) return handle;
+  }
+  const inner = canvas.querySelector(
+    `[data-ww-path="${path}"]${INNER_EDIT}`
+  ) as HTMLElement | null;
+  return inner;
+}
+
+function clampRect(rect: DOMRect, bounds?: DOMRect | null) {
+  if (!bounds) return rect;
+  const top = Math.max(rect.top, bounds.top);
+  const left = Math.max(rect.left, bounds.left);
+  const right = Math.min(rect.right, bounds.right);
+  const bottom = Math.min(rect.bottom, bounds.bottom);
+  return new DOMRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
 }
 
 function labelFor(type: string) {
   if (type === "media") return "החלפת מדיה";
   if (type === "section") return "עריכת מקטע";
+  if (type === "countdown") return "ספירה לאחור";
   return "עריכת טקסט";
 }
 

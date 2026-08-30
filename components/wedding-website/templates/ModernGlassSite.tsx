@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useFaqAccordion,
   useGuestbook,
@@ -17,8 +16,8 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const ACCENT = "#7C9CFF";
 const DARK = "#0A0E17";
 
@@ -91,43 +90,26 @@ function GlassPanel({
   );
 }
 
-function GlassNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
+function GlassNav() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4">
-      <GlassPanel
-        className={`mx-auto flex max-w-6xl items-center justify-between px-6 py-3 transition ${
-          scrolled ? "shadow-[0_8px_40px_rgba(124,156,255,0.15)]" : ""
-        }`}
-      >
-        <span className="text-xs font-medium text-[#7C9CFF]">
-          {DEMO.coupleShort}
-        </span>
-        <nav className="hidden gap-1 md:flex">
-          {NAV.slice(1, 10).map(({ id, navLabel }) => (
+    <div className="sticky top-0 z-50 px-4 pt-4">
+      <GlassPanel>
+        <WeddingSiteMenu
+          brand={<span className="text-xs font-medium text-[#7C9CFF]">{DEMO.coupleShort}</span>}
+          buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#7C9CFF]/30 text-[#7C9CFF]"
+          panelClassName="rounded-2xl bg-[#0A0E17]/95"
+          linkClassName="rounded-lg px-4 py-3 text-right text-xs text-[#8892A8] hover:bg-white/5 hover:text-white"
+          extra={
             <a
-              key={id}
-              href={`#${id}`}
-              className="rounded-lg px-3 py-1.5 text-xs text-[#8892A8] transition hover:bg-white/5 hover:text-white"
+              href="#rsvp"
+              className="rounded-xl bg-[#7C9CFF]/20 px-4 py-2 text-xs font-bold text-[#7C9CFF] backdrop-blur hover:bg-[#7C9CFF]/30"
             >
-              {navLabel}
+              RSVP
             </a>
-          ))}
-        </nav>
-        <a
-          href="#rsvp"
-          className="rounded-xl bg-[#7C9CFF]/20 px-4 py-2 text-xs font-bold text-[#7C9CFF] backdrop-blur hover:bg-[#7C9CFF]/30"
-        >
-          RSVP
-        </a>
+          }
+        />
       </GlassPanel>
-    </header>
+    </div>
   );
 }
 
@@ -170,10 +152,10 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
   return (
     <div className="min-h-screen overflow-x-hidden font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
       <GradientMeshBg />
-      <GlassNav embed={embed} />
+      <GlassNav />
 
       {/* HERO — bento grid with video cell */}
-      <section id="hero" className={`relative px-4 ${embed ? "pt-4" : "pt-24"} md:px-8`}>
+      <section id="hero" className="relative px-4 pt-4 md:px-8">
         <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-4 md:grid-rows-2 md:gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

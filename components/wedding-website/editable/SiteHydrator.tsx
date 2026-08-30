@@ -79,7 +79,10 @@ export function WeddingSiteRuntimeStyles() {
         .join("")}
       ${mode === "editor"
         ? `
-        .ww-editor-canvas { overflow-anchor: none; }
+        .ww-editor-canvas { overflow-anchor: none; overflow-x: hidden; }
+        .ww-editor-canvas .ww-site,
+        .ww-editor-canvas .wedding-website-root { max-width: 100%; overflow-x: hidden; }
+        .ww-editor-canvas .w-screen { width: 100% !important; max-width: 100% !important; }
         [data-ww-edit]{cursor:pointer}
         [data-ww-edit="text"]{
           cursor:text;
@@ -93,6 +96,21 @@ export function WeddingSiteRuntimeStyles() {
         [data-ww-edit="text"][contenteditable="true"]{outline:none!important;box-shadow:none!important;cursor:text}
         .ww-site img[data-ww-edit], .ww-site video[data-ww-edit]{cursor:pointer}
         .ww-edit-text{display:inline}
+        [data-ww-section]{position:relative}
+        .ww-section-handle{
+          position:absolute;
+          top:8px;
+          right:8px;
+          z-index:30;
+          border:0;
+          border-radius:999px;
+          background:#C9A962;
+          color:#fff;
+          font-size:10px;
+          font-weight:900;
+          padding:4px 10px;
+          cursor:pointer;
+        }
       `
         : `
         [data-ww-path]{white-space:pre-wrap}
@@ -176,17 +194,32 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
 
   hydrateSectionTitles(root, content, isEditor);
 
-  if (!isEditor) return;
+  if (!isEditor) {
+    root.querySelectorAll(".ww-section-handle").forEach((handle) => handle.remove());
+    return;
+  }
 
   root.querySelectorAll("section[id], [id].scroll-mt-24").forEach((section) => {
     const id = section.getAttribute("id");
     if (!id) return;
     if (section.closest(SKIP)) return;
-    if (section.getAttribute("data-ww-edit") === "text") return;
-    if (section.getAttribute("data-ww-edit") === "media") return;
-    section.setAttribute("data-ww-edit", "section");
-    section.setAttribute("data-ww-path", id);
-    section.setAttribute("data-ww-label", "מקטע");
+    const edit = section.getAttribute("data-ww-edit");
+    if (edit === "text" || edit === "media" || edit === "countdown") return;
+    section.setAttribute("data-ww-section", id);
+    if (edit === "section") {
+      section.removeAttribute("data-ww-edit");
+      section.removeAttribute("data-ww-path");
+      section.removeAttribute("data-ww-label");
+    }
+    if (section.querySelector(":scope > .ww-section-handle")) return;
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "ww-section-handle";
+    handle.dataset.wwEdit = "section";
+    handle.dataset.wwPath = id;
+    handle.dataset.wwLabel = "מקטע";
+    handle.textContent = "מקטע";
+    section.insertBefore(handle, section.firstChild);
   });
 }
 

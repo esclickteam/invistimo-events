@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
   useFaqAccordion,
   useGuestbook,
@@ -17,8 +15,8 @@ import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
-const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
 
 function LaceBg() {
@@ -53,43 +51,27 @@ function DoubleFrame({ src, alt = "", slot }: { src: string; alt?: string; slot?
   );
 }
 
-function RoyalNav({ embed }: { embed?: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  if (embed) return null;
+function RoyalNav() {
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-        scrolled ? "bg-[#FDFBF7]/95 shadow-sm backdrop-blur-md" : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <WeddingSiteMenu
+      className="sticky top-0 z-50 bg-[#FDFBF7]/95 shadow-sm backdrop-blur-md"
+      brand={
         <span className="font-['Playfair_Display'] text-sm italic text-[#8C7B68]">
           {DEMO.coupleShort}
         </span>
-        <nav className="hidden gap-6 lg:flex">
-          {NAV.slice(1, 9).map(({ id, navLabel }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="font-['Playfair_Display'] text-xs tracking-wide text-[#2C2419]/70 transition hover:text-[#B8956B]"
-            >
-              {navLabel}
-            </a>
-          ))}
-        </nav>
+      }
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#B8956B] text-[#B8956B]"
+      panelClassName="border-t border-[#B8956B]/20 bg-[#FDFBF7]"
+      linkClassName="rounded-xl px-4 py-3 text-right font-['Playfair_Display'] text-xs tracking-wide text-[#2C2419]/70 hover:text-[#B8956B]"
+      extra={
         <a
           href="#rsvp"
           className="rounded-full border border-[#B8956B] px-5 py-2 font-['Playfair_Display'] text-xs text-[#B8956B] transition hover:bg-[#B8956B] hover:text-white"
         >
           אישור הגעה
         </a>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -130,10 +112,10 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
 
   return (
     <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
-      <RoyalNav embed={embed} />
+      <RoyalNav />
 
       {/* HERO — overlapping double frames */}
-      <section id="hero" className={`relative overflow-hidden ${embed ? "pt-0" : "pt-20"}`}>
+      <section id="hero" className="relative overflow-hidden">
         <LaceBg />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:grid-cols-2 md:py-32">
           <motion.div

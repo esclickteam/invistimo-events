@@ -15,6 +15,7 @@ export type WeddingSiteSelection =
   | { type: "media"; path: string; label: string }
   | { type: "section"; path: string; label: string }
   | { type: "gallery"; path: string; label: string }
+  | { type: "countdown"; path: string; label: string }
   | null;
 
 export type WeddingLiveRole = "demo" | "guest" | "couple";

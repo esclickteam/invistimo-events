@@ -15,8 +15,8 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
-import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
+import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -77,22 +77,13 @@ function Section({ id, children, className = "", diagonal = false }: { id: strin
 
 function StickyNav() {
   return (
-    <nav className="sticky top-0 z-50">
-      <div
-        className="mx-4 mt-2 flex items-center gap-1 overflow-x-auto px-4 py-3 backdrop-blur-md scrollbar-none"
-        style={{
-          background: "linear-gradient(135deg, rgba(251,245,240,0.95), rgba(245,232,222,0.95))",
-          clipPath: "polygon(2% 0, 100% 0, 98% 100%, 0 100%)",
-          borderBottom: `2px solid ${TERRACOTTA}`,
-        }}
-      >
-        {WEDDING_SECTIONS.filter((s) => s.id !== "footer").map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="shrink-0 px-3 py-1.5 font-['Cormorant_Garamond'] text-sm font-semibold text-[#9A7060] transition hover:text-[#C4705A]">
-            {s.navLabel}
-          </a>
-        ))}
-      </div>
-    </nav>
+    <WeddingSiteMenu
+      className="sticky top-0 z-50"
+      barClassName="mx-4 mt-2 backdrop-blur-md"
+      buttonClassName="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C4705A]/40 text-[#3D2518]"
+      panelClassName="border-t border-[#C4705A]/20 bg-[#FBF5F0]"
+      linkClassName="rounded-xl px-4 py-3 text-right font-['Cormorant_Garamond'] text-sm font-semibold text-[#9A7060] hover:text-[#C4705A]"
+    />
   );
 }
 
@@ -543,7 +534,7 @@ export default function DesertRoseSite({
 }: TemplateProps) {
   return (
     <div className="wedding-website-root overflow-x-hidden bg-[#FBF5F0] text-[#3D2518] scroll-smooth">
-      {!embed && <StickyNav />}
+      <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />
