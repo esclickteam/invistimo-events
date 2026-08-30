@@ -76,10 +76,13 @@ const OVERRIDES: Partial<Record<WeddingSectionId, Partial<EditorSectionMeta>>> =
   rsvp: {
     label: "אישור הגעה",
     core: true,
-    settings: ["background", "spacing", "align", "radius", "typography"],
-    hint: "אפשר לערוך גם את דף התודה אחרי שליחה: כותרות, הודעה, צבעים ורקע.",
+    settings: ["background", "spacing", "align", "radius", "typography", "media", "imageFit"],
+    hint: "אפשר לערוך טקסט, צבעים, תמונת רקע וגם את דף התודה אחרי שליחה. השליחה עצמה נשארת במערכת האורחים.",
   },
-  gifts: { label: "מתנות" },
+  gifts: {
+    label: "מתנות",
+    settings: [...BASE_SETTINGS, "media", "imageFit"],
+  },
   guestbook: {
     label: "הודעה לזוג",
     hint: "ההודעות שהאורחים שולחים מגיעות לדשבורד.",

@@ -1,4 +1,5 @@
 import { textStyleToCss } from "./styles";
+import { isSectionBackgroundMediaId } from "./media";
 import type { WeddingDemoContent, WeddingSectionStyle } from "@/types/weddingWebsite";
 
 /**
@@ -67,6 +68,11 @@ function sectionRules(id: string, style: WeddingSectionStyle) {
       `${selector} [data-rsvp-card]{background-color:${style.cardBackgroundColor}!important}`
     );
   }
+  if (style.buttonBackgroundColor) {
+    blocks.push(
+      `${selector} [data-rsvp-submit]{background-color:${style.buttonBackgroundColor}!important;background-image:none!important}`
+    );
+  }
   if (id === "hero" && style.overlayOpacity !== undefined) {
     blocks.push(
       `${selector} [class*="bg-gradient-to"]{opacity:${Math.max(0, Math.min(100, style.overlayOpacity)) / 100}}`
@@ -77,9 +83,25 @@ function sectionRules(id: string, style: WeddingSectionStyle) {
 }
 
 export function buildSectionStyleCss(content?: WeddingDemoContent | null) {
-  return Object.entries(content?.sectionStyles || {})
+  const fromStyles = Object.entries(content?.sectionStyles || {})
     .map(([id, style]) => sectionRules(id, style || {}))
     .join("");
+
+  const fromMedia = Object.keys(content?.media || {})
+    .filter((id) => isSectionBackgroundMediaId(id) && content?.media?.[id]?.src)
+    .map((id) => sectionBackgroundStackCss(id))
+    .join("");
+
+  return `${fromStyles}${fromMedia}`;
+}
+
+function sectionBackgroundStackCss(id: string) {
+  const selector = `#${cssEscapeIdent(id)}`;
+  return [
+    `${selector}{position:relative;isolation:isolate}`,
+    `${selector}>.ww-section-bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}`,
+    `${selector}>:not(.ww-section-bg){position:relative;z-index:1}`,
+  ].join("");
 }
 
 /**

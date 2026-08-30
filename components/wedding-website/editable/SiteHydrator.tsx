@@ -26,6 +26,12 @@ import {
 } from "@/lib/weddingWebsite/textEditing";
 import type { WeddingDemoContent } from "@/types/weddingWebsite";
 import { useWeddingSite } from "./WeddingSiteContext";
+import {
+  mediaElementStyle,
+  optimizedMediaUrl,
+  resolveMediaSlot,
+  SECTION_BACKGROUND_MEDIA_IDS,
+} from "@/lib/weddingWebsite/media";
 
 const SKIP = `${BUSINESS_LOGIC_SKIP},.ww-editor-ui,[data-ww-chrome]`;
 
@@ -227,6 +233,7 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
   }
 
   hydrateSectionTitles(root, content, isEditor);
+  hydrateSectionBackgrounds(root, content);
 
   if (!isEditor) {
     root.querySelectorAll(".ww-section-handle").forEach((handle) => handle.remove());
@@ -255,6 +262,59 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     handle.textContent = "מקטע";
     section.insertBefore(handle, section.firstChild);
   });
+}
+
+function hydrateSectionBackgrounds(root: Element, content: WeddingDemoContent) {
+  for (const id of SECTION_BACKGROUND_MEDIA_IDS) {
+    const section = root.querySelector(`#${cssEscape(id)}`);
+    if (!(section instanceof HTMLElement)) continue;
+    const existing = section.querySelector(":scope > .ww-section-bg") as HTMLElement | null;
+    const slot = resolveMediaSlot(id, content);
+    if (!slot?.src) {
+      existing?.remove();
+      continue;
+    }
+
+    const wrap = existing || document.createElement("div");
+    wrap.className = "ww-section-bg";
+    wrap.setAttribute("aria-hidden", "true");
+    wrap.replaceChildren();
+
+    const media = document.createElement(slot.type === "video" ? "video" : "img");
+    const src = optimizedMediaUrl(slot, 1920) || slot.src;
+    const style = mediaElementStyle(slot);
+    Object.assign(media.style, {
+      width: style.width,
+      height: style.height,
+      objectFit: style.objectFit,
+      objectPosition: style.objectPosition,
+      transform: style.transform || "",
+    });
+    if (slot.type === "video") {
+      const video = media as HTMLVideoElement;
+      video.src = src;
+      video.muted = true;
+      video.loop = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      if (slot.poster) video.poster = slot.poster;
+      void video.play().catch(() => undefined);
+    } else {
+      (media as HTMLImageElement).src = src;
+      (media as HTMLImageElement).alt = "";
+    }
+    wrap.appendChild(media);
+
+    const overlay = content.sectionStyles?.[id]?.overlayOpacity;
+    if (overlay && overlay > 0) {
+      const veil = document.createElement("div");
+      veil.style.cssText = `position:absolute;inset:0;background:#000;opacity:${Math.min(80, overlay) / 100}`;
+      wrap.appendChild(veil);
+    }
+
+    if (!existing) section.insertBefore(wrap, section.firstChild);
+  }
 }
 
 function hydrateSectionTitles(

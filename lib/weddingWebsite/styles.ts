@@ -55,6 +55,12 @@ export function sanitizeSectionStyle(value: unknown): WeddingSectionStyle {
   ) {
     next.cardBackgroundColor = raw.cardBackgroundColor.trim();
   }
+  if (
+    typeof raw.buttonBackgroundColor === "string" &&
+    /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw.buttonBackgroundColor.trim())
+  ) {
+    next.buttonBackgroundColor = raw.buttonBackgroundColor.trim();
+  }
   if (typeof raw.paddingTop === "string") next.paddingTop = raw.paddingTop.trim().slice(0, 16);
   if (typeof raw.paddingBottom === "string") next.paddingBottom = raw.paddingBottom.trim().slice(0, 16);
   if (raw.align === "right" || raw.align === "center" || raw.align === "left") {

@@ -207,6 +207,15 @@ export function mergeWeddingWebsiteContent(
       cleanString((raw as WeddingDemoContent).rsvpUpdateLabel) ||
       base.rsvpUpdateLabel ||
       "רוצים לעדכן?",
+    rsvpYesLabel: cleanString((raw as WeddingDemoContent).rsvpYesLabel) || base.rsvpYesLabel,
+    rsvpNoLabel: cleanString((raw as WeddingDemoContent).rsvpNoLabel) || base.rsvpNoLabel,
+    rsvpSubmitLabel:
+      cleanString((raw as WeddingDemoContent).rsvpSubmitLabel) || base.rsvpSubmitLabel,
+    rsvpCountLabel:
+      cleanString((raw as WeddingDemoContent).rsvpCountLabel) || base.rsvpCountLabel,
+    rsvpNotesLabel:
+      cleanString((raw as WeddingDemoContent).rsvpNotesLabel) || base.rsvpNotesLabel,
+    rsvpNote: cleanString((raw as WeddingDemoContent).rsvpNote) || base.rsvpNote,
     transportationTitle:
       cleanString((raw as WeddingDemoContent).transportationTitle) || base.transportationTitle,
     transportationDescription:

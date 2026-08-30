@@ -108,6 +108,8 @@ export type WeddingSectionStyle = {
   imageFit?: WeddingMediaFit;
   /** Optional card/surface fill for nested panels (e.g. RSVP thank-you card). */
   cardBackgroundColor?: string;
+  /** RSVP submit / primary action fill. */
+  buttonBackgroundColor?: string;
   /** Hero only: 0-100 darkening of the background media. */
   overlayOpacity?: number;
   /** Hero only: viewport height percentage. */
@@ -146,6 +148,13 @@ export type WeddingDemoContent = {
   rsvpSuccessMessage?: string;
   /** CTA under the thank-you message that re-opens the form. */
   rsvpUpdateLabel?: string;
+  rsvpYesLabel?: string;
+  rsvpNoLabel?: string;
+  rsvpSubmitLabel?: string;
+  rsvpCountLabel?: string;
+  rsvpNotesLabel?: string;
+  /** Guest-facing note on the RSVP card (e.g. Home Front Command). */
+  rsvpNote?: string;
   transportationTitle?: string;
   transportationDescription?: string;
   heroImage?: string;

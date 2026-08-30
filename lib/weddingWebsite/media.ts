@@ -13,6 +13,13 @@ import {
 const VIDEO_EXT_RE = /\.(mp4|webm|ogg)(\?|#|$)/i;
 const VIDEO_HOST_RE = /(\/video\/upload\/|\.mp4|\.webm)/i;
 
+/** Sections that store `content.media[id]` as a full-bleed backdrop, not an inline image. */
+export const SECTION_BACKGROUND_MEDIA_IDS = ["rsvp", "gifts"] as const;
+
+export function isSectionBackgroundMediaId(id: string) {
+  return (SECTION_BACKGROUND_MEDIA_IDS as readonly string[]).includes(id);
+}
+
 export const DEFAULT_WEDDING_MEDIA: Omit<WeddingMediaSlot, "src" | "type"> = {
   fit: "cover",
   position: "50% 50%",

@@ -99,15 +99,21 @@ test("RSVP thank-you state is editable on the wedding website", () => {
 
   assert.match(schema, /rsvpSuccessMessage/);
   assert.match(schema, /rsvpUpdateLabel/);
+  assert.match(schema, /rsvpYesLabel/);
+  assert.match(schema, /rsvpNote/);
   assert.match(schema, /data-rsvp-state='form'/);
   assert.match(form, /forceSent/);
   assert.match(form, /data-rsvp-card/);
+  assert.match(form, /data-rsvp-submit/);
   assert.match(form, /copy\?\.success/);
+  assert.match(form, /editable/);
   assert.match(templateRsvp, /forceSent/);
   assert.match(templateRsvp, /rsvpSuccessMessage/);
-  assert.match(templateRsvp, /תצוגת דף תודה/);
+  assert.match(templateRsvp, /editable=\{isEditor\}/);
   assert.match(settings, /cardBackgroundColor/);
+  assert.match(settings, /buttonBackgroundColor/);
   assert.match(siteCss, /data-rsvp-card/);
+  assert.match(siteCss, /data-rsvp-submit/);
 });
 
 test("changing the text colour does not repaint hero scrims or dark panels", () => {
@@ -234,6 +240,8 @@ test("section style values are clamped and rejected when nonsense", () => {
     heroHeight: 5000,
     overlayOpacity: -20,
     imageFit: "weird",
+    buttonBackgroundColor: "red",
+    cardBackgroundColor: "#abc",
   });
   assert.equal(clean.columns, 6);
   assert.equal(clean.gap, undefined);
@@ -242,6 +250,8 @@ test("section style values are clamped and rejected when nonsense", () => {
   assert.equal(clean.heroHeight, 130);
   assert.equal(clean.overlayOpacity, 0);
   assert.equal(clean.imageFit, undefined);
+  assert.equal(clean.buttonBackgroundColor, undefined);
+  assert.equal(clean.cardBackgroundColor, "#abc");
 });
 
 test("class selectors are escaped so arbitrary Tailwind values stay valid css", () => {
@@ -266,7 +276,15 @@ test("the section registry covers every renderable section and protects core one
 
   // RSVP exposes design only; guest limits and statuses stay in the real system.
   const rsvp = EDITOR_SECTIONS.find((section) => section.id === "rsvp")!;
-  assert.deepEqual(rsvp.settings, ["background", "spacing", "align", "radius", "typography"]);
+  assert.deepEqual(rsvp.settings, [
+    "background",
+    "spacing",
+    "align",
+    "radius",
+    "typography",
+    "media",
+    "imageFit",
+  ]);
 });
 
 test("a stale saved order can never hide or duplicate a section", () => {

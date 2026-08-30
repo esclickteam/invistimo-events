@@ -15,6 +15,9 @@ type Props = {
   showHeading?: boolean;
 };
 
+const DEFAULT_RSVP_NOTE =
+  "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.";
+
 export default function WeddingTemplateRsvp({
   templateId,
   controller,
@@ -30,6 +33,12 @@ export default function WeddingTemplateRsvp({
     heading: site?.content.rsvpSubtitle || RSVP_COPY.heading,
     success: site?.content.rsvpSuccessMessage || RSVP_COPY.success,
     updateLabel: site?.content.rsvpUpdateLabel || "רוצים לעדכן?",
+    yesLabel: site?.content.rsvpYesLabel || RSVP_COPY.yesLabel,
+    noLabel: site?.content.rsvpNoLabel || RSVP_COPY.noLabel,
+    submitLabel: site?.content.rsvpSubmitLabel || RSVP_COPY.submit,
+    countLabel: site?.content.rsvpCountLabel || RSVP_COPY.countLabel,
+    notesLabel: site?.content.rsvpNotesLabel || RSVP_COPY.notesLabel,
+    publicNote: site?.content.rsvpNote || (isEditor ? DEFAULT_RSVP_NOTE : ""),
   };
 
   if (controller?.loading) {
@@ -47,9 +56,10 @@ export default function WeddingTemplateRsvp({
         appearance={appearance}
         showHeading={showHeading}
         showTransportation={isLive && !isEditor}
-        showGiftAndNote={isLive && !isEditor}
+        showGiftAndNote
         allowUpdateAfterSubmit
         copy={copy}
+        editable={isEditor}
       />
 
       {isEditor ? (
@@ -66,6 +76,7 @@ export default function WeddingTemplateRsvp({
             allowUpdateAfterSubmit
             copy={copy}
             forceSent
+            editable
           />
         </div>
       ) : null}

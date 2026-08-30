@@ -31,6 +31,12 @@ export const EDITOR_TEXT_FIELDS: EditorField[] = [
   { path: "rsvpSubtitle", type: "text", label: "משנה לאישור הגעה", sectionId: "rsvp" },
   { path: "rsvpSuccessMessage", type: "text", label: "הודעת תודה", sectionId: "rsvp" },
   { path: "rsvpUpdateLabel", type: "text", label: "קישור עדכון תשובה", sectionId: "rsvp" },
+  { path: "rsvpYesLabel", type: "text", label: "כפתור מגיע", sectionId: "rsvp" },
+  { path: "rsvpNoLabel", type: "text", label: "כפתור לא מגיע", sectionId: "rsvp" },
+  { path: "rsvpSubmitLabel", type: "text", label: "כפתור שליחה", sectionId: "rsvp" },
+  { path: "rsvpCountLabel", type: "text", label: "כותרת מספר אורחים", sectionId: "rsvp" },
+  { path: "rsvpNotesLabel", type: "text", label: "כותרת בקשות מיוחדות", sectionId: "rsvp" },
+  { path: "rsvpNote", type: "richtext", label: "הערת אישור הגעה", sectionId: "rsvp" },
   { path: "transportationTitle", type: "text", label: "כותרת הגעה", sectionId: "transportation" },
   { path: "transportationDescription", type: "text", label: "תיאור הגעה", sectionId: "transportation" },
 ];
