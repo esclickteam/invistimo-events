@@ -35,7 +35,10 @@ test("Google Maps prefers a place label over bare coordinates", () => {
     getWazeLink(location),
     "https://waze.com/ul?ll=32.0961,34.7732&navigate=yes"
   );
-  assert.match(getGoogleMapsEmbedUrl(location, 16) || "", /אולמי|32\.0961/);
+  assert.equal(
+    getGoogleMapsEmbedUrl(location, 16),
+    "https://www.google.com/maps?q=32.0961,34.7732&z=16&output=embed"
+  );
 });
 
 test("Waze coordinate links keep a raw comma so the app opens the pin", () => {
@@ -272,4 +275,9 @@ test("placeName beats the typed name for the Google Maps label", () => {
       "שיבולים גן אירועים"
     )}&query_place_id=${encodeURIComponent("ChIJShibolim")}`
   );
+  assert.equal(
+    getGoogleMapsEmbedUrl(location, 15),
+    "https://www.google.com/maps?q=32.591962,35.414497&z=15&output=embed"
+  );
+  assert.doesNotMatch(getGoogleMapsEmbedUrl(location, 15) || "", /query_place_id/);
 });

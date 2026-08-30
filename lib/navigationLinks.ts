@@ -400,25 +400,14 @@ export function getWazeAppLink(location: NavLocation, custom?: NavCustomLinks) {
 }
 
 export function getGoogleMapsEmbedUrlForTarget(target: NavTarget, zoom = 16) {
-  const label = firstText(target.label, target.query);
-  const placeId = firstText(target.placeId);
-
-  if (placeId && label) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      label
-    )}&query_place_id=${encodeURIComponent(placeId)}&output=embed`;
-  }
-
-  if (label && target.lat != null && target.lng != null) {
-    return `https://www.google.com/maps?q=${encodeURIComponent(
-      label
-    )}&ll=${target.lat},${target.lng}&z=${zoom}&output=embed`;
-  }
-
+  // Iframes only render the classic maps URL with output=embed. Search API
+  // links (query_place_id) and /place/ paths show a broken frame — keep those
+  // for the Google Maps button, not the embedded preview.
   if (target.lat != null && target.lng != null) {
     return `https://www.google.com/maps?q=${target.lat},${target.lng}&z=${zoom}&output=embed`;
   }
 
+  const label = firstText(target.label, target.query);
   if (!label) return null;
 
   return `https://www.google.com/maps?q=${encodeURIComponent(
