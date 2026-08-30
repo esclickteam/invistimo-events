@@ -56,6 +56,11 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
   rsvpSuccessMessage: "✓ תודה! תשובתך התקבלה",
   rsvpUpdateLabel: "רוצים לעדכן?",
+  rsvpYesLabel: "מגיע/ה",
+  rsvpNoLabel: "לא מגיע/ה",
+  rsvpSubmitLabel: "שליחת אישור הגעה",
+  rsvpCountLabel: "כמה מגיעים?",
+  rsvpNotesLabel: "בקשות מיוחדות:",
   sections: {
     hero: true,
     countdown: true,

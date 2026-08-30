@@ -61,7 +61,9 @@ test("draft autosave does not publish the live site", () => {
 test("RSVP business logic stays locked away from the visual editor", () => {
   const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
   const schema = read("lib/weddingWebsite/editorSchema.ts");
-  assert.match(overlay, /data-rsvp-core/);
+  const form = read("components/rsvp/GuestRsvpForm.tsx");
+  assert.match(overlay, /data-rsvp-interactive/);
+  assert.match(form, /data-rsvp-interactive/);
   assert.match(schema, /RSVP_LOGIC_LOCK/);
   assert.doesNotMatch(overlay, /guestCount/);
   assert.doesNotMatch(overlay, /menuOptions/);
@@ -236,6 +238,7 @@ test("editor text stays selectable and the color picker includes a spectrum", ()
   assert.match(hydrator, /contentEditable = "true"/);
   assert.match(hydrator, /overflow-anchor: none/);
   assert.match(hydrator, /user-select:text/);
+  assert.match(hydrator, /ww-section-bg/);
   assert.doesNotMatch(overlay, /el\.focus\(\)/);
   assert.doesNotMatch(overlay, /contentEditable = "false"/);
   assert.match(toolbar, /EditorColorField/);
@@ -378,7 +381,8 @@ test("the hero block can be replaced with an image or a looping video", () => {
   const glass = read("components/wedding-website/templates/ModernGlassSite.tsx");
 
   assert.match(toolbar, /id === "hero"/);
-  assert.match(toolbar, /slotId="hero"/);
+  assert.match(toolbar, /slotId=\{id\}/);
+  assert.match(toolbar, /id === "rsvp"/);
   assert.match(toolbar, /העלאת סרטון/);
   assert.match(toolbar, /העלאת תמונה/);
   assert.match(toolbar, /accept="video\/mp4,video\/webm,video\/quicktime"/);

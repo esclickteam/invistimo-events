@@ -8,7 +8,7 @@ import { LOCKED_EVENT_PATHS } from "@/lib/weddingWebsite/editorSchema";
 import { htmlToPlainTextWithBreaks } from "@/lib/weddingWebsite/textEditing";
 import EditorSelectionToolbar from "./EditorSelectionToolbar";
 
-const SKIP = "[data-ww-chrome],.ww-editor-ui,input,textarea,select,[data-rsvp-core]";
+const SKIP = "[data-ww-chrome],.ww-editor-ui,input,textarea,select,[data-rsvp-interactive]";
 const INNER_EDIT = '[data-ww-edit="text"],[data-ww-edit="media"],[data-ww-edit="countdown"],[data-ww-edit="gallery"]';
 
 type HoverState = {

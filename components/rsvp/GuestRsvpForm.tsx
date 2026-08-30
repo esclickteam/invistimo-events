@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import TransportationGuestSection from "@/app/components/TransportationGuestSection";
 import { RSVP_COPY } from "@/lib/rsvp/guestRsvpLogic";
 import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
@@ -12,6 +13,12 @@ export type GuestRsvpCopy = {
   heading?: string;
   success?: string;
   updateLabel?: string;
+  yesLabel?: string;
+  noLabel?: string;
+  submitLabel?: string;
+  countLabel?: string;
+  notesLabel?: string;
+  publicNote?: string;
 };
 
 type Props = {
@@ -25,7 +32,38 @@ type Props = {
   copy?: GuestRsvpCopy;
   /** Editor-only: render the thank-you state so it can be styled on canvas. */
   forceSent?: boolean;
+  /** Wedding visual editor: labels are content-editable, submit is inert. */
+  editable?: boolean;
 };
+
+function RsvpLabel({
+  path,
+  label,
+  editable,
+  children,
+  className,
+}: {
+  path: string;
+  label: string;
+  editable?: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={className}
+      data-ww-path={path}
+      data-ww-label={editable ? label : undefined}
+      data-ww-edit={editable ? "text" : undefined}
+      contentEditable={editable || undefined}
+      suppressContentEditableWarning={editable}
+      spellCheck={editable || undefined}
+      style={editable ? { whiteSpace: "pre-wrap", outline: "none" } : undefined}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default function GuestRsvpForm({
   controller,
@@ -36,6 +74,7 @@ export default function GuestRsvpForm({
   allowUpdateAfterSubmit = true,
   copy,
   forceSent = false,
+  editable = false,
 }: Props) {
   const {
     sent,
@@ -62,6 +101,15 @@ export default function GuestRsvpForm({
   const heading = copy?.heading || RSVP_COPY.heading;
   const successMessage = copy?.success || RSVP_COPY.success;
   const updateLabel = copy?.updateLabel || "רוצים לעדכן?";
+  const yesLabel = copy?.yesLabel || RSVP_COPY.yesLabel;
+  const noLabel = copy?.noLabel || RSVP_COPY.noLabel;
+  const submitLabel = copy?.submitLabel || RSVP_COPY.submit;
+  const countLabel = copy?.countLabel || RSVP_COPY.countLabel;
+  const notesLabel = copy?.notesLabel || RSVP_COPY.notesLabel;
+  const note = {
+    enabled: Boolean(copy?.publicNote?.trim() || publicEventNote.enabled),
+    text: (copy?.publicNote || publicEventNote.text || "").trim(),
+  };
 
   if (sent || forceSent) {
     return (
@@ -70,10 +118,18 @@ export default function GuestRsvpForm({
           {appearance.glowA ? <div className={appearance.glowA} /> : null}
           {appearance.glowB ? <div className={appearance.glowB} /> : null}
           <div className={appearance.inner}>
-            <p className={appearance.success}>{successMessage}</p>
+            <p className={appearance.success}>
+              <RsvpLabel path="rsvpSuccessMessage" label="הודעת תודה" editable={editable}>
+                {successMessage}
+              </RsvpLabel>
+            </p>
             {allowUpdateAfterSubmit ? (
               forceSent ? (
-                <p className={appearance.updateLink}>{updateLabel}</p>
+                <p className={appearance.updateLink}>
+                  <RsvpLabel path="rsvpUpdateLabel" label="קישור עדכון תשובה" editable={editable}>
+                    {updateLabel}
+                  </RsvpLabel>
+                </p>
               ) : (
                 <button type="button" onClick={resetSent} className={appearance.updateLink}>
                   {updateLabel}
@@ -96,14 +152,28 @@ export default function GuestRsvpForm({
       <HeartBurst triggerKey={heartTrigger} />
       <HeartBurstStyles />
 
-      <form onSubmit={handleSubmit} data-rsvp-card="1" className={appearance.form}>
+      <form
+        onSubmit={(event) => {
+          if (editable) {
+            event.preventDefault();
+            return;
+          }
+          handleSubmit(event);
+        }}
+        data-rsvp-card="1"
+        className={appearance.form}
+      >
         {appearance.glowA ? <div className={appearance.glowA} /> : null}
         {appearance.glowB ? <div className={appearance.glowB} /> : null}
 
         <div className={appearance.inner}>
           {showHeading ? (
             <div className={appearance.headingWrap}>
-              <h2 className={appearance.heading}>{heading}</h2>
+              <h2 className={appearance.heading}>
+                <RsvpLabel path="rsvpSubtitle" label="משנה לאישור הגעה" editable={editable}>
+                  {heading}
+                </RsvpLabel>
+              </h2>
             </div>
           ) : (
             <h2 className="sr-only">{heading}</h2>
@@ -116,7 +186,9 @@ export default function GuestRsvpForm({
               onClick={chooseYes}
               className={appearance.yesButton(form.rsvp === "yes")}
             >
-              {RSVP_COPY.yesLabel}
+              <RsvpLabel path="rsvpYesLabel" label="כפתור מגיע" editable={editable}>
+                {yesLabel}
+              </RsvpLabel>
             </button>
 
             <button
@@ -125,13 +197,19 @@ export default function GuestRsvpForm({
               onClick={chooseNo}
               className={appearance.noButton(form.rsvp === "no")}
             >
-              {RSVP_COPY.noLabel}
+              <RsvpLabel path="rsvpNoLabel" label="כפתור לא מגיע" editable={editable}>
+                {noLabel}
+              </RsvpLabel>
             </button>
           </div>
 
           {form.rsvp === "yes" && (
             <div className={appearance.countBox}>
-              <div className={appearance.countLabel}>{RSVP_COPY.countLabel}</div>
+              <div className={appearance.countLabel}>
+                <RsvpLabel path="rsvpCountLabel" label="כותרת מספר אורחים" editable={editable}>
+                  {countLabel}
+                </RsvpLabel>
+              </div>
 
               <div className={appearance.countRow}>
                 <button
@@ -140,11 +218,14 @@ export default function GuestRsvpForm({
                   onClick={decrementCount}
                   className={appearance.countButton}
                   aria-label="הפחתת מספר אורחים"
+                  data-rsvp-interactive="1"
                 >
                   −
                 </button>
 
-                <div className={appearance.countValue}>{form.arrivedCount}</div>
+                <div className={appearance.countValue} data-rsvp-interactive="1">
+                  {form.arrivedCount}
+                </div>
 
                 <button
                   type="button"
@@ -152,6 +233,7 @@ export default function GuestRsvpForm({
                   onClick={incrementCount}
                   className={appearance.countButton}
                   aria-label="הוספת אורח"
+                  data-rsvp-interactive="1"
                 >
                   +
                 </button>
@@ -161,11 +243,19 @@ export default function GuestRsvpForm({
 
           {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
             <div className={appearance.notesBox}>
-              <label className={appearance.notesLabel}>{RSVP_COPY.notesLabel}</label>
+              <label className={appearance.notesLabel}>
+                <RsvpLabel path="rsvpNotesLabel" label="כותרת בקשות מיוחדות" editable={editable}>
+                  {notesLabel}
+                </RsvpLabel>
+              </label>
 
               <div className={appearance.notesGrid}>
                 {activeMenuOptions.map((opt) => (
-                  <label key={opt.key} className={appearance.noteItem(form.notes.includes(opt.label))}>
+                  <label
+                    key={opt.key}
+                    className={appearance.noteItem(form.notes.includes(opt.label))}
+                    data-rsvp-interactive="1"
+                  >
                     <input
                       type="checkbox"
                       disabled={isSubmitting}
@@ -180,15 +270,30 @@ export default function GuestRsvpForm({
             </div>
           )}
 
-          <button type="submit" disabled={isSubmitting} className={appearance.submit}>
-            {isSubmitting ? RSVP_COPY.submitting : RSVP_COPY.submit}
+          <button
+            type={editable ? "button" : "submit"}
+            disabled={isSubmitting}
+            className={appearance.submit}
+            data-rsvp-submit="1"
+          >
+            <RsvpLabel path="rsvpSubmitLabel" label="כפתור שליחה" editable={editable}>
+              {isSubmitting ? RSVP_COPY.submitting : submitLabel}
+            </RsvpLabel>
           </button>
 
           {errorMessage ? <p className={appearance.error}>{errorMessage}</p> : null}
 
           {showGiftAndNote ? (
             <>
-              <PublicEventNoteSection note={publicEventNote} />
+              {note.enabled && note.text ? (
+                <section className="mt-7 w-full overflow-hidden rounded-[30px] border border-[#eadfce] bg-white/90 p-6 text-center shadow-[0_20px_70px_rgba(92,66,38,0.12)] backdrop-blur">
+                  <p className="mx-auto mt-4 max-w-sm whitespace-pre-line text-base font-bold leading-8 text-[#5a4634]">
+                    <RsvpLabel path="rsvpNote" label="הערת אישור הגעה" editable={editable}>
+                      {note.text}
+                    </RsvpLabel>
+                  </p>
+                </section>
+              ) : null}
               <div className="mt-5">
                 <GiftSection giftOptions={giftOptions} />
               </div>

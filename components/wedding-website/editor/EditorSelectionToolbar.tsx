@@ -440,6 +440,19 @@ function SectionToolbar({ id }: { id: string }) {
           }
           onApplyToTheme={(role, color) => editor?.updateTheme({ colors: { [role]: color } })}
         />
+        {id === "rsvp" ? (
+          <EditorColorField
+            label="צבע כפתור השליחה"
+            value={style.buttonBackgroundColor || ""}
+            against={style.buttonBackgroundColor || site?.template.theme.accent}
+            onChange={(buttonBackgroundColor) =>
+              editor?.updateSectionStyle(id, {
+                buttonBackgroundColor: buttonBackgroundColor || undefined,
+              })
+            }
+            onApplyToTheme={(role, color) => editor?.updateTheme({ colors: { [role]: color } })}
+          />
+        ) : null}
         <ToolButton
           title="איפוס עיצוב המקטע"
           onClick={() =>
@@ -455,9 +468,9 @@ function SectionToolbar({ id }: { id: string }) {
           איפוס מקטע
         </ToolButton>
       </ToolbarShell>
-      {id === "hero" ? (
+      {id === "hero" || id === "rsvp" || id === "gifts" ? (
         <div className="mt-1">
-          <MediaReplaceControls slotId="hero" showFit />
+          <MediaReplaceControls slotId={id} showFit />
         </div>
       ) : null}
     </div>

@@ -237,19 +237,42 @@ export default function EditorSectionSettings({ sectionId }: { sectionId: string
             />
           </div>
           {sectionId === "rsvp" ? (
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-black text-white/60">רקע כרטיס התודה / הטופס</span>
-              <EditorColorField
-                label="רקע כרטיס RSVP"
-                compact
-                value={style.cardBackgroundColor || ""}
-                against={style.cardBackgroundColor || style.backgroundColor || site.template.theme.bg}
-                onChange={(cardBackgroundColor) =>
-                  patch({ cardBackgroundColor: cardBackgroundColor || undefined })
-                }
-                onApplyToTheme={(role, color) => editor.updateTheme({ colors: { [role]: color } })}
+            <>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-black text-white/60">רקע כרטיס התודה / הטופס</span>
+                <EditorColorField
+                  label="רקע כרטיס RSVP"
+                  compact
+                  value={style.cardBackgroundColor || ""}
+                  against={style.cardBackgroundColor || style.backgroundColor || site.template.theme.bg}
+                  onChange={(cardBackgroundColor) =>
+                    patch({ cardBackgroundColor: cardBackgroundColor || undefined })
+                  }
+                  onApplyToTheme={(role, color) => editor.updateTheme({ colors: { [role]: color } })}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-black text-white/60">צבע כפתור השליחה</span>
+                <EditorColorField
+                  label="צבע כפתור RSVP"
+                  compact
+                  value={style.buttonBackgroundColor || ""}
+                  against={style.buttonBackgroundColor || site.template.theme.accent}
+                  onChange={(buttonBackgroundColor) =>
+                    patch({ buttonBackgroundColor: buttonBackgroundColor || undefined })
+                  }
+                  onApplyToTheme={(role, color) => editor.updateTheme({ colors: { [role]: color } })}
+                />
+              </div>
+              <EditorSlider
+                label="כיסוי כהה על תמונת הרקע"
+                min={0}
+                max={80}
+                suffix="%"
+                value={style.overlayOpacity ?? 0}
+                onChange={(overlayOpacity) => patch({ overlayOpacity })}
               />
-            </div>
+            </>
           ) : null}
         </EditorPanelSection>
       ) : null}

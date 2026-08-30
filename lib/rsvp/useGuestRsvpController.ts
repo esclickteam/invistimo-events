@@ -345,7 +345,7 @@ export function useGuestRsvpDemoController(): GuestRsvpController {
   const [heartTrigger, setHeartTrigger] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [form, setForm] = useState<GuestRsvpFormState>({
-    rsvp: "pending",
+    rsvp: "yes",
     arrivedCount: 1,
     notes: [],
   });
