@@ -12,6 +12,7 @@ import {
   type MapPin,
   type PinCandidate,
 } from "@/lib/mapPinChoice";
+import { getGoogleMapsServerKey } from "@/lib/googleMapsServerKey";
 
 export type { MapPin };
 
@@ -34,11 +35,7 @@ export type MapPinResolution = {
 const pinCache = new Map<string, MapPin>();
 
 function googleMapsKey() {
-  return (
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    ""
-  );
+  return getGoogleMapsServerKey();
 }
 
 function cacheKey(location: NavLocation) {

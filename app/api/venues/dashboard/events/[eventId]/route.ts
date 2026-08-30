@@ -16,10 +16,6 @@ import {
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
 import { createVenueAlert } from "@/lib/venues/alerts";
-import {
-  prepareEventLocation,
-  type PreparedEventLocation,
-} from "@/lib/eventLocation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1447,15 +1443,18 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       toNumber(body.budgetTotal, existingEvent.budgetTotal || 0)
     );
 
-    let preparedLocation: PreparedEventLocation | null = null;
-
     if (body.location && typeof body.location === "object") {
-      preparedLocation = await prepareEventLocation({
-        input: body.location,
-        previous: existingEvent.location,
-      });
-
-      existingEvent.location = preparedLocation.location;
+      existingEvent.location = {
+        address: cleanString(body.location.address),
+        lat:
+          body.location.lat === undefined || body.location.lat === null
+            ? existingEvent.location?.lat
+            : toNumber(body.location.lat, existingEvent.location?.lat),
+        lng:
+          body.location.lng === undefined || body.location.lng === null
+            ? existingEvent.location?.lng
+            : toNumber(body.location.lng, existingEvent.location?.lng),
+      };
     }
 
     await existingEvent.save();
@@ -1527,8 +1526,12 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         invitationUpdate.paymentStatus = existingEvent.paymentStatus;
         invitationUpdate.notes = existingEvent.notes;
 
-        if (preparedLocation) {
-          invitationUpdate.location = preparedLocation.location;
+        if (body.location && typeof body.location === "object") {
+          invitationUpdate.location = {
+            address: cleanString(body.location.address),
+            lat: body.location.lat,
+            lng: body.location.lng,
+          };
         }
 
         await invitations.updateOne(

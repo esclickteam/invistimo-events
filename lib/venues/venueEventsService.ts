@@ -6,7 +6,6 @@ import {
   venueLifecycleToInvistimoStatus,
   type VenueEventLifecycleStatus,
 } from "@/lib/venues/statuses";
-import { prepareEventLocation } from "@/lib/eventLocation";
 
 const allowedEventTypes = [
   "wedding",
@@ -348,7 +347,6 @@ export async function createVenueCalendarEvent(input: CreateVenueCalendarEventIn
   const invistimoStatus = venueLifecycleToInvistimoStatus(lifecycleStatus);
 
   const locationBody = body.location as Record<string, unknown> | string | undefined;
-  const { location } = await prepareEventLocation({ input: locationBody });
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -371,7 +369,27 @@ export async function createVenueCalendarEvent(input: CreateVenueCalendarEventIn
           estimatedGuestCount: guests || null,
           date,
           time: startTime,
-          location,
+          location: {
+            address: cleanString(
+              typeof locationBody === "object" && locationBody
+                ? locationBody.address || ""
+                : locationBody || ""
+            ),
+            lat:
+              typeof locationBody === "object" &&
+              locationBody &&
+              locationBody.lat !== undefined &&
+              locationBody.lat !== null
+                ? toNumber(locationBody.lat, undefined)
+                : undefined,
+            lng:
+              typeof locationBody === "object" &&
+              locationBody &&
+              locationBody.lng !== undefined &&
+              locationBody.lng !== null
+                ? toNumber(locationBody.lng, undefined)
+                : undefined,
+          },
           giftCreditUrl: cleanString(body.giftCreditUrl),
           zones: [],
           planning: {

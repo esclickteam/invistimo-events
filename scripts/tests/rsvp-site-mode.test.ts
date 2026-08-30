@@ -258,6 +258,11 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(read("app/components/EventDetailsForm.tsx"), /resolveMapPinInBrowser/);
   assert.match(read("lib/eventLocation.ts"), /prepareEventLocation/);
   assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /persistEventLocationPin/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /decideMissingPinWrite/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /resolveMapPinDetailed/);
+  assert.match(read("lib/googleMapsServerKey.ts"), /GOOGLE_MAPS_API_KEY/);
+  assert.doesNotMatch(read("lib/googleMapsServerKey.ts"), /process\.env\.NEXT_PUBLIC_/);
+  assert.doesNotMatch(read("lib/resolveMapPin.ts"), /process\.env\.NEXT_PUBLIC_/);
   assert.match(read("lib/persistEventMapPin.ts"), /persistEventLocationPin/);
   assert.match(read("lib/persistEventMapPin.ts"), /persistParkingPin/);
   assert.match(read("app/api/w/[shareId]/route.ts"), /resolveAndPersistEventLocation/);

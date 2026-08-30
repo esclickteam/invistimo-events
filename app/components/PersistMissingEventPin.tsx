@@ -31,17 +31,23 @@ export default function PersistMissingEventPin({
     let cancelled = false;
 
     (async () => {
-      const pin = await resolveMapPinInBrowser(location);
-      if (!pin || cancelled) return;
+      // Ask the server to geocode the stored address. Guest coordinates are
+      // only a hint and are never written if they do not match the server pin.
+      const hint = await resolveMapPinInBrowser(location);
+      if (cancelled) return;
 
       const res = await fetch(`/api/invite/${encodeURIComponent(shareId)}/pin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pin),
+        body: JSON.stringify(hint || {}),
       });
-      if (!res.ok || cancelled) return;
+      const data = await res.json().catch(() => null);
+      const saved = data?.location;
+      if (!res.ok || cancelled || saved?.lat == null || saved?.lng == null) {
+        return;
+      }
 
-      onResolved?.(pin);
+      onResolved?.({ lat: saved.lat, lng: saved.lng });
     })().catch((error) => {
       console.error("Could not persist a missing event pin:", error);
     });
