@@ -28,6 +28,9 @@ export default function WeddingVenueNav({
     address: String(address || DEMO.venueAddress || "").trim(),
     lat: lat ?? DEMO.venueLat ?? null,
     lng: lng ?? DEMO.venueLng ?? null,
+    wazeLat: DEMO.venueWazeLat ?? null,
+    wazeLng: DEMO.venueWazeLng ?? null,
+    wazeUrl: DEMO.venueWazeUrl || "",
   };
 
   const google = googleHref || getGoogleMapsLink(location);

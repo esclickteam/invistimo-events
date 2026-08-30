@@ -6,6 +6,11 @@ export type NavLocation = {
   placeId?: string | null;
   placeName?: string | null;
   formattedAddress?: string | null;
+  /** Vehicle-entrance pin used only by Waze. Google Maps keeps `lat`/`lng`. */
+  wazeLat?: number | string | null;
+  wazeLng?: number | string | null;
+  /** Couple-pasted Waze share / live-map / permalink. Beats generic lat/lng. */
+  wazeUrl?: string | null;
 };
 
 export type ResolvedEventLocation = {
@@ -16,6 +21,9 @@ export type ResolvedEventLocation = {
   placeId: string;
   placeName: string;
   formattedAddress: string;
+  wazeLat: number | null;
+  wazeLng: number | null;
+  wazeUrl: string;
 };
 
 export function parseCoord(value: unknown): number | null {
@@ -42,6 +50,18 @@ function firstText(...values: unknown[]) {
 function asLocationObject(value: unknown): NavLocation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as NavLocation;
+}
+
+function firstWazeDestination(locations: NavLocation[]) {
+  for (const location of locations) {
+    const wazeUrl = firstText(location.wazeUrl);
+    const wazeLat = parseCoord(location.wazeLat);
+    const wazeLng = parseCoord(location.wazeLng);
+    if (wazeUrl || (wazeLat != null && wazeLng != null)) {
+      return { wazeUrl, wazeLat, wazeLng };
+    }
+  }
+  return { wazeUrl: "", wazeLat: null as number | null, wazeLng: null as number | null };
 }
 
 /** Readable venue label for Google Maps (never raw coordinates). */
@@ -73,6 +93,11 @@ export function resolveEventLocation(
   const eventCoords = hasExactCoordinates(eventLocation) ? eventLocation : null;
   const extraCoords = hasExactCoordinates(extraLocation) ? extraLocation : null;
   const coords = invitationCoords || eventCoords || extraCoords;
+  const waze = firstWazeDestination([
+    invitationLocation,
+    eventLocation,
+    extraLocation,
+  ]);
 
   return {
     name: firstText(
@@ -108,6 +133,9 @@ export function resolveEventLocation(
       eventLocation.formattedAddress,
       extraLocation.formattedAddress
     ),
+    wazeLat: waze.wazeLat,
+    wazeLng: waze.wazeLng,
+    wazeUrl: waze.wazeUrl,
   };
 }
 
@@ -129,7 +157,12 @@ export type NavCustomLinks = {
   googleMapsUrl?: string | null;
 };
 
-export type NavTargetSource = "custom" | "coordinates" | "search" | "none";
+export type NavTargetSource =
+  | "custom"
+  | "waze"
+  | "coordinates"
+  | "search"
+  | "none";
 
 export type NavTarget = {
   lat: number | null;
@@ -177,6 +210,8 @@ export function coordsFromNavUrl(url?: string | null): MapCoords | null {
 
   const targetParams = [
     /[?&#](?:ll|latlng)=([^&#]+)/i,
+    /[?&#]to=ll\.(-?[\d.]+),(-?[\d.]+)/i,
+    /(?:^|[?&#/])to=ll\.(-?[\d.]+),(-?[\d.]+)/i,
     /[?&#](?:q|query|destination|daddr|center)=([^&#]+)/i,
     /@(-?\d[\d.]*,-?\d[\d.]*)/,
     /!3d(-?[\d.]+)!4d(-?[\d.]+)/,
@@ -223,20 +258,50 @@ function isNavigationUrl(url?: string | null) {
   return /^(https?:\/\/|waze:\/\/|geo:)/i.test(raw);
 }
 
-function labelFromLocation(location?: NavLocation | null) {
-  return locationLabel(location);
-}
+export type ParsedWazeDestination = {
+  wazeUrl: string;
+  wazeLat: number | null;
+  wazeLng: number | null;
+};
 
 /**
- * One destination for every navigation button on a page, resolved in the order
- * the product requires: a custom link the couple entered, then the pin saved on
- * the event, and only then a text search.
+ * Parse a pasted Waze share link, live-map URL, or "lat, lng" pair without
+ * touching the Google Maps pin.
  */
-export function resolveNavTarget(
-  location?: NavLocation | null,
-  custom?: NavCustomLinks
-): NavTarget {
-  const empty: NavTarget = {
+export function parseWazeDestinationInput(raw?: string | null): ParsedWazeDestination {
+  const empty: ParsedWazeDestination = {
+    wazeUrl: "",
+    wazeLat: null,
+    wazeLng: null,
+  };
+  const text = firstText(raw);
+  if (!text) return empty;
+
+  if (isNavigationUrl(text)) {
+    const coords = coordsFromNavUrl(text);
+    return {
+      wazeUrl: text,
+      wazeLat: coords?.lat ?? null,
+      wazeLng: coords?.lng ?? null,
+    };
+  }
+
+  const coords = coordPair(text);
+  if (coords) {
+    return { wazeUrl: "", wazeLat: coords.lat, wazeLng: coords.lng };
+  }
+
+  return { wazeUrl: text, wazeLat: null, wazeLng: null };
+}
+
+function wazeAppPermalink(url: string) {
+  const match = /waze\.com\/ul\/([^/?#]+)/i.exec(url);
+  if (match) return `waze://ul/${match[1]}`;
+  return "";
+}
+
+function emptyNavTarget(): NavTarget {
+  return {
     lat: null,
     lng: null,
     query: "",
@@ -245,8 +310,21 @@ export function resolveNavTarget(
     placeId: "",
     label: "",
   };
+}
 
-  const wazeUrl = isNavigationUrl(custom?.wazeUrl) ? firstText(custom?.wazeUrl) : "";
+function labelFromLocation(location?: NavLocation | null) {
+  return locationLabel(location);
+}
+
+/**
+ * Google Maps destination. Never uses a Waze entrance pin or a pasted Waze
+ * URL — those can sit on a different road than the venue itself.
+ */
+export function resolveGoogleNavTarget(
+  location?: NavLocation | null,
+  custom?: NavCustomLinks
+): NavTarget {
+  const empty = emptyNavTarget();
   const googleUrl = isNavigationUrl(custom?.googleMapsUrl)
     ? firstText(custom?.googleMapsUrl)
     : "";
@@ -254,11 +332,8 @@ export function resolveNavTarget(
   const locationLabelText = labelFromLocation(location);
   const locationPlaceId = firstText(location?.placeId);
 
-  const customCoords =
-    coordsFromNavUrl(wazeUrl) || coordsFromNavUrl(googleUrl) || null;
+  const customCoords = coordsFromNavUrl(googleUrl);
   if (customCoords) {
-    // Custom pin wins for navigation accuracy; keep the venue label for Maps
-    // only when we are not claiming a Google place_id for a different pin.
     return {
       ...empty,
       ...customCoords,
@@ -280,7 +355,7 @@ export function resolveNavTarget(
     };
   }
 
-  const customQuery = queryFromNavUrl(wazeUrl) || queryFromNavUrl(googleUrl);
+  const customQuery = queryFromNavUrl(googleUrl);
   if (customQuery) {
     return { ...empty, query: customQuery, source: "custom", label: customQuery };
   }
@@ -296,27 +371,110 @@ export function resolveNavTarget(
     };
   }
 
-  // Nothing shareable. A short custom Waze link is still better than no button,
-  // but only Waze can follow it, so Google Maps stays hidden.
-  if (wazeUrl) return { ...empty, wazeUrlOnly: wazeUrl, source: "custom" };
+  return empty;
+}
+
+/**
+ * Waze destination, in this order:
+ * 1. pasted Waze URL (custom page link, then location.wazeUrl)
+ * 2. saved Waze lat/lng (vehicle entrance)
+ * 3. Google pin
+ * 4. text search
+ */
+export function resolveWazeNavTarget(
+  location?: NavLocation | null,
+  custom?: NavCustomLinks
+): NavTarget {
+  const empty = emptyNavTarget();
+  const locationLabelText = labelFromLocation(location);
+  const customWazeUrl = isNavigationUrl(custom?.wazeUrl)
+    ? firstText(custom?.wazeUrl)
+    : "";
+  const locationWazeUrl = isNavigationUrl(location?.wazeUrl)
+    ? firstText(location?.wazeUrl)
+    : "";
+  const wazeUrl = customWazeUrl || locationWazeUrl;
+
+  if (wazeUrl) {
+    const coords = coordsFromNavUrl(wazeUrl);
+    return {
+      ...empty,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
+      wazeUrlOnly: wazeUrl,
+      source: "custom",
+      label: locationLabelText,
+    };
+  }
+
+  const wazeLat = parseCoord(location?.wazeLat);
+  const wazeLng = parseCoord(location?.wazeLng);
+  if (wazeLat != null && wazeLng != null) {
+    return {
+      ...empty,
+      lat: wazeLat,
+      lng: wazeLng,
+      source: "waze",
+      label: locationLabelText,
+    };
+  }
+
+  const lat = parseCoord(location?.lat);
+  const lng = parseCoord(location?.lng);
+  if (lat != null && lng != null) {
+    return {
+      ...empty,
+      lat,
+      lng,
+      source: "coordinates",
+      label: locationLabelText,
+    };
+  }
+
+  const query = location ? queryFromLocation(location) : null;
+  if (query) {
+    return {
+      ...empty,
+      query,
+      source: "search",
+      label: locationLabelText || query,
+    };
+  }
 
   return empty;
+}
+
+/**
+ * @deprecated Prefer resolveGoogleNavTarget / resolveWazeNavTarget.
+ * Kept as the Google Maps destination so existing callers keep a map pin.
+ */
+export function resolveNavTarget(
+  location?: NavLocation | null,
+  custom?: NavCustomLinks
+): NavTarget {
+  return resolveGoogleNavTarget(location, custom);
 }
 
 function wazeUrlForTarget(
   base: "https://waze.com/ul" | "waze://",
   target: NavTarget
 ) {
+  if (target.wazeUrlOnly) {
+    if (base === "waze://") {
+      if (target.lat != null && target.lng != null) {
+        return `${base}?ll=${target.lat},${target.lng}&navigate=yes`;
+      }
+      return wazeAppPermalink(target.wazeUrlOnly) || target.wazeUrlOnly;
+    }
+    return target.wazeUrlOnly;
+  }
+
   if (target.lat != null && target.lng != null) {
     // Never add q= next to ll — Waze treats q as a search and can open a
     // same-named venue in another city, ignoring the pin.
     return `${base}?ll=${target.lat},${target.lng}&navigate=yes`;
   }
 
-  if (target.wazeUrlOnly) return target.wazeUrlOnly;
-
-  // Last resort: no pin could be resolved for this event, so Waze has to
-  // search. Less precise than a pin, but better than no navigation at all.
   if (target.query) {
     return `${base}?q=${encodeURIComponent(target.query)}&navigate=yes`;
   }
@@ -333,13 +491,8 @@ export function getWazeAppLinkForTarget(target: NavTarget) {
 }
 
 /**
- * Google Maps link that prefers a readable place title while navigating to
- * the same destination Waze uses.
- *
- * Priority:
- * 1. placeId → search query + query_place_id (Maps shows the place name)
- * 2. label + exact lat/lng → place URL pinned to those coordinates
- * 3. bare lat,lng only when no label is available
+ * Google Maps link that prefers a readable place title while keeping the
+ * Google pin. Waze may navigate to a separate vehicle entrance.
  */
 export function getGoogleMapsLinkForTarget(target: NavTarget) {
   const label = firstText(target.label, target.query);
@@ -384,7 +537,7 @@ export function getGoogleMapsLink(
   location: NavLocation,
   custom?: NavCustomLinks
 ) {
-  return getGoogleMapsLinkForTarget(resolveNavTarget(location, custom));
+  return getGoogleMapsLinkForTarget(resolveGoogleNavTarget(location, custom));
 }
 
 export function getLocationQuery(location: NavLocation) {
@@ -392,11 +545,11 @@ export function getLocationQuery(location: NavLocation) {
 }
 
 export function getWazeLink(location: NavLocation, custom?: NavCustomLinks) {
-  return getWazeLinkForTarget(resolveNavTarget(location, custom));
+  return getWazeLinkForTarget(resolveWazeNavTarget(location, custom));
 }
 
 export function getWazeAppLink(location: NavLocation, custom?: NavCustomLinks) {
-  return getWazeAppLinkForTarget(resolveNavTarget(location, custom));
+  return getWazeAppLinkForTarget(resolveWazeNavTarget(location, custom));
 }
 
 export function getGoogleMapsEmbedUrlForTarget(target: NavTarget, zoom = 16) {
@@ -420,5 +573,8 @@ export function getGoogleMapsEmbedUrl(
   zoom = 16,
   custom?: NavCustomLinks
 ) {
-  return getGoogleMapsEmbedUrlForTarget(resolveNavTarget(location, custom), zoom);
+  return getGoogleMapsEmbedUrlForTarget(
+    resolveGoogleNavTarget(location, custom),
+    zoom
+  );
 }

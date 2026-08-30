@@ -11,8 +11,11 @@ import {
   getWazeLinkForTarget,
   hasExactCoordinates,
   parseCoord,
+  parseWazeDestinationInput,
   resolveEventLocation,
+  resolveGoogleNavTarget,
   resolveNavTarget,
+  resolveWazeNavTarget,
 } from "../../lib/navigationLinks";
 
 test("Google Maps prefers a place label over bare coordinates", () => {
@@ -108,7 +111,7 @@ test("Waze never appends a name search even when the venue has a label", () => {
   );
 });
 
-test("a custom Waze pin is the shared destination for both buttons", () => {
+test("a custom Waze pin is used only by Waze, not Google Maps", () => {
   const location = {
     name: "אולם ישן",
     address: "נתניה",
@@ -119,17 +122,72 @@ test("a custom Waze pin is the shared destination for both buttons", () => {
     wazeUrl: "https://waze.com/ul?ll=32.5927,35.4143&navigate=yes",
   };
 
-  const target = resolveNavTarget(location, custom);
-  assert.equal(target.source, "custom");
-  assert.equal(target.lat, 32.5927);
-  assert.equal(target.lng, 35.4143);
+  const google = resolveGoogleNavTarget(location, custom);
+  const waze = resolveWazeNavTarget(location, custom);
+  assert.equal(google.source, "coordinates");
+  assert.equal(google.lat, 32.2764);
+  assert.equal(google.lng, 34.8582);
+  assert.equal(waze.source, "custom");
+  assert.equal(waze.lat, 32.5927);
+  assert.equal(waze.lng, 35.4143);
   assert.equal(
-    getWazeLinkForTarget(target),
+    getWazeLinkForTarget(waze),
     "https://waze.com/ul?ll=32.5927,35.4143&navigate=yes"
   );
   assert.equal(
-    getGoogleMapsLinkForTarget(target),
-    `https://www.google.com/maps/place/${encodeURIComponent("אולם ישן")}/@32.5927,35.4143,17z`
+    getGoogleMapsLinkForTarget(google),
+    `https://www.google.com/maps/place/${encodeURIComponent("אולם ישן")}/@32.2764,34.8582,17z`
+  );
+});
+
+test("a saved Waze entrance pin beats the Google Maps pin for Waze only", () => {
+  const location = {
+    name: "שיבולים גן אירועים",
+    address: "רמת צבי, ישראל",
+    lat: 32.591962,
+    lng: 35.414497,
+    wazeLat: 32.598945758239005,
+    wazeLng: 35.42126976965217,
+  };
+
+  assert.equal(
+    getWazeLink(location),
+    "https://waze.com/ul?ll=32.598945758239005,35.42126976965217&navigate=yes"
+  );
+  assert.match(getGoogleMapsLink(location) || "", /@32\.591962,35\.414497/);
+});
+
+test("a pasted Waze URL beats saved lat/lng for Waze", () => {
+  const location = {
+    name: "שיבולים גן אירועים",
+    lat: 32.591962,
+    lng: 35.414497,
+    wazeLat: 32.59,
+    wazeLng: 35.41,
+    wazeUrl:
+      "https://www.waze.com/he/live-map/directions?to=ll.32.59894576,35.42126977",
+  };
+
+  assert.equal(
+    getWazeLink(location),
+    "https://www.waze.com/he/live-map/directions?to=ll.32.59894576,35.42126977"
+  );
+  assert.equal(
+    getWazeAppLink(location),
+    "waze://?ll=32.59894576,35.42126977&navigate=yes"
+  );
+});
+
+test("coordsFromNavUrl reads a Waze live-map to=ll destination", () => {
+  assert.deepEqual(
+    coordsFromNavUrl(
+      "https://www.waze.com/he/live-map/directions?to=ll.32.59894576,35.42126977"
+    ),
+    { lat: 32.59894576, lng: 35.42126977 }
+  );
+  assert.deepEqual(
+    parseWazeDestinationInput("32.59894576, 35.42126977"),
+    { wazeUrl: "", wazeLat: 32.59894576, wazeLng: 35.42126977 }
   );
 });
 
@@ -233,6 +291,9 @@ test("resolved event location uses invitation details before event fallback", ()
     placeId: "",
     placeName: "",
     formattedAddress: "",
+    wazeLat: null,
+    wazeLng: null,
+    wazeUrl: "",
   });
 });
 

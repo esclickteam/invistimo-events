@@ -12,6 +12,9 @@ const LocationSchema = new Schema(
     placeId: { type: String, default: "" },
     placeName: { type: String, default: "" },
     formattedAddress: { type: String, default: "" },
+    wazeLat: { type: Number, default: null },
+    wazeLng: { type: Number, default: null },
+    wazeUrl: { type: String, default: "" },
   },
   { _id: false }
 );

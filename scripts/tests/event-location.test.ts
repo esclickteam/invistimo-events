@@ -26,6 +26,9 @@ test("toEventLocation keeps name, address, coords and placeId", () => {
       placeId: "ChIJ123",
       placeName: "גן האירועים",
       formattedAddress: "רמת צבי, ישראל",
+      wazeLat: null,
+      wazeLng: null,
+      wazeUrl: "",
     }
   );
 });
@@ -129,6 +132,34 @@ test("prepareEventLocation keeps the pin when the venue text did not change", as
   assert.equal(prepared.pinSource, "kept");
   assert.equal(prepared.location.lat, 32.5927);
   assert.equal(prepared.location.lng, 35.4143);
+});
+
+test("prepareEventLocation keeps a Waze entrance when the Google pin is unchanged", async () => {
+  const prepared = await prepareEventLocation({
+    input: {
+      name: "גן האירועים",
+      address: "רמת צבי, ישראל",
+      lat: 32.591962,
+      lng: 35.414497,
+      placeId: "ChIJGarden",
+    },
+    previous: {
+      name: "גן האירועים",
+      address: "רמת צבי, ישראל",
+      lat: 32.591962,
+      lng: 35.414497,
+      placeId: "ChIJGarden",
+      wazeLat: 32.598945758239005,
+      wazeLng: 35.42126976965217,
+      wazeUrl: "https://waze.com/ul?ll=32.598945758239005,35.42126976965217&navigate=yes",
+    },
+    geocode: false,
+  });
+
+  assert.equal(prepared.location.lat, 32.591962);
+  assert.equal(prepared.location.lng, 35.414497);
+  assert.equal(prepared.location.wazeLat, 32.598945758239005);
+  assert.equal(prepared.location.wazeLng, 35.42126976965217);
 });
 
 test("prepareEventLocation reports a warning when geocoding cannot run", async () => {

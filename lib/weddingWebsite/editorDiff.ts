@@ -8,6 +8,9 @@ const IGNORED_KEYS = new Set([
   "venueAddress",
   "venueLat",
   "venueLng",
+  "venueWazeLat",
+  "venueWazeLng",
+  "venueWazeUrl",
   "coupleShort",
   "guestbookMessages",
 ]);

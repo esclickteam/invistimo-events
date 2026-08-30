@@ -51,7 +51,7 @@ export function createEmptyWeddingWebsite(invitation?: {
   title?: string;
   eventDate?: Date | string | null;
   eventTime?: string;
-  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
+  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null; wazeLat?: number | string | null; wazeLng?: number | string | null; wazeUrl?: string | null };
 } | null) {
   return {
     templateId: DEFAULT_WEDDING_TEMPLATE_ID,
@@ -66,7 +66,7 @@ export function seedWeddingWebsiteContent(
     title?: string;
     eventDate?: Date | string | null;
     eventTime?: string;
-    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
+    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null; wazeLat?: number | string | null; wazeLng?: number | string | null; wazeUrl?: string | null };
   } | null
 ): WeddingDemoContent {
   const title = cleanString(invitation?.title);
@@ -93,6 +93,9 @@ export function seedWeddingWebsiteContent(
     venueAddress: venueAddress || WEDDING_DEMO_CONTENT.venueAddress,
     venueLat,
     venueLng,
+    venueWazeLat: parseCoord(invitation?.location?.wazeLat),
+    venueWazeLng: parseCoord(invitation?.location?.wazeLng),
+    venueWazeUrl: cleanString(invitation?.location?.wazeUrl),
   };
 
   return mergeWeddingWebsiteContent(seeded, stored);
@@ -113,6 +116,18 @@ export function mergeWeddingWebsiteContent(
     venueAddress: cleanString(raw.venueAddress) || base.venueAddress,
     venueLat: parseCoord((raw as WeddingDemoContent).venueLat) ?? base.venueLat ?? null,
     venueLng: parseCoord((raw as WeddingDemoContent).venueLng) ?? base.venueLng ?? null,
+    venueWazeLat:
+      parseCoord((raw as WeddingDemoContent).venueWazeLat) ??
+      base.venueWazeLat ??
+      null,
+    venueWazeLng:
+      parseCoord((raw as WeddingDemoContent).venueWazeLng) ??
+      base.venueWazeLng ??
+      null,
+    venueWazeUrl:
+      cleanString((raw as WeddingDemoContent).venueWazeUrl) ||
+      base.venueWazeUrl ||
+      "",
     heroSubtitle: cleanString(raw.heroSubtitle) || base.heroSubtitle,
     invitationText: cleanString(raw.invitationText) || base.invitationText,
     storyParagraphs: normalizeList(
@@ -261,7 +276,7 @@ export function extractInvitationEventData(invitation?: {
   title?: string;
   eventDate?: Date | string | null;
   eventTime?: string;
-  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
+  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null; wazeLat?: number | string | null; wazeLng?: number | string | null; wazeUrl?: string | null };
 } | null) {
   return {
     coupleNames: cleanString(invitation?.title),
@@ -271,6 +286,9 @@ export function extractInvitationEventData(invitation?: {
     venueAddress: cleanString(invitation?.location?.address),
     venueLat: parseCoord(invitation?.location?.lat),
     venueLng: parseCoord(invitation?.location?.lng),
+    venueWazeLat: parseCoord(invitation?.location?.wazeLat),
+    venueWazeLng: parseCoord(invitation?.location?.wazeLng),
+    venueWazeUrl: cleanString(invitation?.location?.wazeUrl),
   };
 }
 
@@ -296,6 +314,9 @@ export function applyEventDataToWebsiteContent(
     venueAddress: event.venueAddress || content.venueAddress,
     venueLat: event.venueLat ?? content.venueLat ?? null,
     venueLng: event.venueLng ?? content.venueLng ?? null,
+    venueWazeLat: event.venueWazeLat ?? content.venueWazeLat ?? null,
+    venueWazeLng: event.venueWazeLng ?? content.venueWazeLng ?? null,
+    venueWazeUrl: event.venueWazeUrl || content.venueWazeUrl || "",
   };
 }
 
@@ -304,7 +325,7 @@ export function serializeWeddingWebsite(
     title?: string;
     eventDate?: Date | string | null;
     eventTime?: string;
-    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
+    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null; wazeLat?: number | string | null; wazeLng?: number | string | null; wazeUrl?: string | null };
     weddingWebsite?: {
       templateId?: unknown;
       published?: unknown;

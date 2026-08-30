@@ -13,6 +13,9 @@ export type EventLocation = {
   placeId: string;
   placeName: string;
   formattedAddress: string;
+  wazeLat: number | null;
+  wazeLng: number | null;
+  wazeUrl: string;
 };
 
 export type EventLocationWarning = {
@@ -56,7 +59,17 @@ export function emptyEventLocation(): EventLocation {
     placeId: "",
     placeName: "",
     formattedAddress: "",
+    wazeLat: null,
+    wazeLng: null,
+    wazeUrl: "",
   };
+}
+
+function hasWazeDestination(location: EventLocation) {
+  return Boolean(
+    location.wazeUrl ||
+      (location.wazeLat != null && location.wazeLng != null)
+  );
 }
 
 export function toEventLocation(input: unknown): EventLocation {
@@ -77,6 +90,9 @@ export function toEventLocation(input: unknown): EventLocation {
     placeId: cleanText(raw.placeId),
     placeName: cleanText(raw.placeName),
     formattedAddress: cleanText(raw.formattedAddress),
+    wazeLat: parseCoord(raw.wazeLat),
+    wazeLng: parseCoord(raw.wazeLng),
+    wazeUrl: cleanText(raw.wazeUrl),
   };
 }
 
@@ -109,11 +125,12 @@ export function locationTextChanged(
 /**
  * Normalize a submitted location and make sure it carries coordinates.
  *
- * Coordinates are what Waze and Google Maps navigate by, so they are resolved
- * on every write rather than left to a later read: the client sends them when
- * a place was picked from autocomplete, an unchanged venue keeps the pin it
- * already has, and anything else is geocoded here. When that fails the caller
- * gets a warning to show instead of a silently pinless event.
+ * Coordinates are what Google Maps navigates by. Waze can use a separate
+ * vehicle-entrance pin. Google coordinates are resolved on every write rather
+ * than left to a later read: the client sends them when a place was picked
+ * from autocomplete, an unchanged venue keeps the pin it already has, and
+ * anything else is geocoded here. When that fails the caller gets a warning
+ * to show instead of a silently pinless event.
  */
 export async function prepareEventLocation(options: {
   input: unknown;
@@ -126,7 +143,14 @@ export async function prepareEventLocation(options: {
 
   if (!hasLocationText(location)) {
     return {
-      location: { ...location, lat: null, lng: null },
+      location: {
+        ...location,
+        lat: null,
+        lng: null,
+        wazeLat: null,
+        wazeLng: null,
+        wazeUrl: "",
+      },
       textChanged,
       pinSource: "none",
       warning: null,
@@ -144,7 +168,33 @@ export async function prepareEventLocation(options: {
   // from a form that only edited the text. Drop those coordinates so we geocode
   // the new venue instead of sending guests to the old one.
   if (incomingMatchesPreviousPin) {
-    location = { ...location, lat: null, lng: null, placeId: "" };
+    location = {
+      ...location,
+      lat: null,
+      lng: null,
+      placeId: "",
+      wazeLat: null,
+      wazeLng: null,
+      wazeUrl: "",
+    };
+  }
+
+  if (!hasWazeDestination(location)) {
+    if (!textChanged && previous && hasWazeDestination(previous)) {
+      location = {
+        ...location,
+        wazeLat: previous.wazeLat,
+        wazeLng: previous.wazeLng,
+        wazeUrl: previous.wazeUrl,
+      };
+    } else {
+      location = {
+        ...location,
+        wazeLat: null,
+        wazeLng: null,
+        wazeUrl: "",
+      };
+    }
   }
 
   if (location.lat != null && location.lng != null) {

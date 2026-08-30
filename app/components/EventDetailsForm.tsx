@@ -11,6 +11,7 @@ import {
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 import LocationPinPreview from "@/app/components/LocationPinPreview";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
+import { parseWazeDestinationInput } from "@/lib/navigationLinks";
 
 /* =========================
    Event types (UX ↔ DB)
@@ -70,6 +71,9 @@ export default function EventDetailsForm({
       placeId: "" as string,
       placeName: "" as string,
       formattedAddress: "" as string,
+      wazeLat: null as number | null,
+      wazeLng: null as number | null,
+      wazeUrl: "",
     },
     publicEventPage: {
       enabled: true,
@@ -131,6 +135,9 @@ export default function EventDetailsForm({
         placeId: event.location?.placeId ?? "",
         placeName: event.location?.placeName ?? "",
         formattedAddress: event.location?.formattedAddress ?? "",
+        wazeLat: event.location?.wazeLat ?? null,
+        wazeLng: event.location?.wazeLng ?? null,
+        wazeUrl: event.location?.wazeUrl ?? "",
       },
       publicEventPage: {
         enabled: true,
@@ -348,6 +355,9 @@ export default function EventDetailsForm({
           placeId: location.placeId || "",
           placeName: location.placeName || "",
           formattedAddress: location.formattedAddress || "",
+          wazeLat: location.wazeLat,
+          wazeLng: location.wazeLng,
+          wazeUrl: location.wazeUrl?.trim() || "",
         },
         publicEventPage: {
           enabled: true,
@@ -704,6 +714,9 @@ export default function EventDetailsForm({
                       placeId: placeId || "",
                       placeName: placeName || name || "",
                       formattedAddress: formattedAddress || address || "",
+                      wazeLat: null,
+                      wazeLng: null,
+                      wazeUrl: "",
                     },
                   }))
                 }
@@ -717,7 +730,36 @@ export default function EventDetailsForm({
             />
 
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">
-              בחירה מהרשימה שומרת את הנקודה המדויקת. אם מקלידים כתובת ידנית, נאתר אותה על המפה בשמירה. גוגל מפות ווייז ייפתחו לאותה סיכה.
+              בחירה מהרשימה שומרת את הסיכה של Google Maps. אם מקלידים כתובת ידנית, נאתר אותה על המפה בשמירה. את יעד Waze לכניסה לרכב אפשר לשמור בנפרד למטה.
+            </p>
+            <label className="mb-2 mt-4 block px-1 text-sm font-black text-[#6B5B4A]">
+              יעד Waze לכניסה לרכב (אופציונלי)
+            </label>
+            <input
+              dir="ltr"
+              className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+              placeholder="הדביקו קישור מ-Waze או lat,lng של הכניסה לרכב"
+              value={
+                form.location.wazeUrl ||
+                (form.location.wazeLat != null && form.location.wazeLng != null
+                  ? `${form.location.wazeLat},${form.location.wazeLng}`
+                  : "")
+              }
+              onChange={(e) => {
+                const parsed = parseWazeDestinationInput(e.target.value);
+                setForm((f) => ({
+                  ...f,
+                  location: {
+                    ...f.location,
+                    wazeUrl: parsed.wazeUrl,
+                    wazeLat: parsed.wazeLat,
+                    wazeLng: parsed.wazeLng,
+                  },
+                }));
+              }}
+            />
+            <p className="mt-2 px-1 text-xs font-semibold text-[#9B8D7D]">
+              קישור Waze שהזוג מזין מקבל עדיפות על הקואורדינטות הכלליות. סיכת גוגל לא משתנה.
             </p>
             {locationWarning ? (
               <p className="mt-2 px-1 text-xs font-bold text-[#B45309]">

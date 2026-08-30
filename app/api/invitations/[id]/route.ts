@@ -971,6 +971,9 @@ export async function PUT(
               "location.placeName": updatePayload.location.placeName || "",
               "location.formattedAddress":
                 updatePayload.location.formattedAddress || "",
+              "location.wazeLat": updatePayload.location.wazeLat ?? null,
+              "location.wazeLng": updatePayload.location.wazeLng ?? null,
+              "location.wazeUrl": updatePayload.location.wazeUrl || "",
               updatedAt: new Date(),
             },
           }
@@ -991,6 +994,12 @@ export async function PUT(
             updatePayload.location.lat ?? null;
           venueSet["weddingWebsite.content.venueLng"] =
             updatePayload.location.lng ?? null;
+          venueSet["weddingWebsite.content.venueWazeLat"] =
+            updatePayload.location.wazeLat ?? null;
+          venueSet["weddingWebsite.content.venueWazeLng"] =
+            updatePayload.location.wazeLng ?? null;
+          venueSet["weddingWebsite.content.venueWazeUrl"] =
+            updatePayload.location.wazeUrl || "";
         }
         if (website.draftContent) {
           venueSet["weddingWebsite.draftContent.venueName"] =
@@ -1001,6 +1010,12 @@ export async function PUT(
             updatePayload.location.lat ?? null;
           venueSet["weddingWebsite.draftContent.venueLng"] =
             updatePayload.location.lng ?? null;
+          venueSet["weddingWebsite.draftContent.venueWazeLat"] =
+            updatePayload.location.wazeLat ?? null;
+          venueSet["weddingWebsite.draftContent.venueWazeLng"] =
+            updatePayload.location.wazeLng ?? null;
+          venueSet["weddingWebsite.draftContent.venueWazeUrl"] =
+            updatePayload.location.wazeUrl || "";
         }
 
         await Invitation.collection.updateOne(

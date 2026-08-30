@@ -126,6 +126,9 @@ export type WeddingDemoContent = {
   venueAddress: string;
   venueLat?: number | null;
   venueLng?: number | null;
+  venueWazeLat?: number | null;
+  venueWazeLng?: number | null;
+  venueWazeUrl?: string;
   heroSubtitle: string;
   invitationText: string;
   storyParagraphs: string[];
@@ -189,6 +192,9 @@ export type WeddingEventData = {
   venueAddress: string;
   venueLat?: number | null;
   venueLng?: number | null;
+  venueWazeLat?: number | null;
+  venueWazeLng?: number | null;
+  venueWazeUrl?: string;
 };
 
 export type GuestUploadItem = {
