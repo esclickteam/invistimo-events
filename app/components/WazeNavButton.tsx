@@ -5,6 +5,7 @@ import {
   getLocationQuery,
   getWazeAppLink,
   getWazeLink,
+  hasExactCoordinates,
   type NavLocation,
 } from "@/lib/navigationLinks";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
@@ -21,11 +22,11 @@ function isMobileNav() {
 }
 
 export default function WazeNavButton({ location, className, children }: Props) {
-  const [resolved, setResolved] = useState<NavLocation | null>(location || null);
+  const [resolved, setResolved] = useState<NavLocation | null>(null);
   const href = resolved ? getWazeLink(resolved) : null;
   const appHref = resolved ? getWazeAppLink(resolved) : null;
   const canShow = Boolean(
-    href || (location && getLocationQuery(location))
+    location && (getLocationQuery(location) || hasExactCoordinates(location))
   );
 
   useEffect(() => {
@@ -34,16 +35,11 @@ export default function WazeNavButton({ location, className, children }: Props) 
       return;
     }
 
-    if (getWazeLink(location)) {
-      setResolved(location);
-      return;
-    }
-
     let cancelled = false;
 
     resolveMapPinInBrowser(location).then((pin) => {
-      if (cancelled || !pin) return;
-      setResolved({ ...location, ...pin });
+      if (cancelled) return;
+      setResolved(pin ? { ...location, ...pin } : location);
     });
 
     return () => {

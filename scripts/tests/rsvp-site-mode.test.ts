@@ -231,6 +231,7 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.doesNotMatch(inviteCard, /📍/);
   assert.match(navButtons, /getGoogleMapsLink/);
   assert.match(navButtons, /WazeNavButton/);
+  assert.match(wazeButton, /resolveMapPinInBrowser/);
   assert.match(wazeButton, /getWazeAppLink/);
   assert.match(wazeButton, /location\.assign/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
@@ -243,6 +244,7 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(wwLocation, /WazeNavButton/);
   assert.match(wwLocation, /getGoogleMapsLink/);
   assert.match(wwLocation, /content\.venueLat/);
+  assert.match(wwLocation, /content\.venueName/);
   assert.match(eternal, /LocationDisplay/);
   assert.match(eternal, /WeddingVenueNav/);
   assert.match(eternal, /getVenueMapEmbedUrl/);

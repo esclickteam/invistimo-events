@@ -375,6 +375,7 @@ export function ScheduleSection() {
 export function LocationSection() {
   const { content } = useWeddingTheme();
   const venueLocation = {
+    name: content.venueName,
     address: content.venueAddress,
     lat: content.venueLat,
     lng: content.venueLng,

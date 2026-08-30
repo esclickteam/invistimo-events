@@ -1,14 +1,17 @@
 import {
   getLocationQuery,
-  hasExactCoordinates,
   parseCoord,
   type NavLocation,
 } from "@/lib/navigationLinks";
+import {
+  asMapPin,
+  chooseMapPin,
+  geographicQuery,
+  placeSearchQuery,
+  type MapPin,
+} from "@/lib/mapPinChoice";
 
-export type MapPin = {
-  lat: number;
-  lng: number;
-};
+export type { MapPin };
 
 const pinCache = new Map<string, MapPin>();
 
@@ -18,6 +21,15 @@ function googleMapsKey() {
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
     ""
   );
+}
+
+function cacheKey(location: NavLocation) {
+  const saved = asMapPin(location);
+  return JSON.stringify({
+    geo: geographicQuery(location),
+    search: placeSearchQuery(location),
+    saved,
+  });
 }
 
 function readLatLng(value: any): MapPin | null {
@@ -37,7 +49,11 @@ async function fetchGoogleJson(url: string): Promise<any | null> {
   }
 }
 
-async function findPlacePin(query: string, key: string): Promise<MapPin | null> {
+async function findPlacePins(
+  query: string,
+  key: string,
+  bias?: MapPin | null
+): Promise<MapPin[]> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
   );
@@ -46,12 +62,23 @@ async function findPlacePin(query: string, key: string): Promise<MapPin | null> 
   url.searchParams.set("fields", "geometry");
   url.searchParams.set("language", "he");
   url.searchParams.set("key", key);
+  if (bias) {
+    url.searchParams.set(
+      "locationbias",
+      `circle:30000@${bias.lat},${bias.lng}`
+    );
+  }
 
   const data = await fetchGoogleJson(url.toString());
-  return readLatLng(data?.candidates?.[0]?.geometry?.location);
+  const pin = readLatLng(data?.candidates?.[0]?.geometry?.location);
+  return pin ? [pin] : [];
 }
 
-async function textSearchPin(query: string, key: string): Promise<MapPin | null> {
+async function textSearchPins(
+  query: string,
+  key: string,
+  bias?: MapPin | null
+): Promise<MapPin[]> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/textsearch/json"
   );
@@ -59,9 +86,17 @@ async function textSearchPin(query: string, key: string): Promise<MapPin | null>
   url.searchParams.set("region", "il");
   url.searchParams.set("language", "he");
   url.searchParams.set("key", key);
+  if (bias) {
+    url.searchParams.set("location", `${bias.lat},${bias.lng}`);
+    url.searchParams.set("radius", "30000");
+  }
 
   const data = await fetchGoogleJson(url.toString());
-  return readLatLng(data?.results?.[0]?.geometry?.location);
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return results
+    .slice(0, 8)
+    .map((result: any) => readLatLng(result?.geometry?.location))
+    .filter(Boolean) as MapPin[];
 }
 
 async function geocodePin(query: string, key: string): Promise<MapPin | null> {
@@ -80,28 +115,34 @@ export async function resolveMapPin(
 ): Promise<MapPin | null> {
   if (!location) return null;
 
-  if (hasExactCoordinates(location)) {
-    return {
-      lat: parseCoord(location.lat) as number,
-      lng: parseCoord(location.lng) as number,
-    };
-  }
+  const saved = asMapPin(location);
+  const geoQuery = geographicQuery(location);
+  const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
 
-  const query = getLocationQuery(location);
-  if (!query) return null;
-
-  const cached = pinCache.get(query);
+  const key = cacheKey(location);
+  const cached = pinCache.get(key);
   if (cached) return cached;
 
-  const key = googleMapsKey();
-  if (!key) return null;
+  const apiKey = googleMapsKey();
+  if (!apiKey) {
+    return chooseMapPin({ saved, hint: null, candidates: [] });
+  }
 
-  const pin =
-    (await findPlacePin(query, key)) ||
-    (await textSearchPin(query, key)) ||
-    (await geocodePin(query, key));
+  const hint =
+    (geoQuery ? await geocodePin(geoQuery, apiKey) : null) ||
+    (searchQuery && searchQuery !== geoQuery
+      ? await geocodePin(searchQuery, apiKey)
+      : null);
 
-  if (pin) pinCache.set(query, pin);
+  const candidates = searchQuery
+    ? [
+        ...(await textSearchPins(searchQuery, apiKey, hint)),
+        ...(await findPlacePins(searchQuery, apiKey, hint)),
+      ]
+    : [];
+
+  const pin = chooseMapPin({ saved, hint, candidates });
+  if (pin) pinCache.set(key, pin);
   return pin;
 }
 

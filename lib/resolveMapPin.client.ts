@@ -1,10 +1,14 @@
 import {
   getLocationQuery,
-  hasExactCoordinates,
-  parseCoord,
   type NavLocation,
 } from "@/lib/navigationLinks";
-import type { MapPin } from "@/lib/resolveMapPin";
+import {
+  asMapPin,
+  chooseMapPin,
+  geographicQuery,
+  placeSearchQuery,
+} from "@/lib/mapPinChoice";
+import type { MapPin } from "@/lib/mapPinChoice";
 
 type GoogleLatLng = {
   lat: () => number;
@@ -30,12 +34,14 @@ function pinFromLocation(loc?: GoogleLatLng | null): MapPin | null {
 
 function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  if (window.google?.maps?.places) return Promise.resolve(true);
+  if (window.google?.maps?.places && window.google?.maps?.Geocoder) {
+    return Promise.resolve(true);
+  }
 
   return new Promise((resolve) => {
     const started = Date.now();
     const timer = window.setInterval(() => {
-      if (window.google?.maps?.places) {
+      if (window.google?.maps?.places && window.google?.maps?.Geocoder) {
         window.clearInterval(timer);
         resolve(true);
         return;
@@ -48,31 +54,40 @@ function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
   });
 }
 
-function placesTextSearch(query: string): Promise<MapPin | null> {
+function placesTextSearch(
+  query: string,
+  bias?: MapPin | null
+): Promise<MapPin[]> {
   return new Promise((resolve) => {
     try {
       const service = new window.google.maps.places.PlacesService(
         document.createElement("div")
       );
+      const request: Record<string, unknown> = { query, region: "IL" };
+      if (bias) {
+        request.location = new window.google.maps.LatLng(bias.lat, bias.lng);
+        request.radius = 30000;
+      }
       service.textSearch(
-        { query, region: "IL" },
+        request,
         (results: unknown, status: unknown) => {
           const list = Array.isArray(results)
             ? (results as GooglePlaceResult[])
             : [];
-          const pin = pinFromLocation(list[0]?.geometry?.location);
-          if (
-            status === window.google.maps.places.PlacesServiceStatus.OK &&
-            pin
-          ) {
-            resolve(pin);
+          if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+            resolve([]);
             return;
           }
-          resolve(null);
+          resolve(
+            list
+              .slice(0, 8)
+              .map((result) => pinFromLocation(result?.geometry?.location))
+              .filter((pin): pin is MapPin => Boolean(pin))
+          );
         }
       );
     } catch {
-      resolve(null);
+      resolve([]);
     }
   });
 }
@@ -106,18 +121,22 @@ export async function resolveMapPinInBrowser(
 ): Promise<MapPin | null> {
   if (!location) return null;
 
-  if (hasExactCoordinates(location)) {
-    return {
-      lat: parseCoord(location.lat) as number,
-      lng: parseCoord(location.lng) as number,
-    };
-  }
-
-  const query = getLocationQuery(location);
-  if (!query) return null;
+  const saved = asMapPin(location);
+  const geoQuery = geographicQuery(location);
+  const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
 
   const ready = await waitForGoogleMaps();
-  if (!ready) return null;
+  if (!ready) return chooseMapPin({ saved, hint: null, candidates: [] });
 
-  return (await placesTextSearch(query)) || (await geocodeQuery(query));
+  const hint =
+    (geoQuery ? await geocodeQuery(geoQuery) : null) ||
+    (searchQuery && searchQuery !== geoQuery
+      ? await geocodeQuery(searchQuery)
+      : null);
+
+  const candidates = searchQuery
+    ? await placesTextSearch(searchQuery, hint)
+    : [];
+
+  return chooseMapPin({ saved, hint, candidates });
 }

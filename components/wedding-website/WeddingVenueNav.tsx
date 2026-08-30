@@ -24,6 +24,7 @@ export default function WeddingVenueNav({
   linkClassName,
 }: Props) {
   const location = {
+    name: String(DEMO.venueName || "").trim(),
     address: String(address || DEMO.venueAddress || "").trim(),
     lat: lat ?? DEMO.venueLat ?? null,
     lng: lng ?? DEMO.venueLng ?? null,
