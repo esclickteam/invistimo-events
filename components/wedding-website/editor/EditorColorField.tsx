@@ -116,6 +116,10 @@ export default function EditorColorField({
     const normalized = normalizeHex(color);
     if (!normalized) return;
     setHex(normalized);
+    // Skip the parent write when nothing changed. Blurring the HEX field (or
+    // closing the popover) otherwise re-applies the same colour and can loop
+    // through updateTheme → re-render → blur.
+    if (normalized.toLowerCase() === normalizeHex(value || "").toLowerCase()) return;
     rememberColor(normalized);
     if (scope === "theme" && onApplyToTheme) {
       onApplyToTheme(pendingRole, normalized);

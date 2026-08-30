@@ -293,11 +293,12 @@ export default function WeddingVisualEditor() {
    */
   const updateContent = useCallback(
     (updater: (current: WeddingDemoContent) => WeddingDemoContent, label = "עריכה") => {
-      const next = updater(contentRef.current);
-      contentRef.current = next;
-      setContent(next);
-      pushHistory(next, label);
-      scheduleSave(next);
+  const next = updater(contentRef.current);
+  if (next === contentRef.current) return;
+  contentRef.current = next;
+  setContent(next);
+  pushHistory(next, label);
+  scheduleSave(next);
     },
     [pushHistory, scheduleSave]
   );
@@ -449,6 +450,7 @@ export default function WeddingVisualEditor() {
       updateTheme(patch) {
         updateContent((current) => {
           if (!patch) {
+            if (!current.theme) return current;
             const next = { ...current };
             delete next.theme;
             return next;
@@ -463,7 +465,11 @@ export default function WeddingVisualEditor() {
           }
           if (!merged.headingFont) delete merged.headingFont;
           if (!merged.bodyFont) delete merged.bodyFont;
-          return { ...current, theme: sanitizeWeddingThemeOverride(merged) };
+          const sanitized = sanitizeWeddingThemeOverride(merged);
+          if (JSON.stringify(sanitized) === JSON.stringify(current.theme || null)) {
+            return current;
+          }
+          return { ...current, theme: sanitized };
         }, "עיצוב גלובלי");
       },
       resetStyle(path) {

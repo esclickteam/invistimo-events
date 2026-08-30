@@ -365,9 +365,17 @@ test("one edit records one history entry", () => {
   // the state updater. React may call an updater more than once, which would
   // otherwise record every edit twice and make undo need two presses.
   assert.match(editor, /const next = updater\(contentRef\.current\);/);
+  assert.match(editor, /if \(next === contentRef\.current\) return;/);
   assert.doesNotMatch(editor, /setContent\(\(current\) => \{[\s\S]{0,200}pushHistory/);
   assert.doesNotMatch(editor, /setHistoryIndex\(\(currentIndex\) =>/);
   assert.match(editor, /historyIndexRef/);
+});
+
+test("colour apply is a no-op when the value did not change", () => {
+  const color = read("components/wedding-website/editor/EditorColorField.tsx");
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  assert.match(color, /normalized\.toLowerCase\(\) === normalizeHex\(value/);
+  assert.match(editor, /JSON\.stringify\(sanitized\) === JSON\.stringify\(current\.theme/);
 });
 
 test("toolbar measuring stays off the content update path", () => {
