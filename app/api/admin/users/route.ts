@@ -654,6 +654,7 @@ packageName
 
         createdAt
         eventDate
+        termsAcceptedAt
 
         producerPricePerRecord
         assignedProducerId

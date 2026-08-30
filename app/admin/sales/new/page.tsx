@@ -2828,10 +2828,10 @@ export default function AdminSalesNewPage() {
                     />
                     <span className="text-xs font-bold leading-5 text-[#6d5840]">
                       <span className="block font-black text-[#3f3327]">
-                        הוספת חתימה על ההסכם לפני הגדרת סיסמה
+                        הוספת חתימה על ההסכם
                       </span>
-                      לא שולח את ההסכם ב־SMS. אם מסומן, הלקוח יחויב לחתום על
-                      ההסכם במסך הגדרת הסיסמה לפני שיוכל לשמור סיסמה.
+                      לא שולח את ההסכם ב־SMS. אחרי אישור התקנון יופיע ללקוח
+                      כפתור שפותח את עמוד ההסכם הקיים לחתימה.
                     </span>
                   </label>
 
