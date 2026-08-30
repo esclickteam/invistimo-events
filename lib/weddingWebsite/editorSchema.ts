@@ -180,6 +180,9 @@ export function isSectionVisible(
   id: string
 ) {
   const sections = content?.sections || {};
-  if (id === "guestbook" && sections["guest-message"] === false) return false;
+  if (id === "guestbook") {
+    if (sections["guest-message"] === false) return false;
+    if (sections["guest-message"] === true) return true;
+  }
   return sections[id as keyof typeof sections] !== false;
 }

@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const CREAM = "#FDFBF7";
@@ -38,13 +40,13 @@ function CrownOrnament({ className = "" }: { className?: string }) {
   );
 }
 
-function DoubleFrame({ src, alt = "" }: { src: string; alt?: string }) {
+function DoubleFrame({ src, alt = "", slot }: { src: string; alt?: string; slot?: string }) {
   return (
     <div className="relative">
       <div className="absolute -left-3 -top-3 h-full w-full border-2 border-[#B8956B]/40" />
       <div className="relative border-4 border-white shadow-[0_20px_60px_rgba(100,75,50,0.15)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <WeddingMedia src={src} alt={alt} className="aspect-[4/5] w-full object-cover" />
+        <WeddingMedia slot={slot} src={src} alt={alt} className="aspect-[4/5] w-full object-cover" />
       </div>
       <div className="absolute -bottom-3 -right-3 h-full w-full border-2 border-[#B8956B]/60" />
     </div>
@@ -91,8 +93,44 @@ function RoyalNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function RoyalIvorySite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="relative py-20">
+        <LaceBg />
+        <div className="relative mx-auto max-w-4xl px-6 text-center">
+          <CrownOrnament className="mx-auto mb-4" />
+          <h2 className="font-['Playfair_Display'] text-4xl">הספירה לאחור</h2>
+          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {(
+              [
+                ["ימים", countdown.days],
+                ["שעות", countdown.hours],
+                ["דקות", countdown.minutes],
+                ["שניות", countdown.seconds],
+              ] as const
+            ).map(([label, val], i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="rounded-3xl border border-[#B8956B]/25 bg-white p-6 shadow-[0_12px_40px_rgba(100,75,50,0.08)]"
+              >
+                <span className="font-['Playfair_Display'] text-4xl font-semibold text-[#B8956B] md:text-5xl">
+                  {String(val).padStart(2, "0")}
+                </span>
+                <p className="mt-2 font-['Playfair_Display'] text-xs italic text-[#8C7B68]">{label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+}
+
+export default function RoyalIvorySite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -144,51 +182,21 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
             transition={{ duration: 1, delay: 0.3 }}
             className="relative mx-auto w-full max-w-sm md:max-w-md"
           >
-            <DoubleFrame src={template.heroImage} alt="couple" />
+            <DoubleFrame slot="hero" src={template.heroImage} alt="couple" />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
               className="absolute -bottom-8 -left-8 hidden w-40 md:block"
             >
-              <DoubleFrame src={template.galleryImages[1] ?? template.galleryImages[0]} />
+              <DoubleFrame slot="hero-secondary" src={template.galleryImages[1] ?? template.galleryImages[0]} />
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* COUNTDOWN — ornate cards */}
-      <section id="countdown" className="relative py-20">
-        <LaceBg />
-        <div className="relative mx-auto max-w-4xl px-6 text-center">
-          <CrownOrnament className="mx-auto mb-4" />
-          <h2 className="font-['Playfair_Display'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-3xl border border-[#B8956B]/25 bg-white p-6 shadow-[0_12px_40px_rgba(100,75,50,0.08)]"
-              >
-                <span className="font-['Playfair_Display'] text-4xl font-semibold text-[#B8956B] md:text-5xl">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-2 font-['Playfair_Display'] text-xs italic text-[#8C7B68]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="bg-white py-20">
@@ -233,7 +241,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       {/* HOW WE MET */}
       <section id="how-we-met" className="bg-white py-20">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
-          <DoubleFrame src={template.galleryImages[0]} />
+          <DoubleFrame slot="how-we-met" src={template.galleryImages[0]} />
           <div>
             <h2 className="font-['Playfair_Display'] text-4xl">איך נפגשנו</h2>
             <div className="my-6 h-px w-20 bg-[#B8956B]" />
@@ -245,18 +253,21 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       {/* PROPOSAL */}
       <section id="proposal" className="relative py-24">
         <LaceBg />
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="relative mx-auto max-w-3xl px-6 text-center"
-        >
-          <CrownOrnament className="mx-auto mb-8" />
-          <h2 className="font-['Playfair_Display'] text-4xl">ההצעה</h2>
-          <blockquote className="mt-10 font-['Playfair_Display'] text-2xl italic leading-relaxed text-[#5C4A38] md:text-3xl">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </blockquote>
-        </motion.div>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <DoubleFrame slot="proposal" src={template.galleryImages[1] ?? template.galleryImages[0]} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center md:text-right"
+          >
+            <CrownOrnament className="mx-auto mb-8 md:mx-0 md:mr-auto" />
+            <h2 className="font-['Playfair_Display'] text-4xl">ההצעה</h2>
+            <blockquote className="mt-10 font-['Playfair_Display'] text-2xl italic leading-relaxed text-[#5C4A38] md:text-3xl">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </blockquote>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — scroll snap carousel */}
@@ -468,12 +479,10 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       <section id="gifts" className="bg-white py-20 text-center">
         <h2 className="font-['Playfair_Display'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-8 max-w-lg text-[#8C7B68]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-[#B8956B]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border border-[#B8956B] px-8 py-3 font-['Playfair_Display'] text-[#B8956B]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -538,12 +547,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
           <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
             {upload.items.map((item) => (
               <div key={item.id} className="w-40 shrink-0 snap-center overflow-hidden rounded-xl border border-[#B8956B]/20">
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

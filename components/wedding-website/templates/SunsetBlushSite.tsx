@@ -16,6 +16,8 @@ import WeddingMedia from "../editable/WeddingMedia";
 import { MapPin } from "lucide-react";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const BLUSH = "#E8788A";
@@ -108,8 +110,43 @@ function BlushNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function SunsetBlushSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="py-20">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <p className="font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">countdown</p>
+          <h2 className="font-['Cormorant_Garamond'] text-4xl">הספירה לאחור</h2>
+          <div className="mt-12 flex flex-wrap justify-center gap-4">
+            {(
+              [
+                ["ימים", countdown.days],
+                ["שעות", countdown.hours],
+                ["דקות", countdown.minutes],
+                ["שניות", countdown.seconds],
+              ] as const
+            ).map(([label, val], i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, type: "spring" }}
+                className="min-w-[100px] rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-6 shadow-[0_10px_40px_rgba(232,120,138,0.15)]"
+              >
+                <span className="font-['Cormorant_Garamond'] text-4xl font-semibold text-[#E8788A]">
+                  {String(val).padStart(2, "0")}
+                </span>
+                <p className="mt-1 text-xs text-[#9A6070]">{label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+}
+
+export default function SunsetBlushSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -165,36 +202,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
       </section>
 
       {/* COUNTDOWN — soft gradient pills */}
-      <section id="countdown" className="py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <p className="font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">countdown</p>
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, type: "spring" }}
-                className="min-w-[100px] rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-6 shadow-[0_10px_40px_rgba(232,120,138,0.15)]"
-              >
-                <span className="font-['Cormorant_Garamond'] text-4xl font-semibold text-[#E8788A]">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-1 text-xs text-[#9A6070]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="relative overflow-hidden py-20">
@@ -250,7 +258,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
             style={{ transform: "rotate(-4deg)" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
+            <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-square w-full object-cover" />
             <p className="mt-4 text-center font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">
               how we met ♥
             </p>
@@ -264,17 +272,30 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
 
       {/* PROPOSAL */}
       <section id="proposal" className="py-24">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl rounded-[28px] bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] px-8 py-16 text-center text-white shadow-[0_20px_60px_rgba(232,120,138,0.35)]"
-        >
-          <h2 className="font-['Cormorant_Garamond'] text-4xl">ההצעה</h2>
-          <p className="mt-8 font-['Cormorant_Garamond'] text-2xl italic leading-relaxed">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </p>
-        </motion.div>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <motion.div
+            initial={{ rotate: 4 }}
+            whileInView={{ rotate: 3 }}
+            className="mx-auto w-full max-w-sm bg-white p-4 pb-12 shadow-[0_20px_60px_rgba(232,120,138,0.2)]"
+            style={{ transform: "rotate(3deg)" }}
+          >
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-square w-full object-cover" />
+            <p className="mt-4 text-center font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">
+              the proposal ♥
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="rounded-[28px] bg-gradient-to-br from-[#E8788A] to-[#FF9A8B] px-8 py-16 text-center text-white shadow-[0_20px_60px_rgba(232,120,138,0.35)]"
+          >
+            <h2 className="font-['Cormorant_Garamond'] text-4xl">ההצעה</h2>
+            <p className="mt-8 font-['Cormorant_Garamond'] text-2xl italic leading-relaxed">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </p>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — polaroids with rotation */}
@@ -477,12 +498,10 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
         <span className="text-5xl">🎁</span>
         <h2 className="mt-4 font-['Cormorant_Garamond'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-6 max-w-lg text-[#9A6070]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border-2 border-[#E8788A] px-8 py-3 font-bold text-[#E8788A]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border-2 border-[#E8788A] px-8 py-3 font-bold text-[#E8788A]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -551,12 +570,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
                 className="w-32 overflow-hidden bg-white p-2 shadow-md"
                 style={{ rotate: `${polaroidRotations[i % polaroidRotations.length] / 2}deg` }}
               >
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

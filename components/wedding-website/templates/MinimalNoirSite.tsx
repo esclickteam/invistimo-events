@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 
@@ -77,8 +79,45 @@ function NoirNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function MinimalNoirSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="border-t border-black">
+        <div className="grid md:grid-cols-5">
+          <div className="flex items-end border-b border-black p-8 md:col-span-1 md:border-b-0 md:border-l">
+            <div>
+              <NoirLabel>Countdown</NoirLabel>
+              <h2 className="mt-2 text-3xl font-black">הספירה</h2>
+            </div>
+          </div>
+          {(
+            [
+              ["ימים", countdown.days],
+              ["שעות", countdown.hours],
+              ["דקות", countdown.minutes],
+              ["שניות", countdown.seconds],
+            ] as const
+          ).map(([label, value], i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="border-l border-black p-8 text-center"
+            >
+              <div className="font-mono text-[clamp(2.5rem,8vw,5rem)] font-black tabular-nums leading-none">
+                {String(value).padStart(2, "0")}
+              </div>
+              <NoirLabel>{label}</NoirLabel>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+  );
+}
+
+export default function MinimalNoirSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -165,38 +204,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
       </section>
 
       {/* COUNTDOWN — stark grid */}
-      <section id="countdown" className="border-t border-black">
-        <div className="grid md:grid-cols-5">
-          <div className="flex items-end border-b border-black p-8 md:col-span-1 md:border-b-0 md:border-l">
-            <div>
-              <NoirLabel>Countdown</NoirLabel>
-              <h2 className="mt-2 text-3xl font-black">הספירה</h2>
-            </div>
-          </div>
-          {(
-            [
-              ["ימים", countdown.days],
-              ["שעות", countdown.hours],
-              ["דקות", countdown.minutes],
-              ["שניות", countdown.seconds],
-            ] as const
-          ).map(([label, value], i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="border-l border-black p-8 text-center"
-            >
-              <div className="font-mono text-[clamp(2.5rem,8vw,5rem)] font-black tabular-nums leading-none">
-                {String(value).padStart(2, "0")}
-              </div>
-              <NoirLabel>{label}</NoirLabel>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="border-t border-black">
@@ -249,7 +257,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           <div className="relative aspect-square border-b border-black md:border-b-0 md:border-l">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <WeddingMedia
-              slot={`gallery.0`} src={template.galleryImages[0]}
+              slot="how-we-met" src={template.galleryImages[0]}
               alt=""
               className="h-full w-full object-cover grayscale"
             />
@@ -266,16 +274,26 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
 
       {/* PROPOSAL */}
       <section id="proposal" className="border-t border-black bg-black text-white">
-        <div className="mx-auto max-w-4xl px-8 py-20 text-center">
-          <NoirLabel>Proposal</NoirLabel>
-          <motion.blockquote
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="mt-6 text-2xl font-light leading-relaxed md:text-4xl"
-          >
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </motion.blockquote>
+        <div className="grid md:grid-cols-2">
+          <div className="flex flex-col justify-center p-8 md:p-16">
+            <NoirLabel>Proposal</NoirLabel>
+            <motion.blockquote
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="mt-6 text-2xl font-light leading-relaxed md:text-4xl"
+            >
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </motion.blockquote>
+          </div>
+          <div className="relative aspect-square border-t border-white/10 md:border-t-0 md:border-r">
+            <WeddingMedia
+              slot="proposal"
+              src={template.galleryImages[1]}
+              alt=""
+              className="h-full w-full object-cover grayscale"
+            />
+          </div>
         </div>
       </section>
 
@@ -495,12 +513,10 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           <NoirLabel>Gifts</NoirLabel>
           <h2 className="mt-2 text-3xl font-black">מתנות</h2>
           <p className="mt-6 leading-relaxed text-neutral-700">{DEMO.giftsNote}</p>
-          <button
-            type="button"
-            className="mt-8 border border-black px-8 py-3 font-mono text-xs uppercase tracking-widest hover:bg-black hover:text-white"
-          >
-            Bit / PayBox
-          </button>
+          <WeddingGiftActions
+            className="mt-8"
+            actionClassName="border border-black px-8 py-3 font-mono text-xs uppercase tracking-widest"
+          />
         </div>
       </section>
 
@@ -567,12 +583,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           <div className="mt-8 grid grid-cols-2 gap-0 md:grid-cols-4">
             {upload.items.map((item) => (
               <div key={item.id} className="aspect-square border border-black">
-                {item.type === "video" ? (
-                  <video src={item.url} className="h-full w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="h-full w-full object-cover grayscale" />
-                )}
+                <EventUploadMedia item={item} className="h-full w-full object-cover grayscale" />
               </div>
             ))}
           </div>

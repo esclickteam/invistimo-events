@@ -15,6 +15,8 @@ import EditorOverlay from "./EditorOverlay";
 import EditorSidebar from "./EditorSidebar";
 import { defaultSectionOrder, setByPath } from "@/lib/weddingWebsite/editorSchema";
 import { applyMediaToContent, mediaSlotFromImageUrl } from "@/lib/weddingWebsite/media";
+import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
+import { EMPTY_WEDDING_GIFTS } from "@/lib/weddingWebsite/gifts";
 import type {
   WeddingDemoContent,
   WeddingMediaSlot,
@@ -46,7 +48,6 @@ const emptyContent: WeddingDemoContent = {
   guestMessageTitle: "השאירו לנו כמה מילים ❤️",
   guestMessageDescription: "נשמח לקרוא ברכה, איחול או הודעה מכם.",
   heroImage: "",
-  galleryImages: [],
   media: {},
   styles: {},
   sectionStyles: {},
@@ -54,6 +55,7 @@ const emptyContent: WeddingDemoContent = {
   sections: {
     rsvp: true,
     transportation: true,
+    guestbook: true,
     "guest-message": true,
     faq: true,
     "our-story": true,
@@ -76,6 +78,7 @@ export default function WeddingVisualEditor() {
   const [publishedSnapshot, setPublishedSnapshot] = useState("");
   const [templateId, setTemplateId] = useState<WeddingTemplateId>("eternal-gold");
   const [content, setContent] = useState<WeddingDemoContent>(emptyContent);
+  const [gifts, setGifts] = useState<WeddingGiftLinks>(EMPTY_WEDDING_GIFTS);
   const [selection, setSelection] = useState<WeddingSiteSelection>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [sidebarTab, setSidebarTab] = useState<"sections" | "theme" | "settings">("sections");
@@ -108,18 +111,23 @@ export default function WeddingVisualEditor() {
         setShareId(data?.invitation?.shareId || "");
         setInvitationId(data?.invitation?._id || "");
         setInvitationTitle(data?.invitation?.title || "");
+        if (data?.gifts) setGifts(data.gifts);
         const website = data?.weddingWebsite;
         const configured = Boolean(website?.hasSite);
         setHasSite(configured);
         setPickerOpen(!configured);
         if (website) {
+          const stored = website.draftContent || website.content || {};
           const nextContent = {
             ...emptyContent,
-            ...(website.draftContent || website.content),
-            galleryImages: Array.isArray((website.draftContent || website.content)?.galleryImages)
-              ? (website.draftContent || website.content).galleryImages
-              : [],
-          };
+            ...stored,
+          } as WeddingDemoContent;
+          if (!Array.isArray(nextContent.galleryImages) || nextContent.galleryImages.length === 0) {
+            delete nextContent.galleryImages;
+          }
+          if (!nextContent.heroImage) {
+            delete nextContent.heroImage;
+          }
           setTemplateId(website.templateId);
           setPublished(website.published !== false);
           setContent(nextContent);
@@ -444,6 +452,12 @@ export default function WeddingVisualEditor() {
               template={selectedTemplate}
               content={content}
               editor={editorApi}
+              live={{
+                shareId,
+                invitationId,
+                role: "couple",
+                gifts,
+              }}
             >
               <div className="relative min-w-0 flex-1 overflow-auto bg-[#2a2118] p-4">
                 <div

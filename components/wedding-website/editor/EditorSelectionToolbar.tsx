@@ -252,6 +252,49 @@ function SectionToolbar({ id }: { id: string }) {
   );
 }
 
+const COLOR_SWATCHES = [
+  "#111111",
+  "#3f3f3f",
+  "#6b6b6b",
+  "#9a9a9a",
+  "#d4d4d4",
+  "#ffffff",
+  "#7f1d1d",
+  "#b91c1c",
+  "#ef4444",
+  "#fb7185",
+  "#c2410c",
+  "#f97316",
+  "#facc15",
+  "#365314",
+  "#16a34a",
+  "#4ade80",
+  "#0f766e",
+  "#22d3ee",
+  "#1e3a8a",
+  "#2563eb",
+  "#7c3aed",
+  "#c026d3",
+  "#db2777",
+  "#C9A962",
+  "#8A7560",
+  "#3D2518",
+  "#E8788A",
+  "#3D8BBA",
+  "#6B9E78",
+  "#B8956B",
+];
+
+function toColorInputValue(value: string) {
+  const hex = value.trim();
+  if (/^#([0-9a-f]{6})$/i.test(hex)) return hex;
+  if (/^#([0-9a-f]{3})$/i.test(hex)) {
+    const parts = hex.slice(1).split("");
+    return `#${parts.map((part) => part + part).join("")}`;
+  }
+  return "#C9A962";
+}
+
 function ColorControl({
   colors,
   value,
@@ -265,10 +308,18 @@ function ColorControl({
   const [hex, setHex] = useState(value || "#C9A962");
   const recent = useMemo(() => readRecentColors(), [open]);
   const contrast = contrastOn(hex);
+  const pickerValue = toColorInputValue(hex);
+  const palette = Array.from(new Set([...colors.filter(Boolean), ...COLOR_SWATCHES]));
 
   useEffect(() => {
     if (value) setHex(value);
   }, [value]);
+
+  function applyColor(color: string) {
+    setHex(color);
+    rememberColor(color);
+    onChange(color);
+  }
 
   return (
     <div className="relative">
@@ -281,19 +332,28 @@ function ColorControl({
         צבע
       </button>
       {open ? (
-        <div className="absolute right-0 top-9 z-10 w-56 rounded-2xl border border-[#eadfce] bg-white p-3 shadow-xl">
-          <p className="mb-2 text-[10px] font-black text-[#8A7B69]">צבעי התבנית</p>
-          <div className="flex flex-wrap gap-1.5">
-            {colors.filter(Boolean).map((color) => (
+        <div className="absolute right-0 top-9 z-10 w-72 rounded-2xl border border-[#eadfce] bg-white p-3 shadow-xl">
+          <p className="mb-2 text-[10px] font-black text-[#8A7B69]">פלטת צבעים</p>
+          <label className="mb-3 block">
+            <span className="sr-only">בחירת צבע</span>
+            <input
+              type="color"
+              value={pickerValue}
+              onChange={(event) => applyColor(event.target.value)}
+              className="h-12 w-full cursor-pointer rounded-xl border border-[#eadfce] bg-white p-1"
+            />
+          </label>
+          <div className="grid grid-cols-10 gap-1.5">
+            {palette.map((color) => (
               <button
                 key={color}
                 type="button"
-                className="h-6 w-6 rounded-full border border-black/10"
+                title={color}
+                className={`h-6 w-6 rounded-full border ${
+                  color.toLowerCase() === hex.toLowerCase() ? "border-[#241A14] ring-2 ring-[#C9A962]" : "border-black/10"
+                }`}
                 style={{ background: color }}
-                onClick={() => {
-                  rememberColor(color);
-                  onChange(color);
-                }}
+                onClick={() => applyColor(color)}
               />
             ))}
           </div>
@@ -307,7 +367,7 @@ function ColorControl({
                     type="button"
                     className="h-6 w-6 rounded-full border border-black/10"
                     style={{ background: color }}
-                    onClick={() => onChange(color)}
+                    onClick={() => applyColor(color)}
                   />
                 ))}
               </div>
@@ -320,8 +380,7 @@ function ColorControl({
               onChange={(event) => setHex(event.target.value)}
               onBlur={() => {
                 if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)) {
-                  rememberColor(hex);
-                  onChange(hex);
+                  applyColor(hex);
                 }
               }}
               className="mt-1 w-full rounded-xl border border-[#eadfce] px-2 py-1 font-mono text-xs"

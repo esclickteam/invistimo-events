@@ -106,6 +106,13 @@ export default function EditorSidebar({
         {tab === "settings" ? (
           <div className="space-y-3 text-xs leading-6 text-white/70">
             <p>אישור הגעה, הסעות והודעות לזוג נשארים מחוברים למערכת האמיתית. בעורך משנים רק כותרות ועיצוב.</p>
+            <a
+              href="/dashboard/guest-messages"
+              className="block rounded-xl border border-white/15 px-3 py-2 text-center font-black text-white"
+            >
+              הודעות מהאורחים
+            </a>
+            <p>מתנות (Bit, אשראי, PayBox) מופיעות לפי הקישורים ומספר הטלפון ששמרתם בפרטי האירוע.</p>
             {publicPath ? (
               <a
                 href={publicPath}

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import "@/app/wedding-website/wedding-website.css";
 import { getWeddingTemplateSite } from "./templates";
 import { setLiveWeddingContent } from "./shared/weddingUtils";
@@ -7,8 +8,13 @@ import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
 import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import type { ReactNode } from "react";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
-import { WeddingSiteProvider, useWeddingSite } from "./editable/WeddingSiteContext";
+import {
+  WeddingSiteProvider,
+  useWeddingSite,
+  type WeddingLiveMeta,
+} from "./editable/WeddingSiteContext";
 import { WeddingSiteHydrator, WeddingSiteRuntimeStyles } from "./editable/SiteHydrator";
+import WeddingGuestMessageForm from "./WeddingGuestMessageForm";
 
 type Props = {
   template: WeddingTemplate;
@@ -17,6 +23,7 @@ type Props = {
   content?: WeddingDemoContent | null;
   rsvpController?: GuestRsvpController | null;
   guestMessageSlot?: ReactNode;
+  liveMeta?: WeddingLiveMeta | null;
 };
 
 export default function WeddingTemplateSiteRenderer(props: Props) {
@@ -35,20 +42,32 @@ export default function WeddingTemplateSiteRenderer(props: Props) {
       template={resolvedTemplate}
       content={props.content || ({} as WeddingDemoContent)}
       editor={null}
+      live={props.liveMeta || { role: "demo" }}
     >
       {tree}
     </WeddingSiteProvider>
   );
 }
 
-function RenderedSite({
+const RenderedSite = memo(function RenderedSite({
   template,
   embed,
   live,
   rsvpController,
   guestMessageSlot,
 }: Props) {
+  const site = useWeddingSite();
   const Site = getWeddingTemplateSite(template.id);
+  const resolvedMessageSlot =
+    guestMessageSlot ??
+    (live ? (
+      <WeddingGuestMessageForm
+        shareId={site?.live?.shareId || ""}
+        token={site?.live?.token || ""}
+        title={site?.content.guestMessageTitle}
+        description={site?.content.guestMessageDescription}
+      />
+    ) : null);
 
   if (!Site) {
     return (
@@ -89,10 +108,10 @@ function RenderedSite({
             embed={embed}
             live={live}
             rsvpController={rsvpController}
-            guestMessageSlot={guestMessageSlot}
+            guestMessageSlot={resolvedMessageSlot}
           />
         </div>
       </WeddingSiteHydrator>
     </>
   );
-}
+});

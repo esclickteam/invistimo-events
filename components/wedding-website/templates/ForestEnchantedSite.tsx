@@ -15,6 +15,8 @@ import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/we
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const NAV = WEDDING_SECTIONS.filter((s) => s.id !== "footer");
 const GREEN = "#7CB87A";
@@ -139,8 +141,45 @@ function ForestNav({ embed }: { embed?: boolean }) {
   );
 }
 
-export default function ForestEnchantedSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
+function CountdownBlock() {
   const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
+  return (
+      <section id="countdown" className="relative overflow-hidden py-20">
+        <Blob className="-left-20 top-0 h-64 w-64" />
+        <Blob className="-right-10 bottom-0 h-48 w-48" />
+        <Fireflies />
+        <div className="relative mx-auto max-w-4xl px-6 text-center">
+          <h2 className="font-['Libre_Baskerville'] text-4xl">הספירה לאחור</h2>
+          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {(
+              [
+                ["ימים", countdown.days],
+                ["שעות", countdown.hours],
+                ["דקות", countdown.minutes],
+                ["שניות", countdown.seconds],
+              ] as const
+            ).map(([label, val], i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/25 bg-[#1C2A1E] p-8"
+              >
+                <span className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A] md:text-5xl">
+                  {String(val).padStart(2, "0")}
+                </span>
+                <p className="mt-2 text-xs text-[#8AA892]">{label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+  );
+}
+
+export default function ForestEnchantedSite({ template, embed, live, rsvpController, guestMessageSlot }: TemplateProps) {
   const guestbook = useGuestbook();
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
@@ -154,6 +193,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       <section id="hero" className="relative flex min-h-screen items-end overflow-hidden">
         <WeddingMedia
           slot="hero" src={VIDEOS.forest}
+          poster={template.heroImage}
           autoPlay
           muted
           loop
@@ -195,38 +235,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       </section>
 
       {/* COUNTDOWN — organic blobs */}
-      <section id="countdown" className="relative overflow-hidden py-20">
-        <Blob className="-left-20 top-0 h-64 w-64" />
-        <Blob className="-right-10 bottom-0 h-48 w-48" />
-        <Fireflies />
-        <div className="relative mx-auto max-w-4xl px-6 text-center">
-          <h2 className="font-['Libre_Baskerville'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/25 bg-[#1C2A1E] p-8"
-              >
-                <span className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A] md:text-5xl">
-                  {String(val).padStart(2, "0")}
-                </span>
-                <p className="mt-2 text-xs text-[#8AA892]">{label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CountdownBlock />
 
       {/* INVITATION */}
       <section id="invitation" className="relative py-20">
@@ -271,7 +280,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <WeddingMedia
-              slot={`gallery.0`} src={template.galleryImages[0]}
+              slot="how-we-met" src={template.galleryImages[0]}
               alt=""
               className="relative aspect-[4/5] w-full rounded-[40%_60%_55%_45%/50%_45%_55%_50%] object-cover"
             />
@@ -287,17 +296,28 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       {/* PROPOSAL */}
       <section id="proposal" className="relative py-24">
         <Fireflies />
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="mx-auto max-w-3xl rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 bg-[#1C2A1E] px-8 py-16 text-center"
-        >
-          <h2 className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A]">ההצעה</h2>
-          <blockquote className="mt-8 font-['Libre_Baskerville'] text-xl italic leading-relaxed text-[#E8F0E4]">
-            &ldquo;{DEMO.proposalStory}&rdquo;
-          </blockquote>
-        </motion.div>
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-[55%_45%_50%_50%/45%_55%_45%_55%] border border-[#7CB87A]/30" />
+            <WeddingMedia
+              slot="proposal"
+              src={template.galleryImages[1]}
+              alt=""
+              className="relative aspect-[4/5] w-full rounded-[55%_45%_50%_50%/45%_55%_45%_55%] object-cover"
+            />
+          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="rounded-[40%_60%_55%_45%/50%_45%_55%_50%] border border-[#7CB87A]/30 bg-[#1C2A1E] px-8 py-16 text-center"
+          >
+            <h2 className="font-['Libre_Baskerville'] text-4xl text-[#7CB87A]">ההצעה</h2>
+            <blockquote className="mt-8 font-['Libre_Baskerville'] text-xl italic leading-relaxed text-[#E8F0E4]">
+              &ldquo;{DEMO.proposalStory}&rdquo;
+            </blockquote>
+          </motion.div>
+        </div>
       </section>
 
       {/* GALLERY — masonry organic */}
@@ -499,12 +519,10 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
       <section id="gifts" className="py-20 text-center">
         <h2 className="font-['Libre_Baskerville'] text-4xl">מתנות</h2>
         <p className="mx-auto mt-8 max-w-lg text-[#8AA892]">{DEMO.giftsNote}</p>
-        <button
-          type="button"
-          className="mt-8 rounded-full border border-[#7CB87A] px-8 py-3 text-[#7CB87A]"
-        >
-          Bit / PayBox
-        </button>
+        <WeddingGiftActions
+          className="mt-8"
+          actionClassName="rounded-full border border-[#7CB87A] px-8 py-3 text-[#7CB87A]"
+        />
       </section>
 
       {/* GUESTBOOK */}
@@ -569,12 +587,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
           <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
             {upload.items.map((item) => (
               <div key={item.id} className="overflow-hidden rounded-2xl border border-[#7CB87A]/20">
-                {item.type === "video" ? (
-                  <video src={item.url} className="aspect-square w-full object-cover" muted />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.url} alt="" className="aspect-square w-full object-cover" />
-                )}
+                <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               </div>
             ))}
           </div>

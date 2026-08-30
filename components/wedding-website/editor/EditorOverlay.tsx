@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useWeddingSite } from "@/components/wedding-website/editable/WeddingSiteContext";
 import type { WeddingSiteSelection } from "@/components/wedding-website/editable/WeddingSiteContext";
 import { LOCKED_EVENT_PATHS } from "@/lib/weddingWebsite/editorSchema";
+import { htmlToPlainTextWithBreaks } from "@/lib/weddingWebsite/textEditing";
 import EditorSelectionToolbar from "./EditorSelectionToolbar";
 
 const SKIP = "[data-ww-chrome],.ww-editor-ui,input,textarea,select,[data-rsvp-core]";
@@ -21,11 +22,10 @@ export default function EditorOverlay() {
   const editor = site?.editor;
   const [hover, setHover] = useState<HoverState | null>(null);
   const [toolbarRect, setToolbarRect] = useState<DOMRect | null>(null);
-  const canvasRef = useRef<HTMLElement | null>(null);
+  const persistTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
-    canvasRef.current = canvas;
     if (!canvas || !editor) return;
     const api = editor;
 
@@ -33,7 +33,8 @@ export default function EditorOverlay() {
       const el = target instanceof Element ? target : null;
       if (!el) return null;
       if (el.closest(SKIP)) return null;
-      const hit = el.closest("[data-ww-edit]") as HTMLElement | null;
+      const preferred = el.closest('[data-ww-edit="text"],[data-ww-edit="media"]') as HTMLElement | null;
+      const hit = (preferred || el.closest("[data-ww-edit]")) as HTMLElement | null;
       if (!hit) return null;
       const type = hit.dataset.wwEdit || "";
       const path = hit.dataset.wwPath || "";
@@ -44,6 +45,12 @@ export default function EditorOverlay() {
         label: hit.dataset.wwLabel || labelFor(type),
         rect: hit.getBoundingClientRect(),
       };
+    }
+
+    function persistText(el: HTMLElement) {
+      const path = el.dataset.wwPath || "";
+      if (!path || LOCKED_EVENT_PATHS.has(path)) return;
+      api.updateText(path, htmlToPlainTextWithBreaks(el));
     }
 
     function onPointerMove(event: PointerEvent) {
@@ -57,20 +64,59 @@ export default function EditorOverlay() {
         api.setSelection(null);
         return;
       }
+
+      api.setSelection(toSelection(next));
+
+      if (next.type === "text") {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
-      const selection = toSelection(next);
-      api.setSelection(selection);
-      if (next.type === "text" && !LOCKED_EVENT_PATHS.has(next.path)) {
-        enableInlineEdit(event.target, next.path, api.updateText);
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter") return;
+      const el = event.target instanceof HTMLElement ? event.target : null;
+      if (!el?.isContentEditable) return;
+      if (!el.closest("[data-ww-edit='text']")) return;
+      event.preventDefault();
+      if (!document.execCommand("insertLineBreak")) {
+        insertLineBreakAtCaret();
       }
+    }
+
+    function onFocusOut(event: FocusEvent) {
+      const el =
+        event.target instanceof HTMLElement
+          ? (event.target.closest("[data-ww-edit='text']") as HTMLElement | null)
+          : null;
+      if (!el) return;
+      persistText(el);
+    }
+
+    function onInput(event: Event) {
+      const el =
+        event.target instanceof HTMLElement
+          ? (event.target.closest("[data-ww-edit='text']") as HTMLElement | null)
+          : null;
+      if (!el) return;
+      if (persistTimer.current) window.clearTimeout(persistTimer.current);
+      persistTimer.current = window.setTimeout(() => persistText(el), 400);
     }
 
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerdown", onPointerDown, true);
+    canvas.addEventListener("keydown", onKeyDown);
+    canvas.addEventListener("focusout", onFocusOut);
+    canvas.addEventListener("input", onInput);
     return () => {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerdown", onPointerDown, true);
+      canvas.removeEventListener("keydown", onKeyDown);
+      canvas.removeEventListener("focusout", onFocusOut);
+      canvas.removeEventListener("input", onInput);
+      if (persistTimer.current) window.clearTimeout(persistTimer.current);
     };
   }, [editor]);
 
@@ -80,7 +126,9 @@ export default function EditorOverlay() {
       return;
     }
     const path = editor.selection.path;
-    const el = document.querySelector(`[data-ww-path="${cssAttr(path)}"]`) as HTMLElement | null;
+    const el = document.querySelector(
+      `.ww-editor-canvas [data-ww-path="${cssAttr(path)}"][data-ww-edit]`
+    ) as HTMLElement | null;
     setToolbarRect(el?.getBoundingClientRect() || null);
   }, [editor?.selection, site?.content]);
 
@@ -123,14 +171,15 @@ function OutlineBox({
   return (
     <div
       className={`absolute rounded-md border ${
-        muted ? "border-[#C9A962]/50" : "border-[#C9A962]"
+        muted ? "border-[#C9A962]/45" : "border-[#C9A962]"
       }`}
       style={{
         top: rect.top - 2,
         left: rect.left - 2,
         width: rect.width + 4,
         height: rect.height + 4,
-        boxShadow: muted ? "none" : "0 0 0 1px rgba(201,169,98,0.35)",
+        boxShadow: muted ? "none" : "0 0 0 1px rgba(201,169,98,0.28)",
+        pointerEvents: "none",
       }}
     >
       <span className="absolute -top-6 right-0 rounded-full bg-[#C9A962] px-2 py-0.5 text-[10px] font-black text-white">
@@ -157,19 +206,17 @@ function cssAttr(value: string) {
   return value.replace(/"/g, "");
 }
 
-function enableInlineEdit(
-  target: EventTarget | null,
-  path: string,
-  updateText: (path: string, value: string) => void
-) {
-  const el = target instanceof Element ? target.closest("[data-ww-path]") as HTMLElement | null : null;
-  if (!el) return;
-  el.contentEditable = "true";
-  el.focus();
-  const finish = () => {
-    el.contentEditable = "false";
-    updateText(path, (el.innerText || "").trim());
-    el.removeEventListener("blur", finish);
-  };
-  el.addEventListener("blur", finish);
+function insertLineBreakAtCaret() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const br = document.createElement("br");
+  range.insertNode(br);
+  const spacer = document.createTextNode("\u200b");
+  br.parentNode?.insertBefore(spacer, br.nextSibling);
+  range.setStartAfter(spacer);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }

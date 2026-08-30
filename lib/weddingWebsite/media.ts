@@ -85,21 +85,11 @@ export function mediaSlotFromImageUrl(src: string, alt = ""): WeddingMediaSlot {
 
 export function inferMediaSlotId(
   src: string,
-  template?: WeddingTemplate | null,
+  _template?: WeddingTemplate | null,
   content?: Partial<WeddingDemoContent> | null
 ) {
   const url = sanitizeWeddingMediaUrl(src);
   if (!url) return "";
-
-  const hero = sanitizeWeddingMediaUrl(content?.media?.hero?.src || content?.heroImage || template?.heroImage);
-  if (hero && urlsMatch(url, hero)) return "hero";
-
-  const gallery =
-    Array.isArray(content?.galleryImages) && content.galleryImages.length > 0
-      ? content.galleryImages
-      : template?.galleryImages || [];
-  const galleryIndex = gallery.findIndex((item) => urlsMatch(url, item));
-  if (galleryIndex >= 0) return `gallery.${galleryIndex}`;
 
   const media = content?.media || {};
   for (const [key, slot] of Object.entries(media)) {
@@ -171,13 +161,12 @@ export function applyMediaToContent(
     const index = Number(galleryMatch[1]);
     const gallery = [...(content.galleryImages || [])];
     if (!slot?.src) {
-      gallery.splice(index, 1);
-    } else if (slot.type === "image") {
-      gallery[index] = slot.src;
+      gallery[index] = "";
     } else {
       gallery[index] = slot.src;
     }
-    next.galleryImages = gallery.filter(Boolean);
+    const cleaned = gallery.filter(Boolean);
+    next.galleryImages = cleaned.length > 0 ? cleaned : undefined;
   }
 
   return next;

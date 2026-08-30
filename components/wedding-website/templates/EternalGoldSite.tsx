@@ -17,6 +17,8 @@ import {
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingCoverImage from "../WeddingCoverImage";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -192,7 +194,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
           viewport={{ once: true }}
           className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
         >
-          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </motion.div>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#C9A962]">Chapter I</p>
@@ -216,7 +218,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
             viewport={{ once: true }}
             className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
           >
-            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </motion.div>
         </div>
         <div className="md:order-1">
@@ -460,9 +462,10 @@ function GiftsSection() {
         <h2 className="font-['Cormorant_Garamond'] text-4xl font-light">מתנות</h2>
         <GoldDivider />
         <p className="text-lg text-[#8A7560]">{DEMO.giftsNote}</p>
-        <a href="#" className="mt-6 inline-block border border-[#C9A962] px-8 py-3 text-sm font-bold text-[#C9A962]">
-          Bit — {DEMO.coupleShort}
-        </a>
+        <WeddingGiftActions
+          className="mt-6"
+          actionClassName="inline-block border border-[#C9A962] px-8 py-3 text-sm font-bold text-[#C9A962]"
+        />
       </div>
     </Section>
   );
@@ -513,12 +516,14 @@ function GuestbookSection({
 }
 
 function GuestUploadSection() {
-  const { items, dragging, setDragging, uploaderName, setUploaderName, onDrop, onFileChange } = useGuestUpload();
+  const { items, dragging, setDragging, uploaderName, setUploaderName, onDrop, onFileChange, uploadHint, error } = useGuestUpload();
   return (
     <Section id="guest-upload" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">זיכרונות מהאירוע</h2>
         <GoldDivider />
+        <p className="text-center text-sm text-[#8A7560]">{uploadHint}</p>
+        {error ? <p className="mt-2 text-center text-sm font-bold text-red-600">{error}</p> : null}
         <input
           value={uploaderName}
           onChange={(e) => setUploaderName(e.target.value)}
@@ -540,7 +545,7 @@ function GuestUploadSection() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {items.map((item) => (
             <div key={item.id} className="overflow-hidden border border-[#C9A962]/40">
-              <img src={item.url} alt={item.name} className="aspect-square w-full object-cover" />
+              <EventUploadMedia item={item} className="aspect-square w-full object-cover" />
               <p className="p-2 text-xs text-[#8A7560]">{item.uploadedBy}</p>
             </div>
           ))}

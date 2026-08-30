@@ -138,6 +138,7 @@ test("guest messages are sanitized and length-limited", () => {
   assert.equal(sanitizeGuestMessage("  שלום <script>alert(1)</script>  "), "שלום");
   assert.equal(sanitizeGuestMessage("<b>ברכה</b>"), "ברכה");
   assert.equal(sanitizeGuestMessage("javascript:alert(1)"), "alert(1)");
+  assert.equal(sanitizeGuestMessage("שורה אחת\nשורה שתיים"), "שורה אחת\nשורה שתיים");
   assert.equal(
     sanitizeGuestMessage("x".repeat(GUEST_MESSAGE_MAX_LENGTH + 50)).length,
     GUEST_MESSAGE_MAX_LENGTH
@@ -192,14 +193,25 @@ test("guest messages are a separate model from RSVP notes", () => {
   const model = read("models/GuestWeddingMessage.ts");
   const api = read("app/api/w/[shareId]/message/route.ts");
   const dashboard = read("app/dashboard/guest-messages/page.tsx");
+  const messageForm = read("components/wedding-website/WeddingGuestMessageForm.tsx");
+  const uploads = read("app/api/w/[shareId]/uploads/route.ts");
+  const eventModel = read("models/WeddingEventUpload.ts");
+  const ttl = read("lib/weddingWebsite/eventUploads.ts");
 
   assert.match(model, /GuestWeddingMessage/);
   assert.match(model, /guestId/);
   assert.match(model, /weddingWebsiteId/);
+  assert.match(model, /sender/);
   assert.match(api, /hasGuestMessagesFeature/);
   assert.match(api, /wedding_guest_message_received/);
   assert.match(api, /sanitizeGuestMessage/);
+  assert.match(api, /export async function GET/);
   assert.match(dashboard, /הודעות מהאורחים/);
+  assert.match(dashboard, /שליחת תשובה/);
+  assert.match(messageForm, /\/api\/w\/\$\{shareId\}\/message\?token=/);
+  assert.match(eventModel, /expiresAt/);
+  assert.match(ttl, /90 \* 24/);
+  assert.match(uploads, /eventUploadExpiresAt/);
 });
 
 test("location pin is UI-only and keeps existing map URLs", () => {

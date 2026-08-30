@@ -16,6 +16,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -40,13 +41,23 @@ function SandShimmer() {
   );
 }
 
-function ArchMask({ src, className = "" }: { src: string; className?: string }) {
+function ArchMask({
+  src,
+  className = "",
+  slot,
+  editable = true,
+}: {
+  src: string;
+  className?: string;
+  slot?: string;
+  editable?: boolean;
+}) {
   return (
     <div
       className={`overflow-hidden shadow-xl ${className}`}
       style={{ borderRadius: "50% 50% 20% 20% / 60% 60% 40% 40%" }}
     >
-      <WeddingMedia src={src} alt="" className="aspect-[3/4] w-full object-cover" />
+      <WeddingMedia slot={slot} src={src} alt="" editable={editable} className="aspect-[3/4] w-full object-cover" />
     </div>
   );
 }
@@ -112,7 +123,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           transition={{ duration: 1, delay: 0.3 }}
           className="relative flex items-center justify-center p-8 lg:col-span-7"
         >
-          <ArchMask src={template.heroImage} className="w-full max-w-lg" />
+          <ArchMask slot="hero" src={template.heroImage} className="w-full max-w-lg" />
         </motion.div>
       </div>
     </section>
@@ -197,7 +208,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#FBF5F0] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
         <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="lg:col-span-5 lg:-rotate-2">
-          <ArchMask src={template.galleryImages[0]} />
+          <ArchMask slot="how-we-met" src={template.galleryImages[0]} />
         </motion.div>
         <div className="lg:col-span-7 lg:pl-8">
           <h2 className="font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">איך נפגשנו</h2>
@@ -214,7 +225,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
         <div className="lg:order-2 lg:col-span-5 lg:rotate-2">
           <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-            <ArchMask src={template.galleryImages[1]} />
+            <ArchMask slot="proposal" src={template.galleryImages[1]} />
           </motion.div>
         </div>
         <div className="lg:order-1 lg:col-span-7">
@@ -241,7 +252,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
               transition={{ delay: i * 0.1 }}
               className={i % 2 === 1 ? "mt-8" : ""}
             >
-              <ArchMask src={src} />
+              <ArchMask slot={`gallery.${i}`} src={src} />
             </motion.div>
           ))}
         </div>
@@ -430,9 +441,10 @@ function GiftsSection() {
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">מתנות</h2>
         <p className="mt-8 text-[#9A7060]">{DEMO.giftsNote}</p>
-        <a href="#" className="mt-6 inline-block px-8 py-3 text-sm font-bold text-white" style={{ backgroundColor: TERRACOTTA, clipPath: "polygon(5% 0, 100% 0, 95% 100%, 0 100%)" }}>
-          Bit
-        </a>
+        <WeddingGiftActions
+          className="mt-6"
+          actionClassName="inline-block px-8 py-3 text-sm font-bold text-white bg-[#C4705A]"
+        />
       </div>
     </Section>
   );
@@ -489,7 +501,7 @@ function GuestUploadSection() {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {items.map((item, i) => (
             <div key={item.id} className="overflow-hidden shadow-md" style={{ transform: `rotate(${i % 2 ? 2 : -2}deg)` }}>
-              <ArchMask src={item.url} />
+              <ArchMask slot={`event-upload.${item.id}`} src={item.url} editable={false} />
             </div>
           ))}
         </div>

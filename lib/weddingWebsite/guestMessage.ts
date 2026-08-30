@@ -2,7 +2,7 @@ import { getClientIp } from "@/lib/telnyx/webrtcSecurity";
 
 export const GUEST_MESSAGE_MAX_LENGTH = 1000;
 export const GUEST_MESSAGE_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-export const GUEST_MESSAGE_RATE_LIMIT_MAX = 5;
+export const GUEST_MESSAGE_RATE_LIMIT_MAX = 20;
 
 type RateBucket = {
   count: number;
@@ -21,7 +21,8 @@ export function sanitizeGuestMessage(value: unknown): string {
     .replace(/&lt;[^&]*&gt;/gi, "")
     .replace(/javascript:/gi, "")
     .replace(/on\w+=/gi, "")
-    .replace(/\s+/g, " ")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, GUEST_MESSAGE_MAX_LENGTH);
 }

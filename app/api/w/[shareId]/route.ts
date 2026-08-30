@@ -7,6 +7,7 @@ import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 import { overlayWeddingTemplateImages } from "@/lib/weddingWebsite/images";
+import { resolveWeddingGifts } from "@/lib/weddingWebsite/gifts";
 import { resolvePublicGuestActions } from "@/lib/weddingWebsite/guestContext";
 import { emitWeddingInternalEvent } from "@/lib/weddingWebsite/events";
 import {
@@ -123,6 +124,7 @@ export async function GET(
         menuOptions,
       },
       guest,
+      gifts: resolveWeddingGifts(invitation),
     });
   } catch (error) {
     console.error("PUBLIC WEDDING WEBSITE GET FAILED:", error);

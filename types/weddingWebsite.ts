@@ -149,4 +149,6 @@ export type GuestUploadItem = {
   name: string;
   uploadedBy: string;
   createdAt: string;
+  expiresAt?: string;
+  source?: "guest" | "couple";
 };

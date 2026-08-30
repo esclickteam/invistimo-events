@@ -16,6 +16,8 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
+import WeddingGiftActions from "../WeddingGiftActions";
+import EventUploadMedia from "../shared/EventUploadMedia";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -80,12 +82,12 @@ function StickyNav() {
   );
 }
 
-function HeroSection() {
+function HeroSection({ template }: { template: WeddingTemplate }) {
   return (
     <section id="hero" className="relative flex min-h-screen flex-col items-center justify-center bg-black px-6 py-16">
       <div className="relative w-full max-w-6xl overflow-hidden rounded-sm shadow-[0_0_80px_rgba(212,175,55,0.15)]">
         <div className="relative aspect-[2.35/1] w-full bg-black">
-          <WeddingMedia slot="hero" src={VIDEOS.rings} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+          <WeddingMedia slot="hero" src={VIDEOS.rings} poster={template.heroImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
           <GoldParticles />
         </div>
@@ -184,7 +186,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#16131C] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
         <Glass className="overflow-hidden p-0">
-          <WeddingMedia slot={`gallery.0`} src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
+          <WeddingMedia slot="how-we-met" src={template.galleryImages[0]} alt="" className="aspect-[4/5] w-full object-cover" />
         </Glass>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#D4AF37]">Chapter I</p>
@@ -202,7 +204,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-2">
         <div className="lg:order-2">
           <Glass className="overflow-hidden p-0">
-            <WeddingMedia slot={`gallery.1`} src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
+            <WeddingMedia slot="proposal" src={template.galleryImages[1]} alt="" className="aspect-[4/5] w-full object-cover" />
           </Glass>
         </div>
         <div className="lg:order-1">
@@ -426,9 +428,10 @@ function GiftsSection() {
         <h2 className="font-['Playfair_Display'] text-4xl text-[#F5F0E8]">מתנות</h2>
         <Glass className="mt-10">
           <p className="text-[#A89BB0]">{DEMO.giftsNote}</p>
-          <a href="#" className="mt-6 inline-block rounded-full border border-[#D4AF37] px-8 py-3 text-sm font-bold text-[#D4AF37]">
-            Bit
-          </a>
+          <WeddingGiftActions
+            className="mt-6"
+            actionClassName="inline-block rounded-full border border-[#D4AF37] px-8 py-3 text-sm font-bold text-[#D4AF37]"
+          />
         </Glass>
       </div>
     </Section>
@@ -490,7 +493,7 @@ function GuestUploadSection() {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {items.map((item) => (
             <div key={item.id} className="h-40 w-40 shrink-0 overflow-hidden rounded-xl border border-[#D4AF37]/20">
-              <img src={item.url} alt="" className="h-full w-full object-cover" />
+              <EventUploadMedia item={item} className="h-full w-full object-cover" />
             </div>
           ))}
         </div>
@@ -541,7 +544,7 @@ export default function MidnightVelvetSite({
   return (
     <div className="wedding-website-root min-h-screen overflow-x-hidden bg-[#0D0B10] text-[#F5F0E8] scroll-smooth">
       {!embed && <StickyNav />}
-      <HeroSection />
+      <HeroSection template={template} />
       <CountdownSection />
       <InvitationSection />
       <OurStorySection />
