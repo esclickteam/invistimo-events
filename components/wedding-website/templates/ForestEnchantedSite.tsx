@@ -17,6 +17,7 @@ import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import { WeddingDesktopFx } from "../shared/weddingMotion";
 
 const GREEN = "#7CB87A";
 const DARK = "#0F1810";
@@ -34,7 +35,8 @@ function Fireflies() {
     []
   );
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {flies.map((f) => (
         <motion.div
           key={f.id}
@@ -56,13 +58,15 @@ function Fireflies() {
         />
       ))}
     </div>
+    </WeddingDesktopFx>
   );
 }
 
 function FairyLights() {
   const bulbs = 24;
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-x-0 top-0 hidden justify-center overflow-hidden opacity-60 md:flex">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center overflow-hidden opacity-60">
       <svg viewBox="0 0 800 60" className="h-16 w-full max-w-4xl" preserveAspectRatio="none">
         <path
           d="M0,30 Q100,10 200,30 T400,30 T600,30 T800,30"
@@ -88,6 +92,7 @@ function FairyLights() {
         })}
       </svg>
     </div>
+    </WeddingDesktopFx>
   );
 }
 

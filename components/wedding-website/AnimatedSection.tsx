@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import type { ReactNode } from "react";
+import { useEaseMobileScroll } from "./shared/weddingMotion";
 
 type Props = {
   id: string;
@@ -17,18 +18,20 @@ export default function AnimatedSection({
   children,
   fullHeight = false,
 }: Props) {
+  const ease = useEaseMobileScroll();
   const { ref, inView } = useInView({
     threshold: 0.12,
     triggerOnce: true,
+    skip: ease,
   });
 
   return (
     <motion.section
       ref={ref}
       id={id}
-      initial={{ opacity: 0, y: 48 }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 48 }}
-      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+      initial={ease ? false : { opacity: 0, y: 48 }}
+      animate={ease || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 48 }}
+      transition={{ duration: ease ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }}
       className={`ww-section ${fullHeight ? "min-h-screen" : ""} ${className}`}
     >
       {children}

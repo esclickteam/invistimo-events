@@ -18,6 +18,7 @@ import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import { useEaseMobileScroll } from "../shared/weddingMotion";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -30,15 +31,21 @@ const fadeUp = {
 };
 
 function WaveBottom() {
+  const ease = useEaseMobileScroll();
+  const d = "M0,30 C240,50 480,10 720,30 C960,50 1200,10 1440,30 L1440,60 L0,60 Z";
   return (
     <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 overflow-hidden">
       <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="h-full w-full">
-        <motion.path
-          d="M0,30 C240,50 480,10 720,30 C960,50 1200,10 1440,30 L1440,60 L0,60 Z"
-          fill={SAND}
-          animate={{ d: ["M0,30 C240,50 480,10 720,30 C960,50 1200,10 1440,30 L1440,60 L0,60 Z", "M0,30 C240,10 480,50 720,30 C960,10 1200,50 1440,30 L1440,60 L0,60 Z"] }}
-          transition={{ duration: 6, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-        />
+        {ease ? (
+          <path d={d} fill={SAND} />
+        ) : (
+          <motion.path
+            d={d}
+            fill={SAND}
+            animate={{ d: [d, "M0,30 C240,10 480,50 720,30 C960,10 1200,50 1440,30 L1440,60 L0,60 Z"] }}
+            transition={{ duration: 6, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+          />
+        )}
       </svg>
     </div>
   );
