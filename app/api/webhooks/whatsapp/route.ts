@@ -184,6 +184,18 @@ async function findOrCreateCustomerFileByIncomingPhone({
   return customer;
 }
 
+function getWamidMatchQuery(wamid: string) {
+  const cleanWamid = cleanString(wamid);
+  const withoutPrefix = cleanWamid.replace(/^wamid\./i, "");
+  const withPrefix = withoutPrefix ? `wamid.${withoutPrefix}` : "";
+
+  const wamidValues = Array.from(
+    new Set([cleanWamid, withoutPrefix, withPrefix].filter(Boolean))
+  );
+
+  return { wamid: { $in: wamidValues } };
+}
+
 async function updateWhatsappQueueStatus({
   wamid,
   state,
@@ -206,15 +218,21 @@ async function updateWhatsappQueueStatus({
     status?.errors?.[0]?.error_data?.details ??
     null;
 
+  const queueQuery = getWamidMatchQuery(wamid);
+
   if (state === "sent") {
     console.log("✅ SENT:", wamid);
 
     await WhatsappQueue.updateOne(
-      { wamid },
+      {
+        ...queueQuery,
+        providerStatus: { $nin: ["delivered", "read"] },
+      },
       {
         $set: {
           status: "sent",
           sentAt: timestamp,
+          wamid,
           providerStatus: "sent",
           lastError: null,
           errorCode: null,
@@ -238,11 +256,15 @@ async function updateWhatsappQueueStatus({
     console.log("📬 DELIVERED:", wamid);
 
     await WhatsappQueue.updateOne(
-      { wamid },
+      {
+        ...queueQuery,
+        providerStatus: { $ne: "read" },
+      },
       {
         $set: {
           status: "sent",
           deliveredAt: timestamp,
+          wamid,
           providerStatus: "delivered",
           lastError: null,
           errorCode: null,
@@ -266,11 +288,12 @@ async function updateWhatsappQueueStatus({
     console.log("👀 READ:", wamid);
 
     await WhatsappQueue.updateOne(
-      { wamid },
+      queueQuery,
       {
         $set: {
           status: "sent",
           readAt: timestamp,
+          wamid,
           providerStatus: "read",
           lastError: null,
           errorCode: null,
@@ -299,11 +322,12 @@ async function updateWhatsappQueueStatus({
     });
 
     await WhatsappQueue.updateOne(
-      { wamid },
+      queueQuery,
       {
         $set: {
           status: "failed",
           failedAt: timestamp,
+          wamid,
           providerStatus: "failed",
           lastError: errorMessage || "WHATSAPP_MESSAGE_FAILED",
           errorCode,

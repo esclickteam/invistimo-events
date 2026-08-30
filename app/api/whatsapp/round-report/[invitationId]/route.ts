@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
 import db from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
@@ -18,44 +17,47 @@ type RouteContext = {
   }>;
 };
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
+const ROUND_TYPE_ORDER = [
+  "save_the_date",
+  "invitation_only",
+  "rsvp",
+  "reminder",
+  "table",
+  "thankyou",
+  "custom",
+];
 
-  const token =
-    cookieStore.get("authToken")?.value ||
-    cookieStore.get("token")?.value ||
-    cookieStore.get("adminToken")?.value ||
-    null;
-
-  if (!token) return null;
-
-  try {
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-
-    const userId =
-      decoded?.userId ||
-      decoded?.id ||
-      decoded?._id ||
-      decoded?.sub ||
-      null;
-
-    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) {
-      return null;
-    }
-
-    const user = await User.findById(userId)
-      .select("_id role email name")
-      .lean();
-
-    return user || null;
-  } catch (error) {
-    console.error("❌ WHATSAPP REPORT AUTH ERROR:", error);
-    return null;
-  }
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+    },
+  });
 }
 
 function normalizeStatus(value: any) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isSameId(a: any, b: any) {
+  if (!a || !b) return false;
+  return String(a) === String(b);
+}
+
+function isAdminRole(role: any) {
+  const normalizedRole = String(role || "").toLowerCase();
+
+  return [
+    "admin",
+    "superadmin",
+    "staff",
+    "support",
+    "manager",
+  ].includes(normalizedRole);
 }
 
 function getFailureText(item: any) {
@@ -72,8 +74,7 @@ function getFailureText(item: any) {
   if (code === "131049") {
     return {
       code: "131049",
-      text:
-        "Meta/WhatsApp לא מסרה את ההודעה בגלל מגבלת הודעות שיווקיות לנמען זה.",
+      text: "Meta/WhatsApp לא מסרה את ההודעה בגלל מגבלת הודעות שיווקיות לנמען זה.",
     };
   }
 
@@ -93,7 +94,7 @@ function getFailureText(item: any) {
 
   return {
     code,
-    text: message || "ההודעה לא נמסרה לנמען זה.",
+    text: message || (normalizeStatus(item.status) === "failed" ? "ההודעה לא נמסרה לנמען זה." : ""),
   };
 }
 
@@ -101,108 +102,233 @@ function getClientStatus(item: any) {
   const status = normalizeStatus(item.status);
   const providerStatus = normalizeStatus(item.providerStatus);
 
-  if (providerStatus === "read") return "נקרא";
-  if (providerStatus === "delivered") return "נמסר";
+  if (providerStatus === "read" || item.readAt) return "נקרא";
+  if (providerStatus === "delivered" || item.deliveredAt) return "נמסר";
 
   if (providerStatus === "failed" || status === "failed") {
     return "לא נמסר";
   }
 
-  if (providerStatus === "sent" || status === "sent") {
+  if (providerStatus === "sent" || status === "sent" || item.sentAt) {
     return "נשלח";
   }
 
-  if (status === "pending") return "ממתין";
+  if (status === "pending" || status === "scheduled") return "ממתין";
   if (status === "sending" || status === "processing") return "בתהליך";
   if (status === "cancelled" || status === "canceled") return "בוטל";
 
   return "לא ידוע";
 }
 
-function getRoundTitle(item: any) {
-  const type = String(item.type || "");
-  const round = Number(item.round || item.roundNumber || 1);
+function getReportStatus(item: any) {
+  const status = normalizeStatus(item.status);
+  const providerStatus = normalizeStatus(item.providerStatus);
 
+  if (providerStatus === "read" || item.readAt) return "read";
+  if (providerStatus === "delivered" || item.deliveredAt) return "delivered";
+  if (providerStatus === "failed" || status === "failed") return "failed";
+  if (providerStatus === "sent" || status === "sent" || item.sentAt) return "sent";
+  if (status === "sending" || status === "processing") return "sending";
+  if (status === "cancelled" || status === "canceled") return "cancelled";
+  if (status === "pending" || status === "scheduled") return "pending";
+  return status || "pending";
+}
+
+function normalizeRoundType(item: any) {
+  const type = String(item?.type || "").trim().toLowerCase();
+
+  if (
+    [
+      "rsvp",
+      "reminder",
+      "thankyou",
+      "table",
+      "custom",
+      "save_the_date",
+      "invitation_only",
+    ].includes(type)
+  ) {
+    return type;
+  }
+
+  const templateName = String(item?.templateName || "").toLowerCase();
+
+  if (templateName.includes("save_the_date")) return "save_the_date";
+  if (templateName.includes("event_invitation")) return "invitation_only";
+  if (templateName.includes("thank")) return "thankyou";
+  if (templateName.includes("table")) return "table";
+  if (templateName.includes("reminder")) return "reminder";
+  if (templateName.includes("rsvp")) return "rsvp";
+
+  return type || "custom";
+}
+
+function normalizeRoundNumber(item: any, type: string) {
+  const round = Number(item?.round || item?.roundNumber || 0);
+
+  if (type === "rsvp") {
+    if (round === 2 || round === 3) return round;
+    return 1;
+  }
+
+  return round > 0 ? round : 1;
+}
+
+function getRoundTitle(type: string, round: number) {
   if (type === "rsvp" && round === 1) return "סבב 1 - הזמנה";
   if (type === "rsvp" && round === 2) return "סבב 2 - תזכורת אישור הגעה";
   if (type === "rsvp" && round === 3) return "סבב 3 - תזכורת אישור הגעה";
+  if (type === "reminder" || type === "table") return "סבב תזכורת / מספר שולחן";
+  if (type === "thankyou") return "סבב תודה";
+  if (type === "save_the_date") return "Save the Date";
+  if (type === "invitation_only") return "הזמנה (ללא RSVP)";
+  if (type === "custom") return "סבב WhatsApp מותאם";
 
-  return "סבב WhatsApp";
+  return `סבב WhatsApp · ${type} ${round}`.trim();
 }
 
-function getRoundKey(item: any) {
-  const type = String(item.type || "custom");
-  const round = Number(item.round || item.roundNumber || 1);
-  const templateName = String(item.templateName || "");
-
-  return `${type}:${round}:${templateName}`;
+function getRoundKey(type: string, round: number) {
+  return `${type}:${round}`;
 }
 
-function isAdminRole(role: any) {
-  const normalizedRole = String(role || "").toLowerCase();
-
-  return [
-    "admin",
-    "superadmin",
-    "staff",
-    "support",
-    "manager",
-  ].includes(normalizedRole);
+function getTimestamp(value: any) {
+  if (!value) return 0;
+  const date = new Date(value);
+  const time = date.getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
-function isSameId(a: any, b: any) {
-  if (!a || !b) return false;
-  return String(a) === String(b);
+function pickLatestQueueItem(current: any, next: any) {
+  if (!current) return next;
+
+  const nextTime = Math.max(
+    getTimestamp(next.updatedAt),
+    getTimestamp(next.sentAt),
+    getTimestamp(next.deliveredAt),
+    getTimestamp(next.readAt),
+    getTimestamp(next.failedAt),
+    getTimestamp(next.createdAt)
+  );
+  const currentTime = Math.max(
+    getTimestamp(current.updatedAt),
+    getTimestamp(current.sentAt),
+    getTimestamp(current.deliveredAt),
+    getTimestamp(current.readAt),
+    getTimestamp(current.failedAt),
+    getTimestamp(current.createdAt)
+  );
+
+  if (nextTime !== currentTime) {
+    return nextTime > currentTime ? next : current;
+  }
+
+  const rank: Record<string, number> = {
+    read: 60,
+    delivered: 50,
+    sent: 40,
+    sending: 30,
+    failed: 20,
+    pending: 10,
+    cancelled: 5,
+  };
+
+  const nextRank = rank[getReportStatus(next)] || 0;
+  const currentRank = rank[getReportStatus(current)] || 0;
+
+  return nextRank >= currentRank ? next : current;
+}
+
+function emptySummary() {
+  return {
+    total: 0,
+    sent: 0,
+    delivered: 0,
+    read: 0,
+    failed: 0,
+    pending: 0,
+    sending: 0,
+    cancelled: 0,
+    failedButResponded: 0,
+    failedAndStillPending: 0,
+  };
+}
+
+function invitationIdQuery(invitationObjectId: mongoose.Types.ObjectId) {
+  return {
+    $or: [
+      { invitationId: invitationObjectId },
+      { invitationId: String(invitationObjectId) },
+    ],
+  };
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await db();
 
-    const user: any = await getAuthUser();
+    const auth = await getUserIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json(
+    if (!auth?.userId) {
+      return noStoreJson(
         {
           success: false,
           error: "UNAUTHORIZED",
           message: "לא נמצאה התחברות תקינה.",
         },
-        { status: 401 }
+        401
+      );
+    }
+
+    const user: any = await User.findById(auth.userId)
+      .select("_id role email name")
+      .lean();
+
+    if (!user) {
+      return noStoreJson(
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+          message: "לא נמצאה התחברות תקינה.",
+        },
+        401
       );
     }
 
     const { invitationId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(invitationId)) {
-      return NextResponse.json(
+      return noStoreJson(
         {
           success: false,
           error: "INVALID_INVITATION_ID",
           message: "מזהה ההזמנה לא תקין.",
         },
-        { status: 400 }
+        400
       );
     }
 
     const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
 
     const invitation: any = await Invitation.findById(invitationObjectId)
-      .select("_id ownerId userId createdBy producerId title")
+      .select("_id ownerId userId createdBy producerId title eventDate")
       .lean();
 
     if (!invitation) {
-      return NextResponse.json(
+      return noStoreJson(
         {
           success: false,
           error: "INVITATION_NOT_FOUND",
           message: "ההזמנה לא נמצאה.",
         },
-        { status: 404 }
+        404
       );
     }
 
-    const isAdmin = isAdminRole(user.role);
+    const isAdmin =
+      isAdminRole(user.role) ||
+      isAdminRole(auth.role) ||
+      Boolean(auth.impersonatedByAdmin) ||
+      auth.impersonationRole === "admin";
 
     const isOwner =
       isSameId(invitation.ownerId, user._id) ||
@@ -211,139 +337,171 @@ export async function GET(req: NextRequest, context: RouteContext) {
       isSameId(invitation.producerId, user._id);
 
     if (!isAdmin && !isOwner) {
-      return NextResponse.json(
+      return noStoreJson(
         {
           success: false,
           error: "FORBIDDEN",
           message: "אין הרשאה לצפות בדוח הזה.",
-          debug: {
-            userId: String(user._id),
-            userRole: String(user.role || ""),
-            invitationOwnerId: invitation.ownerId
-              ? String(invitation.ownerId)
-              : null,
-            invitationUserId: invitation.userId
-              ? String(invitation.userId)
-              : null,
-          },
         },
-        { status: 403 }
+        403
       );
     }
 
-    const queueItems: any[] = await WhatsappQueue.find({
-      invitationId: invitationObjectId,
-      type: "rsvp",
-      round: { $in: [1, 2, 3] },
-    })
+    const ownerId = invitation.ownerId || invitation.userId || null;
+
+    const relatedInvitations: any[] = isAdmin && ownerId
+      ? await Invitation.find({
+          $or: [
+            { _id: invitationObjectId },
+            { ownerId },
+            { userId: ownerId },
+          ],
+        })
+          .select("_id title eventDate ownerId")
+          .sort({ eventDate: -1, updatedAt: -1, createdAt: -1 })
+          .lean()
+      : [invitation];
+
+    const invitationIds = relatedInvitations
+      .map((item) => item._id)
+      .filter(Boolean);
+
+    const queueQuery =
+      invitationIds.length > 1
+        ? {
+            $or: invitationIds.flatMap((id) => [
+              { invitationId: id },
+              { invitationId: String(id) },
+            ]),
+          }
+        : invitationIdQuery(invitationObjectId);
+
+    const queueItems: any[] = await WhatsappQueue.find(queueQuery)
       .sort({
-        round: 1,
         createdAt: -1,
+        updatedAt: -1,
       })
       .lean();
 
-    const guestIds = queueItems
-      .map((item) => item.guestId)
-      .filter(Boolean)
-      .filter((id) => mongoose.Types.ObjectId.isValid(String(id)));
-
-    const guests: any[] = await InvitationGuest.find({
-      _id: { $in: guestIds },
-    })
-      .select("_id name phone rsvp guestsCount arrivedCount")
-      .lean();
-
-    const guestsMap = new Map(
-      guests.map((guest) => [String(guest._id), guest])
+    const guestIds = Array.from(
+      new Set(
+        queueItems
+          .map((item) => item.guestId)
+          .filter(Boolean)
+          .map((id) => String(id))
+          .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      )
     );
 
+    const guests: any[] = guestIds.length
+      ? await InvitationGuest.find({
+          _id: { $in: guestIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        })
+          .select("_id name phone rsvp guestsCount arrivedCount invitationId")
+          .lean()
+      : [];
+
+    const guestsMap = new Map(guests.map((guest) => [String(guest._id), guest]));
+
+    const invitationTitleById = new Map(
+      relatedInvitations.map((item) => [
+        String(item._id),
+        String(item.title || "").trim(),
+      ])
+    );
+
+    const multipleEvents = new Set(
+      queueItems.map((item) => String(item.invitationId || invitationId))
+    ).size > 1;
+
     const roundsMap = new Map<string, any>();
+    const latestByGuest = new Map<string, any>();
 
     for (const item of queueItems) {
-      const key = getRoundKey(item);
-      const guest = item.guestId
-        ? guestsMap.get(String(item.guestId))
-        : null;
+      const type = normalizeRoundType(item);
+      const round = normalizeRoundNumber(item, type);
+      const itemInvitationId = String(item.invitationId || invitationId);
+      const guestKey = item.guestId
+        ? String(item.guestId)
+        : `phone:${String(item.phone || "")}`;
+      const uniqueKey = `${itemInvitationId}:${type}:${round}:${guestKey}`;
+      const existing = latestByGuest.get(uniqueKey);
+      latestByGuest.set(uniqueKey, pickLatestQueueItem(existing, item));
+    }
+
+    for (const item of latestByGuest.values()) {
+      const type = normalizeRoundType(item);
+      const round = normalizeRoundNumber(item, type);
+      const itemInvitationId = String(item.invitationId || invitationId);
+      const key = multipleEvents
+        ? `${itemInvitationId}:${getRoundKey(type, round)}`
+        : getRoundKey(type, round);
+
+      const guest = item.guestId ? guestsMap.get(String(item.guestId)) : null;
+      const invitationTitle = invitationTitleById.get(itemInvitationId) || "";
+      const baseTitle = getRoundTitle(type, round);
 
       if (!roundsMap.has(key)) {
         roundsMap.set(key, {
           key,
-          title: getRoundTitle(item),
-          type: item.type || "rsvp",
-          round: Number(item.round || item.roundNumber || 1),
+          title: multipleEvents && invitationTitle
+            ? `${baseTitle} · ${invitationTitle}`
+            : baseTitle,
+          type,
+          round,
           templateName: item.templateName || "",
-          summary: {
-            total: 0,
-            sent: 0,
-            delivered: 0,
-            read: 0,
-            failed: 0,
-            pending: 0,
-            sending: 0,
-            cancelled: 0,
-
-            // תוספת חשובה לאדמין:
-            failedButResponded: 0,
-            failedAndStillPending: 0,
-          },
+          invitationId: itemInvitationId,
+          summary: emptySummary(),
           items: [],
         });
       }
 
       const group = roundsMap.get(key);
-
-      const status = normalizeStatus(item.status);
-      const providerStatus = normalizeStatus(item.providerStatus);
-
-      const failed =
-        status === "failed" ||
-        providerStatus === "failed";
-
-      const delivered = providerStatus === "delivered";
-      const read = providerStatus === "read";
-      const sent =
-        !failed &&
-        (status === "sent" ||
-          providerStatus === "sent" ||
-          delivered ||
-          read);
-
-      const pending = status === "pending";
-      const sending = status === "sending" || status === "processing";
-      const cancelled = status === "cancelled" || status === "canceled";
+      const reportStatus = getReportStatus(item);
+      const guestRsvp = String(guest?.rsvp || "pending");
+      const failure = reportStatus === "failed" ? getFailureText(item) : null;
 
       group.summary.total += 1;
 
-      if (sent) group.summary.sent += 1;
-      if (delivered) group.summary.delivered += 1;
-      if (read) group.summary.read += 1;
-      if (failed) group.summary.failed += 1;
-      if (pending) group.summary.pending += 1;
-      if (sending) group.summary.sending += 1;
-      if (cancelled) group.summary.cancelled += 1;
+      if (reportStatus === "read") {
+        group.summary.read += 1;
+        group.summary.delivered += 1;
+        group.summary.sent += 1;
+      } else if (reportStatus === "delivered") {
+        group.summary.delivered += 1;
+        group.summary.sent += 1;
+      } else if (reportStatus === "sent") {
+        group.summary.sent += 1;
+      } else if (reportStatus === "failed") {
+        group.summary.failed += 1;
+      } else if (reportStatus === "pending") {
+        group.summary.pending += 1;
+      } else if (reportStatus === "sending") {
+        group.summary.sending += 1;
+      } else if (reportStatus === "cancelled") {
+        group.summary.cancelled += 1;
+      }
 
-      const guestRsvp = String(guest?.rsvp || "pending");
-
-      if (failed && guestRsvp !== "pending") {
+      if (reportStatus === "failed" && guestRsvp !== "pending") {
         group.summary.failedButResponded += 1;
       }
 
-      if (failed && guestRsvp === "pending") {
+      if (reportStatus === "failed" && guestRsvp === "pending") {
         group.summary.failedAndStillPending += 1;
       }
 
-      const failure = failed ? getFailureText(item) : null;
-
-      group.items.push({
+      const mappedItem = {
         id: String(item._id),
         guestId: item.guestId ? String(item.guestId) : null,
         guestName: guest?.name || item.payload?.name || "",
+        name: guest?.name || item.payload?.name || "",
         phone: item.phone || guest?.phone || "",
         rsvp: guestRsvp,
         guestsCount: guest?.guestsCount || 0,
         arrivedCount: guest?.arrivedCount || 0,
 
-        status: item.status || "",
+        status: getReportStatus(item),
+        rawStatus: item.status || "",
         providerStatus: item.providerStatus || "",
         clientStatus: getClientStatus(item),
 
@@ -358,7 +516,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
         maxAttempts: Number(item.maxAttempts || 1),
 
         errorCode: item.errorCode || item.failReason?.code || "",
+        errorMessage: failure?.text || item.errorMessage || item.lastError || "",
         failure,
+
+        messageId: item.wamid || "",
 
         admin: isAdmin
           ? {
@@ -369,17 +530,51 @@ export async function GET(req: NextRequest, context: RouteContext) {
               failReason: item.failReason || null,
               scheduleId: item.scheduleId ? String(item.scheduleId) : null,
               lastAttemptAt: item.lastAttemptAt || null,
+              templateName: item.templateName || "",
             }
           : null,
-      });
+      };
+
+      group.items.push(mappedItem);
+
+      if (!group.templateName && item.templateName) {
+        group.templateName = item.templateName;
+      }
     }
-    
 
-    const rounds = Array.from(roundsMap.values()).sort((a, b) => {
-      return Number(a.round || 1) - Number(b.round || 1);
-    });
+    const rounds = Array.from(roundsMap.values())
+      .map((group) => {
+        group.items.sort((a: any, b: any) => {
+          const nameA = String(a.guestName || "").trim();
+          const nameB = String(b.guestName || "").trim();
+          return nameA.localeCompare(nameB, "he");
+        });
 
-    return NextResponse.json({
+        group.recipients = group.items;
+        group.total = group.summary.total;
+        group.sent = group.summary.sent;
+        group.delivered = group.summary.delivered;
+        group.read = group.summary.read;
+        group.failed = group.summary.failed;
+        group.pending = group.summary.pending;
+
+        return group;
+      })
+      .sort((a, b) => {
+        const typeA = ROUND_TYPE_ORDER.indexOf(a.type);
+        const typeB = ROUND_TYPE_ORDER.indexOf(b.type);
+        const safeTypeA = typeA === -1 ? 99 : typeA;
+        const safeTypeB = typeB === -1 ? 99 : typeB;
+
+        if (safeTypeA !== safeTypeB) return safeTypeA - safeTypeB;
+        if (Number(a.round) !== Number(b.round)) {
+          return Number(a.round || 1) - Number(b.round || 1);
+        }
+
+        return String(a.title).localeCompare(String(b.title), "he");
+      });
+
+    return noStoreJson({
       success: true,
       isAdmin,
       invitation: {
@@ -392,13 +587,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
   } catch (error: any) {
     console.error("❌ WHATSAPP ROUND REPORT ERROR:", error);
 
-    return NextResponse.json(
+    return noStoreJson(
       {
         success: false,
         error: error?.message || "REPORT_FAILED",
         message: "טעינת דוח WhatsApp נכשלה.",
       },
-      { status: 500 }
+      500
     );
   }
 }
