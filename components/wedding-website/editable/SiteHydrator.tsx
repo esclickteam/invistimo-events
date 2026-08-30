@@ -10,6 +10,7 @@ import {
   isSectionVisible,
   LOCKED_EVENT_PATHS,
   matchTextField,
+  sectionTitleFields,
 } from "@/lib/weddingWebsite/editorSchema";
 import { textStyleToCss } from "@/lib/weddingWebsite/styles";
 import { collectUsedWeddingFonts, loadWeddingFont } from "@/lib/weddingWebsite/fonts";
@@ -173,6 +174,8 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     }
   }
 
+  hydrateSectionTitles(root, content, isEditor);
+
   if (!isEditor) return;
 
   root.querySelectorAll("section[id], [id].scroll-mt-24").forEach((section) => {
@@ -185,6 +188,37 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
     section.setAttribute("data-ww-path", id);
     section.setAttribute("data-ww-label", "מקטע");
   });
+}
+
+function hydrateSectionTitles(
+  root: Element,
+  content: WeddingDemoContent,
+  isEditor: boolean
+) {
+  for (const field of sectionTitleFields()) {
+    const section = root.querySelector(`#${cssEscape(field.sectionId)}`);
+    if (!(section instanceof HTMLElement) || section.closest(SKIP)) continue;
+    const heading = section.querySelector("h1, h2, h3");
+    if (!(heading instanceof HTMLElement) || heading.closest(SKIP)) continue;
+    const existingPath = heading.dataset.wwPath || "";
+    if (existingPath && !existingPath.startsWith("copy.")) continue;
+
+    heading.dataset.wwPath = field.path;
+    heading.dataset.wwLabel = field.label;
+    if (isEditor) {
+      heading.dataset.wwEdit = "text";
+      heading.contentEditable = "true";
+      heading.spellcheck = true;
+      heading.style.whiteSpace = "pre-wrap";
+      heading.style.outline = "none";
+      heading.style.userSelect = "text";
+    } else {
+      delete heading.dataset.wwEdit;
+      if (heading.isContentEditable) heading.contentEditable = "false";
+    }
+
+    applySavedText(heading, content, field.path);
+  }
 }
 
 function meaningfulChildNodes(el: HTMLElement) {

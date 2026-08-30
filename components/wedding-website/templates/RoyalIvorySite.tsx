@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
-  useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
@@ -94,24 +94,16 @@ function RoyalNav({ embed }: { embed?: boolean }) {
 }
 
 function CountdownBlock() {
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   return (
       <section id="countdown" className="relative py-20">
         <LaceBg />
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <CrownOrnament className="mx-auto mb-4" />
           <h2 className="font-['Playfair_Display'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
+          <WeddingCountdownGrid className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {(u, i) => (
               <motion.div
-                key={label}
+                key={u.label}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -119,12 +111,12 @@ function CountdownBlock() {
                 className="rounded-3xl border border-[#B8956B]/25 bg-white p-6 shadow-[0_12px_40px_rgba(100,75,50,0.08)]"
               >
                 <span className="font-['Playfair_Display'] text-4xl font-semibold text-[#B8956B] md:text-5xl">
-                  {String(val).padStart(2, "0")}
+                  {String(u.value).padStart(2, "0")}
                 </span>
-                <p className="mt-2 font-['Playfair_Display'] text-xs italic text-[#8C7B68]">{label}</p>
+                <p className="mt-2 font-['Playfair_Display'] text-xs italic text-[#8C7B68]">{u.label}</p>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </WeddingCountdownGrid>
         </div>
       </section>
   );

@@ -8,12 +8,12 @@ import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
-  useCountdownTimer,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
   useFaqAccordion,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import WeddingGiftActions from "../WeddingGiftActions";
@@ -90,25 +90,18 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
 }
 
 function CountdownSection() {
-  const time = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
-  const units = [
-    { label: "ימים", value: time.days },
-    { label: "שעות", value: time.hours },
-    { label: "דקות", value: time.minutes },
-    { label: "שניות", value: time.seconds },
-  ];
   return (
     <Section id="countdown" className="bg-[#F0F8FF] pt-24" wave>
       <div className="mx-auto max-w-5xl px-6 text-center">
         <h2 className="font-['Montserrat'] text-4xl font-light text-[#0D2840]">הספירה לאחור</h2>
-        <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {units.map((u, i) => (
+        <WeddingCountdownGrid className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {(u, i) => (
             <motion.div key={u.label} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="rounded-2xl bg-white p-8 shadow-lg" style={{ borderTop: `4px solid ${BLUE}` }}>
               <span className="font-['Montserrat'] text-5xl font-light" style={{ color: BLUE }}>{String(u.value).padStart(2, "0")}</span>
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-[#5A7A94]">{u.label}</p>
             </motion.div>
-          ))}
-        </div>
+          )}
+        </WeddingCountdownGrid>
       </div>
     </Section>
   );

@@ -7,7 +7,13 @@ import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/w
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
 import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
-import { buildTextIndex, isSectionVisible, matchTextField, setByPath } from "../../lib/weddingWebsite/editorSchema";
+import {
+  buildTextIndex,
+  isSectionVisible,
+  matchTextField,
+  sectionTitleFields,
+  setByPath,
+} from "../../lib/weddingWebsite/editorSchema";
 import { resolveWeddingGifts } from "../../lib/weddingWebsite/gifts";
 import type { WeddingTemplate } from "../../types/weddingWebsite";
 
@@ -261,5 +267,59 @@ test("broken unsplash urls are repaired and guest messages stay visible", () => 
   assert.match(publish, /weddingWebsite\.content": draft\.draftContent/);
   assert.match(publicApi, /serializeWeddingWebsite\(invitation\)/);
   assert.match(publicApi, /UNPUBLISHED/);
+});
+
+test("countdown units stay days-first from the left on every template", () => {
+  const grid = read("components/wedding-website/shared/WeddingCountdownGrid.tsx");
+  assert.match(grid, /dir="ltr"/);
+  assert.match(grid, /data-ww-countdown="units"/);
+  const daysIdx = grid.indexOf('label: "ימים"');
+  const hoursIdx = grid.indexOf('label: "שעות"');
+  const minutesIdx = grid.indexOf('label: "דקות"');
+  const secondsIdx = grid.indexOf('label: "שניות"');
+  assert.ok(daysIdx > 0 && daysIdx < hoursIdx && hoursIdx < minutesIdx && minutesIdx < secondsIdx);
+
+  const templateFiles = [
+    "components/wedding-website/templates/EternalGoldSite.tsx",
+    "components/wedding-website/templates/MidnightVelvetSite.tsx",
+    "components/wedding-website/templates/GardenBloomSite.tsx",
+    "components/wedding-website/templates/CoastalBreezeSite.tsx",
+    "components/wedding-website/templates/DesertRoseSite.tsx",
+    "components/wedding-website/templates/ForestEnchantedSite.tsx",
+    "components/wedding-website/templates/SunsetBlushSite.tsx",
+    "components/wedding-website/templates/MinimalNoirSite.tsx",
+    "components/wedding-website/templates/ModernGlassSite.tsx",
+    "components/wedding-website/templates/RoyalIvorySite.tsx",
+    "components/wedding-website/WeddingWebsiteSections.tsx",
+  ];
+  for (const file of templateFiles) {
+    const src = read(file);
+    assert.match(src, /WeddingCountdownGrid/);
+    assert.doesNotMatch(src, /useCountdownTimer/);
+    assert.doesNotMatch(src, /formatCountdown/);
+  }
+});
+
+test("section titles including countdown are editable copy fields", () => {
+  const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
+  const schema = read("lib/weddingWebsite/editorSchema.ts");
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  assert.match(hydrator, /hydrateSectionTitles/);
+  assert.match(hydrator, /sectionTitleFields/);
+  assert.match(hydrator, /querySelector\("h1, h2, h3"\)/);
+  assert.match(schema, /match: "הספירה לאחור"/);
+  assert.match(schema, /match: "הספירה"/);
+  assert.match(overlay, /data-ww-edit="text"/);
+
+  const index = buildTextIndex(WEDDING_DEMO_CONTENT);
+  assert.equal(matchTextField("הספירה לאחור", index)?.path, "copy.countdown");
+  assert.equal(matchTextField("הספירה", index)?.path, "copy.countdown");
+  assert.equal(matchTextField("הספירה לאחור", index)?.label, "כותרת ספירה");
+
+  const titles = sectionTitleFields();
+  const countdown = titles.find((field) => field.sectionId === "countdown");
+  assert.equal(countdown?.path, "copy.countdown");
+  assert.equal(countdown?.label, "כותרת ספירה");
+  assert.equal(new Set(titles.map((field) => field.sectionId)).size, titles.length);
 });
 

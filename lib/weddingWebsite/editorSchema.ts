@@ -35,6 +35,7 @@ export const EDITOR_TEXT_FIELDS: EditorField[] = [
 
 export const STATIC_COPY_FIELDS: Array<{ path: string; match: string; label: string; sectionId: string }> = [
   { path: "copy.countdown", match: "הספירה לאחור", label: "כותרת ספירה", sectionId: "countdown" },
+  { path: "copy.countdown", match: "הספירה", label: "כותרת ספירה", sectionId: "countdown" },
   { path: "copy.invitation", match: "הזמנה חמה", label: "כותרת הזמנה", sectionId: "invitation" },
   { path: "copy.invitationAlt", match: "הזמנה", label: "כותרת הזמנה", sectionId: "invitation" },
   { path: "copy.ourStory", match: "הסיפור שלנו", label: "כותרת הסיפור", sectionId: "our-story" },
@@ -173,6 +174,15 @@ export function matchTextField(
 
 export function defaultSectionOrder(): WeddingSectionId[] {
   return WEDDING_SECTIONS.map((section) => section.id);
+}
+
+export function sectionTitleFields() {
+  const seen = new Set<string>();
+  return STATIC_COPY_FIELDS.filter((field) => {
+    if (seen.has(field.sectionId)) return false;
+    seen.add(field.sectionId);
+    return true;
+  });
 }
 
 export function isSectionVisible(

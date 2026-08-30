@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
-  useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
@@ -111,23 +111,15 @@ function BlushNav({ embed }: { embed?: boolean }) {
 }
 
 function CountdownBlock() {
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   return (
       <section id="countdown" className="py-20">
         <div className="mx-auto max-w-4xl px-6 text-center">
           <p className="font-['Cormorant_Garamond'] text-lg italic text-[#E8788A]">countdown</p>
           <h2 className="font-['Cormorant_Garamond'] text-4xl">הספירה לאחור</h2>
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
-            {(
-              [
-                ["ימים", countdown.days],
-                ["שעות", countdown.hours],
-                ["דקות", countdown.minutes],
-                ["שניות", countdown.seconds],
-              ] as const
-            ).map(([label, val], i) => (
+          <WeddingCountdownGrid className="mt-12 flex flex-wrap justify-center gap-4">
+            {(u, i) => (
               <motion.div
-                key={label}
+                key={u.label}
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -135,12 +127,12 @@ function CountdownBlock() {
                 className="min-w-[100px] rounded-[28px] bg-gradient-to-br from-white to-[#FFE8EE] p-6 shadow-[0_10px_40px_rgba(232,120,138,0.15)]"
               >
                 <span className="font-['Cormorant_Garamond'] text-4xl font-semibold text-[#E8788A]">
-                  {String(val).padStart(2, "0")}
+                  {String(u.value).padStart(2, "0")}
                 </span>
-                <p className="mt-1 text-xs text-[#9A6070]">{label}</p>
+                <p className="mt-1 text-xs text-[#9A6070]">{u.label}</p>
               </motion.div>
-            ))}
-          </div>
+            )}
+          </WeddingCountdownGrid>
         </div>
       </section>
   );

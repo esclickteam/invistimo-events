@@ -4,12 +4,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { WEDDING_SECTIONS } from "@/config/weddingWebsite/templates";
 import {
-  useCountdownTimer,
   useFaqAccordion,
   useGuestbook,
   useGuestUpload,
   usePlaylistDemo,
 } from "../shared/useWeddingInteractions";
+import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
@@ -80,7 +80,6 @@ function NoirNav({ embed }: { embed?: boolean }) {
 }
 
 function CountdownBlock() {
-  const countdown = useCountdownTimer(DEMO.weddingDate, DEMO.weddingTime);
   return (
       <section id="countdown" className="border-t border-black">
         <div className="grid md:grid-cols-5">
@@ -90,28 +89,23 @@ function CountdownBlock() {
               <h2 className="mt-2 text-3xl font-black">הספירה</h2>
             </div>
           </div>
-          {(
-            [
-              ["ימים", countdown.days],
-              ["שעות", countdown.hours],
-              ["דקות", countdown.minutes],
-              ["שניות", countdown.seconds],
-            ] as const
-          ).map(([label, value], i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="border-l border-black p-8 text-center"
-            >
-              <div className="font-mono text-[clamp(2.5rem,8vw,5rem)] font-black tabular-nums leading-none">
-                {String(value).padStart(2, "0")}
-              </div>
-              <NoirLabel>{label}</NoirLabel>
-            </motion.div>
-          ))}
+          <WeddingCountdownGrid className="grid grid-cols-2 md:col-span-4 md:grid-cols-4">
+            {(u, i) => (
+              <motion.div
+                key={u.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="border-l border-black p-8 text-center"
+              >
+                <div className="font-mono text-[clamp(2.5rem,8vw,5rem)] font-black tabular-nums leading-none">
+                  {String(u.value).padStart(2, "0")}
+                </div>
+                <NoirLabel>{u.label}</NoirLabel>
+              </motion.div>
+            )}
+          </WeddingCountdownGrid>
         </div>
       </section>
   );
