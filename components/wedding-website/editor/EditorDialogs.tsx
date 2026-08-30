@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
+import { repairWeddingImageUrl } from "@/lib/weddingWebsite/images";
 import { EditorModal, ModalButton } from "./EditorUI";
 import type { WeddingMediaSlot, WeddingTemplateId } from "@/types/weddingWebsite";
 
@@ -147,7 +148,11 @@ export function TemplateGalleryDialog({
                 : "border-[#EFE4D6] hover:border-[#C9A962]/50"
             }`}
           >
-            <img src={item.previewImage} alt="" className="h-32 w-full object-cover" />
+            <img
+              src={repairWeddingImageUrl(item.previewImage)}
+              alt=""
+              className="h-32 w-full object-cover bg-[#F7F1E8]"
+            />
             <div className="p-3">
               <p className="text-sm font-black text-[#241A14]">{item.name}</p>
               <p className="mt-0.5 text-[11px] font-semibold text-[#8A7B69]">{item.tagline}</p>

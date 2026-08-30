@@ -122,7 +122,7 @@ export function WeddingSiteRuntimeStyles() {
           z-index:30;
           border:0;
           border-radius:999px;
-          background:rgba(24,18,14,0.72);
+          background:#18120e;
           color:#fff;
           font-size:10px;
           font-weight:900;

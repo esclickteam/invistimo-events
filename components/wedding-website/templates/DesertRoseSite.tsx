@@ -78,8 +78,8 @@ function Section({ id, children, className = "", diagonal = false }: { id: strin
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50"
-      barClassName="mx-2 mt-2 backdrop-blur-md sm:mx-4"
+      className="bg-[#FBF5F0]"
+      barClassName="mx-2 mt-2 sm:mx-4"
       linkClassName="whitespace-nowrap rounded-xl px-2.5 py-1.5 font-['Cormorant_Garamond'] text-xs font-semibold text-[#9A7060] hover:text-[#C4705A] sm:text-sm"
     />
   );

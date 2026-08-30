@@ -33,7 +33,6 @@ export default function EditorTopBar({
   canRedo,
   onUndo,
   onRedo,
-  onHistory,
   onPreview,
   livePath,
   unpublishedCount,
@@ -52,7 +51,6 @@ export default function EditorTopBar({
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onHistory: () => void;
   onPreview: () => void;
   livePath: string;
   unpublishedCount: number;
@@ -131,7 +129,6 @@ export default function EditorTopBar({
             disabled={!canRedo}
             onClick={onRedo}
           />
-          <EditorButton label="היסטוריה" onClick={onHistory} icon={<span aria-hidden>🕘</span>} />
         </EditorGroup>
 
         <EditorGroup title="פרסום">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { WEDDING_TEMPLATES } from "@/config/weddingWebsite/templates";
+import { repairWeddingImageUrl } from "@/lib/weddingWebsite/images";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
 import {
@@ -17,7 +18,6 @@ import EditorSidebar, { type SidebarTab } from "./EditorSidebar";
 import EditorTopBar, { type EditorZoom, type SaveState } from "./EditorTopBar";
 import {
   ConfirmDialog,
-  HistoryDialog,
   MediaLibraryDialog,
   PublishDialog,
   TemplateGalleryDialog,
@@ -113,7 +113,6 @@ export default function WeddingVisualEditor() {
 
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [librarySlot, setLibrarySlot] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
@@ -612,7 +611,11 @@ export default function WeddingVisualEditor() {
                 template.id === templateId ? "border-[#B8844F] ring-2 ring-[#B8844F]/30" : "border-[#EFE4D6]"
               }`}
             >
-              <img src={template.previewImage} alt="" className="h-40 w-full object-cover" />
+              <img
+                src={repairWeddingImageUrl(template.previewImage)}
+                alt=""
+                className="h-40 w-full object-cover"
+              />
               <div className="p-4">
                 <p className="text-sm font-black text-[#241A14]">{template.name}</p>
                 <p className="mt-1 text-xs font-semibold text-[#8A7B69]">{template.tagline}</p>
@@ -651,7 +654,6 @@ export default function WeddingVisualEditor() {
         canRedo={historyIndex < history.length - 1}
         onUndo={undo}
         onRedo={redo}
-        onHistory={() => setHistoryDialogOpen(true)}
         onPreview={() => window.open("/dashboard/wedding-website/preview", "_blank")}
         livePath={published ? publicPath : ""}
         unpublishedCount={unpublishedCount}
@@ -723,15 +725,6 @@ export default function WeddingVisualEditor() {
           publishing={publishing}
           onPublish={publish}
           onClose={() => setPublishDialogOpen(false)}
-        />
-      ) : null}
-
-      {historyDialogOpen ? (
-        <HistoryDialog
-          entries={history}
-          activeIndex={historyIndex}
-          onJump={jumpToHistory}
-          onClose={() => setHistoryDialogOpen(false)}
         />
       ) : null}
 

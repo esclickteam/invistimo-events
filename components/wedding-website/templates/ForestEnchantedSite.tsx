@@ -108,7 +108,7 @@ function Blob({ className = "" }: { className?: string }) {
 function ForestNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 bg-[#0F1810]/90 backdrop-blur-md"
+      className="bg-[#0F1810]"
       brand={<span className="text-xs tracking-widest text-[#7CB87A]">{DEMO.coupleShort}</span>}
       linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs text-[#8AA892] hover:text-[#7CB87A] sm:text-sm"
     />

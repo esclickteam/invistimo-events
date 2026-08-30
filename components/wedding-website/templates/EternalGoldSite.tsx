@@ -56,7 +56,7 @@ function Section({
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 border-b border-[#C9A962]/30 bg-[#FAF7F2]/92 backdrop-blur-md"
+      className="border-b border-[#C9A962]/30 bg-[#FAF7F2]"
       linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 font-['Cormorant_Garamond'] text-xs font-semibold text-[#8A7560] hover:bg-[#C9A962]/10 hover:text-[#2A2118] sm:text-sm"
     />
   );

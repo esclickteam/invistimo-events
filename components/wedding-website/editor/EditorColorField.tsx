@@ -137,7 +137,7 @@ export default function EditorColorField({
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className={`inline-flex min-h-[36px] items-center gap-2 rounded-xl px-2.5 text-xs font-black text-[#5c4632] hover:bg-[#f7f1e8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962] ${
+        className={`inline-flex min-h-[36px] items-center gap-2 rounded-xl bg-white px-2.5 text-xs font-black text-[#241A14] hover:bg-[#f7f1e8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962] ${
           compact ? "" : "border border-[#eadfce]"
         }`}
       >

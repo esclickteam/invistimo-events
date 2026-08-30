@@ -181,6 +181,35 @@ export function buildWeddingThemeCss(
     );
   }
 
+  // Countdown digits/labels follow theme even when templates hard-code colors
+  // (including inline styles). Keep the unit cards readable on any section bg.
+  if (isHexColor(theme?.colors?.accent)) {
+    const accent = expandHex(theme.colors.accent);
+    blocks.push(
+      `${scope} [data-ww-countdown="units"] span{color:${accent}!important}`,
+      `${scope} [data-ww-countdown="units"] > *{border-color:${withAlpha(accent, 35)}!important}`
+    );
+  }
+  if (isHexColor(theme?.colors?.textMuted)) {
+    blocks.push(
+      `${scope} [data-ww-countdown="units"] p{color:${expandHex(theme.colors.textMuted)}!important}`
+    );
+  }
+  if (isHexColor(theme?.colors?.text)) {
+    blocks.push(
+      `${scope} #countdown h2,${scope} #countdown .ww-display{color:${expandHex(theme.colors.text)}!important}`
+    );
+  }
+  if (isHexColor(theme?.colors?.surface)) {
+    blocks.push(
+      `${scope} [data-ww-countdown="units"] > *{background-color:${withAlpha(expandHex(theme.colors.surface), 92)}!important}`
+    );
+  } else if (isHexColor(theme?.colors?.bgAlt)) {
+    blocks.push(
+      `${scope} [data-ww-countdown="units"] > *{background-color:${withAlpha(expandHex(theme.colors.bgAlt), 92)}!important}`
+    );
+  }
+
   return blocks.join("\n");
 }
 

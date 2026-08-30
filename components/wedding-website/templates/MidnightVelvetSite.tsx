@@ -70,8 +70,8 @@ function Section({ id, children, className = "" }: { id: string; children: React
 function StickyNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 px-2 py-2 sm:px-4"
-      barClassName="rounded-full border border-[#D4AF37]/25 bg-black/60 backdrop-blur-2xl"
+      className="px-2 py-2 sm:px-4"
+      barClassName="rounded-full border border-[#D4AF37]/25 bg-[#0D0B10]"
       linkClassName="whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-bold text-[#A89BB0] hover:bg-[#D4AF37]/15 hover:text-[#D4AF37] sm:text-xs"
     />
   );

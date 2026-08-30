@@ -33,7 +33,7 @@ function NoirLabel({ children }: { children: ReactNode }) {
 function NoirNav() {
   return (
     <WeddingSiteMenu
-      className="sticky top-0 z-50 border-b border-black bg-white"
+      className="border-b border-black bg-white"
       brand={
         <span className="font-mono text-[10px] uppercase tracking-widest">
           {DEMO.coupleShort}

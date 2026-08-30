@@ -90,6 +90,8 @@ export function overlayWeddingTemplateImages(
 
   return {
     ...template,
+    previewImage:
+      getOptimizedWeddingImageUrl(template.previewImage, 900) || template.previewImage,
     heroImage: heroRemoved
       ? ""
       : getOptimizedWeddingImageUrl(heroImage || template.heroImage, 1800) || template.heroImage,

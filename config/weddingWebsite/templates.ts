@@ -58,7 +58,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=1920&q=85",
     galleryImages: [
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
     ],
@@ -121,7 +121,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     previewImage:
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=1920&q=85",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1920&q=85",
     galleryImages: [
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
@@ -191,7 +191,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     galleryImages: [
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
     mood: "warm",
@@ -248,17 +248,17 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
   {
     id: "royal-ivory",
     name: "Royal Ivory",
-    tagline: "קרם מלכותי עם עitור עדין",
+    tagline: "קרם מלכותי עם עיטור עדין",
     description: "palace wedding — ivory, lace patterns, fade-in אלגנטי.",
     previewImage:
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=900&q=85",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
     heroImage:
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=85",
     galleryImages: [
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
     ],
     mood: "royal",
     theme: {
@@ -323,7 +323,7 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     galleryImages: [
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
-      "https://images.unsplash.com/photo-1520854221256-17451af3e865?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
     mood: "nature",

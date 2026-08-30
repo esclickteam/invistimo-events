@@ -28,7 +28,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const TONES: Record<NonNullable<ButtonProps["tone"]>, string> = {
-  ghost: "text-white/75 hover:bg-white/10 hover:text-white",
+  ghost: "text-white hover:bg-white/10",
   solid: "bg-[#C9A962] text-[#1a1410] hover:bg-[#d8bb78]",
   outline: "border border-white/20 text-white hover:bg-white/10",
   danger: "border border-[#e07a6a]/50 text-[#f0a99c] hover:bg-[#e07a6a]/15",
