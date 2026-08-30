@@ -223,6 +223,7 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
   const invitePage = read("app/invite/[shareId]/page.tsx");
   const autocomplete = read("app/components/LocationAutocomplete.tsx");
+  const wazeButton = read("app/components/WazeNavButton.tsx");
 
   assert.match(display, /lucide-react/);
   assert.match(display, /MapPin/);
@@ -230,8 +231,11 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.doesNotMatch(inviteCard, /📍/);
   assert.match(navButtons, /getGoogleMapsLink/);
   assert.match(navButtons, /WazeNavButton/);
+  assert.match(wazeButton, /getWazeAppLink/);
+  assert.match(wazeButton, /location\.assign/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
-  assert.match(navLinks, /https:\/\/www\.waze\.com\/ul\?ll=/);
+  assert.match(navLinks, /https:\/\/waze\.com\/ul\?ll=/);
+  assert.match(navLinks, /waze:\/\/\?ll=/);
   assert.match(navLinks, /resolveEventLocation/);
   assert.match(wwLocation, /WazeNavButton/);
   assert.match(wwLocation, /getGoogleMapsLink/);
