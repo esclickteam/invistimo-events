@@ -4,6 +4,7 @@ import {
   resolveMapPinDetailed,
   type MapPinFailure,
 } from "@/lib/resolveMapPin";
+import { lookupWazePlace } from "@/lib/resolveWazePlace";
 
 export type EventLocation = {
   name: string;
@@ -193,6 +194,26 @@ export async function prepareEventLocation(options: {
         wazeLat: null,
         wazeLng: null,
         wazeUrl: "",
+      };
+    }
+  }
+
+  if (
+    options.geocode !== false &&
+    location.wazeUrl &&
+    location.wazeLat == null &&
+    location.wazeLng == null &&
+    !/^(https?:\/\/|waze:\/\/|geo:)/i.test(location.wazeUrl)
+  ) {
+    const found = await lookupWazePlace(location.wazeUrl, {
+      lat: location.lat,
+      lng: location.lng,
+    });
+    if (found) {
+      location = {
+        ...location,
+        wazeLat: found.lat,
+        wazeLng: found.lng,
       };
     }
   }

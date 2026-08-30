@@ -258,7 +258,8 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(read("app/components/EventDetailsForm.tsx"), /resolveMapPinInBrowser/);
   assert.match(read("app/components/EventDetailsForm.tsx"), /הגדרת מיקום Waze שונה/);
   assert.match(read("app/components/EventDetailsForm.tsx"), /חזרה למיקום האירוע/);
-  assert.match(read("app/components/EventDetailsForm.tsx"), /wazeOverrideEnabled/);
+  assert.match(read("app/components/EventDetailsForm.tsx"), /WazePlacePicker/);
+  assert.match(read("app/components/WazePlacePicker.tsx"), /\/api\/waze\/search/);
   assert.match(read("lib/eventLocation.ts"), /prepareEventLocation/);
   assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /persistEventLocationPin/);
   assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /decideMissingPinWrite/);

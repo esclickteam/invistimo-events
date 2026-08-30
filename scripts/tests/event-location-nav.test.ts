@@ -157,6 +157,26 @@ test("a saved Waze entrance pin beats the Google Maps pin for Waze only", () => 
   assert.match(getGoogleMapsLink(location) || "", /@32\.591962,35\.414497/);
 });
 
+test("a typed Waze place name navigates by search, not the Google pin", () => {
+  const location = {
+    name: "שיבולים גן אירועים",
+    address: "רמת צבי, ישראל",
+    lat: 32.591962,
+    lng: 35.414497,
+    wazeUrl: "שיבולים - גן אירועים",
+  };
+
+  assert.equal(
+    getWazeLink(location),
+    `https://waze.com/ul?q=${encodeURIComponent("שיבולים - גן אירועים")}&navigate=yes`
+  );
+  assert.equal(
+    getWazeAppLink(location),
+    `waze://?q=${encodeURIComponent("שיבולים - גן אירועים")}&navigate=yes`
+  );
+  assert.match(getGoogleMapsLink(location) || "", /@32\.591962,35\.414497/);
+});
+
 test("a pasted Waze URL beats saved lat/lng for Waze", () => {
   const location = {
     name: "שיבולים גן אירועים",
