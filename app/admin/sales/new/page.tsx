@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CUSTOMER_ADDITIONAL_TERMS,
   CUSTOMER_CANCELLATION_TERMS,
+  CUSTOMER_ENGAGEMENT_TERMS,
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
@@ -939,6 +940,7 @@ const UPSELLS: UpsellItem[] = [
 
 const CANCELLATION_TERMS = CUSTOMER_CANCELLATION_TERMS;
 const ADDITIONAL_TERMS = CUSTOMER_ADDITIONAL_TERMS;
+const ENGAGEMENT_TERMS = CUSTOMER_ENGAGEMENT_TERMS;
 const PAYMENT_TERMS = CUSTOMER_PAYMENT_TERMS;
 
 function createEmptyUpsells(): SelectedUpsells {
@@ -1585,6 +1587,7 @@ export default function AdminSalesNewPage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
+    engagementTerms: ENGAGEMENT_TERMS,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1733,6 +1736,7 @@ export default function AdminSalesNewPage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
+    engagementTerms: ENGAGEMENT_TERMS,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
@@ -2106,6 +2110,7 @@ export default function AdminSalesNewPage() {
           cancellationTerms: CANCELLATION_TERMS,
           paymentTerms: finalPaymentTerms,
           additionalTerms: ADDITIONAL_TERMS,
+          engagementTerms: ENGAGEMENT_TERMS,
           paymentSchedule,
           paymentMode,
           adminPaymentStatus,
