@@ -229,11 +229,11 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(inviteCard, /LocationDisplay/);
   assert.doesNotMatch(inviteCard, /📍/);
   assert.match(navButtons, /getGoogleMapsLink/);
-  assert.match(navButtons, /getWazeLink/);
+  assert.match(navButtons, /WazeNavButton/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
-  assert.match(navLinks, /https:\/\/waze\.com\/ul\?ll=/);
+  assert.match(navLinks, /https:\/\/www\.waze\.com\/ul\?ll=/);
   assert.match(navLinks, /resolveEventLocation/);
-  assert.match(wwLocation, /getWazeLink/);
+  assert.match(wwLocation, /WazeNavButton/);
   assert.match(wwLocation, /getGoogleMapsLink/);
   assert.match(wwLocation, /content\.venueLat/);
   assert.match(eternal, /LocationDisplay/);
