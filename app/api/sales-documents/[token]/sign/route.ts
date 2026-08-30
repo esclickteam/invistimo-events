@@ -174,23 +174,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const fullName =
       cleanStr((body as any).fullName) ||
-      cleanStr((body as any).signatureFullName) ||
-      cleanStr(document.get("client.fullName"));
+      cleanStr((body as any).signatureFullName);
 
     const idNumber =
       cleanStr((body as any).idNumber) ||
-      cleanStr((body as any).signatureIdNumber) ||
-      cleanStr(document.get("client.idNumber"));
+      cleanStr((body as any).signatureIdNumber);
 
     const address =
       cleanStr((body as any).address) ||
-      cleanStr((body as any).signatureAddress) ||
-      cleanStr(document.get("client.address"));
+      cleanStr((body as any).signatureAddress);
 
     const phone =
       cleanStr((body as any).phone) ||
-      cleanStr((body as any).signaturePhone) ||
-      cleanStr(document.get("client.phone"));
+      cleanStr((body as any).signaturePhone);
 
     const signatureDate =
       cleanStr((body as any).date) ||
@@ -200,7 +196,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const signatureDataUrl = getSignatureDataUrl(body as any);
 
     if (!fullName) return jsonError("חסר שם מלא", 400);
+    if (!idNumber) return jsonError("חסר מספר תעודת זהות", 400);
+    if (!address) return jsonError("חסרה כתובת", 400);
     if (!phone) return jsonError("חסר מספר טלפון", 400);
+
+    if (idNumber.replace(/\D/g, "").length < 8) {
+      return jsonError("מספר תעודת הזהות לא תקין", 400);
+    }
+
+    if (address.length < 3) {
+      return jsonError("יש למלא כתובת מלאה", 400);
+    }
 
     if (normalizePhone(phone).length < 9) {
       return jsonError("מספר הטלפון לא תקין", 400);
