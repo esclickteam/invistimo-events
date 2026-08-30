@@ -101,23 +101,38 @@ export function getLocationQuery(location: NavLocation) {
   return firstText(location.address, location.name);
 }
 
-export function getWazeLink(location: NavLocation) {
+export function getWazePlaceLabel(location: NavLocation) {
+  const name = firstText(location.name);
+  const address = firstText(location.address);
+
+  if (name && address && name !== address) {
+    if (address.includes(name)) return address;
+    if (name.includes(address)) return name;
+    return `${name}, ${address}`;
+  }
+
+  return name || address;
+}
+
+function buildWazeUrl(base: "https://waze.com/ul" | "waze://", location: NavLocation) {
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
 
-  // Waze search (`q=`) matches a different index than Google Maps.
-  // A venue name like "שיבולים גן אירועים" can open the wrong city.
-  // Always navigate by the exact pin — never by business-name search.
+  // Never search by name alone — that can open a different city.
+  // Coordinates keep the pin; the label is only added together with ll.
   if (lat == null || lng == null) return null;
 
-  return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  const label = getWazePlaceLabel(location);
+  const labeled = label ? `&q=${encodeURIComponent(label)}` : "";
+  return `${base}?ll=${lat},${lng}&navigate=yes${labeled}`;
+}
+
+export function getWazeLink(location: NavLocation) {
+  return buildWazeUrl("https://waze.com/ul", location);
 }
 
 export function getWazeAppLink(location: NavLocation) {
-  const lat = parseCoord(location.lat);
-  const lng = parseCoord(location.lng);
-  if (lat == null || lng == null) return null;
-  return `waze://?ll=${lat},${lng}&navigate=yes`;
+  return buildWazeUrl("waze://", location);
 }
 
 export function getGoogleMapsEmbedUrl(location: NavLocation, zoom = 16) {
