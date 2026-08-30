@@ -7,8 +7,11 @@ import {
   asMapPin,
   chooseMapPin,
   geographicQuery,
+  hintQueries,
+  pickHintPin,
   placeSearchQuery,
   type MapPin,
+  type PinCandidate,
 } from "@/lib/mapPinChoice";
 
 export type { MapPin };
@@ -39,6 +42,19 @@ function readLatLng(value: any): MapPin | null {
   return { lat, lng };
 }
 
+function toCandidate(
+  location: any,
+  extra?: { name?: string; address?: string }
+): PinCandidate | null {
+  const pin = readLatLng(location);
+  if (!pin) return null;
+  return {
+    ...pin,
+    name: extra?.name || "",
+    address: extra?.address || "",
+  };
+}
+
 async function fetchGoogleJson(url: string): Promise<any | null> {
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -53,32 +69,35 @@ async function findPlacePins(
   query: string,
   key: string,
   bias?: MapPin | null
-): Promise<MapPin[]> {
+): Promise<PinCandidate[]> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
   );
   url.searchParams.set("input", query);
   url.searchParams.set("inputtype", "textquery");
-  url.searchParams.set("fields", "geometry");
+  url.searchParams.set("fields", "geometry,name,formatted_address");
   url.searchParams.set("language", "he");
   url.searchParams.set("key", key);
   if (bias) {
     url.searchParams.set(
       "locationbias",
-      `circle:30000@${bias.lat},${bias.lng}`
+      `circle:25000@${bias.lat},${bias.lng}`
     );
   }
 
   const data = await fetchGoogleJson(url.toString());
-  const pin = readLatLng(data?.candidates?.[0]?.geometry?.location);
-  return pin ? [pin] : [];
+  const candidate = toCandidate(data?.candidates?.[0]?.geometry?.location, {
+    name: data?.candidates?.[0]?.name,
+    address: data?.candidates?.[0]?.formatted_address,
+  });
+  return candidate ? [candidate] : [];
 }
 
 async function textSearchPins(
   query: string,
   key: string,
   bias?: MapPin | null
-): Promise<MapPin[]> {
+): Promise<PinCandidate[]> {
   const url = new URL(
     "https://maps.googleapis.com/maps/api/place/textsearch/json"
   );
@@ -88,18 +107,26 @@ async function textSearchPins(
   url.searchParams.set("key", key);
   if (bias) {
     url.searchParams.set("location", `${bias.lat},${bias.lng}`);
-    url.searchParams.set("radius", "30000");
+    url.searchParams.set("radius", "25000");
   }
 
   const data = await fetchGoogleJson(url.toString());
   const results = Array.isArray(data?.results) ? data.results : [];
   return results
     .slice(0, 8)
-    .map((result: any) => readLatLng(result?.geometry?.location))
-    .filter(Boolean) as MapPin[];
+    .map((result: any) =>
+      toCandidate(result?.geometry?.location, {
+        name: result?.name,
+        address: result?.formatted_address,
+      })
+    )
+    .filter(Boolean) as PinCandidate[];
 }
 
-async function geocodePin(query: string, key: string): Promise<MapPin | null> {
+async function geocodePins(
+  query: string,
+  key: string
+): Promise<PinCandidate[]> {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", query);
   url.searchParams.set("region", "il");
@@ -107,7 +134,16 @@ async function geocodePin(query: string, key: string): Promise<MapPin | null> {
   url.searchParams.set("key", key);
 
   const data = await fetchGoogleJson(url.toString());
-  return readLatLng(data?.results?.[0]?.geometry?.location);
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return results
+    .slice(0, 5)
+    .map((result: any) =>
+      toCandidate(result?.geometry?.location, {
+        name: result?.formatted_address,
+        address: result?.formatted_address,
+      })
+    )
+    .filter(Boolean) as PinCandidate[];
 }
 
 export async function resolveMapPin(
@@ -116,8 +152,8 @@ export async function resolveMapPin(
   if (!location) return null;
 
   const saved = asMapPin(location);
-  const geoQuery = geographicQuery(location);
   const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
+  const venueName = String(location.name || "").trim();
 
   const key = cacheKey(location);
   const cached = pinCache.get(key);
@@ -125,23 +161,34 @@ export async function resolveMapPin(
 
   const apiKey = googleMapsKey();
   if (!apiKey) {
-    return chooseMapPin({ saved, hint: null, candidates: [] });
+    return chooseMapPin({
+      saved,
+      hint: null,
+      candidates: [],
+      query: searchQuery,
+      venueName,
+    });
   }
 
-  const hint =
-    (geoQuery ? await geocodePin(geoQuery, apiKey) : null) ||
-    (searchQuery && searchQuery !== geoQuery
-      ? await geocodePin(searchQuery, apiKey)
-      : null);
+  const geoResults: PinCandidate[] = [];
+  for (const query of hintQueries(location)) {
+    geoResults.push(...(await geocodePins(query, apiKey)));
+  }
 
-  const candidates = searchQuery
-    ? [
-        ...(await textSearchPins(searchQuery, apiKey, hint)),
-        ...(await findPlacePins(searchQuery, apiKey, hint)),
-      ]
-    : [];
+  const hint = pickHintPin(geoResults, searchQuery);
+  const candidates = [
+    ...geoResults,
+    ...(searchQuery ? await textSearchPins(searchQuery, apiKey, hint) : []),
+    ...(searchQuery ? await findPlacePins(searchQuery, apiKey, hint) : []),
+  ];
 
-  const pin = chooseMapPin({ saved, hint, candidates });
+  const pin = chooseMapPin({
+    saved,
+    hint,
+    candidates,
+    query: searchQuery,
+    venueName,
+  });
   if (pin) pinCache.set(key, pin);
   return pin;
 }

@@ -80,12 +80,17 @@ export function resolveEventLocation(
 }
 
 function queryFromLocation(location: NavLocation) {
+  const name = firstText(location.name);
+  const address = firstText(location.address);
+  if (name && address && !address.includes(name) && !name.includes(address)) {
+    return `${name}, ${address}`;
+  }
+  if (address || name) return address || name;
+
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
   if (lat != null && lng != null) return `${lat},${lng}`;
-
-  const address = firstText(location.address, location.name);
-  return address || null;
+  return null;
 }
 
 export function getGoogleMapsLink(location: NavLocation) {

@@ -5,10 +5,11 @@ import {
 import {
   asMapPin,
   chooseMapPin,
-  geographicQuery,
+  hintQueries,
+  pickHintPin,
   placeSearchQuery,
 } from "@/lib/mapPinChoice";
-import type { MapPin } from "@/lib/mapPinChoice";
+import type { MapPin, PinCandidate } from "@/lib/mapPinChoice";
 
 type GoogleLatLng = {
   lat: () => number;
@@ -16,12 +17,15 @@ type GoogleLatLng = {
 };
 
 type GooglePlaceResult = {
+  name?: string;
+  formatted_address?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
 };
 
 type GoogleGeocoderResult = {
+  formatted_address?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
@@ -30,6 +34,19 @@ type GoogleGeocoderResult = {
 function pinFromLocation(loc?: GoogleLatLng | null): MapPin | null {
   if (!loc) return null;
   return { lat: loc.lat(), lng: loc.lng() };
+}
+
+function toCandidate(
+  loc: GoogleLatLng | null | undefined,
+  extra?: { name?: string; address?: string }
+): PinCandidate | null {
+  const pin = pinFromLocation(loc);
+  if (!pin) return null;
+  return {
+    ...pin,
+    name: extra?.name || "",
+    address: extra?.address || "",
+  };
 }
 
 function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
@@ -57,7 +74,7 @@ function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
 function placesTextSearch(
   query: string,
   bias?: MapPin | null
-): Promise<MapPin[]> {
+): Promise<PinCandidate[]> {
   return new Promise((resolve) => {
     try {
       const service = new window.google.maps.places.PlacesService(
@@ -66,7 +83,7 @@ function placesTextSearch(
       const request: Record<string, unknown> = { query, region: "IL" };
       if (bias) {
         request.location = new window.google.maps.LatLng(bias.lat, bias.lng);
-        request.radius = 30000;
+        request.radius = 25000;
       }
       service.textSearch(
         request,
@@ -81,8 +98,13 @@ function placesTextSearch(
           resolve(
             list
               .slice(0, 8)
-              .map((result) => pinFromLocation(result?.geometry?.location))
-              .filter((pin): pin is MapPin => Boolean(pin))
+              .map((result) =>
+                toCandidate(result?.geometry?.location, {
+                  name: result?.name,
+                  address: result?.formatted_address,
+                })
+              )
+              .filter((pin): pin is PinCandidate => Boolean(pin))
           );
         }
       );
@@ -92,7 +114,7 @@ function placesTextSearch(
   });
 }
 
-function geocodeQuery(query: string): Promise<MapPin | null> {
+function geocodePins(query: string): Promise<PinCandidate[]> {
   return new Promise((resolve) => {
     try {
       const geocoder = new window.google.maps.Geocoder();
@@ -102,16 +124,25 @@ function geocodeQuery(query: string): Promise<MapPin | null> {
           const list = Array.isArray(results)
             ? (results as GoogleGeocoderResult[])
             : [];
-          const pin = pinFromLocation(list[0]?.geometry?.location);
-          if (status === "OK" && pin) {
-            resolve(pin);
+          if (status !== "OK") {
+            resolve([]);
             return;
           }
-          resolve(null);
+          resolve(
+            list
+              .slice(0, 5)
+              .map((result) =>
+                toCandidate(result?.geometry?.location, {
+                  name: result?.formatted_address,
+                  address: result?.formatted_address,
+                })
+              )
+              .filter((pin): pin is PinCandidate => Boolean(pin))
+          );
         }
       );
     } catch {
-      resolve(null);
+      resolve([]);
     }
   });
 }
@@ -122,21 +153,36 @@ export async function resolveMapPinInBrowser(
   if (!location) return null;
 
   const saved = asMapPin(location);
-  const geoQuery = geographicQuery(location);
   const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
+  const venueName = String(location.name || "").trim();
 
   const ready = await waitForGoogleMaps();
-  if (!ready) return chooseMapPin({ saved, hint: null, candidates: [] });
+  if (!ready) {
+    return chooseMapPin({
+      saved,
+      hint: null,
+      candidates: [],
+      query: searchQuery,
+      venueName,
+    });
+  }
 
-  const hint =
-    (geoQuery ? await geocodeQuery(geoQuery) : null) ||
-    (searchQuery && searchQuery !== geoQuery
-      ? await geocodeQuery(searchQuery)
-      : null);
+  const geoResults: PinCandidate[] = [];
+  for (const query of hintQueries(location)) {
+    geoResults.push(...(await geocodePins(query)));
+  }
 
-  const candidates = searchQuery
-    ? await placesTextSearch(searchQuery, hint)
-    : [];
+  const hint = pickHintPin(geoResults, searchQuery);
+  const candidates = [
+    ...geoResults,
+    ...(searchQuery ? await placesTextSearch(searchQuery, hint) : []),
+  ];
 
-  return chooseMapPin({ saved, hint, candidates });
+  return chooseMapPin({
+    saved,
+    hint,
+    candidates,
+    query: searchQuery,
+    venueName,
+  });
 }
