@@ -110,6 +110,7 @@ Boot safety (`lib/env/safetyGuards.ts` + `lib/db.ts`):
 | `JWT_SECRET` | **different** from Production |
 | `NEXTAUTH_SECRET` / `AUTH_SECRET` | different from Production if used |
 | `NEXT_PUBLIC_SITE_URL` | `https://staging.invistimo.com` |
+| `GOOGLE_MAPS_API_KEY` | **Server-only** key (Geocoding + Places, no HTTP-referrer restriction). Do not reuse `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. |
 | `NEXT_PUBLIC_APP_URL` | `https://staging.invistimo.com` |
 | `NEXT_PUBLIC_BASE_URL` | `https://staging.invistimo.com` |
 | `NEXTAUTH_URL` | `https://staging.invistimo.com` |

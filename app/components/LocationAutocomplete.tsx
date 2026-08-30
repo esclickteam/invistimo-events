@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 
-type SelectedPlace = {
-  inputValue: string;
+type PlaceSelection = {
   name?: string;
   address: string;
   lat: number | null;
   lng: number | null;
+  placeId?: string | null;
+  placeName?: string | null;
+  formattedAddress?: string | null;
+};
+
+type SelectedPlace = PlaceSelection & {
+  inputValue: string;
 };
 
 type Props = {
   value: string;
-  onSelect: (data: {
-    name?: string;
-    address: string;
-    lat: number | null;
-    lng: number | null;
-  }) => void;
+  onSelect: (data: PlaceSelection) => void;
 };
 
 function samePlaceText(typedValue: string, selected: SelectedPlace) {
@@ -69,6 +71,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
 
       const lat = place.geometry?.location?.lat?.() ?? null;
       const lng = place.geometry?.location?.lng?.() ?? null;
+      const placeId = place.place_id || "";
 
       const selected: SelectedPlace = {
         inputValue: inputRef.current?.value?.trim() || address,
@@ -76,6 +79,9 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         address,
         lat,
         lng,
+        placeId,
+        placeName: name || "",
+        formattedAddress: address,
       };
 
       selectedPlaceRef.current = selected;
@@ -84,6 +90,9 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         address: selected.address,
         lat: selected.lat,
         lng: selected.lng,
+        placeId: selected.placeId,
+        placeName: selected.placeName,
+        formattedAddress: selected.formattedAddress,
       });
     });
   }, [onSelect]);
@@ -114,6 +123,38 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
           address: typedValue,
           lat: null,
           lng: null,
+          placeId: null,
+          placeName: null,
+          formattedAddress: null,
+        });
+
+        void resolveMapPinInBrowser({
+          name: typedValue,
+          address: typedValue,
+        }).then((pin) => {
+          if (!pin) return;
+          if (inputRef.current?.value.trim() !== typedValue) return;
+
+          const next: SelectedPlace = {
+            inputValue: typedValue,
+            name: typedValue,
+            address: typedValue,
+            lat: pin.lat,
+            lng: pin.lng,
+            placeId: pin.placeId || null,
+            placeName: pin.placeName || null,
+            formattedAddress: pin.formattedAddress || null,
+          };
+          selectedPlaceRef.current = next;
+          onSelect({
+            name: typedValue,
+            address: typedValue,
+            lat: pin.lat,
+            lng: pin.lng,
+            placeId: pin.placeId || null,
+            placeName: pin.placeName || null,
+            formattedAddress: pin.formattedAddress || null,
+          });
         });
       }}
     />

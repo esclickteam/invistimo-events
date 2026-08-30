@@ -8,10 +8,11 @@ import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import { guestExperienceFromRsvpSiteMode, normalizeRsvpSiteMode } from "@/types/rsvpSite";
 import {
-  guestExperienceFromRsvpSiteMode,
-  normalizeRsvpSiteMode,
-} from "@/types/rsvpSite";
+  ensurePreRsvpInvitationGrant,
+  readPreRsvpFlags,
+} from "@/lib/preRsvp/entitlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -647,12 +648,15 @@ packageName
         includeDigitalSeating
         includeEventManagement
         includeCustomDesign
+        includeTransportationManagement
         accessModules
         selfManageEnabled
         customDesignEnabled
         rsvpSiteMode
         guestExperienceType
         features
+        salesUpsells.preRsvpMessages
+        salesUpsells.transportationManagement
 
         createdByProducer
         producerId
@@ -669,6 +673,15 @@ packageName
       .sort({ createdAt: -1 })
       .lean();
 
+    for (const u of users as any[]) {
+      const granted = await ensurePreRsvpInvitationGrant(u);
+      if (!u.salesUpsells) u.salesUpsells = {};
+      u.salesUpsells.preRsvpMessages = {
+        ...(u.salesUpsells.preRsvpMessages || {}),
+        ...granted,
+      };
+    }
+
     const userIds = users.map((u: any) => u._id);
 
     const emails = users
@@ -678,13 +691,19 @@ packageName
     const [invitations, paymentsAgg, totalRevenueAgg] = await Promise.all([
       userIds.length > 0
         ? Invitation.find({
-            ownerId: { $in: userIds },
+            $or: [
+              { ownerId: { $in: userIds } },
+              { userId: { $in: userIds } },
+            ],
           })
             .select(`
               ownerId
+              userId
               title
               shareId
               eventDate
+              createdAt
+              updatedAt
               rsvpRoundSent
 
               rsvpRound1SentAt
@@ -770,7 +789,7 @@ packageName
               messageLocks
               adminMessageRoundLocks
             `)
-            .sort({ eventDate: -1 })
+            .sort({ eventDate: -1, updatedAt: -1, createdAt: -1 })
             .lean()
         : [],
 
@@ -913,11 +932,35 @@ packageName
 
     const invitationByUserId = new Map<string, any>();
 
-    for (const invitation of invitations) {
-      const uid = String(invitation.ownerId);
+    const invitationScore = (invitation: any) => {
+      const eventTime = invitation?.eventDate
+        ? new Date(invitation.eventDate).getTime()
+        : 0;
+      const updatedTime = invitation?.updatedAt
+        ? new Date(invitation.updatedAt).getTime()
+        : invitation?.createdAt
+          ? new Date(invitation.createdAt).getTime()
+          : 0;
 
-      if (!invitationByUserId.has(uid)) {
-        invitationByUserId.set(uid, invitation);
+      return (Number.isFinite(eventTime) ? eventTime : 0) * 10 +
+        (Number.isFinite(updatedTime) ? updatedTime : 0);
+    };
+
+    for (const invitation of invitations) {
+      const userKeys = Array.from(
+        new Set(
+          [invitation.ownerId, invitation.userId]
+            .filter(Boolean)
+            .map((id: any) => String(id))
+        )
+      );
+
+      for (const uid of userKeys) {
+        const current = invitationByUserId.get(uid);
+
+        if (!current || invitationScore(invitation) > invitationScore(current)) {
+          invitationByUserId.set(uid, invitation);
+        }
       }
     }
 
@@ -1121,6 +1164,8 @@ packageName
           includeEventManagement,
           includeTransportationManagement,
           includeCustomDesign,
+          includePreRsvpInvitation: readPreRsvpFlags(u).invitationOnlyEnabled,
+          includePreRsvpSaveTheDate: readPreRsvpFlags(u).saveTheDateEnabled,
 
           accessModules,
 

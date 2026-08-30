@@ -9,6 +9,9 @@ const LocationSchema = new Schema(
     address: { type: String, default: "" },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
+    placeId: { type: String, default: "" },
+    placeName: { type: String, default: "" },
+    formattedAddress: { type: String, default: "" },
   },
   { _id: false }
 );

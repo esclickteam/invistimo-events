@@ -229,7 +229,10 @@ export default function PublicInvitePage({ params }: any) {
         )}
 
         <div className="mt-7 w-full max-w-md">
-          <EventLocationCard location={resolveEventLocation(invite, event)} />
+          <EventLocationCard
+            shareId={shareId}
+            location={resolveEventLocation(invite, event)}
+          />
         </div>
 
         <footer className="mt-10 flex flex-col items-center gap-2 pb-4 text-center">

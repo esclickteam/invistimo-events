@@ -281,6 +281,9 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
   isDemoUser?: boolean;
   needsPasswordSetup?: boolean;
+  requireAgreementBeforePassword?: boolean;
+  onboardingAgreementToken?: string;
+  onboardingAgreementSignedAt?: Date | null;
 
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -1193,6 +1196,23 @@ preRsvpMessages: {
     needsPasswordSetup: {
       type: Boolean,
       default: true,
+    },
+
+    requireAgreementBeforePassword: {
+      type: Boolean,
+      default: false,
+    },
+
+    onboardingAgreementToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    onboardingAgreementSignedAt: {
+      type: Date,
+      default: null,
     },
 
     /**

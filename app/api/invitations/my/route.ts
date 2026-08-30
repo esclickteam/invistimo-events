@@ -10,6 +10,7 @@ import {
   buildInvitationRsvpFields,
   getOwnerRsvpSiteMode,
 } from "@/lib/weddingWebsite/rsvpSiteMode";
+import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -523,11 +524,20 @@ export async function GET(req: Request) {
     const ownerUser =
       invitationOwnerId && invitationOwnerId !== userId
         ? await User.findById(invitationOwnerId)
-            .select("salesUpsells.preRsvpMessages")
+            .select("email salesUpsells.preRsvpMessages")
             .lean()
         : user;
 
-    const preRsvpMessages = normalizePreRsvpMessagesAccess(ownerUser || user);
+    const grantedPreRsvp = await ensurePreRsvpInvitationGrant(
+      ownerUser || user
+    );
+    const preRsvpMessages = {
+      ...normalizePreRsvpMessagesAccess(ownerUser || user),
+      enabled: grantedPreRsvp.enabled,
+      mode: grantedPreRsvp.mode,
+      saveTheDateEnabled: grantedPreRsvp.saveTheDateEnabled,
+      invitationOnlyEnabled: grantedPreRsvp.invitationOnlyEnabled,
+    };
 
     const finalInvitationId = normalizeId(finalInvitation._id);
     const finalInvitationObjectId = toObjectId(finalInvitationId);

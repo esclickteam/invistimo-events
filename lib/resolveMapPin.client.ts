@@ -6,7 +6,6 @@ import {
   asMapPin,
   chooseMapPin,
   hintQueries,
-  pickHintPin,
   placeSearchQuery,
 } from "@/lib/mapPinChoice";
 import type { MapPin, PinCandidate } from "@/lib/mapPinChoice";
@@ -19,6 +18,7 @@ type GoogleLatLng = {
 type GooglePlaceResult = {
   name?: string;
   formatted_address?: string;
+  place_id?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
@@ -26,6 +26,7 @@ type GooglePlaceResult = {
 
 type GoogleGeocoderResult = {
   formatted_address?: string;
+  place_id?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
@@ -38,14 +39,16 @@ function pinFromLocation(loc?: GoogleLatLng | null): MapPin | null {
 
 function toCandidate(
   loc: GoogleLatLng | null | undefined,
-  extra?: { name?: string; address?: string }
+  extra?: { name?: string; address?: string; placeId?: string }
 ): PinCandidate | null {
   const pin = pinFromLocation(loc);
   if (!pin) return null;
+  const placeId = String(extra?.placeId || "").trim();
   return {
     ...pin,
     name: extra?.name || "",
     address: extra?.address || "",
+    ...(placeId ? { placeId } : {}),
   };
 }
 
@@ -102,6 +105,7 @@ function placesTextSearch(
                 toCandidate(result?.geometry?.location, {
                   name: result?.name,
                   address: result?.formatted_address,
+                  placeId: result?.place_id,
                 })
               )
               .filter((pin): pin is PinCandidate => Boolean(pin))
@@ -135,6 +139,7 @@ function geocodePins(query: string): Promise<PinCandidate[]> {
                 toCandidate(result?.geometry?.location, {
                   name: result?.formatted_address,
                   address: result?.formatted_address,
+                  placeId: result?.place_id,
                 })
               )
               .filter((pin): pin is PinCandidate => Boolean(pin))
@@ -153,36 +158,31 @@ export async function resolveMapPinInBrowser(
   if (!location) return null;
 
   const saved = asMapPin(location);
+  if (saved) return saved;
+
   const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
   const venueName = String(location.name || "").trim();
 
   const ready = await waitForGoogleMaps();
-  if (!ready) {
-    return chooseMapPin({
-      saved,
-      hint: null,
-      candidates: [],
-      query: searchQuery,
-      venueName,
-    });
-  }
+  if (!ready) return null;
 
   const geoResults: PinCandidate[] = [];
+  let hint: MapPin | null = null;
+
+  // Same order as the server resolver: the locality anchors the search so a
+  // venue name cannot pull the pin into another city.
   for (const query of hintQueries(location)) {
-    geoResults.push(...(await geocodePins(query)));
+    const results = await geocodePins(query);
+    geoResults.push(...results);
+    if (!hint && results[0]) {
+      hint = { lat: results[0].lat, lng: results[0].lng };
+    }
   }
 
-  const hint = pickHintPin(geoResults, searchQuery);
   const candidates = [
     ...geoResults,
     ...(searchQuery ? await placesTextSearch(searchQuery, hint) : []),
   ];
 
-  return chooseMapPin({
-    saved,
-    hint,
-    candidates,
-    query: searchQuery,
-    venueName,
-  });
+  return chooseMapPin({ saved, hint, candidates, venueName });
 }

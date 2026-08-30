@@ -229,15 +229,18 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(display, /MapPin/);
   assert.match(inviteCard, /LocationDisplay/);
   assert.doesNotMatch(inviteCard, /📍/);
-  assert.match(navButtons, /getGoogleMapsLink/);
+  assert.match(navButtons, /getGoogleMapsLinkForTarget/);
+  assert.match(navButtons, /resolveNavTarget/);
   assert.match(navButtons, /WazeNavButton/);
-  assert.match(wazeButton, /resolveMapPinInBrowser/);
+  assert.match(wazeButton, /getWazeLink/);
+  assert.doesNotMatch(wazeButton, /hasExactCoordinates/);
+  assert.doesNotMatch(wazeButton, /resolveMapPinInBrowser/);
   assert.match(wazeButton, /getWazeAppLink/);
   assert.match(wazeButton, /location\.assign/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
   assert.match(navLinks, /https:\/\/waze\.com\/ul/);
   assert.match(navLinks, /waze:\/\//);
-  assert.match(navLinks, /\?ll=\$\{lat\},\$\{lng\}/);
+  assert.match(navLinks, /\?ll=\$\{target\.lat\},\$\{target\.lng\}/);
   assert.doesNotMatch(navLinks, /getWazePlaceLabel/);
   assert.doesNotMatch(navLinks, /&q=\$\{/);
   assert.match(navLinks, /resolveEventLocation/);
@@ -250,6 +253,20 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(eternal, /getVenueMapEmbedUrl/);
   assert.match(invitePage, /resolveEventLocation\(invite, event\)/);
   assert.match(autocomplete, /selectedPlaceRef/);
+  assert.match(autocomplete, /place_id/);
+  assert.match(read("app/components/EventDetailsForm.tsx"), /LocationPinPreview/);
+  assert.match(read("app/components/EventDetailsForm.tsx"), /resolveMapPinInBrowser/);
+  assert.match(read("lib/eventLocation.ts"), /prepareEventLocation/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /persistEventLocationPin/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /decideMissingPinWrite/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /resolveMapPinDetailed/);
+  assert.match(read("lib/googleMapsServerKey.ts"), /GOOGLE_MAPS_API_KEY/);
+  assert.doesNotMatch(read("lib/googleMapsServerKey.ts"), /process\.env\.NEXT_PUBLIC_/);
+  assert.doesNotMatch(read("lib/resolveMapPin.ts"), /process\.env\.NEXT_PUBLIC_/);
+  assert.match(read("lib/persistEventMapPin.ts"), /persistEventLocationPin/);
+  assert.match(read("lib/persistEventMapPin.ts"), /persistParkingPin/);
+  assert.match(read("app/api/w/[shareId]/route.ts"), /resolveAndPersistEventLocation/);
+  assert.doesNotMatch(read("app/api/w/[shareId]/route.ts"), /withResolvedMapPin/);
 });
 
 test("dashboard wedding website route is feature-guarded", () => {

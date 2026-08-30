@@ -22,6 +22,7 @@ Cloud agents currently **cannot** create Vercel Custom Environments without `VER
 7. [ ] Set Stripe `sk_test_...` only
 8. [ ] Set `EXTERNAL_SENDS_MODE=disabled`
 9. [ ] Set `NEXT_PUBLIC_SITE_URL=https://staging.invistimo.com`
+9b. [ ] Set server-only `GOOGLE_MAPS_API_KEY` (Geocoding + Places, **no** HTTP-referrer restriction). Do **not** reuse `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
 10. [ ] Set `JWT_SECRET` unique for staging
 11. [ ] Enable Deployment Protection + Automation Bypass secret
 12. [ ] Create git branch `staging` from this infra PR once merged

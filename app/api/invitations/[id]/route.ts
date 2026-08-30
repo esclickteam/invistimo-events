@@ -8,6 +8,10 @@ import Event from "@/models/Event";
 import VenueEvent from "@/models/VenueEvent";
 import { findVenueHallByAnyId } from "@/lib/venues/eventVenueLinkInvariant";
 import { parseCoord } from "@/lib/navigationLinks";
+import {
+  prepareEventLocation,
+  type EventLocationWarning,
+} from "@/lib/eventLocation";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -100,14 +104,8 @@ function normalizePublicEventPage(input: any) {
       enabled: parking?.enabled === true,
       name: cleanString(parking?.name),
       address: cleanString(parking?.address),
-      lat:
-        parking?.lat === undefined || parking?.lat === null
-          ? null
-          : toNumber(parking?.lat, null as any),
-      lng:
-        parking?.lng === undefined || parking?.lng === null
-          ? null
-          : toNumber(parking?.lng, null as any),
+      lat: parseCoord(parking?.lat),
+      lng: parseCoord(parking?.lng),
       instructions: cleanString(parking?.instructions),
     },
 
@@ -204,36 +202,6 @@ function normalizeEventDate(value: unknown) {
   }
 
   return date.toISOString().slice(0, 10);
-}
-
-function normalizeLocation(input: any) {
-  if (!input) {
-    return {
-      address: "",
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  if (typeof input === "string") {
-    return {
-      address: input.trim(),
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  return {
-    address: cleanString(input.address || input.name),
-    lat:
-      input.lat === undefined || input.lat === null
-        ? undefined
-        : toNumber(input.lat, undefined as any),
-    lng:
-      input.lng === undefined || input.lng === null
-        ? undefined
-        : toNumber(input.lng, undefined as any),
-  };
 }
 
 function serializeEvent(event: any) {
@@ -536,7 +504,10 @@ async function createOrUpdateEventForInvitation({
     )
   );
 
-  const location = normalizeLocation(body.location || invitation.location);
+  const { location } = await prepareEventLocation({
+    input: body.location || invitation.location,
+    previous: invitation.location,
+  });
 
   const venueHallIdRaw = cleanString(
     body.venueHallId || invitation.venueHallId
@@ -855,6 +826,8 @@ export async function PUT(
       updatePayload.orientation = orientation;
     }
 
+    let locationWarning: EventLocationWarning | null = null;
+
     if (
       location &&
       ((typeof location.address === "string" && location.address.trim()) ||
@@ -862,19 +835,30 @@ export async function PUT(
         location.lat !== undefined ||
         location.lng !== undefined)
     ) {
-      updatePayload.location = {
-        name: typeof location.name === "string" ? location.name.trim() : "",
-        address:
-          typeof location.address === "string" ? location.address.trim() : "",
-        lat: parseCoord(location.lat),
-        lng: parseCoord(location.lng),
-      };
+      const prepared = await prepareEventLocation({
+        input: location,
+        previous: (invitationBeforeUpdate as any)?.location,
+      });
+
+      updatePayload.location = prepared.location;
+      locationWarning = prepared.warning;
     }
 
     if (body.publicEventPage !== undefined) {
       updatePayload.publicEventPage = normalizePublicEventPage(
         body.publicEventPage
       );
+
+      const parking = updatePayload.publicEventPage.parking;
+      if (parking?.enabled && (parking.address || parking.name)) {
+        const prepared = await prepareEventLocation({
+          input: parking,
+          previous: (invitationBeforeUpdate as any)?.publicEventPage?.parking,
+        });
+
+        parking.lat = prepared.location.lat;
+        parking.lng = prepared.location.lng;
+      }
     }
 
     if (body.estimatedGuests !== undefined) {
@@ -979,12 +963,49 @@ export async function PUT(
           { _id: new mongoose.Types.ObjectId(eventIdToSync) },
           {
             $set: {
+              "location.name": updatePayload.location.name || "",
               "location.address": updatePayload.location.address || "",
               "location.lat": updatePayload.location.lat ?? null,
               "location.lng": updatePayload.location.lng ?? null,
+              "location.placeId": updatePayload.location.placeId || "",
+              "location.placeName": updatePayload.location.placeName || "",
+              "location.formattedAddress":
+                updatePayload.location.formattedAddress || "",
               updatedAt: new Date(),
             },
           }
+        );
+      }
+
+      // Keep the wedding-website copy of the pin in sync so guests on /w
+      // do not keep navigating to the previous venue.
+      const website = (invitationBeforeUpdate as any)?.weddingWebsite;
+      if (website?.content || website?.draftContent) {
+        const venueSet: Record<string, unknown> = {};
+        if (website.content) {
+          venueSet["weddingWebsite.content.venueName"] =
+            updatePayload.location.name || "";
+          venueSet["weddingWebsite.content.venueAddress"] =
+            updatePayload.location.address || "";
+          venueSet["weddingWebsite.content.venueLat"] =
+            updatePayload.location.lat ?? null;
+          venueSet["weddingWebsite.content.venueLng"] =
+            updatePayload.location.lng ?? null;
+        }
+        if (website.draftContent) {
+          venueSet["weddingWebsite.draftContent.venueName"] =
+            updatePayload.location.name || "";
+          venueSet["weddingWebsite.draftContent.venueAddress"] =
+            updatePayload.location.address || "";
+          venueSet["weddingWebsite.draftContent.venueLat"] =
+            updatePayload.location.lat ?? null;
+          venueSet["weddingWebsite.draftContent.venueLng"] =
+            updatePayload.location.lng ?? null;
+        }
+
+        await Invitation.collection.updateOne(
+          { _id: invitationBeforeUpdate._id },
+          { $set: venueSet }
         );
       }
     }
@@ -1033,6 +1054,7 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       invitation: updated,
+      locationWarning,
       event: serializeEvent(event || (await findEventForInvitation(updated))),
       previewImageUrl: (updated as any)?.previewImageUrl ?? null,
       headerImageUrl: (updated as any)?.headerImageUrl ?? null,

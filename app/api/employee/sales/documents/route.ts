@@ -602,9 +602,6 @@ export async function POST(req: NextRequest) {
 
     if (!clientFullName) return jsonError("חסר שם לקוח", 400);
     if (!clientPhone) return jsonError("חסר טלפון לקוח", 400);
-    if (!eventDate) return jsonError("חסר תאריך אירוע", 400);
-    if (!eventCity) return jsonError("חסרה עיר אירוע", 400);
-    if (!venueName) return jsonError("חסר שם אולם", 400);
 
     const quoteDates = buildQuoteDates(quote);
 

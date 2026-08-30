@@ -29,7 +29,7 @@ import {
   CreditCard,
   CheckCircle2,
   UserPlus,
-  Loader2,
+  RefreshCw,
   ArrowUpCircle,
   PlusCircle,
   Banknote,
@@ -71,6 +71,8 @@ type AdminUser = {
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
   includeTransportationManagement?: boolean;
+  includePreRsvpInvitation?: boolean;
+  includePreRsvpSaveTheDate?: boolean;
   rsvpSiteMode?: "standard" | "personal" | string;
   guestExperienceType?: "personal_invitation" | "wedding_website" | string;
   accessModules?: {
@@ -167,6 +169,8 @@ type UpgradeFormState = {
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
+  includePreRsvpInvitation: boolean;
+  includePreRsvpSaveTheDate: boolean;
 };
 
 type UpgradePaymentMode = "manual_paid" | "stripe";
@@ -205,6 +209,16 @@ const ADDONS = [
   {
     key: "includeCustomDesign",
     label: "עיצוב בהתאמה אישית",
+    price: 0,
+  },
+  {
+    key: "includePreRsvpInvitation",
+    label: "שליחת הזמנה מוקדמת",
+    price: 0,
+  },
+  {
+    key: "includePreRsvpSaveTheDate",
+    label: "Save The Date",
     price: 0,
   },
 ] as const;
@@ -516,6 +530,16 @@ function getPurchasedItems(
       active: Boolean(user.includeCustomDesign),
     },
     {
+      label: "שליחת הזמנה מוקדמת",
+      value: user.includePreRsvpInvitation ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includePreRsvpInvitation),
+    },
+    {
+      label: "Save The Date",
+      value: user.includePreRsvpSaveTheDate ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includePreRsvpSaveTheDate),
+    },
+    {
   label: "שירות הושבה באולם",
   value: user.venueSeatingService?.enabled
     ? `נרכש · ${formatMoney(user.venueSeatingService.totalPrice)}`
@@ -715,6 +739,8 @@ type WhatsappReportRecipient = {
   name: string;
   phone: string;
   status: string;
+  clientStatus?: string;
+  rsvp?: string;
   sentAt?: string | null;
   deliveredAt?: string | null;
   readAt?: string | null;
@@ -747,7 +773,15 @@ function getWhatsappStatusLabel(status?: string) {
     pending: "ממתין",
     queued: "בתור",
     processing: "בתהליך",
+    sending: "בתהליך",
+    cancelled: "בוטל",
+    canceled: "בוטל",
     accepted: "התקבל לשליחה",
+    "לא נמסר": "לא נמסר",
+    "נקרא": "נקרא",
+    "נמסר": "נמסר",
+    "נשלח": "נשלח",
+    "ממתין": "ממתין",
   };
 
   return labels[normalized] || status || "—";
@@ -756,19 +790,19 @@ function getWhatsappStatusLabel(status?: string) {
 function getWhatsappStatusClass(status?: string) {
   const normalized = String(status || "").toLowerCase();
 
-  if (normalized === "failed") {
+  if (normalized === "failed" || normalized === "לא נמסר") {
     return "border-red-200 bg-red-50 text-red-600";
   }
 
-  if (normalized === "read") {
+  if (normalized === "read" || normalized === "נקרא") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
 
-  if (normalized === "delivered") {
+  if (normalized === "delivered" || normalized === "נמסר") {
     return "border-blue-200 bg-blue-50 text-blue-700";
   }
 
-  if (normalized === "sent") {
+  if (normalized === "sent" || normalized === "נשלח") {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
@@ -829,6 +863,8 @@ function normalizeWhatsappRecipient(
         ""
     ),
     status: String(status || "pending"),
+    clientStatus: String(raw?.clientStatus || ""),
+    rsvp: String(raw?.rsvp || ""),
     sentAt: raw?.sentAt || raw?.createdAt || raw?.timestamp || null,
     deliveredAt: raw?.deliveredAt || null,
     readAt: raw?.readAt || null,
@@ -964,7 +1000,8 @@ function exportWhatsappRoundToExcel(round: WhatsappReportRound, user?: AdminUser
     "מס׳": index + 1,
     "שם אורח": item.name,
     "טלפון": item.phone,
-    "סטטוס": getWhatsappStatusLabel(item.status),
+    "סטטוס": item.clientStatus || getWhatsappStatusLabel(item.status),
+    "אישור הגעה": item.rsvp || "",
     "נשלח בתאריך": formatExcelDate(item.sentAt),
     "נמסר בתאריך": formatExcelDate(item.deliveredAt),
     "נקרא בתאריך": formatExcelDate(item.readAt),
@@ -993,6 +1030,7 @@ function exportWhatsappRoundToExcel(round: WhatsappReportRound, user?: AdminUser
     { wch: 24 },
     { wch: 18 },
     { wch: 14 },
+    { wch: 16 },
     { wch: 22 },
     { wch: 22 },
     { wch: 22 },
@@ -1046,11 +1084,6 @@ async function fetchWhatsappRoundReport(invitationId: string) {
     }
 
     const rounds = normalizeWhatsappReportPayload(data);
-
-    if (!rounds.length) {
-      throw new Error("לא נמצאו נתוני דוח בתשובת השרת");
-    }
-
     return rounds;
   } catch (err) {
     throw new Error(
@@ -2203,6 +2236,14 @@ function EditUserModal({
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
+  const [includePreRsvpInvitation, setIncludePreRsvpInvitation] = useState(
+    Boolean(user.includePreRsvpInvitation)
+  );
+
+  const [includePreRsvpSaveTheDate, setIncludePreRsvpSaveTheDate] = useState(
+    Boolean(user.includePreRsvpSaveTheDate)
+  );
+
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(
     normalizeRsvpSiteMode(user.rsvpSiteMode ?? user.guestExperienceType)
   );
@@ -2226,6 +2267,8 @@ function EditUserModal({
       phone: form.phone,
       eventDate: form.eventDate,
       includeTransportationManagement,
+      includePreRsvpInvitation,
+      includePreRsvpSaveTheDate,
       rsvpSiteMode,
       accessModules: {
         rsvpSeating: Boolean(
@@ -2446,6 +2489,56 @@ function EditUserModal({
               </span>
             </label>
           </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-[#3A2A1C]">
+                שליחת הזמנה מוקדמת
+              </h3>
+              <p className="mt-1 text-sm font-bold text-[#7B6754]">
+                פתיחת כפתור שליחת הזמנות בטרום אישורי הגעה, לפי הנקודה שנשמרה
+                לאירוע. לא נפתח אוטומטית בחבילה.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={includePreRsvpInvitation}
+                onChange={(e) =>
+                  setIncludePreRsvpInvitation(e.target.checked)
+                }
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+              <span className="text-sm font-black text-[#3A2A1C]">
+                {includePreRsvpInvitation ? "פעיל" : "כבוי"}
+              </span>
+            </label>
+          </div>
+          <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[#EFE2D1] bg-white px-4 py-3">
+            <span className="text-sm font-bold text-[#7B6754]">
+              Save The Date
+            </span>
+            <span className="inline-flex items-center gap-2 text-sm font-black text-[#3A2A1C]">
+              <input
+                type="checkbox"
+                checked={includePreRsvpSaveTheDate}
+                onChange={(e) =>
+                  setIncludePreRsvpSaveTheDate(e.target.checked)
+                }
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+              {includePreRsvpSaveTheDate ? "פעיל" : "כבוי"}
+            </span>
+          </label>
         </section>
 
 <VenueSeatingServiceFields
@@ -3189,6 +3282,8 @@ function AdminWhatsappRoundReportModal({
   const [selectedRoundKey, setSelectedRoundKey] = useState("");
   const [search, setSearch] = useState("");
 
+  const [reloadToken, setReloadToken] = useState(0);
+
   useEffect(() => {
     let active = true;
 
@@ -3202,7 +3297,12 @@ function AdminWhatsappRoundReportModal({
         if (!active) return;
 
         setRounds(loadedRounds);
-        setSelectedRoundKey((current) => current || loadedRounds[0]?.key || "");
+        setSelectedRoundKey((current) => {
+          if (current && loadedRounds.some((round) => round.key === current)) {
+            return current;
+          }
+          return loadedRounds[0]?.key || "";
+        });
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "טעינת הדוח נכשלה");
@@ -3216,7 +3316,7 @@ function AdminWhatsappRoundReportModal({
     return () => {
       active = false;
     };
-  }, [invitationId]);
+  }, [invitationId, reloadToken]);
 
   const selectedRound = useMemo(() => {
     return rounds.find((round) => round.key === selectedRoundKey) || rounds[0] || null;
@@ -3233,7 +3333,9 @@ function AdminWhatsappRoundReportModal({
       return (
         normalizeText(item.name).includes(q) ||
         normalizeText(item.phone).includes(q) ||
+        normalizeText(item.clientStatus).includes(q) ||
         normalizeText(getWhatsappStatusLabel(item.status)).includes(q) ||
+        normalizeText(item.rsvp).includes(q) ||
         normalizeText(item.errorMessage).includes(q) ||
         normalizeText(item.messageId).includes(q)
       );
@@ -3303,7 +3405,7 @@ function AdminWhatsappRoundReportModal({
                 דוח WhatsApp לסבבים
               </h2>
               <p className="mt-1 text-sm font-bold leading-6 text-[#8A7867]">
-                {user.name || user.email || "לקוח"} · צפייה בסטטוסים וייצוא לאקסל
+                {user.name || user.email || "לקוח"} · נתונים חיים ממונגו לכל סבב שנשלח
               </p>
             </div>
           </div>
@@ -3329,7 +3431,7 @@ function AdminWhatsappRoundReportModal({
             </div>
           ) : !selectedRound ? (
             <div className="rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-5 text-center text-sm font-bold text-[#8A7867]">
-              אין נתוני דוח להצגה.
+              אין נתוני WhatsApp להצגה. אם סבב נשלח, רענני את הדוח או בדקי שהשליחה נשמרה בתור.
             </div>
           ) : (
             <div className="space-y-5">
@@ -3375,28 +3477,50 @@ function AdminWhatsappRoundReportModal({
                       {selectedRound.title}
                     </h3>
                     <p className="mt-1 text-xs font-bold text-[#8A7867]">
-                      מוצגות {filteredRecipients.length} מתוך {selectedRound.recipients.length} רשומות
+                      מוצגות {filteredRecipients.length} מתוך {selectedRound.recipients.length} רשומות מהשרת
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => exportWhatsappRoundToExcel(selectedRound, user)}
-                    className="
-                      flex h-11 w-full items-center justify-center gap-2
-                      rounded-2xl
-                      bg-[#1F7A4D]
-                      px-5
-                      text-sm font-black
-                      text-white
-                      shadow-sm
-                      transition
-                      hover:bg-[#17663F]
-                      md:w-auto
-                    "
-                  >
-                    📥 ייצוא דוח לאקסל
-                  </button>
+                  <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => setReloadToken((value) => value + 1)}
+                      className="
+                        flex h-11 w-full items-center justify-center gap-2
+                        rounded-2xl
+                        border border-[#E7D8C6]
+                        bg-white
+                        px-5
+                        text-sm font-black
+                        text-[#6B451E]
+                        shadow-sm
+                        transition
+                        hover:bg-[#FFF8E6]
+                        md:w-auto
+                      "
+                    >
+                      <RefreshCw size={16} />
+                      רענון מהשרת
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => exportWhatsappRoundToExcel(selectedRound, user)}
+                      className="
+                        flex h-11 w-full items-center justify-center gap-2
+                        rounded-2xl
+                        bg-[#1F7A4D]
+                        px-5
+                        text-sm font-black
+                        text-white
+                        shadow-sm
+                        transition
+                        hover:bg-[#17663F]
+                        md:w-auto
+                      "
+                    >
+                      📥 ייצוא דוח לאקסל
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -3431,7 +3555,8 @@ function AdminWhatsappRoundReportModal({
                       <tr>
                         <th className="p-4">אורח</th>
                         <th className="p-4">טלפון</th>
-                        <th className="p-4">סטטוס</th>
+                        <th className="p-4">סטטוס WhatsApp</th>
+                        <th className="p-4">אישור הגעה</th>
                         <th className="p-4">נשלח</th>
                         <th className="p-4">נמסר</th>
                         <th className="p-4">נקרא</th>
@@ -3450,10 +3575,13 @@ function AdminWhatsappRoundReportModal({
                           </td>
                           <td className="p-4">
                             <span
-                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getWhatsappStatusClass(item.status)}`}
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getWhatsappStatusClass(item.clientStatus || item.status)}`}
                             >
-                              {getWhatsappStatusLabel(item.status)}
+                              {item.clientStatus || getWhatsappStatusLabel(item.status)}
                             </span>
+                          </td>
+                          <td className="p-4 font-bold text-[#6B5A48]">
+                            {item.rsvp || "—"}
                           </td>
                           <td className="p-4 font-bold text-[#6B5A48]">
                             {formatDateTime(item.sentAt) || "—"}
@@ -3472,7 +3600,7 @@ function AdminWhatsappRoundReportModal({
 
                       {filteredRecipients.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="p-6 text-center font-bold text-[#8A7867]">
+                          <td colSpan={8} className="p-6 text-center font-bold text-[#8A7867]">
                             לא נמצאו רשומות לפי החיפוש.
                           </td>
                         </tr>
@@ -3554,6 +3682,8 @@ function UpgradeUserModal({
     includeTransportationManagement: Boolean(
       user.includeTransportationManagement
     ),
+    includePreRsvpInvitation: Boolean(user.includePreRsvpInvitation),
+    includePreRsvpSaveTheDate: Boolean(user.includePreRsvpSaveTheDate),
   });
 
   const [selectedRecords, setSelectedRecords] = useState<number>(
@@ -3664,6 +3794,8 @@ const calculatedTotalToPay =
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
       includeTransportationManagement: form.includeTransportationManagement,
+      includePreRsvpInvitation: form.includePreRsvpInvitation,
+      includePreRsvpSaveTheDate: form.includePreRsvpSaveTheDate,
 
       /*
         ✅ הרשאות מודולים:
@@ -3723,6 +3855,8 @@ const calculatedTotalToPay =
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
       includeTransportationManagement: form.includeTransportationManagement,
+      includePreRsvpInvitation: form.includePreRsvpInvitation,
+      includePreRsvpSaveTheDate: form.includePreRsvpSaveTheDate,
 
       /*
         ✅ הרשאות מודולים:

@@ -963,6 +963,15 @@ export async function POST(req: NextRequest) {
     const guestExperienceType = guestExperienceFromRsvpSiteMode(rsvpSiteMode);
     const customerFeatures = featuresForExperience(guestExperienceType);
 
+    const requireAgreementBeforePassword = Boolean(
+      body?.requireAgreementBeforePassword,
+    );
+    const onboardingAgreementToken = cleanString(
+      body?.onboardingAgreementToken ||
+        body?.agreementToken ||
+        body?.signedAgreementToken,
+    );
+
     const packageName = cleanString(body?.packageName);
     const plan = cleanString(body?.plan) || "premium";
     const userPlan = toUserPlan(plan);
@@ -1066,6 +1075,17 @@ export async function POST(req: NextRequest) {
           success: false,
           error: "INVALID_EMAIL",
           message: "אימייל לקוח לא תקין",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (requireAgreementBeforePassword && !onboardingAgreementToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "MISSING_AGREEMENT_TOKEN",
+          message: "כדי לחייב חתימה לפני סיסמה יש ליצור הסכם לחתימה",
         },
         { status: 400 },
       );
@@ -1227,6 +1247,11 @@ export async function POST(req: NextRequest) {
 
       isTrial: false,
       needsPasswordSetup: true,
+      requireAgreementBeforePassword,
+      onboardingAgreementToken: requireAgreementBeforePassword
+        ? onboardingAgreementToken
+        : "",
+      onboardingAgreementSignedAt: null,
 
       createdByAdmin: true,
       billingSource: isManualPaid ? "admin" : "pricing",
@@ -1296,6 +1321,15 @@ export async function POST(req: NextRequest) {
       paymentSchedule: body?.paymentSchedule || null,
 
       saleCompliance: body?.saleCompliance || null,
+
+      agreementToken: requireAgreementBeforePassword
+        ? onboardingAgreementToken
+        : cleanString(body?.signedAgreementToken),
+      signedAgreementToken: "",
+      agreementStatus: requireAgreementBeforePassword
+        ? "pending_signature"
+        : "",
+      agreementSignedAt: null,
 
       // תשלום רק Stripe
       status: "pending",

@@ -214,6 +214,11 @@ const EventSchema = new mongoose.Schema(
        מיקום
     ========================= */
     location: {
+      name: {
+        type: String,
+        default: "",
+        trim: true,
+      },
       address: {
         type: String,
         default: "",
@@ -226,6 +231,21 @@ const EventSchema = new mongoose.Schema(
       lng: {
         type: Number,
         default: undefined,
+      },
+      placeId: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      placeName: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      formattedAddress: {
+        type: String,
+        default: "",
+        trim: true,
       },
     },
 

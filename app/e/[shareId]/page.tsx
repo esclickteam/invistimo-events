@@ -20,12 +20,17 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import CopyButton from "./CopyButton";
 import WazeNavButton from "@/app/components/WazeNavButton";
+import PersistMissingEventPin from "@/app/components/PersistMissingEventPin";
 import {
-  getGoogleMapsLink,
-  getWazeLink,
+  getGoogleMapsLinkForTarget,
+  hasExactCoordinates,
   parseCoord,
-  resolveEventLocation,
+  resolveNavTarget,
 } from "@/lib/navigationLinks";
+import {
+  persistParkingPin,
+  resolveAndPersistEventLocation,
+} from "@/lib/persistEventMapPin";
 import { withResolvedMapPin } from "@/lib/resolveMapPin";
 
 export const dynamic = "force-dynamic";
@@ -118,20 +123,14 @@ function formatHebrewDate(value: unknown) {
   }).format(date);
 }
 
-function getLocationValue(invitation: any, event: any): SafeLocation {
-  return resolveEventLocation(invitation, event);
-}
-
-function buildGoogleMapsUrl(location: SafeLocation, customUrl?: unknown) {
-  const fromEvent = getGoogleMapsLink(location);
-  if (fromEvent) return fromEvent;
-  return normalizeUrl(customUrl);
-}
-
-function buildWazeUrl(location: SafeLocation, customUrl?: unknown) {
-  const fromEvent = getWazeLink(location);
-  if (fromEvent) return fromEvent;
-  return normalizeUrl(customUrl);
+function eventNavCustom(settings: {
+  wazeUrl?: string;
+  googleMapsUrl?: string;
+}) {
+  return {
+    wazeUrl: settings.wazeUrl || "",
+    googleMapsUrl: settings.googleMapsUrl || "",
+  };
 }
 
 function getInvitationTitle(invitation: any, event: any) {
@@ -462,20 +461,26 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
   const dateLabel = formatHebrewDate(eventDate);
 
-  const baseLocation = getLocationValue(invitation, event);
   const navigationSettings = getNavigationSettings(publicEventPage);
 
-  const location: SafeLocation = await withResolvedMapPin({
-    name: baseLocation.name || navigationSettings.venueName,
-    address: baseLocation.address || navigationSettings.address,
-    lat: baseLocation.lat,
-    lng: baseLocation.lng,
-  });
+  const location: SafeLocation = await resolveAndPersistEventLocation(
+    invitation,
+    event
+  );
+  if (!location.name && navigationSettings.venueName) {
+    location.name = navigationSettings.venueName;
+  }
+  if (!location.address && navigationSettings.address) {
+    location.address = navigationSettings.address;
+  }
 
-  const wazeUrl = buildWazeUrl(location, navigationSettings.wazeUrl);
-  const googleMapsUrl = buildGoogleMapsUrl(
-    location,
-    navigationSettings.googleMapsUrl
+  const navCustom = eventNavCustom(navigationSettings);
+  const navTarget = resolveNavTarget(location, navCustom);
+  const googleMapsUrl = getGoogleMapsLinkForTarget(navTarget);
+  const hasWaze = Boolean(
+    (navTarget.lat != null && navTarget.lng != null) ||
+      navTarget.query ||
+      navTarget.wazeUrlOnly
   );
 
   const parking = getParkingSettings(publicEventPage);
@@ -491,17 +496,33 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
     lat: parking.lat,
     lng: parking.lng,
   });
-
-  const parkingWazeUrl =
+  const parkingLat = parseCoord(parkingLocation.lat);
+  const parkingLng = parseCoord(parkingLocation.lng);
+  if (
     parking.enabled &&
-    (parkingName || parkingAddress || parking.lat || parking.lng)
-      ? buildWazeUrl(parkingLocation)
-      : "";
+    !hasExactCoordinates(parking) &&
+    parkingLat != null &&
+    parkingLng != null
+  ) {
+    await persistParkingPin({
+      invitationId: invitation._id,
+      pin: { lat: parkingLat, lng: parkingLng },
+    });
+  }
 
+  const parkingTarget = resolveNavTarget(parkingLocation);
   const parkingGoogleMapsUrl =
     parking.enabled &&
     (parkingName || parkingAddress || parking.lat || parking.lng)
-      ? buildGoogleMapsUrl(parkingLocation)
+      ? getGoogleMapsLinkForTarget(parkingTarget)
+      : "";
+  const parkingWazeUrl =
+    parking.enabled &&
+    (parkingName || parkingAddress || parking.lat || parking.lng) &&
+    ((parkingTarget.lat != null && parkingTarget.lng != null) ||
+      parkingTarget.query ||
+      parkingTarget.wazeUrlOnly)
+      ? "waze"
       : "";
 
   const schedule = getScheduleSettings(publicEventPage);
@@ -582,7 +603,11 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
           </div>
 
           <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-8">
-            {(location.name || location.address || wazeUrl || googleMapsUrl) && (
+            <PersistMissingEventPin
+              shareId={safeShareId}
+              location={location}
+            />
+            {(location.name || location.address || hasWaze || googleMapsUrl) && (
               <SectionShell
                 title="הגעה וניווט לאירוע"
                 icon={
@@ -604,10 +629,11 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     </p>
                   )}
 
-                {(location.name || location.address || wazeUrl || googleMapsUrl) && (
+                {(location.name || location.address || hasWaze || googleMapsUrl) && (
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     <WazeNavButton
                       location={location}
+                      custom={navCustom}
                       className={darkNavButtonClassName}
                     >
                       <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />

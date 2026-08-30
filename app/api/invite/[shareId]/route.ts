@@ -4,8 +4,7 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
 import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
-import { resolveEventLocation } from "@/lib/navigationLinks";
-import { withResolvedMapPin } from "@/lib/resolveMapPin";
+import { resolveAndPersistEventLocation } from "@/lib/persistEventMapPin";
 
 export const dynamic = "force-dynamic";
 
@@ -178,7 +177,7 @@ export async function GET(
     const safeInvitation = {
       ...invitation,
 
-      location: await withResolvedMapPin(resolveEventLocation(invitation, event)),
+      location: await resolveAndPersistEventLocation(invitation, event),
 
       giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
 
