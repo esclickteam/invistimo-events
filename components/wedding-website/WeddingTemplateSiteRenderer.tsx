@@ -15,6 +15,7 @@ import {
 } from "./editable/WeddingSiteContext";
 import { WeddingSiteHydrator, WeddingSiteRuntimeStyles } from "./editable/SiteHydrator";
 import WeddingGuestMessageForm from "./WeddingGuestMessageForm";
+import { WeddingMotionRoot } from "./shared/weddingMotion";
 
 type Props = {
   template: WeddingTemplate;
@@ -81,7 +82,8 @@ const RenderedSite = memo(function RenderedSite({
     <>
       <WeddingSiteRuntimeStyles />
       <WeddingSiteHydrator>
-        <div className="ww-site overflow-x-hidden">
+        <WeddingMotionRoot>
+        <div className="ww-site overflow-x-clip">
           <style>{`
             a[href="/wedding-website"]{display:none!important}
             a[href="/"]{ }
@@ -111,6 +113,7 @@ const RenderedSite = memo(function RenderedSite({
             guestMessageSlot={resolvedMessageSlot}
           />
         </div>
+        </WeddingMotionRoot>
       </WeddingSiteHydrator>
     </>
   );

@@ -171,6 +171,10 @@ export function hydrateEditableNodes(content: WeddingDemoContent, isEditor: bool
   if (!root) return;
   if (isActivelyEditingText(root)) return;
 
+  root.querySelectorAll("iframe").forEach((frame) => {
+    if (!frame.getAttribute("loading")) frame.setAttribute("loading", "lazy");
+  });
+
   const index = buildTextIndex(content);
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {

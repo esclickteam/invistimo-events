@@ -10,6 +10,7 @@ import {
   resolveMediaSlot,
 } from "@/lib/weddingWebsite/media";
 import { useWeddingSite } from "./WeddingSiteContext";
+import { useEaseMobileScroll } from "../shared/weddingMotion";
 import type { WeddingMediaSlot } from "@/types/weddingWebsite";
 
 type Props = {
@@ -46,6 +47,7 @@ export default function WeddingMedia({
   style,
 }: Props) {
   const site = useWeddingSite();
+  const easeMobileScroll = useEaseMobileScroll();
   const [broken, setBroken] = useState<"none" | "media" | "all">("none");
   const fallback = useMemo(() => {
     const base = mediaSlotFromImageUrl(src, alt);
@@ -122,10 +124,11 @@ export default function WeddingMedia({
       <video
         src={url}
         poster={posterUrl || undefined}
-        autoPlay={resolved.autoplay}
+        autoPlay={Boolean(resolved.autoplay && !easeMobileScroll)}
         muted={resolved.autoplay ? true : resolved.muted}
         loop={resolved.loop}
         playsInline={playsInline}
+        preload={easeMobileScroll ? "metadata" : "auto"}
         controls={controls}
         className={className}
         style={mediaStyle}

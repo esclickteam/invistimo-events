@@ -18,6 +18,7 @@ import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import { WeddingDesktopFx } from "../shared/weddingMotion";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -34,7 +35,8 @@ function GoldParticles() {
     size: 2 + (i % 4),
   }));
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {particles.map((p) => (
         <motion.span
           key={p.id}
@@ -45,6 +47,7 @@ function GoldParticles() {
         />
       ))}
     </div>
+    </WeddingDesktopFx>
   );
 }
 

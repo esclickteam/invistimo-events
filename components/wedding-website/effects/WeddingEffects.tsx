@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import WeddingMedia from "@/components/wedding-website/editable/WeddingMedia";
+import { WeddingDesktopFx } from "@/components/wedding-website/shared/weddingMotion";
 
 export default function FloatingParticles({ count = 24 }: { count?: number }) {
   const particles = Array.from({ length: count }, (_, i) => ({
@@ -13,7 +14,8 @@ export default function FloatingParticles({ count = 24 }: { count?: number }) {
   }));
 
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {particles.map((p) => (
         <motion.span
           key={p.id}
@@ -38,6 +40,7 @@ export default function FloatingParticles({ count = 24 }: { count?: number }) {
         />
       ))}
     </div>
+    </WeddingDesktopFx>
   );
 }
 

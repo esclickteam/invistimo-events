@@ -18,13 +18,20 @@ import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import { WeddingDesktopFx } from "../shared/weddingMotion";
 
 const BLUSH = "#E8788A";
 const CORAL = "#FF9A8B";
 
 function GradientMeshHero() {
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{
+        background: `radial-gradient(ellipse at 20% 30%, ${BLUSH}88 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, ${CORAL}66 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, #FFD4DC44 0%, #FFF5F7 70%)`,
+      }}
+    >
+      <WeddingDesktopFx>
       <motion.div
         animate={{
           background: [
@@ -36,6 +43,7 @@ function GradientMeshHero() {
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         className="absolute inset-0"
       />
+      </WeddingDesktopFx>
     </div>
   );
 }
@@ -53,7 +61,8 @@ function HeartParticles() {
     []
   );
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {hearts.map((h) => (
         <motion.span
           key={h.id}
@@ -67,6 +76,7 @@ function HeartParticles() {
         </motion.span>
       ))}
     </div>
+    </WeddingDesktopFx>
   );
 }
 
