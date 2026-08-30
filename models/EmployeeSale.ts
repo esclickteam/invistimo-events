@@ -464,6 +464,11 @@ const EmployeeSaleSchema = new Schema(
       default: [],
     },
 
+    additionalTerms: {
+      type: [AnySchema],
+      default: [],
+    },
+
     paymentSchedule: {
       type: AnySchema,
       default: null,

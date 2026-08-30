@@ -1347,6 +1347,9 @@ export async function POST(req: NextRequest) {
         ? body.cancellationTerms
         : [],
       paymentTerms: Array.isArray(body?.paymentTerms) ? body.paymentTerms : [],
+      additionalTerms: Array.isArray(body?.additionalTerms)
+        ? body.additionalTerms
+        : [],
       paymentSchedule: body?.paymentSchedule || null,
 
       saleCompliance: body?.saleCompliance || null,

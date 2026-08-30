@@ -2,7 +2,11 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CUSTOMER_PAYMENT_TERMS } from "@/lib/salesDocumentTerms";
+import {
+  CUSTOMER_ADDITIONAL_TERMS,
+  CUSTOMER_CANCELLATION_TERMS,
+  CUSTOMER_PAYMENT_TERMS,
+} from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 
@@ -173,6 +177,7 @@ const EASY_INCLUDES = [
   "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
   "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
   "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
+  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
   "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
   "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
   "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
@@ -184,6 +189,7 @@ const SMART_INCLUDES = [
   "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
   "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
   "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
+  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
   "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
   "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
   "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
@@ -198,6 +204,7 @@ const SEATING_INCLUDES = [
   "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
   "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
   "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
+  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
   "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
   "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
   "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
@@ -845,6 +852,7 @@ const UPSELLS: UpsellItem[] = [
           "פתיחת סבב הודעות נוסף לאישורי הגעה מעבר ל־2 הסבבים הכלולים בחבילה.",
           "הסבב מיועד למוזמנים שעדיין לא ענו או למי שנדרש אליו ניסיון נוסף.",
           "ניתן לשלוח את הסבב בהתאם לערוצי ההודעות הפעילים במערכת.",
+          "סבב הודעות שכבר בוצע אינו נשלח מחדש באופן פרטני לרשומות בודדות שנוספו לאחר מכן. רשומות שיתווספו לאחר ביצוע סבב ייכללו בסבב הבא, ככל שקיים ובהתאם לתזמון שנקבע.",
         ],
       },
     ],
@@ -929,19 +937,8 @@ const UPSELLS: UpsellItem[] = [
   },
 ];
 
-const CANCELLATION_TERMS: DetailSection[] = [
-  {
-    title: "תנאי ביטול",
-    items: [
-      "מרגע ביצוע התשלום נפתח ללקוח משתמש במערכת ונפתחת גישה לשירותים הדיגיטליים שנרכשו, ולכן לא ניתן לבטל שירותים דיגיטליים לאחר פתיחת הגישה והשימוש במערכת.",
-      "שירותים הניתנים ביום האירוע, כגון הושבה באולם וניהול אלכוהול באולם, ניתנים לביטול רק בהודעה מוקדמת של יותר מחודש לפני מועד האירוע.",
-      "במקרה של ביטול שירות יום אירוע בהתראה של יותר מחודש, יתרת השירות שטרם סופקה תבוטל, אך דמי השריון ששולמו מראש לא יוחזרו, מאחר שהם מיועדים לשריון הצוות ותאריך האירוע מראש.",
-      "ביטול שירותי יום אירוע בהתראה של חודש או פחות ממועד האירוע אינו מזכה בהחזר, אלא אם סוכם אחרת בכתב.",
-      "במקרה של ביטול או דחיית אירוע עקב כוח עליון, לרבות מלחמה, מצב ביטחוני חריג, הנחיית רשויות או נסיבות חיצוניות שאינן בשליטת הלקוח או Invistimo, ניתן יהיה לדחות את השירותים למועד האירוע החדש, בכפוף לזמינות ולתיאום מראש. שירותים דיגיטליים שטרם נוצלו בפועל יידחו גם הם למועד החדש, ולא ייחשבו כמבוטלים.",
-    ],
-  },
-];
-
+const CANCELLATION_TERMS = CUSTOMER_CANCELLATION_TERMS;
+const ADDITIONAL_TERMS = CUSTOMER_ADDITIONAL_TERMS;
 const PAYMENT_TERMS = CUSTOMER_PAYMENT_TERMS;
 
 function createEmptyUpsells(): SelectedUpsells {
@@ -1587,6 +1584,7 @@ export default function AdminSalesNewPage() {
     pricingDisplayMode: quotePricingDisplay,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
+    additionalTerms: ADDITIONAL_TERMS,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1734,6 +1732,7 @@ export default function AdminSalesNewPage() {
     customerDealSummary,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
+    additionalTerms: ADDITIONAL_TERMS,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
@@ -2106,6 +2105,7 @@ export default function AdminSalesNewPage() {
           customerDealSummary,
           cancellationTerms: CANCELLATION_TERMS,
           paymentTerms: finalPaymentTerms,
+          additionalTerms: ADDITIONAL_TERMS,
           paymentSchedule,
           paymentMode,
           adminPaymentStatus,
