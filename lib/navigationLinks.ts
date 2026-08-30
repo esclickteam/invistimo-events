@@ -125,11 +125,18 @@ function buildWazeUrl(base: "https://waze.com/ul" | "waze://", location: NavLoca
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
 
-  // Coordinates only. Never add q= — Waze treats q as a search, even
-  // when ll is present, and can open a different venue in another city.
-  if (lat == null || lng == null) return null;
+  // With a pin, navigate by coordinates only. Never add q= alongside ll —
+  // Waze treats q as a search and can open a same-named venue in another city.
+  if (lat != null && lng != null) {
+    return `${base}?ll=${lat},${lng}&navigate=yes`;
+  }
 
-  return `${base}?ll=${lat},${lng}&navigate=yes`;
+  // No pin was saved for the event. A text search is less precise than a pin,
+  // but it keeps the Waze button working instead of hiding it from guests.
+  const query = queryFromLocation(location);
+  if (!query) return null;
+
+  return `${base}?q=${encodeURIComponent(query)}&navigate=yes`;
 }
 
 export function getWazeLink(location: NavLocation) {

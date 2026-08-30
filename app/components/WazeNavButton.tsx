@@ -4,7 +4,6 @@ import { type MouseEvent, type ReactNode } from "react";
 import {
   getWazeAppLink,
   getWazeLink,
-  hasExactCoordinates,
   type NavLocation,
 } from "@/lib/navigationLinks";
 
@@ -20,10 +19,8 @@ function isMobileNav() {
 }
 
 export default function WazeNavButton({ location, className, children }: Props) {
-  const href =
-    location && hasExactCoordinates(location) ? getWazeLink(location) : null;
-  const appHref =
-    location && hasExactCoordinates(location) ? getWazeAppLink(location) : null;
+  const href = location ? getWazeLink(location) : null;
+  const appHref = location ? getWazeAppLink(location) : null;
 
   if (!href) return null;
 

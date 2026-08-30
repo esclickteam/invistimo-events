@@ -82,14 +82,26 @@ test("Waze never appends a name search even when the venue has a label", () => {
   );
 });
 
-test("Waze never searches by venue name because that opens the wrong place", () => {
+test("Waze falls back to an address search when the event has no saved pin", () => {
   const location = {
     name: "שיבולים גן אירועים",
     address: "שיבולים גן אירועים, רמת צבי, ישראל",
   };
 
   assert.equal(hasExactCoordinates(location), false);
-  assert.equal(getWazeLink(location), null);
+  assert.equal(
+    getWazeLink(location),
+    `https://waze.com/ul?q=${encodeURIComponent(
+      "שיבולים גן אירועים, רמת צבי, ישראל"
+    )}&navigate=yes`
+  );
+  assert.equal(
+    getWazeAppLink(location),
+    `waze://?q=${encodeURIComponent(
+      "שיבולים גן אירועים, רמת צבי, ישראל"
+    )}&navigate=yes`
+  );
+  assert.doesNotMatch(getWazeLink(location) || "", /[?&]ll=/);
   assert.equal(
     getGoogleMapsLink(location),
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(

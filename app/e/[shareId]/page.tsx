@@ -132,9 +132,7 @@ function buildWazeUrl(location: SafeLocation, customUrl?: unknown) {
   const fromEvent = getWazeLink(location);
   if (fromEvent) return fromEvent;
 
-  const custom = normalizeUrl(customUrl);
-  if (custom && /[?&]ll=/.test(custom) && !/[?&]q=/.test(custom)) return custom;
-  return "";
+  return normalizeUrl(customUrl);
 }
 
 function getInvitationTitle(invitation: any, event: any) {
