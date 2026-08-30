@@ -1,33 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  parseWazeDestinationInput,
-  type ParsedWazeDestination,
-} from "@/lib/navigationLinks";
 import type { WazePlace } from "@/lib/resolveWazePlace";
 
 type Props = {
   value: string;
   biasLat?: number | null;
   biasLng?: number | null;
-  onChange: (parsed: ParsedWazeDestination) => void;
+  onQueryChange: (value: string) => void;
   onSelect: (place: WazePlace) => void;
 };
-
-function skipLiveSearch(value: string) {
-  const parsed = parseWazeDestinationInput(value);
-  return (
-    parsed.wazeLat != null ||
-    /^(https?:\/\/|waze:\/\/|geo:)/i.test(parsed.wazeUrl)
-  );
-}
 
 export default function WazePlacePicker({
   value,
   biasLat,
   biasLng,
-  onChange,
+  onQueryChange,
   onSelect,
 }: Props) {
   const [places, setPlaces] = useState<WazePlace[]>([]);
@@ -37,7 +25,7 @@ export default function WazePlacePicker({
 
   useEffect(() => {
     const query = value.trim();
-    if (query.length < 2 || skipLiveSearch(query)) {
+    if (query.length < 2 || /^(https?:\/\/|waze:\/\/|geo:)/i.test(query)) {
       setPlaces([]);
       setLoading(false);
       return;
@@ -82,10 +70,10 @@ export default function WazePlacePicker({
       <input
         dir="auto"
         className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
-        placeholder="חפשו ב-Waze, הדביקו קישור, או lat,lng"
+        placeholder="הקלידו שם מקום ב-Waze"
         value={value}
         onChange={(e) => {
-          onChange(parseWazeDestinationInput(e.target.value));
+          onQueryChange(e.target.value);
           setOpen(true);
         }}
         onFocus={() => {
