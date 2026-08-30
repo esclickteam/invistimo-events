@@ -7,6 +7,8 @@ export type EventLocation = {
   lat: number | null;
   lng: number | null;
   placeId: string;
+  placeName: string;
+  formattedAddress: string;
 };
 
 export type EventLocationWarning = {
@@ -42,7 +44,15 @@ function normalizeForCompare(value: string) {
 }
 
 export function emptyEventLocation(): EventLocation {
-  return { name: "", address: "", lat: null, lng: null, placeId: "" };
+  return {
+    name: "",
+    address: "",
+    lat: null,
+    lng: null,
+    placeId: "",
+    placeName: "",
+    formattedAddress: "",
+  };
 }
 
 export function toEventLocation(input: unknown): EventLocation {
@@ -61,6 +71,8 @@ export function toEventLocation(input: unknown): EventLocation {
     lat: parseCoord(raw.lat),
     lng: parseCoord(raw.lng),
     placeId: cleanText(raw.placeId),
+    placeName: cleanText(raw.placeName),
+    formattedAddress: cleanText(raw.formattedAddress),
   };
 }
 
@@ -142,6 +154,9 @@ export async function prepareEventLocation(options: {
         lat: previous.lat,
         lng: previous.lng,
         placeId: location.placeId || previous.placeId,
+        placeName: location.placeName || previous.placeName,
+        formattedAddress:
+          location.formattedAddress || previous.formattedAddress,
       },
       textChanged,
       pinSource: "kept",
@@ -157,7 +172,15 @@ export async function prepareEventLocation(options: {
 
   if (resolved.pin) {
     return {
-      location: { ...location, lat: resolved.pin.lat, lng: resolved.pin.lng },
+      location: {
+        ...location,
+        lat: resolved.pin.lat,
+        lng: resolved.pin.lng,
+        placeId: resolved.pin.placeId || location.placeId,
+        placeName: resolved.pin.placeName || location.placeName,
+        formattedAddress:
+          resolved.pin.formattedAddress || location.formattedAddress,
+      },
       textChanged,
       pinSource: "geocode",
       warning: null,

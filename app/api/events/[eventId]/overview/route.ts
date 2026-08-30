@@ -436,6 +436,9 @@ export async function PATCH(
       updateFields["location.lat"] = prepared.location.lat;
       updateFields["location.lng"] = prepared.location.lng;
       updateFields["location.placeId"] = prepared.location.placeId;
+      updateFields["location.placeName"] = prepared.location.placeName;
+      updateFields["location.formattedAddress"] =
+        prepared.location.formattedAddress;
 
       locationWarning = prepared.warning;
     }

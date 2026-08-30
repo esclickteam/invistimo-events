@@ -56,14 +56,16 @@ function readLatLng(value: any): MapPin | null {
 
 function toCandidate(
   location: any,
-  extra?: { name?: string; address?: string }
+  extra?: { name?: string; address?: string; placeId?: string }
 ): PinCandidate | null {
   const pin = readLatLng(location);
   if (!pin) return null;
+  const placeId = String(extra?.placeId || "").trim();
   return {
     ...pin,
     name: extra?.name || "",
     address: extra?.address || "",
+    ...(placeId ? { placeId } : {}),
   };
 }
 
@@ -122,7 +124,7 @@ async function findPlacePins(
   );
   url.searchParams.set("input", query);
   url.searchParams.set("inputtype", "textquery");
-  url.searchParams.set("fields", "geometry,name,formatted_address");
+  url.searchParams.set("fields", "geometry,name,formatted_address,place_id");
   url.searchParams.set("language", "he");
   url.searchParams.set("key", key);
   if (bias) {
@@ -139,6 +141,7 @@ async function findPlacePins(
   const candidate = toCandidate(data?.candidates?.[0]?.geometry?.location, {
     name: data?.candidates?.[0]?.name,
     address: data?.candidates?.[0]?.formatted_address,
+    placeId: data?.candidates?.[0]?.place_id,
   });
 
   return { candidates: candidate ? [candidate] : [], status, message };
@@ -174,6 +177,7 @@ async function textSearchPins(
         toCandidate(result?.geometry?.location, {
           name: result?.name,
           address: result?.formatted_address,
+          placeId: result?.place_id,
         })
       )
       .filter(Boolean) as PinCandidate[],
@@ -202,6 +206,7 @@ async function geocodePins(query: string, key: string): Promise<ProviderResult> 
         toCandidate(result?.geometry?.location, {
           name: result?.formatted_address,
           address: result?.formatted_address,
+          placeId: result?.place_id,
         })
       )
       .filter(Boolean) as PinCandidate[],

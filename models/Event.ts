@@ -237,6 +237,16 @@ const EventSchema = new mongoose.Schema(
         default: "",
         trim: true,
       },
+      placeName: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      formattedAddress: {
+        type: String,
+        default: "",
+        trim: true,
+      },
     },
 
     /* =========================

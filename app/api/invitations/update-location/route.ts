@@ -59,7 +59,8 @@ const userId = auth.userId;
       );
     }
 
-    const { name, address, lat, lng, placeId } = prepared.location;
+    const { name, address, lat, lng, placeId, placeName, formattedAddress } =
+      prepared.location;
 
     /* 💾 עדכון מיקום */
     invitation.location = {
@@ -68,6 +69,9 @@ const userId = auth.userId;
       lat,
       lng,
       placeId: typeof placeId === "string" ? placeId.trim() : "",
+      placeName: typeof placeName === "string" ? placeName.trim() : "",
+      formattedAddress:
+        typeof formattedAddress === "string" ? formattedAddress.trim() : "",
     };
 
     await invitation.save();
@@ -91,7 +95,14 @@ const userId = auth.userId;
             "location.address": address,
             "location.lat": lat,
             "location.lng": lng,
-            "location.placeId": typeof placeId === "string" ? placeId.trim() : "",
+            "location.placeId":
+              typeof placeId === "string" ? placeId.trim() : "",
+            "location.placeName":
+              typeof placeName === "string" ? placeName.trim() : "",
+            "location.formattedAddress":
+              typeof formattedAddress === "string"
+                ? formattedAddress.trim()
+                : "",
             updatedAt: new Date(),
           },
         }

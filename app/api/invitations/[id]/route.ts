@@ -968,6 +968,9 @@ export async function PUT(
               "location.lat": updatePayload.location.lat ?? null,
               "location.lng": updatePayload.location.lng ?? null,
               "location.placeId": updatePayload.location.placeId || "",
+              "location.placeName": updatePayload.location.placeName || "",
+              "location.formattedAddress":
+                updatePayload.location.formattedAddress || "",
               updatedAt: new Date(),
             },
           }

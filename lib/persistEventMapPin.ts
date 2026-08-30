@@ -12,10 +12,15 @@ function asId(value: unknown) {
   return mongoose.Types.ObjectId.isValid(id) ? id : "";
 }
 
+function cleanText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 /**
- * Fill missing coordinates only. Uses the native collection API so a
- * pipeline `$ifNull` update cannot be mangled by Mongoose document casting.
- * Never throws to callers — a failed pin write must not 500 the invite page.
+ * Fill missing coordinates and place labels only. Uses the native collection
+ * API so a pipeline `$ifNull` update cannot be mangled by Mongoose document
+ * casting. Never throws to callers — a failed pin write must not 500 the
+ * invite page.
  */
 export async function persistEventLocationPin(options: {
   invitationId?: unknown;
@@ -28,8 +33,61 @@ export async function persistEventLocationPin(options: {
     const now = new Date();
     const lat = Number(options.pin.lat);
     const lng = Number(options.pin.lng);
+    const placeId = cleanText(options.pin.placeId);
+    const placeName = cleanText(options.pin.placeName);
+    const formattedAddress = cleanText(options.pin.formattedAddress);
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const locationSet: Record<string, unknown> = {
+      "location.lat": { $ifNull: ["$location.lat", lat] },
+      "location.lng": { $ifNull: ["$location.lng", lng] },
+      updatedAt: now,
+    };
+
+    // Fill place metadata only when empty so couple-entered labels stay put.
+    if (placeId) {
+      locationSet["location.placeId"] = {
+        $cond: [
+          {
+            $or: [
+              { $eq: [{ $ifNull: ["$location.placeId", ""] }, ""] },
+              { $eq: [{ $ifNull: ["$location.placeId", null] }, null] },
+            ],
+          },
+          placeId,
+          "$location.placeId",
+        ],
+      };
+    }
+    if (placeName) {
+      locationSet["location.placeName"] = {
+        $cond: [
+          {
+            $or: [
+              { $eq: [{ $ifNull: ["$location.placeName", ""] }, ""] },
+              { $eq: [{ $ifNull: ["$location.placeName", null] }, null] },
+            ],
+          },
+          placeName,
+          "$location.placeName",
+        ],
+      };
+    }
+    if (formattedAddress) {
+      locationSet["location.formattedAddress"] = {
+        $cond: [
+          {
+            $or: [
+              { $eq: [{ $ifNull: ["$location.formattedAddress", ""] }, ""] },
+              { $eq: [{ $ifNull: ["$location.formattedAddress", null] }, null] },
+            ],
+          },
+          formattedAddress,
+          "$location.formattedAddress",
+        ],
+      };
+    }
 
     const writes: Promise<unknown>[] = [];
 
@@ -37,13 +95,7 @@ export async function persistEventLocationPin(options: {
       const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
       writes.push(
         Invitation.collection.updateOne({ _id: invitationObjectId }, [
-          {
-            $set: {
-              "location.lat": { $ifNull: ["$location.lat", lat] },
-              "location.lng": { $ifNull: ["$location.lng", lng] },
-              updatedAt: now,
-            },
-          },
+          { $set: locationSet },
         ])
       );
       writes.push(
@@ -72,15 +124,7 @@ export async function persistEventLocationPin(options: {
       writes.push(
         Event.collection.updateOne(
           { _id: new mongoose.Types.ObjectId(eventId) },
-          [
-            {
-              $set: {
-                "location.lat": { $ifNull: ["$location.lat", lat] },
-                "location.lng": { $ifNull: ["$location.lng", lng] },
-                updatedAt: now,
-              },
-            },
-          ]
+          [{ $set: locationSet }]
         )
       );
     }
@@ -151,6 +195,9 @@ export async function resolveAndPersistEventLocation(
       ...resolved,
       lat: pin.lat,
       lng: pin.lng,
+      placeId: pin.placeId || resolved.placeId,
+      placeName: pin.placeName || resolved.placeName,
+      formattedAddress: pin.formattedAddress || resolved.formattedAddress,
     };
   } catch (error) {
     // Never let map resolution take down /invite or /e for guests.

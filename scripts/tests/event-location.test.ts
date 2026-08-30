@@ -15,6 +15,8 @@ test("toEventLocation keeps name, address, coords and placeId", () => {
       lat: "32.59",
       lng: "35.41",
       placeId: "ChIJ123",
+      placeName: "גן האירועים",
+      formattedAddress: "רמת צבי, ישראל",
     }),
     {
       name: "גן האירועים",
@@ -22,6 +24,8 @@ test("toEventLocation keeps name, address, coords and placeId", () => {
       lat: 32.59,
       lng: 35.41,
       placeId: "ChIJ123",
+      placeName: "גן האירועים",
+      formattedAddress: "רמת צבי, ישראל",
     }
   );
 });

@@ -70,7 +70,10 @@ test("named garden beats a road south of the moshav", () => {
     candidates: [netanya, routeSouth, garden],
     venueName: "שיבולים גן אירועים",
   });
-  assert.deepEqual(pin, { lat: garden.lat, lng: garden.lng });
+  assert.equal(pin?.lat, garden.lat);
+  assert.equal(pin?.lng, garden.lng);
+  assert.equal(pin?.placeName, garden.name);
+  assert.equal(pin?.formattedAddress, garden.address);
 });
 
 test("a same-named hall in another city is never chosen", () => {
@@ -80,7 +83,8 @@ test("a same-named hall in another city is never chosen", () => {
     candidates: [netanya, garden],
     venueName: "שיבולים גן אירועים",
   });
-  assert.deepEqual(pin, { lat: garden.lat, lng: garden.lng });
+  assert.equal(pin?.lat, garden.lat);
+  assert.equal(pin?.lng, garden.lng);
 
   const withoutTheGarden = chooseMapPin({
     saved: netanya,

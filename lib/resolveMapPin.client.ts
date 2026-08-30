@@ -18,6 +18,7 @@ type GoogleLatLng = {
 type GooglePlaceResult = {
   name?: string;
   formatted_address?: string;
+  place_id?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
@@ -25,6 +26,7 @@ type GooglePlaceResult = {
 
 type GoogleGeocoderResult = {
   formatted_address?: string;
+  place_id?: string;
   geometry?: {
     location?: GoogleLatLng;
   };
@@ -37,14 +39,16 @@ function pinFromLocation(loc?: GoogleLatLng | null): MapPin | null {
 
 function toCandidate(
   loc: GoogleLatLng | null | undefined,
-  extra?: { name?: string; address?: string }
+  extra?: { name?: string; address?: string; placeId?: string }
 ): PinCandidate | null {
   const pin = pinFromLocation(loc);
   if (!pin) return null;
+  const placeId = String(extra?.placeId || "").trim();
   return {
     ...pin,
     name: extra?.name || "",
     address: extra?.address || "",
+    ...(placeId ? { placeId } : {}),
   };
 }
 
@@ -101,6 +105,7 @@ function placesTextSearch(
                 toCandidate(result?.geometry?.location, {
                   name: result?.name,
                   address: result?.formatted_address,
+                  placeId: result?.place_id,
                 })
               )
               .filter((pin): pin is PinCandidate => Boolean(pin))
@@ -134,6 +139,7 @@ function geocodePins(query: string): Promise<PinCandidate[]> {
                 toCandidate(result?.geometry?.location, {
                   name: result?.formatted_address,
                   address: result?.formatted_address,
+                  placeId: result?.place_id,
                 })
               )
               .filter((pin): pin is PinCandidate => Boolean(pin))
