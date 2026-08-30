@@ -60,8 +60,15 @@ test("server geocoding never reads the public browser key", () => {
     path.join(process.cwd(), "lib/googleMapsServerKey.ts"),
     "utf8"
   );
+  const persist = readFileSync(
+    path.join(process.cwd(), "lib/persistEventMapPin.ts"),
+    "utf8"
+  );
   assert.match(serverKey, /GOOGLE_MAPS_API_KEY/);
   assert.doesNotMatch(serverKey, /process\.env\.NEXT_PUBLIC_/);
   assert.match(resolveMapPin, /getGoogleMapsServerKey/);
   assert.doesNotMatch(resolveMapPin, /process\.env\.NEXT_PUBLIC_/);
+  assert.match(resolveMapPin, /enrichPlaceMetaNearPin/);
+  assert.match(persist, /enrichPlaceMetaNearPin/);
+  assert.match(persist, /placeId backfill|placeId/);
 });

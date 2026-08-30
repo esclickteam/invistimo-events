@@ -1,5 +1,9 @@
 import { parseCoord, type NavLocation } from "@/lib/navigationLinks";
-import { resolveMapPinDetailed, type MapPinFailure } from "@/lib/resolveMapPin";
+import {
+  enrichPlaceMetaNearPin,
+  resolveMapPinDetailed,
+  type MapPinFailure,
+} from "@/lib/resolveMapPin";
 
 export type EventLocation = {
   name: string;
@@ -144,6 +148,28 @@ export async function prepareEventLocation(options: {
   }
 
   if (location.lat != null && location.lng != null) {
+    if (location.placeId) {
+      return { location, textChanged, pinSource: "client", warning: null };
+    }
+
+    // Client sent exact coords (or kept them) without a place card — try to
+    // attach placeId so Google Maps can show the venue name.
+    const enriched = await enrichPlaceMetaNearPin(location);
+    if (enriched.pin?.placeId) {
+      return {
+        location: {
+          ...location,
+          placeId: enriched.pin.placeId,
+          placeName: enriched.pin.placeName || location.placeName,
+          formattedAddress:
+            enriched.pin.formattedAddress || location.formattedAddress,
+        },
+        textChanged,
+        pinSource: "client",
+        warning: null,
+      };
+    }
+
     return { location, textChanged, pinSource: "client", warning: null };
   }
 

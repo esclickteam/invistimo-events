@@ -181,3 +181,47 @@ export function chooseMapPin(options: {
   // Locality geocode is only an anchor — keep coords, not a venue label.
   return { lat: hint.lat, lng: hint.lng };
 }
+
+/** How close a Google Place must be to the saved pin to claim its placeId. */
+export const MAX_PLACE_META_KM = 0.35;
+
+/**
+ * Attach a Google place card to an already-saved pin without moving it.
+ * Prefers establishment results with a placeId near the exact coordinates.
+ */
+export function choosePlaceMetaNearPin(options: {
+  pin: MapPin;
+  candidates?: Array<PinCandidate | null | undefined>;
+  venueName?: string;
+  maxKm?: number;
+}): MapPin | null {
+  const pin = options.pin;
+  const venueName = options.venueName || "";
+  const maxKm = options.maxKm ?? MAX_PLACE_META_KM;
+  const candidates = (options.candidates || []).filter(
+    (candidate): candidate is PinCandidate =>
+      Boolean(candidate && String(candidate.placeId || "").trim())
+  );
+
+  const scored = candidates
+    .filter((candidate) => pinIsNear(candidate, pin, maxKm))
+    .map((candidate) => ({
+      candidate,
+      score:
+        nameMatchScore(venueName, candidate.name || "") * 10 +
+        nameMatchScore(venueName, candidate.address || "") * 4 +
+        (candidate.placeId ? 5 : 0) -
+        distanceKm(candidate, pin) * 20,
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored[0]) return null;
+
+  return {
+    lat: pin.lat,
+    lng: pin.lng,
+    placeId: String(scored[0].candidate.placeId || "").trim(),
+    placeName: String(scored[0].candidate.name || "").trim(),
+    formattedAddress: String(scored[0].candidate.address || "").trim(),
+  };
+}

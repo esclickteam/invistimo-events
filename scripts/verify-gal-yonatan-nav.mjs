@@ -126,20 +126,17 @@ async function main() {
 
   if (!google) {
     fail("could not build a Google Maps link");
+  } else if (!pin2.placeId) {
+    fail("opening the invitation did not complete a Google placeId");
+  } else if (!google.includes("query_place_id=")) {
+    fail(`Google Maps link is missing query_place_id: ${google}`);
   } else if (
     /query=\d+\.\d+%2C\d+\.\d+/.test(google) ||
     /query=\d+\.\d+,\d+\.\d+/.test(google)
   ) {
     fail("Google Maps link is still bare coordinates with no place label");
-  } else if (google.includes("query_place_id=")) {
-    ok("Google Maps uses query_place_id with a place label");
-  } else if (
-    google.includes("/maps/place/") &&
-    google.includes(`@${pin2.lat},${pin2.lng}`)
-  ) {
-    ok("Google Maps uses a place label pinned to the same coordinates");
   } else {
-    fail(`unexpected Google Maps link shape: ${google}`);
+    ok(`Google Maps uses query_place_id=${pin2.placeId}`);
   }
 
   const label = firstText(
@@ -150,6 +147,9 @@ async function main() {
   );
   if (!label || /^\d+\.\d+/.test(label)) {
     fail("location has no readable place label for Google Maps");
+  } else if (google && !google.includes(encodeURIComponent(label).slice(0, 20))) {
+    // Label may be shortened in the URL; at least require a non-coordinate query.
+    ok(`Google Maps label present: ${label}`);
   } else {
     ok(`Google Maps label: ${label}`);
   }

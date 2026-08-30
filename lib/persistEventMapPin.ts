@@ -5,7 +5,11 @@ import {
   hasExactCoordinates,
   resolveEventLocation,
 } from "@/lib/navigationLinks";
-import { resolveMapPin, type MapPin } from "@/lib/resolveMapPin";
+import {
+  enrichPlaceMetaNearPin,
+  resolveMapPin,
+  type MapPin,
+} from "@/lib/resolveMapPin";
 
 function asId(value: unknown) {
   const id = String(value || "").trim();
@@ -16,11 +20,23 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function emptyStringOrMissing(fieldPath: string) {
+  return {
+    $or: [
+      { $eq: [{ $ifNull: [fieldPath, ""] }, ""] },
+      { $eq: [{ $ifNull: [fieldPath, null] }, null] },
+    ],
+  };
+}
+
 /**
  * Fill missing coordinates and place labels only. Uses the native collection
  * API so a pipeline `$ifNull` update cannot be mangled by Mongoose document
  * casting. Never throws to callers — a failed pin write must not 500 the
  * invite page.
+ *
+ * When attaching a placeId for the first time, also refresh placeName /
+ * formattedAddress from Google so Maps can show the venue card.
  */
 export async function persistEventLocationPin(options: {
   invitationId?: unknown;
@@ -45,48 +61,63 @@ export async function persistEventLocationPin(options: {
       updatedAt: now,
     };
 
-    // Fill place metadata only when empty so couple-entered labels stay put.
     if (placeId) {
+      const placeIdMissing = emptyStringOrMissing("$location.placeId");
       locationSet["location.placeId"] = {
-        $cond: [
-          {
-            $or: [
-              { $eq: [{ $ifNull: ["$location.placeId", ""] }, ""] },
-              { $eq: [{ $ifNull: ["$location.placeId", null] }, null] },
-            ],
-          },
-          placeId,
-          "$location.placeId",
-        ],
+        $cond: [placeIdMissing, placeId, "$location.placeId"],
       };
-    }
-    if (placeName) {
-      locationSet["location.placeName"] = {
-        $cond: [
-          {
-            $or: [
-              { $eq: [{ $ifNull: ["$location.placeName", ""] }, ""] },
-              { $eq: [{ $ifNull: ["$location.placeName", null] }, null] },
-            ],
-          },
-          placeName,
-          "$location.placeName",
-        ],
-      };
-    }
-    if (formattedAddress) {
-      locationSet["location.formattedAddress"] = {
-        $cond: [
-          {
-            $or: [
-              { $eq: [{ $ifNull: ["$location.formattedAddress", ""] }, ""] },
-              { $eq: [{ $ifNull: ["$location.formattedAddress", null] }, null] },
-            ],
-          },
-          formattedAddress,
-          "$location.formattedAddress",
-        ],
-      };
+
+      // First time we discover the Google place card, prefer its labels over
+      // whatever typed address string was stored as a temporary placeName.
+      if (placeName) {
+        locationSet["location.placeName"] = {
+          $cond: [
+            placeIdMissing,
+            placeName,
+            {
+              $cond: [
+                emptyStringOrMissing("$location.placeName"),
+                placeName,
+                "$location.placeName",
+              ],
+            },
+          ],
+        };
+      }
+      if (formattedAddress) {
+        locationSet["location.formattedAddress"] = {
+          $cond: [
+            placeIdMissing,
+            formattedAddress,
+            {
+              $cond: [
+                emptyStringOrMissing("$location.formattedAddress"),
+                formattedAddress,
+                "$location.formattedAddress",
+              ],
+            },
+          ],
+        };
+      }
+    } else {
+      if (placeName) {
+        locationSet["location.placeName"] = {
+          $cond: [
+            emptyStringOrMissing("$location.placeName"),
+            placeName,
+            "$location.placeName",
+          ],
+        };
+      }
+      if (formattedAddress) {
+        locationSet["location.formattedAddress"] = {
+          $cond: [
+            emptyStringOrMissing("$location.formattedAddress"),
+            formattedAddress,
+            "$location.formattedAddress",
+          ],
+        };
+      }
     }
 
     const writes: Promise<unknown>[] = [];
@@ -172,7 +203,40 @@ export async function resolveAndPersistEventLocation(
   event?: any
 ) {
   const resolved = resolveEventLocation(invitation, event);
-  if (hasExactCoordinates(resolved)) return resolved;
+
+  if (hasExactCoordinates(resolved)) {
+    if (resolved.placeId) return resolved;
+
+    // Existing events may have a pin without a Google place card. Look up the
+    // placeId near the saved coordinates so Maps can show the venue name.
+    try {
+      const enriched = await enrichPlaceMetaNearPin(resolved);
+      if (!enriched.pin?.placeId) return resolved;
+
+      await persistEventLocationPin({
+        invitationId: invitation?._id,
+        eventId: event?._id || invitation?.eventId,
+        pin: {
+          lat: resolved.lat as number,
+          lng: resolved.lng as number,
+          placeId: enriched.pin.placeId,
+          placeName: enriched.pin.placeName,
+          formattedAddress: enriched.pin.formattedAddress,
+        },
+      });
+
+      return {
+        ...resolved,
+        placeId: enriched.pin.placeId,
+        placeName: enriched.pin.placeName || resolved.placeName,
+        formattedAddress:
+          enriched.pin.formattedAddress || resolved.formattedAddress,
+      };
+    } catch (error) {
+      console.error("❌ placeId backfill failed:", error);
+      return resolved;
+    }
+  }
 
   try {
     const pin = await resolveMapPin(resolved);
