@@ -204,7 +204,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!isAcceptTerms && !process.env.JWT_SECRET) {
+    if (!process.env.JWT_SECRET) {
       console.error("❌ JWT_SECRET IS MISSING");
 
       return NextResponse.json(
