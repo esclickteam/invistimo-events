@@ -101,7 +101,9 @@ export default function WeddingVisualEditor() {
   const [gifts, setGifts] = useState<WeddingGiftLinks>(EMPTY_WEDDING_GIFTS);
   const [selection, setSelection] = useState<WeddingSiteSelection>(null);
   const [device, setDevice] = useState<WeddingEditorDevice>("desktop");
-  const [zoom, setZoom] = useState<EditorZoom>(1);
+  // Fit by default: the canvas keeps real desktop breakpoints and is scaled to
+  // the available width rather than being squeezed into a narrower layout.
+  const [zoom, setZoom] = useState<EditorZoom>("fit");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("sections");
   const [activeSectionId, setActiveSectionId] = useState("");
@@ -126,6 +128,7 @@ export default function WeddingVisualEditor() {
   const saveTimerRef = useRef<number | null>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const [paneWidth, setPaneWidth] = useState(DESKTOP_CANVAS_WIDTH);
+  const [chromeHeight, setChromeHeight] = useState(64);
   const contentRef = useRef(content);
   contentRef.current = content;
 
@@ -199,6 +202,21 @@ export default function WeddingVisualEditor() {
       if (width) setPaneWidth(width);
     });
     observer.observe(pane);
+    return () => observer.disconnect();
+  }, [loading, pickerOpen]);
+
+  // The dashboard header is not a fixed height, so measure it instead of
+  // guessing: a wrong guess either overlaps the editor or leaves a dead strip.
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>("header:not([data-ww-chrome])");
+    if (!header) return;
+    function measure() {
+      setChromeHeight(Math.round(header!.getBoundingClientRect().height));
+    }
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
     return () => observer.disconnect();
   }, [loading, pickerOpen]);
 
@@ -601,7 +619,11 @@ export default function WeddingVisualEditor() {
       : (zoom as number);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col bg-[#100d0b]" dir="rtl">
+    <div
+      className="fixed inset-x-0 bottom-0 z-30 flex flex-col bg-[#100d0b]"
+      style={{ top: chromeHeight }}
+      dir="rtl"
+    >
       <EditorTopBar
         siteTitle={invitationTitle}
         device={device}

@@ -78,6 +78,21 @@ test("theme css outranks Tailwind classes and preserves opacity modifiers", () =
   assert.doesNotMatch(css, /!important/);
 });
 
+test("changing the text colour does not repaint hero scrims or dark panels", () => {
+  // Eternal Gold reuses its ink hex (#2A2118) for the hero gradient and for a
+  // dark section background, so the text role must stay limited to `color`.
+  const css = buildWeddingThemeCss(ETERNAL_GOLD, { colors: { text: "#B91C1C" } });
+  assert.match(css, /\.text-\\\[\\#2A2118\\\]\{color:#B91C1C\}/);
+  assert.doesNotMatch(css, /--tw-gradient-from/);
+  assert.doesNotMatch(css, /background-color:#B91C1C/);
+
+  // Accent colours are meant to carry through borders and gradients.
+  const accent = buildWeddingThemeCss(ETERNAL_GOLD, { colors: { accent: "#B91C1C" } });
+  assert.match(accent, /--tw-gradient-from:#B91C1C/);
+  assert.match(accent, /border-color:#B91C1C/);
+  assert.match(accent, /background-color:#B91C1C/);
+});
+
 test("theme fonts apply site-wide but stay beatable by a single-element override", () => {
   const css = buildWeddingThemeCss(ETERNAL_GOLD, {
     headingFont: "Frank Ruhl Libre",
@@ -372,6 +387,12 @@ test("zoom, collapse and a calm canvas replace the old black frame", () => {
   assert.match(editor, /device === "mobile" \? "rounded-\[28px\] ring-8 ring-black\/40"/);
   assert.match(sidebar, /פתיחת פאנל המקטעים/);
   assert.match(editor, /setSidebarOpen/);
+
+  // The dashboard header is not a fixed height, so the editor measures it
+  // rather than assuming one and overlapping it.
+  assert.match(editor, /header:not\(\[data-ww-chrome\]\)/);
+  assert.match(editor, /style=\{\{ top: chromeHeight \}\}/);
+  assert.doesNotMatch(editor, /fixed inset-x-0 bottom-0 top-16/);
 });
 
 test("preview shows the draft while the live link shows what guests see", () => {

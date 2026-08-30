@@ -23,8 +23,10 @@ export default function EditorOverlay() {
   const editor = site?.editor;
   const [hover, setHover] = useState<HoverState | null>(null);
   const [toolbarRect, setToolbarRect] = useState<DOMRect | null>(null);
+  const [placement, setPlacement] = useState<{ top: number; left: number } | null>(null);
   const persistTimer = useRef<number | null>(null);
   const selectedElRef = useRef<HTMLElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const canvas = document.querySelector(".ww-editor-canvas") as HTMLElement | null;
@@ -165,6 +167,46 @@ export default function EditorOverlay() {
     };
   }, [editor, editor?.selection, site?.content]);
 
+  // Keeps the floating toolbar inside the work area: above the selection when
+  // there is room, below it otherwise, and never underneath the top bar.
+  useEffect(() => {
+    const wrap = toolbarRef.current;
+    if (!wrap || !toolbarRect) {
+      setPlacement(null);
+      return;
+    }
+    const pane = document.querySelector(".ww-editor-scroll")?.getBoundingClientRect();
+    const bounds = {
+      top: (pane?.top ?? 0) + 8,
+      bottom: (pane?.bottom ?? window.innerHeight) - 8,
+      left: (pane?.left ?? 0) + 12,
+      right: (pane?.right ?? window.innerWidth) - 12,
+    };
+
+    function reposition() {
+      const size = wrap!.getBoundingClientRect();
+      let top = toolbarRect!.top - size.height - 10;
+      if (top < bounds.top) top = toolbarRect!.bottom + 10;
+      top = Math.min(Math.max(top, bounds.top), Math.max(bounds.top, bounds.bottom - size.height));
+      const left = Math.min(
+        Math.max(toolbarRect!.left, bounds.left),
+        Math.max(bounds.left, bounds.right - size.width)
+      );
+      setPlacement((current) =>
+        current && Math.abs(current.top - top) < 1 && Math.abs(current.left - left) < 1
+          ? current
+          : { top, left }
+      );
+    }
+
+    reposition();
+    if (typeof ResizeObserver === "undefined") return;
+    // Opening a sub-panel (focal pad, video settings) changes the height.
+    const observer = new ResizeObserver(reposition);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [toolbarRect]);
+
   // Mirrors the current selection onto the section wrapper so the canvas can
   // show which block is active without React re-rendering the whole template.
   useEffect(() => {
@@ -193,8 +235,6 @@ export default function EditorOverlay() {
           label: hover.label,
         }
       : null;
-  const canvasTop = document.querySelector(".ww-editor-canvas")?.getBoundingClientRect().top ?? 72;
-
   return createPortal(
     <div className="ww-editor-ui pointer-events-none fixed inset-0 z-[80]" data-ww-chrome="1">
       {outline && outline.rect.width > 2 && outline.rect.height > 2 ? (
@@ -205,10 +245,12 @@ export default function EditorOverlay() {
       ) : null}
       {selected && toolbarRect ? (
         <div
+          ref={toolbarRef}
           className="pointer-events-auto absolute"
           style={{
-            top: Math.max(canvasTop + 8, toolbarRect.top - 56),
-            left: Math.min(window.innerWidth - 24, Math.max(12, toolbarRect.left)),
+            top: placement?.top ?? toolbarRect.top,
+            left: placement?.left ?? toolbarRect.left,
+            visibility: placement ? "visible" : "hidden",
           }}
         >
           <EditorSelectionToolbar selection={selected} />

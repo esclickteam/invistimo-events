@@ -90,6 +90,24 @@ const UTIL_DECLARATIONS: Record<WeddingPaletteRule["util"], (color: string) => s
   to: (color) => `--tw-gradient-to:${color} var(--tw-gradient-to-position)`,
 };
 
+/**
+ * Which utilities each role is allowed to repaint.
+ *
+ * Templates reuse their dark ink hex for hero scrims and dark panels, so a
+ * couple changing "text" should only change text — not suddenly tint every
+ * overlay. Accent colours, on the other hand, are meant to carry through
+ * borders, rings and gradients.
+ */
+const ROLE_UTILS: Record<WeddingThemeRole, ReadonlyArray<WeddingPaletteRule["util"]>> = {
+  accent: ["bg", "text", "border", "ring", "from", "via", "to"],
+  accentSoft: ["bg", "text", "border", "ring", "from", "via", "to"],
+  bg: ["bg", "border", "ring", "from", "via", "to"],
+  bgAlt: ["bg", "border", "ring", "from", "via", "to"],
+  surface: ["bg", "border", "ring", "from", "via", "to"],
+  text: ["text"],
+  textMuted: ["text"],
+};
+
 /** Escapes a Tailwind class token so it can be used inside a CSS selector. */
 export function escapeClassSelector(cls: string) {
   return cls.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`);
@@ -120,6 +138,7 @@ export function buildWeddingThemeCss(
   for (const rule of rules) {
     const override = theme?.colors?.[rule.role];
     if (!isHexColor(override)) continue;
+    if (!ROLE_UTILS[rule.role].includes(rule.util)) continue;
     const color = withAlpha(override, rule.alpha);
     const selector = `${scope} .${escapeClassSelector(rule.cls)}`;
     const list = declarationsBySelector.get(selector) || [];
@@ -190,6 +209,8 @@ export function weddingThemeCssVars(
 export function weddingThemeRoleCoverage(templateId: string) {
   const rules = WEDDING_TEMPLATE_PALETTE[templateId as WeddingTemplateId] || [];
   const covered = new Set<WeddingThemeRole>();
-  for (const rule of rules) covered.add(rule.role);
+  for (const rule of rules) {
+    if (ROLE_UTILS[rule.role].includes(rule.util)) covered.add(rule.role);
+  }
   return covered;
 }

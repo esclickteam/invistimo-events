@@ -70,9 +70,8 @@ export default function EditorTopBar({
     >
       <div className="flex min-w-0 items-center gap-2">
         <EditorButton
-          iconOnly
-          label={sidebarOpen ? "סגירת פאנל המקטעים" : "פתיחת פאנל המקטעים"}
-          icon={<span aria-hidden>{sidebarOpen ? "⟨" : "⟩"}</span>}
+          label={sidebarOpen ? "הסתרת המקטעים" : "מקטעים"}
+          icon={<span aria-hidden>☰</span>}
           onClick={onToggleSidebar}
           tone="outline"
         />
