@@ -470,6 +470,14 @@ export async function POST(req: Request) {
     /* =========================
        CREATE JWT
     ========================= */
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return NextResponse.json(
+        { success: false, message: "שגיאת תצורת שרת (JWT_SECRET חסר)" },
+        { status: 500 }
+      );
+    }
+
     const authToken = jwt.sign(
       {
         userId: user._id.toString(),
@@ -479,7 +487,7 @@ export async function POST(req: Request) {
         allowedMessageRounds,
         accessModules,
       },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: "7d" }
     );
 
