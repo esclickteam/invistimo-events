@@ -323,3 +323,42 @@ test("section titles including countdown are editable copy fields", () => {
   assert.equal(new Set(titles.map((field) => field.sectionId)).size, titles.length);
 });
 
+test("the hero block can be replaced with an image or a looping video", () => {
+  const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
+  const media = read("components/wedding-website/editable/WeddingMedia.tsx");
+  const api = read("app/api/wedding-website/media/route.ts");
+  const effects = read("components/wedding-website/effects/WeddingEffects.tsx");
+  const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+  const noir = read("components/wedding-website/templates/MinimalNoirSite.tsx");
+  const glass = read("components/wedding-website/templates/ModernGlassSite.tsx");
+
+  assert.match(toolbar, /id === "hero"/);
+  assert.match(toolbar, /slotId="hero"/);
+  assert.match(toolbar, /העלאת סרטון/);
+  assert.match(toolbar, /העלאת תמונה/);
+  assert.match(toolbar, /accept="video\/mp4,video\/webm,video\/quicktime"/);
+  assert.match(media, /הוסיפו תמונה או סרטון/);
+  assert.match(api, /ALLOWED_VIDEO_TYPES/);
+  assert.match(api, /resourceType: isVideo \? "video" : "image"/);
+  assert.match(effects, /slot="hero"/);
+  assert.match(eternal, /pointer-events-none absolute inset-0 bg-gradient-to-t/);
+  assert.match(noir, /slot="hero"/);
+  assert.match(glass, /slot="hero" src=\{VIDEOS\.couple\}/);
+
+  const withVideo = applyMediaToContent(WEDDING_DEMO_CONTENT, "hero", {
+    type: "video",
+    src: "https://res.cloudinary.com/demo/video/upload/hero.mp4",
+    autoplay: true,
+    muted: true,
+    loop: true,
+  });
+  assert.equal(withVideo.media?.hero?.type, "video");
+  assert.equal(withVideo.heroImage, "");
+
+  const withImage = applyMediaToContent(WEDDING_DEMO_CONTENT, "hero", mediaSlotFromImageUrl(
+    "https://res.cloudinary.com/demo/image/upload/hero.jpg"
+  ));
+  assert.equal(withImage.media?.hero?.type, "image");
+  assert.equal(withImage.heroImage, "https://res.cloudinary.com/demo/image/upload/hero.jpg");
+});
+

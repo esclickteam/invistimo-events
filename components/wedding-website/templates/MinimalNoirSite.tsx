@@ -131,12 +131,23 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
         className="fixed left-0 top-0 z-[60] h-[2px] bg-black"
       />
 
-      {/* HERO — typography only, no photo */}
+      {/* HERO — typography, optional photo or video background */}
       <section
         id="hero"
-        className={`grid min-h-screen grid-rows-[1fr_auto] ${embed ? "" : "pt-14"}`}
+        className={`relative grid min-h-screen grid-rows-[1fr_auto] ${embed ? "" : "pt-14"}`}
       >
-        <div className="flex flex-col justify-center px-6 md:px-12 lg:px-20">
+        <div className="absolute inset-0">
+          <WeddingMedia
+            slot="hero"
+            placeholder={false}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="h-full w-full object-cover opacity-25"
+          />
+        </div>
+        <div className="relative z-10 flex flex-col justify-center px-6 md:px-12 lg:px-20">
           <NoirLabel>Save the Date · {DEMO.coupleShort}</NoirLabel>
           <motion.div
             initial={{ opacity: 0 }}

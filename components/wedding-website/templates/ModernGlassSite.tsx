@@ -184,14 +184,15 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
               <GlassPanel className="flex h-full min-h-[320px] flex-col justify-end overflow-hidden p-8 md:min-h-[480px]">
                 <div className="absolute inset-0 -z-10">
                   <WeddingMedia
-                    slot={`videos.couple`} src={VIDEOS.couple}
+                    slot="hero" src={VIDEOS.couple}
+                    poster={template.heroImage}
                     autoPlay
                     muted
                     loop
                     playsInline
                     className="h-full w-full object-cover opacity-60"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-[#0A0E17]/50 to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-[#0A0E17]/50 to-transparent" />
                 </div>
                 <p className="text-xs font-bold uppercase tracking-[0.4em] text-[#7C9CFF]">Wedding</p>
                 <h1 className="mt-4 text-4xl font-bold md:text-6xl">{DEMO.coupleNames}</h1>
@@ -222,7 +223,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
             <TiltCard>
               <GlassPanel className="relative h-full min-h-[140px] overflow-hidden p-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <WeddingMedia slot="hero" src={template.heroImage} alt="" className="h-full w-full object-cover opacity-70" />
+                <WeddingMedia slot="hero.portrait" src={template.heroImage} alt="" className="h-full w-full object-cover opacity-70" />
               </GlassPanel>
             </TiltCard>
           </motion.div>

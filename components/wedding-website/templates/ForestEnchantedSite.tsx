@@ -192,7 +192,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1810] via-[#0F1810]/60 to-[#0F1810]/30" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0F1810] via-[#0F1810]/60 to-[#0F1810]/30" />
         <Fireflies />
         <FairyLights />
         <motion.div

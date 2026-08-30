@@ -108,7 +108,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           className="relative h-[50vh] lg:h-auto"
         >
           <WeddingMedia slot="hero" src={template.heroImage} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#F4FAF4]/80 lg:to-[#F4FAF4]" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-[#F4FAF4]/80 lg:to-[#F4FAF4]" />
         </motion.div>
         <div className="flex flex-col justify-center px-8 py-16 lg:px-16">
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-xs font-bold uppercase tracking-[0.4em]" style={{ color: GREEN }}>
