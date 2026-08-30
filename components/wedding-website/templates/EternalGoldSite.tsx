@@ -82,7 +82,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
       >
         <WeddingCoverImage src={template.heroImage} alt="" />
       </motion.div>
-      <div className="absolute inset-0 bg-gradient-to-t from-[#2A2118]/85 via-[#2A2118]/35 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2A2118]/85 via-[#2A2118]/35 to-transparent" />
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}

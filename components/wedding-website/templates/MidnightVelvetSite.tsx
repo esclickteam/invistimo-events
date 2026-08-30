@@ -88,10 +88,10 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
       <div className="relative w-full max-w-6xl overflow-hidden rounded-sm shadow-[0_0_80px_rgba(212,175,55,0.15)]">
         <div className="relative aspect-[2.35/1] w-full bg-black">
           <WeddingMedia slot="hero" src={VIDEOS.rings} poster={template.heroImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60" />
           <GoldParticles />
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center text-white [&_a]:pointer-events-auto [&_h1]:pointer-events-auto [&_p]:pointer-events-auto [&_[data-ww-edit]]:pointer-events-auto">
           <motion.p
             initial={{ opacity: 0, letterSpacing: "0.2em" }}
             animate={{ opacity: 1, letterSpacing: "0.5em" }}

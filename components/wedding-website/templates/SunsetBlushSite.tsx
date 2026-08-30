@@ -154,7 +154,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
       <section id="hero" className={`relative flex min-h-screen items-center justify-center overflow-hidden ${embed ? "" : "pt-16"}`}>
         <GradientMeshHero />
         <HeartParticles />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#FFF5F7]/40 to-[#FFF5F7]" />
         <WeddingMedia
           slot="hero" src={template.heroImage}
           alt=""

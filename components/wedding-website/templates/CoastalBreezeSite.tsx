@@ -71,7 +71,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
   return (
     <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden">
       <WeddingMedia slot="hero" src={VIDEOS.beach} poster={template.heroImage} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#3D8BBA]/40 via-transparent to-[#0D2840]/70" />
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="relative z-10 px-6 text-center text-white">
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.5em] text-[#B3E0F2]">Coastal Breeze</p>
         <h1 className="font-['Montserrat'] text-5xl font-light md:text-7xl">{DEMO.coupleNames}</h1>

@@ -29,7 +29,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
 ]);
 const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-const ALLOWED_TYPES = ALLOWED_IMAGE_TYPES;
+const ALLOWED_TYPES = new Set([...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES]);
 
 function cleanString(value: unknown) {
   return String(value || "").trim();

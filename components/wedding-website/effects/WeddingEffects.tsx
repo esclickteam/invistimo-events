@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import WeddingMedia from "@/components/wedding-website/editable/WeddingMedia";
 
 export default function FloatingParticles({ count = 24 }: { count?: number }) {
   const particles = Array.from({ length: count }, (_, i) => ({
@@ -44,14 +45,23 @@ export function HeroParallax({ image }: { image: string }) {
   return (
     <div className="absolute inset-0 overflow-hidden">
       <motion.div
-        className="absolute inset-0 scale-110 bg-cover bg-center"
-        style={{ backgroundImage: `url(${image})` }}
+        className="absolute inset-0 scale-110"
         initial={{ scale: 1.15 }}
         animate={{ scale: 1 }}
         transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
-      />
+      >
+        <WeddingMedia
+          slot="hero"
+          src={image}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="h-full w-full object-cover"
+        />
+      </motion.div>
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0"
         style={{ background: "var(--ww-hero-overlay)" }}
       />
     </div>

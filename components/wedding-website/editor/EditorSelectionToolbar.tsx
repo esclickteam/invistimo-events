@@ -5,7 +5,11 @@ import { useWeddingSite } from "@/components/wedding-website/editable/WeddingSit
 import type { WeddingSiteSelection } from "@/components/wedding-website/editable/WeddingSiteContext";
 import { WEDDING_EDITOR_FONTS, loadWeddingFont } from "@/lib/weddingWebsite/fonts";
 import { contrastOn } from "@/lib/weddingWebsite/styles";
-import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "@/lib/weddingWebsite/media";
+import {
+  isWeddingVideoUrl,
+  mediaSlotFromImageUrl,
+  resolveMediaSlot,
+} from "@/lib/weddingWebsite/media";
 import { isSectionVisible, SECTION_LABELS } from "@/lib/weddingWebsite/editorSchema";
 import type { WeddingMediaSlot, WeddingTextStyle } from "@/types/weddingWebsite";
 
@@ -156,8 +160,19 @@ function TextToolbar({ path }: { path: string }) {
 }
 
 function MediaToolbar({ slotId }: { slotId: string }) {
+  return <MediaReplaceControls slotId={slotId} showFit />;
+}
+
+function MediaReplaceControls({
+  slotId,
+  showFit = false,
+}: {
+  slotId: string;
+  showFit?: boolean;
+}) {
   const site = useWeddingSite();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const slot = resolveMediaSlot(slotId, site?.content, site?.template.heroImage || "");
@@ -171,27 +186,47 @@ function MediaToolbar({ slotId }: { slotId: string }) {
   return (
     <div>
       <ToolbarShell>
-        <ToolButton onClick={() => fileRef.current?.click()}>החלפה / העלאה</ToolButton>
+        <ToolButton title="העלאת תמונה" onClick={() => imageRef.current?.click()}>
+          תמונה
+        </ToolButton>
+        <ToolButton title="העלאת סרטון" onClick={() => videoRef.current?.click()}>
+          סרטון
+        </ToolButton>
         <ToolButton onClick={() => setLibraryOpen((value) => !value)}>מדיה קיימת</ToolButton>
         <ToolButton
-          active={slot?.type === "video"}
+          active={slot?.type === "video" || videoOpen}
           onClick={() => setVideoOpen((value) => !value)}
         >
-          תמונה / וידאו
+          קישור וידאו
         </ToolButton>
-        <ToolButton
-          onClick={() =>
-            site?.editor?.updateMedia(slotId, slot ? { ...slot, fit: slot.fit === "contain" ? "cover" : "contain" } : null)
-          }
-        >
-          {slot?.fit === "contain" ? "Fit" : "Crop"}
-        </ToolButton>
+        {showFit ? (
+          <ToolButton
+            onClick={() =>
+              site?.editor?.updateMedia(
+                slotId,
+                slot ? { ...slot, fit: slot.fit === "contain" ? "cover" : "contain" } : null
+              )
+            }
+          >
+            {slot?.fit === "contain" ? "Fit" : "Crop"}
+          </ToolButton>
+        ) : null}
         <ToolButton onClick={() => site?.editor?.updateMedia(slotId, null)}>מחיקה</ToolButton>
       </ToolbarShell>
       <input
-        ref={fileRef}
+        ref={imageRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => {
+          onFile(event.target.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={videoRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime"
         className="hidden"
         onChange={(event) => {
           onFile(event.target.files?.[0]);
@@ -199,13 +234,13 @@ function MediaToolbar({ slotId }: { slotId: string }) {
         }}
       />
       {libraryOpen ? <MediaLibrary onPick={(item) => site?.editor?.updateMedia(slotId, item)} /> : null}
-      {videoOpen && slot ? (
+      {videoOpen ? (
         <VideoSettings
           slot={slot}
           onChange={(next) => site?.editor?.updateMedia(slotId, next)}
         />
       ) : null}
-      {slot ? (
+      {showFit && slot ? (
         <FocalPad
           slot={slot}
           onChange={(next) => site?.editor?.updateMedia(slotId, next)}
@@ -222,33 +257,40 @@ function SectionToolbar({ id }: { id: string }) {
   const style = site?.content.sectionStyles?.[id] || {};
 
   return (
-    <ToolbarShell>
-      <span className="px-2 text-xs font-black">{label}</span>
-      <ToolButton
-        onClick={() => site?.editor?.toggleSection(id, !visible)}
-      >
-        {visible ? "הסתרה" : "הצגה"}
-      </ToolButton>
-      <ToolButton onClick={() => site?.editor?.moveSection(id, -1)}>למעלה</ToolButton>
-      <ToolButton onClick={() => site?.editor?.moveSection(id, 1)}>למטה</ToolButton>
-      <ColorControl
-        colors={
-          site?.template.theme
-            ? [site.template.theme.bg, site.template.theme.bgAlt, site.template.theme.accent, "#ffffff"]
-            : []
-        }
-        value={style.backgroundColor || ""}
-        onChange={(backgroundColor) => {
-          site?.editor?.updateContent((current) => ({
-            ...current,
-            sectionStyles: {
-              ...(current.sectionStyles || {}),
-              [id]: { ...(current.sectionStyles?.[id] || {}), backgroundColor: backgroundColor || undefined },
-            },
-          }));
-        }}
-      />
-    </ToolbarShell>
+    <div>
+      <ToolbarShell>
+        <span className="px-2 text-xs font-black">{label}</span>
+        <ToolButton
+          onClick={() => site?.editor?.toggleSection(id, !visible)}
+        >
+          {visible ? "הסתרה" : "הצגה"}
+        </ToolButton>
+        <ToolButton onClick={() => site?.editor?.moveSection(id, -1)}>למעלה</ToolButton>
+        <ToolButton onClick={() => site?.editor?.moveSection(id, 1)}>למטה</ToolButton>
+        <ColorControl
+          colors={
+            site?.template.theme
+              ? [site.template.theme.bg, site.template.theme.bgAlt, site.template.theme.accent, "#ffffff"]
+              : []
+          }
+          value={style.backgroundColor || ""}
+          onChange={(backgroundColor) => {
+            site?.editor?.updateContent((current) => ({
+              ...current,
+              sectionStyles: {
+                ...(current.sectionStyles || {}),
+                [id]: { ...(current.sectionStyles?.[id] || {}), backgroundColor: backgroundColor || undefined },
+              },
+            }));
+          }}
+        />
+      </ToolbarShell>
+      {id === "hero" ? (
+        <div className="mt-1">
+          <MediaReplaceControls slotId="hero" />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -435,23 +477,48 @@ function VideoSettings({
   slot,
   onChange,
 }: {
-  slot: WeddingMediaSlot;
+  slot: WeddingMediaSlot | null;
   onChange: (slot: WeddingMediaSlot) => void;
 }) {
+  const current = slot || mediaSlotFromImageUrl("");
+  const [url, setUrl] = useState(current.type === "video" ? current.src : "");
+
   return (
     <div className="mt-2 w-[min(92vw,320px)] rounded-2xl border border-[#eadfce] bg-white p-3 text-xs shadow-xl">
-      <p className="mb-2 font-black">הגדרות וידאו</p>
-      <label className="flex items-center justify-between py-1 font-semibold">
+      <p className="mb-2 font-black">סרטון לרקע</p>
+      <label className="block font-semibold">
+        קישור לסרטון
+        <input
+          type="url"
+          value={url}
+          placeholder="https://..."
+          onChange={(event) => setUrl(event.target.value)}
+          onBlur={() => {
+            const next = eventUrl(url);
+            if (!next) return;
+            onChange({
+              ...current,
+              type: isWeddingVideoUrl(next) ? "video" : "image",
+              src: next,
+              autoplay: isWeddingVideoUrl(next),
+              muted: true,
+              loop: isWeddingVideoUrl(next),
+            });
+          }}
+          className="mt-1 w-full rounded-xl border border-[#eadfce] px-2 py-1.5 font-mono text-[11px]"
+        />
+      </label>
+      <label className="mt-2 flex items-center justify-between py-1 font-semibold">
         Autoplay
         <input
           type="checkbox"
-          checked={Boolean(slot.autoplay)}
+          checked={Boolean(current.autoplay)}
           onChange={(event) =>
             onChange({
-              ...slot,
+              ...current,
               type: "video",
               autoplay: event.target.checked,
-              muted: event.target.checked ? true : slot.muted,
+              muted: event.target.checked ? true : current.muted,
             })
           }
         />
@@ -460,13 +527,20 @@ function VideoSettings({
         Loop
         <input
           type="checkbox"
-          checked={Boolean(slot.loop)}
-          onChange={(event) => onChange({ ...slot, loop: event.target.checked, type: "video" })}
+          checked={Boolean(current.loop)}
+          onChange={(event) => onChange({ ...current, loop: event.target.checked, type: "video" })}
         />
       </label>
-      <p className="mt-2 text-[10px] text-[#8A7B69]">Autoplay תמיד מושתק לנייד.</p>
+      <p className="mt-2 text-[10px] text-[#8A7B69]">Autoplay תמיד מושתק לנייד. אפשר גם להעלות קובץ MP4.</p>
     </div>
   );
+}
+
+function eventUrl(value: string) {
+  const url = value.trim();
+  if (!url) return "";
+  if (!isWeddingVideoUrl(url) && !/^https:\/\//i.test(url)) return "";
+  return url;
 }
 
 function FocalPad({

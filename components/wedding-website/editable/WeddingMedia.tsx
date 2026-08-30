@@ -24,6 +24,7 @@ type Props = {
   playsInline?: boolean;
   controls?: boolean;
   editable?: boolean;
+  placeholder?: boolean;
   style?: CSSProperties;
   loading?: string;
   decoding?: "async" | "auto" | "sync";
@@ -41,6 +42,7 @@ export default function WeddingMedia({
   playsInline = true,
   controls = false,
   editable = true,
+  placeholder = true,
   style,
 }: Props) {
   const site = useWeddingSite();
@@ -92,6 +94,7 @@ export default function WeddingMedia({
       );
     }
     if (!isEditor) {
+      if (!placeholder) return null;
       return (
         <div
           className={`bg-[#efe6d8] ${className}`}
@@ -100,6 +103,7 @@ export default function WeddingMedia({
         />
       );
     }
+    if (!placeholder) return null;
     return (
       <button
         type="button"
