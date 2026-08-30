@@ -13,6 +13,23 @@ import LocationPinPreview from "@/app/components/LocationPinPreview";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 import { parseWazeDestinationInput } from "@/lib/navigationLinks";
 
+function hasManualWazeDest(location?: {
+  wazeLat?: number | null;
+  wazeLng?: number | null;
+  wazeUrl?: string | null;
+} | null) {
+  return Boolean(
+    location?.wazeUrl?.trim() ||
+      (location?.wazeLat != null && location?.wazeLng != null)
+  );
+}
+
+const EMPTY_WAZE_DEST = {
+  wazeLat: null as number | null,
+  wazeLng: null as number | null,
+  wazeUrl: "",
+};
+
 /* =========================
    Event types (UX ↔ DB)
 ========================= */
@@ -58,6 +75,7 @@ export default function EventDetailsForm({
   const [uploadingCoupleImage, setUploadingCoupleImage] = useState(false);
   const [locationWarning, setLocationWarning] = useState("");
 
+  const [wazeOverrideEnabled, setWazeOverrideEnabled] = useState(false);
   const [form, setForm] = useState({
     title: "",
     eventType: "wedding",
@@ -120,6 +138,7 @@ export default function EventDetailsForm({
         }))
       : [];
 
+    setWazeOverrideEnabled(hasManualWazeDest(event.location));
     setForm({
       title: event.title ?? "",
       eventType: event.eventType ?? "wedding",
@@ -355,9 +374,9 @@ export default function EventDetailsForm({
           placeId: location.placeId || "",
           placeName: location.placeName || "",
           formattedAddress: location.formattedAddress || "",
-          wazeLat: location.wazeLat,
-          wazeLng: location.wazeLng,
-          wazeUrl: location.wazeUrl?.trim() || "",
+          wazeLat: wazeOverrideEnabled ? location.wazeLat : null,
+          wazeLng: wazeOverrideEnabled ? location.wazeLng : null,
+          wazeUrl: wazeOverrideEnabled ? location.wazeUrl?.trim() || "" : "",
         },
         publicEventPage: {
           enabled: true,
@@ -703,7 +722,8 @@ export default function EventDetailsForm({
                   placeId,
                   placeName,
                   formattedAddress,
-                }) =>
+                }) => {
+                  setWazeOverrideEnabled(false);
                   setForm((f) => ({
                     ...f,
                     location: {
@@ -714,11 +734,9 @@ export default function EventDetailsForm({
                       placeId: placeId || "",
                       placeName: placeName || name || "",
                       formattedAddress: formattedAddress || address || "",
-                      wazeLat: null,
-                      wazeLng: null,
-                      wazeUrl: "",
+                      ...EMPTY_WAZE_DEST,
                     },
-                  }))
+                  }));
                 }
               />
             </div>
@@ -730,37 +748,75 @@ export default function EventDetailsForm({
             />
 
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">
-              בחירה מהרשימה שומרת את הסיכה של Google Maps. אם מקלידים כתובת ידנית, נאתר אותה על המפה בשמירה. את יעד Waze לכניסה לרכב אפשר לשמור בנפרד למטה.
+              בחירה מהרשימה שומרת את הנקודה המדויקת. אם מקלידים כתובת ידנית, נאתר אותה על המפה בשמירה. גוגל מפות ווייז נפתחים מאותו מיקום.
             </p>
-            <label className="mb-2 mt-4 block px-1 text-sm font-black text-[#6B5B4A]">
-              יעד Waze לכניסה לרכב (אופציונלי)
+
+            <label className="mt-4 flex cursor-pointer items-center gap-3 px-1">
+              <input
+                type="checkbox"
+                checked={wazeOverrideEnabled}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  setWazeOverrideEnabled(enabled);
+                  if (!enabled) {
+                    setForm((f) => ({
+                      ...f,
+                      location: { ...f.location, ...EMPTY_WAZE_DEST },
+                    }));
+                  }
+                }}
+                className="h-4 w-4 accent-[#B8844F]"
+              />
+              <span className="text-sm font-black text-[#6B5B4A]">
+                הגדרת מיקום Waze שונה
+              </span>
             </label>
-            <input
-              dir="ltr"
-              className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
-              placeholder="הדביקו קישור מ-Waze או lat,lng של הכניסה לרכב"
-              value={
-                form.location.wazeUrl ||
-                (form.location.wazeLat != null && form.location.wazeLng != null
-                  ? `${form.location.wazeLat},${form.location.wazeLng}`
-                  : "")
-              }
-              onChange={(e) => {
-                const parsed = parseWazeDestinationInput(e.target.value);
-                setForm((f) => ({
-                  ...f,
-                  location: {
-                    ...f.location,
-                    wazeUrl: parsed.wazeUrl,
-                    wazeLat: parsed.wazeLat,
-                    wazeLng: parsed.wazeLng,
-                  },
-                }));
-              }}
-            />
-            <p className="mt-2 px-1 text-xs font-semibold text-[#9B8D7D]">
-              קישור Waze שהזוג מזין מקבל עדיפות על הקואורדינטות הכלליות. סיכת גוגל לא משתנה.
-            </p>
+
+            {wazeOverrideEnabled && (
+              <div className="mt-3">
+                <input
+                  dir="ltr"
+                  className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+                  placeholder="הדביקו קישור מ-Waze או lat,lng של הכניסה לרכב"
+                  value={
+                    form.location.wazeUrl ||
+                    (form.location.wazeLat != null &&
+                    form.location.wazeLng != null
+                      ? `${form.location.wazeLat},${form.location.wazeLng}`
+                      : "")
+                  }
+                  onChange={(e) => {
+                    const parsed = parseWazeDestinationInput(e.target.value);
+                    setForm((f) => ({
+                      ...f,
+                      location: {
+                        ...f.location,
+                        wazeUrl: parsed.wazeUrl,
+                        wazeLat: parsed.wazeLat,
+                        wazeLng: parsed.wazeLng,
+                      },
+                    }));
+                  }}
+                />
+                <p className="mt-2 px-1 text-xs font-semibold text-[#9B8D7D]">
+                  כפתור Waze של האורחים יפתח רק ליעד הזה. Google Maps ממשיך
+                  להשתמש במיקום האירוע.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 px-1 text-xs font-black text-[#8B5E34] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setWazeOverrideEnabled(false);
+                    setForm((f) => ({
+                      ...f,
+                      location: { ...f.location, ...EMPTY_WAZE_DEST },
+                    }));
+                  }}
+                >
+                  חזרה למיקום האירוע
+                </button>
+              </div>
+            )}
             {locationWarning ? (
               <p className="mt-2 px-1 text-xs font-bold text-[#B45309]">
                 {locationWarning}
