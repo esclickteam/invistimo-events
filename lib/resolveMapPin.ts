@@ -337,5 +337,5 @@ export async function withResolvedMapPin<T extends NavLocation>(
     ...location,
     lat: pin.lat,
     lng: pin.lng,
-  };
+  } as T & MapPin;
 }
