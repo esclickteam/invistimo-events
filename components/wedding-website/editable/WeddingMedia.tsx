@@ -88,6 +88,7 @@ export default function WeddingMedia({
           alt={resolved.alt || alt}
           className={className}
           style={mediaStyle}
+          data-ww-slot={slotId || undefined}
           data-ww-edit={isEditor ? "media" : undefined}
           data-ww-path={isEditor ? slotId : undefined}
           data-ww-label={isEditor ? "מדיה" : undefined}
@@ -132,6 +133,7 @@ export default function WeddingMedia({
         controls={controls}
         className={className}
         style={mediaStyle}
+        data-ww-slot={slotId || undefined}
         data-ww-edit={isEditor ? "media" : undefined}
         data-ww-path={isEditor ? slotId : undefined}
         data-ww-label={isEditor ? "מדיה" : undefined}
@@ -146,6 +148,7 @@ export default function WeddingMedia({
       alt={resolved.alt || alt}
       className={className}
       style={mediaStyle}
+      data-ww-slot={slotId || undefined}
       data-ww-edit={isEditor ? "media" : undefined}
       data-ww-path={isEditor ? slotId : undefined}
       data-ww-label={isEditor ? "מדיה" : undefined}
