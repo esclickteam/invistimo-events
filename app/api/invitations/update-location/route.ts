@@ -34,7 +34,7 @@ const userId = auth.userId;
       );
     }
 
-    const { name, address } = location;
+    const { name, address, placeId } = location;
     const lat = parseCoord(location.lat);
     const lng = parseCoord(location.lng);
 
@@ -64,6 +64,7 @@ const userId = auth.userId;
       address,
       lat,
       lng,
+      placeId: typeof placeId === "string" ? placeId.trim() : "",
     };
 
     await invitation.save();
@@ -83,9 +84,11 @@ const userId = auth.userId;
         },
         {
           $set: {
+            "location.name": name || "",
             "location.address": address,
             "location.lat": lat,
             "location.lng": lng,
+            "location.placeId": typeof placeId === "string" ? placeId.trim() : "",
             updatedAt: new Date(),
           },
         }

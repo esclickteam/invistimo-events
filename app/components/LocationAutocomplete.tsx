@@ -8,6 +8,7 @@ type SelectedPlace = {
   address: string;
   lat: number | null;
   lng: number | null;
+  placeId?: string | null;
 };
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
     address: string;
     lat: number | null;
     lng: number | null;
+    placeId?: string | null;
   }) => void;
 };
 
@@ -69,6 +71,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
 
       const lat = place.geometry?.location?.lat?.() ?? null;
       const lng = place.geometry?.location?.lng?.() ?? null;
+      const placeId = place.place_id || "";
 
       const selected: SelectedPlace = {
         inputValue: inputRef.current?.value?.trim() || address,
@@ -76,6 +79,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         address,
         lat,
         lng,
+        placeId,
       };
 
       selectedPlaceRef.current = selected;
@@ -84,6 +88,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         address: selected.address,
         lat: selected.lat,
         lng: selected.lng,
+        placeId: selected.placeId,
       });
     });
   }, [onSelect]);
@@ -114,6 +119,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
           address: typedValue,
           lat: null,
           lng: null,
+          placeId: null,
         });
       }}
     />

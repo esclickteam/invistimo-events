@@ -22,7 +22,9 @@ function isMobileNav() {
 }
 
 export default function WazeNavButton({ location, className, children }: Props) {
-  const [resolved, setResolved] = useState<NavLocation | null>(null);
+  const [resolved, setResolved] = useState<NavLocation | null>(
+    location && hasExactCoordinates(location) ? location : null
+  );
   const href = resolved ? getWazeLink(resolved) : null;
   const appHref = resolved ? getWazeAppLink(resolved) : null;
   const canShow = Boolean(
@@ -32,6 +34,11 @@ export default function WazeNavButton({ location, className, children }: Props) 
   useEffect(() => {
     if (!location) {
       setResolved(null);
+      return;
+    }
+
+    if (hasExactCoordinates(location)) {
+      setResolved(location);
       return;
     }
 
@@ -45,7 +52,7 @@ export default function WazeNavButton({ location, className, children }: Props) 
     return () => {
       cancelled = true;
     };
-  }, [location?.lat, location?.lng, location?.address, location?.name]);
+  }, [location?.lat, location?.lng, location?.address, location?.name, location?.placeId]);
 
   if (!location || !canShow) return null;
 

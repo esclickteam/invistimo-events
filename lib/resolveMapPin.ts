@@ -152,6 +152,8 @@ export async function resolveMapPin(
   if (!location) return null;
 
   const saved = asMapPin(location);
+  if (saved) return saved;
+
   const searchQuery = placeSearchQuery(location) || getLocationQuery(location);
   const venueName = String(location.name || "").trim();
 

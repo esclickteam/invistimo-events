@@ -868,6 +868,8 @@ export async function PUT(
           typeof location.address === "string" ? location.address.trim() : "",
         lat: parseCoord(location.lat),
         lng: parseCoord(location.lng),
+        placeId:
+          typeof location.placeId === "string" ? location.placeId.trim() : "",
       };
     }
 
@@ -979,9 +981,11 @@ export async function PUT(
           { _id: new mongoose.Types.ObjectId(eventIdToSync) },
           {
             $set: {
+              "location.name": updatePayload.location.name || "",
               "location.address": updatePayload.location.address || "",
               "location.lat": updatePayload.location.lat ?? null,
               "location.lng": updatePayload.location.lng ?? null,
+              "location.placeId": updatePayload.location.placeId || "",
               updatedAt: new Date(),
             },
           }
