@@ -23,7 +23,9 @@ test("navigation links prefer the exact event coordinates", () => {
   assert.equal(hasExactCoordinates(location), true);
   assert.equal(
     getGoogleMapsLink(location),
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("32.0961,34.7732")}`
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      "אולמי הירקון, רחוב רוקח 12, תל אביב"
+    )}`
   );
   assert.equal(
     getWazeLink(location),
@@ -31,7 +33,9 @@ test("navigation links prefer the exact event coordinates", () => {
   );
   assert.equal(
     getGoogleMapsEmbedUrl(location, 16),
-    `https://www.google.com/maps?q=${encodeURIComponent("32.0961,34.7732")}&z=16&output=embed`
+    `https://www.google.com/maps?q=${encodeURIComponent(
+      "אולמי הירקון, רחוב רוקח 12, תל אביב"
+    )}&z=16&output=embed`
   );
 });
 

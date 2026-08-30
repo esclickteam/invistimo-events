@@ -5,7 +5,23 @@ export type MapPin = {
   lng: number;
 };
 
+export type PinCandidate = MapPin & {
+  name?: string;
+  address?: string;
+};
+
 export const MAX_PIN_HINT_KM = 30;
+
+const FOREIGN_CITY_MARKERS = [
+  "נתניה",
+  "זכרון",
+  "חיפה",
+  "תל אביב",
+  "ירושלים",
+  "netanya",
+  "zikhron",
+  "haifa",
+];
 
 function firstText(...values: unknown[]) {
   for (const value of values) {
@@ -17,6 +33,10 @@ function firstText(...values: unknown[]) {
 
 function toRad(degrees: number) {
   return (degrees * Math.PI) / 180;
+}
+
+function normalizeText(value: string) {
+  return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 export function asMapPin(location?: NavLocation | null): MapPin | null {
@@ -61,30 +81,87 @@ export function placeSearchQuery(location: NavLocation) {
   return address || name;
 }
 
+export function hintQueries(location: NavLocation) {
+  const queries = [
+    placeSearchQuery(location),
+    geographicQuery(location),
+  ].filter(Boolean);
+
+  const address = firstText(location.address);
+  if (/רמת צבי/.test(address) || /רמת צבי/.test(firstText(location.name))) {
+    queries.push("מושב רמת צבי, גלבוע");
+    queries.push("רמת צבי, מועצה אזורית גלבוע");
+  }
+
+  return [...new Set(queries)];
+}
+
+export function resultConflictsWithQuery(query: string, formatted = "") {
+  const q = normalizeText(query);
+  const f = normalizeText(formatted);
+  if (!f) return false;
+
+  return FOREIGN_CITY_MARKERS.some(
+    (city) => f.includes(normalizeText(city)) && !q.includes(normalizeText(city))
+  );
+}
+
+export function nameMatchScore(venueName: string, candidateName = "") {
+  const venueTokens = normalizeText(venueName).split(" ").filter((t) => t.length > 1);
+  const hay = normalizeText(candidateName);
+  if (!venueTokens.length || !hay) return 0;
+  return venueTokens.filter((token) => hay.includes(token)).length;
+}
+
 export function chooseMapPin(options: {
   saved?: MapPin | null;
   hint?: MapPin | null;
-  candidates?: Array<MapPin | null | undefined>;
+  candidates?: Array<PinCandidate | null | undefined>;
+  query?: string;
+  venueName?: string;
 }) {
   const saved = options.saved || null;
   const hint = options.hint || null;
+  const query = options.query || "";
+  const venueName = options.venueName || "";
   const candidates = (options.candidates || []).filter(
-    (pin): pin is MapPin => Boolean(pin)
+    (pin): pin is PinCandidate => Boolean(pin)
   );
 
-  if (saved && (!hint || pinIsNear(saved, hint))) return saved;
+  const usable = candidates.filter((pin) => {
+    if (resultConflictsWithQuery(query, pin.address || pin.name || "")) {
+      return false;
+    }
+    if (hint && !pinIsNear(pin, hint)) return false;
+    return true;
+  });
 
-  const nearby = hint
-    ? candidates.filter((pin) => pinIsNear(pin, hint))
-    : candidates;
+  const scored = usable
+    .map((pin) => ({
+      pin,
+      score:
+        nameMatchScore(venueName, pin.name || "") * 10 +
+        nameMatchScore(venueName, pin.address || "") * 4 -
+        (hint ? distanceKm(pin, hint) : 0),
+    }))
+    .sort((a, b) => b.score - a.score);
 
-  if (nearby.length && hint) {
-    return [...nearby].sort(
-      (a, b) => distanceKm(a, hint) - distanceKm(b, hint)
-    )[0];
+  if (scored[0]) {
+    return { lat: scored[0].pin.lat, lng: scored[0].pin.lng };
   }
 
-  if (nearby[0]) return nearby[0];
+  if (saved && (!hint || pinIsNear(saved, hint))) return saved;
   if (hint) return hint;
-  return null;
+  return saved;
+}
+
+export function pickHintPin(
+  results: PinCandidate[],
+  query: string
+): MapPin | null {
+  const matches = results.filter(
+    (pin) => !resultConflictsWithQuery(query, pin.address || pin.name || "")
+  );
+  const chosen = matches[0] || null;
+  return chosen ? { lat: chosen.lat, lng: chosen.lng } : null;
 }
