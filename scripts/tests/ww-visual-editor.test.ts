@@ -16,6 +16,7 @@ import {
   setByPath,
 } from "../../lib/weddingWebsite/editorSchema";
 import { resolveWeddingGifts } from "../../lib/weddingWebsite/gifts";
+import { showWeddingRsvpSection } from "../../components/wedding-website/shared/useShowWeddingRsvp";
 import type { WeddingTemplate } from "../../types/weddingWebsite";
 
 function read(rel: string) {
@@ -470,6 +471,28 @@ test("template picker shows a unique on-theme mockup for every template", () => 
   assert.match(thumb, /minimal-noir/);
   assert.match(thumb, /modern-glass/);
   assert.match(thumb, /garden-bloom/);
+});
+
+test("RSVP in the editor scrolls to the form instead of staying on the hero", () => {
+  const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
+  const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const hook = read("components/wedding-website/shared/useShowWeddingRsvp.ts");
+  const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+  const glass = read("components/wedding-website/templates/ModernGlassSite.tsx");
+
+  assert.equal(showWeddingRsvpSection(true, null, false), false);
+  assert.equal(showWeddingRsvpSection(true, null, true), true);
+  assert.equal(showWeddingRsvpSection(false, null, false), true);
+
+  assert.match(overlay, /sectionIdFromHashLink/);
+  assert.match(overlay, /scrollToSection\(sectionId\)/);
+  assert.match(editor, /ww-editor-scroll/);
+  assert.match(editor, /pane\.scrollTo/);
+  assert.match(hook, /mode === "editor"/);
+  assert.match(eternal, /useShowWeddingRsvp/);
+  assert.match(glass, /useShowWeddingRsvp/);
+  assert.doesNotMatch(eternal, /live && !rsvpController/);
+  assert.doesNotMatch(glass, /live && !rsvpController/);
 });
 
 test("site navigation uses a hamburger on mobile and compact links on desktop", () => {

@@ -10,6 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
@@ -138,6 +139,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const showRsvp = useShowWeddingRsvp(live, rsvpController);
 
   return (
     <div className="min-h-screen font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
@@ -507,7 +509,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
       </section>
 
       {/* RSVP */}
-      {!(live && !rsvpController) && (
+      {showRsvp && (
       <section id="rsvp" className="px-4 py-24 md:px-8">
         <TiltCard className="mx-auto max-w-md">
           <GlassPanel className="border-[#7C9CFF]/30 p-8">

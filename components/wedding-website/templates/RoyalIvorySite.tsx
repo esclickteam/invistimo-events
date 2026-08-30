@@ -9,6 +9,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
@@ -99,6 +100,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const showRsvp = useShowWeddingRsvp(live, rsvpController);
 
   return (
     <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
@@ -430,7 +432,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
       </section>
 
       {/* RSVP */}
-      {!(live && !rsvpController) && (
+      {showRsvp && (
       <section id="rsvp" className="relative py-24">
         <LaceBg />
         <div className="relative mx-auto max-w-lg px-6">

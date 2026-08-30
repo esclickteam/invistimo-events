@@ -10,6 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
@@ -81,6 +82,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(null);
+  const showRsvp = useShowWeddingRsvp(live, rsvpController);
   const { scrollYProgress } = useScroll();
   const lineWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
@@ -452,7 +454,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
       </section>
 
       {/* RSVP */}
-      {!(live && !rsvpController) && (
+      {showRsvp && (
       <section id="rsvp" className="border-t border-black bg-black text-white">
         <div className="mx-auto max-w-xl p-8 md:p-16">
           <NoirLabel>RSVP</NoirLabel>

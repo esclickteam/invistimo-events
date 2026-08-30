@@ -10,6 +10,7 @@ import {
 } from "../shared/useWeddingInteractions";
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
+import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import { MapPin } from "lucide-react";
@@ -123,6 +124,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
   const upload = useGuestUpload();
   const playlist = usePlaylistDemo();
   const faq = useFaqAccordion(0);
+  const showRsvp = useShowWeddingRsvp(live, rsvpController);
 
   const polaroidRotations = [-6, 4, -3, 7, -5, 3];
 
@@ -458,7 +460,7 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
       </section>
 
       {/* RSVP */}
-      {!(live && !rsvpController) && (
+      {showRsvp && (
       <section id="rsvp" className="py-24">
         <div className="mx-auto max-w-md px-6">
           <h2 className="text-center font-['Cormorant_Garamond'] text-4xl">אישור הגעה</h2>
