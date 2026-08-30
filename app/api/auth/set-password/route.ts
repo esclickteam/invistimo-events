@@ -53,10 +53,14 @@ async function getOnboardingAgreementState(user: any) {
     alreadyMarkedSigned ||
     String((document as any)?.status || "").toLowerCase() === "signed";
 
+  const storedUrl = String((document as any)?.url || "").trim();
+  const agreementUrl =
+    storedUrl || (agreementToken ? `/sales-documents/${agreementToken}` : "");
+
   return {
     requireAgreementBeforePassword: true,
     agreementToken,
-    agreementUrl: String((document as any)?.url || "").trim(),
+    agreementUrl,
     agreementSigned,
   };
 }
@@ -234,6 +238,7 @@ export async function POST(req: Request) {
     onboardingAgreementToken
     onboardingAgreementSignedAt
     termsAcceptedAt
+    phone
 
     producerPricePerRecord
     staffType
@@ -299,7 +304,7 @@ export async function POST(req: Request) {
         {
           success: false,
           error: "TERMS_REQUIRED",
-          message: "יש לקרוא ולאשר את התקנון לפני שמירת הסיסמה",
+          message: "יש לאשר את התקנון ותנאי השימוש לפני שמירת הסיסמה",
         },
         { status: 403 }
       );
@@ -437,6 +442,23 @@ export async function POST(req: Request) {
       await revokeTelnyxWebRtcForUser(user._id.toString(), "password_changed");
     } catch {
       console.error("TELNYX WEBRTC REVOKE ON SET PASSWORD FAILED");
+    }
+
+    if (
+      agreementState.requireAgreementBeforePassword &&
+      agreementState.agreementSigned
+    ) {
+      try {
+        const { sendSignedAgreementThanksSms } = await import(
+          "@/lib/sendSignedAgreementThanksSms"
+        );
+        await sendSignedAgreementThanksSms({
+          phone: String((user as any).phone || ""),
+          agreementUrl: agreementState.agreementUrl,
+        });
+      } catch (smsError) {
+        console.error("SEND SIGNED AGREEMENT THANKS SMS FAILED:", smsError);
+      }
     }
 
     console.log("✅ PASSWORD SAVED", {
