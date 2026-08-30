@@ -6,6 +6,28 @@ import {
 } from "@/lib/navigationLinks";
 import type { MapPin } from "@/lib/resolveMapPin";
 
+type GoogleLatLng = {
+  lat: () => number;
+  lng: () => number;
+};
+
+type GooglePlaceResult = {
+  geometry?: {
+    location?: GoogleLatLng;
+  };
+};
+
+type GoogleGeocoderResult = {
+  geometry?: {
+    location?: GoogleLatLng;
+  };
+};
+
+function pinFromLocation(loc?: GoogleLatLng | null): MapPin | null {
+  if (!loc) return null;
+  return { lat: loc.lat(), lng: loc.lng() };
+}
+
 function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (window.google?.maps?.places) return Promise.resolve(true);
@@ -32,14 +54,23 @@ function placesTextSearch(query: string): Promise<MapPin | null> {
       const service = new window.google.maps.places.PlacesService(
         document.createElement("div")
       );
-      service.textSearch({ query, region: "IL" }, (results, status) => {
-        const loc = results?.[0]?.geometry?.location;
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && loc) {
-          resolve({ lat: loc.lat(), lng: loc.lng() });
-          return;
+      service.textSearch(
+        { query, region: "IL" },
+        (results: unknown, status: unknown) => {
+          const list = Array.isArray(results)
+            ? (results as GooglePlaceResult[])
+            : [];
+          const pin = pinFromLocation(list[0]?.geometry?.location);
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            pin
+          ) {
+            resolve(pin);
+            return;
+          }
+          resolve(null);
         }
-        resolve(null);
-      });
+      );
     } catch {
       resolve(null);
     }
@@ -50,14 +81,20 @@ function geocodeQuery(query: string): Promise<MapPin | null> {
   return new Promise((resolve) => {
     try {
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ address: query, region: "IL" }, (results, status) => {
-        const loc = results?.[0]?.geometry?.location;
-        if (status === "OK" && loc) {
-          resolve({ lat: loc.lat(), lng: loc.lng() });
-          return;
+      geocoder.geocode(
+        { address: query, region: "IL" },
+        (results: unknown, status: unknown) => {
+          const list = Array.isArray(results)
+            ? (results as GoogleGeocoderResult[])
+            : [];
+          const pin = pinFromLocation(list[0]?.geometry?.location);
+          if (status === "OK" && pin) {
+            resolve(pin);
+            return;
+          }
+          resolve(null);
         }
-        resolve(null);
-      });
+      );
     } catch {
       resolve(null);
     }
