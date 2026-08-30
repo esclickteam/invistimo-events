@@ -718,6 +718,8 @@ export async function POST(req: NextRequest) {
 
       paymentTerms: normalizeArray(payload.paymentTerms),
 
+      additionalTerms: normalizeArray(payload.additionalTerms),
+
       signature: {
         fullName: "",
         idNumber: "",

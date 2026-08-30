@@ -79,6 +79,7 @@ export type SalesDocumentModelType = {
   customerDealSummary?: Record<string, unknown>;
   cancellationTerms?: unknown[];
   paymentTerms?: unknown[];
+  additionalTerms?: unknown[];
 
   signature?: {
     fullName?: string;
@@ -263,6 +264,11 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
     },
 
     paymentTerms: {
+      type: [AnySchema],
+      default: [],
+    },
+
+    additionalTerms: {
       type: [AnySchema],
       default: [],
     },

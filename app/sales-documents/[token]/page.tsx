@@ -126,6 +126,7 @@ type SalesDocument = {
 
   cancellationTerms?: DetailSection[];
   paymentTerms?: DetailSection[];
+  additionalTerms?: DetailSection[];
 
   signature?: {
     fullName?: string;
@@ -729,6 +730,11 @@ export default function SalesDocumentPage() {
     [document?.cancellationTerms],
   );
 
+  const customerAdditionalTerms = useMemo(
+    () => sanitizeDetailSectionsForCustomer(document?.additionalTerms),
+    [document?.additionalTerms],
+  );
+
   const loadDocument = useCallback(async () => {
     if (!token) {
       setLoadError("קישור לא תקין");
@@ -1234,6 +1240,12 @@ export default function SalesDocumentPage() {
             <SectionCard title="תנאי ביטול">
               <DetailSections sections={customerCancellationTerms} />
             </SectionCard>
+
+            {customerAdditionalTerms.length > 0 ? (
+              <SectionCard title="תנאים נוספים">
+                <DetailSections sections={customerAdditionalTerms} />
+              </SectionCard>
+            ) : null}
 
             {isAgreement ? (
               <SectionCard title="חתימה ואישור תנאי עסקה">
