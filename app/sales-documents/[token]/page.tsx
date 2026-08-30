@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useParams } from "next/navigation";
-import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer } from "@/lib/salesDocumentTerms";
+import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer, CUSTOMER_ENGAGEMENT_TERMS } from "@/lib/salesDocumentTerms";
 
 type DetailSection = {
   title: string;
@@ -127,6 +127,7 @@ type SalesDocument = {
   cancellationTerms?: DetailSection[];
   paymentTerms?: DetailSection[];
   additionalTerms?: DetailSection[];
+  engagementTerms?: DetailSection[];
 
   signature?: {
     fullName?: string;
@@ -720,6 +721,14 @@ export default function SalesDocumentPage() {
     asNumber(paymentSchedule.stripeAmount) ||
     asNumber(paymentSchedule.immediateTotal);
 
+  const customerEngagementTerms = useMemo(() => {
+    const fromDocument = sanitizeDetailSectionsForCustomer(
+      document?.engagementTerms,
+    );
+
+    return fromDocument.length > 0 ? fromDocument : CUSTOMER_ENGAGEMENT_TERMS;
+  }, [document?.engagementTerms]);
+
   const customerPaymentTerms = useMemo(
     () => sanitizePaymentTermsForCustomer(document?.paymentTerms),
     [document?.paymentTerms],
@@ -1223,6 +1232,10 @@ export default function SalesDocumentPage() {
               ) : (
                 <EmptyLine label="לא הוגדרו שירותים במסמך." />
               )}
+            </SectionCard>
+
+            <SectionCard title="תנאי התקשרות">
+              <DetailSections sections={customerEngagementTerms} />
             </SectionCard>
 
             <SectionCard title="תנאי תשלום">

@@ -80,6 +80,7 @@ export type SalesDocumentModelType = {
   cancellationTerms?: unknown[];
   paymentTerms?: unknown[];
   additionalTerms?: unknown[];
+  engagementTerms?: unknown[];
 
   signature?: {
     fullName?: string;
@@ -269,6 +270,11 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
     },
 
     additionalTerms: {
+      type: [AnySchema],
+      default: [],
+    },
+
+    engagementTerms: {
       type: [AnySchema],
       default: [],
     },
