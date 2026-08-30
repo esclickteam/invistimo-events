@@ -1319,6 +1319,8 @@ export default function AdminSalesNewPage() {
   const [manualPaymentReference, setManualPaymentReference] = useState("");
   const [manualPaymentNote, setManualPaymentNote] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("quote");
+  const [requireAgreementBeforePassword, setRequireAgreementBeforePassword] =
+    useState(false);
   const [quotePricingDisplay, setQuotePricingDisplay] =
     useState<QuotePricingDisplay>("showUpsellPrices");
 
@@ -1809,9 +1811,7 @@ export default function AdminSalesNewPage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
-    if (!eventDate) missing.push("תאריך אירוע");
-    if (!eventCity.trim()) missing.push("עיר אירוע");
-    if (!venueName.trim()) missing.push("שם אולם");
+    if (!clientEmail.trim()) missing.push("מייל לקוח");
 
     return missing;
   }
@@ -1993,7 +1993,7 @@ export default function AdminSalesNewPage() {
     const missing = getMissingPaymentFields();
 
     if (missing.length > 0) {
-      setError(`כדי לעבור לתשלום חסר: ${missing.join(", ")}`);
+      setError(`כדי לפתוח לקוח חסר: ${missing.join(", ")}`);
       return;
     }
 
@@ -2002,6 +2002,55 @@ export default function AdminSalesNewPage() {
     try {
       setError("");
       setSaving(true);
+
+      let onboardingAgreementToken = "";
+
+      if (requireAgreementBeforePassword) {
+        const existingAgreementToken =
+          generatedDocument?.type === "agreement" ? generatedDocument.token || "" : "";
+
+        if (existingAgreementToken) {
+          onboardingAgreementToken = existingAgreementToken;
+        } else {
+          const documentResponse = await fetch("/api/employee/sales/documents", {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...documentRequestPayload,
+              type: "agreement",
+            }),
+          });
+          const documentData = await documentResponse.json().catch(() => null);
+
+          if (!documentResponse.ok || documentData?.success === false) {
+            throw new Error(
+              documentData?.message ||
+                documentData?.error ||
+                "שגיאה ביצירת הסכם לחתימה לפני הגדרת סיסמה",
+            );
+          }
+
+          const url = documentData?.url || documentData?.documentUrl;
+          const token = documentData?.token;
+          if (!url || !token) throw new Error("לא התקבל קישור להסכם");
+
+          onboardingAgreementToken = token;
+          setGeneratedDocument({
+            type: "agreement",
+            url,
+            token,
+            expiresAt: documentData?.expiresAt || quoteExpiresAt,
+            status: documentData?.document?.status || documentData?.status || "draft",
+            signedAt:
+              documentData?.document?.signedAt ||
+              documentData?.document?.signature?.signedAt ||
+              documentData?.document?.agreement?.signedAt ||
+              "",
+          });
+        }
+      }
 
       const response = await fetch("/api/admin/sales", {
         method: "POST",
@@ -2020,6 +2069,10 @@ export default function AdminSalesNewPage() {
           eventCity: eventCity.trim(),
           venueName: venueName.trim(),
           rsvpSiteMode,
+
+          requireAgreementBeforePassword,
+          onboardingAgreementToken,
+          agreementToken: onboardingAgreementToken,
 
           plan: selectedPlan.key,
           packageName: selectedPlan.title,
@@ -2220,8 +2273,9 @@ export default function AdminSalesNewPage() {
                       פרטי לקוח ואירוע
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#7b6a58]">
-                      כאן מזינים רק את הפרטים הדרושים לעובד לצורך יצירת הצעה/הסכם.
-                      תעודת זהות וכתובת ימולאו על ידי הלקוח בקישור ההסכם בזמן החתימה.
+                      חובה למלא שם, טלפון ומייל בלבד. שאר פרטי האירוע אופציונליים
+                      ואפשר להשלים אותם אחר כך. תעודת זהות וכתובת ימולאו על ידי
+                      הלקוח בזמן החתימה על ההסכם.
                     </p>
                   </div>
 
@@ -2265,7 +2319,7 @@ export default function AdminSalesNewPage() {
                   </label>
 
                   <label className="text-sm font-black text-[#3f3327]">
-                    שם האירוע
+                    שם האירוע <span className="font-bold text-[#9a8976]">(לא חובה)</span>
                     <input
                       value={eventName}
                       onChange={(e) => setEventName(e.target.value)}
@@ -2275,33 +2329,30 @@ export default function AdminSalesNewPage() {
                   </label>
 
                   <label className="text-sm font-black text-[#3f3327]">
-                    תאריך אירוע
+                    תאריך אירוע <span className="font-bold text-[#9a8976]">(לא חובה)</span>
                     <input
                       type="date"
                       value={eventDate}
                       onChange={(e) => setEventDate(e.target.value)}
                       className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                      required
                     />
                   </label>
 
                   <label className="text-sm font-black text-[#3f3327]">
-                    עיר
+                    עיר <span className="font-bold text-[#9a8976]">(לא חובה)</span>
                     <input
                       value={eventCity}
                       onChange={(e) => setEventCity(e.target.value)}
                       className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                      required
                     />
                   </label>
 
                   <label className="text-sm font-black text-[#3f3327]">
-                    שם האולם
+                    שם האולם <span className="font-bold text-[#9a8976]">(לא חובה)</span>
                     <input
                       value={venueName}
                       onChange={(e) => setVenueName(e.target.value)}
                       className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                      required
                     />
                   </label>
 
@@ -2765,6 +2816,24 @@ export default function AdminSalesNewPage() {
                     <button type="button" disabled={isDocumentActionDisabled} onClick={() => createDocument("preview")} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d8b777] bg-[#fff7ec] px-5 text-sm font-black text-[#8a5c20] transition hover:bg-[#ffefd8] disabled:cursor-not-allowed disabled:opacity-40"><Icon name="eye" className="h-4 w-4" /> תצוגה מקדימה בחלון חדש</button>
                     <button type="button" disabled={isDocumentActionDisabled} onClick={() => createDocument("sms")} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="sms" className="h-4 w-4" /> שליחה ישר ב־SMS</button>
                   </div>
+
+                  <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3">
+                    <input
+                      type="checkbox"
+                      checked={requireAgreementBeforePassword}
+                      onChange={(event) =>
+                        setRequireAgreementBeforePassword(event.target.checked)
+                      }
+                      className="mt-1 h-4 w-4 accent-[#9b7a3c]"
+                    />
+                    <span className="text-xs font-bold leading-5 text-[#6d5840]">
+                      <span className="block font-black text-[#3f3327]">
+                        הוספת חתימה על ההסכם לפני הגדרת סיסמה
+                      </span>
+                      לא שולח את ההסכם ב־SMS. אם מסומן, הלקוח יחויב לחתום על
+                      ההסכם במסך הגדרת הסיסמה לפני שיוכל לשמור סיסמה.
+                    </span>
+                  </label>
 
                   {documentSaving ? (
                     <p className="mt-3 text-xs font-black text-[#8a5c20]">יוצר קישור...</p>
