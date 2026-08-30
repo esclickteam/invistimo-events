@@ -1,7 +1,7 @@
 import type { WeddingSectionId, WeddingTemplate } from "@/types/weddingWebsite";
 
 export const WEDDING_PRIMARY_NAV_IDS = [
-  "invitation",
+  "hero",
   "gallery",
   "event-details",
   "location",
@@ -14,7 +14,7 @@ export const WEDDING_SECTIONS: {
   label: string;
   navLabel: string;
 }[] = [
-  { id: "hero", label: "Hero", navLabel: "בית" },
+  { id: "hero", label: "Hero", navLabel: "ראשי" },
   { id: "countdown", label: "Countdown", navLabel: "ספירה" },
   { id: "invitation", label: "Invitation", navLabel: "הזמנה" },
   { id: "our-story", label: "Our Story", navLabel: "סיפור" },

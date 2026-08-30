@@ -19,17 +19,19 @@ export default function WeddingSiteMenu({
   linkClassName = "",
 }: Props) {
   const site = useWeddingSite();
-  const items = WEDDING_PRIMARY_NAV_IDS.map((id) => WEDDING_SECTIONS.find((section) => section.id === id)).filter(
-    (section): section is NonNullable<typeof section> => Boolean(section)
-  ).filter((section) => isSectionVisible(site?.content, section.id));
+  const items = WEDDING_PRIMARY_NAV_IDS.map((id) => WEDDING_SECTIONS.find((section) => section.id === id))
+    .filter((section): section is NonNullable<typeof section> => Boolean(section))
+    .filter((section) => isSectionVisible(site?.content, section.id));
 
   return (
     <nav className={`relative z-50 ${className}`} data-ww-chrome="1">
-      <div
-        className={`mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2 sm:px-4 ${barClassName}`}
-      >
-        <div className="min-w-0 shrink-0">{brand}</div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-1 gap-y-1">
+      <div className={`relative mx-auto max-w-6xl px-3 py-2 sm:px-4 ${barClassName}`}>
+        {brand ? (
+          <div className="pointer-events-auto absolute inset-y-0 start-3 z-10 flex items-center sm:start-4">
+            {brand}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center">
           {items.map((item) => (
             <a
               key={item.id}

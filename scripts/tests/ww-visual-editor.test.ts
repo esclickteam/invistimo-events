@@ -398,8 +398,9 @@ test("site navigation shows only the important header links", () => {
   const nav = read("components/wedding-website/WeddingNav.tsx");
   const config = read("config/weddingWebsite/templates.ts");
   assert.match(config, /WEDDING_PRIMARY_NAV_IDS/);
+  assert.match(config, /navLabel: "ראשי"/);
   assert.deepEqual([...WEDDING_PRIMARY_NAV_IDS], [
-    "invitation",
+    "hero",
     "gallery",
     "event-details",
     "location",
@@ -407,7 +408,10 @@ test("site navigation shows only the important header links", () => {
     "rsvp",
   ]);
   assert.match(menu, /WEDDING_PRIMARY_NAV_IDS/);
-  assert.match(menu, /flex-wrap/);
+  assert.match(menu, /justify-center/);
+  assert.match(menu, /text-center/);
+  assert.doesNotMatch(menu, /justify-end/);
+  assert.doesNotMatch(menu, /"invitation"/);
   assert.doesNotMatch(menu, /aria-label="תפריט"/);
   assert.doesNotMatch(menu, /overflow-x-auto/);
   assert.doesNotMatch(menu, /from "lucide-react"/);
