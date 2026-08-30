@@ -475,6 +475,7 @@ test("autoplay video stays muted so it plays on mobile", () => {
   assert.match(toolbar, /muted: event\.target\.checked \? true : current\.muted/);
   assert.match(toolbar, /function applyUrl/);
   assert.match(toolbar, /if \(event\.key !== "Enter"\) return;/);
+  assert.match(toolbar, /current\.type === "image" && current\.src/);
   const slot = normalizeWeddingMediaSlot({
     type: "video",
     src: "https://res.cloudinary.com/demo/video/upload/a.mp4",

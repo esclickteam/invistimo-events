@@ -483,6 +483,8 @@ function VideoSettings({
       ...current,
       type: isWeddingVideoUrl(next) ? "video" : "image",
       src: next,
+      poster:
+        current.poster || (current.type === "image" && current.src ? current.src : undefined),
       autoplay: isWeddingVideoUrl(next),
       muted: true,
       loop: isWeddingVideoUrl(next),

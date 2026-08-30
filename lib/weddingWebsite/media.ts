@@ -164,6 +164,10 @@ export function applyMediaToContent(
     const gallery = [...(content.galleryImages || [])];
     if (!slot?.src) {
       gallery[index] = "";
+    } else if (slot.type === "video") {
+      // The image list is what the templates iterate. Keep a still there so
+      // React keys stay stable; the video itself lives in content.media.
+      gallery[index] = slot.poster || gallery[index] || "";
     } else {
       gallery[index] = slot.src;
     }

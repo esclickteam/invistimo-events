@@ -49,6 +49,10 @@ export function getOptimizedWeddingImageUrl(
   if (!url.includes("res.cloudinary.com") || !url.includes(CLOUDINARY_UPLOAD_MARKER)) {
     return url;
   }
+  // Image transforms on a video URL 404, so leave mp4/webm addresses alone.
+  if (/\/video\/upload\//i.test(url) || /\.(mp4|webm)(\?|#|$)/i.test(url)) {
+    return url;
+  }
 
   const [beforeUpload, afterUpload] = url.split(CLOUDINARY_UPLOAD_MARKER);
   if (!beforeUpload || !afterUpload) return url;
@@ -85,8 +89,19 @@ export function overlayWeddingTemplateImages(
     heroImage: heroRemoved
       ? ""
       : getOptimizedWeddingImageUrl(heroImage || template.heroImage, 1800) || template.heroImage,
-    galleryImages: galleryImages
-      ? galleryImages.map((src) => getOptimizedWeddingImageUrl(src, 1100) || src)
-      : template.galleryImages.map((src) => getOptimizedWeddingImageUrl(src, 1100) || src),
+    galleryImages: (galleryImages || template.galleryImages).map((src, index) => {
+      const slot = content?.media?.[`gallery.${index}`];
+      const still =
+        slot?.type === "video"
+          ? slot.poster || (isVideoUrl(src) ? "" : src) || template.galleryImages[index]
+          : isVideoUrl(src)
+            ? slot?.poster || template.galleryImages[index]
+            : src;
+      return getOptimizedWeddingImageUrl(still, 1100) || still;
+    }),
   };
+}
+
+function isVideoUrl(value: string) {
+  return /\/video\/upload\//i.test(value) || /\.(mp4|webm)(\?|#|$)/i.test(value);
 }

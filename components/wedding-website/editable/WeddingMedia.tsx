@@ -110,6 +110,7 @@ export default function WeddingMedia({
     return (
       <button
         type="button"
+        data-ww-slot={slotId || undefined}
         data-ww-edit="media"
         data-ww-path={slotId}
         data-ww-label="מדיה"
@@ -137,7 +138,12 @@ export default function WeddingMedia({
         data-ww-edit={isEditor ? "media" : undefined}
         data-ww-path={isEditor ? slotId : undefined}
         data-ww-label={isEditor ? "מדיה" : undefined}
-        onError={() => setBroken("media")}
+        onError={() => {
+          // In the editor the couple still need the slot to stay selectable,
+          // even when the remote file 404s.
+          if (isEditor) return;
+          setBroken("media");
+        }}
       />
     );
   }

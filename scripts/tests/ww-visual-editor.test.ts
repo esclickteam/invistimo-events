@@ -6,7 +6,7 @@ import path from "node:path";
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
 import { WEDDING_MOBILE_NAV_IDS, WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
-import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
+import { overlayWeddingTemplateImages, repairWeddingImageUrl, getOptimizedWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
 import {
   buildTextIndex,
@@ -36,6 +36,7 @@ test("visual editor overlays the existing renderer instead of copying templates"
   assert.match(overlay, /insertLineBreak/);
   assert.match(renderer, /WeddingSiteProvider/);
   assert.match(media, /type === "video"/);
+  assert.match(media, /if \(isEditor\) return;/);
   assert.doesNotMatch(editor, /eternal-gold-editor/);
 });
 
@@ -98,6 +99,16 @@ test("media slots support image and video without persisting template demo URLs"
   const withImage = applyMediaToContent(merged, "gallery.0", mediaSlotFromImageUrl("https://res.cloudinary.com/demo/image/upload/g1.jpg"));
   assert.equal(withImage.galleryImages?.[0], "https://res.cloudinary.com/demo/image/upload/g1.jpg");
 
+  const withVideo = applyMediaToContent(withImage, "gallery.0", {
+    type: "video",
+    src: "https://res.cloudinary.com/demo/video/upload/g0.mp4",
+    autoplay: true,
+    muted: true,
+    loop: true,
+  });
+  assert.equal(withVideo.media?.["gallery.0"]?.type, "video");
+  assert.equal(withVideo.galleryImages?.[0], "https://res.cloudinary.com/demo/image/upload/g1.jpg");
+
   const template = {
     id: "eternal-gold",
     name: "Eternal",
@@ -111,6 +122,22 @@ test("media slots support image and video without persisting template demo URLs"
   } as WeddingTemplate;
   const live = overlayWeddingTemplateImages(template, merged);
   assert.ok(live?.heroImage);
+  assert.equal(
+    getOptimizedWeddingImageUrl("https://res.cloudinary.com/demo/video/upload/dog.mp4"),
+    "https://res.cloudinary.com/demo/video/upload/dog.mp4"
+  );
+
+  const videoGallery = overlayWeddingTemplateImages(template, {
+    galleryImages: ["https://res.cloudinary.com/demo/video/upload/g0.mp4"],
+    media: {
+      "gallery.0": {
+        type: "video",
+        src: "https://res.cloudinary.com/demo/video/upload/g0.mp4",
+        poster: "https://example.com/demo-1.jpg",
+      },
+    },
+  });
+  assert.equal(videoGallery?.galleryImages[0], "https://example.com/demo-1.jpg");
 });
 
 test("unique media slots keep story images independent from the gallery", () => {
