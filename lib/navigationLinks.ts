@@ -376,10 +376,11 @@ export function resolveGoogleNavTarget(
 
 /**
  * Waze destination, in this order:
- * 1. pasted Waze URL (custom page link, then location.wazeUrl)
- * 2. saved Waze lat/lng (vehicle entrance)
- * 3. Google pin
- * 4. text search
+ * 1. pasted Waze URL
+ * 2. saved Waze lat/lng
+ * 3. typed Waze place name (search)
+ * 4. Google pin
+ * 5. event address search
  */
 export function resolveWazeNavTarget(
   location?: NavLocation | null,
@@ -387,21 +388,15 @@ export function resolveWazeNavTarget(
 ): NavTarget {
   const empty = emptyNavTarget();
   const locationLabelText = labelFromLocation(location);
-  const customWazeUrl = isNavigationUrl(custom?.wazeUrl)
-    ? firstText(custom?.wazeUrl)
-    : "";
-  const locationWazeUrl = isNavigationUrl(location?.wazeUrl)
-    ? firstText(location?.wazeUrl)
-    : "";
-  const wazeUrl = customWazeUrl || locationWazeUrl;
+  const override = firstText(custom?.wazeUrl) || firstText(location?.wazeUrl);
 
-  if (wazeUrl) {
-    const coords = coordsFromNavUrl(wazeUrl);
+  if (isNavigationUrl(override)) {
+    const coords = coordsFromNavUrl(override);
     return {
       ...empty,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
-      wazeUrlOnly: wazeUrl,
+      wazeUrlOnly: override,
       source: "custom",
       label: locationLabelText,
     };
@@ -416,6 +411,15 @@ export function resolveWazeNavTarget(
       lng: wazeLng,
       source: "waze",
       label: locationLabelText,
+    };
+  }
+
+  if (override) {
+    return {
+      ...empty,
+      query: override,
+      source: "custom",
+      label: locationLabelText || override,
     };
   }
 

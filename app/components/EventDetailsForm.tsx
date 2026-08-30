@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 import LocationPinPreview from "@/app/components/LocationPinPreview";
+import WazePlacePicker from "@/app/components/WazePlacePicker";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
-import { parseWazeDestinationInput } from "@/lib/navigationLinks";
 
 function hasManualWazeDest(location?: {
   wazeLat?: number | null;
@@ -774,10 +774,7 @@ export default function EventDetailsForm({
 
             {wazeOverrideEnabled && (
               <div className="mt-3">
-                <input
-                  dir="ltr"
-                  className="w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-4 py-3 text-sm text-[#4A3F35] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
-                  placeholder="הדביקו קישור מ-Waze או lat,lng של הכניסה לרכב"
+                <WazePlacePicker
                   value={
                     form.location.wazeUrl ||
                     (form.location.wazeLat != null &&
@@ -785,8 +782,9 @@ export default function EventDetailsForm({
                       ? `${form.location.wazeLat},${form.location.wazeLng}`
                       : "")
                   }
-                  onChange={(e) => {
-                    const parsed = parseWazeDestinationInput(e.target.value);
+                  biasLat={form.location.lat}
+                  biasLng={form.location.lng}
+                  onChange={(parsed) =>
                     setForm((f) => ({
                       ...f,
                       location: {
@@ -795,10 +793,22 @@ export default function EventDetailsForm({
                         wazeLat: parsed.wazeLat,
                         wazeLng: parsed.wazeLng,
                       },
-                    }));
-                  }}
+                    }))
+                  }
+                  onSelect={(place) =>
+                    setForm((f) => ({
+                      ...f,
+                      location: {
+                        ...f.location,
+                        wazeUrl: place.name,
+                        wazeLat: place.lat,
+                        wazeLng: place.lng,
+                      },
+                    }))
+                  }
                 />
                 <p className="mt-2 px-1 text-xs font-semibold text-[#9B8D7D]">
+                  בחרו מקום מתוך רשימת Waze. אפשר גם להדביק קישור או קואורדינטות.
                   כפתור Waze של האורחים יפתח רק ליעד הזה. Google Maps ממשיך
                   להשתמש במיקום האירוע.
                 </p>
