@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import SalesDocument from "@/models/SalesDocument";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,47 @@ type SetPasswordBody = {
 
 function normalizeAllowedMessageRounds(value: any): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
+}
+
+async function getOnboardingAgreementState(user: any) {
+  const requireAgreementBeforePassword = Boolean(
+    user?.requireAgreementBeforePassword,
+  );
+  const agreementToken = String(user?.onboardingAgreementToken || "").trim();
+  const alreadyMarkedSigned = Boolean(user?.onboardingAgreementSignedAt);
+
+  if (!requireAgreementBeforePassword) {
+    return {
+      requireAgreementBeforePassword: false,
+      agreementToken: "",
+      agreementUrl: "",
+      agreementSigned: true,
+    };
+  }
+
+  if (!agreementToken) {
+    return {
+      requireAgreementBeforePassword: true,
+      agreementToken: "",
+      agreementUrl: "",
+      agreementSigned: false,
+    };
+  }
+
+  const document = await SalesDocument.findOne({ token: agreementToken })
+    .select("token url status signedAt")
+    .lean();
+
+  const agreementSigned =
+    alreadyMarkedSigned ||
+    String((document as any)?.status || "").toLowerCase() === "signed";
+
+  return {
+    requireAgreementBeforePassword: true,
+    agreementToken,
+    agreementUrl: String((document as any)?.url || "").trim(),
+    agreementSigned,
+  };
 }
 
 function normalizeAccessModules(user: any) {
@@ -45,6 +87,71 @@ function normalizeAccessModules(user: any) {
     ),
     venueDashboard: Boolean(user?.accessModules?.venueDashboard),
   };
+}
+
+export async function GET(req: Request) {
+  try {
+    const token = new URL(req.url).searchParams.get("token")?.trim() || "";
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "הקישור אינו תקף או חסר טוקן" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    const user = await User.findOne({ resetPasswordToken: token })
+      .select(
+        `
+        _id
+        name
+        resetPasswordExpires
+        requireAgreementBeforePassword
+        onboardingAgreementToken
+        onboardingAgreementSignedAt
+      `
+      )
+      .lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "הקישור אינו תקף או שפג תוקפו" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      !(user as any).resetPasswordExpires ||
+      (user as any).resetPasswordExpires < new Date()
+    ) {
+      return NextResponse.json(
+        { success: false, message: "הקישור פג תוקף" },
+        { status: 400 }
+      );
+    }
+
+    const agreementState = await getOnboardingAgreementState(user);
+
+    return NextResponse.json({
+      success: true,
+      valid: true,
+      name: String((user as any).name || ""),
+      requireAgreementBeforePassword:
+        agreementState.requireAgreementBeforePassword,
+      agreementToken: agreementState.agreementToken,
+      agreementUrl: agreementState.agreementUrl,
+      agreementSigned: agreementState.agreementSigned,
+    });
+  } catch (error) {
+    console.error("SET PASSWORD STATUS FAILED:", error);
+
+    return NextResponse.json(
+      { success: false, message: "שגיאה בשרת" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {
@@ -113,6 +220,9 @@ export async function POST(req: Request) {
     resetPasswordToken
     resetPasswordExpires
     needsPasswordSetup
+    requireAgreementBeforePassword
+    onboardingAgreementToken
+    onboardingAgreementSignedAt
 
     producerPricePerRecord
     staffType
@@ -151,6 +261,26 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { success: false, message: "הקישור פג תוקף" },
         { status: 400 }
+      );
+    }
+
+    const agreementState = await getOnboardingAgreementState(user);
+
+    if (
+      agreementState.requireAgreementBeforePassword &&
+      !agreementState.agreementSigned
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "AGREEMENT_SIGNATURE_REQUIRED",
+          message: "יש לחתום על ההסכם לפני הגדרת הסיסמה",
+          requireAgreementBeforePassword: true,
+          agreementToken: agreementState.agreementToken,
+          agreementUrl: agreementState.agreementUrl,
+          agreementSigned: false,
+        },
+        { status: 403 }
       );
     }
 

@@ -950,6 +950,22 @@ export default function SalesDocumentPage() {
       setCanSign(false);
       setReadOnly(true);
       setSignSuccess("ההסכם נחתם ונשמר בהצלחה");
+
+      if (typeof window !== "undefined") {
+        const nextPath = new URLSearchParams(window.location.search).get("next");
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              type: "invistimo-agreement-signed",
+              token,
+            },
+            window.location.origin,
+          );
+        } else if (nextPath && nextPath.startsWith("/set-password")) {
+          window.location.assign(nextPath);
+        }
+      }
     } catch (error) {
       setSignError(
         error instanceof Error ? error.message : "שגיאה בשמירת החתימה",

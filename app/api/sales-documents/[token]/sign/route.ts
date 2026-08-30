@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerAgreement from "@/models/CustomerAgreement";
+import EmployeeSale from "@/models/EmployeeSale";
+import User from "@/models/User";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 
 export const runtime = "nodejs";
@@ -303,6 +305,26 @@ export async function POST(req: NextRequest, context: RouteContext) {
         salesDocumentId: String(document._id),
       });
     }
+
+    await User.updateOne(
+      { onboardingAgreementToken: token },
+      {
+        $set: {
+          onboardingAgreementSignedAt: signedAt,
+        },
+      },
+    );
+
+    await EmployeeSale.updateOne(
+      { agreementToken: token },
+      {
+        $set: {
+          agreementStatus: "signed",
+          agreementSignedAt: signedAt,
+          signedAgreementToken: token,
+        },
+      },
+    );
 
     const normalizedDocument = normalizeSignedDocumentForClient(document);
 
