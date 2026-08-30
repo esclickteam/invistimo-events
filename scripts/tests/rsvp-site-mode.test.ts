@@ -237,7 +237,8 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(navLinks, /https:\/\/waze\.com\/ul/);
   assert.match(navLinks, /waze:\/\//);
   assert.match(navLinks, /\?ll=\$\{lat\},\$\{lng\}/);
-  assert.match(navLinks, /getWazePlaceLabel/);
+  assert.doesNotMatch(navLinks, /getWazePlaceLabel/);
+  assert.doesNotMatch(navLinks, /&q=\$\{/);
   assert.match(navLinks, /resolveEventLocation/);
   assert.match(wwLocation, /WazeNavButton/);
   assert.match(wwLocation, /getGoogleMapsLink/);
