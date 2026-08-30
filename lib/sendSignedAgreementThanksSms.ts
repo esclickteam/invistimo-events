@@ -35,25 +35,3 @@ export async function sendSignedAgreementThanksSms({
 
   return { sent: true as const };
 }
-
-export async function sendSignedAgreementThanksSms({
-  phone,
-  agreementUrl,
-}: {
-  phone?: string | null;
-  agreementUrl?: string | null;
-}) {
-  const to = String(phone || "").trim();
-  const link = String(agreementUrl || "").trim();
-
-  if (!to || !link) {
-    return { sent: false, reason: "MISSING_PHONE_OR_AGREEMENT_URL" as const };
-  }
-
-  await sendSMS({
-    to,
-    message: `תודה שבחרת ב-Invistimo לתת לך את השירות. מצורף ההסכם לצפייה: ${link}`,
-  });
-
-  return { sent: true as const };
-}
