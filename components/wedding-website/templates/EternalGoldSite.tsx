@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
@@ -336,7 +336,7 @@ function LocationSection() {
             title="map"
             className="aspect-[16/9] w-full border-0"
             loading="lazy"
-            src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`}
+            src={getVenueMapEmbedUrl()}
           />
         </div>
       </div>

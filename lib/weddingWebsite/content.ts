@@ -1,4 +1,5 @@
 import { WEDDING_DEMO_CONTENT } from "@/config/weddingWebsite/demoContent";
+import { parseCoord } from "@/lib/navigationLinks";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 import {
   sanitizeWeddingImageUrl,
@@ -49,7 +50,7 @@ export function createEmptyWeddingWebsite(invitation?: {
   title?: string;
   eventDate?: Date | string | null;
   eventTime?: string;
-  location?: { name?: string; address?: string };
+  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
 } | null) {
   return {
     templateId: DEFAULT_WEDDING_TEMPLATE_ID,
@@ -64,12 +65,14 @@ export function seedWeddingWebsiteContent(
     title?: string;
     eventDate?: Date | string | null;
     eventTime?: string;
-    location?: { name?: string; address?: string };
+    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
   } | null
 ): WeddingDemoContent {
   const title = cleanString(invitation?.title);
   const venueName = cleanString(invitation?.location?.name);
   const venueAddress = cleanString(invitation?.location?.address);
+  const venueLat = parseCoord(invitation?.location?.lat);
+  const venueLng = parseCoord(invitation?.location?.lng);
   const eventDate = toIsoDate(invitation?.eventDate);
   const eventTime = cleanString(invitation?.eventTime);
 
@@ -87,6 +90,8 @@ export function seedWeddingWebsiteContent(
     weddingTime: eventTime || WEDDING_DEMO_CONTENT.weddingTime,
     venueName: venueName || WEDDING_DEMO_CONTENT.venueName,
     venueAddress: venueAddress || WEDDING_DEMO_CONTENT.venueAddress,
+    venueLat,
+    venueLng,
   };
 
   return mergeWeddingWebsiteContent(seeded, stored);
@@ -105,6 +110,8 @@ export function mergeWeddingWebsiteContent(
     weddingTime: cleanString(raw.weddingTime) || base.weddingTime,
     venueName: cleanString(raw.venueName) || base.venueName,
     venueAddress: cleanString(raw.venueAddress) || base.venueAddress,
+    venueLat: parseCoord((raw as WeddingDemoContent).venueLat) ?? base.venueLat ?? null,
+    venueLng: parseCoord((raw as WeddingDemoContent).venueLng) ?? base.venueLng ?? null,
     heroSubtitle: cleanString(raw.heroSubtitle) || base.heroSubtitle,
     invitationText: cleanString(raw.invitationText) || base.invitationText,
     storyParagraphs: normalizeList(
@@ -232,7 +239,7 @@ export function extractInvitationEventData(invitation?: {
   title?: string;
   eventDate?: Date | string | null;
   eventTime?: string;
-  location?: { name?: string; address?: string };
+  location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
 } | null) {
   return {
     coupleNames: cleanString(invitation?.title),
@@ -240,6 +247,8 @@ export function extractInvitationEventData(invitation?: {
     weddingTime: cleanString(invitation?.eventTime),
     venueName: cleanString(invitation?.location?.name),
     venueAddress: cleanString(invitation?.location?.address),
+    venueLat: parseCoord(invitation?.location?.lat),
+    venueLng: parseCoord(invitation?.location?.lng),
   };
 }
 
@@ -263,6 +272,8 @@ export function applyEventDataToWebsiteContent(
     weddingTime: event.weddingTime || content.weddingTime,
     venueName: event.venueName || content.venueName,
     venueAddress: event.venueAddress || content.venueAddress,
+    venueLat: event.venueLat ?? content.venueLat ?? null,
+    venueLng: event.venueLng ?? content.venueLng ?? null,
   };
 }
 
@@ -271,7 +282,7 @@ export function serializeWeddingWebsite(
     title?: string;
     eventDate?: Date | string | null;
     eventTime?: string;
-    location?: { name?: string; address?: string };
+    location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null };
     weddingWebsite?: {
       templateId?: unknown;
       published?: unknown;

@@ -9,6 +9,7 @@ import { GiftSection, PublicEventNoteSection } from "@/components/rsvp/GuestRsvp
 import { personalRsvpAppearance } from "@/components/rsvp/rsvpAppearances";
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import { cleanStr, type GiftOptions, type PublicEventNote } from "@/lib/rsvp/guestRsvpLogic";
+import { resolveEventLocation } from "@/lib/navigationLinks";
 
 type PreviewImageMode = "portrait" | "square";
 
@@ -99,6 +100,7 @@ export default function PublicInvitePage({ params }: any) {
   const {
     loading,
     invite,
+    event,
     isStaffPreview,
     selectedGuest,
     token,
@@ -227,7 +229,7 @@ export default function PublicInvitePage({ params }: any) {
         )}
 
         <div className="mt-7 w-full max-w-md">
-          <EventLocationCard location={invite?.location} />
+          <EventLocationCard location={resolveEventLocation(invite, event)} />
         </div>
 
         <footer className="mt-10 flex flex-col items-center gap-2 pb-4 text-center">

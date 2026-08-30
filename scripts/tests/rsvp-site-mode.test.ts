@@ -221,6 +221,8 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   const display = read("app/components/LocationDisplay.tsx");
   const wwLocation = read("components/wedding-website/WeddingWebsiteSections.tsx");
   const eternal = read("components/wedding-website/templates/EternalGoldSite.tsx");
+  const invitePage = read("app/invite/[shareId]/page.tsx");
+  const autocomplete = read("app/components/LocationAutocomplete.tsx");
 
   assert.match(display, /lucide-react/);
   assert.match(display, /MapPin/);
@@ -230,10 +232,15 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(navButtons, /getWazeLink/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
   assert.match(navLinks, /https:\/\/waze\.com\/ul\?ll=/);
-  assert.match(wwLocation, /https:\/\/waze\.com\/ul\?q=\$\{encodeURIComponent\(content\.venueAddress\)\}/);
-  assert.match(wwLocation, /https:\/\/maps\.google\.com\/\?q=\$\{encodeURIComponent\(content\.venueAddress\)\}/);
+  assert.match(navLinks, /resolveEventLocation/);
+  assert.match(wwLocation, /getWazeLink/);
+  assert.match(wwLocation, /getGoogleMapsLink/);
+  assert.match(wwLocation, /content\.venueLat/);
   assert.match(eternal, /LocationDisplay/);
   assert.match(eternal, /WeddingVenueNav/);
+  assert.match(eternal, /getVenueMapEmbedUrl/);
+  assert.match(invitePage, /resolveEventLocation\(invite, event\)/);
+  assert.match(autocomplete, /selectedPlaceRef/);
 });
 
 test("dashboard wedding website route is feature-guarded", () => {

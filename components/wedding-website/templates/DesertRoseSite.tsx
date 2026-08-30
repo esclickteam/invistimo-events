@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
-import { DEMO, VIDEOS, formatHebrewDate } from "../shared/weddingUtils";
+import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
@@ -327,7 +327,7 @@ function LocationSection() {
           linkClassName="inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold text-[#3D2518]"
         />
         <div className="relative mx-auto mt-10 max-w-2xl overflow-hidden shadow-xl" style={{ borderRadius: "50% 50% 25% 25% / 40% 40% 60% 60%", border: `3px solid ${TERRACOTTA}` }}>
-          <iframe title="map" className="aspect-[4/3] w-full border-0 sepia-[20%]" loading="lazy" src={`https://maps.google.com/maps?q=${encodeURIComponent(DEMO.venueAddress)}&z=14&output=embed`} />
+          <iframe title="map" className="aspect-[4/3] w-full border-0 sepia-[20%]" loading="lazy" src={getVenueMapEmbedUrl()} />
         </div>
       </div>
     </Section>

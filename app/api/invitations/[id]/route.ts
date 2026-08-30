@@ -7,6 +7,7 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import VenueEvent from "@/models/VenueEvent";
 import { findVenueHallByAnyId } from "@/lib/venues/eventVenueLinkInvariant";
+import { parseCoord } from "@/lib/navigationLinks";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -857,6 +858,7 @@ export async function PUT(
     if (
       location &&
       ((typeof location.address === "string" && location.address.trim()) ||
+        typeof location.name === "string" ||
         location.lat !== undefined ||
         location.lng !== undefined)
     ) {
@@ -864,8 +866,8 @@ export async function PUT(
         name: typeof location.name === "string" ? location.name.trim() : "",
         address:
           typeof location.address === "string" ? location.address.trim() : "",
-        lat: typeof location.lat === "number" ? location.lat : null,
-        lng: typeof location.lng === "number" ? location.lng : null,
+        lat: parseCoord(location.lat),
+        lng: parseCoord(location.lng),
       };
     }
 
@@ -969,6 +971,23 @@ export async function PUT(
         $set: updatePayload,
       }
     );
+
+    if (updatePayload.location) {
+      const eventIdToSync = getExistingEventId(invitationBeforeUpdate, body);
+      if (eventIdToSync) {
+        await Event.updateOne(
+          { _id: new mongoose.Types.ObjectId(eventIdToSync) },
+          {
+            $set: {
+              "location.address": updatePayload.location.address || "",
+              "location.lat": updatePayload.location.lat ?? null,
+              "location.lng": updatePayload.location.lng ?? null,
+              updatedAt: new Date(),
+            },
+          }
+        );
+      }
+    }
 
     const invitationAfterBasicUpdate = await Invitation.findById(
       invitationBeforeUpdate._id

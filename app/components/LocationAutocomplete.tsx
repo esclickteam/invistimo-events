@@ -2,6 +2,14 @@
 
 import { useEffect, useRef } from "react";
 
+type SelectedPlace = {
+  inputValue: string;
+  name?: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+};
+
 type Props = {
   value: string;
   onSelect: (data: {
@@ -12,9 +20,25 @@ type Props = {
   }) => void;
 };
 
+function samePlaceText(typedValue: string, selected: SelectedPlace) {
+  const candidates = [
+    selected.inputValue,
+    selected.address,
+    selected.name,
+    selected.name && selected.address
+      ? `${selected.name}, ${selected.address}`
+      : "",
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  return candidates.includes(typedValue);
+}
+
 export default function LocationAutocomplete({ value, onSelect }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const autocompleteRef = useRef<any>(null);
+  const selectedPlaceRef = useRef<SelectedPlace | null>(null);
 
   useEffect(() => {
     if (
@@ -43,17 +67,23 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
       const name = place.name || "";
       const address = place.formatted_address || name || "";
 
-      const lat =
-        place.geometry?.location?.lat?.() ?? null;
+      const lat = place.geometry?.location?.lat?.() ?? null;
+      const lng = place.geometry?.location?.lng?.() ?? null;
 
-      const lng =
-        place.geometry?.location?.lng?.() ?? null;
-
-      onSelect({
+      const selected: SelectedPlace = {
+        inputValue: inputRef.current?.value?.trim() || address,
         name: name || address,
         address,
         lat,
         lng,
+      };
+
+      selectedPlaceRef.current = selected;
+      onSelect({
+        name: selected.name,
+        address: selected.address,
+        lat: selected.lat,
+        lng: selected.lng,
       });
     });
   }, [onSelect]);
@@ -69,6 +99,16 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
 
         if (!typedValue) return;
 
+        const selected = selectedPlaceRef.current;
+        if (selected && samePlaceText(typedValue, selected)) {
+          return;
+        }
+
+        if (typedValue === String(value || "").trim()) {
+          return;
+        }
+
+        selectedPlaceRef.current = null;
         onSelect({
           name: typedValue,
           address: typedValue,

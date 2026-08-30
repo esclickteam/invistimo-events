@@ -82,6 +82,8 @@ export const LOCKED_EVENT_PATHS = new Set([
   "weddingTime",
   "venueName",
   "venueAddress",
+  "venueLat",
+  "venueLng",
 ]);
 
 export function setByPath(content: WeddingDemoContent, path: string, value: unknown): WeddingDemoContent {
