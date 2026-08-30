@@ -18,6 +18,7 @@ import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import { WeddingDesktopFx } from "../shared/weddingMotion";
 
 const GREEN = "#6B9E78";
 
@@ -36,7 +37,8 @@ function FloatingPetals() {
     duration: 10 + (i % 5),
   }));
   return (
-    <div className="ww-desktop-fx pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+    <WeddingDesktopFx>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {petals.map((p) => (
         <motion.span
           key={p.id}
@@ -49,6 +51,7 @@ function FloatingPetals() {
         </motion.span>
       ))}
     </div>
+    </WeddingDesktopFx>
   );
 }
 

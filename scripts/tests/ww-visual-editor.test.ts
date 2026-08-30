@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { mergeWeddingWebsiteContent, serializeWeddingWebsite } from "../../lib/weddingWebsite/content";
 import { WEDDING_DEMO_CONTENT } from "../../config/weddingWebsite/demoContent";
-import { WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
+import { WEDDING_MOBILE_NAV_IDS, WEDDING_PRIMARY_NAV_IDS } from "../../config/weddingWebsite/templates";
 import { overlayWeddingTemplateImages, repairWeddingImageUrl } from "../../lib/weddingWebsite/images";
 import { applyMediaToContent, mediaSlotFromImageUrl, resolveMediaSlot } from "../../lib/weddingWebsite/media";
 import {
@@ -409,7 +409,16 @@ test("site navigation uses a hamburger on mobile and compact links on desktop", 
     "schedule",
     "rsvp",
   ]);
+  assert.deepEqual([...WEDDING_MOBILE_NAV_IDS], [
+    "hero",
+    "rsvp",
+    "event-details",
+    "location",
+    "schedule",
+    "gallery",
+  ]);
   assert.match(menu, /WEDDING_PRIMARY_NAV_IDS/);
+  assert.match(menu, /WEDDING_MOBILE_NAV_IDS/);
   assert.match(menu, /ww-nav-desktop/);
   assert.match(menu, /ww-nav-hamburger/);
   assert.match(menu, /justify-center/);
@@ -425,8 +434,13 @@ test("site navigation uses a hamburger on mobile and compact links on desktop", 
   assert.match(hydrator, /ww-nav-desktop/);
   assert.match(hydrator, /ww-nav-hamburger/);
   assert.match(hydrator, /@container \(min-width: 700px\)/);
-  assert.match(css, /ww-desktop-fx/);
+  assert.match(css, /overflow-x: clip/);
   assert.match(css, /scroll-behavior: auto/);
+  const renderer = read("components/wedding-website/WeddingTemplateSiteRenderer.tsx");
+  assert.match(renderer, /WeddingMotionRoot/);
+  const motion = read("components/wedding-website/shared/weddingMotion.tsx");
+  assert.match(motion, /reducedMotion/);
+  assert.match(motion, /WeddingDesktopFx/);
 
   const templates = [
     "components/wedding-website/templates/EternalGoldSite.tsx",
@@ -461,7 +475,7 @@ test("countdown grids stay two-by-two on narrow screens", () => {
   assert.match(blush, /grid grid-cols-2.*md:grid-cols-4/);
   assert.match(hydrator, /data-ww-countdown="units"/);
   assert.match(css, /data-ww-countdown="units"/);
-  assert.match(garden, /ww-desktop-fx/);
+  assert.match(garden, /WeddingDesktopFx/);
 });
 
 test("couple names keep the ampersand editable and Garden Bloom has no wave stripes", () => {

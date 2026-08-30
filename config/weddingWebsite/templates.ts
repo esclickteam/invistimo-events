@@ -9,6 +9,15 @@ export const WEDDING_PRIMARY_NAV_IDS = [
   "rsvp",
 ] as const satisfies readonly WeddingSectionId[];
 
+export const WEDDING_MOBILE_NAV_IDS = [
+  "hero",
+  "rsvp",
+  "event-details",
+  "location",
+  "schedule",
+  "gallery",
+] as const satisfies readonly WeddingSectionId[];
+
 export const WEDDING_SECTIONS: {
   id: WeddingSectionId;
   label: string;
