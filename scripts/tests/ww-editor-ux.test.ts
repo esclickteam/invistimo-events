@@ -473,6 +473,8 @@ test("event-owned fields are shown as dynamic instead of copied into the site", 
 test("autoplay video stays muted so it plays on mobile", () => {
   const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
   assert.match(toolbar, /muted: event\.target\.checked \? true : current\.muted/);
+  assert.match(toolbar, /function applyUrl/);
+  assert.match(toolbar, /if \(event\.key !== "Enter"\) return;/);
   const slot = normalizeWeddingMediaSlot({
     type: "video",
     src: "https://res.cloudinary.com/demo/video/upload/a.mp4",

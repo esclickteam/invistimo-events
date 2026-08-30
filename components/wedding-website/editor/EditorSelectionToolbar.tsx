@@ -476,6 +476,19 @@ function VideoSettings({
   const [url, setUrl] = useState(current.type === "video" ? current.src : "");
   const [poster, setPoster] = useState(current.poster || "");
 
+  function applyUrl(value: string) {
+    const next = safeMediaUrl(value);
+    if (!next) return;
+    onChange({
+      ...current,
+      type: isWeddingVideoUrl(next) ? "video" : "image",
+      src: next,
+      autoplay: isWeddingVideoUrl(next),
+      muted: true,
+      loop: isWeddingVideoUrl(next),
+    });
+  }
+
   return (
     <div className="mt-1 w-[min(92vw,340px)] rounded-2xl border border-[#eadfce] bg-white p-3 text-xs shadow-[0_18px_50px_rgba(36,26,20,0.22)]">
       <p className="mb-2 font-black">סרטון</p>
@@ -486,17 +499,11 @@ function VideoSettings({
           value={url}
           placeholder="https://..."
           onChange={(event) => setUrl(event.target.value)}
-          onBlur={() => {
-            const next = safeMediaUrl(url);
-            if (!next) return;
-            onChange({
-              ...current,
-              type: isWeddingVideoUrl(next) ? "video" : "image",
-              src: next,
-              autoplay: isWeddingVideoUrl(next),
-              muted: true,
-              loop: isWeddingVideoUrl(next),
-            });
+          onBlur={() => applyUrl(url)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            applyUrl(url);
           }}
           className="mt-1 min-h-[36px] w-full rounded-xl border border-[#eadfce] px-2 font-mono text-[11px]"
         />
