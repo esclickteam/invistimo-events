@@ -44,13 +44,15 @@ test("draft autosave does not publish the live site", () => {
   const publish = read("app/api/wedding-website/publish/route.ts");
   const publicApi = read("app/api/w/[shareId]/route.ts");
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const topBar = read("components/wedding-website/editor/EditorTopBar.tsx");
 
   assert.match(api, /weddingWebsite\.draftContent/);
   assert.match(api, /searchParams.get\("draft"\) === "1"/);
   assert.match(publish, /weddingWebsite\.published": true/);
   assert.match(publicApi, /UNPUBLISHED/);
-  assert.match(editor, /שומר/);
-  assert.match(editor, /Undo/);
+  assert.match(topBar, /שומר\.\.\./);
+  assert.match(topBar, /Undo/);
+  assert.match(topBar, /Redo/);
   assert.match(editor, /beforeunload/);
   assert.match(editor, /\?draft=1/);
 });
@@ -203,13 +205,16 @@ test("editor text stays selectable and the color picker includes a spectrum", ()
   const overlay = read("components/wedding-website/editor/EditorOverlay.tsx");
   const hydrator = read("components/wedding-website/editable/SiteHydrator.tsx");
   const toolbar = read("components/wedding-website/editor/EditorSelectionToolbar.tsx");
+  const colorField = read("components/wedding-website/editor/EditorColorField.tsx");
   assert.match(hydrator, /contentEditable = "true"/);
   assert.match(hydrator, /overflow-anchor: none/);
   assert.match(hydrator, /user-select:text/);
   assert.doesNotMatch(overlay, /el\.focus\(\)/);
   assert.doesNotMatch(overlay, /contentEditable = "false"/);
-  assert.match(toolbar, /type="color"/);
-  assert.match(toolbar, /פלטת צבעים/);
+  assert.match(toolbar, /EditorColorField/);
+  assert.match(colorField, /type="color"/);
+  assert.match(colorField, /פלטת צבעים של התבנית/);
+  assert.match(colorField, /HEX/);
 });
 
 test("gifts reuse invitation Bit, credit, and PayBox settings", () => {
@@ -384,14 +389,21 @@ test("editor selection targets inner text and countdown instead of the whole sec
 
 test("editor canvas has a single scrollbar and can switch templates", () => {
   const editor = read("components/wedding-website/editor/WeddingVisualEditor.tsx");
+  const dialogs = read("components/wedding-website/editor/EditorDialogs.tsx");
+  const themePanel = read("components/wedding-website/editor/EditorThemePanel.tsx");
   assert.match(editor, /ww-editor-scroll relative min-h-0 min-w-0 flex-1 overflow-y-auto/);
   assert.match(editor, /ww-editor-canvas mx-auto bg-white/);
   assert.doesNotMatch(editor, /ww-editor-canvas mx-auto overflow-auto/);
   assert.doesNotMatch(editor, /overflow-x-hidden overflow-y-auto/);
-  assert.match(editor, /החלפת תבנית/);
   assert.match(editor, /חזרה לעורך/);
-  assert.match(editor, /setPickerOpen\(true\)/);
   assert.match(editor, /setPickerOpen\(false\)/);
+
+  // Switching templates lives in the design tab and previews before applying.
+  assert.match(themePanel, /החלפת תבנית/);
+  assert.match(dialogs, /TemplateGalleryDialog/);
+  assert.match(dialogs, /הצגת התבנית/);
+  assert.match(dialogs, /החלת התבנית/);
+  assert.match(editor, /setTemplateDialogOpen\(true\)/);
 });
 
 test("site navigation uses a hamburger on mobile and compact links on desktop", () => {
