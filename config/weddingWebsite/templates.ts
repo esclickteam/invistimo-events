@@ -53,13 +53,13 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "יוקרה קלאסית בזהב ושמפניה",
     description: "תבנית אלגנטית עם זהב עדין, טיפוגרפיה serif ואנימציות רכות — מושלמת לחתונה formal.",
     previewImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=1920&q=85",
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=1920&q=85",
     galleryImages: [
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=800&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
     ],
     mood: "classic",
@@ -86,14 +86,14 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "לילה שחור עם נגיעות זהב",
     description: "דרama מודרני — רקע כהה, particles זהב, parallax ואפקטים קולנועיים.",
     previewImage:
-      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=900&q=85",
+      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1920&q=85",
+      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
+      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80",
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80",
       "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
+      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
     ],
     mood: "dramatic",
     theme: {
@@ -119,14 +119,14 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "פרחים, ירוק רך ורומנטיקה",
     description: "אווירה גן קסum — עלים, פרחים, גradients רכים ואנימציות float.",
     previewImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
+      "https://images.unsplash.com/photo-1478146896981-b80fe463b330?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1920&q=85",
+      "https://images.unsplash.com/photo-1478146896981-b80fe463b330?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
+      "https://images.unsplash.com/photo-1478146896981-b80fe463b330?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
     mood: "floral",
     theme: {
@@ -152,14 +152,14 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "ים, תכלת ואור ים תיכוני",
     description: "חתונה על חוף — גווני כחול, לבן, גלים animated ותחושת קיץ.",
     previewImage:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900&q=85",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=85",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=85",
     galleryImages: [
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
     ],
     mood: "coastal",
     theme: {
@@ -185,12 +185,12 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "טרakota, ורוד עמוק וחול",
     description: "חתונה מדברית — גוונים חמים, textures ואנימציות shimmer.",
     previewImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
+      "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1920&q=85",
+      "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1920&q=85",
     galleryImages: [
+      "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
@@ -218,13 +218,13 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "שחור, לבן, typography בלבד",
     description: "מינimal יוקרתי — הרבה whitespace, קווים דקים, motion עדין.",
     previewImage:
-      "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=900&q=85",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=1920&q=85",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
+      "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80",
       "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
     ],
     mood: "minimal",
@@ -251,13 +251,13 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "קרם מלכותי עם עיטור עדין",
     description: "palace wedding — ivory, lace patterns, fade-in אלגנטי.",
     previewImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=85",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=85",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=85",
     galleryImages: [
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
     ],
     mood: "royal",
@@ -284,11 +284,11 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "ורוד, כתום ושקיעה",
     description: "gradient שקיעה animated, hearts float, romantica מקסימלית.",
     previewImage:
-      "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=900&q=85",
+      "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1920&q=85",
+      "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
+      "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
@@ -317,14 +317,14 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "יער קסום, ירוק עמוק",
     description: "חתונה בטבע — עלים, fireflies animation, אווירה enchanted.",
     previewImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=900&q=85",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=1920&q=85",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=85",
     galleryImages: [
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80",
       "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&q=80",
       "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=800&q=80",
       "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80",
     ],
     mood: "nature",
     theme: {
@@ -350,14 +350,14 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
     tagline: "Glassmorphism עכשווי",
     description: "blur, glass cards, gradients neon עדינים — Gen-Z luxury.",
     previewImage:
-      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=900&q=85",
+      "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=900&q=85",
     heroImage:
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=1920&q=85",
+      "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1920&q=85",
     galleryImages: [
-      "https://images.unsplash.com/photo-1470225620780-dba8ba403148?w=800&q=80",
+      "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&q=80",
       "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
-      "https://images.unsplash.com/photo-1504196606676-a8c059a252b5?w=800&q=80",
       "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80",
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=800&q=80",
     ],
     mood: "modern",
     theme: {
