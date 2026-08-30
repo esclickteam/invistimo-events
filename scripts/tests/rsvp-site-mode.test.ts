@@ -232,7 +232,7 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(navButtons, /getGoogleMapsLink/);
   assert.match(navButtons, /WazeNavButton/);
   assert.match(wazeButton, /hasExactCoordinates/);
-  assert.match(wazeButton, /resolveMapPinInBrowser/);
+  assert.doesNotMatch(wazeButton, /resolveMapPinInBrowser/);
   assert.match(wazeButton, /getWazeAppLink/);
   assert.match(wazeButton, /location\.assign/);
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
@@ -252,6 +252,11 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(invitePage, /resolveEventLocation\(invite, event\)/);
   assert.match(autocomplete, /selectedPlaceRef/);
   assert.match(autocomplete, /place_id/);
+  assert.match(read("app/components/EventDetailsForm.tsx"), /LocationPinPreview/);
+  assert.match(read("lib/persistEventMapPin.ts"), /persistEventLocationPin/);
+  assert.match(read("lib/persistEventMapPin.ts"), /persistParkingPin/);
+  assert.match(read("app/api/w/[shareId]/route.ts"), /resolveAndPersistEventLocation/);
+  assert.doesNotMatch(read("app/api/w/[shareId]/route.ts"), /withResolvedMapPin/);
 });
 
 test("dashboard wedding website route is feature-guarded", () => {

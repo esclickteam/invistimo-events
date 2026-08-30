@@ -102,15 +102,11 @@ function queryFromLocation(location: NavLocation) {
 export function getGoogleMapsLink(location: NavLocation) {
   const lat = parseCoord(location.lat);
   const lng = parseCoord(location.lng);
-  const name = firstText(location.name, location.address);
-  const placeId = firstText(location.placeId);
 
-  if (placeId) {
-    const query = name || (lat != null && lng != null ? `${lat},${lng}` : "");
-    if (!query) return null;
+  if (lat != null && lng != null) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      query
-    )}&query_place_id=${encodeURIComponent(placeId)}`;
+      `${lat},${lng}`
+    )}`;
   }
 
   const query = queryFromLocation(location);

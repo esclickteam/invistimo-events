@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { type MouseEvent, type ReactNode } from "react";
 import {
-  getLocationQuery,
   getWazeAppLink,
   getWazeLink,
   hasExactCoordinates,
   type NavLocation,
 } from "@/lib/navigationLinks";
-import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 
 type Props = {
   location?: NavLocation | null;
@@ -22,39 +20,12 @@ function isMobileNav() {
 }
 
 export default function WazeNavButton({ location, className, children }: Props) {
-  const [resolved, setResolved] = useState<NavLocation | null>(
-    location && hasExactCoordinates(location) ? location : null
-  );
-  const href = resolved ? getWazeLink(resolved) : null;
-  const appHref = resolved ? getWazeAppLink(resolved) : null;
-  const canShow = Boolean(
-    location && (getLocationQuery(location) || hasExactCoordinates(location))
-  );
+  const href =
+    location && hasExactCoordinates(location) ? getWazeLink(location) : null;
+  const appHref =
+    location && hasExactCoordinates(location) ? getWazeAppLink(location) : null;
 
-  useEffect(() => {
-    if (!location) {
-      setResolved(null);
-      return;
-    }
-
-    if (hasExactCoordinates(location)) {
-      setResolved(location);
-      return;
-    }
-
-    let cancelled = false;
-
-    resolveMapPinInBrowser(location).then((pin) => {
-      if (cancelled) return;
-      setResolved(pin ? { ...location, ...pin } : location);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [location?.lat, location?.lng, location?.address, location?.name, location?.placeId]);
-
-  if (!location || !canShow) return null;
+  if (!href) return null;
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (!href) {
@@ -76,12 +47,11 @@ export default function WazeNavButton({ location, className, children }: Props) 
 
   return (
     <a
-      href={href || undefined}
+      href={href}
       onClick={handleClick}
       target="_blank"
       rel="noopener noreferrer"
       className={className}
-      aria-disabled={!href}
     >
       {children}
     </a>

@@ -9,6 +9,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
+import LocationPinPreview from "@/app/components/LocationPinPreview";
 
 /* =========================
    Event types (UX ↔ DB)
@@ -645,8 +646,14 @@ export default function EventDetailsForm({
               />
             </div>
 
+            <LocationPinPreview
+              lat={form.location.lat}
+              lng={form.location.lng}
+              label="מיקום האירוע"
+            />
+
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">
-              בחירה מהרשימה שומרת את הנקודה המדויקת לווייז ולגוגל מפות
+              בחירה מהרשימה שומרת את הנקודה המדויקת. גוגל מפות ווייז ייפתחו לאותה סיכה.
             </p>
           </div>
 
@@ -935,6 +942,12 @@ export default function EventDetailsForm({
                         />
                       </div>
                     </div>
+
+                    <LocationPinPreview
+                      lat={form.publicEventPage.parking.lat}
+                      lng={form.publicEventPage.parking.lng}
+                      label="מיקום החניה"
+                    />
 
                     <div className="flex flex-col gap-2">
                       <label className="px-1 text-sm font-black text-[#6B5B4A]">
