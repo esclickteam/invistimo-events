@@ -229,7 +229,8 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(display, /MapPin/);
   assert.match(inviteCard, /LocationDisplay/);
   assert.doesNotMatch(inviteCard, /📍/);
-  assert.match(navButtons, /getGoogleMapsLink/);
+  assert.match(navButtons, /getGoogleMapsLinkForTarget/);
+  assert.match(navButtons, /resolveNavTarget/);
   assert.match(navButtons, /WazeNavButton/);
   assert.match(wazeButton, /getWazeLink/);
   assert.doesNotMatch(wazeButton, /hasExactCoordinates/);
@@ -239,7 +240,7 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(navLinks, /https:\/\/www\.google\.com\/maps\/search\/\?api=1/);
   assert.match(navLinks, /https:\/\/waze\.com\/ul/);
   assert.match(navLinks, /waze:\/\//);
-  assert.match(navLinks, /\?ll=\$\{lat\},\$\{lng\}/);
+  assert.match(navLinks, /\?ll=\$\{target\.lat\},\$\{target\.lng\}/);
   assert.doesNotMatch(navLinks, /getWazePlaceLabel/);
   assert.doesNotMatch(navLinks, /&q=\$\{/);
   assert.match(navLinks, /resolveEventLocation/);
@@ -254,6 +255,9 @@ test("location pin is UI-only and keeps existing map URLs", () => {
   assert.match(autocomplete, /selectedPlaceRef/);
   assert.match(autocomplete, /place_id/);
   assert.match(read("app/components/EventDetailsForm.tsx"), /LocationPinPreview/);
+  assert.match(read("app/components/EventDetailsForm.tsx"), /resolveMapPinInBrowser/);
+  assert.match(read("lib/eventLocation.ts"), /prepareEventLocation/);
+  assert.match(read("app/api/invite/[shareId]/pin/route.ts"), /persistEventLocationPin/);
   assert.match(read("lib/persistEventMapPin.ts"), /persistEventLocationPin/);
   assert.match(read("lib/persistEventMapPin.ts"), /persistParkingPin/);
   assert.match(read("app/api/w/[shareId]/route.ts"), /resolveAndPersistEventLocation/);

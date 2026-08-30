@@ -8,6 +8,10 @@ import EventTask from "@/models/EventTask";
 import EventSupplier from "@/models/EventSupplier";
 
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  prepareEventLocation,
+  type EventLocationWarning,
+} from "@/lib/eventLocation";
 
 /* =========================================================
    Helpers
@@ -206,9 +210,11 @@ export async function GET(
         time: event.time || "",
 
         location: {
+          name: event.location?.name || "",
           address: event.location?.address || "",
-          lat: event.location?.lat,
-          lng: event.location?.lng,
+          lat: event.location?.lat ?? null,
+          lng: event.location?.lng ?? null,
+          placeId: event.location?.placeId || "",
         },
 
         userId: event.userId,
@@ -334,6 +340,7 @@ export async function PATCH(
     }
 
     const updateFields: Record<string, any> = {};
+    let locationWarning: EventLocationWarning | null = null;
 
     /* =========================
        Budget
@@ -410,14 +417,27 @@ export async function PATCH(
     }
 
     if (hasLocationAddress) {
-      const locationAddress =
+      const submitted =
         typeof body.location === "object" && body.location !== null
-          ? body.location.address
-          : body.locationAddress ?? body.address ?? "";
+          ? body.location
+          : { address: body.locationAddress ?? body.address ?? "" };
 
-      updateFields["location.address"] = normalizeOptionalString(
-        locationAddress
-      );
+      // The overview form only edits the address, so the pin has to be
+      // re-resolved here — keeping the old coordinates would leave guests
+      // navigating to the previous venue.
+      const existing = await Event.findById(eventId).select("location").lean();
+      const prepared = await prepareEventLocation({
+        input: submitted,
+        previous: (existing as any)?.location,
+      });
+
+      updateFields["location.name"] = prepared.location.name;
+      updateFields["location.address"] = prepared.location.address;
+      updateFields["location.lat"] = prepared.location.lat;
+      updateFields["location.lng"] = prepared.location.lng;
+      updateFields["location.placeId"] = prepared.location.placeId;
+
+      locationWarning = prepared.warning;
     }
 
     /* =========================
@@ -501,9 +521,11 @@ export async function PATCH(
         time: event.time || "",
 
         location: {
+          name: event.location?.name || "",
           address: event.location?.address || "",
-          lat: event.location?.lat,
-          lng: event.location?.lng,
+          lat: event.location?.lat ?? null,
+          lng: event.location?.lng ?? null,
+          placeId: event.location?.placeId || "",
         },
 
         userId: event.userId,

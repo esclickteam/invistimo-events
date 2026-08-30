@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 
 type SelectedPlace = {
   inputValue: string;
@@ -120,6 +121,31 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
           lat: null,
           lng: null,
           placeId: null,
+        });
+
+        void resolveMapPinInBrowser({
+          name: typedValue,
+          address: typedValue,
+        }).then((pin) => {
+          if (!pin) return;
+          if (inputRef.current?.value.trim() !== typedValue) return;
+
+          const selected: SelectedPlace = {
+            inputValue: typedValue,
+            name: typedValue,
+            address: typedValue,
+            lat: pin.lat,
+            lng: pin.lng,
+            placeId: null,
+          };
+          selectedPlaceRef.current = selected;
+          onSelect({
+            name: typedValue,
+            address: typedValue,
+            lat: pin.lat,
+            lng: pin.lng,
+            placeId: null,
+          });
         });
       }}
     />

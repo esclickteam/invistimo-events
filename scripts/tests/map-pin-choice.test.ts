@@ -5,10 +5,10 @@ import {
   chooseMapPin,
   distanceKm,
   geographicQuery,
-  pickHintPin,
+  hintQueries,
+  localityQuery,
   pinIsNear,
   placeSearchQuery,
-  resultConflictsWithQuery,
 } from "../../lib/mapPinChoice";
 
 const garden = {
@@ -29,12 +29,6 @@ const routeSouth = {
   name: "דרך 722 דרום",
   address: "דרך 722, ישראל",
 };
-const zikhron = {
-  lat: 32.5665,
-  lng: 34.9588,
-  name: "רמת צבי",
-  address: "רמת צבי, זכרון יעקב, ישראל",
-};
 const netanya = {
   lat: 32.2764,
   lng: 34.8582,
@@ -42,19 +36,31 @@ const netanya = {
   address: "הצורן 4א, נתניה, ישראל",
 };
 
-const query = "שיבולים גן אירועים, רמת צבי, ישראל";
-
 test("Netanya and the Gilboa garden are different cities", () => {
   assert.ok(distanceKm(garden, netanya) > 50);
   assert.equal(pinIsNear(netanya, moshav), false);
-  assert.equal(resultConflictsWithQuery(query, netanya.address), true);
-  assert.equal(resultConflictsWithQuery(query, zikhron.address), true);
-  assert.equal(resultConflictsWithQuery(query, garden.address), false);
 });
 
-test("Zikhron Yaakov's Ramat Zvi is not used as the city hint", () => {
-  const hint = pickHintPin([zikhron, moshav], query);
-  assert.deepEqual(hint, { lat: moshav.lat, lng: moshav.lng });
+test("the locality query drops the venue name and keeps the town", () => {
+  assert.equal(
+    localityQuery({
+      name: "שיבולים גן אירועים",
+      address: "שיבולים גן אירועים, רמת צבי, ישראל",
+    }),
+    "רמת צבי, ישראל"
+  );
+
+  assert.equal(
+    localityQuery({ name: "אולמי הירקון", address: "רחוב רוקח 12, תל אביב" }),
+    "רחוב רוקח 12, תל אביב"
+  );
+
+  assert.equal(
+    localityQuery({ name: "רמת צבי", address: "רמת צבי" }),
+    "רמת צבי"
+  );
+
+  assert.equal(hintQueries(garden)[0], "רמת צבי, ישראל");
 });
 
 test("named garden beats a road south of the moshav", () => {
@@ -62,21 +68,37 @@ test("named garden beats a road south of the moshav", () => {
     saved: routeSouth,
     hint: moshav,
     candidates: [netanya, routeSouth, garden],
-    query,
     venueName: "שיבולים גן אירועים",
   });
   assert.deepEqual(pin, { lat: garden.lat, lng: garden.lng });
 });
 
-test("saved Netanya pin is not kept when the address is Ramat Zvi", () => {
+test("a same-named hall in another city is never chosen", () => {
   const pin = chooseMapPin({
     saved: netanya,
     hint: moshav,
     candidates: [netanya, garden],
-    query,
     venueName: "שיבולים גן אירועים",
   });
   assert.deepEqual(pin, { lat: garden.lat, lng: garden.lng });
+
+  const withoutTheGarden = chooseMapPin({
+    saved: netanya,
+    hint: moshav,
+    candidates: [netanya],
+    venueName: "שיבולים גן אירועים",
+  });
+  assert.deepEqual(withoutTheGarden, { lat: moshav.lat, lng: moshav.lng });
+});
+
+test("without a locality anchor no candidate is guessed", () => {
+  const pin = chooseMapPin({
+    saved: null,
+    hint: null,
+    candidates: [netanya, garden],
+    venueName: "שיבולים גן אירועים",
+  });
+  assert.equal(pin, null);
 });
 
 test("geographic query prefers the city address over the venue name", () => {

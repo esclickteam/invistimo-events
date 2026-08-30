@@ -1,17 +1,24 @@
 "use client";
 
 import { MapPin, Navigation } from "lucide-react";
-import { getGoogleMapsLink, type NavLocation } from "@/lib/navigationLinks";
+import {
+  getGoogleMapsLinkForTarget,
+  resolveNavTarget,
+  type NavCustomLinks,
+  type NavLocation,
+} from "@/lib/navigationLinks";
 import WazeNavButton from "@/app/components/WazeNavButton";
 
 type Props = {
   location?: NavLocation;
+  custom?: NavCustomLinks;
 };
 
-export default function EventNavigationButtons({ location }: Props) {
+export default function EventNavigationButtons({ location, custom }: Props) {
   if (!location) return null;
 
-  const googleLink = getGoogleMapsLink(location);
+  const target = resolveNavTarget(location, custom);
+  const googleLink = getGoogleMapsLinkForTarget(target);
 
   if (!googleLink && !location.address && !location.name && !location.lat) {
     return null;
@@ -38,6 +45,7 @@ export default function EventNavigationButtons({ location }: Props) {
 
       <WazeNavButton
         location={location}
+        custom={custom}
         className="
           flex items-center gap-2 px-4 py-2 rounded-full
           border border-[#d6c4a3]

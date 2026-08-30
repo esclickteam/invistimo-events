@@ -12,17 +12,6 @@ export type PinCandidate = MapPin & {
 
 export const MAX_PIN_HINT_KM = 30;
 
-const FOREIGN_CITY_MARKERS = [
-  "נתניה",
-  "זכרון",
-  "חיפה",
-  "תל אביב",
-  "ירושלים",
-  "netanya",
-  "zikhron",
-  "haifa",
-];
-
 function firstText(...values: unknown[]) {
   for (const value of values) {
     const text = typeof value === "string" ? value.trim() : "";
@@ -81,29 +70,43 @@ export function placeSearchQuery(location: NavLocation) {
   return address || name;
 }
 
-export function hintQueries(location: NavLocation) {
-  const queries = [
-    placeSearchQuery(location),
-    geographicQuery(location),
-  ].filter(Boolean);
-
+/**
+ * The town/street part of the address, with the venue name removed.
+ *
+ * This is the anchor that keeps a venue in its own city: geocoding
+ * "שיבולים גן ארועים, רמת צבי" by name can land on a same-named hall
+ * anywhere in the country, while "רמת צבי" resolves to one place.
+ */
+export function localityQuery(location: NavLocation) {
   const address = firstText(location.address);
-  if (/רמת צבי/.test(address) || /רמת צבי/.test(firstText(location.name))) {
-    queries.push("מושב רמת צבי, גלבוע");
-    queries.push("רמת צבי, מועצה אזורית גלבוע");
-  }
+  const name = firstText(location.name);
+  if (!address) return "";
+  if (!name || address === name) return address;
 
-  return [...new Set(queries)];
+  const normalizedName = normalizeText(name);
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const remaining = parts.filter((part) => {
+    const normalizedPart = normalizeText(part);
+    if (!normalizedPart) return false;
+    return (
+      !normalizedName.includes(normalizedPart) &&
+      !normalizedPart.includes(normalizedName)
+    );
+  });
+
+  return remaining.length ? remaining.join(", ") : address;
 }
 
-export function resultConflictsWithQuery(query: string, formatted = "") {
-  const q = normalizeText(query);
-  const f = normalizeText(formatted);
-  if (!f) return false;
-
-  return FOREIGN_CITY_MARKERS.some(
-    (city) => f.includes(normalizeText(city)) && !q.includes(normalizeText(city))
-  );
+export function hintQueries(location: NavLocation) {
+  return [
+    localityQuery(location),
+    geographicQuery(location),
+    placeSearchQuery(location),
+  ].filter((query, index, all) => query && all.indexOf(query) === index);
 }
 
 export function nameMatchScore(venueName: string, candidateName = "") {
@@ -113,36 +116,37 @@ export function nameMatchScore(venueName: string, candidateName = "") {
   return venueTokens.filter((token) => hay.includes(token)).length;
 }
 
+/**
+ * Pick the pin to save for an event.
+ *
+ * A candidate is only trusted when it sits near the locality the address
+ * resolves to. Without that anchor we return nothing rather than guessing —
+ * a wrong pin sends guests to another city, while a missing one is reported
+ * back to the couple so they can fix the address.
+ */
 export function chooseMapPin(options: {
   saved?: MapPin | null;
   hint?: MapPin | null;
   candidates?: Array<PinCandidate | null | undefined>;
-  query?: string;
   venueName?: string;
 }) {
   const saved = options.saved || null;
   const hint = options.hint || null;
-  const query = options.query || "";
   const venueName = options.venueName || "";
   const candidates = (options.candidates || []).filter(
     (pin): pin is PinCandidate => Boolean(pin)
   );
 
-  const usable = candidates.filter((pin) => {
-    if (resultConflictsWithQuery(query, pin.address || pin.name || "")) {
-      return false;
-    }
-    if (hint && !pinIsNear(pin, hint)) return false;
-    return true;
-  });
+  if (!hint) return saved;
 
-  const scored = usable
+  const scored = candidates
+    .filter((pin) => pinIsNear(pin, hint))
     .map((pin) => ({
       pin,
       score:
         nameMatchScore(venueName, pin.name || "") * 10 +
         nameMatchScore(venueName, pin.address || "") * 4 -
-        (hint ? distanceKm(pin, hint) : 0),
+        distanceKm(pin, hint),
     }))
     .sort((a, b) => b.score - a.score);
 
@@ -150,18 +154,7 @@ export function chooseMapPin(options: {
     return { lat: scored[0].pin.lat, lng: scored[0].pin.lng };
   }
 
-  if (saved && (!hint || pinIsNear(saved, hint))) return saved;
-  if (hint) return hint;
-  return saved;
-}
+  if (saved && pinIsNear(saved, hint)) return { lat: saved.lat, lng: saved.lng };
 
-export function pickHintPin(
-  results: PinCandidate[],
-  query: string
-): MapPin | null {
-  const matches = results.filter(
-    (pin) => !resultConflictsWithQuery(query, pin.address || pin.name || "")
-  );
-  const chosen = matches[0] || null;
-  return chosen ? { lat: chosen.lat, lng: chosen.lng } : null;
+  return { lat: hint.lat, lng: hint.lng };
 }

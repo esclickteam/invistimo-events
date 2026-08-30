@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { parseCoord } from "@/lib/navigationLinks";
 import Event from "@/models/Event";
 import mongoose from "mongoose";
+import { prepareEventLocation } from "@/lib/eventLocation";
 
 export const dynamic = "force-dynamic";
 
@@ -34,17 +34,6 @@ const userId = auth.userId;
       );
     }
 
-    const { name, address, placeId } = location;
-    const lat = parseCoord(location.lat);
-    const lng = parseCoord(location.lng);
-
-    if (!address || lat == null || lng == null) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_LOCATION" },
-        { status: 400 }
-      );
-    }
-
     /* 🔎 בדיקת בעלות */
     const invitation = await Invitation.findOne({
       _id: invitationId,
@@ -57,6 +46,20 @@ const userId = auth.userId;
         { status: 404 }
       );
     }
+
+    const prepared = await prepareEventLocation({
+      input: location,
+      previous: invitation.location,
+    });
+
+    if (!prepared.location.address && !prepared.location.name) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_LOCATION" },
+        { status: 400 }
+      );
+    }
+
+    const { name, address, lat, lng, placeId } = prepared.location;
 
     /* 💾 עדכון מיקום */
     invitation.location = {
@@ -98,6 +101,7 @@ const userId = auth.userId;
     return NextResponse.json({
       success: true,
       location: invitation.location,
+      locationWarning: prepared.warning,
     });
   } catch (err) {
     console.error("UPDATE LOCATION ERROR:", err);

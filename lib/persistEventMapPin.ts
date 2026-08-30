@@ -111,7 +111,14 @@ export async function resolveAndPersistEventLocation(
   if (hasExactCoordinates(resolved)) return resolved;
 
   const pin = await resolveMapPin(resolved);
-  if (!pin) return resolved;
+  if (!pin) {
+    console.error(
+      `❌ Guest page could not resolve a pin for "${
+        resolved.address || resolved.name || "unknown location"
+      }". Navigation will fall back to a text search.`
+    );
+    return resolved;
+  }
 
   await persistEventLocationPin({
     invitationId: invitation?._id,

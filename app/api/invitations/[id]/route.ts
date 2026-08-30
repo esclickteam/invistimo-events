@@ -8,7 +8,10 @@ import Event from "@/models/Event";
 import VenueEvent from "@/models/VenueEvent";
 import { findVenueHallByAnyId } from "@/lib/venues/eventVenueLinkInvariant";
 import { parseCoord } from "@/lib/navigationLinks";
-import { resolveMapPin } from "@/lib/resolveMapPin";
+import {
+  prepareEventLocation,
+  type EventLocationWarning,
+} from "@/lib/eventLocation";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -199,36 +202,6 @@ function normalizeEventDate(value: unknown) {
   }
 
   return date.toISOString().slice(0, 10);
-}
-
-function normalizeLocation(input: any) {
-  if (!input) {
-    return {
-      address: "",
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  if (typeof input === "string") {
-    return {
-      address: input.trim(),
-      lat: undefined,
-      lng: undefined,
-    };
-  }
-
-  return {
-    address: cleanString(input.address || input.name),
-    lat:
-      input.lat === undefined || input.lat === null
-        ? undefined
-        : toNumber(input.lat, undefined as any),
-    lng:
-      input.lng === undefined || input.lng === null
-        ? undefined
-        : toNumber(input.lng, undefined as any),
-  };
 }
 
 function serializeEvent(event: any) {
@@ -531,7 +504,10 @@ async function createOrUpdateEventForInvitation({
     )
   );
 
-  const location = normalizeLocation(body.location || invitation.location);
+  const { location } = await prepareEventLocation({
+    input: body.location || invitation.location,
+    previous: invitation.location,
+  });
 
   const venueHallIdRaw = cleanString(
     body.venueHallId || invitation.venueHallId
@@ -850,6 +826,8 @@ export async function PUT(
       updatePayload.orientation = orientation;
     }
 
+    let locationWarning: EventLocationWarning | null = null;
+
     if (
       location &&
       ((typeof location.address === "string" && location.address.trim()) ||
@@ -857,26 +835,13 @@ export async function PUT(
         location.lat !== undefined ||
         location.lng !== undefined)
     ) {
-      updatePayload.location = {
-        name: typeof location.name === "string" ? location.name.trim() : "",
-        address:
-          typeof location.address === "string" ? location.address.trim() : "",
-        lat: parseCoord(location.lat),
-        lng: parseCoord(location.lng),
-        placeId:
-          typeof location.placeId === "string" ? location.placeId.trim() : "",
-      };
+      const prepared = await prepareEventLocation({
+        input: location,
+        previous: (invitationBeforeUpdate as any)?.location,
+      });
 
-      if (
-        updatePayload.location.lat == null ||
-        updatePayload.location.lng == null
-      ) {
-        const pin = await resolveMapPin(updatePayload.location);
-        if (pin) {
-          updatePayload.location.lat = pin.lat;
-          updatePayload.location.lng = pin.lng;
-        }
-      }
+      updatePayload.location = prepared.location;
+      locationWarning = prepared.warning;
     }
 
     if (body.publicEventPage !== undefined) {
@@ -885,21 +850,14 @@ export async function PUT(
       );
 
       const parking = updatePayload.publicEventPage.parking;
-      if (
-        parking?.enabled &&
-        (parking.address || parking.name) &&
-        (parking.lat == null || parking.lng == null)
-      ) {
-        const pin = await resolveMapPin({
-          name: parking.name,
-          address: parking.address,
-          lat: parking.lat,
-          lng: parking.lng,
+      if (parking?.enabled && (parking.address || parking.name)) {
+        const prepared = await prepareEventLocation({
+          input: parking,
+          previous: (invitationBeforeUpdate as any)?.publicEventPage?.parking,
         });
-        if (pin) {
-          parking.lat = pin.lat;
-          parking.lng = pin.lng;
-        }
+
+        parking.lat = prepared.location.lat;
+        parking.lng = prepared.location.lng;
       }
     }
 
@@ -1015,6 +973,38 @@ export async function PUT(
           }
         );
       }
+
+      // Keep the wedding-website copy of the pin in sync so guests on /w
+      // do not keep navigating to the previous venue.
+      const website = (invitationBeforeUpdate as any)?.weddingWebsite;
+      if (website?.content || website?.draftContent) {
+        const venueSet: Record<string, unknown> = {};
+        if (website.content) {
+          venueSet["weddingWebsite.content.venueName"] =
+            updatePayload.location.name || "";
+          venueSet["weddingWebsite.content.venueAddress"] =
+            updatePayload.location.address || "";
+          venueSet["weddingWebsite.content.venueLat"] =
+            updatePayload.location.lat ?? null;
+          venueSet["weddingWebsite.content.venueLng"] =
+            updatePayload.location.lng ?? null;
+        }
+        if (website.draftContent) {
+          venueSet["weddingWebsite.draftContent.venueName"] =
+            updatePayload.location.name || "";
+          venueSet["weddingWebsite.draftContent.venueAddress"] =
+            updatePayload.location.address || "";
+          venueSet["weddingWebsite.draftContent.venueLat"] =
+            updatePayload.location.lat ?? null;
+          venueSet["weddingWebsite.draftContent.venueLng"] =
+            updatePayload.location.lng ?? null;
+        }
+
+        await Invitation.collection.updateOne(
+          { _id: invitationBeforeUpdate._id },
+          { $set: venueSet }
+        );
+      }
     }
 
     const invitationAfterBasicUpdate = await Invitation.findById(
@@ -1061,6 +1051,7 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       invitation: updated,
+      locationWarning,
       event: serializeEvent(event || (await findEventForInvitation(updated))),
       previewImageUrl: (updated as any)?.previewImageUrl ?? null,
       headerImageUrl: (updated as any)?.headerImageUrl ?? null,

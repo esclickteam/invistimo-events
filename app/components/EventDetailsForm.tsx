@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 import LocationPinPreview from "@/app/components/LocationPinPreview";
+import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
 
 /* =========================
    Event types (UX ↔ DB)
@@ -54,6 +55,7 @@ export default function EventDetailsForm({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploadingCoupleImage, setUploadingCoupleImage] = useState(false);
+  const [locationWarning, setLocationWarning] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -293,6 +295,41 @@ export default function EventDetailsForm({
 
     try {
       setSaving(true);
+      setLocationWarning("");
+
+      // A typed address (no autocomplete pick) still needs a pin. The
+      // production Maps key is referrer-restricted, so this has to happen
+      // in the browser — the server REST Geocoding API is denied.
+      let location = { ...form.location };
+      if (
+        (location.name || location.address) &&
+        (location.lat == null || location.lng == null)
+      ) {
+        const pin = await resolveMapPinInBrowser(location);
+        if (pin) {
+          location = { ...location, lat: pin.lat, lng: pin.lng };
+          setForm((f) => ({ ...f, location: { ...f.location, ...pin } }));
+        }
+      }
+
+      let parking = { ...form.publicEventPage.parking };
+      if (
+        parking.enabled &&
+        (parking.name || parking.address) &&
+        (parking.lat == null || parking.lng == null)
+      ) {
+        const pin = await resolveMapPinInBrowser(parking);
+        if (pin) {
+          parking = { ...parking, lat: pin.lat, lng: pin.lng };
+          setForm((f) => ({
+            ...f,
+            publicEventPage: {
+              ...f.publicEventPage,
+              parking: { ...f.publicEventPage.parking, ...pin },
+            },
+          }));
+        }
+      }
 
       const payload = {
         title: form.title.trim(),
@@ -300,11 +337,11 @@ export default function EventDetailsForm({
         eventDate: form.date,
         eventTime: form.time,
         location: {
-          name: form.location.name,
-          address: form.location.address,
-          lat: form.location.lat,
-          lng: form.location.lng,
-          placeId: form.location.placeId || "",
+          name: location.name,
+          address: location.address,
+          lat: location.lat,
+          lng: location.lng,
+          placeId: location.placeId || "",
         },
         publicEventPage: {
           enabled: true,
@@ -315,12 +352,12 @@ export default function EventDetailsForm({
             bitUrl: "",
           },
           parking: {
-            enabled: form.publicEventPage.parking.enabled,
-            name: form.publicEventPage.parking.name.trim(),
-            address: form.publicEventPage.parking.address.trim(),
-            lat: form.publicEventPage.parking.lat,
-            lng: form.publicEventPage.parking.lng,
-            instructions: form.publicEventPage.parking.instructions.trim(),
+            enabled: parking.enabled,
+            name: parking.name.trim(),
+            address: parking.address.trim(),
+            lat: parking.lat,
+            lng: parking.lng,
+            instructions: parking.instructions.trim(),
           },
           schedule: {
             enabled: form.publicEventPage.schedule.enabled,
@@ -358,8 +395,19 @@ export default function EventDetailsForm({
         return;
       }
 
-      onSaved();
-      onClose?.();
+      const savedLat = data.invitation?.location?.lat;
+      const savedLng = data.invitation?.location?.lng;
+      if (savedLat != null && savedLng != null) {
+        onSaved();
+        onClose?.();
+        return;
+      }
+
+      const missingPin =
+        data.locationWarning?.message ||
+        "לא הצלחנו לאתר את המיקום על המפה. בחרו את האולם מרשימת ההצעות כדי שהניווט של האורחים יגיע לנקודה המדויקת.";
+      setLocationWarning(missingPin);
+      alert(missingPin);
     } catch (err) {
       console.error("Save failed:", err);
       alert("❌ שגיאה בשמירה");
@@ -653,8 +701,13 @@ export default function EventDetailsForm({
             />
 
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">
-              בחירה מהרשימה שומרת את הנקודה המדויקת. גוגל מפות ווייז ייפתחו לאותה סיכה.
+              בחירה מהרשימה שומרת את הנקודה המדויקת. אם מקלידים כתובת ידנית, נאתר אותה על המפה בשמירה. גוגל מפות ווייז ייפתחו לאותה סיכה.
             </p>
+            {locationWarning ? (
+              <p className="mt-2 px-1 text-xs font-bold text-[#B45309]">
+                {locationWarning}
+              </p>
+            ) : null}
           </div>
 
           {/* עמוד מידע ציבורי */}
