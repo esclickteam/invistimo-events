@@ -100,7 +100,7 @@ export default function PublicWeddingWebsitePage() {
   const showRsvp = content.sections?.rsvp !== false;
 
   return (
-    <div className="overflow-x-hidden">
+    <div>
       <WeddingTemplateSiteRenderer
         template={data.template}
         content={content}

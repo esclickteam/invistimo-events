@@ -101,7 +101,7 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
+    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: CREAM, color: "#2C2419" }}>
       <RoyalNav />
 
       {/* HERO — overlapping double frames */}

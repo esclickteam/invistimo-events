@@ -152,7 +152,7 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen overflow-x-hidden font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
+    <div className="min-h-screen font-['Heebo']" style={{ backgroundColor: DARK, color: "#E8F0E4" }}>
       <ForestNav />
 
       {/* HERO — forest video */}

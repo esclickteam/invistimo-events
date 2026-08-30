@@ -44,7 +44,8 @@ export function WeddingSiteRuntimeStyles() {
       .wedding-website-root {
         display: flex;
         flex-direction: column;
-        overflow-x: hidden;
+        overflow-x: clip;
+        overflow-y: visible;
         max-width: 100%;
       }
       .wedding-website-root img,
@@ -86,9 +87,9 @@ export function WeddingSiteRuntimeStyles() {
         .join("")}
       ${mode === "editor"
         ? `
-        .ww-editor-canvas { overflow-anchor: none; overflow-x: hidden; container-type: inline-size; -webkit-overflow-scrolling: touch; }
+        .ww-editor-canvas { overflow-anchor: none; overflow-x: clip; overflow-y: visible; container-type: inline-size; }
         .ww-editor-canvas .ww-site,
-        .ww-editor-canvas .wedding-website-root { max-width: 100%; overflow-x: hidden; scroll-behavior: auto; }
+        .ww-editor-canvas .wedding-website-root { max-width: 100%; overflow-x: clip; overflow-y: visible; scroll-behavior: auto; }
         .ww-editor-canvas .w-screen { width: 100% !important; max-width: 100% !important; }
         .ww-editor-canvas img, .ww-editor-canvas video, .ww-editor-canvas iframe { max-width: 100%; }
         .ww-editor-canvas .ww-nav-desktop { display: none !important; }

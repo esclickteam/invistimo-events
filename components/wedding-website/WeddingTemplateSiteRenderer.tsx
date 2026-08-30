@@ -83,7 +83,7 @@ const RenderedSite = memo(function RenderedSite({
       <WeddingSiteRuntimeStyles />
       <WeddingSiteHydrator>
         <WeddingMotionRoot>
-        <div className="ww-site overflow-x-clip">
+        <div className={`ww-site ${site?.mode === "editor" ? "" : "ww-public-page"}`}>
           <style>{`
             a[href="/wedding-website"]{display:none!important}
             a[href="/"]{ }

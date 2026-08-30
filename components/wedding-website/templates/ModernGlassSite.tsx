@@ -140,7 +140,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
   const faq = useFaqAccordion(0);
 
   return (
-    <div className="min-h-screen overflow-x-hidden font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
+    <div className="min-h-screen font-['Montserrat']" style={{ backgroundColor: DARK, color: "#F0F4FF" }}>
       <GradientMeshBg />
       <GlassNav />
 

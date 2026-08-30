@@ -531,7 +531,7 @@ export default function DesertRoseSite({
   guestMessageSlot,
 }: TemplateProps) {
   return (
-    <div className="wedding-website-root overflow-x-hidden bg-[#FBF5F0] text-[#3D2518]">
+    <div className="wedding-website-root bg-[#FBF5F0] text-[#3D2518]">
       <StickyNav />
       <HeroSection template={template} />
       <CountdownSection />
