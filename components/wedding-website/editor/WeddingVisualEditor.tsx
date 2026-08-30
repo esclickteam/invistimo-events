@@ -660,11 +660,9 @@ export default function WeddingVisualEditor() {
         livePath={published ? publicPath : ""}
         unpublishedCount={unpublishedCount}
         onPublish={() => setPublishDialogOpen(true)}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((current) => !current)}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1" dir="ltr">
         {selectedTemplate ? (
           <WeddingSiteProvider
             mode="editor"

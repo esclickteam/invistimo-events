@@ -40,15 +40,26 @@ export default function EditorOverlay() {
       if (el.closest(SKIP)) return null;
       const preferred = el.closest(INNER_EDIT) as HTMLElement | null;
       const hit = (preferred || el.closest("[data-ww-edit]")) as HTMLElement | null;
-      if (!hit) return null;
-      const type = hit.dataset.wwEdit || "";
-      const path = hit.dataset.wwPath || "";
-      if (!type || !path) return null;
+      if (hit) {
+        const type = hit.dataset.wwEdit || "";
+        const path = hit.dataset.wwPath || "";
+        if (type && path) {
+          return {
+            type,
+            path,
+            label: hit.dataset.wwLabel || labelFor(type),
+            el: type === "section" ? sectionEl(hit) || hit : hit,
+          };
+        }
+      }
+      const section = el.closest("[data-ww-section]") as HTMLElement | null;
+      const sectionId = section?.getAttribute("data-ww-section") || "";
+      if (!section || !sectionId) return null;
       return {
-        type,
-        path,
-        label: hit.dataset.wwLabel || labelFor(type),
-        el: hit,
+        type: "section",
+        path: sectionId,
+        label: section.dataset.wwLabel || labelFor("section"),
+        el: section,
       };
     }
 
@@ -169,7 +180,8 @@ export default function EditorOverlay() {
         }
         const fromRef =
           selectedElRef.current?.isConnected &&
-          selectedElRef.current.dataset.wwPath === currentSelection.path
+          (selectedElRef.current.dataset.wwPath === currentSelection.path ||
+            selectedElRef.current.getAttribute("data-ww-section") === currentSelection.path)
             ? selectedElRef.current
             : null;
         const el = fromRef || findSelectedElement(root, currentSelection);
@@ -342,10 +354,10 @@ function findSelectedElement(canvas: Element, selection: NonNullable<WeddingSite
   ) as HTMLElement | null;
   if (typed) return typed;
   if (selection.type === "section") {
-    const handle = canvas.querySelector(
-      `.ww-section-handle[data-ww-path="${path}"]`
+    const section = canvas.querySelector(
+      `[data-ww-section="${path}"]`
     ) as HTMLElement | null;
-    if (handle) return handle;
+    if (section) return section;
   }
   const inner = canvas.querySelector(
     `[data-ww-path="${path}"]${INNER_EDIT}`
@@ -375,7 +387,7 @@ function clampRect(rect: DOMRect, bounds?: DOMRect | null) {
 
 function labelFor(type: string) {
   if (type === "media") return "החלפת תמונה או סרטון";
-  if (type === "section") return "עריכת מקטע";
+  if (type === "section") return "עריכת רקע המקטע";
   if (type === "countdown") return "ספירה לאחור";
   return "עריכת טקסט";
 }
@@ -394,6 +406,11 @@ function sectionIdForSelection(selection: WeddingSiteSelection) {
 
 function cssAttr(value: string) {
   return value.replace(/"/g, "");
+}
+
+function sectionEl(hit: HTMLElement) {
+  if (hit.hasAttribute("data-ww-section")) return hit;
+  return (hit.closest("[data-ww-section]") as HTMLElement | null) || null;
 }
 
 function insertLineBreakAtCaret() {

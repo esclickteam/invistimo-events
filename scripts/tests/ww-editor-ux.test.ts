@@ -482,7 +482,11 @@ test("zoom, collapse and a calm canvas replace the old black frame", () => {
   // Device frame only for the mobile canvas.
   assert.match(editor, /device === "mobile" \? "rounded-\[28px\] ring-8 ring-black\/40"/);
   assert.match(sidebar, /פתיחת פאנל המקטעים/);
+  assert.match(sidebar, /data-ww-editor-rail/);
+  assert.match(sidebar, /data-ww-editor-dock/);
+  assert.match(editor, /dir="ltr"/);
   assert.match(editor, /setSidebarOpen/);
+  assert.doesNotMatch(topBar, /הסתרת המקטעים/);
 
   // The dashboard header is not a fixed height, so the editor measures it
   // rather than assuming one and overlapping it.
