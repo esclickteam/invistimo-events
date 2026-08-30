@@ -174,37 +174,32 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const fullName =
       cleanStr((body as any).fullName) ||
-      cleanStr((body as any).signatureFullName);
+      cleanStr((body as any).signatureFullName) ||
+      cleanStr(document.get("client.fullName"));
 
     const idNumber =
       cleanStr((body as any).idNumber) ||
-      cleanStr((body as any).signatureIdNumber);
+      cleanStr((body as any).signatureIdNumber) ||
+      cleanStr(document.get("client.idNumber"));
 
     const address =
       cleanStr((body as any).address) ||
-      cleanStr((body as any).signatureAddress);
+      cleanStr((body as any).signatureAddress) ||
+      cleanStr(document.get("client.address"));
 
     const phone =
       cleanStr((body as any).phone) ||
-      cleanStr((body as any).signaturePhone);
+      cleanStr((body as any).signaturePhone) ||
+      cleanStr(document.get("client.phone"));
 
     const signatureDate =
       cleanStr((body as any).date) ||
       cleanStr((body as any).signatureDate) ||
       getTodayDateInputValue();
 
-    const signatureText = getSignatureText(body as any);
     const signatureDataUrl = getSignatureDataUrl(body as any);
 
-    const acceptedTerms =
-      Boolean((body as any).acceptedTerms) ||
-      Boolean((body as any).termsAccepted) ||
-      Boolean((body as any).confirmTerms) ||
-      Boolean((body as any).confirmed);
-
     if (!fullName) return jsonError("חסר שם מלא", 400);
-    if (!idNumber) return jsonError("חסר מספר תעודת זהות", 400);
-    if (!address) return jsonError("חסרה כתובת", 400);
     if (!phone) return jsonError("חסר מספר טלפון", 400);
 
     if (normalizePhone(phone).length < 9) {
@@ -215,12 +210,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return jsonError("תאריך החתימה לא תקין", 400);
     }
 
-    if (!signatureText && !signatureDataUrl) {
-      return jsonError("חסרה חתימה", 400);
-    }
-
-    if (!acceptedTerms) {
-      return jsonError("יש לאשר את תנאי העסקה לפני חתימה", 400);
+    if (!signatureDataUrl) {
+      return jsonError("יש לחתום בציור", 400);
     }
 
     const signedAt = new Date();
@@ -235,7 +226,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("signature.address", address);
     document.set("signature.phone", phone);
     document.set("signature.date", signatureDate);
-    document.set("signature.signatureText", signatureText);
+    document.set("signature.signatureText", "");
     document.set("signature.signatureDataUrl", signatureDataUrl);
     document.set("signature.acceptedTerms", true);
     document.set("signature.signedAt", signedAt);
@@ -249,7 +240,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("agreement.signatureAddress", address);
     document.set("agreement.signaturePhone", phone);
     document.set("agreement.signatureDate", signatureDate);
-    document.set("agreement.signatureText", signatureText);
+    document.set("agreement.signatureText", "");
     document.set("agreement.signatureDataUrl", signatureDataUrl);
     document.set("agreement.acceptedTerms", true);
     document.set("agreement.signedAt", signedAt);
@@ -288,7 +279,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           signerEmail: cleanStr(document.get("client.email")),
           signerPhone: phone,
 
-          signatureText,
+          signatureText: "",
           signatureImageUrl: signatureDataUrl,
 
           ipAddress: signedIp,

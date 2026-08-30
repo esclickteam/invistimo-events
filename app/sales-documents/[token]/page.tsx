@@ -920,13 +920,7 @@ export default function SalesDocumentPage() {
     readOnly ||
     isSigned ||
     expired ||
-    !signatureFullName.trim() ||
-    !signatureIdNumber.trim() ||
-    !signatureAddress.trim() ||
-    !signaturePhone.trim() ||
-    !signatureDate.trim() ||
-    (!signatureText.trim() && !signatureDataUrl.trim()) ||
-    !acceptedTerms;
+    !signatureDataUrl.trim();
 
   async function handleSign() {
     if (submitDisabled || !token) return;
@@ -944,14 +938,13 @@ export default function SalesDocumentPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fullName: signatureFullName.trim(),
+          fullName: signatureFullName.trim() || cleanStr(document?.client?.fullName),
           idNumber: signatureIdNumber.trim(),
           address: signatureAddress.trim(),
-          phone: signaturePhone.trim(),
+          phone: signaturePhone.trim() || cleanStr(document?.client?.phone),
           date: signatureDate,
-          signatureText: signatureText.trim(),
           signatureDataUrl,
-          acceptedTerms,
+          acceptedTerms: true,
         }),
       });
 
@@ -1335,64 +1328,12 @@ export default function SalesDocumentPage() {
                 ) : (
                   <div className="space-y-5">
                     <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4 text-sm font-bold leading-7 text-[#6d5840]">
-                      יש למלא את הפרטים האישיים, לאשר את תנאי העסקה ולחתום.
-                      החתימה נשמרת במערכת יחד עם פרטי ההסכם.
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <TextInput
-                        label="שם מלא"
-                        value={signatureFullName}
-                        onChange={setSignatureFullName}
-                        disabled={!canSign || readOnly || expired}
-                        required
-                      />
-
-                      <TextInput
-                        label="תעודת זהות"
-                        value={signatureIdNumber}
-                        onChange={setSignatureIdNumber}
-                        disabled={!canSign || readOnly || expired}
-                        required
-                      />
-
-                      <TextInput
-                        label="כתובת"
-                        value={signatureAddress}
-                        onChange={setSignatureAddress}
-                        disabled={!canSign || readOnly || expired}
-                        required
-                      />
-
-                      <TextInput
-                        label="טלפון"
-                        value={signaturePhone}
-                        onChange={setSignaturePhone}
-                        disabled={!canSign || readOnly || expired}
-                        required
-                      />
-
-                      <TextInput
-                        label="תאריך חתימה"
-                        value={signatureDate}
-                        onChange={setSignatureDate}
-                        type="date"
-                        disabled={!canSign || readOnly || expired}
-                        required
-                      />
-
-                      <TextInput
-                        label="חתימה מוקלדת"
-                        value={signatureText}
-                        onChange={setSignatureText}
-                        disabled={!canSign || readOnly || expired}
-                        placeholder="הקלדת שם מלא כחתימה"
-                      />
+                      יש לחתום בציור בלבד. החתימה נשמרת במערכת יחד עם פרטי ההסכם.
                     </div>
 
                     <div>
                       <p className="mb-2 text-sm font-black text-[#3f3327]">
-                        חתימה ידנית
+                        חתימה
                       </p>
 
                       <SignatureCanvas
@@ -1401,24 +1342,6 @@ export default function SalesDocumentPage() {
                         disabled={!canSign || readOnly || expired}
                       />
                     </div>
-
-                    <label className="flex cursor-pointer items-start gap-3 rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4">
-                      <input
-                        type="checkbox"
-                        checked={acceptedTerms}
-                        disabled={!canSign || readOnly || expired}
-                        onChange={(event) =>
-                          setAcceptedTerms(event.target.checked)
-                        }
-                        className="mt-1 h-5 w-5 accent-[#9b6a30]"
-                      />
-
-                      <span className="text-sm font-bold leading-7 text-[#5d4c3b]">
-                        אני מאשר/ת שקראתי את פרטי העסקה, השירותים, תנאי התשלום
-                        ותנאי הביטול, ואני מסכים/ה להתקשר בעסקה בהתאם לתנאים
-                        המפורטים בעמוד זה.
-                      </span>
-                    </label>
 
                     {signError ? (
                       <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">

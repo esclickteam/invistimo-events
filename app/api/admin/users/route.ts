@@ -655,6 +655,8 @@ packageName
         createdAt
         eventDate
         termsAcceptedAt
+        onboardingAgreementToken
+        onboardingAgreementSignedAt
 
         producerPricePerRecord
         assignedProducerId

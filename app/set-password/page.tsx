@@ -62,10 +62,6 @@ function draftKey(token: string) {
   return `set-password-draft:${token}`;
 }
 
-function termsReadKey(token: string) {
-  return `set-password-terms-read:${token}`;
-}
-
 function formatAcceptedAt(value?: string | null) {
   if (!value) return "";
 
@@ -89,7 +85,6 @@ export default function SetPasswordPage() {
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [hasReadTerms, setHasReadTerms] = useState(false);
   const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
 
   const [requireAgreement, setRequireAgreement] = useState(false);
@@ -125,14 +120,6 @@ export default function SetPasswordPage() {
       }
     } catch {
       // ignore
-    }
-
-    const readFromQuery = params.get("termsRead") === "1";
-    const readFromStorage =
-      sessionStorage.getItem(termsReadKey(tokenFromUrl)) === "1";
-    if (readFromQuery || readFromStorage) {
-      setHasReadTerms(true);
-      sessionStorage.setItem(termsReadKey(tokenFromUrl), "1");
     }
   }, []);
 
@@ -190,7 +177,6 @@ export default function SetPasswordPage() {
         setAgreementHref(href);
         if (data.termsAcceptedAt) {
           setTermsAcceptedAt(String(data.termsAcceptedAt));
-          setHasReadTerms(true);
         }
         setMessage("");
       } catch {
@@ -224,8 +210,8 @@ export default function SetPasswordPage() {
   };
 
   const handleAcceptTerms = async () => {
-    if (!token || !hasReadTerms) {
-      setMessage("יש לקרוא את התקנון לפני האישור");
+    if (!token) {
+      setMessage("יש לאשר את התקנון ותנאי השימוש");
       return;
     }
 
@@ -266,7 +252,7 @@ export default function SetPasswordPage() {
     }
 
     if (!termsAcceptedAt) {
-      setMessage("יש לקרוא ולאשר את התקנון");
+      setMessage("יש לאשר את התקנון ותנאי השימוש");
       return;
     }
 
@@ -325,7 +311,6 @@ export default function SetPasswordPage() {
 
       try {
         sessionStorage.removeItem(draftKey(token));
-        sessionStorage.removeItem(termsReadKey(token));
       } catch {
         // ignore
       }
@@ -361,9 +346,6 @@ export default function SetPasswordPage() {
     }
   };
 
-  const termsHref = token
-    ? `/terms?from=set-password&token=${encodeURIComponent(token)}`
-    : "/terms";
   const canSave =
     Boolean(termsAcceptedAt) && (!requireAgreement || agreementSigned);
 
@@ -396,50 +378,31 @@ export default function SetPasswordPage() {
               className="w-full rounded-lg border p-2 text-right"
             />
 
-            <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 text-sm text-[#5d4c3b]">
-              {!hasReadTerms && !termsAcceptedAt ? (
-                <>
-                  <p className="font-bold leading-6">
-                    חובה לקרוא את התקנון במלואו לפני האישור.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => persistDraftAndGo(termsHref)}
-                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white"
-                  >
-                    לקריאת התקנון
-                  </button>
-                </>
-              ) : null}
-
-              {hasReadTerms && !termsAcceptedAt ? (
-                <>
-                  <p className="font-bold leading-6">
-                    קראת את התקנון. יש לאשר כדי להמשיך.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleAcceptTerms}
-                    disabled={acceptingTerms}
-                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white disabled:opacity-50"
-                  >
-                    {acceptingTerms ? "שומר אישור..." : "אני מאשר/ת את התקנון"}
-                  </button>
-                </>
-              ) : null}
-
-              {termsAcceptedAt ? (
-                <p className="font-bold leading-6 text-emerald-800">
-                  התקנון אושר ב-{formatAcceptedAt(termsAcceptedAt)}
-                </p>
-              ) : null}
-            </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 text-sm text-[#5d4c3b]">
+              <input
+                type="checkbox"
+                checked={Boolean(termsAcceptedAt)}
+                disabled={loading || acceptingTerms || Boolean(termsAcceptedAt)}
+                onChange={(event) => {
+                  if (event.target.checked) {
+                    void handleAcceptTerms();
+                  }
+                }}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="font-bold leading-6">
+                אני מאשר/ת שקראתי את התקנון ותנאי השימוש
+                {termsAcceptedAt
+                  ? ` · אושר ב-${formatAcceptedAt(termsAcceptedAt)}`
+                  : ""}
+              </span>
+            </label>
 
             {requireAgreement && termsAcceptedAt && !agreementSigned ? (
               <div className="space-y-3">
                 <p className="text-sm font-bold leading-6 text-[#5d4c3b]">
-                  לאחר אישור התקנון יש לחתום על ההסכם. ייפתח עמוד ההסכם הרגיל,
-                  ולאחר החתימה תחזרו לכאן לשמירה והפעלת המשתמש.
+                  יש לחתום על ההסכם. ייפתח עמוד ההסכם, ולאחר החתימה תחזרו לכאן
+                  לשמירה והפעלת המשתמש.
                 </p>
                 {agreementHref ? (
                   <button

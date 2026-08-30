@@ -1,6 +1,3 @@
-import { Suspense } from "react";
-import TermsOnboardingReturn from "./TermsOnboardingReturn";
-
 export const metadata = {
   title: "תקנון שימוש | Invistimo",
 };
@@ -1153,10 +1150,6 @@ export default function TermsPage() {
 </section>
 
           </div>
-
-          <Suspense fallback={null}>
-            <TermsOnboardingReturn />
-          </Suspense>
         </div>
       </div>
     </main>

@@ -87,6 +87,8 @@ type AdminUser = {
   createdAt?: string;
   eventDate?: string;
   termsAcceptedAt?: string | null;
+  onboardingAgreementToken?: string | null;
+  onboardingAgreementSignedAt?: string | null;
 
   assignedProducerId?: string | null;
   assignedProducerIds?: string[];
@@ -1649,6 +1651,7 @@ export default function AdminUsersPage() {
                 <th className="p-4">רשומות</th>
                 <th className="p-4">תאריך אירוע</th>
                 <th className="p-4">אישור תקנון</th>
+                <th className="p-4">הסכם</th>
                 <th className="p-4">מפיקים מטפלים</th>
                 <th className="p-4">עובדים מטפלים</th>
                 <th className="p-4">שירות שיחות</th>
@@ -1695,6 +1698,28 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
+                    {u.onboardingAgreementToken ? (
+                      <div className="flex flex-col items-start gap-1">
+                        <a
+                          href={`/sales-documents/${u.onboardingAgreementToken}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-black underline"
+                        >
+                          לצפייה
+                        </a>
+                        <span>
+                          {u.onboardingAgreementSignedAt
+                            ? formatTermsAcceptedAt(u.onboardingAgreementSignedAt)
+                            : "ממתין לחתימה"}
+                        </span>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">
                     {formatAssigneeNames(
                       resolveAssignedProducerIds(u),
                       producerOptions
@@ -1733,7 +1758,7 @@ export default function AdminUsersPage() {
 
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-[#7B6754]">
+                  <td colSpan={12} className="p-8 text-center text-[#7B6754]">
                     לא נמצאו משתמשים
                   </td>
                 </tr>
@@ -1788,8 +1813,29 @@ export default function AdminUsersPage() {
                   label="אישור תקנון"
                   value={formatTermsAcceptedAt(u.termsAcceptedAt)}
                 />
+                <MiniDetail
+                  label="הסכם"
+                  value={
+                    u.onboardingAgreementToken
+                      ? u.onboardingAgreementSignedAt
+                        ? `נחתם ${formatTermsAcceptedAt(u.onboardingAgreementSignedAt)}`
+                        : "ממתין לחתימה"
+                      : "—"
+                  }
+                />
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>
+
+              {u.onboardingAgreementToken ? (
+                <a
+                  href={`/sales-documents/${u.onboardingAgreementToken}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-sm font-black underline"
+                >
+                  לצפייה בהסכם
+                </a>
+              ) : null}
 
               <div className="mt-4">
                 <UserActionsDropdown
