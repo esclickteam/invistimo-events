@@ -372,6 +372,7 @@ test("editor selection targets inner text and countdown instead of the whole sec
   assert.match(overlay, /clampRect/);
   assert.match(overlay, /addEventListener\("scroll"/);
   assert.match(overlay, /selectedElRef/);
+  assert.match(overlay, /const root: HTMLElement = pane/);
   assert.match(hydrator, /ww-section-handle/);
   assert.match(hydrator, /data-ww-section/);
   assert.match(grid, /data-ww-edit="countdown"/);
