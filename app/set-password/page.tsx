@@ -62,22 +62,8 @@ function draftKey(token: string) {
   return `set-password-draft:${token}`;
 }
 
-function formatAcceptedAt(value?: string | null) {
-  if (!value) return "";
-
-  try {
-    return new Date(value).toLocaleString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return value;
-  }
-}
+const fieldClassName =
+  "w-full rounded-[18px] border border-[#DDCBB3] bg-white/90 px-4 py-3.5 text-base text-[#3E2D20] shadow-sm outline-none transition placeholder:text-[#AF9B87] focus:border-[#C9A46A] focus:ring-4 focus:ring-[#D8B16A]/15 disabled:cursor-not-allowed disabled:opacity-60";
 
 export default function SetPasswordPage() {
   const { setUser, setIsAuthenticated, refreshUser } = useAuth();
@@ -330,7 +316,7 @@ export default function SetPasswordPage() {
         }
       }
 
-      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר...");
+      setMessage("הסיסמה הוגדרה בהצלחה. מעביר...");
 
       setPassword("");
       setConfirmPassword("");
@@ -350,102 +336,136 @@ export default function SetPasswordPage() {
     Boolean(termsAcceptedAt) && (!requireAgreement || agreementSigned);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-xl border border-[#eadfce] bg-white p-8 text-right shadow-lg">
-        <h1 className="mb-6 text-center text-2xl font-bold text-[#3f3327]">
-          הגדרת סיסמה
-        </h1>
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#F7EFE6]">
+      <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
+      <div className="absolute inset-0 -z-20 opacity-[0.08] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+      <div className="pointer-events-none absolute -top-20 right-[10%] h-64 w-64 rounded-full bg-[#DAB273]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-40px] left-[8%] h-72 w-72 rounded-full bg-[#CDA37D]/15 blur-3xl" />
 
-        {statusLoading ? (
-          <p className="text-center text-sm text-gray-700">טוען...</p>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="password"
-              placeholder="סיסמה חדשה"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading || !token}
-              className="w-full rounded-lg border p-2 text-right"
-            />
+      <section className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+        <div className="relative w-full max-w-[480px] overflow-hidden rounded-[34px] border border-[#D9C0A0] bg-[#FFFDF9]/94 p-6 shadow-[0_24px_70px_rgba(91,64,35,0.13)] backdrop-blur-xl sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.25))]" />
 
-            <input
-              type="password"
-              placeholder="אימות סיסמה"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={loading || !token}
-              className="w-full rounded-lg border p-2 text-right"
-            />
-
-            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 text-sm text-[#5d4c3b]">
-              <input
-                type="checkbox"
-                checked={Boolean(termsAcceptedAt)}
-                disabled={loading || acceptingTerms || Boolean(termsAcceptedAt)}
-                onChange={(event) => {
-                  if (event.target.checked) {
-                    void handleAcceptTerms();
-                  }
-                }}
-                className="mt-1 h-4 w-4"
+          <div className="relative z-10">
+            <div className="mb-7 text-center">
+              <img
+                src="/invistimo-logo.png"
+                alt="Invistimo"
+                className="mx-auto h-14 w-auto object-contain"
               />
-              <span className="font-bold leading-6">
-                אני מאשר/ת שקראתי את התקנון ותנאי השימוש
-                {termsAcceptedAt
-                  ? ` · אושר ב-${formatAcceptedAt(termsAcceptedAt)}`
-                  : ""}
-              </span>
-            </label>
+              <div className="mx-auto mt-5 h-px w-20 bg-gradient-to-l from-transparent via-[#C9A46A] to-transparent" />
+              <h1 className="mt-5 text-3xl font-black text-[#3E2D20]">
+                הגדרת סיסמה
+              </h1>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#7B6754]">
+                בחרו סיסמה לחשבון. אחרי השמירה תוכלו להתחבר ולנהל את האירוע.
+              </p>
+            </div>
 
-            {requireAgreement && termsAcceptedAt && !agreementSigned ? (
-              <div className="space-y-3">
-                <p className="text-sm font-bold leading-6 text-[#5d4c3b]">
-                  יש לחתום על ההסכם. ייפתח עמוד ההסכם, ולאחר החתימה תחזרו לכאן
-                  לשמירה והפעלת המשתמש.
-                </p>
-                {agreementHref ? (
-                  <button
-                    type="button"
-                    onClick={() => persistDraftAndGo(agreementHref)}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#3f3327] px-4 text-sm font-black text-white"
+            {statusLoading ? (
+              <p className="text-center text-sm text-[#7B6754]">טוען...</p>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-[#4C3724]">
+                    סיסמה חדשה
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="לפחות 6 תווים"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading || !token}
+                    className={fieldClassName}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-[#4C3724]">
+                    אימות סיסמה
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="הקלידו שוב את הסיסמה"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading || !token}
+                    className={fieldClassName}
+                  />
+                </div>
+
+                <div className="flex items-start gap-3 rounded-[18px] border border-[#E8D7C2] bg-[#FFF8EE]/80 px-4 py-3.5">
+                  <input
+                    id="accept-terms"
+                    type="checkbox"
+                    checked={Boolean(termsAcceptedAt)}
+                    disabled={loading || acceptingTerms || Boolean(termsAcceptedAt)}
+                    onChange={(event) => {
+                      if (event.target.checked) {
+                        void handleAcceptTerms();
+                      }
+                    }}
+                    className="mt-1 h-4 w-4 accent-[#8A6338]"
+                  />
+                  <label
+                    htmlFor="accept-terms"
+                    className="text-sm leading-6 text-[#5D4C3B]"
                   >
-                    חתימה על ההסכם
+                    אני מאשר/ת שקראתי את{" "}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[#6B4E2E] underline underline-offset-4 decoration-[#C9A46A] hover:text-[#3E2D20]"
+                    >
+                      התקנון ותנאי השימוש
+                    </a>
+                  </label>
+                </div>
+
+                {requireAgreement && termsAcceptedAt && !agreementSigned ? (
+                  <div className="space-y-3">
+                    <p className="text-sm leading-6 text-[#7B6754]">
+                      יש לחתום על ההסכם. לאחר החתימה תחזרו לכאן לשמירת הסיסמה.
+                    </p>
+                    {agreementHref ? (
+                      <button
+                        type="button"
+                        onClick={() => persistDraftAndGo(agreementHref)}
+                        className="inline-flex h-12 w-full items-center justify-center rounded-[18px] bg-[#3E2D20] px-4 text-sm font-bold text-white transition hover:bg-[#2F241A]"
+                      >
+                        חתימה על ההסכם
+                      </button>
+                    ) : (
+                      <p className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        לא נמצא הסכם לחתימה. פנו לאדמין.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {canSave ? (
+                  <button
+                    type="submit"
+                    disabled={loading || !token}
+                    className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-[18px] bg-[#3E2D20] text-base font-bold text-white transition hover:bg-[#2F241A] disabled:cursor-not-allowed disabled:bg-[#C4B6A6]"
+                  >
+                    {loading ? "שומר..." : "שמור סיסמה והפעל משתמש"}
                   </button>
-                ) : (
-                  <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
-                    לא נמצא הסכם לחתימה. פנו לאדמין.
-                  </p>
-                )}
-              </div>
-            ) : null}
+                ) : null}
+              </form>
+            )}
 
-            {requireAgreement && agreementSigned && termsAcceptedAt ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
-                ההסכם נחתם. אפשר לשמור ולהפעיל את המשתמש.
-              </div>
+            {message ? (
+              <p className="mt-5 text-center text-sm leading-6 text-[#7B6754]">
+                {message}
+              </p>
             ) : null}
-
-            {canSave ? (
-              <button
-                type="submit"
-                disabled={loading || !token}
-                className={`w-full rounded-lg py-2 text-white transition ${
-                  loading || !token
-                    ? "cursor-not-allowed bg-gray-400"
-                    : "bg-[#3f3327] hover:bg-[#2f251d]"
-                }`}
-              >
-                {loading ? "שומר..." : "שמור סיסמה והפעל משתמש"}
-              </button>
-            ) : null}
-          </form>
-        )}
-
-        {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

@@ -19,7 +19,9 @@ export default function HeaderGate({ children }: HeaderGateProps) {
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
     pathname === "/wedding-website" ||
-    pathname.startsWith("/wedding-website/");
+    pathname.startsWith("/wedding-website/") ||
+    pathname === "/set-password" ||
+    pathname.startsWith("/set-password/");
 
   if (hideHeader) return null;
 
