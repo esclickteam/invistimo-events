@@ -165,6 +165,21 @@ export default function EditorOverlay() {
     };
   }, [editor, editor?.selection, site?.content]);
 
+  // Mirrors the current selection onto the section wrapper so the canvas can
+  // show which block is active without React re-rendering the whole template.
+  useEffect(() => {
+    const canvas = document.querySelector(".ww-editor-canvas");
+    if (!canvas) return;
+    const activeSection = sectionIdForSelection(editor?.selection ?? null);
+    canvas.querySelectorAll("[data-ww-section]").forEach((node) => {
+      if (node.getAttribute("data-ww-section") === activeSection) {
+        node.setAttribute("data-ww-active", "1");
+      } else {
+        node.removeAttribute("data-ww-active");
+      }
+    });
+  }, [editor?.selection, site?.content]);
+
   if (!site || site.mode !== "editor") return null;
 
   const selected = editor?.selection;
@@ -270,10 +285,22 @@ function clampRect(rect: DOMRect, bounds?: DOMRect | null) {
 }
 
 function labelFor(type: string) {
-  if (type === "media") return "החלפת מדיה";
+  if (type === "media") return "החלפת תמונה או סרטון";
   if (type === "section") return "עריכת מקטע";
   if (type === "countdown") return "ספירה לאחור";
   return "עריכת טקסט";
+}
+
+/** Nearest section id for a selection, used to highlight the active block. */
+function sectionIdForSelection(selection: WeddingSiteSelection) {
+  if (!selection) return "";
+  if (selection.type === "section" || selection.type === "countdown") return selection.path;
+  const canvas = document.querySelector(".ww-editor-canvas");
+  if (!canvas) return "";
+  const element = canvas.querySelector(
+    `[data-ww-path="${cssAttr(selection.path)}"]`
+  ) as HTMLElement | null;
+  return element?.closest("[data-ww-section]")?.getAttribute("data-ww-section") || "";
 }
 
 function cssAttr(value: string) {

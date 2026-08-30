@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useWeddingSite } from "@/components/wedding-website/editable/WeddingSiteContext";
 import type { WeddingSiteSelection } from "@/components/wedding-website/editable/WeddingSiteContext";
 import { WEDDING_EDITOR_FONTS, loadWeddingFont } from "@/lib/weddingWebsite/fonts";
-import { contrastOn } from "@/lib/weddingWebsite/styles";
-import {
-  isWeddingVideoUrl,
-  mediaSlotFromImageUrl,
-  resolveMediaSlot,
-} from "@/lib/weddingWebsite/media";
-import { isSectionVisible, SECTION_LABELS } from "@/lib/weddingWebsite/editorSchema";
+import { isWeddingVideoUrl, resolveMediaSlot } from "@/lib/weddingWebsite/media";
+import { isSectionVisible, LOCKED_EVENT_PATHS } from "@/lib/weddingWebsite/editorSchema";
+import { canHideSection, editorSectionLabel } from "@/lib/weddingWebsite/editorSections";
+import EditorColorField from "./EditorColorField";
 import type { WeddingMediaSlot, WeddingTextStyle } from "@/types/weddingWebsite";
 
 export default function EditorSelectionToolbar({
@@ -30,7 +27,7 @@ function ToolbarShell({ children }: { children: ReactNode }) {
   return (
     <div
       dir="rtl"
-      className="flex max-w-[min(92vw,720px)] flex-wrap items-center gap-1 rounded-2xl border border-[#eadfce] bg-white/95 p-1.5 text-[#241A14] shadow-[0_18px_50px_rgba(36,26,20,0.18)] backdrop-blur"
+      className="flex max-w-[min(94vw,760px)] flex-wrap items-center gap-1 rounded-2xl border border-[#eadfce] bg-white/97 p-1.5 text-[#241A14] shadow-[0_18px_50px_rgba(36,26,20,0.22)] backdrop-blur"
     >
       {children}
     </div>
@@ -42,18 +39,23 @@ function ToolButton({
   onClick,
   children,
   title,
+  disabled,
 }: {
   active?: boolean;
   onClick: () => void;
   children: ReactNode;
-  title?: string;
+  title: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={title}
+      aria-label={title}
+      aria-pressed={active === undefined ? undefined : active}
+      disabled={disabled}
       onClick={onClick}
-      className={`rounded-xl px-2.5 py-1.5 text-xs font-black ${
+      className={`min-h-[36px] rounded-xl px-2.5 text-xs font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#C9A962] disabled:opacity-35 ${
         active ? "bg-[#241A14] text-white" : "bg-transparent text-[#5c4632] hover:bg-[#f7f1e8]"
       }`}
     >
@@ -62,102 +64,216 @@ function ToolButton({
   );
 }
 
+function ToolSelect<T extends string>({
+  title,
+  value,
+  onChange,
+  children,
+}: {
+  title: string;
+  value: T;
+  onChange: (value: T) => void;
+  children: ReactNode;
+}) {
+  return (
+    <select
+      aria-label={title}
+      title={title}
+      value={value}
+      onChange={(event) => onChange(event.target.value as T)}
+      className="min-h-[36px] rounded-xl bg-[#fbf8f2] px-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962]"
+    >
+      {children}
+    </select>
+  );
+}
+
+function Divider() {
+  return <span className="mx-0.5 h-6 w-px bg-[#eadfce]" aria-hidden />;
+}
+
+function DeviceBadge() {
+  const site = useWeddingSite();
+  if (site?.editor?.device !== "mobile") return null;
+  return (
+    <span className="rounded-lg bg-[#3D8BBA]/15 px-2 py-1 text-[10px] font-black text-[#2A6E96]">
+      עריכה לנייד
+    </span>
+  );
+}
+
 function TextToolbar({ path }: { path: string }) {
   const site = useWeddingSite();
-  const style = site?.content.styles?.[path] || {};
-  const templateColors = site?.template.theme
-    ? [
-        site.template.theme.accent,
-        site.template.theme.text,
-        site.template.theme.textMuted,
-        site.template.theme.bg,
-        "#ffffff",
-        "#111111",
-      ]
-    : [];
+  const editor = site?.editor;
+  const mobile = editor?.device === "mobile";
+  const desktopStyle = site?.content.styles?.[path] || {};
+  const mobileStyle = site?.content.mobileStyles?.[path] || {};
+  const style: WeddingTextStyle = mobile ? { ...desktopStyle, ...mobileStyle } : desktopStyle;
+  const locked = LOCKED_EVENT_PATHS.has(path);
 
   function patch(partial: WeddingTextStyle | null) {
-    site?.editor?.updateTextStyle(path, partial);
+    if (!editor) return;
+    if (mobile) {
+      editor.updateContent((current) => {
+        const mobileStyles = { ...(current.mobileStyles || {}) };
+        if (!partial) delete mobileStyles[path];
+        else mobileStyles[path] = { ...(mobileStyles[path] || {}), ...partial };
+        return { ...current, mobileStyles };
+      });
+      return;
+    }
+    editor.updateTextStyle(path, partial);
+  }
+
+  function reset() {
+    if (!editor) return;
+    if (mobile) {
+      patch(null);
+      return;
+    }
+    editor.resetStyle(path);
   }
 
   return (
-    <ToolbarShell>
-      <select
-        className="rounded-xl bg-[#fbf8f2] px-2 py-1.5 text-xs font-bold"
-        value={style.fontFamily || ""}
-        onChange={(event) => {
-          const family = event.target.value;
-          if (family) loadWeddingFont(family);
-          patch({ ...style, fontFamily: family || undefined });
-        }}
-      >
-        <option value="">פונט תבנית</option>
-        {WEDDING_EDITOR_FONTS.map((font) => (
-          <option key={font.id} value={font.family}>
-            {font.label}
-          </option>
-        ))}
-      </select>
-      <select
-        className="rounded-xl bg-[#fbf8f2] px-2 py-1.5 text-xs font-bold"
-        value={style.fontSize || ""}
-        onChange={(event) => patch({ ...style, fontSize: event.target.value || undefined })}
-      >
-        <option value="">גודל</option>
-        {["14px", "16px", "18px", "22px", "28px", "36px", "48px", "64px"].map((size) => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
-      <ToolButton
-        title="Bold"
-        active={String(style.fontWeight) === "700"}
-        onClick={() =>
-          patch({ ...style, fontWeight: String(style.fontWeight) === "700" ? "400" : "700" })
-        }
-      >
-        B
-      </ToolButton>
-      <ToolButton
-        title="Italic"
-        active={style.fontStyle === "italic"}
-        onClick={() =>
-          patch({ ...style, fontStyle: style.fontStyle === "italic" ? "normal" : "italic" })
-        }
-      >
-        I
-      </ToolButton>
-      <ColorControl
-        colors={templateColors}
-        value={style.color || ""}
-        onChange={(color) => patch({ ...style, color: color || undefined })}
-      />
-      {(["right", "center", "left"] as const).map((align) => (
-        <ToolButton
-          key={align}
-          active={style.textAlign === align}
-          onClick={() => patch({ ...style, textAlign: align })}
+    <div>
+      {locked ? (
+        <div className="mb-1 flex flex-wrap items-center gap-2 rounded-2xl border border-[#B8D4E6] bg-[#EFF7FC] p-2 text-[11px] font-bold text-[#2A6E96]">
+          <span>מידע זה מגיע מפרטי האירוע ולא נשמר בנפרד באתר.</span>
+          <a
+            href="/dashboard/edit-invitation"
+            className="rounded-lg bg-[#2A6E96] px-2 py-1 text-white"
+          >
+            עריכת פרטי האירוע
+          </a>
+        </div>
+      ) : null}
+      <ToolbarShell>
+        <DeviceBadge />
+        <ToolSelect
+          title="פונט"
+          value={style.fontFamily || ""}
+          onChange={(family) => {
+            if (family) loadWeddingFont(family);
+            patch({ fontFamily: family || undefined });
+          }}
         >
-          {align === "right" ? "ימין" : align === "center" ? "מרכז" : "שמאל"}
+          <option value="">פונט התבנית</option>
+          <optgroup label="מותאם לעברית">
+            {WEDDING_EDITOR_FONTS.filter((font) => font.rtl).map((font) => (
+              <option key={font.id} value={font.family}>
+                {font.label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="לטיני / דקורטיבי">
+            {WEDDING_EDITOR_FONTS.filter((font) => !font.rtl).map((font) => (
+              <option key={font.id} value={font.family}>
+                {font.label}
+              </option>
+            ))}
+          </optgroup>
+        </ToolSelect>
+
+        <ToolSelect
+          title="גודל טקסט"
+          value={style.fontSize || ""}
+          onChange={(fontSize) => patch({ fontSize: fontSize || undefined })}
+        >
+          <option value="">גודל</option>
+          {["12px", "14px", "16px", "18px", "22px", "28px", "36px", "48px", "64px", "80px"].map(
+            (size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            )
+          )}
+        </ToolSelect>
+
+        <ToolSelect
+          title="עובי"
+          value={String(style.fontWeight || "")}
+          onChange={(fontWeight) => patch({ fontWeight: fontWeight || undefined })}
+        >
+          <option value="">עובי</option>
+          {["300", "400", "500", "600", "700", "800", "900"].map((weight) => (
+            <option key={weight} value={weight}>
+              {weight}
+            </option>
+          ))}
+        </ToolSelect>
+
+        <ToolButton
+          title="מודגש"
+          active={String(style.fontWeight) === "700"}
+          onClick={() =>
+            patch({ fontWeight: String(style.fontWeight) === "700" ? "400" : "700" })
+          }
+        >
+          B
         </ToolButton>
-      ))}
-      <select
-        className="rounded-xl bg-[#fbf8f2] px-2 py-1.5 text-xs font-bold"
-        value={String(style.lineHeight || "")}
-        onChange={(event) => patch({ ...style, lineHeight: event.target.value || undefined })}
-      >
-        <option value="">גובה שורה</option>
-        {["1", "1.2", "1.45", "1.7", "2"].map((value) => (
-          <option key={value} value={value}>
-            {value}
-          </option>
+        <ToolButton
+          title="נטוי"
+          active={style.fontStyle === "italic"}
+          onClick={() => patch({ fontStyle: style.fontStyle === "italic" ? "normal" : "italic" })}
+        >
+          <span className="italic">I</span>
+        </ToolButton>
+
+        <Divider />
+
+        <EditorColorField
+          label="צבע טקסט"
+          value={style.color || ""}
+          onChange={(color) => patch({ color: color || undefined })}
+          onApplyToTheme={(role, color) => editor?.updateTheme({ colors: { [role]: color } })}
+        />
+
+        <Divider />
+
+        {(["right", "center", "left"] as const).map((align) => (
+          <ToolButton
+            key={align}
+            title={align === "right" ? "יישור לימין" : align === "center" ? "מרכוז" : "יישור לשמאל"}
+            active={style.textAlign === align}
+            onClick={() => patch({ textAlign: align })}
+          >
+            {align === "right" ? "⇥" : align === "center" ? "≡" : "⇤"}
+          </ToolButton>
         ))}
-      </select>
-      <ToolButton title="איפוס עיצוב" onClick={() => site?.editor?.resetStyle(path)}>
-        איפוס
-      </ToolButton>
-    </ToolbarShell>
+
+        <ToolSelect
+          title="גובה שורה"
+          value={String(style.lineHeight || "")}
+          onChange={(lineHeight) => patch({ lineHeight: lineHeight || undefined })}
+        >
+          <option value="">גובה שורה</option>
+          {["1", "1.15", "1.35", "1.5", "1.7", "2"].map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </ToolSelect>
+
+        <ToolSelect
+          title="מרווח אותיות"
+          value={style.letterSpacing || ""}
+          onChange={(letterSpacing) => patch({ letterSpacing: letterSpacing || undefined })}
+        >
+          <option value="">מרווח אותיות</option>
+          {["-0.02em", "0em", "0.05em", "0.1em", "0.2em", "0.35em"].map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </ToolSelect>
+
+        <Divider />
+
+        <ToolButton title="איפוס לעיצוב התבנית" onClick={reset}>
+          איפוס
+        </ToolButton>
+      </ToolbarShell>
+    </div>
   );
 }
 
@@ -173,48 +289,89 @@ function MediaReplaceControls({
   showFit?: boolean;
 }) {
   const site = useWeddingSite();
+  const editor = site?.editor;
   const imageRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [videoOpen, setVideoOpen] = useState(false);
+  const [panel, setPanel] = useState<"none" | "focal" | "video">("none");
+  const [uploading, setUploading] = useState(false);
   const slot = resolveMediaSlot(slotId, site?.content, site?.template.heroImage || "");
 
   async function onFile(file?: File | null) {
-    if (!file || !site?.editor) return;
-    const uploaded = await site.editor.uploadMedia(file);
-    site.editor.updateMedia(slotId, uploaded);
+    if (!file || !editor) return;
+    setUploading(true);
+    try {
+      const uploaded = await editor.uploadMedia(file);
+      editor.updateMedia(slotId, uploaded);
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
     <div>
       <ToolbarShell>
-        <ToolButton title="העלאת תמונה" onClick={() => imageRef.current?.click()}>
-          תמונה
+        <DeviceBadge />
+        <ToolButton title="העלאת תמונה" onClick={() => imageRef.current?.click()} disabled={uploading}>
+          {uploading ? "מעלה..." : "תמונה"}
         </ToolButton>
-        <ToolButton title="העלאת סרטון" onClick={() => videoRef.current?.click()}>
+        <ToolButton title="העלאת סרטון" onClick={() => videoRef.current?.click()} disabled={uploading}>
           סרטון
         </ToolButton>
-        <ToolButton onClick={() => setLibraryOpen((value) => !value)}>מדיה קיימת</ToolButton>
+        <ToolButton title="בחירה מספריית המדיה" onClick={() => editor?.pickFromLibrary(slotId)}>
+          ספריית מדיה
+        </ToolButton>
+
+        <Divider />
+
         <ToolButton
-          active={slot?.type === "video" || videoOpen}
-          onClick={() => setVideoOpen((value) => !value)}
+          title="מיקום, חיתוך וזום"
+          active={panel === "focal"}
+          onClick={() => setPanel((current) => (current === "focal" ? "none" : "focal"))}
+          disabled={!slot?.src}
         >
-          קישור וידאו
+          מיקום וחיתוך
         </ToolButton>
         {showFit ? (
           <ToolButton
+            title={slot?.fit === "contain" ? "מעבר לחיתוך ממלא" : "מעבר להצגת כל התמונה"}
             onClick={() =>
-              site?.editor?.updateMedia(
+              editor?.updateMedia(
                 slotId,
                 slot ? { ...slot, fit: slot.fit === "contain" ? "cover" : "contain" } : null
               )
             }
+            disabled={!slot?.src}
           >
-            {slot?.fit === "contain" ? "Fit" : "Crop"}
+            {slot?.fit === "contain" ? "התאמה" : "חיתוך"}
           </ToolButton>
         ) : null}
-        <ToolButton onClick={() => site?.editor?.updateMedia(slotId, null)}>מחיקה</ToolButton>
+        <ToolButton
+          title="הגדרות סרטון"
+          active={panel === "video" || slot?.type === "video"}
+          onClick={() => setPanel((current) => (current === "video" ? "none" : "video"))}
+        >
+          וידאו
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton
+          title="הסרת המדיה"
+          disabled={!slot?.src}
+          onClick={() =>
+            editor?.confirm({
+              title: "הסרת מדיה",
+              message: "התמונה או הסרטון יוסרו מהמקטע. הקובץ יישאר בספריית המדיה.",
+              confirmLabel: "הסרה",
+              tone: "danger",
+              onConfirm: () => editor.updateMedia(slotId, null),
+            })
+          }
+        >
+          הסרה
+        </ToolButton>
       </ToolbarShell>
+
       <input
         ref={imageRef}
         type="file"
@@ -235,18 +392,12 @@ function MediaReplaceControls({
           event.currentTarget.value = "";
         }}
       />
-      {libraryOpen ? <MediaLibrary onPick={(item) => site?.editor?.updateMedia(slotId, item)} /> : null}
-      {videoOpen ? (
-        <VideoSettings
-          slot={slot}
-          onChange={(next) => site?.editor?.updateMedia(slotId, next)}
-        />
+
+      {panel === "focal" && slot ? (
+        <FocalPad slot={slot} onChange={(next) => editor?.updateMedia(slotId, next)} />
       ) : null}
-      {showFit && slot ? (
-        <FocalPad
-          slot={slot}
-          onChange={(next) => site?.editor?.updateMedia(slotId, next)}
-        />
+      {panel === "video" ? (
+        <VideoSettings slot={slot} onChange={(next) => editor?.updateMedia(slotId, next)} />
       ) : null}
     </div>
   );
@@ -254,223 +405,61 @@ function MediaReplaceControls({
 
 function SectionToolbar({ id }: { id: string }) {
   const site = useWeddingSite();
+  const editor = site?.editor;
   const visible = isSectionVisible(site?.content, id);
-  const label = SECTION_LABELS[id] || id;
+  const label = editorSectionLabel(id);
   const style = site?.content.sectionStyles?.[id] || {};
+  const hidable = canHideSection(id);
 
   return (
     <div>
       <ToolbarShell>
         <span className="px-2 text-xs font-black">{label}</span>
+        <DeviceBadge />
+        <Divider />
         <ToolButton
-          onClick={() => site?.editor?.toggleSection(id, !visible)}
+          title={visible ? "הסתרת המקטע" : "הצגת המקטע"}
+          disabled={!hidable}
+          onClick={() => editor?.toggleSection(id, !visible)}
         >
           {visible ? "הסתרה" : "הצגה"}
         </ToolButton>
-        <ToolButton onClick={() => site?.editor?.moveSection(id, -1)}>למעלה</ToolButton>
-        <ToolButton onClick={() => site?.editor?.moveSection(id, 1)}>למטה</ToolButton>
-        <ColorControl
-          colors={
-            site?.template.theme
-              ? [site.template.theme.bg, site.template.theme.bgAlt, site.template.theme.accent, "#ffffff"]
-              : []
-          }
+        <ToolButton title="העלאה למעלה" onClick={() => editor?.moveSection(id, -1)}>
+          ↑
+        </ToolButton>
+        <ToolButton title="הורדה למטה" onClick={() => editor?.moveSection(id, 1)}>
+          ↓
+        </ToolButton>
+        <Divider />
+        <EditorColorField
+          label="צבע רקע המקטע"
           value={style.backgroundColor || ""}
-          onChange={(backgroundColor) => {
-            site?.editor?.updateContent((current) => ({
-              ...current,
-              sectionStyles: {
-                ...(current.sectionStyles || {}),
-                [id]: { ...(current.sectionStyles?.[id] || {}), backgroundColor: backgroundColor || undefined },
-              },
-            }));
-          }}
+          against={style.backgroundColor || site?.template.theme.bg}
+          onChange={(backgroundColor) =>
+            editor?.updateSectionStyle(id, { backgroundColor: backgroundColor || undefined })
+          }
+          onApplyToTheme={(role, color) => editor?.updateTheme({ colors: { [role]: color } })}
         />
+        <ToolButton
+          title="איפוס עיצוב המקטע"
+          onClick={() =>
+            editor?.confirm({
+              title: "איפוס מקטע",
+              message: `שינויי העיצוב במקטע "${label}" יימחקו. התוכן יישמר.`,
+              confirmLabel: "איפוס המקטע",
+              tone: "danger",
+              onConfirm: () => editor.resetSection(id),
+            })
+          }
+        >
+          איפוס מקטע
+        </ToolButton>
       </ToolbarShell>
       {id === "hero" ? (
         <div className="mt-1">
-          <MediaReplaceControls slotId="hero" />
+          <MediaReplaceControls slotId="hero" showFit />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-const COLOR_SWATCHES = [
-  "#111111",
-  "#3f3f3f",
-  "#6b6b6b",
-  "#9a9a9a",
-  "#d4d4d4",
-  "#ffffff",
-  "#7f1d1d",
-  "#b91c1c",
-  "#ef4444",
-  "#fb7185",
-  "#c2410c",
-  "#f97316",
-  "#facc15",
-  "#365314",
-  "#16a34a",
-  "#4ade80",
-  "#0f766e",
-  "#22d3ee",
-  "#1e3a8a",
-  "#2563eb",
-  "#7c3aed",
-  "#c026d3",
-  "#db2777",
-  "#C9A962",
-  "#8A7560",
-  "#3D2518",
-  "#E8788A",
-  "#3D8BBA",
-  "#6B9E78",
-  "#B8956B",
-];
-
-function toColorInputValue(value: string) {
-  const hex = value.trim();
-  if (/^#([0-9a-f]{6})$/i.test(hex)) return hex;
-  if (/^#([0-9a-f]{3})$/i.test(hex)) {
-    const parts = hex.slice(1).split("");
-    return `#${parts.map((part) => part + part).join("")}`;
-  }
-  return "#C9A962";
-}
-
-function ColorControl({
-  colors,
-  value,
-  onChange,
-}: {
-  colors: string[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [hex, setHex] = useState(value || "#C9A962");
-  const recent = useMemo(() => readRecentColors(), [open]);
-  const contrast = contrastOn(hex);
-  const pickerValue = toColorInputValue(hex);
-  const palette = Array.from(new Set([...colors.filter(Boolean), ...COLOR_SWATCHES]));
-
-  useEffect(() => {
-    if (value) setHex(value);
-  }, [value]);
-
-  function applyColor(color: string) {
-    setHex(color);
-    rememberColor(color);
-    onChange(color);
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-black"
-      >
-        <span className="h-4 w-4 rounded-full border border-black/10" style={{ background: value || "#ddd" }} />
-        צבע
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-9 z-10 w-72 rounded-2xl border border-[#eadfce] bg-white p-3 shadow-xl">
-          <p className="mb-2 text-[10px] font-black text-[#8A7B69]">פלטת צבעים</p>
-          <label className="mb-3 block">
-            <span className="sr-only">בחירת צבע</span>
-            <input
-              type="color"
-              value={pickerValue}
-              onChange={(event) => applyColor(event.target.value)}
-              className="h-12 w-full cursor-pointer rounded-xl border border-[#eadfce] bg-white p-1"
-            />
-          </label>
-          <div className="grid grid-cols-10 gap-1.5">
-            {palette.map((color) => (
-              <button
-                key={color}
-                type="button"
-                title={color}
-                className={`h-6 w-6 rounded-full border ${
-                  color.toLowerCase() === hex.toLowerCase() ? "border-[#241A14] ring-2 ring-[#C9A962]" : "border-black/10"
-                }`}
-                style={{ background: color }}
-                onClick={() => applyColor(color)}
-              />
-            ))}
-          </div>
-          {recent.length ? (
-            <>
-              <p className="mb-2 mt-3 text-[10px] font-black text-[#8A7B69]">אחרונים</p>
-              <div className="flex flex-wrap gap-1.5">
-                {recent.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className="h-6 w-6 rounded-full border border-black/10"
-                    style={{ background: color }}
-                    onClick={() => applyColor(color)}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
-          <label className="mt-3 block text-[10px] font-black text-[#8A7B69]">
-            HEX
-            <input
-              value={hex}
-              onChange={(event) => setHex(event.target.value)}
-              onBlur={() => {
-                if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)) {
-                  applyColor(hex);
-                }
-              }}
-              className="mt-1 w-full rounded-xl border border-[#eadfce] px-2 py-1 font-mono text-xs"
-            />
-          </label>
-          <p className="mt-2 text-[10px] font-semibold text-[#8A7B69]">
-            Contrast {contrast.ratio}:1 {contrast.safe ? "תקין" : "חלש"}
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MediaLibrary({ onPick }: { onPick: (slot: WeddingMediaSlot) => void }) {
-  const [items, setItems] = useState<WeddingMediaSlot[]>([]);
-
-  useEffect(() => {
-    fetch("/api/wedding-website/media", { credentials: "include", cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => setItems(Array.isArray(data?.items) ? data.items : []))
-      .catch(() => setItems([]));
-  }, []);
-
-  return (
-    <div className="mt-2 max-h-56 w-[min(92vw,360px)] overflow-auto rounded-2xl border border-[#eadfce] bg-white p-2 shadow-xl">
-      {items.length === 0 ? (
-        <p className="p-3 text-xs font-semibold text-[#8A7B69]">אין מדיה שמורה עדיין</p>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {items.map((item) => (
-            <button
-              key={item.src}
-              type="button"
-              className="overflow-hidden rounded-xl border border-[#eadfce]"
-              onClick={() => onPick(item)}
-            >
-              {item.type === "video" ? (
-                <video src={item.src} className="h-16 w-full object-cover" muted />
-              ) : (
-                <img src={item.src} alt="" className="h-16 w-full object-cover" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -482,21 +471,23 @@ function VideoSettings({
   slot: WeddingMediaSlot | null;
   onChange: (slot: WeddingMediaSlot) => void;
 }) {
-  const current = slot || mediaSlotFromImageUrl("");
+  const current: WeddingMediaSlot =
+    slot || { type: "image", src: "", fit: "cover", position: "50% 50%", zoom: 1 };
   const [url, setUrl] = useState(current.type === "video" ? current.src : "");
+  const [poster, setPoster] = useState(current.poster || "");
 
   return (
-    <div className="mt-2 w-[min(92vw,320px)] rounded-2xl border border-[#eadfce] bg-white p-3 text-xs shadow-xl">
-      <p className="mb-2 font-black">סרטון לרקע</p>
+    <div className="mt-1 w-[min(92vw,340px)] rounded-2xl border border-[#eadfce] bg-white p-3 text-xs shadow-[0_18px_50px_rgba(36,26,20,0.22)]">
+      <p className="mb-2 font-black">סרטון</p>
       <label className="block font-semibold">
-        קישור לסרטון
+        קישור לסרטון (mp4 / webm)
         <input
           type="url"
           value={url}
           placeholder="https://..."
           onChange={(event) => setUrl(event.target.value)}
           onBlur={() => {
-            const next = eventUrl(url);
+            const next = safeMediaUrl(url);
             if (!next) return;
             onChange({
               ...current,
@@ -507,11 +498,27 @@ function VideoSettings({
               loop: isWeddingVideoUrl(next),
             });
           }}
-          className="mt-1 w-full rounded-xl border border-[#eadfce] px-2 py-1.5 font-mono text-[11px]"
+          className="mt-1 min-h-[36px] w-full rounded-xl border border-[#eadfce] px-2 font-mono text-[11px]"
         />
       </label>
-      <label className="mt-2 flex items-center justify-between py-1 font-semibold">
-        Autoplay
+
+      <label className="mt-2 block font-semibold">
+        תמונת פתיחה (Poster)
+        <input
+          type="url"
+          value={poster}
+          placeholder="https://..."
+          onChange={(event) => setPoster(event.target.value)}
+          onBlur={() => {
+            const next = safeMediaUrl(poster);
+            onChange({ ...current, poster: next || undefined });
+          }}
+          className="mt-1 min-h-[36px] w-full rounded-xl border border-[#eadfce] px-2 font-mono text-[11px]"
+        />
+      </label>
+
+      <label className="mt-2 flex min-h-[36px] items-center justify-between font-semibold">
+        ניגון אוטומטי
         <input
           type="checkbox"
           checked={Boolean(current.autoplay)}
@@ -520,28 +527,43 @@ function VideoSettings({
               ...current,
               type: "video",
               autoplay: event.target.checked,
+              // Browsers block autoplay with sound, so this stays enforced.
               muted: event.target.checked ? true : current.muted,
             })
           }
+          className="h-5 w-5 accent-[#C9A962]"
         />
       </label>
-      <label className="flex items-center justify-between py-1 font-semibold">
-        Loop
+      <label className="flex min-h-[36px] items-center justify-between font-semibold">
+        ניגון חוזר
         <input
           type="checkbox"
           checked={Boolean(current.loop)}
           onChange={(event) => onChange({ ...current, loop: event.target.checked, type: "video" })}
+          className="h-5 w-5 accent-[#C9A962]"
         />
       </label>
-      <p className="mt-2 text-[10px] text-[#8A7B69]">Autoplay תמיד מושתק לנייד. אפשר גם להעלות קובץ MP4.</p>
+      <label className="flex min-h-[36px] items-center justify-between font-semibold">
+        מושתק
+        <input
+          type="checkbox"
+          checked={current.autoplay ? true : Boolean(current.muted)}
+          disabled={Boolean(current.autoplay)}
+          onChange={(event) => onChange({ ...current, muted: event.target.checked })}
+          className="h-5 w-5 accent-[#C9A962]"
+        />
+      </label>
+      <p className="mt-2 text-[10px] font-semibold leading-4 text-[#8A7B69]">
+        סרטון שמתנגן אוטומטית נשאר מושתק — כך הוא עובד בכל הדפדפנים ובמובייל.
+      </p>
     </div>
   );
 }
 
-function eventUrl(value: string) {
+function safeMediaUrl(value: string) {
   const url = value.trim();
   if (!url) return "";
-  if (!isWeddingVideoUrl(url) && !/^https:\/\//i.test(url)) return "";
+  if (!/^https:\/\//i.test(url)) return "";
   return url;
 }
 
@@ -552,49 +574,81 @@ function FocalPad({
   slot: WeddingMediaSlot;
   onChange: (slot: WeddingMediaSlot) => void;
 }) {
+  const site = useWeddingSite();
+  const mobile = site?.editor?.device === "mobile";
   const preview = slot.type === "video" ? slot.poster || slot.src : slot.src;
+  const position = (mobile ? slot.positionMobile : slot.position) || slot.position || "50% 50%";
+  const [x, y] = position.split(" ");
+
+  function setPosition(next: string) {
+    onChange(mobile ? { ...slot, positionMobile: next } : { ...slot, position: next });
+  }
+
+  function fromPointer(event: React.MouseEvent<HTMLElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const px = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+    const py = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+    setPosition(`${Math.min(100, Math.max(0, px))}% ${Math.min(100, Math.max(0, py))}%`);
+  }
+
   return (
-    <div className="mt-2 w-[min(92vw,280px)] rounded-2xl border border-[#eadfce] bg-white p-3 shadow-xl">
-      <p className="mb-2 text-xs font-black">מיקום / זום</p>
-      <button
-        type="button"
-        className="relative h-28 w-full overflow-hidden rounded-xl bg-black"
-        onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
-          const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
-          onChange({ ...slot, position: `${x}% ${y}%` });
+    <div className="mt-1 w-[min(92vw,300px)] rounded-2xl border border-[#eadfce] bg-white p-3 shadow-[0_18px_50px_rgba(36,26,20,0.22)]">
+      <p className="mb-2 text-xs font-black">
+        {mobile ? "נקודת מיקוד לנייד" : "נקודת מיקוד למחשב"}
+      </p>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="בחירת נקודת המיקוד של התמונה"
+        className="relative h-28 w-full cursor-crosshair overflow-hidden rounded-xl bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962]"
+        onClick={fromPointer}
+        onKeyDown={(event) => {
+          const step = 5;
+          const cx = parseInt(x, 10) || 50;
+          const cy = parseInt(y, 10) || 50;
+          if (event.key === "ArrowRight") setPosition(`${Math.min(100, cx + step)}% ${cy}%`);
+          if (event.key === "ArrowLeft") setPosition(`${Math.max(0, cx - step)}% ${cy}%`);
+          if (event.key === "ArrowDown") setPosition(`${cx}% ${Math.min(100, cy + step)}%`);
+          if (event.key === "ArrowUp") setPosition(`${cx}% ${Math.max(0, cy - step)}%`);
         }}
       >
-        {slot.type === "video" && !slot.poster ? (
-          <video src={slot.src} className="h-full w-full object-cover" style={mediaSlotFromImageUrl(slot.src) && { objectPosition: slot.position }} muted />
-        ) : (
-          <img src={preview} alt="" className="h-full w-full object-cover" style={{ objectPosition: slot.position }} />
-        )}
-      </button>
-      <input
-        type="range"
-        min={1}
-        max={2.2}
-        step={0.05}
-        value={slot.zoom || 1}
-        className="mt-2 w-full"
-        onChange={(event) => onChange({ ...slot, zoom: Number(event.target.value) })}
-      />
+        <img
+          src={preview}
+          alt=""
+          className="h-full w-full object-cover"
+          style={{ objectPosition: position, transform: `scale(${slot.zoom || 1})` }}
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+          style={{ left: x, top: y }}
+        />
+      </div>
+      <div className="mt-2">
+        <label className="flex items-center justify-between text-[10px] font-black text-[#8A7B69]">
+          זום
+          <span>{(slot.zoom || 1).toFixed(2)}×</span>
+        </label>
+        <input
+          type="range"
+          aria-label="זום התמונה"
+          min={1}
+          max={2.2}
+          step={0.05}
+          value={slot.zoom || 1}
+          className="h-9 w-full accent-[#C9A962]"
+          onChange={(event) => onChange({ ...slot, zoom: Number(event.target.value) })}
+        />
+      </div>
+      {mobile && slot.positionMobile ? (
+        <button
+          type="button"
+          onClick={() => onChange({ ...slot, positionMobile: undefined })}
+          className="mt-1 min-h-[34px] w-full rounded-xl border border-[#eadfce] text-[11px] font-black text-[#5c4632] hover:bg-[#F7F1E8]"
+        >
+          שימוש באותה נקודה כמו במחשב
+        </button>
+      ) : null}
     </div>
   );
-}
-
-function readRecentColors() {
-  try {
-    const raw = JSON.parse(sessionStorage.getItem("ww-recent-colors") || "[]");
-    return Array.isArray(raw) ? raw.filter((item) => typeof item === "string").slice(0, 8) : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberColor(color: string) {
-  const next = [color, ...readRecentColors().filter((item) => item !== color)].slice(0, 8);
-  sessionStorage.setItem("ww-recent-colors", JSON.stringify(next));
 }
