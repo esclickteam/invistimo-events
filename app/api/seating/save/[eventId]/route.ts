@@ -11,6 +11,7 @@ import {
   planInvitationGuestSeatingWrites,
   type PlannedSeatingGuestWrite,
 } from "@/lib/invitationGuestWrites";
+import { pruneHiddenTableIdsForEvent } from "@/lib/messages/reminderSmsSettings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -513,6 +514,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       invitationId,
       eventId,
       tables,
+    });
+
+    await pruneHiddenTableIdsForEvent({
+      eventId: eventIdForDb,
+      liveTableIds: tables.map((table: any) => String(table?.id || "")),
     });
 
     return NextResponse.json({

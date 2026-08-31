@@ -272,6 +272,20 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
+       הסתרת מספר שולחן בהודעת תזכורת
+       ברירת מחדל = כמו היום (מי שיש לו שולחן מקבל מספר)
+    ========================= */
+    hideTableNumberForAll: {
+      type: Boolean,
+      default: false,
+    },
+
+    hiddenTableIds: {
+      type: [String],
+      default: [],
+    },
+
+    /* =========================
        אזורים
     ========================= */
     zones: {

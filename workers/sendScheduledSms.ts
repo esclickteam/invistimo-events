@@ -4,13 +4,17 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
+import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 import {
-  AUTO_REMINDER_BY_TABLE,
-  resolveReminderSmsTemplate,
+  buildReminderSmsTemplateForGuest,
 } from "@/lib/messages/resolveReminderSmsTemplate";
+import {
+  getInvitationEventId,
+  getReminderSmsBody,
+} from "@/lib/messages/reminderSmsSettings";
 
 import {
   sendRsvpTemplateMedia,
@@ -206,11 +210,15 @@ function getTableName(guest: any) {
 async function buildSmsText({
   schedule,
   invitation,
+  event,
+  reminderSmsBody,
   guest,
   navigationLink,
 }: {
   schedule: any;
   invitation: any;
+  event?: any;
+  reminderSmsBody?: string;
   guest: any;
   navigationLink: string;
 }) {
@@ -223,31 +231,26 @@ async function buildSmsText({
   });
   const shortUrl = await shortenUrl(personalUrl);
 
-  const tableName = getTableName(guest);
-  const guestHasTable = !!tableName;
-
   const type = normalizeType(schedule.type || schedule.templateKey);
 
   let template = String(
     schedule.messageContent || schedule.messageOverride || ""
   );
+  let tableName = getTableName(guest);
 
   if (type === "reminder" || type === "table") {
     /**
-     * חשוב: מספר שולחן נלקח מהאורח ברגע השליחה בפועל בלבד.
-     * גם אם תזמנו מראש בלי שולחן — אם עד השליחה יש מספר, ההודעה תכלול אותו.
-     * אם ברגע השליחה אין מספר — נשלחת תזכורת בלבד.
+     * בזמן execution בלבד:
+     * טוענים מחדש גוף הודעה, אירוע, אורח, שולחן והגדרות הסתרה.
+     * לא משתמשים ב-snapshot שנשמר בזמן התזמון.
      */
-    const isAutoReminder =
-      template === AUTO_REMINDER_BY_TABLE ||
-      schedule.messageOverride === AUTO_REMINDER_BY_TABLE ||
-      schedule.text === AUTO_REMINDER_BY_TABLE;
-
-    template = resolveReminderSmsTemplate({
-      template,
-      guestHasTable,
-      isAutoReminder,
+    const built = buildReminderSmsTemplateForGuest({
+      body: reminderSmsBody || "",
+      event,
+      guest,
     });
+    template = built.template;
+    tableName = built.tableName;
   }
 
   return template
@@ -634,6 +637,16 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
+      const isReminderSms = type === "reminder" || type === "table";
+      const reminderSmsBody = isReminderSms ? await getReminderSmsBody() : "";
+      const reminderEventId = isReminderSms ? getInvitationEventId(invitation) : "";
+      const reminderEvent =
+        isReminderSms && reminderEventId
+          ? await Event.findById(reminderEventId)
+              .select("hideTableNumberForAll hiddenTableIds")
+              .lean()
+          : null;
+
       if (type === "rsvp" && round === 3 && !isRoundAllowedForUser(user, round)) {
         await cancelScheduledBecauseRoundNotAllowed({
           scheduleId: msg._id,
@@ -709,10 +722,17 @@ export async function sendScheduledSms() {
         const phone = normalizePhone(guest.phone);
         if (!phone) continue;
 
+        const liveGuest =
+          isReminderSms
+            ? ((await InvitationGuest.findById(guest._id).lean()) as any) || guest
+            : guest;
+
         const text = await buildSmsText({
           schedule: msg,
           invitation,
-          guest,
+          event: reminderEvent,
+          reminderSmsBody,
+          guest: liveGuest,
           navigationLink,
         });
 

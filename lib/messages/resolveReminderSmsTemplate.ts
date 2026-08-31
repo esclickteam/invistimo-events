@@ -29,8 +29,147 @@ export function stripTableBlockForGuestWithoutTable(text: string) {
       /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*(?:🪑\s*)?\n*/g,
       "\n"
     )
+    .replace(/\n*[^\n]*\{\{tableName\}\}[^\n]*\n*/g, "\n")
+    .replace(/\{\{tableName\}\}/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+export function guestHasAssignedTable(guest: {
+  tableName?: unknown;
+  tableNumber?: unknown;
+}) {
+  if (typeof guest?.tableName === "string" && guest.tableName.trim()) {
+    return true;
+  }
+
+  return typeof guest?.tableNumber === "number";
+}
+
+export function getGuestTableDisplayName(guest: {
+  tableName?: unknown;
+  tableNumber?: unknown;
+}) {
+  if (typeof guest?.tableName === "string" && guest.tableName.trim()) {
+    return guest.tableName.trim();
+  }
+
+  if (typeof guest?.tableNumber === "number") {
+    return `שולחן ${guest.tableNumber}`;
+  }
+
+  return "";
+}
+
+export function normalizeHiddenTableIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const ids: string[] = [];
+
+  for (const item of value) {
+    const id = String(item || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+
+  return ids;
+}
+
+export function getEventReminderTableVisibility(event: {
+  hideTableNumberForAll?: unknown;
+  hiddenTableIds?: unknown;
+} | null | undefined) {
+  return {
+    hideTableNumberForAll: Boolean(event?.hideTableNumberForAll),
+    hiddenTableIds: normalizeHiddenTableIds(event?.hiddenTableIds),
+  };
+}
+
+/**
+ * האם להכניס מספר שולחן לגוף הודעת התזכורת — לפי מצב עדכני בלבד.
+ */
+export function shouldIncludeTableNumber({
+  hideTableNumberForAll = false,
+  hiddenTableIds = [],
+  guestTableId,
+  guestHasTable,
+}: {
+  hideTableNumberForAll?: boolean;
+  hiddenTableIds?: string[];
+  guestTableId?: unknown;
+  guestHasTable: boolean;
+}) {
+  if (hideTableNumberForAll) return false;
+
+  const tableId = String(guestTableId || "").trim();
+  if (
+    tableId &&
+    normalizeHiddenTableIds(hiddenTableIds).includes(tableId)
+  ) {
+    return false;
+  }
+
+  return Boolean(guestHasTable);
+}
+
+/**
+ * פונקציה מרכזית אחת לבניית תבנית התזכורת (מיידי + מתוזמן).
+ * מקבלת את גוף ההודעה העדכני מהאדמין ומחליטה אם להשאיר את בלוק השולחן.
+ */
+export function buildLiveReminderSmsTemplate({
+  body,
+  includeTableNumber,
+}: {
+  body: string;
+  includeTableNumber: boolean;
+}) {
+  const raw =
+    String(body || "").trim() || REMINDER_WITH_TABLE_SERVER_TEMPLATE;
+
+  if (includeTableNumber) {
+    return raw;
+  }
+
+  return (
+    stripTableBlockForGuestWithoutTable(raw) ||
+    REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
+  );
+}
+
+export function buildReminderSmsTemplateForGuest({
+  body,
+  event,
+  guest,
+}: {
+  body: string;
+  event?: {
+    hideTableNumberForAll?: unknown;
+    hiddenTableIds?: unknown;
+  } | null;
+  guest: {
+    tableId?: unknown;
+    tableName?: unknown;
+    tableNumber?: unknown;
+  };
+}) {
+  const visibility = getEventReminderTableVisibility(event);
+  const includeTableNumber = shouldIncludeTableNumber({
+    hideTableNumberForAll: visibility.hideTableNumberForAll,
+    hiddenTableIds: visibility.hiddenTableIds,
+    guestTableId: guest?.tableId,
+    guestHasTable: guestHasAssignedTable(guest),
+  });
+
+  return {
+    template: buildLiveReminderSmsTemplate({
+      body,
+      includeTableNumber,
+    }),
+    includeTableNumber,
+    tableName: includeTableNumber ? getGuestTableDisplayName(guest) : "",
+  };
 }
 
 export function isDefaultReminderSmsTemplate(text: string) {
