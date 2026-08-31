@@ -20,6 +20,7 @@ export type EmployeeSaleUpsellKey =
   | "digitalSeating"
   | "creditGifts"
   | "venueSeating"
+  | "eventDayManager"
   | "personalRepresentative"
   | "thirdRsvpRound"
   | "suppliersBudgetSystem"
@@ -411,6 +412,11 @@ const EmployeeSaleSchema = new Schema(
       venueSeating: {
         type: UpsellStateSchema,
         default: () => ({ enabled: false, price: 0, totalPrice: 0, staffCount: 0 }),
+      },
+
+      eventDayManager: {
+        type: UpsellStateSchema,
+        default: () => ({ enabled: false, price: 0, totalPrice: 0 }),
       },
 
       personalRepresentative: {

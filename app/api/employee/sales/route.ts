@@ -178,6 +178,7 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     upsells,
     "personalRepresentative",
   );
+  const eventDayManager = findUpsell(upsells, "eventDayManager");
   const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
@@ -207,6 +208,11 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     personalRepresentative: {
       enabled: Boolean(personalRepresentative),
       price: getUpsellPrice(personalRepresentative),
+    },
+
+    eventDayManager: {
+      enabled: Boolean(eventDayManager),
+      price: getUpsellPrice(eventDayManager),
     },
 
     thirdRsvpRound: {
@@ -1232,6 +1238,10 @@ export async function POST(req: NextRequest) {
           enabled: isManualPaid ? salesUpsells.personalRepresentative.enabled : false,
           price: salesUpsells.personalRepresentative.price,
         },
+        eventDayManager: {
+          enabled: isManualPaid ? Boolean(salesUpsells.eventDayManager?.enabled) : false,
+          price: salesUpsells.eventDayManager?.price || 0,
+        },
         thirdRsvpRound: {
           enabled: isManualPaid ? salesUpsells.thirdRsvpRound.enabled : false,
           price: salesUpsells.thirdRsvpRound.price,
@@ -1338,6 +1348,7 @@ export async function POST(req: NextRequest) {
         hasVenueSeating,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
+        hasEventDayManager: Boolean(salesUpsells.eventDayManager?.enabled),
         salesUpsells,
       },
       quote: body?.quote || null,

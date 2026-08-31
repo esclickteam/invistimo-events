@@ -238,6 +238,7 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     upsells,
     "personalRepresentative",
   );
+  const eventDayManager = findUpsell(upsells, "eventDayManager");
   const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
   const preRsvpMessages = findUpsell(upsells, "preRsvpMessages");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
@@ -280,6 +281,11 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     personalRepresentative: {
       enabled: Boolean(personalRepresentative),
       price: getUpsellPrice(personalRepresentative),
+    },
+
+    eventDayManager: {
+      enabled: Boolean(eventDayManager),
+      price: getUpsellPrice(eventDayManager),
     },
 
     thirdRsvpRound: {
@@ -1043,6 +1049,7 @@ export async function POST(req: NextRequest) {
     const hasPreRsvpMessages = salesUpsells.preRsvpMessages.enabled;
     const preRsvpMessagesMode = salesUpsells.preRsvpMessages.mode;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
+    const hasEventDayManager = Boolean(salesUpsells.eventDayManager?.enabled);
     const hasTransportationManagement = Boolean(
       salesUpsells.transportationManagement?.enabled
     );
@@ -1197,6 +1204,10 @@ export async function POST(req: NextRequest) {
           enabled: false,
           price: salesUpsells.personalRepresentative.price,
         },
+        eventDayManager: {
+          enabled: false,
+          price: salesUpsells.eventDayManager?.price || 0,
+        },
         thirdRsvpRound: {
           enabled: false,
           price: salesUpsells.thirdRsvpRound.price,
@@ -1306,6 +1317,7 @@ export async function POST(req: NextRequest) {
         preRsvpMessagesMode,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
+        hasEventDayManager,
         hasTransportationManagement,
         salesUpsells,
         adminPricingOverride,

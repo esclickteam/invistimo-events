@@ -74,6 +74,12 @@ type AdminUser = {
   includeTransportationManagement?: boolean;
   includePreRsvpInvitation?: boolean;
   includePreRsvpSaveTheDate?: boolean;
+  salesUpsells?: {
+    eventDayManager?: {
+      enabled?: boolean;
+      price?: number;
+    };
+  };
   rsvpSiteMode?: "standard" | "personal" | string;
   guestExperienceType?: "personal_invitation" | "wedding_website" | string;
   accessModules?: {
@@ -550,6 +556,13 @@ function getPurchasedItems(
     : "לא נרכש",
   active: Boolean(user.venueSeatingService?.enabled),
 },
+    {
+      label: "מנהל/ת אירוע – יום האירוע",
+      value: user.salesUpsells?.eventDayManager?.enabled
+        ? `נרכש · ${formatMoney(Number(user.salesUpsells.eventDayManager.price || 0))}`
+        : "לא נרכש",
+      active: Boolean(user.salesUpsells?.eventDayManager?.enabled),
+    },
   ];
 }
 

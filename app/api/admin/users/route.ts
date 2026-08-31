@@ -647,6 +647,7 @@ packageName
         features
         salesUpsells.preRsvpMessages
         salesUpsells.transportationManagement
+        salesUpsells.eventDayManager
 
         createdByProducer
         producerId
