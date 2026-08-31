@@ -76,6 +76,12 @@ export default function AdminLayout({
       icon: "recordings",
       description: "האזנה וניהול הקלטות",
     },
+    {
+      href: "/admin/reminder-sms",
+      label: "הודעת תזכורת",
+      icon: "reminder",
+      description: "עריכת גוף הודעת התזכורת",
+    },
   ];
 
   /* --------------------------------------------------
@@ -389,6 +395,14 @@ function NavIcon({ name }: { name: string }) {
         <path d="M12 18v3" />
         <path d="M3 12h3" />
         <path d="M18 12h3" />
+      </svg>
+    );
+  }
+
+  if (name === "reminder") {
+    return (
+      <svg {...common}>
+        <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z" />
       </svg>
     );
   }

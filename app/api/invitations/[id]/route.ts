@@ -240,6 +240,11 @@ function serializeEvent(event: any) {
 
     giftCreditUrl: event.giftCreditUrl || "",
 
+    hideTableNumberForAll: Boolean(event.hideTableNumberForAll),
+    hiddenTableIds: Array.isArray(event.hiddenTableIds)
+      ? event.hiddenTableIds.map((id: unknown) => String(id || "")).filter(Boolean)
+      : [],
+
     maxGuests: event.maxGuests || 0,
 
     paymentStatus: event.paymentStatus || "paid",

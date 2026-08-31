@@ -5,6 +5,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
+import Event from "@/models/Event";
 
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
@@ -15,9 +16,12 @@ import {
   AUTO_REMINDER_BY_TABLE,
   REMINDER_WITH_TABLE_SERVER_TEMPLATE,
   REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE,
-  isDefaultReminderSmsTemplate,
-  resolveReminderSmsTemplate,
+  buildReminderSmsTemplateForGuest,
 } from "@/lib/messages/resolveReminderSmsTemplate";
+import {
+  getInvitationEventId,
+  getReminderSmsBody,
+} from "@/lib/messages/reminderSmsSettings";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -528,16 +532,15 @@ if (isDirectSmsRequest) {
     const isReminderSmsTemplate =
       templateKey === "reminder" || templateKey === "table";
 
-    /**
-     * תבניות ברירת מחדל של תזכורת (עם/בלי שולחן) לא נחשבות "מותאמות".
-     * כך נשמר מצב AUTO והבחירה עם/בלי שולחן קורית ברגע השליחה בפועל.
-     */
-    const hasCustomTemplateText =
-      Boolean(adminTemplateText) &&
-      !(isReminderSmsTemplate && isDefaultReminderSmsTemplate(adminTemplateText));
+    const liveReminderSmsBody = isReminderSmsTemplate
+      ? await getReminderSmsBody()
+      : "";
 
-    const baseTemplateText =
-      Boolean(adminTemplateText) ? adminTemplateText : serverTemplateText;
+    const baseTemplateText = isReminderSmsTemplate
+      ? liveReminderSmsBody
+      : Boolean(adminTemplateText)
+        ? adminTemplateText
+        : serverTemplateText;
 
     /* ================= INVITATION ================= */
 
@@ -551,6 +554,16 @@ if (isDirectSmsRequest) {
     }
 
     const inv: any = invitation;
+
+    const reminderEventId = isReminderSmsTemplate
+      ? getInvitationEventId(inv)
+      : "";
+    const reminderEvent =
+      isReminderSmsTemplate && reminderEventId
+        ? await Event.findById(reminderEventId)
+            .select("hideTableNumberForAll hiddenTableIds")
+            .lean()
+        : null;
 
     /* ======================================================
        ROUND PERMISSION
@@ -812,12 +825,10 @@ if (inv.shareId) {
         templateKey === "reminder" || templateKey === "table";
 
       /**
-       * בתזכורת מתוזמנת תמיד שומרים AUTO (גם אם ה-UI שלח תבנית ברירת מחדל).
-       * ה-worker בוחר עם/בלי שולחן לפי מצב האורח ברגע השליחה בפועל.
-       * נוסח מותאם באמת נשמר כמות שהוא — וה-worker עדיין משדרג/מסיר שולחן בזמן שליחה.
+       * בתזכורת מתוזמנת תמיד שומרים AUTO.
+       * ה-worker טוען מחדש מה-DB בזמן השליחה: גוף ההודעה, האורח, השולחן והגדרות ההסתרה.
        */
-      const useAutoReminderByTable =
-        isReminderSms && !hasCustomTemplateText;
+      const useAutoReminderByTable = isReminderSms;
 
       const payload = {
         invitationId,
@@ -965,8 +976,6 @@ if (inv.shareId) {
             ? `שולחן ${freshGuest.tableNumber}`
             : "");
 
-        const guestHasTable = !!tableName;
-
         let phone = (freshGuest.phone || "").replace(/\D/g, "");
 
         if (!phone) return null;
@@ -985,20 +994,20 @@ if (inv.shareId) {
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
         /**
-         * תיקון חשוב:
-         * בתזכורת/שולחן — בחירת עם/בלי שולחן לפי מצב האורח ברגע השליחה בפועל.
-         * גם אם ב-UI נבחרה תבנית בלי שולחן, אורח שקיבל מספר עד השליחה יקבל הודעה עם מספר.
-         *
-         * RSVP / תודה / custom נשארים בדיוק לפי baseMessage.
+         * תזכורת: גוף ההודעה + מספר השולחן נבנים כאן בזמן השליחה בפועל.
+         * RSVP / תודה / custom נשארים לפי baseMessage.
          */
         let messageForGuest = baseMessage;
+        let tableNameForMessage = tableName;
 
         if (templateKey === "table" || templateKey === "reminder") {
-          messageForGuest = resolveReminderSmsTemplate({
-            template: baseMessage,
-            guestHasTable,
-            isAutoReminder: !hasCustomTemplateText,
+          const built = buildReminderSmsTemplateForGuest({
+            body: liveReminderSmsBody,
+            event: reminderEvent,
+            guest: freshGuest,
           });
+          messageForGuest = built.template;
+          tableNameForMessage = built.tableName;
         }
 
         let finalText = messageForGuest
@@ -1007,7 +1016,7 @@ if (inv.shareId) {
           .replace(/{{eventDate}}/g, eventDateText)
           .replace(/{{eventLocation}}/g, eventLocationText)
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-          .replace(/{{tableName}}/g, tableName)
+          .replace(/{{tableName}}/g, tableNameForMessage)
           .replace(/{{navigationLink}}/g, navigationLink);
 
         if (includeGiftLink && giftLink) {
