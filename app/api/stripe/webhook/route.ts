@@ -433,6 +433,7 @@ function buildEmployeeSaleUpsells(sale: any) {
     sale,
     "personalRepresentative"
   );
+  const eventDayManagerEnabled = hasSaleUpsell(sale, "eventDayManager");
   const thirdRsvpRoundEnabled = hasSaleUpsell(sale, "thirdRsvpRound");
   const preRsvpMessages = buildPreRsvpMessagesUpsell(sale);
   const suppliersBudgetSystemEnabled = hasSaleUpsell(
@@ -466,6 +467,11 @@ function buildEmployeeSaleUpsells(sale: any) {
     personalRepresentative: {
       enabled: personalRepresentativeEnabled,
       price: getSaleUpsellPrice(sale, "personalRepresentative"),
+    },
+
+    eventDayManager: {
+      enabled: eventDayManagerEnabled,
+      price: getSaleUpsellPrice(sale, "eventDayManager"),
     },
 
     thirdRsvpRound: {

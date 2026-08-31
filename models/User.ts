@@ -71,6 +71,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       notes?: string;
     };
 
+    eventDayManager?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
     thirdRsvpRound?: {
       enabled: boolean;
       price: number;
@@ -490,6 +497,30 @@ const UserSchema = new Schema<IUser>(
       },
 
       personalRepresentative: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      eventDayManager: {
         enabled: {
           type: Boolean,
           default: false,
@@ -1358,6 +1389,13 @@ UserSchema.pre("validate", function () {
       notes: String(currentSalesUpsells.personalRepresentative?.notes || ""),
     },
 
+    eventDayManager: {
+      enabled: Boolean(currentSalesUpsells.eventDayManager?.enabled),
+      price: Number(currentSalesUpsells.eventDayManager?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.eventDayManager?.givenFree),
+      notes: String(currentSalesUpsells.eventDayManager?.notes || ""),
+    },
+
     thirdRsvpRound: {
       enabled: existingThirdRsvpRoundEnabled,
       price: Number(currentSalesUpsells.thirdRsvpRound?.price || 0),
@@ -1785,6 +1823,7 @@ UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.personalRepresentative.enabled": 1 });
+UserSchema.index({ "salesUpsells.eventDayManager.enabled": 1 });
 UserSchema.index({ "salesUpsells.thirdRsvpRound.enabled": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.enabled": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.mode": 1 });
