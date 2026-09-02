@@ -30,6 +30,7 @@ export default function EditGuestModal({
   const [loading, setLoading] = useState(false);
 
   const tableName = guest?.tableName ?? "-";
+  const phoneLocked = !String(guest?.phone || "").replace(/\D/g, "");
 
   useEffect(() => {
     if (!guest) return;
@@ -60,7 +61,7 @@ export default function EditGuestModal({
 
       const payload = {
         name,
-        phone,
+        phone: phoneLocked ? guest.phone || "" : phone,
         relation,
         rsvp,
         status: rsvp,
@@ -257,11 +258,18 @@ export default function EditGuestModal({
 
             <Field label="טלפון">
               <input
-                className={inputClass}
+                className={`${inputClass}${phoneLocked ? " cursor-not-allowed bg-[#F4EEE6] opacity-80" : ""}`}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="מספר טלפון"
+                placeholder={phoneLocked ? "ללא מספר טלפון" : "מספר טלפון"}
+                disabled={phoneLocked}
+                readOnly={phoneLocked}
               />
+              {phoneLocked ? (
+                <p className="mt-1 text-[11px] font-bold text-[#8A7B69]">
+                  אורח שנוצר בלי טלפון לא ניתן להוסיף לו מספר אחר כך
+                </p>
+              ) : null}
             </Field>
 
             <Field label="קרבה">

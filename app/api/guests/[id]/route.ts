@@ -11,6 +11,10 @@ import CallTask from "@/models/CallTask";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
+import {
+  canAssignPhoneToGuest,
+  GUEST_PHONE_LOCKED_ERROR,
+} from "@/lib/guestRecordQuota";
 
 export const dynamic = "force-dynamic";
 
@@ -1380,7 +1384,15 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
        שדות כלליים
     =============================== */
     if (typeof data.name === "string") guest.name = data.name;
-    if (typeof data.phone === "string") guest.phone = data.phone;
+    if (typeof data.phone === "string") {
+      if (!canAssignPhoneToGuest(guest.phone, data.phone)) {
+        return NextResponse.json(
+          { success: false, error: GUEST_PHONE_LOCKED_ERROR },
+          { status: 409 }
+        );
+      }
+      guest.phone = data.phone;
+    }
     if (typeof data.notes === "string") guest.notes = data.notes;
 
     if ("tableId" in data) {

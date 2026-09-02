@@ -6,6 +6,10 @@ import User from "@/models/User";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import crypto from "crypto";
+import {
+  billableGuestMatch,
+  guestCountsTowardRecordQuota,
+} from "@/lib/guestRecordQuota";
 
 export const dynamic = "force-dynamic";
 
@@ -139,11 +143,15 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(userId).select("guests").lean();
 
     const limit = Number(user?.guests || 0);
-    const current = await InvitationGuest.countDocuments({ invitationId });
+    const current = await InvitationGuest.countDocuments(
+      billableGuestMatch(invitationId)
+    );
 
-    const incomingRecordsCount = guests.filter((g: any) =>
-      cleanText(g?.name || g?.["שם"] || g?.["שם מלא"])
-    ).length;
+    const incomingRecordsCount = guests.filter((g: any) => {
+      const name = cleanText(g?.name || g?.["שם"] || g?.["שם מלא"]);
+      const phone = cleanPhone(g.phone || g["טלפון"]);
+      return Boolean(name) && guestCountsTowardRecordQuota(phone);
+    }).length;
 
     const remaining = Math.max(0, limit - current);
     const totalAfterImport = current + incomingRecordsCount;
@@ -158,7 +166,7 @@ export async function POST(req: NextRequest) {
       totalAfterImport,
     });
 
-    if (limit > 0 && current >= limit) {
+    if (limit > 0 && incomingRecordsCount > 0 && current >= limit) {
       return NextResponse.json(
         {
           success: false,
@@ -177,7 +185,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (limit > 0 && totalAfterImport > limit) {
+    if (limit > 0 && incomingRecordsCount > 0 && totalAfterImport > limit) {
       return NextResponse.json(
         {
           success: false,
@@ -335,6 +343,11 @@ export async function POST(req: NextRequest) {
       ordered: true,
     });
 
+    const importedBillableCount = validPayloads.filter((payload) =>
+      guestCountsTowardRecordQuota(payload.phone)
+    ).length;
+    const billableTotalAfterImport = current + importedBillableCount;
+
     return NextResponse.json({
       success: true,
       count: validPayloads.length,
@@ -343,9 +356,9 @@ export async function POST(req: NextRequest) {
         limit,
         existingBeforeImport: current,
         imported: validPayloads.length,
-        totalAfterImport: current + validPayloads.length,
+        totalAfterImport: billableTotalAfterImport,
         remainingAfterImport:
-          limit > 0 ? Math.max(0, limit - (current + validPayloads.length)) : null,
+          limit > 0 ? Math.max(0, limit - billableTotalAfterImport) : null,
       },
     });
   } catch (err) {

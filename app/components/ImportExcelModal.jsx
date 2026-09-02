@@ -247,7 +247,10 @@ export default function ImportExcelModal({
          בדיקת מגבלת רשומות לפי user.guests לפני שליחה לשרת
          guests.length = מספר רשומות באקסל
       ============================================================ */
-      const incomingRecordsCount = guests.length;
+      const incomingRecordsCount = guests.filter((g) => {
+        const phone = String(g?.phone || "").replace(/\D/g, "").trim();
+        return Boolean(phone);
+      }).length;
 
       console.log("📌 EXCEL RECORD LIMIT CHECK:", {
         recordsLimit,
