@@ -7,6 +7,11 @@ import User from "@/models/User";
 import CallTask from "@/models/CallTask";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose, { Types } from "mongoose";
+import {
+  billableGuestMatch,
+  countGuestsTowardRecordQuota,
+  guestCountsTowardRecordQuota,
+} from "@/lib/guestRecordQuota";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -871,7 +876,7 @@ export async function GET(req: NextRequest) {
 
     const guestsWithCallRounds = await attachCallRoundsFromTasks(guestsWithTable);
 
-    const current = guestsWithCallRounds.length;
+    const current = countGuestsTowardRecordQuota(guestsWithCallRounds);
     const limit = maxGuests;
     const remaining = Math.max(0, limit - current);
 
@@ -976,9 +981,12 @@ export async function POST(req: NextRequest) {
 
     const user = await User.findById(userId).select("guests").lean();
     const limit = Number((user as any)?.guests || 0);
-    const current = await InvitationGuest.countDocuments({ invitationId });
+    const current = await InvitationGuest.countDocuments(
+      billableGuestMatch(invitationId)
+    );
+    const countsTowardQuota = guestCountsTowardRecordQuota(phone);
 
-    if (current >= limit) {
+    if (countsTowardQuota && current >= limit) {
       return NextResponse.json(
         {
           success: false,

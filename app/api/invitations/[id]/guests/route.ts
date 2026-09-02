@@ -14,6 +14,13 @@ import {
 } from "@/lib/weddingWebsite/rsvpSiteMode";
 
 import Group from "@/models/Group";
+import {
+  billableGuestMatch,
+  canAssignPhoneToGuest,
+  countGuestsTowardRecordQuota,
+  GUEST_PHONE_LOCKED_ERROR,
+  guestCountsTowardRecordQuota,
+} from "@/lib/guestRecordQuota";
 
 const HARD_GUEST_CAP = 10000;
 
@@ -186,11 +193,11 @@ export async function POST(
       );
     }
 
-    const currentCount = await InvitationGuest.countDocuments({
-      invitationId: (invitation as any)._id,
-    });
+    const currentCount = await InvitationGuest.countDocuments(
+      billableGuestMatch((invitation as any)._id)
+    );
 
-    if (currentCount >= limit) {
+    if (guestCountsTowardRecordQuota(normalizedPhone) && currentCount >= limit) {
       return NextResponse.json(
         {
           success: false,
@@ -300,7 +307,8 @@ const guest = await InvitationGuest.create({
 
     await (invitation as any).save();
 
-    const newCurrent = currentCount + 1;
+    const newCurrent =
+      currentCount + (guestCountsTowardRecordQuota(normalizedPhone) ? 1 : 0);
 
     return NextResponse.json(
       {
@@ -387,7 +395,9 @@ export async function GET(
       .lean();
 
     const limit = Number((ownerUser as any)?.guests || 0);
-    const current = Array.isArray(guests) ? guests.length : 0;
+    const current = countGuestsTowardRecordQuota(
+      Array.isArray(guests) ? guests : []
+    );
 
     return NextResponse.json({
       success: true,
@@ -519,6 +529,19 @@ export async function PUT(
     }
 
     const before = await InvitationGuest.findById(guestId).lean();
+
+    if (
+      "phone" in normalizedUpdates &&
+      !canAssignPhoneToGuest((before as any)?.phone, normalizedUpdates.phone)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: GUEST_PHONE_LOCKED_ERROR,
+        },
+        { status: 409 }
+      );
+    }
 
     const nextPayload: Record<string, unknown> = {
       ...normalizedUpdates,

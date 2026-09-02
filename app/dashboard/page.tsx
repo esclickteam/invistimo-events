@@ -28,6 +28,7 @@ import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
+import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 
 type EventModel = {
   title?: string;
@@ -1822,6 +1823,13 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
   /* ============================================================
      פילטר + מיון + חיפוש
   ============================================================ */
+  const usedRecordsCount = useMemo(
+    () => countGuestsTowardRecordQuota(guests),
+    [guests]
+  );
+  const recordsLimit = Number(user?.guests || 0);
+  const remainingRecords = Math.max(0, recordsLimit - usedRecordsCount);
+
   const displayGuests = useMemo(() => {
     let list = [...guests];
     const quickFilterValue = String(quickFilter || "all");
@@ -2525,8 +2533,8 @@ const canOpenTransportationManagement =
   setSelectedCallRound={setSelectedCallRound}
   totalCount={guests.length}
   displayCount={displayGuests.length}
-  recordsLimit={Number(user?.guests || 0)}
-  usedRecordsCount={guests.length}
+  recordsLimit={recordsLimit}
+  usedRecordsCount={usedRecordsCount}
   onExportExcel={handleExportExcel}
   onAddGuest={() => setOpenAddModal(true)}
   disabledAddGuest={!invitation}
@@ -3327,6 +3335,11 @@ const canOpenTransportationManagement =
       {openAddModal && (
         <AddGuestModal
           invitationId={invitationId}
+          usage={{
+            current: usedRecordsCount,
+            limit: recordsLimit,
+            remaining: remainingRecords,
+          }}
           onClose={() => setOpenAddModal(false)}
           onSuccess={async (newGuest?: Guest) => {
             if (newGuest) {

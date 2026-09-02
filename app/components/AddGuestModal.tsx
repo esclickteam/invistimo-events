@@ -71,18 +71,23 @@ export default function AddGuestModal({
         relation: row.relation.trim(),
         guestsCount: Math.max(1, Number(row.guestsCount) || 1),
       }))
-      .filter((row) => row.name && row.phone);
+      .filter((row) => row.name);
   }, [rows]);
+
+  const billableRows = useMemo(
+    () => validRows.filter((row) => Boolean(row.phone)),
+    [validRows]
+  );
 
   const limitReached = useMemo(() => {
     if (!usage) return false;
-    return Number(usage.remaining ?? 0) <= 0;
-  }, [usage]);
+    return Number(usage.remaining ?? 0) <= 0 && billableRows.length > 0;
+  }, [usage, billableRows.length]);
 
   const notEnoughUsage = useMemo(() => {
     if (!usage) return false;
-    return validRows.length > Number(usage.remaining ?? 0);
-  }, [usage, validRows.length]);
+    return billableRows.length > Number(usage.remaining ?? 0);
+  }, [usage, billableRows.length]);
 
   const ensureInvitation = async (): Promise<string> => {
     if (invitationId) return invitationId;
@@ -138,15 +143,15 @@ export default function AddGuestModal({
     }
 
     if (validRows.length === 0) {
-      alert("יש למלא לפחות מוזמן אחד עם שם וטלפון.");
+      alert("יש למלא לפחות מוזמן אחד עם שם.");
       return;
     }
 
     if (!demoMode && notEnoughUsage) {
       alert(
         `נותרו לך ${usage?.remaining ?? 0} רשומות בלבד, וניסית להוסיף ${
-          validRows.length
-        } מוזמנים.`
+          billableRows.length
+        } מוזמנים עם מספר טלפון.`
       );
       return;
     }
@@ -412,7 +417,7 @@ export default function AddGuestModal({
                 text-rose-700
               "
             >
-              הגעת למכסה המותרת. כדי להוסיף מוזמנים נוספים צריך להגדיל חבילה.
+              הגעת למכסת הרשומות. אפשר עדיין להוסיף אורחים בלי מספר טלפון, והם לא ייספרו.
             </div>
           )}
 
@@ -431,7 +436,7 @@ export default function AddGuestModal({
                 text-rose-700
               "
             >
-              אין מספיק רשומות פנויות לכמות המוזמנים שהוספת.
+              אין מספיק רשומות פנויות לכמות המוזמנים עם מספר טלפון שהוספת.
             </div>
           )}
         </div>
@@ -506,7 +511,7 @@ export default function AddGuestModal({
                 <input
                   value={row.phone}
                   onChange={(e) => updateRow(row.id, "phone", e.target.value)}
-                  placeholder="טלפון"
+                  placeholder="טלפון (אופציונלי)"
                   inputMode="numeric"
                   className="
                     h-[48px]
