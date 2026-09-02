@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
+import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
@@ -35,6 +36,7 @@ import {
   Banknote,
   ExternalLink,
   Loader2,
+  KeyRound,
 } from "lucide-react";
 
 /* =========================
@@ -1192,6 +1194,7 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [upgradingUser, setUpgradingUser] = useState<AdminUser | null>(null);
   const [eventScheduleUser, setEventScheduleUser] = useState<AdminUser | null>(null);
+  const [passwordUser, setPasswordUser] = useState<AdminUser | null>(null);
 
   const [producers, setProducers] = useState<Assignee[]>([]);
   const [staff, setStaff] = useState<Assignee[]>([]);
@@ -1761,6 +1764,7 @@ export default function AdminUsersPage() {
                       onEventSchedule={() => openEventSchedule(u)}
                       onEdit={() => setEditingUser(u)}
                       onUpgrade={() => setUpgradingUser(u)}
+                      onSendPassword={() => setPasswordUser(u)}
                       onImpersonate={() => impersonateUser(u._id)}
                       onDelete={() => removeUser(u._id)}
                       isImpersonating={impersonating === u._id}
@@ -1861,6 +1865,7 @@ export default function AdminUsersPage() {
                   onEventSchedule={() => openEventSchedule(u)}
                   onEdit={() => setEditingUser(u)}
                   onUpgrade={() => setUpgradingUser(u)}
+                  onSendPassword={() => setPasswordUser(u)}
                   onImpersonate={() => impersonateUser(u._id)}
                   onDelete={() => removeUser(u._id)}
                   isImpersonating={impersonating === u._id}
@@ -1918,6 +1923,13 @@ export default function AdminUsersPage() {
             setUpgradingUser(null);
             loadUsers(false);
           }}
+        />
+      )}
+
+      {passwordUser && (
+        <SendPasswordModal
+          user={passwordUser}
+          onClose={() => setPasswordUser(null)}
         />
       )}
     </div>
@@ -4772,6 +4784,7 @@ function UserActionsDropdown({
   onEventSchedule,
   onEdit,
   onUpgrade,
+  onSendPassword,
   onImpersonate,
   onDelete,
   isImpersonating,
@@ -4784,6 +4797,7 @@ function UserActionsDropdown({
   onEventSchedule: () => void;
   onEdit: () => void;
   onUpgrade: () => void;
+  onSendPassword: () => void;
   onImpersonate: () => void;
   onDelete: () => void;
   isImpersonating?: boolean;
@@ -4822,6 +4836,25 @@ function UserActionsDropdown({
         />
       </button>
 
+      <button
+        type="button"
+        onClick={onSendPassword}
+        className="
+          mt-2 inline-flex h-10 w-full items-center justify-center gap-2
+          rounded-full
+          border border-[#E7D8C6]
+          bg-[#FFF8E6]
+          px-4
+          text-sm font-black
+          text-[#8A5A24]
+          transition
+          hover:bg-[#FFF3DF]
+        "
+      >
+        <KeyRound size={16} />
+        שליחת סיסמה
+      </button>
+
       {open && (
         <div
           className="
@@ -4850,6 +4883,13 @@ function UserActionsDropdown({
     onClick={() => runAction(onImpersonate)}
   />
 )}
+
+<DropdownAction
+  icon={<KeyRound size={16} />}
+  label="שליחת סיסמה"
+  tone="gold"
+  onClick={() => runAction(onSendPassword)}
+/>
 
 <DropdownAction
   icon={<Pencil size={16} />}
