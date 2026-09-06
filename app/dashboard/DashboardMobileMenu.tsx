@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ClipboardList,
   Bus,
+  WandSparkles,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
@@ -30,6 +31,7 @@ type Props = {
   eventId?: string;
   canOpenEventManagement?: boolean;
   canOpenTransportationManagement?: boolean;
+  canOpenWeddingChallenges?: boolean;
   isDemo?: boolean;
 };
 
@@ -43,6 +45,7 @@ export default function DashboardMobileMenu({
   eventId,
   canOpenEventManagement = false,
   canOpenTransportationManagement = false,
+  canOpenWeddingChallenges = false,
   isDemo = false,
 }: Props) {
   const router = useRouter();
@@ -211,6 +214,24 @@ export default function DashboardMobileMenu({
           return;
         }
         go(`/dashboard/transportation?eventId=${eventId}`);
+      },
+    },
+    {
+      title: "Wedding Challenges",
+      subtitle: "כרטיס גירוד דיגיטלי שמרימים את הרחבה",
+      icon: WandSparkles,
+      badge: "Premium",
+      hidden: !canOpenWeddingChallenges && !isDemo,
+      onClick: () => {
+        if (isDemo) {
+          go("/live/demo");
+          return;
+        }
+        if (!eventId) {
+          go("/dashboard");
+          return;
+        }
+        go(`/dashboard/wedding-challenges?eventId=${eventId}`);
       },
     },
     {

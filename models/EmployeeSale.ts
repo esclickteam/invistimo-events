@@ -25,7 +25,9 @@ export type EmployeeSaleUpsellKey =
   | "thirdRsvpRound"
   | "suppliersBudgetSystem"
   | "alcoholManagement"
-  | "transportationManagement";
+  | "transportationManagement"
+  | "weddingChallenges"
+  | "weddingChallengesGiveaway";
 
 const AnySchema = Schema.Types.Mixed;
 
@@ -442,6 +444,16 @@ const EmployeeSaleSchema = new Schema(
       transportationManagement: {
         type: UpsellStateSchema,
         default: () => ({ enabled: false, price: 0, totalPrice: 0, givenFree: false }),
+      },
+
+      weddingChallenges: {
+        type: UpsellStateSchema,
+        default: () => ({ enabled: false, price: 99, totalPrice: 99 }),
+      },
+
+      weddingChallengesGiveaway: {
+        type: UpsellStateSchema,
+        default: () => ({ enabled: false, price: 99, totalPrice: 99 }),
       },
     },
 

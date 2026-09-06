@@ -74,6 +74,8 @@ type AdminUser = {
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
   includeTransportationManagement?: boolean;
+  includeWeddingChallenges?: boolean;
+  includeWeddingChallengesGiveaway?: boolean;
   includePreRsvpInvitation?: boolean;
   includePreRsvpSaveTheDate?: boolean;
   salesUpsells?: {
@@ -88,6 +90,7 @@ type AdminUser = {
     rsvpSeating?: boolean;
     eventProduction?: boolean;
     transportationManagement?: boolean;
+    weddingChallenges?: boolean;
   };
 
   paidAmount?: number;
@@ -154,6 +157,7 @@ type AdminPricingPlan = {
   includeEventManagement?: boolean;
   includeCustomDesign?: boolean;
   includeTransportationManagement?: boolean;
+  includeWeddingChallenges?: boolean;
 };
 
 type AdminRecordOption = {
@@ -181,6 +185,8 @@ type UpgradeFormState = {
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
+  includeWeddingChallenges: boolean;
+  includeWeddingChallengesGiveaway: boolean;
   includePreRsvpInvitation: boolean;
   includePreRsvpSaveTheDate: boolean;
 };
@@ -217,6 +223,11 @@ const ADDONS = [
     key: "includeTransportationManagement",
     label: "ניהול הסעות",
     price: 0,
+  },
+  {
+    key: "includeWeddingChallenges",
+    label: "Wedding Challenges Premium",
+    price: 99,
   },
   {
     key: "includeCustomDesign",
@@ -535,6 +546,11 @@ function getPurchasedItems(
       label: "ניהול הסעות",
       value: user.includeTransportationManagement ? "פעיל" : "לא פעיל",
       active: Boolean(user.includeTransportationManagement),
+    },
+    {
+      label: "Wedding Challenges",
+      value: user.includeWeddingChallenges ? "פעיל · 99 ₪" : "לא פעיל",
+      active: Boolean(user.includeWeddingChallenges),
     },
     {
       label: "עיצוב בהתאמה אישית",
@@ -2335,6 +2351,13 @@ function EditUserModal({
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
+  const [includeWeddingChallenges, setIncludeWeddingChallenges] = useState(
+    Boolean(user.includeWeddingChallenges)
+  );
+
+  const [includeWeddingChallengesGiveaway, setIncludeWeddingChallengesGiveaway] =
+    useState(Boolean(user.includeWeddingChallengesGiveaway));
+
   const [includePreRsvpInvitation, setIncludePreRsvpInvitation] = useState(
     Boolean(user.includePreRsvpInvitation)
   );
@@ -2366,6 +2389,8 @@ function EditUserModal({
       phone: form.phone,
       eventDate: form.eventDate,
       includeTransportationManagement,
+      includeWeddingChallenges,
+      includeWeddingChallengesGiveaway,
       includePreRsvpInvitation,
       includePreRsvpSaveTheDate,
       rsvpSiteMode,
@@ -2377,6 +2402,7 @@ function EditUserModal({
           user.accessModules?.eventProduction ?? user.includeEventManagement
         ),
         transportationManagement: includeTransportationManagement,
+        weddingChallenges: includeWeddingChallenges,
       },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       callRoundsSchedule: {
@@ -2586,6 +2612,50 @@ function EditUserModal({
               <span className="text-sm font-black text-[#3A2A1C]">
                 {includeTransportationManagement ? "פעיל" : "כבוי"}
               </span>
+            </label>
+          </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-3">
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              Invistimo Live · Wedding Challenges
+            </h3>
+            <p className="mt-1 text-sm font-bold text-[#7B6754]">
+              תוספת Premium ב־99 ₪ לאירוע. Giveaway אופציונלי ב־99 ₪ + עלות הפרס.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="inline-flex cursor-pointer items-center justify-between gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <span className="text-sm font-black text-[#3A2A1C]">
+                Wedding Challenges
+              </span>
+              <input
+                type="checkbox"
+                checked={includeWeddingChallenges}
+                onChange={(e) => setIncludeWeddingChallenges(e.target.checked)}
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+            </label>
+            <label className="inline-flex cursor-pointer items-center justify-between gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <span className="text-sm font-black text-[#3A2A1C]">
+                Giveaway Add-on
+              </span>
+              <input
+                type="checkbox"
+                checked={includeWeddingChallengesGiveaway}
+                onChange={(e) =>
+                  setIncludeWeddingChallengesGiveaway(e.target.checked)
+                }
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
             </label>
           </div>
         </section>
@@ -3781,6 +3851,10 @@ function UpgradeUserModal({
     includeTransportationManagement: Boolean(
       user.includeTransportationManagement
     ),
+    includeWeddingChallenges: Boolean(user.includeWeddingChallenges),
+    includeWeddingChallengesGiveaway: Boolean(
+      user.includeWeddingChallengesGiveaway
+    ),
     includePreRsvpInvitation: Boolean(user.includePreRsvpInvitation),
     includePreRsvpSaveTheDate: Boolean(user.includePreRsvpSaveTheDate),
   });
@@ -3893,6 +3967,8 @@ const calculatedTotalToPay =
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
       includeTransportationManagement: form.includeTransportationManagement,
+      includeWeddingChallenges: form.includeWeddingChallenges,
+      includeWeddingChallengesGiveaway: form.includeWeddingChallengesGiveaway,
       includePreRsvpInvitation: form.includePreRsvpInvitation,
       includePreRsvpSaveTheDate: form.includePreRsvpSaveTheDate,
 
@@ -3901,11 +3977,13 @@ const calculatedTotalToPay =
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
         transportationManagement = ניהול הסעות
+        weddingChallenges = Invistimo Live
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
         transportationManagement: Boolean(form.includeTransportationManagement),
+        weddingChallenges: Boolean(form.includeWeddingChallenges),
       },
 
       extraRecords,
@@ -3954,6 +4032,8 @@ const calculatedTotalToPay =
       includeEventManagement: form.includeEventManagement,
       includeCustomDesign: form.includeCustomDesign,
       includeTransportationManagement: form.includeTransportationManagement,
+      includeWeddingChallenges: form.includeWeddingChallenges,
+      includeWeddingChallengesGiveaway: form.includeWeddingChallengesGiveaway,
       includePreRsvpInvitation: form.includePreRsvpInvitation,
       includePreRsvpSaveTheDate: form.includePreRsvpSaveTheDate,
 
@@ -3962,11 +4042,13 @@ const calculatedTotalToPay =
         rsvpSeating = אישורי הגעה / הושבה
         eventProduction = מערכת ניהול אירוע
         transportationManagement = ניהול הסעות
+        weddingChallenges = Invistimo Live
       */
       accessModules: {
         rsvpSeating: Boolean(form.includeDigitalSeating),
         eventProduction: Boolean(form.includeEventManagement),
         transportationManagement: Boolean(form.includeTransportationManagement),
+        weddingChallenges: Boolean(form.includeWeddingChallenges),
       },
 
       extraRecords,

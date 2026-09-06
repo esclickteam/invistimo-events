@@ -177,6 +177,13 @@ function normalizeAccessModules(user: any) {
         includeTransportationManagement
     ),
 
+    weddingChallenges: Boolean(
+      user?.accessModules?.weddingChallenges ??
+        user?.includeWeddingChallenges ??
+        user?.salesUpsells?.weddingChallenges?.enabled ??
+        user?.planLimits?.weddingChallengesEnabled
+    ),
+
     venues: Boolean(user?.accessModules?.venues ?? isVenueOwner),
     venueDashboard: Boolean(user?.accessModules?.venueDashboard ?? isVenueOwner),
     venueCrm: Boolean(user?.accessModules?.venueCrm ?? isVenueOwner),
@@ -1101,6 +1108,7 @@ export async function GET() {
           includeEventManagement: accessModules.eventProduction,
           includeTransportationManagement:
             accessModules.transportationManagement === true,
+          includeWeddingChallenges: accessModules.weddingChallenges === true,
           selfManageEnabled: accessModules.eventProduction,
 
           plan: currentUser.plan ?? "basic",

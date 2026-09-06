@@ -72,6 +72,11 @@ function DashboardLayoutInner({
     user?.accessModules?.transportationManagement === true ||
     user?.includeTransportationManagement === true;
 
+  const canOpenWeddingChallenges =
+    user?.accessModules?.weddingChallenges === true ||
+    user?.includeWeddingChallenges === true ||
+    user?.salesUpsells?.weddingChallenges?.enabled === true;
+
   /*
     ✅ תומך גם בנתיב החדש:
     /dashboard/invitations/[id]/edit
@@ -204,6 +209,7 @@ function DashboardLayoutInner({
         eventId={eventIdForMenu}
         canOpenEventManagement={canOpenEventManagement}
         canOpenTransportationManagement={canOpenTransportationManagement}
+        canOpenWeddingChallenges={canOpenWeddingChallenges}
         isDemo={isDemo}
       />
 

@@ -127,6 +127,20 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       givenFree?: boolean;
       notes?: string;
     };
+
+    weddingChallenges?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
+    weddingChallengesGiveaway?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
   };
 
   /**
@@ -226,6 +240,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
+  includeWeddingChallenges: boolean;
 
   /**
    * סוג אתר לאורחים.
@@ -250,6 +265,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     rsvpSeating: boolean;
     eventProduction: boolean;
     transportationManagement?: boolean;
+    weddingChallenges?: boolean;
 
     venues?: boolean;
     venueDashboard?: boolean;
@@ -275,6 +291,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     remindersEnabled: boolean;
     callsEnabled?: boolean;
     transportationEnabled?: boolean;
+    weddingChallengesEnabled?: boolean;
   };
 
   smsBalance: number;
@@ -729,6 +746,54 @@ preRsvpMessages: {
           default: "",
         },
       },
+
+      weddingChallenges: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 99,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      weddingChallengesGiveaway: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 99,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
     },
 
     /**
@@ -1039,6 +1104,12 @@ preRsvpMessages: {
       index: true,
     },
 
+    includeWeddingChallenges: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     rsvpSiteMode: {
       type: String,
       enum: ["standard", "personal"],
@@ -1080,6 +1151,12 @@ preRsvpMessages: {
       },
 
       transportationManagement: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      weddingChallenges: {
         type: Boolean,
         default: false,
         index: true,
@@ -1185,6 +1262,11 @@ preRsvpMessages: {
       },
 
       transportationEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      weddingChallengesEnabled: {
         type: Boolean,
         default: false,
       },
@@ -1456,6 +1538,25 @@ UserSchema.pre("validate", function () {
       ),
       notes: String(currentSalesUpsells.transportationManagement?.notes || ""),
     },
+
+    weddingChallenges: {
+      enabled: Boolean(
+        currentSalesUpsells.weddingChallenges?.enabled ||
+          doc.includeWeddingChallenges
+      ),
+      price: Number(currentSalesUpsells.weddingChallenges?.price || 99),
+      givenFree: Boolean(currentSalesUpsells.weddingChallenges?.givenFree),
+      notes: String(currentSalesUpsells.weddingChallenges?.notes || ""),
+    },
+
+    weddingChallengesGiveaway: {
+      enabled: Boolean(currentSalesUpsells.weddingChallengesGiveaway?.enabled),
+      price: Number(currentSalesUpsells.weddingChallengesGiveaway?.price || 99),
+      givenFree: Boolean(
+        currentSalesUpsells.weddingChallengesGiveaway?.givenFree
+      ),
+      notes: String(currentSalesUpsells.weddingChallengesGiveaway?.notes || ""),
+    },
   };
 
   if (doc.salesUpsells.digitalSeating?.enabled) {
@@ -1464,6 +1565,10 @@ UserSchema.pre("validate", function () {
 
   if (doc.salesUpsells.transportationManagement?.enabled) {
     doc.includeTransportationManagement = true;
+  }
+
+  if (doc.salesUpsells.weddingChallenges?.enabled) {
+    doc.includeWeddingChallenges = true;
   }
 
   if (doc.salesUpsells.thirdRsvpRound?.enabled) {
@@ -1551,6 +1656,13 @@ UserSchema.pre("validate", function () {
     };
   }
 
+  if (doc.includeWeddingChallenges) {
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      weddingChallengesEnabled: true,
+    };
+  }
+
   /*
     הרשאות מודולים:
     rsvpSeating = אישורי הגעה / הושבה
@@ -1573,6 +1685,12 @@ UserSchema.pre("validate", function () {
       doc.accessModules?.transportationManagement ||
         doc.includeTransportationManagement ||
         doc.salesUpsells?.transportationManagement?.enabled
+    ),
+
+    weddingChallenges: Boolean(
+      doc.accessModules?.weddingChallenges ||
+        doc.includeWeddingChallenges ||
+        doc.salesUpsells?.weddingChallenges?.enabled
     ),
 
     venues: Boolean(doc.accessModules?.venues ?? isVenueOwner),
@@ -1833,7 +1951,10 @@ UserSchema.index({ "salesUpsells.preRsvpMessages.invitationOnlySentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
 UserSchema.index({ "salesUpsells.transportationManagement.enabled": 1 });
+UserSchema.index({ "salesUpsells.weddingChallenges.enabled": 1 });
+UserSchema.index({ "salesUpsells.weddingChallengesGiveaway.enabled": 1 });
 UserSchema.index({ includeTransportationManagement: 1 });
+UserSchema.index({ includeWeddingChallenges: 1 });
 
 UserSchema.index({ hasPaid: 1, paidAmount: 1, paidAt: 1 });
 UserSchema.index({ hasPaid: 1, paidAmount: 1, createdAt: 1 });
