@@ -756,7 +756,7 @@ preRsvpMessages: {
 
         price: {
           type: Number,
-          default: 99,
+          default: 299,
         },
 
         givenFree: {
@@ -1544,7 +1544,7 @@ UserSchema.pre("validate", function () {
         currentSalesUpsells.weddingChallenges?.enabled ||
           doc.includeWeddingChallenges
       ),
-      price: Number(currentSalesUpsells.weddingChallenges?.price || 99),
+      price: Number(currentSalesUpsells.weddingChallenges?.price || 299),
       givenFree: Boolean(currentSalesUpsells.weddingChallenges?.givenFree),
       notes: String(currentSalesUpsells.weddingChallenges?.notes || ""),
     },

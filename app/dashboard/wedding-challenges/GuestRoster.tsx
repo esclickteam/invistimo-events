@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { WeddingChallengesSourceType } from "@/lib/weddingChallenges/types";
+import { WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE, WEDDING_CHALLENGES_MAX_GUESTS } from "@/lib/weddingChallenges/constants";
 
 type GuestRow = {
   id: string;
@@ -56,15 +57,15 @@ export default function GuestRoster({
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "ADD_FAILED");
+      if (!res.ok) throw new Error(json.message || json.error || "ADD_FAILED");
       setName("");
       setPhone("");
       setTableNumber("");
       setIsAdult(true);
       setMessage(json.skipped ? "האורח כבר קיים" : "אורח נוסף");
       await load();
-    } catch {
-      setMessage("הוספת אורח נכשלה");
+    } catch (err: any) {
+      setMessage(err?.message === "GUEST_LIMIT_EXCEEDED" ? WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE : err?.message || "הוספת אורח נכשלה");
     } finally {
       setSaving(false);
     }
@@ -80,12 +81,12 @@ export default function GuestRoster({
         body: JSON.stringify({ eventId, text: paste }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "IMPORT_FAILED");
+      if (!res.ok) throw new Error(json.message || json.error || "IMPORT_FAILED");
       setPaste("");
       setMessage(`יובאו ${json.added} אורחים${json.skipped ? `, דולגו ${json.skipped}` : ""}`);
       await load();
-    } catch {
-      setMessage("ייבוא הרשימה נכשל");
+    } catch (err: any) {
+      setMessage(err?.message === "GUEST_LIMIT_EXCEEDED" ? WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE : err?.message || "ייבוא הרשימה נכשל");
     } finally {
       setSaving(false);
     }
@@ -104,11 +105,11 @@ export default function GuestRoster({
         body: form,
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "IMPORT_FAILED");
+      if (!res.ok) throw new Error(json.message || json.error || "IMPORT_FAILED");
       setMessage(`יובאו ${json.added} אורחים${json.skipped ? `, דולגו ${json.skipped}` : ""}`);
       await load();
-    } catch {
-      setMessage("ייבוא הקובץ נכשל");
+    } catch (err: any) {
+      setMessage(err?.message === "GUEST_LIMIT_EXCEEDED" ? WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE : err?.message || "ייבוא הקובץ נכשל");
     } finally {
       setSaving(false);
     }
@@ -138,11 +139,12 @@ export default function GuestRoster({
           <p className="mt-1 text-sm text-[#7B6754]">
             {sourceType === "EXISTING_EVENT"
               ? "נכללים רק אורחים שאישרו הגעה. אורחים שסימנו שלא מגיעים לא נכנסים למשחק."
-              : "אורחים שהועלו נחשבים מגיעים כברירת מחדל. לא נדרשת הזמנה דיגיטלית או RSVP."}
+              : "אורחים שהועלו נחשבים מגיעים כברירת מחדל. לא נדרשת הזמנה דיגיטלית או RSVP."}{" "}
+            החבילה כוללת עד {WEDDING_CHALLENGES_MAX_GUESTS} רשומות.
           </p>
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-[#7B6754]">
-          {guests.length} אורחים
+          {guests.length} / {WEDDING_CHALLENGES_MAX_GUESTS} אורחים
         </span>
       </div>
 

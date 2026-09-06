@@ -12,6 +12,7 @@ import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
 } from "@/types/rsvpSite";
+import { applyWeddingChallengesPurchase } from "@/lib/weddingChallenges/purchase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -183,6 +184,8 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
   const creditGifts = findUpsell(upsells, "creditGifts");
+  const weddingChallenges = findUpsell(upsells, "weddingChallenges");
+  const weddingChallengesGiveaway = findUpsell(upsells, "weddingChallengesGiveaway");
 
   const venueSeatingPrice = getUpsellPrice(venueSeating);
   const alcoholManagementPrice = getUpsellPrice(alcoholManagement);
@@ -231,6 +234,16 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
       staffCount: getUpsellStaffCount(alcoholManagement, 1),
       totalPrice: alcoholManagementPrice,
     },
+    weddingChallenges: {
+      enabled: Boolean(weddingChallenges),
+      price: getUpsellPrice(weddingChallenges) || 299,
+      totalPrice: getUpsellPrice(weddingChallenges) || 299,
+    },
+    weddingChallengesGiveaway: {
+      enabled: Boolean(weddingChallengesGiveaway),
+      price: getUpsellPrice(weddingChallengesGiveaway) || 99,
+      totalPrice: getUpsellPrice(weddingChallengesGiveaway) || 99,
+    },
   };
 }
 
@@ -250,13 +263,16 @@ function buildPendingAccessModules() {
 function buildAccessModules({
   includeDigitalSeating,
   includeEventManagement,
+  includeWeddingChallenges,
 }: {
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
+  includeWeddingChallenges?: boolean;
 }) {
   return {
     rsvpSeating: Boolean(includeDigitalSeating),
     eventProduction: Boolean(includeEventManagement),
+    weddingChallenges: Boolean(includeWeddingChallenges),
     venues: false,
     venueDashboard: false,
     venueCrm: false,
@@ -1092,10 +1108,15 @@ export async function POST(req: NextRequest) {
     const hasCreditGifts = creditGiftsState.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
+    const hasWeddingChallenges = Boolean(salesUpsells.weddingChallenges?.enabled);
+    const hasWeddingChallengesGiveaway = Boolean(
+      salesUpsells.weddingChallengesGiveaway?.enabled
+    );
 
     const activeAccessModules = buildAccessModules({
       includeDigitalSeating: hasDigitalSeating,
       includeEventManagement: hasSuppliersBudgetSystem,
+      includeWeddingChallenges: hasWeddingChallenges,
     });
 
     const activePlanLimits = {
@@ -1106,6 +1127,7 @@ export async function POST(req: NextRequest) {
       seatingEnabled: hasDigitalSeating,
       remindersEnabled: true,
       callsEnabled: hasCallsPackage,
+      weddingChallengesEnabled: hasWeddingChallenges,
     };
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
@@ -1204,6 +1226,11 @@ export async function POST(req: NextRequest) {
       includeEventManagement: isManualPaid ? hasSuppliersBudgetSystem : false,
       includeCustomDesign: false,
 
+      includeWeddingChallenges: isManualPaid ? hasWeddingChallenges : false,
+      includeWeddingChallengesGiveaway: isManualPaid
+        ? hasWeddingChallengesGiveaway
+        : false,
+
       selfManageEnabled: isManualPaid ? hasSuppliersBudgetSystem : false,
       customDesignEnabled: false,
 
@@ -1256,6 +1283,14 @@ export async function POST(req: NextRequest) {
           staffCount: salesUpsells.alcoholManagement.staffCount,
           totalPrice: salesUpsells.alcoholManagement.totalPrice,
         },
+        weddingChallenges: {
+          enabled: isManualPaid ? hasWeddingChallenges : false,
+          price: salesUpsells.weddingChallenges?.price || 299,
+        },
+        weddingChallengesGiveaway: {
+          enabled: isManualPaid ? hasWeddingChallengesGiveaway : false,
+          price: salesUpsells.weddingChallengesGiveaway?.price || 99,
+        },
       },
 
       accessModules: isManualPaid ? activeAccessModules : buildPendingAccessModules(),
@@ -1301,6 +1336,21 @@ export async function POST(req: NextRequest) {
           ]
         : [],
     });
+
+    if (isManualPaid && hasWeddingChallenges) {
+      await applyWeddingChallengesPurchase({
+        userId: String(createdUser._id),
+        sourceType: "EXISTING_EVENT",
+        includeGiveaway: hasWeddingChallengesGiveaway,
+        paymentMethod: "manual",
+        paymentStatus: "paid",
+        status: "ACTIVE",
+        customerName: clientName,
+        customerPhone: clientPhone,
+        customerEmail: clientEmail,
+        notes: "Employee sale",
+      });
+    }
 
     const sale = await EmployeeSale.create({
       employeeId: required.employeeObjectId,

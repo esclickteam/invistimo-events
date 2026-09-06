@@ -169,6 +169,15 @@ function isAuthEntryPath(pathname: string) {
   );
 }
 
+function safeNextPath() {
+  if (typeof window === "undefined") return "";
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+    return "";
+  }
+  return next;
+}
+
 export function getUserRedirectPath(nextUser: User) {
   const role = cleanRole(nextUser.role);
   const effectiveRole = cleanRole(nextUser.effectiveRole);
@@ -486,7 +495,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!shouldRedirectFromAuthEntry || !user) return;
 
-    const redirectPath = getUserRedirectPath(user);
+    const redirectPath = safeNextPath() || getUserRedirectPath(user);
     window.location.replace(redirectPath);
   }, [shouldRedirectFromAuthEntry, user, router]);
 
@@ -524,7 +533,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(nextUser);
 
-      const redirectPath = getUserRedirectPath(nextUser);
+      const redirectPath = safeNextPath() || getUserRedirectPath(nextUser);
 
       // Full navigation so Safari/iPad reliably sends the new auth cookies
       window.location.replace(redirectPath);

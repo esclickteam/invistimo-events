@@ -220,8 +220,8 @@ export default function DashboardMobileMenu({
       title: "Wedding Challenges",
       subtitle: "כרטיס גירוד דיגיטלי שמרימים את הרחבה",
       icon: WandSparkles,
-      badge: "Premium",
-      hidden: !canOpenWeddingChallenges && !isDemo,
+      badge: canOpenWeddingChallenges ? "Live" : "299 ₪",
+      hidden: false,
       onClick: () => {
         if (isDemo) {
           go("/live/demo");

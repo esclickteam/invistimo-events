@@ -226,8 +226,8 @@ const ADDONS = [
   },
   {
     key: "includeWeddingChallenges",
-    label: "Wedding Challenges Premium",
-    price: 99,
+    label: "Wedding Challenges",
+    price: 299,
   },
   {
     key: "includeCustomDesign",
@@ -549,7 +549,7 @@ function getPurchasedItems(
     },
     {
       label: "Wedding Challenges",
-      value: user.includeWeddingChallenges ? "פעיל · 99 ₪" : "לא פעיל",
+      value: user.includeWeddingChallenges ? "פעיל · 299 ₪" : "לא פעיל",
       active: Boolean(user.includeWeddingChallenges),
     },
     {
@@ -2629,7 +2629,10 @@ function EditUserModal({
               Invistimo Live · Wedding Challenges
             </h3>
             <p className="mt-1 text-sm font-bold text-[#7B6754]">
-              תוספת Premium ב־99 ₪ לאירוע. Giveaway אופציונלי ב־99 ₪ + עלות הפרס.
+              Wedding Challenges ב־299 ₪ לאירוע, עד 800 רשומות. הגרלה אופציונלית ב־99 ₪ + עלות הפרס נגבית בנפרד.{" "}
+              <a href="/admin/wedding-challenges" className="underline">
+                מכירה עצמאית בלי פרטי אירוע
+              </a>
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -2646,7 +2649,7 @@ function EditUserModal({
             </label>
             <label className="inline-flex cursor-pointer items-center justify-between gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
               <span className="text-sm font-black text-[#3A2A1C]">
-                Giveaway Add-on
+                Giveaway Add-on · 99 ₪
               </span>
               <input
                 type="checkbox"

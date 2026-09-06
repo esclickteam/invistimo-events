@@ -15,6 +15,7 @@ import {
   buildPreRsvpMessagesSet,
   readPreRsvpFlags,
 } from "@/lib/preRsvp/entitlement";
+import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -712,6 +713,9 @@ export async function PATCH(
           ? finalIncludeWeddingChallenges
           : undefined,
 
+      "salesUpsells.weddingChallenges.price":
+        finalIncludeWeddingChallenges ? 299 : undefined,
+
       "salesUpsells.weddingChallengesGiveaway.enabled":
         nextIncludeWeddingChallengesGiveaway,
 
@@ -801,6 +805,23 @@ export async function PATCH(
         { success: false, error: "USER_NOT_FOUND" },
         { status: 404 }
       );
+    }
+
+    if (Boolean(updatedUser.includeWeddingChallenges)) {
+      const existingEntitlement = await getActiveEntitlement(String(updatedUser._id));
+      await applyWeddingChallengesPurchase({
+        userId: String(updatedUser._id),
+        eventId: existingEntitlement?.eventId ? String(existingEntitlement.eventId) : null,
+        sourceType: existingEntitlement?.sourceType || "EXISTING_EVENT",
+        includeGiveaway: Boolean(updatedUser.includeWeddingChallengesGiveaway),
+        paymentMethod: "manual",
+        paymentStatus: "paid",
+        status: "ACTIVE",
+        notes: "Admin toggle",
+        customerName: String(updatedUser.name || ""),
+        customerPhone: String(updatedUser.phone || ""),
+        customerEmail: String(updatedUser.email || ""),
+      });
     }
 
     if (hasField(body, "isActive") && body.isActive === false) {

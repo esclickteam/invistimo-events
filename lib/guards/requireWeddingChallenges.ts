@@ -4,6 +4,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import { WEDDING_CHALLENGES_PRICE_ILS } from "@/lib/weddingChallenges/constants";
 
 export async function requireWeddingChallenges(options?: {
   eventId?: string;
@@ -70,7 +71,7 @@ export async function requireWeddingChallenges(options?: {
         {
           success: false,
           error: "WEDDING_CHALLENGES_NOT_PURCHASED",
-          price: 99,
+          price: WEDDING_CHALLENGES_PRICE_ILS,
         },
         { status: 403 }
       ),

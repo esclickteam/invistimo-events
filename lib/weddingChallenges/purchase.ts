@@ -1,0 +1,114 @@
+import User from "@/models/User";
+import WeddingChallengeEntitlement from "@/models/WeddingChallengeEntitlement";
+import {
+  WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+  WEDDING_CHALLENGES_MAX_GUESTS,
+  WEDDING_CHALLENGES_PRICE_ILS,
+} from "./constants";
+import type { WeddingChallengesSourceType } from "./types";
+
+export async function applyWeddingChallengesPurchase(params: {
+  userId: string;
+  eventId?: string | null;
+  sourceType?: WeddingChallengesSourceType;
+  includeGiveaway?: boolean;
+  pricePaid?: number;
+  paymentMethod?: string;
+  paymentStatus?: "unpaid" | "pending" | "paid";
+  status?: "PENDING" | "ACTIVE" | "CANCELLED";
+  notes?: string;
+  prizeCost?: number;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  stripeCheckoutSessionId?: string;
+  entitlementId?: string;
+}) {
+  const includeGiveaway = params.includeGiveaway === true;
+  const status = params.status || "ACTIVE";
+  const paid = status === "ACTIVE" || params.paymentStatus === "paid";
+  const pricePaid =
+    params.pricePaid ??
+    WEDDING_CHALLENGES_PRICE_ILS + (includeGiveaway ? WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS : 0);
+
+  const set: Record<string, unknown> = {
+    userId: params.userId,
+    sourceType: params.sourceType || "STANDALONE_GAME",
+    status,
+    pricePaid,
+    maxGuests: WEDDING_CHALLENGES_MAX_GUESTS,
+    giveawayPurchased: includeGiveaway && paid,
+    giveawayFee: WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+    prizeCost: Number(params.prizeCost || 0),
+    paymentMethod: params.paymentMethod || "",
+    paymentStatus: paid ? "paid" : params.paymentStatus || "pending",
+    notes: params.notes || "",
+    customerName: params.customerName || "",
+    customerPhone: params.customerPhone || "",
+    customerEmail: String(params.customerEmail || "").toLowerCase(),
+  };
+  if (params.eventId) set.eventId = params.eventId;
+  if (params.stripeCheckoutSessionId) {
+    set.stripeCheckoutSessionId = params.stripeCheckoutSessionId;
+  }
+  if (paid) set.purchasedAt = new Date();
+
+  const query = params.entitlementId
+    ? { _id: params.entitlementId }
+    : params.stripeCheckoutSessionId
+      ? { stripeCheckoutSessionId: params.stripeCheckoutSessionId }
+      : {
+          userId: params.userId,
+          status: { $in: ["PENDING", "ACTIVE"] },
+          ...(params.eventId ? { eventId: params.eventId } : {}),
+        };
+
+  const entitlement = await WeddingChallengeEntitlement.findOneAndUpdate(
+    query,
+    { $set: set },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+
+  if (paid) {
+    await User.findByIdAndUpdate(params.userId, {
+      $set: {
+        includeWeddingChallenges: true,
+        includeWeddingChallengesGiveaway: includeGiveaway,
+        "accessModules.weddingChallenges": true,
+        "salesUpsells.weddingChallenges.enabled": true,
+        "salesUpsells.weddingChallenges.price": WEDDING_CHALLENGES_PRICE_ILS,
+        "salesUpsells.weddingChallengesGiveaway.enabled": includeGiveaway,
+        "salesUpsells.weddingChallengesGiveaway.price": WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+        "planLimits.weddingChallengesEnabled": true,
+        hasDashboardAccess: true,
+      },
+    });
+  }
+
+  return entitlement;
+}
+
+export async function linkEntitlementToEvent(params: {
+  userId: string;
+  eventId: string;
+  sourceType?: WeddingChallengesSourceType;
+}) {
+  const existing = await WeddingChallengeEntitlement.findOne({
+    userId: params.userId,
+    status: "ACTIVE",
+    $or: [{ eventId: null }, { eventId: { $exists: false } }, { eventId: params.eventId }],
+  }).sort({ purchasedAt: -1 });
+
+  if (!existing) return null;
+  existing.eventId = params.eventId as any;
+  if (params.sourceType) existing.sourceType = params.sourceType;
+  await existing.save();
+  return existing;
+}
+
+export async function getActiveEntitlement(userId: string) {
+  return WeddingChallengeEntitlement.findOne({
+    userId,
+    status: "ACTIVE",
+  }).sort({ purchasedAt: -1, createdAt: -1 });
+}

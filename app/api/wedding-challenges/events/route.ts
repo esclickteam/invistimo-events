@@ -139,11 +139,13 @@ export async function POST(req: Request) {
   } catch (error) {
     const code = error instanceof Error ? error.message : "CREATE_FAILED";
     const status =
-      code === "COUPLE_NAMES_REQUIRED" || code === "EVENT_DATE_REQUIRED"
+      code === "COUPLE_NAMES_REQUIRED" ||
+      code === "EVENT_DATE_REQUIRED" ||
+      code.includes("800")
         ? 400
         : code === "EVENT_NOT_FOUND" || code === "INVITATION_NOT_FOUND" || code === "USER_NOT_FOUND"
           ? 404
           : 500;
-    return NextResponse.json({ success: false, error: code }, { status     });
+    return NextResponse.json({ success: false, error: code, message: code }, { status });
   }
 }

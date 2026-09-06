@@ -6,6 +6,7 @@ import Payment from "@/models/Payment";
 import User from "@/models/User";
 import EmployeeSale from "@/models/EmployeeSale";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
+import { applyWeddingChallengesPurchase } from "@/lib/weddingChallenges/purchase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -445,6 +446,11 @@ function buildEmployeeSaleUpsells(sale: any) {
     sale,
     "transportationManagement"
   );
+  const weddingChallengesEnabled = hasSaleUpsell(sale, "weddingChallenges");
+  const weddingChallengesGiveawayEnabled = hasSaleUpsell(
+    sale,
+    "weddingChallengesGiveaway"
+  );
   const creditGiftsEnabled = hasSaleUpsell(sale, "creditGifts");
 
   return {
@@ -500,6 +506,16 @@ function buildEmployeeSaleUpsells(sale: any) {
         findSaleUpsell(sale, "transportationManagement")?.givenFree
       ),
     },
+
+    weddingChallenges: {
+      enabled: weddingChallengesEnabled,
+      price: getSaleUpsellPrice(sale, "weddingChallenges") || 299,
+    },
+
+    weddingChallengesGiveaway: {
+      enabled: weddingChallengesGiveawayEnabled,
+      price: getSaleUpsellPrice(sale, "weddingChallengesGiveaway") || 99,
+    },
   };
 }
 
@@ -531,6 +547,15 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
       user?.includeTransportationManagement
   );
 
+  const includeWeddingChallenges = Boolean(
+    salesUpsells.weddingChallenges?.enabled || user?.includeWeddingChallenges
+  );
+
+  const includeWeddingChallengesGiveaway = Boolean(
+    salesUpsells.weddingChallengesGiveaway?.enabled ||
+      user?.includeWeddingChallengesGiveaway
+  );
+
   const allowedMessageRounds: 2 | 3 = salesUpsells.thirdRsvpRound.enabled
     ? 3
     : normalizeAllowedMessageRounds(
@@ -546,6 +571,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     rsvpSeating: includeDigitalSeating,
     eventProduction: includeEventManagement,
     transportationManagement: includeTransportationManagement,
+    weddingChallenges: includeWeddingChallenges,
 
     venues: Boolean(user?.accessModules?.venues ?? false),
     venueDashboard: Boolean(user?.accessModules?.venueDashboard ?? false),
@@ -577,6 +603,8 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     includeCreditGifts,
     includeEventManagement,
     includeTransportationManagement,
+    includeWeddingChallenges,
+    includeWeddingChallengesGiveaway,
     allowedMessageRounds,
     accessModules,
     planLimits,
@@ -648,6 +676,31 @@ export async function POST(req: Request) {
 
     if (!user) {
       console.error("❌ User not found for payment");
+      return NextResponse.json({ received: true });
+    }
+
+    if (
+      session.metadata?.type === "wedding-challenges" ||
+      session.metadata?.source === "wedding_challenges_checkout"
+    ) {
+      const includeGiveaway = toBool(session.metadata?.includeGiveaway);
+      const amount = toNum(session.amount_total, 0) / 100;
+      await applyWeddingChallengesPurchase({
+        userId: String(user._id),
+        eventId: session.metadata?.eventId || null,
+        sourceType:
+          session.metadata?.sourceType === "EXISTING_EVENT"
+            ? "EXISTING_EVENT"
+            : "STANDALONE_GAME",
+        includeGiveaway,
+        pricePaid: amount,
+        paymentMethod: "stripe",
+        paymentStatus: "paid",
+        status: "ACTIVE",
+        stripeCheckoutSessionId: session.id,
+        entitlementId: session.metadata?.entitlementId || undefined,
+        customerEmail: String(user.email || ""),
+      });
       return NextResponse.json({ received: true });
     }
 
@@ -1035,6 +1088,9 @@ export async function POST(req: Request) {
           includeEventManagement: packageFlags.includeEventManagement,
           includeTransportationManagement:
             packageFlags.includeTransportationManagement,
+          includeWeddingChallenges: packageFlags.includeWeddingChallenges,
+          includeWeddingChallengesGiveaway:
+            packageFlags.includeWeddingChallengesGiveaway,
 
           accessModules: packageFlags.accessModules,
 
@@ -1087,6 +1143,23 @@ export async function POST(req: Request) {
       }
 
       await User.findByIdAndUpdate(user._id, employeeSaleUserUpdate, { new: true });
+
+      if (packageFlags.includeWeddingChallenges) {
+        await applyWeddingChallengesPurchase({
+          userId: String(user._id),
+          sourceType: "EXISTING_EVENT",
+          includeGiveaway: packageFlags.includeWeddingChallengesGiveaway,
+          pricePaid:
+            Number(packageFlags.salesUpsells.weddingChallenges?.price || 299) +
+            (packageFlags.includeWeddingChallengesGiveaway
+              ? Number(packageFlags.salesUpsells.weddingChallengesGiveaway?.price || 99)
+              : 0),
+          paymentMethod: "stripe",
+          paymentStatus: "paid",
+          status: "ACTIVE",
+          customerEmail: String(user.email || ""),
+        });
+      }
 
       sale.set?.("status", "paid");
       sale.set?.("stripeCheckoutSessionId", sale.stripeCheckoutSessionId || session.id);
