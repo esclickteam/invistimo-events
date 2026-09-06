@@ -70,6 +70,21 @@ function isEligible(
     if (!settings.allowAlcoholMissions || !guest.isAdult) return false;
   }
 
+  if (mission.allowedGuestIds && mission.allowedGuestIds.length > 0) {
+    if (!mission.allowedGuestIds.includes(guest.guestId)) return false;
+  }
+
+  if (mission.allowedTableIds && mission.allowedTableIds.length > 0) {
+    if (!guest.tableId || !mission.allowedTableIds.includes(guest.tableId)) return false;
+  }
+
+  if (
+    mission.maxAssignments != null &&
+    Number(mission.assignedCount || 0) >= mission.maxAssignments
+  ) {
+    return false;
+  }
+
   if (mission.boss && guest.completedCount < BOSS_MIN_COMPLETED_BEFORE) {
     return false;
   }
@@ -122,6 +137,8 @@ function pickWeighted(
     );
 
     if (weight <= 0) weight = 1;
+
+    weight *= Math.max(0.1, Number(mission.weight ?? 10) / 10);
 
     if (lastCategory && mission.category === lastCategory) {
       weight *= 0.45;

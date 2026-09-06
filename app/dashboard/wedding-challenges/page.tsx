@@ -10,8 +10,15 @@ import {
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
 import type { WeddingChallengeSettings, WeddingChallengesSourceType } from "@/lib/weddingChallenges/types";
-import { defaultWeddingChallengeSettings } from "@/lib/weddingChallenges/settings";
+import { defaultWeddingChallengeSettings, giveawayAdminStatus, giveawayEntriesOpen } from "@/lib/weddingChallenges/settings";
+import {
+  DEFAULT_EVENT_TIMEZONE,
+  utcToWallTimeInput,
+  wallTimeInZoneToUtc,
+} from "@/lib/weddingChallenges/timezone";
 import GuestRoster from "./GuestRoster";
+import SmsSchedulePanel from "./SmsSchedulePanel";
+import CustomMissionsPanel from "./CustomMissionsPanel";
 
 type Stats = {
   guests: number;
@@ -63,12 +70,12 @@ function Toggle({
   );
 }
 
-function datetimeLocal(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function datetimeLocal(value?: string | null, timeZone = DEFAULT_EVENT_TIMEZONE) {
+  return utcToWallTimeInput(value, timeZone);
+}
+
+function fromWall(value: string, timeZone = DEFAULT_EVENT_TIMEZONE) {
+  return value ? wallTimeInZoneToUtc(value, timeZone)?.toISOString() ?? null : null;
 }
 
 function WeddingChallengesAdmin() {
@@ -95,6 +102,8 @@ function WeddingChallengesAdmin() {
   const [giveawayPurchased, setGiveawayPurchased] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const timezone = settings.sms.timezone || DEFAULT_EVENT_TIMEZONE;
 
   const load = async () => {
     if (!eventId) return;
@@ -131,6 +140,12 @@ function WeddingChallengesAdmin() {
       .catch(() => setMessage("לא הצלחנו לטעון אירועים"));
   }, [eventId]);
 
+  useEffect(() => {
+    if (!eventId) return;
+    const timer = window.setInterval(() => setNowTick(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, [eventId]);
+
   const save = async () => {
     setSaving(true);
     setMessage("");
@@ -151,34 +166,33 @@ function WeddingChallengesAdmin() {
     }
   };
 
-  const sendSms = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch("/api/wedding-challenges/sms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
-      });
-      const json = await res.json();
-      setMessage(res.ok ? `נשלחו ${json.sent} הודעות` : "שליחת SMS נכשלה");
-    } finally {
-      setSaving(false);
+  const draw = async (reset = false) => {
+    if (reset) {
+      if (!window.confirm("לאפס את ההגרלה ולאפשר בחירת זוכה מחדש? הפעולה מפורשת ומבטלת את הנעילה.")) {
+        return;
+      }
     }
-  };
-
-  const draw = async () => {
     const res = await fetch("/api/wedding-challenges/admin/draw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId }),
+      body: JSON.stringify(reset ? { eventId, reset: true, confirm: true } : { eventId }),
     });
     const json = await res.json();
+    if (res.ok && json.reset) {
+      setMessage("ההגרלה אופסה. אפשר להגריל מחדש.");
+      load();
+      return;
+    }
     if (res.ok) {
       setMessage(`הזוכה: ${json.winner?.name}`);
       load();
-    } else {
-      setMessage("לא ניתן להגריל עדיין");
+      return;
     }
+    if (json.error === "DRAW_LOCKED") {
+      setMessage("ההגרלה נעולה. לשינוי זוכה צריך איפוס מפורש.");
+      return;
+    }
+    setMessage("לא ניתן להגריל עדיין");
   };
 
   const createStandalone = async () => {
@@ -191,8 +205,8 @@ function WeddingChallengesAdmin() {
         body: JSON.stringify({
           coupleNames: newCoupleNames,
           eventDate: newEventDate,
-          startAt: newStartAt ? new Date(newStartAt).toISOString() : null,
-          endAt: newEndAt ? new Date(newEndAt).toISOString() : null,
+          startAt: fromWall(newStartAt),
+          endAt: fromWall(newEndAt),
         }),
       });
       const json = await res.json();
@@ -429,9 +443,9 @@ function WeddingChallengesAdmin() {
             שעת התחלה
             <input
               type="datetime-local"
-              value={datetimeLocal(settings.startAt)}
+              value={datetimeLocal(settings.startAt, timezone)}
               onChange={(event) =>
-                setSettings({ ...settings, startAt: event.target.value ? new Date(event.target.value).toISOString() : null })
+                setSettings({ ...settings, startAt: fromWall(event.target.value, timezone) })
               }
               className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
             />
@@ -440,9 +454,9 @@ function WeddingChallengesAdmin() {
             שעת סיום
             <input
               type="datetime-local"
-              value={datetimeLocal(settings.endAt)}
+              value={datetimeLocal(settings.endAt, timezone)}
               onChange={(event) =>
-                setSettings({ ...settings, endAt: event.target.value ? new Date(event.target.value).toISOString() : null })
+                setSettings({ ...settings, endAt: fromWall(event.target.value, timezone) })
               }
               className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
             />
@@ -535,6 +549,94 @@ function WeddingChallengesAdmin() {
             setSettings({ ...settings, giveaway: { ...settings.giveaway, enabled } })
           }
         />
+        {settings.giveaway.enabled ? (
+          <>
+            {(() => {
+              const status = giveawayAdminStatus(settings, new Date(nowTick));
+              const entriesOpen = giveawayEntriesOpen(settings, new Date(nowTick));
+              const drawn = Boolean(settings.giveaway.locked || settings.giveaway.drawnAt);
+              return (
+                <div className="rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3 text-sm">
+                  <p className="font-black text-[#3A2A1C]">
+                    סטטוס הגרלה:{" "}
+                    {status.status === "drawn"
+                      ? "הוגרל וננעל"
+                      : status.status === "scheduled"
+                        ? `מתוזמן · ${status.countdown}`
+                        : status.status === "due"
+                          ? "הגיע זמן ההגרלה"
+                          : "הגרלה ידנית"}
+                  </p>
+                  <p className="mt-1 text-[#7B6754]">
+                    {entriesOpen ? "כניסות פתוחות" : "כניסות נסגרו"}
+                    {status.drawAtLabel ? ` · הגרלה: ${status.drawAtLabel}` : ""}
+                  </p>
+                  {drawn ? (
+                    <p className="mt-1 font-black text-[#A86F2B]">
+                      זוכה נעול: {settings.giveaway.winnerName || "נבחר"} — אין הגרלה מחדש בלי איפוס מפורש
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })()}
+            <label className="text-sm font-bold text-[#7B6754]">
+              מצב הגרלה
+              <select
+                value={settings.giveaway.drawMode}
+                disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    giveaway: {
+                      ...settings.giveaway,
+                      drawMode: event.target.value === "AUTO_DRAW_AT_TIME" ? "AUTO_DRAW_AT_TIME" : "MANUAL_DRAW",
+                      autoDrawAtEnd: event.target.value === "AUTO_DRAW_AT_TIME",
+                    },
+                  })
+                }
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+              >
+                <option value="MANUAL_DRAW">MANUAL_DRAW — הגרלה ידנית</option>
+                <option value="AUTO_DRAW_AT_TIME">AUTO_DRAW_AT_TIME — הגרלה אוטומטית בזמן</option>
+              </select>
+            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-sm font-bold text-[#7B6754]">
+                תאריך ושעת הגרלה
+                <input
+                  type="datetime-local"
+                  value={datetimeLocal(settings.giveaway.drawAt, timezone)}
+                  disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      giveaway: { ...settings.giveaway, drawAt: fromWall(event.target.value, timezone) },
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                />
+              </label>
+              <label className="text-sm font-bold text-[#7B6754]">
+                סגירת כניסות (אופציונלי)
+                <input
+                  type="datetime-local"
+                  value={datetimeLocal(settings.giveaway.entriesCutoffAt, timezone)}
+                  disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      giveaway: { ...settings.giveaway, entriesCutoffAt: fromWall(event.target.value, timezone) },
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-[#7B6754]">
+              אם אין זמן סגירת כניסות, הכניסות נעצרות בשעת ההגרלה. אזור זמן: שעון ישראל.
+            </p>
+          </>
+        ) : null}
         <label className="text-sm font-bold text-[#7B6754]">
           פרס
           <input
@@ -602,21 +704,24 @@ function WeddingChallengesAdmin() {
             <option value={3}>3 כניסות</option>
           </select>
         </label>
-        <Toggle
-          label="הגרלה אוטומטית בסוף"
-          checked={settings.giveaway.autoDrawAtEnd}
-          onChange={(autoDrawAtEnd) =>
-            setSettings({ ...settings, giveaway: { ...settings.giveaway, autoDrawAtEnd } })
-          }
-        />
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={draw}
-            className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
+            onClick={() => draw(false)}
+            disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
+            className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
           >
             הכרזת זוכה
           </button>
+          {settings.giveaway.locked || settings.giveaway.drawnAt ? (
+            <button
+              type="button"
+              onClick={() => draw(true)}
+              className="rounded-full border border-[#8A3B3B] px-4 py-2 text-sm font-black text-[#8A3B3B]"
+            >
+              איפוס הגרלה
+            </button>
+          ) : null}
           <a
             href={`/api/wedding-challenges/admin/export?eventId=${eventId}`}
             className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
@@ -643,39 +748,22 @@ function WeddingChallengesAdmin() {
         ) : null}
       </section>
 
-      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-        <h2 className="text-lg font-black">SMS פתיחה אחד</h2>
-        <p className="text-sm text-[#7B6754]">
-          אין SMS לכל משימה. האורחים מקבלים לינק אישי אחד לכרטיס הגירוד.
-          {coupleNames ? ` חתונה של ${coupleNames}.` : ""}
-        </p>
-        <label className="text-sm font-bold text-[#7B6754]">
-          תבנית
-          <select
-            value={settings.sms.template}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                sms: { ...settings.sms, template: event.target.value === "short" ? "short" : "full" },
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          >
-            <option value="full">תבנית מלאה</option>
-            <option value="short">תבנית קצרה</option>
-          </select>
-        </label>
-        <pre className="whitespace-pre-wrap rounded-2xl bg-white p-4 text-sm text-[#3A2A1C]">
-          {preview}
-        </pre>
-        <button
-          type="button"
-          onClick={sendSms}
-          className="rounded-full bg-[#C89545] px-5 py-3 text-sm font-black text-white"
-        >
-          שליחת SMS לאורחים
-        </button>
-      </section>
+      <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
+
+      <SmsSchedulePanel
+        eventId={eventId}
+        template={settings.sms.template}
+        timezone={timezone}
+        preview={preview}
+        disabled={locked}
+        onTemplateChange={(template) =>
+          setSettings({ ...settings, sms: { ...settings.sms, template } })
+        }
+        onTimezoneChange={(nextTimezone) =>
+          setSettings({ ...settings, sms: { ...settings.sms, timezone: nextTimezone } })
+        }
+        onMessage={setMessage}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <button

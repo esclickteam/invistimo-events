@@ -30,6 +30,14 @@ const GiveawaySchema = new Schema(
     bossEntries: { type: Number, enum: [2, 3], default: 2 },
     maxEntriesPerGuest: { type: Number, default: null },
     autoDrawAtEnd: { type: Boolean, default: true },
+    drawMode: {
+      type: String,
+      enum: ["AUTO_DRAW_AT_TIME", "MANUAL_DRAW"],
+      default: "MANUAL_DRAW",
+    },
+    drawAt: { type: Date, default: null },
+    entriesCutoffAt: { type: Date, default: null },
+    locked: { type: Boolean, default: false },
     revealedByAdmin: { type: Boolean, default: false },
     winnerGuestId: { type: String, default: null },
     winnerName: { type: String, default: "", trim: true },
@@ -41,8 +49,16 @@ const GiveawaySchema = new Schema(
 const SmsSchema = new Schema(
   {
     template: { type: String, enum: ["full", "short"], default: "full" },
+    timezone: { type: String, default: "Asia/Jerusalem", trim: true },
+    scheduledAt: { type: Date, default: null },
+    status: {
+      type: String,
+      enum: ["idle", "scheduled", "sending", "sent", "cancelled"],
+      default: "idle",
+    },
     sentAt: { type: Date, default: null },
     sentCount: { type: Number, default: 0, min: 0 },
+    cancelledAt: { type: Date, default: null },
   },
   { _id: false }
 );

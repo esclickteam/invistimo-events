@@ -36,6 +36,28 @@ export type GuestLiveScreen =
   | "expired"
   | "winner";
 
+export type GiveawayDrawMode = "AUTO_DRAW_AT_TIME" | "MANUAL_DRAW";
+
+export type SmsScheduleStatus =
+  | "idle"
+  | "scheduled"
+  | "sending"
+  | "sent"
+  | "cancelled";
+
+export type CustomMissionTargetingType =
+  | "ALL_ELIGIBLE_GUESTS"
+  | "RANDOM_GUESTS"
+  | "SPECIFIC_TABLES"
+  | "SPECIFIC_GUESTS";
+
+export type CustomMissionTargeting = {
+  type: CustomMissionTargetingType;
+  count?: number;
+  tableIds?: string[];
+  guestIds?: string[];
+};
+
 export type MissionDefinition = {
   id: string;
   category: MissionCategory;
@@ -50,6 +72,12 @@ export type MissionDefinition = {
   minTables: number;
   hint?: string;
   active?: boolean;
+  source?: "default" | "custom";
+  weight?: number;
+  maxAssignments?: number | null;
+  assignedCount?: number;
+  allowedGuestIds?: string[] | null;
+  allowedTableIds?: string[] | null;
 };
 
 export type EnabledCategories = Record<MissionCategory, boolean>;
@@ -75,6 +103,10 @@ export type WeddingChallengeSettings = {
     bossEntries: 2 | 3;
     maxEntriesPerGuest: number | null;
     autoDrawAtEnd: boolean;
+    drawMode: GiveawayDrawMode;
+    drawAt: string | null;
+    entriesCutoffAt: string | null;
+    locked: boolean;
     revealedByAdmin: boolean;
     winnerGuestId: string | null;
     winnerName: string;
@@ -82,8 +114,12 @@ export type WeddingChallengeSettings = {
   };
   sms: {
     template: "full" | "short";
+    timezone: string;
+    scheduledAt: string | null;
+    status: SmsScheduleStatus;
     sentAt: string | null;
     sentCount: number;
+    cancelledAt: string | null;
   };
 };
 

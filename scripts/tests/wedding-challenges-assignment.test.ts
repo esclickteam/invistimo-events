@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { assignWeddingChallengeMission } from "../../lib/weddingChallenges/assignment";
 import { WEDDING_CHALLENGE_MISSIONS, missionsByCategory } from "../../lib/weddingChallenges/missionBank";
-import { defaultWeddingChallengeSettings } from "../../lib/weddingChallenges/settings";
+import { defaultWeddingChallengeSettings, giveawayEntriesOpen, normalizeWeddingChallengeSettings, openingSmsAlreadySent } from "../../lib/weddingChallenges/settings";
 import { buildWeddingChallengesSms, smsMentionsGiveaway } from "../../lib/weddingChallenges/sms";
 import { pickWeightedWinner } from "../../lib/weddingChallenges/giveaway";
-import type { AssignmentGuest, TableAssignmentSnapshot, WeddingChallengeSettings } from "../../lib/weddingChallenges/types";
+import { wallTimeInZoneToUtc, utcToWallTimeInput } from "../../lib/weddingChallenges/timezone";
+import type { AssignmentGuest, MissionDefinition, TableAssignmentSnapshot, WeddingChallengeSettings } from "../../lib/weddingChallenges/types";
 
 function guest(overrides: Partial<AssignmentGuest> = {}): AssignmentGuest {
   return {
@@ -36,20 +37,59 @@ function table(overrides: Partial<TableAssignmentSnapshot> = {}): TableAssignmen
   };
 }
 
-function settings(overrides: Partial<WeddingChallengeSettings> = {}): WeddingChallengeSettings {
-  return defaultWeddingChallengeSettings(overrides);
+type SettingsOverrides = Partial<Omit<WeddingChallengeSettings, "giveaway" | "sms" | "enabledCategories">> & {
+  giveaway?: Partial<WeddingChallengeSettings["giveaway"]>;
+  sms?: Partial<WeddingChallengeSettings["sms"]>;
+  enabledCategories?: Partial<WeddingChallengeSettings["enabledCategories"]>;
+};
+
+function settings(overrides: SettingsOverrides = {}): WeddingChallengeSettings {
+  const base = defaultWeddingChallengeSettings();
+  return normalizeWeddingChallengeSettings({
+    ...base,
+    ...overrides,
+    giveaway: { ...base.giveaway, ...(overrides.giveaway || {}) },
+    sms: { ...base.sms, ...(overrides.sms || {}) },
+    enabledCategories: { ...base.enabledCategories, ...(overrides.enabledCategories || {}) },
+  });
+}
+
+function customMission(overrides: Partial<MissionDefinition> = {}): MissionDefinition {
+  return {
+    id: "custom-test1",
+    category: "chaos",
+    text: "משימה אישית לבדיקה",
+    difficulty: "medium",
+    requiresAlcohol: false,
+    minPeople: 2,
+    maxPeople: null,
+    tableBased: false,
+    cooldownWeight: 1,
+    boss: false,
+    minTables: 0,
+    active: true,
+    source: "custom",
+    weight: 50,
+    maxAssignments: null,
+    assignedCount: 0,
+    allowedGuestIds: null,
+    allowedTableIds: null,
+    ...overrides,
+  };
 }
 
 function assign(params: {
   guest?: Partial<AssignmentGuest>;
   table?: Partial<TableAssignmentSnapshot>;
-  settings?: Partial<WeddingChallengeSettings>;
+  settings?: SettingsOverrides;
+  missions?: MissionDefinition[];
   random?: () => number;
 }) {
   return assignWeddingChallengeMission({
     guest: guest(params.guest),
     table: table(params.table),
     settings: settings(params.settings),
+    missions: params.missions,
     random: params.random || (() => 0.01),
   });
 }
@@ -334,8 +374,163 @@ test("dashboard and APIs expose EXISTING_EVENT and STANDALONE_GAME standalone fl
   assert.match(page, /STANDALONE_GAME/);
   assert.match(page, /EXISTING_EVENT/);
   assert.match(page, /יצירת אירוע למשחק בלבד/);
+  assert.match(page, /CustomMissionsPanel/);
+  assert.match(page, /SmsSchedulePanel/);
+  assert.match(page, /AUTO_DRAW_AT_TIME/);
+  assert.match(page, /MANUAL_DRAW/);
   assert.match(guests, /parseGuestListText/);
   assert.match(guests, /XLSX/);
   assert.match(events, /createStandaloneWeddingChallengesEvent/);
   assert.match(sms, /attendingGuestMongoFilter/);
+  assert.match(sms, /action === "schedule"/);
+  assert.match(sms, /action === "send_now"/);
+  assert.match(sms, /action === "cancel"/);
+  assert.match(sms, /ACTION_REQUIRED/);
 });
+
+test("Jerusalem wall time converts to UTC without using the browser timezone", () => {
+  const utc = wallTimeInZoneToUtc("2026-09-06T20:00", "Asia/Jerusalem");
+  assert.ok(utc);
+  assert.equal(utc.toISOString(), "2026-09-06T17:00:00.000Z");
+  assert.equal(utcToWallTimeInput(utc, "Asia/Jerusalem"), "2026-09-06T20:00");
+});
+
+test("opening SMS is blocked after send unless explicitly forced", () => {
+  const sent = settings({ sms: { template: "full", timezone: "Asia/Jerusalem", scheduledAt: null, status: "sent", sentAt: "2026-09-06T17:00:00.000Z", sentCount: 12, cancelledAt: null } });
+  assert.equal(openingSmsAlreadySent(sent), true);
+  assert.equal(openingSmsAlreadySent(sent, true), false);
+  const idle = settings();
+  assert.equal(openingSmsAlreadySent(idle), false);
+});
+
+test("giveaway entries close at cutoff, draw time, or lock", () => {
+  const now = new Date("2026-09-06T18:00:00.000Z");
+  assert.equal(
+    giveawayEntriesOpen(
+      settings({
+        giveaway: { enabled: true, drawAt: "2026-09-06T19:00:00.000Z", entriesCutoffAt: null },
+      }),
+      now
+    ),
+    true
+  );
+  assert.equal(
+    giveawayEntriesOpen(
+      settings({
+        giveaway: { enabled: true, drawAt: "2026-09-06T19:00:00.000Z", entriesCutoffAt: "2026-09-06T17:30:00.000Z" },
+      }),
+      now
+    ),
+    false
+  );
+  assert.equal(
+    giveawayEntriesOpen(
+      settings({
+        giveaway: { enabled: true, locked: true, drawnAt: "2026-09-06T18:00:00.000Z" },
+      }),
+      now
+    ),
+    false
+  );
+});
+
+test("custom missions use the same engine: targeting, no duplicates, table uniqueness, max assignments, max 5", () => {
+  const mission = customMission({
+    id: "custom-table7",
+    allowedTableIds: ["7"],
+    maxAssignments: 1,
+    assignedCount: 0,
+  });
+
+  const hit = assign({
+    guest: { guestId: "g1", tableId: "7" },
+    table: { tableId: "7" },
+    missions: [mission],
+  });
+  assert.ok(hit.mission);
+  assert.equal(hit.mission!.id, "custom-table7");
+
+  const otherTable = assign({
+    guest: { guestId: "g2", tableId: "3" },
+    table: { tableId: "3" },
+    missions: [mission],
+  });
+  assert.equal(otherTable.mission, null);
+
+  const duplicateGuest = assign({
+    guest: { guestId: "g1", tableId: "7", completedMissionIds: ["custom-table7"] },
+    table: { tableId: "7" },
+    missions: [mission],
+  });
+  assert.equal(duplicateGuest.mission, null);
+
+  const tableClash = assign({
+    guest: { guestId: "g3", tableId: "7" },
+    table: { tableId: "7", activeMissionIds: ["custom-table7"] },
+    missions: [mission],
+  });
+  assert.equal(tableClash.mission, null);
+
+  const maxed = assign({
+    guest: { guestId: "g4", tableId: "7" },
+    table: { tableId: "7" },
+    missions: [customMission({ maxAssignments: 1, assignedCount: 1, allowedTableIds: ["7"] })],
+  });
+  assert.equal(maxed.mission, null);
+
+  const specificGuest = assign({
+    guest: { guestId: "g9", tableId: "7" },
+    table: { tableId: "7" },
+    missions: [customMission({ id: "custom-g9", allowedGuestIds: ["g9"] })],
+  });
+  assert.equal(specificGuest.mission!.id, "custom-g9");
+
+  const notTargeted = assign({
+    guest: { guestId: "g8", tableId: "7" },
+    table: { tableId: "7" },
+    missions: [customMission({ id: "custom-g9", allowedGuestIds: ["g9"] })],
+  });
+  assert.equal(notTargeted.mission, null);
+
+  const alcoholCustom = assign({
+    guest: { isAdult: false },
+    missions: [customMission({ id: "custom-shots", category: "shots", requiresAlcohol: true })],
+    settings: {
+      enabledCategories: {
+        dancefloor: false,
+        shots: true,
+        table: false,
+        chaos: false,
+        cheeky: false,
+        boss: false,
+      },
+    },
+  });
+  assert.equal(alcoholCustom.mission, null);
+
+  const fifth = assign({
+    guest: { completedCount: 5, completedMissionIds: ["a", "b", "c", "d", "e"] },
+    missions: [mission, ...WEDDING_CHALLENGE_MISSIONS],
+  });
+  assert.equal(fifth.reason, "max_reached");
+});
+
+test("admin missions API, draw lock/reset, and cron jobs are wired", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const missions = fs.readFileSync("app/api/wedding-challenges/missions/route.ts", "utf8");
+  const draw = fs.readFileSync("app/api/wedding-challenges/admin/draw/route.ts", "utf8");
+  const cron = fs.readFileSync("app/api/cron/send-scheduled-sms/route.ts", "utf8");
+  const panel = fs.readFileSync("app/dashboard/wedding-challenges/CustomMissionsPanel.tsx", "utf8");
+  const smsPanel = fs.readFileSync("app/dashboard/wedding-challenges/SmsSchedulePanel.tsx", "utf8");
+  assert.match(missions, /createCustomMission/);
+  assert.match(missions, /DEFAULT_MISSIONS_READONLY/);
+  assert.match(draw, /DRAW_LOCKED/);
+  assert.match(draw, /reset === true/);
+  assert.match(cron, /processWeddingChallengesJobs/);
+  assert.match(panel, /הוספת משימה אישית/);
+  assert.match(panel, /משימה אישית/);
+  assert.match(panel, /Invistimo/);
+  assert.match(smsPanel, /שלח עכשיו/);
+  assert.match(smsPanel, /תזמון שליחה/);
+});
+
