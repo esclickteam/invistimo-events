@@ -53,6 +53,12 @@ export default function AdminLayout({
       description: "ניהול חשבונות והרשאות",
     },
     {
+      href: "/admin/wedding-challenges",
+      label: "Wedding Challenges",
+      icon: "users",
+      description: "מכירה עצמאית בלי פרטי אירוע",
+    },
+    {
       href: "/admin/employees",
       label: "עובדים",
       icon: "employees",

@@ -41,7 +41,10 @@ export function userHasWeddingChallengesGiveawayEntitlement(
   user: WeddingChallengesEntitlementUser | null | undefined
 ): boolean {
   if (!userHasWeddingChallengesEntitlement(user)) return false;
-  return user?.salesUpsells?.weddingChallengesGiveaway?.enabled === true;
+  return (
+    user?.salesUpsells?.weddingChallengesGiveaway?.enabled === true ||
+    (user as { includeWeddingChallengesGiveaway?: boolean })?.includeWeddingChallengesGiveaway === true
+  );
 }
 
 export function weddingChallengesAddonPrice(user?: WeddingChallengesEntitlementUser | null) {

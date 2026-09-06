@@ -49,7 +49,9 @@ type UpsellKey =
   | "personalRepresentative"
   | "thirdRsvpRound"
   | "suppliersBudgetSystem"
-  | "alcoholManagement";
+  | "alcoholManagement"
+  | "weddingChallenges"
+  | "weddingChallengesGiveaway";
 
 type SelectedUpsells = Record<UpsellKey, boolean>;
 type VenueSeatingStaffCount = 1 | 2 | 3;
@@ -831,6 +833,56 @@ const UPSELLS: UpsellItem[] = [
       },
     ],
   },
+  {
+    key: "weddingChallenges",
+    title: "Wedding Challenges",
+    price: 299,
+    description: "כרטיס גירוד דיגיטלי לאורחים. עד 800 רשומות, עד 5 משימות לאורח, SMS פתיחה ותזמון. אפשר כ-upgrade לאירוע קיים או כמשחק עצמאי.",
+    customerDetails: [
+      {
+        title: "Wedding Challenges",
+        items: [
+          "כרטיס גירוד דיגיטלי לאורחים בזמן האירוע במחיר 299 ₪ לאירוע.",
+          "כולל עד 800 רשומות אורחים, עד 5 משימות לכל אורח ו-SMS פתיחה אישי.",
+          "אפשר לחבר לאירוע Invistimo קיים או להפעיל כמשחק עצמאי בלי הזמנה, RSVP או אתר חתונה.",
+        ],
+      },
+    ],
+    employeeDetails: [
+      {
+        title: "דגשים לעובד",
+        items: [
+          "אפשר למכור כתוספת לאירוע קיים או כמוצר עצמאי.",
+          "אם נמכר עצמאית, פרטי האירוע והאורחים יושלמו אחרי התשלום.",
+          "הגרלה היא תוספת נפרדת ב-99 ₪. עלות הפרס נגבית בנפרד.",
+        ],
+      },
+    ],
+  },
+  {
+    key: "weddingChallengesGiveaway",
+    title: "Wedding Challenges Giveaway Add-on",
+    price: 99,
+    description: "תוספת הגרלה ל-Wedding Challenges. עלות הפרס נגבית בנפרד.",
+    customerDetails: [
+      {
+        title: "הגרלה אופציונלית",
+        items: [
+          "תוספת הגרלה ב-99 ₪.",
+          "עלות הפרס נגבית בנפרד לפי הפרס שנבחר.",
+        ],
+      },
+    ],
+    employeeDetails: [
+      {
+        title: "דגשים לעובד",
+        items: [
+          "לא לסמן הגרלה בלי Wedding Challenges.",
+          "עלות הפרס אינה כלולה ב-99 ₪.",
+        ],
+      },
+    ],
+  },
 ];
 
 const CANCELLATION_TERMS = CUSTOMER_CANCELLATION_TERMS;
@@ -848,6 +900,8 @@ function createEmptyUpsells(): SelectedUpsells {
     thirdRsvpRound: false,
     suppliersBudgetSystem: false,
     alcoholManagement: false,
+    weddingChallenges: false,
+    weddingChallengesGiveaway: false,
   };
 }
 
@@ -1647,6 +1701,8 @@ export default function NewEmployeeSalePage() {
     setSelectedUpsells((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       if (key === "suppliersBudgetSystem" && !next[key]) setSuppliersBudgetFree(false);
+      if (key === "weddingChallengesGiveaway" && next[key]) next.weddingChallenges = true;
+      if (key === "weddingChallenges" && !next[key]) next.weddingChallengesGiveaway = false;
       return next;
     });
   }

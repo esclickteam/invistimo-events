@@ -1,9 +1,17 @@
 import { nanoid } from "nanoid";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
+import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import { defaultWeddingChallengeSettings } from "./settings";
 import { getOrCreateChallengeConfig } from "./service";
+import { linkEntitlementToEvent } from "./purchase";
+import { WEDDING_CHALLENGES_MAX_GUESTS } from "./constants";
+import {
+  wouldExceedWeddingChallengesGuestLimit,
+  weddingChallengesGuestLimitPayload,
+} from "./guestLimit";
+import { attendingGuestMongoFilter } from "./sourceType";
 import type { WeddingChallengeSettings } from "./types";
 
 function clean(value: unknown) {
@@ -41,7 +49,7 @@ export async function createStandaloneWeddingChallengesEvent(params: {
     throw new Error("USER_NOT_FOUND");
   }
 
-  const maxGuests = Math.max(Number(owner.maxGuests || owner.guests || 0), 300);
+  const maxGuests = WEDDING_CHALLENGES_MAX_GUESTS;
   const eventTime = eventTimeFromIso(params.startAt);
 
   const event = await Event.create({
@@ -93,6 +101,12 @@ export async function createStandaloneWeddingChallengesEvent(params: {
   config.sourceType = "STANDALONE_GAME";
   await config.save();
 
+  await linkEntitlementToEvent({
+    userId: params.ownerUserId,
+    eventId: String(event._id),
+    sourceType: "STANDALONE_GAME",
+  });
+
   return { event, invitation, config, sourceType: "STANDALONE_GAME" as const };
 }
 
@@ -112,6 +126,15 @@ export async function activateExistingEventForWeddingChallenges(params: {
     throw new Error("INVITATION_NOT_FOUND");
   }
 
+  const eligibleCount = await InvitationGuest.countDocuments({
+    invitationId: invitation._id,
+    ...attendingGuestMongoFilter("EXISTING_EVENT"),
+  });
+  if (wouldExceedWeddingChallengesGuestLimit(eligibleCount, 0)) {
+    const limit = weddingChallengesGuestLimitPayload();
+    throw new Error(limit.message);
+  }
+
   const config = await getOrCreateChallengeConfig({
     eventId: String(event._id),
     invitationId: String(invitation._id),
@@ -125,6 +148,12 @@ export async function activateExistingEventForWeddingChallenges(params: {
   }
   config.sourceType = "EXISTING_EVENT";
   await config.save();
+
+  await linkEntitlementToEvent({
+    userId: params.ownerUserId,
+    eventId: String(event._id),
+    sourceType: "EXISTING_EVENT",
+  });
 
   return { event, invitation, config, sourceType: "EXISTING_EVENT" as const };
 }

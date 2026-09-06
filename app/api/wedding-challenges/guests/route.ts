@@ -18,6 +18,10 @@ import {
   type ImportedChallengeGuest,
 } from "@/lib/weddingChallenges/guestImport";
 import { LIVE_PATH_PREFIX } from "@/lib/weddingChallenges/constants";
+import {
+  wouldExceedWeddingChallengesGuestLimit,
+  weddingChallengesGuestLimitPayload,
+} from "@/lib/weddingChallenges/guestLimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -160,6 +164,10 @@ export async function POST(req: Request) {
   }
 
   const invitationId = context.invitation._id;
+  const existingCount = await InvitationGuest.countDocuments({
+    invitationId,
+    ...attendingGuestMongoFilter(context.sourceType),
+  });
   const existing = await InvitationGuest.find({
     invitationId,
     phone: { $in: incoming.map((guest) => guest.phone) },
@@ -167,6 +175,10 @@ export async function POST(req: Request) {
     .select("phone")
     .lean();
   const existingPhones = new Set(existing.map((guest) => normalizeGuestPhone(guest.phone)));
+  const incomingNewCount = incoming.filter((guest) => !existingPhones.has(guest.phone)).length;
+  if (wouldExceedWeddingChallengesGuestLimit(existingCount, incomingNewCount)) {
+    return NextResponse.json(weddingChallengesGuestLimitPayload(), { status: 400 });
+  }
 
   const created = [];
   let skipped = 0;

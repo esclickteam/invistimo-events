@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { userHasWeddingChallengesEntitlement, userHasWeddingChallengesGiveawayEntitlement } from "@/lib/weddingChallenges/entitlement";
+import WeddingChallengesPurchaseCard from "@/components/wedding-challenges/PurchaseCard";
 
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "credit" | "seating" | "system" | "design";
@@ -98,6 +101,7 @@ function calculateBase(plan: PlanKey, records: number) {
 
 export default function PricingPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
 
   const [records, setRecords] = useState<number | null>(null);
@@ -564,33 +568,10 @@ export default function PricingPage() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-5xl px-5 pb-20 sm:px-8">
-        <div className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9] p-6 shadow-[0_22px_55px_rgba(91,64,35,0.11)] sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black tracking-[0.18em] text-[#B88945]">
-                INVISTIMO LIVE
-              </p>
-              <h2 className="mt-2 text-3xl font-black text-[#3E2D20]">
-                Wedding Challenges
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-[#7B6754]">
-                כרטיס גירוד דיגיטלי לאורחים בזמן האירוע. משימות קצרות שמרימות את
-                הרחבה, עם חלוקה חכמה שלא נותנת לאותו שולחן את אותה משימה באותו זמן.
-              </p>
-            </div>
-            <span className="rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
-              Premium · 99 ₪ לאירוע
-            </span>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-[#E8D9C7] bg-white px-4 py-3 text-sm font-bold text-[#5A3E25]">
-              עד 5 משימות לכל אורח + SMS פתיחה אחד
-            </div>
-            <div className="rounded-2xl border border-[#E8D9C7] bg-white px-4 py-3 text-sm font-bold text-[#5A3E25]">
-              Giveaway אופציונלי · 99 ₪ + עלות הפרס
-            </div>
-          </div>
-        </div>
+        <WeddingChallengesPurchaseCard
+          entitled={userHasWeddingChallengesEntitlement(user as any)}
+          giveawayPurchased={userHasWeddingChallengesGiveawayEntitlement(user as any)}
+        />
       </section>
     </main>
   );

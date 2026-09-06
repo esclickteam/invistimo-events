@@ -448,7 +448,7 @@ const EmployeeSaleSchema = new Schema(
 
       weddingChallenges: {
         type: UpsellStateSchema,
-        default: () => ({ enabled: false, price: 99, totalPrice: 99 }),
+        default: () => ({ enabled: false, price: 299, totalPrice: 299 }),
       },
 
       weddingChallengesGiveaway: {

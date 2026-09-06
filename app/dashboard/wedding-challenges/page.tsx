@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import {
+  userHasWeddingChallengesEntitlement,
+  userHasWeddingChallengesGiveawayEntitlement,
+} from "@/lib/weddingChallenges/entitlement";
 import {
   CATEGORY_SHORT_LABELS,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
@@ -19,6 +22,7 @@ import {
 import GuestRoster from "./GuestRoster";
 import SmsSchedulePanel from "./SmsSchedulePanel";
 import CustomMissionsPanel from "./CustomMissionsPanel";
+import WeddingChallengesPurchaseCard from "@/components/wedding-challenges/PurchaseCard";
 
 type Stats = {
   guests: number;
@@ -85,6 +89,8 @@ function WeddingChallengesAdmin() {
   const eventId = searchParams.get("eventId") || "";
 
   const entitled = userHasWeddingChallengesEntitlement(user as any);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [serverEntitled, setServerEntitled] = useState<boolean | null>(null);
   const [settings, setSettings] = useState<WeddingChallengeSettings>(
     defaultWeddingChallengeSettings()
   );
@@ -127,10 +133,22 @@ function WeddingChallengesAdmin() {
   };
 
   useEffect(() => {
+    fetch("/api/wedding-challenges/entitlement", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        setServerEntitled(Boolean(json.entitled));
+        setGiveawayPurchased(Boolean(json.giveawayPurchased));
+        setNeedsSetup(Boolean(json.needsSetup));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (eventId) {
       load().catch(() => setMessage("לא הצלחנו לטעון את ההגדרות"));
       return;
     }
+    if (serverEntitled === false && user?.role !== "admin") return;
     fetch("/api/wedding-challenges/events", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
@@ -138,7 +156,7 @@ function WeddingChallengesAdmin() {
         setAttachable(json.attachableEvents || []);
       })
       .catch(() => setMessage("לא הצלחנו לטעון אירועים"));
-  }, [eventId]);
+  }, [eventId, serverEntitled]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -237,7 +255,10 @@ function WeddingChallengesAdmin() {
     }
   };
 
-  const locked = !entitled && user?.role !== "admin";
+  const hasAccess =
+    (serverEntitled ?? entitled) || user?.role === "admin" || Boolean((user as any)?.impersonatedBy);
+  const locked = !hasAccess;
+  const canBuyGiveaway = hasAccess && !giveawayPurchased && !userHasWeddingChallengesGiveawayEntitlement(user as any);
 
   const categories = useMemo(
     () => Object.entries(CATEGORY_SHORT_LABELS) as [keyof typeof CATEGORY_SHORT_LABELS, string][],
@@ -245,24 +266,32 @@ function WeddingChallengesAdmin() {
   );
 
   if (!eventId) {
+    if (locked) {
+      return (
+        <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
+          <WeddingChallengesPurchaseCard
+            entitled={false}
+            giveawayPurchased={giveawayPurchased}
+            sourceType={attachable.length ? "EXISTING_EVENT" : "STANDALONE_GAME"}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
         <div className="mb-6">
           <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
           <h1 className="text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
-          <p className="mt-1 text-sm text-[#7B6754]">
+          {(needsSetup || games.length === 0) && (
+            <p className="mt-2 rounded-2xl bg-[#FFF3DF] px-4 py-3 text-sm font-black text-[#A86F2B]">
+              השלמת הגדרת Wedding Challenges
+            </p>
+          )}
+          <p className="mt-2 text-sm text-[#7B6754]">
             מוצר עצמאי ב-{WEDDING_CHALLENGES_PRICE_ILS} ₪. לא צריך RSVP, הזמנה דיגיטלית, אתר חתונה או הושבה.
           </p>
         </div>
-
-        {locked && (
-          <div className="mb-6 rounded-[24px] border border-[#E7D8C6] bg-white p-5">
-            <p className="font-black text-[#3A2A1C]">התוספת עדיין לא פעילה</p>
-            <p className="mt-2 text-sm text-[#7B6754]">
-              Invistimo Live – Wedding Challenges במחיר {WEDDING_CHALLENGES_PRICE_ILS} ₪ לאירוע.
-            </p>
-          </div>
-        )}
 
         <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
           <h2 className="text-lg font-black">יצירת אירוע למשחק בלבד</h2>
@@ -306,7 +335,7 @@ function WeddingChallengesAdmin() {
           </div>
           <button
             type="button"
-            disabled={saving || locked || !newCoupleNames || !newEventDate}
+            disabled={saving || !newCoupleNames || !newEventDate}
             onClick={createStandalone}
             className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-6 py-3 font-black text-white disabled:opacity-50"
           >
@@ -346,7 +375,7 @@ function WeddingChallengesAdmin() {
               <button
                 key={game.eventId}
                 type="button"
-                disabled={saving || locked}
+                disabled={saving}
                 onClick={() => attachExisting(game.eventId)}
                 className="flex w-full items-center justify-between rounded-2xl border border-[#E7D8C6] px-4 py-3 text-right"
               >
@@ -360,6 +389,19 @@ function WeddingChallengesAdmin() {
           </section>
         )}
         {message ? <p className="text-sm font-bold text-[#A86F2B]">{message}</p> : null}
+      </div>
+    );
+  }
+
+  if (locked) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
+        <WeddingChallengesPurchaseCard
+          entitled={false}
+          giveawayPurchased={giveawayPurchased}
+          sourceType="EXISTING_EVENT"
+          eventId={eventId}
+        />
       </div>
     );
   }
@@ -378,17 +420,18 @@ function WeddingChallengesAdmin() {
           </p>
         </div>
         <span className="rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
-          Premium · {WEDDING_CHALLENGES_PRICE_ILS} ₪
+          {WEDDING_CHALLENGES_PRICE_ILS} ₪ לאירוע
         </span>
       </div>
 
       {locked && (
-        <div className="mb-6 rounded-[24px] border border-[#E7D8C6] bg-white p-5">
-          <p className="font-black text-[#3A2A1C]">התוספת עדיין לא פעילה לאירוע הזה</p>
-          <p className="mt-2 text-sm text-[#7B6754]">
-            Wedding Challenges Premium במחיר {WEDDING_CHALLENGES_PRICE_ILS} ₪ לאירוע.
-            אפשר להפעיל דרך צוות המכירות / אדמין.
-          </p>
+        <div className="mb-6">
+          <WeddingChallengesPurchaseCard
+            entitled={false}
+            giveawayPurchased={giveawayPurchased}
+            sourceType={sourceType}
+            eventId={eventId}
+          />
         </div>
       )}
 
@@ -534,20 +577,46 @@ function WeddingChallengesAdmin() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-black">Giveaway / הגרלה</h2>
           <span className="text-xs font-bold text-[#A86F2B]">
-            +{WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪ + עלות הפרס
+            הגרלה אופציונלית – {WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪ + עלות הפרס
           </span>
         </div>
         {!giveawayPurchased && (
-          <p className="text-sm text-[#7B6754]">
-            התוספת אופציונלית. לא מוזכרת ב-SMS הראשוני, ונחשפת רק אחרי השלמת משימה.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-[#7B6754]">
+              התוספת אופציונלית. עלות הפרס נגבית בנפרד. לא מוזכרת ב-SMS הראשוני.
+            </p>
+            {canBuyGiveaway ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await fetch("/api/wedding-challenges/checkout", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      includeGiveaway: true,
+                      sourceType,
+                      eventId,
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (data.url) window.location.href = data.url;
+                  else setMessage(data.error || "לא הצלחנו לפתוח תשלום להגרלה");
+                }}
+                className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
+              >
+                הוספת הגרלה – {WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪
+              </button>
+            ) : null}
+          </div>
         )}
         <Toggle
           label="Enable Giveaway"
-          checked={settings.giveaway.enabled}
-          onChange={(enabled) =>
-            setSettings({ ...settings, giveaway: { ...settings.giveaway, enabled } })
-          }
+          checked={settings.giveaway.enabled && giveawayPurchased}
+          onChange={(enabled) => {
+            if (!giveawayPurchased) return;
+            setSettings({ ...settings, giveaway: { ...settings.giveaway, enabled } });
+          }}
         />
         {settings.giveaway.enabled ? (
           <>
@@ -651,7 +720,7 @@ function WeddingChallengesAdmin() {
           />
         </label>
         <label className="text-sm font-bold text-[#7B6754]">
-          עלות הפרס (₪)
+          עלות הפרס (₪) — עלות הפרס נגבית בנפרד
           <input
             type="number"
             min={0}

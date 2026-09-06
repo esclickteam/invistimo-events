@@ -256,12 +256,50 @@ test("guest live pages hide public marketing chrome", () => {
   assert.match(shell, /path\.startsWith\("\/live\/"\)/);
 });
 
-test("admin users page exposes Wedding Challenges as a 99 ILS premium add-on", () => {
+test("customer-facing Wedding Challenges card is a 299 ILS checkout product with 800-guest cap", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const pricing = fs.readFileSync("app/pricing/page.tsx", "utf8");
+  const card = fs.readFileSync("components/wedding-challenges/PurchaseCard.tsx", "utf8");
+  const checkout = fs.readFileSync("app/api/wedding-challenges/checkout/route.ts", "utf8");
+  const guests = fs.readFileSync("app/api/wedding-challenges/guests/route.ts", "utf8");
+  const entitlement = fs.readFileSync("models/WeddingChallengeEntitlement.ts", "utf8");
+  const adminSales = fs.readFileSync("app/api/admin/wedding-challenges/sales/route.ts", "utf8");
+  const adminPage = fs.readFileSync("app/admin/users/page.tsx", "utf8");
+  const employeeSales = fs.readFileSync("app/employee/sales/new/page.tsx", "utf8");
+  assert.match(pricing, /WeddingChallengesPurchaseCard/);
+  assert.match(card, /WEDDING_CHALLENGES_PRICE_ILS/);
+  assert.match(card, /₪ לאירוע/);
+  assert.match(card, /WEDDING_CHALLENGES_MAX_GUESTS/);
+  assert.match(card, /רשומות אורחים/);
+  assert.match(card, /רכישה ב־/);
+  assert.match(card, /רכישת Wedding Challenges/);
+  assert.match(card, /תצוגה מקדימה/);
+  assert.match(card, /הוספת הגרלה/);
+  assert.match(card, /עלות הפרס נגבית בנפרד/);
+  assert.match(card, /\/api\/wedding-challenges\/checkout/);
+  assert.match(checkout, /WEDDING_CHALLENGES_PRICE_ILS \* 100/);
+  assert.match(checkout, /wedding-challenges/);
+  assert.match(guests, /weddingChallengesGuestLimitPayload/);
+  assert.match(guests, /wouldExceedWeddingChallengesGuestLimit/);
+  assert.match(entitlement, /eventId/);
+  assert.match(entitlement, /STANDALONE_GAME/);
+  assert.match(entitlement, /EXISTING_EVENT/);
+  assert.match(adminSales, /NAME_PHONE_REQUIRED/);
+  assert.doesNotMatch(adminSales, /COUPLE_NAMES_REQUIRED/);
+  assert.match(adminPage, /includeWeddingChallenges/);
+  assert.match(adminPage, /Giveaway Add-on/);
+  assert.match(adminPage, /299 ₪/);
+  assert.match(employeeSales, /key: "weddingChallenges"/);
+  assert.match(employeeSales, /key: "weddingChallengesGiveaway"/);
+});
+
+test("admin users page exposes Wedding Challenges as a 299 ILS product", () => {
   const fs = require("node:fs") as typeof import("node:fs");
   const page = fs.readFileSync("app/admin/users/page.tsx", "utf8");
-  assert.match(page, /Wedding Challenges Premium/);
+  assert.match(page, /Wedding Challenges/);
   assert.match(page, /includeWeddingChallenges/);
   assert.match(page, /Giveaway Add-on/);
+  assert.match(page, /299/);
 });
 
 test("giveaway winner is weighted by entries", () => {
@@ -532,5 +570,26 @@ test("admin missions API, draw lock/reset, and cron jobs are wired", () => {
   assert.match(panel, /Invistimo/);
   assert.match(smsPanel, /שלח עכשיו/);
   assert.match(smsPanel, /תזמון שליחה/);
+});
+
+test("package guest limit is 800 and does not silently allow overflow", () => {
+  const {
+    wouldExceedWeddingChallengesGuestLimit,
+    weddingChallengesGuestLimitPayload,
+  } = require("../../lib/weddingChallenges/guestLimit") as typeof import("../../lib/weddingChallenges/guestLimit");
+  const {
+    WEDDING_CHALLENGES_MAX_GUESTS,
+    WEDDING_CHALLENGES_PRICE_ILS,
+    WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+    WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE,
+  } = require("../../lib/weddingChallenges/constants") as typeof import("../../lib/weddingChallenges/constants");
+
+  assert.equal(WEDDING_CHALLENGES_PRICE_ILS, 299);
+  assert.equal(WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS, 99);
+  assert.equal(WEDDING_CHALLENGES_MAX_GUESTS, 800);
+  assert.equal(wouldExceedWeddingChallengesGuestLimit(800, 0), false);
+  assert.equal(wouldExceedWeddingChallengesGuestLimit(800, 1), true);
+  assert.equal(wouldExceedWeddingChallengesGuestLimit(0, 801), true);
+  assert.equal(weddingChallengesGuestLimitPayload().message, WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE);
 });
 
