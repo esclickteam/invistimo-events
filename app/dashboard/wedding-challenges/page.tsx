@@ -748,8 +748,6 @@ function WeddingChallengesAdmin() {
         ) : null}
       </section>
 
-      </section>
-
       <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
 
       <SmsSchedulePanel

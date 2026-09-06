@@ -6,7 +6,7 @@ import WeddingChallengeGuest from "@/models/WeddingChallengeGuest";
 import { requireWeddingChallenges } from "@/lib/guards/requireWeddingChallenges";
 import { attendingGuestMongoFilter, loadEventChallengeContext } from "@/lib/weddingChallenges/service";
 import { CATEGORY_SHORT_LABELS } from "@/lib/weddingChallenges/constants";
-import { giveawayAdminStatus, giveawayEntriesOpen } from "@/lib/weddingChallenges/settings";
+import { giveawayAdminStatus } from "@/lib/weddingChallenges/settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -65,13 +65,6 @@ export async function GET(req: Request) {
     giveaway: {
       enabled: context.settings.giveaway.enabled,
       prizeText: context.settings.giveaway.prizeText,
-      winnerName: context.settings.giveaway.winnerName,
-      drawnAt: context.settings.giveaway.drawnAt,
-      drawMode: context.settings.giveaway.drawMode,
-      drawAt: context.settings.giveaway.drawAt,
-      entriesCutoffAt: context.settings.giveaway.entriesCutoffAt,
-      locked: context.settings.giveaway.locked,
-      entriesOpen: giveawayEntriesOpen(context.settings),
       ...giveawayAdminStatus(context.settings),
     },
   });

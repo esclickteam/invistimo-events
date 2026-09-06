@@ -37,7 +37,13 @@ function table(overrides: Partial<TableAssignmentSnapshot> = {}): TableAssignmen
   };
 }
 
-function settings(overrides: Partial<WeddingChallengeSettings> = {}): WeddingChallengeSettings {
+type SettingsOverrides = Partial<Omit<WeddingChallengeSettings, "giveaway" | "sms" | "enabledCategories">> & {
+  giveaway?: Partial<WeddingChallengeSettings["giveaway"]>;
+  sms?: Partial<WeddingChallengeSettings["sms"]>;
+  enabledCategories?: Partial<WeddingChallengeSettings["enabledCategories"]>;
+};
+
+function settings(overrides: SettingsOverrides = {}): WeddingChallengeSettings {
   const base = defaultWeddingChallengeSettings();
   return normalizeWeddingChallengeSettings({
     ...base,
@@ -75,7 +81,7 @@ function customMission(overrides: Partial<MissionDefinition> = {}): MissionDefin
 function assign(params: {
   guest?: Partial<AssignmentGuest>;
   table?: Partial<TableAssignmentSnapshot>;
-  settings?: Partial<WeddingChallengeSettings>;
+  settings?: SettingsOverrides;
   missions?: MissionDefinition[];
   random?: () => number;
 }) {
