@@ -4,6 +4,7 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import { defaultWeddingChallengeSettings } from "./settings";
+import { gameWindowState, isEventDatePast } from "./gameWindow";
 import { getOrCreateChallengeConfig } from "./service";
 import { linkEntitlementToEvent } from "./purchase";
 import { WEDDING_CHALLENGES_MAX_GUESTS } from "./constants";
@@ -115,6 +116,8 @@ export async function activateExistingEventForWeddingChallenges(params: {
   ownerUserId: string;
   startAt?: string | null;
   endAt?: string | null;
+  confirmPastEvent?: boolean;
+  timezone?: string;
 }) {
   const event = await Event.findById(params.eventId);
   if (!event || event.status === "archived") {
@@ -124,6 +127,10 @@ export async function activateExistingEventForWeddingChallenges(params: {
   const invitation = await Invitation.findOne({ eventId: event._id });
   if (!invitation) {
     throw new Error("INVITATION_NOT_FOUND");
+  }
+
+  if (isEventDatePast(event.date) && !params.confirmPastEvent) {
+    throw new Error("EVENT_DATE_PAST");
   }
 
   const eligibleCount = await InvitationGuest.countDocuments({
@@ -142,10 +149,18 @@ export async function activateExistingEventForWeddingChallenges(params: {
     sourceType: "EXISTING_EVENT",
   });
 
-  if (params.startAt !== undefined || params.endAt !== undefined) {
-    if (params.startAt !== undefined) config.settings.startAt = params.startAt;
-    if (params.endAt !== undefined) config.settings.endAt = params.endAt;
+  const explicitStart = params.startAt !== undefined ? params.startAt : undefined;
+  const explicitEnd = params.endAt !== undefined ? params.endAt : undefined;
+  const inheritedWindow = gameWindowState(config.settings || {});
+  if (explicitStart !== undefined || explicitEnd !== undefined) {
+    if (explicitStart !== undefined) config.settings.startAt = explicitStart;
+    if (explicitEnd !== undefined) config.settings.endAt = explicitEnd;
+  } else if (inheritedWindow === "ended" || inheritedWindow === "unconfigured") {
+    // Never silently keep a past/empty window from Event.date or a previous save.
+    config.settings.startAt = null;
+    config.settings.endAt = null;
   }
+  config.settings.enabled = true;
   config.sourceType = "EXISTING_EVENT";
   await config.save();
 

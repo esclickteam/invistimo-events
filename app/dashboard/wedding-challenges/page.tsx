@@ -10,19 +10,20 @@ import {
 } from "@/lib/weddingChallenges/entitlement";
 import {
   CATEGORY_SHORT_LABELS,
-  WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
-  WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
 import type { WeddingChallengeSettings, WeddingChallengesSourceType } from "@/lib/weddingChallenges/types";
-import { defaultWeddingChallengeSettings, giveawayAdminStatus, giveawayEntriesOpen } from "@/lib/weddingChallenges/settings";
+import { defaultWeddingChallengeSettings } from "@/lib/weddingChallenges/settings";
 import {
   DEFAULT_EVENT_TIMEZONE,
+  formatInZone,
   utcToWallTimeInput,
   wallTimeInZoneToUtc,
 } from "@/lib/weddingChallenges/timezone";
+import { gameWindowState, israelNowLabel } from "@/lib/weddingChallenges/gameWindow";
 import GuestRoster from "./GuestRoster";
 import SmsSchedulePanel from "./SmsSchedulePanel";
 import CustomMissionsPanel from "./CustomMissionsPanel";
+import GiveawayCard from "./GiveawayCard";
 import WeddingChallengesPurchaseCard from "@/components/wedding-challenges/PurchaseCard";
 
 type Stats = {
@@ -41,46 +42,38 @@ type GameSummary = {
   sourceType: WeddingChallengesSourceType;
   enabled: boolean;
   hasGame?: boolean;
+  eventDatePast?: boolean;
 };
 
-function sourceLabel(sourceType: WeddingChallengesSourceType) {
-  return sourceType === "STANDALONE_GAME" ? "STANDALONE_GAME" : "EXISTING_EVENT";
-}
-
-function sourceCopy(sourceType: WeddingChallengesSourceType) {
-  return sourceType === "STANDALONE_GAME"
-    ? "משחק עצמאי — בלי RSVP, הזמנה או אתר חתונה"
-    : "מחובר לאירוע Invistimo קיים";
-}
-
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-3 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
-      <span className="text-sm font-bold text-[#3A2A1C]">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-[#9b7a3c]"
-      />
-    </label>
-  );
-}
-
-function datetimeLocal(value?: string | null, timeZone = DEFAULT_EVENT_TIMEZONE) {
-  return utcToWallTimeInput(value, timeZone);
-}
+const GAME_STATE_COPY = {
+  unconfigured: "לא הוגדר",
+  not_started: "טרם התחיל",
+  active: "פעיל",
+  ended: "הסתיים",
+} as const;
 
 function fromWall(value: string, timeZone = DEFAULT_EVENT_TIMEZONE) {
   return value ? wallTimeInZoneToUtc(value, timeZone)?.toISOString() ?? null : null;
+}
+
+function formatEventDate(value: string) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value || "";
+  return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`space-y-4 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5 ${className}`}>
+      {children}
+    </section>
+  );
 }
 
 function WeddingChallengesAdmin() {
@@ -111,6 +104,8 @@ function WeddingChallengesAdmin() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [editEvent, setEditEvent] = useState(false);
+  const [editGame, setEditGame] = useState(false);
   const timezone = settings.sms.timezone || DEFAULT_EVENT_TIMEZONE;
 
   const load = async () => {
@@ -154,8 +149,13 @@ function WeddingChallengesAdmin() {
     fetch("/api/wedding-challenges/events", { cache: "no-store" })
       .then((res) => res.json())
       .then((json) => {
+        if (json.linkedEventId) {
+          router.replace(`/dashboard/wedding-challenges?eventId=${json.linkedEventId}`);
+          return;
+        }
         setGames(json.games || []);
         setAttachable(json.attachableEvents || []);
+        setNeedsSetup(Boolean(json.needsSetup));
       })
       .catch(() => setMessage("לא הצלחנו לטעון אירועים"));
   }, [eventId, serverEntitled]);
@@ -176,14 +176,14 @@ function WeddingChallengesAdmin() {
     return () => window.clearInterval(timer);
   }, [eventId]);
 
-  const save = async () => {
+  const save = async (next = settings) => {
     setSaving(true);
     setMessage("");
     try {
       const res = await fetch(`/api/wedding-challenges/settings?eventId=${eventId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings, coupleNames, eventDate }),
+        body: JSON.stringify({ settings: { ...next, enabled: true }, coupleNames, eventDate }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "SAVE_FAILED");
@@ -208,26 +208,16 @@ function WeddingChallengesAdmin() {
       body: JSON.stringify(reset ? { eventId, reset: true, confirm: true } : { eventId }),
     });
     const json = await res.json();
-    if (res.ok && json.reset) {
-      setMessage("ההגרלה אופסה. אפשר להגריל מחדש.");
-      load();
+    if (!res.ok) {
+      setMessage(json.error || "ההגרלה נכשלה");
       return;
     }
-    if (res.ok) {
-      setMessage(`הזוכה: ${json.winner?.name}`);
-      load();
-      return;
-    }
-    if (json.error === "DRAW_LOCKED") {
-      setMessage("ההגרלה נעולה. לשינוי זוכה צריך איפוס מפורש.");
-      return;
-    }
-    setMessage("לא ניתן להגריל עדיין");
+    setMessage(reset ? "ההגרלה אופסה" : `הזוכה: ${json.winner?.name || "נבחר"}`);
+    await load();
   };
 
   const createStandalone = async () => {
     setSaving(true);
-    setMessage("");
     try {
       const res = await fetch("/api/wedding-challenges/events", {
         method: "POST",
@@ -235,27 +225,32 @@ function WeddingChallengesAdmin() {
         body: JSON.stringify({
           coupleNames: newCoupleNames,
           eventDate: newEventDate,
-          startAt: fromWall(newStartAt),
-          endAt: fromWall(newEndAt),
+          startAt: fromWall(newStartAt, timezone),
+          endAt: fromWall(newEndAt, timezone),
         }),
       });
       const json = await res.json();
       if (!res.ok || !json.eventId) throw new Error(json.error || "CREATE_FAILED");
       router.push(`/dashboard/wedding-challenges?eventId=${json.eventId}`);
     } catch {
-      setMessage("יצירת אירוע עצמאי נכשלה");
+      setMessage("יצירת האירוע נכשלה");
     } finally {
       setSaving(false);
     }
   };
 
-  const attachExisting = async (existingEventId: string) => {
+  const attachExisting = async (existingEventId: string, eventDatePast?: boolean) => {
+    if (eventDatePast) {
+      if (!window.confirm("תאריך האירוע כבר עבר. להפעיל את המשחק בכל זאת? שעות המשחק לא יועתקו אוטומטית.")) {
+        return;
+      }
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/wedding-challenges/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ existingEventId }),
+        body: JSON.stringify({ existingEventId, confirmPastEvent: Boolean(eventDatePast) }),
       });
       const json = await res.json();
       if (!res.ok || !json.eventId) throw new Error(json.error || "ATTACH_FAILED");
@@ -270,17 +265,29 @@ function WeddingChallengesAdmin() {
   const hasAccess =
     (serverEntitled ?? entitled) || user?.role === "admin" || Boolean((user as any)?.impersonatedBy);
   const locked = !hasAccess;
-  const canBuyGiveaway = hasAccess && !giveawayPurchased && !userHasWeddingChallengesGiveawayEntitlement(user as any);
-
+  const canBuyGiveaway =
+    hasAccess && !giveawayPurchased && !userHasWeddingChallengesGiveawayEntitlement(user as any);
+  const now = new Date(nowTick);
+  const windowState = gameWindowState(settings, now);
+  const status = GAME_STATE_COPY[windowState];
   const categories = useMemo(
     () => Object.entries(CATEGORY_SHORT_LABELS) as [keyof typeof CATEGORY_SHORT_LABELS, string][],
     []
   );
+  const activeCategories = categories.filter(([key]) => settings.enabledCategories[key]).length;
+  const steps = [
+    Boolean(coupleNames && eventDate),
+    Number(stats?.guests || 0) > 0,
+    Boolean(settings.startAt && settings.endAt),
+    settings.sms.status === "scheduled" || settings.sms.status === "sent" || settings.sms.sentCount > 0,
+    true,
+  ];
+  const doneSteps = steps.filter(Boolean).length;
 
   if (!eventId) {
     if (locked) {
       return (
-        <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
+        <div className="mx-auto max-w-xl px-4 py-6" dir="rtl">
           <WeddingChallengesPurchaseCard
             entitled={false}
             giveawayPurchased={giveawayPurchased}
@@ -291,34 +298,30 @@ function WeddingChallengesAdmin() {
     }
 
     return (
-      <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
-        <div className="mb-6">
-          <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
-          <h1 className="text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
-          {(needsSetup || games.length === 0) && (
-            <p className="mt-2 rounded-2xl bg-[#FFF3DF] px-4 py-3 text-sm font-black text-[#A86F2B]">
-              השלמת הגדרת Wedding Challenges
-            </p>
-          )}
-          <p className="mt-2 text-sm text-[#7B6754]">
-            {gameOnly
-              ? "התחברו כמו כולם. כאן מוסיפים את רשימת האורחים עם שם וטלפון, ואז מגדירים את המשחק. בלי הזמנה דיגיטלית ובלי אישורי הגעה."
-              : `מוצר עצמאי ב-${WEDDING_CHALLENGES_PRICE_ILS} ₪. לא צריך RSVP, הזמנה דיגיטלית, אתר חתונה או הושבה.`}
+      <div className="mx-auto max-w-xl px-4 py-8" dir="rtl">
+        <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
+        <h1 className="mt-2 text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
+        <p className="mt-2 text-sm text-[#7B6754]">
+          {gameOnly
+            ? "ברוכים הבאים ל-Wedding Challenges. מגדירים את האירוע ואז מעלים משתתפים."
+            : "הוסיפו את המשחק לאירוע קיים, או צרו משחק עצמאי."}
+        </p>
+        {(needsSetup || games.length === 0) && (
+          <p className="mt-4 rounded-2xl bg-[#FFF3DF] px-4 py-3 text-sm font-black text-[#A86F2B]">
+            השלמת הגדרת האירוע
           </p>
-        </div>
+        )}
 
-        <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-          <h2 className="text-lg font-black">{gameOnly ? "פתיחת המשחק" : "יצירת אירוע למשחק בלבד"}</h2>
-          <p className="text-sm text-[#7B6754]">
-            STANDALONE_GAME — מעלים רשימת אורחים שמגיעים, וכל אורח מקבל לינק אישי ל-/live.
-          </p>
+        <Card className="mt-6">
+          <h2 className="text-lg font-black">{gameOnly ? "הגדרת האירוע" : "יצירת אירוע למשחק"}</h2>
+          <p className="text-sm text-[#7B6754]">משחק עצמאי — בלי הזמנה, RSVP או אתר חתונה.</p>
           <input
             value={newCoupleNames}
             onChange={(event) => setNewCoupleNames(event.target.value)}
-            placeholder="שמות בני הזוג"
-            className="w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+            placeholder="שמות בני הזוג / שם האירוע"
+            className="w-full max-w-md rounded-xl border border-[#E7D8C6] px-3 py-2"
           />
-          <label className="block text-sm font-bold text-[#7B6754]">
+          <label className="block max-w-md text-sm font-bold text-[#7B6754]">
             תאריך האירוע
             <input
               type="date"
@@ -327,9 +330,10 @@ function WeddingChallengesAdmin() {
               className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
             />
           </label>
-          <div className="grid gap-3 md:grid-cols-2">
+          <p className="text-xs font-bold text-[#A86F2B]">שעון ישראל</p>
+          <div className="grid max-w-xl gap-3 sm:grid-cols-2">
             <label className="text-sm font-bold text-[#7B6754]">
-              שעת התחלת משחק
+              התחלת משחק
               <input
                 type="datetime-local"
                 value={newStartAt}
@@ -338,7 +342,7 @@ function WeddingChallengesAdmin() {
               />
             </label>
             <label className="text-sm font-bold text-[#7B6754]">
-              שעת סיום משחק
+              סיום משחק
               <input
                 type="datetime-local"
                 value={newEndAt}
@@ -353,12 +357,12 @@ function WeddingChallengesAdmin() {
             onClick={createStandalone}
             className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-6 py-3 font-black text-white disabled:opacity-50"
           >
-            {saving ? "יוצר..." : "הפעלת Wedding Challenges"}
+            {saving ? "יוצר..." : "הגדרת האירוע"}
           </button>
-        </section>
+        </Card>
 
-        {games.length > 0 && (
-          <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+        {games.length > 1 && (
+          <Card className="mt-6 bg-white">
             <h2 className="text-lg font-black">משחקים קיימים</h2>
             {games.map((game) => (
               <button
@@ -369,51 +373,50 @@ function WeddingChallengesAdmin() {
               >
                 <span>
                   <span className="block font-black">{game.coupleNames || "אירוע"}</span>
-                  <span className="text-xs text-[#7B6754]">
-                    {sourceLabel(game.sourceType)} · {game.eventDate}
-                  </span>
+                  <span className="text-xs text-[#7B6754]">{formatEventDate(game.eventDate)}</span>
                 </span>
                 <span className="text-sm font-bold text-[#A86F2B]">פתיחה</span>
               </button>
             ))}
-          </section>
+          </Card>
         )}
 
         {attachable.length > 0 && !gameOnly && (
-          <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-white p-5">
-            <h2 className="text-lg font-black">חיבור לאירוע Invistimo קיים</h2>
-            <p className="text-sm text-[#7B6754]">
-              EXISTING_EVENT — רק אורחים שאישרו הגעה, כולל מספר שולחן אם כבר שובצו.
-            </p>
+          <Card className="mt-6 bg-white">
+            <h2 className="text-lg font-black">חיבור לאירוע Invistimo</h2>
+            <p className="text-sm text-[#7B6754]">רק אורחים שאישרו הגעה ייכנסו למשחק.</p>
             {attachable.map((game) => (
               <button
                 key={game.eventId}
                 type="button"
                 disabled={saving}
-                onClick={() => attachExisting(game.eventId)}
+                onClick={() => attachExisting(game.eventId, game.eventDatePast)}
                 className="flex w-full items-center justify-between rounded-2xl border border-[#E7D8C6] px-4 py-3 text-right"
               >
                 <span>
                   <span className="block font-black">{game.coupleNames || "אירוע"}</span>
-                  <span className="text-xs text-[#7B6754]">{game.eventDate}</span>
+                  <span className="text-xs text-[#7B6754]">
+                    {formatEventDate(game.eventDate)}
+                    {game.eventDatePast ? " · התאריך כבר עבר" : ""}
+                  </span>
                 </span>
                 <span className="text-sm font-bold text-[#A86F2B]">הפעלה על האירוע הזה</span>
               </button>
             ))}
-          </section>
+          </Card>
         )}
-        {message ? <p className="text-sm font-bold text-[#A86F2B]">{message}</p> : null}
+        {message ? <p className="mt-4 text-sm font-bold text-[#A86F2B]">{message}</p> : null}
       </div>
     );
   }
 
   if (locked) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
+      <div className="mx-auto max-w-xl px-4 py-6" dir="rtl">
         <WeddingChallengesPurchaseCard
           entitled={false}
           giveawayPurchased={giveawayPurchased}
-          sourceType="EXISTING_EVENT"
+          sourceType={sourceType}
           eventId={eventId}
         />
       </div>
@@ -421,463 +424,233 @@ function WeddingChallengesAdmin() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
-          <h1 className="text-3xl font-black text-[#3A2A1C]">
-            {gameOnly || sourceType === "STANDALONE_GAME" ? "רשימת אורחים והמשחק" : "Wedding Challenges"}
-          </h1>
-          <p className="mt-1 text-sm text-[#7B6754]">
-            {gameOnly || sourceType === "STANDALONE_GAME"
-              ? "קודם מוסיפים את האורחים עם שם וטלפון, כמו בדשבורד הרגיל. אחר כך מגדירים את המשחק."
-              : "כרטיס גירוד דיגיטלי שמרימים את הרחבה. עד 5 משימות לכל אורח."}
-          </p>
-          <p className="mt-2 text-xs font-black tracking-wide text-[#A86F2B]">
-            {sourceLabel(sourceType)} · {sourceCopy(sourceType)}
-          </p>
-        </div>
-        <span className="rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
-          {WEDDING_CHALLENGES_PRICE_ILS} ₪ לאירוע
+    <div className="mx-auto max-w-xl px-4 py-8" dir="rtl">
+      <div className="mb-6">
+        <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
+        <h1 className="mt-1 text-3xl font-black text-[#3A2A1C]">{coupleNames || "Wedding Challenges"}</h1>
+        <p className="mt-1 text-sm text-[#7B6754]">{formatEventDate(eventDate)}</p>
+        <p className="mt-1 text-xs font-bold text-[#A86F2B]">
+          {sourceType === "STANDALONE_GAME" ? "משחק עצמאי" : "מחובר לאירוע Invistimo"}
+        </p>
+        <span className="mt-3 inline-flex rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
+          {status}
         </span>
+        <p className="mt-3 text-sm font-bold text-[#7B6754]">הגדרת {doneSteps} מתוך 5 שלבים</p>
       </div>
 
-      {locked && (
-        <div className="mb-6">
-          <WeddingChallengesPurchaseCard
-            entitled={false}
-            giveawayPurchased={giveawayPurchased}
-            sourceType={sourceType}
-            eventId={eventId}
-          />
-        </div>
-      )}
-
-      {stats && (
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            ["אורחים", stats.guests],
-            ["משחקים", stats.players],
-            ["הושלמו", stats.completed],
-            ["פעילים", stats.active],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-2xl border border-[#E7D8C6] bg-white p-4">
-              <p className="text-xs font-bold text-[#7B6754]">{label}</p>
-              <p className="text-2xl font-black">{value}</p>
+      <div className="space-y-4">
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black">פרטי האירוע</h2>
+              <p className="mt-1 font-black">{coupleNames || "—"}</p>
+              <p className="text-sm text-[#7B6754]">{formatEventDate(eventDate)}</p>
+              <p className="mt-2 text-sm text-[#7B6754]">
+                חלון משחק:{" "}
+                {windowState === "unconfigured"
+                  ? "עדיין לא הוגדר"
+                  : `${formatInZone(settings.startAt, timezone) || "—"} → ${formatInZone(settings.endAt, timezone) || "פתוח"}`}
+              </p>
+              <p className="mt-1 text-xs text-[#A86F2B]">עכשיו: {israelNowLabel(now, timezone)}</p>
             </div>
-          ))}
-        </div>
-      )}
-
-      <GuestRoster eventId={eventId} sourceType={sourceType} />
-
-      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-        <h2 className="text-lg font-black">פרטי האירוע</h2>
-        <label className="text-sm font-bold text-[#7B6754]">
-          שמות בני הזוג
-          <input
-            value={coupleNames}
-            onChange={(event) => setCoupleNames(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-        <label className="text-sm font-bold text-[#7B6754]">
-          תאריך האירוע
-          <input
-            type="date"
-            value={eventDate}
-            onChange={(event) => setEventDate(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-      </section>
-
-      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-        <h2 className="text-lg font-black">הגדרות משחק</h2>
-        <Toggle
-          label="Enable Wedding Challenges"
-          checked={settings.enabled}
-          onChange={(enabled) => setSettings({ ...settings, enabled })}
-        />
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm font-bold text-[#7B6754]">
-            שעת התחלה
-            <input
-              type="datetime-local"
-              value={datetimeLocal(settings.startAt, timezone)}
-              onChange={(event) =>
-                setSettings({ ...settings, startAt: fromWall(event.target.value, timezone) })
-              }
-              className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-            />
-          </label>
-          <label className="text-sm font-bold text-[#7B6754]">
-            שעת סיום
-            <input
-              type="datetime-local"
-              value={datetimeLocal(settings.endAt, timezone)}
-              onChange={(event) =>
-                setSettings({ ...settings, endAt: fromWall(event.target.value, timezone) })
-              }
-              className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-            />
-          </label>
-        </div>
-        <label className="text-sm font-bold text-[#7B6754]">
-          מקסימום משימות לאורח (עד 5)
-          <input
-            type="number"
-            min={1}
-            max={5}
-            value={settings.maxMissionsPerGuest}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                maxMissionsPerGuest: Math.min(5, Math.max(1, Number(event.target.value || 5))),
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-        <Toggle
-          label="לאפשר משימות צ’ייסרים / אלכוהול"
-          checked={settings.allowAlcoholMissions}
-          onChange={(allowAlcoholMissions) => setSettings({ ...settings, allowAlcoholMissions })}
-        />
-        <label className="text-sm font-bold text-[#7B6754]">
-          קצב משימות
-          <select
-            value={settings.pacingMode}
-            onChange={(event) =>
-              setSettings({ ...settings, pacingMode: event.target.value as WeddingChallengeSettings["pacingMode"] })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          >
-            <option value="immediate">מיידי אחרי השלמה</option>
-            <option value="timed">שחרור לפי זמן / קולדאון</option>
-            <option value="admin">שחרור ידני מהאדמין</option>
-          </select>
-        </label>
-        <label className="text-sm font-bold text-[#7B6754]">
-          קולדאון בין משימות לאורח (דקות)
-          <input
-            type="number"
-            min={0}
-            value={settings.cooldownMinutes}
-            onChange={(event) =>
-              setSettings({ ...settings, cooldownMinutes: Number(event.target.value || 0) })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-      </section>
-
-      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-        <h2 className="text-lg font-black">קטגוריות</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {categories.map(([key, label]) => (
-            <Toggle
-              key={key}
-              label={label}
-              checked={settings.enabledCategories[key]}
-              onChange={(value) =>
-                setSettings({
-                  ...settings,
-                  enabledCategories: { ...settings.enabledCategories, [key]: value },
-                })
-              }
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-black">Giveaway / הגרלה</h2>
-          <span className="text-xs font-bold text-[#A86F2B]">
-            הגרלה אופציונלית – {WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪ + עלות הפרס
-          </span>
-        </div>
-        {!giveawayPurchased && (
-          <div className="space-y-2">
-            <p className="text-sm text-[#7B6754]">
-              התוספת אופציונלית. עלות הפרס נגבית בנפרד. לא מוזכרת ב-SMS הראשוני.
-            </p>
-            {canBuyGiveaway ? (
+            {sourceType === "EXISTING_EVENT" && !gameOnly ? (
+              <a
+                href={`/events/production?eventId=${eventId}&tab=overview`}
+                className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
+              >
+                עריכת פרטי האירוע
+              </a>
+            ) : (
               <button
                 type="button"
-                onClick={async () => {
-                  const res = await fetch("/api/wedding-challenges/checkout", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      includeGiveaway: true,
-                      sourceType,
-                      eventId,
-                    }),
-                  });
-                  const data = await res.json().catch(() => ({}));
-                  if (data.url) window.location.href = data.url;
-                  else setMessage(data.error || "לא הצלחנו לפתוח תשלום להגרלה");
-                }}
-                className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
+                onClick={() => setEditEvent((value) => !value)}
+                className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
               >
-                הוספת הגרלה – {WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪
+                עריכה
               </button>
-            ) : null}
+            )}
           </div>
-        )}
-        <Toggle
-          label="Enable Giveaway"
-          checked={settings.giveaway.enabled && giveawayPurchased}
-          onChange={(enabled) => {
-            if (!giveawayPurchased) return;
-            setSettings({ ...settings, giveaway: { ...settings.giveaway, enabled } });
-          }}
-        />
-        {settings.giveaway.enabled ? (
-          <>
-            {(() => {
-              const status = giveawayAdminStatus(settings, new Date(nowTick));
-              const entriesOpen = giveawayEntriesOpen(settings, new Date(nowTick));
-              const drawn = Boolean(settings.giveaway.locked || settings.giveaway.drawnAt);
-              return (
-                <div className="rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3 text-sm">
-                  <p className="font-black text-[#3A2A1C]">
-                    סטטוס הגרלה:{" "}
-                    {status.status === "drawn"
-                      ? "הוגרל וננעל"
-                      : status.status === "scheduled"
-                        ? `מתוזמן · ${status.countdown}`
-                        : status.status === "due"
-                          ? "הגיע זמן ההגרלה"
-                          : "הגרלה ידנית"}
-                  </p>
-                  <p className="mt-1 text-[#7B6754]">
-                    {entriesOpen ? "כניסות פתוחות" : "כניסות נסגרו"}
-                    {status.drawAtLabel ? ` · הגרלה: ${status.drawAtLabel}` : ""}
-                  </p>
-                  {drawn ? (
-                    <p className="mt-1 font-black text-[#A86F2B]">
-                      זוכה נעול: {settings.giveaway.winnerName || "נבחר"} — אין הגרלה מחדש בלי איפוס מפורש
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })()}
-            <label className="text-sm font-bold text-[#7B6754]">
-              מצב הגרלה
-              <select
-                value={settings.giveaway.drawMode}
-                disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
-                onChange={(event) =>
-                  setSettings({
-                    ...settings,
-                    giveaway: {
-                      ...settings.giveaway,
-                      drawMode: event.target.value === "AUTO_DRAW_AT_TIME" ? "AUTO_DRAW_AT_TIME" : "MANUAL_DRAW",
-                      autoDrawAtEnd: event.target.value === "AUTO_DRAW_AT_TIME",
-                    },
-                  })
-                }
-                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+          {(editEvent || sourceType === "STANDALONE_GAME") && (
+            <div className="grid max-w-md gap-3">
+              <input
+                value={coupleNames}
+                onChange={(event) => setCoupleNames(event.target.value)}
+                className="rounded-xl border border-[#E7D8C6] px-3 py-2"
+                placeholder="שם האירוע"
+              />
+              <input
+                type="date"
+                value={eventDate}
+                onChange={(event) => setEventDate(event.target.value)}
+                className="rounded-xl border border-[#E7D8C6] px-3 py-2"
+              />
+              <button
+                type="button"
+                onClick={() => save()}
+                className="w-fit rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
               >
-                <option value="MANUAL_DRAW">MANUAL_DRAW — הגרלה ידנית</option>
-                <option value="AUTO_DRAW_AT_TIME">AUTO_DRAW_AT_TIME — הגרלה אוטומטית בזמן</option>
-              </select>
-            </label>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm font-bold text-[#7B6754]">
-                תאריך ושעת הגרלה
-                <input
-                  type="datetime-local"
-                  value={datetimeLocal(settings.giveaway.drawAt, timezone)}
-                  disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      giveaway: { ...settings.giveaway, drawAt: fromWall(event.target.value, timezone) },
-                    })
-                  }
-                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-                />
-              </label>
-              <label className="text-sm font-bold text-[#7B6754]">
-                סגירת כניסות (אופציונלי)
-                <input
-                  type="datetime-local"
-                  value={datetimeLocal(settings.giveaway.entriesCutoffAt, timezone)}
-                  disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      giveaway: { ...settings.giveaway, entriesCutoffAt: fromWall(event.target.value, timezone) },
-                    })
-                  }
-                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-                />
-              </label>
+                שמירת פרטים
+              </button>
             </div>
-            <p className="text-xs text-[#7B6754]">
-              אם אין זמן סגירת כניסות, הכניסות נעצרות בשעת ההגרלה. אזור זמן: שעון ישראל.
-            </p>
-          </>
-        ) : null}
-        <label className="text-sm font-bold text-[#7B6754]">
-          פרס
-          <input
-            value={settings.giveaway.prizeText}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                giveaway: { ...settings.giveaway, prizeText: event.target.value },
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-        <label className="text-sm font-bold text-[#7B6754]">
-          עלות הפרס (₪) — עלות הפרס נגבית בנפרד
-          <input
-            type="number"
-            min={0}
-            value={settings.giveaway.prizeCost}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                giveaway: { ...settings.giveaway, prizeCost: Number(event.target.value || 0) },
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          />
-        </label>
-        <label className="text-sm font-bold text-[#7B6754]">
-          מתי לחשוף את ההגרלה
-          <select
-            value={settings.giveaway.revealMode}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                giveaway: {
-                  ...settings.giveaway,
-                  revealMode: event.target.value as WeddingChallengeSettings["giveaway"]["revealMode"],
-                },
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          >
-            <option value="after_first">אחרי משימה ראשונה</option>
-            <option value="after_second">אחרי משימה שנייה</option>
-            <option value="manual">חשיפה ידנית מהאדמין</option>
-          </select>
-        </label>
-        <label className="text-sm font-bold text-[#7B6754]">
-          כניסות ל-Boss Mission
-          <select
-            value={settings.giveaway.bossEntries}
-            onChange={(event) =>
-              setSettings({
-                ...settings,
-                giveaway: {
-                  ...settings.giveaway,
-                  bossEntries: Number(event.target.value) === 3 ? 3 : 2,
-                },
-              })
-            }
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-          >
-            <option value={2}>2 כניסות</option>
-            <option value={3}>3 כניסות</option>
-          </select>
-        </label>
+          )}
+        </Card>
+
+        <GuestRoster eventId={eventId} sourceType={sourceType} />
+
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black">המשחק</h2>
+              <p className="mt-1 text-sm text-[#7B6754]">
+                {settings.maxMissionsPerGuest} משימות לאורח · {activeCategories} קטגוריות פעילות
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditGame((value) => !value)}
+              className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
+            >
+              עריכה
+            </button>
+          </div>
+          <p className="text-sm font-bold text-[#3A2A1C]">משימות לכל אורח</p>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((count) => (
+              <button
+                key={count}
+                type="button"
+                onClick={() => {
+                  const next = { ...settings, enabled: true, maxMissionsPerGuest: count };
+                  setSettings(next);
+                }}
+                className={`h-10 w-10 rounded-full text-sm font-black ${
+                  settings.maxMissionsPerGuest === count
+                    ? "bg-[#3A2A1C] text-white"
+                    : "border border-[#E7D8C6] bg-white"
+                }`}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+          {editGame ? (
+            <>
+              <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+                <label className="text-sm font-bold text-[#7B6754]">
+                  שעת התחלה
+                  <input
+                    type="datetime-local"
+                    value={utcToWallTimeInput(settings.startAt, timezone)}
+                    onChange={(event) =>
+                      setSettings({ ...settings, startAt: fromWall(event.target.value, timezone) })
+                    }
+                    className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                  />
+                </label>
+                <label className="text-sm font-bold text-[#7B6754]">
+                  שעת סיום
+                  <input
+                    type="datetime-local"
+                    value={utcToWallTimeInput(settings.endAt, timezone)}
+                    onChange={(event) =>
+                      setSettings({ ...settings, endAt: fromWall(event.target.value, timezone) })
+                    }
+                    className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                  />
+                </label>
+              </div>
+              <p className="text-xs font-bold text-[#A86F2B]">שעון ישראל</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {categories.map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 text-sm font-bold">
+                    <input
+                      type="checkbox"
+                      checked={settings.enabledCategories[key]}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          enabledCategories: { ...settings.enabledCategories, [key]: event.target.checked },
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {settings.enabledCategories.shots ? (
+                <p className="text-xs text-[#7B6754]">משימות צ׳ייסרים יוצגו רק למשתתפים שמוגדרים כבגירים.</p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => save()}
+                disabled={saving}
+                className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-5 py-3 text-sm font-black text-white"
+              >
+                שמירת המשחק
+              </button>
+            </>
+          ) : null}
+        </Card>
+
+        <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
+
+        <SmsSchedulePanel
+          eventId={eventId}
+          template={settings.sms.template}
+          timezone={timezone}
+          preview={preview}
+          disabled={locked}
+          onTemplateChange={(template) =>
+            setSettings({ ...settings, sms: { ...settings.sms, template } })
+          }
+          onTimezoneChange={(nextTimezone) =>
+            setSettings({ ...settings, sms: { ...settings.sms, timezone: nextTimezone } })
+          }
+          onMessage={setMessage}
+        />
+
+        <GiveawayCard
+          eventId={eventId}
+          sourceType={sourceType}
+          settings={settings}
+          timezone={timezone}
+          giveawayPurchased={giveawayPurchased}
+          canBuy={canBuyGiveaway}
+          stats={stats}
+          disabled={locked}
+          now={now}
+          onChange={setSettings}
+          onDraw={draw}
+          onMessage={setMessage}
+        />
+
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => draw(false)}
-            disabled={Boolean(settings.giveaway.locked || settings.giveaway.drawnAt)}
-            className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+            disabled={saving}
+            onClick={() => save()}
+            className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-6 py-3 font-black text-white"
           >
-            הכרזת זוכה
+            {saving ? "שומר..." : "שמירה"}
           </button>
-          {settings.giveaway.locked || settings.giveaway.drawnAt ? (
+          <button
+            type="button"
+            onClick={() => window.open("/live/demo", "_blank")}
+            className="rounded-full border border-[#E7D8C6] px-5 py-3 font-bold"
+          >
+            תצוגת אורח
+          </button>
+          {!gameOnly ? (
             <button
               type="button"
-              onClick={() => draw(true)}
-              className="rounded-full border border-[#8A3B3B] px-4 py-2 text-sm font-black text-[#8A3B3B]"
+              onClick={() => router.push("/dashboard")}
+              className="rounded-full px-4 py-3 text-sm font-bold text-[#7B6754]"
             >
-              איפוס הגרלה
+              חזרה לדשבורד
             </button>
           ) : null}
-          <a
-            href={`/api/wedding-challenges/admin/export?eventId=${eventId}`}
-            className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
-          >
-            ייצוא זוכים
-          </a>
-          <button
-            type="button"
-            onClick={async () => {
-              await fetch("/api/wedding-challenges/admin/reveal-giveaway", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ eventId }),
-              });
-              setMessage("ההגרלה נחשפה לאורחים");
-            }}
-            className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
-          >
-            חשיפה ידנית
-          </button>
         </div>
-        {settings.giveaway.winnerName ? (
-          <p className="text-sm font-black text-[#A86F2B]">זוכה נוכחי: {settings.giveaway.winnerName}</p>
-        ) : null}
-      </section>
-
-      <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
-
-      <SmsSchedulePanel
-        eventId={eventId}
-        template={settings.sms.template}
-        timezone={timezone}
-        preview={preview}
-        disabled={locked}
-        onTemplateChange={(template) =>
-          setSettings({ ...settings, sms: { ...settings.sms, template } })
-        }
-        onTimezoneChange={(nextTimezone) =>
-          setSettings({ ...settings, sms: { ...settings.sms, timezone: nextTimezone } })
-        }
-        onMessage={setMessage}
-      />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={save}
-          className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-6 py-3 font-black text-white"
-        >
-          {saving ? "שומר..." : "שמירת הגדרות"}
-        </button>
-        <button
-          type="button"
-          onClick={() => window.open("/live/demo", "_blank")}
-          className="rounded-full border border-[#E7D8C6] px-5 py-3 font-bold"
-        >
-          תצוגת אורח
-        </button>
-        {!gameOnly ? (
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="rounded-full px-4 py-3 text-sm font-bold text-[#7B6754]"
-          >
-            חזרה לדשבורד
-          </button>
-        ) : null}
-        {message ? <span className="text-sm font-bold text-[#A86F2B]">{message}</span> : null}
+        {message ? <p className="text-sm font-bold text-[#A86F2B]">{message}</p> : null}
       </div>
     </div>
   );

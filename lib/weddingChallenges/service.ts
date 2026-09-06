@@ -28,6 +28,7 @@ import {
   defaultWeddingChallengeSettings,
   normalizeWeddingChallengeSettings,
 } from "./settings";
+import { logGameWindowDecision } from "./gameWindow";
 import type {
   AssignmentGuest,
   GuestLiveScreen,
@@ -291,8 +292,10 @@ function liveScreen(params: {
   winnerName: string;
   giveawayJustRevealed: boolean;
 }): GuestLiveScreen {
-  if (!params.entitled || !params.enabled) return "ended";
   const window = gameWindowState(params.settings);
+  if (!params.entitled || !params.enabled || window === "unconfigured") {
+    return "unconfigured";
+  }
   if (window === "not_started") return "not_started";
   if (window === "ended") {
     if (params.settings.giveaway.winnerName) return "winner";
@@ -317,6 +320,7 @@ export async function buildLivePayload(params: {
   assignment?: any | null;
   justCompleted?: boolean;
   giveawayJustRevealed?: boolean;
+  sourceType?: string;
 }) {
   const entitled = userHasWeddingChallengesEntitlement(params.owner);
   const giveawayEntitled = userHasWeddingChallengesGiveawayEntitlement(params.owner);
@@ -362,12 +366,26 @@ export async function buildLivePayload(params: {
     winnerName: settings.giveaway.winnerName,
     giveawayJustRevealed: Boolean(params.giveawayJustRevealed),
   });
+  const finalScreen =
+    params.justCompleted && screen !== "giveaway_revealed" && screen !== "max_reached"
+      ? "completed"
+      : screen;
+
+  logGameWindowDecision({
+    eventId: String(params.event?._id || ""),
+    sourceType: params.sourceType || "",
+    entitled,
+    enabled: settings.enabled,
+    startAt: settings.startAt,
+    endAt: settings.endAt,
+    timezone: settings.sms.timezone,
+    eventDate: params.event?.date,
+    screen: finalScreen,
+  });
 
   return {
     success: true,
-    screen: params.justCompleted && screen !== "giveaway_revealed" && screen !== "max_reached"
-      ? "completed"
-      : screen,
+    screen: finalScreen,
     coupleNames,
     guestName: String(params.invitationGuest?.name || ""),
     completedCount,

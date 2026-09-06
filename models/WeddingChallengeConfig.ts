@@ -22,6 +22,14 @@ const GiveawaySchema = new Schema(
     enabled: { type: Boolean, default: false },
     prizeText: { type: String, default: "", trim: true },
     prizeCost: { type: Number, default: 0, min: 0 },
+    prizeProvider: { type: String, enum: ["BUYME", "NONE"], default: "NONE" },
+    prizeValue: { type: Number, default: 0, min: 0 },
+    prizeCurrency: { type: String, default: "ILS" },
+    prizeFulfillmentStatus: {
+      type: String,
+      enum: ["PENDING", "READY", "SENT", "FAILED"],
+      default: "PENDING",
+    },
     revealMode: {
       type: String,
       enum: ["after_first", "after_second", "manual"],
@@ -53,19 +61,21 @@ const SmsSchema = new Schema(
     scheduledAt: { type: Date, default: null },
     status: {
       type: String,
-      enum: ["idle", "scheduled", "sending", "sent", "cancelled"],
+      enum: ["idle", "scheduled", "sending", "sent", "failed", "cancelled"],
       default: "idle",
     },
     sentAt: { type: Date, default: null },
     sentCount: { type: Number, default: 0, min: 0 },
     cancelledAt: { type: Date, default: null },
+    lastError: { type: String, default: null, trim: true },
+    lastAttemptAt: { type: Date, default: null },
   },
   { _id: false }
 );
 
 const SettingsSchema = new Schema(
   {
-    enabled: { type: Boolean, default: false, index: true },
+    enabled: { type: Boolean, default: true, index: true },
     startAt: { type: Date, default: null },
     endAt: { type: Date, default: null },
     maxMissionsPerGuest: { type: Number, default: 5, min: 1, max: 5 },

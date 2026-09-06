@@ -18,6 +18,8 @@ type DashboardHeaderProps = {
   isDemo?: boolean;
   homeHref?: string;
   gameOnly?: boolean;
+  eventId?: string;
+  canOpenWeddingChallenges?: boolean;
 };
 
 /* ============================================================
@@ -29,6 +31,8 @@ export default function DashboardHeader({
   isDemo = false,
   homeHref = "/dashboard",
   gameOnly = false,
+  eventId = "",
+  canOpenWeddingChallenges = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -214,6 +218,30 @@ export default function DashboardHeader({
                 <MessageCircle size={17} className="text-[#B88A2D]" />
                 תמיכה
               </button>
+              {canOpenWeddingChallenges || gameOnly ? (
+                <button
+                  onClick={() =>
+                    router.push(
+                      eventId
+                        ? `/dashboard/wedding-challenges?eventId=${eventId}`
+                        : "/dashboard/wedding-challenges"
+                    )
+                  }
+                  className="
+                    inline-flex items-center gap-2
+                    whitespace-nowrap
+                    rounded-[13px]
+                    bg-[#3F3328]
+                    px-4 py-2.5
+                    text-[15px] font-bold
+                    text-white
+                    transition
+                    hover:bg-[#5A4636]
+                  "
+                >
+                  ניהול Wedding Challenges
+                </button>
+              ) : null}
               {canOpenGuestMessages ? (
                 <button
                   onClick={() => router.push("/dashboard/guest-messages")}

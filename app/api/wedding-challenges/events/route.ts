@@ -5,6 +5,8 @@ import Invitation from "@/models/Invitation";
 import WeddingChallengeConfig from "@/models/WeddingChallengeConfig";
 import { requireWeddingChallenges } from "@/lib/guards/requireWeddingChallenges";
 import { inferWeddingChallengesSourceType } from "@/lib/weddingChallenges/sourceType";
+import { isEventDatePast } from "@/lib/weddingChallenges/gameWindow";
+import { getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 import {
   activateExistingEventForWeddingChallenges,
   createStandaloneWeddingChallengesEvent,
@@ -19,6 +21,9 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   await db();
+
+  const entitlement = await getActiveEntitlement(String(gate.userId));
+  const linkedEventId = entitlement?.eventId ? String(entitlement.eventId) : null;
 
   const events = await Event.find({
     status: { $ne: "archived" },
@@ -64,6 +69,9 @@ export async function GET() {
       sourceType,
       enabled: Boolean(config?.settings?.enabled),
       hasGame: Boolean(config),
+      eventDatePast: isEventDatePast(event.date),
+      startAt: config?.settings?.startAt || null,
+      endAt: config?.settings?.endAt || null,
     };
 
     if (config) {
@@ -79,6 +87,8 @@ export async function GET() {
     success: true,
     games,
     attachableEvents: attachable,
+    linkedEventId,
+    needsSetup: !linkedEventId && games.length === 0,
   });
 }
 
@@ -109,6 +119,7 @@ export async function POST(req: Request) {
         ownerUserId: String(event.userId),
         startAt: body.startAt || null,
         endAt: body.endAt || null,
+        confirmPastEvent: body.confirmPastEvent === true,
       });
 
       return NextResponse.json({
@@ -143,9 +154,22 @@ export async function POST(req: Request) {
       code === "EVENT_DATE_REQUIRED" ||
       code.includes("800")
         ? 400
+        : code === "EVENT_DATE_PAST"
+          ? 409
         : code === "EVENT_NOT_FOUND" || code === "INVITATION_NOT_FOUND" || code === "USER_NOT_FOUND"
           ? 404
           : 500;
-    return NextResponse.json({ success: false, error: code, message: code }, { status });
+    return NextResponse.json(
+      {
+        success: false,
+        error: code,
+        code,
+        message:
+          code === "EVENT_DATE_PAST"
+            ? "תאריך האירוע כבר עבר. אפשר להמשיך רק אחרי אישור."
+            : code,
+      },
+      { status }
+    );
   }
 }

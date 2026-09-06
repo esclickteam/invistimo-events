@@ -12,14 +12,27 @@ import {
 } from "@/lib/weddingChallenges/sendOpeningSms";
 import { smsSchedulePublic } from "@/lib/weddingChallenges/settings";
 import { DEFAULT_EVENT_TIMEZONE, parseEventDateTime } from "@/lib/weddingChallenges/timezone";
+import { weddingChallengesSmsErrorBody } from "@/lib/weddingChallenges/openingSms";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function errorJson(
+  code: string,
+  status: number,
+  details?: unknown,
+  errorOverride?: string
+) {
+  return NextResponse.json(weddingChallengesSmsErrorBody(code, details, errorOverride), {
+    status,
+  });
+}
+
 export async function GET(req: Request) {
   const eventId = String(new URL(req.url).searchParams.get("eventId") || "").trim();
   if (!eventId) {
-    return NextResponse.json({ success: false, error: "EVENT_ID_REQUIRED" }, { status: 400 });
+    return errorJson("EVENT_ID_REQUIRED", 400);
   }
 
   const gate = await requireWeddingChallenges({ eventId });
@@ -27,7 +40,7 @@ export async function GET(req: Request) {
 
   const context = await loadEventChallengeContext(eventId);
   if (!context?.invitation) {
-    return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
+    return errorJson("EVENT_NOT_FOUND", 404);
   }
 
   const coupleNames = coupleNamesFromTitle(context.invitation?.title || context.event?.title);
@@ -37,15 +50,19 @@ export async function GET(req: Request) {
     template: context.settings.sms.template,
   });
 
-  const guests = await InvitationGuest.countDocuments({
+  const eligibleFilter = {
     invitationId: context.invitation._id,
     phone: { $exists: true, $nin: ["", null] },
+    token: { $exists: true, $nin: ["", null] },
     ...attendingGuestMongoFilter(context.sourceType),
-  });
+  };
+  const guests = await InvitationGuest.countDocuments(eligibleFilter);
 
   return NextResponse.json({
     success: true,
     sourceType: context.sourceType,
+    enabled: context.settings.enabled,
+    entitled: userHasWeddingChallengesEntitlement(context.owner),
     coupleNames,
     template: context.settings.sms.template,
     preview: sample,
@@ -61,10 +78,10 @@ export async function POST(req: Request) {
   const eventId = String(body.eventId || "").trim();
   const action = String(body.action || "").trim();
   if (!eventId) {
-    return NextResponse.json({ success: false, error: "EVENT_ID_REQUIRED" }, { status: 400 });
+    return errorJson("EVENT_ID_REQUIRED", 400);
   }
   if (!action) {
-    return NextResponse.json({ success: false, error: "ACTION_REQUIRED" }, { status: 400 });
+    return errorJson("ACTION_REQUIRED", 400);
   }
 
   const gate = await requireWeddingChallenges({ eventId });
@@ -73,12 +90,17 @@ export async function POST(req: Request) {
   if (action === "schedule" || action === "update") {
     const context = await loadEventChallengeContext(eventId);
     if (!context) {
-      return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return errorJson("EVENT_NOT_FOUND", 404);
     }
-    const timezone = String(body.timezone || context.settings.sms.timezone || DEFAULT_EVENT_TIMEZONE).trim();
+    const timezone = String(
+      body.timezone || context.settings.sms.timezone || DEFAULT_EVENT_TIMEZONE
+    ).trim();
     const scheduledAt = parseEventDateTime(body.scheduledAt || body.scheduledAtLocal, timezone);
     if (!scheduledAt) {
-      return NextResponse.json({ success: false, error: "SCHEDULED_AT_REQUIRED" }, { status: 400 });
+      return errorJson("SCHEDULED_AT_REQUIRED", 400, {
+        timezone,
+        scheduledAt: body.scheduledAt || body.scheduledAtLocal || null,
+      });
     }
     const result = await scheduleWeddingChallengesOpeningSms({
       eventId,
@@ -86,8 +108,13 @@ export async function POST(req: Request) {
       timezone,
     });
     if (!result.ok) {
-      const status = result.error === "ALREADY_SENT" ? 409 : result.error === "SCHEDULE_IN_PAST" ? 400 : 400;
-      return NextResponse.json({ success: false, error: result.error, sentAt: result.sentAt }, { status });
+      const status = result.error === "ALREADY_SENT" ? 409 : 400;
+      return errorJson(result.error, status, {
+        sentAt: "sentAt" in result ? result.sentAt : null,
+        scheduledAtUtc: scheduledAt.toISOString(),
+        timezone,
+        ...("details" in result && result.details ? result.details : {}),
+      });
     }
     return NextResponse.json({ success: true, action, sms: result.sms });
   }
@@ -95,25 +122,34 @@ export async function POST(req: Request) {
   if (action === "cancel") {
     const result = await cancelWeddingChallengesOpeningSms(eventId);
     if (!result.ok) {
-      return NextResponse.json(
-        { success: false, error: result.error, sentAt: result.sentAt },
-        { status: result.error === "ALREADY_SENT" ? 409 : 400 }
-      );
+      return errorJson(result.error, result.error === "ALREADY_SENT" ? 409 : 400, {
+        sentAt: "sentAt" in result ? result.sentAt : null,
+      });
     }
     return NextResponse.json({ success: true, action: "cancel", sms: result.sms });
   }
 
   if (action === "send_now") {
-    const result = await sendWeddingChallengesOpeningSms({ eventId });
+    const result = await sendWeddingChallengesOpeningSms({
+      eventId,
+      force: body.force === true,
+      source: "send_now",
+    });
     if (!result.ok) {
-      return NextResponse.json(
+      return errorJson(
+        result.error,
+        result.error === "ALREADY_SENT" ? 409 : 400,
         {
-          success: false,
-          error: result.error,
           sentAt: "sentAt" in result ? result.sentAt : null,
           sentCount: "sentCount" in result ? result.sentCount : 0,
+          sent: "sent" in result ? result.sent : 0,
+          failed: "failed" in result ? result.failed : 0,
+          skipped: "skipped" in result ? result.skipped : 0,
+          total: "total" in result ? result.total : 0,
+          lastError: "lastError" in result ? result.lastError : null,
+          ...("details" in result && result.details ? { extra: result.details } : {}),
         },
-        { status: result.error === "ALREADY_SENT" ? 409 : 400 }
+        "lastError" in result && result.lastError ? String(result.lastError) : undefined
       );
     }
     return NextResponse.json({
@@ -126,5 +162,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return NextResponse.json({ success: false, error: "UNKNOWN_ACTION" }, { status: 400 });
+  return errorJson("UNKNOWN_ACTION", 400, { action });
 }

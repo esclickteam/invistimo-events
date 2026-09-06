@@ -27,7 +27,7 @@ export function defaultWeddingChallengeSettings(
   overrides?: Partial<WeddingChallengeSettings>
 ): WeddingChallengeSettings {
   return {
-    enabled: false,
+    enabled: true,
     startAt: null,
     endAt: null,
     maxMissionsPerGuest: DEFAULT_MAX_MISSIONS_PER_GUEST,
@@ -43,6 +43,10 @@ export function defaultWeddingChallengeSettings(
       enabled: false,
       prizeText: "",
       prizeCost: 0,
+      prizeProvider: "NONE",
+      prizeValue: 0,
+      prizeCurrency: "ILS",
+      prizeFulfillmentStatus: "PENDING",
       revealMode: "after_first",
       bossEntries: 2,
       maxEntriesPerGuest: null,
@@ -64,6 +68,8 @@ export function defaultWeddingChallengeSettings(
       sentAt: null,
       sentCount: 0,
       cancelledAt: null,
+      lastError: null,
+      lastAttemptAt: null,
     },
     ...overrides,
   };
@@ -114,19 +120,23 @@ export function normalizeWeddingChallengeSettings(
   const drawMode: GiveawayDrawMode =
     raw?.giveaway?.drawMode === "AUTO_DRAW_AT_TIME" ? "AUTO_DRAW_AT_TIME" : "MANUAL_DRAW";
 
+  const smsSentCount = asNumber(raw?.sms?.sentCount, 0, 0);
   const smsStatusRaw = String(raw?.sms?.status || "");
   const smsStatus: SmsScheduleStatus =
-    raw?.sms?.sentAt
+    smsSentCount > 0 && (Boolean(raw?.sms?.sentAt) || smsStatusRaw === "sent")
       ? "sent"
-      : smsStatusRaw === "scheduled" ||
-          smsStatusRaw === "sending" ||
-          smsStatusRaw === "sent" ||
-          smsStatusRaw === "cancelled"
-        ? smsStatusRaw
-        : "idle";
+      : smsStatusRaw === "sent" && smsSentCount <= 0
+        ? "failed"
+        : smsStatusRaw === "scheduled" ||
+            smsStatusRaw === "sending" ||
+            smsStatusRaw === "sent" ||
+            smsStatusRaw === "failed" ||
+            smsStatusRaw === "cancelled"
+          ? smsStatusRaw
+          : "idle";
 
   return {
-    enabled: asBoolean(raw?.enabled, false),
+    enabled: asBoolean(raw?.enabled, true),
     startAt: asDateString(raw?.startAt),
     endAt: asDateString(raw?.endAt),
     maxMissionsPerGuest: maxMissions,
@@ -159,6 +169,15 @@ export function normalizeWeddingChallengeSettings(
       enabled: asBoolean(raw?.giveaway?.enabled, false),
       prizeText: String(raw?.giveaway?.prizeText || "").trim(),
       prizeCost: asNumber(raw?.giveaway?.prizeCost, 0, 0),
+      prizeProvider: raw?.giveaway?.prizeProvider === "BUYME" ? "BUYME" : "NONE",
+      prizeValue: asNumber(raw?.giveaway?.prizeValue ?? raw?.giveaway?.prizeCost, 0, 0),
+      prizeCurrency: "ILS",
+      prizeFulfillmentStatus:
+        raw?.giveaway?.prizeFulfillmentStatus === "READY" ||
+        raw?.giveaway?.prizeFulfillmentStatus === "SENT" ||
+        raw?.giveaway?.prizeFulfillmentStatus === "FAILED"
+          ? raw.giveaway.prizeFulfillmentStatus
+          : "PENDING",
       revealMode,
       bossEntries: raw?.giveaway?.bossEntries === 3 ? 3 : 2,
       maxEntriesPerGuest:
@@ -182,28 +201,16 @@ export function normalizeWeddingChallengeSettings(
       timezone: String(raw?.sms?.timezone || DEFAULT_EVENT_TIMEZONE).trim() || DEFAULT_EVENT_TIMEZONE,
       scheduledAt: asDateString(raw?.sms?.scheduledAt),
       status: smsStatus,
-      sentAt: asDateString(raw?.sms?.sentAt),
-      sentCount: asNumber(raw?.sms?.sentCount, 0, 0),
+      sentAt: smsSentCount > 0 ? asDateString(raw?.sms?.sentAt) : null,
+      sentCount: smsSentCount,
       cancelledAt: asDateString(raw?.sms?.cancelledAt),
+      lastError: String(raw?.sms?.lastError || "").trim() || null,
+      lastAttemptAt: asDateString(raw?.sms?.lastAttemptAt),
     },
   };
 }
 
-export function gameWindowState(
-  settings: WeddingChallengeSettings,
-  now = new Date()
-): "not_started" | "active" | "ended" {
-  const nowMs = now.getTime();
-  if (settings.startAt) {
-    const start = new Date(settings.startAt).getTime();
-    if (Number.isFinite(start) && nowMs < start) return "not_started";
-  }
-  if (settings.endAt) {
-    const end = new Date(settings.endAt).getTime();
-    if (Number.isFinite(end) && nowMs > end) return "ended";
-  }
-  return "active";
-}
+export { gameWindowState } from "./gameWindow";
 
 export function shouldRevealGiveaway(params: {
   settings: WeddingChallengeSettings;
@@ -282,12 +289,16 @@ export function openingSmsAlreadySent(
   force?: boolean
 ) {
   if (force) return false;
+  const sentCount = Number(settings.sms.sentCount || 0);
+  if (sentCount <= 0) return false;
   return settings.sms.status === "sent" || Boolean(settings.sms.sentAt);
 }
 
 export function smsSchedulePublic(settings: WeddingChallengeSettings) {
   const timezone = settings.sms.timezone || DEFAULT_EVENT_TIMEZONE;
   const alreadySent = openingSmsAlreadySent(settings);
+  const failed =
+    settings.sms.status === "failed" || Boolean(settings.sms.lastError && !alreadySent);
   return {
     timezone,
     status: settings.sms.status,
@@ -299,9 +310,13 @@ export function smsSchedulePublic(settings: WeddingChallengeSettings) {
     sentAtLabel: formatInZone(settings.sms.sentAt, timezone),
     sentCount: settings.sms.sentCount,
     cancelledAt: settings.sms.cancelledAt,
+    lastError: settings.sms.lastError,
+    lastAttemptAt: settings.sms.lastAttemptAt,
     alreadySent,
+    failed,
     canEdit: !alreadySent && settings.sms.status !== "sending",
     canCancel: !alreadySent && settings.sms.status === "scheduled",
     canSendNow: !alreadySent && settings.sms.status !== "sending",
+    canRetry: !alreadySent && settings.sms.status !== "sending",
   };
 }

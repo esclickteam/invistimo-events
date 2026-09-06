@@ -94,6 +94,7 @@ export default function CustomMissionsPanel({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showDefaults, setShowDefaults] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const tables = useMemo(() => {
@@ -231,7 +232,7 @@ export default function CustomMissionsPanel({
           onClick={startCreate}
           className="rounded-full bg-[#C89545] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
         >
-          הוספת משימה אישית
+          + הוספת משימה משלכם
         </button>
       </div>
       <p className="text-sm text-[#7B6754]">
@@ -334,7 +335,7 @@ export default function CustomMissionsPanel({
           </label>
           <label className="flex items-center gap-2 text-sm font-bold">
             <input type="checkbox" checked={form.boss} onChange={(event) => setForm({ ...form, boss: event.target.checked })} />
-            Boss
+            משימת בוס 🔥
           </label>
           <label className="flex items-center gap-2 text-sm font-bold">
             <input type="checkbox" checked={form.tableBased} onChange={(event) => setForm({ ...form, tableBased: event.target.checked })} />
@@ -344,6 +345,15 @@ export default function CustomMissionsPanel({
             <input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} />
             פעילה
           </label>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((value) => !value)}
+            className="text-sm font-bold text-[#A86F2B]"
+          >
+            {showAdvanced ? "הסתרת הגדרות מתקדמות" : "הגדרות מתקדמות"}
+          </button>
+          {showAdvanced ? (
+            <>
           <div className="grid gap-3 md:grid-cols-3">
             <label className="text-sm font-bold text-[#7B6754]">
               מינימום אנשים (אופציונלי)
@@ -447,6 +457,8 @@ export default function CustomMissionsPanel({
               ))}
             </div>
           ) : null}
+            </>
+          ) : null}
 
           <div className="rounded-2xl bg-[#FFF8EE] p-4">
             <p className="text-xs font-black tracking-wide text-[#A86F2B]">תצוגה לפני שמירה</p>
@@ -455,7 +467,7 @@ export default function CustomMissionsPanel({
             <p className="mt-2 text-xs text-[#7B6754]">
               {preview.difficulty} · {TARGETING_LABELS[form.targetingType]}
               {preview.requiresAlcohol ? " · אלכוהול" : ""}
-              {preview.boss ? " · Boss" : ""}
+              {preview.boss ? " · משימת בוס 🔥" : ""}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

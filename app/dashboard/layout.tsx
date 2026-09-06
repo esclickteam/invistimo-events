@@ -228,6 +228,8 @@ function DashboardLayoutInner({
         isDemo={isDemo}
         homeHref={dashboardHome}
         gameOnly={gameOnly}
+        eventId={eventIdForMenu}
+        canOpenWeddingChallenges={canOpenWeddingChallenges}
       />
 
       {/* ========================= Mobile Menu ========================= */}

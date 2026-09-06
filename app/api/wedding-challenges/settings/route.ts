@@ -20,6 +20,7 @@ import {
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
 import { coupleNamesFromTitle } from "@/lib/weddingChallenges/sms";
+import { linkEntitlementToEvent } from "@/lib/weddingChallenges/purchase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,6 +42,18 @@ export async function GET(req: Request) {
   const context = await loadEventChallengeContext(eventId);
   if (!context) {
     return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
+  }
+
+  await linkEntitlementToEvent({
+    userId: String(context.event.userId || gate.userId),
+    eventId,
+    sourceType: context.sourceType,
+  });
+
+  if (context.config && context.config.settings?.enabled !== true) {
+    context.config.settings.enabled = true;
+    await context.config.save();
+    context.settings.enabled = true;
   }
 
   const settings = context.settings;
@@ -152,6 +165,8 @@ export async function PUT(req: Request) {
     sentAt: context.settings.sms.sentAt,
     sentCount: context.settings.sms.sentCount,
     cancelledAt: context.settings.sms.cancelledAt,
+    lastError: context.settings.sms.lastError,
+    lastAttemptAt: context.settings.sms.lastAttemptAt,
   };
 
   if (context.settings.giveaway.locked || context.settings.giveaway.drawnAt) {

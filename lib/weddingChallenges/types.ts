@@ -25,6 +25,7 @@ export type AssignmentStatus =
   | "expired";
 
 export type GuestLiveScreen =
+  | "unconfigured"
   | "not_started"
   | "ended"
   | "intro"
@@ -43,6 +44,7 @@ export type SmsScheduleStatus =
   | "scheduled"
   | "sending"
   | "sent"
+  | "failed"
   | "cancelled";
 
 export type CustomMissionTargetingType =
@@ -99,6 +101,10 @@ export type WeddingChallengeSettings = {
     enabled: boolean;
     prizeText: string;
     prizeCost: number;
+    prizeProvider: "BUYME" | "NONE";
+    prizeValue: number;
+    prizeCurrency: "ILS";
+    prizeFulfillmentStatus: "PENDING" | "READY" | "SENT" | "FAILED";
     revealMode: GiveawayRevealMode;
     bossEntries: 2 | 3;
     maxEntriesPerGuest: number | null;
@@ -120,6 +126,8 @@ export type WeddingChallengeSettings = {
     sentAt: string | null;
     sentCount: number;
     cancelledAt: string | null;
+    lastError: string | null;
+    lastAttemptAt: string | null;
   };
 };
 

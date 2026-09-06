@@ -1,16 +1,26 @@
+import dbConnect from "@/lib/db";
 import WeddingChallengeConfig from "@/models/WeddingChallengeConfig";
 import { sendWeddingChallengesOpeningSms } from "./sendOpeningSms";
 import { drawWeddingChallengesGiveaway } from "./draw";
 import { normalizeWeddingChallengeSettings } from "./settings";
+import {
+  dueWeddingChallengesSmsFilter,
+  logWeddingChallengesSms,
+  logWeddingChallengesSmsError,
+} from "./openingSms";
 
 export async function processWeddingChallengesJobs(now = new Date()) {
-  const smsDue = await WeddingChallengeConfig.find({
-    "settings.sms.status": "scheduled",
-    "settings.sms.scheduledAt": { $lte: now },
-    $or: [{ "settings.sms.sentAt": null }, { "settings.sms.sentAt": { $exists: false } }],
-  })
-    .select("eventId")
+  await dbConnect();
+
+  const smsDue = await WeddingChallengeConfig.find(dueWeddingChallengesSmsFilter(now))
+    .select("eventId settings")
     .lean();
+
+  logWeddingChallengesSms("cron picked up event", {
+    now: now.toISOString(),
+    count: smsDue.length,
+    eventIds: smsDue.map((row) => String(row.eventId)),
+  });
 
   const drawDue = await WeddingChallengeConfig.find({
     "settings.giveaway.enabled": true,
@@ -31,11 +41,23 @@ export async function processWeddingChallengesJobs(now = new Date()) {
     try {
       const result = await sendWeddingChallengesOpeningSms({
         eventId: String(row.eventId),
+        source: "cron",
       });
       if (result.ok) sms.sent += result.sent;
-      else sms.failed += 1;
-    } catch {
+      else {
+        sms.failed += 1;
+        logWeddingChallengesSmsError("cron send failed", {
+          eventId: String(row.eventId),
+          code: result.error,
+          lastError: "lastError" in result ? result.lastError : null,
+        });
+      }
+    } catch (err) {
       sms.failed += 1;
+      logWeddingChallengesSmsError("cron send threw", {
+        eventId: String(row.eventId),
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

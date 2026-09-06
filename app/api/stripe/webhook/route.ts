@@ -694,6 +694,7 @@ export async function POST(req: Request) {
             : "STANDALONE_GAME",
         includeGiveaway,
         pricePaid: amount,
+        prizeCost: toNum(session.metadata?.prizeValue, 0),
         paymentMethod: "stripe",
         paymentStatus: "paid",
         status: "ACTIVE",

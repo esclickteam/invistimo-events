@@ -276,9 +276,13 @@ test("customer-facing Wedding Challenges card is a 299 ILS checkout product with
   assert.match(card, /תצוגה מקדימה/);
   assert.match(card, /הוספת הגרלה/);
   assert.match(card, /עלות הפרס נגבית בנפרד/);
+  assert.match(card, /BUYME_PRIZE_VALUES_ILS/);
+  assert.match(card, /prizeValue/);
+  assert.match(card, /בחרו קודם את שווי שובר BUYME/);
   assert.match(card, /\/api\/wedding-challenges\/checkout/);
   assert.match(checkout, /WEDDING_CHALLENGES_PRICE_ILS \* 100/);
   assert.match(checkout, /wedding-challenges/);
+  assert.match(checkout, /PRIZE_VALUE_REQUIRED/);
   assert.match(guests, /weddingChallengesGuestLimitPayload/);
   assert.match(guests, /wouldExceedWeddingChallengesGuestLimit/);
   assert.match(entitlement, /eventId/);
@@ -428,18 +432,29 @@ test("existing-event audience is RSVP yes only; standalone treats uploaded guest
 test("dashboard and APIs expose EXISTING_EVENT and STANDALONE_GAME standalone flow", () => {
   const fs = require("node:fs") as typeof import("node:fs");
   const page = fs.readFileSync("app/dashboard/wedding-challenges/page.tsx", "utf8");
+  const giveaway = fs.readFileSync("app/dashboard/wedding-challenges/GiveawayCard.tsx", "utf8");
   const sms = fs.readFileSync("app/api/wedding-challenges/sms/route.ts", "utf8");
   const events = fs.readFileSync("app/api/wedding-challenges/events/route.ts", "utf8");
   const guests = fs.readFileSync("app/api/wedding-challenges/guests/route.ts", "utf8");
   assert.match(page, /STANDALONE_GAME/);
   assert.match(page, /EXISTING_EVENT/);
-  assert.match(page, /יצירת אירוע למשחק בלבד/);
+  assert.match(page, /יצירת אירוע למשחק/);
+  assert.match(page, /מחובר לאירוע Invistimo/);
+  assert.match(page, /משחק עצמאי/);
   assert.match(page, /CustomMissionsPanel/);
   assert.match(page, /SmsSchedulePanel/);
-  assert.match(page, /AUTO_DRAW_AT_TIME/);
-  assert.match(page, /MANUAL_DRAW/);
+  assert.match(page, /GAME_STATE_COPY/);
+  assert.match(page, /לא הוגדר/);
+  assert.match(page, /טרם התחיל/);
+  assert.doesNotMatch(page, /Enable Wedding Challenges/);
+  assert.doesNotMatch(page, /Enable Giveaway/);
+  assert.doesNotMatch(page, /Boss Mission/);
+  assert.match(giveaway, /AUTO_DRAW_AT_TIME/);
+  assert.match(giveaway, /MANUAL_DRAW/);
+  assert.match(giveaway, /הוספה ותשלום/);
   assert.match(guests, /parseGuestListText/);
   assert.match(guests, /XLSX/);
+  assert.match(guests, /EXISTING_EVENT_GUESTS_READONLY/);
   assert.match(events, /createStandaloneWeddingChallengesEvent/);
   assert.match(sms, /attendingGuestMongoFilter/);
   assert.match(sms, /action === "schedule"/);
@@ -461,6 +476,20 @@ test("opening SMS is blocked after send unless explicitly forced", () => {
   assert.equal(openingSmsAlreadySent(sent, true), false);
   const idle = settings();
   assert.equal(openingSmsAlreadySent(idle), false);
+  const falseSent = settings({
+    sms: {
+      template: "full",
+      timezone: "Asia/Jerusalem",
+      scheduledAt: null,
+      status: "sent",
+      sentAt: "2026-09-06T17:00:00.000Z",
+      sentCount: 0,
+      cancelledAt: null,
+    },
+  });
+  assert.equal(openingSmsAlreadySent(falseSent), false);
+  assert.equal(falseSent.sms.status, "failed");
+  assert.equal(falseSent.sms.sentAt, null);
 });
 
 test("giveaway entries close at cutoff, draw time, or lock", () => {
@@ -663,11 +692,43 @@ test("game-only customers get a guest-list dashboard without invite or RSVP", ()
   assert.match(layout, /userIsWeddingChallengesOnly/);
   assert.match(layout, /\/dashboard\/create-invite/);
   assert.match(auth, /\/dashboard\/wedding-challenges/);
-  assert.match(page, /רשימת אורחים והמשחק/);
+  assert.match(page, /ברוכים הבאים ל-Wedding Challenges/);
   assert.match(roster, /כמו בדשבורד הרגיל: מוסיפים שם וטלפון/);
   assert.match(setPassword, /weddingChallenges/);
   assert.match(setPassword, /\/dashboard\/wedding-challenges/);
   assert.match(purchase, /weddingChallengesOnly/);
+});
+
+test("product account flows: header button, existing-event guests, admin sale types, Hebrew missions", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const header = fs.readFileSync("app/dashboard/DashboardHeader.tsx", "utf8");
+  const layout = fs.readFileSync("app/dashboard/layout.tsx", "utf8");
+  const dashboard = fs.readFileSync("app/dashboard/page.tsx", "utf8");
+  const roster = fs.readFileSync("app/dashboard/wedding-challenges/GuestRoster.tsx", "utf8");
+  const missions = fs.readFileSync("app/dashboard/wedding-challenges/CustomMissionsPanel.tsx", "utf8");
+  const adminSalesPage = fs.readFileSync("app/admin/wedding-challenges/page.tsx", "utf8");
+  const settings = fs.readFileSync("app/api/wedding-challenges/settings/route.ts", "utf8");
+  const guests = fs.readFileSync("app/api/wedding-challenges/guests/route.ts", "utf8");
+
+  assert.match(header, /ניהול Wedding Challenges/);
+  assert.match(header, /canOpenWeddingChallenges/);
+  assert.match(header, /hidden items-center gap-3 md:flex/);
+  assert.match(layout, /canOpenWeddingChallenges=\{canOpenWeddingChallenges\}/);
+  assert.match(dashboard, /ניהול Wedding Challenges/);
+  assert.match(dashboard, /\/dashboard\/wedding-challenges\?eventId=/);
+  assert.match(roster, /מוצגים רק אורחים שאישרו הגעה/);
+  assert.match(roster, /ייבוא CSV \/ Excel/);
+  assert.match(roster, /sourceType === "STANDALONE_GAME"/);
+  assert.match(missions, /\+ הוספת משימה משלכם/);
+  assert.match(missions, /משימת בוס 🔥/);
+  assert.doesNotMatch(missions, /Boss Mission/);
+  assert.doesNotMatch(missions, />Boss</);
+  assert.match(adminSalesPage, /חבילה עצמאית/);
+  assert.match(adminSalesPage, /שדרוג לאירוע קיים/);
+  assert.match(adminSalesPage, /sourceType === "STANDALONE_GAME"/);
+  assert.match(adminSalesPage, /sourceType === "EXISTING_EVENT"/);
+  assert.match(settings, /linkEntitlementToEvent/);
+  assert.match(guests, /EXISTING_EVENT_GUESTS_READONLY/);
 });
 
 test("package guest limit is 800 and does not silently allow overflow", () => {

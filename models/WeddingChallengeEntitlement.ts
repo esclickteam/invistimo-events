@@ -32,6 +32,14 @@ const WeddingChallengeEntitlementSchema = new Schema(
     giveawayPurchased: { type: Boolean, default: false },
     giveawayFee: { type: Number, default: 99 },
     prizeCost: { type: Number, default: 0, min: 0 },
+    prizeProvider: { type: String, enum: ["BUYME", "NONE"], default: "NONE" },
+    prizeValue: { type: Number, default: 0, min: 0 },
+    prizeCurrency: { type: String, default: "ILS" },
+    prizeFulfillmentStatus: {
+      type: String,
+      enum: ["PENDING", "READY", "SENT", "FAILED"],
+      default: "PENDING",
+    },
     paymentMethod: { type: String, default: "", trim: true },
     paymentStatus: {
       type: String,

@@ -7,6 +7,7 @@ import User from "@/models/User";
 import {
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
+  BUYME_PRIZE_MIN_ILS,
 } from "@/lib/weddingChallenges/constants";
 import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 import {
@@ -53,9 +54,21 @@ export async function POST(req: Request) {
   const alreadyEntitled = userHasWeddingChallengesEntitlement(user as any);
   const alreadyGiveaway = userHasWeddingChallengesGiveawayEntitlement(user as any);
 
+  const prizeValue = Math.max(0, Number(body.prizeValue || body.prizeCost || 0));
   const sourceType =
     body.sourceType === "EXISTING_EVENT" ? "EXISTING_EVENT" : "STANDALONE_GAME";
   const eventId = String(body.eventId || "").trim() || null;
+
+  if (includeGiveaway && !alreadyGiveaway && prizeValue < BUYME_PRIZE_MIN_ILS) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "PRIZE_VALUE_REQUIRED",
+        message: "בחרו קודם את שווי שובר BUYME",
+      },
+      { status: 400 }
+    );
+  }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   if (!alreadyEntitled) {
@@ -78,11 +91,24 @@ export async function POST(req: Request) {
         currency: "ils",
         unit_amount: WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS * 100,
         product_data: {
-          name: "Wedding Challenges Giveaway Add-on",
-          description: "תוספת הגרלה. עלות הפרס נגבית בנפרד.",
+          name: "תוספת הגרלה",
+          description: "הגרלה לאורחים. שובר BUYME נגבה בנפרד לפי הסכום שנבחר.",
         },
       },
     });
+    if (prizeValue > 0) {
+      lineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: "ils",
+          unit_amount: prizeValue * 100,
+          product_data: {
+            name: `שובר BUYME ${prizeValue} ₪`,
+            description: "שווי השובר. השליחה לאורח הזוכה מתבצעת ידנית עד לחיבור ה-API.",
+          },
+        },
+      });
+    }
   }
 
   if (!lineItems.length) {
@@ -98,6 +124,7 @@ export async function POST(req: Request) {
       sourceType,
       includeGiveaway: includeGiveaway || alreadyGiveaway,
       pricePaid: amount,
+      prizeCost: prizeValue,
       paymentMethod: "stripe",
       paymentStatus: "pending",
       status: "PENDING",
@@ -121,6 +148,7 @@ export async function POST(req: Request) {
       eventId: eventId || "",
       sourceType,
       includeGiveaway: includeGiveaway || alreadyGiveaway ? "true" : "false",
+      prizeValue: String(prizeValue || 0),
       entitlementId,
     },
     line_items: lineItems,
