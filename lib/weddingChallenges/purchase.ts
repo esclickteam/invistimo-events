@@ -6,6 +6,7 @@ import {
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "./constants";
 import type { WeddingChallengesSourceType } from "./types";
+import { userHasInviteOrProductionPackage } from "./entitlement";
 
 export async function applyWeddingChallengesPurchase(params: {
   userId: string;
@@ -70,19 +71,31 @@ export async function applyWeddingChallengesPurchase(params: {
   );
 
   if (paid) {
-    await User.findByIdAndUpdate(params.userId, {
-      $set: {
-        includeWeddingChallenges: true,
-        includeWeddingChallengesGiveaway: includeGiveaway,
-        "accessModules.weddingChallenges": true,
-        "salesUpsells.weddingChallenges.enabled": true,
-        "salesUpsells.weddingChallenges.price": WEDDING_CHALLENGES_PRICE_ILS,
-        "salesUpsells.weddingChallengesGiveaway.enabled": includeGiveaway,
-        "salesUpsells.weddingChallengesGiveaway.price": WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
-        "planLimits.weddingChallengesEnabled": true,
-        hasDashboardAccess: true,
-      },
-    });
+    const user = await User.findById(params.userId).select(
+      "hasPaid includeDigitalSeating includeEventManagement selfManageEnabled accessModules planLimits features weddingChallengesOnly"
+    );
+    const standalone = (params.sourceType || "STANDALONE_GAME") !== "EXISTING_EVENT";
+    const gameOnly =
+      standalone &&
+      !userHasInviteOrProductionPackage(user as any) &&
+      (user?.weddingChallengesOnly === true || user?.hasPaid !== true);
+    const setUser: Record<string, unknown> = {
+      includeWeddingChallenges: true,
+      includeWeddingChallengesGiveaway: includeGiveaway,
+      "accessModules.weddingChallenges": true,
+      "salesUpsells.weddingChallenges.enabled": true,
+      "salesUpsells.weddingChallenges.price": WEDDING_CHALLENGES_PRICE_ILS,
+      "salesUpsells.weddingChallengesGiveaway.enabled": includeGiveaway,
+      "salesUpsells.weddingChallengesGiveaway.price": WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+      "planLimits.weddingChallengesEnabled": true,
+      hasDashboardAccess: true,
+      weddingChallengesOnly: gameOnly,
+    };
+    if (gameOnly) {
+      setUser["accessModules.rsvpSeating"] = false;
+      setUser.includeDigitalSeating = false;
+    }
+    await User.findByIdAndUpdate(params.userId, { $set: setUser });
   }
 
   return entitlement;

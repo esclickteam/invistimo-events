@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   userHasWeddingChallengesEntitlement,
   userHasWeddingChallengesGiveawayEntitlement,
+  userIsWeddingChallengesOnly,
 } from "@/lib/weddingChallenges/entitlement";
 import {
   CATEGORY_SHORT_LABELS,
@@ -89,6 +90,7 @@ function WeddingChallengesAdmin() {
   const eventId = searchParams.get("eventId") || "";
 
   const entitled = userHasWeddingChallengesEntitlement(user as any);
+  const gameOnly = userIsWeddingChallengesOnly(user as any);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [serverEntitled, setServerEntitled] = useState<boolean | null>(null);
   const [settings, setSettings] = useState<WeddingChallengeSettings>(
@@ -157,6 +159,16 @@ function WeddingChallengesAdmin() {
       })
       .catch(() => setMessage("לא הצלחנו לטעון אירועים"));
   }, [eventId, serverEntitled]);
+
+  useEffect(() => {
+    if (eventId) return;
+    const allowed =
+      (serverEntitled ?? entitled) || user?.role === "admin" || Boolean((user as any)?.impersonatedBy);
+    if (!allowed) return;
+    if (games.length === 1) {
+      router.replace(`/dashboard/wedding-challenges?eventId=${games[0].eventId}`);
+    }
+  }, [eventId, games, serverEntitled, entitled, user, router]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -289,12 +301,14 @@ function WeddingChallengesAdmin() {
             </p>
           )}
           <p className="mt-2 text-sm text-[#7B6754]">
-            מוצר עצמאי ב-{WEDDING_CHALLENGES_PRICE_ILS} ₪. לא צריך RSVP, הזמנה דיגיטלית, אתר חתונה או הושבה.
+            {gameOnly
+              ? "התחברו כמו כולם. כאן מוסיפים את רשימת האורחים עם שם וטלפון, ואז מגדירים את המשחק. בלי הזמנה דיגיטלית ובלי אישורי הגעה."
+              : `מוצר עצמאי ב-${WEDDING_CHALLENGES_PRICE_ILS} ₪. לא צריך RSVP, הזמנה דיגיטלית, אתר חתונה או הושבה.`}
           </p>
         </div>
 
         <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-          <h2 className="text-lg font-black">יצירת אירוע למשחק בלבד</h2>
+          <h2 className="text-lg font-black">{gameOnly ? "פתיחת המשחק" : "יצירת אירוע למשחק בלבד"}</h2>
           <p className="text-sm text-[#7B6754]">
             STANDALONE_GAME — מעלים רשימת אורחים שמגיעים, וכל אורח מקבל לינק אישי ל-/live.
           </p>
@@ -365,7 +379,7 @@ function WeddingChallengesAdmin() {
           </section>
         )}
 
-        {attachable.length > 0 && (
+        {attachable.length > 0 && !gameOnly && (
           <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-white p-5">
             <h2 className="text-lg font-black">חיבור לאירוע Invistimo קיים</h2>
             <p className="text-sm text-[#7B6754]">
@@ -411,9 +425,13 @@ function WeddingChallengesAdmin() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
-          <h1 className="text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
+          <h1 className="text-3xl font-black text-[#3A2A1C]">
+            {gameOnly || sourceType === "STANDALONE_GAME" ? "רשימת אורחים והמשחק" : "Wedding Challenges"}
+          </h1>
           <p className="mt-1 text-sm text-[#7B6754]">
-            כרטיס גירוד דיגיטלי שמרימים את הרחבה. עד 5 משימות לכל אורח.
+            {gameOnly || sourceType === "STANDALONE_GAME"
+              ? "קודם מוסיפים את האורחים עם שם וטלפון, כמו בדשבורד הרגיל. אחר כך מגדירים את המשחק."
+              : "כרטיס גירוד דיגיטלי שמרימים את הרחבה. עד 5 משימות לכל אורח."}
           </p>
           <p className="mt-2 text-xs font-black tracking-wide text-[#A86F2B]">
             {sourceLabel(sourceType)} · {sourceCopy(sourceType)}
@@ -451,6 +469,8 @@ function WeddingChallengesAdmin() {
         </div>
       )}
 
+      <GuestRoster eventId={eventId} sourceType={sourceType} />
+
       <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
         <h2 className="text-lg font-black">פרטי האירוע</h2>
         <label className="text-sm font-bold text-[#7B6754]">
@@ -471,8 +491,6 @@ function WeddingChallengesAdmin() {
           />
         </label>
       </section>
-
-      <GuestRoster eventId={eventId} sourceType={sourceType} />
 
       <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
         <h2 className="text-lg font-black">הגדרות משחק</h2>
@@ -850,13 +868,15 @@ function WeddingChallengesAdmin() {
         >
           תצוגת אורח
         </button>
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="rounded-full px-4 py-3 text-sm font-bold text-[#7B6754]"
-        >
-          חזרה לדשבורד
-        </button>
+        {!gameOnly ? (
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="rounded-full px-4 py-3 text-sm font-bold text-[#7B6754]"
+          >
+            חזרה לדשבורד
+          </button>
+        ) : null}
         {message ? <span className="text-sm font-bold text-[#A86F2B]">{message}</span> : null}
       </div>
     </div>

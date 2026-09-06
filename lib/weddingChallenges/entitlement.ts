@@ -5,9 +5,16 @@ import {
 
 export type WeddingChallengesEntitlementUser = {
   role?: string | null;
+  hasPaid?: boolean | null;
+  weddingChallengesOnly?: boolean | null;
   includeWeddingChallenges?: boolean | null;
+  includeDigitalSeating?: boolean | null;
+  includeEventManagement?: boolean | null;
+  selfManageEnabled?: boolean | null;
   accessModules?: {
     weddingChallenges?: boolean | null;
+    rsvpSeating?: boolean | null;
+    eventProduction?: boolean | null;
   } | null;
   salesUpsells?: {
     weddingChallenges?: {
@@ -21,6 +28,10 @@ export type WeddingChallengesEntitlementUser = {
   } | null;
   planLimits?: {
     weddingChallengesEnabled?: boolean | null;
+    seatingEnabled?: boolean | null;
+  } | null;
+  features?: {
+    weddingWebsite?: boolean | null;
   } | null;
 };
 
@@ -45,6 +56,31 @@ export function userHasWeddingChallengesGiveawayEntitlement(
     user?.salesUpsells?.weddingChallengesGiveaway?.enabled === true ||
     (user as { includeWeddingChallengesGiveaway?: boolean })?.includeWeddingChallengesGiveaway === true
   );
+}
+
+export function userHasInviteOrProductionPackage(
+  user: WeddingChallengesEntitlementUser | null | undefined
+): boolean {
+  if (!user) return false;
+  if (user.weddingChallengesOnly === true) return false;
+  return (
+    user.includeDigitalSeating === true ||
+    user.includeEventManagement === true ||
+    user.selfManageEnabled === true ||
+    user.accessModules?.eventProduction === true ||
+    user.planLimits?.seatingEnabled === true ||
+    user.features?.weddingWebsite === true
+  );
+}
+
+export function userIsWeddingChallengesOnly(
+  user: WeddingChallengesEntitlementUser | null | undefined
+): boolean {
+  if (!userHasWeddingChallengesEntitlement(user)) return false;
+  if (user?.weddingChallengesOnly === true) return true;
+  if (userHasInviteOrProductionPackage(user)) return false;
+  if (user?.hasPaid === true && user.weddingChallengesOnly !== true) return false;
+  return true;
 }
 
 export function weddingChallengesAddonPrice(user?: WeddingChallengesEntitlementUser | null) {

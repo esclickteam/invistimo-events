@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
-import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import { userHasWeddingChallengesEntitlement, userIsWeddingChallengesOnly } from "@/lib/weddingChallenges/entitlement";
 
 import DashboardHeader from "./DashboardHeader";
 import DashboardMobileMenu from "./DashboardMobileMenu";
@@ -76,6 +76,8 @@ function DashboardLayoutInner({
     user?.includeTransportationManagement === true;
 
   const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user as any);
+  const gameOnly = userIsWeddingChallengesOnly(user as any);
+  const dashboardHome = gameOnly ? "/dashboard/wedding-challenges" : "/dashboard";
 
   /*
     ✅ תומך גם בנתיב החדש:
@@ -185,18 +187,34 @@ function DashboardLayoutInner({
   }, [isDemo, resolvedInvitationId, eventIdFromUrl]);
 
   useEffect(() => {
-    if (isDemo || !invitationLoaded || invitation) return;
+    if (isDemo || !invitationLoaded) return;
     if (pathname !== "/dashboard") return;
-    if (!canOpenWeddingChallenges) return;
-    router.replace("/dashboard/wedding-challenges");
+    if (gameOnly) {
+      router.replace("/dashboard/wedding-challenges");
+    }
   }, [
     isDemo,
     invitationLoaded,
-    invitation,
     pathname,
-    canOpenWeddingChallenges,
+    gameOnly,
     router,
   ]);
+
+  useEffect(() => {
+    if (isDemo || !gameOnly) return;
+    const inviteOnlyRoutes = [
+      "/dashboard/create-invite",
+      "/dashboard/edit-invite",
+      "/dashboard/seating",
+      "/dashboard/messages",
+      "/dashboard/guest-messages",
+      "/dashboard/wedding-website",
+      "/dashboard/invitations",
+    ];
+    if (inviteOnlyRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+      router.replace("/dashboard/wedding-challenges");
+    }
+  }, [isDemo, gameOnly, pathname, router]);
 
   /* ============================================================
      Render
@@ -208,6 +226,8 @@ function DashboardLayoutInner({
         onOpenMenu={() => setMenuOpen(true)}
         invitation={invitation}
         isDemo={isDemo}
+        homeHref={dashboardHome}
+        gameOnly={gameOnly}
       />
 
       {/* ========================= Mobile Menu ========================= */}
@@ -227,6 +247,7 @@ function DashboardLayoutInner({
         canOpenEventManagement={canOpenEventManagement}
         canOpenTransportationManagement={canOpenTransportationManagement}
         canOpenWeddingChallenges={canOpenWeddingChallenges}
+        gameOnly={gameOnly}
         isDemo={isDemo}
       />
 
