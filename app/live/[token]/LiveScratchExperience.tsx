@@ -375,17 +375,11 @@ export default function LiveScratchExperience({ token }: { token: string }) {
       }
       if (action === "complete") {
         setData((current) =>
-          current
+            current
             ? {
                 ...current,
                 screen: "completed",
                 completedCount: current.completedCount + 1,
-                giveaway: {
-                  visible: true,
-                  title: "הפתעה 🎁",
-                  body: "כל משימה שהשלמתם מכניסה אתכם להגרלה",
-                  entriesLine: `צברתם ${current.completedCount + 1} כניסות להגרלה 🎁`,
-                },
               }
             : current
         );

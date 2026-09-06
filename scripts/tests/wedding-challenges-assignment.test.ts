@@ -752,3 +752,34 @@ test("package guest limit is 800 and does not silently allow overflow", () => {
   assert.equal(weddingChallengesGuestLimitPayload().message, WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE);
 });
 
+test("Wedding Challenges giveaway is taken down for now", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const {
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
+    userHasWeddingChallengesGiveawayEntitlement,
+  } = {
+    ...require("../../lib/weddingChallenges/constants"),
+    ...require("../../lib/weddingChallenges/entitlement"),
+  } as typeof import("../../lib/weddingChallenges/constants") &
+    typeof import("../../lib/weddingChallenges/entitlement");
+  const page = fs.readFileSync("app/dashboard/wedding-challenges/page.tsx", "utf8");
+  const card = fs.readFileSync("components/wedding-challenges/PurchaseCard.tsx", "utf8");
+  const live = fs.readFileSync("app/live/[token]/LiveScratchExperience.tsx", "utf8");
+  const checkout = fs.readFileSync("app/api/wedding-challenges/checkout/route.ts", "utf8");
+  const jobs = fs.readFileSync("lib/weddingChallenges/jobs.ts", "utf8");
+
+  assert.equal(WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE, false);
+  assert.equal(
+    userHasWeddingChallengesGiveawayEntitlement({
+      accessModules: { weddingChallenges: true },
+      salesUpsells: { weddingChallengesGiveaway: { enabled: true } },
+    }),
+    false
+  );
+  assert.match(page, /WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE \? \(/);
+  assert.match(card, /WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE \? \(/);
+  assert.doesNotMatch(live, /כניסות להגרלה \$\{/);
+  assert.match(checkout, /WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && body.includeGiveaway/);
+  assert.match(jobs, /WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE/);
+});
+

@@ -1,6 +1,7 @@
 import dbConnect from "@/lib/db";
 import WeddingChallengeConfig from "@/models/WeddingChallengeConfig";
 import { sendWeddingChallengesOpeningSms } from "./sendOpeningSms";
+import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "./constants";
 import { drawWeddingChallengesGiveaway } from "./draw";
 import { normalizeWeddingChallengeSettings } from "./settings";
 import {
@@ -22,18 +23,20 @@ export async function processWeddingChallengesJobs(now = new Date()) {
     eventIds: smsDue.map((row) => String(row.eventId)),
   });
 
-  const drawDue = await WeddingChallengeConfig.find({
-    "settings.giveaway.enabled": true,
-    "settings.giveaway.drawMode": "AUTO_DRAW_AT_TIME",
-    "settings.giveaway.drawAt": { $lte: now },
-    $or: [
-      { "settings.giveaway.drawnAt": null },
-      { "settings.giveaway.drawnAt": { $exists: false } },
-    ],
-    "settings.giveaway.locked": { $ne: true },
-  })
-    .select("eventId settings")
-    .lean();
+  const drawDue = WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE
+    ? await WeddingChallengeConfig.find({
+        "settings.giveaway.enabled": true,
+        "settings.giveaway.drawMode": "AUTO_DRAW_AT_TIME",
+        "settings.giveaway.drawAt": { $lte: now },
+        $or: [
+          { "settings.giveaway.drawnAt": null },
+          { "settings.giveaway.drawnAt": { $exists: false } },
+        ],
+        "settings.giveaway.locked": { $ne: true },
+      })
+        .select("eventId settings")
+        .lean()
+    : [];
 
   const sms = { processed: 0, sent: 0, failed: 0 };
   for (const row of smsDue) {

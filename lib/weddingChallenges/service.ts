@@ -9,7 +9,7 @@ import WeddingChallengeConfig, {
 } from "@/models/WeddingChallengeConfig";
 import WeddingChallengeGuest from "@/models/WeddingChallengeGuest";
 import { assignWeddingChallengeMission, tableRecentWindowMs } from "./assignment";
-import { CATEGORY_LABELS, MAX_MISSIONS_PER_GUEST } from "./constants";
+import { CATEGORY_LABELS, MAX_MISSIONS_PER_GUEST, WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "./constants";
 import {
   incrementCustomAssignment,
   loadCustomMissionDefinitions,
@@ -298,11 +298,13 @@ function liveScreen(params: {
   }
   if (window === "not_started") return "not_started";
   if (window === "ended") {
-    if (params.settings.giveaway.winnerName) return "winner";
+    if (WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && params.settings.giveaway.winnerName) return "winner";
     return "ended";
   }
-  if (params.winnerName && params.settings.giveaway.drawnAt) return "winner";
-  if (params.giveawayJustRevealed) return "giveaway_revealed";
+  if (WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && params.winnerName && params.settings.giveaway.drawnAt) {
+    return "winner";
+  }
+  if (WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && params.giveawayJustRevealed) return "giveaway_revealed";
   if (params.completedCount >= params.maxMissions) return "max_reached";
   if (!params.hasActive && params.completedCount > 0) return "no_more";
   if (params.hasActive && params.revealed) return "mission_revealed";
@@ -323,7 +325,8 @@ export async function buildLivePayload(params: {
   sourceType?: string;
 }) {
   const entitled = userHasWeddingChallengesEntitlement(params.owner);
-  const giveawayEntitled = userHasWeddingChallengesGiveawayEntitlement(params.owner);
+  const giveawayEntitled =
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && userHasWeddingChallengesGiveawayEntitlement(params.owner);
   const settings = params.settings;
   const maxMissions = Math.min(
     MAX_MISSIONS_PER_GUEST,

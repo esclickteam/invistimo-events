@@ -38,6 +38,7 @@ import {
   Loader2,
   KeyRound,
 } from "lucide-react";
+import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 
 /* =========================
    TYPES
@@ -2639,7 +2640,10 @@ function EditUserModal({
               Invistimo Live · Wedding Challenges
             </h3>
             <p className="mt-1 text-sm font-bold text-[#7B6754]">
-              Wedding Challenges ב־299 ₪ לאירוע, עד 800 רשומות. הגרלה אופציונלית ב־99 ₪ + עלות הפרס נגבית בנפרד.{" "}
+              Wedding Challenges ב־299 ₪ לאירוע, עד 800 רשומות.
+              {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE
+                ? " הגרלה אופציונלית ב־99 ₪ + עלות הפרס נגבית בנפרד. "
+                : " "}
               <a href="/admin/wedding-challenges" className="underline">
                 מכירה עצמאית בלי פרטי אירוע
               </a>
@@ -2657,6 +2661,7 @@ function EditUserModal({
                 className="h-4 w-4 accent-[#9b7a3c]"
               />
             </label>
+            {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
             <label className="inline-flex cursor-pointer items-center justify-between gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
               <span className="text-sm font-black text-[#3A2A1C]">
                 Giveaway Add-on · 99 ₪
@@ -2670,6 +2675,7 @@ function EditUserModal({
                 className="h-4 w-4 accent-[#9b7a3c]"
               />
             </label>
+            ) : null}
           </div>
         </section>
 

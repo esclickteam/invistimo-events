@@ -1,6 +1,7 @@
 import User from "@/models/User";
 import WeddingChallengeEntitlement from "@/models/WeddingChallengeEntitlement";
 import {
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_MAX_GUESTS,
   WEDDING_CHALLENGES_PRICE_ILS,
@@ -27,7 +28,8 @@ export async function applyWeddingChallengesPurchase(params: {
   basePrice?: number;
   giveawayPrice?: number;
 }) {
-  const includeGiveaway = params.includeGiveaway === true;
+  const includeGiveaway =
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && params.includeGiveaway === true;
   const status = params.status || "ACTIVE";
   const paid = status === "ACTIVE" || params.paymentStatus === "paid";
   const basePrice =

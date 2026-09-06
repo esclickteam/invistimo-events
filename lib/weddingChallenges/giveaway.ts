@@ -1,5 +1,6 @@
 import { entriesForMission, shouldRevealGiveaway } from "./settings";
 import type { WeddingChallengeSettings } from "./types";
+import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "./constants";
 
 export type GiveawayEntryRow = {
   guestId: string;
@@ -49,7 +50,7 @@ export function giveawayPublicCopy(params: {
   entries: number;
   revealed: boolean;
 }) {
-  if (!params.settings.giveaway.enabled) {
+  if (!WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE || !params.settings.giveaway.enabled) {
     return { visible: false, title: "", body: "", entriesLine: "" };
   }
 
