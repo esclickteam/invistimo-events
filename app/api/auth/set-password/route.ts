@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import SalesDocument from "@/models/SalesDocument";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -506,7 +507,7 @@ export async function POST(req: Request) {
         role,
         email: user.email,
         hasPaid,
-        includeWeddingChallenges: Boolean(accessModules?.weddingChallenges),
+        includeWeddingChallenges: userHasWeddingChallengesEntitlement(user),
         allowedMessageRounds,
         accessModules,
       },
