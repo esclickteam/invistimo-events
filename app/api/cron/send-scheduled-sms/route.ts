@@ -8,10 +8,17 @@ import { processWeddingChallengesJobs } from "@/lib/weddingChallenges/jobs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
+function cronAuthorized(request: Request) {
+  const secret = String(process.env.CRON_SECRET || "").trim();
+  const authHeader = String(request.headers.get("authorization") || "").trim();
+  const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+  if (isVercelCron) return true;
+  if (!secret) return false;
+  return authHeader === `Bearer ${secret}`;
+}
 
-  if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+export async function GET(request: Request) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json(
       { success: false, error: "UNAUTHORIZED" },
       {

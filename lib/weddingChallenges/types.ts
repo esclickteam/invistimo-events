@@ -43,6 +43,7 @@ export type SmsScheduleStatus =
   | "scheduled"
   | "sending"
   | "sent"
+  | "failed"
   | "cancelled";
 
 export type CustomMissionTargetingType =
@@ -120,6 +121,8 @@ export type WeddingChallengeSettings = {
     sentAt: string | null;
     sentCount: number;
     cancelledAt: string | null;
+    lastError: string | null;
+    lastAttemptAt: string | null;
   };
 };
 

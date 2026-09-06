@@ -15,7 +15,7 @@
     "test:guest-rsvp-shared": "npx tsx --test scripts/tests/guest-rsvp-shared.test.ts",
     "test:ww-visual-editor": "npx tsx --test scripts/tests/ww-visual-editor.test.ts",
     "test:ww-editor-ux": "npx tsx --test scripts/tests/ww-editor-ux.test.ts",
-    "test:wedding-challenges": "npx tsx --test scripts/tests/wedding-challenges-assignment.test.ts",
+    "test:wedding-challenges": "npx tsx --test scripts/tests/wedding-challenges-assignment.test.ts scripts/tests/wedding-challenges-sms.test.ts",
     "weddingWebsite:palette": "npx tsx scripts/weddingWebsite/generate-template-palette.ts",
     "test:guest-link-open": "npx tsx --test scripts/tests/guest-link-open.test.ts",
     "test:guest-link-open-db": "npx tsx --test --test-force-exit scripts/tests/guest-link-open-db.test.ts",

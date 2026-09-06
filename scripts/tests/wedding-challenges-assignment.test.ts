@@ -461,6 +461,20 @@ test("opening SMS is blocked after send unless explicitly forced", () => {
   assert.equal(openingSmsAlreadySent(sent, true), false);
   const idle = settings();
   assert.equal(openingSmsAlreadySent(idle), false);
+  const falseSent = settings({
+    sms: {
+      template: "full",
+      timezone: "Asia/Jerusalem",
+      scheduledAt: null,
+      status: "sent",
+      sentAt: "2026-09-06T17:00:00.000Z",
+      sentCount: 0,
+      cancelledAt: null,
+    },
+  });
+  assert.equal(openingSmsAlreadySent(falseSent), false);
+  assert.equal(falseSent.sms.status, "failed");
+  assert.equal(falseSent.sms.sentAt, null);
 });
 
 test("giveaway entries close at cutoff, draw time, or lock", () => {

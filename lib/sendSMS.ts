@@ -1,4 +1,4 @@
-function normalizeSmsPhone(value: string) {
+export function normalizeSmsPhone(value: string) {
   let phone = String(value || "").replace(/\D/g, "");
 
   if (!phone) return "";
@@ -14,6 +14,11 @@ function normalizeSmsPhone(value: string) {
   }
 
   return phone;
+}
+
+export function isSendableSmsPhone(value: string) {
+  const recipient = normalizeSmsPhone(value);
+  return Boolean(recipient && recipient.length >= 11);
 }
 
 export async function sendSMS({

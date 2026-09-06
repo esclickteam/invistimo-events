@@ -13,10 +13,13 @@ type SmsPublic = {
   sentAt: string | null;
   sentAtLabel: string;
   sentCount: number;
+  lastError: string | null;
   alreadySent: boolean;
+  failed?: boolean;
   canEdit: boolean;
   canCancel: boolean;
   canSendNow: boolean;
+  canRetry?: boolean;
 };
 
 const STATUS_COPY: Record<SmsScheduleStatus, string> = {
@@ -24,8 +27,21 @@ const STATUS_COPY: Record<SmsScheduleStatus, string> = {
   scheduled: "מתוזמן",
   sending: "נשלח כעת",
   sent: "נשלח",
+  failed: "שליחת ה-SMS נכשלה",
   cancelled: "בוטל",
 };
+
+function errorText(json: {
+  error?: string;
+  code?: string;
+  details?: { lastError?: string | null } | null;
+}) {
+  return (
+    json?.details?.lastError ||
+    json?.error ||
+    (json?.code ? `שגיאה: ${json.code}` : "פעולת SMS נכשלה")
+  );
+}
 
 export default function SmsSchedulePanel({
   eventId,
@@ -67,23 +83,24 @@ export default function SmsSchedulePanel({
   const post = async (action: string, extra: Record<string, unknown> = {}) => {
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        eventId,
+        action,
+        timezone: timezone || DEFAULT_EVENT_TIMEZONE,
+        ...extra,
+      };
+      if (action === "schedule" || action === "update") {
+        payload.scheduledAt = wall;
+      }
       const res = await fetch("/api/wedding-challenges/sms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId,
-          action,
-          timezone: timezone || DEFAULT_EVENT_TIMEZONE,
-          scheduledAt: wall,
-          ...extra,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json.error === "ALREADY_SENT") onMessage("ה-SMS כבר נשלח. לא ניתן לשלוח שוב.");
-        else if (json.error === "SCHEDULE_IN_PAST") onMessage("יש לבחור זמן עתידי, או לשלוח עכשיו במפורש.");
-        else if (json.error === "ACTION_REQUIRED") onMessage("יש לבחור תזמון או שליחה עכשיו.");
-        else onMessage("פעולת SMS נכשלה");
+        onMessage(errorText(json));
+        await load();
         return;
       }
       if (action === "send_now") {
@@ -91,7 +108,7 @@ export default function SmsSchedulePanel({
       } else if (action === "cancel") {
         onMessage("התזמון בוטל. לא נשלח SMS.");
       } else {
-        onMessage("השליחה תוזמנה");
+        onMessage("השליחה תוזמנה. ה-SMS יישלח אוטומטית בזמן שנבחר.");
       }
       await load();
     } finally {
@@ -100,6 +117,7 @@ export default function SmsSchedulePanel({
   };
 
   const sent = Boolean(sms?.alreadySent || sms?.status === "sent");
+  const failed = Boolean(sms?.failed || sms?.status === "failed");
   const tz = timezone || DEFAULT_EVENT_TIMEZONE;
 
   return (
@@ -107,7 +125,8 @@ export default function SmsSchedulePanel({
       <h2 className="text-lg font-black">SMS פתיחה אחד</h2>
       <p className="text-sm text-[#7B6754]">
         אין SMS לכל משימה. האורחים מקבלים לינק אישי אחד לכרטיס הגירוד.
-        השליחה לא יוצאת מיד — רק אחרי תזמון או לחיצה מפורשת על &quot;שלח עכשיו&quot;.
+        &quot;תזמון שליחה&quot; רק שומר את הזמן. &quot;שלח עכשיו&quot; שולח מיד.
+        כשהזמן מגיע, השרת שולח לבד בלי דפדפן פתוח.
       </p>
       <label className="text-sm font-bold text-[#7B6754]">
         תבנית
@@ -141,8 +160,29 @@ export default function SmsSchedulePanel({
         ) : (
           <p className="mt-1 text-[#7B6754]">אין שליחה מתוזמנת.</p>
         )}
-        {sms?.sentAtLabel ? <p className="mt-1 font-bold text-[#A86F2B]">נשלח ב: {sms.sentAtLabel} ({sms.sentCount} הודעות)</p> : null}
+        {sms?.sentAtLabel ? (
+          <p className="mt-1 font-bold text-[#A86F2B]">
+            נשלח ב: {sms.sentAtLabel} ({sms.sentCount} הודעות)
+          </p>
+        ) : null}
       </div>
+      {failed ? (
+        <div className="rounded-2xl border border-[#E8B4B4] bg-[#FFF5F5] px-4 py-3 text-sm">
+          <p className="font-black text-[#8B2E2E]">שליחת ה-SMS נכשלה</p>
+          <p className="mt-1 text-[#8B2E2E]">{sms?.lastError || "לא התקבלה סיבת כשל מהשרת."}</p>
+          <button
+            type="button"
+            disabled={disabled || saving || sent}
+            onClick={() => {
+              if (!window.confirm("לנסות לשלוח שוב עכשיו לכל האורחים הזכאים?")) return;
+              post("send_now", { force: true });
+            }}
+            className="mt-3 rounded-full bg-[#8B2E2E] px-5 py-2 text-sm font-black text-white disabled:opacity-50"
+          >
+            נסה שוב
+          </button>
+        </div>
+      ) : null}
       <pre className="whitespace-pre-wrap rounded-2xl bg-white p-4 text-sm text-[#3A2A1C]">{preview}</pre>
       <div className="flex flex-wrap gap-3">
         <button

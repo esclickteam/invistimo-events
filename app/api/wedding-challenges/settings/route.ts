@@ -152,6 +152,8 @@ export async function PUT(req: Request) {
     sentAt: context.settings.sms.sentAt,
     sentCount: context.settings.sms.sentCount,
     cancelledAt: context.settings.sms.cancelledAt,
+    lastError: context.settings.sms.lastError,
+    lastAttemptAt: context.settings.sms.lastAttemptAt,
   };
 
   if (context.settings.giveaway.locked || context.settings.giveaway.drawnAt) {
