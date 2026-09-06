@@ -285,6 +285,10 @@ test("customer-facing Wedding Challenges card is a 299 ILS checkout product with
   assert.match(entitlement, /STANDALONE_GAME/);
   assert.match(entitlement, /EXISTING_EVENT/);
   assert.match(adminSales, /NAME_PHONE_REQUIRED/);
+  assert.match(adminSales, /EMAIL_REQUIRED/);
+  assert.match(adminSales, /sendPasswordSetupMail/);
+  assert.match(adminSales, /export async function PATCH/);
+  assert.match(adminSales, /basePrice/);
   assert.doesNotMatch(adminSales, /COUPLE_NAMES_REQUIRED/);
   assert.match(adminPage, /includeWeddingChallenges/);
   assert.match(adminPage, /Giveaway Add-on/);
@@ -300,6 +304,24 @@ test("admin users page exposes Wedding Challenges as a 299 ILS product", () => {
   assert.match(page, /includeWeddingChallenges/);
   assert.match(page, /Giveaway Add-on/);
   assert.match(page, /299/);
+});
+
+test("admin Wedding Challenges sale creates a user, lets price be edited, and opens user management", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const page = fs.readFileSync("app/admin/wedding-challenges/page.tsx", "utf8");
+  const sales = fs.readFileSync("app/api/admin/wedding-challenges/sales/route.ts", "utf8");
+  const users = fs.readFileSync("app/admin/users/page.tsx", "utf8");
+  assert.match(page, /יצירת משתמש ומכירה/);
+  assert.match(page, /מחיר Wedding Challenges/);
+  assert.match(page, /כניסה לניהול/);
+  assert.match(page, /\/api\/admin\/impersonate/);
+  assert.match(page, /\/admin\/users\?q=/);
+  assert.match(page, /לינק סיסמה/);
+  assert.match(sales, /EMAIL_REQUIRED/);
+  assert.match(sales, /needsPasswordSetup: true/);
+  assert.match(sales, /sendPasswordSetupMail/);
+  assert.match(sales, /action === "password_setup"/);
+  assert.match(users, /get\("q"\)/);
 });
 
 test("giveaway winner is weighted by entries", () => {
