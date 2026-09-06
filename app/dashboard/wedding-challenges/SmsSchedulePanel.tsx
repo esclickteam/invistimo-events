@@ -122,7 +122,7 @@ export default function SmsSchedulePanel({
 
   return (
     <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
-      <h2 className="text-lg font-black">SMS פתיחה אחד</h2>
+      <h2 className="text-lg font-black">הודעת הפתיחה</h2>
       <p className="text-sm text-[#7B6754]">
         אין SMS לכל משימה. האורחים מקבלים לינק אישי אחד לכרטיס הגירוד.
         &quot;תזמון שליחה&quot; רק שומר את הזמן. &quot;שלח עכשיו&quot; שולח מיד.

@@ -25,6 +25,7 @@ export type AssignmentStatus =
   | "expired";
 
 export type GuestLiveScreen =
+  | "unconfigured"
   | "not_started"
   | "ended"
   | "intro"
@@ -100,6 +101,10 @@ export type WeddingChallengeSettings = {
     enabled: boolean;
     prizeText: string;
     prizeCost: number;
+    prizeProvider: "BUYME" | "NONE";
+    prizeValue: number;
+    prizeCurrency: "ILS";
+    prizeFulfillmentStatus: "PENDING" | "READY" | "SENT" | "FAILED";
     revealMode: GiveawayRevealMode;
     bossEntries: 2 | 3;
     maxEntriesPerGuest: number | null;

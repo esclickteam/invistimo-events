@@ -27,7 +27,7 @@ export function defaultWeddingChallengeSettings(
   overrides?: Partial<WeddingChallengeSettings>
 ): WeddingChallengeSettings {
   return {
-    enabled: false,
+    enabled: true,
     startAt: null,
     endAt: null,
     maxMissionsPerGuest: DEFAULT_MAX_MISSIONS_PER_GUEST,
@@ -43,6 +43,10 @@ export function defaultWeddingChallengeSettings(
       enabled: false,
       prizeText: "",
       prizeCost: 0,
+      prizeProvider: "NONE",
+      prizeValue: 0,
+      prizeCurrency: "ILS",
+      prizeFulfillmentStatus: "PENDING",
       revealMode: "after_first",
       bossEntries: 2,
       maxEntriesPerGuest: null,
@@ -132,7 +136,7 @@ export function normalizeWeddingChallengeSettings(
           : "idle";
 
   return {
-    enabled: asBoolean(raw?.enabled, false),
+    enabled: asBoolean(raw?.enabled, true),
     startAt: asDateString(raw?.startAt),
     endAt: asDateString(raw?.endAt),
     maxMissionsPerGuest: maxMissions,
@@ -165,6 +169,15 @@ export function normalizeWeddingChallengeSettings(
       enabled: asBoolean(raw?.giveaway?.enabled, false),
       prizeText: String(raw?.giveaway?.prizeText || "").trim(),
       prizeCost: asNumber(raw?.giveaway?.prizeCost, 0, 0),
+      prizeProvider: raw?.giveaway?.prizeProvider === "BUYME" ? "BUYME" : "NONE",
+      prizeValue: asNumber(raw?.giveaway?.prizeValue ?? raw?.giveaway?.prizeCost, 0, 0),
+      prizeCurrency: "ILS",
+      prizeFulfillmentStatus:
+        raw?.giveaway?.prizeFulfillmentStatus === "READY" ||
+        raw?.giveaway?.prizeFulfillmentStatus === "SENT" ||
+        raw?.giveaway?.prizeFulfillmentStatus === "FAILED"
+          ? raw.giveaway.prizeFulfillmentStatus
+          : "PENDING",
       revealMode,
       bossEntries: raw?.giveaway?.bossEntries === 3 ? 3 : 2,
       maxEntriesPerGuest:
@@ -197,21 +210,7 @@ export function normalizeWeddingChallengeSettings(
   };
 }
 
-export function gameWindowState(
-  settings: WeddingChallengeSettings,
-  now = new Date()
-): "not_started" | "active" | "ended" {
-  const nowMs = now.getTime();
-  if (settings.startAt) {
-    const start = new Date(settings.startAt).getTime();
-    if (Number.isFinite(start) && nowMs < start) return "not_started";
-  }
-  if (settings.endAt) {
-    const end = new Date(settings.endAt).getTime();
-    if (Number.isFinite(end) && nowMs > end) return "ended";
-  }
-  return "active";
-}
+export { gameWindowState } from "./gameWindow";
 
 export function shouldRevealGiveaway(params: {
   settings: WeddingChallengeSettings;

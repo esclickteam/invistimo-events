@@ -22,9 +22,11 @@ export default function GuestRoster({
   sourceType: WeddingChallengesSourceType;
 }) {
   const [guests, setGuests] = useState<GuestRow[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [missingTableCount, setMissingTableCount] = useState(0);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(sourceType === "STANDALONE_GAME");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [tableNumber, setTableNumber] = useState("");
@@ -38,6 +40,7 @@ export default function GuestRoster({
     const json = await res.json();
     if (json?.guests) setGuests(json.guests);
     setMissingTableCount(Number(json?.missingTableCount || 0));
+    setTotalRecords(Number(json?.totalRecords || json?.count || json?.guests?.length || 0));
   };
 
   useEffect(() => {
@@ -132,24 +135,48 @@ export default function GuestRoster({
   };
 
   return (
-    <section className="mb-6 space-y-4 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
+    <section className="space-y-4 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black">רשימת אורחים</h2>
+          <h2 className="text-lg font-black">רשימת משתתפים</h2>
           <p className="mt-1 text-sm text-[#7B6754]">
             {sourceType === "EXISTING_EVENT"
-              ? "נכללים רק אורחים שאישרו הגעה. אורחים שסימנו שלא מגיעים לא נכנסים למשחק."
+              ? "מוצגים רק אורחים שאישרו הגעה. אין צורך להעלות את הרשימה שוב."
               : "כמו בדשבורד הרגיל: מוסיפים שם וטלפון. אין הזמנה דיגיטלית ואין אישורי הגעה — כל אורח ברשימה מקבל לינק אישי למשחק."}{" "}
-            החבילה כוללת עד {WEDDING_CHALLENGES_MAX_GUESTS} רשומות.
+            עד {WEDDING_CHALLENGES_MAX_GUESTS} רשומות.
           </p>
+          {sourceType === "EXISTING_EVENT" ? (
+            <p className="mt-2 text-2xl font-black text-[#3A2A1C]">
+              {guests.length} משתתפים
+              <span className="mr-2 text-sm font-bold text-[#7B6754]">
+                מתוך {totalRecords || guests.length} רשומות באירוע
+              </span>
+            </p>
+          ) : (
+            <p className="mt-2 text-2xl font-black text-[#3A2A1C]">
+              {guests.length} / {WEDDING_CHALLENGES_MAX_GUESTS} משתתפים
+            </p>
+          )}
         </div>
-        <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-[#7B6754]">
-          {guests.length} / {WEDDING_CHALLENGES_MAX_GUESTS} אורחים
-        </span>
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white"
+        >
+          {sourceType === "EXISTING_EVENT"
+            ? open
+              ? "סגירה"
+              : "צפייה במשתתפים"
+            : open
+              ? "סגירה"
+              : "ניהול"}
+        </button>
       </div>
 
+      {!open ? null : (
+        <>
       <p className="rounded-2xl bg-[#FFF3DF] px-4 py-3 text-sm font-bold text-[#A86F2B]">
-        מספר שולחן אופציונלי אבל מומלץ מאוד — כך השולחן לא מקבל את אותה משימה באותו זמן.
+        מספר שולחן אופציונלי אבל מומלץ — כך השולחן לא מקבל את אותה משימה באותו זמן.
         {missingTableCount > 0 ? ` ${missingTableCount} אורחים בלי שולחן.` : ""}
       </p>
 
@@ -284,6 +311,8 @@ export default function GuestRoster({
         </table>
       </div>
       {message ? <p className="text-sm font-bold text-[#A86F2B]">{message}</p> : null}
+        </>
+      )}
     </section>
   );
 }

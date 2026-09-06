@@ -428,16 +428,22 @@ test("existing-event audience is RSVP yes only; standalone treats uploaded guest
 test("dashboard and APIs expose EXISTING_EVENT and STANDALONE_GAME standalone flow", () => {
   const fs = require("node:fs") as typeof import("node:fs");
   const page = fs.readFileSync("app/dashboard/wedding-challenges/page.tsx", "utf8");
+  const giveaway = fs.readFileSync("app/dashboard/wedding-challenges/GiveawayCard.tsx", "utf8");
   const sms = fs.readFileSync("app/api/wedding-challenges/sms/route.ts", "utf8");
   const events = fs.readFileSync("app/api/wedding-challenges/events/route.ts", "utf8");
   const guests = fs.readFileSync("app/api/wedding-challenges/guests/route.ts", "utf8");
   assert.match(page, /STANDALONE_GAME/);
   assert.match(page, /EXISTING_EVENT/);
-  assert.match(page, /יצירת אירוע למשחק בלבד/);
+  assert.match(page, /יצירת אירוע למשחק/);
+  assert.match(page, /מחובר לאירוע Invistimo/);
+  assert.match(page, /משחק עצמאי/);
   assert.match(page, /CustomMissionsPanel/);
   assert.match(page, /SmsSchedulePanel/);
-  assert.match(page, /AUTO_DRAW_AT_TIME/);
-  assert.match(page, /MANUAL_DRAW/);
+  assert.doesNotMatch(page, /Enable Wedding Challenges/);
+  assert.doesNotMatch(page, /Enable Giveaway/);
+  assert.match(giveaway, /AUTO_DRAW_AT_TIME/);
+  assert.match(giveaway, /MANUAL_DRAW/);
+  assert.match(giveaway, /הוספה ותשלום/);
   assert.match(guests, /parseGuestListText/);
   assert.match(guests, /XLSX/);
   assert.match(events, /createStandaloneWeddingChallengesEvent/);
@@ -677,7 +683,7 @@ test("game-only customers get a guest-list dashboard without invite or RSVP", ()
   assert.match(layout, /userIsWeddingChallengesOnly/);
   assert.match(layout, /\/dashboard\/create-invite/);
   assert.match(auth, /\/dashboard\/wedding-challenges/);
-  assert.match(page, /רשימת אורחים והמשחק/);
+  assert.match(page, /ברוכים הבאים ל-Wedding Challenges/);
   assert.match(roster, /כמו בדשבורד הרגיל: מוסיפים שם וטלפון/);
   assert.match(setPassword, /weddingChallenges/);
   assert.match(setPassword, /\/dashboard\/wedding-challenges/);

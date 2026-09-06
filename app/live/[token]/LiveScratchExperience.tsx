@@ -500,6 +500,10 @@ export default function LiveScratchExperience({ token }: { token: string }) {
           <p className="mt-1 text-xs text-[#8b7358]">{data.coupleNames}</p>
         </header>
 
+        {data.screen === "unconfigured" && (
+          <ScreenCard title="המשחק עדיין לא הוגדר" subtitle="כרטיס הגירוד ייפתח אחרי שהמארגנים ישלימו את שעות המשחק" />
+        )}
+
         {data.screen === "not_started" && (
           <ScreenCard title="המשחק עוד לא התחיל" subtitle="כרטיס הגירוד ייפתח כשהאירוע יתחיל" />
         )}

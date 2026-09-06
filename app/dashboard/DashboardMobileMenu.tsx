@@ -222,10 +222,10 @@ export default function DashboardMobileMenu({
       },
     },
     {
-      title: gameOnly ? "רשימת אורחים והמשחק" : "Wedding Challenges",
+      title: gameOnly ? "Wedding Challenges" : "ניהול Wedding Challenges",
       subtitle: gameOnly
-        ? "הוספת שמות וטלפונים ואז הגדרות המשחק"
-        : "כרטיס גירוד דיגיטלי שמרימים את הרחבה",
+        ? "פרטי האירוע, משתתפים, משימות והודעת פתיחה"
+        : "המשחק של האירוע הזה",
       icon: WandSparkles,
       badge: canOpenWeddingChallenges ? "Live" : "299 ₪",
       hidden: false,

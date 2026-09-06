@@ -101,13 +101,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
   }
 
-  const guests = await InvitationGuest.find({
-    invitationId: context.invitation._id,
-    ...attendingGuestMongoFilter(context.sourceType),
-  })
-    .select("name phone token tableId tableNumber tableName isAdult rsvp")
-    .sort({ createdAt: 1 })
-    .lean();
+  const [guests, totalRecords] = await Promise.all([
+    InvitationGuest.find({
+      invitationId: context.invitation._id,
+      ...attendingGuestMongoFilter(context.sourceType),
+    })
+      .select("name phone token tableId tableNumber tableName isAdult rsvp")
+      .sort({ createdAt: 1 })
+      .lean(),
+    InvitationGuest.countDocuments({ invitationId: context.invitation._id }),
+  ]);
 
   const missingTableCount = guests.filter((guest) => !guest.tableId && !guest.tableNumber).length;
   const origin = requestOrigin(req);
@@ -118,6 +121,8 @@ export async function GET(req: Request) {
     sourceType: context.sourceType,
     guests: guests.map((guest) => serializeGuest(guest, origin)),
     count: guests.length,
+    totalRecords,
+    eligibleCount: guests.length,
     missingTableCount,
     tableRecommended: true,
   });

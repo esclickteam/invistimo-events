@@ -2,6 +2,9 @@ export const WEDDING_CHALLENGES_PRICE_ILS = 299;
 export const WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS = 99;
 export const WEDDING_CHALLENGES_MAX_GUESTS = 800;
 export const WEDDING_CHALLENGES_GUEST_LIMIT_MESSAGE = "החבילה כוללת עד 800 רשומות";
+export const BUYME_PRIZE_VALUES_ILS = [100, 200, 300, 500] as const;
+export const BUYME_PRIZE_MIN_ILS = 50;
+export const BUYME_PRIZE_MAX_ILS = 2000;
 
 export const MAX_MISSIONS_PER_GUEST = 5;
 export const DEFAULT_MAX_MISSIONS_PER_GUEST = 5;
@@ -29,7 +32,7 @@ export const CATEGORY_LABELS = {
   table: "משימת שולחן",
   chaos: "משימת כאוס",
   cheeky: "קצת חוצפה",
-  boss: "Boss Mission",
+  boss: "משימת בוס 🔥",
 } as const;
 
 export const CATEGORY_SHORT_LABELS = {
@@ -38,7 +41,7 @@ export const CATEGORY_SHORT_LABELS = {
   table: "שולחן",
   chaos: "כאוס",
   cheeky: "קצת חוצפה",
-  boss: "Boss",
+  boss: "משימת בוס 🔥",
 } as const;
 
 export const LIVE_PATH_PREFIX = "/live";

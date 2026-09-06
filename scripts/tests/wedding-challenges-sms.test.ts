@@ -131,6 +131,53 @@ test("EXISTING_EVENT recipients are RSVP yes; STANDALONE_GAME allows uploaded gu
   assert.deepEqual(attendingGuestMongoFilter("STANDALONE_GAME"), { rsvp: { $ne: "no" } });
 });
 
+test("guest live page does not treat a missing game window as ended", () => {
+  const { gameWindowState, isEventDatePast, gameWindowReason } = require("../../lib/weddingChallenges/gameWindow") as typeof import("../../lib/weddingChallenges/gameWindow");
+  const now = new Date("2026-09-06T17:20:00.000Z");
+  assert.equal(gameWindowState({ startAt: null, endAt: null }, now), "unconfigured");
+  assert.equal(
+    gameWindowState(
+      { startAt: "2026-09-06T17:25:00.000Z", endAt: "2026-09-06T20:00:00.000Z" },
+      now
+    ),
+    "not_started"
+  );
+  assert.equal(
+    gameWindowState(
+      { startAt: "2026-09-06T17:00:00.000Z", endAt: "2026-09-06T20:00:00.000Z" },
+      now
+    ),
+    "active"
+  );
+  assert.equal(
+    gameWindowState(
+      { startAt: "2026-09-06T10:00:00.000Z", endAt: "2026-09-06T17:00:00.000Z" },
+      now
+    ),
+    "ended"
+  );
+  assert.equal(
+    gameWindowState({ startAt: "2026-09-06T10:00:00.000Z", endAt: null }, now),
+    "active"
+  );
+  assert.equal(
+    gameWindowReason({ startAt: null, endAt: null, enabled: false }, true, now),
+    "NOT_ENABLED"
+  );
+  assert.equal(isEventDatePast("2026-05-25", now), true);
+  assert.equal(isEventDatePast("2026-09-06", now), false);
+
+  const fs = require("node:fs") as typeof import("node:fs");
+  const live = fs.readFileSync("app/live/[token]/LiveScratchExperience.tsx", "utf8");
+  const service = fs.readFileSync("lib/weddingChallenges/service.ts", "utf8");
+  const activate = fs.readFileSync("lib/weddingChallenges/standaloneEvent.ts", "utf8");
+  assert.match(live, /המשחק עדיין לא הוגדר/);
+  assert.match(service, /unconfigured/);
+  assert.doesNotMatch(service, /if \(!params\.entitled \|\| !params\.enabled\) return "ended"/);
+  assert.match(activate, /EVENT_DATE_PAST/);
+  assert.match(activate, /config\.settings\.enabled = true/);
+});
+
 test("schedule is separate from send_now; cron send does not use admin session", () => {
   const sms = fs.readFileSync("app/api/wedding-challenges/sms/route.ts", "utf8");
   const send = fs.readFileSync("lib/weddingChallenges/sendOpeningSms.ts", "utf8");
