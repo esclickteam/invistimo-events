@@ -9,6 +9,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { clearClientReadableAuthCookies } from "@/lib/auth/clearAuthCookies";
+import { userIsWeddingChallengesOnly } from "@/lib/weddingChallenges/entitlement";
 
 /* =====================================================
    TYPES
@@ -86,6 +87,8 @@ interface User {
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;
   includeWeddingChallenges?: boolean;
+  weddingChallengesOnly?: boolean;
+  hasPaid?: boolean;
   selfManageEnabled?: boolean;
   salesUpsells?: {
     weddingChallenges?: { enabled?: boolean; price?: number };
@@ -286,6 +289,11 @@ export function getUserRedirectPath(nextUser: User) {
   // USER / CLIENT — רק הפקת אירוע
   if (eventProduction === true && rsvpSeating === false) {
     return "/events/production";
+  }
+
+  // USER / CLIENT — רק Wedding Challenges, בלי הזמנה ואישורי הגעה
+  if (userIsWeddingChallengesOnly(nextUser as any)) {
+    return "/dashboard/wedding-challenges";
   }
 
   // USER / CLIENT — רגיל / שניהם

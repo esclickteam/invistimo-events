@@ -1109,6 +1109,7 @@ export async function GET() {
           includeTransportationManagement:
             accessModules.transportationManagement === true,
           includeWeddingChallenges: accessModules.weddingChallenges === true,
+          weddingChallengesOnly: currentUser.weddingChallengesOnly === true,
           selfManageEnabled: accessModules.eventProduction,
 
           plan: currentUser.plan ?? "basic",

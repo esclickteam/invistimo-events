@@ -591,6 +591,63 @@ test("live scratch card keeps foil until most of the gold is cleared", () => {
   assert.doesNotMatch(src, />☰</);
 });
 
+test("game-only customers get a guest-list dashboard without invite or RSVP", () => {
+  const {
+    userIsWeddingChallengesOnly,
+    userHasInviteOrProductionPackage,
+  } = require("../../lib/weddingChallenges/entitlement") as typeof import("../../lib/weddingChallenges/entitlement");
+
+  assert.equal(
+    userIsWeddingChallengesOnly({
+      includeWeddingChallenges: true,
+      weddingChallengesOnly: true,
+      hasPaid: true,
+    }),
+    true
+  );
+  assert.equal(
+    userIsWeddingChallengesOnly({
+      includeWeddingChallenges: true,
+      hasPaid: false,
+    }),
+    true
+  );
+  assert.equal(
+    userIsWeddingChallengesOnly({
+      includeWeddingChallenges: true,
+      hasPaid: true,
+      includeDigitalSeating: true,
+    }),
+    false
+  );
+  assert.equal(
+    userHasInviteOrProductionPackage({
+      includeWeddingChallenges: true,
+      includeEventManagement: true,
+    }),
+    true
+  );
+
+  const fs = require("node:fs") as typeof import("node:fs");
+  const menu = fs.readFileSync("app/dashboard/DashboardMobileMenu.tsx", "utf8");
+  const layout = fs.readFileSync("app/dashboard/layout.tsx", "utf8");
+  const auth = fs.readFileSync("context/AuthContext.tsx", "utf8");
+  const page = fs.readFileSync("app/dashboard/wedding-challenges/page.tsx", "utf8");
+  const roster = fs.readFileSync("app/dashboard/wedding-challenges/GuestRoster.tsx", "utf8");
+  const setPassword = fs.readFileSync("app/api/auth/set-password/route.ts", "utf8");
+  const purchase = fs.readFileSync("lib/weddingChallenges/purchase.ts", "utf8");
+  assert.match(menu, /gameOnly/);
+  assert.match(menu, /hidden: gameOnly/);
+  assert.match(layout, /userIsWeddingChallengesOnly/);
+  assert.match(layout, /\/dashboard\/create-invite/);
+  assert.match(auth, /\/dashboard\/wedding-challenges/);
+  assert.match(page, /רשימת אורחים והמשחק/);
+  assert.match(roster, /כמו בדשבורד הרגיל: מוסיפים שם וטלפון/);
+  assert.match(setPassword, /weddingChallenges/);
+  assert.match(setPassword, /\/dashboard\/wedding-challenges/);
+  assert.match(purchase, /weddingChallengesOnly/);
+});
+
 test("package guest limit is 800 and does not silently allow overflow", () => {
   const {
     wouldExceedWeddingChallengesGuestLimit,

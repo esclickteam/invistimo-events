@@ -241,6 +241,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   includeCustomDesign: boolean;
   includeTransportationManagement: boolean;
   includeWeddingChallenges: boolean;
+  weddingChallengesOnly?: boolean;
 
   /**
    * סוג אתר לאורחים.
@@ -1105,6 +1106,12 @@ preRsvpMessages: {
     },
 
     includeWeddingChallenges: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    weddingChallengesOnly: {
       type: Boolean,
       default: false,
       index: true,

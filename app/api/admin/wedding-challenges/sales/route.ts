@@ -74,6 +74,14 @@ export async function POST(req: NextRequest) {
       role: "user",
       isActive: paymentStatus === "paid",
       hasPaid: paymentStatus === "paid",
+      hasDashboardAccess: paymentStatus === "paid",
+      includeDigitalSeating: false,
+      weddingChallengesOnly: sourceType !== "EXISTING_EVENT",
+      accessModules: {
+        rsvpSeating: sourceType === "EXISTING_EVENT",
+        weddingChallenges: paymentStatus === "paid",
+        eventProduction: false,
+      },
     });
   }
 

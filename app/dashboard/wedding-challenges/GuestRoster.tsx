@@ -135,11 +135,11 @@ export default function GuestRoster({
     <section className="mb-6 space-y-4 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black">רשימת אורחים למשחק</h2>
+          <h2 className="text-lg font-black">רשימת אורחים</h2>
           <p className="mt-1 text-sm text-[#7B6754]">
             {sourceType === "EXISTING_EVENT"
               ? "נכללים רק אורחים שאישרו הגעה. אורחים שסימנו שלא מגיעים לא נכנסים למשחק."
-              : "אורחים שהועלו נחשבים מגיעים כברירת מחדל. לא נדרשת הזמנה דיגיטלית או RSVP."}{" "}
+              : "כמו בדשבורד הרגיל: מוסיפים שם וטלפון. אין הזמנה דיגיטלית ואין אישורי הגעה — כל אורח ברשימה מקבל לינק אישי למשחק."}{" "}
             החבילה כוללת עד {WEDDING_CHALLENGES_MAX_GUESTS} רשומות.
           </p>
         </div>
@@ -157,20 +157,20 @@ export default function GuestRoster({
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="שם פרטי"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-2"
+          placeholder="שם מלא"
+          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
         />
         <input
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
           placeholder="טלפון"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-2"
+          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
         />
         <input
           value={tableNumber}
           onChange={(event) => setTableNumber(event.target.value)}
-          placeholder="מספר שולחן"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-2"
+          placeholder="שולחן (לא חובה)"
+          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
         />
         <label className="flex items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold">
           <input
@@ -187,7 +187,7 @@ export default function GuestRoster({
         onClick={addManual}
         className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
       >
-        הוספה ידנית
+        הוספת אורח
       </button>
 
       <label className="block text-sm font-bold text-[#7B6754]">

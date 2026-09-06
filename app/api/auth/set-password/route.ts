@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import SalesDocument from "@/models/SalesDocument";
-import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import { userHasWeddingChallengesEntitlement, userIsWeddingChallengesOnly } from "@/lib/weddingChallenges/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,12 +85,19 @@ function normalizeAccessModules(user: any) {
     Boolean(user?.includeEventManagement) ||
     Boolean(user?.selfManageEnabled);
 
+  const isGameOnly = userIsWeddingChallengesOnly(user);
+
   return {
-    rsvpSeating: Boolean(
-      user?.accessModules?.rsvpSeating ?? includeDigitalSeating
-    ),
+    rsvpSeating: isGameOnly
+      ? false
+      : Boolean(user?.accessModules?.rsvpSeating ?? includeDigitalSeating),
     eventProduction: Boolean(
       user?.accessModules?.eventProduction ?? includeEventManagement
+    ),
+    weddingChallenges: Boolean(
+      user?.accessModules?.weddingChallenges ||
+        user?.includeWeddingChallenges ||
+        user?.weddingChallengesOnly
     ),
     venueDashboard: Boolean(user?.accessModules?.venueDashboard),
   };
@@ -256,8 +263,12 @@ export async function POST(req: Request) {
 
     includeDigitalSeating
     includeEventManagement
+    includeWeddingChallenges
+    weddingChallengesOnly
     selfManageEnabled
     accessModules
+    salesUpsells
+    planLimits
   `
 );
 
@@ -587,6 +598,8 @@ export async function POST(req: Request) {
         accessModules.rsvpSeating === false
       ) {
         redirectTo = "/events/production";
+      } else if (userIsWeddingChallengesOnly({ ...user, accessModules })) {
+        redirectTo = "/dashboard/wedding-challenges";
       } else {
         redirectTo = "/dashboard";
       }

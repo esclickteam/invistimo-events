@@ -16,6 +16,8 @@ type DashboardHeaderProps = {
     title?: string;
   } | null;
   isDemo?: boolean;
+  homeHref?: string;
+  gameOnly?: boolean;
 };
 
 /* ============================================================
@@ -25,13 +27,15 @@ export default function DashboardHeader({
   onOpenMenu,
   invitation,
   isDemo = false,
+  homeHref = "/dashboard",
+  gameOnly = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
   const { user, logout } = useAuth();
   const role = user?.role;
-  const canOpenGuestMessages = hasGuestMessagesFeature(user);
+  const canOpenGuestMessages = hasGuestMessagesFeature(user) && !gameOnly;
   const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
 
   useEffect(() => {
@@ -119,7 +123,9 @@ export default function DashboardHeader({
 
   const eventTitle = isDemo
     ? "מצב דמו – לצפייה בלבד"
-    : invitation?.title || "ניהול אירוע";
+    : gameOnly
+      ? "ניהול המשחק"
+      : invitation?.title || "ניהול אירוע";
 
   return (
     <header
@@ -174,7 +180,7 @@ export default function DashboardHeader({
 
             <div className="hidden items-center gap-3 md:flex">
               <button
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push(homeHref)}
                 className="
                   inline-flex items-center gap-2
                   whitespace-nowrap
@@ -240,7 +246,7 @@ export default function DashboardHeader({
           ========================= */}
           <div className="flex justify-center" dir="ltr">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push(homeHref)}
               aria-label="מעבר לדשבורד הראשי"
               className="
                 flex items-center justify-center

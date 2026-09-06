@@ -32,6 +32,7 @@ type Props = {
   canOpenEventManagement?: boolean;
   canOpenTransportationManagement?: boolean;
   canOpenWeddingChallenges?: boolean;
+  gameOnly?: boolean;
   isDemo?: boolean;
 };
 
@@ -46,6 +47,7 @@ export default function DashboardMobileMenu({
   canOpenEventManagement = false,
   canOpenTransportationManagement = false,
   canOpenWeddingChallenges = false,
+  gameOnly = false,
   isDemo = false,
 }: Props) {
   const router = useRouter();
@@ -112,6 +114,7 @@ export default function DashboardMobileMenu({
         : "בניית הזמנה דיגיטלית חדשה",
       icon: hasInvitation ? PencilLine : Plus,
       badge: hasInvitation ? "הזמנה" : "חדש",
+      hidden: gameOnly,
       onClick: () => {
         if (isDemo) {
           demoBlock();
@@ -131,7 +134,7 @@ export default function DashboardMobileMenu({
       subtitle: "תבנית, תוכן וצפייה באתר האישי",
       icon: Sparkles,
       badge: "אתר",
-      hidden: !canOpenWeddingWebsite,
+      hidden: gameOnly || !canOpenWeddingWebsite,
       onClick: () => {
         if (isDemo) {
           demoBlock();
@@ -145,7 +148,7 @@ export default function DashboardMobileMenu({
       subtitle: "ברכות והודעות שנשלחו מהאתר",
       icon: MessageCircle,
       badge: "הודעות",
-      hidden: !canOpenGuestMessages,
+      hidden: gameOnly || !canOpenGuestMessages,
       onClick: () => {
         if (isDemo) {
           demoBlock();
@@ -159,6 +162,7 @@ export default function DashboardMobileMenu({
       subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
       icon: Settings2,
       badge: "אירוע",
+      hidden: gameOnly,
       onClick: () => {
         if (isDemo) {
           demoBlock();
@@ -179,7 +183,7 @@ export default function DashboardMobileMenu({
       subtitle: "פתיחת ההזמנה כפי שהאורחים רואים אותה",
       icon: Eye,
       badge: "Preview",
-      hidden: !invitationShareId,
+      hidden: gameOnly || !invitationShareId,
       onClick: openInvitationPreview,
     },
     {
@@ -187,6 +191,7 @@ export default function DashboardMobileMenu({
       subtitle: "שולחנות, קבוצות, Live והושבה חכמה",
       icon: Armchair,
       badge: "Seating",
+      hidden: gameOnly,
       onClick: () =>
         isDemo ? go("/try/dashboard/seating") : go("/dashboard/seating"),
     },
@@ -195,7 +200,7 @@ export default function DashboardMobileMenu({
       subtitle: "תמונת מצב, ספקים, לוגיסטיקה, לו״ז ומתנות",
       icon: ClipboardList,
       badge: "ניהול",
-      hidden: !canOpenEventManagement,
+      hidden: gameOnly || !canOpenEventManagement,
       onClick: openEventManagement,
     },
     {
@@ -203,7 +208,7 @@ export default function DashboardMobileMenu({
       subtitle: "קווים, תחנות, נוסעים וניהול ביום האירוע",
       icon: Bus,
       badge: "הסעות",
-      hidden: !canOpenTransportationManagement,
+      hidden: gameOnly || !canOpenTransportationManagement,
       onClick: () => {
         if (isDemo) {
           demoBlock();
@@ -217,8 +222,10 @@ export default function DashboardMobileMenu({
       },
     },
     {
-      title: "Wedding Challenges",
-      subtitle: "כרטיס גירוד דיגיטלי שמרימים את הרחבה",
+      title: gameOnly ? "רשימת אורחים והמשחק" : "Wedding Challenges",
+      subtitle: gameOnly
+        ? "הוספת שמות וטלפונים ואז הגדרות המשחק"
+        : "כרטיס גירוד דיגיטלי שמרימים את הרחבה",
       icon: WandSparkles,
       badge: canOpenWeddingChallenges ? "Live" : "299 ₪",
       hidden: false,
@@ -239,6 +246,7 @@ export default function DashboardMobileMenu({
       subtitle: "WhatsApp, SMS, תזכורות והודעות לאורחים",
       icon: MessageCircle,
       badge: "Messages",
+      hidden: gameOnly,
       onClick: () =>
         isDemo
           ? go("/try/dashboard/messages/new")
@@ -322,11 +330,13 @@ export default function DashboardMobileMenu({
                   </div>
 
                   <h2 className="mt-4 text-[27px] font-black leading-tight text-[#3F3025]">
-                    ניהול האירוע
+                    {gameOnly ? "ניהול המשחק" : "ניהול האירוע"}
                   </h2>
 
                   <p className="mt-2 max-w-[250px] text-[13px] font-medium leading-6 text-[#7B6756]">
-                    כל הפעולות החשובות לניהול ההזמנה, ההושבה וההודעות במקום אחד.
+                    {gameOnly
+                      ? "רשימת אורחים עם שם וטלפון, ואז הגדרות המשחק."
+                      : "כל הפעולות החשובות לניהול ההזמנה, ההושבה וההודעות במקום אחד."}
                   </p>
                 </div>
               </div>
