@@ -79,7 +79,7 @@ export function userIsWeddingChallengesOnly(
   if (!userHasWeddingChallengesEntitlement(user)) return false;
   if (user?.weddingChallengesOnly === true) return true;
   if (userHasInviteOrProductionPackage(user)) return false;
-  if (user?.hasPaid === true && user.weddingChallengesOnly !== true) return false;
+  if (user?.hasPaid === true) return false;
   return true;
 }
 
