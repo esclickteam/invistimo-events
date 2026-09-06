@@ -1223,6 +1223,14 @@ export default function AdminUsersPage() {
   const [eventFilter, setEventFilter] = useState("future");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) {
+      setSearch(q);
+      setEventFilter("all");
+    }
+  }, []);
+
   async function loadUsers(showLoader = true) {
     try {
       if (showLoader) setLoading(true);
@@ -1415,6 +1423,8 @@ export default function AdminUsersPage() {
           !q ||
           normalizeText(u.name).includes(q) ||
           normalizeText(u.email).includes(q) ||
+          normalizeText(u.phone).includes(q) ||
+          normalizeText(u._id).includes(q) ||
           normalizeText(getPlanLabel(u, pricingPlans)).includes(q);
 
         const matchesRole = roleFilter === "all" || u.role === roleFilter;

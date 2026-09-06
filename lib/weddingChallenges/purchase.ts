@@ -24,13 +24,20 @@ export async function applyWeddingChallengesPurchase(params: {
   customerEmail?: string;
   stripeCheckoutSessionId?: string;
   entitlementId?: string;
+  basePrice?: number;
+  giveawayPrice?: number;
 }) {
   const includeGiveaway = params.includeGiveaway === true;
   const status = params.status || "ACTIVE";
   const paid = status === "ACTIVE" || params.paymentStatus === "paid";
+  const basePrice =
+    Number(params.basePrice) > 0 ? Number(params.basePrice) : WEDDING_CHALLENGES_PRICE_ILS;
+  const giveawayPrice =
+    Number(params.giveawayPrice) > 0
+      ? Number(params.giveawayPrice)
+      : WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS;
   const pricePaid =
-    params.pricePaid ??
-    WEDDING_CHALLENGES_PRICE_ILS + (includeGiveaway ? WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS : 0);
+    params.pricePaid ?? basePrice + (includeGiveaway ? giveawayPrice : 0);
 
   const set: Record<string, unknown> = {
     userId: params.userId,
@@ -39,7 +46,7 @@ export async function applyWeddingChallengesPurchase(params: {
     pricePaid,
     maxGuests: WEDDING_CHALLENGES_MAX_GUESTS,
     giveawayPurchased: includeGiveaway && paid,
-    giveawayFee: WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+    giveawayFee: includeGiveaway ? giveawayPrice : 0,
     prizeCost: Number(params.prizeCost || 0),
     paymentMethod: params.paymentMethod || "",
     paymentStatus: paid ? "paid" : params.paymentStatus || "pending",
@@ -84,9 +91,9 @@ export async function applyWeddingChallengesPurchase(params: {
       includeWeddingChallengesGiveaway: includeGiveaway,
       "accessModules.weddingChallenges": true,
       "salesUpsells.weddingChallenges.enabled": true,
-      "salesUpsells.weddingChallenges.price": WEDDING_CHALLENGES_PRICE_ILS,
+      "salesUpsells.weddingChallenges.price": basePrice,
       "salesUpsells.weddingChallengesGiveaway.enabled": includeGiveaway,
-      "salesUpsells.weddingChallengesGiveaway.price": WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
+      "salesUpsells.weddingChallengesGiveaway.price": giveawayPrice,
       "planLimits.weddingChallengesEnabled": true,
       hasDashboardAccess: true,
       weddingChallengesOnly: gameOnly,
