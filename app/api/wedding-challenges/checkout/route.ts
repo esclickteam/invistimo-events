@@ -7,6 +7,7 @@ import User from "@/models/User";
 import {
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
+  BUYME_PRIZE_MIN_ILS,
 } from "@/lib/weddingChallenges/constants";
 import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 import {
@@ -57,6 +58,17 @@ export async function POST(req: Request) {
   const sourceType =
     body.sourceType === "EXISTING_EVENT" ? "EXISTING_EVENT" : "STANDALONE_GAME";
   const eventId = String(body.eventId || "").trim() || null;
+
+  if (includeGiveaway && !alreadyGiveaway && prizeValue < BUYME_PRIZE_MIN_ILS) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "PRIZE_VALUE_REQUIRED",
+        message: "בחרו קודם את שווי שובר BUYME",
+      },
+      { status: 400 }
+    );
+  }
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   if (!alreadyEntitled) {

@@ -2,7 +2,10 @@ const BRAND = "Invistimo";
 
 export function coupleNamesFromTitle(title?: string | null) {
   const clean = String(title || "").trim();
-  return clean || "הזוג";
+  if (!clean || clean === "הזמנה חדשה" || clean === "אירוע חדש" || clean === "האירוע שלך") {
+    return "הזוג";
+  }
+  return clean;
 }
 
 export function buildWeddingChallengesSms(params: {

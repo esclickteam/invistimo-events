@@ -176,85 +176,91 @@ export default function GuestRoster({
       {!open ? null : (
         <>
       <p className="rounded-2xl bg-[#FFF3DF] px-4 py-3 text-sm font-bold text-[#A86F2B]">
-        מספר שולחן אופציונלי אבל מומלץ — כך השולחן לא מקבל את אותה משימה באותו זמן.
+        {sourceType === "EXISTING_EVENT"
+          ? "המשתתפים הם אורחים שאישרו הגעה, כולל שולחנות קיימים."
+          : "מספר שולחן אופציונלי אבל מומלץ — כך השולחן לא מקבל את אותה משימה באותו זמן."}
         {missingTableCount > 0 ? ` ${missingTableCount} אורחים בלי שולחן.` : ""}
       </p>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="שם מלא"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
-        />
-        <input
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder="טלפון"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
-        />
-        <input
-          value={tableNumber}
-          onChange={(event) => setTableNumber(event.target.value)}
-          placeholder="שולחן (לא חובה)"
-          className="rounded-xl border border-[#E7D8C6] px-3 py-3"
-        />
-        <label className="flex items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold">
-          <input
-            type="checkbox"
-            checked={isAdult}
-            onChange={(event) => setIsAdult(event.target.checked)}
-          />
-          מבוגר
-        </label>
-      </div>
-      <button
-        type="button"
-        disabled={saving || !name || !phone}
-        onClick={addManual}
-        className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
-      >
-        הוספת אורח
-      </button>
+      {sourceType === "STANDALONE_GAME" ? (
+        <>
+          <div className="grid gap-3 md:grid-cols-4">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="שם מלא"
+              className="rounded-xl border border-[#E7D8C6] px-3 py-3"
+            />
+            <input
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="טלפון"
+              className="rounded-xl border border-[#E7D8C6] px-3 py-3"
+            />
+            <input
+              value={tableNumber}
+              onChange={(event) => setTableNumber(event.target.value)}
+              placeholder="שולחן (לא חובה)"
+              className="rounded-xl border border-[#E7D8C6] px-3 py-3"
+            />
+            <label className="flex items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                checked={isAdult}
+                onChange={(event) => setIsAdult(event.target.checked)}
+              />
+              מבוגר
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={saving || !name || !phone}
+            onClick={addManual}
+            className="rounded-full bg-[#3A2A1C] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+          >
+            הוספת אורח
+          </button>
 
-      <label className="block text-sm font-bold text-[#7B6754]">
-        הדבקת רשימה (שם, טלפון, שולחן)
-        <textarea
-          value={paste}
-          onChange={(event) => setPaste(event.target.value)}
-          rows={4}
-          className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2 font-normal"
-          placeholder={"דני, 0501234567, 4\nנועה, 0527654321"}
-        />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          disabled={saving || !paste.trim()}
-          onClick={importPaste}
-          className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
-        >
-          ייבוא מהדבקה
-        </button>
-        <label className="cursor-pointer rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold">
-          ייבוא CSV / Excel
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            className="hidden"
-            onChange={(event) => {
-              importFile(event.target.files?.[0] || null);
-              event.target.value = "";
-            }}
-          />
-        </label>
-        <a
-          href="/api/wedding-challenges/guests/template"
-          className="rounded-full px-4 py-2 text-sm font-bold text-[#A86F2B]"
-        >
-          הורדת תבנית
-        </a>
-      </div>
+          <label className="block text-sm font-bold text-[#7B6754]">
+            הדבקת רשימה (שם, טלפון, שולחן)
+            <textarea
+              value={paste}
+              onChange={(event) => setPaste(event.target.value)}
+              rows={4}
+              className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2 font-normal"
+              placeholder={"דני, 0501234567, 4\nנועה, 0527654321"}
+            />
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={saving || !paste.trim()}
+              onClick={importPaste}
+              className="rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold"
+            >
+              ייבוא מהדבקה
+            </button>
+            <label className="cursor-pointer rounded-full border border-[#E7D8C6] px-4 py-2 text-sm font-bold">
+              ייבוא CSV / Excel
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                onChange={(event) => {
+                  importFile(event.target.files?.[0] || null);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <a
+              href="/api/wedding-challenges/guests/template"
+              className="rounded-full px-4 py-2 text-sm font-bold text-[#A86F2B]"
+            >
+              הורדת תבנית
+            </a>
+          </div>
+        </>
+      ) : null}
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-right text-sm">
@@ -265,7 +271,7 @@ export default function GuestRoster({
               <th className="p-2">שולחן</th>
               <th className="p-2">מבוגר</th>
               <th className="p-2">לינק</th>
-              <th className="p-2"></th>
+              {sourceType === "STANDALONE_GAME" ? <th className="p-2"></th> : null}
             </tr>
           </thead>
           <tbody>
@@ -274,28 +280,36 @@ export default function GuestRoster({
                 <td className="p-2 font-bold">{guest.name}</td>
                 <td className="p-2">{guest.phone}</td>
                 <td className="p-2">
-                  <input
-                    defaultValue={guest.tableNumber ?? ""}
-                    className="w-20 rounded-lg border border-[#E7D8C6] px-2 py-1"
-                    onBlur={(event) =>
-                      updateGuest(guest, { tableNumber: event.target.value ? Number(event.target.value) : null })
-                    }
-                  />
+                  {sourceType === "STANDALONE_GAME" ? (
+                    <input
+                      defaultValue={guest.tableNumber ?? ""}
+                      className="w-20 rounded-lg border border-[#E7D8C6] px-2 py-1"
+                      onBlur={(event) =>
+                        updateGuest(guest, { tableNumber: event.target.value ? Number(event.target.value) : null })
+                      }
+                    />
+                  ) : (
+                    guest.tableNumber ?? "—"
+                  )}
                 </td>
                 <td className="p-2">
-                  <input
-                    type="checkbox"
-                    checked={guest.isAdult}
-                    onChange={(event) => updateGuest(guest, { isAdult: event.target.checked })}
-                  />
+                  {sourceType === "STANDALONE_GAME" ? (
+                    <input
+                      type="checkbox"
+                      checked={guest.isAdult}
+                      onChange={(event) => updateGuest(guest, { isAdult: event.target.checked })}
+                    />
+                  ) : (
+                    guest.isAdult ? "כן" : "לא"
+                  )}
                 </td>
                 <td className="p-2">
                   <a href={guest.livePath} target="_blank" className="font-bold text-[#A86F2B]">
                     /live/{guest.token}
                   </a>
                 </td>
-                <td className="p-2">
-                  {sourceType === "STANDALONE_GAME" ? (
+                {sourceType === "STANDALONE_GAME" ? (
+                  <td className="p-2">
                     <button
                       type="button"
                       onClick={() => removeGuest(guest.id)}
@@ -303,8 +317,8 @@ export default function GuestRoster({
                     >
                       מחיקה
                     </button>
-                  ) : null}
-                </td>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

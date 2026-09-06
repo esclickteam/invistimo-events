@@ -29,6 +29,7 @@ import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 type EventModel = {
   title?: string;
@@ -2302,6 +2303,8 @@ const canOpenTransportationManagement =
   user?.accessModules?.transportationManagement === true ||
   user?.includeTransportationManagement === true;
 
+const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
+
   /* ============================================================
      Render
   ============================================================ */
@@ -2419,6 +2422,7 @@ const canOpenTransportationManagement =
   onExportExcel={handleExportExcel}
   canOpenEventManagement={canOpenEventManagement}
   canOpenTransportationManagement={canOpenTransportationManagement}
+  canOpenWeddingChallenges={canOpenWeddingChallenges}
   eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
 />
 
@@ -3587,6 +3591,7 @@ function GoldenActionButtons({
   onExportExcel,
   canOpenEventManagement,
   canOpenTransportationManagement,
+  canOpenWeddingChallenges,
   eventId,
 }: {
   invitation: any | null;
@@ -3598,6 +3603,7 @@ function GoldenActionButtons({
   onExportExcel: () => void;
   canOpenEventManagement: boolean;
   canOpenTransportationManagement: boolean;
+  canOpenWeddingChallenges?: boolean;
   eventId?: string;
 }) {
 
@@ -3821,6 +3827,23 @@ function GoldenActionButtons({
           }
 
           router.push(`/dashboard/transportation?eventId=${eventId}`);
+        }}
+      />
+    )}
+
+    {canOpenWeddingChallenges && (
+      <GoldenActionButton
+        label="ניהול Wedding Challenges"
+        icon="✦"
+        tone="gold"
+        disabled={!eventId}
+        onClick={() => {
+          if (!eventId) return;
+          if (isDemo) {
+            onDemoBlocked();
+            return;
+          }
+          router.push(`/dashboard/wedding-challenges?eventId=${eventId}`);
         }}
       />
     )}

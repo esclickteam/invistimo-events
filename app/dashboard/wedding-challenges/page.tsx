@@ -19,7 +19,7 @@ import {
   utcToWallTimeInput,
   wallTimeInZoneToUtc,
 } from "@/lib/weddingChallenges/timezone";
-import { adminGameStatus, gameWindowState, israelNowLabel } from "@/lib/weddingChallenges/gameWindow";
+import { gameWindowState, israelNowLabel } from "@/lib/weddingChallenges/gameWindow";
 import GuestRoster from "./GuestRoster";
 import SmsSchedulePanel from "./SmsSchedulePanel";
 import CustomMissionsPanel from "./CustomMissionsPanel";
@@ -45,11 +45,10 @@ type GameSummary = {
   eventDatePast?: boolean;
 };
 
-const STATUS_COPY = {
-  needs_setup: "נדרשת הגדרה",
-  scheduled: "הודעה מתוזמנת",
-  ready: "מוכן להפעלה ✓",
-  live: "פעיל",
+const GAME_STATE_COPY = {
+  unconfigured: "לא הוגדר",
+  not_started: "טרם התחיל",
+  active: "פעיל",
   ended: "הסתיים",
 } as const;
 
@@ -270,12 +269,7 @@ function WeddingChallengesAdmin() {
     hasAccess && !giveawayPurchased && !userHasWeddingChallengesGiveawayEntitlement(user as any);
   const now = new Date(nowTick);
   const windowState = gameWindowState(settings, now);
-  const status = adminGameStatus({
-    entitled: hasAccess,
-    settings,
-    smsStatus: settings.sms.status,
-    now,
-  });
+  const status = GAME_STATE_COPY[windowState];
   const categories = useMemo(
     () => Object.entries(CATEGORY_SHORT_LABELS) as [keyof typeof CATEGORY_SHORT_LABELS, string][],
     []
@@ -439,7 +433,7 @@ function WeddingChallengesAdmin() {
           {sourceType === "STANDALONE_GAME" ? "משחק עצמאי" : "מחובר לאירוע Invistimo"}
         </p>
         <span className="mt-3 inline-flex rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
-          {STATUS_COPY[status]}
+          {status}
         </span>
         <p className="mt-3 text-sm font-bold text-[#7B6754]">הגדרת {doneSteps} מתוך 5 שלבים</p>
       </div>
@@ -565,7 +559,7 @@ function WeddingChallengesAdmin() {
                   />
                 </label>
               </div>
-              <p className="text-xs font-bold text-[#A86F2B]">שעון ישראל · נשמר ב-UTC</p>
+              <p className="text-xs font-bold text-[#A86F2B]">שעון ישראל</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {categories.map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 text-sm font-bold">
@@ -594,10 +588,11 @@ function WeddingChallengesAdmin() {
               >
                 שמירת המשחק
               </button>
-              <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
             </>
           ) : null}
         </Card>
+
+        <CustomMissionsPanel eventId={eventId} disabled={locked} onMessage={setMessage} />
 
         <SmsSchedulePanel
           eventId={eventId}

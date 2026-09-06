@@ -164,6 +164,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
   }
 
+  if (context.sourceType === "EXISTING_EVENT") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "EXISTING_EVENT_GUESTS_READONLY",
+        message: "המשתתפים מגיעים מאישורי ההגעה של האירוע. אין צורך להעלות רשימה מחדש.",
+      },
+      { status: 409 }
+    );
+  }
+
   if (!incoming.length) {
     return NextResponse.json({ success: false, error: "NO_GUESTS" }, { status: 400 });
   }
@@ -298,6 +309,17 @@ export async function DELETE(req: Request) {
   const context = await loadEventChallengeContext(eventId);
   if (!context?.invitation) {
     return NextResponse.json({ success: false, error: "EVENT_NOT_FOUND" }, { status: 404 });
+  }
+
+  if (context.sourceType === "EXISTING_EVENT") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "EXISTING_EVENT_GUESTS_READONLY",
+        message: "לא מוחקים אורחים של אירוע Invistimo מכאן.",
+      },
+      { status: 409 }
+    );
   }
 
   const guest = await InvitationGuest.findOneAndDelete({

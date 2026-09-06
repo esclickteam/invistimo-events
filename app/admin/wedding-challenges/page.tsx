@@ -58,6 +58,8 @@ export default function AdminWeddingChallengesSalesPage() {
     price: String(WEDDING_CHALLENGES_PRICE_ILS),
     giveawayPrice: String(WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS),
     prizeCost: "0",
+    sourceType: "STANDALONE_GAME",
+    eventId: "",
   });
 
   async function load() {
@@ -196,6 +198,52 @@ export default function AdminWeddingChallengesSalesPage() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4 rounded-2xl border border-[#e8d5c4] bg-white p-5">
         <h2 className="text-lg font-black text-[#3b2419]">יצירת משתמש ומכירה</h2>
+        <fieldset className="rounded-2xl border border-[#eadfd4] bg-[#fffaf3] p-4">
+          <legend className="px-1 text-sm font-black text-[#3b2419]">סוג מכירה</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="flex items-start gap-2 rounded-xl border border-[#eadfd4] bg-white px-3 py-3 text-sm font-bold">
+              <input
+                type="radio"
+                name="wc-source"
+                checked={form.sourceType === "STANDALONE_GAME"}
+                onChange={() => setForm({ ...form, sourceType: "STANDALONE_GAME", eventId: "" })}
+              />
+              <span>
+                חבילה עצמאית
+                <span className="mt-1 block text-xs font-normal text-[#6b5344]">
+                  בלי פרטי אירוע לפני המכירה. הלקוח מגדיר את המשחק אחרי התשלום.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-xl border border-[#eadfd4] bg-white px-3 py-3 text-sm font-bold">
+              <input
+                type="radio"
+                name="wc-source"
+                checked={form.sourceType === "EXISTING_EVENT"}
+                onChange={() => setForm({ ...form, sourceType: "EXISTING_EVENT" })}
+              />
+              <span>
+                שדרוג לאירוע קיים
+                <span className="mt-1 block text-xs font-normal text-[#6b5344]">
+                  מחברים את החבילה לאירוע Invistimo קיים של הלקוח.
+                </span>
+              </span>
+            </label>
+          </div>
+          {form.sourceType === "EXISTING_EVENT" ? (
+            <div className="mt-3">
+              <label className={labelClass} htmlFor="wc-event-id">מזהה אירוע (אופציונלי אם ידוע)</label>
+              <input
+                id="wc-event-id"
+                value={form.eventId}
+                onChange={(e) => setForm({ ...form, eventId: e.target.value })}
+                className={fieldClass}
+                dir="ltr"
+                placeholder="eventId"
+              />
+            </div>
+          ) : null}
+        </fieldset>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={labelClass} htmlFor="wc-name">שם לקוח *</label>
