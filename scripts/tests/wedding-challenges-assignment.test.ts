@@ -25,6 +25,7 @@ function guest(overrides: Partial<AssignmentGuest> = {}): AssignmentGuest {
 function table(overrides: Partial<TableAssignmentSnapshot> = {}): TableAssignmentSnapshot {
   return {
     tableId: "t1",
+    tableAware: true,
     tableSize: 10,
     activeGuestCount: 4,
     eventTableCount: 12,
@@ -236,4 +237,105 @@ test("giveaway winner is weighted by entries", () => {
     if (winner?.guestId === "a") pickedA += 1;
   }
   assert.ok(pickedA > 150);
+});
+
+test("guests without a table still get a mission and skip table uniqueness", () => {
+  const first = assign({
+    guest: { guestId: "solo-1", tableId: null },
+    table: {
+      tableId: null,
+      tableAware: false,
+      tableSize: 0,
+      activeGuestCount: 0,
+      eventTableCount: 0,
+      activeMissionIds: [],
+    },
+  });
+  assert.ok(first.mission);
+
+  const second = assign({
+    guest: { guestId: "solo-2", tableId: null, completedMissionIds: [] },
+    table: {
+      tableId: null,
+      tableAware: false,
+      tableSize: 0,
+      activeGuestCount: 0,
+      eventTableCount: 0,
+      activeMissionIds: [first.mission!.id],
+    },
+  });
+  assert.ok(second.mission);
+});
+
+test("no-table assignment still prevents duplicate missions for the same guest", () => {
+  const completed = ["dancefloor-01"];
+  const result = assign({
+    guest: { tableId: null, completedMissionIds: completed },
+    table: {
+      tableId: null,
+      tableAware: false,
+      tableSize: 0,
+      eventTableCount: 0,
+      activeMissionIds: [],
+      recentMissionIds: completed,
+    },
+  });
+  assert.ok(!result.mission || result.mission.id !== "dancefloor-01");
+});
+
+test("no-table mode uses global recent missions for diversity", () => {
+  const recent = ["dancefloor-01", "shots-01", "table-01"];
+  const result = assign({
+    guest: { tableId: null },
+    table: {
+      tableId: null,
+      tableAware: false,
+      tableSize: 0,
+      eventTableCount: 0,
+      activeMissionIds: [],
+      recentMissionIds: recent,
+    },
+  });
+  assert.ok(result.mission);
+  assert.equal(recent.includes(result.mission!.id), false);
+});
+
+test("standalone guest import parses csv-like paste with optional table and adult flag", () => {
+  const { parseGuestListText } = require("../../lib/weddingChallenges/guestImport") as typeof import("../../lib/weddingChallenges/guestImport");
+  const parsed = parseGuestListText("דני, 0501234567, 4, כן\nנועה, 0527654321");
+  assert.equal(parsed.guests.length, 2);
+  assert.equal(parsed.guests[0].name, "דני");
+  assert.equal(parsed.guests[0].phone, "0501234567");
+  assert.equal(parsed.guests[0].tableNumber, 4);
+  assert.equal(parsed.guests[0].isAdult, true);
+  assert.equal(parsed.guests[1].tableNumber, null);
+});
+
+test("existing-event audience is RSVP yes only; standalone treats uploaded guests as attending", () => {
+  const {
+    attendingGuestMongoFilter,
+    guestIsEligibleForWeddingChallenges,
+  } = require("../../lib/weddingChallenges/sourceType") as typeof import("../../lib/weddingChallenges/sourceType");
+  assert.deepEqual(attendingGuestMongoFilter("EXISTING_EVENT"), { rsvp: "yes" });
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "EXISTING_EVENT", rsvp: "no" }), false);
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "EXISTING_EVENT", rsvp: "pending" }), false);
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "EXISTING_EVENT", rsvp: "yes" }), true);
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "STANDALONE_GAME", rsvp: "yes" }), true);
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "STANDALONE_GAME", rsvp: "pending" }), true);
+  assert.equal(guestIsEligibleForWeddingChallenges({ sourceType: "STANDALONE_GAME", rsvp: "no" }), false);
+});
+
+test("dashboard and APIs expose EXISTING_EVENT and STANDALONE_GAME standalone flow", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const page = fs.readFileSync("app/dashboard/wedding-challenges/page.tsx", "utf8");
+  const sms = fs.readFileSync("app/api/wedding-challenges/sms/route.ts", "utf8");
+  const events = fs.readFileSync("app/api/wedding-challenges/events/route.ts", "utf8");
+  const guests = fs.readFileSync("app/api/wedding-challenges/guests/route.ts", "utf8");
+  assert.match(page, /STANDALONE_GAME/);
+  assert.match(page, /EXISTING_EVENT/);
+  assert.match(page, /יצירת אירוע למשחק בלבד/);
+  assert.match(guests, /parseGuestListText/);
+  assert.match(guests, /XLSX/);
+  assert.match(events, /createStandaloneWeddingChallengesEvent/);
+  assert.match(sms, /attendingGuestMongoFilter/);
 });

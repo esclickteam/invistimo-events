@@ -28,7 +28,13 @@ import type {
   MissionDefinition,
   TableAssignmentSnapshot,
   WeddingChallengeSettings,
+  WeddingChallengesSourceType,
 } from "./types";
+import {
+  attendingGuestMongoFilter,
+  guestIsEligibleForWeddingChallenges,
+  inferWeddingChallengesSourceType,
+} from "./sourceType";
 
 function idOf(value: unknown) {
   if (!value) return "";
@@ -47,6 +53,7 @@ export async function getOrCreateChallengeConfig(params: {
   eventId: string;
   invitationId?: string | null;
   ownerUserId: string;
+  sourceType?: WeddingChallengesSourceType;
 }) {
   const existing = await WeddingChallengeConfig.findOne({
     eventId: params.eventId,
@@ -57,6 +64,9 @@ export async function getOrCreateChallengeConfig(params: {
     if (params.invitationId && !existing.invitationId) {
       existing.invitationId = params.invitationId;
     }
+    if (!existing.sourceType && params.sourceType) {
+      existing.sourceType = params.sourceType;
+    }
     return existing;
   }
 
@@ -64,7 +74,20 @@ export async function getOrCreateChallengeConfig(params: {
     eventId: params.eventId,
     invitationId: params.invitationId || null,
     ownerUserId: params.ownerUserId,
+    sourceType: params.sourceType || "EXISTING_EVENT",
     settings: defaultWeddingChallengeSettings(),
+  });
+}
+
+export function resolveChallengeSourceType(params: {
+  config?: { sourceType?: unknown } | null;
+  event?: { productType?: unknown } | null;
+  invitation?: { standaloneGame?: unknown } | null;
+}): WeddingChallengesSourceType {
+  return inferWeddingChallengesSourceType({
+    sourceType: params.config?.sourceType,
+    eventProductType: params.event?.productType,
+    standaloneGame: params.invitation?.standaloneGame,
   });
 }
 
@@ -78,13 +101,24 @@ export async function loadEventChallengeContext(eventId: string) {
     eventId: String(event._id),
     invitationId: invitation?._id ? String(invitation._id) : null,
     ownerUserId: String(event.userId),
+    sourceType: inferWeddingChallengesSourceType({
+      eventProductType: (event as { productType?: unknown }).productType,
+      standaloneGame: (invitation as { standaloneGame?: unknown } | null)?.standaloneGame,
+    }),
   });
+
+  const sourceType = resolveChallengeSourceType({ config, event, invitation });
+  if (config.sourceType !== sourceType) {
+    config.sourceType = sourceType;
+    await config.save();
+  }
 
   return {
     event,
     invitation,
     owner,
     config,
+    sourceType,
     settings: serializeChallengeSettings(config.settings),
     entitled: userHasWeddingChallengesEntitlement(owner),
     giveawayEntitled: userHasWeddingChallengesGiveawayEntitlement(owner),
@@ -104,6 +138,15 @@ export async function loadLiveGuestByToken(token: string) {
   const context = await loadEventChallengeContext(String(invitation.eventId));
   if (!context) return null;
 
+  if (
+    !guestIsEligibleForWeddingChallenges({
+      sourceType: context.sourceType,
+      rsvp: invitationGuest.rsvp,
+    })
+  ) {
+    return null;
+  }
+
   return { ...context, invitationGuest, invitation };
 }
 
@@ -114,34 +157,40 @@ async function tableSnapshot(params: {
   settings: WeddingChallengeSettings;
 }): Promise<TableAssignmentSnapshot> {
   const tableId = tableKey(params.tableId);
+  const tableAware = Boolean(tableId);
   const now = Date.now();
   const recentMs = tableRecentWindowMs(params.settings.tableCooldownMinutes);
+  const recentSince = new Date(now - recentMs);
+  const recentLimit = Math.max(8, params.settings.tableCooldownMissions * 4);
 
   const [tableSize, active, recent, eventTableIds] = await Promise.all([
-    tableId
+    tableAware
       ? InvitationGuest.countDocuments({
           invitationId: params.invitationId,
           tableId,
         })
-      : Promise.resolve(1),
+      : Promise.resolve(0),
+    tableAware
+      ? WeddingChallengeAssignment.find({
+          eventId: params.eventId,
+          tableId,
+          status: { $in: ["assigned", "revealed"] },
+        })
+          .select("missionId category assignedAt")
+          .lean()
+      : Promise.resolve([]),
     WeddingChallengeAssignment.find({
       eventId: params.eventId,
-      tableId,
-      status: { $in: ["assigned", "revealed"] },
-    })
-      .select("missionId category assignedAt")
-      .lean(),
-    WeddingChallengeAssignment.find({
-      eventId: params.eventId,
-      tableId,
-      assignedAt: { $gte: new Date(now - recentMs) },
+      ...(tableAware ? { tableId } : {}),
+      assignedAt: { $gte: recentSince },
     })
       .sort({ assignedAt: -1 })
-      .limit(Math.max(8, params.settings.tableCooldownMissions * 4))
+      .limit(recentLimit)
       .select("missionId category assignedAt")
       .lean(),
     InvitationGuest.distinct("tableId", {
       invitationId: params.invitationId,
+      tableId: { $nin: [null, ""] },
     }),
   ]);
 
@@ -152,12 +201,13 @@ async function tableSnapshot(params: {
 
   return {
     tableId,
-    tableSize: Number(tableSize || 1),
+    tableAware,
+    tableSize: Number(tableSize || 0),
     activeGuestCount: active.length,
     eventTableCount: Array.isArray(eventTableIds)
       ? eventTableIds.filter(Boolean).length
       : 0,
-    activeMissionIds: active.map((row) => String(row.missionId)),
+    activeMissionIds: tableAware ? active.map((row) => String(row.missionId)) : [],
     recentMissionIds: recentForCooldown.map((row) => String(row.missionId)),
     recentCategories: recentForCooldown.map((row) => row.category),
   };
@@ -177,6 +227,7 @@ async function ensureProgress(params: {
   if (existing) {
     if (!existing.token) existing.token = params.invitationGuest.token;
     existing.tableId = tableKey(params.invitationGuest.tableId);
+    existing.isAdult = params.invitationGuest.isAdult !== false;
     return existing;
   }
 
@@ -186,7 +237,7 @@ async function ensureProgress(params: {
     guestId,
     token: params.invitationGuest.token,
     tableId: tableKey(params.invitationGuest.tableId),
-    isAdult: true,
+    isAdult: params.invitationGuest.isAdult !== false,
   });
 }
 
@@ -409,12 +460,14 @@ export async function assignNextMissionForGuest(params: {
     chosen = result.mission;
     if (!chosen) break;
 
-    const clash = await WeddingChallengeAssignment.findOne({
-      eventId: params.eventId,
-      tableId: snapshot.tableId,
-      missionId: chosen.id,
-      status: { $in: ["assigned", "revealed"] },
-    }).lean();
+    const clash = snapshot.tableAware
+      ? await WeddingChallengeAssignment.findOne({
+          eventId: params.eventId,
+          tableId: snapshot.tableId,
+          missionId: chosen.id,
+          status: { $in: ["assigned", "revealed"] },
+        }).lean()
+      : null;
 
     if (!clash) break;
     extraExcluded.push(chosen.id);
@@ -556,4 +609,4 @@ export function objectIdOrNull(value: unknown) {
   return new mongoose.Types.ObjectId(text);
 }
 
-export { idOf, tableKey, publicMission };
+export { idOf, tableKey, publicMission, attendingGuestMongoFilter };

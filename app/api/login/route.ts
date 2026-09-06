@@ -17,6 +17,7 @@ import {
   checkLoginRateLimit,
   clearLoginRateLimit,
 } from "@/lib/auth/loginRateLimit";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -161,6 +162,7 @@ export async function POST(req: Request) {
     ====================================================== */
 
     const hasPaid = Boolean(user.hasPaid);
+    const includeWeddingChallenges = userHasWeddingChallengesEntitlement(user as any);
     const isTrial = Boolean(user.isTrial);
 
     const role = String(user.role || "user");
@@ -206,6 +208,7 @@ export async function POST(req: Request) {
         userId: user._id.toString(),
         role,
         hasPaid,
+        includeWeddingChallenges,
         isTrial,
         authVersion,
       },

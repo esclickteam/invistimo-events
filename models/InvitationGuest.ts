@@ -294,6 +294,11 @@ const InvitationGuestSchema = new Schema(
       type: String,
       default: null,
     },
+
+    isAdult: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

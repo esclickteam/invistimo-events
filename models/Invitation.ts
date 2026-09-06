@@ -361,6 +361,13 @@ preRsvpMedia: {
       default: () => nanoid(10),
     },
 
+    /* Wedding Challenges-only events hide this invitation from RSVP dashboard */
+    standaloneGame: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     /* ================= GUESTS ================= */
 
     guests: [

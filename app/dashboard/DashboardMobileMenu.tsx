@@ -227,11 +227,11 @@ export default function DashboardMobileMenu({
           go("/live/demo");
           return;
         }
-        if (!eventId) {
-          go("/dashboard");
-          return;
-        }
-        go(`/dashboard/wedding-challenges?eventId=${eventId}`);
+        go(
+          eventId
+            ? `/dashboard/wedding-challenges?eventId=${eventId}`
+            : "/dashboard/wedding-challenges"
+        );
       },
     },
     {

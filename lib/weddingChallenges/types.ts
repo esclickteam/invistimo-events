@@ -15,6 +15,8 @@ export type GiveawayRevealMode =
   | "after_second"
   | "manual";
 
+export type WeddingChallengesSourceType = "EXISTING_EVENT" | "STANDALONE_GAME";
+
 export type AssignmentStatus =
   | "assigned"
   | "revealed"
@@ -99,6 +101,8 @@ export type AssignmentGuest = {
 
 export type TableAssignmentSnapshot = {
   tableId: string | null;
+  /** True when this guest belongs to a table; table uniqueness only applies then. */
+  tableAware: boolean;
   tableSize: number;
   activeGuestCount: number;
   eventTableCount: number;

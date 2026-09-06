@@ -9,8 +9,9 @@ import {
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
-import type { WeddingChallengeSettings } from "@/lib/weddingChallenges/types";
+import type { WeddingChallengeSettings, WeddingChallengesSourceType } from "@/lib/weddingChallenges/types";
 import { defaultWeddingChallengeSettings } from "@/lib/weddingChallenges/settings";
+import GuestRoster from "./GuestRoster";
 
 type Stats = {
   guests: number;
@@ -20,6 +21,25 @@ type Stats = {
   entries: number;
   byCategory: { key: string; label: string; count: number }[];
 };
+
+type GameSummary = {
+  eventId: string;
+  coupleNames: string;
+  eventDate: string;
+  sourceType: WeddingChallengesSourceType;
+  enabled: boolean;
+  hasGame?: boolean;
+};
+
+function sourceLabel(sourceType: WeddingChallengesSourceType) {
+  return sourceType === "STANDALONE_GAME" ? "STANDALONE_GAME" : "EXISTING_EVENT";
+}
+
+function sourceCopy(sourceType: WeddingChallengesSourceType) {
+  return sourceType === "STANDALONE_GAME"
+    ? "משחק עצמאי — בלי RSVP, הזמנה או אתר חתונה"
+    : "מחובר לאירוע Invistimo קיים";
+}
 
 function Toggle({
   checked,
@@ -64,6 +84,14 @@ function WeddingChallengesAdmin() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [preview, setPreview] = useState("");
   const [coupleNames, setCoupleNames] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [sourceType, setSourceType] = useState<WeddingChallengesSourceType>("EXISTING_EVENT");
+  const [games, setGames] = useState<GameSummary[]>([]);
+  const [attachable, setAttachable] = useState<GameSummary[]>([]);
+  const [newCoupleNames, setNewCoupleNames] = useState("");
+  const [newEventDate, setNewEventDate] = useState("");
+  const [newStartAt, setNewStartAt] = useState("");
+  const [newEndAt, setNewEndAt] = useState("");
   const [giveawayPurchased, setGiveawayPurchased] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -80,13 +108,27 @@ function WeddingChallengesAdmin() {
     const smsJson = await smsRes.json();
     if (settingsJson?.settings) setSettings(settingsJson.settings);
     if (settingsJson?.coupleNames) setCoupleNames(settingsJson.coupleNames);
+    if (settingsJson?.eventDate) setEventDate(String(settingsJson.eventDate).slice(0, 10));
+    if (settingsJson?.sourceType === "STANDALONE_GAME" || settingsJson?.sourceType === "EXISTING_EVENT") {
+      setSourceType(settingsJson.sourceType);
+    }
     setGiveawayPurchased(Boolean(settingsJson?.giveawayPurchased));
     if (statsJson?.stats) setStats(statsJson.stats);
     if (smsJson?.preview) setPreview(smsJson.preview);
   };
 
   useEffect(() => {
-    load().catch(() => setMessage("לא הצלחנו לטעון את ההגדרות"));
+    if (eventId) {
+      load().catch(() => setMessage("לא הצלחנו לטעון את ההגדרות"));
+      return;
+    }
+    fetch("/api/wedding-challenges/events", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        setGames(json.games || []);
+        setAttachable(json.attachableEvents || []);
+      })
+      .catch(() => setMessage("לא הצלחנו לטעון אירועים"));
   }, [eventId]);
 
   const save = async () => {
@@ -96,7 +138,7 @@ function WeddingChallengesAdmin() {
       const res = await fetch(`/api/wedding-challenges/settings?eventId=${eventId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings }),
+        body: JSON.stringify({ settings, coupleNames, eventDate }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "SAVE_FAILED");
@@ -139,12 +181,174 @@ function WeddingChallengesAdmin() {
     }
   };
 
+  const createStandalone = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/wedding-challenges/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coupleNames: newCoupleNames,
+          eventDate: newEventDate,
+          startAt: newStartAt ? new Date(newStartAt).toISOString() : null,
+          endAt: newEndAt ? new Date(newEndAt).toISOString() : null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.eventId) throw new Error(json.error || "CREATE_FAILED");
+      router.push(`/dashboard/wedding-challenges?eventId=${json.eventId}`);
+    } catch {
+      setMessage("יצירת אירוע עצמאי נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const attachExisting = async (existingEventId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/wedding-challenges/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ existingEventId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.eventId) throw new Error(json.error || "ATTACH_FAILED");
+      router.push(`/dashboard/wedding-challenges?eventId=${json.eventId}`);
+    } catch {
+      setMessage("חיבור האירוע נכשל");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const locked = !entitled && user?.role !== "admin";
 
   const categories = useMemo(
     () => Object.entries(CATEGORY_SHORT_LABELS) as [keyof typeof CATEGORY_SHORT_LABELS, string][],
     []
   );
+
+  if (!eventId) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
+        <div className="mb-6">
+          <p className="text-sm font-black tracking-[0.18em] text-[#B8893A]">INVISTIMO LIVE</p>
+          <h1 className="text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
+          <p className="mt-1 text-sm text-[#7B6754]">
+            מוצר עצמאי ב-{WEDDING_CHALLENGES_PRICE_ILS} ₪. לא צריך RSVP, הזמנה דיגיטלית, אתר חתונה או הושבה.
+          </p>
+        </div>
+
+        {locked && (
+          <div className="mb-6 rounded-[24px] border border-[#E7D8C6] bg-white p-5">
+            <p className="font-black text-[#3A2A1C]">התוספת עדיין לא פעילה</p>
+            <p className="mt-2 text-sm text-[#7B6754]">
+              Invistimo Live – Wedding Challenges במחיר {WEDDING_CHALLENGES_PRICE_ILS} ₪ לאירוע.
+            </p>
+          </div>
+        )}
+
+        <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
+          <h2 className="text-lg font-black">יצירת אירוע למשחק בלבד</h2>
+          <p className="text-sm text-[#7B6754]">
+            STANDALONE_GAME — מעלים רשימת אורחים שמגיעים, וכל אורח מקבל לינק אישי ל-/live.
+          </p>
+          <input
+            value={newCoupleNames}
+            onChange={(event) => setNewCoupleNames(event.target.value)}
+            placeholder="שמות בני הזוג"
+            className="w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+          />
+          <label className="block text-sm font-bold text-[#7B6754]">
+            תאריך האירוע
+            <input
+              type="date"
+              value={newEventDate}
+              onChange={(event) => setNewEventDate(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+            />
+          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="text-sm font-bold text-[#7B6754]">
+              שעת התחלת משחק
+              <input
+                type="datetime-local"
+                value={newStartAt}
+                onChange={(event) => setNewStartAt(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-bold text-[#7B6754]">
+              שעת סיום משחק
+              <input
+                type="datetime-local"
+                value={newEndAt}
+                onChange={(event) => setNewEndAt(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={saving || locked || !newCoupleNames || !newEventDate}
+            onClick={createStandalone}
+            className="rounded-full bg-[linear-gradient(90deg,#e7c57a,#c8963a)] px-6 py-3 font-black text-white disabled:opacity-50"
+          >
+            {saving ? "יוצר..." : "הפעלת Wedding Challenges"}
+          </button>
+        </section>
+
+        {games.length > 0 && (
+          <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+            <h2 className="text-lg font-black">משחקים קיימים</h2>
+            {games.map((game) => (
+              <button
+                key={game.eventId}
+                type="button"
+                onClick={() => router.push(`/dashboard/wedding-challenges?eventId=${game.eventId}`)}
+                className="flex w-full items-center justify-between rounded-2xl border border-[#E7D8C6] px-4 py-3 text-right"
+              >
+                <span>
+                  <span className="block font-black">{game.coupleNames || "אירוע"}</span>
+                  <span className="text-xs text-[#7B6754]">
+                    {sourceLabel(game.sourceType)} · {game.eventDate}
+                  </span>
+                </span>
+                <span className="text-sm font-bold text-[#A86F2B]">פתיחה</span>
+              </button>
+            ))}
+          </section>
+        )}
+
+        {attachable.length > 0 && (
+          <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+            <h2 className="text-lg font-black">חיבור לאירוע Invistimo קיים</h2>
+            <p className="text-sm text-[#7B6754]">
+              EXISTING_EVENT — רק אורחים שאישרו הגעה, כולל מספר שולחן אם כבר שובצו.
+            </p>
+            {attachable.map((game) => (
+              <button
+                key={game.eventId}
+                type="button"
+                disabled={saving || locked}
+                onClick={() => attachExisting(game.eventId)}
+                className="flex w-full items-center justify-between rounded-2xl border border-[#E7D8C6] px-4 py-3 text-right"
+              >
+                <span>
+                  <span className="block font-black">{game.coupleNames || "אירוע"}</span>
+                  <span className="text-xs text-[#7B6754]">{game.eventDate}</span>
+                </span>
+                <span className="text-sm font-bold text-[#A86F2B]">הפעלה על האירוע הזה</span>
+              </button>
+            ))}
+          </section>
+        )}
+        {message ? <p className="text-sm font-bold text-[#A86F2B]">{message}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6" dir="rtl">
@@ -154,6 +358,9 @@ function WeddingChallengesAdmin() {
           <h1 className="text-3xl font-black text-[#3A2A1C]">Wedding Challenges</h1>
           <p className="mt-1 text-sm text-[#7B6754]">
             כרטיס גירוד דיגיטלי שמרימים את הרחבה. עד 5 משימות לכל אורח.
+          </p>
+          <p className="mt-2 text-xs font-black tracking-wide text-[#A86F2B]">
+            {sourceLabel(sourceType)} · {sourceCopy(sourceType)}
           </p>
         </div>
         <span className="rounded-full bg-[#FFF3DF] px-4 py-2 text-sm font-black text-[#A86F2B]">
@@ -186,6 +393,29 @@ function WeddingChallengesAdmin() {
           ))}
         </div>
       )}
+
+      <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
+        <h2 className="text-lg font-black">פרטי האירוע</h2>
+        <label className="text-sm font-bold text-[#7B6754]">
+          שמות בני הזוג
+          <input
+            value={coupleNames}
+            onChange={(event) => setCoupleNames(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+          />
+        </label>
+        <label className="text-sm font-bold text-[#7B6754]">
+          תאריך האירוע
+          <input
+            type="date"
+            value={eventDate}
+            onChange={(event) => setEventDate(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+          />
+        </label>
+      </section>
+
+      <GuestRoster eventId={eventId} sourceType={sourceType} />
 
       <section className="mb-6 space-y-3 rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
         <h2 className="text-lg font-black">הגדרות משחק</h2>

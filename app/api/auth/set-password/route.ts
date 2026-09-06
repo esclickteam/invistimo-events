@@ -506,6 +506,7 @@ export async function POST(req: Request) {
         role,
         email: user.email,
         hasPaid,
+        includeWeddingChallenges: Boolean(accessModules?.weddingChallenges),
         allowedMessageRounds,
         accessModules,
       },

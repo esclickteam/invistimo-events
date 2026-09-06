@@ -314,6 +314,7 @@ export async function GET(req: Request) {
 
     const baseQuery: any = {
       eventId: { $ne: null },
+      standaloneGame: { $ne: true },
       $or: orFilters,
     };
 

@@ -8,7 +8,7 @@ import { shortenUrl } from "@/lib/shortenUrl";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { DEFAULT_PUBLIC_ORIGIN } from "@/lib/guestInviteUrl";
 import { LIVE_PATH_PREFIX } from "@/lib/weddingChallenges/constants";
-import { loadEventChallengeContext } from "@/lib/weddingChallenges/service";
+import { attendingGuestMongoFilter, loadEventChallengeContext } from "@/lib/weddingChallenges/service";
 import { buildWeddingChallengesSms, coupleNamesFromTitle } from "@/lib/weddingChallenges/sms";
 
 export const dynamic = "force-dynamic";
@@ -45,10 +45,12 @@ export async function GET(req: Request) {
   const guests = await InvitationGuest.countDocuments({
     invitationId: context.invitation._id,
     phone: { $exists: true, $nin: ["", null] },
+    ...attendingGuestMongoFilter(context.sourceType),
   });
 
   return NextResponse.json({
     success: true,
+    sourceType: context.sourceType,
     coupleNames,
     template: context.settings.sms.template,
     preview: sample,
@@ -83,6 +85,7 @@ export async function POST(req: Request) {
     invitationId: context.invitation._id,
     phone: { $exists: true, $nin: ["", null] },
     token: { $exists: true, $nin: ["", null] },
+    ...attendingGuestMongoFilter(context.sourceType),
   })
     .select("name phone token")
     .lean();

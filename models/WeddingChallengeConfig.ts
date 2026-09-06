@@ -92,6 +92,12 @@ const WeddingChallengeConfigSchema = new Schema(
       required: true,
       index: true,
     },
+    sourceType: {
+      type: String,
+      enum: ["EXISTING_EVENT", "STANDALONE_GAME"],
+      default: "EXISTING_EVENT",
+      index: true,
+    },
     settings: {
       type: SettingsSchema,
       default: () => defaultWeddingChallengeSettings(),

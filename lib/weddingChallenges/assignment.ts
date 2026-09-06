@@ -74,17 +74,19 @@ function isEligible(
     return false;
   }
 
-  if (mission.minTables > 0 && table.eventTableCount < mission.minTables) {
+  const tableAware = table.tableAware !== false && Boolean(table.tableId);
+
+  if (tableAware && mission.minTables > 0 && table.eventTableCount < mission.minTables) {
     return false;
   }
 
-  if (table.activeMissionIds.includes(mission.id)) return false;
+  if (tableAware && table.activeMissionIds.includes(mission.id)) return false;
 
   if (!options.ignoreTableCooldown && table.recentMissionIds.includes(mission.id)) {
     return false;
   }
 
-  if (!options.ignoreTableBasedSize && mission.tableBased) {
+  if (tableAware && !options.ignoreTableBasedSize && mission.tableBased) {
     if (table.tableSize > 0 && table.tableSize < mission.minPeople) return false;
     if (table.activeGuestCount > 0 && table.activeGuestCount < 2 && mission.minPeople >= 5) {
       return false;
@@ -95,8 +97,10 @@ function isEligible(
     const streak = guestCategoryStreak(guest.recentCategories, mission.category);
     if (streak >= 2) return false;
 
-    const tableStreak = guestCategoryStreak(table.recentCategories, mission.category);
-    if (tableStreak >= 3) return false;
+    if (tableAware) {
+      const tableStreak = guestCategoryStreak(table.recentCategories, mission.category);
+      if (tableStreak >= 3) return false;
+    }
   }
 
   return true;

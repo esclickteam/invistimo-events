@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import { requireWeddingChallenges } from "@/lib/guards/requireWeddingChallenges";
 import {
@@ -46,7 +47,9 @@ export async function GET(req: Request) {
   return NextResponse.json({
     success: true,
     eventId,
+    sourceType: context.sourceType,
     coupleNames: coupleNamesFromTitle(context.invitation?.title || context.event?.title),
+    eventDate: context.event?.date || "",
     entitled: context.entitled || gate.privileged,
     prices: {
       challenges: WEDDING_CHALLENGES_PRICE_ILS,
@@ -85,6 +88,7 @@ export async function PUT(req: Request) {
     eventId,
     invitationId: invitation?._id ? String(invitation._id) : null,
     ownerUserId: String(context.event.userId),
+    sourceType: context.sourceType,
   });
 
   const incoming = body?.settings || body;
@@ -105,6 +109,25 @@ export async function PUT(req: Request) {
     },
   });
 
+  const coupleNames = String(body?.coupleNames || "").trim();
+  const eventDate = String(body?.eventDate || "").trim();
+  if (coupleNames || eventDate) {
+    const eventSet: Record<string, string> = {};
+    const invitationSet: Record<string, string> = {};
+    if (coupleNames) {
+      eventSet.title = coupleNames;
+      invitationSet.title = coupleNames;
+    }
+    if (eventDate) {
+      eventSet.date = eventDate;
+      invitationSet.eventDate = eventDate;
+    }
+    await Promise.all([
+      Event.updateOne({ _id: eventId }, { $set: eventSet }),
+      Invitation.updateOne({ eventId }, { $set: invitationSet }),
+    ]);
+  }
+
   const giveawayPurchased = userHasWeddingChallengesGiveawayEntitlement(context.owner);
   if (!giveawayPurchased) {
     next.giveaway.enabled = false;
@@ -115,6 +138,10 @@ export async function PUT(req: Request) {
 
   return NextResponse.json({
     success: true,
+    sourceType: context.sourceType,
+    coupleNames:
+      coupleNames || coupleNamesFromTitle(context.invitation?.title || context.event?.title),
+    eventDate: eventDate || context.event?.date || "",
     settings: normalizeWeddingChallengeSettings(config.settings),
   });
 }

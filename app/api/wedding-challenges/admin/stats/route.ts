@@ -4,7 +4,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import WeddingChallengeAssignment from "@/models/WeddingChallengeAssignment";
 import WeddingChallengeGuest from "@/models/WeddingChallengeGuest";
 import { requireWeddingChallenges } from "@/lib/guards/requireWeddingChallenges";
-import { loadEventChallengeContext } from "@/lib/weddingChallenges/service";
+import { attendingGuestMongoFilter, loadEventChallengeContext } from "@/lib/weddingChallenges/service";
 import { CATEGORY_SHORT_LABELS } from "@/lib/weddingChallenges/constants";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,10 @@ export async function GET(req: Request) {
   }
 
   const [guests, assignments, progress] = await Promise.all([
-    InvitationGuest.countDocuments({ invitationId: context.invitation?._id }),
+    InvitationGuest.countDocuments({
+      invitationId: context.invitation?._id,
+      ...attendingGuestMongoFilter(context.sourceType),
+    }),
     WeddingChallengeAssignment.find({ eventId }).select("status category guestId").lean(),
     WeddingChallengeGuest.find({ eventId }).select("completedCount giveawayEntries").lean(),
   ]);
