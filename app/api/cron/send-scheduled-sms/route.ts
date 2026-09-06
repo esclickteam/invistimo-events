@@ -3,6 +3,7 @@ import {
   sendScheduledSms,
   sendScheduledWhatsapp,
 } from "@/workers/sendScheduledSms";
+import { processWeddingChallengesJobs } from "@/lib/weddingChallenges/jobs";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
   try {
     const smsResult = await sendScheduledSms();
     const whatsappResult = await sendScheduledWhatsapp();
+    const weddingChallenges = await processWeddingChallengesJobs();
 
     return NextResponse.json(
       {
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
           whatsapp: {
             totalSent: whatsappResult.sent || 0,
           },
+          weddingChallenges,
         },
       },
       {

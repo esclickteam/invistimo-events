@@ -1,6 +1,8 @@
 import type {
   EnabledCategories,
+  GiveawayDrawMode,
   GiveawayRevealMode,
+  SmsScheduleStatus,
   WeddingChallengeSettings,
 } from "./types";
 import {
@@ -10,6 +12,7 @@ import {
   DEFAULT_TABLE_COOLDOWN_MISSIONS,
   MAX_MISSIONS_PER_GUEST,
 } from "./constants";
+import { countdownLabel, DEFAULT_EVENT_TIMEZONE, formatInZone, utcToWallTimeInput } from "./timezone";
 
 export const DEFAULT_ENABLED_CATEGORIES: EnabledCategories = {
   dancefloor: true,
@@ -44,6 +47,10 @@ export function defaultWeddingChallengeSettings(
       bossEntries: 2,
       maxEntriesPerGuest: null,
       autoDrawAtEnd: true,
+      drawMode: "MANUAL_DRAW",
+      drawAt: null,
+      entriesCutoffAt: null,
+      locked: false,
       revealedByAdmin: false,
       winnerGuestId: null,
       winnerName: "",
@@ -51,8 +58,12 @@ export function defaultWeddingChallengeSettings(
     },
     sms: {
       template: "full",
+      timezone: DEFAULT_EVENT_TIMEZONE,
+      scheduledAt: null,
+      status: "idle",
       sentAt: null,
       sentCount: 0,
+      cancelledAt: null,
     },
     ...overrides,
   };
@@ -100,6 +111,20 @@ export function normalizeWeddingChallengeSettings(
       ? raw.pacingMode
       : "immediate";
 
+  const drawMode: GiveawayDrawMode =
+    raw?.giveaway?.drawMode === "AUTO_DRAW_AT_TIME" ? "AUTO_DRAW_AT_TIME" : "MANUAL_DRAW";
+
+  const smsStatusRaw = String(raw?.sms?.status || "");
+  const smsStatus: SmsScheduleStatus =
+    raw?.sms?.sentAt
+      ? "sent"
+      : smsStatusRaw === "scheduled" ||
+          smsStatusRaw === "sending" ||
+          smsStatusRaw === "sent" ||
+          smsStatusRaw === "cancelled"
+        ? smsStatusRaw
+        : "idle";
+
   return {
     enabled: asBoolean(raw?.enabled, false),
     startAt: asDateString(raw?.startAt),
@@ -140,7 +165,11 @@ export function normalizeWeddingChallengeSettings(
         raw?.giveaway?.maxEntriesPerGuest == null
           ? null
           : asNumber(raw.giveaway.maxEntriesPerGuest, 0, 1, 20),
-      autoDrawAtEnd: asBoolean(raw?.giveaway?.autoDrawAtEnd, true),
+      autoDrawAtEnd: drawMode === "AUTO_DRAW_AT_TIME" ? true : asBoolean(raw?.giveaway?.autoDrawAtEnd, false),
+      drawMode,
+      drawAt: asDateString(raw?.giveaway?.drawAt),
+      entriesCutoffAt: asDateString(raw?.giveaway?.entriesCutoffAt),
+      locked: asBoolean(raw?.giveaway?.locked, Boolean(raw?.giveaway?.drawnAt)),
       revealedByAdmin: asBoolean(raw?.giveaway?.revealedByAdmin, false),
       winnerGuestId: raw?.giveaway?.winnerGuestId
         ? String(raw.giveaway.winnerGuestId)
@@ -150,8 +179,12 @@ export function normalizeWeddingChallengeSettings(
     },
     sms: {
       template: raw?.sms?.template === "short" ? "short" : "full",
+      timezone: String(raw?.sms?.timezone || DEFAULT_EVENT_TIMEZONE).trim() || DEFAULT_EVENT_TIMEZONE,
+      scheduledAt: asDateString(raw?.sms?.scheduledAt),
+      status: smsStatus,
       sentAt: asDateString(raw?.sms?.sentAt),
       sentCount: asNumber(raw?.sms?.sentCount, 0, 0),
+      cancelledAt: asDateString(raw?.sms?.cancelledAt),
     },
   };
 }
@@ -187,9 +220,88 @@ export function shouldRevealGiveaway(params: {
   return completedCount >= 1;
 }
 
+export function giveawayEntriesOpen(
+  settings: WeddingChallengeSettings,
+  now = new Date()
+) {
+  if (!settings.giveaway.enabled) return false;
+  if (settings.giveaway.locked || settings.giveaway.drawnAt) return false;
+  const cutoff = settings.giveaway.entriesCutoffAt || settings.giveaway.drawAt;
+  if (cutoff) {
+    const at = new Date(cutoff).getTime();
+    if (Number.isFinite(at) && now.getTime() >= at) return false;
+  }
+  return true;
+}
+
 export function entriesForMission(params: {
   boss: boolean;
   bossEntries: 2 | 3;
 }): number {
   return params.boss ? params.bossEntries : 1;
+}
+
+export function giveawayAdminStatus(
+  settings: WeddingChallengeSettings,
+  now = new Date()
+) {
+  const giveaway = settings.giveaway;
+  const timezone = settings.sms.timezone || DEFAULT_EVENT_TIMEZONE;
+  const locked = Boolean(giveaway.locked || giveaway.drawnAt);
+  const cutoff = giveaway.entriesCutoffAt || giveaway.drawAt;
+  const entriesOpen = giveawayEntriesOpen(settings, now);
+  let status: "disabled" | "manual" | "scheduled" | "due" | "drawn" = "disabled";
+  if (!giveaway.enabled) {
+    status = "disabled";
+  } else if (locked) {
+    status = "drawn";
+  } else if (giveaway.drawMode === "AUTO_DRAW_AT_TIME" && giveaway.drawAt) {
+    status = new Date(giveaway.drawAt).getTime() <= now.getTime() ? "due" : "scheduled";
+  } else {
+    status = "manual";
+  }
+
+  return {
+    status,
+    drawMode: giveaway.drawMode,
+    drawAt: giveaway.drawAt,
+    drawAtLabel: formatInZone(giveaway.drawAt, timezone),
+    entriesCutoffAt: cutoff,
+    entriesCutoffLabel: formatInZone(cutoff, timezone),
+    countdown: countdownLabel(giveaway.drawAt, now),
+    entriesOpen,
+    locked,
+    winnerName: giveaway.winnerName,
+    drawnAt: giveaway.drawnAt,
+    drawnAtLabel: formatInZone(giveaway.drawnAt, timezone),
+  };
+}
+
+export function openingSmsAlreadySent(
+  settings: Pick<WeddingChallengeSettings, "sms">,
+  force?: boolean
+) {
+  if (force) return false;
+  return settings.sms.status === "sent" || Boolean(settings.sms.sentAt);
+}
+
+export function smsSchedulePublic(settings: WeddingChallengeSettings) {
+  const timezone = settings.sms.timezone || DEFAULT_EVENT_TIMEZONE;
+  const alreadySent = openingSmsAlreadySent(settings);
+  return {
+    timezone,
+    status: settings.sms.status,
+    scheduledAt: settings.sms.scheduledAt,
+    scheduledAtLocal: utcToWallTimeInput(settings.sms.scheduledAt, timezone),
+    scheduledAtLabel: formatInZone(settings.sms.scheduledAt, timezone),
+    sentAt: settings.sms.sentAt,
+    sentAtLocal: utcToWallTimeInput(settings.sms.sentAt, timezone),
+    sentAtLabel: formatInZone(settings.sms.sentAt, timezone),
+    sentCount: settings.sms.sentCount,
+    cancelledAt: settings.sms.cancelledAt,
+    alreadySent,
+    canEdit: !alreadySent && settings.sms.status !== "sending",
+    canCancel: !alreadySent && settings.sms.status === "scheduled",
+    canSendNow: !alreadySent && settings.sms.status !== "sending",
+  };
 }

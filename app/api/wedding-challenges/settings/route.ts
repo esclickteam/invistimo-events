@@ -11,7 +11,9 @@ import {
   loadEventChallengeContext,
 } from "@/lib/weddingChallenges/service";
 import {
+  giveawayAdminStatus,
   normalizeWeddingChallengeSettings,
+  smsSchedulePublic,
 } from "@/lib/weddingChallenges/settings";
 import {
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
@@ -63,6 +65,14 @@ export async function GET(req: Request) {
         enabled: settings.giveaway.enabled && giveawayPurchased,
       },
     },
+    smsSchedule: smsSchedulePublic(settings),
+    giveawayStatus: giveawayAdminStatus({
+      ...settings,
+      giveaway: {
+        ...settings.giveaway,
+        enabled: settings.giveaway.enabled && giveawayPurchased,
+      },
+    }),
   });
 }
 
@@ -131,6 +141,24 @@ export async function PUT(req: Request) {
   const giveawayPurchased = userHasWeddingChallengesGiveawayEntitlement(context.owner);
   if (!giveawayPurchased) {
     next.giveaway.enabled = false;
+  }
+
+  next.sms = {
+    ...next.sms,
+    template: next.sms.template,
+    timezone: next.sms.timezone || context.settings.sms.timezone,
+    scheduledAt: context.settings.sms.scheduledAt,
+    status: context.settings.sms.status,
+    sentAt: context.settings.sms.sentAt,
+    sentCount: context.settings.sms.sentCount,
+    cancelledAt: context.settings.sms.cancelledAt,
+  };
+
+  if (context.settings.giveaway.locked || context.settings.giveaway.drawnAt) {
+    next.giveaway.locked = true;
+    next.giveaway.winnerGuestId = context.settings.giveaway.winnerGuestId;
+    next.giveaway.winnerName = context.settings.giveaway.winnerName;
+    next.giveaway.drawnAt = context.settings.giveaway.drawnAt;
   }
 
   config.settings = next;

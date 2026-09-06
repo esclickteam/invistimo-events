@@ -193,10 +193,14 @@ export const WEDDING_CHALLENGE_MISSIONS: MissionDefinition[] = [
   ...CHAOS,
   ...CHEEKY,
   ...BOSS,
-].map((mission) => ({ ...mission, active: true }));
+].map((mission) => ({ ...mission, active: true, source: "default" as const }));
 
-export function getMissionById(id: string) {
-  return WEDDING_CHALLENGE_MISSIONS.find((mission) => mission.id === id) || null;
+export function getMissionById(id: string, extras: MissionDefinition[] = []) {
+  return (
+    extras.find((mission) => mission.id === id) ||
+    WEDDING_CHALLENGE_MISSIONS.find((mission) => mission.id === id) ||
+    null
+  );
 }
 
 export function missionsByCategory(category: MissionCategory) {

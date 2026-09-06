@@ -11,6 +11,11 @@ import WeddingChallengeGuest from "@/models/WeddingChallengeGuest";
 import { assignWeddingChallengeMission, tableRecentWindowMs } from "./assignment";
 import { CATEGORY_LABELS, MAX_MISSIONS_PER_GUEST } from "./constants";
 import {
+  incrementCustomAssignment,
+  loadCustomMissionDefinitions,
+  loadMissionsForEvent,
+} from "./customMissions";
+import {
   userHasWeddingChallengesEntitlement,
   userHasWeddingChallengesGiveawayEntitlement,
 } from "./entitlement";
@@ -18,6 +23,7 @@ import { entriesAwardedForCompletion, giveawayPublicCopy } from "./giveaway";
 import { getMissionById } from "./missionBank";
 import {
   gameWindowState,
+  giveawayEntriesOpen,
   shouldRevealGiveaway,
   defaultWeddingChallengeSettings,
   normalizeWeddingChallengeSettings,
@@ -319,10 +325,11 @@ export async function buildLivePayload(params: {
     MAX_MISSIONS_PER_GUEST,
     Number(settings.maxMissionsPerGuest || MAX_MISSIONS_PER_GUEST)
   );
+  const extras = await loadCustomMissionDefinitions(String(params.event._id));
   const mission = params.assignment
-    ? getMissionById(String(params.assignment.missionId))
+    ? getMissionById(String(params.assignment.missionId), extras)
     : params.progress.activeMissionId
-      ? getMissionById(String(params.progress.activeMissionId))
+      ? getMissionById(String(params.progress.activeMissionId), extras)
       : null;
 
   const completedCount = Number(params.progress.completedCount || 0);
@@ -428,14 +435,17 @@ export async function assignNextMissionForGuest(params: {
     settings: params.settings,
   });
 
-  const recentGuest = await WeddingChallengeAssignment.find({
-    eventId: params.eventId,
-    guestId: progress.guestId,
-  })
-    .sort({ assignedAt: -1 })
-    .limit(5)
-    .select("category")
-    .lean();
+  const [recentGuest, missions] = await Promise.all([
+    WeddingChallengeAssignment.find({
+      eventId: params.eventId,
+      guestId: progress.guestId,
+    })
+      .sort({ assignedAt: -1 })
+      .limit(5)
+      .select("category")
+      .lean(),
+    loadMissionsForEvent(params.eventId),
+  ]);
 
   let chosen: MissionDefinition | null = null;
   let attempts = 0;
@@ -456,6 +466,7 @@ export async function assignNextMissionForGuest(params: {
         activeMissionIds: [...snapshot.activeMissionIds, ...extraExcluded],
       },
       settings: params.settings,
+      missions,
     });
     chosen = result.mission;
     if (!chosen) break;
@@ -499,6 +510,7 @@ export async function assignNextMissionForGuest(params: {
   progress.lastAssignedAt = new Date();
   progress.tableId = snapshot.tableId;
   await progress.save();
+  await incrementCustomAssignment(chosen.id);
 
   return { progress, assignment, reason: "assigned" as const, mission: chosen };
 }
@@ -526,13 +538,17 @@ export async function completeActiveMission(params: {
     return { assignment: null, giveawayJustRevealed: false };
   }
 
-  const mission = getMissionById(String(assignment.missionId));
-  const awarded = params.giveawayEntitled && params.settings.giveaway.enabled
-    ? entriesAwardedForCompletion({
-        settings: params.settings,
-        boss: Boolean(mission?.boss || assignment.boss),
-      })
-    : 0;
+  const extras = await loadCustomMissionDefinitions(String(params.progress.eventId));
+  const mission = getMissionById(String(assignment.missionId), extras);
+  const awarded =
+    params.giveawayEntitled &&
+    params.settings.giveaway.enabled &&
+    giveawayEntriesOpen(params.settings)
+      ? entriesAwardedForCompletion({
+          settings: params.settings,
+          boss: Boolean(mission?.boss || assignment.boss),
+        })
+      : 0;
 
   assignment.status = "completed";
   assignment.completedAt = new Date();
