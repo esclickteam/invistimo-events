@@ -20,6 +20,7 @@ type JwtPayloadShape = {
 
   // 💰 תשלום (מגיע מהטוקן בלבד)
   hasPaid?: boolean;
+  includeWeddingChallenges?: boolean;
 };
 
 /* ========================================================
@@ -262,7 +263,7 @@ export function middleware(req: NextRequest) {
     !isImpersonatedAdminSession &&
     !isImpersonatedProducerSession
   ) {
-    if (payload.hasPaid !== true) {
+    if (payload.hasPaid !== true && payload.includeWeddingChallenges !== true) {
       return redirectToPricing(req);
     }
   }

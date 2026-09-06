@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 import DashboardHeader from "./DashboardHeader";
 import DashboardMobileMenu from "./DashboardMobileMenu";
@@ -52,6 +53,7 @@ function DashboardLayoutInner({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useAuth();
 
   // 🧪 דמו = כל מה שמתחיל ב־/try
@@ -59,6 +61,7 @@ function DashboardLayoutInner({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [invitationLoaded, setInvitationLoaded] = useState(false);
 
   const eventIdFromUrl = searchParams.get("eventId");
   const invitationIdFromUrl = searchParams.get("invitationId");
@@ -71,6 +74,8 @@ function DashboardLayoutInner({
   const canOpenTransportationManagement =
     user?.accessModules?.transportationManagement === true ||
     user?.includeTransportationManagement === true;
+
+  const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user as any);
 
   /*
     ✅ תומך גם בנתיב החדש:
@@ -122,6 +127,7 @@ function DashboardLayoutInner({
         title: "אירוע לדוגמה",
         eventId: "demo-event-001",
       });
+      setInvitationLoaded(true);
       return;
     }
 
@@ -154,6 +160,7 @@ function DashboardLayoutInner({
         const data = await res.json().catch(() => null);
 
         if (cancelled) return;
+        setInvitationLoaded(true);
 
         if (data?.success && data.invitation) {
           setInvitation(data.invitation);
@@ -164,6 +171,7 @@ function DashboardLayoutInner({
         console.error("❌ Failed to load invitation", err);
 
         if (!cancelled) {
+          setInvitationLoaded(true);
           setInvitation(null);
         }
       }
@@ -175,6 +183,20 @@ function DashboardLayoutInner({
       cancelled = true;
     };
   }, [isDemo, resolvedInvitationId, eventIdFromUrl]);
+
+  useEffect(() => {
+    if (isDemo || !invitationLoaded || invitation) return;
+    if (pathname !== "/dashboard") return;
+    if (!canOpenWeddingChallenges) return;
+    router.replace("/dashboard/wedding-challenges");
+  }, [
+    isDemo,
+    invitationLoaded,
+    invitation,
+    pathname,
+    canOpenWeddingChallenges,
+    router,
+  ]);
 
   /* ============================================================
      Render
@@ -204,6 +226,7 @@ function DashboardLayoutInner({
         eventId={eventIdForMenu}
         canOpenEventManagement={canOpenEventManagement}
         canOpenTransportationManagement={canOpenTransportationManagement}
+        canOpenWeddingChallenges={canOpenWeddingChallenges}
         isDemo={isDemo}
       />
 

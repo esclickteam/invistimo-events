@@ -95,6 +95,12 @@ function normalizeAccessModules(value: any, fallback: any) {
     Boolean(fallback?.salesUpsells?.transportationManagement?.enabled) ||
     Boolean(fallback?.planLimits?.transportationEnabled);
 
+  const fallbackWeddingChallenges =
+    Boolean(fallback?.accessModules?.weddingChallenges) ||
+    Boolean(fallback?.includeWeddingChallenges) ||
+    Boolean(fallback?.salesUpsells?.weddingChallenges?.enabled) ||
+    Boolean(fallback?.planLimits?.weddingChallengesEnabled);
+
   return {
     rsvpSeating:
       typeof value?.rsvpSeating === "boolean"
@@ -110,6 +116,11 @@ function normalizeAccessModules(value: any, fallback: any) {
       typeof value?.transportationManagement === "boolean"
         ? value.transportationManagement
         : fallbackTransportation,
+
+    weddingChallenges:
+      typeof value?.weddingChallenges === "boolean"
+        ? value.weddingChallenges
+        : fallbackWeddingChallenges,
   };
 }
 
@@ -433,6 +444,20 @@ export async function PATCH(
       ? Boolean(body.includeTransportationManagement)
       : undefined;
 
+    const nextIncludeWeddingChallenges = hasField(
+      body,
+      "includeWeddingChallenges"
+    )
+      ? Boolean(body.includeWeddingChallenges)
+      : undefined;
+
+    const nextIncludeWeddingChallengesGiveaway = hasField(
+      body,
+      "includeWeddingChallengesGiveaway"
+    )
+      ? Boolean(body.includeWeddingChallengesGiveaway)
+      : undefined;
+
     const nextIncludePreRsvpInvitation = hasField(
       body,
       "includePreRsvpInvitation"
@@ -476,6 +501,10 @@ export async function PATCH(
           nextIncludeTransportationManagement !== undefined
             ? nextIncludeTransportationManagement
             : currentUser.includeTransportationManagement,
+        includeWeddingChallenges:
+          nextIncludeWeddingChallenges !== undefined
+            ? nextIncludeWeddingChallenges
+            : currentUser.includeWeddingChallenges,
       }
     );
 
@@ -509,6 +538,13 @@ export async function PATCH(
         : nextIncludeTransportationManagement !== undefined
           ? nextIncludeTransportationManagement
           : Boolean(currentUser.includeTransportationManagement);
+
+    const finalIncludeWeddingChallenges =
+      nextAccessModules !== undefined
+        ? Boolean(finalAccessModules.weddingChallenges)
+        : nextIncludeWeddingChallenges !== undefined
+          ? nextIncludeWeddingChallenges
+          : Boolean(currentUser.includeWeddingChallenges);
 
     const planLimitsPatch: Record<string, any> = {};
 
@@ -650,6 +686,12 @@ export async function PATCH(
           ? finalIncludeTransportationManagement
           : undefined,
 
+      includeWeddingChallenges:
+        nextAccessModules !== undefined ||
+        nextIncludeWeddingChallenges !== undefined
+          ? finalIncludeWeddingChallenges
+          : undefined,
+
       includeCustomDesign: nextIncludeCustomDesign,
 
       selfManageEnabled:
@@ -662,6 +704,20 @@ export async function PATCH(
         nextAccessModules !== undefined ||
         nextIncludeTransportationManagement !== undefined
           ? finalIncludeTransportationManagement
+          : undefined,
+
+      "salesUpsells.weddingChallenges.enabled":
+        nextAccessModules !== undefined ||
+        nextIncludeWeddingChallenges !== undefined
+          ? finalIncludeWeddingChallenges
+          : undefined,
+
+      "salesUpsells.weddingChallengesGiveaway.enabled":
+        nextIncludeWeddingChallengesGiveaway,
+
+      "salesUpsells.weddingChallengesGiveaway.price":
+        nextIncludeWeddingChallengesGiveaway === true
+          ? 99
           : undefined,
 
       ...preRsvpUpdate,
@@ -942,6 +998,9 @@ export async function PATCH(
             includeTransportationManagement: Boolean(
               updatedUser.includeTransportationManagement
             ),
+            includeWeddingChallenges: Boolean(
+              updatedUser.includeWeddingChallenges
+            ),
 
             accessModules: updatedUser.accessModules || {
               rsvpSeating: Boolean(updatedUser.includeDigitalSeating),
@@ -949,6 +1008,7 @@ export async function PATCH(
               transportationManagement: Boolean(
                 updatedUser.includeTransportationManagement
               ),
+              weddingChallenges: Boolean(updatedUser.includeWeddingChallenges),
             },
           },
         });

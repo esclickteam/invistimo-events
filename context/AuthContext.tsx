@@ -33,6 +33,7 @@ type AccessModules = {
   rsvpSeating?: boolean;
   eventProduction?: boolean;
   transportationManagement?: boolean;
+  weddingChallenges?: boolean;
 
   venues?: boolean;
   venueDashboard?: boolean;
@@ -84,7 +85,12 @@ interface User {
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;
+  includeWeddingChallenges?: boolean;
   selfManageEnabled?: boolean;
+  salesUpsells?: {
+    weddingChallenges?: { enabled?: boolean; price?: number };
+    weddingChallengesGiveaway?: { enabled?: boolean; price?: number };
+  };
   rsvpSiteMode?: "standard" | "personal";
   guestExperienceType?: "personal_invitation" | "wedding_website";
   features?: {

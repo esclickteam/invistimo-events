@@ -1115,6 +1115,12 @@ packageName
           Boolean(u.salesUpsells?.transportationManagement?.enabled) ||
           Boolean(u.planLimits?.transportationEnabled);
 
+        const includeWeddingChallenges =
+          Boolean(u.accessModules?.weddingChallenges) ||
+          Boolean(u.includeWeddingChallenges) ||
+          Boolean(u.salesUpsells?.weddingChallenges?.enabled) ||
+          Boolean(u.planLimits?.weddingChallengesEnabled);
+
         const includeCustomDesign =
           Boolean(u.includeCustomDesign) ||
           Boolean(u.customDesignEnabled);
@@ -1129,6 +1135,9 @@ packageName
           transportationManagement: Boolean(
             u.accessModules?.transportationManagement ??
               includeTransportationManagement
+          ),
+          weddingChallenges: Boolean(
+            u.accessModules?.weddingChallenges ?? includeWeddingChallenges
           ),
         };
 
@@ -1174,6 +1183,10 @@ packageName
           includeDigitalSeating,
           includeEventManagement,
           includeTransportationManagement,
+          includeWeddingChallenges,
+          includeWeddingChallengesGiveaway: Boolean(
+            u.salesUpsells?.weddingChallengesGiveaway?.enabled
+          ),
           includeCustomDesign,
           includePreRsvpInvitation: readPreRsvpFlags(u).invitationOnlyEnabled,
           includePreRsvpSaveTheDate: readPreRsvpFlags(u).saveTheDateEnabled,

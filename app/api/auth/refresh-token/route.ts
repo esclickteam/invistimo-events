@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
+import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       userId: String(user._id),
       role: user.role,
       hasPaid: user.hasPaid === true,
+      includeWeddingChallenges: userHasWeddingChallengesEntitlement(user as any),
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {

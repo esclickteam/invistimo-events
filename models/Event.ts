@@ -315,6 +315,18 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
+       סוג מוצר
+       full = חבילת Invistimo רגילה
+       wedding_challenges = משחק עצמאי בלבד
+    ========================= */
+    productType: {
+      type: String,
+      enum: ["full", "wedding_challenges"],
+      default: "full",
+      index: true,
+    },
+
+    /* =========================
        Stripe
     ========================= */
     stripeSessionId: {
