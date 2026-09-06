@@ -47,10 +47,9 @@ function isPrivateStaffRoute(pathname: string | null) {
   );
 }
 
-function isPublicEventRoute(pathname: string | null) {
+function isLiveRoute(pathname: string | null) {
   const path = String(pathname || "");
-
-  return path === "/e" || path.startsWith("/e/");
+  return path === "/live" || path.startsWith("/live/");
 }
 
 function isWeddingWebsiteRoute(pathname: string | null) {
@@ -76,6 +75,12 @@ function isSetPasswordRoute(pathname: string | null) {
   const path = String(pathname || "");
   return path === "/set-password" || path.startsWith("/set-password/");
 }
+
+function isPublicEventRoute(pathname: string | null) {
+  const path = String(pathname || "");
+  return path.startsWith("/public/events/") || path.startsWith("/e/");
+}
+
 
 export default function PublicPageShell({ children }: PublicPageShellProps) {
   const pathname = usePathname();
@@ -124,6 +129,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
 
     if (isPublicEventRoute(pathname)) return true;
 
+    if (isLiveRoute(pathname)) return true;
+
     if (isPrivateStaffRoute(pathname)) return true;
 
     /*
@@ -144,6 +151,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
     if (isWeddingWebsiteRoute(pathname)) return false;
 
     if (isPublicEventRoute(pathname)) return false;
+
+    if (isLiveRoute(pathname)) return false;
 
     if (isPrivateStaffRoute(pathname)) return false;
 

@@ -208,6 +208,13 @@ test("opening SMS never mentions the giveaway", () => {
   assert.equal(smsMentionsGiveaway(short), false);
 });
 
+test("guest live pages hide public marketing chrome", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const shell = fs.readFileSync("app/PublicPageShell.tsx", "utf8");
+  assert.match(shell, /isLiveRoute/);
+  assert.match(shell, /path\.startsWith\("\/live\/"\)/);
+});
+
 test("admin users page exposes Wedding Challenges as a 99 ILS premium add-on", () => {
   const fs = require("node:fs") as typeof import("node:fs");
   const page = fs.readFileSync("app/admin/users/page.tsx", "utf8");

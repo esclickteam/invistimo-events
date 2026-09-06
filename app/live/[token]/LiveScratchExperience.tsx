@@ -109,7 +109,7 @@ function ScratchCard({
     if (!ctx) return;
     ctx.globalCompositeOperation = "destination-out";
     ctx.beginPath();
-    ctx.arc(x, y, 28, 0, Math.PI * 2);
+    ctx.arc(x, y, 46, 0, Math.PI * 2);
     ctx.fill();
 
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -117,7 +117,7 @@ function ScratchCard({
     for (let i = 3; i < pixels.length; i += 4) {
       if (pixels[i] < 40) cleared += 1;
     }
-    if (cleared / (pixels.length / 4) > 0.42) {
+    if (cleared / (pixels.length / 4) > 0.18) {
       revealedRef.current = true;
       onReveal();
     }
