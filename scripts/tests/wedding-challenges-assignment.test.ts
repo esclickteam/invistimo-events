@@ -572,6 +572,25 @@ test("admin missions API, draw lock/reset, and cron jobs are wired", () => {
   assert.match(smsPanel, /תזמון שליחה/);
 });
 
+test("live scratch card keeps foil until most of the gold is cleared", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const src = fs.readFileSync("app/live/[token]/LiveScratchExperience.tsx", "utf8");
+  assert.match(src, /destination-out/);
+  assert.match(src, /setPointerCapture/);
+  assert.match(src, /willReadFrequently/);
+  assert.match(src, /ResizeObserver/);
+  assert.match(src, /UNLOCK_RATIO = 0\.58/);
+  assert.match(src, /FOIL_CLEAR_RATIO = 0\.86/);
+  assert.match(src, /foilVisible/);
+  assert.match(src, /data\.mission\.text/);
+  assert.match(src, /גרדו את שכבת הזהב עד הסוף/);
+  assert.doesNotMatch(src, /> 0\.18/);
+  assert.doesNotMatch(src, /המשימה מחכה מתחת לזהב/);
+  assert.doesNotMatch(src, /\{!revealed && \(/);
+  assert.doesNotMatch(src, /if \(event\.buttons\)/);
+  assert.doesNotMatch(src, />☰</);
+});
+
 test("package guest limit is 800 and does not silently allow overflow", () => {
   const {
     wouldExceedWeddingChallengesGuestLimit,
