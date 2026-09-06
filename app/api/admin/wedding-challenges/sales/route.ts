@@ -4,6 +4,7 @@ import User from "@/models/User";
 import WeddingChallengeEntitlement from "@/models/WeddingChallengeEntitlement";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
@@ -100,7 +101,8 @@ export async function POST(req: NextRequest) {
   const name = String(body.customerName || body.name || "").trim();
   const phone = String(body.phone || body.customerPhone || "").trim();
   const email = String(body.email || body.customerEmail || "").trim().toLowerCase();
-  const includeGiveaway = body.includeGiveaway === true;
+  const includeGiveaway =
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && body.includeGiveaway === true;
   const paymentRaw = String(body.paymentStatus || "").toLowerCase();
   const paymentStatus =
     paymentRaw === "paid" ? "paid" : paymentRaw === "unpaid" ? "unpaid" : "pending";

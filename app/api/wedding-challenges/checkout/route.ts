@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import db from "@/lib/db";
 import User from "@/models/User";
 import {
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
   BUYME_PRIZE_MIN_ILS,
@@ -50,7 +51,8 @@ export async function POST(req: Request) {
 
   await db();
   const body = await req.json().catch(() => ({}));
-  const includeGiveaway = body.includeGiveaway === true;
+  const includeGiveaway =
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && body.includeGiveaway === true;
   const alreadyEntitled = userHasWeddingChallengesEntitlement(user as any);
   const alreadyGiveaway = userHasWeddingChallengesGiveawayEntitlement(user as any);
 

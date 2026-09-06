@@ -10,6 +10,7 @@ import {
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
+import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 
 const VAT_RATE = 0.18;
 const COMMISSION_RATE = 0.05;
@@ -854,7 +855,6 @@ const UPSELLS: UpsellItem[] = [
         items: [
           "אפשר למכור כתוספת לאירוע קיים או כמוצר עצמאי.",
           "אם נמכר עצמאית, פרטי האירוע והאורחים יושלמו אחרי התשלום.",
-          "הגרלה היא תוספת נפרדת ב-99 ₪. עלות הפרס נגבית בנפרד.",
         ],
       },
     ],
@@ -1285,7 +1285,12 @@ export default function NewEmployeeSalePage() {
   }, [alcoholManagementStaffCount, packageCalculation.finalPrice, selectedPlanKey, selectedUpsells, venueSeatingStaffCount]);
 
   const availableUpsells = useMemo(() => {
-    return UPSELLS.filter((upsell) => !upsell.availableForPlans || upsell.availableForPlans.includes(selectedPlanKey));
+    return UPSELLS.filter((upsell) => {
+      if (upsell.key === "weddingChallengesGiveaway" && !WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE) {
+        return false;
+      }
+      return !upsell.availableForPlans || upsell.availableForPlans.includes(selectedPlanKey);
+    });
   }, [selectedPlanKey]);
 
   const selectedUpsellsList = useMemo(() => {

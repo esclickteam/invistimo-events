@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireWeddingChallenges } from "@/lib/guards/requireWeddingChallenges";
+import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 import { drawWeddingChallengesGiveaway } from "@/lib/weddingChallenges/draw";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,13 @@ export async function POST(req: Request) {
 
   const gate = await requireWeddingChallenges({ eventId });
   if (!gate.ok) return gate.response;
+
+  if (!WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE) {
+    return NextResponse.json(
+      { success: false, error: "GIVEAWAY_UNAVAILABLE" },
+      { status: 409 }
+    );
+  }
 
   const reset = body.reset === true && body.confirm === true;
   const result = await drawWeddingChallengesGiveaway({ eventId, reset });

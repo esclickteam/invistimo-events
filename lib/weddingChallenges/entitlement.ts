@@ -1,4 +1,5 @@
 import {
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "./constants";
@@ -51,6 +52,7 @@ export function userHasWeddingChallengesEntitlement(
 export function userHasWeddingChallengesGiveawayEntitlement(
   user: WeddingChallengesEntitlementUser | null | undefined
 ): boolean {
+  if (!WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE) return false;
   if (!userHasWeddingChallengesEntitlement(user)) return false;
   return (
     user?.salesUpsells?.weddingChallengesGiveaway?.enabled === true ||

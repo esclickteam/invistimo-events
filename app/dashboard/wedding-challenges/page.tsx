@@ -10,6 +10,7 @@ import {
 } from "@/lib/weddingChallenges/entitlement";
 import {
   CATEGORY_SHORT_LABELS,
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
 } from "@/lib/weddingChallenges/constants";
 import type { WeddingChallengeSettings, WeddingChallengesSourceType } from "@/lib/weddingChallenges/types";
 import { defaultWeddingChallengeSettings } from "@/lib/weddingChallenges/settings";
@@ -609,6 +610,7 @@ function WeddingChallengesAdmin() {
           onMessage={setMessage}
         />
 
+        {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
         <GiveawayCard
           eventId={eventId}
           sourceType={sourceType}
@@ -623,6 +625,7 @@ function WeddingChallengesAdmin() {
           onDraw={draw}
           onMessage={setMessage}
         />
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <button

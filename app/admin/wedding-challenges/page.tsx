@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_PRICE_ILS,
 } from "@/lib/weddingChallenges/constants";
@@ -322,6 +323,8 @@ export default function AdminWeddingChallengesSalesPage() {
               dir="ltr"
             />
           </div>
+          {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
+            <>
           <div>
             <label className={labelClass} htmlFor="wc-giveaway-price">מחיר הגרלה (₪)</label>
             <input
@@ -348,8 +351,11 @@ export default function AdminWeddingChallengesSalesPage() {
               dir="ltr"
             />
           </div>
+            </>
+          ) : null}
         </div>
 
+        {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
         <label className="flex items-center gap-2 text-sm font-bold text-[#3b2419]">
           <input
             type="checkbox"
@@ -358,6 +364,7 @@ export default function AdminWeddingChallengesSalesPage() {
           />
           הוספת הגרלה במחיר שהוגדר למעלה (עלות הפרס נגבית בנפרד)
         </label>
+        ) : null}
 
         <div>
           <label className={labelClass} htmlFor="wc-notes">הערות</label>
@@ -372,9 +379,13 @@ export default function AdminWeddingChallengesSalesPage() {
 
         <div className="rounded-xl bg-[#f7efe6] px-4 py-3 text-sm text-[#3b2419]">
           <div>מוצר: Wedding Challenges – {Number(form.price) || 0} ₪</div>
-          {form.includeGiveaway ? <div>הגרלה: {Number(form.giveawayPrice) || 0} ₪</div> : null}
+          {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && form.includeGiveaway ? (
+            <div>הגרלה: {Number(form.giveawayPrice) || 0} ₪</div>
+          ) : null}
           <div className="mt-1 font-semibold">סה״כ לחיוב: {total} ₪</div>
+          {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
           <div className="mt-1 text-xs text-[#7a5b4a]">עלות הפרס נגבית בנפרד ולא נכנסת לסה״כ החבילה</div>
+          ) : null}
         </div>
 
         {error ? <p className="text-sm text-red-700">{error}</p> : null}

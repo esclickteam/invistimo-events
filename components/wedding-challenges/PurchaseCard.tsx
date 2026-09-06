@@ -6,6 +6,7 @@ import {
   BUYME_PRIZE_MAX_ILS,
   BUYME_PRIZE_MIN_ILS,
   BUYME_PRIZE_VALUES_ILS,
+  WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE,
   WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS,
   WEDDING_CHALLENGES_MAX_GUESTS,
   WEDDING_CHALLENGES_PRICE_ILS,
@@ -42,7 +43,8 @@ export default function WeddingChallengesPurchaseCard({
   const selected = custom ? Number(custom) : prizeValue;
   const validPrize =
     Number.isFinite(selected) && selected >= BUYME_PRIZE_MIN_ILS && selected <= BUYME_PRIZE_MAX_ILS;
-  const giveawayOn = includeGiveaway && !giveawayPurchased;
+  const giveawayOn =
+    WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE && includeGiveaway && !giveawayPurchased;
 
   const total = useMemo(() => {
     const giveawayTotal = giveawayOn ? WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS + (validPrize ? selected : 0) : 0;
@@ -125,6 +127,7 @@ export default function WeddingChallengesPurchaseCard({
         ))}
       </div>
 
+      {WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE ? (
       <div className="mt-5 rounded-2xl border border-[#E8D9C7] bg-white px-4 py-4">
         <p className="text-sm font-black text-[#3E2D20]">
           הגרלה אופציונלית – {WEDDING_CHALLENGES_GIVEAWAY_PRICE_ILS} ₪ + עלות הפרס
@@ -187,6 +190,7 @@ export default function WeddingChallengesPurchaseCard({
           <p className="mt-2 text-sm font-bold text-emerald-700">תוספת ההגרלה כבר פעילה</p>
         )}
       </div>
+      ) : null}
 
       {error ? <p className="mt-4 text-sm font-bold text-red-700">{error}</p> : null}
 
