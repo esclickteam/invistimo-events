@@ -17,6 +17,10 @@ import {
   checkLoginRateLimit,
   clearLoginRateLimit,
 } from "@/lib/auth/loginRateLimit";
+import {
+  normalizeLoginIdentifier,
+  normalizeLoginPassword,
+} from "@/lib/auth/normalizeLoginInput";
 import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
 
 export const runtime = "nodejs";
@@ -68,11 +72,10 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const identifier = String(body?.email || body?.phone || "")
-      .trim()
-      .toLowerCase();
-
-    const password = String(body?.password || "");
+    // Mobile copy/paste (WhatsApp/iOS) often injects invisible RTL/LTR marks.
+    // Those make the same-looking email miss the DB lookup and return "wrong password".
+    const identifier = normalizeLoginIdentifier(body?.email || body?.phone || "");
+    const password = normalizeLoginPassword(body?.password || "");
 
     if (!identifier || !password) {
       return NextResponse.json(

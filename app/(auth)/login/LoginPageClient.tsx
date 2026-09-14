@@ -23,8 +23,12 @@ export default function LoginPageClient() {
         Always read from FormData so we submit what the user actually sees.
       */
       const formData = new FormData(e.currentTarget);
-      const submittedEmail = String(formData.get("email") || email).trim();
-      const submittedPassword = String(formData.get("password") || pass);
+      const submittedEmail = String(formData.get("email") || email)
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
+        .trim();
+      const submittedPassword = String(formData.get("password") || pass)
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "")
+        .trim();
 
       if (!submittedEmail || !submittedPassword) {
         alert("נא למלא מייל/טלפון וסיסמה");
