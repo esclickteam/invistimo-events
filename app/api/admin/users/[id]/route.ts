@@ -842,9 +842,12 @@ export async function PATCH(
     if (hasField(body, "eventDate")) {
       const nextEventDate = body.eventDate || null;
 
+      // timestamps:false — otherwise empty duplicate invitations can steal
+      // /api/invitations/my selection via a newer updatedAt.
       await Invitation.updateMany(
         { ownerId: id },
-        { $set: { eventDate: nextEventDate } }
+        { $set: { eventDate: nextEventDate } },
+        { timestamps: false }
       );
     }
 
