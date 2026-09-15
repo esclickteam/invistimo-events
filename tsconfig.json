@@ -59,5 +59,9 @@
     "app/components/WhatsAppScheduleManager.jsx"
 , "app/components/UpgradeOfferCard.jsx"  ],
 
-  "exclude": ["node_modules", "scripts/test-whatsapp-excel-export.ts"]
+  "exclude": [
+    "node_modules",
+    "scripts/test-whatsapp-excel-export.ts",
+    "scripts/test-sms-excel-export.ts"
+  ]
 }

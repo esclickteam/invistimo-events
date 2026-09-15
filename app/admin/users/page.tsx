@@ -7,6 +7,7 @@ import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
+import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
@@ -2869,6 +2870,7 @@ function AdminMessageRoundsPanel({
 }) {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [showWhatsappRoundReport, setShowWhatsappRoundReport] = useState(false);
+  const [showSmsRoundReport, setShowSmsRoundReport] = useState(false);
 
   const rounds = normalizeAdminMessageRounds(user);
 
@@ -2964,40 +2966,77 @@ function AdminMessageRoundsPanel({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (!user.invitationId) {
-              alert("לא נמצאה הזמנה למשתמש הזה");
-              return;
-            }
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!user.invitationId) {
+                alert("לא נמצאה הזמנה למשתמש הזה");
+                return;
+              }
 
-            setShowWhatsappRoundReport(true);
-          }}
-          className="
-            inline-flex
-            w-fit
-            items-center
-            justify-center
-            gap-2
-            rounded-full
-            border
-            border-[#D9B46F]/60
-            bg-[#FFFDF8]
-            px-5
-            py-2.5
-            text-sm
-            font-black
-            text-[#6B451E]
-            shadow-sm
-            transition
-            hover:-translate-y-0.5
-            hover:bg-[#FFF8E6]
-            hover:shadow-md
-          "
-        >
-          📊 דוח WhatsApp לסבבים
-        </button>
+              setShowWhatsappRoundReport(true);
+            }}
+            className="
+              inline-flex
+              w-fit
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#D9B46F]/60
+              bg-[#FFFDF8]
+              px-5
+              py-2.5
+              text-sm
+              font-black
+              text-[#6B451E]
+              shadow-sm
+              transition
+              hover:-translate-y-0.5
+              hover:bg-[#FFF8E6]
+              hover:shadow-md
+            "
+          >
+            📊 דוח WhatsApp לסבבים
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!user.invitationId) {
+                alert("לא נמצאה הזמנה למשתמש הזה");
+                return;
+              }
+
+              setShowSmsRoundReport(true);
+            }}
+            className="
+              inline-flex
+              w-fit
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#D9B46F]/60
+              bg-[#FFFDF8]
+              px-5
+              py-2.5
+              text-sm
+              font-black
+              text-[#6B451E]
+              shadow-sm
+              transition
+              hover:-translate-y-0.5
+              hover:bg-[#FFF8E6]
+              hover:shadow-md
+            "
+          >
+            📊 דוח SMS לסבבים
+          </button>
+        </div>
       </div>
 
       <div className="mb-5">
@@ -3176,6 +3215,14 @@ function AdminMessageRoundsPanel({
           invitationId={user.invitationId}
           clientName={user.name || user.email || "לקוח"}
           onClose={() => setShowWhatsappRoundReport(false)}
+        />
+      )}
+
+      {showSmsRoundReport && user.invitationId && (
+        <SmsRoundsReportModal
+          invitationId={user.invitationId}
+          clientName={user.name || user.email || "לקוח"}
+          onClose={() => setShowSmsRoundReport(false)}
         />
       )}
     </section>
