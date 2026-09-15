@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
-import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import WeddingEventUpload from "@/models/WeddingEventUpload";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { canManageInvitation } from "@/lib/canManageInvitation";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
@@ -18,6 +16,7 @@ import {
   eventUploadExpiresAt,
   serializeEventUpload,
 } from "@/lib/weddingWebsite/eventUploads";
+import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,17 +35,7 @@ function cleanString(value: unknown) {
 }
 
 async function findManagedInvitation(auth: any, invitationId?: string | null) {
-  if (invitationId) {
-    const invitation = await Invitation.findById(invitationId).lean();
-    if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  }
-
-  const invitation = await Invitation.findOne({ ownerId: auth.userId })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .lean();
-
-  if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  return null;
+  return findManagedPrimaryInvitation(auth, invitationId);
 }
 
 export async function GET(req: NextRequest) {

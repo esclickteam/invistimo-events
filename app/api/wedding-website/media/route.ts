@@ -5,7 +5,6 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { canManageInvitation } from "@/lib/canManageInvitation";
 import { cloudinaryFolder } from "@/lib/cloudinaryFolder";
 import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
@@ -14,6 +13,7 @@ import { getOptimizedWeddingImageUrl } from "@/lib/weddingWebsite/images";
 import { collectContentMediaLibrary, mediaSlotFromImageUrl } from "@/lib/weddingWebsite/media";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 import type { WeddingMediaSlot } from "@/types/weddingWebsite";
+import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,17 +72,7 @@ function assertCloudinaryConfig() {
 }
 
 async function findManagedInvitation(auth: any, invitationId?: string | null) {
-  if (invitationId) {
-    const invitation = await Invitation.findById(invitationId).lean();
-    if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  }
-
-  const invitation = await Invitation.findOne({ ownerId: auth.userId })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .lean();
-
-  if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  return null;
+  return findManagedPrimaryInvitation(auth, invitationId);
 }
 
 async function uploadMediaToCloudinary({

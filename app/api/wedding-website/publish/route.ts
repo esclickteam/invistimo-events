@@ -9,6 +9,7 @@ import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
+import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const invitation = body?.invitationId
       ? await Invitation.findById(body.invitationId).lean()
-      : await Invitation.findOne({ ownerId: auth.userId }).sort({ updatedAt: -1 }).lean();
+      : await findManagedPrimaryInvitation(auth);
 
     if (!invitation || !canManageInvitation(auth, invitation)) {
       return NextResponse.json({ success: false, error: "INVITATION_NOT_FOUND" }, { status: 404 });

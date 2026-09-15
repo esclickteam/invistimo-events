@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
-import { canManageInvitation } from "@/lib/canManageInvitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
@@ -13,27 +12,13 @@ import { getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite, normalizeRsvpSiteMode } from "@/types/rsvpSite";
 import { getCustomerFeatures, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { resolveWeddingGifts } from "@/lib/weddingWebsite/gifts";
+import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 async function findManagedInvitation(auth: any, invitationId?: string | null) {
-  if (invitationId) {
-    const invitation = await Invitation.findById(invitationId).lean();
-    if (invitation && canManageInvitation(auth, invitation)) {
-      return invitation;
-    }
-  }
-
-  const invitation = await Invitation.findOne({ ownerId: auth.userId })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .lean();
-
-  if (invitation && canManageInvitation(auth, invitation)) {
-    return invitation;
-  }
-
-  return null;
+  return findManagedPrimaryInvitation(auth, invitationId);
 }
 
 export async function GET(req: NextRequest) {

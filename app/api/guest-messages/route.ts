@@ -2,30 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { canManageInvitation } from "@/lib/canManageInvitation";
-import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import GuestWeddingMessage from "@/models/GuestWeddingMessage";
 import { hasGuestMessagesFeature } from "@/lib/features/entitlements";
 import { emitWeddingInternalEvent } from "@/lib/weddingWebsite/events";
 import { GUEST_MESSAGE_MAX_LENGTH, sanitizeGuestMessage } from "@/lib/weddingWebsite/guestMessage";
+import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 async function findManagedInvitation(auth: any, invitationId?: string | null) {
-  if (invitationId) {
-    const invitation = await Invitation.findById(invitationId).lean();
-    if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  }
-
-  const invitation = await Invitation.findOne({ ownerId: auth.userId })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .lean();
-
-  if (invitation && canManageInvitation(auth, invitation)) return invitation;
-  return null;
+  return findManagedPrimaryInvitation(auth, invitationId);
 }
 
 export async function GET(req: NextRequest) {

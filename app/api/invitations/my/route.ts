@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
-import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import Event from "@/models/Event";
 import ScheduledMessage from "@/models/ScheduledMessage";
@@ -12,6 +11,7 @@ import {
   getOwnerRsvpSiteMode,
 } from "@/lib/weddingWebsite/rsvpSiteMode";
 import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
+import { findPrimaryInvitationId } from "@/lib/pickPrimaryInvitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -319,12 +319,13 @@ export async function GET(req: Request) {
       $or: orFilters,
     };
 
-    const candidates = await Invitation.find(baseQuery)
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .limit(25)
-      .populate({
-        path: "eventId",
-        select: `
+    const primaryInvitationId = await findPrimaryInvitationId(baseQuery);
+
+    const invitation = primaryInvitationId
+      ? await Invitation.findById(primaryInvitationId)
+          .populate({
+            path: "eventId",
+            select: `
           title
           date
           time
@@ -335,8 +336,8 @@ export async function GET(req: Request) {
           coverImageUrl
           giftCreditUrl
         `,
-      })
-      .select(`
+          })
+          .select(`
         _id
         title
 
@@ -472,36 +473,8 @@ export async function GET(req: Request) {
         updatedAt
         createdAt
       `)
-      .lean();
-
-    let invitation = candidates[0] || null;
-
-    if (candidates.length > 1) {
-      const guestCounts = await InvitationGuest.aggregate([
-        {
-          $match: {
-            invitationId: {
-              $in: candidates.map((c: any) => c._id),
-            },
-          },
-        },
-        { $group: { _id: "$invitationId", count: { $sum: 1 } } },
-      ]);
-
-      const countById = new Map<string, number>(
-        guestCounts.map((row: any) => [String(row._id), Number(row.count || 0)])
-      );
-
-      invitation = [...candidates].sort((a: any, b: any) => {
-        const guestsA = countById.get(String(a._id)) || 0;
-        const guestsB = countById.get(String(b._id)) || 0;
-        if (guestsB !== guestsA) return guestsB - guestsA;
-
-        const updatedA = new Date(a.updatedAt || 0).getTime();
-        const updatedB = new Date(b.updatedAt || 0).getTime();
-        return updatedB - updatedA;
-      })[0];
-    }
+          .lean()
+      : null;
 
     let rawVenueInvitation: any = null;
 
