@@ -259,7 +259,7 @@ async function main() {
 
   // Reload with ExcelJS
   const verify = new ExcelJS.Workbook();
-  await verify.xlsx.load(Uint8Array.from(buffer));
+  await verify.xlsx.load(buffer as any);
   assert(verify.worksheets.length === 3, "ExcelJS reload has 3 sheets");
   assert(verify.worksheets[0].name === "סיכום", "reload first sheet סיכום");
 
@@ -379,7 +379,7 @@ try {
   });
   const bigBuf = await workbookToNodeBuffer(big);
   const bigVerify = new ExcelJS.Workbook();
-  await bigVerify.xlsx.load(Uint8Array.from(bigBuf));
+  await bigVerify.xlsx.load(bigBuf as any);
   assert(
     bigVerify.getWorksheet("אורחים")!.rowCount >= 1001,
     "1000+ guests reload ok"
