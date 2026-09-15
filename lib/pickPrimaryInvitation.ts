@@ -1,4 +1,3 @@
-import type { FilterQuery } from "mongoose";
 import mongoose from "mongoose";
 
 import Invitation from "@/models/Invitation";
@@ -16,6 +15,8 @@ export type PrimaryInvitationCandidate = {
   createdAt?: Date | string | null;
   guestCount?: number;
 };
+
+type InvitationMatch = Record<string, any>;
 
 export function isPlaceholderInvitationTitle(title: unknown): boolean {
   return PLACEHOLDER_INVITATION_TITLES.has(String(title || "").trim());
@@ -70,8 +71,8 @@ export function pickPrimaryInvitation<T extends PrimaryInvitationCandidate>(
 }
 
 export function buildActiveInvitationMatch(
-  extra: FilterQuery<any> = {}
-): FilterQuery<any> {
+  extra: InvitationMatch = {}
+): InvitationMatch {
   return {
     eventId: { $ne: null },
     standaloneGame: { $ne: true },
@@ -85,7 +86,7 @@ export function buildActiveInvitationMatch(
  * cap — safe for owners with many invitations.
  */
 export async function findPrimaryInvitationId(
-  match: FilterQuery<any>
+  match: InvitationMatch
 ): Promise<mongoose.Types.ObjectId | null> {
   const rows = await Invitation.aggregate<{ _id: mongoose.Types.ObjectId }>([
     { $match: match },
@@ -137,7 +138,7 @@ export async function findPrimaryInvitationId(
 }
 
 export async function findPrimaryInvitationLean(
-  match: FilterQuery<any>
+  match: InvitationMatch
 ): Promise<any | null> {
   const id = await findPrimaryInvitationId(match);
   if (!id) return null;
