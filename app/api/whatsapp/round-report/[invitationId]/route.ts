@@ -31,6 +31,7 @@ import {
   normalizeRoundNumber,
   normalizeRoundType,
   pickLatestQueueItem,
+  applyWhatsappReportGuestFilters,
   type ReportStatusKey,
 } from "@/lib/whatsapp/roundReport";
 
@@ -156,100 +157,6 @@ function mapQueueItemForReport(item: any, guest: any, isAdmin: boolean) {
         }
       : null,
   };
-}
-
-function applyGuestFilters(
-  guests: any[],
-  {
-    roundKey,
-    status,
-    rsvp,
-    messageCount,
-    search,
-  }: {
-    roundKey?: string;
-    status?: string;
-    rsvp?: string;
-    messageCount?: string;
-    search?: string;
-  }
-) {
-  const q = String(search || "")
-    .trim()
-    .toLowerCase();
-  const qDigits = q.replace(/\D/g, "");
-
-  return guests.filter((guest) => {
-    if (roundKey && roundKey !== "all") {
-      const roundHit = guest.roundStatuses?.find(
-        (item: any) => item.roundKey === roundKey
-      );
-      // When filtering by round, keep guests who appear in event (all),
-      // but require a known status for that round (including not_sent).
-      if (!roundHit) return false;
-    }
-
-    if (status && status !== "all") {
-      const statusKey = String(status).toLowerCase();
-      if (roundKey && roundKey !== "all") {
-        const roundHit = guest.roundStatuses?.find(
-          (item: any) => item.roundKey === roundKey
-        );
-        if (String(roundHit?.status || "") !== statusKey) return false;
-      } else if (statusKey === "failed") {
-        if (!guest.everFailed && guest.lastStatus !== "failed") return false;
-      } else if (statusKey === "not_sent") {
-        // All-rounds: guests who never received a successful send
-        if (guest.receivedCount > 0) return false;
-      } else if (statusKey === "scheduled" || statusKey === "pending") {
-        if (guest.pendingCount <= 0 && guest.lastStatus !== statusKey) {
-          return false;
-        }
-      } else {
-        // Match best-ever overall status (and last for failed already handled)
-        if (guest.overallStatus !== statusKey && guest.lastStatus !== statusKey) {
-          return false;
-        }
-      }
-    }
-
-    if (rsvp && rsvp !== "all") {
-      if (guest.rsvp !== rsvp) return false;
-    }
-
-    if (messageCount && messageCount !== "all") {
-      if (messageCount === "0" && guest.messagesCount !== 0) return false;
-      if (messageCount === "1" && guest.messagesCount !== 1) return false;
-      if (messageCount === "1+" && guest.messagesCount < 1) return false;
-      if (
-        (messageCount === "2+" || messageCount === "2") &&
-        guest.messagesCount < 2
-      ) {
-        return false;
-      }
-    }
-
-    if (q || qDigits) {
-      const name = String(guest.name || "").toLowerCase();
-      const phone = String(guest.phone || "").replace(/\D/g, "");
-      const overall = String(guest.overallStatusLabel || "").toLowerCase();
-      const last = String(guest.lastStatusLabel || "").toLowerCase();
-      const error = String(guest.lastError || "").toLowerCase();
-      const reason = String(guest.notSentReason || "").toLowerCase();
-
-      const matchName = q ? name.includes(q) : false;
-      const matchPhone = qDigits ? phone.includes(qDigits) : false;
-      const matchStatus =
-        q && (overall.includes(q) || last.includes(q) || reason.includes(q));
-      const matchError = q ? error.includes(q) : false;
-
-      if (!(matchName || matchPhone || matchStatus || matchError)) {
-        return false;
-      }
-    }
-
-    return true;
-  });
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -819,7 +726,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return publicRound;
     });
 
-    const filteredGuests = applyGuestFilters(guestsAggregated, {
+    const filteredGuests = applyWhatsappReportGuestFilters(guestsAggregated, {
       roundKey: roundFilter,
       status: statusFilter,
       rsvp: rsvpFilter,

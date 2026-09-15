@@ -5,23 +5,11 @@ import { isValidWhatsappPhone } from "@/lib/whatsapp/roundReport";
    Types (same shape as report API / UI)
 ========================= */
 
-export type ExcelReportStatus =
-  | "not_sent"
-  | "scheduled"
-  | "pending"
-  | "sending"
-  | "sent"
-  | "delivered"
-  | "read"
-  | "failed"
-  | "cancelled"
-  | string;
+export type ExcelReportStatus = string;
 
 export type ExcelReportMessage = {
   id: string;
-  roundKey?: string;
   roundTitle?: string;
-  roundType?: string;
   messageTypeLabel?: string;
   templateName?: string;
   status?: ExcelReportStatus;
@@ -30,7 +18,6 @@ export type ExcelReportMessage = {
   deliveredAt?: string | null;
   readAt?: string | null;
   failedAt?: string | null;
-  scheduledAt?: string | null;
   createdAt?: string | null;
   attemptedAt?: string | null;
   errorMessage?: string;
@@ -59,7 +46,6 @@ export type ExcelReportGuest = {
   everRead: boolean;
   everFailed: boolean;
   notSentReason?: string | null;
-  notSentReasonKey?: string | null;
   lastError?: string;
   roundsSentCount: number;
   roundsTotal: number;
@@ -71,7 +57,6 @@ export type ExcelReportRound = {
   title: string;
   type?: string;
   typeLabel?: string;
-  round?: number;
   total: number;
   intended?: number;
   sent: number;
@@ -103,13 +88,9 @@ export type ExcelGuestSummary = {
 };
 
 export type ExportWhatsappRoundReportInput = {
-  /** Unique-guest KPIs from GET /api/whatsapp/round-report — same as UI */
   summary: ExcelGuestSummary;
-  /** Round cards from the same API response */
   rounds: ExcelReportRound[];
-  /** Full guest list from API (for RSVP / attention KPIs) */
   allGuests: ExcelReportGuest[];
-  /** Guests currently shown in the table (respects UI filters) */
   guestsForSheets: ExcelReportGuest[];
   invitationTitle?: string;
   eventDate?: string | null;
@@ -119,34 +100,33 @@ export type ExportWhatsappRoundReportInput = {
   generatedAt?: string | Date;
 };
 
+/** ExcelJS requires AARRGGBB (8 hex chars). 6-char RGB causes Excel repair warnings. */
+function argb(hex6or8: string) {
+  const raw = String(hex6or8 || "")
+    .replace(/^#/, "")
+    .toUpperCase();
+  if (/^[0-9A-F]{8}$/.test(raw)) return raw;
+  if (/^[0-9A-F]{6}$/.test(raw)) return `FF${raw}`;
+  return "FFFFFFFF";
+}
+
+function solidFill(hex: string): ExcelJS.Fill {
+  return {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: argb(hex) },
+  };
+}
+
 const THIN_BORDER: Partial<ExcelJS.Borders> = {
-  top: { style: "thin", color: { argb: "E5DDD2" } },
-  left: { style: "thin", color: { argb: "E5DDD2" } },
-  bottom: { style: "thin", color: { argb: "E5DDD2" } },
-  right: { style: "thin", color: { argb: "E5DDD2" } },
-};
-
-const HEADER_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "F5EFE6" },
-};
-
-const TITLE_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "F8F1E6" },
-};
-
-const SECTION_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "FFF8F0" },
+  top: { style: "thin", color: { argb: argb("E5DDD2") } },
+  left: { style: "thin", color: { argb: argb("E5DDD2") } },
+  bottom: { style: "thin", color: { argb: argb("E5DDD2") } },
+  right: { style: "thin", color: { argb: argb("E5DDD2") } },
 };
 
 function statusFill(status?: string): ExcelJS.Fill | undefined {
   const key = String(status || "").toLowerCase();
-
   const map: Record<string, string> = {
     read: "E8F8EF",
     נקרא: "E8F8EF",
@@ -166,22 +146,14 @@ function statusFill(status?: string): ExcelJS.Fill | undefined {
     cancelled: "F3F0EC",
     בוטל: "F3F0EC",
   };
-
   const color = map[key];
-  if (!color) return undefined;
-
-  return {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: color },
-  };
+  return color ? solidFill(color) : undefined;
 }
 
 function formatDateTime(value?: string | Date | null) {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-
   const dd = String(date.getDate()).padStart(2, "0");
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = date.getFullYear();
@@ -201,11 +173,11 @@ function formatDateOnly(value?: string | Date | null) {
 }
 
 function formatFileDate(value?: string | Date | null) {
-  if (!value) {
-    const now = new Date();
-    return formatFileDate(now);
-  }
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value
+    ? value instanceof Date
+      ? value
+      : new Date(value)
+    : new Date();
   if (Number.isNaN(date.getTime())) return "unknown-date";
   const dd = String(date.getDate()).padStart(2, "0");
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -214,18 +186,28 @@ function formatFileDate(value?: string | Date | null) {
 }
 
 function sanitizeFilePart(value: string) {
-  return String(value || "event")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[\\/:*?"<>|]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60) || "event";
+  return (
+    String(value || "event")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 60) || "event"
+  );
+}
+
+/** Prevent Excel formula injection on user-controlled text. */
+function safeText(value: unknown) {
+  const text = value == null ? "" : String(value);
+  if (!text) return "";
+  if (/^[=+\-@]/.test(text)) return `'${text}`;
+  return text;
 }
 
 function pct(part: number, whole: number) {
   if (!whole || whole <= 0) return 0;
-  return part / whole;
+  return Number(part || 0) / Number(whole);
 }
 
 function yesNo(value: boolean) {
@@ -251,21 +233,17 @@ function getLatestMessageField(
   return best;
 }
 
-function applyRtlSheet(sheet: ExcelJS.Worksheet) {
-  sheet.views = [{ rightToLeft: true, showGridLines: false, state: "frozen" }];
+function styleHeaderCell(cell: ExcelJS.Cell) {
+  cell.font = { bold: true, size: 11, color: { argb: argb("5F4A38") } };
+  cell.fill = solidFill("F5EFE6");
+  cell.alignment = { vertical: "middle", horizontal: "right", wrapText: true };
+  cell.border = THIN_BORDER;
 }
 
-function styleHeaderRow(row: ExcelJS.Row) {
-  row.font = { bold: true, size: 11, color: { argb: "5F4A38" } };
-  row.fill = HEADER_FILL;
-  row.alignment = { vertical: "middle", horizontal: "right", wrapText: true };
-  row.height = 22;
-  row.eachCell((cell) => {
-    cell.border = THIN_BORDER;
-  });
-}
-
-function styleDataCell(cell: ExcelJS.Cell, opts?: { status?: string; wrap?: boolean }) {
+function styleDataCell(
+  cell: ExcelJS.Cell,
+  opts?: { status?: string; wrap?: boolean }
+) {
   cell.border = THIN_BORDER;
   cell.alignment = {
     vertical: "middle",
@@ -276,25 +254,33 @@ function styleDataCell(cell: ExcelJS.Cell, opts?: { status?: string; wrap?: bool
   if (fill) cell.fill = fill;
 }
 
+function setRowValues(row: ExcelJS.Row, values: Array<string | number>) {
+  // Assign via getCell to avoid ExcelJS row.values index quirks across versions.
+  values.forEach((value, index) => {
+    row.getCell(index + 1).value = value;
+  });
+}
+
 function addSectionTitle(
   sheet: ExcelJS.Worksheet,
   rowNumber: number,
   title: string,
   colSpan: number
 ) {
-  sheet.mergeCells(rowNumber, 1, rowNumber, colSpan);
+  const endCol = Math.max(1, colSpan);
+  sheet.mergeCells(rowNumber, 1, rowNumber, endCol);
   const cell = sheet.getCell(rowNumber, 1);
-  cell.value = title;
-  cell.font = { bold: true, size: 13, color: { argb: "3A2A1C" } };
-  cell.fill = SECTION_FILL;
+  cell.value = safeText(title);
+  cell.font = { bold: true, size: 13, color: { argb: argb("3A2A1C") } };
+  cell.fill = solidFill("FFF8F0");
   cell.alignment = { horizontal: "right", vertical: "middle" };
   cell.border = THIN_BORDER;
   sheet.getRow(rowNumber).height = 24;
 }
 
 /**
- * Build a professional 3-sheet WhatsApp report workbook.
- * KPIs must come from the same API summary/rounds used by the UI.
+ * Build a 3-sheet WhatsApp report workbook that opens cleanly in Microsoft Excel.
+ * Uses the same summary/rounds/guests payload as the UI (no separate aggregation).
  */
 export async function buildWhatsappRoundReportWorkbook(
   input: ExportWhatsappRoundReportInput
@@ -341,48 +327,50 @@ export async function buildWhatsappRoundReportWorkbook(
   /* =========================
      1) סיכום
   ========================= */
-  const summarySheet = workbook.addWorksheet("סיכום", {
-    views: [{ rightToLeft: true, showGridLines: false }],
-  });
-  applyRtlSheet(summarySheet);
+  const summarySheet = workbook.addWorksheet("סיכום");
+  summarySheet.views = [{ rightToLeft: true, showGridLines: false }];
   summarySheet.columns = [
     { width: 36 },
-    { width: 16 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
+    { width: 18 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
     { width: 12 },
     { width: 12 },
   ];
 
-  summarySheet.mergeCells("A1:C1");
-  const titleCell = summarySheet.getCell("A1");
-  titleCell.value = `דוח WhatsApp – ${invitationTitle || "אירוע"}`;
-  titleCell.font = { bold: true, size: 20, color: { argb: "3A2A1C" } };
-  titleCell.fill = TITLE_FILL;
+  summarySheet.mergeCells(1, 1, 1, 3);
+  const titleCell = summarySheet.getCell(1, 1);
+  titleCell.value = safeText(`דוח WhatsApp – ${invitationTitle || "אירוע"}`);
+  titleCell.font = { bold: true, size: 18, color: { argb: argb("3A2A1C") } };
+  titleCell.fill = solidFill("F8F1E6");
   titleCell.alignment = { horizontal: "right", vertical: "middle" };
-  summarySheet.getRow(1).height = 34;
+  summarySheet.getRow(1).height = 30;
 
   const metaRows: Array<[string, string | number]> = [
-    ["שם האירוע", invitationTitle || ""],
-    ["תאריך האירוע", formatDateOnly(eventDate) || ""],
-    ["סבב שנבחר", roundScopeLabel],
-    ["תאריך ושעת הפקת הדוח", formatDateTime(generatedAt)],
-    ["סה״כ אורחים", totalGuests],
+    ["שם האירוע", safeText(invitationTitle || "")],
   ];
-
   if (clientName) {
-    metaRows.splice(1, 0, ["בעל אירוע / לקוח", clientName]);
+    metaRows.push(["בעל אירוע / לקוח", safeText(clientName)]);
   }
+  metaRows.push(
+    ["תאריך האירוע", formatDateOnly(eventDate) || ""],
+    ["סבב שנבחר", safeText(roundScopeLabel)],
+    ["תאריך ושעת הפקת הדוח", formatDateTime(generatedAt)],
+    ["סה״כ אורחים", totalGuests]
+  );
 
   let row = 3;
   for (const [label, value] of metaRows) {
     summarySheet.getCell(row, 1).value = label;
-    summarySheet.getCell(row, 1).font = { bold: true, color: { argb: "7B6754" } };
+    summarySheet.getCell(row, 1).font = {
+      bold: true,
+      color: { argb: argb("7B6754") },
+    };
     summarySheet.getCell(row, 2).value = value;
     summarySheet.getCell(row, 1).border = THIN_BORDER;
     summarySheet.getCell(row, 2).border = THIN_BORDER;
@@ -395,9 +383,8 @@ export async function buildWhatsappRoundReportWorkbook(
   addSectionTitle(summarySheet, row, "מדדים מרכזיים (אורחים ייחודיים)", 3);
   row += 1;
 
-  const kpiHeader = summarySheet.getRow(row);
-  kpiHeader.values = ["מדד", "כמות", "אחוז"];
-  styleHeaderRow(kpiHeader);
+  setRowValues(summarySheet.getRow(row), ["מדד", "כמות", "אחוז"]);
+  [1, 2, 3].forEach((col) => styleHeaderCell(summarySheet.getCell(row, col)));
   row += 1;
 
   const kpiRows: Array<[string, number]> = [
@@ -412,36 +399,31 @@ export async function buildWhatsappRoundReportWorkbook(
   ];
 
   for (const [label, count] of kpiRows) {
-    const r = summarySheet.getRow(row);
-    r.getCell(1).value = label;
-    r.getCell(2).value = Number(count || 0);
-    r.getCell(3).value = pct(Number(count || 0), totalGuests);
-    r.getCell(3).numFmt = "0.0%";
-    [1, 2, 3].forEach((col) => styleDataCell(r.getCell(col)));
+    summarySheet.getCell(row, 1).value = label;
+    summarySheet.getCell(row, 2).value = Number(count || 0);
+    summarySheet.getCell(row, 3).value = pct(Number(count || 0), totalGuests);
+    summarySheet.getCell(row, 3).numFmt = "0.0%";
+    [1, 2, 3].forEach((col) => styleDataCell(summarySheet.getCell(row, col)));
     row += 1;
   }
 
   row += 1;
   addSectionTitle(summarySheet, row, "סיכום אישורי הגעה", 3);
   row += 1;
-  const rsvpHeader = summarySheet.getRow(row);
-  rsvpHeader.values = ["סטטוס", "כמות", "אחוז"];
-  styleHeaderRow(rsvpHeader);
+  setRowValues(summarySheet.getRow(row), ["סטטוס", "כמות", "אחוז"]);
+  [1, 2, 3].forEach((col) => styleHeaderCell(summarySheet.getCell(row, col)));
   row += 1;
 
-  const rsvpRows: Array<[string, number]> = [
+  for (const [label, count] of [
     ["אישרו", rsvpYes],
     ["לא מגיעים", rsvpNo],
     ["ממתינים לתשובה", rsvpPending],
-  ];
-
-  for (const [label, count] of rsvpRows) {
-    const r = summarySheet.getRow(row);
-    r.getCell(1).value = label;
-    r.getCell(2).value = count;
-    r.getCell(3).value = pct(count, totalGuests);
-    r.getCell(3).numFmt = "0.0%";
-    [1, 2, 3].forEach((col) => styleDataCell(r.getCell(col)));
+  ] as Array<[string, number]>) {
+    summarySheet.getCell(row, 1).value = label;
+    summarySheet.getCell(row, 2).value = count;
+    summarySheet.getCell(row, 3).value = pct(count, totalGuests);
+    summarySheet.getCell(row, 3).numFmt = "0.0%";
+    [1, 2, 3].forEach((col) => styleDataCell(summarySheet.getCell(row, col)));
     row += 1;
   }
 
@@ -449,8 +431,7 @@ export async function buildWhatsappRoundReportWorkbook(
   addSectionTitle(summarySheet, row, "סיכום סבבים", 11);
   row += 1;
 
-  const roundsHeader = summarySheet.getRow(row);
-  roundsHeader.values = [
+  const roundHeaders = [
     "סבב",
     "סוג",
     "מיועדים",
@@ -463,12 +444,13 @@ export async function buildWhatsappRoundReportWorkbook(
     "% מסירה",
     "% קריאה",
   ];
-  styleHeaderRow(roundsHeader);
+  setRowValues(summarySheet.getRow(row), roundHeaders);
+  for (let col = 1; col <= 11; col += 1) {
+    styleHeaderCell(summarySheet.getCell(row, col));
+  }
   row += 1;
 
-  const roundsForTable = rounds;
-
-  for (const round of roundsForTable) {
+  for (const round of rounds) {
     const intended =
       round.intended ?? round.summary?.intended ?? round.total ?? 0;
     const sent = round.sent ?? round.summary?.sent ?? 0;
@@ -477,36 +459,31 @@ export async function buildWhatsappRoundReportWorkbook(
     const failed = round.failed ?? round.summary?.failed ?? 0;
     const notSent = round.notSent ?? round.summary?.notSent ?? 0;
     const pending = round.pending ?? round.summary?.pending ?? 0;
-    // Delivery/read rates vs sent attempts (same basis as example 230/234)
-    const deliveryRate = pct(delivered, sent);
-    const readRate = pct(read, sent);
 
-    const r = summarySheet.getRow(row);
-    r.values = [
-      round.title,
-      round.typeLabel || round.type || "",
-      intended,
-      sent,
-      delivered,
-      read,
-      failed,
-      notSent,
-      pending,
-      deliveryRate,
-      readRate,
-    ];
-    r.getCell(10).numFmt = "0.0%";
-    r.getCell(11).numFmt = "0.0%";
+    setRowValues(summarySheet.getRow(row), [
+      safeText(round.title),
+      safeText(round.typeLabel || round.type || ""),
+      Number(intended),
+      Number(sent),
+      Number(delivered),
+      Number(read),
+      Number(failed),
+      Number(notSent),
+      Number(pending),
+      pct(delivered, sent),
+      pct(read, sent),
+    ]);
+    summarySheet.getCell(row, 10).numFmt = "0.0%";
+    summarySheet.getCell(row, 11).numFmt = "0.0%";
     for (let col = 1; col <= 11; col += 1) {
-      styleDataCell(r.getCell(col));
+      styleDataCell(summarySheet.getCell(row, col));
     }
     row += 1;
   }
 
-  if (!roundsForTable.length) {
-    const r = summarySheet.getRow(row);
-    r.getCell(1).value = "אין סבבים להצגה";
-    styleDataCell(r.getCell(1));
+  if (!rounds.length) {
+    summarySheet.getCell(row, 1).value = "אין סבבים להצגה";
+    styleDataCell(summarySheet.getCell(row, 1));
     row += 1;
   }
 
@@ -524,17 +501,14 @@ export async function buildWhatsappRoundReportWorkbook(
   ].filter(([, count]) => Number(count) > 0) as Array<[string, number]>;
 
   if (!attentionItems.length) {
-    const r = summarySheet.getRow(row);
-    r.getCell(1).value = "אין חריגים להצגה";
-    styleDataCell(r.getCell(1));
-    row += 1;
+    summarySheet.getCell(row, 1).value = "אין חריגים להצגה";
+    styleDataCell(summarySheet.getCell(row, 1));
   } else {
     for (const [label, count] of attentionItems) {
-      const r = summarySheet.getRow(row);
-      r.getCell(1).value = `${count} ${label}`;
-      r.getCell(2).value = count;
-      styleDataCell(r.getCell(1));
-      styleDataCell(r.getCell(2));
+      summarySheet.getCell(row, 1).value = safeText(`${count} ${label}`);
+      summarySheet.getCell(row, 2).value = count;
+      styleDataCell(summarySheet.getCell(row, 1));
+      styleDataCell(summarySheet.getCell(row, 2));
       row += 1;
     }
   }
@@ -542,11 +516,7 @@ export async function buildWhatsappRoundReportWorkbook(
   /* =========================
      2) אורחים
   ========================= */
-  const guestsSheet = workbook.addWorksheet("אורחים", {
-    views: [{ rightToLeft: true, showGridLines: false }],
-  });
-  applyRtlSheet(guestsSheet);
-
+  const guestsSheet = workbook.addWorksheet("אורחים");
   const guestHeaders = [
     "מס׳",
     "שם אורח",
@@ -566,69 +536,64 @@ export async function buildWhatsappRoundReportWorkbook(
     "מספר כשלים",
     "סיבת כשל אחרונה",
   ];
+  const guestWidths = [
+    6, 22, 16, 12, 12, 12, 24, 14, 16, 18, 18, 18, 18, 12, 12, 12, 36,
+  ];
 
   guestsSheet.columns = guestHeaders.map((header, index) => ({
     header,
-    key: `c${index}`,
-    width: [
-      6, 22, 16, 12, 12, 12, 24, 14, 16, 18, 18, 18, 18, 12, 12, 12, 36,
-    ][index],
+    width: guestWidths[index],
   }));
-
-  styleHeaderRow(guestsSheet.getRow(1));
+  guestsSheet.views = [
+    { rightToLeft: true, showGridLines: false, state: "frozen", ySplit: 1 },
+  ];
   guestsSheet.autoFilter = {
     from: { row: 1, column: 1 },
     to: { row: 1, column: guestHeaders.length },
   };
-  guestsSheet.views = [
-    { rightToLeft: true, showGridLines: false, state: "frozen", ySplit: 1 },
-  ];
+  for (let col = 1; col <= guestHeaders.length; col += 1) {
+    styleHeaderCell(guestsSheet.getCell(1, col));
+  }
 
   guestsForSheets.forEach((guest, index) => {
     const messages = guest.messages || [];
-    const lastSent = getLatestMessageField(messages, "sentAt");
-    const lastDelivered = getLatestMessageField(messages, "deliveredAt");
-    const lastRead = getLatestMessageField(messages, "readAt");
-    const lastFailed = getLatestMessageField(messages, "failedAt");
-    const failureReason =
-      guest.lastError ||
-      messages
-        .slice()
-        .reverse()
-        .find((m) => m.errorMessage)?.errorMessage ||
-      guest.notSentReason ||
-      "";
-
     const values = [
       index + 1,
-      guest.name || "",
-      guest.phone || "",
-      guest.rsvpLabel || guest.rsvp || "",
+      safeText(guest.name || ""),
+      safeText(guest.phone || ""),
+      safeText(guest.rsvpLabel || guest.rsvp || ""),
       Number(guest.messagesCount || 0),
       Number(guest.roundsSentCount || 0),
-      guest.lastRoundTitle || "",
-      guest.overallStatusLabel || "",
-      guest.lastStatusLabel || "",
-      formatDateTime(lastSent),
-      formatDateTime(lastDelivered),
-      formatDateTime(lastRead),
-      formatDateTime(lastFailed),
+      safeText(guest.lastRoundTitle || ""),
+      safeText(guest.overallStatusLabel || ""),
+      safeText(guest.lastStatusLabel || ""),
+      formatDateTime(getLatestMessageField(messages, "sentAt")),
+      formatDateTime(getLatestMessageField(messages, "deliveredAt")),
+      formatDateTime(getLatestMessageField(messages, "readAt")),
+      formatDateTime(getLatestMessageField(messages, "failedAt")),
       yesNo(Boolean(guest.everRead)),
       yesNo(Boolean(guest.everDelivered)),
       Number(guest.failedCount || 0),
-      failureReason,
+      safeText(
+        guest.lastError ||
+          messages
+            .slice()
+            .reverse()
+            .find((m) => m.errorMessage)?.errorMessage ||
+          guest.notSentReason ||
+          ""
+      ),
     ];
 
     const dataRow = guestsSheet.addRow(values);
     dataRow.eachCell((cell, colNumber) => {
-      const statusForColor =
-        colNumber === 8
-          ? guest.overallStatusLabel || guest.overallStatus
-          : colNumber === 9
-            ? guest.lastStatusLabel || guest.lastStatus
-            : undefined;
       styleDataCell(cell, {
-        status: statusForColor,
+        status:
+          colNumber === 8
+            ? guest.overallStatusLabel || guest.overallStatus
+            : colNumber === 9
+              ? guest.lastStatusLabel || guest.lastStatus
+              : undefined,
         wrap: colNumber === 17,
       });
     });
@@ -637,10 +602,7 @@ export async function buildWhatsappRoundReportWorkbook(
   /* =========================
      3) היסטוריית הודעות
   ========================= */
-  const historySheet = workbook.addWorksheet("היסטוריית הודעות", {
-    views: [{ rightToLeft: true, showGridLines: false }],
-  });
-
+  const historySheet = workbook.addWorksheet("היסטוריית הודעות");
   const historyHeaders = [
     "מס׳",
     "שם אורח",
@@ -658,50 +620,54 @@ export async function buildWhatsappRoundReportWorkbook(
     "סטטוס",
     "שגיאה / סיבת כשל",
   ];
+  const historyWidths = [
+    6, 22, 16, 12, 24, 14, 28, 28, 18, 18, 18, 18, 18, 12, 40,
+  ];
 
   historySheet.columns = historyHeaders.map((header, index) => ({
     header,
-    key: `h${index}`,
-    width: [
-      6, 22, 16, 12, 24, 14, 28, 28, 18, 18, 18, 18, 18, 12, 40,
-    ][index],
+    width: historyWidths[index],
   }));
-
-  styleHeaderRow(historySheet.getRow(1));
+  historySheet.views = [
+    { rightToLeft: true, showGridLines: false, state: "frozen", ySplit: 1 },
+  ];
   historySheet.autoFilter = {
     from: { row: 1, column: 1 },
     to: { row: 1, column: historyHeaders.length },
   };
-  historySheet.views = [
-    { rightToLeft: true, showGridLines: false, state: "frozen", ySplit: 1 },
-  ];
+  for (let col = 1; col <= historyHeaders.length; col += 1) {
+    styleHeaderCell(historySheet.getCell(1, col));
+  }
 
   let historyIndex = 0;
   guestsForSheets.forEach((guest) => {
     (guest.messages || []).forEach((message) => {
       historyIndex += 1;
-      const values = [
+      const dataRow = historySheet.addRow([
         historyIndex,
-        guest.name || "",
-        guest.phone || "",
-        message.rsvpLabel || guest.rsvpLabel || message.rsvp || guest.rsvp || "",
-        message.roundTitle || "",
-        message.messageTypeLabel || "",
-        message.templateName || "",
-        message.messageId || "",
+        safeText(guest.name || ""),
+        safeText(guest.phone || ""),
+        safeText(
+          message.rsvpLabel || guest.rsvpLabel || message.rsvp || guest.rsvp || ""
+        ),
+        safeText(message.roundTitle || ""),
+        safeText(message.messageTypeLabel || ""),
+        safeText(message.templateName || ""),
+        safeText(message.messageId || ""),
         formatDateTime(message.attemptedAt || message.createdAt),
         formatDateTime(message.sentAt),
         formatDateTime(message.deliveredAt),
         formatDateTime(message.readAt),
         formatDateTime(message.failedAt),
-        message.statusLabel || "",
-        message.errorMessage || "",
-      ];
-
-      const dataRow = historySheet.addRow(values);
+        safeText(message.statusLabel || ""),
+        safeText(message.errorMessage || ""),
+      ]);
       dataRow.eachCell((cell, colNumber) => {
         styleDataCell(cell, {
-          status: colNumber === 14 ? message.statusLabel || message.status : undefined,
+          status:
+            colNumber === 14
+              ? message.statusLabel || message.status
+              : undefined,
           wrap: colNumber === 15,
         });
       });
@@ -716,8 +682,6 @@ export async function buildWhatsappRoundReportWorkbook(
     styleDataCell(empty.getCell(2));
   }
 
-  // Sheets are added in order: סיכום → אורחים → היסטוריית הודעות
-
   return workbook;
 }
 
@@ -727,6 +691,13 @@ export function buildWhatsappReportFileName(input: {
   generatedAt?: string | Date;
 }) {
   const eventPart = sanitizeFilePart(input.invitationTitle || "Event");
-  const datePart = formatFileDate(input.eventDate || input.generatedAt || new Date());
+  const datePart = formatFileDate(
+    input.eventDate || input.generatedAt || new Date()
+  );
   return `WhatsApp_Report_${eventPart}_${datePart}.xlsx`;
+}
+
+export async function workbookToNodeBuffer(workbook: ExcelJS.Workbook) {
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer);
 }
