@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import {
   ChevronDown,
   ChevronUp,
@@ -130,7 +129,7 @@ type GuestSummary = {
 type ReportPayload = {
   success: boolean;
   isAdmin?: boolean;
-  invitation?: { _id: string; title?: string };
+  invitation?: { _id: string; title?: string; eventDate?: string | null };
   summary?: GuestSummary;
   rounds?: ReportRound[];
   guests?: ReportGuest[];
@@ -316,111 +315,6 @@ function RoundChip({ chip }: { chip: RoundStatusChip }) {
   );
 }
 
-function exportReportToExcel({
-  guests,
-  invitationTitle,
-  clientName,
-}: {
-  guests: ReportGuest[];
-  invitationTitle?: string;
-  clientName?: string;
-}) {
-  const workbook = XLSX.utils.book_new();
-
-  const guestRows = guests.map((guest, index) => ({
-    "מס׳": index + 1,
-    שם: guest.name || "",
-    טלפון: guest.phone || "",
-    RSVP: guest.rsvpLabel || guest.rsvp || "",
-    "מספר הודעות": guest.messagesCount,
-    "סבב אחרון": guest.lastRoundTitle || "",
-    "סטטוס כללי": guest.overallStatusLabel,
-    "סטטוס אחרון": guest.lastStatusLabel,
-    "תאריך הודעה אחרונה": formatDateTime(guest.lastMessageAt) || "",
-    "נמסר אי פעם": guest.everDelivered ? "כן" : "לא",
-    "נקרא אי פעם": guest.everRead ? "כן" : "לא",
-    "מספר כשלים": guest.failedCount,
-    "סיבת לא נשלח": guest.notSentReason || "",
-    שגיאה: guest.lastError || "",
-  }));
-
-  const historyRows: Record<string, string | number>[] = [];
-  guests.forEach((guest) => {
-    (guest.messages || []).forEach((message) => {
-      historyRows.push({
-        אורח: guest.name || "",
-        טלפון: guest.phone || "",
-        סבב: message.roundTitle || "",
-        "סוג הודעה": message.messageTypeLabel || "",
-        "ניסיון שליחה":
-          formatDateTime(message.attemptedAt || message.createdAt) || "",
-        נשלח: formatDateTime(message.sentAt) || "",
-        נמסר: formatDateTime(message.deliveredAt) || "",
-        נקרא: formatDateTime(message.readAt) || "",
-        נכשל: formatDateTime(message.failedAt) || "",
-        שגיאה: message.errorMessage || "",
-        "message id": message.messageId || "",
-        סטטוס: message.statusLabel || "",
-        תבנית: message.templateName || "",
-        RSVP: message.rsvpLabel || message.rsvp || "",
-      });
-    });
-  });
-
-  const guestsSheet = XLSX.utils.json_to_sheet(guestRows);
-  const historySheet = XLSX.utils.json_to_sheet(
-    historyRows.length
-      ? historyRows
-      : [{ אורח: "", הערה: "אין היסטוריית הודעות" }]
-  );
-
-  guestsSheet["!cols"] = [
-    { wch: 6 },
-    { wch: 22 },
-    { wch: 16 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 24 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 20 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 24 },
-    { wch: 30 },
-  ];
-
-  historySheet["!cols"] = [
-    { wch: 22 },
-    { wch: 16 },
-    { wch: 24 },
-    { wch: 12 },
-    { wch: 20 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 36 },
-    { wch: 28 },
-    { wch: 12 },
-    { wch: 24 },
-    { wch: 10 },
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, guestsSheet, "אורחים");
-  XLSX.utils.book_append_sheet(workbook, historySheet, "Message History");
-
-  const safeTitle = String(invitationTitle || "whatsapp-report")
-    .replace(/[\\/:*?"<>|]/g, "-")
-    .slice(0, 40);
-  const safeName = String(clientName || "client")
-    .replace(/[\\/:*?"<>|]/g, "-")
-    .slice(0, 40);
-
-  XLSX.writeFile(workbook, `whatsapp-report-${safeName}-${safeTitle}.xlsx`);
-}
-
 const PAGE_SIZE = 50;
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
@@ -467,10 +361,12 @@ export default function WhatsappRoundsReportModal({
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [invitationTitle, setInvitationTitle] = useState("");
+  const [eventDate, setEventDate] = useState<string | null>(null);
   const [summary, setSummary] = useState<GuestSummary | null>(null);
   const [rounds, setRounds] = useState<ReportRound[]>([]);
   const [guests, setGuests] = useState<ReportGuest[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const [selectedRoundKey, setSelectedRoundKey] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -512,6 +408,7 @@ export default function WhatsappRoundsReportModal({
 
         setIsAdmin(Boolean(data.isAdmin));
         setInvitationTitle(data.invitation?.title || "");
+        setEventDate(data.invitation?.eventDate || null);
         setSummary(data.summary || null);
         setRounds(Array.isArray(data.rounds) ? data.rounds : []);
         setGuests(Array.isArray(data.guests) ? data.guests : []);
@@ -654,6 +551,76 @@ export default function WhatsappRoundsReportModal({
       lastLabel: roundHit?.statusLabel || "לא נשלח",
       reason: roundHit?.notSentReason || null,
     };
+  }
+
+  async function handleExportExcel() {
+    if (exporting) return;
+
+    const emptySummary: GuestSummary = {
+      totalGuests: guests.length,
+      receivedAtLeastOne: 0,
+      receivedNone: 0,
+      readAtLeastOnce: 0,
+      deliveredAtLeastOnce: 0,
+      failedAtLeastOnce: 0,
+      receivedMultiple: 0,
+      pending: 0,
+    };
+
+    try {
+      setExporting(true);
+
+      const res = await fetch(
+        `/api/whatsapp/round-report/${encodeURIComponent(invitationId)}/export`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            summary: summary || emptySummary,
+            rounds,
+            allGuests: guests,
+            guestsForSheets: filteredGuests,
+            invitationTitle,
+            eventDate,
+            clientName,
+            selectedRoundKey,
+            selectedRoundTitle: selectedRound?.title || null,
+            generatedAt: new Date().toISOString(),
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(
+          data?.message || data?.error || `ייצוא האקסל נכשל (${res.status})`
+        );
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const plainMatch = disposition.match(/filename="?([^"]+)"?/i);
+      const fileName = utfMatch
+        ? decodeURIComponent(utfMatch[1])
+        : plainMatch?.[1] || "WhatsApp_Report.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ייצוא האקסל נכשל");
+    } finally {
+      setExporting(false);
+    }
   }
 
   const emptyMessage =
@@ -819,15 +786,15 @@ export default function WhatsappRoundsReportModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        exportReportToExcel({
-                          guests: filteredGuests,
-                          invitationTitle,
-                          clientName,
-                        })
-                      }
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#1F7A4D] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#17663F] md:w-auto"
+                      disabled={exporting || guests.length === 0}
+                      onClick={() => {
+                        void handleExportExcel();
+                      }}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#1F7A4D] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#17663F] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
                     >
+                      {exporting ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : null}
                       ייצוא דוח לאקסל
                     </button>
                   </div>
