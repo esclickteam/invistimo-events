@@ -716,10 +716,7 @@ export async function buildWhatsappRoundReportWorkbook(
     styleDataCell(empty.getCell(2));
   }
 
-  // Ensure sheet order: סיכום, אורחים, היסטוריית הודעות
-  workbook.worksheets.forEach((sheet, index) => {
-    sheet.orderNo = index;
-  });
+  // Sheets are added in order: סיכום → אורחים → היסטוריית הודעות
 
   return workbook;
 }
