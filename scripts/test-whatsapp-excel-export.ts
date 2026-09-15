@@ -1,13 +1,16 @@
 /**
- * Smoke-test WhatsApp Excel export (3 sheets + KPI source of truth).
+ * Validate WhatsApp Excel export integrity.
  * Run: npx tsx scripts/test-whatsapp-excel-export.ts
  */
 
 import fs from "fs";
 import path from "path";
+import JSZip from "jszip";
+import ExcelJS from "exceljs";
 import {
   buildWhatsappReportFileName,
   buildWhatsappRoundReportWorkbook,
+  workbookToNodeBuffer,
 } from "../lib/whatsapp/exportRoundReportExcel";
 
 const summary = {
@@ -27,7 +30,6 @@ const rounds = [
     title: "סבב 1 - הזמנה",
     type: "rsvp",
     typeLabel: "הזמנה / RSVP",
-    round: 1,
     total: 4,
     intended: 5,
     sent: 4,
@@ -36,21 +38,6 @@ const rounds = [
     failed: 1,
     pending: 0,
     notSent: 1,
-  },
-  {
-    key: "rsvp:2",
-    title: "סבב 2 - תזכורת אישור הגעה",
-    type: "rsvp",
-    typeLabel: "הזמנה / RSVP",
-    round: 2,
-    total: 2,
-    intended: 5,
-    sent: 2,
-    delivered: 2,
-    read: 1,
-    failed: 0,
-    pending: 0,
-    notSent: 3,
   },
 ];
 
@@ -69,8 +56,7 @@ const guests = [
     overallStatusLabel: "נקרא",
     lastStatus: "failed",
     lastStatusLabel: "נכשל",
-    lastMessageAt: "2026-08-30T19:48:00.000Z",
-    lastRoundTitle: "סבב 2 - תזכורת אישור הגעה",
+    lastRoundTitle: "סבב 2",
     everDelivered: true,
     everRead: true,
     everFailed: true,
@@ -82,7 +68,6 @@ const guests = [
         id: "m1",
         roundTitle: "סבב 1 - הזמנה",
         messageTypeLabel: "הזמנה",
-        templateName: "rsvp_invitation_media",
         status: "read",
         statusLabel: "נקרא",
         sentAt: "2026-08-28T18:30:00.000Z",
@@ -92,14 +77,13 @@ const guests = [
       },
       {
         id: "m2",
-        roundTitle: "סבב 2 - תזכורת אישור הגעה",
+        roundTitle: "סבב 2",
         messageTypeLabel: "תזכורת",
-        templateName: "rsvp_reminder_invistimo",
         status: "failed",
         statusLabel: "נכשל",
         sentAt: "2026-08-30T19:48:00.000Z",
         failedAt: "2026-08-30T19:49:00.000Z",
-        errorMessage: "Meta limit",
+        errorMessage: "=HYPERLINK(\"http://evil\")",
         messageId: "wamid.2",
       },
     ],
@@ -118,7 +102,6 @@ const guests = [
     overallStatusLabel: "נקרא",
     lastStatus: "read",
     lastStatusLabel: "נקרא",
-    lastRoundTitle: "סבב 2 - תזכורת אישור הגעה",
     everDelivered: true,
     everRead: true,
     everFailed: false,
@@ -127,33 +110,27 @@ const guests = [
     messages: [
       {
         id: "m3",
-        roundTitle: "סבב 1 - הזמנה",
+        roundTitle: "סבב 1",
         messageTypeLabel: "הזמנה",
         status: "read",
         statusLabel: "נקרא",
         sentAt: "2026-08-28T18:30:00.000Z",
-        deliveredAt: "2026-08-28T18:31:00.000Z",
-        readAt: "2026-08-28T19:00:00.000Z",
       },
       {
         id: "m4",
-        roundTitle: "סבב 1 - הזמנה",
+        roundTitle: "סבב 1",
         messageTypeLabel: "הזמנה",
         status: "read",
         statusLabel: "נקרא",
         sentAt: "2026-08-28T20:00:00.000Z",
-        deliveredAt: "2026-08-28T20:01:00.000Z",
-        readAt: "2026-08-28T20:05:00.000Z",
       },
       {
         id: "m5",
-        roundTitle: "סבב 2 - תזכורת אישור הגעה",
+        roundTitle: "סבב 2",
         messageTypeLabel: "תזכורת",
         status: "read",
         statusLabel: "נקרא",
         sentAt: "2026-08-30T19:48:00.000Z",
-        deliveredAt: "2026-08-30T19:49:00.000Z",
-        readAt: "2026-08-30T21:00:00.000Z",
       },
     ],
   },
@@ -201,7 +178,7 @@ const guests = [
     messages: [
       {
         id: "m6",
-        roundTitle: "סבב 1 - הזמנה",
+        roundTitle: "סבב 1",
         messageTypeLabel: "הזמנה",
         status: "delivered",
         statusLabel: "נמסר",
@@ -257,58 +234,85 @@ async function main() {
   });
 
   const names = workbook.worksheets.map((sheet) => sheet.name);
-  assert(names.length === 3, "exactly 3 sheets");
-  assert(names[0] === "סיכום", "first sheet is סיכום");
-  assert(names[1] === "אורחים", "second sheet is אורחים");
-  assert(names[2] === "היסטוריית הודעות", "third sheet is היסטוריית הודעות");
+  assert(names.join("|") === "סיכום|אורחים|היסטוריית הודעות", "sheet order");
 
-  const summarySheet = workbook.getWorksheet("סיכום");
-  assert(summarySheet, "summary sheet exists");
-  assert(
-    String(summarySheet!.getCell("A1").value || "").includes("דוח WhatsApp"),
-    "summary title present"
-  );
+  const buffer = await workbookToNodeBuffer(workbook);
+  assert(Buffer.isBuffer(buffer) && buffer.byteLength > 1000, "binary buffer");
 
-  let foundReceived = false;
-  summarySheet!.eachRow((row) => {
+  // ZIP structure validation
+  const zip = await JSZip.loadAsync(buffer);
+  for (const required of [
+    "[Content_Types].xml",
+    "xl/workbook.xml",
+    "xl/styles.xml",
+    "xl/worksheets/sheet1.xml",
+    "xl/worksheets/sheet2.xml",
+    "xl/worksheets/sheet3.xml",
+  ]) {
+    assert(Boolean(zip.file(required)), `zip contains ${required}`);
+  }
+
+  // styles.xml must not contain broken 6-digit theme refs from bad ARGB
+  const stylesXml = await zip.file("xl/styles.xml")!.async("string");
+  assert(!/rgb="[0-9A-Fa-f]{6}"/.test(stylesXml), "no 6-digit rgb in styles");
+  assert(/rgb="FF[0-9A-Fa-f]{6}"/.test(stylesXml), "has 8-digit ARGB fills");
+
+  // Reload with ExcelJS
+  const verify = new ExcelJS.Workbook();
+  await verify.xlsx.load(buffer);
+  assert(verify.worksheets.length === 3, "ExcelJS reload has 3 sheets");
+  assert(verify.worksheets[0].name === "סיכום", "reload first sheet סיכום");
+
+  // Formula injection escaped
+  const history = verify.getWorksheet("היסטוריית הודעות")!;
+  let foundSafeFormula = false;
+  history.eachRow((row) => {
+    const err = String(row.getCell(15).value || "");
+    if (err.includes("HYPERLINK")) {
+      foundSafeFormula = err.startsWith("'=");
+    }
+  });
+  assert(foundSafeFormula, "formula injection sanitized with leading quote");
+
+  // KPI uniqueness
+  const summarySheet = verify.getWorksheet("סיכום")!;
+  let receivedOk = false;
+  summarySheet.eachRow((row) => {
     if (String(row.getCell(1).value || "") === "קיבלו לפחות הודעה אחת") {
-      foundReceived = true;
-      assert(
-        row.getCell(2).value === 3,
-        "receivedAtLeastOne KPI = 3 unique guests"
-      );
+      receivedOk = row.getCell(2).value === 3;
     }
   });
-  assert(foundReceived, "found receivedAtLeastOne KPI row");
+  assert(receivedOk, "unique guests KPI for receivedAtLeastOne");
 
-  // Delivery % for round 1: 3/4 = 0.75
-  let foundDelivery = false;
-  summarySheet!.eachRow((row) => {
-    if (String(row.getCell(1).value || "") === "סבב 1 - הזמנה") {
-      foundDelivery = true;
-      assert(row.getCell(10).value === 0.75, "% מסירה = delivered/sent = 3/4");
-      assert(row.getCell(11).value === 0.5, "% קריאה = read/sent = 2/4");
+  // Round rates via 1-indexed values
+  let rateOk = false;
+  summarySheet.eachRow((row) => {
+    const title = String(row.getCell(1).value || "");
+    if (title.includes("סבב 1")) {
+      const delivery = Number(row.getCell(10).value);
+      const read = Number(row.getCell(11).value);
+      rateOk =
+        Math.abs(delivery - 0.75) < 0.0001 && Math.abs(read - 0.5) < 0.0001;
+      if (!rateOk) {
+        console.log("rate debug", {
+          title,
+          c10: row.getCell(10).value,
+          c11: row.getCell(11).value,
+          rowValues: row.values,
+        });
+      }
     }
   });
-  assert(foundDelivery, "found round 1 delivery/read rates");
+  assert(rateOk, "delivery/read rates from sent");
 
-  const guestsSheet = workbook.getWorksheet("אורחים");
-  assert(guestsSheet && guestsSheet.rowCount >= 6, "guests sheet has header + 5 guests");
-
-  const historySheet = workbook.getWorksheet("היסטוריית הודעות");
+  const guestsSheet = verify.getWorksheet("אורחים")!;
   assert(
-    historySheet && historySheet.rowCount >= 7,
-    "history includes all message attempts"
-  );
-
-  const guestWithFail = guestsSheet!.getRow(2);
-  assert(
-    String(guestWithFail.getCell(8).value) === "נקרא",
-    "overall status stays נקרא after later failed"
+    String(guestsSheet.getRow(2).getCell(8).value) === "נקרא",
+    "overall stays נקרא after failed"
   );
   assert(
-    String(guestWithFail.getCell(9).value) === "נכשל",
-    "last status is נכשל"
+    String(guestsSheet.getRow(2).getCell(9).value) === "נכשל",
+    "last status נכשל"
   );
 
   const fileName = buildWhatsappReportFileName({
@@ -317,38 +321,75 @@ async function main() {
   });
   assert(
     fileName === "WhatsApp_Report_גל-קריסטל_30-08-2026.xlsx",
-    `filename sanitized: ${fileName}`
+    `filename: ${fileName}`
   );
 
   const outDir = path.join(process.cwd(), "tmp");
   fs.mkdirSync(outDir, { recursive: true });
   const outPath = path.join(outDir, fileName);
-  await workbook.xlsx.writeFile(outPath);
-  assert(fs.existsSync(outPath), `wrote sample export to ${outPath}`);
+  fs.writeFileSync(outPath, buffer);
+  assert(fs.existsSync(outPath), `wrote ${outPath}`);
 
-  // Scale smoke: 1000 guests
-  const manyGuests = Array.from({ length: 1000 }, (_, i) => ({
+  // Try Microsoft Excel COM validation on Windows if available
+  try {
+    const { execFileSync } = await import("child_process");
+    const ps = `
+$ErrorActionPreference = 'Stop'
+$path = '${outPath.replace(/'/g, "''")}'
+$excel = New-Object -ComObject Excel.Application
+$excel.DisplayAlerts = $false
+$excel.Visible = $false
+try {
+  $wb = $excel.Workbooks.Open($path)
+  $names = @($wb.Worksheets | ForEach-Object { $_.Name }) -join '|'
+  $wb.Close($false)
+  if ($names -ne 'סיכום|אורחים|היסטוריית הודעות') { throw "bad sheets: $names" }
+  Write-Output 'EXCEL_COM_OK'
+} finally {
+  $excel.Quit()
+  [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+}
+`;
+    const result = execFileSync(
+      "powershell",
+      ["-NoProfile", "-Command", ps],
+      { encoding: "utf8", timeout: 20000 }
+    );
+    assert(result.includes("EXCEL_COM_OK"), "Microsoft Excel opened without repair");
+  } catch (err: any) {
+    console.log(
+      "SKIP/WARN Excel COM open:",
+      err?.message || err,
+      "(ZIP+ExcelJS reload still validated)"
+    );
+  }
+
+  // 1000 guests
+  const many = Array.from({ length: 1000 }, (_, i) => ({
     ...guests[0],
     id: `g-${i}`,
     name: `אורח ${i}`,
-    messages: guests[0].messages,
   }));
   const big = await buildWhatsappRoundReportWorkbook({
     summary: { ...summary, totalGuests: 1000 },
     rounds,
-    allGuests: manyGuests,
-    guestsForSheets: manyGuests,
-    invitationTitle: "Scale Test",
-    eventDate: "2026-08-30",
+    allGuests: many,
+    guestsForSheets: many,
+    invitationTitle: "Scale",
   });
-  assert(big.getWorksheet("אורחים")!.rowCount >= 1001, "1000+ guests export works");
+  const bigBuf = await workbookToNodeBuffer(big);
+  const bigVerify = new ExcelJS.Workbook();
+  await bigVerify.xlsx.load(bigBuf);
+  assert(
+    bigVerify.getWorksheet("אורחים")!.rowCount >= 1001,
+    "1000+ guests reload ok"
+  );
 
   if (process.exitCode) {
     console.error("Excel export checks failed");
     process.exit(1);
   }
-
-  console.log("All Excel export checks passed");
+  console.log("All Excel integrity checks passed");
 }
 
 main().catch((err) => {

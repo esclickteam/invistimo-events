@@ -556,17 +556,6 @@ export default function WhatsappRoundsReportModal({
   async function handleExportExcel() {
     if (exporting) return;
 
-    const emptySummary: GuestSummary = {
-      totalGuests: guests.length,
-      receivedAtLeastOne: 0,
-      receivedNone: 0,
-      readAtLeastOnce: 0,
-      deliveredAtLeastOnce: 0,
-      failedAtLeastOnce: 0,
-      receivedMultiple: 0,
-      pending: 0,
-    };
-
     try {
       setExporting(true);
 
@@ -579,16 +568,12 @@ export default function WhatsappRoundsReportModal({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            summary: summary || emptySummary,
-            rounds,
-            allGuests: guests,
-            guestsForSheets: filteredGuests,
-            invitationTitle,
-            eventDate,
+            round: selectedRoundKey,
+            status: statusFilter,
+            rsvp: rsvpFilter,
+            messageCount: messageCountFilter,
+            search,
             clientName,
-            selectedRoundKey,
-            selectedRoundTitle: selectedRound?.title || null,
-            generatedAt: new Date().toISOString(),
           }),
         }
       );
@@ -603,7 +588,7 @@ export default function WhatsappRoundsReportModal({
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-      const plainMatch = disposition.match(/filename="?([^"]+)"?/i);
+      const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
       const fileName = utfMatch
         ? decodeURIComponent(utfMatch[1])
         : plainMatch?.[1] || "WhatsApp_Report.xlsx";
@@ -637,11 +622,11 @@ export default function WhatsappRoundsReportModal({
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[calc(100dvh-24px)] w-full max-w-6xl flex-col overflow-hidden rounded-[26px] border border-[#E7D8C6] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.25)] sm:max-h-[calc(100dvh-48px)] sm:rounded-[34px]"
+        className="relative flex max-h-[calc(100dvh-24px)] w-[calc(100vw-1rem)] max-w-[1400px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-[#E7D8C6] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.25)] sm:max-h-[calc(100dvh-48px)] sm:w-[calc(100vw-2rem)] sm:rounded-[34px]"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="shrink-0 border-b border-[#EFE2D1] bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3] px-4 py-4 sm:px-6 sm:py-5">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start justify-between gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -650,7 +635,7 @@ export default function WhatsappRoundsReportModal({
               <X size={20} />
             </button>
 
-            <div className="min-w-0 text-right">
+            <div className="min-w-0 flex-1 text-right">
               <h2 className="break-words text-2xl font-black text-[#3A2A1C] sm:text-3xl">
                 דוח WhatsApp לסבבים
               </h2>
@@ -667,7 +652,7 @@ export default function WhatsappRoundsReportModal({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           {loading ? (
             <SkeletonBlock />
           ) : error && guests.length === 0 ? (
@@ -684,7 +669,7 @@ export default function WhatsappRoundsReportModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               {error && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
                   הרענון נכשל: {error}. מוצגים הנתונים האחרונים שנשמרו במסך.
@@ -908,7 +893,7 @@ export default function WhatsappRoundsReportModal({
               </section>
 
               {/* Filters */}
-              <section className="rounded-[24px] border border-[#E7D8C6] bg-white p-4">
+              <section className="min-w-0 rounded-[24px] border border-[#E7D8C6] bg-white p-4">
                 <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <label className="block">
                     <span className="mb-2 block text-xs font-black text-[#6B5A48]">
@@ -995,19 +980,19 @@ export default function WhatsappRoundsReportModal({
                   </div>
                 </label>
 
-                <div className="overflow-auto rounded-[22px] border border-[#EFE2D1]">
-                  <table className="min-w-[1100px] w-full text-right text-sm">
+                <div className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-[22px] border border-[#EFE2D1]" style={{ WebkitOverflowScrolling: "touch" }}>
+                  <table className="w-max min-w-[1400px] border-collapse text-right text-sm">
                     <thead className="sticky top-0 z-10 bg-[#F5EFE6] text-xs font-black text-[#7B6754]">
                       <tr>
-                        <th className="p-3 w-10"></th>
-                        <th className="p-4">אורח</th>
-                        <th className="p-4">טלפון</th>
-                        <th className="p-4">RSVP</th>
-                        <th className="p-4">סבבים</th>
-                        <th className="p-4">סטטוס כללי</th>
-                        <th className="p-4">סטטוס אחרון</th>
-                        <th className="p-4">הודעה אחרונה</th>
-                        <th className="p-4">פעולות</th>
+                        <th className="whitespace-nowrap p-3 w-10"></th>
+                        <th className="min-w-[160px] whitespace-nowrap p-4">אורח</th>
+                        <th className="min-w-[130px] whitespace-nowrap p-4">טלפון</th>
+                        <th className="min-w-[90px] whitespace-nowrap p-4">RSVP</th>
+                        <th className="min-w-[280px] p-4">סבבים</th>
+                        <th className="min-w-[120px] whitespace-nowrap p-4">סטטוס כללי</th>
+                        <th className="min-w-[140px] whitespace-nowrap p-4">סטטוס אחרון</th>
+                        <th className="min-w-[140px] whitespace-nowrap p-4">הודעה אחרונה</th>
+                        <th className="min-w-[100px] whitespace-nowrap p-4">פעולות</th>
                       </tr>
                     </thead>
 
@@ -1109,17 +1094,19 @@ function GuestRows({
         <td className="p-3 text-[#8A7867]">
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </td>
-        <td className="p-4 font-black text-[#3A2A1C]">
-          {guest.name || "—"}
+        <td className="max-w-[220px] p-4 font-black text-[#3A2A1C]">
+          <div className="truncate" title={guest.name || undefined}>
+            {guest.name || "—"}
+          </div>
         </td>
-        <td className="p-4 font-bold text-[#6B5A48]" dir="ltr">
+        <td className="whitespace-nowrap p-4 font-bold text-[#6B5A48]" dir="ltr">
           {guest.phone || "—"}
         </td>
-        <td className="p-4 font-bold text-[#6B5A48]">
+        <td className="whitespace-nowrap p-4 font-bold text-[#6B5A48]">
           {guest.rsvpLabel}
         </td>
-        <td className="p-4">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <td className="min-w-[280px] p-4">
+          <div className="flex flex-nowrap items-center gap-1.5">
             <button
               type="button"
               onClick={(e) => {
@@ -1140,21 +1127,21 @@ function GuestRows({
                 {guest.roundsSentCount} מתוך {guest.roundsTotal}
               </span>
             )}
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-nowrap gap-1">
               {(guest.roundStatuses || []).map((chip) => (
                 <RoundChip key={chip.roundKey} chip={chip} />
               ))}
             </div>
           </div>
         </td>
-        <td className="p-4">
+        <td className="whitespace-nowrap p-4">
           <StatusBadge
             status={display.overall}
             label={display.overallLabel}
             title="הסטטוס המתקדם ביותר שהושג אי פעם"
           />
         </td>
-        <td className="p-4">
+        <td className="whitespace-nowrap p-4">
           <div className="space-y-1">
             <StatusBadge
               status={display.last}
@@ -1162,13 +1149,13 @@ function GuestRows({
               title="סטטוס הסבב/ההודעה האחרונה"
             />
             {display.last === "not_sent" && display.reason && (
-              <div className="text-[11px] font-bold leading-4 text-[#8A7867]">
+              <div className="max-w-[200px] whitespace-normal text-[11px] font-bold leading-4 text-[#8A7867]">
                 {display.reason}
               </div>
             )}
             {display.last === "failed" && guest.lastError && (
               <div
-                className="max-w-[180px] text-[11px] font-bold leading-4 text-red-600"
+                className="max-w-[200px] whitespace-normal text-[11px] font-bold leading-4 text-red-600"
                 title={guest.lastError}
               >
                 {guest.lastError}
@@ -1176,10 +1163,10 @@ function GuestRows({
             )}
           </div>
         </td>
-        <td className="p-4 font-bold text-[#6B5A48]">
+        <td className="whitespace-nowrap p-4 font-bold text-[#6B5A48]">
           {formatDateTime(guest.lastMessageAt) || "—"}
         </td>
-        <td className="p-4">
+        <td className="whitespace-nowrap p-4">
           <button
             type="button"
             onClick={(e) => {
