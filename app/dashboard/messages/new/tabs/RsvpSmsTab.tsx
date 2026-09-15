@@ -11,6 +11,7 @@ import {
   ScheduleTimeField,
 } from "../shared/ScheduleDateTimeFields";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 
 
@@ -87,6 +88,7 @@ const RSVP_SMS_TEMPLATES = {
 export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSmsReport, setShowSmsReport] = useState(false);
 
   const [audienceFilter, setAudienceFilter] = useState<FilterType>("all");
   const [half, setHalf] = useState<HalfType>(null);
@@ -358,6 +360,16 @@ setRound2Locked(
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowSmsReport(true)}
+          className="rounded-full border border-[#D9B46F]/60 bg-[#FFFDF8] px-4 py-2 text-sm font-black text-[#6B451E] shadow-sm transition hover:bg-[#FFF8E6]"
+        >
+          📊 דוח SMS לסבבים
+        </button>
+      </div>
+
       {/* AUDIENCE */}
      <div className="flex gap-3">
 
@@ -636,6 +648,14 @@ setRound2Locked(
             />
           </div>
         </div>
+      )}
+
+      {showSmsReport && (
+        <SmsRoundsReportModal
+          invitationId={invitationId}
+          clientName={invitationTitle}
+          onClose={() => setShowSmsReport(false)}
+        />
       )}
     </div>
   );
