@@ -34,11 +34,43 @@ async function findManagedInvitation(auth: any, invitationId?: string | null) {
     if (invitation && canManageInvitation(auth, invitation)) return invitation;
   }
 
-  const invitation = await Invitation.findOne({ ownerId: auth.userId })
+  const candidates = await Invitation.find({ ownerId: auth.userId })
     .sort({ updatedAt: -1, createdAt: -1 })
+    .limit(25)
     .lean();
 
-  if (invitation && canManageInvitation(auth, invitation)) return invitation;
+  if (!candidates.length) return null;
+
+  if (candidates.length === 1) {
+    return canManageInvitation(auth, candidates[0]) ? candidates[0] : null;
+  }
+
+  const guestCounts = await InvitationGuest.aggregate([
+    {
+      $match: {
+        invitationId: { $in: candidates.map((c: any) => c._id) },
+      },
+    },
+    { $group: { _id: "$invitationId", count: { $sum: 1 } } },
+  ]);
+
+  const countById = new Map<string, number>(
+    guestCounts.map((row: any) => [String(row._id), Number(row.count || 0)])
+  );
+
+  const ranked = [...candidates].sort((a: any, b: any) => {
+    const guestsA = countById.get(String(a._id)) || 0;
+    const guestsB = countById.get(String(b._id)) || 0;
+    if (guestsB !== guestsA) return guestsB - guestsA;
+    return (
+      new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+    );
+  });
+
+  for (const invitation of ranked) {
+    if (canManageInvitation(auth, invitation)) return invitation;
+  }
+
   return null;
 }
 
