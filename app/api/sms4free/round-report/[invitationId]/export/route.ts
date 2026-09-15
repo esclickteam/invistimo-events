@@ -6,7 +6,10 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { buildSmsRoundReportData } from "@/lib/sms4free/buildRoundReportData";
-import { applySmsReportGuestFilters } from "@/lib/sms4free/roundReport";
+import {
+  applySmsReportGuestFilters,
+  summarizeSmsGuests,
+} from "@/lib/sms4free/roundReport";
 import {
   buildSmsReportFileName,
   buildSmsRoundReportWorkbook,
@@ -127,7 +130,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       },
     });
 
-    const summary = reportData.summary;
     const rounds = Array.isArray(reportData.rounds) ? reportData.rounds : [];
     const allGuests = Array.isArray(reportData.guests) ? reportData.guests : [];
     const invitationTitle =
@@ -141,7 +143,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
         : rounds.find((round: any) => round.key === selectedRoundKey)?.title ||
           selectedRoundKey;
 
-    if (!summary || typeof summary.totalGuests !== "number") {
+    const guestsForSheets = applySmsReportGuestFilters(allGuests, {
+      roundKey: selectedRoundKey,
+      status,
+      rsvp,
+      messageCount,
+      search,
+    });
+
+    // Summary / RSVP in Excel must match the exported filter context (not UI page).
+    const summary = summarizeSmsGuests(guestsForSheets);
+    const roundsForExcel =
+      selectedRoundKey === "all"
+        ? rounds
+        : rounds.filter((round: any) => round.key === selectedRoundKey);
+
+    if (typeof summary.totalGuests !== "number") {
       return NextResponse.json(
         {
           success: false,
@@ -152,18 +169,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const guestsForSheets = applySmsReportGuestFilters(allGuests, {
-      roundKey: selectedRoundKey,
-      status,
-      rsvp,
-      messageCount,
-      search,
-    });
-
     const workbook = await buildSmsRoundReportWorkbook({
       summary,
-      rounds,
-      allGuests,
+      rounds: roundsForExcel,
+      allGuests: guestsForSheets,
       guestsForSheets,
       invitationTitle,
       eventDate,

@@ -296,6 +296,25 @@ export function emptySmsGuestSummary() {
   };
 }
 
+/** Rebuild guest KPIs from an already-filtered guest list (Excel export context). */
+export function summarizeSmsGuests(guests: any[]) {
+  const summary = emptySmsGuestSummary();
+  summary.totalGuests = guests.length;
+  for (const guest of guests) {
+    if (guest.receivedCount > 0) {
+      summary.receivedAtLeastOne += 1;
+      summary.sentAtLeastOnce += 1;
+    }
+    if (guest.receivedCount === 0) summary.receivedNone += 1;
+    if (guest.everFailed) summary.failedAtLeastOnce += 1;
+    if (guest.pendingCount > 0) summary.pending += 1;
+    if ((guest.scheduledCount || 0) > 0) summary.scheduled += 1;
+    if (guest.messagesCount >= 2) summary.receivedMultiple += 1;
+    summary.totalSmsAttempts += Number(guest.messagesCount || 0);
+  }
+  return summary;
+}
+
 export function emptySmsRoundSummary() {
   return {
     intended: 0,
