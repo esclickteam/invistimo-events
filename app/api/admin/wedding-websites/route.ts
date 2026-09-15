@@ -8,6 +8,10 @@ import { applyUserRsvpSiteMode } from "@/lib/weddingWebsite/rsvpSiteMode";
 import { serializeWeddingWebsite } from "@/lib/weddingWebsite/content";
 import { buildGuestInviteUrl } from "@/lib/guestInviteUrl";
 import { normalizeRsvpSiteMode } from "@/types/rsvpSite";
+import {
+  pickPrimaryInvitation,
+} from "@/lib/pickPrimaryInvitation";
+import InvitationGuest from "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,16 +52,34 @@ export async function GET(req: NextRequest) {
     const invitations = userIds.length
       ? await Invitation.find({ ownerId: { $in: userIds } })
           .select("ownerId title shareId eventDate eventTime location invitationSettings weddingWebsite createdAt updatedAt")
-          .sort({ updatedAt: -1 })
           .lean()
       : [];
 
+    const invitationIds = invitations.map((invitation) => invitation._id);
+    const guestCounts = invitationIds.length
+      ? await InvitationGuest.aggregate([
+          { $match: { invitationId: { $in: invitationIds } } },
+          { $group: { _id: "$invitationId", count: { $sum: 1 } } },
+        ])
+      : [];
+    const guestCountById = new Map<string, number>(
+      guestCounts.map((row: any) => [String(row._id), Number(row.count || 0)])
+    );
+
     const invitationsByOwner = new Map<string, any>();
+    const invitationsGrouped = new Map<string, any[]>();
     for (const invitation of invitations) {
       const ownerId = String(invitation.ownerId);
-      if (!invitationsByOwner.has(ownerId)) {
-        invitationsByOwner.set(ownerId, invitation);
-      }
+      const withCount = {
+        ...invitation,
+        guestCount: guestCountById.get(String(invitation._id)) || 0,
+      };
+      const list = invitationsGrouped.get(ownerId) || [];
+      list.push(withCount);
+      invitationsGrouped.set(ownerId, list);
+    }
+    for (const [ownerId, list] of invitationsGrouped) {
+      invitationsByOwner.set(ownerId, pickPrimaryInvitation(list));
     }
 
     const items = users.map((user) => {
