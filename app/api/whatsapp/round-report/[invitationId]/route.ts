@@ -854,6 +854,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         invitation: {
           _id: String(invitation._id),
           title: invitation.title || "",
+          eventDate: invitation.eventDate || null,
         },
         guest: one || null,
         lastUpdated: new Date().toISOString(),
@@ -877,6 +878,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitation: {
         _id: String(invitation._id),
         title: invitation.title || "",
+        eventDate: invitation.eventDate || null,
       },
       totalQueueItems: queueItems.length,
       totalGuests: guestsAggregated.length,
