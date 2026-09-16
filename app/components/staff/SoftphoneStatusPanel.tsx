@@ -2614,124 +2614,207 @@ export default function SoftphoneStatusPanel({
                 </button>
 
                 {(showDialer || isCallActive) && (
-                  <div className="order-last flex h-12 w-[430px] max-w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm xl:ml-1 max-2xl:w-[390px] max-xl:w-full">
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${
-                        isCallActive
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-sky-100 text-sky-700"
-                      }`}
-                    >
-                      <Icon name="phone" className="h-4 w-4" />
-                    </span>
+                  <div className="relative order-last w-[430px] max-w-full xl:ml-1 max-2xl:w-[390px] max-xl:w-full">
+                    <div className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${
+                          isCallActive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-sky-100 text-sky-700"
+                        }`}
+                      >
+                        <Icon name="phone" className="h-4 w-4" />
+                      </span>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[10px] font-black text-slate-500">
-                        {isCallActive ? "שיחה פעילה" : "חייגן"}
-                        {" · "}
-                        <span dir="ltr" className="font-mono text-slate-800">
-                          {formatDuration(liveStatusSeconds)}
-                        </span>
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[10px] font-black text-slate-500">
+                          {isCallActive ? "שיחה פעילה" : "חייגן"}
+                          {" · "}
+                          <span dir="ltr" className="font-mono text-slate-800">
+                            {formatDuration(liveStatusSeconds)}
+                          </span>
+                        </p>
+
+                        {isCallActive ? (
+                          <p
+                            dir="ltr"
+                            className="truncate text-left font-mono text-sm font-black tracking-wide text-slate-900"
+                          >
+                            {activeDisplayNumber}
+                          </p>
+                        ) : (
+                          <input
+                            ref={phoneInputRef}
+                            dir="ltr"
+                            inputMode="none"
+                            autoComplete="tel"
+                            value={phoneNumber}
+                            onChange={(event) =>
+                              setPhoneNumber(onlyDialChars(event.target.value))
+                            }
+                            disabled={creatingCall}
+                            placeholder="הקלד מספר"
+                            className="mt-0.5 h-7 w-full rounded-xl border border-slate-200 bg-slate-50 px-2 text-left font-mono text-sm font-black text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-400 disabled:opacity-60"
+                            aria-label="מספר לחיוג"
+                          />
+                        )}
+                      </div>
 
                       {isCallActive ? (
-                        <p
-                          dir="ltr"
-                          className="truncate text-left font-mono text-sm font-black tracking-wide text-slate-900"
-                        >
-                          {activeDisplayNumber}
-                        </p>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={markAnswered}
+                            disabled={
+                              !isCallActive || !!savingStatus || creatingCall
+                            }
+                            className="h-9 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            ענה
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleMute}
+                            disabled={!isCallActive}
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                              muted
+                                ? "border-amber-400/20 bg-amber-400/15 text-amber-700"
+                                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                            }`}
+                            aria-label={muted ? "בטל השתק" : "השתק"}
+                          >
+                            <Icon name="mic" className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={toggleSpeaker}
+                            disabled={!isCallActive}
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                              speakerEnabled
+                                ? "border-sky-400/20 bg-sky-400/15 text-sky-700"
+                                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                            }`}
+                            aria-label="רמקול"
+                          >
+                            <Icon name="speaker" className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={finishCall}
+                            disabled={
+                              !isCallActive || !!savingStatus || creatingCall
+                            }
+                            className="h-9 rounded-xl border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            סיים
+                          </button>
+                        </div>
                       ) : (
-                        <input
-                          ref={phoneInputRef}
-                          dir="ltr"
-                          value={phoneNumber}
-                          onChange={(event) =>
-                            setPhoneNumber(onlyDialChars(event.target.value))
-                          }
-                          disabled={creatingCall}
-                          placeholder="הקלד מספר"
-                          className="mt-0.5 h-7 w-full rounded-xl border border-slate-200 bg-slate-50 px-2 text-left font-mono text-sm font-black text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-400 disabled:opacity-60"
-                        />
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void startOutboundCall()}
+                            disabled={
+                              !shiftStarted ||
+                              creatingCall ||
+                              !phoneNumber.trim()
+                            }
+                            className="flex h-9 min-w-[44px] items-center justify-center rounded-xl border border-sky-200 bg-sky-500 px-3 text-[11px] font-black text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-45"
+                            aria-label="חייג"
+                          >
+                            {creatingCall ? (
+                              "מחייג"
+                            ) : (
+                              <Icon name="phone" className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={removeLastDigit}
+                            disabled={creatingCall || !phoneNumber}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="מחק ספרה"
+                          >
+                            <Icon name="delete" className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setShowDialer(false)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100"
+                            aria-label="סגור חייגן"
+                          >
+                            <Icon name="x" className="h-4 w-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    {isCallActive ? (
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={markAnswered}
-                          disabled={!isCallActive || !!savingStatus || creatingCall}
-                          className="h-9 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          ענה
-                        </button>
+                    {showDialer && !isCallActive && (
+                      <div className="absolute left-0 top-[54px] z-[110] w-full min-w-[280px] rounded-[28px] border border-slate-200 bg-white p-3 shadow-2xl sm:min-w-[320px]">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="flex items-center gap-2 text-sm font-black text-slate-900">
+                            <Icon name="keypad" className="h-4 w-4 text-sky-600" />
+                            מקלדת חיוג
+                          </p>
+                          <button
+                            type="button"
+                            onClick={clearNumber}
+                            disabled={creatingCall || !phoneNumber}
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            נקה
+                          </button>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={toggleMute}
-                          disabled={!isCallActive}
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                            muted
-                              ? "border-amber-400/20 bg-amber-400/15 text-amber-700"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                          }`}
-                          aria-label={muted ? "בטל השתק" : "השתק"}
+                        <div
+                          dir="ltr"
+                          className="grid grid-cols-3 gap-2"
+                          role="group"
+                          aria-label="מקלדת חיוג"
                         >
-                          <Icon name="mic" className="h-4 w-4" />
-                        </button>
+                          {DIAL_KEYS.map((dialKey) => (
+                            <button
+                              key={dialKey.key}
+                              type="button"
+                              onClick={() => appendDigit(dialKey.key)}
+                              onContextMenu={(event) => {
+                                if (dialKey.key !== "0") return;
+                                event.preventDefault();
+                                appendDigit("+");
+                              }}
+                              disabled={creatingCall}
+                              className="flex h-14 touch-manipulation flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 transition hover:border-sky-200 hover:bg-sky-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:h-16"
+                              aria-label={`ספרה ${dialKey.key}`}
+                            >
+                              <span className="font-mono text-2xl font-black leading-none">
+                                {dialKey.key}
+                              </span>
+                              {dialKey.letters ? (
+                                <span className="mt-1 text-[10px] font-bold tracking-[0.14em] text-slate-400">
+                                  {dialKey.letters}
+                                </span>
+                              ) : (
+                                <span className="mt-1 h-[10px]" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={toggleSpeaker}
-                          disabled={!isCallActive}
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                            speakerEnabled
-                              ? "border-sky-400/20 bg-sky-400/15 text-sky-700"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                          }`}
-                          aria-label="רמקול"
-                        >
-                          <Icon name="speaker" className="h-4 w-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={finishCall}
-                          disabled={!isCallActive || !!savingStatus || creatingCall}
-                          className="h-9 rounded-xl border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          סיים
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           onClick={() => void startOutboundCall()}
-                          disabled={!shiftStarted || creatingCall || !phoneNumber.trim()}
-                          className="h-9 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+                          disabled={
+                            !shiftStarted || creatingCall || !phoneNumber.trim()
+                          }
+                          className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-500 text-sm font-black text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45"
                         >
-                          {creatingCall ? "מחייג" : "חייג"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={clearNumber}
-                          disabled={creatingCall || !phoneNumber}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="נקה מספר"
-                        >
-                          <Icon name="delete" className="h-4 w-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowDialer(false)}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100"
-                          aria-label="סגור חייגן"
-                        >
-                          <Icon name="x" className="h-4 w-4" />
+                          <Icon name="phone" className="h-4 w-4" />
+                          {creatingCall ? "מחייג..." : "חייג עכשיו"}
                         </button>
                       </div>
                     )}
