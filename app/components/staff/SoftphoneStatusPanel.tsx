@@ -112,6 +112,7 @@ type TelnyxRtcCall = {
   hangup?: () => void;
   muteAudio?: () => void;
   unmuteAudio?: () => void;
+  dtmf?: (digits: string) => void;
 };
 
 type IconName =
@@ -914,6 +915,7 @@ export default function SoftphoneStatusPanel({
   );
 
   const [showDialer, setShowDialer] = useState(false);
+  const [inCallDtmfDigits, setInCallDtmfDigits] = useState("");
   const [showBusyMenu, setShowBusyMenu] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [recentCalls, setRecentCalls] =
@@ -1004,12 +1006,19 @@ export default function SoftphoneStatusPanel({
   useEffect(() => {
     if (!showDialer || !shiftStarted) return;
 
+    const callIsLive =
+      agent?.status === "dialing" ||
+      agent?.status === "ringing" ||
+      agent?.status === "in_call";
+
+    if (callIsLive) return;
+
     const timeout = window.setTimeout(() => {
       phoneInputRef.current?.focus();
     }, 50);
 
     return () => window.clearTimeout(timeout);
-  }, [showDialer, shiftStarted]);
+  }, [showDialer, shiftStarted, agent?.status]);
 
   useEffect(() => {
     if (!showDialer || !shiftStarted) return;
@@ -1024,8 +1033,12 @@ export default function SoftphoneStatusPanel({
         activeElement instanceof HTMLInputElement ||
         activeElement instanceof HTMLTextAreaElement ||
         activeElement instanceof HTMLSelectElement;
+      const callIsLive =
+        agent?.status === "dialing" ||
+        agent?.status === "ringing" ||
+        agent?.status === "in_call";
 
-      if (key === "Enter") {
+      if (key === "Enter" && !callIsLive) {
         event.preventDefault();
         void startOutboundCall();
         return;
@@ -1037,16 +1050,16 @@ export default function SoftphoneStatusPanel({
         return;
       }
 
-      if (isTypingInPhoneInput) return;
-      if (isTypingInOtherInput) return;
+      if (!callIsLive && isTypingInPhoneInput) return;
+      if (isTypingInOtherInput && activeElement !== phoneInputRef.current) return;
 
       if (/^\d$/.test(key) || key === "*" || key === "#" || key === "+") {
         event.preventDefault();
-        appendDigit(key);
+        handleDialKeyPress(key);
         return;
       }
 
-      if (key === "Backspace") {
+      if (key === "Backspace" && !callIsLive) {
         event.preventDefault();
         removeLastDigit();
       }
@@ -1057,7 +1070,14 @@ export default function SoftphoneStatusPanel({
     return () => {
       window.removeEventListener("keydown", handlePhysicalKeyboard);
     };
-  }, [showDialer, shiftStarted, savingStatus, creatingCall, phoneNumber]);
+  }, [
+    showDialer,
+    shiftStarted,
+    savingStatus,
+    creatingCall,
+    phoneNumber,
+    agent?.status,
+  ]);
 
   useEffect(() => {
     const rawNumber =
@@ -2113,6 +2133,7 @@ export default function SoftphoneStatusPanel({
       setPhoneNumber(cleanNumber);
       setCallDirection("outbound");
       setShowDialer(false);
+      setInCallDtmfDigits("");
       setShowBusyMenu(false);
 
       addRecentCall(cleanNumber, "outbound");
@@ -2156,6 +2177,7 @@ export default function SoftphoneStatusPanel({
     setIncomingCallNumber("");
     setMuted(false);
     setSpeakerEnabled(false);
+    setInCallDtmfDigits("");
 
     if (remoteAudioRef.current) {
       remoteAudioRef.current.pause();
@@ -2237,6 +2259,7 @@ export default function SoftphoneStatusPanel({
 
     setMuted(false);
     setSpeakerEnabled(false);
+    setInCallDtmfDigits("");
 
     await changeStatus("after_call", {
       reason: "after_call",
@@ -2253,6 +2276,42 @@ export default function SoftphoneStatusPanel({
     setShowBusyMenu(false);
   }
 
+  function sendInCallDtmf(digit: string) {
+    const cleanDigit = String(digit || "").slice(0, 1);
+    if (!cleanDigit) return false;
+
+    const call = activeCallRef.current;
+    if (!call?.dtmf) {
+      console.warn("DTMF NOT AVAILABLE ON ACTIVE CALL");
+      return false;
+    }
+
+    try {
+      call.dtmf(cleanDigit);
+      setInCallDtmfDigits((prev) => `${prev}${cleanDigit}`.slice(-24));
+      return true;
+    } catch (err) {
+      console.error("SEND DTMF FAILED:", err);
+      return false;
+    }
+  }
+
+  function handleDialKeyPress(digit: string) {
+    const callIsLive =
+      agent?.status === "dialing" ||
+      agent?.status === "ringing" ||
+      agent?.status === "in_call" ||
+      !!activeCallRef.current;
+
+    if (callIsLive) {
+      if (digit === "+") return;
+      sendInCallDtmf(digit);
+      return;
+    }
+
+    appendDigit(digit);
+  }
+
   function appendDigit(digit: string) {
     setPhoneNumber((prev) => normalizeDialNumber(`${prev}${digit}`));
   }
@@ -2263,6 +2322,12 @@ export default function SoftphoneStatusPanel({
 
   function clearNumber() {
     setPhoneNumber("");
+  }
+
+  function toggleInCallKeypad() {
+    setShowBusyMenu(false);
+    setShowHistory(false);
+    setShowDialer((prev) => !prev);
   }
 
   const currentStatus: AgentStatus = agent?.status || "offline";
@@ -2675,6 +2740,23 @@ export default function SoftphoneStatusPanel({
 
                           <button
                             type="button"
+                            onClick={toggleInCallKeypad}
+                            disabled={!isCallActive}
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                              showDialer
+                                ? "border-sky-400/30 bg-sky-400/15 text-sky-700"
+                                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                            }`}
+                            aria-label={
+                              showDialer ? "סגור מקלדת" : "פתח מקלדת"
+                            }
+                            aria-pressed={showDialer}
+                          >
+                            <Icon name="keypad" className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={toggleMute}
                             disabled={!isCallActive}
                             className={`flex h-9 w-9 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-45 ${
@@ -2754,38 +2836,70 @@ export default function SoftphoneStatusPanel({
                       )}
                     </div>
 
-                    {showDialer && !isCallActive && (
+                    {showDialer && (
                       <div className="absolute left-0 top-[54px] z-[110] w-full min-w-[280px] rounded-[28px] border border-slate-200 bg-white p-3 shadow-2xl sm:min-w-[320px]">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <p className="flex items-center gap-2 text-sm font-black text-slate-900">
                             <Icon name="keypad" className="h-4 w-4 text-sky-600" />
-                            מקלדת חיוג
+                            {isCallActive ? "מקשים בשיחה" : "מקלדת חיוג"}
                           </p>
-                          <button
-                            type="button"
-                            onClick={clearNumber}
-                            disabled={creatingCall || !phoneNumber}
-                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            נקה
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {isCallActive ? (
+                              <button
+                                type="button"
+                                onClick={() => setInCallDtmfDigits("")}
+                                disabled={!inCallDtmfDigits}
+                                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                נקה תצוגה
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={clearNumber}
+                                disabled={creatingCall || !phoneNumber}
+                                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                נקה
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowDialer(false)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100"
+                              aria-label="סגור מקלדת"
+                            >
+                              <Icon name="x" className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
+
+                        {isCallActive && (
+                          <p
+                            dir="ltr"
+                            className="mb-3 min-h-[28px] truncate rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-left font-mono text-lg font-black tracking-[0.18em] text-slate-800"
+                          >
+                            {inCallDtmfDigits || " "}
+                          </p>
+                        )}
 
                         <div
                           dir="ltr"
                           className="grid grid-cols-3 gap-2"
                           role="group"
-                          aria-label="מקלדת חיוג"
+                          aria-label={
+                            isCallActive ? "מקשים בשיחה" : "מקלדת חיוג"
+                          }
                         >
                           {DIAL_KEYS.map((dialKey) => (
                             <button
                               key={dialKey.key}
                               type="button"
-                              onClick={() => appendDigit(dialKey.key)}
+                              onClick={() => handleDialKeyPress(dialKey.key)}
                               onContextMenu={(event) => {
-                                if (dialKey.key !== "0") return;
+                                if (isCallActive || dialKey.key !== "0") return;
                                 event.preventDefault();
-                                appendDigit("+");
+                                handleDialKeyPress("+");
                               }}
                               disabled={creatingCall}
                               className="flex h-14 touch-manipulation flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 transition hover:border-sky-200 hover:bg-sky-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:h-16"
@@ -2805,17 +2919,21 @@ export default function SoftphoneStatusPanel({
                           ))}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => void startOutboundCall()}
-                          disabled={
-                            !shiftStarted || creatingCall || !phoneNumber.trim()
-                          }
-                          className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-500 text-sm font-black text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          <Icon name="phone" className="h-4 w-4" />
-                          {creatingCall ? "מחייג..." : "חייג עכשיו"}
-                        </button>
+                        {!isCallActive && (
+                          <button
+                            type="button"
+                            onClick={() => void startOutboundCall()}
+                            disabled={
+                              !shiftStarted ||
+                              creatingCall ||
+                              !phoneNumber.trim()
+                            }
+                            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-500 text-sm font-black text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            <Icon name="phone" className="h-4 w-4" />
+                            {creatingCall ? "מחייג..." : "חייג עכשיו"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
