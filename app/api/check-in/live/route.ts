@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import dbConnect from "@/lib/db";
-import InvitationGuest from "@/models/InvitationGuest";
+import Event from "@/models/Event";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { authHasCheckInPermission } from "@/lib/checkIn/permissions";
-import { summarizeCheckIn } from "@/lib/checkIn/status";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
 import { loadEventCheckInGate } from "@/lib/checkIn/eventGate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     await dbConnect();
 
@@ -28,47 +27,52 @@ export async function GET(req: NextRequest) {
       .select("role staffType accessModules permissions features planLimits")
       .lean();
 
-    if (!authHasCheckInPermission(auth, user as any, "checkin.view")) {
+    if (!authHasCheckInPermission(auth, user as any, "checkin.manage")) {
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
-    const invitationId = req.nextUrl.searchParams.get("invitationId");
-    const eventIdQuery = req.nextUrl.searchParams.get("eventId");
+    const body = await req.json().catch(() => ({}));
+    const invitationId = body.invitationId ? String(body.invitationId) : null;
+    const requestedEventId = body.eventId ? String(body.eventId) : null;
+    const live = body.live === true;
+
     const invitation = await findCheckInInvitation(
       auth,
       invitationId,
-      eventIdQuery
+      requestedEventId
     );
-    if (!invitation) {
+    if (!invitation?.eventId) {
       return NextResponse.json(
         { success: false, error: "NO_INVITATION" },
         { status: 404 }
       );
     }
 
-    const eventId = invitation.eventId ? String(invitation.eventId) : "";
+    const eventId = String(invitation.eventId);
     const gate = await loadEventCheckInGate(eventId);
+    if (!gate.checkInEnabled) {
+      return NextResponse.json(
+        { success: false, error: "CHECKIN_DISABLED" },
+        { status: 403 }
+      );
+    }
 
-    const guests = await InvitationGuest.find({ invitationId: invitation._id })
-      .select("rsvp arrivedCount actualArrivedCount guestsCount")
-      .lean();
-
-    const summary = summarizeCheckIn(guests);
+    await Event.updateOne(
+      { _id: invitation.eventId },
+      { $set: { liveStatus: live ? "LIVE" : "REGULAR" } }
+    );
 
     return NextResponse.json({
       success: true,
-      checkInEnabled: gate.checkInEnabled,
-      live: gate.live,
-      liveStatus: gate.liveStatus,
       eventId,
-      invitationId: String(invitation._id),
-      summary,
+      live,
+      liveStatus: live ? "LIVE" : "REGULAR",
     });
   } catch (err) {
-    console.error("❌ GET check-in/summary:", err);
+    console.error("❌ POST check-in/live:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }

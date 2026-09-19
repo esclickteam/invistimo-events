@@ -5,13 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  CheckCircle2,
   MessageCircle,
   Armchair,
   QrCode,
   CalendarDays,
   Mail,
-  FileSpreadsheet,
   Phone,
   Sparkles,
   Heart,
@@ -23,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { userCanAccessCheckIn } from "@/lib/checkIn/permissions";
@@ -232,17 +231,8 @@ export default function DashboardSidebar({
           pathIsDashboardHome(path) && !currentHash,
       },
       {
-        id: "event-details",
-        label: "פרטי האירוע",
-        icon: CalendarDays,
-        href: eventDetailsHref,
-        hidden: gameOnly || !invitationId,
-        match: (path) =>
-          path.includes("/invitations/") && path.endsWith("/edit"),
-      },
-      {
         id: "invitation",
-        label: invitationId ? "ההזמנה" : "יצירת הזמנה",
+        label: invitationId ? "הזמנה" : "יצירת הזמנה",
         icon: Mail,
         href: invitationHref,
         hidden: gameOnly,
@@ -267,6 +257,15 @@ export default function DashboardSidebar({
         hidden: gameOnly || !invitationShareId,
       },
       {
+        id: "event-details",
+        label: "פרטי האירוע",
+        icon: CalendarDays,
+        href: eventDetailsHref,
+        hidden: gameOnly || !invitationId,
+        match: (path) =>
+          path.includes("/invitations/") && path.endsWith("/edit"),
+      },
+      {
         id: "guests",
         label: "רשימת מוזמנים",
         icon: Users,
@@ -277,22 +276,12 @@ export default function DashboardSidebar({
           pathIsDashboardHome(path) && currentHash === "#guests",
       },
       {
-        id: "import",
-        label: "ייבוא מוזמנים מאקסל",
-        icon: FileSpreadsheet,
-        href: `${dashboardHome}?action=import`,
-        query: "import",
+        id: "add-guest",
+        label: "הוספת מוזמן",
+        icon: UserPlus,
+        href: `${dashboardHome}?action=add-guest`,
+        query: "add-guest",
         hidden: gameOnly,
-      },
-      {
-        id: "rsvp",
-        label: "אישורי הגעה",
-        icon: CheckCircle2,
-        href: `${dashboardHome}#rsvp-stats`,
-        hash: "rsvp-stats",
-        hidden: gameOnly,
-        match: (path, currentHash) =>
-          pathIsDashboardHome(path) && currentHash === "#rsvp-stats",
       },
       {
         id: "messages",
@@ -300,11 +289,13 @@ export default function DashboardSidebar({
         icon: MessageCircle,
         href: messagesHref,
         hidden: gameOnly,
-        match: (path) => path.startsWith("/dashboard/messages") || path.startsWith("/try/dashboard/messages"),
+        match: (path) =>
+          path.startsWith("/dashboard/messages") ||
+          path.startsWith("/try/dashboard/messages"),
       },
       {
         id: "call-rounds",
-        label: "סבבי אישורי הגעה",
+        label: "לו״ז אישורי הגעה",
         icon: Phone,
         href: `${dashboardHome}?action=calls`,
         query: "calls",
@@ -529,8 +520,7 @@ export default function DashboardSidebar({
             onClick={onClose}
           />
           <aside
-            className="absolute bottom-0 top-0 w-[min(86vw,300px)] border-l border-[#EADBC4] bg-[#FFFDF8] shadow-2xl"
-            style={{ right: 0 }}
+            className="absolute inset-y-0 right-0 h-[100vh] w-[min(86vw,300px)] overflow-hidden rounded-none border-l border-[#EADBC4] bg-[#FFFDF8] shadow-2xl"
           >
             {nav}
           </aside>

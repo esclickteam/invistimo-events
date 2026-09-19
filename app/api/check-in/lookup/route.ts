@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
-import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -15,6 +12,10 @@ import {
   computeCheckInStatus,
 } from "@/lib/checkIn/status";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
+import {
+  checkInActionBlocked,
+  loadEventCheckInGate,
+} from "@/lib/checkIn/eventGate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,22 +63,24 @@ async function resolveContext(
   }
 
   const resolvedEventId = invitation.eventId ? String(invitation.eventId) : "";
-  let checkInEnabled = false;
-  if (resolvedEventId && mongoose.Types.ObjectId.isValid(resolvedEventId)) {
-    const event = await Event.findById(resolvedEventId).select("checkInEnabled").lean();
-    checkInEnabled = Boolean((event as any)?.checkInEnabled);
-  }
-
-  if (!checkInEnabled) {
+  const gate = await loadEventCheckInGate(resolvedEventId);
+  const blocked = checkInActionBlocked(gate);
+  if (blocked) {
     return {
       error: NextResponse.json(
-        { success: false, error: "CHECKIN_DISABLED" },
-        { status: 403 }
+        { success: false, error: blocked.error, message: blocked.message },
+        { status: blocked.status }
       ),
     };
   }
 
-  return { user, invitation, eventId: resolvedEventId, checkInEnabled };
+  return {
+    user,
+    invitation,
+    eventId: resolvedEventId,
+    checkInEnabled: gate.checkInEnabled,
+    live: gate.live,
+  };
 }
 
 export async function POST(req: NextRequest) {
