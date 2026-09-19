@@ -59,7 +59,7 @@ export async function POST(
        ❗️ guestsCount (מוזמנים) — לא נוגעים
     ============================================================ */
     const nextRsvp =
-      rsvp === "yes" || rsvp === "no" || rsvp === "pending"
+      rsvp === "yes" || rsvp === "no" || rsvp === "maybe" || rsvp === "pending"
         ? rsvp
         : String(guest.rsvp || "pending");
 

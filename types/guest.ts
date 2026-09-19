@@ -10,7 +10,7 @@ export type Guest = {
   /* ======================
      אישור הגעה (RSVP)
   ====================== */
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
 
   /* ======================
      הושבה (SOURCE OF TRUTH)

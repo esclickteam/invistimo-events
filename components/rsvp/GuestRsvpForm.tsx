@@ -15,6 +15,7 @@ export type GuestRsvpCopy = {
   updateLabel?: string;
   yesLabel?: string;
   noLabel?: string;
+  maybeLabel?: string;
   submitLabel?: string;
   countLabel?: string;
   notesLabel?: string;
@@ -87,6 +88,7 @@ export default function GuestRsvpForm({
     errorMessage,
     chooseYes,
     chooseNo,
+    chooseMaybe,
     decrementCount,
     incrementCount,
     toggleNote,
@@ -103,6 +105,7 @@ export default function GuestRsvpForm({
   const updateLabel = copy?.updateLabel || "רוצים לעדכן?";
   const yesLabel = copy?.yesLabel || RSVP_COPY.yesLabel;
   const noLabel = copy?.noLabel || RSVP_COPY.noLabel;
+  const maybeLabel = copy?.maybeLabel || RSVP_COPY.maybeLabel;
   const submitLabel = copy?.submitLabel || RSVP_COPY.submit;
   const countLabel = copy?.countLabel || RSVP_COPY.countLabel;
   const notesLabel = copy?.notesLabel || RSVP_COPY.notesLabel;
@@ -202,6 +205,17 @@ export default function GuestRsvpForm({
               </RsvpLabel>
             </button>
           </div>
+
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={chooseMaybe}
+            className={`${appearance.noButton(form.rsvp === "maybe")} mt-3 w-full`}
+          >
+            <RsvpLabel path="rsvpMaybeLabel" label="כפתור עדיין לא בטוחים" editable={editable}>
+              {maybeLabel}
+            </RsvpLabel>
+          </button>
 
           {form.rsvp === "yes" && (
             <div className={appearance.countBox}>

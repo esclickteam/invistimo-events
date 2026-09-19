@@ -38,6 +38,7 @@ export type GuestRsvpController = {
   errorMessage: string;
   chooseYes: () => void;
   chooseNo: () => void;
+  chooseMaybe: () => void;
   decrementCount: () => void;
   incrementCount: () => void;
   toggleNote: (label: string, checked: boolean) => void;
@@ -211,6 +212,16 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
     }));
   }, []);
 
+  const chooseMaybe = useCallback(() => {
+    setSent(false);
+    setErrorMessage("");
+    setForm((prev) => ({
+      ...prev,
+      rsvp: "maybe",
+      arrivedCount: 0,
+    }));
+  }, []);
+
   const decrementCount = useCallback(() => {
     setForm((prev) => ({
       ...prev,
@@ -332,6 +343,7 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
     errorMessage,
     chooseYes,
     chooseNo,
+    chooseMaybe,
     decrementCount,
     incrementCount,
     toggleNote,
@@ -380,6 +392,11 @@ export function useGuestRsvpDemoController(): GuestRsvpController {
       setSent(false);
       setErrorMessage("");
       setForm((prev) => ({ ...prev, rsvp: "no", arrivedCount: 0 }));
+    },
+    chooseMaybe: () => {
+      setSent(false);
+      setErrorMessage("");
+      setForm((prev) => ({ ...prev, rsvp: "maybe" as RsvpValue, arrivedCount: 0 }));
     },
     decrementCount: () => {
       setForm((prev) => ({ ...prev, arrivedCount: Math.max(1, prev.arrivedCount - 1) }));

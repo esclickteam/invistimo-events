@@ -23,7 +23,7 @@ export default function EditGuestModal({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [relation, setRelation] = useState("");
-  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">("pending");
+  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no" | "maybe">("pending");
   const [guestsCount, setGuestsCount] = useState<number>(1);
   const [arrivedCount, setArrivedCount] = useState<number>(0);
   const [notes, setNotes] = useState("");
@@ -53,7 +53,7 @@ export default function EditGuestModal({
       const safeGuestsCount = Math.max(1, Number(guestsCount || 1));
 
       const safeArrivedCount =
-        rsvp === "no"
+        rsvp === "no" || rsvp === "maybe"
           ? 0
           : rsvp === "pending"
             ? 0
@@ -286,10 +286,10 @@ export default function EditGuestModal({
                 className={inputClass}
                 value={rsvp}
                 onChange={(e) => {
-                  const nextRsvp = e.target.value as "pending" | "yes" | "no";
+                  const nextRsvp = e.target.value as "pending" | "yes" | "no" | "maybe";
                   setRsvp(nextRsvp);
 
-                  if (nextRsvp === "no" || nextRsvp === "pending") {
+                  if (nextRsvp === "no" || nextRsvp === "pending" || nextRsvp === "maybe") {
                     setArrivedCount(0);
                   }
 
@@ -298,9 +298,10 @@ export default function EditGuestModal({
                   }
                 }}
               >
-                <option value="pending">בהמתנה</option>
+                <option value="pending">לא ענו</option>
                 <option value="yes">מגיע</option>
                 <option value="no">לא מגיע</option>
+                <option value="maybe">מתלבטים</option>
               </select>
             </Field>
 
@@ -374,7 +375,7 @@ export default function EditGuestModal({
             "
           >
             שימו לב: שינוי סטטוס ל״מגיע״ יעדכן את כמות המגיעים לפי השדה
-            “מגיעים”. שינוי ל״לא מגיע״ או ״בהמתנה״ יאפס את כמות המגיעים.
+            “מגיעים”. שינוי ל״לא מגיע״, ״מתלבטים״ או ״לא ענו״ יאפס את כמות המגיעים.
           </div>
         </div>
 

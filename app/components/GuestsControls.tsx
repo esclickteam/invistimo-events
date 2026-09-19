@@ -174,7 +174,8 @@ export default function GuestsControls({
     { key: "notOpened", label: "לא נפתח" },
     { key: "yes", label: "מגיעים" },
     { key: "no", label: "לא מגיעים" },
-    { key: "pending", label: "בהמתנה" },
+    { key: "maybe", label: "מתלבטים" },
+    { key: "pending", label: "לא ענו" },
     { key: "noTable", label: "בלי שולחן" },
   ];
 

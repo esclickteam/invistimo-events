@@ -4,7 +4,7 @@ export type GuestActivityPatch = {
   firstOpenedAt?: string | null;
   lastOpenedAt?: string | null;
   openCount?: number;
-  rsvp?: "yes" | "no" | "pending";
+  rsvp?: "yes" | "no" | "maybe" | "pending";
   arrivedCount?: number;
   actualArrivedCount?: number;
   guestsCount?: number;

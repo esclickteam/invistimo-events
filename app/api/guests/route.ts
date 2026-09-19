@@ -12,6 +12,7 @@ import {
   countGuestsTowardRecordQuota,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
+import { normalizeGuestRsvp } from "@/lib/rsvpStatus";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -81,41 +82,8 @@ function getCollection(name: string) {
   return mongoose.connection.db?.collection(name);
 }
 
-function normalizeRsvp(value: unknown): "yes" | "no" | "pending" {
-  const raw = cleanString(value).toLowerCase();
-
-  if (
-    raw === "yes" ||
-    raw === "confirmed" ||
-    raw === "arriving" ||
-    raw === "arrive" ||
-    raw === "attending" ||
-    raw === "approved" ||
-    raw === "מגיע" ||
-    raw === "מגיעים" ||
-    raw === "אישר" ||
-    raw === "מאשר" ||
-    raw.includes("מגיע")
-  ) {
-    return "yes";
-  }
-
-  if (
-    raw === "no" ||
-    raw === "declined" ||
-    raw === "not_coming" ||
-    raw === "not-coming" ||
-    raw === "not coming" ||
-    raw === "cancelled" ||
-    raw === "לא מגיע" ||
-    raw === "לא מגיעים" ||
-    raw === "לא מאשר" ||
-    raw.includes("לא מגיע")
-  ) {
-    return "no";
-  }
-
-  return "pending";
+function normalizeRsvp(value: unknown): "yes" | "no" | "maybe" | "pending" {
+  return normalizeGuestRsvp(value);
 }
 
 function normalizeEmbeddedGuest(row: any, invitationId: string) {

@@ -132,6 +132,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
+    // Disabling only hides the feature — never delete tokens, logs, or arrivals
     event.checkInEnabled = body.checkInEnabled;
     await event.save();
 

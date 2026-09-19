@@ -19,7 +19,7 @@ export type Guest = {
   tableName?: string;
   tableNumber?: number;
 
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
   guestsCount: number;
   arrivedCount?: number;
   notes?: string;
@@ -28,7 +28,7 @@ export type Guest = {
   openCount?: number;
 };
 
-type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable" | "opened" | "notOpened";
+type QuickFilter = "all" | "yes" | "no" | "maybe" | "pending" | "noTable" | "opened" | "notOpened";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
@@ -86,6 +86,7 @@ export default function GuestsTable({
 
     if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
     if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
+    if (quickFilter === "maybe") list = list.filter((g) => g.rsvp === "maybe");
     if (quickFilter === "pending") list = list.filter((g) => g.rsvp === "pending");
     if (quickFilter === "noTable")
       list = list.filter((g) => !(g.tableName && g.tableName.trim()));
@@ -104,7 +105,7 @@ export default function GuestsTable({
       });
     }
 
-    const rsvpOrder = { yes: 0, pending: 1, no: 2 } as const;
+    const rsvpOrder = { yes: 0, maybe: 1, pending: 2, no: 3 } as const;
 
     const getValue = (g: Guest) => {
       if (sortKey === "name") return g.name?.toLowerCase() || "";
@@ -162,7 +163,8 @@ export default function GuestsTable({
             ["opened", "נפתח"],
             ["notOpened", "לא נפתח"],
             ["yes", "מגיעים"],
-            ["pending", "ממתינים"],
+            ["maybe", "מתלבטים"],
+            ["pending", "לא ענו"],
             ["no", "לא מגיעים"],
             ["noTable", "בלי שולחן"],
           ].map(([key, label]) => (

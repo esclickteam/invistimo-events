@@ -10,7 +10,7 @@ type Guest = {
   token: string;
   relation?: string;
   tableName?: string;
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
   guestsCount: number;
   arrivedCount?: number;
   notes?: string;
