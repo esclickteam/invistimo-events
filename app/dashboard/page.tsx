@@ -279,10 +279,22 @@ function formatActivityDateTime(date?: string) {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "לא ידוע";
 
+  const time = new Intl.DateTimeFormat("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  if (sameDay) return `היום, ${time}`;
+
   return new Intl.DateTimeFormat("he-IL", {
     day: "2-digit",
     month: "2-digit",
-    year: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
@@ -1068,6 +1080,12 @@ if (!canDeleteAllGuests) {
 
     setInvitationId("demo");
 
+    const demoAt = (hour: number, minute: number) => {
+      const d = new Date();
+      d.setHours(hour, minute, 0, 0);
+      return d.toISOString();
+    };
+
     setGuests([
       {
         _id: "1",
@@ -1078,6 +1096,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 2,
         tableName: "5",
         relation: "משפחה",
+        firstOpenedAt: demoAt(17, 15),
+        lastOpenedAt: demoAt(17, 37),
+        openCount: 3,
+        rsvpRespondedAt: demoAt(17, 20),
       },
       {
         _id: "2",
@@ -1097,6 +1119,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 3,
         tableName: "3",
         relation: "משפחה",
+        firstOpenedAt: demoAt(16, 5),
+        lastOpenedAt: demoAt(16, 40),
+        openCount: 2,
+        rsvpRespondedAt: demoAt(16, 12),
       },
       {
         _id: "4",
@@ -1106,6 +1132,10 @@ if (!canDeleteAllGuests) {
         rsvp: "no",
         guestsCount: 1,
         relation: "חברים",
+        firstOpenedAt: demoAt(15, 48),
+        lastOpenedAt: demoAt(15, 48),
+        openCount: 1,
+        rsvpRespondedAt: demoAt(15, 52),
       },
       {
         _id: "5",
@@ -1116,6 +1146,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 1,
         tableName: "1",
         relation: "עבודה",
+        firstOpenedAt: demoAt(14, 10),
+        lastOpenedAt: demoAt(18, 2),
+        openCount: 4,
+        rsvpRespondedAt: demoAt(14, 22),
       },
       {
         _id: "6",
@@ -1125,6 +1159,9 @@ if (!canDeleteAllGuests) {
         rsvp: "pending",
         guestsCount: 2,
         relation: "משפחה",
+        firstOpenedAt: demoAt(13, 30),
+        lastOpenedAt: demoAt(13, 30),
+        openCount: 1,
       },
       {
         _id: "7",
@@ -1135,6 +1172,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 2,
         tableName: "2",
         relation: "חברים",
+        firstOpenedAt: demoAt(12, 18),
+        lastOpenedAt: demoAt(17, 5),
+        openCount: 2,
+        rsvpRespondedAt: demoAt(12, 40),
       },
       {
         _id: "8",
@@ -1154,6 +1195,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 1,
         tableName: "3",
         relation: "משפחה",
+        firstOpenedAt: demoAt(11, 8),
+        lastOpenedAt: demoAt(11, 8),
+        openCount: 1,
+        rsvpRespondedAt: demoAt(11, 15),
       },
       {
         _id: "10",
@@ -1528,8 +1573,7 @@ const pending = guests.filter(
 
     return logs
       .filter((log) => Number.isFinite(log.timestamp) && log.timestamp > 0)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 20);
+      .sort((a, b) => b.timestamp - a.timestamp);
   }, [guests]);
 
 
@@ -4940,26 +4984,26 @@ function GoldenEventDetailsCard({
   onOpenRsvpSchedule: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פרטי האירוע
         </h3>
-        <span className="text-2xl text-[#B8844F]">✦</span>
+        <span className="text-xl text-[#B8844F]">✦</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         <GoldenDetailRow icon="✦" label="שם האירוע" value={title} />
         <GoldenDetailRow icon="▦" label="תאריך" value={date} />
         <GoldenDetailRow icon="◷" label="שעה" value={time} />
         <GoldenDetailRow icon="●" label="מיקום" value={location} />
       </div>
 
-      <div className="mt-auto pt-5">
+      <div className="mt-3 shrink-0">
       <button
         type="button"
         onClick={onOpen}
-        className="w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-5 py-3 font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
+        className="w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-4 py-2.5 text-sm font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
       >
         צפייה בפרטי האירוע
       </button>
@@ -4967,7 +5011,7 @@ function GoldenEventDetailsCard({
       <button
         type="button"
         onClick={onOpenRsvpSchedule}
-        className="mt-3 w-full rounded-2xl border border-[#D9B46F]/50 bg-gradient-to-l from-[#FFF7E8] via-white to-[#FFFDF8] px-5 py-3 font-black text-[#8B5E24] shadow-sm transition hover:bg-[#FFF4E4]"
+        className="mt-2 w-full rounded-2xl border border-[#D9B46F]/50 bg-gradient-to-l from-[#FFF7E8] via-white to-[#FFFDF8] px-4 py-2.5 text-sm font-black text-[#8B5E24] shadow-sm transition hover:bg-[#FFF4E4]"
       >
         צפייה בלו״ז אישורי הגעה
       </button>
@@ -4986,8 +5030,8 @@ function GoldenDetailRow({
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="h-10 w-10 rounded-2xl bg-[#F8EFE3] text-[#9B6A35] flex items-center justify-center shrink-0">
+    <div className="flex items-center gap-2.5">
+      <div className="h-8 w-8 rounded-xl bg-[#F8EFE3] text-[#9B6A35] flex items-center justify-center shrink-0 text-sm">
         {icon}
       </div>
       <div className="min-w-0">
@@ -5015,8 +5059,8 @@ function GoldenRecentActivityCard({
   }[];
 }) {
   return (
-    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פעילות אחרונה
         </h3>
@@ -5029,7 +5073,6 @@ function GoldenRecentActivityCard({
         className="
           min-h-0
           flex-1
-          space-y-2
           overflow-y-auto
           pr-1
           scrollbar-thin
@@ -5093,20 +5136,20 @@ function GoldenLinkViewsCard({
     total > 0 ? Math.round((notOpenedCount / total) * 100) : 0;
 
   const viewingOpened = tab === "opened";
-  const list = viewingOpened ? opened.slice(0, 6) : notOpened.slice(0, 6);
+  const list = viewingOpened ? opened : notOpened;
   const count = viewingOpened ? openedCount : notOpenedCount;
   const percent = viewingOpened ? openedPercent : notOpenedPercent;
 
   return (
-    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           צפייה בקישור האישי
         </h3>
         <span className="text-xl text-[#6D4C8D]">◉</span>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-[#F6F1EA] p-1">
+      <div className="mb-4 grid shrink-0 grid-cols-2 gap-1 rounded-2xl bg-[#F6F1EA] p-1">
         <button
           type="button"
           onClick={() => setTab("opened")}
@@ -5132,47 +5175,37 @@ function GoldenLinkViewsCard({
       </div>
 
       <div
-        className={`mb-4 rounded-2xl border px-4 py-3 ${
+        className={`mb-3 shrink-0 rounded-2xl border px-4 py-2.5 ${
           viewingOpened
             ? "border-[#E4D4F0] bg-[#F8F4FB]"
             : "border-[#CDE4E6] bg-[#F3FAFA]"
         }`}
       >
-        <p className="text-xs font-bold text-[#7C6A58]">
+        <p
+          className={`text-3xl font-black leading-none ${
+            viewingOpened ? "text-[#6D4C8D]" : "text-[#2F6B73]"
+          }`}
+        >
+          {count}
+        </p>
+        <p className="mt-1 text-xs font-bold text-[#7C6A58]">
           {viewingOpened ? "צפו בקישור" : "עדיין לא צפו"}
         </p>
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <p
-            className={`text-4xl font-black ${
-              viewingOpened ? "text-[#6D4C8D]" : "text-[#2F6B73]"
-            }`}
-          >
-            {count}
-          </p>
-          <p
-            className={`text-sm font-black ${
-              viewingOpened ? "text-[#8A6AA8]" : "text-[#4A8A90]"
-            }`}
-          >
-            {percent}%
-          </p>
-        </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
-          <div
-            className={`h-full rounded-full ${
-              viewingOpened ? "bg-[#B089C9]" : "bg-[#6FB4B8]"
-            }`}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
+        <p
+          className={`mt-0.5 text-sm font-black ${
+            viewingOpened ? "text-[#8A6AA8]" : "text-[#4A8A90]"
+          }`}
+        >
+          {percent}%
+        </p>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {list.length > 0 ? (
           list.map((guest) => (
             <div
               key={guest._id}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-[#FBF7F0] px-3 py-2"
+              className="flex items-center justify-between gap-3 border-b border-[#F0E6D8] px-1 py-1.5 last:border-0"
             >
               <p className="truncate text-sm font-black text-[#241A14]">
                 {guest.name || "אורח"}
@@ -5218,17 +5251,17 @@ function GoldenActivityRow({
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-start gap-2 border-b border-[#F0E6D8] py-1.5 last:border-0">
       <div
-        className={`h-10 w-10 rounded-2xl flex items-center justify-center font-black ${tones[tone]}`}
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black ${tones[tone]}`}
       >
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-black text-[#241A14] truncate">
+        <div className="truncate text-[13px] font-bold leading-tight text-[#241A14]">
           {title}
         </div>
-        <div className="text-xs text-[#9A8775] mt-0.5">{time}</div>
+        <div className="mt-0.5 text-[11px] text-[#9A8775]">{time}</div>
       </div>
     </div>
   );

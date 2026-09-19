@@ -69,7 +69,6 @@ export default function ReminderTab({
   const [message, setMessage] = useState(REMINDER_WITH_TABLE_SERVER_TEMPLATE);
 
   const [hideTableNumberForAll, setHideTableNumberForAll] = useState(false);
-  const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [hideSelectedTables, setHideSelectedTables] = useState(false);
   const [hiddenTableIds, setHiddenTableIds] = useState<string[]>([]);
   const [tables, setTables] = useState<SeatingTableOption[]>([]);
@@ -147,7 +146,6 @@ export default function ReminderTab({
         }
 
         setHideTableNumberForAll(Boolean(event?.hideTableNumberForAll));
-        setCheckInEnabled(Boolean(event?.checkInEnabled));
         const loadedHidden = Array.isArray(event?.hiddenTableIds)
           ? event.hiddenTableIds.map((id: unknown) => String(id || "")).filter(Boolean)
           : [];
@@ -319,15 +317,9 @@ export default function ReminderTab({
       event: {
         hideTableNumberForAll,
         hiddenTableIds: hideSelectedTables ? hiddenTableIds : [],
-        checkInEnabled,
       },
       guest: g,
     });
-
-    const checkInQrLink =
-      built.includeCheckIn && g.checkInToken
-        ? `${typeof window !== "undefined" ? window.location.origin : "https://www.invistimo.com"}/check-in/pass/${encodeURIComponent(String(g.checkInToken))}`
-        : "";
 
     return buildMessage({
       template: built.template,
@@ -341,7 +333,6 @@ export default function ReminderTab({
       navigationLink: invitation?.shareId
   ? `https://www.invistimo.com/e/${invitation.shareId}`
   : "",
-      checkInQrLink,
     });
   };
 
