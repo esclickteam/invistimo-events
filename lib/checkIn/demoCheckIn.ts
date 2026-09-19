@@ -159,6 +159,9 @@ export function writeDemoCheckInState(state: { guests: DemoCheckInGuest[] }) {
     window.dispatchEvent(
       new CustomEvent(DEMO_CHECKIN_CHANNEL, { detail: state })
     );
+    const channel = new BroadcastChannel(DEMO_CHECKIN_CHANNEL);
+    channel.postMessage(state);
+    channel.close();
   } catch {
     // ignore
   }

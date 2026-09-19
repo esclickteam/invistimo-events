@@ -31,7 +31,9 @@ export default function LayoutShell({
     pathname === "/wedding-website" ||
     pathname.startsWith("/wedding-website/") ||
     pathname === "/set-password" ||
-    pathname.startsWith("/set-password/");
+    pathname.startsWith("/set-password/") ||
+    pathname.startsWith("/check-in/pass") ||
+    pathname.startsWith("/try/check-in/pass");
 
   // ❌ דשבורדים – בלי Header/Footer של האתר
   const isDashboard =

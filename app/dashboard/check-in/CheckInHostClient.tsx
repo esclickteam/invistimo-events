@@ -12,9 +12,12 @@ import {
 } from "@/lib/checkIn/guestPassState";
 import {
   applyDemoCheckIn,
+  DEMO_CHECKIN_CHANNEL,
+  DEMO_CHECKIN_STORAGE_KEY,
   isDemoCheckInToken,
   readDemoCheckInState,
   serializeDemoGuest,
+  type DemoCheckInGuest,
 } from "@/lib/checkIn/demoCheckIn";
 
 type GuestPreview = {
@@ -59,6 +62,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
   const [phase, setPhase] = useState<Phase>("scan");
   const [confirmedQty, setConfirmedQty] = useState(0);
   const [demoReady, setDemoReady] = useState(false);
+  const [demoGuests, setDemoGuests] = useState<DemoCheckInGuest[]>([]);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ token: string; at: number }>({ token: "", at: 0 });
@@ -100,7 +104,29 @@ export default function CheckInHostClient({ demo = false }: Props) {
   }, [loadSummary]);
 
   useEffect(() => {
-    if (demo) setDemoReady(true);
+    if (!demo) return;
+    const sync = () => {
+      setDemoGuests(readDemoCheckInState().guests);
+      setDemoReady(true);
+    };
+    sync();
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === DEMO_CHECKIN_STORAGE_KEY) sync();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(DEMO_CHECKIN_CHANNEL, sync as EventListener);
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(DEMO_CHECKIN_CHANNEL);
+      channel.onmessage = () => sync();
+    } catch {
+      channel = null;
+    }
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(DEMO_CHECKIN_CHANNEL, sync as EventListener);
+      channel?.close();
+    };
   }, [demo]);
 
   const stopScanner = useCallback(async () => {
@@ -278,6 +304,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
           return;
         }
         setConfirmedQty(result.quantityAdded);
+        setDemoGuests(readDemoCheckInState().guests);
         setSelected({
           ...selected,
           checkedInGuestCount: result.newCheckedInCount,
@@ -425,7 +452,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
         <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 text-sm font-bold text-[#5A4635]">
           <p className="font-black text-[#3F3328]">אורחי בדיקה</p>
           <ul className="mt-3 space-y-2">
-            {readDemoCheckInState().guests.map((guest) => (
+            {demoGuests.map((guest) => (
               <li key={guest.token} className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   {guest.name} · {guest.checkedInGuestCount}/{guest.confirmedGuestCount}

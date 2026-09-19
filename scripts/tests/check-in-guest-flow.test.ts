@@ -127,6 +127,15 @@ test("admin users page marks Check-in as an add-on", () => {
   assert.match(admin, /check-in-settings/);
 });
 
+test("guest check-in pass hides public marketing chrome", () => {
+  const shell = read("app/PublicPageShell.tsx");
+  const layout = read("app/components/LayoutShell.tsx");
+  assert.match(shell, /isCheckInPassRoute/);
+  assert.match(shell, /\/check-in\/pass/);
+  assert.match(layout, /\/check-in\/pass/);
+  assert.match(layout, /\/try\/check-in\/pass/);
+});
+
 test("guest welcome and host already-entered copy exist", () => {
   const pass = read("app/check-in/pass/CheckInPassView.tsx");
   const host = read("app/dashboard/check-in/CheckInHostClient.tsx");

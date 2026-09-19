@@ -49,10 +49,18 @@ export default function DemoCheckInPassPage() {
     const onCustom = () => sync();
     window.addEventListener("storage", onStorage);
     window.addEventListener(DEMO_CHECKIN_CHANNEL, onCustom as EventListener);
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(DEMO_CHECKIN_CHANNEL);
+      channel.onmessage = () => sync();
+    } catch {
+      channel = null;
+    }
     const poll = window.setInterval(sync, 1000);
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(DEMO_CHECKIN_CHANNEL, onCustom as EventListener);
+      channel?.close();
       window.clearInterval(poll);
     };
   }, [token, valid]);
