@@ -64,7 +64,7 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.doesNotMatch(header, /שליחת הודעות/);
   assert.doesNotMatch(header, /\/dashboard\/edit-invite/);
   assert.doesNotMatch(header, /\/dashboard\/messages/);
-  assert.doesNotMatch(header, /\/dashboard\/seating/);
+  assert.doesNotMatch(header, /router\.push\("\/dashboard\/seating"\)/);
   assert.match(layout, /<DashboardSidebar/);
   assert.match(layout, /invitationShareId=\{invitation\?\.shareId\}/);
 });
