@@ -406,9 +406,6 @@ export default function DashboardSidebar({
 
   const go = (item: NavItem) => {
     onClose();
-    if (isDemo && item.query) {
-      return;
-    }
     if (item.external && item.href) {
       if (isDemo) return;
       window.open(item.href, "_blank", "noopener,noreferrer");
