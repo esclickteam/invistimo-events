@@ -19,6 +19,7 @@ import {
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
 import {
   checkInActionBlocked,
+  entryActionBlocked,
   loadEventCheckInGate,
 } from "@/lib/checkIn/eventGate";
 
@@ -107,7 +108,10 @@ export async function POST(req: NextRequest) {
 
     const eventId = invitation.eventId ? String(invitation.eventId) : "";
     const gate = await loadEventCheckInGate(eventId);
-    const blocked = checkInActionBlocked(gate);
+    const blocked =
+      method === "QR" && body.undo !== true
+        ? checkInActionBlocked(gate)
+        : entryActionBlocked(gate);
     if (blocked) {
       return NextResponse.json(
         { success: false, error: blocked.error, message: blocked.message },

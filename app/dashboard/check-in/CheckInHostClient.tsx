@@ -38,6 +38,29 @@ type ToastState = {
   method: "QR" | "MANUAL";
 };
 
+type SeatTableOption = {
+  tableId?: string;
+  _id?: string;
+  id?: string;
+  tableName?: string;
+  name?: string;
+  tableNumber?: number | string | null;
+  freeSeats?: number;
+  canFit?: boolean;
+};
+
+type SeatPrompt = {
+  guestId: string;
+  guestName: string;
+  actual: number;
+  allocated: number;
+  shortage: number;
+  surplus: number;
+  status: "over" | "under";
+  currentTable: SeatTableOption | null;
+  suggestedTables: SeatTableOption[];
+};
+
 type Props = {
   demo?: boolean;
 };
@@ -82,6 +105,8 @@ export default function CheckInHostClient({ demo = false }: Props) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [seatPrompt, setSeatPrompt] = useState<SeatPrompt | null>(null);
+  const [seatBusy, setSeatBusy] = useState(false);
   const [demoReady, setDemoReady] = useState(false);
   const [demoGuests, setDemoGuests] = useState<DemoCheckInGuest[]>([]);
 
@@ -345,6 +370,44 @@ export default function CheckInHostClient({ demo = false }: Props) {
     setSelected(guest);
   };
 
+  const finishEntry = (guest: GuestPreview, quantity: number, method: "QR" | "MANUAL", table?: string) => {
+    showToast({
+      guestId: guest.id,
+      quantity,
+      table: table || tableText(guest),
+      method,
+    });
+    setSeatPrompt(null);
+    setSelected(null);
+    resumeScanner(guest.id);
+  };
+
+  const readSeatPrompt = (
+    guest: GuestPreview,
+    actual: number,
+    payload: any
+  ): SeatPrompt | null => {
+    const gap = payload?.seatStatus;
+    if (!gap || gap.status === "match" || gap.status === "none") return null;
+    if (gap.status === "over" && Number(gap.shortage) <= 0) return null;
+    if (gap.status === "under" && Number(gap.surplus) <= 0) return null;
+    if (gap.status !== "over" && gap.status !== "under") return null;
+
+    return {
+      guestId: guest.id,
+      guestName: guest.name,
+      actual,
+      allocated: Number(gap.allocated || 0),
+      shortage: Number(gap.shortage || 0),
+      surplus: Number(gap.surplus || 0),
+      status: gap.status,
+      currentTable: payload?.currentTable || null,
+      suggestedTables: Array.isArray(payload?.suggestedTables)
+        ? payload.suggestedTables
+        : [],
+    };
+  };
+
   const saveQuantity = async (rawQty: number) => {
     if (!selected || busy) return;
     const quantity = Math.floor(Number(rawQty));
@@ -407,17 +470,147 @@ export default function CheckInHostClient({ demo = false }: Props) {
         return;
       }
 
-      showToast({
-        guestId: guest.id,
-        quantity: Number(data.quantityAdded || quantity),
-        table: tableText(data.guest || guest),
+      const nextCount = Number(
+        data.newCheckedInCount ?? data.guest?.checkedInGuestCount ?? 0
+      );
+      let prompt: SeatPrompt | null = null;
+      try {
+        const seatRes = await fetch(`/api/guests/${guest.id}`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actualArrivedCount: nextCount,
+            checkSeatOptionsOnly: true,
+          }),
+        });
+        const seatData = await seatRes.json().catch(() => ({}));
+        if (seatRes.ok && seatData?.success !== false) {
+          prompt = readSeatPrompt(guest, nextCount, seatData);
+        }
+      } catch {
+        prompt = null;
+      }
+
+      if (prompt) {
+        setSelected(null);
+        setSeatPrompt(prompt);
+        return;
+      }
+
+      finishEntry(
+        guest,
+        Number(data.quantityAdded || quantity),
         method,
-      });
-      resumeScanner(guest.id);
+        tableText(data.guest || guest)
+      );
     } catch {
       setError("שגיאת רשת");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const dismissSeatPrompt = () => {
+    const current = seatPrompt;
+    setSeatPrompt(null);
+    if (!current) {
+      resumeScanner();
+      return;
+    }
+    showToast({
+      guestId: current.guestId,
+      quantity: current.actual,
+      table: current.currentTable?.tableName || "ללא שולחן",
+      method: scanMethod,
+    });
+    resumeScanner(current.guestId);
+  };
+
+  const releasePromptSeats = async () => {
+    if (!seatPrompt || seatBusy) return;
+    setSeatBusy(true);
+    try {
+      const res = await fetch(`/api/guests/${seatPrompt.guestId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actualArrivedCount: seatPrompt.actual,
+          syncSeatsToActual: true,
+          releaseSeatsToActual: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        setError(data?.message || "לא הצלחנו לשחרר כיסאות");
+        return;
+      }
+      dismissSeatPrompt();
+    } catch {
+      setError("לא הצלחנו לשחרר כיסאות");
+    } finally {
+      setSeatBusy(false);
+    }
+  };
+
+  const movePromptGuest = async (table: SeatTableOption) => {
+    if (!seatPrompt || seatBusy) return;
+    const toTableId = String(
+      table.tableId || table._id || table.id || table.tableNumber || ""
+    );
+    if (!eventFromUrl || !toTableId) {
+      setError("חסר נתון להעברת שולחן");
+      return;
+    }
+    setSeatBusy(true);
+    try {
+      const res = await fetch("/api/seating/live/move-guest-table", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: eventFromUrl,
+          guestId: seatPrompt.guestId,
+          toTableId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        setError(data?.message || "לא הצלחנו להעביר שולחן");
+        return;
+      }
+      dismissSeatPrompt();
+    } catch {
+      setError("שגיאת רשת בהעברת שולחן");
+    } finally {
+      setSeatBusy(false);
+    }
+  };
+
+  const claimCurrentTable = async () => {
+    if (!seatPrompt || seatBusy) return;
+    setSeatBusy(true);
+    try {
+      const res = await fetch(`/api/guests/${seatPrompt.guestId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actualArrivedCount: seatPrompt.actual,
+          syncSeatsToActual: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        setError(data?.message || "אין מספיק מקום בשולחן הנוכחי");
+        return;
+      }
+      dismissSeatPrompt();
+    } catch {
+      setError("שגיאת רשת בעדכון הכיסאות");
+    } finally {
+      setSeatBusy(false);
     }
   };
 
@@ -740,6 +933,101 @@ export default function CheckInHostClient({ demo = false }: Props) {
                 <Loader2 className="animate-spin" size={14} />
                 שומר...
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {seatPrompt && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-2xl">
+            {seatPrompt.status === "over" ? (
+              <>
+                <h2 className="text-xl font-black text-[#241A14]">
+                  הגיעו {seatPrompt.shortage} אורחים יותר ממספר המקומות שהוקצו
+                </h2>
+                <p className="mt-2 text-sm font-black text-[#6B451E]">
+                  חסרים {seatPrompt.shortage} מקומות
+                </p>
+                <p className="mt-1 text-sm font-bold text-[#7C6A58]">
+                  {seatPrompt.guestName} · הגיעו בפועל {seatPrompt.actual} · הוקצו{" "}
+                  {seatPrompt.allocated} כיסאות
+                </p>
+                {seatPrompt.currentTable?.canFit && (
+                  <button
+                    type="button"
+                    disabled={seatBusy}
+                    onClick={() => void claimCurrentTable()}
+                    className="mt-4 w-full rounded-[16px] bg-[#2F6B4F] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                  >
+                    אשר תפיסת כיסאות בשולחן הנוכחי
+                    {seatPrompt.currentTable.tableName
+                      ? ` · ${seatPrompt.currentTable.tableName}`
+                      : ""}
+                  </button>
+                )}
+                <ul className="mt-4 space-y-2">
+                  {seatPrompt.suggestedTables.map((table, index) => {
+                    const label =
+                      table.tableName ||
+                      table.name ||
+                      `שולחן ${table.tableNumber || index + 1}`;
+                    return (
+                      <li key={String(table.tableId || table._id || label)}>
+                        <button
+                          type="button"
+                          disabled={seatBusy}
+                          onClick={() => void movePromptGuest(table)}
+                          className="flex w-full items-center justify-between rounded-[16px] border border-[#EADBC4] bg-white px-4 py-3 text-right disabled:opacity-50"
+                        >
+                          <span className="text-sm font-black text-[#241A14]">
+                            {label}
+                          </span>
+                          <span className="text-xs font-black text-[#2F6B4F]">
+                            {table.freeSeats ?? "-"} מקומות פנויים
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button
+                  type="button"
+                  onClick={dismissSeatPrompt}
+                  className="mt-4 w-full rounded-[16px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-black text-[#5A4635]"
+                >
+                  לא עכשיו
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-black text-[#241A14]">
+                  הגיעו {seatPrompt.surplus} אורחים פחות מהכמות שהוקצתה
+                </h2>
+                <p className="mt-3 text-base font-black text-[#6B451E]">
+                  שחרור {seatPrompt.surplus} כיסאות?
+                </p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={seatBusy}
+                    onClick={() => void releasePromptSeats()}
+                    className="flex-1 rounded-[16px] bg-[#1E1B2E] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                  >
+                    שחרור כיסאות
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dismissSeatPrompt}
+                    className="flex-1 rounded-[16px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-black text-[#5A4635]"
+                  >
+                    לא עכשיו
+                  </button>
+                </div>
+              </>
+            )}
+            {error && (
+              <p className="mt-3 text-sm font-bold text-rose-700">{error}</p>
             )}
           </div>
         </div>
