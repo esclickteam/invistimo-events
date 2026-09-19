@@ -1080,6 +1080,12 @@ if (!canDeleteAllGuests) {
 
     setInvitationId("demo");
 
+    const demoAt = (hour: number, minute: number) => {
+      const d = new Date();
+      d.setHours(hour, minute, 0, 0);
+      return d.toISOString();
+    };
+
     setGuests([
       {
         _id: "1",
@@ -1090,6 +1096,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 2,
         tableName: "5",
         relation: "משפחה",
+        firstOpenedAt: demoAt(17, 15),
+        lastOpenedAt: demoAt(17, 37),
+        openCount: 3,
+        rsvpRespondedAt: demoAt(17, 20),
       },
       {
         _id: "2",
@@ -1109,6 +1119,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 3,
         tableName: "3",
         relation: "משפחה",
+        firstOpenedAt: demoAt(16, 5),
+        lastOpenedAt: demoAt(16, 40),
+        openCount: 2,
+        rsvpRespondedAt: demoAt(16, 12),
       },
       {
         _id: "4",
@@ -1118,6 +1132,10 @@ if (!canDeleteAllGuests) {
         rsvp: "no",
         guestsCount: 1,
         relation: "חברים",
+        firstOpenedAt: demoAt(15, 48),
+        lastOpenedAt: demoAt(15, 48),
+        openCount: 1,
+        rsvpRespondedAt: demoAt(15, 52),
       },
       {
         _id: "5",
@@ -1128,6 +1146,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 1,
         tableName: "1",
         relation: "עבודה",
+        firstOpenedAt: demoAt(14, 10),
+        lastOpenedAt: demoAt(18, 2),
+        openCount: 4,
+        rsvpRespondedAt: demoAt(14, 22),
       },
       {
         _id: "6",
@@ -1137,6 +1159,9 @@ if (!canDeleteAllGuests) {
         rsvp: "pending",
         guestsCount: 2,
         relation: "משפחה",
+        firstOpenedAt: demoAt(13, 30),
+        lastOpenedAt: demoAt(13, 30),
+        openCount: 1,
       },
       {
         _id: "7",
@@ -1147,6 +1172,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 2,
         tableName: "2",
         relation: "חברים",
+        firstOpenedAt: demoAt(12, 18),
+        lastOpenedAt: demoAt(17, 5),
+        openCount: 2,
+        rsvpRespondedAt: demoAt(12, 40),
       },
       {
         _id: "8",
@@ -1166,6 +1195,10 @@ if (!canDeleteAllGuests) {
         guestsCount: 1,
         tableName: "3",
         relation: "משפחה",
+        firstOpenedAt: demoAt(11, 8),
+        lastOpenedAt: demoAt(11, 8),
+        openCount: 1,
+        rsvpRespondedAt: demoAt(11, 15),
       },
       {
         _id: "10",
