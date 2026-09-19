@@ -2,6 +2,7 @@ import { shortenUrl } from "@/lib/shortenUrl";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getWazeLink } from "@/lib/navigationLinks";
 import { resolveAndPersistEventLocation } from "@/lib/persistEventMapPin";
+import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -66,12 +67,22 @@ export async function buildFinalSmsText({
 
   /* ================= NAVIGATION ================= */
 
-  const location = await resolveAndPersistEventLocation(invitation, event);
   let navigationLink = "";
 
-  const wazeUrl = getWazeLink(location);
-  if (wazeUrl) {
-    navigationLink = await shortenUrl(wazeUrl);
+  if (event?.checkInEnabled && invitation.shareId && guest.token) {
+    navigationLink = await shortenUrl(
+      buildReminderNavigationUrl({
+        shareId: invitation.shareId,
+        guestToken: guest.token,
+        checkInEnabled: true,
+      })
+    );
+  } else {
+    const location = await resolveAndPersistEventLocation(invitation, event);
+    const wazeUrl = getWazeLink(location);
+    if (wazeUrl) {
+      navigationLink = await shortenUrl(wazeUrl);
+    }
   }
 
   /* ================= RSVP ================= */

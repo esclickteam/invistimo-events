@@ -142,7 +142,9 @@ test("guest welcome and host already-entered copy exist", () => {
   assert.match(pass, /תודה שהגעתם לשמוח איתנו/);
   assert.match(pass, /הציגו את הקוד בכניסה לאירוע/);
   assert.match(pass, /הצגת קוד כניסה נוסף/);
+  assert.match(pass, /לכל פרטי האירוע/);
   assert.match(pass, /שליחת מתנה/);
+  assert.doesNotMatch(pass, />פרטי האירוע</);
   assert.match(host, /האורחים כבר נכנסו/);
   assert.match(host, /הכניסה אושרה/);
   assert.match(host, /allowOverride: false/);

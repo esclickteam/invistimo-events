@@ -22,6 +22,7 @@ import {
   getInvitationEventId,
   getReminderSmsBody,
 } from "@/lib/messages/reminderSmsSettings";
+import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -561,7 +562,7 @@ if (isDirectSmsRequest) {
     const reminderEvent =
       isReminderSmsTemplate && reminderEventId
         ? await Event.findById(reminderEventId)
-            .select("hideTableNumberForAll hiddenTableIds")
+            .select("hideTableNumberForAll hiddenTableIds checkInEnabled")
             .lean()
         : null;
 
@@ -1010,6 +1011,17 @@ if (inv.shareId) {
           tableNameForMessage = built.tableName;
         }
 
+        const guestNavigationLink =
+          reminderEvent?.checkInEnabled && freshGuest.token
+            ? await shortenUrl(
+                buildReminderNavigationUrl({
+                  shareId: inv.shareId,
+                  guestToken: freshGuest.token,
+                  checkInEnabled: true,
+                })
+              )
+            : navigationLink;
+
         let finalText = messageForGuest
           .replace(/{{name}}/g, freshGuest.name || "")
           .replace(/{{invitationTitle}}/g, invitationTitle)
@@ -1017,7 +1029,7 @@ if (inv.shareId) {
           .replace(/{{eventLocation}}/g, eventLocationText)
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
           .replace(/{{tableName}}/g, tableNameForMessage)
-          .replace(/{{navigationLink}}/g, navigationLink);
+          .replace(/{{navigationLink}}/g, guestNavigationLink);
 
         if (includeGiftLink && giftLink) {
           finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;

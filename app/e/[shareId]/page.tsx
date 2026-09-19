@@ -18,6 +18,9 @@ import {
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import CheckInPassClient from "@/app/check-in/pass/CheckInPassClient";
+import { loadGuestPassForEventDetailsLink } from "@/lib/checkIn/loadGuestPass";
+import { shouldOpenCheckInQrFirst } from "@/lib/messages/reminderNavigationLink";
 import CopyButton from "./CopyButton";
 import WazeNavButton from "@/app/components/WazeNavButton";
 import PersistMissingEventPin from "@/app/components/PersistMissingEventPin";
@@ -40,6 +43,10 @@ export const runtime = "nodejs";
 type PageProps = {
   params: Promise<{
     shareId: string;
+  }>;
+  searchParams?: Promise<{
+    token?: string;
+    details?: string;
   }>;
 };
 
@@ -372,12 +379,33 @@ export async function generateMetadata({
   }
 }
 
-export default async function PublicEventInfoPage({ params }: PageProps) {
+export default async function PublicEventInfoPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { shareId } = await params;
+  const query = (await searchParams) || {};
 
   const safeShareId = cleanString(shareId);
+  const guestToken = cleanString(query.token);
 
   await dbConnect();
+
+  if (
+    shouldOpenCheckInQrFirst({
+      checkInEnabled: true,
+      guestToken,
+      details: query.details,
+    })
+  ) {
+    const pass = await loadGuestPassForEventDetailsLink({
+      shareId: safeShareId,
+      guestToken,
+    });
+    if (pass) {
+      return <CheckInPassClient initialPass={pass} />;
+    }
+  }
 
   const invitation = await Invitation.findOne({ shareId: safeShareId }).lean();
 
