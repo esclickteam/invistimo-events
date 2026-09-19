@@ -67,6 +67,11 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.doesNotMatch(header, /router\.push\("\/dashboard\/seating"\)/);
   assert.match(layout, /<DashboardSidebar/);
   assert.match(layout, /invitationShareId=\{invitation\?\.shareId\}/);
+  assert.match(layout, /lg:pr-\[240px\]/);
+  assert.match(layout, /lg:pr-\[72px\]/);
+  assert.match(sidebar, /fixed top-0 right-0/);
+  assert.match(sidebar, /h-\[100vh\]/);
+  assert.doesNotMatch(sidebar, /top-16/);
 });
 
 test("dashboard uses five RSVP cards then three equal content cards", () => {
