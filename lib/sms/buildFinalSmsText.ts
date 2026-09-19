@@ -9,6 +9,7 @@ type BuildSmsParams = {
   guest: {
     name?: string;
     token: string;
+    checkInToken?: string | null;
 
     // ⚠️ אין שימוש ב־tableId
     tableName?: string;
@@ -30,10 +31,12 @@ type BuildSmsParams = {
       lat?: number;
       lng?: number;
     };
+    checkInEnabled?: boolean;
   };
 
   includeGiftLink?: boolean;
   giftLink?: string;
+  origin?: string;
 };
 
 export async function buildFinalSmsText({
@@ -43,6 +46,7 @@ export async function buildFinalSmsText({
   event,
   includeGiftLink,
   giftLink,
+  origin,
 }: BuildSmsParams): Promise<string> {
   /* ================= TABLE =================
      🔒 מקור אמת יחיד:
@@ -81,13 +85,27 @@ export async function buildFinalSmsText({
 
   const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
+  /* ================= CHECK-IN QR PASS ================= */
+
+  let checkInQrLink = "";
+  const checkInToken = String(guest.checkInToken || "").trim();
+  if (event?.checkInEnabled && checkInToken) {
+    const base =
+      String(origin || "").replace(/\/$/, "") ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://www.invistimo.com";
+    const passUrl = `${base}/check-in/pass/${encodeURIComponent(checkInToken)}`;
+    checkInQrLink = await shortenUrl(passUrl);
+  }
+
   /* ================= BASE TEMPLATE ================= */
 
   let finalText = messageTemplate
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{rsvpLink}}/g, shortRsvpUrl)
     .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink);
+    .replace(/{{navigationLink}}/g, navigationLink)
+    .replace(/{{checkInQrLink}}/g, checkInQrLink);
 
   /* ================= GIFT LINK ================= */
 

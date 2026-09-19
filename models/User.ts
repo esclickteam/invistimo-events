@@ -1204,6 +1204,12 @@ preRsvpMessages: {
         default: false,
         index: true,
       },
+
+      checkIn: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
     },
 
     selfManageEnabled: {

@@ -26,10 +26,16 @@ import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
-import { matchesGuestLinkOpenFilter } from "@/lib/guestLinkTracking";
+import CheckInStatusBadge from "@/app/components/CheckInStatusBadge";
+import {
+  matchesGuestLinkOpenFilter,
+  guestLinkWasOpened,
+} from "@/lib/guestLinkTracking";
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import { summarizeCheckIn } from "@/lib/checkIn/status";
+import { userCanManageCheckIn } from "@/lib/checkIn/permissions";
 
 type EventModel = {
   title?: string;
@@ -508,6 +514,8 @@ const canViewActualArrived =
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
+  const [checkInToggleBusy, setCheckInToggleBusy] = useState(false);
 
   const [event, setEvent] = useState<EventModel | null>(null);
   const [openGroupModal, setOpenGroupModal] = useState(false);
@@ -652,11 +660,50 @@ const canViewActualArrived =
       }
 
       setEvent(data.event);
+      if (typeof data.event.checkInEnabled === "boolean") {
+        setCheckInEnabled(Boolean(data.event.checkInEnabled));
+      }
     } catch (error) {
       console.error("loadEvent failed:", error);
       setEvent(null);
     }
   }
+
+  useEffect(() => {
+    const eventId =
+      eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      "";
+    if (!eventId || isDemo) {
+      if (isDemo) setCheckInEnabled(true);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(`/api/events/${eventId}/check-in-settings`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setCheckInEnabled(Boolean(data?.checkInEnabled));
+      })
+      .catch(() => {
+        if (!cancelled) setCheckInEnabled(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isDemo,
+    eventIdFromUrl,
+    invitation?.eventId,
+    invitation?.event,
+    invitation?.event_id,
+  ]);
 
   /* ============================================================
      Load guests
@@ -1305,9 +1352,13 @@ const stats = useMemo(() => {
 
   const totalNo = guests.filter((guest) => guest.rsvp === "no").length;
 
-const totalPending = guests.filter(
+  const totalPending = guests.filter(
   (guest) => guest.rsvp === "pending"
 ).length;
+
+  const openedLinks = guests.filter((guest) => guestLinkWasOpened(guest)).length;
+  const notOpenedLinks = Math.max(0, guests.length - openedLinks);
+  const checkInSummary = summarizeCheckIn(guests);
 
   return {
     totalGuests: totalInvited,
@@ -1315,6 +1366,9 @@ const totalPending = guests.filter(
     actualArrivedGuests: totalActualArrived,
     notComing: totalNo,
     noResponse: totalPending,
+    openedLinks,
+    notOpenedLinks,
+    checkIn: checkInSummary,
   };
 }, [guests]);
 
@@ -2418,12 +2472,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
   isDemo={isDemo}
   router={router}
   onDemoBlocked={handleDemoBlockedAction}
-  onImport={() => setShowImportModal(true)}
-  onExportExcel={handleExportExcel}
-  canOpenEventManagement={canOpenEventManagement}
-  canOpenTransportationManagement={canOpenTransportationManagement}
-  canOpenWeddingChallenges={canOpenWeddingChallenges}
-  eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
+  checkInEnabled={checkInEnabled}
 />
 
           {/* תיוגים קיימים מהשרת */}
@@ -2459,7 +2508,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
           
 
           {/* אחוזים / סטטיסטיקות */}
-          <section className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <section id="rsvp-stats" className="mt-5 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <GoldenStatCard
               title="סה״כ מוזמנים"
               value={stats.totalGuests}
@@ -2492,6 +2541,22 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
               description="טרם השיבו"
             />
 
+            <GoldenStatCard
+              title="פתחו קישור"
+              value={stats.openedLinks}
+              icon="◉"
+              tone="green"
+              description="פתיחת הזמנה אישית"
+            />
+
+            <GoldenStatCard
+              title="לא פתחו קישור"
+              value={stats.notOpenedLinks}
+              icon="◌"
+              tone="bronze"
+              description="עדיין לא נפתח"
+            />
+
             {canShowActualArrived && (
               <GoldenStatCard
                 title="מגיעים בפועל"
@@ -2502,6 +2567,108 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
               />
             )}
           </section>
+
+          {checkInEnabled && (
+            <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-[#3F3328]">כניסה לאירוע</h3>
+                  <p className="text-xs font-bold text-[#8A7A68]">מתעדכן בזמן אמת</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/check-in")}
+                  className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
+                >
+                  פתיחת סריקה
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
+                  <p className="text-[11px] font-bold text-[#8A7A68]">אישרו הגעה</p>
+                  <p className="mt-1 text-2xl font-black text-[#241A14]">
+                    {stats.checkIn.confirmed}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-[11px] font-bold text-emerald-700">כבר נכנסו</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-800">
+                    {stats.checkIn.checkedIn}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-[11px] font-bold text-amber-700">טרם הגיעו</p>
+                  <p className="mt-1 text-2xl font-black text-amber-800">
+                    {stats.checkIn.remaining}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
+                  <p className="text-[11px] font-bold text-[#8A7A68]">הגיעו חלקית</p>
+                  <p className="mt-1 text-2xl font-black text-[#241A14]">
+                    {stats.checkIn.partiallyArrived}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {userCanManageCheckIn(user) && (
+            <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#EADBC4] bg-white/80 px-4 py-3">
+              <div>
+                <p className="text-sm font-black text-[#3F3328]">Invistimo Check-in</p>
+                <p className="text-xs font-bold text-[#8A7A68]">
+                  הפעלה לכל אירוע בנפרד — כבוי כברירת מחדל
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={checkInToggleBusy || isDemo}
+                onClick={async () => {
+                  const eventId =
+                    eventIdFromUrl ||
+                    invitation?.eventId ||
+                    invitation?.event ||
+                    invitation?.event_id ||
+                    "";
+                  if (!eventId) return;
+                  setCheckInToggleBusy(true);
+                  try {
+                    const next = !checkInEnabled;
+                    const res = await fetch(
+                      `/api/events/${eventId}/check-in-settings`,
+                      {
+                        method: "PATCH",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ checkInEnabled: next }),
+                      }
+                    );
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                      setCheckInEnabled(Boolean(data.checkInEnabled));
+                      if (next) {
+                        await fetch("/api/check-in/ensure-tokens", {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ invitationId }),
+                        });
+                      }
+                    }
+                  } finally {
+                    setCheckInToggleBusy(false);
+                  }
+                }}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                  checkInEnabled
+                    ? "bg-[#2F6B4F] text-white"
+                    : "border border-[#E3D6C3] bg-[#F7F3EC] text-[#8A7A68]"
+                }`}
+              >
+                {checkInEnabled ? "מופעל" : "כבוי"}
+              </button>
+            </section>
+          )}
 
           {/* גרפים */}
           <section className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
@@ -2523,7 +2690,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
       </section>
 
       {/* ===================== CONTROLS ===================== */}
-      <section className="mb-5">
+      <section id="guests" className="mb-5">
                 <GuestsControls
   search={search}
   setSearch={setSearch}
@@ -2576,6 +2743,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
     {canShowActualArrived && <col className="w-[145px]" />}
 
     <col className="w-[105px]" /> {/* מס׳ שולחן */}
+    {checkInEnabled && <col className="w-[130px]" />} {/* Check-in */}
 
     {canShowActualArrived && <col className="w-[150px]" />}
 
@@ -2642,6 +2810,12 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
               >
                 מס׳ שולחן{sortArrow("table")}
               </th>
+
+              {checkInEnabled && (
+                <th className="p-4 text-right text-xs font-black text-[#5F564D]">
+                  Check-in
+                </th>
+              )}
 
 {canShowActualArrived && (
                 <th className="p-4 text-right text-xs font-black text-[#5F564D]">
@@ -2898,6 +3072,12 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
     })()}
   </span>
 </td>
+
+                {checkInEnabled && (
+                  <td className="p-4">
+                    <CheckInStatusBadge guest={g} />
+                  </td>
+                )}
 
                 {canShowActualArrived && (
                   <td className="p-4">
@@ -3587,340 +3767,68 @@ function GoldenActionButtons({
   isDemo,
   router,
   onDemoBlocked,
-  onImport,
-  onExportExcel,
-  canOpenEventManagement,
-  canOpenTransportationManagement,
-  canOpenWeddingChallenges,
-  eventId,
+  checkInEnabled = false,
 }: {
   invitation: any | null;
   invitationId: string;
   isDemo: boolean;
   router: any;
   onDemoBlocked: () => void;
-  onImport: () => void;
-  onExportExcel: () => void;
-  canOpenEventManagement: boolean;
-  canOpenTransportationManagement: boolean;
-  canOpenWeddingChallenges?: boolean;
-  eventId?: string;
+  checkInEnabled?: boolean;
 }) {
-
-    const [openInviteMenu, setOpenInviteMenu] = useState(false);
-
   return (
     <section>
-  <div className="hidden md:flex flex-wrap gap-3 items-center">
-    {/* 1️⃣ הזמנה - תת תפריט עריכה / צפייה */}
-    <div className="relative">
-      <GoldenActionButton
-        label={invitation ? "הזמנה" : "יצירת הזמנה"}
-        icon="✎"
-        tone="dark"
-        withChevron={!!invitation}
-        onClick={() => {
-          if (!invitation) {
-            if (isDemo) {
-              onDemoBlocked();
-              return;
-            }
-
-            router.push("/dashboard/create-invite");
-            return;
-          }
-
-          setOpenInviteMenu((prev) => !prev);
-        }}
-      />
-
-      {invitation && openInviteMenu && (
-        <>
-          {/* שכבת סגירה בלחיצה מחוץ לתפריט */}
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default bg-transparent"
-            onClick={() => setOpenInviteMenu(false)}
-            aria-label="סגירת תפריט הזמנה"
-          />
-
-          <div
-            className="
-              absolute
-              right-0
-              top-[calc(100%+10px)]
-              z-50
-              w-[230px]
-              overflow-hidden
-              rounded-[22px]
-              border
-              border-[#E3D6C3]
-              bg-white
-              shadow-[0_18px_45px_rgba(36,26,46,0.16)]
-            "
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setOpenInviteMenu(false);
-
-                if (isDemo) {
-                  onDemoBlocked();
-                  return;
-                }
-
-                router.push(`/dashboard/edit-invite/${invitationId}`);
-              }}
-              className="
-                flex
-                w-full
-                items-center
-                justify-between
-                gap-3
-                px-5
-                py-4
-                text-right
-                text-sm
-                font-black
-                text-[#241A14]
-                transition
-                hover:bg-[#FBF7F0]
-              "
-            >
-              <span>עריכת הזמנה</span>
-              <span className="text-[#B8844F]">✎</span>
-            </button>
-
-            <div className="h-px bg-[#EFE4D6]" />
-
-            <button
-              type="button"
-              onClick={() => {
-                setOpenInviteMenu(false);
-
-                if (isDemo) {
-                  onDemoBlocked();
-                  return;
-                }
-
-                window.open(
-                  getGuestInvitationUrl({
-                    shareId: invitation.shareId,
-                    rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
-                  }),
-                  "_blank",
-                  "noopener,noreferrer"
-                );
-              }}
-              className="
-                flex
-                w-full
-                items-center
-                justify-between
-                gap-3
-                px-5
-                py-4
-                text-right
-                text-sm
-                font-black
-                text-[#241A14]
-                transition
-                hover:bg-[#FBF7F0]
-              "
-            >
-              <span>צפייה בהזמנה</span>
-              <span className="text-[#241A14]">◉</span>
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-
-    {/* 2️⃣ עריכת פרטי האירוע */}
-    <GoldenActionButton
-      label="עריכת פרטי האירוע"
-      icon="✎"
-      tone="light"
-      disabled={!invitation}
-      onClick={() => {
-        if (!invitation) return;
-
-        if (isDemo) {
-          onDemoBlocked();
-          return;
-        }
-
-        router.push(`/dashboard/invitations/${invitationId}/edit`);
-      }}
-    />
-
-    {isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation)) && (
-      <GoldenActionButton
-        label="אתר חתונה"
-        icon="✦"
-        tone="gold"
-        disabled={!invitation}
-        onClick={() => {
-          if (!invitation) return;
-          if (isDemo) {
-            onDemoBlocked();
-            return;
-          }
-          router.push("/dashboard/wedding-website");
-        }}
-      />
-    )}
-
-    {isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation)) && (
-      <GoldenActionButton
-        label="הודעות מהאורחים"
-        icon="♡"
-        tone="gold"
-        disabled={!invitation}
-        onClick={() => {
-          if (!invitation) return;
-          if (isDemo) {
-            onDemoBlocked();
-            return;
-          }
-          router.push("/dashboard/guest-messages");
-        }}
-      />
-    )}
-
-    {/* 3️⃣ ניהול אירוע */}
-    {canOpenEventManagement && (
-      <GoldenActionButton
-        label="ניהול אירוע"
-        icon="◆"
-        tone="gold"
-        disabled={!invitation}
-        onClick={() => {
-          if (!invitation) return;
-
-          if (isDemo) {
-            onDemoBlocked();
-            return;
-          }
-
-          const target = eventId
-            ? `/events/production?eventId=${eventId}&tab=overview`
-            : "/events/production?tab=overview";
-
-          router.push(target);
-        }}
-      />
-    )}
-
-    {canOpenTransportationManagement && (
-      <GoldenActionButton
-        label="ניהול הסעות"
-        icon="⇄"
-        tone="gold"
-        disabled={!eventId}
-        onClick={() => {
-          if (!eventId) return;
-
-          if (isDemo) {
-            onDemoBlocked();
-            return;
-          }
-
-          router.push(`/dashboard/transportation?eventId=${eventId}`);
-        }}
-      />
-    )}
-
-    {canOpenWeddingChallenges && (
-      <GoldenActionButton
-        label="ניהול Wedding Challenges"
-        icon="✦"
-        tone="gold"
-        disabled={!eventId}
-        onClick={() => {
-          if (!eventId) return;
-          if (isDemo) {
-            onDemoBlocked();
-            return;
-          }
-          router.push(`/dashboard/wedding-challenges?eventId=${eventId}`);
-        }}
-      />
-    )}
-
-    {/* 4️⃣ ייבוא מאקסל */}
-    <GoldenActionButton
-      label="ייבוא מאקסל"
-      icon="▣"
-      tone="excel"
-      disabled={!invitation}
-      onClick={onImport}
-    />
-
-    {/* 5️⃣ סידורי הושבה */}
-    <GoldenActionButton
-      label="סידורי הושבה"
-      icon="♜"
-      tone="gold"
-      disabled={!invitation}
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/seating"
-            : "/dashboard/seating"
-        )
-      }
-    />
-
-    {/* 6️⃣ שליחת הודעות */}
-    <GoldenActionButton
-      label="שליחת הודעות"
-      icon="↗"
-      tone="green"
-      disabled={!invitation}
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/messages/new"
-            : "/dashboard/messages/new"
-        )
-      }
-    />
-  </div>
-
-
-      <div className="flex md:hidden flex-col gap-3">
-        <button
+      <div className="flex flex-wrap gap-3 items-center">
+        <GoldenActionButton
+          label="שליחת הודעות"
+          icon="↗"
+          tone="green"
+          disabled={!invitation}
           onClick={() => {
+            if (!invitation) return;
             if (isDemo) {
               onDemoBlocked();
               return;
             }
             router.push(
-              invitation
-                ? `/dashboard/edit-invite/${invitationId}`
-                : "/dashboard/create-invite"
+              isDemo
+                ? "/try/dashboard/messages/new"
+                : "/dashboard/messages/new"
             );
           }}
-          className="h-[54px] rounded-2xl font-black bg-[#241A2E] text-white"
-        >
-          <span className="text-[#D8A85F]">✎</span>{" "}
-          {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-        </button>
+        />
 
-        <button
-          onClick={onImport}
-          disabled={!invitation}
-          className={`h-[54px] rounded-2xl font-black border ${
-            invitation
-              ? "bg-white border-[#E3D6C3] text-[#241A14]"
-              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-          }`}
-        >
-          <span className="text-emerald-600">▣</span> ייבוא מאקסל
-        </button>
-
-        
+        {checkInEnabled ? (
+          <GoldenActionButton
+            label="כניסה לאירוע"
+            icon="▣"
+            tone="gold"
+            onClick={() => {
+              if (isDemo) {
+                onDemoBlocked();
+                return;
+              }
+              router.push("/dashboard/check-in");
+            }}
+          />
+        ) : (
+          <GoldenActionButton
+            label={invitation ? "הזמנה" : "יצירת הזמנה"}
+            icon="✎"
+            tone="dark"
+            onClick={() => {
+              if (isDemo) {
+                onDemoBlocked();
+                return;
+              }
+              if (!invitation) {
+                router.push("/dashboard/create-invite");
+                return;
+              }
+              router.push(`/dashboard/edit-invite/${invitationId}`);
+            }}
+          />
+        )}
       </div>
     </section>
   );

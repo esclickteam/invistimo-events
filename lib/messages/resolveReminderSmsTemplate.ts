@@ -19,6 +19,22 @@ export const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
+/** When Check-in is enabled — table + QR pass link (SMS/WhatsApp ready). */
+export const REMINDER_WITH_CHECKIN_SERVER_TEMPLATE =
+  "מחכים לכם ❤️\n" +
+  "מספר השולחן שלכם: {{tableName}}\n\n" +
+  "QR אישי לכניסה:\n" +
+  "{{checkInQrLink}}\n\n" +
+  "פרטי האירוע:\n" +
+  "{{navigationLink}}";
+
+export const REMINDER_WITH_CHECKIN_NO_TABLE_SERVER_TEMPLATE =
+  "מחכים לכם ❤️\n\n" +
+  "QR אישי לכניסה:\n" +
+  "{{checkInQrLink}}\n\n" +
+  "פרטי האירוע:\n" +
+  "{{navigationLink}}";
+
 export function stripTableBlockForGuestWithoutTable(text: string) {
   return String(text || "")
     .replace(
@@ -114,28 +130,42 @@ export function shouldIncludeTableNumber({
   return Boolean(guestHasTable);
 }
 
-/**
- * פונקציה מרכזית אחת לבניית תבנית התזכורת (מיידי + מתוזמן).
- * מקבלת את גוף ההודעה העדכני מהאדמין ומחליטה אם להשאיר את בלוק השולחן.
- */
+export function stripCheckInBlock(text: string) {
+  return String(text || "")
+    .replace(/\n*QR אישי לכניסה:\s*\n*\{\{checkInQrLink\}\}\s*\n*/g, "\n")
+    .replace(/\{\{checkInQrLink\}\}/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function buildLiveReminderSmsTemplate({
   body,
   includeTableNumber,
+  includeCheckIn = false,
 }: {
   body: string;
   includeTableNumber: boolean;
+  includeCheckIn?: boolean;
 }) {
+  if (includeCheckIn) {
+    return includeTableNumber
+      ? REMINDER_WITH_CHECKIN_SERVER_TEMPLATE
+      : REMINDER_WITH_CHECKIN_NO_TABLE_SERVER_TEMPLATE;
+  }
+
   const raw =
     String(body || "").trim() || REMINDER_WITH_TABLE_SERVER_TEMPLATE;
 
-  if (includeTableNumber) {
-    return raw;
+  let next = includeTableNumber
+    ? raw
+    : stripTableBlockForGuestWithoutTable(raw) ||
+      REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE;
+
+  if (!includeCheckIn) {
+    next = stripCheckInBlock(next) || next;
   }
 
-  return (
-    stripTableBlockForGuestWithoutTable(raw) ||
-    REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
-  );
+  return next;
 }
 
 export function buildReminderSmsTemplateForGuest({
@@ -147,11 +177,13 @@ export function buildReminderSmsTemplateForGuest({
   event?: {
     hideTableNumberForAll?: unknown;
     hiddenTableIds?: unknown;
+    checkInEnabled?: unknown;
   } | null;
   guest: {
     tableId?: unknown;
     tableName?: unknown;
     tableNumber?: unknown;
+    checkInToken?: unknown;
   };
 }) {
   const visibility = getEventReminderTableVisibility(event);
@@ -161,13 +193,18 @@ export function buildReminderSmsTemplateForGuest({
     guestTableId: guest?.tableId,
     guestHasTable: guestHasAssignedTable(guest),
   });
+  const includeCheckIn =
+    Boolean(event?.checkInEnabled) &&
+    Boolean(String(guest?.checkInToken || "").trim());
 
   return {
     template: buildLiveReminderSmsTemplate({
       body,
       includeTableNumber,
+      includeCheckIn,
     }),
     includeTableNumber,
+    includeCheckIn,
     tableName: includeTableNumber ? getGuestTableDisplayName(guest) : "",
   };
 }

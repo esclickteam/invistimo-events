@@ -244,6 +244,7 @@ function serializeEvent(event: any) {
     hiddenTableIds: Array.isArray(event.hiddenTableIds)
       ? event.hiddenTableIds.map((id: unknown) => String(id || "")).filter(Boolean)
       : [],
+    checkInEnabled: Boolean(event.checkInEnabled),
 
     maxGuests: event.maxGuests || 0,
 

@@ -286,6 +286,16 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
+       Invistimo Check-in (QR)
+       ברירת מחדל false — לקוחות קיימים לא מושפעים
+    ========================= */
+    checkInEnabled: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    /* =========================
        אזורים
     ========================= */
     zones: {
