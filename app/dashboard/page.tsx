@@ -1451,48 +1451,85 @@ const pending = guests.filter(
 }, [guests]);
 
   const recentActivityLogs = useMemo(() => {
-    return [...guests]
-      .map((guest) => {
-        const date = getGuestActivityDate(guest);
-        const timestamp = date ? new Date(date).getTime() : 0;
+    const logs: {
+      id: string;
+      timestamp: number;
+      icon: string;
+      tone: "green" | "gold" | "rose" | "bronze" | "lilac";
+      title: string;
+      subtitle: string;
+    }[] = [];
 
-        const count =
-          guest.rsvp === "yes"
-            ? guest.arrivedCount || guest.guestsCount || 0
-            : guest.guestsCount || 0;
+    for (const guest of guests) {
+      const name = String(guest.name || "").trim() || "אורח";
+      const firstOpen = guest.firstOpenedAt || "";
+      const lastOpen = guest.lastOpenedAt || "";
+      const firstOpenTs = firstOpen ? new Date(firstOpen).getTime() : 0;
+      const lastOpenTs = lastOpen ? new Date(lastOpen).getTime() : 0;
 
-        if (guest.rsvp === "yes") {
-          return {
-            id: guest._id,
-            timestamp,
-            icon: "✓",
-            tone: "green" as const,
-            title: `${guest.name} אישר/ה הגעה`,
-            subtitle: `${count} מגיעים · ${formatActivityDateTime(date)}`,
-          };
-        }
+      if (firstOpenTs > 0) {
+        logs.push({
+          id: `${guest._id}-link-first`,
+          timestamp: firstOpenTs,
+          icon: "👁",
+          tone: "lilac",
+          title: `${name} פתח/ה את הקישור`,
+          subtitle: formatActivityDateTime(firstOpen),
+        });
+      }
 
-        if (guest.rsvp === "no") {
-          return {
-            id: guest._id,
-            timestamp,
-            icon: "×",
-            tone: "rose" as const,
-            title: `${guest.name} סימן/ה שלא מגיע/ה`,
-            subtitle: `${formatActivityDateTime(date)}`,
-          };
-        }
+      if (lastOpenTs > 0 && lastOpenTs !== firstOpenTs) {
+        logs.push({
+          id: `${guest._id}-link-again`,
+          timestamp: lastOpenTs,
+          icon: "👁",
+          tone: "lilac",
+          title: `${name} פתח/ה שוב את הקישור`,
+          subtitle: formatActivityDateTime(lastOpen),
+        });
+      }
 
-        return {
-          id: guest._id,
-          timestamp,
-          icon: "⌛",
-          tone: "gold" as const,
-          title: `${guest.name} עדיין לא אישר/ה`,
-          subtitle: `${guest.guestsCount || 0} מוזמנים · ${formatActivityDateTime(date)}`,
-        };
-      })
-      .sort((a, b) => b.timestamp - a.timestamp);
+      const rsvpDate = getGuestActivityDate(guest);
+      const rsvpTs = rsvpDate ? new Date(rsvpDate).getTime() : 0;
+      const count =
+        guest.rsvp === "yes"
+          ? guest.arrivedCount || guest.guestsCount || 0
+          : guest.guestsCount || 0;
+
+      if (guest.rsvp === "yes" && rsvpTs > 0) {
+        logs.push({
+          id: `${guest._id}-rsvp-yes`,
+          timestamp: rsvpTs,
+          icon: "✓",
+          tone: "green",
+          title: `${name} אישר/ה הגעה ל-${count} אורחים`,
+          subtitle: formatActivityDateTime(rsvpDate),
+        });
+      } else if (guest.rsvp === "no" && rsvpTs > 0) {
+        logs.push({
+          id: `${guest._id}-rsvp-no`,
+          timestamp: rsvpTs,
+          icon: "×",
+          tone: "rose",
+          title: `${name} עדכן/ה שלא יגיע/תגיע`,
+          subtitle: formatActivityDateTime(rsvpDate),
+        });
+      } else if (guest.rsvp === "maybe" && rsvpTs > 0) {
+        logs.push({
+          id: `${guest._id}-rsvp-maybe`,
+          timestamp: rsvpTs,
+          icon: "?",
+          tone: "gold",
+          title: `${name} עדכן/ה שמתלבט/ת`,
+          subtitle: formatActivityDateTime(rsvpDate),
+        });
+      }
+    }
+
+    return logs
+      .filter((log) => Number.isFinite(log.timestamp) && log.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 20);
   }, [guests]);
 
 
@@ -2456,7 +2493,7 @@ const eventLocation = resolveEventLocation(invitation, event);
 
       <section
         id="rsvp-stats"
-        className="mb-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4 2xl:grid-cols-7"
+        className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
       >
         <GoldenStatCard
           title="סה״כ מוזמנים"
@@ -2467,7 +2504,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         />
 
         <GoldenStatCard
-          title="מגיע"
+          title="מגיעים"
           value={stats.comingGuests}
           icon="✓"
           tone="green"
@@ -2475,7 +2512,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         />
 
         <GoldenStatCard
-          title="לא מגיע"
+          title="לא מגיעים"
           value={stats.notComing}
           icon="×"
           tone="rose"
@@ -2497,36 +2534,9 @@ const eventLocation = resolveEventLocation(invitation, event);
           tone="bronze"
           description="טרם השיבו כלל"
         />
-
-        <GoldenStatCard
-          title="פתחו קישור"
-          value={stats.openedLinks}
-          icon="◉"
-          tone="green"
-          description="פתיחת הזמנה אישית"
-        />
-
-        <GoldenStatCard
-          title="לא פתחו קישור"
-          value={stats.notOpenedLinks}
-          icon="◌"
-          tone="bronze"
-          description="עדיין לא נפתח"
-        />
-
-        {canShowActualArrived && (
-          <GoldenStatCard
-            title="מגיעים בפועל"
-            value={stats.actualArrivedGuests}
-            icon="●"
-            tone="blue"
-            description="נכנסו באירוע"
-          />
-        )}
       </section>
 
-      <section className="mb-7 flex flex-wrap justify-start gap-5">
-        <div className="w-full max-w-[340px]">
+      <section className="mb-7 grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
         <GoldenEventDetailsCard
           title={eventTitle}
           date={formatEventDate(eventDate)}
@@ -2551,11 +2561,10 @@ const eventLocation = resolveEventLocation(invitation, event);
             setOpenRsvpSchedule(true);
           }}
         />
-        </div>
 
-        <div className="w-full max-w-[340px]">
         <GoldenRecentActivityCard logs={recentActivityLogs} />
-        </div>
+
+        <GoldenLinkViewsCard guests={guests} />
       </section>
 
       {checkInEnabled && (
@@ -4931,7 +4940,7 @@ function GoldenEventDetailsCard({
   onOpenRsvpSchedule: () => void;
 }) {
   return (
-    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פרטי האירוע
@@ -4946,10 +4955,11 @@ function GoldenEventDetailsCard({
         <GoldenDetailRow icon="●" label="מיקום" value={location} />
       </div>
 
+      <div className="mt-auto pt-5">
       <button
         type="button"
         onClick={onOpen}
-        className="mt-5 w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-5 py-3 font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
+        className="w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-5 py-3 font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
       >
         צפייה בפרטי האירוע
       </button>
@@ -4961,6 +4971,7 @@ function GoldenEventDetailsCard({
       >
         צפייה בלו״ז אישורי הגעה
       </button>
+      </div>
     </div>
   );
 }
@@ -4998,13 +5009,13 @@ function GoldenRecentActivityCard({
     id: string;
     timestamp: number;
     icon: string;
-    tone: "green" | "gold" | "rose" | "bronze";
+    tone: "green" | "gold" | "rose" | "bronze" | "lilac";
     title: string;
     subtitle: string;
   }[];
 }) {
   return (
-    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פעילות אחרונה
@@ -5015,16 +5026,17 @@ function GoldenRecentActivityCard({
       </div>
 
       <div
-  className="
-    max-h-[170px]
-    overflow-y-auto
-    pr-1
-    space-y-2
-    scrollbar-thin
-    scrollbar-thumb-[#D9B46F]
-    scrollbar-track-[#F8EFE3]
-  "
->
+        className="
+          min-h-0
+          flex-1
+          space-y-2
+          overflow-y-auto
+          pr-1
+          scrollbar-thin
+          scrollbar-thumb-[#D9B46F]
+          scrollbar-track-[#F8EFE3]
+        "
+      >
         {logs.length > 0 ? (
           logs.map((log) => (
             <GoldenActivityRow
@@ -5045,6 +5057,147 @@ function GoldenRecentActivityCard({
   );
 }
 
+function GoldenLinkViewsCard({
+  guests,
+}: {
+  guests: Guest[];
+}) {
+  const [tab, setTab] = useState<"opened" | "notOpened">("opened");
+
+  const opened = useMemo(
+    () =>
+      guests
+        .filter((guest) => guestLinkWasOpened(guest))
+        .sort((a, b) => {
+          const aTime = new Date(a.lastOpenedAt || a.firstOpenedAt || 0).getTime();
+          const bTime = new Date(b.lastOpenedAt || b.firstOpenedAt || 0).getTime();
+          return bTime - aTime;
+        }),
+    [guests]
+  );
+  const notOpened = useMemo(
+    () =>
+      guests
+        .filter((guest) => !guestLinkWasOpened(guest))
+        .sort((a, b) =>
+          String(a.name || "").localeCompare(String(b.name || ""), "he")
+        ),
+    [guests]
+  );
+
+  const total = guests.length;
+  const openedCount = opened.length;
+  const notOpenedCount = notOpened.length;
+  const openedPercent = total > 0 ? Math.round((openedCount / total) * 100) : 0;
+  const notOpenedPercent =
+    total > 0 ? Math.round((notOpenedCount / total) * 100) : 0;
+
+  const viewingOpened = tab === "opened";
+  const list = viewingOpened ? opened.slice(0, 6) : notOpened.slice(0, 6);
+  const count = viewingOpened ? openedCount : notOpenedCount;
+  const percent = viewingOpened ? openedPercent : notOpenedPercent;
+
+  return (
+    <div className="flex h-full min-h-[380px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-black text-[#241A14]">
+          צפייה בקישור האישי
+        </h3>
+        <span className="text-xl text-[#6D4C8D]">◉</span>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-[#F6F1EA] p-1">
+        <button
+          type="button"
+          onClick={() => setTab("opened")}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition ${
+            viewingOpened
+              ? "bg-[#EFE6F6] text-[#6D4C8D] shadow-sm"
+              : "text-[#7C6A58]"
+          }`}
+        >
+          צפו בקישור
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("notOpened")}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition ${
+            !viewingOpened
+              ? "bg-[#E7F3F4] text-[#2F6B73] shadow-sm"
+              : "text-[#7C6A58]"
+          }`}
+        >
+          לא צפו בקישור
+        </button>
+      </div>
+
+      <div
+        className={`mb-4 rounded-2xl border px-4 py-3 ${
+          viewingOpened
+            ? "border-[#E4D4F0] bg-[#F8F4FB]"
+            : "border-[#CDE4E6] bg-[#F3FAFA]"
+        }`}
+      >
+        <p className="text-xs font-bold text-[#7C6A58]">
+          {viewingOpened ? "צפו בקישור" : "עדיין לא צפו"}
+        </p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <p
+            className={`text-4xl font-black ${
+              viewingOpened ? "text-[#6D4C8D]" : "text-[#2F6B73]"
+            }`}
+          >
+            {count}
+          </p>
+          <p
+            className={`text-sm font-black ${
+              viewingOpened ? "text-[#8A6AA8]" : "text-[#4A8A90]"
+            }`}
+          >
+            {percent}%
+          </p>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+          <div
+            className={`h-full rounded-full ${
+              viewingOpened ? "bg-[#B089C9]" : "bg-[#6FB4B8]"
+            }`}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        {list.length > 0 ? (
+          list.map((guest) => (
+            <div
+              key={guest._id}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-[#FBF7F0] px-3 py-2"
+            >
+              <p className="truncate text-sm font-black text-[#241A14]">
+                {guest.name || "אורח"}
+              </p>
+              <p className="shrink-0 text-[11px] font-bold text-[#9A8775]">
+                {viewingOpened
+                  ? formatActivityDateTime(
+                      guest.lastOpenedAt || guest.firstOpenedAt || ""
+                    )
+                  : "טרם נפתח"}
+              </p>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-2xl bg-[#FBF7F0] p-4 text-sm font-bold text-[#8A7A68]">
+            {viewingOpened
+              ? "עדיין אין אורחים שצפו בקישור."
+              : "כל האורחים כבר צפו בקישור."}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GoldenActivityRow({
   icon,
   tone,
@@ -5052,7 +5205,7 @@ function GoldenActivityRow({
   time,
 }: {
   icon: string;
-  tone: "green" | "gold" | "rose" | "bronze";
+  tone: "green" | "gold" | "rose" | "bronze" | "lilac";
   title: string;
   time: string;
 }) {
@@ -5061,6 +5214,7 @@ function GoldenActivityRow({
     gold: "bg-amber-50 text-[#A76313]",
     rose: "bg-rose-50 text-rose-700",
     bronze: "bg-[#F8EFE3] text-[#8B5E34]",
+    lilac: "bg-[#F3EEF8] text-[#6D4C8D]",
   };
 
   return (
