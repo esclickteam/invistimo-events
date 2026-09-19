@@ -185,7 +185,7 @@ const InvitationGuestSchema = new Schema(
     =============================== */
     rsvp: {
       type: String,
-      enum: ["yes", "no", "pending"],
+      enum: ["yes", "no", "maybe", "pending"],
       default: "pending",
       index: true,
     },
@@ -195,7 +195,7 @@ const InvitationGuestSchema = new Schema(
      */
     status: {
       type: String,
-      enum: ["yes", "no", "pending"],
+      enum: ["yes", "no", "maybe", "pending"],
       default: "pending",
       index: true,
     },
@@ -347,9 +347,11 @@ InvitationGuestSchema.pre("save", function () {
     }
   }
 
-  if (doc.rsvp === "no") {
-    doc.arrivedCount = 0;
-    doc.amount = 0;
+  if (doc.rsvp === "no" || doc.rsvp === "maybe" || doc.rsvp === "pending") {
+    if (doc.rsvp === "no" || doc.rsvp === "maybe") {
+      doc.arrivedCount = 0;
+      doc.amount = 0;
+    }
   }
 });
 
@@ -378,7 +380,7 @@ InvitationGuestSchema.pre("findOneAndUpdate", function () {
 
   const finalRsvp = $set.rsvp ?? update.rsvp;
 
-  if (finalRsvp === "no") {
+  if (finalRsvp === "no" || finalRsvp === "maybe") {
     $set.arrivedCount = 0;
     $set.amount = 0;
   }

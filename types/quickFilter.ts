@@ -2,6 +2,7 @@ export type QuickFilter =
   | "all"
   | "yes"
   | "no"
+  | "maybe"
   | "pending"
   | "noTable"
   | "opened"

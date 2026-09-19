@@ -54,7 +54,7 @@ export async function POST(
     /* -------------------------------
        🔎 ולידציה ל-RSVP
     -------------------------------- */
-    if (!rsvp || !["yes", "no", "pending"].includes(rsvp)) {
+    if (!rsvp || !["yes", "no", "maybe", "pending"].includes(rsvp)) {
       return NextResponse.json(
         { success: false, error: "Invalid RSVP value" },
         { status: 400 }
@@ -101,7 +101,7 @@ export async function POST(
       }
     }
 
-    if (rsvp === "no" || rsvp === "pending") {
+    if (rsvp === "no" || rsvp === "maybe" || rsvp === "pending") {
       validatedArrivedCount = 0;
     }
 

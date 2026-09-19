@@ -1,7 +1,8 @@
-export type RSVPStatus = "yes" | "no" | "pending";
+export type RSVPStatus = "yes" | "no" | "maybe" | "pending";
 
 export const RSVP_LABELS: Record<RSVPStatus, string> = {
   yes: "מגיע",
   no: "לא מגיע",
-  pending: "בהמתנה",
+  maybe: "מתלבטים",
+  pending: "לא ענו",
 };

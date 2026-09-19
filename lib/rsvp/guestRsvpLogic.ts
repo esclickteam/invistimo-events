@@ -1,4 +1,4 @@
-export const RSVP_VALUES = ["yes", "no", "pending"] as const;
+export const RSVP_VALUES = ["yes", "no", "maybe", "pending"] as const;
 
 export type RsvpValue = (typeof RSVP_VALUES)[number];
 
@@ -37,13 +37,14 @@ export type GuestRsvpFormState = {
 };
 
 export const RSVP_COPY = {
-  chooseRequired: "יש לבחור האם מגיעים או לא מגיעים",
+  chooseRequired: "יש לבחור האם מגיעים, לא מגיעים, או שעדיין לא בטוחים",
   guestIdentityError: "שגיאה בזיהוי האורח",
   saveFailed: "לא הצלחנו לשמור את אישור ההגעה",
   sendFailed: "שגיאה בשליחת אישור ההגעה",
   staffBlocked: "זה מצב צפייה בלבד. לא ניתן לשלוח אישור הגעה מכאן.",
   yesLabel: "מגיע/ה",
   noLabel: "לא מגיע/ה",
+  maybeLabel: "עדיין לא בטוחים",
   countLabel: "כמה מגיעים?",
   notesLabel: "בקשות מיוחדות:",
   submit: "שליחת אישור הגעה",
@@ -83,7 +84,17 @@ export function toNumber(value: unknown, fallback = 0) {
 }
 
 export function normalizeRsvp(value: unknown): RsvpValue {
-  return value === "yes" || value === "no" ? value : "pending";
+  if (value === "yes" || value === "no" || value === "maybe" || value === "pending") {
+    return value;
+  }
+  const raw = cleanStr(value).toLowerCase();
+  if (raw === "maybe" || raw === "undecided" || raw.includes("מתלבט") || raw.includes("לא בטוח")) {
+    return "maybe";
+  }
+  // Check decline before "מגיע" so "לא מגיע" never matches as yes.
+  if (raw === "no" || raw.includes("לא מגיע") || raw.includes("לא יגיע")) return "no";
+  if (raw === "yes" || raw.includes("מגיע")) return "yes";
+  return "pending";
 }
 
 export function normalizeNotes(value: unknown): string[] {

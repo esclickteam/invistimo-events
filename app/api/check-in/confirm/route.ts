@@ -155,6 +155,8 @@ export async function POST(req: NextRequest) {
       const status =
         result.code === "EXCEEDS_CONFIRMED"
           ? 409
+          : result.code === "CONCURRENT_UPDATE"
+            ? 409
           : result.code === "INVALID_QUANTITY"
             ? 400
             : 400;
@@ -165,6 +167,7 @@ export async function POST(req: NextRequest) {
           message: result.error,
           confirmed: result.confirmed,
           previousCheckedInCount: result.previousCheckedInCount,
+          currentCheckedInCount: (result as any).currentCheckedInCount,
         },
         { status }
       );

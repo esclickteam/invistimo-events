@@ -9,11 +9,17 @@ import {
 import {
   parseCheckInQrPayload,
   isValidCheckInTokenShape,
+  generateCheckInToken,
 } from "../../lib/checkIn/token";
 import {
   buildReminderSmsTemplateForGuest,
   REMINDER_WITH_CHECKIN_SERVER_TEMPLATE,
 } from "../../lib/messages/resolveReminderSmsTemplate";
+import {
+  normalizeGuestRsvp,
+  guestRsvpAdminLabel,
+  guestRsvpGuestLabel,
+} from "../../lib/rsvpStatus";
 
 test("check-in status computed from counts", () => {
   assert.equal(
@@ -30,15 +36,29 @@ test("check-in status computed from counts", () => {
   );
 });
 
-test("confirmed vs checked-in stay separate from link open", () => {
-  const guest = {
-    rsvp: "pending",
-    arrivedCount: 0,
-    actualArrivedCount: 0,
-    guestsCount: 3,
-  };
-  assert.equal(confirmedGuestCount(guest), 0);
-  assert.equal(checkedInGuestCount(guest), 0);
+test("maybe never counts as confirmed attending", () => {
+  assert.equal(
+    confirmedGuestCount({ rsvp: "maybe", arrivedCount: 4, guestsCount: 4 }),
+    0
+  );
+  assert.equal(
+    confirmedGuestCount({ rsvp: "pending", arrivedCount: 2, guestsCount: 3 }),
+    0
+  );
+  assert.equal(
+    confirmedGuestCount({ rsvp: "yes", arrivedCount: 3, guestsCount: 4 }),
+    3
+  );
+});
+
+test("rsvp maybe vs pending are distinct", () => {
+  assert.equal(normalizeGuestRsvp("maybe"), "maybe");
+  assert.equal(normalizeGuestRsvp("מתלבטים"), "maybe");
+  assert.equal(normalizeGuestRsvp("undecided"), "maybe");
+  assert.equal(normalizeGuestRsvp(""), "pending");
+  assert.equal(guestRsvpAdminLabel("maybe"), "מתלבטים");
+  assert.equal(guestRsvpGuestLabel("maybe"), "עדיין לא בטוחים");
+  assert.equal(guestRsvpAdminLabel("pending"), "לא ענו");
 });
 
 test("summary aggregates day-of arrivals", () => {
@@ -46,18 +66,18 @@ test("summary aggregates day-of arrivals", () => {
     { rsvp: "yes", arrivedCount: 4, actualArrivedCount: 4 },
     { rsvp: "yes", arrivedCount: 2, actualArrivedCount: 0 },
     { rsvp: "yes", arrivedCount: 3, actualArrivedCount: 1 },
+    { rsvp: "maybe", arrivedCount: 0, actualArrivedCount: 0 },
   ]);
   assert.equal(summary.confirmed, 9);
   assert.equal(summary.checkedIn, 5);
   assert.equal(summary.remaining, 4);
-  assert.equal(summary.partiallyArrived, 1);
-  assert.equal(summary.fullyArrived, 1);
-  assert.equal(summary.notArrived, 1);
 });
 
-test("QR payload is opaque token only", () => {
-  const token = "abcdefghijklmnopqrstuvwx";
+test("QR payload is opaque random token only", () => {
+  const token = generateCheckInToken();
   assert.equal(isValidCheckInTokenShape(token), true);
+  assert.ok(token.length >= 24);
+  assert.doesNotMatch(token, /^[0-9]+$/);
   assert.equal(parseCheckInQrPayload(token), token);
   assert.equal(
     parseCheckInQrPayload(`https://www.invistimo.com/check-in/pass/${token}`),
@@ -90,4 +110,11 @@ test("reminder template includes QR only when check-in enabled", () => {
   });
   assert.equal(without.includeCheckIn, false);
   assert.doesNotMatch(without.template, /checkInQrLink/);
+});
+
+test("checkedInGuestCount independent of rsvp maybe", () => {
+  assert.equal(
+    checkedInGuestCount({ actualArrivedCount: 2 }),
+    2
+  );
 });

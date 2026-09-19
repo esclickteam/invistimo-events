@@ -22,7 +22,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-const RSVP_VALUES = new Set(["yes", "no", "pending"]);
+const RSVP_VALUES = new Set(["yes", "no", "maybe", "pending"]);
 
 const CALL_ANSWER_VALUES = new Set(["answered", "no_answer"]);
 const CALL_RESULT_VALUES = new Set([
@@ -1507,13 +1507,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     if (incomingRsvp) {
-      guest.rsvp = incomingRsvp as "yes" | "no" | "pending";
+      guest.rsvp = incomingRsvp as "yes" | "no" | "maybe" | "pending";
 
       if ("status" in guest) {
-        guest.status = incomingRsvp as "yes" | "no" | "pending";
+        guest.status = incomingRsvp as "yes" | "no" | "maybe" | "pending";
       }
 
-      if (incomingRsvp === "no") {
+      if (incomingRsvp === "no" || incomingRsvp === "maybe") {
         guest.arrivedCount = 0;
 
         if ("amount" in guest) {

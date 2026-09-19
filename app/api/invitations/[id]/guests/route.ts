@@ -269,7 +269,7 @@ const guest = await InvitationGuest.create({
   name: safeName,
   phone: normalizedPhone || "",
   relation: normalizedRelation,
-  rsvp: ["yes", "no", "pending"].includes(String(rsvp)) ? rsvp : "pending",
+  rsvp: ["yes", "no", "maybe", "pending"].includes(String(rsvp)) ? rsvp : "pending",
   guestsCount: incomingGuests,
   ...(finalGroupId ? { groupId: finalGroupId } : {}),
   tableNumber:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -46,6 +46,14 @@ type NavItem = {
   match?: (pathname: string) => boolean;
   hidden?: boolean;
 };
+
+function pathIsDashboardHome(pathname: string) {
+  return (
+    pathname === "/dashboard" ||
+    pathname === "/try/dashboard" ||
+    pathname === "/dashboard/"
+  );
+}
 
 const COLLAPSE_KEY = "invistimo.dashboard.sidebar.collapsed";
 
@@ -108,15 +116,14 @@ export default function DashboardSidebar({
         label: "דשבורד",
         icon: LayoutDashboard,
         href: gameOnly ? "/dashboard/wedding-challenges" : "/dashboard",
-        match: (p) =>
-          p === "/dashboard" || p === "/try/dashboard" || p === "/dashboard/",
+        match: (pathname: string) => pathIsDashboardHome(pathname),
       },
       {
         id: "guests",
         label: "רשימת מוזמנים",
         icon: Users,
         href: "/dashboard#guests",
-        match: (p) => p === "/dashboard" || p === "/try/dashboard",
+        match: (pathname: string) => pathIsDashboardHome(pathname),
         hidden: gameOnly,
       },
       {
@@ -124,7 +131,7 @@ export default function DashboardSidebar({
         label: "אישורי הגעה",
         icon: CheckCircle2,
         href: "/dashboard#rsvp-stats",
-        match: (p) => p === "/dashboard" || p === "/try/dashboard",
+        match: (pathname: string) => pathIsDashboardHome(pathname),
         hidden: gameOnly,
       },
       {
@@ -132,7 +139,7 @@ export default function DashboardSidebar({
         label: "שליחת הודעות",
         icon: MessageCircle,
         href: "/dashboard/messages/new",
-        match: (p) => p.startsWith("/dashboard/messages"),
+        match: (pathname: string) => pathname.startsWith("/dashboard/messages"),
         hidden: !canMessages,
       },
       {
@@ -140,7 +147,7 @@ export default function DashboardSidebar({
         label: "סידורי הושבה",
         icon: Armchair,
         href: isDemo ? "/try/dashboard/seating" : "/dashboard/seating",
-        match: (p) => p.includes("/dashboard/seating"),
+        match: (pathname: string) => pathname.includes("/dashboard/seating"),
         hidden: !canSeating,
       },
       {
@@ -148,7 +155,7 @@ export default function DashboardSidebar({
         label: "כניסה לאירוע",
         icon: QrCode,
         href: "/dashboard/check-in",
-        match: (p) => p.startsWith("/dashboard/check-in"),
+        match: (pathname: string) => pathname.startsWith("/dashboard/check-in"),
         hidden: !canCheckIn,
       },
       {
@@ -156,7 +163,7 @@ export default function DashboardSidebar({
         label: "צוות והרשאות",
         icon: Shield,
         href: teamHref,
-        match: (p) => p.startsWith("/events/production"),
+        match: (pathname: string) => pathname.startsWith("/events/production"),
         hidden: !canTeam,
       },
       {
@@ -164,7 +171,7 @@ export default function DashboardSidebar({
         label: "דוחות",
         icon: BarChart3,
         href: "/dashboard/reports",
-        match: (p) => p.startsWith("/dashboard/reports"),
+        match: (pathname: string) => pathname.startsWith("/dashboard/reports"),
         hidden: !canReports,
       },
       {
@@ -172,8 +179,8 @@ export default function DashboardSidebar({
         label: "הגדרות האירוע",
         icon: Settings2,
         href: settingsHref,
-        match: (p) =>
-          p.includes("/invitations/") && p.endsWith("/edit"),
+        match: (pathname: string) =>
+          pathname.includes("/invitations/") && pathname.endsWith("/edit"),
         hidden: !canSettings,
       },
     ].filter((item) => !item.hidden);

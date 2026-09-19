@@ -24,7 +24,7 @@ export async function POST(request: Request, context: any) {
     /* -------------------------------
        🔎 ולידציה בסיסית
     -------------------------------- */
-    if (!rsvp || !["yes", "no", "pending"].includes(rsvp)) {
+    if (!rsvp || !["yes", "no", "maybe", "pending"].includes(rsvp)) {
       return NextResponse.json(
         { error: "Invalid RSVP value" },
         { status: 400 }

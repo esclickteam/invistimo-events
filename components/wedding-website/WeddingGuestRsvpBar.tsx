@@ -5,7 +5,7 @@ import { useState } from "react";
 type Guest = {
   name?: string;
   token: string;
-  rsvp?: "yes" | "no" | "pending" | null;
+  rsvp?: "yes" | "no" | "maybe" | "pending" | null;
   guestsCount?: number;
 };
 

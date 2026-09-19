@@ -66,7 +66,7 @@ type Guest = {
   tableName?: string;
   tableNumber?: number;
 
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
   guestsCount: number;
 
   arrivedCount?: number;
@@ -140,18 +140,21 @@ function formatPhone(phone?: string) {
 const RSVP_STATUS_LABELS: Record<Guest["rsvp"], string> = {
   yes: "מגיע",
   no: "לא מגיע",
-  pending: "בהמתנה",
+  maybe: "מתלבטים",
+  pending: "לא ענו",
 };
 
 const RSVP_STATUS_CLASSES: Record<Guest["rsvp"], string> = {
   yes: "bg-emerald-50 text-emerald-700 border-emerald-200",
   no: "bg-rose-50 text-rose-700 border-rose-200",
+  maybe: "bg-violet-50 text-violet-700 border-violet-200",
   pending: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
 const RSVP_STATUS_DOT: Record<Guest["rsvp"], string> = {
   yes: "bg-emerald-500",
   no: "bg-rose-500",
+  maybe: "bg-violet-500",
   pending: "bg-amber-500",
 };
 
@@ -1352,6 +1355,8 @@ const stats = useMemo(() => {
 
   const totalNo = guests.filter((guest) => guest.rsvp === "no").length;
 
+  const totalMaybe = guests.filter((guest) => guest.rsvp === "maybe").length;
+
   const totalPending = guests.filter(
   (guest) => guest.rsvp === "pending"
 ).length;
@@ -1365,6 +1370,7 @@ const stats = useMemo(() => {
     comingGuests: totalComing,
     actualArrivedGuests: totalActualArrived,
     notComing: totalNo,
+    maybe: totalMaybe,
     noResponse: totalPending,
     openedLinks,
     notOpenedLinks,
@@ -1395,19 +1401,23 @@ const rsvpVisualStats = useMemo(() => {
 
   const notComing = guests.filter((guest) => guest.rsvp === "no").length;
 
+  const maybe = guests.filter((guest) => guest.rsvp === "maybe").length;
+
 const pending = guests.filter(
   (guest) => guest.rsvp === "pending"
 ).length;
 
-  const total = coming + notComing + pending;
+  const total = coming + notComing + maybe + pending;
 
   return {
     coming,
     notComing,
+    maybe,
     pending,
     total,
     comingPercent: calcPercent(coming, total),
     notComingPercent: calcPercent(notComing, total),
+    maybePercent: calcPercent(maybe, total),
     pendingPercent: calcPercent(pending, total),
   };
 }, [guests]);
@@ -1903,6 +1913,10 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
 
     if (quickFilterValue === "pending") {
       list = list.filter((g) => getGuestRsvp(g) === "pending");
+    }
+
+    if (quickFilterValue === "maybe") {
+      list = list.filter((g) => getGuestRsvp(g) === "maybe");
     }
 
     if (quickFilterValue === "opened" || quickFilterValue === "notOpened") {
@@ -2534,11 +2548,19 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
             />
 
             <GoldenStatCard
-              title="בהמתנה"
+              title="מתלבטים"
+              value={stats.maybe}
+              icon="?"
+              tone="gold"
+              description="ענו שאינם בטוחים"
+            />
+
+            <GoldenStatCard
+              title="לא ענו"
               value={stats.noResponse}
               icon="⌛"
-              tone="gold"
-              description="טרם השיבו"
+              tone="bronze"
+              description="טרם השיבו כלל"
             />
 
             <GoldenStatCard
@@ -2675,6 +2697,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
             <GoldenStatusBarsCard
               coming={rsvpVisualStats.coming}
               notComing={rsvpVisualStats.notComing}
+              maybe={rsvpVisualStats.maybe}
               pending={rsvpVisualStats.pending}
               total={rsvpVisualStats.total}
             />
@@ -2682,6 +2705,7 @@ const canOpenWeddingChallenges = userHasWeddingChallengesEntitlement(user);
             <GoldenDonutCard
               coming={rsvpVisualStats.coming}
               notComing={rsvpVisualStats.notComing}
+              maybe={rsvpVisualStats.maybe}
               pending={rsvpVisualStats.pending}
               total={rsvpVisualStats.total}
             />
@@ -4359,20 +4383,23 @@ function GoldenStatCard({
 function GoldenStatusBarsCard({
   coming,
   notComing,
+  maybe = 0,
   pending,
   total,
 }: {
   coming: number;
   notComing: number;
+  maybe?: number;
   pending: number;
   total: number;
 }) {
   const comingPercent = calcPercent(coming, total);
+  const maybePercent = calcPercent(maybe, total);
   const pendingPercent = calcPercent(pending, total);
   const notComingPercent = calcPercent(notComing, total);
 
   return (
-    <div className="h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="h-auto min-h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h3 className="text-lg font-black text-[#241A14]">
@@ -4395,7 +4422,13 @@ function GoldenStatusBarsCard({
           bar="bg-emerald-600"
         />
         <GoldenProgressRow
-          label="בהמתנה"
+          label="מתלבטים"
+          value={maybe}
+          percent={maybePercent}
+          bar="bg-violet-500"
+        />
+        <GoldenProgressRow
+          label="לא ענו"
           value={pending}
           percent={pendingPercent}
           bar="bg-amber-500"
@@ -4443,28 +4476,32 @@ function GoldenProgressRow({
 function GoldenDonutCard({
   coming,
   notComing,
+  maybe = 0,
   pending,
   total,
 }: {
   coming: number;
   notComing: number;
+  maybe?: number;
   pending: number;
   total: number;
 }) {
   const comingPercent = calcPercent(coming, total);
+  const maybePercent = calcPercent(maybe, total);
   const pendingPercent = calcPercent(pending, total);
   const notComingPercent = calcPercent(notComing, total);
   const greenEnd = comingPercent;
-  const orangeEnd = comingPercent + pendingPercent;
+  const violetEnd = comingPercent + maybePercent;
+  const amberEnd = violetEnd + pendingPercent;
 
   return (
-    <div className="h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="h-auto min-h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-4">
         <h3 className="text-lg font-black text-[#241A14]">
           התפלגות מוזמנים לפי סטטוס
         </h3>
         <p className="text-xs text-[#7C6A58] mt-1">
-          מגיע / לא מגיע / בהמתנה
+          מגיע / מתלבטים / לא ענו / לא מגיע
         </p>
       </div>
 
@@ -4474,8 +4511,9 @@ function GoldenDonutCard({
           style={{
             background: `conic-gradient(
               #059669 0% ${greenEnd}%,
-              #F59E0B ${greenEnd}% ${orangeEnd}%,
-              #F43F5E ${orangeEnd}% 100%
+              #8B5CF6 ${greenEnd}% ${violetEnd}%,
+              #F59E0B ${violetEnd}% ${amberEnd}%,
+              #F43F5E ${amberEnd}% 100%
             )`,
           }}
         >
@@ -4493,8 +4531,14 @@ function GoldenDonutCard({
             percent={comingPercent}
           />
           <LegendRow
+            color="bg-violet-500"
+            label="מתלבטים"
+            value={maybe}
+            percent={maybePercent}
+          />
+          <LegendRow
             color="bg-amber-500"
-            label="בהמתנה"
+            label="לא ענו"
             value={pending}
             percent={pendingPercent}
           />

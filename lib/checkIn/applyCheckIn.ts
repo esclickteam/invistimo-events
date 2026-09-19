@@ -36,16 +36,23 @@ export type ApplyCheckInResult =
         | "INVALID_QUANTITY"
         | "EXCEEDS_CONFIRMED"
         | "GUEST_NOT_FOUND"
-        | "SAVE_FAILED";
+        | "SAVE_FAILED"
+        | "CONCURRENT_UPDATE";
       confirmed?: number;
       previousCheckedInCount?: number;
+      currentCheckedInCount?: number;
     };
 
+/**
+ * Atomic check-in: never auto-increments without quantityAdded,
+ * and uses optimistic locking on actualArrivedCount to prevent
+ * double writes from two devices scanning the same QR.
+ */
 export async function applyCheckIn(
   input: ApplyCheckInInput
 ): Promise<ApplyCheckInResult> {
   const guest = input.guest;
-  if (!guest) {
+  if (!guest?._id) {
     return { ok: false, error: "אורח לא נמצא", code: "GUEST_NOT_FOUND" };
   }
 
@@ -53,7 +60,7 @@ export async function applyCheckIn(
   if (!Number.isFinite(quantity) || quantity <= 0) {
     return {
       ok: false,
-      error: "כמות לא תקינה",
+      error: "כמות לא תקינה — יש לבחור כמה נוספים הגיעו",
       code: "INVALID_QUANTITY",
     };
   }
@@ -73,23 +80,42 @@ export async function applyCheckIn(
     };
   }
 
-  guest.actualArrivedCount = next;
+  // Optimistic lock: only write if actualArrivedCount is still `previous`
+  const updated = await InvitationGuest.findOneAndUpdate(
+    {
+      _id: guest._id,
+      $or: [
+        { actualArrivedCount: previous },
+        ...(previous === 0
+          ? [{ actualArrivedCount: { $exists: false } }, { actualArrivedCount: null }]
+          : []),
+      ],
+    },
+    {
+      $set: { actualArrivedCount: next },
+    },
+    { new: true }
+  );
 
-  try {
-    await guest.save();
-  } catch (err) {
-    console.error("❌ applyCheckIn save failed:", err);
-    return { ok: false, error: "שמירה נכשלה", code: "SAVE_FAILED" };
+  if (!updated) {
+    const fresh = await InvitationGuest.findById(guest._id)
+      .select("actualArrivedCount arrivedCount rsvp guestsCount")
+      .lean();
+    return {
+      ok: false,
+      error:
+        "האורח עודכן במקביל ממכשיר אחר. רעננו והזינו שוב כמה נוספים הגיעו.",
+      code: "CONCURRENT_UPDATE",
+      confirmed,
+      previousCheckedInCount: previous,
+      currentCheckedInCount: checkedInGuestCount(fresh || {}),
+    };
   }
 
-  const eventId =
-    input.eventId ||
-    guest.eventId ||
-    null;
-  const invitationId =
-    input.invitationId ||
-    guest.invitationId ||
-    null;
+  guest.actualArrivedCount = next;
+
+  const eventId = input.eventId || guest.eventId || null;
+  const invitationId = input.invitationId || guest.invitationId || null;
 
   const log = await CheckInLog.create({
     eventId: eventId || undefined,
@@ -107,7 +133,7 @@ export async function applyCheckIn(
 
   return {
     ok: true,
-    guest,
+    guest: updated,
     previousCheckedInCount: previous,
     newCheckedInCount: next,
     quantityAdded: quantity,
@@ -127,7 +153,7 @@ export async function setCheckedInCountAbsolute(input: {
   invitationId?: string | null;
 }): Promise<ApplyCheckInResult> {
   const guest = input.guest;
-  if (!guest) {
+  if (!guest?._id) {
     return { ok: false, error: "אורח לא נמצא", code: "GUEST_NOT_FOUND" };
   }
 
@@ -168,14 +194,36 @@ export async function setCheckedInCountAbsolute(input: {
     };
   }
 
-  guest.actualArrivedCount = next;
+  const updated = await InvitationGuest.findOneAndUpdate(
+    {
+      _id: guest._id,
+      $or: [
+        { actualArrivedCount: previous },
+        ...(previous === 0
+          ? [{ actualArrivedCount: { $exists: false } }, { actualArrivedCount: null }]
+          : []),
+      ],
+    },
+    { $set: { actualArrivedCount: next } },
+    { new: true }
+  );
 
-  try {
-    await guest.save();
-  } catch (err) {
-    console.error("❌ setCheckedInCountAbsolute save failed:", err);
-    return { ok: false, error: "שמירה נכשלה", code: "SAVE_FAILED" };
+  if (!updated) {
+    const fresh = await InvitationGuest.findById(guest._id)
+      .select("actualArrivedCount arrivedCount rsvp guestsCount")
+      .lean();
+    return {
+      ok: false,
+      error:
+        "האורח עודכן במקביל ממכשיר אחר. רעננו והזינו שוב.",
+      code: "CONCURRENT_UPDATE",
+      confirmed,
+      previousCheckedInCount: previous,
+      currentCheckedInCount: checkedInGuestCount(fresh || {}),
+    };
   }
+
+  guest.actualArrivedCount = next;
 
   const log = await CheckInLog.create({
     eventId: input.eventId || guest.eventId || undefined,
@@ -193,7 +241,7 @@ export async function setCheckedInCountAbsolute(input: {
 
   return {
     ok: true,
-    guest,
+    guest: updated,
     previousCheckedInCount: previous,
     newCheckedInCount: next,
     quantityAdded,

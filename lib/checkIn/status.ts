@@ -15,18 +15,15 @@ export function confirmedGuestCount(guest: {
   guestsCount?: unknown;
 }): number {
   const rsvp = String(guest?.rsvp || "").toLowerCase();
-  if (rsvp === "no") return 0;
+  // maybe / pending / no never count as confirmed arriving
+  if (rsvp !== "yes") return 0;
 
   const arrived = Number(guest?.arrivedCount);
   if (Number.isFinite(arrived) && arrived > 0) return Math.floor(arrived);
 
-  if (rsvp === "yes") {
-    const invited = Number(guest?.guestsCount);
-    if (Number.isFinite(invited) && invited > 0) return Math.floor(invited);
-    return 1;
-  }
-
-  return 0;
+  const invited = Number(guest?.guestsCount);
+  if (Number.isFinite(invited) && invited > 0) return Math.floor(invited);
+  return 1;
 }
 
 export function checkedInGuestCount(guest: {

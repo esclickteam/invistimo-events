@@ -41,6 +41,7 @@ export default function CheckInPage() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GuestPreview[]>([]);
   const [selected, setSelected] = useState<GuestPreview | null>(null);
+  const [scanMethod, setScanMethod] = useState<"QR" | "MANUAL">("QR");
   const [quantity, setQuantity] = useState(1);
   const [overrideConfirm, setOverrideConfirm] = useState(false);
 
@@ -89,8 +90,9 @@ export default function CheckInPage() {
     }
   }, []);
 
-  const openGuest = useCallback((guest: GuestPreview) => {
+  const openGuest = useCallback((guest: GuestPreview, method: "QR" | "MANUAL" = "MANUAL") => {
     setSelected(guest);
+    setScanMethod(method);
     const rem = Math.max(0, guest.remaining);
     setQuantity(rem > 0 ? 1 : 0);
     setOverrideConfirm(false);
@@ -126,7 +128,7 @@ export default function CheckInPage() {
           );
           return;
         }
-        openGuest(data.guest as GuestPreview);
+        openGuest(data.guest as GuestPreview, "QR");
         if (!continuous) await stopScanner();
       } catch {
         setError("שגיאת רשת");
@@ -204,7 +206,7 @@ export default function CheckInPage() {
           guestId: selected.id,
           invitationId,
           quantityAdded: quantity,
-          method: selected ? "QR" : "MANUAL",
+          method: scanMethod,
           allowOverride: needsOverride && overrideConfirm && canOverride,
           deviceSession:
             typeof window !== "undefined"
@@ -218,6 +220,24 @@ export default function CheckInPage() {
         }),
       });
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 409 && data?.error === "CONCURRENT_UPDATE") {
+        setError(
+          data?.message ||
+            "האורח עודכן במקביל. רעננו ובחרו שוב כמה נוספים הגיעו."
+        );
+        if (typeof data?.currentCheckedInCount === "number" && selected) {
+          setSelected({
+            ...selected,
+            checkedInGuestCount: data.currentCheckedInCount,
+            remaining: Math.max(
+              0,
+              selected.confirmedGuestCount - data.currentCheckedInCount
+            ),
+          });
+        }
+        return;
+      }
 
       if (res.status === 409 && data?.error === "EXCEEDS_CONFIRMED") {
         if (canOverride) {
@@ -366,7 +386,7 @@ export default function CheckInPage() {
               <li key={g.id}>
                 <button
                   type="button"
-                  onClick={() => openGuest(g)}
+                  onClick={() => openGuest(g, "MANUAL")}
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-[#FBF7F0]"
                 >
                   <div>

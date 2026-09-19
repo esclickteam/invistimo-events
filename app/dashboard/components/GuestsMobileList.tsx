@@ -23,7 +23,7 @@ export type Guest = {
   tableName?: string;
   tableNumber?: number;
 
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
   guestsCount: number;
 
   arrivedCount?: number;
@@ -101,6 +101,7 @@ function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
   const styles: Record<Guest["rsvp"], string> = {
     yes: "bg-green-100 text-green-700",
     pending: "bg-yellow-100 text-yellow-700",
+    maybe: "bg-violet-100 text-violet-700",
     no: "bg-red-100 text-red-700",
   };
 
