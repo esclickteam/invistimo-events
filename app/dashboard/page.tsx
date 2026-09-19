@@ -2525,7 +2525,8 @@ const eventLocation = resolveEventLocation(invitation, event);
         )}
       </section>
 
-      <section className="mb-7 grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-stretch">
+      <section className="mb-7 flex flex-wrap justify-start gap-5">
+        <div className="w-full max-w-[340px]">
         <GoldenEventDetailsCard
           title={eventTitle}
           date={formatEventDate(eventDate)}
@@ -2550,8 +2551,11 @@ const eventLocation = resolveEventLocation(invitation, event);
             setOpenRsvpSchedule(true);
           }}
         />
+        </div>
 
+        <div className="w-full max-w-[340px]">
         <GoldenRecentActivityCard logs={recentActivityLogs} />
+        </div>
       </section>
 
       {checkInEnabled && (
@@ -4927,7 +4931,7 @@ function GoldenEventDetailsCard({
   onOpenRsvpSchedule: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-[320px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פרטי האירוע
@@ -4935,7 +4939,7 @@ function GoldenEventDetailsCard({
         <span className="text-2xl text-[#B8844F]">✦</span>
       </div>
 
-      <div className="flex-1 space-y-3">
+      <div className="space-y-3">
         <GoldenDetailRow icon="✦" label="שם האירוע" value={title} />
         <GoldenDetailRow icon="▦" label="תאריך" value={date} />
         <GoldenDetailRow icon="◷" label="שעה" value={time} />
@@ -5000,7 +5004,7 @@ function GoldenRecentActivityCard({
   }[];
 }) {
   return (
-    <div className="flex h-full min-h-[320px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פעילות אחרונה
@@ -5012,8 +5016,7 @@ function GoldenRecentActivityCard({
 
       <div
   className="
-    min-h-0
-    flex-1
+    max-h-[170px]
     overflow-y-auto
     pr-1
     space-y-2
