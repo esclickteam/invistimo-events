@@ -95,44 +95,73 @@ export default function CheckInPassView({
     );
   }
 
+  const eventLabel = pass.coupleNames || pass.eventTitle;
+
   return (
     <main
-      className="min-h-screen bg-[#faf7f3] px-4 py-10 text-[#241A14]"
+      className="relative min-h-dvh overflow-hidden bg-[#F6EFE6] px-5 py-8 text-[#2F2924]"
       dir="rtl"
     >
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center">
-        <div className="flex w-full flex-col items-center">
-          <div className="flex justify-center">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute right-[-90px] top-[-90px] h-[240px] w-[240px] rounded-full bg-[#E6CDB2]/40 blur-3xl" />
+        <div className="absolute bottom-[-100px] left-[-80px] h-[260px] w-[260px] rounded-full bg-[#D9BFA3]/30 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[380px] flex-col items-center justify-center">
+        <section className="w-full rounded-[28px] border border-[#E3D6C3] bg-[#FFFDF8] px-6 py-8 text-center shadow-[0_18px_40px_rgba(80,55,32,0.08)]">
+          {eventLabel ? (
+            <p className="text-[15px] font-medium tracking-[0.04em] text-[#8B6B50]">
+              {eventLabel}
+            </p>
+          ) : null}
+
+          <p className="mt-2 text-[12px] font-semibold text-[#9A8775]">
+            קוד הכניסה האישי שלכם
+          </p>
+
+          <div className="mx-auto mt-5 flex h-6 items-center justify-center gap-2 text-[#C4A06A]">
+            <span className="h-px w-10 bg-[#E3D6C3]" />
+            <span className="text-[11px] leading-none">✦</span>
+            <span className="h-px w-10 bg-[#E3D6C3]" />
+          </div>
+
+          <div className="mx-auto mt-5 flex h-[236px] w-[236px] items-center justify-center rounded-2xl border border-[#E8DCCB] bg-white p-3 shadow-[0_8px_20px_rgba(80,55,32,0.06)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={pass.qrSrc}
               alt="QR כניסה אישי"
-              width={300}
-              height={300}
-              className="rounded-[28px] border border-[#EADBC4] bg-white p-5 shadow-sm"
+              width={220}
+              height={220}
+              className="h-full w-full object-contain"
             />
           </div>
-          <p className="mt-8 text-center text-lg font-black text-[#3F3328]">
+
+          <p className="mt-5 text-[13px] font-medium leading-6 text-[#8A7A68]">
             הציגו את הקוד בכניסה לאירוע
           </p>
+
           {pass.detailsUrl ? (
             <Link
               href={pass.detailsUrl}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-[18px] bg-[#241A14] px-5 py-4 text-sm font-black text-[#FFFDF8]"
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl border border-[#D9B46F]/55 bg-gradient-to-l from-[#FFF7E8] via-[#FFFDF8] to-[#F8EFE3] px-5 py-2.5 text-[13px] font-semibold text-[#8B5E24] shadow-[0_6px_16px_rgba(139,94,36,0.08)]"
             >
               לכל פרטי האירוע
+              <span aria-hidden className="text-[15px] leading-none">
+                ←
+              </span>
             </Link>
           ) : null}
+
           {view.showShowQrAgain ? (
             <button
               type="button"
               onClick={() => setShowQrAgain(false)}
-              className="mt-6 w-full text-center text-xs font-bold text-[#8A7A68]"
+              className="mt-4 text-[12px] font-medium text-[#9A8775] underline-offset-4 hover:underline"
             >
               חזרה למסך התודה
             </button>
           ) : null}
-        </div>
+        </section>
       </div>
     </main>
   );

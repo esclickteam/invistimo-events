@@ -140,6 +140,7 @@ test("guest welcome and host already-entered copy exist", () => {
   const pass = read("app/check-in/pass/CheckInPassView.tsx");
   const host = read("app/dashboard/check-in/CheckInHostClient.tsx");
   assert.match(pass, /תודה שהגעתם לשמוח איתנו/);
+  assert.match(pass, /קוד הכניסה האישי שלכם/);
   assert.match(pass, /הציגו את הקוד בכניסה לאירוע/);
   assert.match(pass, /הצגת קוד כניסה נוסף/);
   assert.match(pass, /לכל פרטי האירוע/);
