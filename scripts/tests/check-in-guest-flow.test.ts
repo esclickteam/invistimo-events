@@ -85,7 +85,7 @@ test("only Invistimo admin can toggle check-in", () => {
   assert.equal(isInvistimoAdmin({ role: "producer" }), false);
 });
 
-test("demo check-in appends arrivals without exceeding remaining", () => {
+test("demo check-in can record more arrivals than were confirmed", () => {
   writeDemoCheckInState(defaultDemoCheckInState());
   const cohen = DEMO_CHECKIN_GUESTS.find((g) => g.name === "משפחת כהן");
   assert.ok(cohen);
@@ -95,11 +95,11 @@ test("demo check-in appends arrivals without exceeding remaining", () => {
     assert.equal(first.previousCheckedInCount, 0);
     assert.equal(first.newCheckedInCount, 2);
   }
-  const tooMany = applyDemoCheckIn(cohen.token, 3);
-  assert.equal(tooMany.ok, false);
-  const rest = applyDemoCheckIn(cohen.token, 2);
-  assert.equal(rest.ok, true);
-  if (rest.ok) assert.equal(rest.newCheckedInCount, 4);
+  const extra = applyDemoCheckIn(cohen.token, 3);
+  assert.equal(extra.ok, true);
+  if (extra.ok) assert.equal(extra.newCheckedInCount, 5);
+  const zero = applyDemoCheckIn(cohen.token, 0);
+  assert.equal(zero.ok, false);
 });
 
 test("check-in settings PATCH is admin-only and mints tokens on enable", () => {
@@ -136,9 +136,8 @@ test("guest check-in pass hides public marketing chrome", () => {
   assert.match(layout, /\/try\/check-in\/pass/);
 });
 
-test("guest welcome and host already-entered copy exist", () => {
+test("guest check-in pass copy stays unchanged", () => {
   const pass = read("app/check-in/pass/CheckInPassView.tsx");
-  const host = read("app/dashboard/check-in/CheckInHostClient.tsx");
   assert.match(pass, /תודה שהגעתם לשמוח איתנו/);
   assert.match(pass, /קוד הכניסה האישי שלכם/);
   assert.match(pass, /הציגו את הקוד בכניסה לאירוע/);
@@ -146,7 +145,24 @@ test("guest welcome and host already-entered copy exist", () => {
   assert.match(pass, /לכל פרטי האירוע/);
   assert.match(pass, /שליחת מתנה/);
   assert.doesNotMatch(pass, />פרטי האירוע</);
-  assert.match(host, /האורחים כבר נכנסו/);
-  assert.match(host, /הכניסה אושרה/);
-  assert.match(host, /allowOverride: false/);
+});
+
+test("host scanner saves on quantity tap and only while live", () => {
+  const host = read("app/dashboard/check-in/CheckInHostClient.tsx");
+  const confirm = read("app/api/check-in/confirm/route.ts");
+  const gate = read("lib/checkIn/eventGate.ts");
+  const apply = read("lib/checkIn/applyCheckIn.ts");
+  assert.match(host, /הכניסה נרשמה/);
+  assert.match(host, /כמה הגיעו עכשיו/);
+  assert.match(host, /כמות אחרת/);
+  assert.match(host, /אישרו מראש/);
+  assert.match(host, /הגיעו בפועל עד עכשיו/);
+  assert.doesNotMatch(host, /אישור כניסה/);
+  assert.doesNotMatch(host, /האורחים כבר נכנסו/);
+  assert.match(host, /pause\(false\)/);
+  assert.match(confirm, /checkInActionBlocked/);
+  assert.match(gate, /EVENT_NOT_LIVE/);
+  assert.match(confirm, /undoCheckIn/);
+  assert.doesNotMatch(apply, /EXCEEDS_CONFIRMED/);
+  assert.match(apply, /actualArrivedCount: previous/);
 });

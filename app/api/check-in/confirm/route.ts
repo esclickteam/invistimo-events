@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
-import Event from "@/models/Event";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -10,6 +9,7 @@ import { authHasCheckInPermission } from "@/lib/checkIn/permissions";
 import {
   applyCheckIn,
   setCheckedInCountAbsolute,
+  undoCheckIn,
 } from "@/lib/checkIn/applyCheckIn";
 import {
   checkedInGuestCount,
@@ -17,7 +17,10 @@ import {
   computeCheckInStatus,
 } from "@/lib/checkIn/status";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
-import { hostScanIsFullyArrived } from "@/lib/checkIn/guestPassState";
+import {
+  checkInActionBlocked,
+  loadEventCheckInGate,
+} from "@/lib/checkIn/eventGate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -103,14 +106,13 @@ export async function POST(req: NextRequest) {
     }
 
     const eventId = invitation.eventId ? String(invitation.eventId) : "";
-    if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
-      const event = await Event.findById(eventId).select("checkInEnabled").lean();
-      if (!(event as any)?.checkInEnabled) {
-        return NextResponse.json(
-          { success: false, error: "CHECKIN_DISABLED" },
-          { status: 403 }
-        );
-      }
+    const gate = await loadEventCheckInGate(eventId);
+    const blocked = checkInActionBlocked(gate);
+    if (blocked) {
+      return NextResponse.json(
+        { success: false, error: blocked.error, message: blocked.message },
+        { status: blocked.status }
+      );
     }
 
     const guest = await InvitationGuest.findOne({
@@ -125,31 +127,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (
-      !setAbsolute &&
-      hostScanIsFullyArrived(
-        confirmedGuestCount(guest),
-        checkedInGuestCount(guest)
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "ALREADY_CHECKED_IN",
-          message: "האורחים כבר נכנסו",
-          guest: serializeGuest(guest),
-        },
-        { status: 409 }
-      );
-    }
-
     const scannedBy =
       auth.impersonated && auth.impersonatedBy
         ? String(auth.impersonatedBy)
         : String(auth.userId);
 
     let result;
-    if (setAbsolute) {
+    if (body.undo === true) {
+      result = await undoCheckIn({
+        guest,
+        quantity: Number(body.quantityAdded || body.quantity || 0),
+        scannedByUserId: scannedBy,
+        method,
+        deviceSession: body.deviceSession ? String(body.deviceSession) : null,
+        eventId,
+        invitationId: String(invitation._id),
+      });
+    } else if (setAbsolute) {
       const nextCount = Number(
         body.checkedInGuestCount ?? body.actualArrivedCount
       );
@@ -177,9 +171,7 @@ export async function POST(req: NextRequest) {
 
     if (!result.ok) {
       const status =
-        result.code === "EXCEEDS_CONFIRMED"
-          ? 409
-          : result.code === "CONCURRENT_UPDATE"
+        result.code === "CONCURRENT_UPDATE"
             ? 409
           : result.code === "INVALID_QUANTITY"
             ? 400

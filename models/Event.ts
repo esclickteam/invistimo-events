@@ -295,6 +295,17 @@ const EventSchema = new mongoose.Schema(
       index: true,
     },
 
+    /**
+     * סריקת כניסה בפועל מותרת רק ב-LIVE.
+     * REGULAR = אפשר להכין QR, אסור לסרוק.
+     */
+    liveStatus: {
+      type: String,
+      enum: ["REGULAR", "LIVE"],
+      default: "REGULAR",
+      index: true,
+    },
+
     /* =========================
        אזורים
     ========================= */

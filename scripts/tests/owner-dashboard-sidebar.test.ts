@@ -17,19 +17,24 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
 
   for (const label of [
     "דשבורד",
-    "פרטי האירוע",
-    "ההזמנה",
+    "הזמנה",
     "צפייה בהזמנה",
+    "פרטי האירוע",
     "רשימת מוזמנים",
-    "ייבוא מוזמנים מאקסל",
-    "אישורי הגעה",
+    "הוספת מוזמן",
     "שליחת הודעות",
-    "סבבי אישורי הגעה",
+    "לו״ז אישורי הגעה",
     "סידורי הושבה",
     "כניסה לאירוע",
   ]) {
     assert.match(sidebar, new RegExp(label));
   }
+
+  assert.doesNotMatch(sidebar, /ייבוא מוזמנים מאקסל/);
+  assert.doesNotMatch(sidebar, /label: "אישורי הגעה"/);
+  assert.doesNotMatch(sidebar, /סבבי אישורי הגעה/);
+  assert.match(sidebar, /action=add-guest/);
+  assert.doesNotMatch(sidebar, /action=import/);
 
   for (const label of [
     "אתר חתונה",
@@ -45,7 +50,7 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.match(sidebar, /שירותים נוספים/);
   assert.match(sidebar, /hidden: !canCheckIn/);
   assert.match(sidebar, /hidden: !canCallRounds/);
-  assert.match(sidebar, /\?action=import/);
+  assert.match(sidebar, /action=add-guest/);
   assert.match(sidebar, /\?action=calls/);
   assert.doesNotMatch(sidebar, /צוות והרשאות/);
   assert.doesNotMatch(sidebar, /label: "דוחות"/);
@@ -54,7 +59,10 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.doesNotMatch(sidebar, /\/admin\//);
 
   assert.match(page, /searchParams.get\("action"\)/);
+  assert.match(page, /action === "add-guest"/);
+  assert.match(page, /AddGuestChooserModal/);
   assert.match(page, /setShowImportModal\(true\)/);
+  assert.match(page, /setOpenAddModal\(true\)/);
   assert.match(page, /setOpenRsvpSchedule\(true\)/);
   assert.doesNotMatch(page, /function GoldenActionButtons/);
   assert.doesNotMatch(page, /<GoldenActionButtons/);

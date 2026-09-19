@@ -14,6 +14,7 @@ import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 import ImportExcelModal from "../components/ImportExcelModal";
 import GuestsMobileList from "./components/GuestsMobileList";
+import AddGuestChooserModal from "./components/AddGuestChooserModal";
 import LiveGuestTableSelect from "./LiveGuestTableSelect";
 import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
@@ -518,6 +519,7 @@ const canViewActualArrived =
   };
 
   const [showImportModal, setShowImportModal] = useState(false);
+  const [addGuestChooserOpen, setAddGuestChooserOpen] = useState(false);
   const [showDemoToast, setShowDemoToast] = useState(false);
   const [invitationReady, setInvitationReady] = useState(isDemo);
 
@@ -1217,13 +1219,15 @@ if (!canDeleteAllGuests) {
 
   useEffect(() => {
     const action = searchParams.get("action");
-    if (action !== "import" && action !== "calls") return;
+    if (action !== "import" && action !== "calls" && action !== "add-guest") return;
     if (!isDemo && !invitationReady) return;
 
     if (isDemo) {
       setShowDemoToast(true);
     } else if (action === "import" && invitationId) {
       setShowImportModal(true);
+    } else if (action === "add-guest" && invitationId) {
+      setAddGuestChooserOpen(true);
     } else if (action === "calls" && user?.includeCalls) {
       setOpenRsvpSchedule(true);
     }
@@ -3485,6 +3489,20 @@ const eventLocation = resolveEventLocation(invitation, event);
           user={user}
           invitation={invitation}
           onClose={() => setOpenRsvpSchedule(false)}
+        />
+      )}
+
+      {addGuestChooserOpen && (
+        <AddGuestChooserModal
+          onClose={() => setAddGuestChooserOpen(false)}
+          onManual={() => {
+            setAddGuestChooserOpen(false);
+            setOpenAddModal(true);
+          }}
+          onExcel={() => {
+            setAddGuestChooserOpen(false);
+            setShowImportModal(true);
+          }}
         />
       )}
 

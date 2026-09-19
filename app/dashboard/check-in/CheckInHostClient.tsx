@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, Check, Loader2, QrCode, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { userCanScanCheckIn } from "@/lib/checkIn/permissions";
 import {
-  formatTableLabel,
-  hostRemainingOptions,
-  hostScanIsFullyArrived,
-} from "@/lib/checkIn/guestPassState";
+  userCanManageCheckIn,
+  userCanScanCheckIn,
+} from "@/lib/checkIn/permissions";
+import { formatTableLabel } from "@/lib/checkIn/guestPassState";
 import {
   applyDemoCheckIn,
   DEMO_CHECKIN_CHANNEL,
@@ -18,6 +17,7 @@ import {
   isDemoCheckInToken,
   readDemoCheckInState,
   serializeDemoGuest,
+  undoDemoCheckIn,
   type DemoCheckInGuest,
 } from "@/lib/checkIn/demoCheckIn";
 
@@ -25,35 +25,52 @@ type GuestPreview = {
   id: string;
   name: string;
   phone: string;
-  rsvp: string;
   confirmedGuestCount: number;
   checkedInGuestCount: number;
-  remaining: number;
   tableNumber: number | null;
   tableName: string;
-  status: string;
 };
 
-type Phase = "scan" | "guest" | "already" | "confirmed";
+type ToastState = {
+  guestId: string;
+  quantity: number;
+  table: string;
+  method: "QR" | "MANUAL";
+};
 
 type Props = {
   demo?: boolean;
 };
 
-function tableText(guest: GuestPreview) {
-  return formatTableLabel(guest) || "—";
+const QUICK_COUNTS = [1, 2, 3, 4, 5, 6];
+
+function tableText(guest: { tableName?: string; tableNumber?: number | null }) {
+  return formatTableLabel(guest) || "ללא שולחן";
+}
+
+function deviceSession() {
+  if (typeof window === "undefined") return null;
+  const key = "invistimo.checkin.session";
+  const existing = window.sessionStorage.getItem(key);
+  if (existing) return existing;
+  const id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  window.sessionStorage.setItem(key, id);
+  return id;
 }
 
 export default function CheckInHostClient({ demo = false }: Props) {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const canScan = demo || userCanScanCheckIn(user as any);
+  const canManage = demo || userCanManageCheckIn(user as any);
   const invitationFromUrl = demo ? "" : searchParams.get("invitationId") || "";
   const eventFromUrl = demo ? "" : searchParams.get("eventId") || "";
 
   const [checkInEnabled, setCheckInEnabled] = useState<boolean | null>(
     demo ? true : null
   );
+  const [live, setLive] = useState(demo);
+  const [startingLive, setStartingLive] = useState(false);
   const [invitationId, setInvitationId] = useState("");
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,31 +79,26 @@ export default function CheckInHostClient({ demo = false }: Props) {
   const [searchResults, setSearchResults] = useState<GuestPreview[]>([]);
   const [selected, setSelected] = useState<GuestPreview | null>(null);
   const [scanMethod, setScanMethod] = useState<"QR" | "MANUAL">("QR");
-  const [quantity, setQuantity] = useState(1);
-  const [phase, setPhase] = useState<Phase>("scan");
-  const [confirmedQty, setConfirmedQty] = useState(0);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [demoReady, setDemoReady] = useState(false);
   const [demoGuests, setDemoGuests] = useState<DemoCheckInGuest[]>([]);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const lastScanRef = useRef<{ token: string; at: number }>({ token: "", at: 0 });
-  const resumeCameraRef = useRef(false);
+  const scanLockedRef = useRef(false);
+  const cooldownRef = useRef<{ token: string; until: number }>({
+    token: "",
+    until: 0,
+  });
+  const autoStartedRef = useRef(false);
+  const toastTimerRef = useRef<number | null>(null);
   const scannerBoxId = "invistimo-checkin-scanner";
-
-  const remainingOptions = useMemo(
-    () =>
-      selected
-        ? hostRemainingOptions(
-            selected.confirmedGuestCount,
-            selected.checkedInGuestCount
-          )
-        : [],
-    [selected]
-  );
 
   const loadSummary = useCallback(async () => {
     if (demo) {
       setCheckInEnabled(true);
+      setLive(true);
       return;
     }
     const params = new URLSearchParams();
@@ -100,10 +112,11 @@ export default function CheckInHostClient({ demo = false }: Props) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setCheckInEnabled(false);
-      setError(data?.error === "CHECKIN_DISABLED" ? "" : data?.message || "אין גישה");
+      setLive(false);
       return;
     }
     setCheckInEnabled(Boolean(data.checkInEnabled));
+    setLive(Boolean(data.live));
     setInvitationId(String(data.invitationId || ""));
   }, [demo, invitationFromUrl, eventFromUrl]);
 
@@ -150,44 +163,51 @@ export default function CheckInHostClient({ demo = false }: Props) {
     }
   }, []);
 
-  const openGuest = useCallback(
-    async (guest: GuestPreview, method: "QR" | "MANUAL" = "MANUAL") => {
-      resumeCameraRef.current = scanning || resumeCameraRef.current;
-      await stopScanner();
-      setSelected(guest);
-      setScanMethod(method);
-      setError("");
-      if (
-        hostScanIsFullyArrived(
-          guest.confirmedGuestCount,
-          guest.checkedInGuestCount
-        )
-      ) {
-        setPhase("already");
-        setQuantity(0);
-        return;
-      }
-      const options = hostRemainingOptions(
-        guest.confirmedGuestCount,
-        guest.checkedInGuestCount
-      );
-      setQuantity(options[0] || 0);
-      setPhase("guest");
-    },
-    [scanning, stopScanner]
-  );
+  const pauseScanner = useCallback(() => {
+    scanLockedRef.current = true;
+    try {
+      scannerRef.current?.pause(false);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const resumeScanner = useCallback((token?: string) => {
+    if (token) {
+      cooldownRef.current = { token, until: Date.now() + 1800 };
+    }
+    scanLockedRef.current = false;
+    setSelected(null);
+    setCustomOpen(false);
+    setCustomValue("");
+    setError("");
+    try {
+      scannerRef.current?.resume();
+    } catch {
+      // camera may not be running
+    }
+  }, []);
+
+  const showToast = useCallback((next: ToastState) => {
+    setToast(next);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+    }, 4500);
+  }, []);
 
   const lookupToken = useCallback(
     async (raw: string) => {
+      if (scanLockedRef.current) return;
       const now = Date.now();
       if (
-        lastScanRef.current.token === raw &&
-        now - lastScanRef.current.at < 2500
+        cooldownRef.current.token === raw &&
+        now < cooldownRef.current.until
       ) {
         return;
       }
-      lastScanRef.current = { token: raw, at: now };
 
+      pauseScanner();
       setBusy(true);
       setError("");
       try {
@@ -197,9 +217,11 @@ export default function CheckInHostClient({ demo = false }: Props) {
           );
           if (!guest) {
             setError("QR לא מזוהה באירוע זה");
+            resumeScanner(raw);
             return;
           }
-          await openGuest(serializeDemoGuest(guest) as GuestPreview, "QR");
+          setScanMethod("QR");
+          setSelected(serializeDemoGuest(guest) as GuestPreview);
           return;
         }
 
@@ -216,26 +238,39 @@ export default function CheckInHostClient({ demo = false }: Props) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.guest) {
           setError(
-            data?.error === "GUEST_NOT_FOUND"
-              ? "QR לא מזוהה באירוע זה"
-              : "סריקה נכשלה"
+            data?.error === "EVENT_NOT_LIVE"
+              ? "סריקה אפשרית רק כאשר האירוע במצב LIVE"
+              : data?.error === "GUEST_NOT_FOUND"
+                ? "QR לא מזוהה באירוע זה"
+                : "סריקה נכשלה"
           );
+          resumeScanner(raw);
           return;
         }
-        await openGuest(data.guest as GuestPreview, "QR");
+        setScanMethod("QR");
+        setSelected(data.guest as GuestPreview);
       } catch {
         setError("שגיאת רשת");
+        resumeScanner(raw);
       } finally {
         setBusy(false);
       }
     },
-    [demo, invitationId, invitationFromUrl, eventFromUrl, openGuest]
+    [
+      demo,
+      invitationId,
+      invitationFromUrl,
+      eventFromUrl,
+      pauseScanner,
+      resumeScanner,
+    ]
   );
 
   const startScanner = useCallback(async () => {
-    if (!canScan) return;
+    if (!canScan || !live) return;
     setError("");
     await stopScanner();
+    scanLockedRef.current = false;
     setScanning(true);
 
     try {
@@ -254,23 +289,21 @@ export default function CheckInHostClient({ demo = false }: Props) {
       setScanning(false);
       setError("לא ניתן לפתוח מצלמה. ניתן לחפש אורח ידנית.");
     }
-  }, [canScan, lookupToken, stopScanner]);
-
-  const returnToScanner = useCallback(async () => {
-    setSelected(null);
-    setPhase("scan");
-    setError("");
-    if (resumeCameraRef.current) {
-      resumeCameraRef.current = false;
-      await startScanner();
-    }
-  }, [startScanner]);
+  }, [canScan, live, lookupToken, stopScanner]);
 
   useEffect(() => {
     return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
       void stopScanner();
     };
   }, [stopScanner]);
+
+  useEffect(() => {
+    if (!canScan || !checkInEnabled || !live) return;
+    if (autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    void startScanner();
+  }, [canScan, checkInEnabled, live, startScanner]);
 
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) {
@@ -305,31 +338,40 @@ export default function CheckInHostClient({ demo = false }: Props) {
     return () => clearTimeout(handle);
   }, [query, invitationId, invitationFromUrl, eventFromUrl, demo]);
 
-  const confirmEntry = async () => {
-    if (!selected || quantity <= 0) return;
+  const openManual = (guest: GuestPreview) => {
+    pauseScanner();
+    setScanMethod("MANUAL");
+    setError("");
+    setSelected(guest);
+  };
+
+  const saveQuantity = async (rawQty: number) => {
+    if (!selected || busy) return;
+    const quantity = Math.floor(Number(rawQty));
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setError("יש להזין כמות גדולה מ-0");
+      return;
+    }
+
     setBusy(true);
     setError("");
+    const guest = selected;
+    const method = scanMethod;
     try {
-      if (demo || isDemoCheckInToken(selected.id)) {
-        const result = applyDemoCheckIn(selected.id, quantity);
+      if (demo || isDemoCheckInToken(guest.id)) {
+        const result = applyDemoCheckIn(guest.id, quantity);
         if (!result.ok) {
-          setError("לא ניתן לסמן יותר מהמאושרים");
+          setError("לא ניתן לרשום את הכניסה");
           return;
         }
-        setConfirmedQty(result.quantityAdded);
         setDemoGuests(readDemoCheckInState().guests);
-        setSelected({
-          ...selected,
-          checkedInGuestCount: result.newCheckedInCount,
-          remaining: Math.max(
-            0,
-            selected.confirmedGuestCount - result.newCheckedInCount
-          ),
+        showToast({
+          guestId: guest.id,
+          quantity,
+          table: tableText(guest),
+          method,
         });
-        setPhase("confirmed");
-        window.setTimeout(() => {
-          void returnToScanner();
-        }, 1600);
+        resumeScanner(guest.id);
         return;
       }
 
@@ -338,68 +380,40 @@ export default function CheckInHostClient({ demo = false }: Props) {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          guestId: selected.id,
+          guestId: guest.id,
           invitationId: invitationId || invitationFromUrl,
           eventId: eventFromUrl,
           quantityAdded: quantity,
-          method: scanMethod,
-          allowOverride: false,
-          deviceSession:
-            typeof window !== "undefined"
-              ? window.sessionStorage.getItem("invistimo.checkin.session") ||
-                (() => {
-                  const id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                  window.sessionStorage.setItem("invistimo.checkin.session", id);
-                  return id;
-                })()
-              : null,
+          method,
+          deviceSession: deviceSession(),
         }),
       });
       const data = await res.json().catch(() => ({}));
-
-      if (res.status === 409 && data?.error === "CONCURRENT_UPDATE") {
-        setError(
-          data?.message ||
-            "האורח עודכן במקביל. רעננו ובחרו שוב כמה נוספים הגיעו."
-        );
-        if (typeof data?.currentCheckedInCount === "number" && selected) {
-          setSelected({
-            ...selected,
-            checkedInGuestCount: data.currentCheckedInCount,
-            remaining: Math.max(
-              0,
-              selected.confirmedGuestCount - data.currentCheckedInCount
-            ),
-          });
-        }
-        return;
-      }
-
-      if (res.status === 409 && data?.error === "ALREADY_CHECKED_IN") {
-        if (data?.guest) setSelected(data.guest as GuestPreview);
-        setPhase("already");
-        return;
-      }
-
-      if (res.status === 409 && data?.error === "EXCEEDS_CONFIRMED") {
-        setError("לא ניתן לסמן יותר מהמאושרים");
-        return;
-      }
-
       if (!res.ok || !data?.success) {
-        setError(data?.message || "אישור כניסה נכשל");
+        if (res.status === 409 && data?.error === "CONCURRENT_UPDATE") {
+          setError(
+            data?.message ||
+              "האורח עודכן במקביל ממכשיר אחר. סרקו שוב."
+          );
+          if (typeof data?.currentCheckedInCount === "number") {
+            setSelected({
+              ...guest,
+              checkedInGuestCount: data.currentCheckedInCount,
+            });
+          }
+          return;
+        }
+        setError(data?.message || "שמירת הכניסה נכשלה");
         return;
       }
 
-      setConfirmedQty(Number(data.quantityAdded || quantity));
-      setSelected({
-        ...selected,
-        ...(data.guest || {}),
+      showToast({
+        guestId: guest.id,
+        quantity: Number(data.quantityAdded || quantity),
+        table: tableText(data.guest || guest),
+        method,
       });
-      setPhase("confirmed");
-      window.setTimeout(() => {
-        void returnToScanner();
-      }, 1600);
+      resumeScanner(guest.id);
     } catch {
       setError("שגיאת רשת");
     } finally {
@@ -407,10 +421,70 @@ export default function CheckInHostClient({ demo = false }: Props) {
     }
   };
 
+  const undoToast = async () => {
+    if (!toast) return;
+    const current = toast;
+    setToast(null);
+    try {
+      if (demo || isDemoCheckInToken(current.guestId)) {
+        undoDemoCheckIn(current.guestId, current.quantity);
+        setDemoGuests(readDemoCheckInState().guests);
+        return;
+      }
+      await fetch("/api/check-in/confirm", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          undo: true,
+          guestId: current.guestId,
+          invitationId: invitationId || invitationFromUrl,
+          eventId: eventFromUrl,
+          quantityAdded: current.quantity,
+          method: current.method,
+          deviceSession: deviceSession(),
+        }),
+      });
+    } catch {
+      setError("לא הצלחנו לבטל את הרישום");
+    }
+  };
+
+  const startLive = async () => {
+    if (demo) {
+      setLive(true);
+      return;
+    }
+    setStartingLive(true);
+    setError("");
+    try {
+      const res = await fetch("/api/check-in/live", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invitationId: invitationId || invitationFromUrl,
+          eventId: eventFromUrl,
+          live: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        setError(data?.message || "לא ניתן להפעיל מצב LIVE");
+        return;
+      }
+      setLive(true);
+    } catch {
+      setError("שגיאת רשת");
+    } finally {
+      setStartingLive(false);
+    }
+  };
+
   if (checkInEnabled === null) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm font-bold text-[#7C6A58]">
-        <Loader2 className="mr-2 animate-spin" size={18} />
+        <Loader2 className="ml-2 animate-spin" size={18} />
         טוען Check-in...
       </div>
     );
@@ -434,29 +508,50 @@ export default function CheckInHostClient({ demo = false }: Props) {
 
   if (!canScan) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-bold text-[#7C6A58]" dir="rtl">
+      <div
+        className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-bold text-[#7C6A58]"
+        dir="rtl"
+      >
         אין הרשאה לסריקת כניסה
       </div>
     );
   }
-
-  const alreadyIn = selected ? selected.checkedInGuestCount : 0;
-  const confirmed = selected ? selected.confirmedGuestCount : 0;
-  const question =
-    selected && alreadyIn > 0
-      ? "כמה נוספים הגיעו עכשיו?"
-      : "כמה הגיעו עכשיו?";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6" dir="rtl">
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
-          סריקה → הרשומה של האורח בלבד → בחירת כמות → אישור
+          המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא.
         </p>
       </div>
 
-      {error && phase === "scan" && (
+      {!live && (
+        <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-6 text-center shadow-sm">
+          <h2 className="text-lg font-black text-[#3F3328]">
+            הסריקה נפתחת רק במצב LIVE
+          </h2>
+          <p className="mt-2 text-sm font-bold text-[#7C6A58]">
+            אפשר להכין QR מראש. כניסה בפועל נרשמת רק כשהאירוע LIVE.
+          </p>
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => void startLive()}
+              disabled={startingLive}
+              className="mt-4 inline-flex items-center justify-center rounded-[14px] bg-[#B85C3A] px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+            >
+              {startingLive ? "מפעיל..." : "הפעלת מצב LIVE"}
+            </button>
+          ) : (
+            <p className="mt-3 text-sm font-bold text-[#8A7A68]">
+              המארחת תוכל לסרוק ברגע שבעל האירוע יעביר את האירוע ל-LIVE.
+            </p>
+          )}
+        </section>
+      )}
+
+      {error && !selected && (
         <div className="mb-4 rounded-[16px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
           {error}
         </div>
@@ -467,223 +562,207 @@ export default function CheckInHostClient({ demo = false }: Props) {
           <p className="font-black text-[#3F3328]">אורחי בדיקה</p>
           <ul className="mt-3 space-y-2">
             {demoGuests.map((guest) => (
-              <li key={guest.token} className="flex flex-wrap items-center justify-between gap-2">
+              <li
+                key={guest.token}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
                 <span>
-                  {guest.name} · {guest.checkedInGuestCount}/{guest.confirmedGuestCount}
+                  {guest.name} · הגיעו {guest.checkedInGuestCount} / אישרו{" "}
+                  {guest.confirmedGuestCount}
                 </span>
-                <a
-                  href={`/try/check-in/pass/${guest.token}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openManual(serializeDemoGuest(guest) as GuestPreview)}
                   className="text-xs font-black text-[#B88A2D] underline"
                 >
-                  עמוד האורח
-                </a>
+                  סימון כניסה
+                </button>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <section className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
-          <Camera size={18} className="text-[#B88A2D]" />
-          סורק QR
-        </div>
-
-        <div
-          id={scannerBoxId}
-          className="min-h-[240px] overflow-hidden rounded-[18px] bg-black/5"
-        />
-
-        <div className="mt-3 flex gap-2">
-          {!scanning ? (
+      {live && (
+        <section className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
+            <Camera size={18} className="text-[#B88A2D]" />
+            סורק QR
+          </div>
+          <div
+            id={scannerBoxId}
+            className="min-h-[280px] overflow-hidden rounded-[18px] bg-black/80"
+          />
+          {!scanning && (
             <button
               type="button"
               onClick={() => void startScanner()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#2F6B4F] px-4 py-3 text-sm font-black text-white transition hover:bg-[#25563F]"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#2F6B4F] px-4 py-3 text-sm font-black text-white"
             >
               <Camera size={16} />
               פתיחת מצלמה
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void stopScanner()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-black text-[#5A4635]"
-            >
-              עצירת מצלמה
-            </button>
           )}
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
-          <Search size={18} className="text-[#B88A2D]" />
-          חיפוש ידני
-        </div>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="שם או טלפון..."
-          className="w-full rounded-[14px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-bold text-[#241A14] outline-none focus:border-[#B88A2D]"
-        />
-        {searchResults.length > 0 && (
-          <ul className="mt-3 divide-y divide-[#F0E6D8] rounded-[16px] border border-[#EADBC4] bg-white">
-            {searchResults.map((g) => (
-              <li key={g.id}>
-                <button
-                  type="button"
-                  onClick={() => void openGuest(g, "MANUAL")}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-[#FBF7F0]"
-                >
-                  <div>
-                    <p className="text-sm font-black text-[#241A14]">{g.name}</p>
-                    <p className="text-xs font-bold text-[#8A7A68]">
-                      {g.phone || "—"} · {tableText(g)}
-                    </p>
-                  </div>
-                  <span className="text-xs font-black text-[#5A4635]">
-                    {g.checkedInGuestCount}/{g.confirmedGuestCount}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {live && (
+        <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
+            <Search size={18} className="text-[#B88A2D]" />
+            חיפוש ידני
+          </div>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="שם או טלפון..."
+            className="w-full rounded-[14px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-bold text-[#241A14] outline-none focus:border-[#B88A2D]"
+          />
+          {searchResults.length > 0 && (
+            <ul className="mt-3 divide-y divide-[#F0E6D8] rounded-[16px] border border-[#EADBC4] bg-white">
+              {searchResults.map((g) => (
+                <li key={g.id}>
+                  <button
+                    type="button"
+                    onClick={() => openManual(g)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-[#FBF7F0]"
+                  >
+                    <div>
+                      <p className="text-sm font-black text-[#241A14]">{g.name}</p>
+                      <p className="text-xs font-bold text-[#8A7A68]">
+                        {g.phone || "—"} · {tableText(g)}
+                      </p>
+                    </div>
+                    <span className="text-xs font-black text-[#5A4635]">
+                      {g.checkedInGuestCount}/{g.confirmedGuestCount}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
-      {selected && phase !== "scan" && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-          <div className="w-full max-w-md rounded-t-[28px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-2xl sm:rounded-[28px]">
-            {phase === "confirmed" ? (
-              <div className="py-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#2F6B4F] text-white">
-                  <Check size={28} />
-                </div>
-                <h2 className="mt-4 text-xl font-black text-[#241A14]">
-                  הכניסה אושרה
-                </h2>
-                <p className="mt-2 text-sm font-bold text-[#5A4635]">
-                  {confirmedQty} אורחים
-                </p>
-                <p className="mt-1 text-sm font-black text-[#241A14]">
-                  {tableText(selected)}
-                </p>
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35">
+          <div className="w-full max-w-md rounded-t-[28px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 className="text-xl font-black text-[#241A14]">{selected.name}</h2>
+              <button
+                type="button"
+                onClick={() => resumeScanner(selected.id)}
+                className="rounded-full border border-[#E3D6C3] bg-white p-2 text-[#5A4635]"
+                aria-label="סגור"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <dl className="space-y-2 text-sm font-bold text-[#5A4635]">
+              <div className="flex items-center justify-between">
+                <dt>אישרו מראש</dt>
+                <dd className="font-black text-[#241A14]">
+                  {selected.confirmedGuestCount}
+                </dd>
               </div>
-            ) : phase === "already" ? (
-              <>
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black text-[#B88A2D]">
-                      האורחים כבר נכנסו
-                    </p>
-                    <h2 className="text-xl font-black text-[#241A14]">
-                      {selected.name}
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void returnToScanner()}
-                    className="rounded-full border border-[#E3D6C3] bg-white p-2 text-[#5A4635]"
-                    aria-label="סגור"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <p className="text-sm font-black text-[#3F3328]">
-                  {alreadyIn} מתוך {confirmed} נכנסו
-                </p>
-                <p className="mt-2 text-sm font-bold text-[#5A4635]">
-                  {tableText(selected)}
-                </p>
+              <div className="flex items-center justify-between">
+                <dt>הגיעו בפועל עד עכשיו</dt>
+                <dd className="font-black text-[#241A14]">
+                  {selected.checkedInGuestCount}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt>שולחן</dt>
+                <dd className="font-black text-[#241A14]">{tableText(selected)}</dd>
+              </div>
+            </dl>
+
+            <p className="mt-4 text-sm font-black text-[#241A14]">
+              כמה הגיעו עכשיו?
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {QUICK_COUNTS.map((n) => (
                 <button
+                  key={n}
                   type="button"
-                  onClick={() => void returnToScanner()}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-[16px] bg-[#241A14] px-4 py-3.5 text-sm font-black text-white"
+                  disabled={busy}
+                  onClick={() => void saveQuantity(n)}
+                  className="h-12 w-12 rounded-full border border-[#E3D6C3] bg-white text-base font-black text-[#3F3328] transition hover:bg-[#2F6B4F] hover:text-white disabled:opacity-50"
                 >
-                  המשך לסריקה הבאה
+                  {n}
                 </button>
-              </>
-            ) : (
-              <>
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black text-[#B88A2D]">שם ההזמנה</p>
-                    <h2 className="text-xl font-black text-[#241A14]">
-                      {selected.name}
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void returnToScanner()}
-                    className="rounded-full border border-[#E3D6C3] bg-white p-2 text-[#5A4635]"
-                    aria-label="סגור"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+              ))}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setCustomOpen(true)}
+                className="h-12 rounded-full border border-[#E3D6C3] bg-[#F8EEDB] px-4 text-sm font-black text-[#3F3328]"
+              >
+                כמות אחרת
+              </button>
+            </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm font-bold text-[#5A4635]">
-                  <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-                    <p className="text-[11px] text-[#8A7A68]">אישרו הגעה</p>
-                    <p className="mt-1 text-lg font-black text-[#241A14]">
-                      {confirmed}
-                    </p>
-                  </div>
-                  <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-                    <p className="text-[11px] text-[#8A7A68]">שולחן</p>
-                    <p className="mt-1 text-lg font-black text-[#241A14]">
-                      {tableText(selected)}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm font-black text-[#3F3328]">
-                  {alreadyIn > 0
-                    ? `כבר הגיעו: ${alreadyIn} מתוך ${confirmed}`
-                    : `כבר נכנסו בפועל: ${alreadyIn}`}
-                </p>
-
-                <p className="mt-4 text-sm font-black text-[#241A14]">{question}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {remainingOptions.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setQuantity(n)}
-                      className={`h-12 w-12 rounded-full border text-base font-black transition ${
-                        quantity === n
-                          ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
-                          : "border-[#E3D6C3] bg-white text-[#3F3328] hover:bg-[#F8EEDB]"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-
-                {error && (
-                  <p className="mt-3 text-sm font-bold text-rose-700">{error}</p>
-                )}
-
+            {customOpen && (
+              <form
+                className="mt-3 flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveQuantity(Number(customValue));
+                }}
+              >
+                <input
+                  inputMode="numeric"
+                  enterKeyHint="done"
+                  value={customValue}
+                  onChange={(event) =>
+                    setCustomValue(event.target.value.replace(/[^\d]/g, ""))
+                  }
+                  placeholder="מספר"
+                  className="w-full rounded-[14px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-black outline-none focus:border-[#B88A2D]"
+                  autoFocus
+                />
                 <button
-                  type="button"
-                  disabled={busy || quantity <= 0}
-                  onClick={() => void confirmEntry()}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#2F6B4F] px-4 py-3.5 text-sm font-black text-white transition hover:bg-[#25563F] disabled:opacity-50"
+                  type="submit"
+                  disabled={busy || !customValue}
+                  className="rounded-[14px] bg-[#2F6B4F] px-4 text-sm font-black text-white disabled:opacity-40"
                 >
-                  {busy ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <Check size={16} />
-                  )}
-                  אישור כניסה
+                  {customValue || "—"}
                 </button>
-              </>
+              </form>
+            )}
+
+            {error && (
+              <p className="mt-3 text-sm font-bold text-rose-700">{error}</p>
+            )}
+            {busy && (
+              <p className="mt-3 flex items-center gap-2 text-sm font-bold text-[#7C6A58]">
+                <Loader2 className="animate-spin" size={14} />
+                שומר...
+              </p>
             )}
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-4 left-4 right-4 z-[60] mx-auto flex max-w-md items-center justify-between gap-3 rounded-[18px] bg-[#2F6B4F] px-4 py-3 text-white shadow-xl">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-black">
+              <Check size={16} />
+              הכניסה נרשמה
+            </p>
+            <p className="mt-1 text-sm font-bold">
+              {toast.quantity} אורחים · {toast.table}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void undoToast()}
+            className="rounded-full bg-white/15 px-3 py-2 text-xs font-black"
+          >
+            ביטול
+          </button>
         </div>
       )}
     </div>

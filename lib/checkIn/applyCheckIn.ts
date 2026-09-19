@@ -34,7 +34,6 @@ export type ApplyCheckInResult =
       error: string;
       code:
         | "INVALID_QUANTITY"
-        | "EXCEEDS_CONFIRMED"
         | "GUEST_NOT_FOUND"
         | "SAVE_FAILED"
         | "CONCURRENT_UPDATE";
@@ -68,17 +67,7 @@ export async function applyCheckIn(
   const previous = checkedInGuestCount(guest);
   const confirmed = confirmedGuestCount(guest);
   const next = previous + quantity;
-  const overridden = Boolean(input.allowOverride) && next > confirmed;
-
-  if (next > confirmed && !input.allowOverride) {
-    return {
-      ok: false,
-      error: "לא ניתן לסמן יותר מהמאושרים ללא אישור מיוחד",
-      code: "EXCEEDS_CONFIRMED",
-      confirmed,
-      previousCheckedInCount: previous,
-    };
-  }
+  const overridden = next > confirmed;
 
   // Optimistic lock: only write if actualArrivedCount is still `previous`
   const updated = await InvitationGuest.findOneAndUpdate(
@@ -169,17 +158,7 @@ export async function setCheckedInCountAbsolute(input: {
   const previous = checkedInGuestCount(guest);
   const confirmed = confirmedGuestCount(guest);
   const quantityAdded = next - previous;
-  const overridden = Boolean(input.allowOverride) && next > confirmed;
-
-  if (next > confirmed && !input.allowOverride) {
-    return {
-      ok: false,
-      error: "לא ניתן לסמן יותר מהמאושרים ללא אישור מיוחד",
-      code: "EXCEEDS_CONFIRMED",
-      confirmed,
-      previousCheckedInCount: previous,
-    };
-  }
+  const overridden = next > confirmed;
 
   if (quantityAdded === 0) {
     return {
@@ -263,4 +242,95 @@ export async function ensureGuestCheckInToken(guest: any): Promise<string> {
     { $set: { checkInToken: guest.checkInToken } }
   );
   return String(guest.checkInToken);
+}
+
+export async function undoCheckIn(input: {
+  guest: any;
+  quantity: number;
+  scannedByUserId: string;
+  method?: CheckInMethod;
+  deviceSession?: string | null;
+  eventId?: string | null;
+  invitationId?: string | null;
+}): Promise<ApplyCheckInResult> {
+  const guest = input.guest;
+  if (!guest?._id) {
+    return { ok: false, error: "אורח לא נמצא", code: "GUEST_NOT_FOUND" };
+  }
+
+  const quantity = Math.floor(Number(input.quantity));
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return {
+      ok: false,
+      error: "כמות לא תקינה",
+      code: "INVALID_QUANTITY",
+    };
+  }
+
+  const previous = checkedInGuestCount(guest);
+  const next = previous - quantity;
+  if (next < 0) {
+    return {
+      ok: false,
+      error: "לא ניתן לבטל יותר ממה שנרשם",
+      code: "INVALID_QUANTITY",
+      previousCheckedInCount: previous,
+    };
+  }
+
+  const confirmed = confirmedGuestCount(guest);
+  const updated = await InvitationGuest.findOneAndUpdate(
+    {
+      _id: guest._id,
+      $or: [
+        { actualArrivedCount: previous },
+        ...(previous === 0
+          ? [{ actualArrivedCount: { $exists: false } }, { actualArrivedCount: null }]
+          : []),
+      ],
+    },
+    { $set: { actualArrivedCount: next } },
+    { new: true }
+  );
+
+  if (!updated) {
+    const fresh = await InvitationGuest.findById(guest._id)
+      .select("actualArrivedCount arrivedCount rsvp guestsCount")
+      .lean();
+    return {
+      ok: false,
+      error: "האורח עודכן במקביל ממכשיר אחר.",
+      code: "CONCURRENT_UPDATE",
+      confirmed,
+      previousCheckedInCount: previous,
+      currentCheckedInCount: checkedInGuestCount(fresh || {}),
+    };
+  }
+
+  guest.actualArrivedCount = next;
+
+  const log = await CheckInLog.create({
+    eventId: input.eventId || guest.eventId || undefined,
+    invitationId: input.invitationId || guest.invitationId || undefined,
+    invitationGuestId: guest._id,
+    scannedByUserId: input.scannedByUserId,
+    scannedAt: new Date(),
+    quantityAdded: -quantity,
+    previousCheckedInCount: previous,
+    newCheckedInCount: next,
+    method: input.method || "QR",
+    deviceSession: input.deviceSession || null,
+    overridden: false,
+  });
+
+  return {
+    ok: true,
+    guest: updated,
+    previousCheckedInCount: previous,
+    newCheckedInCount: next,
+    quantityAdded: -quantity,
+    confirmed,
+    overridden: false,
+    logId: String(log._id),
+  };
 }

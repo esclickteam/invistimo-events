@@ -177,11 +177,6 @@ export function applyDemoCheckIn(token: string, quantityAdded: number) {
     return { ok: false as const, error: "INVALID_QUANTITY" };
   }
 
-  const remaining = guest.confirmedGuestCount - guest.checkedInGuestCount;
-  if (quantity > remaining) {
-    return { ok: false as const, error: "EXCEEDS_CONFIRMED", guest };
-  }
-
   const previous = guest.checkedInGuestCount;
   guest.checkedInGuestCount = previous + quantity;
   writeDemoCheckInState(state);
@@ -192,5 +187,30 @@ export function applyDemoCheckIn(token: string, quantityAdded: number) {
     previousCheckedInCount: previous,
     newCheckedInCount: guest.checkedInGuestCount,
     quantityAdded: quantity,
+  };
+}
+
+export function undoDemoCheckIn(token: string, quantity: number) {
+  const state = readDemoCheckInState();
+  const guest = state.guests.find((item) => item.token === token);
+  if (!guest) return { ok: false as const, error: "GUEST_NOT_FOUND" };
+
+  const amount = Math.floor(Number(quantity));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false as const, error: "INVALID_QUANTITY" };
+  }
+  if (guest.checkedInGuestCount < amount) {
+    return { ok: false as const, error: "INVALID_QUANTITY" };
+  }
+
+  const previous = guest.checkedInGuestCount;
+  guest.checkedInGuestCount = previous - amount;
+  writeDemoCheckInState(state);
+  return {
+    ok: true as const,
+    guest,
+    previousCheckedInCount: previous,
+    newCheckedInCount: guest.checkedInGuestCount,
+    quantityAdded: -amount,
   };
 }
