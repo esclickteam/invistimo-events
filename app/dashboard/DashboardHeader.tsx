@@ -175,14 +175,14 @@ export default function DashboardHeader({
                 shadow-sm
                 transition
                 hover:bg-[#F8EEDB]
-                md:hidden
+                lg:hidden
               "
               aria-label="פתח תפריט דשבורד"
             >
               <Menu size={25} />
             </button>
 
-            <div className="hidden items-center gap-3 md:flex">
+            <div className="hidden items-center gap-3 lg:flex">
               <button
                 onClick={() => router.push(homeHref)}
                 className="

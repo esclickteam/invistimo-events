@@ -253,12 +253,23 @@ async function buildSmsText({
     tableName = built.tableName;
   }
 
+  let checkInQrLink = "";
+  const checkInToken = String(guest?.checkInToken || "").trim();
+  if (event?.checkInEnabled && checkInToken) {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL || "https://www.invistimo.com";
+    checkInQrLink = await shortenUrl(
+      `${base.replace(/\/$/, "")}/check-in/pass/${encodeURIComponent(checkInToken)}`
+    );
+  }
+
   return template
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{invitationTitle}}/g, invitationTitle)
     .replace(/{{rsvpLink}}/g, shortUrl)
     .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink || "");
+    .replace(/{{navigationLink}}/g, navigationLink || "")
+    .replace(/{{checkInQrLink}}/g, checkInQrLink || "");
 }
 
 function deepReplacePlaceholders(

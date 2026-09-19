@@ -45,6 +45,7 @@ type AccessModules = {
 
   liveDashboard?: boolean;
   actualArrivals?: boolean;
+  checkIn?: boolean;
 };
 
 interface User {
@@ -99,6 +100,13 @@ interface User {
   features?: {
     weddingWebsite?: boolean;
     guestMessages?: boolean;
+    checkIn?: boolean;
+    liveDashboard?: boolean;
+  };
+  permissions?: {
+    liveDashboard?: boolean;
+    actualArrivals?: boolean;
+    checkIn?: boolean;
   };
 
   // ⭐ producer only

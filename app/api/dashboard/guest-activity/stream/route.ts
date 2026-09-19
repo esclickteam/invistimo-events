@@ -34,7 +34,7 @@ async function findManagedInvitation(auth: any, invitationId?: string | null) {
 async function loadSnapshot(invitationId: unknown) {
   const guests = await InvitationGuest.find({ invitationId })
     .select(
-      "_id token firstOpenedAt lastOpenedAt openCount rsvp arrivedCount guestsCount notes rsvpUpdatedAt rsvpRespondedAt lastResponseAt"
+      "_id token firstOpenedAt lastOpenedAt openCount rsvp arrivedCount actualArrivedCount guestsCount notes rsvpUpdatedAt rsvpRespondedAt lastResponseAt"
     )
     .lean();
 
@@ -51,6 +51,7 @@ async function loadSnapshot(invitationId: unknown) {
     openCount: Number(guest.openCount || 0),
     rsvp: guest.rsvp || "pending",
     arrivedCount: Number(guest.arrivedCount || 0),
+    actualArrivedCount: Number(guest.actualArrivedCount || 0),
     guestsCount: Number(guest.guestsCount || 0),
     notes: String(guest.notes || ""),
     rsvpUpdatedAt: isoOrNull(guest.rsvpUpdatedAt),

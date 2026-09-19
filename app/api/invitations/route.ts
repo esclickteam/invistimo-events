@@ -147,6 +147,8 @@ function serializeEvent(event: any) {
 
     giftCreditUrl: event.giftCreditUrl || "",
 
+    checkInEnabled: Boolean(event.checkInEnabled),
+
     maxGuests: event.maxGuests || 0,
 
     paymentStatus: event.paymentStatus || "paid",

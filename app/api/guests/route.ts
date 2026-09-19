@@ -163,6 +163,7 @@ function normalizeEmbeddedGuest(row: any, invitationId: string) {
     firstOpenedAt: row?.firstOpenedAt || null,
     lastOpenedAt: row?.lastOpenedAt || null,
     openCount: Number(row?.openCount || 0),
+    checkInToken: cleanString(row?.checkInToken) || null,
   };
 }
 

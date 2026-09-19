@@ -6,6 +6,7 @@ export type GuestActivityPatch = {
   openCount?: number;
   rsvp?: "yes" | "no" | "pending";
   arrivedCount?: number;
+  actualArrivedCount?: number;
   guestsCount?: number;
   notes?: string;
   rsvpUpdatedAt?: string | null;
@@ -42,6 +43,7 @@ export function guestActivityFingerprint(input: {
         Number(guest.openCount || 0),
         guest.rsvp || "",
         Number(guest.arrivedCount || 0),
+        Number(guest.actualArrivedCount || 0),
         Number(guest.guestsCount || 0),
         String(guest.notes || ""),
         isoOrNull(guest.rsvpUpdatedAt) || "",
@@ -62,6 +64,7 @@ export function mergeGuestActivity<T extends {
   openCount?: unknown;
   rsvp?: unknown;
   arrivedCount?: unknown;
+  actualArrivedCount?: unknown;
   guestsCount?: unknown;
   notes?: unknown;
   rsvpUpdatedAt?: unknown;
@@ -98,6 +101,9 @@ export function mergeGuestActivity<T extends {
     const openCount = Number(patch.openCount || 0);
     const rsvp = patch.rsvp || guest.rsvp;
     const arrivedCount = Number(patch.arrivedCount ?? guest.arrivedCount ?? 0);
+    const actualArrivedCount = Number(
+      patch.actualArrivedCount ?? guest.actualArrivedCount ?? 0
+    );
     const guestsCount = Number(patch.guestsCount ?? guest.guestsCount ?? 0);
     const notes = patch.notes ?? guest.notes;
     const rsvpUpdatedAt = isoOrNull(patch.rsvpUpdatedAt) ?? guest.rsvpUpdatedAt;
@@ -110,6 +116,7 @@ export function mergeGuestActivity<T extends {
       Number(guest.openCount || 0) === openCount &&
       guest.rsvp === rsvp &&
       Number(guest.arrivedCount || 0) === arrivedCount &&
+      Number(guest.actualArrivedCount || 0) === actualArrivedCount &&
       Number(guest.guestsCount || 0) === guestsCount &&
       sameText(guest.notes, notes)
     ) {
@@ -124,6 +131,7 @@ export function mergeGuestActivity<T extends {
       openCount,
       rsvp,
       arrivedCount,
+      actualArrivedCount,
       guestsCount,
       notes,
       rsvpUpdatedAt,

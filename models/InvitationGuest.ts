@@ -258,6 +258,19 @@ const InvitationGuestSchema = new Schema(
     },
 
     /* ===============================
+       🎫 Check-in QR token (אופציונלי)
+       Opaque בלבד — ללא PII.
+       נוצר lazy כשמופעל Check-in לאירוע.
+    =============================== */
+    checkInToken: {
+      type: String,
+      default: null,
+      sparse: true,
+      unique: true,
+      index: true,
+    },
+
+    /* ===============================
        🔗 מעקב פתיחת קישור אישי
        לא נוגע ב-RSVP / הערות / הושבה.
        אורחים קיימים נשארים "לא נפתח" עד פתיחה אמיתית.

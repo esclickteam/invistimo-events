@@ -20,6 +20,7 @@ export type BuildMessageParams = {
   // Links
   rsvpLink?: string;
   navigationLink?: string;
+  checkInQrLink?: string;
 
   // 🎁 Gift
   includeGiftLink?: boolean;
@@ -40,6 +41,7 @@ export function buildMessage({
 
   rsvpLink = "",
   navigationLink = "",
+  checkInQrLink = "",
 
   includeGiftLink = false,
   giftLink = "",
@@ -67,7 +69,8 @@ export function buildMessage({
     .replace(/{{eventDate}}/g, eventDate)
     .replace(/{{eventLocation}}/g, eventLocation)
     .replace(/{{rsvpLink}}/g, rsvpLink)
-    .replace(/{{navigationLink}}/g, navigationLink);
+    .replace(/{{navigationLink}}/g, navigationLink)
+    .replace(/{{checkInQrLink}}/g, checkInQrLink);
 
   /* ================= 🎁 GIFT LINK ================= */
 
