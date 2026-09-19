@@ -42,7 +42,7 @@ function serializeGuest(guest: any) {
 async function resolveContext(
   auth: any,
   invitationId?: string | null,
-  eventId?: string | null
+  requestedEventId?: string | null
 ) {
   const user = await User.findById(auth.userId)
     .select("role staffType accessModules permissions features planLimits")
@@ -52,15 +52,19 @@ async function resolveContext(
     return { error: NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 }) };
   }
 
-  const invitation = await findCheckInInvitation(auth, invitationId, eventId);
+  const invitation = await findCheckInInvitation(
+    auth,
+    invitationId,
+    requestedEventId
+  );
   if (!invitation) {
     return { error: NextResponse.json({ success: false, error: "NO_INVITATION" }, { status: 404 }) };
   }
 
-  const eventId = invitation.eventId ? String(invitation.eventId) : "";
+  const resolvedEventId = invitation.eventId ? String(invitation.eventId) : "";
   let checkInEnabled = false;
-  if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
-    const event = await Event.findById(eventId).select("checkInEnabled").lean();
+  if (resolvedEventId && mongoose.Types.ObjectId.isValid(resolvedEventId)) {
+    const event = await Event.findById(resolvedEventId).select("checkInEnabled").lean();
     checkInEnabled = Boolean((event as any)?.checkInEnabled);
   }
 
@@ -73,7 +77,7 @@ async function resolveContext(
     };
   }
 
-  return { user, invitation, eventId, checkInEnabled };
+  return { user, invitation, eventId: resolvedEventId, checkInEnabled };
 }
 
 export async function POST(req: NextRequest) {
