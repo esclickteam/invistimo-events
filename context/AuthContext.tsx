@@ -85,6 +85,8 @@ interface User {
   /* ===== MODULE ACCESS ===== */
   accessModules?: AccessModules;
   includeDigitalSeating?: boolean;
+  includeCalls?: boolean;
+  includeCreditGifts?: boolean;
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;
   includeWeddingChallenges?: boolean;
