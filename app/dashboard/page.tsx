@@ -26,7 +26,7 @@ import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
-import CheckInStatusBadge from "@/app/components/CheckInStatusBadge";
+import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
   matchesGuestLinkOpenFilter,
   guestLinkWasOpened,
@@ -340,6 +340,10 @@ function DashboardPageInner() {
 
   const [openFreeTablesGuestId, setOpenFreeTablesGuestId] =
     useState<string | null>(null);
+
+  const [seatReleaseGuestId, setSeatReleaseGuestId] = useState<string | null>(
+    null
+  );
 
   const [freeTablesCheckingGuestId, setFreeTablesCheckingGuestId] =
     useState<string | null>(null);
@@ -843,6 +847,16 @@ const canViewActualArrived =
       console.error("Load seating tables error:", err);
     }
   }
+
+  useEffect(() => {
+    if (isDemo || !invitationId || !canShowActualArrived) return;
+
+    const interval = window.setInterval(() => {
+      void loadSeatingTables();
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [isDemo, invitationId, canShowActualArrived]);
 
   const handleExportExcel = async () => {
     if (isDemo) {
@@ -1355,8 +1369,12 @@ if (!canDeleteAllGuests) {
 
     source.addEventListener("snapshot", (event) => {
       applySnapshot((event as MessageEvent).data);
+      void loadSeatingTables();
     });
-    source.onmessage = (event) => applySnapshot(event.data);
+    source.onmessage = (event) => {
+      applySnapshot(event.data);
+      void loadSeatingTables();
+    };
 
     return () => {
       source.close();
@@ -2187,6 +2205,9 @@ const saveActualArrivedToServer = async (
           ...prev,
           [guestId]: data,
         }));
+        if (data?.code === "TABLE_NOT_ENOUGH_FREE_SEATS") {
+          setOpenFreeTablesGuestId(guestId);
+        }
         return;
       }
 
@@ -2241,6 +2262,32 @@ const saveActualArrivedToServer = async (
 
       actualArrivedDraftRef.current[guestId] = serverActual;
     }
+
+    const gap = data?.seatStatus;
+    if (options?.syncSeatsToActual === true) {
+      setSeatReleaseGuestId((current) =>
+        String(current) === String(guestId) ? null : current
+      );
+      return;
+    }
+
+    if (options?.checkSeatOptionsOnly === true) return;
+
+    if (gap?.status === "over" && Number(gap.shortage) > 0) {
+      setSeatReleaseGuestId(null);
+      setOpenFreeTablesGuestId(guestId);
+      return;
+    }
+
+    if (gap?.status === "under" && Number(gap.surplus) > 0) {
+      setOpenFreeTablesGuestId(null);
+      setSeatReleaseGuestId(guestId);
+      return;
+    }
+
+    setSeatReleaseGuestId((current) =>
+      String(current) === String(guestId) ? null : current
+    );
   } catch (err) {
     console.error("actualArrivedCount error:", err);
     alert("שגיאת רשת בעדכון מגיעים בפועל");
@@ -2295,6 +2342,7 @@ const forceSyncActualArrived = async (guestId: string) => {
 
   // סוגר את המודאל מיד אחרי אישור תפיסת הכיסאות
   setOpenFreeTablesGuestId(null);
+  setSeatReleaseGuestId(null);
 
   await saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
     syncSeatsToActual: true,
@@ -2717,7 +2765,6 @@ const eventLocation = resolveEventLocation(invitation, event);
     {canShowActualArrived && <col className="w-[145px]" />}
 
     <col className="w-[105px]" /> {/* מס׳ שולחן */}
-    {checkInEnabled && <col className="w-[130px]" />} {/* Check-in */}
 
     {canShowActualArrived && <col className="w-[150px]" />}
 
@@ -2784,12 +2831,6 @@ const eventLocation = resolveEventLocation(invitation, event);
               >
                 מס׳ שולחן{sortArrow("table")}
               </th>
-
-              {checkInEnabled && (
-                <th className="p-4 text-right text-xs font-black text-[#5F564D]">
-                  Check-in
-                </th>
-              )}
 
 {canShowActualArrived && (
                 <th className="p-4 text-right text-xs font-black text-[#5F564D]">
@@ -2913,9 +2954,12 @@ const eventLocation = resolveEventLocation(invitation, event);
                 {canShowActualArrived && (
   <td className="p-4">
     {(() => {
-      const expected = Number(g.arrivedCount || 0);
       const actual = Number(g.actualArrivedCount || 0);
-      const diff = actual - expected;
+      const allocated =
+        (seatingTables || []).length > 0
+          ? countAllocatedSeats(seatingTables, String(g._id))
+          : null;
+      const diff = allocated == null ? 0 : actual - allocated;
 
       return (
         <div className="flex flex-col gap-1">
@@ -2953,14 +2997,11 @@ const eventLocation = resolveEventLocation(invitation, event);
             </button>
           </div>
 
-          {actual > 0 && diff === 0 && (
-            <span className="text-xs font-black text-emerald-700">
-              תואם לסימון
-            </span>
-          )}
-
           {diff > 0 && (
   <div className="flex flex-col gap-1">
+    <span className="text-xs font-black text-[#6B451E]">
+      הגיעו {diff} יותר · חסרים {diff} מקומות
+    </span>
 
     <button
       type="button"
@@ -2997,7 +3038,7 @@ const eventLocation = resolveEventLocation(invitation, event);
 {diff < 0 && (
   <div className="flex flex-col gap-1">
     <span className="text-xs font-black text-amber-700">
-      חסרים {Math.abs(diff)} — יש לשחרר כיסאות עודפים
+      הגיעו {Math.abs(diff)} פחות מהכיסאות שהוקצו
     </span>
 
     <button
@@ -3046,12 +3087,6 @@ const eventLocation = resolveEventLocation(invitation, event);
     })()}
   </span>
 </td>
-
-                {checkInEnabled && (
-                  <td className="p-4">
-                    <CheckInStatusBadge guest={g} />
-                  </td>
-                )}
 
                 {canShowActualArrived && (
                   <td className="p-4">
@@ -3206,8 +3241,15 @@ const eventLocation = resolveEventLocation(invitation, event);
             0
         );
 
-        const expected = Number(guest?.arrivedCount || 0);
-        const diff = actual - expected;
+        const seatStatus = suggestion?.seatStatus || null;
+        const allocated = Number(
+          seatStatus?.allocated ??
+            countAllocatedSeats(seatingTables || [], String(openFreeTablesGuestId))
+        );
+        const shortage = Math.max(
+          0,
+          Number(seatStatus?.shortage ?? actual - allocated)
+        );
         const hasCurrentTableFit = currentTable?.canFit === true;
         const hasSuggestedTables = suggestedTables.length > 0;
         const hasAnyFreeOption = hasCurrentTableFit || hasSuggestedTables;
@@ -3251,12 +3293,14 @@ const eventLocation = resolveEventLocation(invitation, event);
                     </div>
 
                     <h3 className="mt-2 text-2xl font-black text-[#1E1B2E] sm:text-3xl">
-                      שולחנות פנויים למוזמן
+                      הגיעו {shortage} אורחים יותר ממספר המקומות שהוקצו
                     </h3>
 
-                    <p className="mt-2 text-sm font-bold text-[#7C746C]">
-                      {guest?.name || "מוזמן"} · הגיעו בפועל {actual} מתוך סימון {expected}
-                      {diff > 0 ? ` · חריגה של ${diff}` : ""}
+                    <p className="mt-2 text-sm font-black text-[#6B451E]">
+                      חסרים {shortage} מקומות
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#7C746C]">
+                      {guest?.name || "מוזמן"} · הגיעו בפועל {actual} · הוקצו {allocated} כיסאות
                     </p>
                   </div>
                 </div>
@@ -3444,6 +3488,65 @@ const eventLocation = resolveEventLocation(invitation, event);
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {seatReleaseGuestId && (() => {
+        const guest = guests.find(
+          (item) => String(item._id) === String(seatReleaseGuestId)
+        );
+        const suggestion = actualArrivedMoveSuggestions[seatReleaseGuestId];
+        const actual = Number(
+          actualArrivedDraftRef.current[seatReleaseGuestId] ??
+            guest?.actualArrivedCount ??
+            0
+        );
+        const allocated = Number(
+          suggestion?.seatStatus?.allocated ??
+            countAllocatedSeats(seatingTables || [], String(seatReleaseGuestId))
+        );
+        const surplus = Math.max(
+          0,
+          Number(suggestion?.seatStatus?.surplus ?? allocated - actual)
+        );
+
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex items-end justify-center bg-[#1E1B2E]/55 px-4 py-6 sm:items-center"
+            onClick={() => setSeatReleaseGuestId(null)}
+          >
+            <div
+              dir="rtl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-[28px] border border-[#E4C987] bg-[#FFF9EF] p-6 shadow-[0_30px_90px_rgba(30,27,46,0.32)]"
+            >
+              <h3 className="text-xl font-black text-[#1E1B2E]">
+                הגיעו {surplus} אורחים פחות מהכמות שהוקצתה
+              </h3>
+              <p className="mt-2 text-sm font-bold text-[#7C746C]">
+                {guest?.name || "מוזמן"} · הגיעו בפועל {actual} · הוקצו {allocated} כיסאות
+              </p>
+              <p className="mt-4 text-base font-black text-[#6B451E]">
+                שחרור {surplus} כיסאות?
+              </p>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => forceSyncActualArrived(seatReleaseGuestId)}
+                  className="rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white"
+                >
+                  שחרור כיסאות
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeatReleaseGuestId(null)}
+                  className="rounded-full border border-[#D9B46F]/50 bg-white px-5 py-3 text-sm font-black text-[#6B451E]"
+                >
+                  לא עכשיו
+                </button>
               </div>
             </div>
           </div>

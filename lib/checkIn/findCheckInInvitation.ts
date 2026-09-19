@@ -49,7 +49,7 @@ export async function findCheckInInvitation(
       const allowed =
         canManageInvitation(auth, invitation) ||
         (await isAssignedToInvitationEvent(auth, invitation));
-      if (allowed && (await invitationCheckInEnabled(invitation))) {
+      if (allowed) {
         return invitation;
       }
     }
@@ -117,13 +117,6 @@ export async function findCheckInInvitation(
   }
 
   return null;
-}
-
-async function invitationCheckInEnabled(invitation: any) {
-  const eventId = cleanId(invitation?.eventId);
-  if (!eventId) return false;
-  const event = await Event.findById(eventId).select("checkInEnabled").lean();
-  return Boolean((event as any)?.checkInEnabled);
 }
 
 async function invitationForAccessibleEvent(auth: any, eventId: string) {

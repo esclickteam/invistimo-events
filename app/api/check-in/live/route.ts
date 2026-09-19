@@ -6,7 +6,6 @@ import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { authHasCheckInPermission } from "@/lib/checkIn/permissions";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
-import { loadEventCheckInGate } from "@/lib/checkIn/eventGate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,14 +51,6 @@ export async function POST(req: NextRequest) {
     }
 
     const eventId = String(invitation.eventId);
-    const gate = await loadEventCheckInGate(eventId);
-    if (!gate.checkInEnabled) {
-      return NextResponse.json(
-        { success: false, error: "CHECKIN_DISABLED" },
-        { status: 403 }
-      );
-    }
-
     await Event.updateOne(
       { _id: invitation.eventId },
       { $set: { liveStatus: live ? "LIVE" : "REGULAR" } }

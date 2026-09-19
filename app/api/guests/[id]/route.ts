@@ -15,6 +15,7 @@ import {
   canAssignPhoneToGuest,
   GUEST_PHONE_LOCKED_ERROR,
 } from "@/lib/guestRecordQuota";
+import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 
 export const dynamic = "force-dynamic";
 
@@ -912,40 +913,62 @@ async function syncOrCheckActualArrivedToAllSeating({
 
   const guestLookup = await buildGuestLookupForSuggestions(invitation, guest);
 
-  const buildSeatStatus = () => ({
-    expected,
-    actual,
-    diff: actual - expected,
-    status:
-      actual > expected
-        ? "over"
-        : actual < expected
-          ? "under"
-          : actual === expected && actual > 0
-            ? "match"
-            : actual === 0 && expected > 0
-              ? "under"
-              : "none",
-  });
+  const buildSeatStatus = (allocated = 0) => {
+    const shortage = Math.max(0, actual - allocated);
+    const surplus = Math.max(0, allocated - actual);
+
+    return {
+      expected,
+      actual,
+      allocated,
+      shortage,
+      surplus,
+      diff: actual - allocated,
+      status:
+        shortage > 0
+          ? "over"
+          : surplus > 0
+            ? "under"
+            : "match",
+    };
+  };
+
+  const suggestionsForGap = (
+    tables: any[],
+    currentTable: any,
+    guestLookup: Map<string, any>,
+    allocated: number
+  ) => {
+    const shortage = Math.max(0, actual - allocated);
+    if (shortage <= 0) return [];
+
+    return buildSuggestedLiveTables({
+      tables,
+      guest,
+      guestId,
+      requiredSeats: shortage,
+      currentTable,
+      guestLookup,
+    });
+  };
 
   const handleTablesArray = async (ownerDoc: any, tables: any[]) => {
     const currentTable =
       (tables || []).find((table: any) =>
         isGuestCurrentLiveTable(table, guest, guestId)
       ) || null;
+    const allocated = countAllocatedSeats(tables, guestId);
 
     if (!currentTable) {
       return {
         tables: serializeLiveTables(tables),
-        seatStatus: buildSeatStatus(),
-        suggestedTables: buildSuggestedLiveTables({
+        seatStatus: buildSeatStatus(allocated),
+        suggestedTables: suggestionsForGap(
           tables,
-          guest,
-          guestId,
-          requiredSeats: actual,
-          currentTable: null,
+          null,
           guestLookup,
-        }),
+          allocated
+        ),
       };
     }
 
@@ -962,17 +985,13 @@ async function syncOrCheckActualArrivedToAllSeating({
           capacity: getLiveTableCapacity(currentTable),
           canFit: canFitCurrent,
         },
-
-        suggestedTables: buildSuggestedLiveTables({
-  tables,
-  guest,
-  guestId,
-  requiredSeats: actual,
-  currentTable,
-  guestLookup,
-}),
-
-        seatStatus: buildSeatStatus(),
+        suggestedTables: suggestionsForGap(
+          tables,
+          currentTable,
+          guestLookup,
+          allocated
+        ),
+        seatStatus: buildSeatStatus(allocated),
       };
     }
 
@@ -1004,15 +1023,13 @@ async function syncOrCheckActualArrivedToAllSeating({
               capacity: getLiveTableCapacity(currentTable),
               canFit: false,
             },
-            suggestedTables: buildSuggestedLiveTables({
+            suggestedTables: suggestionsForGap(
               tables,
-              guest,
-              guestId,
-              requiredSeats: actual,
               currentTable,
               guestLookup,
-            }),
-            seatStatus: buildSeatStatus(),
+              allocated
+            ),
+            seatStatus: buildSeatStatus(allocated),
           },
           { status: 409 }
         );
@@ -1037,7 +1054,7 @@ async function syncOrCheckActualArrivedToAllSeating({
 
     return {
       tables: serializeLiveTables(tables),
-      seatStatus: buildSeatStatus(),
+      seatStatus: buildSeatStatus(countAllocatedSeats(tables, guestId)),
       suggestedTables: [],
     };
   };
@@ -1083,6 +1100,7 @@ async function syncOrCheckActualArrivedToAllSeating({
       ) || null;
 
     if (mode === "check") {
+      const allocated = countAllocatedSeats(standaloneTables, guestId);
       const canFitCurrent = currentTable
         ? getLiveTableFreeSeats(currentTable, guestId) >= actual
         : false;
@@ -1098,17 +1116,13 @@ async function syncOrCheckActualArrivedToAllSeating({
               canFit: canFitCurrent,
             }
           : null,
-
-        suggestedTables: buildSuggestedLiveTables({
-  tables: standaloneTables,
-  guest,
-  guestId,
-  requiredSeats: actual,
-  currentTable,
-  guestLookup,
-}),
-
-        seatStatus: buildSeatStatus(),
+        suggestedTables: suggestionsForGap(
+          standaloneTables,
+          currentTable,
+          guestLookup,
+          allocated
+        ),
+        seatStatus: buildSeatStatus(allocated),
       };
     }
 
@@ -1141,15 +1155,15 @@ async function syncOrCheckActualArrivedToAllSeating({
               capacity: getLiveTableCapacity(currentTable),
               canFit: false,
             },
-            suggestedTables: buildSuggestedLiveTables({
-              tables: standaloneTables,
-              guest,
-              guestId,
-              requiredSeats: actual,
+            suggestedTables: suggestionsForGap(
+              standaloneTables,
               currentTable,
               guestLookup,
-            }),
-            seatStatus: buildSeatStatus(),
+              countAllocatedSeats(standaloneTables, guestId)
+            ),
+            seatStatus: buildSeatStatus(
+              countAllocatedSeats(standaloneTables, guestId)
+            ),
           },
           { status: 409 }
         );
@@ -1176,7 +1190,12 @@ async function syncOrCheckActualArrivedToAllSeating({
       tables: serializeLiveTables(
         freshTables.length ? freshTables : standaloneTables
       ),
-      seatStatus: buildSeatStatus(),
+      seatStatus: buildSeatStatus(
+        countAllocatedSeats(
+          freshTables.length ? freshTables : standaloneTables,
+          guestId
+        )
+      ),
       suggestedTables: [],
     };
   }
@@ -1597,15 +1616,17 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         data.syncSeatsToActual === true ||
         data.releaseSeatsToActual === true;
 
-      const shouldCheckSeatOptionsOnly =
-        data.checkSeatOptionsOnly === true;
-
-      if (shouldSyncSeatsToActual || shouldCheckSeatOptionsOnly) {
-        const seatingResult = await syncOrCheckActualArrivedToAllSeating({
+      let seatingResult: any = null;
+      try {
+        seatingResult = await syncOrCheckActualArrivedToAllSeating({
           invitation,
           guest,
-          mode: shouldCheckSeatOptionsOnly ? "check" : "sync",
+          mode: shouldSyncSeatsToActual ? "sync" : "check",
         });
+      } catch (seatingError) {
+        console.error("actualArrived seating check failed", seatingError);
+        seatingResult = null;
+      }
 
         if (seatingResult instanceof NextResponse) {
           return seatingResult;
@@ -1626,7 +1647,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         if (seatingResult?.currentTable) {
           (guest as any).__currentTable = seatingResult.currentTable;
         }
-      }
     }
 
     const callRoundsTouched = Array.isArray(data.callRounds);
