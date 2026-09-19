@@ -141,7 +141,7 @@ export default function DashboardSidebar({
   rsvpSiteMode,
   guestExperienceType,
   eventId = "",
-  checkInEnabled = false;
+  checkInEnabled = false,
   canOpenEventManagement = false,
   canOpenTransportationManagement = false,
   canOpenWeddingChallenges = false,
