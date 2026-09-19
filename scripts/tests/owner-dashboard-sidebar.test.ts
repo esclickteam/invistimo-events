@@ -77,7 +77,7 @@ test("dashboard stats stay on one wide desktop row and hide the check-in banner"
   assert.doesNotMatch(page, /userCanManageCheckIn/);
   assert.doesNotMatch(page, /checkInToggleBusy/);
   assert.match(page, /id="rsvp-stats"/);
-  assert.match(page, /xl:grid-cols-7/);
+  assert.match(page, /2xl:grid-cols-7/);
   assert.match(page, /lg:grid-cols-4/);
   assert.match(page, /md:grid-cols-3/);
   assert.match(page, /grid-cols-2/);
