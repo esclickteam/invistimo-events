@@ -13,7 +13,7 @@ import {
 } from "../../lib/checkIn/token";
 import {
   buildReminderSmsTemplateForGuest,
-  REMINDER_WITH_CHECKIN_SERVER_TEMPLATE,
+  REMINDER_WITH_TABLE_SERVER_TEMPLATE,
 } from "../../lib/messages/resolveReminderSmsTemplate";
 import {
   normalizeGuestRsvp,
@@ -85,7 +85,7 @@ test("QR payload is opaque random token only", () => {
   );
 });
 
-test("reminder template includes QR only when check-in enabled", () => {
+test("reminder template stays the original wording even when check-in is on", () => {
   const withCheckIn = buildReminderSmsTemplateForGuest({
     body: "",
     event: { checkInEnabled: true },
@@ -95,9 +95,9 @@ test("reminder template includes QR only when check-in enabled", () => {
       checkInToken: "abcdefghijklmnopqrstuvwx",
     },
   });
-  assert.equal(withCheckIn.includeCheckIn, true);
-  assert.match(withCheckIn.template, /checkInQrLink/);
-  assert.equal(withCheckIn.template, REMINDER_WITH_CHECKIN_SERVER_TEMPLATE);
+  assert.equal(withCheckIn.template, REMINDER_WITH_TABLE_SERVER_TEMPLATE);
+  assert.doesNotMatch(withCheckIn.template, /checkInQrLink/);
+  assert.doesNotMatch(withCheckIn.template, /מחכים לכם/);
 
   const without = buildReminderSmsTemplateForGuest({
     body: "",
@@ -108,7 +108,7 @@ test("reminder template includes QR only when check-in enabled", () => {
       checkInToken: "abcdefghijklmnopqrstuvwx",
     },
   });
-  assert.equal(without.includeCheckIn, false);
+  assert.equal(without.template, REMINDER_WITH_TABLE_SERVER_TEMPLATE);
   assert.doesNotMatch(without.template, /checkInQrLink/);
 });
 

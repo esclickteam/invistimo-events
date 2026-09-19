@@ -92,7 +92,12 @@ test("dashboard uses five RSVP cards then three equal content cards", () => {
   assert.match(page, /צפו בקישור/);
   assert.match(page, /לא צפו בקישור/);
   assert.match(page, /lg:grid-cols-3/);
-  assert.match(page, /min-h-\[380px\]/);
+  assert.match(page, /h-\[400px\]/);
+  assert.doesNotMatch(page, /min-h-\[380px\]/);
+  assert.doesNotMatch(page, /h-full min-h-/);
+  assert.match(page, /overflow-y-auto/);
+  assert.match(page, /\.sort\(\(a, b\) => b\.timestamp - a\.timestamp\)/);
+  assert.doesNotMatch(page, /\.slice\(0, 20\)/);
   assert.doesNotMatch(page, /<GoldenStatusBarsCard/);
   assert.doesNotMatch(page, /<GoldenDonutCard/);
   assert.doesNotMatch(page, /max-h-\[170px\]/);
