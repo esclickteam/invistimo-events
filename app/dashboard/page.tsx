@@ -33,7 +33,6 @@ import {
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { summarizeCheckIn } from "@/lib/checkIn/status";
-import { userCanManageCheckIn } from "@/lib/checkIn/permissions";
 
 type EventModel = {
   title?: string;
@@ -517,7 +516,6 @@ const canViewActualArrived =
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
   const [checkInEnabled, setCheckInEnabled] = useState(false);
-  const [checkInToggleBusy, setCheckInToggleBusy] = useState(false);
 
   const [event, setEvent] = useState<EventModel | null>(null);
   const [openGroupModal, setOpenGroupModal] = useState(false);
@@ -2456,6 +2454,77 @@ const eventLocation = resolveEventLocation(invitation, event);
         />
       </section>
 
+      <section
+        id="rsvp-stats"
+        className="mb-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4 2xl:grid-cols-7"
+      >
+        <GoldenStatCard
+          title="סה״כ מוזמנים"
+          value={stats.totalGuests}
+          icon="👥"
+          tone="bronze"
+          description="כלל המוזמנים"
+        />
+
+        <GoldenStatCard
+          title="מגיע"
+          value={stats.comingGuests}
+          icon="✓"
+          tone="green"
+          description="אישרו הגעה"
+        />
+
+        <GoldenStatCard
+          title="לא מגיע"
+          value={stats.notComing}
+          icon="×"
+          tone="rose"
+          description="סימנו שלא מגיעים"
+        />
+
+        <GoldenStatCard
+          title="מתלבטים"
+          value={stats.maybe}
+          icon="?"
+          tone="gold"
+          description="ענו שאינם בטוחים"
+        />
+
+        <GoldenStatCard
+          title="לא ענו"
+          value={stats.noResponse}
+          icon="⌛"
+          tone="bronze"
+          description="טרם השיבו כלל"
+        />
+
+        <GoldenStatCard
+          title="פתחו קישור"
+          value={stats.openedLinks}
+          icon="◉"
+          tone="green"
+          description="פתיחת הזמנה אישית"
+        />
+
+        <GoldenStatCard
+          title="לא פתחו קישור"
+          value={stats.notOpenedLinks}
+          icon="◌"
+          tone="bronze"
+          description="עדיין לא נפתח"
+        />
+
+        {canShowActualArrived && (
+          <GoldenStatCard
+            title="מגיעים בפועל"
+            value={stats.actualArrivedGuests}
+            icon="●"
+            tone="blue"
+            description="נכנסו באירוע"
+          />
+        )}
+      </section>
+
       {/* ===================== MAIN DASHBOARD LAYOUT ===================== */}
       <section
         className="
@@ -2518,77 +2587,6 @@ const eventLocation = resolveEventLocation(invitation, event);
             )}
           </div>
 
-          
-
-          {/* אחוזים / סטטיסטיקות */}
-          <section id="rsvp-stats" className="mt-5 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <GoldenStatCard
-              title="סה״כ מוזמנים"
-              value={stats.totalGuests}
-              icon="👥"
-              tone="bronze"
-              description="כלל המוזמנים"
-            />
-
-            <GoldenStatCard
-              title="מגיע"
-              value={stats.comingGuests}
-              icon="✓"
-              tone="green"
-              description="אישרו הגעה"
-            />
-
-            <GoldenStatCard
-              title="לא מגיע"
-              value={stats.notComing}
-              icon="×"
-              tone="rose"
-              description="סימנו שלא מגיעים"
-            />
-
-            <GoldenStatCard
-              title="מתלבטים"
-              value={stats.maybe}
-              icon="?"
-              tone="gold"
-              description="ענו שאינם בטוחים"
-            />
-
-            <GoldenStatCard
-              title="לא ענו"
-              value={stats.noResponse}
-              icon="⌛"
-              tone="bronze"
-              description="טרם השיבו כלל"
-            />
-
-            <GoldenStatCard
-              title="פתחו קישור"
-              value={stats.openedLinks}
-              icon="◉"
-              tone="green"
-              description="פתיחת הזמנה אישית"
-            />
-
-            <GoldenStatCard
-              title="לא פתחו קישור"
-              value={stats.notOpenedLinks}
-              icon="◌"
-              tone="bronze"
-              description="עדיין לא נפתח"
-            />
-
-            {canShowActualArrived && (
-              <GoldenStatCard
-                title="מגיעים בפועל"
-                value={stats.actualArrivedGuests}
-                icon="●"
-                tone="blue"
-                description="נכנסו באירוע"
-              />
-            )}
-          </section>
-
           {checkInEnabled && (
             <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -2630,64 +2628,6 @@ const eventLocation = resolveEventLocation(invitation, event);
                   </p>
                 </div>
               </div>
-            </section>
-          )}
-
-          {userCanManageCheckIn(user) && (
-            <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#EADBC4] bg-white/80 px-4 py-3">
-              <div>
-                <p className="text-sm font-black text-[#3F3328]">Invistimo Check-in</p>
-                <p className="text-xs font-bold text-[#8A7A68]">
-                  הפעלה לכל אירוע בנפרד — כבוי כברירת מחדל
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={checkInToggleBusy || isDemo}
-                onClick={async () => {
-                  const eventId =
-                    eventIdFromUrl ||
-                    invitation?.eventId ||
-                    invitation?.event ||
-                    invitation?.event_id ||
-                    "";
-                  if (!eventId) return;
-                  setCheckInToggleBusy(true);
-                  try {
-                    const next = !checkInEnabled;
-                    const res = await fetch(
-                      `/api/events/${eventId}/check-in-settings`,
-                      {
-                        method: "PATCH",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ checkInEnabled: next }),
-                      }
-                    );
-                    const data = await res.json().catch(() => ({}));
-                    if (res.ok) {
-                      setCheckInEnabled(Boolean(data.checkInEnabled));
-                      if (next) {
-                        await fetch("/api/check-in/ensure-tokens", {
-                          method: "POST",
-                          credentials: "include",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ invitationId }),
-                        });
-                      }
-                    }
-                  } finally {
-                    setCheckInToggleBusy(false);
-                  }
-                }}
-                className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                  checkInEnabled
-                    ? "bg-[#2F6B4F] text-white"
-                    : "border border-[#E3D6C3] bg-[#F7F3EC] text-[#8A7A68]"
-                }`}
-              >
-                {checkInEnabled ? "מופעל" : "כבוי"}
-              </button>
             </section>
           )}
 
@@ -4208,16 +4148,18 @@ function GoldenStatCard({
   return (
     <div
       className={`
+        h-full
         min-h-[132px]
+        min-w-0
         rounded-[26px]
         border
         ${s.wrap}
-        p-5
+        p-4
         shadow-[0_14px_35px_rgba(80,55,32,0.055)]
         flex
         items-center
         justify-between
-        gap-4
+        gap-3
       `}
     >
       <div>
