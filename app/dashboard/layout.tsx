@@ -232,20 +232,27 @@ function DashboardLayoutInner({
   };
 
   const showSidebar = !isSeatingPage && !gameOnly;
+  const contentInset = showSidebar
+    ? sidebarCollapsed
+      ? "lg:pr-[72px]"
+      : "lg:pr-[240px]"
+    : "";
 
-  return (
-    <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      <DashboardHeader
-        onOpenMenu={() => setMenuOpen(true)}
-        invitation={invitation}
-        isDemo={isDemo}
-        homeHref={dashboardHome}
-        gameOnly={gameOnly}
-        eventId={eventIdForMenu}
-        canOpenWeddingChallenges={canOpenWeddingChallenges}
-      />
+  const header = (
+    <DashboardHeader
+      onOpenMenu={() => setMenuOpen(true)}
+      invitation={invitation}
+      isDemo={isDemo}
+      homeHref={dashboardHome}
+      gameOnly={gameOnly}
+      eventId={eventIdForMenu}
+      canOpenWeddingChallenges={canOpenWeddingChallenges}
+    />
+  );
 
-      {showSidebar && (
+  if (showSidebar) {
+    return (
+      <div className="h-[100vh] overflow-hidden bg-[#faf7f3]" dir="rtl">
         <DashboardSidebar
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -269,43 +276,44 @@ function DashboardLayoutInner({
           gameOnly={gameOnly}
           isDemo={isDemo}
         />
-      )}
 
-      {/* Legacy mobile menu kept for demo / game-only paths without sidebar */}
-      {!showSidebar && (
-        <DashboardMobileMenu
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          invitationId={invitation?._id || resolvedInvitationId}
-          invitationShareId={invitation?.shareId}
-          rsvpSiteMode={
-            invitation?.invitationSettings?.rsvpSiteMode ??
-            invitation?.rsvpSiteMode
-          }
-          guestExperienceType={
-            invitation?.invitationSettings?.guestExperienceType ??
-            invitation?.guestExperienceType
-          }
-          eventId={eventIdForMenu}
-          canOpenEventManagement={canOpenEventManagement}
-          canOpenTransportationManagement={canOpenTransportationManagement}
-          canOpenWeddingChallenges={canOpenWeddingChallenges}
-          gameOnly={gameOnly}
-          isDemo={isDemo}
-        />
-      )}
+        <div
+          className={`flex h-full min-h-0 flex-col transition-[padding] duration-200 ${contentInset}`}
+        >
+          {header}
+          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        </div>
+      </div>
+    );
+  }
 
-      <main
-        className={`pt-16 transition-[padding] duration-200 ${
-          showSidebar
-            ? sidebarCollapsed
-              ? "lg:pr-[72px]"
-              : "lg:pr-[240px]"
-            : ""
-        }`}
-      >
-        {children}
-      </main>
+  return (
+    <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
+      {header}
+
+      {/* Legacy mobile menu kept for seating / game-only paths without sidebar */}
+      <DashboardMobileMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        invitationId={invitation?._id || resolvedInvitationId}
+        invitationShareId={invitation?.shareId}
+        rsvpSiteMode={
+          invitation?.invitationSettings?.rsvpSiteMode ??
+          invitation?.rsvpSiteMode
+        }
+        guestExperienceType={
+          invitation?.invitationSettings?.guestExperienceType ??
+          invitation?.guestExperienceType
+        }
+        eventId={eventIdForMenu}
+        canOpenEventManagement={canOpenEventManagement}
+        canOpenTransportationManagement={canOpenTransportationManagement}
+        canOpenWeddingChallenges={canOpenWeddingChallenges}
+        gameOnly={gameOnly}
+        isDemo={isDemo}
+      />
+
+      <main className="pt-16">{children}</main>
     </div>
   );
 }

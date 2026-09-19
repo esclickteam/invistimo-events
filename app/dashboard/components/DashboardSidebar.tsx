@@ -437,9 +437,9 @@ export default function DashboardSidebar({
   };
 
   const nav = (
-    <nav className="flex h-full flex-col">
+    <nav className="flex h-full min-h-0 flex-col">
       <div
-        className={`flex items-center border-b border-[#EADBC4] px-3 py-4 ${
+        className={`flex shrink-0 items-center border-b border-[#EADBC4] px-3 py-4 ${
           collapsed ? "justify-center" : "justify-between"
         }`}
       >
@@ -469,7 +469,7 @@ export default function DashboardSidebar({
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-2 py-3">
         <ul className="space-y-1">
           {mainItems.map((item) => (
             <NavButton
@@ -510,11 +510,11 @@ export default function DashboardSidebar({
     <>
       <aside
         className={`
-          fixed bottom-0 top-16 z-30 hidden border-l border-[#EADBC4] bg-[#FFFDF8]
+          fixed top-0 right-0 z-30 hidden h-[100vh] flex-col overflow-hidden rounded-none
+          border-l border-[#EADBC4] bg-[#FFFDF8]
           transition-[width] duration-200 lg:flex
           ${collapsed ? "w-[72px]" : "w-[240px]"}
         `}
-        style={{ right: 0 }}
         aria-label="תפריט בעל האירוע"
       >
         {nav}
