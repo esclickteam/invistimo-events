@@ -39,7 +39,11 @@ function serializeGuest(guest: any) {
   };
 }
 
-async function resolveContext(auth: any, invitationId?: string | null) {
+async function resolveContext(
+  auth: any,
+  invitationId?: string | null,
+  eventId?: string | null
+) {
   const user = await User.findById(auth.userId)
     .select("role staffType accessModules permissions features planLimits")
     .lean();
@@ -48,7 +52,7 @@ async function resolveContext(auth: any, invitationId?: string | null) {
     return { error: NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 }) };
   }
 
-  const invitation = await findCheckInInvitation(auth, invitationId);
+  const invitation = await findCheckInInvitation(auth, invitationId, eventId);
   if (!invitation) {
     return { error: NextResponse.json({ success: false, error: "NO_INVITATION" }, { status: 404 }) };
   }
@@ -86,7 +90,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const invitationId = body.invitationId ? String(body.invitationId) : null;
-    const ctx = await resolveContext(auth, invitationId);
+    const requestedEventId = body.eventId ? String(body.eventId) : null;
+    const ctx = await resolveContext(auth, invitationId, requestedEventId);
     if ("error" in ctx && ctx.error) return ctx.error;
 
     const { invitation, eventId } = ctx as any;
@@ -138,8 +143,9 @@ export async function GET(req: NextRequest) {
     }
 
     const invitationId = req.nextUrl.searchParams.get("invitationId");
+    const requestedEventId = req.nextUrl.searchParams.get("eventId");
     const q = String(req.nextUrl.searchParams.get("q") || "").trim();
-    const ctx = await resolveContext(auth, invitationId);
+    const ctx = await resolveContext(auth, invitationId, requestedEventId);
     if ("error" in ctx && ctx.error) return ctx.error;
 
     const { invitation, eventId } = ctx as any;
