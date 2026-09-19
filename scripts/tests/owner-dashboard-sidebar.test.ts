@@ -69,7 +69,7 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.match(layout, /invitationShareId=\{invitation\?\.shareId\}/);
 });
 
-test("dashboard stats stay on one wide desktop row and hide the check-in banner", () => {
+test("dashboard uses five RSVP cards then three equal content cards", () => {
   const page = read("app/dashboard/page.tsx");
 
   assert.doesNotMatch(page, /Invistimo Check-in/);
@@ -77,15 +77,23 @@ test("dashboard stats stay on one wide desktop row and hide the check-in banner"
   assert.doesNotMatch(page, /userCanManageCheckIn/);
   assert.doesNotMatch(page, /checkInToggleBusy/);
   assert.match(page, /id="rsvp-stats"/);
-  assert.match(page, /2xl:grid-cols-7/);
-  assert.match(page, /lg:grid-cols-4/);
-  assert.match(page, /md:grid-cols-3/);
-  assert.match(page, /grid-cols-2/);
-  assert.match(page, /title="פתחו קישור"/);
-  assert.match(page, /title="לא פתחו קישור"/);
+  assert.match(page, /lg:grid-cols-5/);
+  assert.match(page, /title="סה״כ מוזמנים"/);
+  assert.match(page, /title="מגיעים"/);
+  assert.match(page, /title="לא מגיעים"/);
+  assert.match(page, /title="מתלבטים"/);
+  assert.match(page, /title="לא ענו"/);
+  assert.doesNotMatch(page, /title="פתחו קישור"/);
+  assert.doesNotMatch(page, /title="לא פתחו קישור"/);
+  assert.doesNotMatch(page, /2xl:grid-cols-7/);
   assert.match(page, /function GoldenStatCard/);
+  assert.match(page, /function GoldenLinkViewsCard/);
+  assert.match(page, /צפייה בקישור האישי/);
+  assert.match(page, /צפו בקישור/);
+  assert.match(page, /לא צפו בקישור/);
+  assert.match(page, /lg:grid-cols-3/);
+  assert.match(page, /min-h-\[380px\]/);
   assert.doesNotMatch(page, /<GoldenStatusBarsCard/);
   assert.doesNotMatch(page, /<GoldenDonutCard/);
-  assert.match(page, /max-w-\[340px\]/);
-  assert.match(page, /max-h-\[170px\]/);
+  assert.doesNotMatch(page, /max-h-\[170px\]/);
 });
