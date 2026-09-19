@@ -84,4 +84,6 @@ test("dashboard stats stay on one wide desktop row and hide the check-in banner"
   assert.match(page, /title="פתחו קישור"/);
   assert.match(page, /title="לא פתחו קישור"/);
   assert.match(page, /function GoldenStatCard/);
+  assert.doesNotMatch(page, /<GoldenStatusBarsCard/);
+  assert.doesNotMatch(page, /<GoldenDonutCard/);
 });

@@ -2525,132 +2525,78 @@ const eventLocation = resolveEventLocation(invitation, event);
         )}
       </section>
 
-      {/* ===================== MAIN DASHBOARD LAYOUT ===================== */}
-      <section
-        className="
-          grid
-          grid-cols-1
-          xl:grid-cols-[340px_minmax(0,1fr)]
-          gap-5
-          items-start
-          mb-7
-        "
-      >
-        {/* צד ימין: פרטי אירוע + פעילות אחרונה */}
-        <aside className="grid grid-cols-1 gap-5 min-w-0">
-          <GoldenEventDetailsCard
-            title={eventTitle}
-            date={formatEventDate(eventDate)}
-            time={eventTime}
-            location={eventLocation}
-            onOpen={() => {
-              if (!invitation) return;
+      <section className="mb-7 grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-stretch">
+        <GoldenEventDetailsCard
+          title={eventTitle}
+          date={formatEventDate(eventDate)}
+          time={eventTime}
+          location={eventLocation}
+          onOpen={() => {
+            if (!invitation) return;
 
-              if (isDemo) {
-                handleDemoBlockedAction();
-                return;
-              }
+            if (isDemo) {
+              handleDemoBlockedAction();
+              return;
+            }
 
-              router.push(`/dashboard/invitations/${invitationId}/edit`);
-            }}
-            onOpenRsvpSchedule={() => {
-              if (isDemo) {
-                handleDemoBlockedAction();
-                return;
-              }
+            router.push(`/dashboard/invitations/${invitationId}/edit`);
+          }}
+          onOpenRsvpSchedule={() => {
+            if (isDemo) {
+              handleDemoBlockedAction();
+              return;
+            }
 
-              setOpenRsvpSchedule(true);
-            }}
-          />
+            setOpenRsvpSchedule(true);
+          }}
+        />
 
-          <GoldenRecentActivityCard logs={recentActivityLogs} />
-        </aside>
-
-        {/* צד שמאל: כפתורים, אחוזים, גרפים */}
-        <section className="min-w-0">
-          {/* תיוגים קיימים מהשרת */}
-          <div className="flex flex-wrap gap-3">
-            {user?.includeCalls ? (
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#D9B46F]/40 bg-white/80 px-4 py-2 text-sm font-black text-[#8B5E34] shadow-sm">
-                ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-black text-amber-700 shadow-sm">
-                ⚠️ ללא שירות שיחות טלפוניים
-              </div>
-            )}
-
-            {user?.includeCreditGifts && (
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm">
-                💳 כולל מתנות באשראי לאורחים
-              </div>
-            )}
-          </div>
-
-          {checkInEnabled && (
-            <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-black text-[#3F3328]">כניסה לאירוע</h3>
-                  <p className="text-xs font-bold text-[#8A7A68]">מתעדכן בזמן אמת</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard/check-in")}
-                  className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
-                >
-                  פתיחת סריקה
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-                  <p className="text-[11px] font-bold text-[#8A7A68]">אישרו הגעה</p>
-                  <p className="mt-1 text-2xl font-black text-[#241A14]">
-                    {stats.checkIn.confirmed}
-                  </p>
-                </div>
-                <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-[11px] font-bold text-emerald-700">כבר נכנסו</p>
-                  <p className="mt-1 text-2xl font-black text-emerald-800">
-                    {stats.checkIn.checkedIn}
-                  </p>
-                </div>
-                <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-[11px] font-bold text-amber-700">טרם הגיעו</p>
-                  <p className="mt-1 text-2xl font-black text-amber-800">
-                    {stats.checkIn.remaining}
-                  </p>
-                </div>
-                <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-                  <p className="text-[11px] font-bold text-[#8A7A68]">הגיעו חלקית</p>
-                  <p className="mt-1 text-2xl font-black text-[#241A14]">
-                    {stats.checkIn.partiallyArrived}
-                  </p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* גרפים */}
-          <section className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-            <GoldenStatusBarsCard
-              coming={rsvpVisualStats.coming}
-              notComing={rsvpVisualStats.notComing}
-              maybe={rsvpVisualStats.maybe}
-              pending={rsvpVisualStats.pending}
-              total={rsvpVisualStats.total}
-            />
-
-            <GoldenDonutCard
-              coming={rsvpVisualStats.coming}
-              notComing={rsvpVisualStats.notComing}
-              maybe={rsvpVisualStats.maybe}
-              pending={rsvpVisualStats.pending}
-              total={rsvpVisualStats.total}
-            />
-          </section>
-        </section>
+        <GoldenRecentActivityCard logs={recentActivityLogs} />
       </section>
+
+      {checkInEnabled && (
+        <section className="mb-7 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-[#3F3328]">כניסה לאירוע</h3>
+              <p className="text-xs font-bold text-[#8A7A68]">מתעדכן בזמן אמת</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/check-in")}
+              className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
+            >
+              פתיחת סריקה
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
+              <p className="text-[11px] font-bold text-[#8A7A68]">אישרו הגעה</p>
+              <p className="mt-1 text-2xl font-black text-[#241A14]">
+                {stats.checkIn.confirmed}
+              </p>
+            </div>
+            <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-[11px] font-bold text-emerald-700">כבר נכנסו</p>
+              <p className="mt-1 text-2xl font-black text-emerald-800">
+                {stats.checkIn.checkedIn}
+              </p>
+            </div>
+            <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[11px] font-bold text-amber-700">טרם הגיעו</p>
+              <p className="mt-1 text-2xl font-black text-amber-800">
+                {stats.checkIn.remaining}
+              </p>
+            </div>
+            <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
+              <p className="text-[11px] font-bold text-[#8A7A68]">הגיעו חלקית</p>
+              <p className="mt-1 text-2xl font-black text-[#241A14]">
+                {stats.checkIn.partiallyArrived}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ===================== CONTROLS ===================== */}
       <section id="guests" className="mb-5">
@@ -4981,7 +4927,7 @@ function GoldenEventDetailsCard({
   onOpenRsvpSchedule: () => void;
 }) {
   return (
-    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="flex h-full min-h-[320px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פרטי האירוע
@@ -4989,7 +4935,7 @@ function GoldenEventDetailsCard({
         <span className="text-2xl text-[#B8844F]">✦</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex-1 space-y-3">
         <GoldenDetailRow icon="✦" label="שם האירוע" value={title} />
         <GoldenDetailRow icon="▦" label="תאריך" value={date} />
         <GoldenDetailRow icon="◷" label="שעה" value={time} />
@@ -5054,7 +5000,7 @@ function GoldenRecentActivityCard({
   }[];
 }) {
   return (
-    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div className="flex h-full min-h-[320px] flex-col rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פעילות אחרונה
@@ -5066,7 +5012,8 @@ function GoldenRecentActivityCard({
 
       <div
   className="
-    max-h-[170px]
+    min-h-0
+    flex-1
     overflow-y-auto
     pr-1
     space-y-2
