@@ -11,6 +11,7 @@ import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
 import {
   buildReminderSmsTemplateForGuest,
 } from "@/lib/messages/resolveReminderSmsTemplate";
+import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 import {
   getInvitationEventId,
   getReminderSmsBody,
@@ -127,12 +128,20 @@ function normalizePhone(phoneRaw: any) {
   return phone;
 }
 
-async function buildNavigationLink(invitation: any) {
-  const shareId = String(invitation?.shareId || "").trim();
+async function buildNavigationLink(
+  invitation: any,
+  guest?: any,
+  event?: any
+) {
+  const url = buildReminderNavigationUrl({
+    shareId: invitation?.shareId,
+    guestToken: guest?.token,
+    checkInEnabled: event?.checkInEnabled,
+  });
 
-  if (!shareId) return "";
+  if (!url) return "";
 
-  return shortenUrl(`https://www.invistimo.com/e/${shareId}`);
+  return shortenUrl(url);
 }
 
 function buildGuestsQuery({
@@ -643,7 +652,7 @@ export async function sendScheduledSms() {
       const reminderEvent =
         isReminderSms && reminderEventId
           ? await Event.findById(reminderEventId)
-              .select("hideTableNumberForAll hiddenTableIds")
+              .select("hideTableNumberForAll hiddenTableIds checkInEnabled")
               .lean()
           : null;
 
@@ -699,8 +708,6 @@ export async function sendScheduledSms() {
         continue;
       }
 
-      const navigationLink = await buildNavigationLink(invitation);
-
       const guestsQuery = buildGuestsQuery({
         schedule: msg,
         invitationId: msg.invitationId,
@@ -726,6 +733,12 @@ export async function sendScheduledSms() {
           isReminderSms
             ? ((await InvitationGuest.findById(guest._id).lean()) as any) || guest
             : guest;
+
+        const navigationLink = await buildNavigationLink(
+          invitation,
+          liveGuest,
+          reminderEvent
+        );
 
         const text = await buildSmsText({
           schedule: msg,
@@ -950,7 +963,10 @@ export async function sendScheduledWhatsapp() {
         continue;
       }
 
-      const navigationLink = await buildNavigationLink(invitation);
+      const whatsappEventId = getInvitationEventId(invitation);
+      const whatsappEvent = whatsappEventId
+        ? await Event.findById(whatsappEventId).select("checkInEnabled").lean()
+        : null;
 
       const guestsQuery = buildGuestsQuery({
         schedule: msg,
@@ -980,6 +996,12 @@ const personalUrl = buildGuestInviteUrl({
   token: guest.token,
   rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
 });
+
+        const navigationLink = await buildNavigationLink(
+          invitation,
+          guest,
+          whatsappEvent
+        );
 
         const replacements = {
           name: guest.name || "",

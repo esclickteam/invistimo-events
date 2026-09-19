@@ -14,6 +14,7 @@ import {
   REMINDER_WITH_TABLE_SERVER_TEMPLATE,
   buildReminderSmsTemplateForGuest,
 } from "@/lib/messages/resolveReminderSmsTemplate";
+import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 
 /* ================= TYPES ================= */
 
@@ -21,6 +22,7 @@ type Guest = {
   _id: string;
   name: string;
   phone: string;
+  token?: string;
   rsvp?: "yes" | "no" | "pending";
   tableId?: string | null;
   tableName?: string;
@@ -69,6 +71,7 @@ export default function ReminderTab({
   const [message, setMessage] = useState(REMINDER_WITH_TABLE_SERVER_TEMPLATE);
 
   const [hideTableNumberForAll, setHideTableNumberForAll] = useState(false);
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [hideSelectedTables, setHideSelectedTables] = useState(false);
   const [hiddenTableIds, setHiddenTableIds] = useState<string[]>([]);
   const [tables, setTables] = useState<SeatingTableOption[]>([]);
@@ -146,6 +149,7 @@ export default function ReminderTab({
         }
 
         setHideTableNumberForAll(Boolean(event?.hideTableNumberForAll));
+        setCheckInEnabled(Boolean(event?.checkInEnabled));
         const loadedHidden = Array.isArray(event?.hiddenTableIds)
           ? event.hiddenTableIds.map((id: unknown) => String(id || "")).filter(Boolean)
           : [];
@@ -330,9 +334,11 @@ export default function ReminderTab({
       invitationTitle,
       eventDate,
       eventLocation,
-      navigationLink: invitation?.shareId
-  ? `https://www.invistimo.com/e/${invitation.shareId}`
-  : "",
+      navigationLink: buildReminderNavigationUrl({
+        shareId: invitation?.shareId,
+        guestToken: g.token,
+        checkInEnabled,
+      }),
     });
   };
 

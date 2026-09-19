@@ -77,7 +77,7 @@ export default function CheckInPassView({
               href={pass.detailsUrl}
               className="mt-3 inline-flex w-full items-center justify-center rounded-[18px] border border-[#E8C57A]/50 px-5 py-4 text-sm font-black text-[#FFFDF8]"
             >
-              פרטי האירוע
+              לכל פרטי האירוע
             </Link>
           ) : null}
 
@@ -101,26 +101,28 @@ export default function CheckInPassView({
       dir="rtl"
     >
       <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center">
-        <div className="w-full rounded-[32px] border border-[#EADBC4] bg-[#FFFDF8] px-6 py-8 shadow-sm">
-          <p className="text-center text-[11px] font-black tracking-[0.18em] text-[#B88A2D]">
-            {pass.eventTitle}
-          </p>
-          <h1 className="mt-4 text-center text-3xl font-black leading-tight">
-            {pass.guestName}
-          </h1>
-          <div className="mt-8 flex justify-center">
+        <div className="flex w-full flex-col items-center">
+          <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={pass.qrSrc}
               alt="QR כניסה אישי"
-              width={280}
-              height={280}
-              className="rounded-[24px] border border-[#EADBC4] bg-white p-4"
+              width={300}
+              height={300}
+              className="rounded-[28px] border border-[#EADBC4] bg-white p-5 shadow-sm"
             />
           </div>
-          <p className="mt-6 text-center text-base font-black text-[#3F3328]">
+          <p className="mt-8 text-center text-lg font-black text-[#3F3328]">
             הציגו את הקוד בכניסה לאירוע
           </p>
+          {pass.detailsUrl ? (
+            <Link
+              href={pass.detailsUrl}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-[18px] bg-[#241A14] px-5 py-4 text-sm font-black text-[#FFFDF8]"
+            >
+              לכל פרטי האירוע
+            </Link>
+          ) : null}
           {view.showShowQrAgain ? (
             <button
               type="button"
