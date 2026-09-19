@@ -37,7 +37,12 @@ export async function GET(req: NextRequest) {
     }
 
     const invitationId = req.nextUrl.searchParams.get("invitationId");
-    const invitation = await findCheckInInvitation(auth, invitationId);
+    const eventIdQuery = req.nextUrl.searchParams.get("eventId");
+    const invitation = await findCheckInInvitation(
+      auth,
+      invitationId,
+      eventIdQuery
+    );
     if (!invitation) {
       return NextResponse.json(
         { success: false, error: "NO_INVITATION" },

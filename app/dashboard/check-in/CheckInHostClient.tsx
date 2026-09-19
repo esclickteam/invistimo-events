@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, Check, Loader2, QrCode, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -45,7 +46,10 @@ function tableText(guest: GuestPreview) {
 
 export default function CheckInHostClient({ demo = false }: Props) {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const canScan = demo || userCanScanCheckIn(user as any);
+  const invitationFromUrl = demo ? "" : searchParams.get("invitationId") || "";
+  const eventFromUrl = demo ? "" : searchParams.get("eventId") || "";
 
   const [checkInEnabled, setCheckInEnabled] = useState<boolean | null>(
     demo ? true : null
@@ -85,7 +89,11 @@ export default function CheckInHostClient({ demo = false }: Props) {
       setCheckInEnabled(true);
       return;
     }
-    const res = await fetch("/api/check-in/summary", {
+    const params = new URLSearchParams();
+    if (invitationFromUrl) params.set("invitationId", invitationFromUrl);
+    if (eventFromUrl) params.set("eventId", eventFromUrl);
+    const qs = params.toString();
+    const res = await fetch(`/api/check-in/summary${qs ? `?${qs}` : ""}`, {
       credentials: "include",
       cache: "no-store",
     });
@@ -97,7 +105,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
     }
     setCheckInEnabled(Boolean(data.checkInEnabled));
     setInvitationId(String(data.invitationId || ""));
-  }, [demo]);
+  }, [demo, invitationFromUrl, eventFromUrl]);
 
   useEffect(() => {
     loadSummary().catch(() => setCheckInEnabled(false));
@@ -199,7 +207,11 @@ export default function CheckInHostClient({ demo = false }: Props) {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: raw, invitationId }),
+          body: JSON.stringify({
+            token: raw,
+            invitationId: invitationId || invitationFromUrl,
+            eventId: eventFromUrl,
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.guest) {
@@ -217,7 +229,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
         setBusy(false);
       }
     },
-    [demo, invitationId, openGuest]
+    [demo, invitationId, invitationFromUrl, eventFromUrl, openGuest]
   );
 
   const startScanner = useCallback(async () => {
@@ -278,7 +290,8 @@ export default function CheckInHostClient({ demo = false }: Props) {
         }
         const qs = new URLSearchParams({
           q: query.trim(),
-          invitationId,
+          invitationId: invitationId || invitationFromUrl,
+          eventId: eventFromUrl,
         });
         const res = await fetch(`/api/check-in/lookup?${qs}`, {
           credentials: "include",
@@ -290,7 +303,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
       }
     }, 280);
     return () => clearTimeout(handle);
-  }, [query, invitationId, demo]);
+  }, [query, invitationId, invitationFromUrl, eventFromUrl, demo]);
 
   const confirmEntry = async () => {
     if (!selected || quantity <= 0) return;
@@ -326,7 +339,8 @@ export default function CheckInHostClient({ demo = false }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           guestId: selected.id,
-          invitationId,
+          invitationId: invitationId || invitationFromUrl,
+          eventId: eventFromUrl,
           quantityAdded: quantity,
           method: scanMethod,
           allowOverride: false,

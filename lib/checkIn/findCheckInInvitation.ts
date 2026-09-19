@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import { canManageInvitation } from "@/lib/canManageInvitation";
@@ -6,12 +8,36 @@ import {
   findPrimaryInvitationLean,
 } from "@/lib/pickPrimaryInvitation";
 
+function cleanId(value: unknown) {
+  const id = String(value || "").trim();
+  return mongoose.Types.ObjectId.isValid(id) ? id : "";
+}
+
+/**
+ * When several invitations exist, scan the event that actually has Check-in on.
+ * A primary invitation with more guests must not hide an enabled event.
+ */
+export function selectCheckInEventId({
+  preferredEventId,
+  enabledEventIds,
+}: {
+  preferredEventId?: string | null;
+  enabledEventIds: string[];
+}): string | null {
+  const enabled = enabledEventIds.map((id) => String(id || "").trim()).filter(Boolean);
+  if (!enabled.length) return null;
+  const preferred = String(preferredEventId || "").trim();
+  if (preferred && enabled.includes(preferred)) return preferred;
+  return enabled[0];
+}
+
 /**
  * Invitation access for check-in staff (owners + assigned staff + producers).
  */
 export async function findCheckInInvitation(
   auth: any,
-  invitationId?: string | null
+  invitationId?: string | null,
+  eventId?: string | null
 ): Promise<any | null> {
   if (!auth?.userId) return null;
 
@@ -19,10 +45,34 @@ export async function findCheckInInvitation(
 
   if (invitationId) {
     const invitation = await Invitation.findById(invitationId).lean();
-    if (!invitation) return null;
-    if (canManageInvitation(auth, invitation)) return invitation;
-    if (await isAssignedToInvitationEvent(auth, invitation)) return invitation;
-    return null;
+    if (invitation) {
+      const allowed =
+        canManageInvitation(auth, invitation) ||
+        (await isAssignedToInvitationEvent(auth, invitation));
+      if (allowed && (await invitationCheckInEnabled(invitation))) {
+        return invitation;
+      }
+    }
+  }
+
+  const enabled = await findEnabledCheckInInvitation(auth, eventId);
+  if (enabled) return enabled;
+
+  if (invitationId) {
+    const invitation = await Invitation.findById(invitationId).lean();
+    if (
+      invitation &&
+      (canManageInvitation(auth, invitation) ||
+        (await isAssignedToInvitationEvent(auth, invitation)))
+    ) {
+      return invitation;
+    }
+  }
+
+  const requestedEventId = cleanId(eventId);
+  if (requestedEventId) {
+    const byEvent = await invitationForAccessibleEvent(auth, requestedEventId);
+    if (byEvent) return byEvent;
   }
 
   // Prefer owned invitation
@@ -67,6 +117,78 @@ export async function findCheckInInvitation(
   }
 
   return null;
+}
+
+async function invitationCheckInEnabled(invitation: any) {
+  const eventId = cleanId(invitation?.eventId);
+  if (!eventId) return false;
+  const event = await Event.findById(eventId).select("checkInEnabled").lean();
+  return Boolean((event as any)?.checkInEnabled);
+}
+
+async function invitationForAccessibleEvent(auth: any, eventId: string) {
+  const invitation = await Invitation.findOne({ eventId })
+    .sort({ updatedAt: -1 })
+    .lean();
+  if (!invitation) return null;
+  if (canManageInvitation(auth, invitation)) return invitation;
+  if (await isAssignedToInvitationEvent(auth, invitation)) return invitation;
+  return null;
+}
+
+async function findEnabledCheckInInvitation(auth: any, preferredEventId?: string | null) {
+  const userId = String(auth.userId || "");
+  if (!userId) return null;
+
+  const owned = await Invitation.find({
+    eventId: { $ne: null },
+    $or: [{ ownerId: userId }, { userId }, { producerId: userId }],
+  })
+    .select("_id eventId")
+    .lean();
+
+  const linkedEvents = await Event.find({
+    checkInEnabled: true,
+    $or: [
+      { userId },
+      { producerId: userId },
+      { assignedStaffIds: userId },
+    ],
+  })
+    .select("_id")
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const ownedEventIds = owned
+    .map((invitation: any) => cleanId(invitation.eventId))
+    .filter(Boolean);
+  const enabledOwned = ownedEventIds.length
+    ? await Event.find({
+        _id: { $in: ownedEventIds },
+        checkInEnabled: true,
+      })
+        .select("_id")
+        .sort({ updatedAt: -1 })
+        .lean()
+    : [];
+
+  const chosenEventId = selectCheckInEventId({
+    preferredEventId,
+    enabledEventIds: [
+      ...enabledOwned.map((event: any) => String(event._id)),
+      ...linkedEvents.map((event: any) => String(event._id)),
+    ],
+  });
+  if (!chosenEventId) return null;
+
+  const ownedMatch = owned.find(
+    (invitation: any) => String(invitation.eventId) === chosenEventId
+  );
+  if (ownedMatch?._id) {
+    return Invitation.findById(ownedMatch._id).lean();
+  }
+
+  return invitationForAccessibleEvent(auth, chosenEventId);
 }
 
 async function isAssignedToInvitationEvent(auth: any, invitation: any) {

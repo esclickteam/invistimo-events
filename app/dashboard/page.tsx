@@ -2620,7 +2620,13 @@ const eventLocation = resolveEventLocation(invitation, event);
             </div>
             <button
               type="button"
-              onClick={() => router.push("/dashboard/check-in")}
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (invitationId) params.set("invitationId", invitationId);
+                if (invitationEventId) params.set("eventId", invitationEventId);
+                const qs = params.toString();
+                router.push(`/dashboard/check-in${qs ? `?${qs}` : ""}`);
+              }}
               className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
             >
               פתיחת סריקה

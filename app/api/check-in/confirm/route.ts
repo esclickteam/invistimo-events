@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
     const invitationId = body.invitationId
       ? String(body.invitationId)
       : null;
+    const requestedEventId = body.eventId ? String(body.eventId) : null;
     const method = body.method === "MANUAL" ? "MANUAL" : "QR";
     const allowOverride = body.allowOverride === true;
     const setAbsolute =
@@ -89,7 +90,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const invitation = await findCheckInInvitation(auth, invitationId);
+    const invitation = await findCheckInInvitation(
+      auth,
+      invitationId,
+      requestedEventId
+    );
     if (!invitation) {
       return NextResponse.json(
         { success: false, error: "NO_INVITATION" },
