@@ -3,7 +3,7 @@
  * Arrival uses InvitationGuest.actualArrivedCount (Live check-in field).
  */
 
-export function rsvpBucket(status: unknown): "yes" | "no" | "maybe" | "pending" {
+export function rsvpBucket(status: unknown): "yes" | "no" | "pending" {
   const s = String(status || "")
     .trim()
     .toLowerCase();
@@ -11,9 +11,6 @@ export function rsvpBucket(status: unknown): "yes" | "no" | "maybe" | "pending" 
     return "yes";
   }
   if (["no", "declined", "rejected", "not_coming"].includes(s)) return "no";
-  if (["maybe", "undecided", "unsure"].includes(s) || s.includes("מתלבט")) {
-    return "maybe";
-  }
   return "pending";
 }
 
@@ -54,7 +51,6 @@ export function guestArrivedCount(g: {
 export function summarizeGuests(guests: any[]) {
   let yes = 0;
   let no = 0;
-  let maybe = 0;
   let pending = 0;
   let arrived = 0;
   let expected = 0;
@@ -64,7 +60,6 @@ export function summarizeGuests(guests: any[]) {
     const b = rsvpBucket(g.status ?? g.rsvp);
     if (b === "yes") yes += n;
     else if (b === "no") no += n;
-    else if (b === "maybe") maybe += n;
     else pending += n;
     arrived += guestArrivedCount(g);
   }
@@ -73,7 +68,6 @@ export function summarizeGuests(guests: any[]) {
     expected,
     rsvpYes: yes,
     rsvpNo: no,
-    rsvpMaybe: maybe,
     rsvpPending: pending,
     arrived,
   };

@@ -190,7 +190,7 @@ test("schema adds tracking fields without changing RSVP defaults", () => {
   assert.match(src, /firstOpenedAt/);
   assert.match(src, /lastOpenedAt/);
   assert.match(src, /openCount/);
-  assert.match(src, /enum: \["yes", "no", "pending"\]/);
+  assert.match(src, /enum: \["yes", "no", "maybe", "pending"\]/);
   assert.match(src, /default: "pending"/);
 });
 

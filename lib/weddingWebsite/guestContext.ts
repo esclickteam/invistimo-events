@@ -3,7 +3,7 @@ import { hasGuestMessagesFeature } from "@/lib/features/entitlements";
 
 export type PublicGuestActions = {
   authenticated: true;
-  rsvp: "yes" | "no" | "pending";
+  rsvp: "yes" | "no" | "maybe" | "pending";
   arrivedCount: number;
   guestsCount: number;
   notes: string;
@@ -44,9 +44,14 @@ export async function resolvePublicGuestActions({
   if (!guest) return null;
 
   const rsvp =
-    guest.rsvp === "yes" || guest.rsvp === "no" || guest.rsvp === "pending"
+    guest.rsvp === "yes" ||
+    guest.rsvp === "no" ||
+    guest.rsvp === "maybe" ||
+    guest.rsvp === "pending"
       ? guest.rsvp
-      : guest.status === "yes" || guest.status === "no"
+      : guest.status === "yes" ||
+          guest.status === "no" ||
+          guest.status === "maybe"
         ? guest.status
         : "pending";
 

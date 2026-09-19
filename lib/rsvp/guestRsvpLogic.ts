@@ -91,8 +91,9 @@ export function normalizeRsvp(value: unknown): RsvpValue {
   if (raw === "maybe" || raw === "undecided" || raw.includes("מתלבט") || raw.includes("לא בטוח")) {
     return "maybe";
   }
+  // Check decline before "מגיע" so "לא מגיע" never matches as yes.
+  if (raw === "no" || raw.includes("לא מגיע") || raw.includes("לא יגיע")) return "no";
   if (raw === "yes" || raw.includes("מגיע")) return "yes";
-  if (raw === "no" || raw.includes("לא מגיע")) return "no";
   return "pending";
 }
 

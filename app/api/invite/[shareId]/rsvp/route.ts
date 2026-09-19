@@ -126,13 +126,17 @@ export async function POST(
     // סטטוס RSVP לפי אורחים (לא לפי כמות אנשים)
     const totalYes = allGuests.filter((g) => g.rsvp === "yes").length;
     const totalNo = allGuests.filter((g) => g.rsvp === "no").length;
-    const totalPending = allGuests.filter((g) => g.rsvp === "pending").length;
+    const totalMaybe = allGuests.filter((g) => g.rsvp === "maybe").length;
+    const totalPending = allGuests.filter(
+      (g) => g.rsvp !== "yes" && g.rsvp !== "no" && g.rsvp !== "maybe"
+    ).length;
 
     invitation.stats = {
       totalInvited,   // מוזמנים
-      totalArrived,   // מגיעים
+      totalArrived,   // מגיעים (רק yes — מתלבטים לא נספרים)
       totalYes,
       totalNo,
+      totalMaybe,
       totalPending,
     };
 

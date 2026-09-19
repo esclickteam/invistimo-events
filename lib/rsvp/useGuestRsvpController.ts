@@ -257,7 +257,7 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
         return;
       }
 
-      if (form.rsvp !== "yes" && form.rsvp !== "no") {
+      if (form.rsvp !== "yes" && form.rsvp !== "no" && form.rsvp !== "maybe") {
         reportError(RSVP_COPY.chooseRequired);
         setErrorMessage(RSVP_COPY.chooseRequired);
         return;
@@ -414,7 +414,7 @@ export function useGuestRsvpDemoController(): GuestRsvpController {
     },
     handleSubmit: async (e) => {
       e.preventDefault();
-      if (form.rsvp !== "yes" && form.rsvp !== "no") {
+      if (form.rsvp !== "yes" && form.rsvp !== "no" && form.rsvp !== "maybe") {
         setErrorMessage(RSVP_COPY.chooseRequired);
         return;
       }

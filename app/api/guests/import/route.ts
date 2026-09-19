@@ -44,7 +44,7 @@ function normalizeTableNumber(value: any) {
 function normalizeRsvp(value: any) {
   const rsvp = cleanText(value);
 
-  if (["yes", "no", "pending"].includes(rsvp)) {
+  if (["yes", "no", "maybe", "pending"].includes(rsvp)) {
     return rsvp;
   }
 
