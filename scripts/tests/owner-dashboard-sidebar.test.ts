@@ -68,3 +68,20 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
   assert.match(layout, /<DashboardSidebar/);
   assert.match(layout, /invitationShareId=\{invitation\?\.shareId\}/);
 });
+
+test("dashboard stats stay on one wide desktop row and hide the check-in banner", () => {
+  const page = read("app/dashboard/page.tsx");
+
+  assert.doesNotMatch(page, /Invistimo Check-in/);
+  assert.doesNotMatch(page, /הפעלה לכל אירוע בנפרד/);
+  assert.doesNotMatch(page, /userCanManageCheckIn/);
+  assert.doesNotMatch(page, /checkInToggleBusy/);
+  assert.match(page, /id="rsvp-stats"/);
+  assert.match(page, /xl:grid-cols-7/);
+  assert.match(page, /lg:grid-cols-4/);
+  assert.match(page, /md:grid-cols-3/);
+  assert.match(page, /grid-cols-2/);
+  assert.match(page, /title="פתחו קישור"/);
+  assert.match(page, /title="לא פתחו קישור"/);
+  assert.match(page, /function GoldenStatCard/);
+});
