@@ -252,6 +252,15 @@ function DashboardLayoutInner({
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleCollapsed}
           invitationId={invitation?._id || resolvedInvitationId}
+          invitationShareId={invitation?.shareId}
+          rsvpSiteMode={
+            invitation?.invitationSettings?.rsvpSiteMode ??
+            invitation?.rsvpSiteMode
+          }
+          guestExperienceType={
+            invitation?.invitationSettings?.guestExperienceType ??
+            invitation?.guestExperienceType
+          }
           eventId={eventIdForMenu}
           checkInEnabled={checkInEnabled}
           canOpenEventManagement={canOpenEventManagement}
