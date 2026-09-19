@@ -1219,15 +1219,13 @@ if (!canDeleteAllGuests) {
 
   useEffect(() => {
     const action = searchParams.get("action");
-    if (action !== "import" && action !== "calls" && action !== "add-guest") return;
+    if (action !== "import" && action !== "calls") return;
     if (!isDemo && !invitationReady) return;
 
     if (isDemo) {
       setShowDemoToast(true);
     } else if (action === "import" && invitationId) {
       setShowImportModal(true);
-    } else if (action === "add-guest" && invitationId) {
-      setAddGuestChooserOpen(true);
     } else if (action === "calls" && user?.includeCalls) {
       setOpenRsvpSchedule(true);
     }
@@ -2683,7 +2681,7 @@ const eventLocation = resolveEventLocation(invitation, event);
   recordsLimit={recordsLimit}
   usedRecordsCount={usedRecordsCount}
   onExportExcel={handleExportExcel}
-  onAddGuest={() => setOpenAddModal(true)}
+  onAddGuest={() => setAddGuestChooserOpen(true)}
   disabledAddGuest={!invitation}
 />
       </section>

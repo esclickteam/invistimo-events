@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { userCanAccessCheckIn } from "@/lib/checkIn/permissions";
@@ -274,14 +273,6 @@ export default function DashboardSidebar({
         hidden: gameOnly,
         match: (path, currentHash) =>
           pathIsDashboardHome(path) && currentHash === "#guests",
-      },
-      {
-        id: "add-guest",
-        label: "הוספת מוזמן",
-        icon: UserPlus,
-        href: `${dashboardHome}?action=add-guest`,
-        query: "add-guest",
-        hidden: gameOnly,
       },
       {
         id: "messages",
