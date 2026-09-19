@@ -703,7 +703,7 @@ test("product account flows: header button, existing-event guests, admin sale ty
   const fs = require("node:fs") as typeof import("node:fs");
   const header = fs.readFileSync("app/dashboard/DashboardHeader.tsx", "utf8");
   const layout = fs.readFileSync("app/dashboard/layout.tsx", "utf8");
-  const dashboard = fs.readFileSync("app/dashboard/page.tsx", "utf8");
+  const sidebar = fs.readFileSync("app/dashboard/components/DashboardSidebar.tsx", "utf8");
   const roster = fs.readFileSync("app/dashboard/wedding-challenges/GuestRoster.tsx", "utf8");
   const missions = fs.readFileSync("app/dashboard/wedding-challenges/CustomMissionsPanel.tsx", "utf8");
   const adminSalesPage = fs.readFileSync("app/admin/wedding-challenges/page.tsx", "utf8");
@@ -712,10 +712,10 @@ test("product account flows: header button, existing-event guests, admin sale ty
 
   assert.match(header, /ניהול Wedding Challenges/);
   assert.match(header, /canOpenWeddingChallenges/);
-  assert.match(header, /hidden items-center gap-3 md:flex/);
+  assert.match(header, /hidden items-center gap-3 lg:flex/);
   assert.match(layout, /canOpenWeddingChallenges=\{canOpenWeddingChallenges\}/);
-  assert.match(dashboard, /ניהול Wedding Challenges/);
-  assert.match(dashboard, /\/dashboard\/wedding-challenges\?eventId=/);
+  assert.match(sidebar, /ניהול Wedding Challenges/);
+  assert.match(sidebar, /\/dashboard\/wedding-challenges\?eventId=/);
   assert.match(roster, /מוצגים רק אורחים שאישרו הגעה/);
   assert.match(roster, /ייבוא CSV \/ Excel/);
   assert.match(roster, /sourceType === "STANDALONE_GAME"/);
