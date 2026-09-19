@@ -322,9 +322,11 @@ export default function DashboardSidebar({
         id: "checkin",
         label: "כניסה לאירוע",
         icon: QrCode,
-        href: "/dashboard/check-in",
+        href: isDemo ? "/try/dashboard/check-in" : "/dashboard/check-in",
         hidden: !canCheckIn,
-        match: (path) => path.startsWith("/dashboard/check-in"),
+        match: (path) =>
+          path.startsWith("/dashboard/check-in") ||
+          path.startsWith("/try/dashboard/check-in"),
       },
     ];
 

@@ -6,6 +6,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 import { guestExperienceFromRsvpSiteMode, normalizeRsvpSiteMode } from "@/types/rsvpSite";
@@ -692,6 +693,7 @@ packageName
               userId
               title
               shareId
+              eventId
               eventDate
               createdAt
               updatedAt
@@ -975,6 +977,28 @@ packageName
       }
     }
 
+    const eventIds = [
+      ...new Set(
+        [...invitationByUserId.values()]
+          .map((invitation: any) =>
+            invitation?.eventId ? String(invitation.eventId) : ""
+          )
+          .filter(Boolean)
+      ),
+    ];
+    const checkInEvents =
+      eventIds.length > 0
+        ? await Event.find({ _id: { $in: eventIds } })
+            .select("checkInEnabled")
+            .lean()
+        : [];
+    const checkInByEventId = new Map(
+      checkInEvents.map((event: any) => [
+        String(event._id),
+        Boolean(event.checkInEnabled),
+      ])
+    );
+
     /*
       סנכרון תאריך אירוע מההזמנה ל-User,
       כדי שבאדמין ובמסננים יוצג תמיד התאריך האמיתי מההזמנה במונגו.
@@ -1209,6 +1233,10 @@ packageName
           invitationShareId: invitation?.shareId
             ? String(invitation.shareId)
             : null,
+          eventId: invitation?.eventId ? String(invitation.eventId) : null,
+          checkInEnabled: invitation?.eventId
+            ? Boolean(checkInByEventId.get(String(invitation.eventId)))
+            : false,
 
           // מקור האמת לתאריך אירוע: ההזמנה במונגו
           eventDate: invitation?.eventDate || u.eventDate || null,

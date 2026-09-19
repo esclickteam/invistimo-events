@@ -966,6 +966,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { checkInTokenForInvitation } = await import(
+      "@/lib/checkIn/ensureEventTokens"
+    );
+    const checkInToken = await checkInTokenForInvitation(invitation);
+
     const created = await InvitationGuest.create({
       invitationId,
       name: String(name).trim(),
@@ -978,6 +983,7 @@ export async function POST(req: NextRequest) {
       source,
       tags,
       actualArrivedCount: Number(actualArrivedCount) || 0,
+      ...(checkInToken ? { checkInToken } : {}),
     });
 
     return NextResponse.json({

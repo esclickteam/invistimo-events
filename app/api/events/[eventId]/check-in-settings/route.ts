@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
 import Event from "@/models/Event";
-import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { authHasCheckInPermission } from "@/lib/checkIn/permissions";
+import { isInvistimoAdmin } from "@/lib/checkIn/adminGate";
+import { ensureCheckInTokensForEvent } from "@/lib/checkIn/ensureEventTokens";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -94,13 +94,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const user = await User.findById(auth.userId)
-      .select("role staffType accessModules permissions features planLimits")
-      .lean();
-
-    if (!authHasCheckInPermission(auth, user as any, "checkin.manage")) {
+    if (!isInvistimoAdmin(auth)) {
       return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
+        { success: false, error: "ADMIN_ONLY" },
         { status: 403 }
       );
     }
@@ -133,12 +129,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     // Disabling only hides the feature — never delete tokens, logs, or arrivals
+    const enabling = body.checkInEnabled === true && !event.checkInEnabled;
     event.checkInEnabled = body.checkInEnabled;
     await event.save();
+
+    let tokensCreated = 0;
+    if (enabling) {
+      const ensured = await ensureCheckInTokensForEvent(event._id);
+      tokensCreated = ensured.tokensCreated;
+    }
 
     return NextResponse.json({
       success: true,
       checkInEnabled: Boolean(event.checkInEnabled),
+      tokensCreated,
     });
   } catch (err) {
     console.error("❌ PATCH check-in-settings:", err);

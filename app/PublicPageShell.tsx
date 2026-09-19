@@ -81,6 +81,14 @@ function isPublicEventRoute(pathname: string | null) {
   return path.startsWith("/public/events/") || path.startsWith("/e/");
 }
 
+function isCheckInPassRoute(pathname: string | null) {
+  const path = String(pathname || "");
+  return (
+    path.startsWith("/check-in/pass") ||
+    path.startsWith("/try/check-in/pass")
+  );
+}
+
 
 export default function PublicPageShell({ children }: PublicPageShellProps) {
   const pathname = usePathname();
@@ -129,6 +137,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
 
     if (isPublicEventRoute(pathname)) return true;
 
+    if (isCheckInPassRoute(pathname)) return true;
+
     if (isLiveRoute(pathname)) return true;
 
     if (isPrivateStaffRoute(pathname)) return true;
@@ -151,6 +161,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
     if (isWeddingWebsiteRoute(pathname)) return false;
 
     if (isPublicEventRoute(pathname)) return false;
+
+    if (isCheckInPassRoute(pathname)) return false;
 
     if (isLiveRoute(pathname)) return false;
 

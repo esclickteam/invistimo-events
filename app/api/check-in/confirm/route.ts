@@ -17,6 +17,7 @@ import {
   computeCheckInStatus,
 } from "@/lib/checkIn/status";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
+import { hostScanIsFullyArrived } from "@/lib/checkIn/guestPassState";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -116,6 +117,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "GUEST_NOT_FOUND" },
         { status: 404 }
+      );
+    }
+
+    if (
+      !setAbsolute &&
+      hostScanIsFullyArrived(
+        confirmedGuestCount(guest),
+        checkedInGuestCount(guest)
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ALREADY_CHECKED_IN",
+          message: "האורחים כבר נכנסו",
+          guest: serializeGuest(guest),
+        },
+        { status: 409 }
       );
     }
 
