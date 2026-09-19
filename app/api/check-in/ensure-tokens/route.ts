@@ -4,12 +4,11 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import Event from "@/models/Event";
 import InvitationGuest from "@/models/InvitationGuest";
-import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { authHasCheckInPermission } from "@/lib/checkIn/permissions";
+import { isInvistimoAdmin } from "@/lib/checkIn/adminGate";
 import { ensureGuestCheckInToken } from "@/lib/checkIn/applyCheckIn";
+import { ensureCheckInTokensForInvitation } from "@/lib/checkIn/ensureEventTokens";
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
-import { generateCheckInToken } from "@/lib/checkIn/token";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,13 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await User.findById(auth.userId)
-      .select("role staffType accessModules permissions features planLimits")
-      .lean();
-
-    if (!authHasCheckInPermission(auth, user as any, "checkin.manage")) {
+    if (!isInvistimoAdmin(auth)) {
       return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
+        { success: false, error: "ADMIN_ONLY" },
         { status: 403 }
       );
     }
@@ -66,19 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const guests = await InvitationGuest.find({
-      invitationId: invitation._id,
-      $or: [{ checkInToken: null }, { checkInToken: { $exists: false } }, { checkInToken: "" }],
-    }).select("_id");
-
-    let created = 0;
-    for (const g of guests) {
-      await InvitationGuest.updateOne(
-        { _id: g._id, $or: [{ checkInToken: null }, { checkInToken: { $exists: false } }, { checkInToken: "" }] },
-        { $set: { checkInToken: generateCheckInToken() } }
-      );
-      created += 1;
-    }
+    const created = await ensureCheckInTokensForInvitation(invitation._id);
 
     // Also ensure any guest missing token via helper when specifically requested
     if (body.guestId && mongoose.Types.ObjectId.isValid(String(body.guestId))) {

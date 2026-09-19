@@ -264,6 +264,11 @@ if (!finalGroupId && normalizedRelation) {
 }
 
 /* ================= יצירת המוזמן ================= */
+const { checkInTokenForInvitation } = await import(
+  "@/lib/checkIn/ensureEventTokens"
+);
+const checkInToken = await checkInTokenForInvitation(invitation as any);
+
 const guest = await InvitationGuest.create({
   invitationId: (invitation as any)._id,
   name: safeName,
@@ -288,6 +293,7 @@ const guest = await InvitationGuest.create({
       : undefined,
   notes: "",
   token: nanoid(12),
+  ...(checkInToken ? { checkInToken } : {}),
 });
 
     // ✅ עדכון expectedCount לקבוצה (אם האורח שייך לקבוצה)

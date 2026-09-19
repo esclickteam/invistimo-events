@@ -272,6 +272,15 @@ export async function POST(req: NextRequest) {
        שלב 4: בניית אורחים
     ======================================================= */
 
+    const { checkInTokenForInvitation } = await import(
+      "@/lib/checkIn/ensureEventTokens"
+    );
+    const { generateCheckInToken } = await import("@/lib/checkIn/token");
+    const sampleCheckInToken = await checkInTokenForInvitation(invitation);
+    const checkInTokenFactory = sampleCheckInToken
+      ? () => generateCheckInToken()
+      : null;
+
     const validPayloads: any[] = [];
 
     for (const [index, g] of guests.entries()) {
@@ -317,6 +326,7 @@ export async function POST(req: NextRequest) {
         tableNumber,
         tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
         token: crypto.randomUUID(),
+        ...(checkInTokenFactory ? { checkInToken: checkInTokenFactory() } : {}),
       });
     }
 

@@ -50,6 +50,8 @@ type AdminUser = {
   invitationId?: string;
   invitationTitle?: string | null;
   invitationShareId?: string | null;
+  eventId?: string | null;
+  checkInEnabled?: boolean;
   name?: string;
   email: string;
   phone?: string;
@@ -532,6 +534,11 @@ function getPurchasedItems(
       label: "מתנות באשראי",
       value: user.includeCreditGifts ? "פעיל" : "לא פעיל",
       active: Boolean(user.includeCreditGifts),
+    },
+    {
+      label: "Invistimo Check-in",
+      value: user.checkInEnabled ? "פעיל" : "לא פעיל",
+      active: Boolean(user.checkInEnabled),
     },
     {
       label: "הושבה דיגיטלית",
@@ -2004,6 +2011,11 @@ function EditUserModal({
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
+  const [checkInEnabled, setCheckInEnabled] = useState(
+    Boolean(user.checkInEnabled)
+  );
+  const [checkInBusy, setCheckInBusy] = useState(false);
+
   const [includeWeddingChallenges, setIncludeWeddingChallenges] = useState(
     Boolean(user.includeWeddingChallenges)
   );
@@ -2283,6 +2295,80 @@ function EditUserModal({
               {formatMoney(getUserTotalPaid(user))}
             </span>
           </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black tracking-[0.14em] text-[#B97821]">
+                ADD-ON / UPSELL
+              </p>
+              <h3 className="mt-1 text-lg font-black text-[#3A2A1C]">
+                Invistimo Check-in
+              </h3>
+              <p className="mt-1 text-sm font-bold text-[#7B6754]">
+                QR וניהול כניסה לאירוע. רק Admin של Invistimo יכול להפעיל או
+                לכבות. בעל האירוע לא מפעיל את הפיצ׳ר בעצמו.
+              </p>
+            </div>
+            <label className={`inline-flex items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3 ${user.eventId ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+              <input
+                type="checkbox"
+                checked={checkInEnabled}
+                disabled={!user.eventId || checkInBusy}
+                onChange={async (e) => {
+                  if (!user.eventId) return;
+                  const next = e.target.checked;
+                  const previous = checkInEnabled;
+                  setCheckInEnabled(next);
+                  setCheckInBusy(true);
+                  try {
+                    const res = await fetch(
+                      `/api/events/${user.eventId}/check-in-settings`,
+                      {
+                        method: "PATCH",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ checkInEnabled: next }),
+                      }
+                    );
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok || data?.success === false) {
+                      setCheckInEnabled(previous);
+                      alert(data?.error || "עדכון Check-in נכשל");
+                      return;
+                    }
+                    setCheckInEnabled(Boolean(data.checkInEnabled));
+                  } catch {
+                    setCheckInEnabled(previous);
+                    alert("עדכון Check-in נכשל");
+                  } finally {
+                    setCheckInBusy(false);
+                  }
+                }}
+                className="h-4 w-4 accent-[#9b7a3c]"
+              />
+              <span className="text-sm font-black text-[#3A2A1C]">
+                {checkInBusy
+                  ? "שומר..."
+                  : checkInEnabled
+                    ? "פעיל"
+                    : "לא פעיל"}
+              </span>
+            </label>
+          </div>
+          {!user.eventId && (
+            <p className="text-xs font-bold text-[#8A7867]">
+              אין אירוע מקושר ללקוח זה עדיין.
+            </p>
+          )}
         </section>
 
         <section
