@@ -51,6 +51,9 @@ type WorkOrder = {
   myDeclinedTasks: number;
   myNoAnswerTasks: number;
   myCallbackTasks: number;
+  myUndecidedTasks?: number;
+  myWillReplyMessageTasks?: number;
+  myNeedsFixTasks?: number;
   myWrongNumberTasks: number;
   myCancelledTasks: number;
 
@@ -66,6 +69,9 @@ type Summary = {
   declined: number;
   no_answer: number;
   callback: number;
+  undecided?: number;
+  will_reply_message?: number;
+  needs_fix?: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -289,10 +295,11 @@ export default function EmployeeWorkOrdersPage() {
             <option value="done">טופלו בלבד</option>
             <option value="pending">ממתין</option>
             <option value="in_progress">בטיפול</option>
-            <option value="confirmed">אישרו הגעה</option>
+            <option value="confirmed">מגיעים</option>
             <option value="declined">לא מגיעים</option>
+            <option value="undecided">מתלבטים</option>
             <option value="no_answer">לא ענו</option>
-            <option value="callback">לחזור אליהם</option>
+            <option value="callback">לחזור בסבב הבא</option>
             <option value="wrong_number">מספר שגוי</option>
           </select>
         </div>
@@ -767,10 +774,24 @@ function WorkOrderCard({
       </div>
 
       <div className="miniStats">
-        <span>אישרו: {safeNumber(order.myConfirmedTasks)}</span>
+        <span>מגיעים: {safeNumber(order.myConfirmedTasks)}</span>
         <span>לא מגיעים: {safeNumber(order.myDeclinedTasks)}</span>
+        <span>
+          מתלבטים:{" "}
+          {safeNumber(order.myUndecidedTasks) +
+            safeNumber(order.myWillReplyMessageTasks)}
+        </span>
         <span>לא ענו: {safeNumber(order.myNoAnswerTasks)}</span>
-        <span>לחזור: {safeNumber(order.myCallbackTasks)}</span>
+        <span>לחזור בסבב הבא: {safeNumber(order.myCallbackTasks)}</span>
+        {safeNumber(order.myNeedsFixTasks) +
+          safeNumber(order.myWrongNumberTasks) >
+          0 && (
+          <span>
+            דורש תיקון:{" "}
+            {safeNumber(order.myNeedsFixTasks) +
+              safeNumber(order.myWrongNumberTasks)}
+          </span>
+        )}
       </div>
 
       <Link className="openLink" href={`/employee/work-orders/${order.id}`}>
