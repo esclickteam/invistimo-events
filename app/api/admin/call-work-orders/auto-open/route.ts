@@ -17,6 +17,10 @@ import {
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import {
+  isCallRoundDue,
+  parseCallRoundScheduledAt,
+} from "@/lib/calls/callRoundScheduleTime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -340,8 +344,16 @@ function parseDateFlexible(raw: unknown, fallbackTime?: unknown) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const time = parseTimeParts(fallbackTime);
 
-    return makeDateInTimeZone(value, time.hour, time.minute, 0, 0);
+    if (fallbackTime) {
+      return makeDateInTimeZone(value, time.hour, time.minute, 0, 0);
+    }
+
+    // Date-only legacy schedules: noon Asia/Jerusalem (not UTC midnight).
+    return parseCallRoundScheduledAt(value);
   }
+
+  const fromHelper = parseCallRoundScheduledAt(value);
+  if (fromHelper) return fromHelper;
 
   const date = new Date(value);
 
@@ -559,9 +571,18 @@ function getRoundScheduledAt(raw: any) {
   return parseDateFlexible(dateOnly, raw?.time || raw?.hour);
 }
 
-function extractScheduledRoundsForDate(container: any, dateKey: string) {
+function extractScheduledRoundsForDate(
+  container: any,
+  dateKey: string,
+  options?: {
+    now?: Date;
+    force?: boolean;
+  }
+) {
   const results: ScheduledRound[] = [];
   const arrays = getScheduleArrays(container);
+  const now = options?.now || new Date();
+  const force = Boolean(options?.force);
 
   for (const rounds of arrays) {
     rounds.forEach((raw, index) => {
@@ -578,7 +599,16 @@ function extractScheduledRoundsForDate(container: any, dateKey: string) {
 
       if (!scheduledAt) return;
 
-      if (getDateKeyInIsrael(scheduledAt) !== dateKey) return;
+      if (
+        !isCallRoundDue({
+          scheduledAt,
+          dateKey,
+          now,
+          force,
+        })
+      ) {
+        return;
+      }
 
       results.push({
         round,
@@ -829,7 +859,14 @@ function getClientEmail(invitation: any, clientUser: any) {
   );
 }
 
-async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
+async function loadScheduleCandidates(
+  dateKey: string,
+  maxCandidates: number,
+  options?: {
+    now?: Date;
+    force?: boolean;
+  }
+) {
   const candidates: ScheduleCandidate[] = [];
   const dedupe = new Set<string>();
 
@@ -841,7 +878,7 @@ async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
     .toArray();
 
   for (const invitation of invitations) {
-    const rounds = extractScheduledRoundsForDate(invitation, dateKey);
+    const rounds = extractScheduledRoundsForDate(invitation, dateKey, options);
 
     if (!rounds.length) continue;
 
@@ -872,7 +909,7 @@ async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
     .toArray();
 
   for (const user of users) {
-    const rounds = extractScheduledRoundsForDate(user, dateKey);
+    const rounds = extractScheduledRoundsForDate(user, dateKey, options);
 
     if (!rounds.length) continue;
 
@@ -2075,6 +2112,36 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
    Work order creation
 ============================================================ */
 
+async function markCallRoundScheduleOpened(input: {
+  clientUser: any | null;
+  invitation: any;
+  round: RoundNumber;
+  tasksCreated: number;
+  openedAt?: Date;
+}) {
+  const openedAt = input.openedAt || new Date();
+  const userId =
+    toObjectId(input.clientUser?._id) ||
+    toObjectId(getOwnerIdFromInvitation(input.invitation));
+
+  if (!userId) return;
+
+  await User.collection.updateOne(
+    {
+      _id: userId,
+      "callRoundsSchedule.rounds.roundNumber": input.round,
+    },
+    {
+      $set: {
+        "callRoundsSchedule.rounds.$.status": "opened",
+        "callRoundsSchedule.rounds.$.openedAt": openedAt,
+        "callRoundsSchedule.rounds.$.tasksCreated": input.tasksCreated,
+        "callRoundsSchedule.rounds.$.updatedAt": openedAt,
+      },
+    }
+  );
+}
+
 async function createWorkOrderForCandidate(input: {
   candidate: ScheduleCandidate;
   scheduledEmployees: ScheduledEmployee[];
@@ -2104,6 +2171,22 @@ async function createWorkOrderForCandidate(input: {
       candidate,
       scheduledEmployees,
       dateKey,
+    });
+
+    await markCallRoundScheduleOpened({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+      tasksCreated: Number(
+        (reconciled as any)?.workOrder?.totalTasks ||
+          (reconciled as any)?.eligibleGuestsCount ||
+          existingResult.workOrder?.totalTasks ||
+          0
+      ),
+      openedAt:
+        existingResult.workOrder?.autoOpenAt ||
+        existingResult.workOrder?.createdAt ||
+        new Date(),
     });
 
     return {
@@ -2191,7 +2274,11 @@ async function createWorkOrderForCandidate(input: {
 
   const now = new Date();
   const workDate = startOfDateKey(dateKey);
-  const autoOpenAt = autoOpenAtForDateKey(dateKey);
+  const autoOpenAt =
+    candidate.configuredRoundAt instanceof Date &&
+    !Number.isNaN(candidate.configuredRoundAt.getTime())
+      ? candidate.configuredRoundAt
+      : autoOpenAtForDateKey(dateKey);
   const sourceAudience = getSourceAudienceByRound(candidate.round);
 
   const assignedEmployeeIds = scheduledEmployees.map(
@@ -2450,6 +2537,14 @@ async function createWorkOrderForCandidate(input: {
     },
   });
 
+  await markCallRoundScheduleOpened({
+    clientUser: candidate.clientUser,
+    invitation: candidate.invitation,
+    round: candidate.round,
+    tasksCreated: taskDocs.length,
+    openedAt: now,
+  });
+
   const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
 
   return {
@@ -2494,6 +2589,14 @@ async function handleAutoOpen(req: NextRequest) {
       url.searchParams.get("date") || body?.date || body?.workDate
     );
 
+    const force =
+      url.searchParams.get("force") === "1" ||
+      url.searchParams.get("force") === "true" ||
+      body?.force === true ||
+      body?.force === 1 ||
+      body?.force === "1" ||
+      body?.force === "true";
+
     const maxCandidates = Math.min(
       2000,
       Math.max(1, Number(url.searchParams.get("limit") || body?.limit || 500))
@@ -2504,10 +2607,11 @@ async function handleAutoOpen(req: NextRequest) {
     const currentIsraelHour = getIsraelHour(now);
 
     /*
-      אין יותר חסימת שעה.
-      הכרון יכול לרוץ כל דקה.
-      הוא פותח לפי dateKey בלבד:
-      00:00 עד 23:59:59 לפי Asia/Jerusalem.
+      Schedule is configured ahead of time (date + time in Asia/Jerusalem).
+      Audience is resolved only when the round is due:
+      same Israel calendar day AND scheduledAt <= now (unless force=1).
+      If no employees are on shift yet, the schedule stays pending and
+      opens later when a shift is assigned (same trigger path).
     */
 
     const scheduledEmployees = await loadScheduledEmployeesForDate(dateKey);
@@ -2517,30 +2621,37 @@ async function handleAutoOpen(req: NextRequest) {
         success: true,
         skipped: true,
         reason: "NO_EMPLOYEES_SCHEDULED",
+        waitingForAssignment: true,
         message:
-          "אין עובדים משובצים לתאריך הזה, לכן לא נפתחו הוראות עבודה אוטומטיות",
+          "הסבב המתוזמן ממתין לשיבוץ עובד. כשישובץ עובד לתאריך זה — הקהל יחושב מחדש ותיפתח הוראת עבודה.",
         dateKey,
         todayKey,
         timezone: TIMEZONE,
         serverNow: now.toISOString(),
         currentIsraelHour,
+        force,
         employees: [],
       });
     }
 
-    const candidates = await loadScheduleCandidates(dateKey, maxCandidates);
+    const candidates = await loadScheduleCandidates(dateKey, maxCandidates, {
+      now,
+      force,
+    });
 
     if (!candidates.length) {
       return NextResponse.json({
         success: true,
         skipped: true,
-        reason: "NO_SCHEDULED_ROUNDS_FOR_DATE",
-        message: "לא נמצאו סבבי שיחות שמוגדרים לתאריך הזה",
+        reason: "NO_DUE_SCHEDULED_ROUNDS_FOR_DATE",
+        message:
+          "לא נמצאו סבבי שיחות שמועד הביצוע שלהם (תאריך+שעה שעון ישראל) כבר הגיע",
         dateKey,
         todayKey,
         timezone: TIMEZONE,
         serverNow: now.toISOString(),
         currentIsraelHour,
+        force,
         employeesCount: scheduledEmployees.length,
       });
     }
