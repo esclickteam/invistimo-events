@@ -121,7 +121,7 @@ function DashboardLayoutInner({
         eventId: "demo-event-001",
       });
       setInvitationLoaded(true);
-      setCheckInEnabled(true);
+      setEventLive(true);
       return;
     }
 
