@@ -261,13 +261,14 @@ const InvitationGuestSchema = new Schema(
        🎫 Check-in QR token (אופציונלי)
        Opaque בלבד — ללא PII.
        נוצר lazy כשמופעל Check-in לאירוע.
+
+       חשוב: אין default: null.
+       אינדקס ייחודי על null גורם ל-E11000 אחרי האורח הראשון
+       בלי check-in (Mongo מאנדקס null גם ב-sparse).
+       כשאין טוקן — השדה חייב להיות חסר לגמרי.
     =============================== */
     checkInToken: {
       type: String,
-      default: null,
-      sparse: true,
-      unique: true,
-      index: true,
     },
 
     /* ===============================
@@ -318,6 +319,21 @@ const InvitationGuestSchema = new Schema(
   }
 );
 
+/*
+  Partial unique index: only real tokens are unique.
+  Missing / empty / null checkInToken must not collide.
+*/
+InvitationGuestSchema.index(
+  { checkInToken: 1 },
+  {
+    unique: true,
+    name: "checkInToken_partial_unique",
+    partialFilterExpression: {
+      checkInToken: { $type: "string", $gt: "" },
+    },
+  }
+);
+
 /* ===========================================================
    Sync hooks
    חשוב:
@@ -327,6 +343,12 @@ const InvitationGuestSchema = new Schema(
 =========================================================== */
 InvitationGuestSchema.pre("save", function () {
   const doc = this as any;
+
+  // Never persist null/empty checkInToken — omit the field instead.
+  if (doc.checkInToken == null || String(doc.checkInToken).trim() === "") {
+    doc.set("checkInToken", undefined);
+    if (doc._doc) delete doc._doc.checkInToken;
+  }
 
   if (doc.rsvp && doc.status !== doc.rsvp) {
     doc.status = doc.rsvp;
