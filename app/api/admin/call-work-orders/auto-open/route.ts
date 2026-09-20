@@ -122,9 +122,18 @@ function extractIdString(value: unknown): string {
   if (typeof value === "object") {
     const anyValue = value as any;
 
-    if (anyValue._id) return extractIdString(anyValue._id);
-    if (anyValue.id) return extractIdString(anyValue.id);
-    if (anyValue.$oid) return extractIdString(anyValue.$oid);
+    // Mongoose patches ObjectId.prototype._id to return `this` — never recurse.
+    if (anyValue._bsontype === "ObjectId" || typeof anyValue.toHexString === "function") {
+      return String(value);
+    }
+
+    if (anyValue.$oid) return String(anyValue.$oid);
+    if (anyValue._id && anyValue._id !== value) {
+      return extractIdString(anyValue._id);
+    }
+    if (anyValue.id && anyValue.id !== value && typeof anyValue.id !== "object") {
+      return extractIdString(anyValue.id);
+    }
   }
 
   return String(value || "");
