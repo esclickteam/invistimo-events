@@ -230,6 +230,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
         | "draft"
         | "scheduled"
         | "waiting_for_assignment"
+        | "waiting_for_previous_round"
         | "opened"
         | "done"
         | "cancelled";
@@ -1063,6 +1064,7 @@ preRsvpMessages: {
               "draft",
               "scheduled",
               "waiting_for_assignment",
+              "waiting_for_previous_round",
               "opened",
               "done",
               "cancelled",

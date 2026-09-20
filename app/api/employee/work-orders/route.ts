@@ -1117,7 +1117,9 @@ export async function GET(req: NextRequest) {
         (order) =>
           safeNumber(order.myTasksTotal) > 0 &&
           safeNumber(order.myTasksRemaining) <= 0 &&
-          normalize(order.status) !== "completed"
+          !["completed", "expired", "cancelled", "canceled"].includes(
+            normalize(order.status)
+          )
       )
       .map((order) => toObjectId(order.id))
       .filter(Boolean) as Types.ObjectId[];
@@ -1126,7 +1128,7 @@ export async function GET(req: NextRequest) {
       await CallWorkOrder.updateMany(
         {
           _id: { $in: staleOpenIds },
-          status: { $nin: ["completed", "cancelled"] },
+          status: { $nin: ["completed", "cancelled", "expired"] },
         },
         {
           $set: {
@@ -1147,18 +1149,81 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const activeWorkOrders = serializedWorkOrders.filter(
-      (order) =>
-        normalize(order.status) !== "completed" &&
-        safeNumber(order.myTasksRemaining) > 0
-    );
+    const todayKeyForActive = getDateKeyInIsrael(new Date());
 
-    const completedWorkOrders = serializedWorkOrders.filter(
-      (order) =>
-        normalize(order.status) === "completed" ||
-        (safeNumber(order.myTasksTotal) > 0 &&
-          safeNumber(order.myTasksRemaining) <= 0)
-    );
+    const activeWorkOrders = serializedWorkOrders.filter((order) => {
+      const status = normalize(order.status);
+      if (
+        status === "completed" ||
+        status === "cancelled" ||
+        status === "canceled" ||
+        status === "expired"
+      ) {
+        return false;
+      }
+
+      const rawDate = order.configuredRoundAt || order.workDate;
+      if (!rawDate) return safeNumber(order.myTasksRemaining) > 0;
+
+      const orderKey = getDateKeyInIsrael(new Date(rawDate));
+      if (orderKey < todayKeyForActive) return false;
+
+      return safeNumber(order.myTasksRemaining) > 0;
+    });
+
+    const completedWorkOrders = serializedWorkOrders.filter((order) => {
+      const status = normalize(order.status);
+      if (status === "cancelled" || status === "canceled") return false;
+      if (status === "completed" || status === "expired") return true;
+
+      const rawDate = order.configuredRoundAt || order.workDate;
+      if (rawDate) {
+        const orderKey = getDateKeyInIsrael(new Date(rawDate));
+        if (orderKey < todayKeyForActive) return true;
+      }
+
+      return (
+        safeNumber(order.myTasksTotal) > 0 &&
+        safeNumber(order.myTasksRemaining) <= 0
+      );
+    });
+
+    // Expire open/in_progress WOs whose round/work day is before today.
+    const expireIds = serializedWorkOrders
+      .filter((order) => {
+        const status = normalize(order.status);
+        if (!["open", "in_progress", "scheduled", "paused"].includes(status)) {
+          return false;
+        }
+        const rawDate = order.configuredRoundAt || order.workDate;
+        if (!rawDate) return false;
+        const orderKey = getDateKeyInIsrael(new Date(rawDate));
+        return orderKey < todayKeyForActive;
+      })
+      .map((order) => toObjectId(order.id))
+      .filter(Boolean) as Types.ObjectId[];
+
+    if (expireIds.length) {
+      await CallWorkOrder.updateMany(
+        {
+          _id: { $in: expireIds },
+          status: { $in: ["open", "in_progress", "scheduled", "paused"] },
+        },
+        {
+          $set: {
+            status: "expired",
+            updatedAt: new Date(),
+            lastStatusSyncAt: new Date(),
+          },
+        }
+      );
+
+      for (const order of serializedWorkOrders) {
+        if (expireIds.some((id) => String(id) === order.id)) {
+          order.status = "expired";
+        }
+      }
+    }
 
     const debug = {
       dateKey,

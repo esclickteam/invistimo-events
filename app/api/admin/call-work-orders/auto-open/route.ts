@@ -561,6 +561,7 @@ function isRoundEnabled(raw: any) {
     return false;
   }
 
+  // waiting_for_previous_round / waiting_for_assignment stay eligible for retry.
   return true;
 }
 
@@ -1219,7 +1220,7 @@ async function loadNoAnswerGuestIdsByRound(input: {
       noAnswerResult: task?.noAnswerResult,
     });
 
-    if (answer === "no_answer" || isNoAnswerCallResult(task?.status)) {
+    if (answer === "no_answer") {
       guestIds.add(guestId);
     }
   }
@@ -2219,6 +2220,60 @@ async function markCallRoundWaitingForAssignment(input: {
   );
 }
 
+async function markCallRoundWaitingForPreviousRound(input: {
+  clientUser: any | null;
+  invitation: any;
+  round: RoundNumber;
+  previousRound: RoundNumber;
+  now?: Date;
+}) {
+  const now = input.now || new Date();
+  const userId =
+    toObjectId(input.clientUser?._id) ||
+    toObjectId(getOwnerIdFromInvitation(input.invitation));
+
+  if (!userId) return;
+
+  await User.collection.updateOne(
+    {
+      _id: userId,
+      "callRoundsSchedule.rounds": {
+        $elemMatch: {
+          roundNumber: input.round,
+          status: { $nin: ["opened", "done", "cancelled"] },
+        },
+      },
+    },
+    {
+      $set: {
+        "callRoundsSchedule.rounds.$.status": "waiting_for_previous_round",
+        "callRoundsSchedule.rounds.$.notes": `ממתין לסיום סבב ${input.previousRound}`,
+        "callRoundsSchedule.rounds.$.updatedAt": now,
+      },
+    }
+  );
+}
+
+async function isPreviousCallRoundCompleted(input: {
+  invitationObjectId: Types.ObjectId;
+  round: RoundNumber;
+}) {
+  if (input.round <= 1) return true;
+
+  const previousRound = (input.round - 1) as RoundNumber;
+
+  const completed = await CallWorkOrder.findOne({
+    invitationId: input.invitationObjectId,
+    type: "rsvp_calls",
+    round: previousRound,
+    status: "completed",
+  })
+    .select("_id status completedAt")
+    .lean();
+
+  return Boolean(completed);
+}
+
 async function createWorkOrderForCandidate(input: {
   candidate: ScheduleCandidate;
   scheduledEmployees: ScheduledEmployee[];
@@ -2232,6 +2287,37 @@ async function createWorkOrderForCandidate(input: {
     return {
       status: "skipped",
       reason: "INVITATION_ID_INVALID",
+      round: candidate.round,
+    };
+  }
+
+  const previousReady = await isPreviousCallRoundCompleted({
+    invitationObjectId,
+    round: candidate.round,
+  });
+
+  if (!previousReady) {
+    const previousRound = (candidate.round - 1) as RoundNumber;
+
+    await markCallRoundWaitingForPreviousRound({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+      previousRound,
+    });
+
+    console.warn("[auto-open] round waiting for previous round", {
+      round: candidate.round,
+      previousRound,
+      invitationId: extractIdString(candidate.invitation?._id),
+      scheduledAt: candidate.configuredRoundAt?.toISOString?.() || null,
+    });
+
+    return {
+      status: "skipped",
+      reason: "WAITING_FOR_PREVIOUS_ROUND",
+      waitingForPreviousRound: true,
+      previousRound,
       round: candidate.round,
     };
   }

@@ -975,6 +975,24 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
     }
   ).lean();
 
+  // When a round is fully completed, try opening the next due round immediately.
+  if (nextStatus === "completed" && workOrder) {
+    try {
+      const { getCallRoundDateKeyInIsrael } = await import(
+        "@/lib/calls/callRoundScheduleTime"
+      );
+      const { triggerCallWorkOrdersAutoOpen } = await import(
+        "@/lib/calls/triggerCallWorkOrdersAutoOpen"
+      );
+      void triggerCallWorkOrdersAutoOpen(getCallRoundDateKeyInIsrael());
+    } catch (error) {
+      console.warn(
+        "[call-tasks/status] next-round auto-open trigger failed",
+        error
+      );
+    }
+  }
+
   return {
     workOrder,
     counts,
