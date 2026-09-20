@@ -24,6 +24,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /* ============================================================
    Config
@@ -374,11 +375,18 @@ function getJwtSecret() {
 }
 
 function isCronAuthorized(req: NextRequest) {
-  const secret =
+  // Match other production crons (SMS/WhatsApp): Vercel sets x-vercel-cron: 1.
+  // Without this, auto-open returns 401 every minute while SMS still runs.
+  if (req.headers.get("x-vercel-cron") === "1") {
+    return true;
+  }
+
+  const secret = cleanStr(
     process.env.CRON_SECRET ||
-    process.env.AUTO_OPEN_SECRET ||
-    process.env.CALL_WORK_ORDERS_CRON_SECRET ||
-    "";
+      process.env.AUTO_OPEN_SECRET ||
+      process.env.CALL_WORK_ORDERS_CRON_SECRET ||
+      ""
+  );
 
   if (!secret && process.env.NODE_ENV !== "production") {
     return true;
@@ -535,10 +543,16 @@ function isRoundEnabled(raw: any) {
   const status = cleanStr(raw.status).toLowerCase();
 
   if (
-    ["cancelled", "canceled", "deleted", "disabled", "inactive"].includes(
+    ["cancelled", "canceled", "deleted", "disabled", "inactive", "done"].includes(
       status
     )
   ) {
+    return false;
+  }
+
+  // Already opened rounds are handled via existing work-order reconcile path
+  // only when a candidate still matches; skip pure "opened" without schedule need.
+  if (status === "opened") {
     return false;
   }
 
@@ -622,7 +636,8 @@ function extractScheduledRoundsForDate(
 }
 
 function buildScheduleQuery(dateKey: string) {
-  const start = addHours(startOfDateKey(dateKey), -12);
+  // Look back 7 days so a missed cron still finds overdue scheduled rounds.
+  const start = addHours(startOfDateKey(dateKey), -7 * 24);
   const end = addHours(endOfDateKey(dateKey), 12);
   const dateRegex = new RegExp(`^${escapeRegExp(dateKey)}`);
 
@@ -2142,6 +2157,38 @@ async function markCallRoundScheduleOpened(input: {
   );
 }
 
+async function markCallRoundWaitingForAssignment(input: {
+  clientUser: any | null;
+  invitation: any;
+  round: RoundNumber;
+  now?: Date;
+}) {
+  const now = input.now || new Date();
+  const userId =
+    toObjectId(input.clientUser?._id) ||
+    toObjectId(getOwnerIdFromInvitation(input.invitation));
+
+  if (!userId) return;
+
+  await User.collection.updateOne(
+    {
+      _id: userId,
+      "callRoundsSchedule.rounds": {
+        $elemMatch: {
+          roundNumber: input.round,
+          status: { $nin: ["opened", "done", "cancelled"] },
+        },
+      },
+    },
+    {
+      $set: {
+        "callRoundsSchedule.rounds.$.status": "waiting_for_assignment",
+        "callRoundsSchedule.rounds.$.updatedAt": now,
+      },
+    }
+  );
+}
+
 async function createWorkOrderForCandidate(input: {
   candidate: ScheduleCandidate;
   scheduledEmployees: ScheduledEmployee[];
@@ -2237,9 +2284,22 @@ async function createWorkOrderForCandidate(input: {
   }
 
   if (!scheduledEmployees.length) {
+    await markCallRoundWaitingForAssignment({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+    });
+
+    console.warn("[auto-open] round waiting for assignment", {
+      round: candidate.round,
+      invitationId: extractIdString(candidate.invitation?._id),
+      scheduledAt: candidate.configuredRoundAt?.toISOString?.() || null,
+    });
+
     return {
       status: "skipped",
       reason: "NO_EMPLOYEES_SCHEDULED",
+      waitingForAssignment: true,
       round: candidate.round,
     };
   }
@@ -2573,12 +2633,18 @@ async function parseBody(req: NextRequest) {
 }
 
 async function handleAutoOpen(req: NextRequest) {
+  const startedAt = Date.now();
+
   try {
     await db();
 
     const auth = await requireAdminOrCron(req);
 
     if (!auth.ok) {
+      console.warn("[auto-open] unauthorized", {
+        hasVercelCron: req.headers.get("x-vercel-cron") === "1",
+        hasAuthorization: Boolean(req.headers.get("authorization")),
+      });
       return auth.response;
     }
 
@@ -2606,40 +2672,41 @@ async function handleAutoOpen(req: NextRequest) {
     const todayKey = getDateKeyInIsrael(now);
     const currentIsraelHour = getIsraelHour(now);
 
-    /*
-      Schedule is configured ahead of time (date + time in Asia/Jerusalem).
-      Audience is resolved only when the round is due:
-      same Israel calendar day AND scheduledAt <= now (unless force=1).
-      If no employees are on shift yet, the schedule stays pending and
-      opens later when a shift is assigned (same trigger path).
-    */
+    console.info("[auto-open] started", {
+      actor: auth.actor,
+      dateKey,
+      todayKey,
+      force,
+      now: now.toISOString(),
+      timezone: TIMEZONE,
+      currentIsraelHour,
+    });
 
     const scheduledEmployees = await loadScheduledEmployeesForDate(dateKey);
 
-    if (!scheduledEmployees.length) {
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: "NO_EMPLOYEES_SCHEDULED",
-        waitingForAssignment: true,
-        message:
-          "הסבב המתוזמן ממתין לשיבוץ עובד. כשישובץ עובד לתאריך זה — הקהל יחושב מחדש ותיפתח הוראת עבודה.",
-        dateKey,
-        todayKey,
-        timezone: TIMEZONE,
-        serverNow: now.toISOString(),
-        currentIsraelHour,
-        force,
-        employees: [],
-      });
-    }
+    console.info("[auto-open] employees", {
+      dateKey,
+      count: scheduledEmployees.length,
+      employeeIds: scheduledEmployees.map((e) => e.employeeIdString),
+    });
 
     const candidates = await loadScheduleCandidates(dateKey, maxCandidates, {
       now,
       force,
     });
 
+    console.info("[auto-open] rounds due", {
+      dateKey,
+      count: candidates.length,
+      rounds: candidates.map((c) => ({
+        round: c.round,
+        invitationId: extractIdString(c.invitation?._id),
+        scheduledAt: c.configuredRoundAt?.toISOString?.() || null,
+      })),
+    });
+
     if (!candidates.length) {
+      console.info("[auto-open] no due rounds", { dateKey, force });
       return NextResponse.json({
         success: true,
         skipped: true,
@@ -2653,6 +2720,7 @@ async function handleAutoOpen(req: NextRequest) {
         currentIsraelHour,
         force,
         employeesCount: scheduledEmployees.length,
+        durationMs: Date.now() - startedAt,
       });
     }
 
@@ -2660,13 +2728,46 @@ async function handleAutoOpen(req: NextRequest) {
 
     for (const candidate of candidates) {
       try {
+        if (!scheduledEmployees.length) {
+          await markCallRoundWaitingForAssignment({
+            clientUser: candidate.clientUser,
+            invitation: candidate.invitation,
+            round: candidate.round,
+            now,
+          });
+
+          const skipped = {
+            status: "skipped",
+            reason: "NO_EMPLOYEES_SCHEDULED",
+            waitingForAssignment: true,
+            round: candidate.round,
+            clientName: getClientName(candidate.invitation, candidate.clientUser),
+            clientEmail: getClientEmail(
+              candidate.invitation,
+              candidate.clientUser
+            ),
+            eventName: getEventName(candidate.invitation),
+            invitationId: extractIdString(candidate.invitation?._id),
+            scheduleSource: candidate.scheduleSource,
+            configuredRoundAt: candidate.configuredRoundAt,
+          };
+
+          console.warn("[auto-open] round skipped", {
+            round: skipped.round,
+            reason: skipped.reason,
+            invitationId: skipped.invitationId,
+          });
+          results.push(skipped);
+          continue;
+        }
+
         const result = await createWorkOrderForCandidate({
           candidate,
           scheduledEmployees,
           dateKey,
         });
 
-        results.push({
+        const row = {
           ...result,
           clientName: getClientName(candidate.invitation, candidate.clientUser),
           clientEmail: getClientEmail(
@@ -2677,9 +2778,35 @@ async function handleAutoOpen(req: NextRequest) {
           invitationId: extractIdString(candidate.invitation?._id),
           scheduleSource: candidate.scheduleSource,
           configuredRoundAt: candidate.configuredRoundAt,
-        });
+        };
+
+        if (row.status === "created") {
+          console.info("[auto-open] workOrder created", {
+            round: row.round,
+            invitationId: row.invitationId,
+            totalTasks: (row as any).totalTasks,
+            employeesCount: (row as any).employeesCount,
+            workOrderId:
+              (row as any)?.workOrder?.id ||
+              (row as any)?.workOrder?._id ||
+              null,
+          });
+        } else {
+          console.info("[auto-open] round result", {
+            round: row.round,
+            status: row.status,
+            reason: (row as any).reason,
+            invitationId: row.invitationId,
+          });
+        }
+
+        results.push(row);
       } catch (error: any) {
-        console.error("AUTO OPEN CANDIDATE FAILED:", error);
+        console.error("[auto-open] round error", {
+          round: candidate.round,
+          invitationId: extractIdString(candidate.invitation?._id),
+          error: error?.message || String(error),
+        });
 
         results.push({
           status: "error",
@@ -2703,6 +2830,15 @@ async function handleAutoOpen(req: NextRequest) {
     const skipped = results.filter((item) => item.status === "skipped");
     const errors = results.filter((item) => item.status === "error");
 
+    console.info("[auto-open] finished", {
+      dateKey,
+      createdCount: created.length,
+      existingCount: existing.length,
+      skippedCount: skipped.length,
+      errorCount: errors.length,
+      durationMs: Date.now() - startedAt,
+    });
+
     return NextResponse.json({
       success: errors.length === 0,
       dateKey,
@@ -2710,7 +2846,7 @@ async function handleAutoOpen(req: NextRequest) {
       timezone: TIMEZONE,
       serverNow: now.toISOString(),
       currentIsraelHour,
-
+      force,
       employeesCount: scheduledEmployees.length,
       employees: scheduledEmployees.map((employee) => ({
         employeeId: employee.employeeIdString,
@@ -2719,31 +2855,27 @@ async function handleAutoOpen(req: NextRequest) {
         phone: employee.employeePhone,
         shiftId: employee.shiftId ? String(employee.shiftId) : "",
       })),
-
       totalCandidates: candidates.length,
       createdCount: created.length,
       existingCount: existing.length,
       skippedCount: skipped.length,
       errorCount: errors.length,
-
       results,
+      durationMs: Date.now() - startedAt,
     });
   } catch (error: any) {
-    console.error("AUTO OPEN CALL WORK ORDERS FAILED:", error);
+    console.error("[auto-open] fatal error", error);
 
     return NextResponse.json(
       {
         success: false,
         error: error?.message || "שגיאה בפתיחת הוראות עבודה אוטומטיות",
+        durationMs: Date.now() - startedAt,
       },
       { status: 500 }
     );
   }
 }
-
-/* ============================================================
-   Routes
-============================================================ */
 
 export async function GET(req: NextRequest) {
   return handleAutoOpen(req);

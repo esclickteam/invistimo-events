@@ -226,7 +226,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       roundNumber: number;
       title?: string;
       scheduledAt?: Date | null;
-      status: "draft" | "scheduled" | "opened" | "done" | "cancelled";
+      status:
+        | "draft"
+        | "scheduled"
+        | "waiting_for_assignment"
+        | "opened"
+        | "done"
+        | "cancelled";
       notes?: string;
       openedAt?: Date | null;
       tasksCreated?: number | null;
@@ -1053,7 +1059,14 @@ preRsvpMessages: {
 
           status: {
             type: String,
-            enum: ["draft", "scheduled", "opened", "done", "cancelled"],
+            enum: [
+              "draft",
+              "scheduled",
+              "waiting_for_assignment",
+              "opened",
+              "done",
+              "cancelled",
+            ],
             default: "draft",
           },
 

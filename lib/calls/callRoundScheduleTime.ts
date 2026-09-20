@@ -168,23 +168,33 @@ export function formatCallRoundDateOnlyDisplay(
 }
 
 /**
- * Round is due when its Israel calendar day matches dateKey
- * and scheduledAt <= now (unless force).
+ * Round is due when scheduledAt <= now (Israel wall clock stored as absolute Date).
+ * dateKey is optional filtering for "today's run" — overdue rounds from earlier
+ * days still qualify so a missed cron minute never drops a round forever.
  */
 export function isCallRoundDue(input: {
   scheduledAt: Date;
-  dateKey: string;
+  dateKey?: string;
   now?: Date;
   force?: boolean;
 }) {
   if (input.force) return true;
 
-  if (getCallRoundDateKeyInIsrael(input.scheduledAt) !== input.dateKey) {
+  const now = input.now || new Date();
+
+  if (input.scheduledAt.getTime() > now.getTime()) {
     return false;
   }
 
-  const now = input.now || new Date();
-  return input.scheduledAt.getTime() <= now.getTime();
+  if (input.dateKey) {
+    const scheduledKey = getCallRoundDateKeyInIsrael(input.scheduledAt);
+    // Same day, or overdue from a previous Israel day.
+    if (scheduledKey > input.dateKey) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /** Normalize schedule value before PATCH — returns ISO or empty. */
