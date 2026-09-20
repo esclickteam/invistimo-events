@@ -14,6 +14,7 @@ import {
 import { findCheckInInvitation } from "@/lib/checkIn/findCheckInInvitation";
 import {
   checkInActionBlocked,
+  entryActionBlocked,
   loadEventCheckInGate,
 } from "@/lib/checkIn/eventGate";
 
@@ -43,7 +44,8 @@ function serializeGuest(guest: any) {
 async function resolveContext(
   auth: any,
   invitationId?: string | null,
-  requestedEventId?: string | null
+  requestedEventId?: string | null,
+  options?: { requireQr?: boolean }
 ) {
   const user = await User.findById(auth.userId)
     .select("role staffType accessModules permissions features planLimits")
@@ -64,7 +66,10 @@ async function resolveContext(
 
   const resolvedEventId = invitation.eventId ? String(invitation.eventId) : "";
   const gate = await loadEventCheckInGate(resolvedEventId);
-  const blocked = checkInActionBlocked(gate);
+  const blocked =
+    options?.requireQr === true
+      ? checkInActionBlocked(gate)
+      : entryActionBlocked(gate);
   if (blocked) {
     return {
       error: NextResponse.json(
@@ -98,7 +103,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const invitationId = body.invitationId ? String(body.invitationId) : null;
     const requestedEventId = body.eventId ? String(body.eventId) : null;
-    const ctx = await resolveContext(auth, invitationId, requestedEventId);
+    const ctx = await resolveContext(auth, invitationId, requestedEventId, {
+      requireQr: true,
+    });
     if ("error" in ctx && ctx.error) return ctx.error;
 
     const { invitation, eventId } = ctx as any;
@@ -152,7 +159,9 @@ export async function GET(req: NextRequest) {
     const invitationId = req.nextUrl.searchParams.get("invitationId");
     const requestedEventId = req.nextUrl.searchParams.get("eventId");
     const q = String(req.nextUrl.searchParams.get("q") || "").trim();
-    const ctx = await resolveContext(auth, invitationId, requestedEventId);
+    const ctx = await resolveContext(auth, invitationId, requestedEventId, {
+      requireQr: false,
+    });
     if ("error" in ctx && ctx.error) return ctx.error;
 
     const { invitation, eventId } = ctx as any;

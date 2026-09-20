@@ -62,7 +62,7 @@ function DashboardLayoutInner({
   const [menuOpen, setMenuOpen] = useState(false);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [invitationLoaded, setInvitationLoaded] = useState(false);
-  const [checkInEnabled, setCheckInEnabled] = useState(false);
+  const [eventLive, setEventLive] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const eventIdFromUrl = searchParams.get("eventId");
@@ -167,10 +167,13 @@ function DashboardLayoutInner({
   }, [isDemo, resolvedInvitationId, eventIdFromUrl]);
 
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo) {
+      setEventLive(true);
+      return;
+    }
     const eventId = eventIdForMenu;
     if (!eventId) {
-      setCheckInEnabled(false);
+      setEventLive(false);
       return;
     }
 
@@ -182,16 +185,28 @@ function DashboardLayoutInner({
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
-        setCheckInEnabled(Boolean(data?.checkInEnabled));
+        setEventLive(Boolean(data?.live));
       })
       .catch(() => {
-        if (!cancelled) setCheckInEnabled(false);
+        if (!cancelled) {
+          setEventLive(false);
+        }
       });
 
     return () => {
       cancelled = true;
     };
   }, [isDemo, eventIdForMenu]);
+
+  useEffect(() => {
+    function onWorkMode(event: Event) {
+      const mode = String((event as CustomEvent)?.detail?.workMode || "");
+      if (mode === "live") setEventLive(true);
+      if (mode === "regular") setEventLive(false);
+    }
+    window.addEventListener("invistimo:work-mode", onWorkMode);
+    return () => window.removeEventListener("invistimo:work-mode", onWorkMode);
+  }, []);
 
   useEffect(() => {
     if (isDemo || !invitationLoaded) return;
@@ -269,7 +284,7 @@ function DashboardLayoutInner({
             invitation?.guestExperienceType
           }
           eventId={eventIdForMenu}
-          checkInEnabled={checkInEnabled}
+          eventLive={eventLive}
           canOpenEventManagement={canOpenEventManagement}
           canOpenTransportationManagement={canOpenTransportationManagement}
           canOpenWeddingChallenges={canOpenWeddingChallenges}

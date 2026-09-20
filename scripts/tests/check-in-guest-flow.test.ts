@@ -150,6 +150,7 @@ test("guest check-in pass copy stays unchanged", () => {
 test("host scanner saves on quantity tap and only while live", () => {
   const host = read("app/dashboard/check-in/CheckInHostClient.tsx");
   const confirm = read("app/api/check-in/confirm/route.ts");
+  const lookup = read("app/api/check-in/lookup/route.ts");
   const gate = read("lib/checkIn/eventGate.ts");
   const apply = read("lib/checkIn/applyCheckIn.ts");
   assert.match(host, /הכניסה נרשמה/);
@@ -159,8 +160,14 @@ test("host scanner saves on quantity tap and only while live", () => {
   assert.match(host, /הגיעו בפועל עד עכשיו/);
   assert.doesNotMatch(host, /אישור כניסה/);
   assert.doesNotMatch(host, /האורחים כבר נכנסו/);
+  assert.doesNotMatch(host, /Invistimo Check-in אינו פעיל/);
+  assert.match(host, /live && checkInEnabled/);
   assert.match(host, /pause\(false\)/);
   assert.match(confirm, /checkInActionBlocked/);
+  assert.match(confirm, /entryActionBlocked/);
+  assert.match(lookup, /requireQr: true/);
+  assert.match(lookup, /requireQr: false/);
+  assert.match(lookup, /entryActionBlocked/);
   assert.match(gate, /EVENT_NOT_LIVE/);
   assert.match(confirm, /undoCheckIn/);
   assert.doesNotMatch(apply, /EXCEEDS_CONFIRMED/);
