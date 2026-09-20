@@ -54,8 +54,9 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
 
   assert.match(sidebar, /שירותים נוספים/);
   assert.match(sidebar, /hidden: !canCheckIn/);
-  assert.match(sidebar, /eventLive && userCanAccessCheckIn/);
-  assert.doesNotMatch(sidebar, /checkInEnabled && userCanAccessCheckIn/);
+  assert.match(sidebar, /eventLive &&/);
+  assert.match(sidebar, /checkInEnabled &&/);
+  assert.match(sidebar, /userCanAccessCheckIn/);
   assert.match(sidebar, /hidden: !canCallRounds/);
   assert.doesNotMatch(sidebar, /action=add-guest/);
   assert.match(sidebar, /\?action=calls/);
@@ -126,6 +127,7 @@ test("dashboard uses five RSVP cards then three equal content cards", () => {
   assert.match(page, /!isLiveDashboard &&/);
   assert.match(page, /id="live-arrival-stats"/);
   assert.match(page, /id="live-entry"/);
+  assert.match(page, /\{checkInEnabled && \(/);
   assert.match(page, /CheckInHostClient/);
   assert.match(page, /hideCountdown=\{isLiveDashboard\}/);
 });

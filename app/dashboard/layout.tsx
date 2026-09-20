@@ -63,6 +63,7 @@ function DashboardLayoutInner({
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [invitationLoaded, setInvitationLoaded] = useState(false);
   const [eventLive, setEventLive] = useState(false);
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const eventIdFromUrl = searchParams.get("eventId");
@@ -122,6 +123,7 @@ function DashboardLayoutInner({
       });
       setInvitationLoaded(true);
       setEventLive(true);
+      setCheckInEnabled(true);
       return;
     }
 
@@ -169,11 +171,13 @@ function DashboardLayoutInner({
   useEffect(() => {
     if (isDemo) {
       setEventLive(true);
+      setCheckInEnabled(true);
       return;
     }
     const eventId = eventIdForMenu;
     if (!eventId) {
       setEventLive(false);
+      setCheckInEnabled(false);
       return;
     }
 
@@ -186,10 +190,12 @@ function DashboardLayoutInner({
       .then((data) => {
         if (cancelled) return;
         setEventLive(Boolean(data?.live));
+        setCheckInEnabled(Boolean(data?.checkInEnabled));
       })
       .catch(() => {
         if (!cancelled) {
           setEventLive(false);
+          setCheckInEnabled(false);
         }
       });
 
@@ -285,6 +291,7 @@ function DashboardLayoutInner({
           }
           eventId={eventIdForMenu}
           eventLive={eventLive}
+          checkInEnabled={checkInEnabled}
           canOpenEventManagement={canOpenEventManagement}
           canOpenTransportationManagement={canOpenTransportationManagement}
           canOpenWeddingChallenges={canOpenWeddingChallenges}

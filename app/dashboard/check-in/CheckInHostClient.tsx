@@ -702,6 +702,18 @@ export default function CheckInHostClient({
     );
   }
 
+  if (!checkInEnabled) {
+    if (embedded) return null;
+    return (
+      <div
+        className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-bold text-[#7C6A58]"
+        dir="rtl"
+      >
+        הדף אינו זמין לאירוע זה
+      </div>
+    );
+  }
+
   if (!canScan) {
     return (
       <div
@@ -725,9 +737,7 @@ export default function CheckInHostClient({
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
-          {checkInEnabled
-            ? "המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא."
-            : "חיפוש ידני לפי שם או טלפון. בחירת כמות שומרת מיד."}
+          המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא.
         </p>
       </div>
 

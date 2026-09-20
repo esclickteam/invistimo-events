@@ -2749,6 +2749,7 @@ const eventLocation = resolveEventLocation(invitation, event);
             </div>
           </section>
 
+          {checkInEnabled && (
           <section
             id="live-entry"
             className="mb-7 rounded-[28px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm sm:p-6"
@@ -2769,6 +2770,7 @@ const eventLocation = resolveEventLocation(invitation, event);
               />
             </Suspense>
           </section>
+          )}
         </>
       )}
 
