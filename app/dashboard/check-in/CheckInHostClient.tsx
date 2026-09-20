@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, Check, Loader2, QrCode, Search, X } from "lucide-react";
+import { Camera, Check, Loader2, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
   userCanManageCheckIn,
@@ -678,23 +678,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm font-bold text-[#7C6A58]">
         <Loader2 className="ml-2 animate-spin" size={18} />
-        טוען Check-in...
-      </div>
-    );
-  }
-
-  if (!checkInEnabled) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center" dir="rtl">
-        <div className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-8 shadow-sm">
-          <QrCode className="mx-auto text-[#B88A2D]" size={36} />
-          <h1 className="mt-4 text-xl font-black text-[#3F3328]">
-            Invistimo Check-in אינו פעיל באירוע זה
-          </h1>
-          <p className="mt-2 text-sm font-bold text-[#7C6A58]">
-            זהו Add-on שמופעל רק על ידי צוות Invistimo.
-          </p>
-        </div>
+        טוען כניסה לאירוע...
       </div>
     );
   }
@@ -705,7 +689,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
         className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-bold text-[#7C6A58]"
         dir="rtl"
       >
-        אין הרשאה לסריקת כניסה
+        אין הרשאה לכניסה לאירוע
       </div>
     );
   }
@@ -715,17 +699,19 @@ export default function CheckInHostClient({ demo = false }: Props) {
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
-          המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא.
+          {checkInEnabled
+            ? "המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא."
+            : "חיפוש ידני לפי שם או טלפון. בחירת כמות שומרת מיד."}
         </p>
       </div>
 
       {!live && (
         <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-6 text-center shadow-sm">
           <h2 className="text-lg font-black text-[#3F3328]">
-            הסריקה נפתחת רק במצב LIVE
+            הכניסה נפתחת רק במצב LIVE
           </h2>
           <p className="mt-2 text-sm font-bold text-[#7C6A58]">
-            אפשר להכין QR מראש. כניסה בפועל נרשמת רק כשהאירוע LIVE.
+            אפשר להכין הכול מראש. רישום כניסה בפועל מתבצע רק כשהאירוע LIVE.
           </p>
           {canManage ? (
             <button
@@ -738,7 +724,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
             </button>
           ) : (
             <p className="mt-3 text-sm font-bold text-[#8A7A68]">
-              המארחת תוכל לסרוק ברגע שבעל האירוע יעביר את האירוע ל-LIVE.
+              המארחת תוכל לרשום כניסה ברגע שבעל האירוע יעביר את האירוע ל-LIVE.
             </p>
           )}
         </section>
@@ -776,7 +762,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
         </section>
       )}
 
-      {live && (
+      {live && checkInEnabled && (
         <section className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
             <Camera size={18} className="text-[#B88A2D]" />
@@ -796,6 +782,12 @@ export default function CheckInHostClient({ demo = false }: Props) {
               פתיחת מצלמה
             </button>
           )}
+        </section>
+      )}
+
+      {live && !checkInEnabled && (
+        <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 text-sm font-bold text-[#7C6A58]">
+          סריקת QR אינה פעילה באירוע זה. הכניסה מתבצעת בחיפוש ידני בלבד.
         </section>
       )}
 

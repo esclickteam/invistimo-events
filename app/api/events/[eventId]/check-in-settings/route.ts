@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const event = await Event.findById(eventId)
-      .select("userId producerId assignedStaffIds checkInEnabled")
+      .select("userId producerId assignedStaffIds checkInEnabled liveStatus")
       .lean();
 
     if (!event || !canAccessEvent(auth, event)) {
@@ -72,6 +72,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       checkInEnabled: Boolean((event as any)?.checkInEnabled),
+      liveStatus:
+        String((event as any)?.liveStatus || "").toUpperCase() === "LIVE"
+          ? "LIVE"
+          : "REGULAR",
+      live: String((event as any)?.liveStatus || "").toUpperCase() === "LIVE",
     });
   } catch (err) {
     console.error("❌ GET check-in-settings:", err);

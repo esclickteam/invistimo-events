@@ -322,9 +322,15 @@ function DashboardPageInner() {
     if (typeof window === "undefined") return "regular";
     return (localStorage.getItem("workMode") as WorkMode) || "regular";
   });
+  const workModeHydratedRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem("workMode", workMode);
+    window.dispatchEvent(
+      new CustomEvent("invistimo:work-mode", {
+        detail: { workMode },
+      })
+    );
   }, [workMode]);
 
   const pathname = usePathname();
@@ -706,10 +712,18 @@ const canViewActualArrived =
     })
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled) setCheckInEnabled(Boolean(data?.checkInEnabled));
+        if (cancelled) return;
+        setCheckInEnabled(Boolean(data?.checkInEnabled));
+        if (data?.live === true) {
+          setWorkMode("live");
+        }
+        workModeHydratedRef.current = true;
       })
       .catch(() => {
-        if (!cancelled) setCheckInEnabled(false);
+        if (!cancelled) {
+          setCheckInEnabled(false);
+          workModeHydratedRef.current = true;
+        }
       });
 
     return () => {
@@ -717,6 +731,44 @@ const canViewActualArrived =
     };
   }, [
     isDemo,
+    eventIdFromUrl,
+    invitation?.eventId,
+    invitation?.event,
+    invitation?.event_id,
+  ]);
+
+  useEffect(() => {
+    if (isDemo) {
+      workModeHydratedRef.current = true;
+      return;
+    }
+    if (!workModeHydratedRef.current) return;
+    const eventId =
+      eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      "";
+    if (!invitationId && !eventId) return;
+
+    const controller = new AbortController();
+    fetch("/api/check-in/live", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        live: workMode === "live",
+        invitationId: invitationId || undefined,
+        eventId: eventId || undefined,
+      }),
+    }).catch(() => {});
+
+    return () => controller.abort();
+  }, [
+    workMode,
+    isDemo,
+    invitationId,
     eventIdFromUrl,
     invitation?.eventId,
     invitation?.event,
@@ -2661,7 +2713,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         <GoldenLinkViewsCard guests={guests} />
       </section>
 
-      {checkInEnabled && (
+      {workMode === "live" && (
         <section className="mb-7 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2679,7 +2731,7 @@ const eventLocation = resolveEventLocation(invitation, event);
               }}
               className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
             >
-              פתיחת סריקה
+              כניסה לאירוע
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

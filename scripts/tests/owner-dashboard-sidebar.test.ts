@@ -54,6 +54,8 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
 
   assert.match(sidebar, /שירותים נוספים/);
   assert.match(sidebar, /hidden: !canCheckIn/);
+  assert.match(sidebar, /eventLive && userCanAccessCheckIn/);
+  assert.doesNotMatch(sidebar, /checkInEnabled && userCanAccessCheckIn/);
   assert.match(sidebar, /hidden: !canCallRounds/);
   assert.doesNotMatch(sidebar, /action=add-guest/);
   assert.match(sidebar, /\?action=calls/);

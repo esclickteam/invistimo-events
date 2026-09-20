@@ -41,7 +41,7 @@ export type DashboardSidebarProps = {
   rsvpSiteMode?: unknown;
   guestExperienceType?: unknown;
   eventId?: string;
-  checkInEnabled?: boolean;
+  eventLive?: boolean;
   canOpenEventManagement?: boolean;
   canOpenTransportationManagement?: boolean;
   canOpenWeddingChallenges?: boolean;
@@ -139,7 +139,7 @@ export default function DashboardSidebar({
   rsvpSiteMode,
   guestExperienceType,
   eventId = "",
-  checkInEnabled = false,
+  eventLive = false,
   canOpenEventManagement = false,
   canOpenTransportationManagement = false,
   canOpenWeddingChallenges = false,
@@ -160,7 +160,7 @@ export default function DashboardSidebar({
   }, [pathname]);
 
   const canCheckIn =
-    !gameOnly && checkInEnabled && userCanAccessCheckIn(user as any);
+    !gameOnly && eventLive && userCanAccessCheckIn(user as any);
   const canCallRounds = !gameOnly && user?.includeCalls === true;
   const invitationLooksLikeWebsite = isPersonalRsvpSite(
     rsvpSiteMode ?? guestExperienceType
