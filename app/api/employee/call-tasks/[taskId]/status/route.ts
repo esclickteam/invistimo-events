@@ -1892,6 +1892,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       (requestedMoveToNextRound &&
         nextStatus !== "confirmed" &&
         nextStatus !== "declined" &&
+        nextStatus !== "undecided" &&
         nextStatus !== "will_reply_message");
 
     const nextRoundReason: NextRoundReason = autoMoveBecauseNoAnswer

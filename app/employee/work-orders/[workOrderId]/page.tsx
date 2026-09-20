@@ -25,6 +25,7 @@ type TaskStatus =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
   | "will_reply_message"
   | "needs_fix"
   | "wrong_number"
@@ -37,7 +38,7 @@ type AnsweredResult =
   | ""
   | "confirmed"
   | "declined"
-  | "will_reply_message"
+  | "undecided"
   | "callback";
 
 type MessageFollowUpAction = "" | "self_reply" | "move_to_next_round";
@@ -283,7 +284,8 @@ function getStatusLabel(status: string) {
     declined: "לא מגיע",
     no_answer: "לא ענה",
     callback: "חזרה בסבב הבא",
-    will_reply_message: "ישיב בהודעה",
+    undecided: "מתלבט",
+    will_reply_message: "מתלבט",
     needs_fix: "דורש תיקון",
     wrong_number: "דורש תיקון",
     completed: "הושלם",
@@ -304,7 +306,7 @@ function getStatusClass(status: string) {
   if (status === "declined") return "bad";
   if (status === "no_answer") return "warn";
   if (status === "callback") return "active";
-  if (status === "will_reply_message") return "cyan";
+  if (status === "undecided" || status === "will_reply_message") return "cyan";
   if (status === "needs_fix" || status === "wrong_number") return "danger";
   if (status === "in_progress") return "active";
   if (status === "completed") return "good";
@@ -357,6 +359,7 @@ function isFinalResultStatus(status: TaskStatus) {
     status === "declined" ||
     status === "no_answer" ||
     status === "callback" ||
+    status === "undecided" ||
     status === "will_reply_message" ||
     status === "needs_fix" ||
     status === "wrong_number"
@@ -383,7 +386,8 @@ function statusButtonLabel(status: TaskStatus) {
     declined: "לא מגיע",
     no_answer: "לא ענה",
     callback: "חזרה בסבב הבא",
-    will_reply_message: "ישיב בהודעה",
+    undecided: "מתלבט",
+    will_reply_message: "מתלבט",
     needs_fix: "דורש תיקון",
     wrong_number: "דורש תיקון",
     completed: "הושלם",
@@ -576,10 +580,10 @@ export default function EmployeeWorkOrderTasksPage() {
       return;
     }
 
-    if (currentStatus === "will_reply_message") {
+    if (currentStatus === "undecided" || currentStatus === "will_reply_message") {
       setCallAnswered("answered");
-      setAnsweredResult("will_reply_message");
-      setMessageFollowUpAction("self_reply");
+      setAnsweredResult("undecided");
+      setMessageFollowUpAction("");
       setNoAnswerResult("");
       return;
     }
@@ -762,7 +766,7 @@ export default function EmployeeWorkOrderTasksPage() {
     if (callAnswered === "answered") {
       if (answeredResult === "confirmed") return "confirmed";
       if (answeredResult === "declined") return "declined";
-      if (answeredResult === "will_reply_message") return "will_reply_message";
+      if (answeredResult === "undecided") return "undecided";
       if (answeredResult === "callback") return "callback";
 
       return "";
@@ -784,7 +788,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
     if (callAnswered === "answered") {
       if (!answeredResult) {
-        return "האורח ענה. בחרי: מגיע, לא מגיע, ישיב בהודעה או חזרה בסבב הבא.";
+        return "האורח ענה. בחרי: מגיע, לא מגיע, מתלבט או חזרה בסבב הבא.";
       }
 
       if (answeredResult === "confirmed") {
@@ -795,12 +799,12 @@ export default function EmployeeWorkOrderTasksPage() {
         return "יעדכן את ה-RSVP של האורח כלא מגיע וכמות מגיעים 0.";
       }
 
-      if (answeredResult === "will_reply_message") {
-        return "האורח אמר שהוא ישיב בהודעה באופן עצמאי. לא נפתח לו סבב הבא.";
+      if (answeredResult === "undecided") {
+        return "יעדכן את ה-RSVP של האורח למתלבט. לא ייפתח סבב הבא אוטומטית.";
       }
 
       if (answeredResult === "callback") {
-        return "האורח ענה וביקש חזרה. הוא ייכנס לסבב הבא רק בתאריך שהוגדר באדמין, ויחולק לעובדים שמשובצים באותו תאריך.";
+        return "תוצאת השיחה תישמר כחזרה בסבב הבא. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא לפי תאריך האדמין.";
       }
     }
 
@@ -813,7 +817,7 @@ export default function EmployeeWorkOrderTasksPage() {
   return "יישמר תיעוד שהרשומה דורשת תיקון. אם יש סבב הבא, היא תיפתח רק בתאריך שהוגדר לסבב הבא.";
 }
 
-      return "לא ענה בסבב הזה. הוא ייכנס לסבב הבא רק בתאריך שהוגדר באדמין, ולא ייפתח מיד לעובד הנוכחי.";
+      return "לא ענה בסבב הזה. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין.";
     }
 
     return "";
@@ -876,9 +880,7 @@ export default function EmployeeWorkOrderTasksPage() {
       const finalMessageFollowUpAction =
         input.status === "callback"
           ? ""
-          : input.status === "will_reply_message"
-            ? "self_reply"
-            : input.messageFollowUpAction || "";
+          : input.messageFollowUpAction || "";
 
       const body: Record<string, any> = {
         taskId,
@@ -982,16 +984,16 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (input.status === "confirmed") {
-        body.rsvpStatus = "attending";
-        body.guestRsvpStatus = "attending";
-        body.rsvpResult = "attending";
+        body.rsvpStatus = "yes";
+        body.guestRsvpStatus = "yes";
+        body.rsvpResult = "yes";
         body.keepRsvpOpen = false;
       }
 
       if (input.status === "declined") {
-        body.rsvpStatus = "not_attending";
-        body.guestRsvpStatus = "not_attending";
-        body.rsvpResult = "not_attending";
+        body.rsvpStatus = "no";
+        body.guestRsvpStatus = "no";
+        body.rsvpResult = "no";
         body.attendingCount = 0;
         body.confirmedCount = 0;
         body.arrivedCount = 0;
@@ -999,18 +1001,20 @@ export default function EmployeeWorkOrderTasksPage() {
         body.keepRsvpOpen = false;
       }
 
-      if (input.status === "will_reply_message") {
-        body.rsvpStatus = "will_reply_message";
-        body.guestRsvpStatus = "will_reply_message";
-        body.rsvpResult = "will_reply_message";
+      if (input.status === "undecided") {
+        body.rsvpStatus = "maybe";
+        body.guestRsvpStatus = "maybe";
+        body.rsvpResult = "maybe";
         body.keepRsvpOpen = true;
-        body.messageFollowUpAction = "self_reply";
+        body.messageFollowUpAction = "";
       }
 
       if (input.status === "callback") {
-        body.rsvpStatus = "callback";
-        body.guestRsvpStatus = "callback";
-        body.rsvpResult = "callback";
+        body.rsvpStatus = "pending";
+        body.guestRsvpStatus = "pending";
+        body.rsvpResult = "pending";
+        body.callResult = "callback";
+        body.callOutcome = "callback";
         body.callbackRequested = true;
         body.needsCallback = true;
         body.eligibleForNextScheduledRound = true;
@@ -1025,9 +1029,11 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (input.status === "no_answer") {
-        body.rsvpStatus = "no_answer";
-        body.guestRsvpStatus = "no_answer";
-        body.rsvpResult = "no_answer";
+        body.rsvpStatus = "pending";
+        body.guestRsvpStatus = "pending";
+        body.rsvpResult = "pending";
+        body.callResult = "no_answer";
+        body.callOutcome = "no_answer";
         body.eligibleForNextScheduledRound = true;
         body.deferToScheduledRound = true;
         body.nextScheduledRound = nextRound;
@@ -1157,11 +1163,7 @@ export default function EmployeeWorkOrderTasksPage() {
       callAnswered,
       answeredResult,
       messageFollowUpAction:
-        finalStatus === "callback"
-          ? ""
-          : finalStatus === "will_reply_message"
-            ? "self_reply"
-            : messageFollowUpAction,
+        finalStatus === "callback" ? "" : messageFollowUpAction,
       noAnswerResult,
       moveToNextRound: false,
     };
@@ -1447,7 +1449,7 @@ export default function EmployeeWorkOrderTasksPage() {
             <option value="in_progress">בטיפול</option>
             <option value="confirmed">מגיע</option>
             <option value="declined">לא מגיע</option>
-            <option value="will_reply_message">ישיב בהודעה</option>
+            <option value="undecided">מתלבט</option>
             <option value="callback">חזרה בסבב הבא</option>
             <option value="no_answer">לא ענה</option>
             <option value="needs_fix">דורש תיקון</option>
@@ -1699,7 +1701,7 @@ export default function EmployeeWorkOrderTasksPage() {
                           [
                             "confirmed",
                             "declined",
-                            "will_reply_message",
+                            "undecided",
                             "callback",
                           ] as TaskStatus[]
                         ).map((item) => (
@@ -1712,14 +1714,7 @@ export default function EmployeeWorkOrderTasksPage() {
                             onClick={() => {
                               setAnsweredResult(item as AnsweredResult);
                               setNoAnswerResult("");
-
-                              if (item === "callback") {
-                                setMessageFollowUpAction("");
-                              } else if (item === "will_reply_message") {
-                                setMessageFollowUpAction("self_reply");
-                              } else {
-                                setMessageFollowUpAction("");
-                              }
+                              setMessageFollowUpAction("");
                             }}
                           >
                             {statusButtonLabel(item)}
@@ -1785,7 +1780,7 @@ export default function EmployeeWorkOrderTasksPage() {
                     <label>תיעוד שיחה פנימי</label>
                     <textarea
                       value={draftCallDocumentation}
-                      placeholder="תיעוד השיחה, לדוגמה: ענה וביקש חזרה בסבב הבא / לא ענה / אמר שישיב בהודעה..."
+                      placeholder="תיעוד השיחה, לדוגמה: ענה וביקש חזרה בסבב הבא / לא ענה / מתלבט..."
                       onChange={(e) =>
                         setDraftCallDocumentation(e.target.value)
                       }

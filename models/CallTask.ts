@@ -16,7 +16,8 @@ export type CallTaskStatus =
   | "declined" // לא מגיע
   | "no_answer" // לא ענה
   | "callback" // חזרה בסבב הבא לפי תאריך הסבב
-  | "will_reply_message" // האורח אמר שישיב בהודעה
+  | "undecided" // מתלבט
+  | "will_reply_message" // תאימות לאחור
   | "needs_fix" // דורש תיקון
   | "wrong_number" // מספר שגוי - תאימות לאחור
   | "completed" // הושלם כללי
@@ -32,6 +33,7 @@ export type CallTaskResult =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
   | "will_reply_message"
   | "needs_fix"
   | "wrong_number"
@@ -292,6 +294,7 @@ const CallTaskSchema = new Schema<ICallTask>(
         "declined",
         "no_answer",
         "callback",
+        "undecided",
         "will_reply_message",
         "needs_fix",
         "wrong_number",
@@ -310,6 +313,7 @@ const CallTaskSchema = new Schema<ICallTask>(
         "declined",
         "no_answer",
         "callback",
+        "undecided",
         "will_reply_message",
         "needs_fix",
         "wrong_number",
@@ -432,6 +436,7 @@ function isCompletedStatus(status: CallTaskStatus) {
     "declined",
     "no_answer",
     "callback",
+    "undecided",
     "will_reply_message",
     "needs_fix",
     "wrong_number",
@@ -464,6 +469,7 @@ CallTaskSchema.pre("validate", function () {
     else if (doc.status === "declined") doc.result = "declined";
     else if (doc.status === "no_answer") doc.result = "no_answer";
     else if (doc.status === "callback") doc.result = "callback";
+    else if (doc.status === "undecided") doc.result = "undecided";
     else if (doc.status === "will_reply_message") doc.result = "will_reply_message";
     else if (doc.status === "needs_fix") doc.result = "needs_fix";
     else if (doc.status === "wrong_number") doc.result = "wrong_number";
