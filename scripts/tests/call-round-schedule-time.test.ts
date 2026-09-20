@@ -58,4 +58,13 @@ assert.equal(
   true
 );
 
+assert.equal(
+  isCallRoundDue({
+    scheduledAt: withTime!,
+    dateKey: "2026-09-21",
+    now: after,
+  }),
+  true
+);
+
 console.log("call-round-schedule-time.test.ts: ok");
