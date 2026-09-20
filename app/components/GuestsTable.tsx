@@ -164,7 +164,7 @@ export default function GuestsTable({
             ["notOpened", "לא נפתח"],
             ["yes", "מגיעים"],
             ["maybe", "מתלבטים"],
-            ["pending", "לא ענו"],
+            ["pending", "בהמתנה"],
             ["no", "לא מגיעים"],
             ["noTable", "בלי שולחן"],
           ].map(([key, label]) => (

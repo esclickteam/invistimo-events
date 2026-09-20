@@ -35,6 +35,12 @@ import {
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { summarizeCheckIn } from "@/lib/checkIn/status";
+import {
+  filterGuestsForCallRound,
+  getCallRoundAudienceLabel,
+  summarizeCallRoundGuests,
+  type CallRoundNumber,
+} from "@/lib/calls/callRoundEligibility";
 
 type EventModel = {
   title?: string;
@@ -140,7 +146,7 @@ const RSVP_STATUS_LABELS: Record<Guest["rsvp"], string> = {
   yes: "מגיע",
   no: "לא מגיע",
   maybe: "מתלבטים",
-  pending: "לא ענו",
+  pending: "בהמתנה",
 };
 
 const RSVP_STATUS_CLASSES: Record<Guest["rsvp"], string> = {
@@ -1986,15 +1992,24 @@ function doesGuestMatchCallFilter(
 
   if (!parsed.filterType) return true;
 
-  const activeCallRound = parsed.roundNumber || selectedRound;
+  const activeCallRound = (parsed.roundNumber || selectedRound) as 0 | 1 | 2 | 3;
+
+  if (parsed.filterType === "round") {
+    if (!activeCallRound) return false;
+
+    return (
+      filterGuestsForCallRound({
+        guests: [guest],
+        round: activeCallRound as CallRoundNumber,
+      }).length > 0
+    );
+  }
+
   const callRound = getGuestCallRoundForFilter(guest, activeCallRound);
 
   if (!callRound) return false;
 
   switch (parsed.filterType) {
-    case "round":
-      return true;
-
     case "answered":
       return callRound.answerStatus === "answered";
 
@@ -2079,6 +2094,27 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
   );
   const recordsLimit = Number(user?.guests || 0);
   const remainingRecords = Math.max(0, recordsLimit - usedRecordsCount);
+
+  const callRoundStats = useMemo(() => {
+    if (!selectedCallRound) return null;
+
+    const roundGuests = filterGuestsForCallRound({
+      guests,
+      round: selectedCallRound as CallRoundNumber,
+    });
+
+    const summary = summarizeCallRoundGuests(
+      roundGuests,
+      selectedCallRound as CallRoundNumber
+    );
+
+    return {
+      ...summary,
+      description: getCallRoundAudienceLabel(
+        selectedCallRound as CallRoundNumber
+      ),
+    };
+  }, [guests, selectedCallRound]);
 
   const displayGuests = useMemo(() => {
     let list = [...guests];
@@ -2681,7 +2717,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         />
 
         <GoldenStatCard
-          title="לא ענו"
+          title="בהמתנה"
           value={stats.noResponse}
           icon="⌛"
           tone="bronze"
@@ -2787,6 +2823,7 @@ const eventLocation = resolveEventLocation(invitation, event);
   setQuickFilter={setQuickFilter}
   selectedCallRound={selectedCallRound}
   setSelectedCallRound={setSelectedCallRound}
+  callRoundStats={callRoundStats}
   totalCount={guests.length}
   displayCount={displayGuests.length}
   recordsLimit={recordsLimit}
@@ -4480,7 +4517,7 @@ function GoldenStatusBarsCard({
           bar="bg-violet-500"
         />
         <GoldenProgressRow
-          label="לא ענו"
+          label="בהמתנה"
           value={pending}
           percent={pendingPercent}
           bar="bg-amber-500"
@@ -4590,7 +4627,7 @@ function GoldenDonutCard({
           />
           <LegendRow
             color="bg-amber-500"
-            label="לא ענו"
+            label="בהמתנה"
             value={pending}
             percent={pendingPercent}
           />
@@ -5002,7 +5039,13 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
 
     return {
       key: `call_round_${round}`,
-      label: `סבב שיחות ${round}`,
+          label: `סבב שיחות ${round} · ${
+            round === 1
+              ? "ממתינים שעדיין לא נתנו תשובה"
+              : round === 2
+                ? "לא ענו בסבב 1"
+                : "לא ענו בסבבים 1–2 + מתלבטים"
+          }`,
       group: "סבבי שיחות",
       icon: "📞",
       done: userRound?.status === "done",

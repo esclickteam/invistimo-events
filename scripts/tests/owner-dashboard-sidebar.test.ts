@@ -105,7 +105,7 @@ test("dashboard uses five RSVP cards then three equal content cards", () => {
   assert.match(page, /title="מגיעים"/);
   assert.match(page, /title="לא מגיעים"/);
   assert.match(page, /title="מתלבטים"/);
-  assert.match(page, /title="לא ענו"/);
+  assert.match(page, /title="בהמתנה"/);
   assert.doesNotMatch(page, /title="פתחו קישור"/);
   assert.doesNotMatch(page, /title="לא פתחו קישור"/);
   assert.doesNotMatch(page, /2xl:grid-cols-7/);

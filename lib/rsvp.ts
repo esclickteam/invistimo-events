@@ -4,5 +4,5 @@ export const RSVP_LABELS: Record<RSVPStatus, string> = {
   yes: "מגיע",
   no: "לא מגיע",
   maybe: "מתלבטים",
-  pending: "לא ענו",
+  pending: "בהמתנה",
 };

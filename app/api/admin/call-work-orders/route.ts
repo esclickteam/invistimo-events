@@ -9,6 +9,14 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import {
+  filterGuestsForCallRound,
+  getCallRoundDescription,
+  getSourceAudienceByRound as getSharedSourceAudienceByRound,
+  isNoAnswerCallResult,
+  normalizeCallAnswerFromSources,
+  type CallRoundNumber,
+} from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -232,9 +240,7 @@ function normalizeRound(value: unknown): RoundNumber {
 }
 
 function getSourceAudienceByRound(round: RoundNumber) {
-  if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_no_answer";
-  return "round_2_no_answer";
+  return getSharedSourceAudienceByRound(round as CallRoundNumber);
 }
 
 function getRoundTitle(input: {
@@ -248,15 +254,7 @@ function getRoundTitle(input: {
 }
 
 function getDescriptionByRound(round: RoundNumber) {
-  if (round === 1) {
-    return "סבב 1 - שיחות לכל האורחים שטרם השיבו";
-  }
-
-  if (round === 2) {
-    return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
-  }
-
-  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
+  return getCallRoundDescription(round as CallRoundNumber);
 }
 
 /* ============================================================
@@ -682,61 +680,21 @@ async function loadGuestsForInvitation(invitation: any) {
   }).lean();
 }
 
-function shouldCarryPreviousRoundTaskToNextRound(status: unknown) {
-  const normalized = cleanStr(status).toLowerCase();
-
-  return [
-    "pending",
-    "open",
-    "assigned",
-    "active",
-    "in_progress",
-    "no_answer",
-    "callback",
-    "needs_fix",
-    "wrong_number",
-  ].includes(normalized);
-}
-
-async function loadGuestsForRound(input: {
-  invitation: any;
-  round: RoundNumber;
+async function loadNoAnswerGuestIdsByRound(input: {
+  invitationObjectId: Types.ObjectId;
+  round: 1 | 2;
   dateKey: string;
 }) {
-  const invitationId = extractIdString(input.invitation?._id || "");
-  const invitationObjectId = toObjectId(invitationId);
-
-  const allGuests = await loadGuestsForInvitation(input.invitation);
-
-  const pendingGuestsWithPhone = allGuests.filter((guest: any) => {
-    return hasPhone(guest) && isPendingGuest(guest);
-  });
-
-  if (input.round === 1) {
-    return pendingGuestsWithPhone;
-  }
-
-  /*
-    סבב 3 בלבד:
-    נפתח לכל מי שבהמתנה.
-    סבב 2 נשאר לפי תוצאות סבב 1 בלבד.
-  */
-  if (input.round === 3) {
-    return pendingGuestsWithPhone;
-  }
-
-  if (!invitationObjectId) return [];
-
-  const previousRound = 1 as const;
-
   const previousRoundTasks = await CallTask.find({
-    invitationId: invitationObjectId,
-    round: previousRound,
+    invitationId: input.invitationObjectId,
+    round: input.round,
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
   })
-    .select("guestId status updatedAt createdAt")
+    .select(
+      "guestId invitationGuestId status result callResult outcome callStatus answerStatus callAnswered noAnswerResult updatedAt createdAt"
+    )
     .sort({
       updatedAt: -1,
       createdAt: -1,
@@ -746,23 +704,65 @@ async function loadGuestsForRound(input: {
   const latestTaskByGuestId = new Map<string, any>();
 
   for (const task of previousRoundTasks) {
-    const guestId = extractIdString((task as any)?.guestId);
+    const guestId = extractIdString((task as any)?.guestId || (task as any)?.invitationGuestId);
     if (!guestId) continue;
-
     if (!latestTaskByGuestId.has(guestId)) {
       latestTaskByGuestId.set(guestId, task);
     }
   }
 
-  return pendingGuestsWithPhone.filter((guest: any) => {
-    const guestId = extractIdString(guest?._id || "");
-    if (!guestId) return false;
+  const guestIds = new Set<string>();
 
-    const previousTask = latestTaskByGuestId.get(guestId);
+  for (const [guestId, task] of latestTaskByGuestId.entries()) {
+    const answer = normalizeCallAnswerFromSources({
+      answerStatus: task?.answerStatus,
+      callAnswered: task?.callAnswered,
+      result: task?.result,
+      callResult: task?.callResult,
+      status: task?.status,
+      outcome: task?.outcome,
+      callStatus: task?.callStatus,
+      noAnswerResult: task?.noAnswerResult,
+    });
 
-    if (!previousTask) return true;
+    if (answer === "no_answer" || isNoAnswerCallResult(task?.status)) {
+      guestIds.add(guestId);
+    }
+  }
 
-    return shouldCarryPreviousRoundTaskToNextRound(previousTask?.status);
+  return guestIds;
+}
+
+async function loadGuestsForRound(input: {
+  invitation: any;
+  round: RoundNumber;
+  dateKey: string;
+}) {
+  const invitationObjectId = toObjectId(extractIdString(input.invitation?._id || ""));
+  const allGuests = await loadGuestsForInvitation(input.invitation);
+
+  const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+
+  if (invitationObjectId && (input.round === 2 || input.round === 3)) {
+    previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
+      invitationObjectId,
+      round: 1,
+      dateKey: input.dateKey,
+    });
+  }
+
+  if (invitationObjectId && input.round === 3) {
+    previousNoAnswerByRound[2] = await loadNoAnswerGuestIdsByRound({
+      invitationObjectId,
+      round: 2,
+      dateKey: input.dateKey,
+    });
+  }
+
+  return filterGuestsForCallRound({
+    guests: allGuests,
+    round: input.round as CallRoundNumber,
+    previousNoAnswerByRound,
   });
 }
 

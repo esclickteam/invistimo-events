@@ -39,7 +39,7 @@ type TaskStatus =
   | "completed"
   | "cancelled";
 
-type GuestRsvpStatus = "yes" | "no" | "pending";
+type GuestRsvpStatus = "yes" | "no" | "maybe" | "pending";
 
 type TaskResult =
   | "confirmed"
@@ -474,13 +474,14 @@ function getResultFromStatus(status: TaskStatus): TaskResult {
 }
 
 /**
- * חשוב:
- * ב-InvitationGuest הערכים החוקיים הם רק:
- * yes / no / pending
+ * RSVP is separate from call result.
+ * confirmed → yes, declined → no, undecided → maybe,
+ * no_answer / callback / etc → keep pending (do not invent RSVP).
  */
 function getGuestRsvpStatus(status: TaskStatus): GuestRsvpStatus {
   if (status === "confirmed") return "yes";
   if (status === "declined") return "no";
+  if (status === "undecided") return "maybe";
 
   return "pending";
 }
@@ -1624,16 +1625,18 @@ async function syncInvitationGuest(input: {
   }
 
   if (input.status === "undecided") {
-    set.status = "pending";
-    set.rsvp = "pending";
-    set.rsvpStatus = "pending";
-    set.attendanceStatus = "pending";
-    set.responseStatus = "pending";
-    set.finalRsvpStatus = "pending";
+    set.status = "maybe";
+    set.rsvp = "maybe";
+    set.rsvpStatus = "maybe";
+    set.attendanceStatus = "maybe";
+    set.responseStatus = "maybe";
+    set.finalRsvpStatus = "maybe";
 
     set.isRsvpFinal = false;
     set.rsvpFinal = false;
     set.rsvpOpen = true;
+    set.respondedAt = input.now;
+    set.respondedVia = "call";
 
     set.pendingReason = "undecided";
     set.pendingCallStatus = "undecided";
@@ -1641,6 +1644,16 @@ async function syncInvitationGuest(input: {
     set.isUndecided = true;
     set.willReplyMessage = false;
     set.requestedNoMoreCalls = false;
+
+    set.attending = false;
+    set.isAttending = false;
+
+    set.arrivedCount = 0;
+    set.attendingCount = 0;
+    set.confirmedCount = 0;
+    set.confirmedGuests = 0;
+    set.arrivingGuests = 0;
+    set.attendeesCount = 0;
   }
 
   if (input.status === "will_reply_message") {

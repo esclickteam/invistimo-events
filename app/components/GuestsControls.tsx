@@ -26,6 +26,14 @@ type Props = {
   selectedCallRound?: CallRoundFilterValue;
   setSelectedCallRound?: Dispatch<SetStateAction<CallRoundFilterValue>>;
 
+  callRoundStats?: {
+    total: number;
+    answered: number;
+    noAnswer: number;
+    remaining: number;
+    description: string;
+  } | null;
+
   totalCount: number;
   displayCount: number;
 
@@ -57,9 +65,18 @@ type FilterButton = {
 };
 
 const CALL_ROUND_FILTERS: FilterButton[] = [
-  { key: "call_round_1" as QuickFilter, label: "סבב 1" },
-  { key: "call_round_2" as QuickFilter, label: "סבב 2" },
-  { key: "call_round_3" as QuickFilter, label: "סבב 3" },
+  {
+    key: "call_round_1" as QuickFilter,
+    label: "סבב 1 · ממתינים שעדיין לא נתנו תשובה",
+  },
+  {
+    key: "call_round_2" as QuickFilter,
+    label: "סבב 2 · לא ענו בסבב 1",
+  },
+  {
+    key: "call_round_3" as QuickFilter,
+    label: "סבב 3 · לא ענו בסבבים 1–2 + מתלבטים",
+  },
 ];
 
 const CALL_ANSWER_FILTERS: FilterButton[] = [
@@ -157,6 +174,7 @@ export default function GuestsControls({
   setQuickFilter,
   selectedCallRound = 0,
   setSelectedCallRound,
+  callRoundStats = null,
   totalCount,
   displayCount,
   recordsLimit = 0,
@@ -175,7 +193,7 @@ export default function GuestsControls({
     { key: "yes", label: "מגיעים" },
     { key: "no", label: "לא מגיעים" },
     { key: "maybe", label: "מתלבטים" },
-    { key: "pending", label: "לא ענו" },
+    { key: "pending", label: "בהמתנה" },
     { key: "noTable", label: "בלי שולחן" },
   ];
 
@@ -583,6 +601,28 @@ export default function GuestsControls({
                 })}
               </div>
             </div>
+
+            {callRoundStats && selectedRoundNumber > 0 && (
+              <div className="mt-2 rounded-[16px] border border-[#E8D7BB] bg-[#FFF8EC] p-3">
+                <div className="text-[12px] font-black text-[#8A5A24]">
+                  סבב {selectedRoundNumber} · {callRoundStats.description}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black">
+                  <span className="rounded-full border border-[#E3D6C3] bg-white px-3 py-1 text-[#6B5B4A]">
+                    מוזמנים בסבב: {callRoundStats.total}
+                  </span>
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
+                    נענו: {callRoundStats.answered}
+                  </span>
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
+                    לא ענו: {callRoundStats.noAnswer}
+                  </span>
+                  <span className="rounded-full border border-[#E3D6C3] bg-[#FFFDF8] px-3 py-1 text-[#6B5B4A]">
+                    נשארו לטיפול: {callRoundStats.remaining}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="mt-2 rounded-[16px] border border-[#EFE2CF] bg-[#FFFDF8] p-2">
               <div className="mb-2 px-1 text-[11px] font-black text-[#8A7B69]">
