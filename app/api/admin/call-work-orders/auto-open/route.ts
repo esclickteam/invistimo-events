@@ -165,10 +165,6 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
   return null;
 }
 
-function getSourceAudienceByRound(round: RoundNumber) {
-  return getSharedSourceAudienceByRound(round as CallRoundNumber);
-}
-
 function isAdminRole(role?: string) {
   const normalized = cleanStr(role).toLowerCase();
 
@@ -1269,7 +1265,11 @@ function getRoundTitle(input: {
   return `${name} | סבב ${input.round} שיחות`;
 }
 
-function getRoundDescription(round: RoundNumber) {
+function resolveSourceAudience(round: RoundNumber) {
+  return getSharedSourceAudienceByRound(round as CallRoundNumber);
+}
+
+function resolveRoundDescription(round: RoundNumber) {
   return getCallRoundDescription(round as CallRoundNumber);
 }
 
@@ -1890,7 +1890,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
 
   const eventDate = existing?.eventDate || getEventDate(candidate.invitation);
 
-  const sourceAudience = getSourceAudienceByRound(candidate.round);
+  const sourceAudience = resolveSourceAudience(candidate.round);
   const workDate = startOfDateKey(dateKey);
   const now = new Date();
 
@@ -2099,7 +2099,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   await CallWorkOrder.findByIdAndUpdate(workOrderId, {
     $set: {
       sourceAudience,
-      description: getRoundDescription(candidate.round),
+      description: resolveRoundDescription(candidate.round),
       totalTasks: eligibleGuests.length,
       distributionStrategy: "scheduled_shift_round_robin",
       updatedAt: now,
@@ -2339,7 +2339,7 @@ async function createWorkOrderForCandidate(input: {
     !Number.isNaN(candidate.configuredRoundAt.getTime())
       ? candidate.configuredRoundAt
       : autoOpenAtForDateKey(dateKey);
-  const sourceAudience = getSourceAudienceByRound(candidate.round);
+  const sourceAudience = resolveSourceAudience(candidate.round);
 
   const assignedEmployeeIds = scheduledEmployees.map(
     (employee) => employee.employeeId
@@ -2379,7 +2379,7 @@ async function createWorkOrderForCandidate(input: {
         round: candidate.round,
       }),
 
-      description: getRoundDescription(candidate.round),
+      description: resolveRoundDescription(candidate.round),
 
       status: "open",
       distributionStrategy: "scheduled_shift_round_robin",

@@ -897,6 +897,25 @@ export async function PATCH(
       });
     }
 
+    // Safety net: if call-round schedule was saved and a round is already due,
+    // let auto-open retry without waiting for the next cron tick.
+    if (hasField(body, "callRoundsSchedule")) {
+      try {
+        const { getCallRoundDateKeyInIsrael } = await import(
+          "@/lib/calls/callRoundScheduleTime"
+        );
+        const { triggerCallWorkOrdersAutoOpen } = await import(
+          "@/lib/calls/triggerCallWorkOrdersAutoOpen"
+        );
+        void triggerCallWorkOrdersAutoOpen(getCallRoundDateKeyInIsrael());
+      } catch (error) {
+        console.warn(
+          "[admin/users] auto-open safety trigger failed",
+          error
+        );
+      }
+    }
+
     /* =====================================================
        MANUAL ADMIN UPGRADE PAYMENT
        חשוב: כמו במכירה ידנית — שומרים מבנה מלא:
