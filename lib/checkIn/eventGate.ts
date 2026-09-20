@@ -27,7 +27,10 @@ export async function loadEventCheckInGate(
   };
 }
 
-/** Manual entry is allowed for every LIVE event, with or without the QR add-on. */
+/**
+ * Event entry (QR scan + manual search) is only for LIVE events
+ * that purchased / enabled the Invistimo Check-in QR add-on.
+ */
 export function entryActionBlocked(gate: CheckInEventGate) {
   if (!gate.live) {
     return {
@@ -36,19 +39,17 @@ export function entryActionBlocked(gate: CheckInEventGate) {
       message: "כניסה לאירוע זמינה רק במצב LIVE",
     };
   }
-  return null;
-}
-
-/** QR scanning is the add-on, and only while the event is LIVE. */
-export function checkInActionBlocked(gate: CheckInEventGate) {
-  const entry = entryActionBlocked(gate);
-  if (entry) return entry;
   if (!gate.checkInEnabled) {
     return {
       error: "CHECKIN_DISABLED",
       status: 403,
-      message: "סריקת QR אינה פעילה באירוע זה",
+      message: "כניסה לאירוע זמינה רק עם חבילת QR",
     };
   }
   return null;
+}
+
+/** Alias — QR and manual entry share the same gate. */
+export function checkInActionBlocked(gate: CheckInEventGate) {
+  return entryActionBlocked(gate);
 }

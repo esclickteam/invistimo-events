@@ -350,6 +350,10 @@ export default function CheckInHostClient({
   }, [canScan, checkInEnabled, live, startScanner]);
 
   useEffect(() => {
+    if (!checkInEnabled || !live) {
+      setSearchResults([]);
+      return;
+    }
     if (!query.trim() || query.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -380,7 +384,15 @@ export default function CheckInHostClient({
       }
     }, 280);
     return () => clearTimeout(handle);
-  }, [query, invitationId, invitationFromUrl, eventFromUrl, demo]);
+  }, [
+    query,
+    invitationId,
+    invitationFromUrl,
+    eventFromUrl,
+    demo,
+    checkInEnabled,
+    live,
+  ]);
 
   const openManual = (guest: GuestPreview) => {
     pauseScanner();
@@ -737,7 +749,7 @@ export default function CheckInHostClient({
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
-          המצלמה נשארת פתוחה. בחירת כמות שומרת מיד ומוכנה לאורח הבא.
+          סריקת QR או חיפוש ידני — בחירת כמות שומרת מיד ומוכנה לאורח הבא.
         </p>
       </div>
 
@@ -821,7 +833,7 @@ export default function CheckInHostClient({
         </section>
       )}
 
-      {live && (
+      {live && checkInEnabled && (
         <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
             <Search size={18} className="text-[#B88A2D]" />
