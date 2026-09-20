@@ -191,15 +191,27 @@ export default function EmployeeWorkOrdersPage() {
   const [error, setError] = useState("");
 
   const activeOrders = useMemo(() => {
-    return workOrders.filter((order) => safeNumber(order.myTasksRemaining) > 0);
+    return workOrders.filter((order) => {
+      const status = String(order.status || "").toLowerCase();
+      if (status === "completed" || status === "cancelled" || status === "canceled") {
+        return false;
+      }
+      return safeNumber(order.myTasksRemaining) > 0;
+    });
   }, [workOrders]);
 
   const completedOrders = useMemo(() => {
-    return workOrders.filter(
-      (order) =>
+    return workOrders.filter((order) => {
+      const status = String(order.status || "").toLowerCase();
+      if (status === "cancelled" || status === "canceled") {
+        return false;
+      }
+      if (status === "completed") return true;
+      return (
         safeNumber(order.myTasksTotal) > 0 &&
         safeNumber(order.myTasksRemaining) <= 0
-    );
+      );
+    });
   }, [workOrders]);
 
   async function loadWorkOrders(options?: { silent?: boolean }) {
@@ -372,22 +384,29 @@ export default function EmployeeWorkOrdersPage() {
           <section className="sectionHeader">
             <div>
               <h2>הוראות פעילות</h2>
-              <p>{activeOrders.length} הוראות עם שיחות שעדיין נותרו לטיפול</p>
+              <p>{activeOrders.length} הוראות שצריך לטפל בהן עכשיו</p>
             </div>
           </section>
 
           <section className="ordersGrid">
-            {activeOrders.map((order) => (
-              <WorkOrderCard key={order.id} order={order} />
-            ))}
+            {activeOrders.length === 0 ? (
+              <section className="emptyCard inlineEmpty">
+                <h2>אין הוראות פעילות</h2>
+                <p>כל ההוראות שהוקצו אלייך טופלו, או שאין שיחות ממתינות כרגע.</p>
+              </section>
+            ) : (
+              activeOrders.map((order) => (
+                <WorkOrderCard key={order.id} order={order} />
+              ))
+            )}
           </section>
 
           {completedOrders.length > 0 && (
             <>
               <section className="sectionHeader completedHeader">
                 <div>
-                  <h2>הוראות שהושלמו</h2>
-                  <p>{completedOrders.length} הוראות שטופלו</p>
+                  <h2>היסטוריה</h2>
+                  <p>{completedOrders.length} הוראות שהושלמו בעבר</p>
                 </div>
               </section>
 
@@ -616,6 +635,11 @@ export default function EmployeeWorkOrdersPage() {
         .emptyCard {
           padding: 34px;
           text-align: center;
+        }
+
+        .inlineEmpty {
+          grid-column: 1 / -1;
+          margin: 0;
         }
 
         .emptyCard h2 {
