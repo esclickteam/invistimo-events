@@ -11,6 +11,7 @@ import {
   instrumentGuestWrite,
   normalizeTableNumber,
 } from "@/lib/invitationGuestWrites";
+import { reclaimUnusedAllocatedSeats } from "@/lib/seating/liveOccupancy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -497,11 +498,13 @@ function placeGuestInTable({
   guest,
   guestId,
   seatsCount,
+  guestLookup,
 }: {
   table: any;
   guest: any;
   guestId: string;
   seatsCount: number;
+  guestLookup?: Map<string, any>;
 }) {
   cleanGuestFromTable(table, guestId);
 
@@ -511,6 +514,10 @@ function placeGuestInTable({
       released: true,
       freeSeats: getFreeSeatsCount(table),
     };
+  }
+
+  if (guestLookup) {
+    reclaimUnusedAllocatedSeats(table, guestLookup, guestId);
   }
 
   const freeSeats = findFreeSeatIndexes(table, seatsCount, guestId);
@@ -549,6 +556,35 @@ function placeGuestInTable({
   };
 }
 
+async function buildGuestLookupForTables(tables: any[]) {
+  const ids = new Set<string>();
+
+  for (const table of tables || []) {
+    for (const entry of table?.seatedGuests || []) {
+      const id = normalizeId(entry?.guestId);
+      if (id) ids.add(id);
+    }
+  }
+
+  if (!ids.size) return new Map<string, any>();
+
+  const objectIds = [...ids].filter((id) =>
+    mongoose.Types.ObjectId.isValid(id)
+  );
+
+  const guests = await InvitationGuest.find({
+    _id: { $in: objectIds },
+  })
+    .select("_id actualArrivedCount arrivedCount guestsCount")
+    .lean();
+
+  const map = new Map<string, any>();
+  for (const g of guests || []) {
+    map.set(normalizeId(g?._id), g);
+  }
+  return map;
+}
+
 async function applyMoveToTablesArray({
   ownerDoc,
   tables,
@@ -582,11 +618,15 @@ async function applyMoveToTablesArray({
   }
 
   if (selectedTable) {
+    const guestLookup = await buildGuestLookupForTables(tables);
+    guestLookup.set(guestId, guest);
+
     const placement = placeGuestInTable({
       table: selectedTable,
       guest,
       guestId,
       seatsCount,
+      guestLookup,
     });
 
     if (!placement.success) {
@@ -736,11 +776,15 @@ async function applyMoveToLegacyStandaloneTables({
   }
 
   if (selectedTable) {
+    const guestLookup = await buildGuestLookupForTables(tables);
+    guestLookup.set(guestId, guest);
+
     const placement = placeGuestInTable({
       table: selectedTable,
       guest,
       guestId,
       seatsCount,
+      guestLookup,
     });
 
     if (!placement.success) {

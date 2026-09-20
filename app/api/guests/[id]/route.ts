@@ -16,6 +16,15 @@ import {
   GUEST_PHONE_LOCKED_ERROR,
 } from "@/lib/guestRecordQuota";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
+import {
+  appendGuestSeats,
+  buildCurrentTableLiveOption,
+  describeAllocatedGap,
+  findAbsolutelyFreeSeatIndexes,
+  getTableLiveFreeSeats,
+  reclaimUnusedAllocatedSeats,
+  trimGuestSeatsToCount,
+} from "@/lib/seating/liveOccupancy";
 
 export const dynamic = "force-dynamic";
 
@@ -649,12 +658,6 @@ function tableHasLiveGuest(table: any, guestId: string) {
   );
 }
 
-function cleanLiveGuestFromTable(table: any, guestId: string) {
-  table.seatedGuests = (table?.seatedGuests || []).filter(
-    (sg: any) => !sameLiveId(sg?.guestId, guestId)
-  );
-}
-
 function isGuestCurrentLiveTable(table: any, guest: any, guestId: string) {
   const tableMongoId = normalizeLiveId(table?._id);
   const tableId = normalizeLiveId(table?.id);
@@ -678,26 +681,6 @@ function isGuestCurrentLiveTable(table: any, guest: any, guestId: string) {
         guestTableName.replace("שולחן", "").trim() === tableNumber)) ||
     (!!guestTableNumber && guestTableNumber === tableNumber)
   );
-}
-
-function findFreeLiveSeatIndexes(table: any, count: number, guestId: string) {
-  const capacity = getLiveTableCapacity(table);
-
-  const occupied = new Set(
-    (table?.seatedGuests || [])
-      .filter((sg: any) => !sameLiveId(sg?.guestId, guestId))
-      .map((sg: any) => Number(sg?.seatIndex))
-      .filter((n: number) => Number.isFinite(n))
-  );
-
-  const free: number[] = [];
-
-  for (let i = 0; i < capacity; i++) {
-    if (!occupied.has(i)) free.push(i);
-    if (free.length >= count) break;
-  }
-
-  return free;
 }
 
 function buildLiveSeatingScopeQuery(invitation: any, guest: any) {
@@ -772,17 +755,6 @@ function getLiveGroupKey(guest: any) {
   ).trim();
 }
 
-function getLiveTableFreeSeats(table: any, ignoredGuestId?: string) {
-  const capacity = getLiveTableCapacity(table);
-
-  const occupied = (table?.seatedGuests || []).filter((sg: any) => {
-    if (!ignoredGuestId) return true;
-    return !sameLiveId(sg?.guestId, ignoredGuestId);
-  }).length;
-
-  return Math.max(0, capacity - occupied);
-}
-
 async function buildGuestLookupForSuggestions(invitation: any, guest: any) {
   const invitationId = normalizeLiveId(
     guest?.invitationId || guest?.invitation || invitation?._id
@@ -802,16 +774,28 @@ async function buildGuestLookupForSuggestions(invitation: any, guest: any) {
     }
   }
 
-  if (!query.$or?.length) return new Map<string, any>();
+  if (!query.$or?.length) {
+    const map = new Map<string, any>();
+    const selfId = normalizeLiveId(guest?._id);
+    if (selfId) map.set(selfId, guest);
+    return map;
+  }
 
   const guests = await InvitationGuest.find(query)
-    .select("_id name groupId relation groupName group")
+    .select(
+      "_id name groupId relation groupName group actualArrivedCount arrivedCount guestsCount"
+    )
     .lean();
 
   const map = new Map<string, any>();
 
   for (const g of guests || []) {
     map.set(normalizeLiveId(g?._id), g);
+  }
+
+  const selfId = normalizeLiveId(guest?._id);
+  if (selfId) {
+    map.set(selfId, guest);
   }
 
   return map;
@@ -859,11 +843,15 @@ function buildSuggestedLiveTables({
   guestLookup: Map<string, any>;
 }) {
   const currentTableId = currentTable ? getLiveTableId(currentTable) : "";
+  const needed = Math.max(0, requiredSeats);
 
   return (tables || [])
     .map((table: any) => {
       const tableId = getLiveTableId(table);
-      const freeSeats = getLiveTableFreeSeats(table, guestId);
+      const freeSeats = getTableLiveFreeSeats(table, guestLookup, {
+        focusGuestId: guestId,
+        focusGuestOccupancy: 0,
+      });
       const sameGroup = tableHasSameGroupGuest({
         table,
         guest,
@@ -878,16 +866,17 @@ function buildSuggestedLiveTables({
         capacity: getLiveTableCapacity(table),
         freeSeats,
         sameGroup,
-        canFit: freeSeats >= requiredSeats,
+        canFit: needed > 0 ? freeSeats >= needed : freeSeats > 0,
         isCurrentTable: !!currentTableId && tableId === currentTableId,
       };
     })
-    .filter((table: any) => table.canFit && !table.isCurrentTable)
+    .filter((table: any) => table.freeSeats > 0 && !table.isCurrentTable)
     .sort((a: any, b: any) => {
+      if (a.canFit !== b.canFit) return a.canFit ? -1 : 1;
       if (a.sameGroup !== b.sameGroup) return a.sameGroup ? -1 : 1;
       return b.freeSeats - a.freeSeats;
     })
-    .slice(0, 5);
+    .slice(0, 8);
 }
 
 async function syncOrCheckActualArrivedToAllSeating({
@@ -914,33 +903,37 @@ async function syncOrCheckActualArrivedToAllSeating({
   const guestLookup = await buildGuestLookupForSuggestions(invitation, guest);
 
   const buildSeatStatus = (allocated = 0) => {
-    const shortage = Math.max(0, actual - allocated);
-    const surplus = Math.max(0, allocated - actual);
-
+    const gap = describeAllocatedGap(actual, allocated);
     return {
       expected,
-      actual,
-      allocated,
-      shortage,
-      surplus,
-      diff: actual - allocated,
-      status:
-        shortage > 0
-          ? "over"
-          : surplus > 0
-            ? "under"
-            : "match",
+      ...gap,
     };
   };
 
   const suggestionsForGap = (
     tables: any[],
     currentTable: any,
-    guestLookup: Map<string, any>,
+    lookup: Map<string, any>,
     allocated: number
   ) => {
     const shortage = Math.max(0, actual - allocated);
     if (shortage <= 0) return [];
+
+    if (currentTable) {
+      const currentPayload = buildCurrentTableLiveOption({
+        table: currentTable,
+        tableId: getLiveTableId(currentTable),
+        tableName: getLiveTableLabel(currentTable),
+        guestLookup: lookup,
+        guestId,
+        allocated,
+        requiredSeats: shortage,
+      });
+
+      // Only offer other tables when the current table cannot fully cover the shortage.
+      // Partial fit still shows alternatives for the remaining seats.
+      if (currentPayload.canFit) return [];
+    }
 
     return buildSuggestedLiveTables({
       tables,
@@ -948,8 +941,86 @@ async function syncOrCheckActualArrivedToAllSeating({
       guestId,
       requiredSeats: shortage,
       currentTable,
-      guestLookup,
+      guestLookup: lookup,
     });
+  };
+
+  const buildCurrentTablePayload = (
+    currentTable: any,
+    allocated: number,
+    shortage: number
+  ) => {
+    if (!currentTable) return null;
+
+    return buildCurrentTableLiveOption({
+      table: currentTable,
+      tableId: getLiveTableId(currentTable),
+      tableName: getLiveTableLabel(currentTable),
+      guestLookup,
+      guestId,
+      allocated,
+      requiredSeats: shortage,
+    });
+  };
+
+  const syncGuestOntoCurrentTable = (
+    tables: any[],
+    currentTable: any,
+    allocatedBefore: number
+  ) => {
+    for (const table of tables) {
+      reclaimUnusedAllocatedSeats(table, guestLookup, guestId);
+    }
+
+    const shortage = Math.max(0, actual - allocatedBefore);
+    const surplus = Math.max(0, allocatedBefore - actual);
+
+    if (surplus > 0) {
+      for (const table of tables) {
+        if (!tableHasLiveGuest(table, guestId)) continue;
+        trimGuestSeatsToCount(table, guestId, actual);
+      }
+      return { ok: true as const };
+    }
+
+    if (shortage <= 0) {
+      return { ok: true as const };
+    }
+
+    reclaimUnusedAllocatedSeats(currentTable, guestLookup, guestId);
+
+    const freeIndexes = findAbsolutelyFreeSeatIndexes(currentTable, shortage);
+    if (freeIndexes.length < shortage) {
+      const currentPayload = buildCurrentTablePayload(
+        currentTable,
+        allocatedBefore,
+        shortage
+      );
+      return {
+        ok: false as const,
+        response: NextResponse.json(
+          {
+            success: false,
+            code: "TABLE_NOT_ENOUGH_FREE_SEATS",
+            message: `אין מספיק מקום פנוי בשולחן הנוכחי. פנויים ${
+              currentPayload?.freeSeats ?? 0
+            }, נדרשים ${shortage}.`,
+            currentTable: currentPayload,
+            suggestedTables: suggestionsForGap(
+              tables,
+              currentTable,
+              guestLookup,
+              allocatedBefore
+            ),
+            seatStatus: buildSeatStatus(allocatedBefore),
+          },
+          { status: 409 }
+        ),
+      };
+    }
+
+    appendGuestSeats(currentTable, guestId, freeIndexes);
+    return { ok: true as const };
   };
 
   const handleTablesArray = async (ownerDoc: any, tables: any[]) => {
@@ -958,11 +1029,13 @@ async function syncOrCheckActualArrivedToAllSeating({
         isGuestCurrentLiveTable(table, guest, guestId)
       ) || null;
     const allocated = countAllocatedSeats(tables, guestId);
+    const shortage = Math.max(0, actual - allocated);
 
     if (!currentTable) {
       return {
         tables: serializeLiveTables(tables),
         seatStatus: buildSeatStatus(allocated),
+        currentTable: null,
         suggestedTables: suggestionsForGap(
           tables,
           null,
@@ -973,18 +1046,13 @@ async function syncOrCheckActualArrivedToAllSeating({
     }
 
     if (mode === "check") {
-      const freeInCurrent = getLiveTableFreeSeats(currentTable, guestId);
-      const canFitCurrent = freeInCurrent >= actual;
-
       return {
         tables: serializeLiveTables(tables),
-        currentTable: {
-          tableId: getLiveTableId(currentTable),
-          tableName: getLiveTableLabel(currentTable),
-          freeSeats: freeInCurrent,
-          capacity: getLiveTableCapacity(currentTable),
-          canFit: canFitCurrent,
-        },
+        currentTable: buildCurrentTablePayload(
+          currentTable,
+          allocated,
+          shortage
+        ),
         suggestedTables: suggestionsForGap(
           tables,
           currentTable,
@@ -995,56 +1063,14 @@ async function syncOrCheckActualArrivedToAllSeating({
       };
     }
 
-    // mode === "sync"
-    // רק כאן משחררים/מסנכרנים כיסאות בפועל.
-    for (const table of tables) {
-      cleanLiveGuestFromTable(table, guestId);
-    }
-
-    if (actual > 0) {
-      const freeSeats = findFreeLiveSeatIndexes(
-        currentTable,
-        actual,
-        guestId
-      );
-
-      if (freeSeats.length < actual) {
-        const available = getLiveTableFreeSeats(currentTable, guestId);
-
-        return NextResponse.json(
-          {
-            success: false,
-            code: "TABLE_NOT_ENOUGH_FREE_SEATS",
-            message: `אין מספיק מקום פנוי בשולחן הנוכחי. פנויים ${available}, נדרשים ${actual}.`,
-            currentTable: {
-              tableId: getLiveTableId(currentTable),
-              tableName: getLiveTableLabel(currentTable),
-              freeSeats: available,
-              capacity: getLiveTableCapacity(currentTable),
-              canFit: false,
-            },
-            suggestedTables: suggestionsForGap(
-              tables,
-              currentTable,
-              guestLookup,
-              allocated
-            ),
-            seatStatus: buildSeatStatus(allocated),
-          },
-          { status: 409 }
-        );
-      }
-
-      currentTable.seatedGuests = currentTable.seatedGuests || [];
-
-      currentTable.seatedGuests.push(
-        ...freeSeats.map((seatIndex) => ({
-          guestId,
-          seatIndex,
-          arrived: true,
-        }))
-      );
-    }
+    // mode === "sync" — only after explicit user confirmation.
+    // Do not change actualArrivedCount; only adjust seated chairs.
+    const syncResult = syncGuestOntoCurrentTable(
+      tables,
+      currentTable,
+      allocated
+    );
+    if (!syncResult.ok) return syncResult.response;
 
     if (typeof ownerDoc.markModified === "function") {
       ownerDoc.markModified("tables");
@@ -1055,6 +1081,7 @@ async function syncOrCheckActualArrivedToAllSeating({
     return {
       tables: serializeLiveTables(tables),
       seatStatus: buildSeatStatus(countAllocatedSeats(tables, guestId)),
+      currentTable: null,
       suggestedTables: [],
     };
   };
@@ -1098,24 +1125,17 @@ async function syncOrCheckActualArrivedToAllSeating({
       standaloneTables.find((table: any) =>
         isGuestCurrentLiveTable(table, guest, guestId)
       ) || null;
+    const allocated = countAllocatedSeats(standaloneTables, guestId);
+    const shortage = Math.max(0, actual - allocated);
 
     if (mode === "check") {
-      const allocated = countAllocatedSeats(standaloneTables, guestId);
-      const canFitCurrent = currentTable
-        ? getLiveTableFreeSeats(currentTable, guestId) >= actual
-        : false;
-
       return {
         tables: serializeLiveTables(standaloneTables),
-        currentTable: currentTable
-          ? {
-              tableId: getLiveTableId(currentTable),
-              tableName: getLiveTableLabel(currentTable),
-              freeSeats: getLiveTableFreeSeats(currentTable, guestId),
-              capacity: getLiveTableCapacity(currentTable),
-              canFit: canFitCurrent,
-            }
-          : null,
+        currentTable: buildCurrentTablePayload(
+          currentTable,
+          allocated,
+          shortage
+        ),
         suggestedTables: suggestionsForGap(
           standaloneTables,
           currentTable,
@@ -1128,58 +1148,15 @@ async function syncOrCheckActualArrivedToAllSeating({
 
     if (!currentTable) return null;
 
+    const syncResult = syncGuestOntoCurrentTable(
+      standaloneTables,
+      currentTable,
+      allocated
+    );
+    if (!syncResult.ok) return syncResult.response;
+
     for (const table of standaloneTables) {
-      cleanLiveGuestFromTable(table, guestId);
       await table.save();
-    }
-
-    if (actual > 0) {
-      const freeSeats = findFreeLiveSeatIndexes(
-        currentTable,
-        actual,
-        guestId
-      );
-
-      if (freeSeats.length < actual) {
-        const available = getLiveTableFreeSeats(currentTable, guestId);
-
-        return NextResponse.json(
-          {
-            success: false,
-            code: "TABLE_NOT_ENOUGH_FREE_SEATS",
-            message: `אין מספיק מקום פנוי בשולחן הנוכחי. פנויים ${available}, נדרשים ${actual}.`,
-            currentTable: {
-              tableId: getLiveTableId(currentTable),
-              tableName: getLiveTableLabel(currentTable),
-              freeSeats: available,
-              capacity: getLiveTableCapacity(currentTable),
-              canFit: false,
-            },
-            suggestedTables: suggestionsForGap(
-              standaloneTables,
-              currentTable,
-              guestLookup,
-              countAllocatedSeats(standaloneTables, guestId)
-            ),
-            seatStatus: buildSeatStatus(
-              countAllocatedSeats(standaloneTables, guestId)
-            ),
-          },
-          { status: 409 }
-        );
-      }
-
-      currentTable.seatedGuests = currentTable.seatedGuests || [];
-
-      currentTable.seatedGuests.push(
-        ...freeSeats.map((seatIndex) => ({
-          guestId,
-          seatIndex,
-          arrived: true,
-        }))
-      );
-
-      await currentTable.save();
     }
 
     const freshTables = await SeatingTable.find({
@@ -1196,6 +1173,7 @@ async function syncOrCheckActualArrivedToAllSeating({
           guestId
         )
       ),
+      currentTable: null,
       suggestedTables: [],
     };
   }

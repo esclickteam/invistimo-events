@@ -46,7 +46,11 @@ type SeatTableOption = {
   name?: string;
   tableNumber?: number | string | null;
   freeSeats?: number;
+  capacity?: number;
+  actualOccupied?: number;
+  requiredSeats?: number;
   canFit?: boolean;
+  canFitPartial?: boolean;
 };
 
 type SeatPrompt = {
@@ -987,44 +991,80 @@ export default function CheckInHostClient({
                   {seatPrompt.guestName} · הגיעו בפועל {seatPrompt.actual} · הוקצו{" "}
                   {seatPrompt.allocated} כיסאות
                 </p>
-                {seatPrompt.currentTable?.canFit && (
-                  <button
-                    type="button"
-                    disabled={seatBusy}
-                    onClick={() => void claimCurrentTable()}
-                    className="mt-4 w-full rounded-[16px] bg-[#2F6B4F] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
-                  >
-                    אשר תפיסת כיסאות בשולחן הנוכחי
-                    {seatPrompt.currentTable.tableName
-                      ? ` · ${seatPrompt.currentTable.tableName}`
-                      : ""}
-                  </button>
+                {seatPrompt.currentTable &&
+                  Number(seatPrompt.currentTable.freeSeats || 0) > 0 && (
+                  <div className="mt-4 rounded-[18px] border border-emerald-200 bg-emerald-50/70 p-4">
+                    <div className="text-[11px] font-black text-emerald-700">
+                      השולחן הנוכחי
+                    </div>
+                    <div className="mt-1 text-base font-black text-[#241A14]">
+                      {seatPrompt.currentTable.tableName || "שולחן נוכחי"}
+                    </div>
+                    <div className="mt-1 text-sm font-bold text-[#5A4635]">
+                      בפועל:{" "}
+                      {seatPrompt.currentTable.actualOccupied ??
+                        Math.max(
+                          0,
+                          Number(seatPrompt.currentTable.capacity || 0) -
+                            Number(seatPrompt.currentTable.freeSeats || 0)
+                        )}
+                      /{seatPrompt.currentTable.capacity ?? "-"}
+                    </div>
+                    <div className="mt-1 text-sm font-black text-[#241A14]">
+                      {seatPrompt.currentTable.canFit
+                        ? `נותר: מקום ${seatPrompt.currentTable.freeSeats}`
+                        : `${seatPrompt.currentTable.freeSeats} מקום פנוי מתוך ${seatPrompt.shortage} שנדרשים`}
+                    </div>
+                    {seatPrompt.currentTable.canFit && (
+                      <button
+                        type="button"
+                        disabled={seatBusy}
+                        onClick={() => void claimCurrentTable()}
+                        className="mt-3 w-full rounded-[16px] bg-[#2F6B4F] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                      >
+                        להושיב בשולחן{" "}
+                        {seatPrompt.currentTable.tableNumber ||
+                          seatPrompt.currentTable.tableName ||
+                          ""}
+                      </button>
+                    )}
+                  </div>
                 )}
-                <ul className="mt-4 space-y-2">
-                  {seatPrompt.suggestedTables.map((table, index) => {
-                    const label =
-                      table.tableName ||
-                      table.name ||
-                      `שולחן ${table.tableNumber || index + 1}`;
-                    return (
-                      <li key={String(table.tableId || table._id || label)}>
-                        <button
-                          type="button"
-                          disabled={seatBusy}
-                          onClick={() => void movePromptGuest(table)}
-                          className="flex w-full items-center justify-between rounded-[16px] border border-[#EADBC4] bg-white px-4 py-3 text-right disabled:opacity-50"
-                        >
-                          <span className="text-sm font-black text-[#241A14]">
-                            {label}
-                          </span>
-                          <span className="text-xs font-black text-[#2F6B4F]">
-                            {table.freeSeats ?? "-"} מקומות פנויים
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                {seatPrompt.suggestedTables.length > 0 && (
+                  <>
+                    <h3 className="mt-4 text-sm font-black text-[#5A4635]">
+                      {seatPrompt.currentTable &&
+                      Number(seatPrompt.currentTable.freeSeats || 0) > 0
+                        ? "שולחנות נוספים"
+                        : "שולחנות עם מקומות פנויים"}
+                    </h3>
+                    <ul className="mt-2 space-y-2">
+                      {seatPrompt.suggestedTables.map((table, index) => {
+                        const label =
+                          table.tableName ||
+                          table.name ||
+                          `שולחן ${table.tableNumber || index + 1}`;
+                        return (
+                          <li key={String(table.tableId || table._id || label)}>
+                            <button
+                              type="button"
+                              disabled={seatBusy}
+                              onClick={() => void movePromptGuest(table)}
+                              className="flex w-full items-center justify-between rounded-[16px] border border-[#EADBC4] bg-white px-4 py-3 text-right disabled:opacity-50"
+                            >
+                              <span className="text-sm font-black text-[#241A14]">
+                                {label}
+                              </span>
+                              <span className="text-xs font-black text-[#2F6B4F]">
+                                {table.freeSeats ?? "-"} מקומות פנויים
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={dismissSeatPrompt}
