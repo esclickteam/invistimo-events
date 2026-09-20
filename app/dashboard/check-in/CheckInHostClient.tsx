@@ -811,12 +811,6 @@ export default function CheckInHostClient({
         </section>
       )}
 
-      {live && !checkInEnabled && (
-        <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 text-sm font-bold text-[#7C6A58]">
-          סריקת QR אינה פעילה באירוע זה. הכניסה מתבצעת בחיפוש ידני בלבד.
-        </section>
-      )}
-
       {live && (
         <section className="mt-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
