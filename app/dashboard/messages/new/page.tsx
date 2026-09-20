@@ -317,7 +317,7 @@ function getBlockedPreRsvpMessage(
 /* ================= COMPONENT ================= */
 
 export default function NewMessagesPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("pre_rsvp");
+  const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
   const [meta, setMeta] = useState<MessageMeta>(EMPTY_META);
   const [invitationId, setInvitationId] = useState<string>("");
@@ -601,14 +601,6 @@ setPreRsvpMessages(loadedPreRsvpMessages);
         >
           <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
             <TabButton
-              label="טרום אישורי הגעה"
-              description="Save The Date והזמנות"
-              icon="💌"
-              active={activeTab === "pre_rsvp"}
-              onClick={() => setActiveTab("pre_rsvp")}
-            />
-
-            <TabButton
               label="אישור הגעה"
               description="שליחת סבבי RSVP"
               icon="✅"
@@ -630,6 +622,14 @@ setPreRsvpMessages(loadedPreRsvpMessages);
               icon="🎁"
               active={activeTab === "thankyou"}
               onClick={() => setActiveTab("thankyou")}
+            />
+
+            <TabButton
+              label="טרום אישורי הגעה"
+              description="Save The Date והזמנות"
+              icon="💌"
+              active={activeTab === "pre_rsvp"}
+              onClick={() => setActiveTab("pre_rsvp")}
             />
           </div>
         </section>
