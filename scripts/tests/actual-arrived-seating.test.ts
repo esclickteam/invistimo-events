@@ -26,14 +26,21 @@ test("check-in and the guest stepper share actualArrived seating prompts", () =>
   const host = readFileSync("app/dashboard/check-in/CheckInHostClient.tsx", "utf8");
 
   assert.match(route, /countAllocatedSeats/);
+  assert.match(route, /buildCurrentTableLiveOption/);
+  assert.match(route, /reclaimUnusedAllocatedSeats/);
   assert.match(route, /mode: shouldSyncSeatsToActual \? "sync" : "check"/);
   assert.match(route, /shortage/);
   assert.doesNotMatch(page, /CheckInStatusBadge/);
   assert.match(page, /הגיעו \{shortage\} אורחים יותר ממספר המקומות שהוקצו/);
+  assert.match(page, /השולחן הנוכחי/);
+  assert.match(page, /להושיב בשולחן/);
+  assert.match(page, /שולחנות נוספים/);
   assert.match(page, /שחרור \{surplus\} כיסאות\?/);
   assert.match(page, /לא עכשיו/);
   assert.match(host, /checkSeatOptionsOnly: true/);
   assert.match(host, /חסרים \{seatPrompt\.shortage\} מקומות/);
+  assert.match(host, /השולחן הנוכחי/);
+  assert.match(host, /להושיב בשולחן/);
   assert.match(host, /שחרור כיסאות/);
   assert.match(host, /הכניסה נרשמה/);
   assert.match(host, /syncSeatsToActual: true/);

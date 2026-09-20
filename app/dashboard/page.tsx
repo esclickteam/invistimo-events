@@ -3313,13 +3313,32 @@ const eventLocation = resolveEventLocation(invitation, event);
           0,
           Number(seatStatus?.shortage ?? actual - allocated)
         );
+        const currentFree = Number(currentTable?.freeSeats ?? 0);
+        const currentActualOccupied = Number(
+          currentTable?.actualOccupied ??
+            Math.max(0, Number(currentTable?.capacity || 0) - currentFree)
+        );
+        const currentCapacity = Number(currentTable?.capacity || 0);
+        const hasCurrentTable = Boolean(currentTable);
         const hasCurrentTableFit = currentTable?.canFit === true;
+        const hasCurrentPartialFit =
+          !hasCurrentTableFit &&
+          (currentTable?.canFitPartial === true ||
+            (currentFree > 0 && currentFree < shortage));
+        const showCurrentTableBlock =
+          hasCurrentTable && (hasCurrentTableFit || hasCurrentPartialFit || currentFree > 0);
         const hasSuggestedTables = suggestedTables.length > 0;
-        const hasAnyFreeOption = hasCurrentTableFit || hasSuggestedTables;
+        const hasAnyFreeOption =
+          hasCurrentTableFit || hasCurrentPartialFit || hasSuggestedTables;
         const isCheckingFreeTables =
           freeTablesCheckingGuestId === openFreeTablesGuestId;
         const shouldShowCheckingFreeTables =
           !hasServerAnswer || (isCheckingFreeTables && !hasAnyFreeOption);
+
+        const currentTableLabel =
+          currentTable?.tableName ||
+          currentTable?.name ||
+          `שולחן ${currentTable?.tableNumber || ""}`;
 
         return (
           <div
@@ -3369,32 +3388,59 @@ const eventLocation = resolveEventLocation(invitation, event);
                 </div>
 
                 <div className="overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
-                  {hasCurrentTableFit && (
-                    <div className="mb-5 rounded-[28px] border border-emerald-200 bg-gradient-to-l from-emerald-50 via-white to-white p-5 shadow-sm">
+                  {showCurrentTableBlock && (
+                    <div
+                      className={`mb-5 rounded-[28px] border p-5 shadow-sm ${
+                        hasCurrentTableFit
+                          ? "border-emerald-200 bg-gradient-to-l from-emerald-50 via-white to-white"
+                          : "border-amber-200 bg-gradient-to-l from-amber-50 via-white to-white"
+                      }`}
+                    >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <div className="text-xs font-black text-emerald-700">
-                            אפשר להשאיר בשולחן הנוכחי
+                          <div
+                            className={`text-xs font-black ${
+                              hasCurrentTableFit
+                                ? "text-emerald-700"
+                                : "text-amber-700"
+                            }`}
+                          >
+                            השולחן הנוכחי
                           </div>
 
                           <div className="mt-1 text-xl font-black text-[#1E1B2E]">
-                            {currentTable?.tableName ||
-                              currentTable?.name ||
-                              `שולחן ${currentTable?.tableNumber || ""}`}
+                            {currentTableLabel}
                           </div>
 
                           <div className="mt-1 text-sm font-bold text-[#6D6258]">
-                            {currentTable?.freeSeats ?? "-"} מקומות פנויים
+                            בפועל: {currentActualOccupied}/{currentCapacity || "-"}
+                          </div>
+
+                          <div className="mt-1 text-sm font-black text-[#1E1B2E]">
+                            {hasCurrentTableFit
+                              ? `נותר: מקום ${currentFree}`
+                              : `${currentFree} מקום פנוי מתוך ${shortage} שנדרשים`}
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => forceSyncActualArrived(openFreeTablesGuestId)}
-                          className="rounded-full bg-gradient-to-l from-emerald-700 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
-                        >
-                          אשר תפיסת כיסאות בשולחן הנוכחי
-                        </button>
+                        {hasCurrentTableFit ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              forceSyncActualArrived(openFreeTablesGuestId)
+                            }
+                            className="rounded-full bg-gradient-to-l from-emerald-700 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                          >
+                            להושיב בשולחן{" "}
+                            {currentTable?.tableNumber ||
+                              currentTableLabel.replace("שולחן", "").trim() ||
+                              ""}
+                          </button>
+                        ) : (
+                          <div className="rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-black text-amber-800">
+                            אין מספיק מקום לכל החריגה בשולחן הזה
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -3404,11 +3450,15 @@ const eventLocation = resolveEventLocation(invitation, event);
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <div>
                           <h4 className="text-lg font-black text-[#1E1B2E]">
-                            כל השולחנות הפנויים שנמצאו
+                            {showCurrentTableBlock
+                              ? "שולחנות נוספים"
+                              : "שולחנות עם מקומות פנויים"}
                           </h4>
 
                           <p className="text-sm font-bold text-[#8A7A68]">
-                            מוצגים כל השולחנות שהשרת החזיר כרגע
+                            {showCurrentTableBlock
+                              ? "אפשרויות נוספות אם מעדיפים לא להישאר בשולחן הנוכחי"
+                              : "מוצגים שולחנות לפי תפוסה בפועל בזמן האירוע"}
                           </p>
                         </div>
 
@@ -3473,6 +3523,12 @@ const eventLocation = resolveEventLocation(invitation, event);
                                     </span>
                                   )}
 
+                                  {table?.canFit === false && (
+                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-800">
+                                      חלקי · לא מכסה את כל החריגה
+                                    </span>
+                                  )}
+
                                   {table?.reason && (
                                     <span className="rounded-full border border-[#E7DED1] bg-[#F7F4EF] px-3 py-1 text-[11px] font-bold text-[#6D6258]">
                                       {table.reason}
@@ -3482,11 +3538,13 @@ const eventLocation = resolveEventLocation(invitation, event);
 
                                 <button
                                   type="button"
-                                  onClick={() => approveSuggestedTableMove(guest as Guest, table)}
+                                  onClick={() =>
+                                    approveSuggestedTableMove(guest as Guest, table)
+                                  }
                                   disabled={!guest}
                                   className="w-full rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-black hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  אשר העברה לשולחן הזה
+                                  להושיב בשולחן הזה
                                 </button>
                               </div>
                             </div>
