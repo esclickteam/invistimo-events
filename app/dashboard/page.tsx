@@ -20,6 +20,7 @@ import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
+import CheckInHostClient from "@/app/dashboard/check-in/CheckInHostClient";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
@@ -436,10 +437,13 @@ const guestsAutoRefreshRef = useRef(false);
 }
 
 const canViewActualArrived =
-  isVenueView || hasLiveDashboardAccess(user, effectiveRole);
+  isDemo || isVenueView || hasLiveDashboardAccess(user, effectiveRole);
 
   const canShowActualArrived =
     canViewActualArrived && workMode === "live";
+
+  /* Product LIVE mode (Event.liveStatus / workMode), not Event.status enum. */
+  const isLiveDashboard = workMode === "live";
 
   useEffect(() => {
   // לא לשנות מצב לפני שהמשתמש נטען,
@@ -2634,9 +2638,12 @@ const eventLocation = resolveEventLocation(invitation, event);
           workMode={workMode}
           canViewActualArrived={canViewActualArrived}
           setWorkMode={setWorkMode}
+          hideCountdown={isLiveDashboard}
         />
       </section>
 
+      {!isLiveDashboard && (
+        <>
       <section
         id="rsvp-stats"
         className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
@@ -2712,55 +2719,57 @@ const eventLocation = resolveEventLocation(invitation, event);
 
         <GoldenLinkViewsCard guests={guests} />
       </section>
+        </>
+      )}
 
-      {workMode === "live" && (
-        <section className="mb-7 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-5 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-black text-[#3F3328]">כניסה לאירוע</h3>
-              <p className="text-xs font-bold text-[#8A7A68]">מתעדכן בזמן אמת</p>
+      {isLiveDashboard && (
+        <>
+          <section
+            id="live-arrival-stats"
+            className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            <div className="rounded-[28px] border border-[#EADBC4] bg-gradient-to-l from-[#FFFDF8] via-white to-[#F7F0E4] p-6 shadow-[0_18px_50px_rgba(30,27,46,0.07)] sm:p-8">
+              <p className="text-sm font-black text-[#8A7A68]">מגיעים</p>
+              <p className="mt-3 text-5xl font-black tracking-tight text-[#241A14] sm:text-6xl">
+                {stats.comingGuests}
+              </p>
+              <p className="mt-2 text-sm font-bold text-[#7C6A58]">
+                אישרו הגעה מראש
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                const params = new URLSearchParams();
-                if (invitationId) params.set("invitationId", invitationId);
-                if (invitationEventId) params.set("eventId", invitationEventId);
-                const qs = params.toString();
-                router.push(`/dashboard/check-in${qs ? `?${qs}` : ""}`);
-              }}
-              className="rounded-[14px] bg-[#2F6B4F] px-4 py-2 text-sm font-black text-white"
+
+            <div className="rounded-[28px] border border-emerald-200 bg-gradient-to-l from-emerald-50 via-white to-[#FFFDF8] p-6 shadow-[0_18px_50px_rgba(30,27,46,0.07)] sm:p-8">
+              <p className="text-sm font-black text-emerald-700">מגיעים בפועל</p>
+              <p className="mt-3 text-5xl font-black tracking-tight text-emerald-900 sm:text-6xl">
+                {stats.actualArrivedGuests}
+              </p>
+              <p className="mt-2 text-sm font-bold text-emerald-800/80">
+                נרשמו בכניסה לאירוע
+              </p>
+            </div>
+          </section>
+
+          <section
+            id="live-entry"
+            className="mb-7 rounded-[28px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm sm:p-6"
+          >
+            <Suspense
+              fallback={
+                <div className="flex min-h-[180px] items-center justify-center text-sm font-bold text-[#7C6A58]">
+                  טוען כניסה לאירוע...
+                </div>
+              }
             >
-              כניסה לאירוע
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-              <p className="text-[11px] font-bold text-[#8A7A68]">אישרו הגעה</p>
-              <p className="mt-1 text-2xl font-black text-[#241A14]">
-                {stats.checkIn.confirmed}
-              </p>
-            </div>
-            <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-[11px] font-bold text-emerald-700">כבר נכנסו</p>
-              <p className="mt-1 text-2xl font-black text-emerald-800">
-                {stats.checkIn.checkedIn}
-              </p>
-            </div>
-            <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3">
-              <p className="text-[11px] font-bold text-amber-700">טרם הגיעו</p>
-              <p className="mt-1 text-2xl font-black text-amber-800">
-                {stats.checkIn.remaining}
-              </p>
-            </div>
-            <div className="rounded-[16px] border border-[#EADBC4] bg-white p-3">
-              <p className="text-[11px] font-bold text-[#8A7A68]">הגיעו חלקית</p>
-              <p className="mt-1 text-2xl font-black text-[#241A14]">
-                {stats.checkIn.partiallyArrived}
-              </p>
-            </div>
-          </div>
-        </section>
+              <CheckInHostClient
+                demo={isDemo}
+                invitationId={invitationId}
+                eventId={invitationEventId}
+                assumeLive
+                embedded
+              />
+            </Suspense>
+          </section>
+        </>
       )}
 
       {/* ===================== CONTROLS ===================== */}
@@ -3724,6 +3733,7 @@ function GoldenEventHero({
   workMode,
   canViewActualArrived,
   setWorkMode,
+  hideCountdown = false,
 }: {
   title: string;
   date: string;
@@ -3734,6 +3744,7 @@ function GoldenEventHero({
   workMode: "regular" | "live";
   canViewActualArrived: boolean;
   setWorkMode: (mode: "regular" | "live") => void;
+  hideCountdown?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -3797,7 +3808,7 @@ function GoldenEventHero({
         ✦
       </div>
 
-      {countdown.isEventDay && (
+      {countdown.isEventDay && !hideCountdown && (
         <>
           {/* 🎇 זיקוקים על כל הכרטיסייה העליונה ביום האירוע */}
           <CountdownFireworksCanvas />
@@ -3897,7 +3908,7 @@ function GoldenEventHero({
             {title}
           </h1>
 
-          <GoldenCountdown countdown={countdown} />
+          {!hideCountdown && <GoldenCountdown countdown={countdown} />}
         </div>
       </div>
     </div>
