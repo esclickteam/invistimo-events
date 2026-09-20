@@ -18,6 +18,7 @@ import {
   getRsvpRoundSentSnapshot,
   type RsvpRound,
 } from "@/lib/rsvpRoundLock";
+import { parseCallRoundScheduledAt } from "@/lib/calls/callRoundScheduleTime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -299,21 +300,31 @@ function normalizeCallRoundsSchedule(rawSchedule: any, enabled: boolean) {
 
   const rounds = Array.isArray(rawSchedule?.rounds)
     ? rawSchedule.rounds
-        .filter((round: any) => round?.scheduledAt)
         .map((round: any) => {
           const roundNumber = Number(round.roundNumber);
+          const scheduledAt = parseCallRoundScheduledAt(round?.scheduledAt);
+
+          if (!scheduledAt) return null;
 
           return {
             roundNumber,
             title: round.title || `סבב שיחות ${roundNumber}`,
-            scheduledAt: new Date(round.scheduledAt),
+            scheduledAt,
             status: round.status || "scheduled",
             notes: round.notes || "",
+            openedAt: round?.openedAt ? new Date(round.openedAt) : null,
+            tasksCreated:
+              typeof round?.tasksCreated === "number"
+                ? round.tasksCreated
+                : null,
             createdAt: round.createdAt ? new Date(round.createdAt) : now,
             updatedAt: now,
           };
         })
-        .filter((round: any) => round.roundNumber >= 1 && round.roundNumber <= 3)
+        .filter(
+          (round: any) =>
+            round && round.roundNumber >= 1 && round.roundNumber <= 3
+        )
     : [];
 
   return {
@@ -369,14 +380,24 @@ function buildMessageRounds(
           (item: any) => Number(item.roundNumber) === Number(round)
         );
 
+        const opened =
+          userRound?.status === "opened" ||
+          userRound?.status === "done" ||
+          Boolean(userRound?.openedAt);
+
         return {
           key: `call_round_${round}`,
           label: `סבב שיחות ${round}`,
-          done: userRound?.status === "done",
+          done: opened,
           blocked: false,
-          sentAt: null,
+          sentAt: userRound?.openedAt || null,
           scheduledAt: userRound?.scheduledAt || null,
           channel: "calls",
+          tasksCreated:
+            typeof userRound?.tasksCreated === "number"
+              ? userRound.tasksCreated
+              : null,
+          openedAt: userRound?.openedAt || null,
         };
       }),
     };
@@ -556,14 +577,24 @@ function buildMessageRounds(
         scheduledMessage?.scheduledAt ||
         null;
 
+      const opened =
+        userRound?.status === "opened" ||
+        userRound?.status === "done" ||
+        Boolean(userRound?.openedAt);
+
       return {
         key: `call_round_${round}`,
         label: `סבב שיחות ${round}`,
-        done: userRound?.status === "done",
-        sentAt: null,
+        done: opened,
+        sentAt: userRound?.openedAt || null,
         scheduledAt,
         channel: "calls",
         blocked: Boolean(locks?.[`call_round_${round}`]),
+        tasksCreated:
+          typeof userRound?.tasksCreated === "number"
+            ? userRound.tasksCreated
+            : null,
+        openedAt: userRound?.openedAt || null,
       };
     }),
   };

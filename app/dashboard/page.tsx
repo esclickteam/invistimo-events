@@ -26,6 +26,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { formatCallRoundDateOnlyDisplay } from "@/lib/calls/callRoundScheduleTime";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
@@ -4657,6 +4658,8 @@ type UserRsvpScheduleItem = {
   channelLabel?: string;
   scheduledAt?: string | null;
   sentAt?: string | null;
+  tasksCreated?: number | null;
+  openedAt?: string | null;
 };
 
 function UserRsvpScheduleModal({
@@ -4735,8 +4738,16 @@ function UserRsvpScheduleModal({
 
             <div className="space-y-3">
               {sortedItems.map((item) => {
-                const scheduledAtText = formatScheduleDateTimeWithWeekday(item.scheduledAt);
+                const isCallsRound =
+                  item.channel === "calls" || item.group === "סבבי שיחות";
+
+                const scheduledAtText = isCallsRound
+                  ? formatCallRoundDateOnlyDisplay(item.scheduledAt)
+                  : formatScheduleDateTimeWithWeekday(item.scheduledAt);
+
                 const sentAtText = formatScheduleDateTimeWithWeekday(item.sentAt);
+                const tasksCreated =
+                  typeof item.tasksCreated === "number" ? item.tasksCreated : null;
 
                 return (
                   <div
@@ -4762,10 +4773,18 @@ function UserRsvpScheduleModal({
                             className={`rounded-full px-3 py-1 ${
                               item.done
                                 ? "bg-[#EAF8EF] text-[#1F9A55]"
-                                : "bg-[#F6F1EA] text-[#7B6754]"
+                                : isCallsRound && item.scheduledAt
+                                  ? "bg-[#EEF4FF] text-[#2563EB]"
+                                  : "bg-[#F6F1EA] text-[#7B6754]"
                             }`}
                           >
-                            {item.done ? "בוצע" : "טרם בוצע"}
+                            {item.done
+                              ? isCallsRound && tasksCreated != null
+                                ? `נוצרו ${tasksCreated} שיחות`
+                                : "בוצע"
+                              : isCallsRound && item.scheduledAt
+                                ? "ממתין למועד הביצוע"
+                                : "טרם בוצע"}
                           </span>
 
                           {item.blocked && (
@@ -4778,7 +4797,14 @@ function UserRsvpScheduleModal({
                     </div>
 
                     <div className="min-w-[260px] rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#6B5A48]">
-                      {sentAtText ? (
+                      {item.done && isCallsRound ? (
+                        <span>
+                          נפתח
+                          {item.channelLabel ? ` · ${item.channelLabel}` : ""}
+                          {tasksCreated != null ? ` · ${tasksCreated} שיחות` : ""}
+                          {sentAtText ? ` · ${sentAtText}` : ""}
+                        </span>
+                      ) : sentAtText && !isCallsRound ? (
                         <span>
                           נשלח
                           {item.channelLabel ? ` · ${item.channelLabel}` : ""}
@@ -4985,12 +5011,15 @@ function buildScheduleFromUserMessageRounds(
       label: String(item?.label || ""),
       group,
       icon,
-      done: Boolean(item?.done || item?.sentAt),
+      done: Boolean(item?.done || item?.sentAt || item?.openedAt),
       blocked: Boolean(item?.blocked),
-      sentAt: item?.sentAt || null,
+      sentAt: item?.sentAt || item?.openedAt || null,
       scheduledAt: item?.scheduledAt || null,
       channel,
       channelLabel: getScheduleChannelLabel(channel),
+      tasksCreated:
+        typeof item?.tasksCreated === "number" ? item.tasksCreated : null,
+      openedAt: item?.openedAt || null,
     };
   };
 
@@ -5037,6 +5066,11 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       (item: any) => Number(item.roundNumber) === Number(round)
     );
 
+    const opened =
+      userRound?.status === "opened" ||
+      userRound?.status === "done" ||
+      Boolean(userRound?.openedAt);
+
     return {
       key: `call_round_${round}`,
           label: `סבב שיחות ${round} · ${
@@ -5048,12 +5082,17 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
           }`,
       group: "סבבי שיחות",
       icon: "📞",
-      done: userRound?.status === "done",
+      done: opened,
       blocked: false,
-      sentAt: userRound?.sentAt || null,
+      sentAt: userRound?.openedAt || null,
       scheduledAt: userRound?.scheduledAt || null,
       channel: "calls",
       channelLabel: "שיחות",
+      tasksCreated:
+        typeof userRound?.tasksCreated === "number"
+          ? userRound.tasksCreated
+          : null,
+      openedAt: userRound?.openedAt || null,
     };
   });
 

@@ -226,8 +226,10 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       roundNumber: number;
       title?: string;
       scheduledAt?: Date | null;
-      status: "draft" | "scheduled" | "done" | "cancelled";
+      status: "draft" | "scheduled" | "opened" | "done" | "cancelled";
       notes?: string;
+      openedAt?: Date | null;
+      tasksCreated?: number | null;
       createdAt?: Date;
       updatedAt?: Date;
     }[];
@@ -1051,7 +1053,7 @@ preRsvpMessages: {
 
           status: {
             type: String,
-            enum: ["draft", "scheduled", "done", "cancelled"],
+            enum: ["draft", "scheduled", "opened", "done", "cancelled"],
             default: "draft",
           },
 
@@ -1059,6 +1061,21 @@ preRsvpMessages: {
             type: String,
             trim: true,
             default: "",
+          },
+
+          /**
+           * When the round actually opened (work order + tasks created).
+           * Audience is resolved at this moment — not at schedule save.
+           */
+          openedAt: {
+            type: Date,
+            default: null,
+          },
+
+          tasksCreated: {
+            type: Number,
+            default: null,
+            min: 0,
           },
 
           createdAt: {

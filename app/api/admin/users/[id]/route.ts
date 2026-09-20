@@ -16,6 +16,7 @@ import {
   readPreRsvpFlags,
 } from "@/lib/preRsvp/entitlement";
 import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
+import { parseCallRoundScheduledAt } from "@/lib/calls/callRoundScheduleTime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -126,8 +127,10 @@ function normalizeAccessModules(value: any, fallback: any) {
 }
 
 
-function normalizeCallRoundsSchedule(value: any) {
+function normalizeCallRoundsSchedule(value: any, existing?: any) {
   if (!value || typeof value !== "object") return undefined;
+
+  const existingRounds = Array.isArray(existing?.rounds) ? existing.rounds : [];
 
   const rounds = Array.isArray(value.rounds)
     ? value.rounds
@@ -138,23 +141,56 @@ function normalizeCallRoundsSchedule(value: any) {
             return null;
           }
 
-          const scheduledAt = round?.scheduledAt
-            ? new Date(round.scheduledAt)
-            : null;
+          const scheduledAt = parseCallRoundScheduledAt(round?.scheduledAt);
 
           const hasValidScheduledAt =
             scheduledAt instanceof Date && !Number.isNaN(scheduledAt.getTime());
+
+          const existingRound = existingRounds.find(
+            (item: any) => Number(item?.roundNumber) === roundNumber
+          );
+
+          const preservedOpenedAt =
+            round?.openedAt
+              ? new Date(round.openedAt)
+              : existingRound?.openedAt
+                ? new Date(existingRound.openedAt)
+                : null;
+
+          const preservedTasksCreated =
+            typeof round?.tasksCreated === "number"
+              ? round.tasksCreated
+              : typeof existingRound?.tasksCreated === "number"
+                ? existingRound.tasksCreated
+                : null;
+
+          const wasOpened =
+            existingRound?.status === "opened" ||
+            existingRound?.status === "done" ||
+            Boolean(existingRound?.openedAt);
 
           return {
             roundNumber,
             title: String(round?.title || `סבב שיחות ${roundNumber}`).trim(),
             scheduledAt: hasValidScheduledAt ? scheduledAt : null,
-            status: hasValidScheduledAt
-              ? String(round?.status || "scheduled")
-              : String(round?.status || "draft"),
+            status: wasOpened
+              ? String(existingRound?.status || "opened")
+              : hasValidScheduledAt
+                ? String(round?.status || "scheduled")
+                : String(round?.status || "draft"),
             notes: String(round?.notes || "").trim(),
+            openedAt:
+              preservedOpenedAt instanceof Date &&
+              !Number.isNaN(preservedOpenedAt.getTime())
+                ? preservedOpenedAt
+                : null,
+            tasksCreated: preservedTasksCreated,
             updatedAt: new Date(),
-            createdAt: round?.createdAt ? new Date(round.createdAt) : new Date(),
+            createdAt: round?.createdAt
+              ? new Date(round.createdAt)
+              : existingRound?.createdAt
+                ? new Date(existingRound.createdAt)
+                : new Date(),
           };
         })
         .filter(Boolean)
@@ -320,7 +356,10 @@ export async function PATCH(
       : undefined;
 
     const nextCallRoundsSchedule = hasField(body, "callRoundsSchedule")
-      ? normalizeCallRoundsSchedule(body.callRoundsSchedule)
+      ? normalizeCallRoundsSchedule(
+          body.callRoundsSchedule,
+          currentUser.callRoundsSchedule
+        )
       : undefined;
 
     const hadVenueSeatingService = Boolean(

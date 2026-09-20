@@ -332,6 +332,11 @@ function buildMessageRounds(
           (item: any) => Number(item.roundNumber) === Number(round)
         );
 
+        const opened =
+          userRound?.status === "opened" ||
+          userRound?.status === "done" ||
+          Boolean(userRound?.openedAt);
+
         return {
           key: `call_round_${round}`,
           label: `סבב שיחות ${round} · ${
@@ -341,11 +346,16 @@ function buildMessageRounds(
                 ? "לא ענו בסבב 1"
                 : "לא ענו בסבבים 1–2 + מתלבטים"
           }`,
-          done: userRound?.status === "done",
+          done: opened,
           blocked: false,
-          sentAt: null,
+          sentAt: userRound?.openedAt || null,
           scheduledAt: userRound?.scheduledAt || null,
           channel: "calls",
+          tasksCreated:
+            typeof userRound?.tasksCreated === "number"
+              ? userRound.tasksCreated
+              : null,
+          openedAt: userRound?.openedAt || null,
         };
       }),
     };
@@ -539,6 +549,11 @@ function buildMessageRounds(
         scheduledMessage?.scheduledAt ||
         null;
 
+      const opened =
+        userRound?.status === "opened" ||
+        userRound?.status === "done" ||
+        Boolean(userRound?.openedAt);
+
       return {
         key: `call_round_${round}`,
         label: `סבב שיחות ${round} · ${
@@ -548,11 +563,16 @@ function buildMessageRounds(
               ? "לא ענו בסבב 1"
               : "לא ענו בסבבים 1–2 + מתלבטים"
         }`,
-        done: userRound?.status === "done",
-        sentAt: null,
+        done: opened,
+        sentAt: userRound?.openedAt || null,
         scheduledAt,
         channel: "calls",
         blocked: Boolean(locks?.[`call_round_${round}`]),
+        tasksCreated:
+          typeof userRound?.tasksCreated === "number"
+            ? userRound.tasksCreated
+            : null,
+        openedAt: userRound?.openedAt || null,
       };
     }),
   };

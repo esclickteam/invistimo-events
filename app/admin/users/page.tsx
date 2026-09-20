@@ -14,6 +14,11 @@ import {
   type RsvpSiteMode,
 } from "@/types/rsvpSite";
 import {
+  formatCallRoundDateTimeDisplay,
+  formatCallRoundDateTimeInput,
+  normalizeCallRoundScheduledAtForSave,
+} from "@/lib/calls/callRoundScheduleTime";
+import {
   Search,
   Users,
   CalendarDays,
@@ -635,64 +640,16 @@ function getDefaultMessageRounds(): AdminMessageRounds {
 }
 
 function formatCallRoundDateInput(value?: string | null) {
-  if (!value) return "";
-
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-  } catch {
-    return "";
-  }
+  // datetime-local value in Asia/Jerusalem
+  return formatCallRoundDateTimeInput(value);
 }
 
 function normalizeCallRoundDateForSave(value?: string | null) {
-  if (!value) return "";
-
-  try {
-    const parts = value.split("-").map(Number);
-
-    if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
-      return "";
-    }
-
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day, 12, 0, 0, 0);
-
-    if (Number.isNaN(date.getTime())) return "";
-
-    return date.toISOString();
-  } catch {
-    return "";
-  }
+  return normalizeCallRoundScheduledAtForSave(value);
 }
 
 function formatCallRoundDateWithWeekday(value?: string | null) {
-  if (!value) return null;
-
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-
-    const weekday = date.toLocaleDateString("he-IL", {
-      weekday: "long",
-    });
-
-    const dateText = date.toLocaleDateString("he-IL", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-    });
-
-    return `${weekday} · ${dateText}`;
-  } catch {
-    return null;
-  }
+  return formatCallRoundDateTimeDisplay(value);
 }
 
 function getInitialCallRoundsSchedule(user?: AdminUser): CallRoundsScheduleState {
@@ -1876,7 +1833,8 @@ function CallRoundsScheduleFields({
           </h3>
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
-            כאן מגדירים תאריך בלבד לסבבי השיחות של הלקוח. השמירה מתבצעת על המשתמש.
+            כאן מגדירים תאריך ושעה לסבבי השיחות. הקהל מחושב רק במועד הביצוע, לא
+            בשמירת הלו״ז.
           </p>
         </div>
 
@@ -1902,7 +1860,8 @@ function CallRoundsScheduleFields({
           </div>
 
           <div className="mt-1 text-xs font-bold text-[#8A7867]">
-            ניתן להשאיר סבב ריק אם עדיין אין תאריך סופי.
+            ניתן להשאיר סבב ריק אם עדיין אין תאריך ושעה סופיים. ניתן לתזמן את כל
+            שלושת הסבבים מראש.
           </div>
         </div>
 
@@ -1937,8 +1896,11 @@ function CallRoundsScheduleFields({
                 </span>
               </div>
 
+              <label className="mb-1 block text-[11px] font-black text-[#8A7867]">
+                תאריך ושעה
+              </label>
               <input
-                type="date"
+                type="datetime-local"
                 value={round.scheduledAt}
                 onChange={(e) =>
                   updateRound(round.roundNumber, "scheduledAt", e.target.value)
@@ -1952,6 +1914,10 @@ function CallRoundsScheduleFields({
                   outline-none
                 "
               />
+
+              <p className="mt-2 text-[11px] font-bold text-[#8A7867]">
+                הלקוח רואה רק את התאריך. השעה משמשת לפתיחת הסבב בפועל.
+              </p>
 
               <textarea
                 value={round.notes}
