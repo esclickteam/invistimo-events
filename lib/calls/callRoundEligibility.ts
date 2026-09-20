@@ -121,12 +121,32 @@ export function hasGuestPhone(guest: any) {
 export function extractGuestId(value: unknown): string {
   if (!value) return "";
   if (typeof value === "string") return value;
+
+  // Mongoose/BSON ObjectId: never walk `.id` (binary buffer getter) — it
+  // recurses forever via extractGuestId(objectId.id).
+  if (
+    typeof value === "object" &&
+    (value as any)._bsontype === "ObjectId"
+  ) {
+    return String(value);
+  }
+
+  if (typeof (value as any)?.toHexString === "function") {
+    try {
+      return String((value as any).toHexString());
+    } catch {
+      // fall through
+    }
+  }
+
   if (typeof value === "object") {
     const anyValue = value as any;
-    if (anyValue._id) return extractGuestId(anyValue._id);
-    if (anyValue.id) return extractGuestId(anyValue.id);
     if (anyValue.$oid) return String(anyValue.$oid);
+    if (anyValue._id && anyValue._id !== value) {
+      return extractGuestId(anyValue._id);
+    }
   }
+
   return String(value || "");
 }
 
