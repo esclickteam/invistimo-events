@@ -63,6 +63,11 @@ type SeatPrompt = {
 
 type Props = {
   demo?: boolean;
+  invitationId?: string;
+  eventId?: string;
+  /** Parent dashboard is already in LIVE mode — skip the not-live gate. */
+  assumeLive?: boolean;
+  embedded?: boolean;
 };
 
 const QUICK_COUNTS = [1, 2, 3, 4, 5, 6];
@@ -81,18 +86,26 @@ function deviceSession() {
   return id;
 }
 
-export default function CheckInHostClient({ demo = false }: Props) {
+export default function CheckInHostClient({
+  demo = false,
+  invitationId: invitationIdProp = "",
+  eventId: eventIdProp = "",
+  assumeLive = false,
+  embedded = false,
+}: Props) {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const canScan = demo || userCanScanCheckIn(user as any);
   const canManage = demo || userCanManageCheckIn(user as any);
-  const invitationFromUrl = demo ? "" : searchParams.get("invitationId") || "";
-  const eventFromUrl = demo ? "" : searchParams.get("eventId") || "";
+  const invitationFromUrl =
+    demo ? "" : invitationIdProp || searchParams.get("invitationId") || "";
+  const eventFromUrl =
+    demo ? "" : eventIdProp || searchParams.get("eventId") || "";
 
   const [checkInEnabled, setCheckInEnabled] = useState<boolean | null>(
     demo ? true : null
   );
-  const [live, setLive] = useState(demo);
+  const [live, setLive] = useState(demo || assumeLive);
   const [startingLive, setStartingLive] = useState(false);
   const [invitationId, setInvitationId] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -118,7 +131,9 @@ export default function CheckInHostClient({ demo = false }: Props) {
   });
   const autoStartedRef = useRef(false);
   const toastTimerRef = useRef<number | null>(null);
-  const scannerBoxId = "invistimo-checkin-scanner";
+  const scannerBoxId = embedded
+    ? "invistimo-checkin-scanner-embedded"
+    : "invistimo-checkin-scanner";
 
   const loadSummary = useCallback(async () => {
     if (demo) {
@@ -137,13 +152,17 @@ export default function CheckInHostClient({ demo = false }: Props) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setCheckInEnabled(false);
-      setLive(false);
+      if (!assumeLive) setLive(false);
       return;
     }
     setCheckInEnabled(Boolean(data.checkInEnabled));
-    setLive(Boolean(data.live));
-    setInvitationId(String(data.invitationId || ""));
-  }, [demo, invitationFromUrl, eventFromUrl]);
+    setLive(assumeLive || Boolean(data.live));
+    setInvitationId(String(data.invitationId || invitationFromUrl || ""));
+  }, [demo, invitationFromUrl, eventFromUrl, assumeLive]);
+
+  useEffect(() => {
+    if (assumeLive) setLive(true);
+  }, [assumeLive]);
 
   useEffect(() => {
     loadSummary().catch(() => setCheckInEnabled(false));
@@ -695,7 +714,14 @@ export default function CheckInHostClient({ demo = false }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6" dir="rtl">
+    <div
+      className={
+        embedded
+          ? "w-full"
+          : "mx-auto max-w-3xl px-4 py-6"
+      }
+      dir="rtl"
+    >
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
@@ -705,7 +731,7 @@ export default function CheckInHostClient({ demo = false }: Props) {
         </p>
       </div>
 
-      {!live && (
+      {!live && !assumeLive && (
         <section className="mb-5 rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-6 text-center shadow-sm">
           <h2 className="text-lg font-black text-[#3F3328]">
             הכניסה נפתחת רק במצב LIVE

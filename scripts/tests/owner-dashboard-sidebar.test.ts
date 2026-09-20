@@ -123,4 +123,9 @@ test("dashboard uses five RSVP cards then three equal content cards", () => {
   assert.doesNotMatch(page, /<GoldenStatusBarsCard/);
   assert.doesNotMatch(page, /<GoldenDonutCard/);
   assert.doesNotMatch(page, /max-h-\[170px\]/);
+  assert.match(page, /!isLiveDashboard &&/);
+  assert.match(page, /id="live-arrival-stats"/);
+  assert.match(page, /id="live-entry"/);
+  assert.match(page, /CheckInHostClient/);
+  assert.match(page, /hideCountdown=\{isLiveDashboard\}/);
 });
