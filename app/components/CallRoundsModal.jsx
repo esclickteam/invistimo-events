@@ -28,6 +28,8 @@ const RESULT_LABELS = {
   needs_fix: "דורש תיקון",
   wrong_number: "דורש תיקון",
   needs_correction: "דורש תיקון",
+  undecided: "מתלבט",
+  maybe: "מתלבט",
 };
 
 const STATUS_STYLE = {
@@ -193,6 +195,19 @@ function mapEmployeeStatusToRound(status, rsvpStatus, row = {}) {
     return {
       answerStatus: "answered",
       resultStatus: "no",
+    };
+  }
+
+  if (
+    s === "undecided" ||
+    s === "maybe" ||
+    rsvp === "maybe" ||
+    answeredResult === "undecided" ||
+    answeredResult === "maybe"
+  ) {
+    return {
+      answerStatus: "answered",
+      resultStatus: "undecided",
     };
   }
 

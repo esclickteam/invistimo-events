@@ -58,7 +58,7 @@ test("rsvp maybe vs pending are distinct", () => {
   assert.equal(normalizeGuestRsvp(""), "pending");
   assert.equal(guestRsvpAdminLabel("maybe"), "מתלבטים");
   assert.equal(guestRsvpGuestLabel("maybe"), "עדיין לא בטוחים");
-  assert.equal(guestRsvpAdminLabel("pending"), "לא ענו");
+  assert.equal(guestRsvpAdminLabel("pending"), "בהמתנה");
 });
 
 test("summary aggregates day-of arrivals", () => {

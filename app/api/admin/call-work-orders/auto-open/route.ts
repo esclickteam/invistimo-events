@@ -9,6 +9,14 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import {
+  filterGuestsForCallRound,
+  getCallRoundDescription,
+  getSourceAudienceByRound as getSharedSourceAudienceByRound,
+  isNoAnswerCallResult,
+  normalizeCallAnswerFromSources,
+  type CallRoundNumber,
+} from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,10 +161,7 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
 }
 
 function getSourceAudienceByRound(round: RoundNumber) {
-  if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_no_answer";
-
-  return "round_2_no_answer";
+  return getSharedSourceAudienceByRound(round as CallRoundNumber);
 }
 
 function isAdminRole(role?: string) {
@@ -1109,45 +1114,21 @@ async function loadGuestsForInvitation(invitation: any) {
     .lean();
 }
 
-async function loadGuestsForRound(input: {
-  invitation: any;
-  round: RoundNumber;
+async function loadNoAnswerGuestIdsByRound(input: {
+  invitationObjectId: Types.ObjectId;
+  round: 1 | 2;
   dateKey: string;
 }) {
-  const invitationId = extractIdString(input.invitation?._id);
-  const invitationObjectId = toObjectId(invitationId);
-
-  const allGuests = await loadGuestsForInvitation(input.invitation);
-
-  const pendingGuestsWithPhone = allGuests.filter((guest: any) => {
-    return hasPhone(guest) && isPendingGuest(guest);
-  });
-
-  if (input.round === 1) {
-    return pendingGuestsWithPhone;
-  }
-
-  /*
-    סבב 3 בלבד:
-    נפתח לכל מי שבהמתנה.
-    סבב 2 נשאר לפי תוצאות סבב 1 בלבד.
-  */
-  if (input.round === 3) {
-    return pendingGuestsWithPhone;
-  }
-
-  if (!invitationObjectId) return [];
-
-  const previousRound = 1 as const;
-
   const previousRoundTasks = await CallTask.find({
-    invitationId: invitationObjectId,
-    round: previousRound,
+    invitationId: input.invitationObjectId,
+    round: input.round,
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
   })
-    .select("guestId status updatedAt createdAt")
+    .select(
+      "guestId invitationGuestId status result callResult outcome callStatus answerStatus callAnswered noAnswerResult updatedAt createdAt"
+    )
     .sort({
       updatedAt: -1,
       createdAt: -1,
@@ -1157,30 +1138,67 @@ async function loadGuestsForRound(input: {
   const latestTaskByGuestId = new Map<string, any>();
 
   for (const task of previousRoundTasks) {
-    const guestId = extractIdString((task as any)?.guestId);
-
+    const guestId = extractIdString(
+      (task as any)?.guestId || (task as any)?.invitationGuestId
+    );
     if (!guestId) continue;
-
     if (!latestTaskByGuestId.has(guestId)) {
       latestTaskByGuestId.set(guestId, task);
     }
   }
 
-  return pendingGuestsWithPhone.filter((guest: any) => {
-    const guestId = extractIdString(guest?._id);
+  const guestIds = new Set<string>();
 
-    if (!guestId) return false;
+  for (const [guestId, task] of latestTaskByGuestId.entries()) {
+    const answer = normalizeCallAnswerFromSources({
+      answerStatus: task?.answerStatus,
+      callAnswered: task?.callAnswered,
+      result: task?.result,
+      callResult: task?.callResult,
+      status: task?.status,
+      outcome: task?.outcome,
+      callStatus: task?.callStatus,
+      noAnswerResult: task?.noAnswerResult,
+    });
 
-    const previousTask = latestTaskByGuestId.get(guestId);
+    if (answer === "no_answer" || isNoAnswerCallResult(task?.status)) {
+      guestIds.add(guestId);
+    }
+  }
 
-    /*
-      חשוב:
-      אם אין task קודם — מכניסים אותו לסבב הבא.
-      זה מכסה אורח שבהמתנה שלא נגעו בו בכלל בסבב הקודם.
-    */
-    if (!previousTask) return true;
+  return guestIds;
+}
 
-    return isNextRoundEligibleStatus(previousTask?.status);
+async function loadGuestsForRound(input: {
+  invitation: any;
+  round: RoundNumber;
+  dateKey: string;
+}) {
+  const invitationObjectId = toObjectId(extractIdString(input.invitation?._id));
+  const allGuests = await loadGuestsForInvitation(input.invitation);
+
+  const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+
+  if (invitationObjectId && (input.round === 2 || input.round === 3)) {
+    previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
+      invitationObjectId,
+      round: 1,
+      dateKey: input.dateKey,
+    });
+  }
+
+  if (invitationObjectId && input.round === 3) {
+    previousNoAnswerByRound[2] = await loadNoAnswerGuestIdsByRound({
+      invitationObjectId,
+      round: 2,
+      dateKey: input.dateKey,
+    });
+  }
+
+  return filterGuestsForCallRound({
+    guests: allGuests,
+    round: input.round as CallRoundNumber,
+    previousNoAnswerByRound,
   });
 }
 
@@ -1199,15 +1217,7 @@ function getRoundTitle(input: {
 }
 
 function getRoundDescription(round: RoundNumber) {
-  if (round === 1) {
-    return "סבב 1 - שיחות לכל האורחים שטרם השיבו";
-  }
-
-  if (round === 2) {
-    return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
-  }
-
-  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
+  return getCallRoundDescription(round as CallRoundNumber);
 }
 
 function getAttendingCount(guest: any) {
@@ -2160,9 +2170,11 @@ async function createWorkOrderForCandidate(input: {
     return {
       status: "skipped",
       reason:
-        candidate.round === 1 || candidate.round === 3
-          ? `NO_PENDING_GUESTS_FOR_ROUND_${candidate.round}`
-          : `NO_GUESTS_FOR_ROUND_${candidate.round}`,
+        candidate.round === 1
+          ? "NO_PENDING_GUESTS_FOR_ROUND_1"
+          : candidate.round === 2
+            ? "NO_NO_ANSWER_GUESTS_FROM_ROUND_1"
+            : "NO_ELIGIBLE_GUESTS_FOR_ROUND_3",
       round: candidate.round,
     };
   }

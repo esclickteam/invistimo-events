@@ -433,14 +433,14 @@ function getSourceAudienceByRound(
 
 function getDescriptionByRound(round: CallWorkOrderRound) {
   if (round === 1) {
-    return "סבב 1 - שיחות לכל האורחים שטרם השיבו";
+    return "סבב 1 - ממתינים שעדיין לא נתנו תשובה";
   }
 
   if (round === 2) {
-    return "סבב 2 - שיחות למי שלא ענה בסבב הראשון";
+    return "סבב 2 - לא ענו בסבב 1";
   }
 
-  return "סבב 3 - שיחות לכל האורחים שבהמתנה";
+  return "סבב 3 - לא ענו בסבבים 1–2 + מתלבטים";
 }
 
 /* ============================================================

@@ -334,7 +334,13 @@ function buildMessageRounds(
 
         return {
           key: `call_round_${round}`,
-          label: `סבב שיחות ${round}`,
+          label: `סבב שיחות ${round} · ${
+            round === 1
+              ? "ממתינים שעדיין לא נתנו תשובה"
+              : round === 2
+                ? "לא ענו בסבב 1"
+                : "לא ענו בסבבים 1–2 + מתלבטים"
+          }`,
           done: userRound?.status === "done",
           blocked: false,
           sentAt: null,
@@ -535,7 +541,13 @@ function buildMessageRounds(
 
       return {
         key: `call_round_${round}`,
-        label: `סבב שיחות ${round}`,
+        label: `סבב שיחות ${round} · ${
+          round === 1
+            ? "ממתינים שעדיין לא נתנו תשובה"
+            : round === 2
+              ? "לא ענו בסבב 1"
+              : "לא ענו בסבבים 1–2 + מתלבטים"
+        }`,
         done: userRound?.status === "done",
         sentAt: null,
         scheduledAt,

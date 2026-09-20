@@ -3,9 +3,10 @@
  * - yes: confirmed attending
  * - no: not attending
  * - maybe: explicit "still unsure" answer (מתלבטים)
- * - pending: no answer yet (לא ענו)
+ * - pending: no RSVP answer yet (בהמתנה)
  *
  * maybe must NEVER count toward confirmed arriving guests.
+ * "לא ענה" is a phone call result only — never an RSVP label.
  */
 
 export type GuestRsvpStatus = "yes" | "no" | "maybe" | "pending";
@@ -87,7 +88,7 @@ export function guestRsvpAdminLabel(status: GuestRsvpStatus): string {
     case "maybe":
       return "מתלבטים";
     default:
-      return "לא ענו";
+      return "בהמתנה";
   }
 }
 
