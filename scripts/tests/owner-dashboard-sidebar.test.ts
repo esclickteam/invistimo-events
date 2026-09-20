@@ -22,12 +22,17 @@ test("owner sidebar lists real couple actions and not admin pages", () => {
     "פרטי האירוע",
     "רשימת מוזמנים",
     "שליחת הודעות",
-    "לו״ז אישורי הגעה",
     "סידורי הושבה",
+    "לו״ז אישורי הגעה",
     "כניסה לאירוע",
   ]) {
     assert.match(sidebar, new RegExp(label));
   }
+
+  const seatingIdx = sidebar.indexOf('label: "סידורי הושבה"');
+  const callsIdx = sidebar.indexOf('label: "לו״ז אישורי הגעה"');
+  assert.ok(seatingIdx >= 0 && callsIdx >= 0);
+  assert.ok(seatingIdx < callsIdx);
 
   assert.doesNotMatch(sidebar, /ייבוא מוזמנים מאקסל/);
   assert.doesNotMatch(sidebar, /הוספת מוזמן/);

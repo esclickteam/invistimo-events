@@ -285,20 +285,20 @@ export default function DashboardSidebar({
           path.startsWith("/try/dashboard/messages"),
       },
       {
-        id: "call-rounds",
-        label: "לו״ז אישורי הגעה",
-        icon: Phone,
-        href: `${dashboardHome}?action=calls`,
-        query: "calls",
-        hidden: !canCallRounds,
-      },
-      {
         id: "seating",
         label: "סידורי הושבה",
         icon: Armchair,
         href: seatingHref,
         hidden: gameOnly,
         match: (path) => path.includes("/dashboard/seating"),
+      },
+      {
+        id: "call-rounds",
+        label: "לו״ז אישורי הגעה",
+        icon: Phone,
+        href: `${dashboardHome}?action=calls`,
+        query: "calls",
+        hidden: !canCallRounds,
       },
       {
         id: "checkin",
