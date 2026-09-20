@@ -972,12 +972,13 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
             { day: dateKey },
             { startDate: dateKey },
 
+            // Date-typed fields only — never compare HH:mm string fields like
+            // startTime/endTime against Date ranges (breaks / skips matches).
             { date: { $gte: start, $lte: end } },
             { workDate: { $gte: start, $lte: end } },
             { shiftDate: { $gte: start, $lte: end } },
             { startsAt: { $gte: start, $lte: end } },
             { startAt: { $gte: start, $lte: end } },
-            { startTime: { $gte: start, $lte: end } },
             { from: { $gte: start, $lte: end } },
           ],
         },

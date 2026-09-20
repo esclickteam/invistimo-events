@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
 import db from "@/lib/db";
+import { triggerCallWorkOrdersAutoOpen } from "@/lib/calls/triggerCallWorkOrdersAutoOpen";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -365,6 +366,9 @@ export async function POST(request: NextRequest) {
         .collection(COLLECTION)
         .findOne({ _id: existing._id });
 
+      // Open/refresh call work orders for this shift date (non-blocking).
+      void triggerCallWorkOrdersAutoOpen(date);
+
       return NextResponse.json({
         success: true,
         shift: normalizeShift(updated),
@@ -380,6 +384,8 @@ export async function POST(request: NextRequest) {
     const shift = await database
       .collection(COLLECTION)
       .findOne({ _id: inserted.insertedId });
+
+    void triggerCallWorkOrdersAutoOpen(date);
 
     return NextResponse.json({
       success: true,
@@ -433,7 +439,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const existingShift = await database.collection(COLLECTION).findOne({
+      _id: objectId,
+    });
+
     await database.collection(COLLECTION).deleteOne({ _id: objectId });
+
+    const shiftDate = cleanStr(existingShift?.date);
+    if (shiftDate) {
+      void triggerCallWorkOrdersAutoOpen(shiftDate);
+    }
 
     return NextResponse.json({
       success: true,

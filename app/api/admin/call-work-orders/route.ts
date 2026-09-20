@@ -596,7 +596,6 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
             { shiftDate: { $gte: start, $lte: end } },
             { startsAt: { $gte: start, $lte: end } },
             { startAt: { $gte: start, $lte: end } },
-            { startTime: { $gte: start, $lte: end } },
             { from: { $gte: start, $lte: end } },
           ],
         },
