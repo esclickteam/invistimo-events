@@ -72,7 +72,7 @@ const PublicEventPageSchema = new Schema(
     },
 
     note: {
-      enabled: { type: Boolean, default: true },
+      enabled: { type: Boolean, default: false },
       text: {
         type: String,
         default:

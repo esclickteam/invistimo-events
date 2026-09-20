@@ -121,7 +121,7 @@ function normalizePublicEventPage(input: any) {
     },
 
     note: {
-      enabled: note?.enabled === false ? false : true,
+      enabled: note?.enabled === true,
       text: cleanString(note?.text),
     },
   };
