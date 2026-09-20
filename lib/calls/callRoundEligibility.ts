@@ -288,6 +288,8 @@ export function isGuestEligibleForCallRound(input: {
   }
 
   // Round 3
+  // A) pending + NO_ANSWER in R1 and R2
+  // B) current RSVP maybe / מתלבט
   if (rsvp === "maybe") return true;
 
   if (rsvp !== "pending") return false;

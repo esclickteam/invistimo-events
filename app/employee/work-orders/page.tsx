@@ -99,11 +99,12 @@ function pad2(value: number) {
 }
 
 function getTodayKey() {
-  const now = new Date();
-
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
-    now.getDate()
-  )}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function formatDate(value?: string | null) {
@@ -144,6 +145,7 @@ function getStatusLabel(status: string) {
     completed: "הושלמה",
     cancelled: "בוטלה",
     paused: "מוקפאת",
+    expired: "פג תוקף",
   };
 
   return map[status] || status || "—";
@@ -169,8 +171,53 @@ function getAudienceLabel(sourceAudience: string) {
 
 function safeNumber(value: unknown) {
   const n = Number(value || 0);
-
   return Number.isFinite(n) ? n : 0;
+}
+
+function getWorkOrderDateKey(order: {
+  configuredRoundAt?: string | Date | null;
+  workDate?: string | Date | null;
+  autoOpenAt?: string | Date | null;
+}) {
+  const raw = order.configuredRoundAt || order.workDate || order.autoOpenAt;
+  if (!raw) return null;
+  const date = raw instanceof Date ? raw : new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return getTodayKeyFromDate(date);
+}
+
+function getTodayKeyFromDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isHistoricalWorkOrder(order: WorkOrder, todayKey: string) {
+  const status = String(order.status || "").toLowerCase();
+  if (
+    status === "completed" ||
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "expired"
+  ) {
+    return true;
+  }
+
+  const orderKey = getWorkOrderDateKey(order);
+  if (orderKey && orderKey < todayKey) return true;
+
+  return (
+    safeNumber(order.myTasksTotal) > 0 &&
+    safeNumber(order.myTasksRemaining) <= 0
+  );
+}
+
+function isActiveWorkOrder(order: WorkOrder, todayKey: string) {
+  if (isHistoricalWorkOrder(order, todayKey)) return false;
+  return safeNumber(order.myTasksRemaining) > 0;
 }
 
 /* ============================================================
@@ -190,29 +237,19 @@ export default function EmployeeWorkOrdersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  const todayKey = useMemo(() => getTodayKey(), []);
+
   const activeOrders = useMemo(() => {
-    return workOrders.filter((order) => {
-      const status = String(order.status || "").toLowerCase();
-      if (status === "completed" || status === "cancelled" || status === "canceled") {
-        return false;
-      }
-      return safeNumber(order.myTasksRemaining) > 0;
-    });
-  }, [workOrders]);
+    return workOrders.filter((order) => isActiveWorkOrder(order, todayKey));
+  }, [workOrders, todayKey]);
 
   const completedOrders = useMemo(() => {
     return workOrders.filter((order) => {
       const status = String(order.status || "").toLowerCase();
-      if (status === "cancelled" || status === "canceled") {
-        return false;
-      }
-      if (status === "completed") return true;
-      return (
-        safeNumber(order.myTasksTotal) > 0 &&
-        safeNumber(order.myTasksRemaining) <= 0
-      );
+      if (status === "cancelled" || status === "canceled") return false;
+      return isHistoricalWorkOrder(order, todayKey);
     });
-  }, [workOrders]);
+  }, [workOrders, todayKey]);
 
   async function loadWorkOrders(options?: { silent?: boolean }) {
     try {

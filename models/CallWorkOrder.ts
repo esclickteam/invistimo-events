@@ -15,7 +15,8 @@ export type CallWorkOrderStatus =
   | "in_progress" // בטיפול
   | "completed" // הסתיימה
   | "cancelled" // בוטלה
-  | "paused"; // הוקפאה
+  | "paused" // הוקפאה
+  | "expired"; // עבר מועד העבודה; נשאר בהיסטוריה עם משימות שלא טופלו
 
 export type CallWorkOrderSourceAudience =
   | "pending_rsvp" // סבב 1 - כל מי שממתין / טרם השיב
@@ -248,6 +249,7 @@ const CallWorkOrderSchema = new Schema<ICallWorkOrder>(
         "completed",
         "cancelled",
         "paused",
+        "expired",
       ],
       default: "scheduled",
       required: true,
