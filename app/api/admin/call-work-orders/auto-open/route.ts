@@ -1725,6 +1725,27 @@ async function findMovableExistingWorkOrder(input: {
     };
   }
 
+  // Never reopen a round that already finished — even on another workDate.
+  const completed = await CallWorkOrder.findOne({
+    invitationId: invitationObjectId,
+    type: "rsvp_calls",
+    round,
+    status: "completed",
+  })
+    .sort({
+      completedAt: -1,
+      updatedAt: -1,
+      createdAt: -1,
+    })
+    .lean();
+
+  if (completed) {
+    return {
+      type: "completed" as const,
+      workOrder: completed,
+    };
+  }
+
   const other = await CallWorkOrder.findOne({
     invitationId: invitationObjectId,
     type: "rsvp_calls",
@@ -2250,6 +2271,34 @@ async function createWorkOrderForCandidate(input: {
       reason: "WORK_ORDER_ALREADY_EXISTS_RECONCILED_AND_SYNCED",
       round: candidate.round,
       ...reconciled,
+    };
+  }
+
+  if (existingResult?.type === "completed") {
+    await markCallRoundScheduleOpened({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+      tasksCreated: Number(existingResult.workOrder?.totalTasks || 0),
+      openedAt:
+        existingResult.workOrder?.completedAt ||
+        existingResult.workOrder?.autoOpenAt ||
+        existingResult.workOrder?.createdAt ||
+        new Date(),
+    });
+
+    console.info("[auto-open] round skipped", {
+      reason: "ROUND_ALREADY_COMPLETED",
+      round: candidate.round,
+      invitationId: extractIdString(candidate.invitation?._id),
+      workOrderId: extractIdString(existingResult.workOrder?._id),
+    });
+
+    return {
+      status: "skipped",
+      reason: "ROUND_ALREADY_COMPLETED",
+      round: candidate.round,
+      workOrder: serializeWorkOrder(existingResult.workOrder),
     };
   }
 

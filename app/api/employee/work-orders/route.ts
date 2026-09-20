@@ -1104,17 +1104,60 @@ export async function GET(req: NextRequest) {
           tasks,
         });
       })
+      .filter((order) => {
+        const status = normalize(order.status);
+        return status !== "cancelled" && status !== "canceled";
+      })
       .sort((a, b) => getSortDate(b) - getSortDate(a))
       .slice(0, limit);
 
+    // Persist completion for open WOs that have no remaining tasks.
+    const staleOpenIds = serializedWorkOrders
+      .filter(
+        (order) =>
+          safeNumber(order.myTasksTotal) > 0 &&
+          safeNumber(order.myTasksRemaining) <= 0 &&
+          normalize(order.status) !== "completed"
+      )
+      .map((order) => toObjectId(order.id))
+      .filter(Boolean) as Types.ObjectId[];
+
+    if (staleOpenIds.length) {
+      await CallWorkOrder.updateMany(
+        {
+          _id: { $in: staleOpenIds },
+          status: { $nin: ["completed", "cancelled"] },
+        },
+        {
+          $set: {
+            status: "completed",
+            pendingTasks: 0,
+            inProgressTasks: 0,
+            completedAt: new Date(),
+            lastStatusSyncAt: new Date(),
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      for (const order of serializedWorkOrders) {
+        if (staleOpenIds.some((id) => String(id) === order.id)) {
+          order.status = "completed";
+        }
+      }
+    }
+
     const activeWorkOrders = serializedWorkOrders.filter(
-      (order) => safeNumber(order.myTasksRemaining) > 0
+      (order) =>
+        normalize(order.status) !== "completed" &&
+        safeNumber(order.myTasksRemaining) > 0
     );
 
     const completedWorkOrders = serializedWorkOrders.filter(
       (order) =>
-        safeNumber(order.myTasksTotal) > 0 &&
-        safeNumber(order.myTasksRemaining) <= 0
+        normalize(order.status) === "completed" ||
+        (safeNumber(order.myTasksTotal) > 0 &&
+          safeNumber(order.myTasksRemaining) <= 0)
     );
 
     const debug = {
