@@ -164,11 +164,13 @@ test("host scanner saves on quantity tap and only while live", () => {
   assert.match(host, /live && checkInEnabled/);
   assert.match(host, /pause\(false\)/);
   assert.match(confirm, /checkInActionBlocked/);
-  assert.match(confirm, /entryActionBlocked/);
-  assert.match(lookup, /requireQr: true/);
-  assert.match(lookup, /requireQr: false/);
-  assert.match(lookup, /entryActionBlocked/);
+  assert.doesNotMatch(confirm, /entryActionBlocked/);
+  assert.match(lookup, /checkInActionBlocked/);
+  assert.doesNotMatch(lookup, /requireQr/);
+  assert.doesNotMatch(lookup, /entryActionBlocked/);
   assert.match(gate, /EVENT_NOT_LIVE/);
+  assert.match(gate, /CHECKIN_DISABLED/);
+  assert.match(gate, /חבילת QR/);
   assert.match(confirm, /undoCheckIn/);
   assert.doesNotMatch(apply, /EXCEEDS_CONFIRMED/);
   assert.match(apply, /actualArrivedCount: previous/);
