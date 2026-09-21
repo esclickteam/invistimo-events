@@ -42,11 +42,11 @@ const PALETTES = {
     activeText: "#8B5E34",
   },
   customer: {
-    bar: "#FFFDF8",
+    bar: "#F8F5EE",
     barText: "#3F3328",
     accent: "#B88A2D",
-    bg: "#FAF8F4",
-    activeBg: "#F3E7D4",
+    bg: "#FAF7F3",
+    activeBg: "#F8EEDB",
     activeText: "#8B5E34",
   },
 } as const;
@@ -76,12 +76,14 @@ export function RoleShell({
       items[0]
     );
   }, [pathname, sections]);
+  const hideChrome = pathname.includes("/seating");
 
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
+      {hideChrome ? null : (
       <SafeAreaView edges={["top"]} style={{ backgroundColor: theme.bar }}>
         <View style={[styles.bar, { backgroundColor: theme.bar }]}>
-          <Pressable onPress={() => setOpen(true)} style={styles.menuBtn} accessibilityLabel="תפריט">
+          <Pressable onPress={() => setOpen(true)} style={[styles.menuBtn, palette === "customer" && styles.menuBtnCustomer]} accessibilityLabel="תפריט">
             <Text style={[styles.menuIcon, { color: theme.barText }]}>☰</Text>
           </Pressable>
           <View style={styles.barCenter}>
@@ -95,6 +97,7 @@ export function RoleShell({
           </View>
         </View>
       </SafeAreaView>
+      )}
       <View style={styles.body}>{children}</View>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
@@ -174,7 +177,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 8,
   },
-  menuBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  menuBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  menuBtnCustomer: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D7BE88",
+    backgroundColor: "#FFFFFF",
+  },
   menuIcon: { fontSize: 22, fontFamily: "Heebo_700Bold" },
   barCenter: { flex: 1, alignItems: "center" },
   barKicker: { fontSize: 10, fontFamily: "Heebo_700Bold", letterSpacing: 1 },
@@ -188,8 +197,8 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: "#fff", fontFamily: "Heebo_700Bold", fontSize: 12 },
   body: { flex: 1 },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.35)", flexDirection: "row-reverse" },
-  drawer: { width: 300, maxWidth: "86%", height: "100%", paddingHorizontal: 12 },
+  overlay: { flex: 1, backgroundColor: "rgba(31,23,16,0.45)", flexDirection: "row-reverse" },
+  drawer: { width: 300, maxWidth: "88%", height: "100%", paddingHorizontal: 12, backgroundColor: "#FBF6EF" },
   drawerHead: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",

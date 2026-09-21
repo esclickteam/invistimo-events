@@ -71,8 +71,15 @@ export function EventProvider({ children }: { children: ReactNode }) {
       setEvent(nextEvent);
       if (nextInvitation?._id) {
         const guestResult = await fetchGuests(nextInvitation._id);
-        setGuests(guestResult.data.guests || []);
-        setUsage(guestResult.data.usage || null);
+        const nextGuests = guestResult.data.guests || [];
+        setGuests(nextGuests);
+        const limit = Number(user?.guests || guestResult.data.usage?.limit || 0);
+        const current = Number(guestResult.data.usage?.current ?? nextGuests.length);
+        setUsage(
+          limit > 0
+            ? { current, limit, remaining: Math.max(0, limit - current) }
+            : guestResult.data.usage || null
+        );
         if (!guestResult.ok) {
           setError(customerError(guestResult.status, guestResult.data, "לא הצלחנו לטעון מוזמנים"));
         }

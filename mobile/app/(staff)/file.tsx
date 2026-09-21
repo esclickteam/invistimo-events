@@ -1,6 +1,5 @@
 import { useAuth } from "@/src/auth";
 import { RecordDetailScreen } from "@/src/records";
-import { openOnWebsite } from "@/src/website";
 
 export default function StaffFile() {
   const { user } = useAuth();
@@ -12,9 +11,6 @@ export default function StaffFile() {
         { key: "email", label: "אימייל" },
         { key: "phone", label: "טלפון" },
         { key: "staffType", label: "סוג עובד" },
-      ]}
-      actions={[
-        { label: "מסמכים באתר", onPress: () => void openOnWebsite("/staff/dashboard") },
       ]}
     />
   );

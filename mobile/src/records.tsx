@@ -148,6 +148,11 @@ export function RecordsScreen({
       {visible.map((item) => {
         const id = recordId(item);
         const href = hrefForItem?.(item);
+        const extra = Object.entries(item)
+          .filter(([key, value]) => !["_id", "id", "password", "__v"].includes(key) && (typeof value === "string" || typeof value === "number"))
+          .slice(0, 12)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(" · ");
         return (
           <Pressable
             key={id || recordTitle(item)}
@@ -160,6 +165,8 @@ export function RecordsScreen({
               <Text style={styles.title}>{recordTitle(item)}</Text>
               {recordMeta(item, metaKeys) ? (
                 <Text style={styles.meta}>{recordMeta(item, metaKeys)}</Text>
+              ) : extra ? (
+                <Text style={styles.meta}>{extra}</Text>
               ) : null}
             </Card>
           </Pressable>
@@ -173,14 +180,21 @@ export function RecordDetailScreen({
   path,
   fields,
   actions,
+  saveMethod = "PUT",
 }: {
   path: string;
   fields: Array<{ key: string; label: string }>;
   actions?: Array<{ label: string; onPress: (record: Record<string, unknown>) => void }>;
+  saveMethod?: string;
 }) {
   const [record, setRecord] = useState<Record<string, unknown> | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fieldKeys = fields.map((field) => field.key).join("|");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,21 +207,27 @@ export function RecordDetailScreen({
         return;
       }
       const data = result.data;
-      setRecord(
+      const next =
         asRecord(data.customer) ||
-          asRecord(data.user) ||
-          asRecord(data.employee) ||
-          asRecord(data.lead) ||
-          asRecord(data.event) ||
-          asRecord(data.workOrder) ||
-          asRecord(data)
-      );
+        asRecord(data.user) ||
+        asRecord(data.employee) ||
+        asRecord(data.lead) ||
+        asRecord(data.event) ||
+        asRecord(data.workOrder) ||
+        asRecord(data);
+      setRecord(next);
+      const nextDraft: Record<string, string> = {};
+      fieldKeys.split("|").forEach((key) => {
+        if (!key) return;
+        nextDraft[key] = next ? String(next[key] ?? "") : "";
+      });
+      setDraft(nextDraft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "הטעינה נכשלה");
     } finally {
       setLoading(false);
     }
-  }, [path]);
+  }, [fieldKeys, path]);
 
   useEffect(() => {
     void load();
@@ -216,19 +236,63 @@ export function RecordDetailScreen({
   return (
     <Page refreshing={loading} onRefresh={() => void load()}>
       <ErrorText text={error} />
+      {saved ? <Text style={styles.ok}>{saved}</Text> : null}
       {!record && !loading ? <EmptyState text="הרשומה לא נמצאה." /> : null}
       {record
         ? fields.map((field) => (
-            <Card key={field.key}>
-              <Text style={styles.meta}>{field.label}</Text>
-              <Text style={styles.title}>{String(record[field.key] ?? "—")}</Text>
-            </Card>
+            <Field
+              key={field.key}
+              label={field.label}
+              value={draft[field.key] || ""}
+              onChangeText={(value) => setDraft((prev) => ({ ...prev, [field.key]: value }))}
+            />
           ))
         : null}
       {record
-        ? (actions || []).map((action) => (
-            <OutlineButton key={action.label} label={action.label} onPress={() => action.onPress(record)} />
-          ))
+        ? Object.entries(record)
+            .filter(
+              ([key, value]) =>
+                !fields.some((field) => field.key === key) &&
+                !["_id", "id", "password", "__v", "hash"].includes(key) &&
+                (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+            )
+            .map(([key, value]) => (
+              <Card key={key}>
+                <Text style={styles.meta}>{key}</Text>
+                <Text style={styles.title}>{String(value ?? "—")}</Text>
+              </Card>
+            ))
+        : null}
+      {record ? (
+        <PrimaryButton
+          label="שמירה"
+          loading={saving}
+          onPress={() => {
+            void (async () => {
+              setSaving(true);
+              setSaved("");
+              setError("");
+              const result = await api(path, {
+                method: saveMethod,
+                body: JSON.stringify(draft),
+              });
+              setSaving(false);
+              if (!result.ok) {
+                setError(messageFromApi(result.data, "השמירה נכשלה"));
+                return;
+              }
+              setSaved("נשמר");
+              await load();
+            })();
+          }}
+        />
+      ) : null}
+      {record
+        ? (actions || [])
+            .filter((action) => !action.label.includes("באתר"))
+            .map((action) => (
+              <OutlineButton key={action.label} label={action.label} onPress={() => action.onPress(record)} />
+            ))
         : null}
     </Page>
   );

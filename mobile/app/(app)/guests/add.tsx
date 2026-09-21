@@ -5,7 +5,7 @@ import { createGuest } from "@/src/api";
 import { useEventData } from "@/src/event";
 import { messageFromApi, RSVP_LABELS } from "@/src/format";
 import { digitsOnly } from "@/src/phones";
-import { Card, ErrorText, Field, Page, PrimaryButton } from "@/src/ui";
+import { ErrorText, Field, Page, PrimaryButton } from "@/src/ui";
 import { colors } from "@/src/theme";
 
 const STATUSES = ["pending", "yes", "maybe", "no"] as const;
@@ -56,10 +56,13 @@ export default function AddGuestScreen() {
   if (mode === "choose") {
     return (
       <Page>
-        <Text style={styles.lead}>בחרו איך להוסיף את המוזמנים</Text>
-        <Choice title="הוספת מוזמן ידנית" onPress={() => setMode("manual")} />
-        <Choice title="ייבוא מאנשי קשר" onPress={() => router.push("/(app)/guests/contacts")} />
-        <Choice title="ייבוא מוזמנים מאקסל" onPress={() => router.push("/(app)/guests/excel")} />
+        <View style={styles.chooser}>
+          <Text style={styles.chooserTitle}>הוספת מוזמן</Text>
+          <Text style={styles.lead}>בחרו איך להוסיף את המוזמנים</Text>
+          <Choice icon="＋" title="הוספת מוזמן ידנית" onPress={() => setMode("manual")} />
+          <Choice icon="📗" title="ייבוא מוזמנים מאקסל" onPress={() => router.push("/(app)/guests/excel")} />
+          <Choice icon="👤" title="ייבוא מאנשי קשר" onPress={() => router.push("/(app)/guests/contacts")} />
+        </View>
       </Page>
     );
   }
@@ -88,28 +91,61 @@ export default function AddGuestScreen() {
   );
 }
 
-function Choice({ title, onPress }: { title: string; onPress: () => void }) {
+function Choice({ title, onPress, icon }: { title: string; onPress: () => void; icon: string }) {
   return (
-    <Pressable onPress={onPress}>
-      <Card>
-        <Text style={styles.choice}>{title}</Text>
-      </Card>
+    <Pressable onPress={onPress} style={styles.choiceBtn}>
+      <View style={styles.choiceIcon}>
+        <Text style={styles.choiceIconText}>{icon}</Text>
+      </View>
+      <Text style={styles.choice}>{title}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  chooser: {
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#EADBC4",
+    backgroundColor: "#FFFDF8",
+    padding: 20,
+  },
+  chooserTitle: { textAlign: "right", fontFamily: "Heebo_700Bold", fontSize: 20, color: "#3F3328" },
   lead: {
     textAlign: "right",
     color: colors.muted,
-    fontFamily: "Heebo_500Medium",
+    fontFamily: "Heebo_700Bold",
+    marginBottom: 16,
+    marginTop: 4,
+    fontSize: 14,
+  },
+  choiceBtn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E3D6C3",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     marginBottom: 12,
   },
+  choiceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: "#F8EEDB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  choiceIconText: { fontSize: 16, color: "#B88A2D" },
   choice: {
+    flex: 1,
     textAlign: "right",
     fontFamily: "Heebo_700Bold",
     fontSize: 16,
-    color: colors.brownText,
+    color: "#3F3328",
   },
   label: { textAlign: "right", fontFamily: "Heebo_600SemiBold", color: colors.ink, marginBottom: 8 },
   statuses: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 16 },

@@ -163,12 +163,12 @@ export function StatusPill({ status }: { status?: string }) {
   const key = status || "pending";
   const palette =
     key === "yes"
-      ? { bg: colors.yesBg, fg: colors.yes, label: "מגיע" }
+      ? { bg: "#DCFCE7", fg: "#15803D", label: "מגיע" }
       : key === "no"
-        ? { bg: colors.noBg, fg: colors.no, label: "לא מגיע" }
+        ? { bg: "#FEE2E2", fg: "#B91C1C", label: "לא מגיע" }
         : key === "maybe"
-          ? { bg: colors.maybeBg, fg: colors.maybe, label: "מתלבטים" }
-          : { bg: colors.pendingBg, fg: colors.pending, label: "בהמתנה" };
+          ? { bg: "#EDE9FE", fg: "#6D28D9", label: "מתלבטים" }
+          : { bg: "#FEF9C3", fg: "#A16207", label: "בהמתנה" };
   return (
     <View style={[styles.pill, { backgroundColor: palette.bg }]}>
       <Text style={[styles.pillText, { color: palette.fg }]}>{palette.label}</Text>
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderRadius: radius.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
   },
   pillText: { fontFamily: "Heebo_700Bold", fontSize: 12 },
