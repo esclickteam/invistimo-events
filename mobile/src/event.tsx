@@ -15,6 +15,7 @@ import {
   type GuestUsage,
   type Invitation,
 } from "@/src/api";
+import { customerError } from "@/src/errors";
 import { useAuth } from "@/src/auth";
 
 type EventContextValue = {
@@ -60,7 +61,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
         setGuests(guestResult.data.guests || []);
         setUsage(guestResult.data.usage || null);
         if (!guestResult.ok) {
-          setError(guestResult.data.message || guestResult.data.error || "");
+          setError(customerError(guestResult.status, guestResult.data, "לא הצלחנו לטעון מוזמנים"));
         }
       } else {
         setGuests([]);

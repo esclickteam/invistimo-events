@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 import {
@@ -22,6 +21,9 @@ import {
   normalizeLoginPassword,
 } from "@/lib/auth/normalizeLoginInput";
 import { userHasWeddingChallengesEntitlement } from "@/lib/weddingChallenges/entitlement";
+import { signAccessJwt } from "@/lib/auth/issueAccessJwt";
+import { wantsMobileSession } from "@/lib/auth/mobileClient";
+import { createMobileRefreshSession } from "@/lib/auth/mobileSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -206,27 +208,38 @@ export async function POST(req: Request) {
 
     const authVersion = Number((user as any).authVersion ?? 0);
 
-    const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role,
-        hasPaid,
-        includeWeddingChallenges,
-        isTrial,
-        authVersion,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
-    );
+    const token = signAccessJwt(user);
 
     clearLoginRateLimit(rateLimitKey);
+
+    let refreshToken: string | undefined;
+    let refreshExpiresAt: Date | undefined;
+    if (wantsMobileSession(req, body)) {
+      try {
+        const session = await createMobileRefreshSession({
+          userId: user._id.toString(),
+          authVersion,
+          deviceLabel: String(
+            body?.deviceLabel || req.headers.get("x-invistimo-device") || ""
+          ),
+        });
+        refreshToken = session.refreshToken;
+        refreshExpiresAt = session.expiresAt;
+      } catch {
+        console.error("MOBILE SESSION CREATE FAILED");
+      }
+    }
 
     const res = NextResponse.json(
       {
         success: true,
         token,
+        ...(refreshToken
+          ? {
+              refreshToken,
+              refreshExpiresAt,
+            }
+          : {}),
         user: {
           _id: String(user._id),
           name: user.name ?? "",

@@ -185,7 +185,7 @@ export default function ContactsImportScreen() {
         <EmptyState text="אין גישה לאנשי הקשר. אפשר להפעיל את ההרשאה בהגדרות המכשיר, או להמשיך להוסיף מוזמנים ידנית. שאר האפליקציה נשארת זמינה." />
         <PrimaryButton label="פתיחת הגדרות" onPress={() => void Linking.openSettings()} />
         <View style={{ height: 10 }} />
-        <PrimaryButton label="הוספה ידנית" onPress={() => router.replace("/(app)/guests/add")} />
+        <PrimaryButton label="המשך ידנית" onPress={() => router.replace("/(app)/guests/add")} />
       </Page>
     );
   }

@@ -181,6 +181,7 @@ test("website cookie login and native Bearer login", async (t) => {
       assert.equal(body.success, false);
       assert.equal(body.token, undefined);
       assert.equal("token" in body, false);
+      assert.equal("refreshToken" in body, false);
     });
 
     await t.test("successful website login still sets the HttpOnly cookie", async () => {
@@ -210,6 +211,7 @@ test("website cookie login and native Bearer login", async (t) => {
         userId: string;
       };
       assert.equal(decoded.userId, String(owner._id));
+      assert.equal(body.refreshToken, undefined);
 
       const cookieAuth = await getUserIdFromRequest(
         new Request("http://localhost/api/events", {

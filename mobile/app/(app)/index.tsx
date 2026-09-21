@@ -7,7 +7,7 @@ import { Card, Page, ScreenTitle } from "@/src/ui";
 import { colors } from "@/src/theme";
 
 export default function DashboardScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { loading, invitation, event, guests, usage, refresh } = useEventData();
   const title = String(invitation?.title || event?.title || "האירוע שלי");
   const date = formatEventDate(invitation?.eventDate || event?.date);
@@ -61,8 +61,8 @@ export default function DashboardScreen() {
       <Pressable style={styles.link} onPress={() => router.push("/(app)/guests/add")}>
         <Text style={styles.linkText}>הוספת מוזמן</Text>
       </Pressable>
-      <Pressable style={styles.link} onPress={() => void logout()}>
-        <Text style={styles.logout}>התנתקות</Text>
+      <Pressable style={styles.link} onPress={() => router.push("/(app)/more/security")}>
+        <Text style={styles.linkText}>אבטחה והתנתקות</Text>
       </Pressable>
     </Page>
   );
@@ -84,5 +84,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   linkText: { textAlign: "right", fontFamily: "Heebo_700Bold", color: colors.brownText },
-  logout: { textAlign: "center", color: colors.danger, fontFamily: "Heebo_600SemiBold", marginTop: 8 },
 });

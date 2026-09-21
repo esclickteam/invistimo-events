@@ -2,6 +2,7 @@ import { Share, StyleSheet, Text } from "react-native";
 import { API_URL } from "@/src/api";
 import { useEventData } from "@/src/event";
 import { Card, EmptyState, Page, PrimaryButton } from "@/src/ui";
+import { openOnWebsite } from "@/src/website";
 import { colors } from "@/src/theme";
 
 export default function InvitationScreen() {
@@ -40,6 +41,10 @@ export default function InvitationScreen() {
           onPress={() => void Share.share({ message: url })}
         />
       ) : null}
+      <PrimaryButton
+        label="עריכת ההזמנה באתר"
+        onPress={() => void openOnWebsite("/dashboard")}
+      />
     </Page>
   );
 }

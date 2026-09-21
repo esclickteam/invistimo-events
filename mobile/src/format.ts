@@ -1,3 +1,5 @@
+import { customerError } from "@/src/errors";
+
 export function formatLocation(location: unknown) {
   if (!location) return "";
   if (typeof location === "string") return location.trim();
@@ -33,12 +35,5 @@ export function rsvpLabel(value: unknown) {
 }
 
 export function messageFromApi(data: unknown, fallback: string) {
-  if (!data || typeof data !== "object") return fallback;
-  const body = data as Record<string, unknown>;
-  const message = String(body.message || body.error || "").trim();
-  if (!message || message === "SERVER_ERROR" || message === "UNAUTHORIZED") {
-    if (message === "UNAUTHORIZED") return "יש להתחבר מחדש";
-    return fallback;
-  }
-  return message;
+  return customerError(undefined, data, fallback);
 }

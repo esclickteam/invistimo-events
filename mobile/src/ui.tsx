@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,33 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Network from "expo-network";
 import { colors, radius } from "@/src/theme";
+
+function OfflineBanner() {
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    function apply(state: { isConnected?: boolean | null; isInternetReachable?: boolean | null }) {
+      const connected = state.isConnected !== false && state.isInternetReachable !== false;
+      if (mounted) setOffline(!connected);
+    }
+    void Network.getNetworkStateAsync().then(apply).catch(() => undefined);
+    const sub = Network.addNetworkStateListener?.(apply);
+    return () => {
+      mounted = false;
+      sub?.remove?.();
+    };
+  }, []);
+
+  if (!offline) return null;
+  return (
+    <View style={styles.offline}>
+      <Text style={styles.offlineText}>אין חיבור לאינטרנט</Text>
+    </View>
+  );
+}
 
 export function Page({
   children,
@@ -29,6 +55,7 @@ export function Page({
 }) {
   return (
     <SafeAreaView style={styles.page} edges={["left", "right"]}>
+      <OfflineBanner />
       {scroll ? (
         <ScrollView
           contentContainerStyle={styles.content}
@@ -227,6 +254,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    marginBottom: 10,
   },
   disabled: { opacity: 0.55 },
   primaryText: {
@@ -238,11 +266,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.champagne,
     borderRadius: radius.pill,
-    minHeight: 44,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
     backgroundColor: colors.white,
+    marginBottom: 10,
   },
   outlineText: {
     color: colors.champagneDark,
@@ -265,5 +294,15 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontFamily: "Heebo_500Medium",
     marginBottom: 10,
+  },
+  offline: {
+    backgroundColor: colors.dangerBg,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  offlineText: {
+    textAlign: "center",
+    color: colors.danger,
+    fontFamily: "Heebo_600SemiBold",
   },
 });

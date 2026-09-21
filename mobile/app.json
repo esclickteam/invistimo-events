@@ -8,19 +8,27 @@
     "scheme": "invistimo",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.invistimo.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSContactsUsageDescription": "Invistimo ניגש לאנשי הקשר רק כדי שתוכלו לבחור מוזמנים לייבוא. לא נשלחת כל רשימת אנשי הקשר.",
-        "NSCameraUsageDescription": "Invistimo משתמש במצלמה כדי לסרוק קוד QR בכניסה לאירוע."
+        "NSCameraUsageDescription": "Invistimo משתמש במצלמה כדי לסרוק קוד QR בכניסה לאירוע.",
+        "NSFaceIDUsageDescription": "Invistimo משתמש ב-Face ID כדי לפתוח את הסשן השמור במכשיר. הסיסמה לא נשמרת."
       }
     },
     "android": {
       "package": "com.invistimo.app",
+      "versionCode": 1,
       "permissions": [
         "android.permission.READ_CONTACTS",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#FAF8F4",
@@ -40,12 +48,18 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/invistimo-logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#FAF8F4"
         }
       ],
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Invistimo משתמש ב-Face ID כדי לפתוח את הסשן השמור במכשיר. הסיסמה לא נשמרת."
+        }
+      ],
       [
         "expo-contacts",
         {

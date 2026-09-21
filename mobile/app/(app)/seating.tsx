@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "@/src/api";
 import { useEventData } from "@/src/event";
 import { messageFromApi } from "@/src/format";
-import { Card, EmptyState, ErrorText, Page, StatusPill } from "@/src/ui";
+import { Card, EmptyState, ErrorText, Page, PrimaryButton, StatusPill } from "@/src/ui";
+import { openOnWebsite } from "@/src/website";
 import { colors } from "@/src/theme";
 
 type TableItem = {
@@ -61,6 +62,10 @@ export default function SeatingScreen() {
       <Text style={styles.lead}>
         שיבוץ מוזמנים לשולחנות נשמר באותו סידור הושבה של האתר. מפת הקנבס המלאה נשארת באתר.
       </Text>
+      <PrimaryButton
+        label="פתיחת מפת ההושבה באתר"
+        onPress={() => void openOnWebsite("/dashboard/seating")}
+      />
       <ErrorText text={error} />
       {!tables.length ? <EmptyState text="עדיין אין שולחנות שמורים לאירוע." /> : null}
       {guests.map((guest) => (
