@@ -1,8 +1,6 @@
 # Invistimo mobile
 
-Native iOS and Android app for Invistimo, built with React Native and Expo. It is a separate project from the website and uses the existing Invistimo API, users, events, and database.
-
-The production website in the parent folder is not modified by this app.
+Native iOS and Android app for Invistimo, built with React Native and Expo. It uses the existing Invistimo API, users, events, and database. Website cookie login stays on the HttpOnly `authToken` cookie.
 
 ## Run
 
@@ -37,4 +35,8 @@ Email is saved in the guest notes field (`אימייל: ...`) because the existi
 
 ## Auth note
 
-Login still sets the website's HttpOnly `authToken` cookie. The API also returns that same JWT as `token` in the JSON body after a successful login. The app stores it in secure storage and sends `Authorization: Bearer <token>` on later requests. Failed logins never include a token.
+Login still sets the website's HttpOnly `authToken` cookie. Native clients also receive a rotatable mobile refresh token and store both the access JWT and refresh credential in Expo SecureStore, never in AsyncStorage. The app sends `Authorization: Bearer <token>` on later requests. Failed logins never include a token. Face ID / biometrics only unlock the stored session; they do not replace server authentication.
+
+## Device builds
+
+Use EAS profiles in `eas.json`: `development`, `preview` (internal APK / iOS device), and `production`. Do not submit store builds until after real-device approval.

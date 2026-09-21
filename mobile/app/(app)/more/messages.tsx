@@ -1,6 +1,7 @@
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useEventData } from "@/src/event";
-import { Card, EmptyState, Page } from "@/src/ui";
+import { Card, EmptyState, Page, PrimaryButton } from "@/src/ui";
+import { openOnWebsite } from "@/src/website";
 import { colors } from "@/src/theme";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -20,6 +21,11 @@ export default function MessagesScreen() {
       <Text style={styles.lead}>
         סטטוס סבבי ההודעות נמשך מאותו אירוע. שליחת סבב SMS או וואטסאפ בתשלום נשארת באתר, כדי לא לשלוח בטעות.
       </Text>
+      <PrimaryButton
+        label="שליחת הודעות באתר"
+        onPress={() => void openOnWebsite("/dashboard/messages")}
+      />
+      <View style={{ height: 12 }} />
       {!messages.length ? <EmptyState text="אין הודעות מתוזמנות כרגע." /> : null}
       {messages.map((message) => (
         <Card key={message._id || `${message.type}-${message.scheduledAt}`}>

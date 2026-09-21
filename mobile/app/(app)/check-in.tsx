@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, Linking } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { api } from "@/src/api";
 import { useEventData } from "@/src/event";
@@ -109,13 +109,24 @@ export default function CheckInScreen() {
       <PrimaryButton
         label={scanning ? "סגירת מצלמה" : "סריקת QR"}
         onPress={() => {
-          if (!permission?.granted) {
-            void requestPermission();
+          if (permission?.granted) {
+            setScanning((value) => !value);
             return;
           }
-          setScanning((value) => !value);
+          if (permission && permission.canAskAgain === false) {
+            void Linking.openSettings();
+            return;
+          }
+          void requestPermission();
         }}
       />
+      {permission && !permission.granted ? (
+        <Text style={styles.lead}>
+          {permission.canAskAgain === false
+            ? "הגישה למצלמה חסומה. אפשר להפעיל אותה בהגדרות המכשיר כדי לסרוק QR, או לחפש מוזמן ידנית."
+            : "המצלמה משמשת רק לסריקת ברקוד כניסה. אפשר גם לחפש מוזמן ידנית."}
+        </Text>
+      ) : null}
       <TextInput
         value={query}
         onChangeText={setQuery}

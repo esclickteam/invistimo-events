@@ -11,6 +11,7 @@ import {
 } from "@expo-google-fonts/heebo";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/src/auth";
+import { LockOverlay } from "@/src/LockOverlay";
 import { EventProvider } from "@/src/event";
 import { ImportDraftProvider } from "@/src/importDraft";
 import { colors } from "@/src/theme";
@@ -47,6 +48,7 @@ export default function RootLayout() {
       <EventProvider>
         <ImportDraftProvider>
           <StatusBar style="dark" />
+          <LockOverlay />
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: colors.card },

@@ -1,5 +1,13 @@
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import { readLoginTokenFromBody } from "@/src/authToken";
+import { customerError, networkErrorMessage, timeoutErrorMessage } from "@/src/errors";
+import {
+  accessTokenNeedsRefresh,
+  clearSecureSession,
+  readSecureSession,
+  saveSecureSession,
+} from "@/src/sessionStore";
 
 const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
 
@@ -11,13 +19,18 @@ export const API_URL = (
 
 type Session = {
   token: string | null;
+  refreshToken: string | null;
 };
 
-let session: Session = { token: null };
+let session: Session = { token: null, refreshToken: null };
 let onUnauthorized: (() => void) | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
-export function setAuthToken(token: string | null) {
-  session = { token };
+export function setAuthToken(token: string | null, refreshToken?: string | null) {
+  session = {
+    token,
+    refreshToken: refreshToken === undefined ? session.refreshToken : refreshToken,
+  };
 }
 
 export function getAuthToken() {
@@ -32,13 +45,81 @@ export function tokenFromLoginResponse(_res: Response, body: unknown) {
   return readLoginTokenFromBody(body);
 }
 
+function nativeHeaders() {
+  const headers = new Headers();
+  headers.set("Accept", "application/json");
+  headers.set("X-Invistimo-Client", "native");
+  return headers;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 25000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function persistSession(accessToken: string, refreshToken?: string | null) {
+  setAuthToken(accessToken, refreshToken ?? session.refreshToken);
+  await saveSecureSession({
+    accessToken,
+    refreshToken: refreshToken ?? session.refreshToken,
+  });
+}
+
+export async function hydrateSessionFromStore() {
+  const stored = await readSecureSession();
+  session = {
+    token: stored.accessToken,
+    refreshToken: stored.refreshToken,
+  };
+  return stored;
+}
+
+export async function refreshAccessToken() {
+  if (!session.refreshToken) return false;
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const headers = nativeHeaders();
+      headers.set("Content-Type", "application/json");
+      const res = await fetchWithTimeout(`${API_URL}/api/auth/mobile/refresh`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ refreshToken: session.refreshToken }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        token?: string;
+        refreshToken?: string;
+      };
+      if (!res.ok || !data.success || !data.token) return false;
+      await persistSession(data.token, data.refreshToken || session.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
 export async function api<T = Record<string, unknown>>(
   path: string,
   init: RequestInit = {},
-  options?: { auth?: boolean }
+  options?: { auth?: boolean; _retried?: boolean }
 ) {
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
+  if (options?.auth !== false && session.token && accessTokenNeedsRefresh(session.token)) {
+    await refreshAccessToken();
+  }
+
+  const headers = nativeHeaders();
+  const incoming = new Headers(init.headers);
+  incoming.forEach((value, key) => headers.set(key, value));
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -46,13 +127,29 @@ export async function api<T = Record<string, unknown>>(
     headers.set("Authorization", `Bearer ${session.token}`);
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`${API_URL}${path}`, { ...init, headers });
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    throw new Error(aborted ? timeoutErrorMessage : networkErrorMessage);
+  }
 
   const data = (await res.json().catch(() => ({}))) as T;
-  if (res.status === 401 && options?.auth !== false) {
+  if (
+    res.status === 401 &&
+    options?.auth !== false &&
+    !options?._retried &&
+    session.refreshToken
+  ) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return api<T>(path, init, { ...options, _retried: true });
+    }
+    await clearSecureSession();
+    setAuthToken(null, null);
+    onUnauthorized?.();
+  } else if (res.status === 401 && options?.auth !== false) {
     onUnauthorized?.();
   }
   return { ok: res.ok, status: res.status, data, response: res };
@@ -132,18 +229,37 @@ export async function loginRequest(identifier: string, password: string) {
     success?: boolean;
     error?: string;
     token?: string;
+    refreshToken?: string;
     user?: MeUser;
   }>(
     "/api/login",
     {
       method: "POST",
-      body: JSON.stringify({ email: identifier, password }),
+      headers: { "X-Invistimo-Client": "native" },
+      body: JSON.stringify({
+        email: identifier,
+        password,
+        client: "native",
+        deviceLabel: [Device.osName, Device.modelName].filter(Boolean).join(" ").slice(0, 80),
+      }),
     },
     { auth: false }
   );
 
   const token = tokenFromLoginResponse(result.response, result.data);
-  return { ...result, token };
+  return { ...result, token, refreshToken: result.data.refreshToken || null };
+}
+
+export async function logoutRequest(refreshToken = session.refreshToken) {
+  if (!refreshToken) return;
+  await api(
+    "/api/auth/mobile/logout",
+    {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+    },
+    { auth: false }
+  ).catch(() => undefined);
 }
 
 export async function fetchMe() {
@@ -236,3 +352,5 @@ export function notesWithEmail(email: string, notes = "") {
   if (cleanNotes.includes(cleanEmail)) return cleanNotes;
   return `${line}\n${cleanNotes}`;
 }
+
+export { customerError };

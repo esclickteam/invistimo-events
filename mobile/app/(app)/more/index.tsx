@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/(app)/more/transport", title: "ניהול הסעות", flag: "transport" },
   { href: "/(app)/more/challenges", title: "ניהול Wedding Challenges", flag: "challenges" },
   { href: "/(app)/more/website", title: "אתר חתונה", flag: "website" },
+  { href: "/(app)/more/security", title: "אבטחה", flag: "always" },
 ] as const;
 
 export default function MoreScreen() {

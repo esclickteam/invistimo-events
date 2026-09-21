@@ -13,6 +13,7 @@ export default function MoreLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: "עוד" }} />
+      <Stack.Screen name="security" options={{ title: "אבטחה" }} />
       <Stack.Screen name="event" options={{ title: "פרטי האירוע" }} />
       <Stack.Screen name="invitation" options={{ title: "הזמנה" }} />
       <Stack.Screen name="messages" options={{ title: "שליחת הודעות" }} />
