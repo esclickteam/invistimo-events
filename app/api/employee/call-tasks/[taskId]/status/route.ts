@@ -749,15 +749,8 @@ function serializeWorkOrder(order: any, counts: StatusCounts) {
 ============================================================ */
 
 async function getAuthUser(): Promise<AuthUser | null> {
-  const cookieStore = await cookies();
-
-  const token =
-    cookieStore.get("token")?.value ||
-    cookieStore.get("auth_token")?.value ||
-    cookieStore.get("authToken")?.value ||
-    cookieStore.get("jwt")?.value ||
-    cookieStore.get("session")?.value ||
-    "";
+  const { sessionJwtFromCookiesAndBearer } = await import("@/lib/auth/sessionJwt");
+  const token = await sessionJwtFromCookiesAndBearer();
 
   if (!token) return null;
 

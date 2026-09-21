@@ -161,20 +161,38 @@ export type MeUser = {
   email?: string;
   role?: string;
   effectiveRole?: string;
+  impersonationRole?: string;
+  originalTargetRole?: string;
+  venueOwner?: boolean;
+  venueUser?: boolean;
+  isVenueUser?: boolean;
+  staffType?: string | null;
+  employeeScope?: string | null;
+  isProducerStaff?: boolean;
+  isSystemStaff?: boolean;
+  isUsherStaff?: boolean;
   hasPaid?: boolean;
   isTrial?: boolean;
   guests?: number;
   packageName?: string;
   includeSeating?: boolean;
+  includeDigitalSeating?: boolean;
   includeCalls?: boolean;
   includeCreditGifts?: boolean;
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;
   includeWeddingChallenges?: boolean;
   weddingChallengesOnly?: boolean;
+  selfManageEnabled?: boolean;
+  guestExperienceType?: string;
+  callRoundsSchedule?: { enabled?: boolean; rounds?: unknown[] } | unknown[];
   accessModules?: Record<string, boolean>;
   features?: Record<string, boolean>;
   permissions?: Record<string, boolean>;
+  planLimits?: Record<string, boolean | number | undefined>;
+  salesUpsells?: {
+    weddingChallenges?: { enabled?: boolean; price?: number };
+  };
 };
 
 export type Invitation = {
