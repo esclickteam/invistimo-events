@@ -28,7 +28,9 @@
         "android.permission.READ_CONTACTS",
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#FAF8F4",
@@ -72,13 +74,22 @@
           "cameraPermission": "Invistimo משתמש במצלמה כדי לסרוק קוד QR בכניסה לאירוע.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#B88A2D",
+          "defaultChannel": "invistimo",
+          "enableBackgroundRemoteNotifications": true
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": false
     },
     "extra": {
-      "apiUrl": "https://www.invistimo.com"
+      "apiUrl": "https://www.invistimo.com",
+      "eas": {}
     }
   }
 }

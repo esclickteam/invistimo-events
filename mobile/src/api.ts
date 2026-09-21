@@ -250,13 +250,20 @@ export async function loginRequest(identifier: string, password: string) {
   return { ...result, token, refreshToken: result.data.refreshToken || null };
 }
 
-export async function logoutRequest(refreshToken = session.refreshToken) {
+export async function logoutRequest(
+  refreshToken = session.refreshToken,
+  extra?: { expoPushToken?: string; deviceId?: string }
+) {
   if (!refreshToken) return;
   await api(
     "/api/auth/mobile/logout",
     {
       method: "POST",
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({
+        refreshToken,
+        expoPushToken: extra?.expoPushToken || "",
+        deviceId: extra?.deviceId || "",
+      }),
     },
     { auth: false }
   ).catch(() => undefined);

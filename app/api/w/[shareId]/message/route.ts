@@ -187,6 +187,15 @@ export async function POST(
       messageId: String(created._id),
     });
 
+    try {
+      const { notifyInvitationOwnerNative } = await import(
+        "@/lib/push/notifyInvitationOwner"
+      );
+      notifyInvitationOwnerNative(invitation, "guest_message");
+    } catch {
+      // Native push must never affect website guest messages.
+    }
+
     return NextResponse.json({
       success: true,
       messageId: String(created._id),

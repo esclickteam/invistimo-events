@@ -37,6 +37,8 @@ Email is saved in the guest notes field (`אימייל: ...`) because the existi
 
 Login still sets the website's HttpOnly `authToken` cookie. Native clients also receive a rotatable mobile refresh token and store both the access JWT and refresh credential in Expo SecureStore, never in AsyncStorage. The app sends `Authorization: Bearer <token>` on later requests. Failed logins never include a token. Face ID / biometrics only unlock the stored session; they do not replace server authentication.
 
+Native Expo Push is registered per device after login and removed on mobile logout. Website/Web Push is independent and is never used by these APIs. Push payloads only include a generic title/body and a screen key — never guest names, phones, or tokens.
+
 ## Device builds
 
 Use EAS profiles in `eas.json`: `development`, `preview` (internal APK / iOS device), and `production`. Do not submit store builds until after real-device approval.

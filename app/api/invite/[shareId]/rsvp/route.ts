@@ -142,6 +142,15 @@ export async function POST(
 
     await invitation.save();
 
+    try {
+      const { notifyInvitationOwnerNative } = await import(
+        "@/lib/push/notifyInvitationOwner"
+      );
+      notifyInvitationOwnerNative(invitation, "rsvp");
+    } catch {
+      // Native push must never affect RSVP or Web Push.
+    }
+
     /* ============================================================
        Response
     ============================================================ */

@@ -19,6 +19,7 @@ import {
   setUnauthorizedHandler,
   type MeUser,
 } from "@/src/api";
+import { unregisterNativePush, getMobileDeviceId } from "@/src/push";
 import {
   getBiometricCapability,
   promptBiometric,
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const logout = useCallback(async () => {
+    await unregisterNativePush().catch(() => undefined);
     await logoutRequest().catch(() => undefined);
     setAuthToken(null, null);
     setUser(null);
@@ -169,7 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const previous = await hydrateSessionFromStore();
       if (previous.refreshToken && previous.refreshToken !== result.refreshToken) {
-        await logoutRequest(previous.refreshToken);
+        await logoutRequest(previous.refreshToken, {
+          deviceId: await getMobileDeviceId(),
+        });
       }
       await persistSession(result.token, result.refreshToken);
       const me = await fetchMe();

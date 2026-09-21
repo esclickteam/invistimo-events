@@ -12,6 +12,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/src/auth";
 import { LockOverlay } from "@/src/LockOverlay";
+import { PushHost } from "@/src/PushHost";
 import { EventProvider } from "@/src/event";
 import { ImportDraftProvider } from "@/src/importDraft";
 import { colors } from "@/src/theme";
@@ -49,6 +50,7 @@ export default function RootLayout() {
         <ImportDraftProvider>
           <StatusBar style="dark" />
           <LockOverlay />
+          <PushHost />
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: colors.card },
