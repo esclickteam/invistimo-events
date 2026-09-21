@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 /* =========================
    GET – שליפת אירוע
 ========================= */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },

@@ -1,7 +1,11 @@
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import {
+  collectAuthTokenCandidates,
+  readBearerToken,
+} from "@/lib/auth/bearerToken";
 
 /* =========================
    Types
@@ -108,6 +112,19 @@ async function getCookieFromHeadersStore(name: string) {
   try {
     const cookieStore = await cookies();
     return cookieStore.get(name)?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function getAuthorizationHeader(req?: Request) {
+  const fromReq =
+    req?.headers?.get("authorization") || req?.headers?.get("Authorization");
+  if (fromReq) return fromReq;
+
+  try {
+    const headerStore = await headers();
+    return headerStore.get("authorization") || headerStore.get("Authorization");
   } catch {
     return null;
   }
@@ -243,12 +260,16 @@ export async function getUserIdFromRequest(
       ...getAllCookiesFromReq(req, "impersonationToken"),
       await getCookieFromHeadersStore("impersonationToken"),
     ];
-    const authTokens = [
-      ...getAllCookiesFromReq(req, "authToken"),
-      ...getAllCookiesFromReq(req, "token"),
-      await getCookieFromHeadersStore("authToken"),
-      await getCookieFromHeadersStore("token"),
-    ];
+    const bearerToken = readBearerToken(await getAuthorizationHeader(req));
+    const authTokens = collectAuthTokenCandidates({
+      cookieAuthTokens: [
+        ...getAllCookiesFromReq(req, "authToken"),
+        ...getAllCookiesFromReq(req, "token"),
+        await getCookieFromHeadersStore("authToken"),
+        await getCookieFromHeadersStore("token"),
+      ],
+      bearerToken,
+    });
     const producerAuthTokens = [
       ...getAllCookiesFromReq(req, "producerAuthToken"),
       await getCookieFromHeadersStore("producerAuthToken"),

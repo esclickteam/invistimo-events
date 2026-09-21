@@ -8,6 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import { getAuthCookieDomain } from "@/lib/env/appEnv";
 import { getCustomerFeatures, getGuestExperienceType } from "@/lib/features/entitlements";
 import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
+import { readBearerToken } from "@/lib/auth/bearerToken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -687,7 +688,7 @@ function verifyFirstValidToken(
    GET /api/me
 ========================= */
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
 
@@ -707,17 +708,23 @@ export async function GET() {
       );
     }
 
-    const cookieStore = await cookies();
+    let cookieStore: Awaited<ReturnType<typeof cookies>> | null = null;
+    try {
+      cookieStore = await cookies();
+    } catch {
+      cookieStore = null;
+    }
 
-    const authToken = cookieStore.get("authToken")?.value ?? null;
+    const authToken = cookieStore?.get("authToken")?.value ?? null;
     const producerAuthToken =
-      cookieStore.get("producerAuthToken")?.value ?? null;
-    const adminAuthToken = cookieStore.get("adminAuthToken")?.value ?? null;
+      cookieStore?.get("producerAuthToken")?.value ?? null;
+    const adminAuthToken = cookieStore?.get("adminAuthToken")?.value ?? null;
 
-    const legacyToken = cookieStore.get("token")?.value ?? null;
-    const legacyAdminToken = cookieStore.get("adminToken")?.value ?? null;
+    const legacyToken = cookieStore?.get("token")?.value ?? null;
+    const legacyAdminToken = cookieStore?.get("adminToken")?.value ?? null;
     const impersonationToken =
-      cookieStore.get("impersonationToken")?.value ?? null;
+      cookieStore?.get("impersonationToken")?.value ?? null;
+    const bearerToken = readBearerToken(req.headers.get("authorization"));
 
     const hasAnyToken =
       !!authToken ||
@@ -725,7 +732,8 @@ export async function GET() {
       !!adminAuthToken ||
       !!legacyToken ||
       !!legacyAdminToken ||
-      !!impersonationToken;
+      !!impersonationToken ||
+      !!bearerToken;
 
     if (!hasAnyToken) {
       return NextResponse.json(
@@ -749,6 +757,7 @@ export async function GET() {
         { source: "adminAuthToken", value: adminAuthToken },
         { source: "adminToken", value: legacyAdminToken },
         { source: "token", value: legacyToken },
+        { source: "authorization", value: bearerToken },
       ],
       process.env.JWT_SECRET
     );

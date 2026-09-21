@@ -226,6 +226,7 @@ export async function POST(req: Request) {
     const res = NextResponse.json(
       {
         success: true,
+        token,
         user: {
           _id: String(user._id),
           name: user.name ?? "",
