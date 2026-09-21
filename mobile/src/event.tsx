@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  api,
   fetchEvent,
   fetchGuests,
   fetchInvitation,
@@ -17,6 +18,7 @@ import {
 } from "@/src/api";
 import { customerError } from "@/src/errors";
 import { useAuth } from "@/src/auth";
+import { resolveAppExperience } from "@/src/roles";
 
 type EventContextValue = {
   loading: boolean;
@@ -24,6 +26,8 @@ type EventContextValue = {
   event: Record<string, unknown> | null;
   guests: Guest[];
   usage: GuestUsage | null;
+  eventLive: boolean;
+  checkInEnabled: boolean;
   error: string;
   refresh: () => Promise<void>;
 };
@@ -38,13 +42,22 @@ export function EventProvider({ children }: { children: ReactNode }) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [usage, setUsage] = useState<GuestUsage | null>(null);
   const [error, setError] = useState("");
+  const [eventLive, setEventLive] = useState(false);
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!user) {
+    const experience = resolveAppExperience(user);
+    const isCustomer =
+      experience === "customer" ||
+      experience === "customer_production" ||
+      experience === "customer_challenges";
+    if (!user || !isCustomer) {
       setInvitation(null);
       setEvent(null);
       setGuests([]);
       setUsage(null);
+      setEventLive(false);
+      setCheckInEnabled(false);
       return;
     }
     setLoading(true);
@@ -66,6 +79,17 @@ export function EventProvider({ children }: { children: ReactNode }) {
       } else {
         setGuests([]);
       }
+      const eventId = String(nextInvitation?.eventId || nextEvent?._id || "");
+      if (eventId) {
+        const settings = await api<{ live?: boolean; checkInEnabled?: boolean }>(
+          `/api/events/${eventId}/check-in-settings`
+        );
+        setEventLive(Boolean(settings.data.live));
+        setCheckInEnabled(Boolean(settings.data.checkInEnabled));
+      } else {
+        setEventLive(false);
+        setCheckInEnabled(false);
+      }
     } catch {
       setError("לא הצלחנו לטעון את האירוע");
     } finally {
@@ -78,8 +102,18 @@ export function EventProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ loading, invitation, event, guests, usage, error, refresh }),
-    [loading, invitation, event, guests, usage, error, refresh]
+    () => ({
+      loading,
+      invitation,
+      event,
+      guests,
+      usage,
+      eventLive,
+      checkInEnabled,
+      error,
+      refresh,
+    }),
+    [loading, invitation, event, guests, usage, eventLive, checkInEnabled, error, refresh]
   );
 
   return <EventContext.Provider value={value}>{children}</EventContext.Provider>;

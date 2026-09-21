@@ -64,7 +64,13 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="forgot-password" options={{ title: "שחזור סיסמה" }} />
+            <Stack.Screen name="security" options={{ title: "אבטחה" }} />
             <Stack.Screen name="(app)" options={{ headerShown: false }} />
+            <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+            <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+            <Stack.Screen name="(producer)" options={{ headerShown: false }} />
+            <Stack.Screen name="(producer-staff)" options={{ headerShown: false }} />
+            <Stack.Screen name="(venue)" options={{ headerShown: false }} />
           </Stack>
         </ImportDraftProvider>
       </EventProvider>

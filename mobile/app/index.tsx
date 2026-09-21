@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Redirect } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { colors } from "@/src/theme";
+import { homeHref, resolveAppExperience } from "@/src/roles";
 
 export default function Index() {
   const { ready, user } = useAuth();
@@ -13,7 +14,7 @@ export default function Index() {
     );
   }
   if (!user) return <Redirect href="/login" />;
-  return <Redirect href="/(app)" />;
+  return <Redirect href={homeHref(resolveAppExperience(user)) as never} />;
 }
 
 const styles = StyleSheet.create({

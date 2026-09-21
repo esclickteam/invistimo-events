@@ -1,44 +1,35 @@
-import { Redirect, Tabs } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useAuth } from "@/src/auth";
+import { Redirect, Stack, usePathname } from "expo-router";
 import { colors } from "@/src/theme";
+import { useAuth } from "@/src/auth";
+import { useEventData } from "@/src/event";
+import { RoleGuard } from "@/src/RoleGuard";
+import { RoleShell } from "@/src/RoleShell";
+import { customerNav } from "@/src/nav";
+import { userIsWeddingChallengesOnly } from "@/src/roles";
 
-export default function AppTabs() {
-  const { ready, user } = useAuth();
-  if (!ready) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.gold} />
-      </View>
-    );
-  }
-  if (!user) return <Redirect href="/login" />;
-
+export default function CustomerLayout() {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const { invitation, eventLive, checkInEnabled } = useEventData();
+  const gameOnly = userIsWeddingChallengesOnly(user);
+  const blocked =
+    gameOnly &&
+    !pathname.includes("challenges") &&
+    !pathname.includes("security");
+  if (blocked) return <Redirect href="/(app)/more/challenges" />;
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.brownText,
-        headerTitleStyle: { fontFamily: "Heebo_700Bold" },
-        headerShadowVisible: false,
-        tabBarActiveTintColor: colors.gold,
-        tabBarInactiveTintColor: colors.soft,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-        },
-        tabBarLabelStyle: { fontFamily: "Heebo_600SemiBold", fontSize: 11 },
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: "דשבורד" }} />
-      <Tabs.Screen name="guests" options={{ title: "מוזמנים", headerShown: false }} />
-      <Tabs.Screen name="seating" options={{ title: "הושבה" }} />
-      <Tabs.Screen name="check-in" options={{ title: "כניסה" }} />
-      <Tabs.Screen name="more" options={{ title: "עוד", headerShown: false }} />
-    </Tabs>
+    <RoleGuard allow={["customer", "customer_production", "customer_challenges"]}>
+      <RoleShell
+        palette="customer"
+        sections={customerNav({ user, invitation, eventLive, checkInEnabled })}
+      >
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.cream },
+          }}
+        />
+      </RoleShell>
+    </RoleGuard>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.cream },
-});

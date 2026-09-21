@@ -22,6 +22,8 @@ export default function MoreLayout() {
       <Stack.Screen name="challenges" options={{ title: "Wedding Challenges" }} />
       <Stack.Screen name="website" options={{ title: "אתר חתונה" }} />
       <Stack.Screen name="reports" options={{ title: "דוחות" }} />
+      <Stack.Screen name="calls" options={{ title: "לו״ז אישורי הגעה" }} />
+      <Stack.Screen name="credit-gifts" options={{ title: "קישור למתנות באשראי" }} />
     </Stack>
   );
 }

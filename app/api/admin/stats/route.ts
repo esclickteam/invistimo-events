@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import { sessionJwtFromCookiesAndBearer } from "@/lib/auth/sessionJwt";
 import { connectDB } from "@/lib/db";
 
 import User from "@/models/User";
@@ -343,8 +343,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+    const token = await sessionJwtFromCookiesAndBearer();
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

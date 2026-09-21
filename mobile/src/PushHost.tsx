@@ -9,6 +9,7 @@ import {
   rememberPushScreen,
 } from "@/src/push";
 import { pathForPushScreen } from "@/src/pushRoutes";
+import { resolveAppExperience } from "@/src/roles";
 
 export function PushHost() {
   const { ready, locked, user } = useAuth();
@@ -21,6 +22,17 @@ export function PushHost() {
     })();
   }, [ready, locked, user?._id]);
 
+  function openPushScreen() {
+    const experience = resolveAppExperience(user);
+    const customer =
+      experience === "customer" ||
+      experience === "customer_production" ||
+      experience === "customer_challenges";
+    if (!customer) return;
+    const screen = consumePendingPushScreen();
+    if (screen) router.push(pathForPushScreen(screen) as never);
+  }
+
   useEffect(() => {
     const last = Notifications.getLastNotificationResponse();
     if (last?.notification.request.content.data?.screen) {
@@ -30,10 +42,7 @@ export function PushHost() {
     const received = Notifications.addNotificationReceivedListener(() => undefined);
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
       rememberPushScreen(response.notification.request.content.data?.screen);
-      if (!locked && user) {
-        const screen = consumePendingPushScreen();
-        if (screen) router.push(pathForPushScreen(screen) as never);
-      }
+      if (!locked && user) openPushScreen();
     });
 
     return () => {
@@ -44,8 +53,7 @@ export function PushHost() {
 
   useEffect(() => {
     if (!user || locked) return;
-    const screen = consumePendingPushScreen();
-    if (screen) router.push(pathForPushScreen(screen) as never);
+    openPushScreen();
   }, [user, locked]);
 
   return null;
