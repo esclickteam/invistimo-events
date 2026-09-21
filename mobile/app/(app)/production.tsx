@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { api } from "@/src/api";
 import { useEventData } from "@/src/event";
@@ -6,7 +6,6 @@ import { extractList, recordMeta, recordTitle } from "@/src/records";
 import { Card, EmptyState, ErrorText, Page } from "@/src/ui";
 import { colors } from "@/src/theme";
 import { messageFromApi } from "@/src/format";
-import { openOnWebsite } from "@/src/website";
 
 const TABS = [
   { key: "overview", label: "תמונת מצב", path: "overview" },
@@ -40,6 +39,10 @@ export default function ProductionScreen() {
     setDetail(JSON.stringify(result.data).slice(0, 400));
   }
 
+  useEffect(() => {
+    void load();
+  }, [eventId]);
+
   return (
     <Page onRefresh={() => void load()}>
       <Text style={styles.title}>ניהול אירוע</Text>
@@ -69,9 +72,6 @@ export default function ProductionScreen() {
           <Text style={styles.meta}>{detail}</Text>
         </Card>
       ) : null}
-      <Pressable onPress={() => void openOnWebsite(`/events/production?eventId=${eventId}&tab=${tab.key}`)}>
-        <Text style={styles.link}>המשך באתר</Text>
-      </Pressable>
     </Page>
   );
 }
@@ -82,5 +82,4 @@ const styles = StyleSheet.create({
   active: { borderColor: colors.gold, borderWidth: 2 },
   item: { textAlign: "right", fontFamily: "Heebo_700Bold", color: colors.brownText },
   meta: { textAlign: "right", color: colors.muted, marginTop: 4 },
-  link: { textAlign: "center", color: colors.gold, fontFamily: "Heebo_700Bold", marginTop: 12 },
 });

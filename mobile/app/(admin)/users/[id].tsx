@@ -1,6 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
 import { RecordDetailScreen } from "@/src/records";
-import { openOnWebsite } from "@/src/website";
 
 export default function AdminUserDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,12 +15,6 @@ export default function AdminUserDetail() {
         { key: "hasPaid", label: "שולם" },
         { key: "includeCalls", label: "שיחות" },
         { key: "includeDigitalSeating", label: "הושבה" },
-      ]}
-      actions={[
-        {
-          label: "התחזות באתר",
-          onPress: () => void openOnWebsite("/admin/users"),
-        },
       ]}
     />
   );

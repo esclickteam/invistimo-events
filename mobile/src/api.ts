@@ -219,11 +219,24 @@ export type Guest = {
   guestsCount?: number;
   arrivedCount?: number;
   actualArrivedCount?: number;
+  tableId?: string | null;
   tableName?: string;
   tableNumber?: number | null;
   groupId?: string | null;
   token?: string;
+  firstOpenedAt?: string | null;
+  lastOpenedAt?: string | null;
+  openCount?: number;
+  respondedAt?: string;
+  rsvpRespondedAt?: string;
+  rsvpUpdatedAt?: string;
+  lastResponseAt?: string;
   callRounds?: unknown[];
+};
+
+export type GuestGroup = {
+  _id: string;
+  name: string;
 };
 
 export type GuestUsage = {
@@ -311,10 +324,10 @@ export async function fetchGuests(invitationId: string) {
   const result = await api<{
     success?: boolean;
     guests?: Guest[];
-    usage?: GuestUsage;
+    usage?: GuestUsage | null;
     error?: string;
     message?: string;
-  }>(`/api/invitations/${invitationId}/guests`);
+  }>(`/api/guests?invitation=${encodeURIComponent(invitationId)}`);
   return result;
 }
 
@@ -350,6 +363,12 @@ export async function updateGuest(guestId: string, patch: Record<string, unknown
 
 export async function deleteGuest(guestId: string) {
   return api(`/api/guests/${guestId}`, { method: "DELETE" });
+}
+
+export async function fetchGuestGroups(invitationId: string) {
+  return api<{ success?: boolean; groups?: GuestGroup[] }>(
+    `/api/groups?invitationId=${encodeURIComponent(invitationId)}`
+  );
 }
 
 export async function importGuests(
