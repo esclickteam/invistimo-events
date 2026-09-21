@@ -89,7 +89,10 @@
     },
     "extra": {
       "apiUrl": "https://www.invistimo.com",
-      "eas": {}
-    }
+      "eas": {
+        "projectId": "9007278c-329a-446a-bd8d-4cd03635d581"
+      }
+    },
+    "owner": "esclick-team"
   }
 }
