@@ -37,4 +37,4 @@ Email is saved in the guest notes field (`אימייל: ...`) because the existi
 
 ## Auth note
 
-The website signs in with an HttpOnly `authToken` cookie. This app sends that same cookie on later requests when the login response exposes it. If a device hides `Set-Cookie` from the app, sign-in cannot complete until the API also returns the token in the login JSON. That would be a small backend change and should be approved before editing production code.
+Login still sets the website's HttpOnly `authToken` cookie. The API also returns that same JWT as `token` in the JSON body after a successful login. The app stores it in secure storage and sends `Authorization: Bearer <token>` on later requests. Failed logins never include a token.

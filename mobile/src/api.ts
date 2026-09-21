@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { readLoginTokenFromBody } from "@/src/authToken";
 
 const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
 
@@ -27,28 +28,8 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
-function readSetCookie(res: Response) {
-  const headers = res.headers as Headers & { getSetCookie?: () => string[] };
-  const values =
-    typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
-  const single = res.headers.get("set-cookie");
-  return [...values, single].filter(Boolean).join("; ");
-}
-
-export function tokenFromLoginResponse(res: Response, body: unknown) {
-  const fromHeader = readSetCookie(res).match(/(?:^|;\s*)authToken=([^;]+)/);
-  if (fromHeader?.[1]) {
-    try {
-      return decodeURIComponent(fromHeader[1]);
-    } catch {
-      return fromHeader[1];
-    }
-  }
-  if (body && typeof body === "object") {
-    const token = (body as { token?: unknown }).token;
-    if (typeof token === "string" && token) return token;
-  }
-  return null;
+export function tokenFromLoginResponse(_res: Response, body: unknown) {
+  return readLoginTokenFromBody(body);
 }
 
 export async function api<T = Record<string, unknown>>(
@@ -62,13 +43,12 @@ export async function api<T = Record<string, unknown>>(
     headers.set("Content-Type", "application/json");
   }
   if (options?.auth !== false && session.token) {
-    headers.set("Cookie", `authToken=${session.token}`);
+    headers.set("Authorization", `Bearer ${session.token}`);
   }
 
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers,
-    credentials: "include",
   });
 
   const data = (await res.json().catch(() => ({}))) as T;

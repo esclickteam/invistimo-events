@@ -68,7 +68,7 @@ export async function POST(
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -352,7 +352,7 @@ export async function GET(
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -436,7 +436,7 @@ export async function PUT(
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -620,7 +620,7 @@ export async function DELETE(
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },

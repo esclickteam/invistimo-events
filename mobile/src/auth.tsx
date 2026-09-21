@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return result.data.error || "מייל/טלפון או סיסמה שגויים";
     }
     if (!result.token) {
-      return "ההתחברות הצליחה, אבל האפליקציה לא קיבלה את עוגיית ההתחברות. צריך אישור להרחבה קטנה בשרת שתחזיר את אסימון ההתחברות גם בגוף התשובה.";
+      return "ההתחברות הצליחה, אבל לא התקבל אסימון מהשרת.";
     }
     setAuthToken(result.token);
     await SecureStore.setItemAsync(TOKEN_KEY, result.token);
