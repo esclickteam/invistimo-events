@@ -14,6 +14,7 @@
     "test:reminder-sms-template": "npx tsx --test scripts/tests/reminder-sms-template.test.ts",
     "test:login-native-token": "npx tsx --test --test-force-exit scripts/tests/login-native-token.test.ts",
     "test:mobile-session": "npx tsx --test --test-force-exit scripts/tests/mobile-session.test.ts",
+    "test:mobile-push": "npx tsx --test --test-force-exit scripts/tests/mobile-push.test.ts",
     "test:ww-visual-editor": "npx tsx --test scripts/tests/ww-visual-editor.test.ts",
     "test:ww-editor-ux": "npx tsx --test scripts/tests/ww-editor-ux.test.ts",
     "test:wedding-challenges": "npx tsx --test scripts/tests/wedding-challenges-assignment.test.ts scripts/tests/wedding-challenges-sms.test.ts",
