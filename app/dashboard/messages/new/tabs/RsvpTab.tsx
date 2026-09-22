@@ -16,6 +16,7 @@ import {
   formatScheduleTime,
 } from "@/lib/formatScheduleDateTime";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 
 
 /* ================= TYPES ================= */
@@ -535,9 +536,9 @@ export default function RsvpTab({
             inv?.guestExperienceType,
         });
 
-        const r1Sent = Boolean(inv?.rsvpRoundSent?.round1);
-const r2Sent = Boolean(inv?.rsvpRoundSent?.round2);
-const r3Sent = Boolean(inv?.rsvpRoundSent?.round3);
+        const r1Snapshot = getRsvpRoundSentSnapshot(inv, 1);
+        const r2Snapshot = getRsvpRoundSentSnapshot(inv, 2);
+        const r3Snapshot = getRsvpRoundSentSnapshot(inv, 3);
 
         const r1Scheduled =
           inv?.rsvpSmsRound1ScheduledAt ||
@@ -551,17 +552,17 @@ const r3Sent = Boolean(inv?.rsvpRoundSent?.round3);
           inv?.rsvpSmsRound3ScheduledAt ||
           inv?.rsvpWhatsappRound3ScheduledAt;
 
-        setRound1Sent(!!r1Sent);
-        setRound2Sent(!!r2Sent);
-        setRound3Sent(!!r3Sent);
+        setRound1Sent(r1Snapshot.done);
+        setRound2Sent(r2Snapshot.done);
+        setRound3Sent(r3Snapshot.done);
 
         setRound1Scheduled(!!r1Scheduled);
         setRound2Scheduled(!!r2Scheduled);
         setRound3Scheduled(!!r3Scheduled);
 
-        setRound1Locked(Boolean(inv?.rsvpRoundSent?.round1));
-setRound2Locked(Boolean(inv?.rsvpRoundSent?.round2));
-setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
+        setRound1Locked(r1Snapshot.done);
+        setRound2Locked(r2Snapshot.done);
+        setRound3Locked(r3Snapshot.done);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;

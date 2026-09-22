@@ -13,7 +13,12 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
+import {
+  buildRsvpRoundSentMarkState,
+  getActiveRsvpRoundExecutionId,
+  getRsvpRoundSentSnapshot,
+  normalizeRsvpRound,
+} from "@/lib/rsvpRoundLock";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -714,7 +719,11 @@ export async function POST(req: NextRequest) {
     const guests = await InvitationGuest.find(guestQuery);
 
     const queueDocs: any[] = [];
-const sendDateKey = new Date().toISOString().slice(0, 10);
+    const sendDateKey = new Date().toISOString().slice(0, 10);
+    const activeExecutionId =
+      type === "rsvp"
+        ? getActiveRsvpRoundExecutionId(invitation, round) || sendDateKey
+        : sendDateKey;
 
     for (const guest of guests) {
       if (!guest.phone || !guest.token) continue;
@@ -770,7 +779,7 @@ guestPayload.urlSuffix = urlSuffix;
   String(invitation._id),
   String(round),
   String(guest._id),
-  sendDateKey,
+  activeExecutionId,
   templateName,
 ].join(":"),
 
@@ -794,20 +803,25 @@ guestPayload.urlSuffix = urlSuffix;
 
       if (type === "rsvp") {
         const scheduledField = getRsvpScheduledField(round);
+        const normalizedRound = normalizeRsvpRound(round) || 1;
+        const markState = buildRsvpRoundSentMarkState({
+          invitation,
+          round: normalizedRound,
+          channel: "whatsapp",
+          sentCount: queueDocs.length,
+          source: "immediate",
+          now,
+        });
 
         const markResult = await Invitation.collection.updateOne(
           { _id: invitation._id },
           {
             $set: {
-              [`rsvpRoundSent.round${round}`]: {
-                channel: "whatsapp",
-                sentAt: now,
-                sentCount: queueDocs.length,
-              },
-              [`rsvpRoundsSent.round${round}.channel`]: "whatsapp",
-              [`rsvpRoundsSent.round${round}.sentAt`]: now,
-              [`rsvpWhatsappRound${round}SentAt`]: now,
-              [`rsvpRound${round}SentAt`]: now,
+              [`rsvpRoundSent.round${normalizedRound}`]: markState,
+              [`rsvpRoundsSent.round${normalizedRound}.channel`]: "whatsapp",
+              [`rsvpRoundsSent.round${normalizedRound}.sentAt`]: now,
+              [`rsvpWhatsappRound${normalizedRound}SentAt`]: now,
+              [`rsvpRound${normalizedRound}SentAt`]: now,
               updatedAt: now,
             },
             $unset: {
@@ -818,7 +832,8 @@ guestPayload.urlSuffix = urlSuffix;
 
         console.log("✅ RSVP WHATSAPP ROUND MARKED SENT:", {
           invitationId: String(invitation._id),
-          round,
+          round: normalizedRound,
+          executionId: markState.executionId,
           queued: queueDocs.length,
           matchedCount: markResult.matchedCount,
           modifiedCount: markResult.modifiedCount,

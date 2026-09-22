@@ -1,123 +1,117 @@
+import { randomUUID } from "crypto";
+
 import Invitation from "@/models/Invitation";
+import ScheduledMessage from "@/models/ScheduledMessage";
+import {
+  buildReopenedRsvpRoundState,
+  buildRsvpRoundSentMarkState,
+  getActiveRsvpRoundExecutionId,
+  getRsvpRoundLockInfo,
+  getRsvpRoundSentSnapshot,
+  getRoundKey,
+  isRsvpRoundAlreadySent,
+  normalizeRsvpRound,
+  type MessageChannel,
+  type RsvpRound,
+} from "@/lib/rsvpRoundState";
 
-export type RsvpRound = 1 | 2 | 3;
-export type MessageChannel = "sms" | "whatsapp";
-
-export function normalizeRsvpRound(round: unknown): RsvpRound | null {
-  const value = Number(round);
-
-  if (value === 1 || value === 2 || value === 3) {
-    return value;
-  }
-
-  return null;
-}
-
-export function getRoundKey(round: RsvpRound) {
-  return `round${round}` as "round1" | "round2" | "round3";
-}
+export type { MessageChannel, RsvpRound };
+export {
+  buildRsvpRoundSentMarkState,
+  getActiveRsvpRoundExecutionId,
+  getRsvpRoundLockInfo,
+  getRsvpRoundSentSnapshot,
+  getRoundKey,
+  isRsvpRoundAlreadySent,
+  normalizeRsvpRound,
+};
 
 /**
- * בודק אם הסבב כבר נשלח בפועל.
- * חשוב:
- * - לא בודק תזמון.
- * - לא בודק רק ערוץ ספציפי.
- * - אם SMS נשלח, WhatsApp נחסם.
- * - אם WhatsApp נשלח, SMS נחסם.
+ * פתיחה מחדש של סבב RSVP:
+ * - שומרת את השליחה הקודמת ב־executions (לא מוחקת היסטוריה)
+ * - פותחת execution חדש שאפשר לתזמן/לשלוח
+ * - מנקה locks + legacy SentAt שחוסמים את השליחה
+ * - מבטלת תזמונים פעילים ישנים של אותו סבב
  */
-function getRoundSentObject(invitation: any, round: RsvpRound) {
+export async function reopenRsvpRound(params: {
+  invitationId: any;
+  round: RsvpRound;
+  closedReason?: string;
+}) {
+  const { invitationId, round } = params;
+  const closedReason = params.closedReason || "admin_reopen";
   const key = getRoundKey(round);
-  return (
-    invitation?.rsvpRoundSent?.[key] ||
-    invitation?.rsvpRoundsSent?.[key] ||
-    null
-  );
-}
+  const now = new Date();
 
-function asDate(value: unknown) {
-  if (!value) return null;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-/**
- * מקור אמת משולב:
- * השליחה נכתבת לפעמים ל-rsvpRoundSent ולפעמים ל-rsvpRoundsSent.
- * אובייקט סבב בלי sentAt עדיין נחשב "נשלח" אם יש ערוץ/ספירה.
- */
-export function getRsvpRoundSentSnapshot(
-  invitation: any,
-  round: RsvpRound | number
-) {
-  const normalized = normalizeRsvpRound(round);
-
-  if (!normalized) {
+  const invitation: any = await Invitation.findById(invitationId).lean();
+  if (!invitation) {
     return {
-      done: false,
-      sentAt: null,
-      channel: null,
+      matchedCount: 0,
+      modifiedCount: 0,
+      invitation: null,
+      snapshot: null,
     };
   }
 
-  const roundData = getRoundSentObject(invitation, normalized);
+  const built = buildReopenedRsvpRoundState({
+    invitation,
+    round,
+    now,
+    closedReason,
+    executionIdFactory: () => randomUUID(),
+  });
 
-  const sentAt =
-    asDate(roundData?.sentAt) ||
-    asDate(roundData instanceof Date ? roundData : null) ||
-    asDate(roundData?.sentAtSms) ||
-    asDate(roundData?.sentAtWhatsapp) ||
-    asDate(roundData?.smsSentAt) ||
-    asDate(roundData?.whatsappSentAt) ||
-    asDate(invitation?.[`rsvpRound${normalized}SentAt`]) ||
-    asDate(invitation?.[`rsvpRound${normalized}sentAt`]) ||
-    asDate(invitation?.[`rsvpSmsRound${normalized}SentAt`]) ||
-    asDate(invitation?.[`rsvpSmsRound${normalized}sentAt`]) ||
-    asDate(invitation?.[`rsvpWhatsappRound${normalized}SentAt`]) ||
-    asDate(invitation?.[`rsvpWhatsappRound${normalized}sentAt`]) ||
-    null;
+  const unset: Record<string, ""> = {};
+  for (const field of built.legacyUnsetFields) {
+    unset[field] = "";
+  }
 
-  const channel =
-    roundData?.channel ||
-    (invitation?.[`rsvpWhatsappRound${normalized}SentAt`] ||
-    invitation?.[`rsvpWhatsappRound${normalized}sentAt`]
-      ? "whatsapp"
-      : null) ||
-    (invitation?.[`rsvpSmsRound${normalized}SentAt`] ||
-    invitation?.[`rsvpSmsRound${normalized}sentAt`]
-      ? "sms"
-      : null) ||
-    null;
-
-  const done = Boolean(
-    sentAt ||
-      channel ||
-      Number(roundData?.sentCount || 0) > 0 ||
-      roundData === true
+  const result = await Invitation.collection.updateOne(
+    { _id: invitation._id },
+    {
+      $set: {
+        [`rsvpRoundSent.${key}`]: built.activeState,
+        // מקור אמת משני — חייב להיות ריק אחרי reopen, אחרת scheduler חוסם.
+        [`rsvpRoundsSent.${key}.sentAt`]: null,
+        [`rsvpRoundsSent.${key}.channel`]: null,
+        updatedAt: now,
+      },
+      $unset: unset,
+    }
   );
 
+  await ScheduledMessage.updateMany(
+    {
+      invitationId: invitation._id,
+      $or: [{ type: "rsvp" }, { templateKey: "rsvp" }],
+      $and: [
+        {
+          $or: [{ round }, { roundNumber: round }],
+        },
+      ],
+      status: { $in: ["scheduled", "pending", "sending"] },
+    },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: now,
+        lockedAt: null,
+        lockedBy: null,
+        error: "CANCELLED_BY_ADMIN_REOPEN",
+        updatedAt: now,
+      },
+    }
+  );
+
+  const updatedInvitation = await Invitation.findById(invitation._id).lean();
+
   return {
-    done,
-    sentAt: sentAt ? sentAt.toISOString() : null,
-    channel,
-  };
-}
-
-export function isRsvpRoundAlreadySent(invitation: any, round: RsvpRound) {
-  return getRsvpRoundSentSnapshot(invitation, round).done;
-}
-
-/**
- * מחזיר מידע מסודר לפרונט / API.
- */
-export function getRsvpRoundLockInfo(invitation: any, round: RsvpRound) {
-  const snapshot = getRsvpRoundSentSnapshot(invitation, round);
-
-  return {
-    round,
-    locked: snapshot.done,
-    sentAt: snapshot.sentAt,
-    channel: snapshot.channel,
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    invitation: updatedInvitation,
+    snapshot: getRsvpRoundSentSnapshot(updatedInvitation, round),
+    newExecutionId: built.newExecutionId,
+    archivedExecutions: built.archivedExecutions,
   };
 }
 
@@ -134,11 +128,36 @@ export async function markRsvpRoundAsActuallySent(params: {
   invitationId: string;
   round: RsvpRound;
   channel: MessageChannel;
+  sentCount?: number;
+  source?: string;
 }) {
   const { invitationId, round, channel } = params;
+  const sentCount = params.sentCount || 0;
+  const source = params.source || "send";
 
   const key = getRoundKey(round);
   const now = new Date();
+
+  const invitation: any = await Invitation.findById(invitationId)
+    .select("rsvpRoundSent rsvpRoundsSent")
+    .lean();
+
+  if (!invitation) return { matchedCount: 0, modifiedCount: 0 };
+
+  // אם כבר נשלח ב־execution הנוכחי — לא דורסים.
+  if (isRsvpRoundAlreadySent(invitation, round)) {
+    return { matchedCount: 1, modifiedCount: 0, alreadySent: true };
+  }
+
+  const markState = buildRsvpRoundSentMarkState({
+    invitation,
+    round,
+    channel,
+    sentCount,
+    source,
+    now,
+    executionIdFactory: () => randomUUID(),
+  });
 
   const channelSentField =
     channel === "sms"
@@ -155,37 +174,34 @@ export async function markRsvpRoundAsActuallySent(params: {
       ? `messageLocks.rsvpWhatsappRound${round}`
       : `messageLocks.rsvpSmsRound${round}`;
 
-  await Invitation.updateOne(
-    {
-      _id: invitationId,
-      $or: [
-        { [`rsvpRoundsSent.${key}.sentAt`]: { $exists: false } },
-        { [`rsvpRoundsSent.${key}.sentAt`]: null },
-        { [`rsvpRoundSent.${key}.sentAt`]: { $exists: false } },
-        { [`rsvpRoundSent.${key}.sentAt`]: null },
+  const scheduledField =
+    channel === "sms"
+      ? `rsvpSmsRound${round}ScheduledAt`
+      : `rsvpWhatsappRound${round}ScheduledAt`;
 
-        // תאימות אחורה:
-        // אם כבר היה סימון ישן, לא חייבים לדרוס, אבל כן נרצה שה-update לא ייכשל במקרים ישנים.
-        { [`rsvpRound${round}SentAt`]: null },
-      ],
-    },
+  const result = await Invitation.collection.updateOne(
+    { _id: invitationId },
     {
       $set: {
+        [`rsvpRoundSent.${key}`]: markState,
         [`rsvpRoundsSent.${key}.sentAt`]: now,
         [`rsvpRoundsSent.${key}.channel`]: channel,
-        [`rsvpRoundSent.${key}.sentAt`]: now,
-        [`rsvpRoundSent.${key}.channel`]: channel,
-
-        // שדה כללי ישן לפי סבב
         [`rsvpRound${round}SentAt`]: now,
-
-        // שדה ישן לפי הערוץ ששלח בפועל
         [channelSentField]: now,
-
-        // נועלים את שני הערוצים של אותו סבב
         [lockField]: true,
         [oppositeLockField]: true,
+        updatedAt: now,
+      },
+      $unset: {
+        [scheduledField]: "",
       },
     }
   );
+
+  return {
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    alreadySent: false,
+    executionId: markState.executionId,
+  };
 }

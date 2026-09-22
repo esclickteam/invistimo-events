@@ -141,6 +141,11 @@ type MessageRoundStatus = {
   sentAt?: string | null;
   scheduledAt?: string | null;
   channel?: "sms" | "whatsapp" | "calls" | string | null;
+  reopened?: boolean;
+  reopenedAt?: string | null;
+  reopenCount?: number;
+  originalSentAt?: string | null;
+  executionId?: string | null;
 };
 
 type AdminMessageRounds = {
@@ -739,17 +744,23 @@ function mergeRoundStatus(
   base: MessageRoundStatus,
   incoming?: Partial<MessageRoundStatus> | null
 ): MessageRoundStatus {
+  if (!incoming) return base;
+
   return {
     ...base,
-    ...(incoming || {}),
-    done: Boolean(incoming?.done || incoming?.sentAt || base.done),
-    blocked: Boolean(incoming?.blocked || base.blocked),
-    sentAt: incoming?.sentAt || base.sentAt || null,
-    scheduledAt: incoming?.scheduledAt || base.scheduledAt || null,
-    channel: incoming?.channel || base.channel || null,
+    ...incoming,
+    done: Boolean(incoming.done),
+    blocked: Boolean(incoming.blocked || base.blocked),
+    sentAt: incoming.sentAt || null,
+    scheduledAt: incoming.scheduledAt || base.scheduledAt || null,
+    channel: incoming.channel || base.channel || null,
+    reopened: Boolean(incoming.reopened),
+    reopenedAt: incoming.reopenedAt || null,
+    reopenCount: incoming.reopenCount ?? 0,
+    originalSentAt: incoming.originalSentAt || null,
+    executionId: incoming.executionId || null,
   };
 }
-
 
 function normalizeAdminMessageRounds(user: AdminUser): AdminMessageRounds {
   const defaults = getDefaultMessageRounds();
@@ -3161,11 +3172,17 @@ function AdminMessageRoundsPanel({
                             ${
                               round.done
                                 ? "bg-[#EAF8EF] text-[#1F9A55]"
-                                : "bg-[#F6F1EA] text-[#7B6754]"
+                                : round.reopened
+                                  ? "bg-[#EEF4FF] text-[#2F5EA8]"
+                                  : "bg-[#F6F1EA] text-[#7B6754]"
                             }
                           `}
                         >
-                          {round.done ? "בוצע" : "טרם בוצע"}
+                          {round.done
+                            ? "בוצע"
+                            : round.reopened
+                              ? "נפתח מחדש"
+                              : "טרם בוצע"}
                         </span>
 
                         {round.blocked && (
@@ -3183,6 +3200,12 @@ function AdminMessageRoundsPanel({
                         {sentAtText && round.done && (
                           <span className="rounded-full bg-[#FFF2D8] px-3 py-1 text-[#9A651B]">
                             נשלח · {sentAtText}
+                          </span>
+                        )}
+
+                        {round.reopened && round.originalSentAt && (
+                          <span className="rounded-full bg-[#F3ECE4] px-3 py-1 text-[#7B6754]">
+                            נשלח בעבר · {formatDateTime(round.originalSentAt)}
                           </span>
                         )}
 
