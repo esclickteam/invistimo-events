@@ -7,6 +7,7 @@ import PersistMissingEventPin from "@/app/components/PersistMissingEventPin";
 import {
   getGoogleMapsEmbedUrl,
   getGoogleMapsLink,
+  shouldShowNavButton,
 } from "@/lib/navigationLinks";
 
 export default function EventLocationCard({
@@ -31,6 +32,20 @@ export default function EventLocationCard({
     !!pinnedLocation.address?.trim() || !!pinnedLocation.name?.trim();
   const mapUrl = getGoogleMapsLink(pinnedLocation);
   const mapEmbedUrl = getGoogleMapsEmbedUrl(pinnedLocation);
+  const allowGoogleMaps = shouldShowNavButton(showGoogleMaps);
+  const mapFrameClassName =
+    "block w-full h-[250px] rounded-2xl overflow-hidden border border-[#e6dccb] shadow-sm mb-5";
+  const mapIframe = (
+    <iframe
+      title="מפת מיקום האירוע"
+      width="100%"
+      height="100%"
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+      src={mapEmbedUrl}
+      className="pointer-events-none border-0"
+    />
+  );
 
   if (!hasAddress && !mapUrl) return null;
 
@@ -55,24 +70,19 @@ export default function EventLocationCard({
         </div>
       )}
 
-      {mapEmbedUrl && (
-        <a
-          href={mapUrl || mapEmbedUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full h-[250px] rounded-2xl overflow-hidden border border-[#e6dccb] shadow-sm mb-5"
-        >
-          <iframe
-            title="מפת מיקום האירוע"
-            width="100%"
-            height="100%"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            src={mapEmbedUrl}
-            className="pointer-events-none border-0"
-          />
-        </a>
-      )}
+      {mapEmbedUrl &&
+        (allowGoogleMaps ? (
+          <a
+            href={mapUrl || mapEmbedUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={mapFrameClassName}
+          >
+            {mapIframe}
+          </a>
+        ) : (
+          <div className={mapFrameClassName}>{mapIframe}</div>
+        ))}
 
       {mapUrl && (
         <div className="flex justify-center gap-3">
