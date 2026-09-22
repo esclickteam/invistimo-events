@@ -106,6 +106,8 @@ export default function EventDetailsForm({
       wazeLng: null as number | null,
       wazeUrl: "",
     },
+    showWaze: true,
+    showGoogleMaps: true,
     publicEventPage: {
       enabled: true,
       gifts: {
@@ -172,6 +174,8 @@ export default function EventDetailsForm({
         wazeLng: event.location?.wazeLng ?? null,
         wazeUrl: event.location?.wazeUrl ?? "",
       },
+      showWaze: event.showWaze !== false,
+      showGoogleMaps: event.showGoogleMaps !== false,
       publicEventPage: {
         enabled: true,
         gifts: {
@@ -392,6 +396,8 @@ export default function EventDetailsForm({
           wazeLng: wazeOverrideEnabled ? location.wazeLng : null,
           wazeUrl: wazeOverrideEnabled ? location.wazeUrl?.trim() || "" : "",
         },
+        showWaze: form.showWaze !== false,
+        showGoogleMaps: form.showGoogleMaps !== false,
         publicEventPage: {
           enabled: true,
           gifts: {
@@ -906,6 +912,45 @@ export default function EventDetailsForm({
                 {locationWarning}
               </p>
             ) : null}
+
+            <div className="mt-5 rounded-2xl border border-[#E8D7C2] bg-[#FCFAF6] p-4">
+              <p className="mb-3 text-sm font-black text-[#241A14]">
+                קישורי ניווט שיוצגו לאורחים
+              </p>
+              <p className="mb-3 text-xs font-semibold leading-5 text-[#9B8D7D]">
+                בחרו אילו כפתורי ניווט יופיעו בעמוד האורח ובקישורים האישיים.
+                המיקום עצמו לא משתנה.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={form.showWaze !== false}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, showWaze: e.target.checked }))
+                    }
+                    className="h-4 w-4 accent-[#B8844F]"
+                  />
+                  <span className="text-sm font-black text-[#6B5B4A]">Waze</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={form.showGoogleMaps !== false}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        showGoogleMaps: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 accent-[#B8844F]"
+                  />
+                  <span className="text-sm font-black text-[#6B5B4A]">
+                    Google Maps
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* עמוד מידע ציבורי */}

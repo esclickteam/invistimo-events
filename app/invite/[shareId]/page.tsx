@@ -232,6 +232,8 @@ export default function PublicInvitePage({ params }: any) {
           <EventLocationCard
             shareId={shareId}
             location={resolveEventLocation(invite, event)}
+            showWaze={invite?.showWaze}
+            showGoogleMaps={invite?.showGoogleMaps}
           />
         </div>
 

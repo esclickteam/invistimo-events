@@ -582,3 +582,11 @@ export function getGoogleMapsEmbedUrl(
     zoom
   );
 }
+
+/**
+ * Guest nav button visibility. Missing / null / undefined → true so existing
+ * events keep showing both Waze and Google Maps (no regression).
+ */
+export function shouldShowNavButton(value: unknown): boolean {
+  return value !== false && value !== "false" && value !== 0 && value !== "0";
+}

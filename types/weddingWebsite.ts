@@ -129,6 +129,9 @@ export type WeddingDemoContent = {
   venueWazeLat?: number | null;
   venueWazeLng?: number | null;
   venueWazeUrl?: string;
+  /** Guest nav buttons; missing → both shown. */
+  showWaze?: boolean;
+  showGoogleMaps?: boolean;
   heroSubtitle: string;
   invitationText: string;
   storyParagraphs: string[];

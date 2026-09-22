@@ -26,6 +26,7 @@ import { useWeddingTheme } from "./WeddingThemeProvider";
 import {
   getGoogleMapsEmbedUrl,
   getGoogleMapsLink,
+  shouldShowNavButton,
 } from "@/lib/navigationLinks";
 import WazeNavButton from "@/app/components/WazeNavButton";
 import { DEMO_GUEST_UPLOADS } from "@/config/weddingWebsite/demoContent";
@@ -383,7 +384,9 @@ export function LocationSection() {
     wazeLng: content.venueWazeLng,
     wazeUrl: content.venueWazeUrl || "",
   };
-  const googleHref = getGoogleMapsLink(venueLocation);
+  const allowWaze = shouldShowNavButton(content.showWaze);
+  const allowGoogleMaps = shouldShowNavButton(content.showGoogleMaps);
+  const googleHref = allowGoogleMaps ? getGoogleMapsLink(venueLocation) : "";
   const mapEmbedUrl = getGoogleMapsEmbedUrl(venueLocation);
   return (
     <AnimatedSection id="location" className="py-20 md:py-28">
@@ -408,26 +411,30 @@ export function LocationSection() {
               src={mapEmbedUrl || ""}
             />
           </div>
-          <div className="flex flex-wrap gap-3 p-6">
-            <WazeNavButton
-              location={venueLocation}
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
-            >
-              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-              Waze
-            </WazeNavButton>
-            {googleHref && (
-              <a
-                href={googleHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
-              >
-                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-                Google Maps
-              </a>
-            )}
-          </div>
+          {(allowWaze || googleHref) && (
+            <div className="flex flex-wrap gap-3 p-6">
+              {allowWaze && (
+                <WazeNavButton
+                  location={venueLocation}
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--ww-accent)] px-6 py-3 text-sm font-black text-white"
+                >
+                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                  Waze
+                </WazeNavButton>
+              )}
+              {googleHref && (
+                <a
+                  href={googleHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--ww-border)] px-6 py-3 text-sm font-bold"
+                >
+                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                  Google Maps
+                </a>
+              )}
+            </div>
+          )}
         </GlassCard>
       </div>
     </AnimatedSection>

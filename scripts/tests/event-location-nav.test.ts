@@ -16,6 +16,7 @@ import {
   resolveGoogleNavTarget,
   resolveNavTarget,
   resolveWazeNavTarget,
+  shouldShowNavButton,
 } from "../../lib/navigationLinks";
 
 test("Google Maps prefers a place label over bare coordinates", () => {
@@ -361,4 +362,12 @@ test("placeName beats the typed name for the Google Maps label", () => {
     "https://www.google.com/maps?q=32.591962,35.414497&z=15&output=embed"
   );
   assert.doesNotMatch(getGoogleMapsEmbedUrl(location, 15) || "", /query_place_id/);
+});
+
+test("shouldShowNavButton defaults missing values to true", () => {
+  assert.equal(shouldShowNavButton(undefined), true);
+  assert.equal(shouldShowNavButton(null), true);
+  assert.equal(shouldShowNavButton(true), true);
+  assert.equal(shouldShowNavButton(false), false);
+  assert.equal(shouldShowNavButton("false"), false);
 });

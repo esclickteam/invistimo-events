@@ -40,6 +40,12 @@ function toBool(v: unknown) {
   return v === true || v === "true" || v === 1 || v === "1";
 }
 
+/** Explicit false only — undefined/null stay true for guest nav buttons. */
+function toBoolDefaultTrue(v: unknown) {
+  if (v === false || v === "false" || v === 0 || v === "0") return false;
+  return true;
+}
+
 function cleanString(v: unknown) {
   return String(v || "").trim();
 }
@@ -867,6 +873,14 @@ export async function PUT(
       }
     }
 
+    if (body.showWaze !== undefined) {
+      updatePayload.showWaze = toBoolDefaultTrue(body.showWaze);
+    }
+
+    if (body.showGoogleMaps !== undefined) {
+      updatePayload.showGoogleMaps = toBoolDefaultTrue(body.showGoogleMaps);
+    }
+
     if (body.estimatedGuests !== undefined) {
       updatePayload.estimatedGuests = Math.max(
         0,
@@ -1125,6 +1139,14 @@ export async function PATCH(
       updatePayload.publicEventPage = normalizePublicEventPage(
         body.publicEventPage
       );
+    }
+
+    if (body?.showWaze !== undefined) {
+      updatePayload.showWaze = toBoolDefaultTrue(body.showWaze);
+    }
+
+    if (body?.showGoogleMaps !== undefined) {
+      updatePayload.showGoogleMaps = toBoolDefaultTrue(body.showGoogleMaps);
     }
 
     if (body?.invitationSettings !== undefined) {
