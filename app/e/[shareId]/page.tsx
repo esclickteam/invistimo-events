@@ -30,6 +30,7 @@ import {
   parseCoord,
   resolveNavTarget,
   resolveWazeNavTarget,
+  shouldShowNavButton,
 } from "@/lib/navigationLinks";
 import {
   persistParkingPin,
@@ -506,12 +507,20 @@ export default async function PublicEventInfoPage({
   const navCustom = eventNavCustom(navigationSettings);
   const navTarget = resolveNavTarget(location, navCustom);
   const wazeTarget = resolveWazeNavTarget(location, navCustom);
-  const googleMapsUrl = getGoogleMapsLinkForTarget(navTarget);
-  const hasWaze = Boolean(
-    (wazeTarget.lat != null && wazeTarget.lng != null) ||
-      wazeTarget.query ||
-      wazeTarget.wazeUrlOnly
+  const allowWaze = shouldShowNavButton((invitation as any)?.showWaze);
+  const allowGoogleMaps = shouldShowNavButton(
+    (invitation as any)?.showGoogleMaps
   );
+  const googleMapsUrl = allowGoogleMaps
+    ? getGoogleMapsLinkForTarget(navTarget)
+    : "";
+  const hasWaze =
+    allowWaze &&
+    Boolean(
+      (wazeTarget.lat != null && wazeTarget.lng != null) ||
+        wazeTarget.query ||
+        wazeTarget.wazeUrlOnly
+    );
 
   const parking = getParkingSettings(publicEventPage);
 
@@ -542,11 +551,13 @@ export default async function PublicEventInfoPage({
 
   const parkingTarget = resolveNavTarget(parkingLocation);
   const parkingGoogleMapsUrl =
+    allowGoogleMaps &&
     parking.enabled &&
     (parkingName || parkingAddress || parking.lat || parking.lng)
       ? getGoogleMapsLinkForTarget(parkingTarget)
       : "";
   const parkingWazeUrl =
+    allowWaze &&
     parking.enabled &&
     (parkingName || parkingAddress || parking.lat || parking.lng) &&
     ((parkingTarget.lat != null && parkingTarget.lng != null) ||
@@ -659,16 +670,18 @@ export default async function PublicEventInfoPage({
                     </p>
                   )}
 
-                {(location.name || location.address || hasWaze || googleMapsUrl) && (
+                {(hasWaze || googleMapsUrl) && (
                   <div className="mt-5 grid grid-cols-2 gap-3">
-                    <WazeNavButton
-                      location={location}
-                      custom={navCustom}
-                      className={darkNavButtonClassName}
-                    >
-                      <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                      Waze
-                    </WazeNavButton>
+                    {hasWaze && (
+                      <WazeNavButton
+                        location={location}
+                        custom={navCustom}
+                        className={darkNavButtonClassName}
+                      >
+                        <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                        Waze
+                      </WazeNavButton>
+                    )}
 
                     {googleMapsUrl && (
                       <LightButton href={googleMapsUrl}>
@@ -717,18 +730,17 @@ export default async function PublicEventInfoPage({
                     </p>
                   )}
 
-                  {(parkingName ||
-                    parkingAddress ||
-                    parkingWazeUrl ||
-                    parkingGoogleMapsUrl) && (
+                  {(parkingWazeUrl || parkingGoogleMapsUrl) && (
                     <div className="mt-5 grid grid-cols-2 gap-3">
-                      <WazeNavButton
-                        location={parkingLocation}
-                        className={darkNavButtonClassName}
-                      >
-                        <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                        Waze לחניה
-                      </WazeNavButton>
+                      {parkingWazeUrl && (
+                        <WazeNavButton
+                          location={parkingLocation}
+                          className={darkNavButtonClassName}
+                        >
+                          <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                          Waze לחניה
+                        </WazeNavButton>
+                      )}
 
                       {parkingGoogleMapsUrl && (
                         <LightButton href={parkingGoogleMapsUrl}>

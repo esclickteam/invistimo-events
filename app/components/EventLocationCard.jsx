@@ -9,7 +9,12 @@ import {
   getGoogleMapsLink,
 } from "@/lib/navigationLinks";
 
-export default function EventLocationCard({ location, shareId }) {
+export default function EventLocationCard({
+  location,
+  shareId,
+  showWaze,
+  showGoogleMaps,
+}) {
   const [resolvedPin, setResolvedPin] = useState(null);
 
   const pinnedLocation = useMemo(() => {
@@ -71,7 +76,11 @@ export default function EventLocationCard({ location, shareId }) {
 
       {mapUrl && (
         <div className="flex justify-center gap-3">
-          <EventNavigationButtons location={pinnedLocation} />
+          <EventNavigationButtons
+            location={pinnedLocation}
+            showWaze={showWaze}
+            showGoogleMaps={showGoogleMaps}
+          />
         </div>
       )}
     </div>

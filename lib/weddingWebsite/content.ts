@@ -326,6 +326,8 @@ export function serializeWeddingWebsite(
     eventDate?: Date | string | null;
     eventTime?: string;
     location?: { name?: string; address?: string; lat?: number | string | null; lng?: number | string | null; wazeLat?: number | string | null; wazeLng?: number | string | null; wazeUrl?: string | null };
+    showWaze?: boolean | null;
+    showGoogleMaps?: boolean | null;
     weddingWebsite?: {
       templateId?: unknown;
       published?: unknown;
@@ -338,14 +340,24 @@ export function serializeWeddingWebsite(
   const stored = invitation?.weddingWebsite;
   const templateId = normalizeWeddingTemplateId(stored?.templateId);
   const event = extractInvitationEventData(invitation);
-  const publishedContent = applyEventDataToWebsiteContent(
-    seedWeddingWebsiteContent(stored?.content, invitation),
-    event
-  );
-  const draftContent = applyEventDataToWebsiteContent(
-    seedWeddingWebsiteContent(stored?.draftContent || stored?.content, invitation),
-    event
-  );
+  const showWaze = invitation?.showWaze !== false;
+  const showGoogleMaps = invitation?.showGoogleMaps !== false;
+  const publishedContent = {
+    ...applyEventDataToWebsiteContent(
+      seedWeddingWebsiteContent(stored?.content, invitation),
+      event
+    ),
+    showWaze,
+    showGoogleMaps,
+  };
+  const draftContent = {
+    ...applyEventDataToWebsiteContent(
+      seedWeddingWebsiteContent(stored?.draftContent || stored?.content, invitation),
+      event
+    ),
+    showWaze,
+    showGoogleMaps,
+  };
 
   return {
     templateId,

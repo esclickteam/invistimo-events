@@ -406,6 +406,21 @@ preRsvpMedia: {
       default: () => ({}),
     },
 
+    /* ================= GUEST NAV BUTTONS =================
+       Display-only: which navigation buttons guests see.
+       Default true; missing values are treated as true at read time.
+    ========================================================= */
+
+    showWaze: {
+      type: Boolean,
+      default: true,
+    },
+
+    showGoogleMaps: {
+      type: Boolean,
+      default: true,
+    },
+
     /* ================= INVITATION SETTINGS ================= */
 
     invitationSettings: {

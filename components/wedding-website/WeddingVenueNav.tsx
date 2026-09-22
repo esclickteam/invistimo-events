@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { getGoogleMapsLink } from "@/lib/navigationLinks";
+import { getGoogleMapsLink, shouldShowNavButton } from "@/lib/navigationLinks";
 import WazeNavButton from "@/app/components/WazeNavButton";
 import { DEMO } from "./shared/weddingUtils";
 
@@ -13,6 +13,8 @@ type Props = {
   wazeHref?: string;
   className?: string;
   linkClassName?: string;
+  showWaze?: boolean | null;
+  showGoogleMaps?: boolean | null;
 };
 
 export default function WeddingVenueNav({
@@ -22,6 +24,8 @@ export default function WeddingVenueNav({
   googleHref,
   className,
   linkClassName,
+  showWaze,
+  showGoogleMaps,
 }: Props) {
   const location = {
     name: String(DEMO.venueName || "").trim(),
@@ -33,22 +37,35 @@ export default function WeddingVenueNav({
     wazeUrl: DEMO.venueWazeUrl || "",
   };
 
-  const google = googleHref || getGoogleMapsLink(location);
+  const allowWaze = shouldShowNavButton(
+    showWaze !== undefined ? showWaze : DEMO.showWaze
+  );
+  const allowGoogleMaps = shouldShowNavButton(
+    showGoogleMaps !== undefined ? showGoogleMaps : DEMO.showGoogleMaps
+  );
 
-  if (!google && !location.address && location.lat == null) return null;
+  const google =
+    allowGoogleMaps && (googleHref || getGoogleMapsLink(location));
+
+  if (!allowWaze && !google) return null;
+  if (!google && !location.address && location.lat == null && !allowWaze) {
+    return null;
+  }
 
   return (
     <div className={className || "mt-6 flex flex-wrap items-center gap-3"}>
-      <WazeNavButton
-        location={location}
-        className={
-          linkClassName ||
-          "inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold"
-        }
-      >
-        <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-        Waze
-      </WazeNavButton>
+      {allowWaze && (
+        <WazeNavButton
+          location={location}
+          className={
+            linkClassName ||
+            "inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 py-2 text-sm font-bold"
+          }
+        >
+          <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+          Waze
+        </WazeNavButton>
+      )}
       {google && (
         <a
           href={google}
