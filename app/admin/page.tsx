@@ -254,6 +254,11 @@ function getPaymentTypeLabel(type: string) {
     package: "חבילה",
     addon: "תוספת",
     upgrade: "שדרוג",
+    deposit: "מקדמה",
+    full: "תשלום מלא",
+    balance: "יתרה",
+    manual: "ידני",
+    legacy: "היסטורי",
     "producer-client": "לקוח מפיק",
     other: "אחר",
   };

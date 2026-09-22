@@ -159,7 +159,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
   payments?: {
     amount: number;
-    type: "full" | "deposit" | "balance" | "manual" | "refund" | "other";
+    type: "full" | "deposit" | "balance" | "manual" | "refund" | "other" | "package" | "addon" | "upgrade" | "producer-client";
     method?: "stripe" | "cash" | "bank_transfer" | "bit" | "paybox" | "manual" | "other";
     status: "paid" | "pending" | "failed" | "refunded" | "cancelled";
     paidAt?: Date | null;
@@ -880,7 +880,18 @@ preRsvpMessages: {
 
         type: {
           type: String,
-          enum: ["full", "deposit", "balance", "manual", "refund", "other"],
+          enum: [
+            "full",
+            "deposit",
+            "balance",
+            "manual",
+            "refund",
+            "other",
+            "package",
+            "addon",
+            "upgrade",
+            "producer-client",
+          ],
           default: "manual",
         },
 
