@@ -180,7 +180,7 @@ export async function markRsvpRoundAsActuallySent(params: {
       : `rsvpWhatsappRound${round}ScheduledAt`;
 
   const result = await Invitation.collection.updateOne(
-    { _id: invitationId },
+    { _id: invitation._id },
     {
       $set: {
         [`rsvpRoundSent.${key}`]: markState,
