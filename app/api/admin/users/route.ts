@@ -439,6 +439,11 @@ function buildMessageRounds(
         scheduledAt,
         channel: roundSnapshot.channel || scheduledMessage?.channel || null,
         blocked: Boolean(locks?.[`rsvp_${round}`]),
+        reopened: roundSnapshot.reopened,
+        reopenedAt: roundSnapshot.reopenedAt,
+        reopenCount: roundSnapshot.reopenCount,
+        originalSentAt: roundSnapshot.originalSentAt,
+        executionId: roundSnapshot.executionId,
       };
     }),
 

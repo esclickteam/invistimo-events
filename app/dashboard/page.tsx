@@ -26,6 +26,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 import { formatCallRoundDateOnlyDisplay } from "@/lib/calls/callRoundScheduleTime";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
@@ -4660,6 +4661,9 @@ type UserRsvpScheduleItem = {
   sentAt?: string | null;
   tasksCreated?: number | null;
   openedAt?: string | null;
+  reopened?: boolean;
+  reopenedAt?: string | null;
+  originalSentAt?: string | null;
 };
 
 function UserRsvpScheduleModal({
@@ -4773,6 +4777,8 @@ function UserRsvpScheduleModal({
                             className={`rounded-full px-3 py-1 ${
                               item.done
                                 ? "bg-[#EAF8EF] text-[#1F9A55]"
+                                : item.reopened
+                                  ? "bg-[#EEF4FF] text-[#2F5EA8]"
                                 : isCallsRound && item.scheduledAt
                                   ? "bg-[#EEF4FF] text-[#2563EB]"
                                   : "bg-[#F6F1EA] text-[#7B6754]"
@@ -4782,6 +4788,8 @@ function UserRsvpScheduleModal({
                               ? isCallsRound && tasksCreated != null
                                 ? `נוצרו ${tasksCreated} שיחות`
                                 : "בוצע"
+                              : item.reopened
+                                ? "נפתח מחדש"
                               : isCallsRound && item.scheduledAt
                                 ? "ממתין למועד הביצוע"
                                 : "טרם בוצע"}
@@ -4790,6 +4798,12 @@ function UserRsvpScheduleModal({
                           {item.blocked && (
                             <span className="rounded-full bg-red-50 px-3 py-1 text-red-600">
                               חסום
+                            </span>
+                          )}
+
+                          {item.reopened && item.originalSentAt && !item.done && (
+                            <span className="rounded-full bg-[#F3ECE4] px-3 py-1 text-[#7B6754]">
+                              נשלח בעבר · {formatScheduleDateTimeWithWeekday(item.originalSentAt)}
                             </span>
                           )}
                         </div>
@@ -5097,6 +5111,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
   });
 
   const rsvpItems: UserRsvpScheduleItem[] = [1, 2, 3].map((round) => {
+    const roundSnapshot = getRsvpRoundSentSnapshot(invitation, round);
     const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
 
     const scheduledMessage = findExistingScheduledMessage(invitation, {
@@ -5110,20 +5125,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       roundNumber: round,
     });
 
-    const sentAt =
-      roundData?.sentAt ||
-      roundData?.sentAtSms ||
-      roundData?.sentAtWhatsapp ||
-      roundData?.smsSentAt ||
-      roundData?.whatsappSentAt ||
-      invitation?.[`rsvpRound${round}SentAt`] ||
-      invitation?.[`rsvpRound${round}sentAt`] ||
-      invitation?.[`rsvpSmsRound${round}SentAt`] ||
-      invitation?.[`rsvpSmsRound${round}sentAt`] ||
-      invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
-      invitation?.[`rsvpWhatsappRound${round}sentAt`] ||
-      scheduledMessage?.sentAt ||
-      null;
+    const sentAt = roundSnapshot.sentAt;
 
     const scheduledAt =
       roundData?.scheduledAt ||
@@ -5138,19 +5140,25 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       scheduledMessage?.scheduledAt ||
       null;
 
-    const channel = scheduledMessage?.channel || getRsvpRoundChannel(invitation, round);
+    const channel =
+      roundSnapshot.channel ||
+      scheduledMessage?.channel ||
+      getRsvpRoundChannel(invitation, round);
 
     return {
       key: `rsvp_${round}`,
       label: `אישורי הגעה סבב ${round}`,
       group: "אישורי הגעה",
       icon: "💬",
-      done: Boolean(sentAt),
+      done: roundSnapshot.done,
       blocked: Boolean(locks?.[`rsvp_${round}`]),
       sentAt,
       scheduledAt,
       channel,
       channelLabel: getScheduleChannelLabel(channel),
+      reopened: roundSnapshot.reopened,
+      reopenedAt: roundSnapshot.reopenedAt,
+      originalSentAt: roundSnapshot.originalSentAt,
     };
   });
 

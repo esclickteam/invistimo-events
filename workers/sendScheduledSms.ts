@@ -7,7 +7,11 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
+import {
+  buildRsvpRoundSentMarkState,
+  getRsvpRoundSentSnapshot,
+  normalizeRsvpRound,
+} from "@/lib/rsvpRoundLock";
 import {
   buildReminderSmsTemplateForGuest,
 } from "@/lib/messages/resolveReminderSmsTemplate";
@@ -443,10 +447,12 @@ async function cancelScheduledBecauseRoundNotAllowed({
 
 async function markInvitationAfterSend({
   schedule,
+  invitation,
   channel,
   sent,
 }: {
   schedule: any;
+  invitation?: any;
   channel: Channel;
   sent: number;
 }) {
@@ -462,22 +468,27 @@ async function markInvitationAfterSend({
         ? getRsvpSmsScheduledField(round)
         : getRsvpWhatsappScheduledField(round);
 
+    const normalizedRound = normalizeRsvpRound(round) || 1;
+    const markState = buildRsvpRoundSentMarkState({
+      invitation: invitation || {},
+      round: normalizedRound,
+      channel,
+      sentCount: sent,
+      source: "scheduled",
+      now,
+    });
+
     const result = await Invitation.collection.updateOne(
       { _id: schedule.invitationId },
       {
         $set: {
-          [`rsvpRoundSent.round${round}`]: {
-            channel,
-            sentAt: now,
-            sentCount: sent,
-            source: "scheduled",
-          },
-          [`rsvpRoundsSent.round${round}.channel`]: channel,
-          [`rsvpRoundsSent.round${round}.sentAt`]: now,
-          [`rsvpRound${round}SentAt`]: now,
+          [`rsvpRoundSent.round${normalizedRound}`]: markState,
+          [`rsvpRoundsSent.round${normalizedRound}.channel`]: channel,
+          [`rsvpRoundsSent.round${normalizedRound}.sentAt`]: now,
+          [`rsvpRound${normalizedRound}SentAt`]: now,
           ...(channel === "sms"
-            ? { [`rsvpSmsRound${round}SentAt`]: now }
-            : { [`rsvpWhatsappRound${round}SentAt`]: now }),
+            ? { [`rsvpSmsRound${normalizedRound}SentAt`]: now }
+            : { [`rsvpWhatsappRound${normalizedRound}SentAt`]: now }),
           updatedAt: now,
         },
         $unset: {
@@ -489,7 +500,8 @@ async function markInvitationAfterSend({
     console.log("✅ SCHEDULED RSVP ROUND MARKED SENT:", {
       invitationId: String(schedule.invitationId),
       channel,
-      round,
+      round: normalizedRound,
+      executionId: markState.executionId,
       sent,
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
@@ -795,6 +807,7 @@ export async function sendScheduledSms() {
 
       await markInvitationAfterSend({
         schedule: msg,
+        invitation,
         channel: "sms",
         sent,
       });
@@ -1157,6 +1170,7 @@ await WhatsappQueue.create({
 
       await markInvitationAfterSend({
         schedule: msg,
+        invitation,
         channel: "whatsapp",
         sent,
       });

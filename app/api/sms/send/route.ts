@@ -11,7 +11,11 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundLock";
+import {
+  buildRsvpRoundSentMarkState,
+  getRsvpRoundSentSnapshot,
+  normalizeRsvpRound,
+} from "@/lib/rsvpRoundLock";
 import {
   AUTO_REMINDER_BY_TABLE,
   REMINDER_WITH_TABLE_SERVER_TEMPLATE,
@@ -1090,20 +1094,25 @@ if (inv.shareId) {
       if (templateKey === "rsvp") {
         const scheduledField = getRsvpScheduledField(round);
         const now = new Date();
+        const normalizedRound = normalizeRsvpRound(round) || 1;
+        const markState = buildRsvpRoundSentMarkState({
+          invitation: inv,
+          round: normalizedRound,
+          channel: "sms",
+          sentCount: sent,
+          source: "immediate",
+          now,
+        });
 
         const markResult = await Invitation.collection.updateOne(
           { _id: inv._id },
           {
             $set: {
-              [`rsvpRoundSent.round${round}`]: {
-                channel: "sms",
-                sentAt: now,
-                sentCount: sent,
-              },
-              [`rsvpRoundsSent.round${round}.channel`]: "sms",
-              [`rsvpRoundsSent.round${round}.sentAt`]: now,
-              [`rsvpSmsRound${round}SentAt`]: now,
-              [`rsvpRound${round}SentAt`]: now,
+              [`rsvpRoundSent.round${normalizedRound}`]: markState,
+              [`rsvpRoundsSent.round${normalizedRound}.channel`]: "sms",
+              [`rsvpRoundsSent.round${normalizedRound}.sentAt`]: now,
+              [`rsvpSmsRound${normalizedRound}SentAt`]: now,
+              [`rsvpRound${normalizedRound}SentAt`]: now,
               updatedAt: now,
             },
             $unset: {
@@ -1114,7 +1123,8 @@ if (inv.shareId) {
 
         console.log("✅ RSVP SMS ROUND MARKED SENT:", {
           invitationId: String(inv._id),
-          round,
+          round: normalizedRound,
+          executionId: markState.executionId,
           sent,
           matchedCount: markResult.matchedCount,
           modifiedCount: markResult.modifiedCount,

@@ -5,6 +5,11 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
+import ScheduledMessage from "@/models/ScheduledMessage";
+import {
+  normalizeRsvpRound,
+  reopenRsvpRound,
+} from "@/lib/rsvpRoundLock";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,53 +26,9 @@ function isAdminContext(auth: any) {
 }
 
 /* =========================================================
-   HELPERS
+   HELPERS — reminder / thankyou (לא RSVP)
 ========================================================= */
 function getUnsetFieldsByRoundKey(key: string) {
-  if (key.startsWith("rsvp_")) {
-    const round = key.split("_")[1];
-
-    return [
-      /* RSVP כללי */
-      `rsvpRound${round}SentAt`,
-      `rsvpRound${round}sentAt`,
-
-      /* מקור אמת חדש + מקור ישן */
-      `rsvpRoundSent.round${round}`,
-      `rsvpRoundSentAt.round${round}`,
-
-      /* SMS ישן */
-      `rsvpSmsRound${round}SentAt`,
-      `rsvpSmsRound${round}sentAt`,
-
-      /* WhatsApp ישן */
-      `rsvpWhatsappRound${round}SentAt`,
-      `rsvpWhatsappRound${round}sentAt`,
-
-      /* Scheduled כללי */
-      `rsvpRound${round}ScheduledAt`,
-      `rsvpRound${round}scheduledAt`,
-
-      /* Scheduled SMS */
-      `rsvpSmsRound${round}ScheduledAt`,
-      `rsvpSmsRound${round}scheduledAt`,
-
-      /* Scheduled WhatsApp */
-      `rsvpWhatsappRound${round}ScheduledAt`,
-      `rsvpWhatsappRound${round}scheduledAt`,
-
-      /* Locks ישנים */
-      `messageLocks.rsvpRound${round}`,
-      `messageLocks.rsvpRound${round}Sms`,
-      `messageLocks.rsvpRound${round}Whatsapp`,
-      `messageLocks.rsvpSmsRound${round}`,
-      `messageLocks.rsvpWhatsappRound${round}`,
-
-      /* חסימת אדמין */
-      `adminMessageRoundLocks.rsvp_${round}`,
-    ];
-  }
-
   if (key === "reminder") {
     return [
       "reminderSentAt",
@@ -171,6 +132,9 @@ function getBlockPatchByRoundKey(key: string) {
       [`rsvpRoundSentAt.round${round}.blockedAt`]: now,
       [`rsvpRoundSentAt.round${round}.blockedByAdmin`]: true,
 
+      [`rsvpRoundsSent.round${round}.sentAt`]: now,
+      [`rsvpRoundsSent.round${round}.channel`]: "admin",
+
       [`messageLocks.rsvpRound${round}`]: true,
       [`messageLocks.rsvpRound${round}Sms`]: true,
       [`messageLocks.rsvpRound${round}Whatsapp`]: true,
@@ -211,6 +175,89 @@ function getBlockPatchByRoundKey(key: string) {
   }
 
   return {};
+}
+
+async function archiveAndReopenSimpleRound(params: {
+  invitationId: any;
+  key: "reminder" | "thankyou";
+}) {
+  const { invitationId, key } = params;
+  const now = new Date();
+
+  const invitation: any = await Invitation.findById(invitationId).lean();
+  if (!invitation) {
+    return { matchedCount: 0, modifiedCount: 0 };
+  }
+
+  const historyField =
+    key === "reminder" ? "reminderSendExecutions" : "thankYouSendExecutions";
+
+  const currentSentAt =
+    key === "reminder"
+      ? invitation.reminderSentAt ||
+        invitation.reminderSmsSentAt ||
+        invitation.reminderWhatsappSentAt
+      : invitation.thankYouSentAt ||
+        invitation.thankYouSmsSentAt ||
+        invitation.thankYouWhatsappSentAt ||
+        invitation.thankyouSentAt;
+
+  const history = Array.isArray(invitation[historyField])
+    ? [...invitation[historyField]]
+    : [];
+
+  if (currentSentAt) {
+    history.push({
+      sentAt: currentSentAt,
+      closedAt: now,
+      closedReason: "admin_reopen",
+    });
+  }
+
+  const fields = getUnsetFieldsByRoundKey(key);
+  const unset: Record<string, ""> = {};
+  fields.forEach((field) => {
+    unset[field] = "";
+  });
+
+  const result = await Invitation.collection.updateOne(
+    { _id: invitationId },
+    {
+      $set: {
+        [historyField]: history,
+        updatedAt: now,
+      },
+      $unset: unset,
+    }
+  );
+
+  const scheduleTypes =
+    key === "reminder"
+      ? ["reminder", "table", "rsvp_reminder"]
+      : ["thankyou", "thank_you", "custom"];
+
+  await ScheduledMessage.updateMany(
+    {
+      invitationId,
+      $or: [
+        { type: { $in: scheduleTypes } },
+        { templateKey: { $in: scheduleTypes } },
+      ],
+      status: { $in: ["scheduled", "pending", "sending"] },
+    },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: now,
+        lockedAt: null,
+        lockedBy: null,
+        error: "CANCELLED_BY_ADMIN_REOPEN",
+        updatedAt: now,
+      },
+    }
+  );
+
+  return result;
 }
 
 /* =========================================================
@@ -255,8 +302,8 @@ export async function PATCH(
     }
 
     const user = await User.findById(userId)
-  .select("_id allowedMessageRounds planLimits")
-  .lean();
+      .select("_id allowedMessageRounds planLimits")
+      .lean();
 
     if (!user) {
       return NextResponse.json(
@@ -266,21 +313,21 @@ export async function PATCH(
     }
 
     const isRound3 = key === "rsvp_3";
-const shouldOpenRound3Permission =
-  isRound3 && (action === "reset" || action === "unblock");
+    const shouldOpenRound3Permission =
+      isRound3 && (action === "reset" || action === "unblock");
 
-if (shouldOpenRound3Permission) {
-  await User.updateOne(
-    { _id: userId },
-    {
-      $set: {
-        allowedMessageRounds: 3,
-        "planLimits.allowedMessageRounds": 3,
-        updatedAt: new Date(),
-      },
+    if (shouldOpenRound3Permission) {
+      await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            allowedMessageRounds: 3,
+            "planLimits.allowedMessageRounds": 3,
+            updatedAt: new Date(),
+          },
+        }
+      );
     }
-  );
-}
 
     const invitationQuery = invitationId
       ? {
@@ -296,73 +343,94 @@ if (shouldOpenRound3Permission) {
       .lean();
 
     if (!invitation) {
-  if (shouldOpenRound3Permission) {
-    return NextResponse.json(
-      {
-        success: true,
-        invitation: null,
-        userUpdated: true,
-        message:
-          "ROUND_3_PERMISSION_OPENED_WITHOUT_INVITATION",
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store",
-        },
+      if (shouldOpenRound3Permission) {
+        return NextResponse.json(
+          {
+            success: true,
+            invitation: null,
+            userUpdated: true,
+            message: "ROUND_3_PERMISSION_OPENED_WITHOUT_INVITATION",
+          },
+          {
+            headers: {
+              "Cache-Control": "no-store",
+            },
+          }
+        );
       }
-    );
-  }
 
-  return NextResponse.json(
-    { success: false, error: "INVITATION_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
     let updateDebug: any = null;
 
     /*
       פתיחה מחדש:
-      מוחקת את מקור האמת החדש + כל השדות הישנים שיכולים להפריע.
+      RSVP = archive ל־executions + execution חדש (לא מוחק היסטוריה).
+      reminder/thankyou = archive ל־*SendExecutions + unset של active locks.
     */
     if (action === "reset" || action === "unblock") {
-      const fields = getUnsetFieldsByRoundKey(key);
+      if (key.startsWith("rsvp_")) {
+        const round = normalizeRsvpRound(key.split("_")[1]);
 
-      if (!fields.length) {
-        return NextResponse.json(
-          { success: false, error: "INVALID_ROUND_KEY" },
-          { status: 400 }
-        );
-      }
-
-      const unset: Record<string, ""> = {};
-
-      fields.forEach((field) => {
-        unset[field] = "";
-      });
-
-      const resetResult = await Invitation.collection.updateOne(
-        { _id: invitation._id },
-        {
-          $unset: unset,
-          $set: {
-            updatedAt: new Date(),
-          },
+        if (!round) {
+          return NextResponse.json(
+            { success: false, error: "INVALID_ROUND_KEY" },
+            { status: 400 }
+          );
         }
-      );
 
-      updateDebug = {
-        action,
-        key,
-        userId,
-        receivedInvitationId: invitationId || null,
-        updatedInvitationId: String(invitation._id),
-        matchedCount: resetResult.matchedCount,
-        modifiedCount: resetResult.modifiedCount,
-        unsetFields: Object.keys(unset),
-      };
+        const reopenResult = await reopenRsvpRound({
+          invitationId: invitation._id,
+          round,
+          closedReason: "admin_reopen",
+        });
 
-      console.log("✅ MESSAGE ROUND RESET RESULT:", updateDebug);
+        updateDebug = {
+          action,
+          key,
+          userId,
+          receivedInvitationId: invitationId || null,
+          updatedInvitationId: String(invitation._id),
+          matchedCount: reopenResult.matchedCount,
+          modifiedCount: reopenResult.modifiedCount,
+          newExecutionId: reopenResult.newExecutionId,
+          archivedExecutions: reopenResult.archivedExecutions,
+          snapshot: reopenResult.snapshot,
+        };
+
+        console.log("✅ MESSAGE ROUND REOPEN RESULT:", updateDebug);
+      } else {
+        const fields = getUnsetFieldsByRoundKey(key);
+
+        if (!fields.length) {
+          return NextResponse.json(
+            { success: false, error: "INVALID_ROUND_KEY" },
+            { status: 400 }
+          );
+        }
+
+        const resetResult = await archiveAndReopenSimpleRound({
+          invitationId: invitation._id,
+          key: key as "reminder" | "thankyou",
+        });
+
+        updateDebug = {
+          action,
+          key,
+          userId,
+          receivedInvitationId: invitationId || null,
+          updatedInvitationId: String(invitation._id),
+          matchedCount: resetResult.matchedCount,
+          modifiedCount: resetResult.modifiedCount,
+          mode: "archive_and_unset",
+        };
+
+        console.log("✅ MESSAGE ROUND RESET RESULT:", updateDebug);
+      }
     }
 
     /*
@@ -411,6 +479,7 @@ if (shouldOpenRound3Permission) {
 
           "rsvpRoundSent",
           "rsvpRoundSentAt",
+          "rsvpRoundsSent",
 
           "rsvpRound1SentAt",
           "rsvpRound2SentAt",
@@ -434,6 +503,8 @@ if (shouldOpenRound3Permission) {
 
           "reminderSentAt",
           "thankYouSentAt",
+          "reminderSendExecutions",
+          "thankYouSendExecutions",
           "messageLocks",
           "adminMessageRoundLocks",
         ].join(" ")
