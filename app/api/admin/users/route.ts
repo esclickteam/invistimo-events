@@ -418,7 +418,9 @@ function buildMessageRounds(
         roundNumber: round,
       });
 
+      // ScheduledMessage is source of truth; invitation fields are UI mirrors.
       const scheduledAt =
+        scheduledMessage?.scheduledAt ||
         invitation?.rsvpRoundSent?.[`round${round}`]?.scheduledAt ||
         invitation?.rsvpRoundSent?.[`round${round}`]?.smsScheduledAt ||
         invitation?.rsvpRoundSent?.[`round${round}`]?.whatsappScheduledAt ||
@@ -428,7 +430,6 @@ function buildMessageRounds(
         invitation?.[`rsvpSmsRound${round}scheduledAt`] ||
         invitation?.[`rsvpWhatsappRound${round}ScheduledAt`] ||
         invitation?.[`rsvpWhatsappRound${round}scheduledAt`] ||
-        scheduledMessage?.scheduledAt ||
         null;
 
       return {
@@ -471,6 +472,7 @@ function buildMessageRounds(
         ]);
 
         const scheduledAt =
+          scheduledMessage?.scheduledAt ||
           firstValue(invitation, [
             "reminderScheduledAt",
             "reminderscheduledAt",
@@ -479,7 +481,6 @@ function buildMessageRounds(
             "reminderWhatsappScheduledAt",
             "reminderWhatsappscheduledAt",
           ]) ||
-          scheduledMessage?.scheduledAt ||
           null;
 
         return {
@@ -535,6 +536,7 @@ function buildMessageRounds(
         ]);
 
         const scheduledAt =
+          scheduledMessage?.scheduledAt ||
           firstValue(invitation, [
             "thankYouScheduledAt",
             "thankYouscheduledAt",
@@ -549,7 +551,6 @@ function buildMessageRounds(
             "thankyouWhatsappScheduledAt",
             "thankyouWhatsappscheduledAt",
           ]) ||
-          scheduledMessage?.scheduledAt ||
           null;
 
         return {

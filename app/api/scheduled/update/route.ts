@@ -7,6 +7,7 @@ import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Invitation from "@/models/Invitation";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import { buildInvitationScheduleSetPatch } from "@/lib/invitationScheduleMirror";
 
 export const dynamic = "force-dynamic";
 
@@ -61,23 +62,6 @@ async function getAuthUserId() {
 
 function isValidObjectId(value: any) {
   return mongoose.Types.ObjectId.isValid(String(value || ""));
-}
-
-function normalizeRound(value: any): 1 | 2 | 3 {
-  const n = Number(value);
-
-  if (n === 2) return 2;
-  if (n === 3) return 3;
-
-  return 1;
-}
-
-function getRsvpScheduledField(channel: string, round: 1 | 2 | 3) {
-  if (channel === "sms") {
-    return `rsvpSmsRound${round}ScheduledAt`;
-  }
-
-  return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
 /* ======================================================
@@ -219,13 +203,18 @@ export async function POST(req: NextRequest) {
 
     /* ================= UPDATE INVITATION SCHEDULE FIELD ================= */
 
-    if (schedule.type === "rsvp") {
-      const round = normalizeRound(schedule.round ?? schedule.roundNumber);
-      const scheduledField = getRsvpScheduledField(schedule.channel, round);
+    const invitationPatch = buildInvitationScheduleSetPatch({
+      type: schedule.type,
+      channel: schedule.channel,
+      round: schedule.round ?? schedule.roundNumber,
+      scheduledAt,
+    });
 
+    if (invitationPatch) {
       await Invitation.findByIdAndUpdate(schedule.invitationId, {
         $set: {
-          [scheduledField]: scheduledAt,
+          ...invitationPatch,
+          updatedAt: new Date(),
         },
       });
     }

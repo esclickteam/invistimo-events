@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Invitation from "@/models/Invitation";
+import { buildInvitationScheduleSetPatch } from "@/lib/invitationScheduleMirror";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import mongoose from "mongoose";
@@ -89,14 +90,6 @@ function getFilterByTypeAndRound(
   if (fallback === "withTable") return "withTable";
 
   return "all";
-}
-
-function getRsvpScheduledField(channel: Channel, round: RoundNumber) {
-  if (channel === "sms") {
-    return `rsvpSmsRound${round}ScheduledAt`;
-  }
-
-  return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
 function isValidObjectId(value: any) {
@@ -319,12 +312,18 @@ export async function POST(req: NextRequest) {
      *
      * כי תזמון אינו שליחה בפועל.
      */
-    if (type === "rsvp") {
-      const scheduledField = getRsvpScheduledField(channel, round);
+    const invitationPatch = buildInvitationScheduleSetPatch({
+      type,
+      channel,
+      round,
+      scheduledAt,
+    });
 
+    if (invitationPatch) {
       await Invitation.findByIdAndUpdate(invitationId, {
         $set: {
-          [scheduledField]: scheduledAt,
+          ...invitationPatch,
+          updatedAt: new Date(),
         },
       });
     }
