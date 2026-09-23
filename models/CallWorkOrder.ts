@@ -70,8 +70,8 @@ export interface ICallWorkOrder {
   configuredRoundAt?: Date | null;
 
   /**
-   * מתי המערכת אמורה לפתוח את ההוראה אוטומטית
-   * אצלך: כל יום ב־08:00
+   * מתי המערכת חשפה/פתחה את ההוראה לעובדים
+   * (תחילת משמרת / cron) — לא בהכרח שווה ל־configuredRoundAt
    */
   autoOpenAt: Date;
   autoOpenHour: number;

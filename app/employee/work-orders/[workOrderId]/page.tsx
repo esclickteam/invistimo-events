@@ -276,6 +276,22 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function formatPlannedExecution(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const time = date.toLocaleTimeString("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+  return `מתוכנן ל־${time}`;
+}
+
 function getStatusLabel(status: string) {
   const map: Record<string, string> = {
     pending: "ממתין",
@@ -1372,7 +1388,7 @@ export default function EmployeeWorkOrderTasksPage() {
         <div className="heroMeta">
           <span>תאריך עבודה</span>
           <strong>{formatDate(workOrder?.workDate)}</strong>
-          <small>{formatDateTime(workOrder?.configuredRoundAt)}</small>
+          <small>{formatPlannedExecution(workOrder?.configuredRoundAt)}</small>
         </div>
       </section>
 
