@@ -64,6 +64,33 @@ function isValidObjectId(value: any) {
   return mongoose.Types.ObjectId.isValid(String(value || ""));
 }
 
+function normalizeChannel(value: any): "sms" | "whatsapp" | null {
+  if (value === "sms") return "sms";
+  if (value === "whatsapp") return "whatsapp";
+  return null;
+}
+
+function normalizeMessageType(value: any) {
+  if (
+    value === "rsvp" ||
+    value === "reminder" ||
+    value === "thankyou" ||
+    value === "table" ||
+    value === "custom"
+  ) {
+    return value;
+  }
+
+  return "rsvp";
+}
+
+function normalizeRound(value: any): 1 | 2 | 3 {
+  const n = Number(value);
+  if (n === 2) return 2;
+  if (n === 3) return 3;
+  return 1;
+}
+
 function buildInvitationUnsetPatch(schedule: any) {
   const clear = buildInvitationScheduleClearPatch({
     type: schedule.type,
