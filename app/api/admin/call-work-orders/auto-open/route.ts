@@ -18,8 +18,13 @@ import {
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
 import {
+  hasEmployeeShiftStarted,
   isCallRoundDue,
   parseCallRoundScheduledAt,
+  parseClockToMinutes,
+  shiftCoversScheduledRound,
+  shouldExposeCallRoundWorkOrder,
+  type ShiftTimeWindow,
 } from "@/lib/calls/callRoundScheduleTime";
 
 export const runtime = "nodejs";
@@ -70,6 +75,10 @@ type AuthUser = {
   name?: string;
 };
 
+type ShiftWindowWithId = ShiftTimeWindow & {
+  shiftId: Types.ObjectId | null;
+};
+
 type ScheduledEmployee = {
   employeeId: Types.ObjectId;
   employeeIdString: string;
@@ -77,6 +86,8 @@ type ScheduledEmployee = {
   employeeName: string;
   employeeEmail: string;
   employeePhone: string;
+  /** All shift windows for this employee on the work date. */
+  windows: ShiftWindowWithId[];
 };
 
 type ScheduledRound = {
@@ -92,6 +103,9 @@ type ScheduleCandidate = {
   configuredRoundAt: Date;
   scheduleSource: "invitation" | "user";
   rawRound: any;
+  /** Employees assigned for this round (covering started shifts, or due fallback). */
+  assignedEmployees: ScheduledEmployee[];
+  exposureReason: "shift_started" | "round_due" | "force";
 };
 
 /* ============================================================
@@ -597,12 +611,18 @@ function extractScheduledRoundsForDate(
   options?: {
     now?: Date;
     force?: boolean;
+    /**
+     * When true, also includes same-day rounds that are not yet due
+     * (exposure gated later by started shift windows).
+     */
+    includeFutureSameDay?: boolean;
   }
 ) {
   const results: ScheduledRound[] = [];
   const arrays = getScheduleArrays(container);
   const now = options?.now || new Date();
   const force = Boolean(options?.force);
+  const includeFutureSameDay = Boolean(options?.includeFutureSameDay);
 
   for (const rounds of arrays) {
     rounds.forEach((raw, index) => {
@@ -619,14 +639,22 @@ function extractScheduledRoundsForDate(
 
       if (!scheduledAt) return;
 
-      if (
-        !isCallRoundDue({
-          scheduledAt,
-          dateKey,
-          now,
-          force,
-        })
-      ) {
+      const scheduledKey = getDateKeyInIsrael(scheduledAt);
+      const sameDay = scheduledKey === dateKey;
+      const due = isCallRoundDue({
+        scheduledAt,
+        dateKey,
+        now,
+        force,
+      });
+
+      // Same-day future rounds are candidates for shift-start exposure.
+      // Other rounds still require classic due (or force).
+      if (!due && !(includeFutureSameDay && sameDay) && !force) {
+        return;
+      }
+
+      if (!sameDay && scheduledKey > dateKey) {
         return;
       }
 
@@ -886,12 +914,23 @@ async function loadScheduleCandidates(
   options?: {
     now?: Date;
     force?: boolean;
+    startedEmployees?: ScheduledEmployee[];
+    allEmployees?: ScheduledEmployee[];
   }
 ) {
   const candidates: ScheduleCandidate[] = [];
   const dedupe = new Set<string>();
+  const now = options?.now || new Date();
+  const force = Boolean(options?.force);
+  const startedEmployees = options?.startedEmployees || [];
+  const allEmployees = options?.allEmployees || [];
 
   const scheduleQuery = buildScheduleQuery(dateKey);
+  const extractOptions = {
+    now,
+    force,
+    includeFutureSameDay: true,
+  };
 
   const invitations = await Invitation.collection
     .find(scheduleQuery)
@@ -899,13 +938,28 @@ async function loadScheduleCandidates(
     .toArray();
 
   for (const invitation of invitations) {
-    const rounds = extractScheduledRoundsForDate(invitation, dateKey, options);
+    const rounds = extractScheduledRoundsForDate(
+      invitation,
+      dateKey,
+      extractOptions
+    );
 
     if (!rounds.length) continue;
 
     const clientUser = await findClientUserFromInvitation(invitation);
 
     for (const roundInfo of rounds) {
+      const resolved = resolveAssigneesForRound({
+        scheduledAt: roundInfo.scheduledAt,
+        dateKey,
+        now,
+        force,
+        startedEmployees,
+        allEmployees,
+      });
+
+      if (!resolved) continue;
+
       const invitationId = extractIdString(invitation?._id);
       const key = `${invitationId}:${roundInfo.round}:${dateKey}`;
 
@@ -920,6 +974,8 @@ async function loadScheduleCandidates(
         configuredRoundAt: roundInfo.scheduledAt,
         scheduleSource: "invitation",
         rawRound: roundInfo.raw,
+        assignedEmployees: resolved.assignees,
+        exposureReason: resolved.exposureReason,
       });
     }
   }
@@ -930,11 +986,22 @@ async function loadScheduleCandidates(
     .toArray();
 
   for (const user of users) {
-    const rounds = extractScheduledRoundsForDate(user, dateKey, options);
+    const rounds = extractScheduledRoundsForDate(user, dateKey, extractOptions);
 
     if (!rounds.length) continue;
 
     for (const roundInfo of rounds) {
+      const resolved = resolveAssigneesForRound({
+        scheduledAt: roundInfo.scheduledAt,
+        dateKey,
+        now,
+        force,
+        startedEmployees,
+        allEmployees,
+      });
+
+      if (!resolved) continue;
+
       const invitation = await findInvitationForUserRound(user, roundInfo.raw);
 
       if (!invitation) continue;
@@ -953,6 +1020,8 @@ async function loadScheduleCandidates(
         configuredRoundAt: roundInfo.scheduledAt,
         scheduleSource: "user",
         rawRound: roundInfo.raw,
+        assignedEmployees: resolved.assignees,
+        exposureReason: resolved.exposureReason,
       });
     }
   }
@@ -979,11 +1048,142 @@ function shiftEmployeeId(shift: any) {
   );
 }
 
+function parseShiftWindow(shift: any): ShiftWindowWithId | null {
+  const startMinutes =
+    parseClockToMinutes(shift?.scheduledStart) ??
+    parseClockToMinutes(shift?.shiftStart) ??
+    parseClockToMinutes(shift?.startTime) ??
+    parseClockToMinutes(shift?.start) ??
+    null;
+
+  const endMinutes =
+    parseClockToMinutes(shift?.scheduledEnd) ??
+    parseClockToMinutes(shift?.shiftEnd) ??
+    parseClockToMinutes(shift?.endTime) ??
+    parseClockToMinutes(shift?.end) ??
+    null;
+
+  // Missing clock times: treat as full Israel day so shift still participates.
+  const resolvedStart = startMinutes ?? 0;
+  const resolvedEnd = endMinutes ?? 23 * 60 + 59;
+
+  return {
+    shiftId: toObjectId(shift?._id || shift?.id),
+    startMinutes: resolvedStart,
+    endMinutes: resolvedEnd,
+  };
+}
+
+function employeeHasStartedShift(
+  employee: ScheduledEmployee,
+  dateKey: string,
+  now: Date
+) {
+  return employee.windows.some((window) =>
+    hasEmployeeShiftStarted({
+      dateKey,
+      startMinutes: window.startMinutes,
+      now,
+    })
+  );
+}
+
+function employeeCoversScheduledAt(
+  employee: ScheduledEmployee,
+  dateKey: string,
+  scheduledAt: Date
+) {
+  return employee.windows.some((window) =>
+    shiftCoversScheduledRound({
+      dateKey,
+      scheduledAt,
+      window,
+    })
+  );
+}
+
+function pickPrimaryShiftId(employee: ScheduledEmployee, scheduledAt?: Date) {
+  if (scheduledAt) {
+    const covering = employee.windows.find((window) =>
+      shiftCoversScheduledRound({
+        dateKey: getDateKeyInIsrael(scheduledAt),
+        scheduledAt,
+        window,
+      })
+    );
+    if (covering?.shiftId) return covering.shiftId;
+  }
+
+  return employee.windows[0]?.shiftId || employee.shiftId || null;
+}
+
+function withPrimaryShiftForRound(
+  employee: ScheduledEmployee,
+  scheduledAt: Date
+): ScheduledEmployee {
+  return {
+    ...employee,
+    shiftId: pickPrimaryShiftId(employee, scheduledAt),
+  };
+}
+
+function resolveAssigneesForRound(input: {
+  scheduledAt: Date;
+  dateKey: string;
+  now: Date;
+  force: boolean;
+  startedEmployees: ScheduledEmployee[];
+  allEmployees: ScheduledEmployee[];
+}): {
+  assignees: ScheduledEmployee[];
+  exposureReason: "shift_started" | "round_due" | "force";
+} | null {
+  const { scheduledAt, dateKey, now, force, startedEmployees, allEmployees } =
+    input;
+
+  const coveringStarted = startedEmployees
+    .filter((employee) => employeeCoversScheduledAt(employee, dateKey, scheduledAt))
+    .map((employee) => withPrimaryShiftForRound(employee, scheduledAt));
+
+  const expose = shouldExposeCallRoundWorkOrder({
+    scheduledAt,
+    dateKey,
+    now,
+    force,
+    hasCoveringStartedShift: coveringStarted.length > 0,
+  });
+
+  if (!expose) return null;
+
+  if (force) {
+    const pool =
+      coveringStarted.length > 0
+        ? coveringStarted
+        : (startedEmployees.length ? startedEmployees : allEmployees).map(
+            (employee) => withPrimaryShiftForRound(employee, scheduledAt)
+          );
+
+    return { assignees: pool, exposureReason: "force" };
+  }
+
+  if (coveringStarted.length > 0) {
+    return { assignees: coveringStarted, exposureReason: "shift_started" };
+  }
+
+  // Round already due but no covering window — fall back to started/day roster.
+  const fallback = (
+    startedEmployees.length ? startedEmployees : allEmployees
+  ).map((employee) => withPrimaryShiftForRound(employee, scheduledAt));
+
+  return { assignees: fallback, exposureReason: "round_due" };
+}
+
 function normalizeShiftEmployee(shift: any): ScheduledEmployee | null {
   const employeeObjectId = toObjectId(shiftEmployeeId(shift));
 
   if (!employeeObjectId) return null;
 
+  const window = parseShiftWindow(shift);
   const shiftObjectId = toObjectId(shift?._id || shift?.id);
 
   return {
@@ -1005,6 +1205,7 @@ function normalizeShiftEmployee(shift: any): ScheduledEmployee | null {
       cleanStr(shift?.phone) ||
       cleanStr(shift?.employee?.phone) ||
       cleanStr(shift?.user?.phone),
+    windows: window ? [window] : [],
   };
 }
 
@@ -1073,8 +1274,25 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
 
     if (!normalized) continue;
 
-    if (!map.has(normalized.employeeIdString)) {
+    const existing = map.get(normalized.employeeIdString);
+
+    if (!existing) {
       map.set(normalized.employeeIdString, normalized);
+      continue;
+    }
+
+    for (const window of normalized.windows) {
+      const duplicate = existing.windows.some(
+        (w) =>
+          w.startMinutes === window.startMinutes &&
+          w.endMinutes === window.endMinutes &&
+          String(w.shiftId || "") === String(window.shiftId || "")
+      );
+      if (!duplicate) existing.windows.push(window);
+    }
+
+    if (!existing.shiftId && normalized.shiftId) {
+      existing.shiftId = normalized.shiftId;
     }
   }
 
@@ -2478,11 +2696,9 @@ async function createWorkOrderForCandidate(input: {
 
   const now = new Date();
   const workDate = startOfDateKey(dateKey);
-  const autoOpenAt =
-    candidate.configuredRoundAt instanceof Date &&
-    !Number.isNaN(candidate.configuredRoundAt.getTime())
-      ? candidate.configuredRoundAt
-      : autoOpenAtForDateKey(dateKey);
+  // autoOpenAt = when the WO was exposed to staff (shift-start / cron),
+  // not the planned call-round execution time (configuredRoundAt / scheduledAt).
+  const autoOpenAt = now;
   const sourceAudience = resolveSourceAudience(candidate.round);
 
   const assignedEmployeeIds = scheduledEmployees.map(
@@ -2827,36 +3043,45 @@ async function handleAutoOpen(req: NextRequest) {
     });
 
     const scheduledEmployees = await loadScheduledEmployeesForDate(dateKey);
+    const startedEmployees = scheduledEmployees.filter((employee) =>
+      employeeHasStartedShift(employee, dateKey, now)
+    );
 
     console.info("[auto-open] employees", {
       dateKey,
       count: scheduledEmployees.length,
+      startedCount: startedEmployees.length,
       employeeIds: scheduledEmployees.map((e) => e.employeeIdString),
+      startedEmployeeIds: startedEmployees.map((e) => e.employeeIdString),
     });
 
     const candidates = await loadScheduleCandidates(dateKey, maxCandidates, {
       now,
       force,
+      startedEmployees,
+      allEmployees: scheduledEmployees,
     });
 
-    console.info("[auto-open] rounds due", {
+    console.info("[auto-open] rounds for exposure", {
       dateKey,
       count: candidates.length,
       rounds: candidates.map((c) => ({
         round: c.round,
         invitationId: extractIdString(c.invitation?._id),
         scheduledAt: c.configuredRoundAt?.toISOString?.() || null,
+        exposureReason: c.exposureReason,
+        assigneeIds: c.assignedEmployees.map((e) => e.employeeIdString),
       })),
     });
 
     if (!candidates.length) {
-      console.info("[auto-open] no due rounds", { dateKey, force });
+      console.info("[auto-open] no exposable rounds", { dateKey, force });
       return NextResponse.json({
         success: true,
         skipped: true,
-        reason: "NO_DUE_SCHEDULED_ROUNDS_FOR_DATE",
+        reason: "NO_EXPOSABLE_SCHEDULED_ROUNDS_FOR_DATE",
         message:
-          "לא נמצאו סבבי שיחות שמועד הביצוע שלהם (תאריך+שעה שעון ישראל) כבר הגיע",
+          "לא נמצאו סבבי שיחות לחשיפה: אין סבב שחל במהלך משמרת שכבר התחילה, ואין סבב שמועד הביצוע שלו כבר הגיע",
         dateKey,
         todayKey,
         timezone: TIMEZONE,
@@ -2864,6 +3089,7 @@ async function handleAutoOpen(req: NextRequest) {
         currentIsraelHour,
         force,
         employeesCount: scheduledEmployees.length,
+        startedEmployeesCount: startedEmployees.length,
         durationMs: Date.now() - startedAt,
       });
     }
@@ -2872,7 +3098,9 @@ async function handleAutoOpen(req: NextRequest) {
 
     for (const candidate of candidates) {
       try {
-        if (!scheduledEmployees.length) {
+        const assignees = candidate.assignedEmployees;
+
+        if (!assignees.length) {
           await markCallRoundWaitingForAssignment({
             clientUser: candidate.clientUser,
             invitation: candidate.invitation,
@@ -2885,6 +3113,7 @@ async function handleAutoOpen(req: NextRequest) {
             reason: "NO_EMPLOYEES_SCHEDULED",
             waitingForAssignment: true,
             round: candidate.round,
+            exposureReason: candidate.exposureReason,
             clientName: getClientName(candidate.invitation, candidate.clientUser),
             clientEmail: getClientEmail(
               candidate.invitation,
@@ -2907,12 +3136,13 @@ async function handleAutoOpen(req: NextRequest) {
 
         const result = await createWorkOrderForCandidate({
           candidate,
-          scheduledEmployees,
+          scheduledEmployees: assignees,
           dateKey,
         });
 
         const row = {
           ...result,
+          exposureReason: candidate.exposureReason,
           clientName: getClientName(candidate.invitation, candidate.clientUser),
           clientEmail: getClientEmail(
             candidate.invitation,
@@ -2928,6 +3158,7 @@ async function handleAutoOpen(req: NextRequest) {
           console.info("[auto-open] workOrder created", {
             round: row.round,
             invitationId: row.invitationId,
+            exposureReason: candidate.exposureReason,
             totalTasks: (row as any).totalTasks,
             employeesCount: (row as any).employeesCount,
             workOrderId:
@@ -2941,6 +3172,7 @@ async function handleAutoOpen(req: NextRequest) {
             status: row.status,
             reason: (row as any).reason,
             invitationId: row.invitationId,
+            exposureReason: candidate.exposureReason,
           });
         }
 
@@ -2956,6 +3188,7 @@ async function handleAutoOpen(req: NextRequest) {
           status: "error",
           reason: error?.message || "CREATE_WORK_ORDER_FAILED",
           round: candidate.round,
+          exposureReason: candidate.exposureReason,
           clientName: getClientName(candidate.invitation, candidate.clientUser),
           clientEmail: getClientEmail(
             candidate.invitation,
@@ -2992,12 +3225,19 @@ async function handleAutoOpen(req: NextRequest) {
       currentIsraelHour,
       force,
       employeesCount: scheduledEmployees.length,
+      startedEmployeesCount: startedEmployees.length,
       employees: scheduledEmployees.map((employee) => ({
         employeeId: employee.employeeIdString,
         name: employee.employeeName,
         email: employee.employeeEmail,
         phone: employee.employeePhone,
         shiftId: employee.shiftId ? String(employee.shiftId) : "",
+        windows: employee.windows.map((w) => ({
+          shiftId: w.shiftId ? String(w.shiftId) : "",
+          startMinutes: w.startMinutes,
+          endMinutes: w.endMinutes,
+        })),
+        started: employeeHasStartedShift(employee, dateKey, now),
       })),
       totalCandidates: candidates.length,
       createdCount: created.length,

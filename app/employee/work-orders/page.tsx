@@ -137,6 +137,23 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+/** Planned call-round execution clock, e.g. "מתוכנן ל־12:00". */
+function formatPlannedExecution(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const time = date.toLocaleTimeString("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+  return `מתוכנן ל־${time}`;
+}
+
 function getStatusLabel(status: string) {
   const map: Record<string, string> = {
     scheduled: "מתוזמנת",
@@ -412,8 +429,9 @@ export default function EmployeeWorkOrdersPage() {
         <section className="emptyCard">
           <h2>אין הוראות עבודה להצגה</h2>
           <p>
-            אם אמורות להיות הוראות עבודה להיום, בדקי שיש עובדים משובצים
-            במשמרת ושנפתחו הוראות עבודה אוטומטית.
+            אם אמורות להיות הוראות עבודה להיום, בדקי שיש שיבוץ למשמרת שכבר
+            התחילה, ושסבבי השיחות חלים במהלך שעות המשמרת (הם מופיעים מתחילת
+            המשמרת עם שעת הביצוע המתוכננת).
           </p>
         </section>
       ) : (
@@ -801,8 +819,8 @@ function WorkOrderCard({
         </div>
 
         <div>
-          <span>מועד סבב שהוגדר</span>
-          <strong>{formatDateTime(order.configuredRoundAt)}</strong>
+          <span>שעת ביצוע מתוכננת</span>
+          <strong>{formatPlannedExecution(order.configuredRoundAt)}</strong>
         </div>
       </div>
 
