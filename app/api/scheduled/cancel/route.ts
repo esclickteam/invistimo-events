@@ -7,6 +7,7 @@ import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Invitation from "@/models/Invitation";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import { buildInvitationScheduleClearPatch } from "@/lib/invitationScheduleMirror";
 
 export const dynamic = "force-dynamic";
 
@@ -63,67 +64,19 @@ function isValidObjectId(value: any) {
   return mongoose.Types.ObjectId.isValid(String(value || ""));
 }
 
-function normalizeRound(value: any): 1 | 2 | 3 {
-  const n = Number(value);
-
-  if (n === 2) return 2;
-  if (n === 3) return 3;
-
-  return 1;
-}
-
-function normalizeMessageType(value: any) {
-  const type = String(value || "").toLowerCase();
-
-  if (type === "reminder") return "reminder";
-  if (type === "thankyou" || type === "thank_you" || type === "thank-you") {
-    return "thankyou";
-  }
-
-  return "rsvp";
-}
-
-function normalizeChannel(value: any) {
-  const channel = String(value || "").toLowerCase();
-
-  if (channel === "sms") return "sms";
-  if (channel === "whatsapp") return "whatsapp";
-
-  return channel;
-}
-
-function getRsvpScheduledField(channel: string, round: 1 | 2 | 3) {
-  if (channel === "sms") {
-    return `rsvpSmsRound${round}ScheduledAt`;
-  }
-
-  return `rsvpWhatsappRound${round}ScheduledAt`;
-}
-
 function buildInvitationUnsetPatch(schedule: any) {
-  const type = normalizeMessageType(schedule.type);
-  const channel = normalizeChannel(schedule.channel);
+  const clear = buildInvitationScheduleClearPatch({
+    type: schedule.type,
+    channel: schedule.channel,
+    round: schedule.round ?? schedule.roundNumber,
+  });
 
-  const $set: Record<string, any> = {
-    updatedAt: new Date(),
+  return {
+    $set: {
+      ...(clear || {}),
+      updatedAt: new Date(),
+    },
   };
-
-  if (type === "rsvp") {
-    const round = normalizeRound(schedule.round ?? schedule.roundNumber);
-    const scheduledField = getRsvpScheduledField(channel, round);
-
-    $set[scheduledField] = null;
-  }
-
-  if (type === "reminder") {
-    $set.reminderScheduledAt = null;
-  }
-
-  if (type === "thankyou") {
-    $set.thankYouScheduledAt = null;
-  }
-
-  return { $set };
 }
 
 /* ======================================================

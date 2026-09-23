@@ -1,6 +1,11 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
+import Invitation from "@/models/Invitation";
+import {
+  buildInvitationScheduleClearPatch,
+  buildInvitationScheduleSetPatch,
+} from "@/lib/invitationScheduleMirror";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
@@ -136,6 +141,26 @@ export async function PATCH(
     msg.scheduledAt = scheduledAt;
     await msg.save();
 
+    /**
+     * Keep Invitation mirror fields in sync for לוח אישורי הגעה.
+     * PATCH previously updated ScheduledMessage only — that desynced the board.
+     */
+    const invitationPatch = buildInvitationScheduleSetPatch({
+      type: msg.type,
+      channel: msg.channel,
+      round: msg.round ?? msg.roundNumber,
+      scheduledAt,
+    });
+
+    if (invitationPatch && msg.invitationId) {
+      await Invitation.findByIdAndUpdate(msg.invitationId, {
+        $set: {
+          ...invitationPatch,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("PATCH scheduled message error:", err);
@@ -187,7 +212,22 @@ export async function DELETE(
       );
     }
 
+    const invitationPatch = buildInvitationScheduleClearPatch({
+      type: msg.type,
+      channel: msg.channel,
+      round: msg.round ?? msg.roundNumber,
+    });
+
     await msg.deleteOne();
+
+    if (invitationPatch && msg.invitationId) {
+      await Invitation.findByIdAndUpdate(msg.invitationId, {
+        $set: {
+          ...invitationPatch,
+          updatedAt: new Date(),
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
