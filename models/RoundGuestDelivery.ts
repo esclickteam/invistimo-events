@@ -29,6 +29,8 @@ export const SMS_FALLBACK_STATUSES = [
   "DELIVERED",
   "FAILED",
   "SKIPPED",
+  /** The request may have reached the provider but acceptance was never confirmed. Never resent. */
+  "OUTCOME_UNKNOWN",
 ] as const;
 
 export type SmsFallbackStatus = (typeof SMS_FALLBACK_STATUSES)[number];
@@ -92,6 +94,8 @@ const RoundGuestDeliverySchema = new Schema(
       reasonMessage: { type: String, default: null },
       errorCode: { type: String, default: null },
       errorMessage: { type: String, default: null },
+      /** MISSING_TEMPLATE_VARIABLE: { templateName, component, index, variable, source, detail } */
+      templateVariable: { type: Schema.Types.Mixed, default: null },
       queueId: {
         type: Schema.Types.ObjectId,
         ref: "WhatsappQueue",
@@ -129,6 +133,10 @@ const RoundGuestDeliverySchema = new Schema(
       provider: { type: String, default: null },
       providerMessageId: { type: String, default: null },
       providerStatus: { type: String, default: null },
+      /** Raw provider response body (truncated) + HTTP status, for investigation. */
+      providerResponse: { type: String, default: null },
+      httpStatus: { type: Number, default: null },
+      unknownAt: { type: Date, default: null },
       errorCode: { type: String, default: null },
       errorMessage: { type: String, default: null },
       triggeredAt: { type: Date, default: null },

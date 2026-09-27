@@ -54,6 +54,8 @@ export const SMS_REASON_LABELS: Record<string, string> = {
   PROVIDER_REJECTED: "ספק ה-SMS דחה את ההודעה",
   PROVIDER_HTTP_ERROR: "שגיאת שרת בספק ה-SMS",
   PROVIDER_UNREACHABLE: "לא ניתן להתחבר לספק ה-SMS",
+  PROVIDER_OUTCOME_UNKNOWN:
+    "לא התקבלה תשובה ברורה מספק ה-SMS – לא ידוע אם ההודעה התקבלה, לא נשלח שוב כדי למנוע כפילות",
   SMS_NOT_CONFIGURED: "ספק ה-SMS לא מוגדר בשרת",
   DISPATCH_OUTCOME_UNKNOWN:
     "השרת נעצר באמצע השליחה – תוצאה לא ידועה, לא נשלח שוב כדי למנוע כפילות",
@@ -110,13 +112,35 @@ export function reasonForMetaCode(code?: string | null, fallback = "PROVIDER_ERR
   return (clean && META_CODE_REASONS[clean]) || fallback;
 }
 
+export type TemplateVariableInfo = {
+  templateName?: string;
+  component: string;
+  index: number;
+  variable: string;
+  source: string;
+  detail?: string;
+};
+
 export type WhatsappOutcome = {
   status: "FAILED" | "NOT_SENT";
   reasonCode: string;
   reasonMessage: string;
   errorCode: string | null;
   errorMessage: string;
+  templateVariable?: TemplateVariableInfo | null;
 };
+
+const TEMPLATE_COMPONENT_LABELS: Record<string, string> = {
+  header: "כותרת",
+  body: "גוף ההודעה",
+  button: "כפתור URL",
+};
+
+export function describeTemplateVariable(info?: TemplateVariableInfo | null) {
+  if (!info) return "";
+  const component = TEMPLATE_COMPONENT_LABELS[info.component] || info.component;
+  return `${component} ${info.variable} (מקור: ${info.source})`;
+}
 
 function tryParseJson(text: string) {
   try {
@@ -170,6 +194,14 @@ export function classifyWhatsappSendError(err: any): WhatsappOutcome {
     errorMessage: detail,
   });
 
+  if (err?.code === "MISSING_TEMPLATE_VARIABLE" && err?.templateVariable) {
+    const templateVariable = err.templateVariable as TemplateVariableInfo;
+    return {
+      ...notSent("MISSING_TEMPLATE_VARIABLE"),
+      reasonMessage: `${getWhatsappReasonLabel("MISSING_TEMPLATE_VARIABLE")}: ${describeTemplateVariable(templateVariable)}`,
+      templateVariable,
+    };
+  }
   if (
     message.startsWith("EXTERNAL_SENDS_DISABLED") ||
     message.startsWith("PHONE_NOT_IN_EXTERNAL_SENDS")
@@ -552,12 +584,19 @@ export async function recordWhatsappSendFailure({
       event: result.status === "FAILED" ? "WA_FAILED" : "WA_NOT_SENT",
       reasonCode: result.reasonCode,
       message: result.errorMessage,
-      meta: result.errorCode ? { errorCode: result.errorCode } : null,
+      meta:
+        result.errorCode || result.templateVariable
+          ? {
+              ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+              ...(result.templateVariable ? { templateVariable: result.templateVariable } : {}),
+            }
+          : null,
       fields: {
         reasonCode: result.reasonCode,
         reasonMessage: result.reasonMessage,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        templateVariable: result.templateVariable || null,
         attemptedAt: result.status === "FAILED" ? at : null,
         ...(result.status === "FAILED" ? { failedAt: at } : { notSentAt: at }),
       },

@@ -387,16 +387,16 @@ async function recoverStaleClaims(now: Date) {
     },
     {
       $set: {
-        "sms.status": "FAILED",
+        "sms.status": "OUTCOME_UNKNOWN",
         "sms.reasonCode": "DISPATCH_OUTCOME_UNKNOWN",
         "sms.reasonMessage": getSmsReasonLabel("DISPATCH_OUTCOME_UNKNOWN"),
         "sms.errorCode": "DISPATCH_OUTCOME_UNKNOWN",
-        "sms.failedAt": now,
+        "sms.unknownAt": now,
         "sms.lockId": null,
         "sms.lockedAt": null,
       },
       $push: {
-        history: historyEntry(now, "SMS_FAILED", "FAILED", "DISPATCH_OUTCOME_UNKNOWN"),
+        history: historyEntry(now, "SMS_OUTCOME_UNKNOWN", "OUTCOME_UNKNOWN", "DISPATCH_OUTCOME_UNKNOWN"),
       },
     }
   );
@@ -547,14 +547,38 @@ export async function processWhatsappSmsFallbacks(
       const result = await deps.sendSms({ to: evaluation.phone, message: evaluation.text });
       const doneAt = deps.now();
       const attempts = Number(record.sms?.attempts || 0) + 1;
+      const evidence = {
+        "sms.provider": result.provider,
+        "sms.providerStatus": result.providerStatus,
+        "sms.providerResponse": result.rawResponse ?? null,
+        "sms.httpStatus": result.httpStatus ?? null,
+      };
+      const evidenceMeta = {
+        phone: result.recipient || evaluation.phone,
+        httpStatus: result.httpStatus ?? null,
+        providerStatus: result.providerStatus,
+        providerResponse: result.rawResponse ?? null,
+        attempt: attempts,
+      };
+      console.info("[sms-fallback] provider outcome", {
+        recordId: String(record._id),
+        roundKey: record.roundKey,
+        guestId: String(record.guestId),
+        phone: `***${String(evidenceMeta.phone || "").slice(-4)}`,
+        ok: result.ok,
+        errorCode: result.ok ? null : result.errorCode,
+        httpStatus: evidenceMeta.httpStatus,
+        providerStatus: evidenceMeta.providerStatus,
+        providerResponse: evidenceMeta.providerResponse,
+      });
 
+      // SENT = the provider explicitly accepted the request. It does not mean delivered to the handset.
       if (result.ok) {
         await RoundGuestDelivery.updateOne(own, {
           $set: {
+            ...evidence,
             "sms.status": "SENT",
             "sms.sentAt": doneAt,
-            "sms.provider": result.provider,
-            "sms.providerStatus": result.providerStatus,
             "sms.providerMessageId": result.providerMessageId,
             "sms.reasonCode": null,
             "sms.reasonMessage": null,
@@ -565,7 +589,8 @@ export async function processWhatsappSmsFallbacks(
           },
           $push: {
             history: historyEntry(doneAt, "SMS_SENT", "SENT", null, null, {
-              providerStatus: result.providerStatus,
+              ...evidenceMeta,
+              providerMessage: result.providerMessage,
               parts: evaluation.parts,
             }),
           },
@@ -600,7 +625,7 @@ export async function processWhatsappSmsFallbacks(
               null,
               result.errorCode,
               result.errorMessage,
-              { attempt: attempts }
+              evidenceMeta
             ),
           },
         });
@@ -608,12 +633,39 @@ export async function processWhatsappSmsFallbacks(
         continue;
       }
 
+      if (result.outcomeUnknown) {
+        await RoundGuestDelivery.updateOne(own, {
+          $set: {
+            ...evidence,
+            "sms.status": "OUTCOME_UNKNOWN",
+            "sms.unknownAt": doneAt,
+            "sms.reasonCode": result.errorCode,
+            "sms.reasonMessage": getSmsReasonLabel(result.errorCode),
+            "sms.errorCode": result.errorCode,
+            "sms.errorMessage": result.errorMessage,
+            "sms.lockId": null,
+            "sms.lockedAt": null,
+          },
+          $push: {
+            history: historyEntry(
+              doneAt,
+              "SMS_OUTCOME_UNKNOWN",
+              "OUTCOME_UNKNOWN",
+              result.errorCode,
+              result.errorMessage,
+              evidenceMeta
+            ),
+          },
+        });
+        stats.unknown++;
+        continue;
+      }
+
       await RoundGuestDelivery.updateOne(own, {
         $set: {
+          ...evidence,
           "sms.status": "FAILED",
           "sms.failedAt": doneAt,
-          "sms.provider": result.provider,
-          "sms.providerStatus": result.providerStatus,
           "sms.reasonCode": result.errorCode,
           "sms.reasonMessage": getSmsReasonLabel(result.errorCode),
           "sms.errorCode": result.errorCode,
@@ -622,7 +674,7 @@ export async function processWhatsappSmsFallbacks(
           "sms.lockedAt": null,
         },
         $push: {
-          history: historyEntry(doneAt, "SMS_FAILED", "FAILED", result.errorCode, result.errorMessage),
+          history: historyEntry(doneAt, "SMS_FAILED", "FAILED", result.errorCode, result.errorMessage, evidenceMeta),
         },
       });
       stats.failed++;

@@ -29,6 +29,7 @@ export type SmsChannelStatus =
   | "DELIVERED"
   | "FAILED"
   | "SKIPPED"
+  | "OUTCOME_UNKNOWN"
   | "NONE";
 
 export type ChannelFilter =
@@ -38,7 +39,8 @@ export type ChannelFilter =
   | "sms_delivered"
   | "sms_failed"
   | "sms_skipped"
-  | "sms_pending";
+  | "sms_pending"
+  | "sms_unknown";
 
 export const WHATSAPP_CHANNEL_LABELS: Record<WhatsappChannelStatus, string> = {
   NOT_SENT: "לא נשלח",
@@ -58,6 +60,7 @@ export const SMS_CHANNEL_LABELS: Record<SmsChannelStatus, string> = {
   DELIVERED: "נמסר",
   FAILED: "נכשל",
   SKIPPED: "דולג",
+  OUTCOME_UNKNOWN: "תוצאה לא ידועה",
   NONE: "—",
 };
 
@@ -69,6 +72,7 @@ export const CHANNEL_FILTER_LABELS: Record<ChannelFilter, string> = {
   sms_failed: "SMS נכשל",
   sms_skipped: "SMS דולג",
   sms_pending: "SMS ממתין",
+  sms_unknown: "SMS תוצאה לא ידועה",
 };
 
 export type RoundChipLike = {
@@ -96,7 +100,19 @@ export type RoundChipLike = {
     deliveredAt?: string | Date | null;
     failedAt?: string | Date | null;
     skippedAt?: string | Date | null;
+    unknownAt?: string | Date | null;
+    phone?: string | null;
+    providerStatus?: string | null;
+    providerResponse?: string | null;
+    httpStatus?: number | null;
   } | null;
+};
+
+export type SmsProviderEvidenceView = {
+  phone: string | null;
+  providerStatus: string | null;
+  providerResponse: string | null;
+  httpStatus: number | null;
 };
 
 export type GuestChannelView = {
@@ -115,6 +131,7 @@ export type GuestChannelView = {
     reason: string | null;
     errorCode: string | null;
     at: string | Date | null;
+    evidence: SmsProviderEvidenceView | null;
   };
 };
 
@@ -146,7 +163,8 @@ function chipActivityAt(chip: RoundChipLike) {
     toTime(chip.notSentAt),
     toTime(chip.sms?.sentAt),
     toTime(chip.sms?.failedAt),
-    toTime(chip.sms?.skippedAt)
+    toTime(chip.sms?.skippedAt),
+    toTime(chip.sms?.unknownAt)
   );
 }
 
@@ -202,7 +220,7 @@ export function getGuestChannelView(
         errorCode: null,
         at: null,
       },
-      sms: { status: "NONE", label: SMS_CHANNEL_LABELS.NONE, reason: null, errorCode: null, at: null },
+      sms: { status: "NONE", label: SMS_CHANNEL_LABELS.NONE, reason: null, errorCode: null, at: null, evidence: null },
     };
   }
 
@@ -235,6 +253,16 @@ function getSmsChannel(chip: RoundChipLike, waStatus: WhatsappChannelStatus): Gu
   const raw = String(sms?.status || "").toUpperCase();
   const waSucceeded = waStatus === "SENT" || waStatus === "DELIVERED" || waStatus === "READ";
 
+  const hasEvidence = Boolean(sms?.phone || sms?.providerStatus || sms?.providerResponse || sms?.httpStatus);
+  const evidence: SmsProviderEvidenceView | null = hasEvidence
+    ? {
+        phone: sms?.phone || null,
+        providerStatus: sms?.providerStatus || null,
+        providerResponse: sms?.providerResponse || null,
+        httpStatus: typeof sms?.httpStatus === "number" ? sms.httpStatus : null,
+      }
+    : null;
+
   const build = (
     status: SmsChannelStatus,
     reason: string | null = null,
@@ -243,8 +271,9 @@ function getSmsChannel(chip: RoundChipLike, waStatus: WhatsappChannelStatus): Gu
     status,
     label: SMS_CHANNEL_LABELS[status],
     reason,
-    errorCode: status === "FAILED" ? sms?.errorCode || null : null,
+    errorCode: status === "FAILED" || status === "OUTCOME_UNKNOWN" ? sms?.errorCode || null : null,
     at,
+    evidence: status === "SENT" || status === "FAILED" || status === "OUTCOME_UNKNOWN" ? evidence : null,
   });
 
   if (raw === "SKIPPED" && sms?.reasonCode === "WHATSAPP_SUCCEEDED") {
@@ -256,6 +285,9 @@ function getSmsChannel(chip: RoundChipLike, waStatus: WhatsappChannelStatus): Gu
     return build("FAILED", sms?.reasonText || sms?.errorMessage || null, sms?.failedAt || null);
   }
   if (raw === "SKIPPED") return build("SKIPPED", sms?.reasonText || null, sms?.skippedAt || null);
+  if (raw === "OUTCOME_UNKNOWN") {
+    return build("OUTCOME_UNKNOWN", sms?.reasonText || sms?.errorMessage || null, sms?.unknownAt || null);
+  }
   if (raw === "PENDING" || raw === "WAITING") {
     return build("PENDING", raw === "WAITING" ? "ממתין לבדיקת גיבוי" : "בתהליך שליחה", sms?.triggeredAt || null);
   }
@@ -284,6 +316,8 @@ export function matchesChannelFilter(view: GuestChannelView, filter: ChannelFilt
       return view.sms.status === "SKIPPED";
     case "sms_pending":
       return view.sms.status === "PENDING";
+    case "sms_unknown":
+      return view.sms.status === "OUTCOME_UNKNOWN";
     default:
       return false;
   }

@@ -29,6 +29,7 @@ import {
   matchesChannelFilter,
 } from "../../lib/whatsapp/guestChannelView";
 import { buildWhatsappRoundReportWorkbook } from "../../lib/whatsapp/exportRoundReportExcel";
+import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
 
 process.env.WHATSAPP_SMS_FALLBACK_GRACE_MS = String(2 * 60 * 1000);
 delete process.env.WHATSAPP_SMS_FALLBACK_DISABLED;
@@ -44,6 +45,9 @@ function okResult(): SmsSendResult {
     providerStatus: "1",
     providerMessage: "accepted",
     providerMessageId: null,
+    recipient: "",
+    httpStatus: 200,
+    rawResponse: '{"status":1,"message":"accepted"}',
   };
 }
 
@@ -55,6 +59,25 @@ function failResult(retryable = false): SmsSendResult {
     errorMessage: retryable ? "HTTP 503: unavailable" : "invalid destination",
     providerStatus: retryable ? null : "-2",
     retryable,
+    outcomeUnknown: false,
+    recipient: "",
+    httpStatus: retryable ? 503 : 200,
+    rawResponse: retryable ? "unavailable" : '{"status":-2,"message":"invalid destination"}',
+  };
+}
+
+function unknownResult(): SmsSendResult {
+  return {
+    ok: false,
+    provider: "sms4free",
+    errorCode: "PROVIDER_OUTCOME_UNKNOWN",
+    errorMessage: "timeout after 20000ms",
+    providerStatus: null,
+    retryable: false,
+    outcomeUnknown: true,
+    recipient: "",
+    httpStatus: null,
+    rawResponse: null,
   };
 }
 
@@ -542,7 +565,7 @@ test("WhatsApp round tracking + SMS fallback (real MongoDB)", async (t) => {
       assert.equal(sent.length, 0);
 
       const record = await getRecord(seed);
-      assert.equal(record.sms.status, "FAILED");
+      assert.equal(record.sms.status, "OUTCOME_UNKNOWN");
       assert.equal(record.sms.reasonCode, "DISPATCH_OUTCOME_UNKNOWN");
     });
 
@@ -868,6 +891,137 @@ test("WhatsApp round tracking + SMS fallback (real MongoDB)", async (t) => {
       assert.equal(recordA.sms.status, null);
       assert.equal(recordB.whatsapp.status, "FAILED");
       assert.equal(recordB.sms.status, "SENT");
+    });
+
+    await t.test("wedding-website /w/ link: WA NOT_SENT with exact variable, report not_sent, SMS evidence stored", async () => {
+      await clearPending();
+      process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+      const seed = await seedGuest({ phone: "0526850711" });
+      await User.collection.updateOne(
+        { _id: seed.ownerId },
+        { $set: { role: "user", isActive: true, authVersion: 0 } }
+      );
+      const queueId = await queueRound(seed);
+
+      // Reproduce the real sender error (no network: it throws before calling Meta).
+      process.env.WHATSAPP_API_KEY = "test-key";
+      const sendError = await sendRsvpTemplateMedia({
+        to: seed.phone,
+        headerImageUrl: "https://www.invistimo.com/header.jpg",
+        eventTitle: "בדיקה",
+        templateName: "rsvp_invitation_media",
+        rsvpLink: `https://www.invistimo.com/unknown/share_${seed.invitationId}?token=${seed.token}`,
+      }).then(
+        () => null,
+        (err) => err
+      );
+      assert.ok(sendError, "sender must reject an underivable button param");
+
+      await markQueue(queueId, { status: "failed", providerStatus: "failed", error: sendError.message, failedAt: new Date() });
+      await recordWhatsappSendFailure({ queueId, error: sendError });
+
+      let record = await getRecord(seed);
+      assert.equal(record.whatsapp.status, "NOT_SENT");
+      assert.equal(record.whatsapp.reasonCode, "MISSING_TEMPLATE_VARIABLE");
+      assert.equal(record.whatsapp.templateVariable.component, "button");
+      assert.equal(record.whatsapp.templateVariable.variable, "{{1}}");
+      assert.match(record.whatsapp.reasonMessage, /כפתור URL \{\{1\}\}/);
+      const waHistory = record.history.find((h: any) => h.event === "WA_NOT_SENT" || h.event === "WA_FAILED");
+      assert.equal(waHistory.meta.templateVariable.component, "button");
+
+      const sent: SentSms[] = [];
+      await processWhatsappSmsFallbacks({
+        deps: makeDeps(sent, { offsetMs: 0, result: () => ({ ...okResult(), recipient: "972526850711" }) }),
+      });
+      assert.equal(sent.length, 1);
+
+      record = await getRecord(seed);
+      assert.equal(record.sms.status, "SENT");
+      assert.equal(record.sms.phone, "972526850711");
+      assert.equal(record.sms.providerStatus, "1");
+      assert.equal(record.sms.httpStatus, 200);
+      assert.equal(record.sms.providerResponse, '{"status":1,"message":"accepted"}');
+      const smsHistory = record.history.find((h: any) => h.event === "SMS_SENT");
+      assert.equal(smsHistory.meta.phone, "972526850711");
+      assert.equal(smsHistory.meta.httpStatus, 200);
+
+      const jwt = (await import("jsonwebtoken")).default;
+      const token = jwt.sign({ userId: String(seed.ownerId), role: "user", authVersion: 0 }, process.env.JWT_SECRET!);
+      const { GET } = await import("../../app/api/whatsapp/round-report/[invitationId]/route");
+      const { NextRequest } = await import("next/server");
+      const res = await GET(
+        new NextRequest(`http://localhost/api/whatsapp/round-report/${seed.invitationId}`, {
+          headers: { authorization: `Bearer ${token}` },
+        }),
+        { params: Promise.resolve({ invitationId: String(seed.invitationId) }) }
+      );
+      const body: any = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+
+      const round = body.rounds.find((r: any) => r.key === "rsvp:1");
+      assert.equal(round.failed, 0, "never reached Meta — not a Meta failure");
+      assert.equal(round.notSent, 1);
+
+      const guestRow = body.guests.find((g: any) => g.guestId === String(seed.guestId));
+      const chip = guestRow.roundStatuses.find((r: any) => r.roundKey === "rsvp:1");
+      assert.equal(chip.status, "not_sent");
+      const view = getGuestChannelView(guestRow.roundStatuses, "rsvp:1");
+      assert.equal(view.whatsapp.status, "NOT_SENT");
+      assert.match(String(view.whatsapp.reason), /כפתור URL \{\{1\}\}/);
+      assert.equal(view.sms.status, "SENT");
+      assert.equal(view.sms.evidence?.phone, "972526850711");
+
+      const delivery = guestRow.deliveries.find((d: any) => d.roundKey === "rsvp:1");
+      assert.equal(delivery.whatsapp.templateVariable.component, "button");
+      assert.equal(delivery.sms.statusLabel, "התקבל אצל ספק ה-SMS");
+      assert.equal(delivery.sms.providerResponse, '{"status":1,"message":"accepted"}');
+
+      const workbook = await buildWhatsappRoundReportWorkbook({
+        summary: body.summary,
+        rounds: body.rounds,
+        allGuests: body.guests,
+        guestsForSheets: body.guests,
+        invitationTitle: "בדיקה",
+        selectedRoundKey: "rsvp:1",
+        selectedRoundTitle: round.title,
+      });
+      const sheet = workbook.getWorksheet("אורחים")!;
+      const headers = (sheet.getRow(1).values as any[]).slice(1);
+      const col = (name: string) => headers.indexOf(name) + 1;
+      const xl = sheet.getRow(2);
+      assert.match(String(xl.getCell(col("סטטוס WhatsApp")).value), /NOT_SENT/);
+      assert.match(String(xl.getCell(col("סיבת WhatsApp")).value), /כפתור URL \{\{1\}\}/);
+      assert.equal(String(xl.getCell(col("טלפון SMS שנשלח")).value), "972526850711");
+      assert.match(String(xl.getCell(col("תוצאת ספק SMS")).value), /accepted.*status=1.*HTTP 200/);
+      assert.equal(String(xl.getCell(col("תגובת ספק SMS (גולמית)")).value), '{"status":1,"message":"accepted"}');
+    });
+
+    await t.test("SMS provider outcome unknown → OUTCOME_UNKNOWN, evidence kept, never resent", async () => {
+      await clearPending();
+      const seed = await seedGuest({ phone: "0505855327" });
+      const queueId = await queueRound(seed);
+      await markQueue(queueId, { status: "failed", providerStatus: "failed" });
+      await recordWhatsappSendFailure({ queueId, error: metaError(131026, "undeliverable") });
+
+      const sent: SentSms[] = [];
+      const stats = await processWhatsappSmsFallbacks({
+        deps: makeDeps(sent, { result: () => ({ ...unknownResult(), recipient: "972505855327" }) }),
+      });
+      assert.equal(stats.unknown, 1);
+      assert.equal(stats.sent, 0);
+      assert.equal(sent.length, 1);
+
+      const record = await getRecord(seed);
+      assert.equal(record.sms.status, "OUTCOME_UNKNOWN");
+      assert.equal(record.sms.errorCode, "PROVIDER_OUTCOME_UNKNOWN");
+      assert.ok(record.sms.unknownAt);
+      assert.ok(record.history.some((h: any) => h.event === "SMS_OUTCOME_UNKNOWN"));
+
+      const again: SentSms[] = [];
+      await processWhatsappSmsFallbacks({
+        deps: makeDeps(again, { offsetMs: AFTER_GRACE_MS * 10 }),
+      });
+      assert.equal(again.length, 0, "an unknown outcome must never be resent automatically");
     });
 
     await t.test("kill switch disables the fallback worker", async () => {

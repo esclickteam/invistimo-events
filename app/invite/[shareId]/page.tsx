@@ -10,6 +10,7 @@ import { personalRsvpAppearance } from "@/components/rsvp/rsvpAppearances";
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import { cleanStr, type GiftOptions, type PublicEventNote } from "@/lib/rsvp/guestRsvpLogic";
 import { resolveEventLocation } from "@/lib/navigationLinks";
+import { getPersonalSiteRedirectPath } from "@/lib/guestInviteUrl";
 
 type PreviewImageMode = "portrait" | "square";
 
@@ -151,7 +152,21 @@ export default function PublicInvitePage({ params }: any) {
     return "portrait";
   }, [previewOverrideMode, invite]);
 
-  if (loading) {
+  const personalSiteRedirect = useMemo(() => {
+    if (loading || !shareId || typeof window === "undefined") return null;
+    return getPersonalSiteRedirectPath({
+      invitation: invite,
+      shareId,
+      search: window.location.search,
+      isStaffPreview,
+    });
+  }, [loading, invite, shareId, isStaffPreview]);
+
+  useEffect(() => {
+    if (personalSiteRedirect) window.location.replace(personalSiteRedirect);
+  }, [personalSiteRedirect]);
+
+  if (loading || personalSiteRedirect) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7efe5]">
         <div className="rounded-[30px] border border-[#eadfce] bg-white px-8 py-7 text-center shadow-xl">

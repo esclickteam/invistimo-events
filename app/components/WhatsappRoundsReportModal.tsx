@@ -36,18 +36,34 @@ type ReportStatus =
   | "not_in_audience";
 
 type SmsFallbackState = {
-  status: "WAITING" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED";
+  status: "WAITING" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED" | "OUTCOME_UNKNOWN";
   statusLabel: string;
   reasonCode?: string | null;
   reasonText?: string | null;
   errorCode?: string | null;
   errorMessage?: string | null;
+  provider?: string | null;
+  providerStatus?: string | null;
+  providerResponse?: string | null;
+  httpStatus?: number | null;
+  phone?: string | null;
+  attempts?: number;
   triggeredAt?: string | null;
   sentAt?: string | null;
   deliveredAt?: string | null;
   failedAt?: string | null;
   skippedAt?: string | null;
+  unknownAt?: string | null;
   text?: string | null;
+};
+
+type TemplateVariableInfo = {
+  templateName?: string | null;
+  component?: string | null;
+  index?: number | null;
+  variable?: string | null;
+  source?: string | null;
+  detail?: string | null;
 };
 
 type RoundSmsSummary = {
@@ -58,6 +74,7 @@ type RoundSmsSummary = {
   delivered: number;
   failed: number;
   skipped: number;
+  outcome_unknown?: number;
   deliveryTracking: boolean;
 };
 
@@ -70,7 +87,9 @@ type GuestDelivery = {
     reasonText?: string | null;
     errorCode?: string | null;
     errorMessage?: string | null;
+    templateVariable?: TemplateVariableInfo | null;
     messageId?: string | null;
+    attemptedAt?: string | null;
     sentAt?: string | null;
     deliveredAt?: string | null;
     readAt?: string | null;
@@ -85,6 +104,7 @@ type GuestDelivery = {
     status?: string | null;
     reasonCode?: string | null;
     message?: string | null;
+    meta?: Record<string, any> | null;
   }[];
 };
 
@@ -286,6 +306,7 @@ function getSmsStatusClass(status?: string) {
   }
   if (normalized === "FAILED") return "border-red-200 bg-red-50 text-red-600";
   if (normalized === "SKIPPED") return "border-gray-200 bg-gray-50 text-gray-600";
+  if (normalized === "OUTCOME_UNKNOWN") return "border-orange-200 bg-orange-50 text-orange-700";
   return "border-violet-200 bg-violet-50 text-violet-700";
 }
 
@@ -332,6 +353,8 @@ function getSmsChannelClass(status: string) {
       return "border-red-200 bg-red-50 text-red-600";
     case "SKIPPED":
       return "border-gray-300 bg-gray-50 text-gray-600";
+    case "OUTCOME_UNKNOWN":
+      return "border-orange-200 bg-orange-50 text-orange-700";
     case "PENDING":
       return "border-violet-200 bg-violet-50 text-violet-700";
     case "NOT_NEEDED":
@@ -1214,6 +1237,16 @@ export default function WhatsappRoundsReportModal({
                       active={channelFilter === "sms_pending"}
                       onClick={() => toggleChannelFilter("sms_pending")}
                     />
+                    {channelCounts.sms_unknown > 0 && (
+                      <StatBox
+                        label="SMS תוצאה לא ידועה"
+                        value={channelCounts.sms_unknown}
+                        danger
+                        active={channelFilter === "sms_unknown"}
+                        onClick={() => toggleChannelFilter("sms_unknown")}
+                        hint="לא ידוע אם הספק קיבל – לא נשלח שוב"
+                      />
+                    )}
                   </div>
                   {!showSmsDeliveredCard && (
                     <p className="mt-2 text-[11px] font-bold text-[#A08B74]">
@@ -1557,7 +1590,48 @@ const HISTORY_EVENT_LABELS: Record<string, string> = {
   SMS_SKIPPED: "גיבוי SMS דולג",
   SMS_RETRY_SCHEDULED: "גיבוי SMS: נקבע ניסיון חוזר",
   SMS_CLAIM_RELEASED: "גיבוי SMS שוחרר לניסיון חוזר",
+  SMS_OUTCOME_UNKNOWN: "גיבוי SMS: תוצאה לא ידועה",
 };
+
+const TEMPLATE_COMPONENT_LABELS: Record<string, string> = {
+  body: "גוף ההודעה",
+  header: "כותרת",
+  button: "כפתור URL",
+};
+
+function describeTemplateVariable(info?: TemplateVariableInfo | null) {
+  if (!info) return "";
+  const component = TEMPLATE_COMPONENT_LABELS[String(info.component || "")] || info.component || "";
+  return [
+    [component, info.variable].filter(Boolean).join(" "),
+    info.source ? `מקור: ${info.source}` : "",
+    info.templateName ? `תבנית: ${info.templateName}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function smsEvidenceParts(sms: SmsFallbackState) {
+  return [
+    sms.phone ? `טלפון: ${sms.phone}` : "",
+    sms.providerStatus ? `תשובת ספק: status=${sms.providerStatus}` : "",
+    sms.httpStatus ? `HTTP ${sms.httpStatus}` : "",
+    sms.providerResponse ? `תגובה גולמית: ${sms.providerResponse}` : "",
+  ].filter(Boolean);
+}
+
+function historyMetaParts(meta?: Record<string, any> | null) {
+  if (!meta) return [];
+  return [
+    meta.templateVariable ? `משתנה חסר: ${describeTemplateVariable(meta.templateVariable)}` : "",
+    meta.errorCode ? `קוד: ${meta.errorCode}` : "",
+    meta.phone ? `טלפון: ${meta.phone}` : "",
+    meta.providerStatus ? `status=${meta.providerStatus}` : "",
+    meta.httpStatus ? `HTTP ${meta.httpStatus}` : "",
+    meta.providerResponse ? `תגובה: ${meta.providerResponse}` : "",
+    meta.attempt ? `ניסיון ${meta.attempt}` : "",
+  ].filter(Boolean);
+}
 
 function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
   return (
@@ -1591,6 +1665,11 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
               {delivery.whatsapp.errorCode
                 ? ` · קוד ${delivery.whatsapp.errorCode}`
                 : ""}
+              {delivery.whatsapp.templateVariable && (
+                <div className="break-words text-red-600">
+                  משתנה חסר: {describeTemplateVariable(delivery.whatsapp.templateVariable)}
+                </div>
+              )}
               {delivery.whatsapp.errorMessage && (
                 <div className="break-words text-[#A08B74]">
                   {delivery.whatsapp.errorMessage}
@@ -1608,6 +1687,11 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
                     {delivery.sms.errorMessage}
                   </div>
                 )}
+                {smsEvidenceParts(delivery.sms).length > 0 && (
+                  <div className="break-words text-[#8A7867]">
+                    {smsEvidenceParts(delivery.sms).join(" · ")}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1623,6 +1707,11 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
                   {HISTORY_EVENT_LABELS[entry.event] || entry.event}
                   {entry.reasonCode ? ` · ${entry.reasonCode}` : ""}
                   {entry.message ? ` · ${entry.message}` : ""}
+                  {historyMetaParts(entry.meta).length > 0 && (
+                    <span className="block break-words text-[#A08B74]">
+                      {historyMetaParts(entry.meta).join(" · ")}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>

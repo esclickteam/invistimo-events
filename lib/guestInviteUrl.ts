@@ -108,5 +108,32 @@ export function getGuestInvitationUrl({
   return appendSearchParams(base, params);
 }
 
+/**
+ * WhatsApp template buttons are fixed to `/invite/{{1}}`, so guests of a wedding-website
+ * invitation land on `/invite/[shareId]`. Returns the `/w/[shareId]` path (query/token kept)
+ * when the guest should be forwarded, or null to keep rendering the personal invitation.
+ */
+export function getPersonalSiteRedirectPath(input: {
+  invitation:
+    | (NonNullable<GuestInvitationSource> & { weddingWebsite?: { published?: boolean } | null })
+    | null
+    | undefined;
+  shareId: string;
+  search?: string;
+  isStaffPreview?: boolean;
+}) {
+  const { invitation, isStaffPreview } = input;
+  if (!invitation || isStaffPreview) return null;
+  if (!isPersonalRsvpSite(getInvitationRsvpSiteMode(invitation))) return null;
+  if (invitation.weddingWebsite?.published === false) return null;
+
+  const path = buildGuestInvitePath(input.shareId, "personal");
+  if (!path) return null;
+
+  const params = new URLSearchParams(String(input.search || "").replace(/^\?/, ""));
+  if (params.get("preview")) return null;
+  return appendSearchParams(path, params);
+}
+
 /** @deprecated Use getGuestInvitationUrl — kept as a compatible alias. */
 export const buildGuestInviteUrl = getGuestInvitationUrl;
