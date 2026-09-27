@@ -14,6 +14,7 @@ import {
   countChannelFilters,
   getGuestChannelView,
   matchesChannelFilter,
+  SMS_NO_DELIVERY_RECEIPTS_NOTE,
   type ChannelFilter,
   type GuestChannelView,
 } from "@/lib/whatsapp/guestChannelView";
@@ -207,6 +208,7 @@ type ReportPayload = {
   invitation?: { _id: string; title?: string; eventDate?: string | null };
   summary?: GuestSummary;
   rounds?: ReportRound[];
+  smsProvider?: { name: string; deliveryReceipts: boolean };
   guests?: ReportGuest[];
   lastUpdated?: string;
   message?: string;
@@ -325,7 +327,7 @@ function getSmsChannelClass(status: string) {
   switch (status) {
     case "SENT":
     case "DELIVERED":
-      return "border-sky-200 bg-sky-50 text-sky-700";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "FAILED":
       return "border-red-200 bg-red-50 text-red-600";
     case "SKIPPED":
@@ -347,6 +349,8 @@ function ChannelStatusCell({
   at,
   className,
   caption,
+  channelLabel,
+  tooltip,
 }: {
   status: string;
   label: string;
@@ -355,16 +359,18 @@ function ChannelStatusCell({
   at: string | Date | null;
   className: string;
   caption?: string | null;
+  channelLabel: string;
+  tooltip?: string;
 }) {
   const time = at ? formatDateTime(String(at instanceof Date ? at.toISOString() : at)) : "";
 
   return (
     <div className="min-w-0 space-y-1">
       <span
-        title={status}
+        title={tooltip || status}
         className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${className}`}
       >
-        {label}
+        {status === "NONE" ? label : `${channelLabel}: ${label}`}
         {status !== "NONE" && (
           <span className="ms-1.5 text-[10px] opacity-60" dir="ltr">
             {status}
@@ -440,7 +446,8 @@ function StatBox({
           : active
             ? "border-[#D7A34D] bg-white shadow-sm"
             : "border-[#EFE2D1] bg-[#FFFDF8]"
-      } ${onClick ? "cursor-pointer hover:bg-white" : ""}`}
+      } ${active ? "ring-2 ring-[#D7A34D]" : ""} ${onClick ? "cursor-pointer hover:bg-white" : ""}`}
+      aria-pressed={onClick ? active : undefined}
     >
       <div
         className={`text-xs font-black ${
@@ -572,6 +579,7 @@ export default function WhatsappRoundsReportModal({
   const [guests, setGuests] = useState<ReportGuest[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [smsDeliveryReceipts, setSmsDeliveryReceipts] = useState(false);
 
   const [selectedRoundKey, setSelectedRoundKey] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -617,6 +625,7 @@ export default function WhatsappRoundsReportModal({
         setEventDate(data.invitation?.eventDate || null);
         setSummary(data.summary || null);
         setRounds(Array.isArray(data.rounds) ? data.rounds : []);
+        setSmsDeliveryReceipts(Boolean(data.smsProvider?.deliveryReceipts));
         setGuests(Array.isArray(data.guests) ? data.guests : []);
         setLastUpdated(data.lastUpdated || new Date().toISOString());
       } catch (err) {
@@ -659,6 +668,9 @@ export default function WhatsappRoundsReportModal({
     () => countChannelFilters(Array.from(channelViews.values())),
     [channelViews]
   );
+
+  // Kept for providers with delivery receipts, or if DELIVERED data ever exists.
+  const showSmsDeliveredCard = smsDeliveryReceipts || channelCounts.sms_delivered > 0;
 
   function toggleChannelFilter(filter: ChannelFilter) {
     setChannelFilter((current) => (current === filter ? null : filter));
@@ -1146,7 +1158,11 @@ export default function WhatsappRoundsReportModal({
                     או לא נשלח מקבל SMS עם אותו לינק אישי. לחיצה על כרטיס מסננת
                     את הטבלה ומציגה את הסיבה לכל אורח.
                   </p>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+                  <div
+                    className={`grid grid-cols-2 gap-3 md:grid-cols-3 ${
+                      showSmsDeliveredCard ? "xl:grid-cols-7" : "xl:grid-cols-6"
+                    }`}
+                  >
                     <StatBox
                       label="WhatsApp נכשל"
                       value={channelCounts.wa_failed}
@@ -1167,15 +1183,17 @@ export default function WhatsappRoundsReportModal({
                       value={channelCounts.sms_sent}
                       active={channelFilter === "sms_sent"}
                       onClick={() => toggleChannelFilter("sms_sent")}
-                      hint="התקבלו אצל ספק ה-SMS"
+                      title={showSmsDeliveredCard ? undefined : SMS_NO_DELIVERY_RECEIPTS_NOTE}
+                      hint={showSmsDeliveredCard ? undefined : "ⓘ סטטוס סופי"}
                     />
-                    <StatBox
-                      label="SMS נמסרו"
-                      value={channelCounts.sms_delivered}
-                      active={channelFilter === "sms_delivered"}
-                      onClick={() => toggleChannelFilter("sms_delivered")}
-                      hint="ספק ה-SMS לא מחזיר אישור מסירה"
-                    />
+                    {showSmsDeliveredCard && (
+                      <StatBox
+                        label="SMS נמסרו"
+                        value={channelCounts.sms_delivered}
+                        active={channelFilter === "sms_delivered"}
+                        onClick={() => toggleChannelFilter("sms_delivered")}
+                      />
+                    )}
                     <StatBox
                       label="SMS נכשלו"
                       value={channelCounts.sms_failed}
@@ -1197,6 +1215,11 @@ export default function WhatsappRoundsReportModal({
                       onClick={() => toggleChannelFilter("sms_pending")}
                     />
                   </div>
+                  {!showSmsDeliveredCard && (
+                    <p className="mt-2 text-[11px] font-bold text-[#A08B74]">
+                      ⓘ {SMS_NO_DELIVERY_RECEIPTS_NOTE}
+                    </p>
+                  )}
                 </div>
               </section>
 
@@ -1317,6 +1340,7 @@ export default function WhatsappRoundsReportModal({
                             expanded={expanded}
                             view={view}
                             showRoundCaption={selectedRoundKey === "all"}
+                            smsDeliveryReceipts={smsDeliveryReceipts}
                             isAdmin={isAdmin}
                             onToggle={() => toggleExpand(guest.id)}
                             onOpenMessages={() => setExpandedId(guest.id)}
@@ -1380,6 +1404,7 @@ function GuestRows({
   expanded,
   view,
   showRoundCaption,
+  smsDeliveryReceipts,
   isAdmin,
   onToggle,
   onOpenMessages,
@@ -1388,6 +1413,7 @@ function GuestRows({
   expanded: boolean;
   view: GuestChannelView;
   showRoundCaption: boolean;
+  smsDeliveryReceipts: boolean;
   isAdmin: boolean;
   onToggle: () => void;
   onOpenMessages: () => void;
@@ -1415,6 +1441,7 @@ function GuestRows({
         <td className="min-w-[230px] p-4 align-top">
           <ChannelStatusCell
             {...view.whatsapp}
+            channelLabel="WhatsApp"
             className={getWhatsappChannelClass(view.whatsapp.status)}
             caption={showRoundCaption ? view.roundTitle : null}
           />
@@ -1422,7 +1449,13 @@ function GuestRows({
         <td className="min-w-[230px] p-4 align-top">
           <ChannelStatusCell
             {...view.sms}
+            channelLabel="SMS"
             className={getSmsChannelClass(view.sms.status)}
+            tooltip={
+              view.sms.status === "SENT" && !smsDeliveryReceipts
+                ? SMS_NO_DELIVERY_RECEIPTS_NOTE
+                : undefined
+            }
           />
         </td>
         <td className="min-w-[280px] p-4">

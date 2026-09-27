@@ -1,7 +1,9 @@
 import ExcelJS from "exceljs";
 import { isValidWhatsappPhone } from "@/lib/whatsapp/roundReport";
 import {
+  ACTIVE_SMS_PROVIDER,
   getGuestChannelView,
+  SMS_NO_DELIVERY_RECEIPTS_NOTE,
   type RoundChipLike,
 } from "@/lib/whatsapp/guestChannelView";
 
@@ -109,6 +111,7 @@ export type ExportWhatsappRoundReportInput = {
   selectedRoundKey?: string;
   selectedRoundTitle?: string | null;
   generatedAt?: string | Date;
+  smsDeliveryReceipts?: boolean;
 };
 
 /** ExcelJS requires AARRGGBB (8 hex chars). 6-char RGB causes Excel repair warnings. */
@@ -307,6 +310,7 @@ export async function buildWhatsappRoundReportWorkbook(
     selectedRoundKey = "all",
     selectedRoundTitle = null,
     generatedAt = new Date(),
+    smsDeliveryReceipts = ACTIVE_SMS_PROVIDER.deliveryReceipts,
   } = input;
 
   const workbook = new ExcelJS.Workbook();
@@ -510,6 +514,12 @@ export async function buildWhatsappRoundReportWorkbook(
     row += 1;
   }
 
+  if (!smsDeliveryReceipts) {
+    summarySheet.getCell(row, 1).value = `* גיבוי SMS: ${SMS_NO_DELIVERY_RECEIPTS_NOTE}`;
+    summarySheet.getCell(row, 1).font = { italic: true, color: { argb: argb("7B6754") } };
+    row += 1;
+  }
+
   row += 1;
   addSectionTitle(summarySheet, row, "לתשומת לב", 2);
   row += 1;
@@ -599,13 +609,24 @@ export async function buildWhatsappRoundReportWorkbook(
   for (let col = 1; col <= guestHeaders.length; col += 1) {
     styleHeaderCell(guestsSheet.getCell(1, col));
   }
+  if (!smsDeliveryReceipts) {
+    guestsSheet.getCell(1, guestCol("סטטוס גיבוי SMS")).note = SMS_NO_DELIVERY_RECEIPTS_NOTE;
+  }
 
   guestsForSheets.forEach((guest, index) => {
     const messages = guest.messages || [];
     const view = getGuestChannelView(guest.roundStatuses, selectedRoundKey);
     const waStatusText = `${view.whatsapp.label} (${view.whatsapp.status})`;
+    const smsSentIsFinal = view.sms.status === "SENT" && !smsDeliveryReceipts;
     const smsStatusText =
-      view.sms.status === "NONE" ? "" : `${view.sms.label} (${view.sms.status})`;
+      view.sms.status === "NONE"
+        ? ""
+        : smsSentIsFinal
+          ? `${view.sms.label} (SENT) – סטטוס סופי`
+          : `${view.sms.label} (${view.sms.status})`;
+    const smsReasonText = smsSentIsFinal
+      ? "נשלח בהצלחה לספק ה-SMS. הספק אינו מספק אישור מסירה – אין סטטוס נוסף לצפות לו."
+      : view.sms.reason || "";
     const values = [
       index + 1,
       safeText(guest.name || ""),
@@ -617,7 +638,7 @@ export async function buildWhatsappRoundReportWorkbook(
       safeText(view.whatsapp.errorCode || ""),
       formatDateTime(view.whatsapp.at),
       safeText(smsStatusText),
-      safeText(view.sms.reason || ""),
+      safeText(smsReasonText),
       safeText(view.sms.errorCode || ""),
       formatDateTime(view.sms.at),
       Number(guest.messagesCount || 0),
