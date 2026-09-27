@@ -82,17 +82,21 @@ export function isValidSmsPhone(phoneRaw: unknown) {
   return phone.length >= 10 && phone.length <= 15;
 }
 
+/** One SMS per delivery attempt. Attempt 1 keeps the original key shape. */
 export function buildSmsFallbackIdempotencyKey(record: {
   invitationId: any;
   roundKey: string;
   guestId: any;
+  attempt?: number | null;
 }) {
+  const attempt = Number(record.attempt || 1);
   return [
     "sms_fallback",
     String(record.invitationId),
     record.roundKey,
     String(record.guestId),
     "sms",
+    ...(attempt > 1 ? [`attempt${attempt}`] : []),
   ].join(":");
 }
 
@@ -106,6 +110,42 @@ function historyEntry(
 ) {
   return { at, channel: "sms", event, status, reasonCode, message, meta };
 }
+
+type SmsUpdate = { $set: Record<string, any>; $push?: { history: any } };
+
+/**
+ * Writes the worker's result for the attempt it claimed. If an explicit resend archived that
+ * attempt meanwhile (lock no longer on the live sms), the result is recorded on the archived
+ * attempt instead, so the new attempt is never touched and attempt history stays complete.
+ */
+async function settleClaimedSms(
+  own: Record<string, any>,
+  lockId: string,
+  update: SmsUpdate,
+  archivedOverride: Record<string, any> = {}
+) {
+  const res = await RoundGuestDelivery.updateOne(own, update);
+  if (res.matchedCount > 0) return;
+
+  const set: Record<string, any> = {};
+  for (const [key, value] of Object.entries({ ...update.$set, ...archivedOverride })) {
+    if (key.startsWith("sms.")) set[`previousAttempts.$[claimed].${key}`] = value;
+  }
+  set["previousAttempts.$[claimed].sms.lockId"] = null;
+  set["previousAttempts.$[claimed].sms.lockedAt"] = null;
+
+  await RoundGuestDelivery.collection.updateOne(
+    { _id: own._id, "previousAttempts.sms.lockId": lockId },
+    { $set: set, ...(update.$push ? { $push: update.$push } : {}) },
+    { arrayFilters: [{ "claimed.sms.lockId": lockId }] }
+  );
+}
+
+const SUPERSEDED_SMS = {
+  "sms.status": "SKIPPED",
+  "sms.reasonCode": "SUPERSEDED_BY_RESEND",
+  "sms.reasonMessage": getSmsReasonLabel("SUPERSEDED_BY_RESEND"),
+};
 
 function applyPlaceholders(template: string, values: Record<string, string>) {
   let text = template;
@@ -472,6 +512,13 @@ export async function processWhatsappSmsFallbacks(
     stats.claimed++;
 
     const own = { _id: record._id, "sms.lockId": lockId, "sms.status": "PENDING" };
+    const attemptNo = Number(record.attempt || 1);
+    const entry = (...args: Parameters<typeof historyEntry>) => ({
+      ...historyEntry(...args),
+      attempt: attemptNo,
+    });
+    const supersede = (at: Date) =>
+      settleClaimedSms(own, lockId, { $set: { "sms.skippedAt": at } }, SUPERSEDED_SMS);
     let dispatched = false;
 
     try {
@@ -482,9 +529,10 @@ export async function processWhatsappSmsFallbacks(
             "sms.triggeredAt": record.sms?.triggeredAt || now,
           },
           $push: {
-            history: historyEntry(now, "SMS_FALLBACK_TRIGGERED", "PENDING", null, null, {
+            history: entry(now, "SMS_FALLBACK_TRIGGERED", "PENDING", null, null, {
               whatsappStatus: record.whatsapp?.status,
               whatsappReason: record.whatsapp?.reasonCode || null,
+              whatsappFailedAt: record.whatsapp?.failedAt || record.whatsapp?.notSentAt || null,
             }),
           },
         });
@@ -493,7 +541,7 @@ export async function processWhatsappSmsFallbacks(
       const evaluation = await evaluateRecord(record, deps, now);
 
       if (evaluation.action === "defer") {
-        await RoundGuestDelivery.updateOne(own, {
+        const deferred = await RoundGuestDelivery.updateOne(own, {
           $set: {
             "sms.status": null,
             "sms.lockId": null,
@@ -501,12 +549,13 @@ export async function processWhatsappSmsFallbacks(
             "sms.notBefore": new Date(evaluation.untilMs),
           },
         });
+        if (deferred.matchedCount === 0) await supersede(now);
         stats.deferred++;
         continue;
       }
 
       if (evaluation.action === "skip") {
-        await RoundGuestDelivery.updateOne(own, {
+        await settleClaimedSms(own, lockId, {
           $set: {
             "sms.status": "SKIPPED",
             "sms.reasonCode": evaluation.reasonCode,
@@ -516,7 +565,7 @@ export async function processWhatsappSmsFallbacks(
             "sms.lockedAt": null,
           },
           $push: {
-            history: historyEntry(
+            history: entry(
               now,
               "SMS_SKIPPED",
               "SKIPPED",
@@ -541,7 +590,10 @@ export async function processWhatsappSmsFallbacks(
           $inc: { "sms.attempts": 1 },
         }
       );
-      if (marked.modifiedCount !== 1) continue;
+      if (marked.modifiedCount !== 1) {
+        await supersede(now);
+        continue;
+      }
       dispatched = true;
 
       const result = await deps.sendSms({ to: evaluation.phone, message: evaluation.text });
@@ -559,6 +611,7 @@ export async function processWhatsappSmsFallbacks(
         providerStatus: result.providerStatus,
         providerResponse: result.rawResponse ?? null,
         attempt: attempts,
+        deliveryAttempt: attemptNo,
       };
       console.info("[sms-fallback] provider outcome", {
         recordId: String(record._id),
@@ -574,7 +627,7 @@ export async function processWhatsappSmsFallbacks(
 
       // SENT = the provider explicitly accepted the request. It does not mean delivered to the handset.
       if (result.ok) {
-        await RoundGuestDelivery.updateOne(own, {
+        await settleClaimedSms(own, lockId, {
           $set: {
             ...evidence,
             "sms.status": "SENT",
@@ -588,7 +641,7 @@ export async function processWhatsappSmsFallbacks(
             "sms.lockedAt": null,
           },
           $push: {
-            history: historyEntry(doneAt, "SMS_SENT", "SENT", null, null, {
+            history: entry(doneAt, "SMS_SENT", "SENT", null, null, {
               ...evidenceMeta,
               providerMessage: result.providerMessage,
               parts: evaluation.parts,
@@ -608,33 +661,38 @@ export async function processWhatsappSmsFallbacks(
       }
 
       if (result.retryable && attempts < MAX_SMS_ATTEMPTS) {
-        await RoundGuestDelivery.updateOne(own, {
-          $set: {
-            "sms.status": null,
-            "sms.notBefore": new Date(doneAt.getTime() + RETRY_BACKOFF_MS * attempts),
-            "sms.dispatchStartedAt": null,
-            "sms.lockId": null,
-            "sms.lockedAt": null,
-            "sms.errorCode": result.errorCode,
-            "sms.errorMessage": result.errorMessage,
+        await settleClaimedSms(
+          own,
+          lockId,
+          {
+            $set: {
+              "sms.status": null,
+              "sms.notBefore": new Date(doneAt.getTime() + RETRY_BACKOFF_MS * attempts),
+              "sms.dispatchStartedAt": null,
+              "sms.lockId": null,
+              "sms.lockedAt": null,
+              "sms.errorCode": result.errorCode,
+              "sms.errorMessage": result.errorMessage,
+            },
+            $push: {
+              history: entry(
+                doneAt,
+                "SMS_RETRY_SCHEDULED",
+                null,
+                result.errorCode,
+                result.errorMessage,
+                evidenceMeta
+              ),
+            },
           },
-          $push: {
-            history: historyEntry(
-              doneAt,
-              "SMS_RETRY_SCHEDULED",
-              null,
-              result.errorCode,
-              result.errorMessage,
-              evidenceMeta
-            ),
-          },
-        });
+          { ...evidence, "sms.status": "FAILED", "sms.failedAt": doneAt }
+        );
         stats.retried++;
         continue;
       }
 
       if (result.outcomeUnknown) {
-        await RoundGuestDelivery.updateOne(own, {
+        await settleClaimedSms(own, lockId, {
           $set: {
             ...evidence,
             "sms.status": "OUTCOME_UNKNOWN",
@@ -647,7 +705,7 @@ export async function processWhatsappSmsFallbacks(
             "sms.lockedAt": null,
           },
           $push: {
-            history: historyEntry(
+            history: entry(
               doneAt,
               "SMS_OUTCOME_UNKNOWN",
               "OUTCOME_UNKNOWN",
@@ -661,7 +719,7 @@ export async function processWhatsappSmsFallbacks(
         continue;
       }
 
-      await RoundGuestDelivery.updateOne(own, {
+      await settleClaimedSms(own, lockId, {
         $set: {
           ...evidence,
           "sms.status": "FAILED",
@@ -674,7 +732,7 @@ export async function processWhatsappSmsFallbacks(
           "sms.lockedAt": null,
         },
         $push: {
-          history: historyEntry(doneAt, "SMS_FAILED", "FAILED", result.errorCode, result.errorMessage, evidenceMeta),
+          history: entry(doneAt, "SMS_FAILED", "FAILED", result.errorCode, result.errorMessage, evidenceMeta),
         },
       });
       stats.failed++;
@@ -687,14 +745,19 @@ export async function processWhatsappSmsFallbacks(
       // Before dispatch: release so a later run can retry.
       // After dispatch: leave PENDING; recovery marks DISPATCH_OUTCOME_UNKNOWN (no resend).
       if (!dispatched) {
-        await RoundGuestDelivery.updateOne(own, {
-          $set: {
-            "sms.status": null,
-            "sms.lockId": null,
-            "sms.lockedAt": null,
-            "sms.notBefore": new Date(now.getTime() + RETRY_BACKOFF_MS),
+        await settleClaimedSms(
+          own,
+          lockId,
+          {
+            $set: {
+              "sms.status": null,
+              "sms.lockId": null,
+              "sms.lockedAt": null,
+              "sms.notBefore": new Date(now.getTime() + RETRY_BACKOFF_MS),
+            },
           },
-        }).catch(() => null);
+          { ...SUPERSEDED_SMS, "sms.skippedAt": now }
+        ).catch(() => null);
       }
     }
   }

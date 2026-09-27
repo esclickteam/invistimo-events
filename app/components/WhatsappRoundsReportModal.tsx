@@ -105,6 +105,14 @@ type GuestDelivery = {
     reasonCode?: string | null;
     message?: string | null;
     meta?: Record<string, any> | null;
+    attempt?: number | null;
+  }[];
+  attempt?: number;
+  attempts?: {
+    attempt: number;
+    current: boolean;
+    whatsapp: { status: string | null; reasonText?: string | null; errorCode?: string | null };
+    sms: SmsFallbackState | null;
   }[];
 };
 
@@ -1591,7 +1599,28 @@ const HISTORY_EVENT_LABELS: Record<string, string> = {
   SMS_RETRY_SCHEDULED: "גיבוי SMS: נקבע ניסיון חוזר",
   SMS_CLAIM_RELEASED: "גיבוי SMS שוחרר לניסיון חוזר",
   SMS_OUTCOME_UNKNOWN: "גיבוי SMS: תוצאה לא ידועה",
+  WA_ATTEMPT_STARTED: "שליחה חוזרת – ניסיון חדש",
 };
+
+/** Splits the round history into delivery attempts (resends start a new attempt). */
+function groupHistoryByAttempt(delivery: GuestDelivery) {
+  let current = 1;
+  const byAttempt = new Map<number, GuestDelivery["history"]>();
+  for (const entry of delivery.history) {
+    if (entry.event === "WA_ATTEMPT_STARTED") current = entry.attempt ?? current + 1;
+    const attempt = entry.attempt ?? current;
+    byAttempt.set(attempt, [...(byAttempt.get(attempt) || []), entry]);
+  }
+  const summaries = new Map((delivery.attempts || []).map((item) => [item.attempt, item]));
+  const numbers = new Set([...byAttempt.keys(), ...summaries.keys()]);
+  return Array.from(numbers)
+    .sort((a, b) => a - b)
+    .map((attempt) => ({
+      attempt,
+      summary: summaries.get(attempt) || null,
+      entries: byAttempt.get(attempt) || [],
+    }));
+}
 
 const TEMPLATE_COMPONENT_LABELS: Record<string, string> = {
   body: "גוף ההודעה",
@@ -1696,7 +1725,44 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
             )}
           </div>
 
-          {delivery.history.length > 0 && (
+          {(delivery.attempts?.length || 0) > 1 &&
+            groupHistoryByAttempt(delivery).map((group) => (
+              <div key={group.attempt} className="mt-3 rounded-xl border border-[#F1E6D6] bg-[#FFFCF7] p-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-black text-[#3A2A1C]">
+                  <span>
+                    ניסיון {group.attempt}
+                    {group.summary?.current ? " (נוכחי)" : ""}
+                  </span>
+                  {group.summary && (
+                    <>
+                      <StatusBadge
+                        status={String(group.summary.whatsapp.status || "").toLowerCase()}
+                        label={`WhatsApp · ${group.summary.whatsapp.status || "—"}`}
+                      />
+                      <SmsBadge sms={group.summary.sms} />
+                    </>
+                  )}
+                </div>
+                <ol className="mt-2 space-y-1 border-r-2 border-[#EFE2D1] pr-3 text-[11px] font-bold text-[#8A7867]">
+                  {group.entries.map((entry, index) => (
+                    <li key={`${entry.event}-${index}`}>
+                      <span className="text-[#6B5A48]">{formatDateTime(entry.at) || "—"}</span>{" "}
+                      · {entry.channel === "sms" ? "SMS" : "WhatsApp"} ·{" "}
+                      {HISTORY_EVENT_LABELS[entry.event] || entry.event}
+                      {entry.reasonCode ? ` · ${entry.reasonCode}` : ""}
+                      {entry.message ? ` · ${entry.message}` : ""}
+                      {historyMetaParts(entry.meta).length > 0 && (
+                        <span className="block break-words text-[#A08B74]">
+                          {historyMetaParts(entry.meta).join(" · ")}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+
+          {(delivery.attempts?.length || 0) <= 1 && delivery.history.length > 0 && (
             <ol className="mt-3 space-y-1 border-r-2 border-[#EFE2D1] pr-3 text-[11px] font-bold text-[#8A7867]">
               {delivery.history.map((entry, index) => (
                 <li key={`${entry.event}-${index}`}>
