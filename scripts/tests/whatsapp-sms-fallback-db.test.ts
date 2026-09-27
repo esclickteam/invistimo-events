@@ -23,6 +23,12 @@ import {
   type SmsFallbackDeps,
 } from "../../lib/sms/whatsappSmsFallback";
 import type { SmsSendResult } from "../../lib/sendSMS";
+import {
+  countChannelFilters,
+  getGuestChannelView,
+  matchesChannelFilter,
+} from "../../lib/whatsapp/guestChannelView";
+import { buildWhatsappRoundReportWorkbook } from "../../lib/whatsapp/exportRoundReportExcel";
 
 process.env.WHATSAPP_SMS_FALLBACK_GRACE_MS = String(2 * 60 * 1000);
 delete process.env.WHATSAPP_SMS_FALLBACK_DISABLED;
@@ -739,6 +745,126 @@ test("WhatsApp round tracking + SMS fallback (real MongoDB)", async (t) => {
       assert.equal(delivery.sms.status, "SENT");
       assert.ok(delivery.history.some((h: any) => h.event === "WA_FAILED"));
       assert.ok(delivery.history.some((h: any) => h.event === "SMS_SENT"));
+
+      // Guest-level two-channel view (same helper the UI and the Excel export use).
+      const viewOf = (guestId: any, roundKey = "rsvp:1") =>
+        getGuestChannelView(
+          body.guests.find((g: any) => g.guestId === String(guestId)).roundStatuses,
+          roundKey
+        );
+
+      const okView = viewOf(okGuest.guestId);
+      assert.equal(okView.whatsapp.status, "DELIVERED");
+      assert.ok(okView.whatsapp.at);
+      assert.equal(okView.sms.status, "NOT_NEEDED");
+
+      const failedView = viewOf(failedGuest.guestId);
+      assert.equal(failedView.whatsapp.status, "FAILED");
+      assert.equal(failedView.whatsapp.errorCode, "131026");
+      assert.ok(failedView.whatsapp.reason);
+      assert.ok(failedView.whatsapp.at);
+      assert.equal(failedView.sms.status, "SENT");
+      assert.ok(failedView.sms.at);
+
+      const invalidView = viewOf(invalidGuest.guestId);
+      assert.equal(invalidView.whatsapp.status, "NOT_SENT");
+      assert.ok(invalidView.whatsapp.reason);
+      assert.equal(invalidView.sms.status, "SKIPPED");
+      assert.ok(invalidView.sms.reason);
+
+      assert.equal(viewOf(outsider.guestId).whatsapp.status, "NOT_IN_ROUND");
+
+      const allViews = body.guests.map((g: any) => getGuestChannelView(g.roundStatuses, "rsvp:1"));
+      const counts = countChannelFilters(allViews);
+      assert.equal(counts.wa_failed, 1);
+      assert.equal(counts.wa_not_sent, 1);
+      assert.equal(counts.sms_sent, 1);
+      assert.equal(counts.sms_skipped, 1);
+      assert.equal(counts.sms_failed, 0);
+      assert.equal(counts.sms_delivered, 0);
+      const skippedNames = body.guests
+        .filter((g: any) => matchesChannelFilter(getGuestChannelView(g.roundStatuses, "rsvp:1"), "sms_skipped"))
+        .map((g: any) => g.name);
+      assert.deepEqual(skippedNames, ["בני לא תקין"]);
+
+      // "All rounds" mode picks each guest's own latest round.
+      assert.equal(viewOf(failedGuest.guestId, "all").whatsapp.status, "FAILED");
+      assert.equal(viewOf(okGuest.guestId, "all").sms.status, "NOT_NEEDED");
+
+      const workbook = await buildWhatsappRoundReportWorkbook({
+        summary: body.summary,
+        rounds: body.rounds,
+        allGuests: body.guests,
+        guestsForSheets: body.guests,
+        invitationTitle: "דוח",
+        eventDate: null,
+        clientName: null,
+        selectedRoundKey: "rsvp:1",
+        selectedRoundTitle: round.title,
+        generatedAt: new Date().toISOString(),
+      });
+      const sheet = workbook.getWorksheet("אורחים")!;
+      const headers = (sheet.getRow(1).values as any[]).slice(1);
+      const col = (name: string) => headers.indexOf(name) + 1;
+      for (const name of ["סטטוס WhatsApp", "סיבת WhatsApp", "קוד שגיאה WhatsApp", "זמן WhatsApp", "סטטוס גיבוי SMS", "סיבת גיבוי SMS", "זמן SMS"]) {
+        assert.ok(col(name) > 0, `missing column ${name}`);
+      }
+      const rowFor = (name: string) => {
+        for (let r = 2; r <= sheet.rowCount; r += 1) {
+          if (sheet.getRow(r).getCell(col("שם אורח")).value === name) return sheet.getRow(r);
+        }
+        throw new Error(`row ${name} not found`);
+      };
+      const failedXl = rowFor("אבי נכשל");
+      assert.match(String(failedXl.getCell(col("סטטוס WhatsApp")).value), /FAILED/);
+      assert.equal(String(failedXl.getCell(col("קוד שגיאה WhatsApp")).value), "131026");
+      assert.match(String(failedXl.getCell(col("סטטוס גיבוי SMS")).value), /SENT/);
+      const invalidXl = rowFor("בני לא תקין");
+      assert.match(String(invalidXl.getCell(col("סטטוס WhatsApp")).value), /NOT_SENT/);
+      assert.match(String(invalidXl.getCell(col("סטטוס גיבוי SMS")).value), /SKIPPED/);
+      assert.ok(String(invalidXl.getCell(col("סיבת גיבוי SMS")).value));
+      assert.match(String(rowFor("גלית נמסר").getCell(col("סטטוס גיבוי SMS")).value), /NOT_NEEDED/);
+    });
+
+    await t.test("per-guest eligibility: same invitation + round, only the failed guest gets SMS", async () => {
+      await clearPending();
+      const guestA = await seedGuest({ phone: "0525550001" });
+      const guestBId = new mongoose.Types.ObjectId();
+      await InvitationGuest.collection.insertOne({
+        _id: guestBId,
+        invitationId: guestA.invitationId,
+        name: "רון",
+        phone: "0525550002",
+        rsvp: "pending",
+        guestsCount: 1,
+        token: `tok_${guestBId}`,
+      });
+      const guestB = { ...guestA, guestId: guestBId, phone: "0525550002", token: `tok_${guestBId}` };
+
+      const queueA = await queueRound(guestA);
+      const queueB = await queueRound(guestB);
+
+      await markQueue(queueA, { status: "sent", providerStatus: "delivered", wamid: "wamid.IND_A" });
+      await recordWhatsappSendSuccess({ queueId: queueA, wamid: "wamid.IND_A" });
+      await applyWhatsappWebhookStatus({ wamids: ["wamid.IND_A"], state: "delivered", at: new Date() });
+
+      await markQueue(queueB, { status: "failed", providerStatus: "failed", errorCode: "131026", failedAt: new Date() });
+      await recordWhatsappSendFailure({ queueId: queueB, error: metaError(131026, "undeliverable") });
+
+      const sent: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(sent) });
+      await processWhatsappSmsFallbacks({ deps: makeDeps(sent) });
+
+      assert.equal(sent.length, 1, "exactly one SMS for the round");
+      assert.equal(sent[0].to, "972525550002", "only the failed guest gets the SMS");
+      assert.ok(sent[0].message.includes(`token=${guestB.token}`), "SMS carries guest B's own link");
+
+      const recordA = await getRecord(guestA);
+      const recordB = await getRecord(guestB);
+      assert.equal(recordA.whatsapp.status, "DELIVERED");
+      assert.equal(recordA.sms.status, null);
+      assert.equal(recordB.whatsapp.status, "FAILED");
+      assert.equal(recordB.sms.status, "SENT");
     });
 
     await t.test("kill switch disables the fallback worker", async () => {

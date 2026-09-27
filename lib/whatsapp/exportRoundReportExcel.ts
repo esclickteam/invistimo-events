@@ -1,5 +1,9 @@
 import ExcelJS from "exceljs";
 import { isValidWhatsappPhone } from "@/lib/whatsapp/roundReport";
+import {
+  getGuestChannelView,
+  type RoundChipLike,
+} from "@/lib/whatsapp/guestChannelView";
 
 /* =========================
    Types (same shape as report API / UI)
@@ -50,6 +54,7 @@ export type ExcelReportGuest = {
   roundsSentCount: number;
   roundsTotal: number;
   messages?: ExcelReportMessage[];
+  roundStatuses?: RoundChipLike[];
 };
 
 export type ExcelReportRound = {
@@ -540,6 +545,15 @@ export async function buildWhatsappRoundReportWorkbook(
     "שם אורח",
     "טלפון",
     "RSVP",
+    "סבב (ערוצים)",
+    "סטטוס WhatsApp",
+    "סיבת WhatsApp",
+    "קוד שגיאה WhatsApp",
+    "זמן WhatsApp",
+    "סטטוס גיבוי SMS",
+    "סיבת גיבוי SMS",
+    "קוד שגיאה SMS",
+    "זמן SMS",
     "מספר הודעות",
     "מספר סבבים",
     "סבב אחרון",
@@ -555,8 +569,21 @@ export async function buildWhatsappRoundReportWorkbook(
     "סיבת כשל אחרונה",
   ];
   const guestWidths = [
-    6, 22, 16, 12, 12, 12, 24, 14, 16, 18, 18, 18, 18, 12, 12, 12, 36,
+    6, 22, 16, 12, 24, 16, 36, 16, 18, 16, 36, 14, 18, 12, 12, 24, 14, 16, 18,
+    18, 18, 18, 12, 12, 12, 36,
   ];
+  const guestCol = (header: string) => guestHeaders.indexOf(header) + 1;
+  const statusCols = new Map<number, (g: ExcelReportGuest, wa: string, sms: string) => string>([
+    [guestCol("סטטוס WhatsApp"), (_g, wa) => wa],
+    [guestCol("סטטוס גיבוי SMS"), (_g, _wa, sms) => sms],
+    [guestCol("סטטוס כללי"), (g) => g.overallStatusLabel || g.overallStatus],
+    [guestCol("סטטוס ניסיון אחרון"), (g) => g.lastStatusLabel || g.lastStatus],
+  ]);
+  const wrapCols = new Set([
+    guestCol("סיבת WhatsApp"),
+    guestCol("סיבת גיבוי SMS"),
+    guestCol("סיבת כשל אחרונה"),
+  ]);
 
   guestsSheet.columns = guestHeaders.map((header, index) => ({
     header,
@@ -575,11 +602,24 @@ export async function buildWhatsappRoundReportWorkbook(
 
   guestsForSheets.forEach((guest, index) => {
     const messages = guest.messages || [];
+    const view = getGuestChannelView(guest.roundStatuses, selectedRoundKey);
+    const waStatusText = `${view.whatsapp.label} (${view.whatsapp.status})`;
+    const smsStatusText =
+      view.sms.status === "NONE" ? "" : `${view.sms.label} (${view.sms.status})`;
     const values = [
       index + 1,
       safeText(guest.name || ""),
       safeText(guest.phone || ""),
       safeText(guest.rsvpLabel || guest.rsvp || ""),
+      safeText(view.roundTitle || ""),
+      safeText(waStatusText),
+      safeText(view.whatsapp.reason || ""),
+      safeText(view.whatsapp.errorCode || ""),
+      formatDateTime(view.whatsapp.at),
+      safeText(smsStatusText),
+      safeText(view.sms.reason || ""),
+      safeText(view.sms.errorCode || ""),
+      formatDateTime(view.sms.at),
       Number(guest.messagesCount || 0),
       Number(guest.roundsSentCount || 0),
       safeText(guest.lastRoundTitle || ""),
@@ -606,13 +646,8 @@ export async function buildWhatsappRoundReportWorkbook(
     const dataRow = guestsSheet.addRow(values);
     dataRow.eachCell((cell, colNumber) => {
       styleDataCell(cell, {
-        status:
-          colNumber === 8
-            ? guest.overallStatusLabel || guest.overallStatus
-            : colNumber === 9
-              ? guest.lastStatusLabel || guest.lastStatus
-              : undefined,
-        wrap: colNumber === 17,
+        status: statusCols.get(colNumber)?.(guest, view.whatsapp.label, view.sms.label),
+        wrap: wrapCols.has(colNumber),
       });
     });
   });
