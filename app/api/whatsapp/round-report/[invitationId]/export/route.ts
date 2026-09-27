@@ -197,6 +197,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       selectedRoundKey,
       selectedRoundTitle,
       generatedAt,
+      smsDeliveryReceipts: Boolean(reportData.smsProvider?.deliveryReceipts),
     });
 
     const buffer = await workbookToNodeBuffer(workbook);

@@ -35,6 +35,7 @@ import {
   type ReportStatusKey,
 } from "@/lib/whatsapp/roundReport";
 import RoundGuestDelivery from "@/models/RoundGuestDelivery";
+import { ACTIVE_SMS_PROVIDER } from "@/lib/whatsapp/guestChannelView";
 import {
   HISTORICAL_REASON_TEXT,
   getSmsReasonLabel,
@@ -536,7 +537,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         delivered: 0,
         failed: 0,
         skipped: 0,
-        deliveryTracking: false,
+        deliveryTracking: ACTIVE_SMS_PROVIDER.deliveryReceipts,
       };
       group.attention = [];
     }
@@ -1049,6 +1050,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       totalGuests: guestsAggregated.length,
       summary,
       rounds,
+      smsProvider: ACTIVE_SMS_PROVIDER,
       guests: pagedGuests,
       pagination: {
         page: pageSize ? page : 1,

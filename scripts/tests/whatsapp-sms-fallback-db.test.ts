@@ -818,7 +818,10 @@ test("WhatsApp round tracking + SMS fallback (real MongoDB)", async (t) => {
       const failedXl = rowFor("אבי נכשל");
       assert.match(String(failedXl.getCell(col("סטטוס WhatsApp")).value), /FAILED/);
       assert.equal(String(failedXl.getCell(col("קוד שגיאה WhatsApp")).value), "131026");
-      assert.match(String(failedXl.getCell(col("סטטוס גיבוי SMS")).value), /SENT/);
+      assert.match(String(failedXl.getCell(col("סטטוס גיבוי SMS")).value), /SENT\) – סטטוס סופי/);
+      assert.match(String(failedXl.getCell(col("סיבת גיבוי SMS")).value), /אינו מספק אישור מסירה/);
+      assert.equal(body.smsProvider.deliveryReceipts, false);
+      assert.equal(round.sms.deliveryTracking, false);
       const invalidXl = rowFor("בני לא תקין");
       assert.match(String(invalidXl.getCell(col("סטטוס WhatsApp")).value), /NOT_SENT/);
       assert.match(String(invalidXl.getCell(col("סטטוס גיבוי SMS")).value), /SKIPPED/);

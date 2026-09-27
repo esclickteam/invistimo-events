@@ -3,6 +3,15 @@
  * Pure (no server imports) — shared by the report UI and the Excel export.
  */
 
+/** SMS provider used by the fallback. sms4free returns no delivery receipts, so SENT is its final success status. */
+export const ACTIVE_SMS_PROVIDER = {
+  name: "sms4free",
+  deliveryReceipts: false,
+} as const;
+
+export const SMS_NO_DELIVERY_RECEIPTS_NOTE =
+  "ספק ה-SMS הנוכחי אינו מספק אישור מסירה, ולכן סטטוס 'נשלח' הוא הסטטוס הסופי הזמין.";
+
 export type WhatsappChannelStatus =
   | "NOT_SENT"
   | "PENDING"
