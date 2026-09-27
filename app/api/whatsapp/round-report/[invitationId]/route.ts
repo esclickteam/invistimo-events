@@ -34,6 +34,12 @@ import {
   applyWhatsappReportGuestFilters,
   type ReportStatusKey,
 } from "@/lib/whatsapp/roundReport";
+import RoundGuestDelivery from "@/models/RoundGuestDelivery";
+import {
+  HISTORICAL_REASON_TEXT,
+  getSmsReasonLabel,
+  getWhatsappReasonLabel,
+} from "@/lib/whatsapp/roundDeliveryTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,6 +91,92 @@ function getGuestIdentityKey(guest: any) {
   const phone = normalizePhoneDigits(guest?.phone);
   if (phone) return `phone:${phone}`;
   return `orphan:${String(guest?.name || "unknown")}`;
+}
+
+const SMS_STATUS_LABELS: Record<string, string> = {
+  WAITING: "ממתין לבדיקת גיבוי",
+  PENDING: "בתהליך שליחה",
+  SENT: "נשלח לספק ה-SMS",
+  DELIVERED: "נמסר",
+  FAILED: "נכשל",
+  SKIPPED: "לא נשלח (דילוג)",
+};
+
+const WA_FALLBACK_STATES = new Set(["FAILED", "NOT_SENT"]);
+
+function getDeliveryRoundKey(delivery: any) {
+  const type = normalizeRoundType(delivery);
+  return getRoundKey(type, normalizeRoundNumber(delivery, type));
+}
+
+function mapDeliverySms(delivery: any, isAdmin: boolean) {
+  if (!delivery) return null;
+
+  const sms = delivery.sms || {};
+  const waStatus = String(delivery.whatsapp?.status || "");
+  let status = sms.status ? String(sms.status) : null;
+
+  if (!status && WA_FALLBACK_STATES.has(waStatus)) {
+    status = "WAITING";
+  }
+  if (!status) return null;
+
+  return {
+    status,
+    statusLabel: SMS_STATUS_LABELS[status] || status,
+    reasonCode: sms.reasonCode || null,
+    reasonText: sms.reasonCode ? getSmsReasonLabel(sms.reasonCode) : null,
+    errorCode: sms.errorCode || null,
+    errorMessage: sms.errorMessage || null,
+    provider: sms.provider || null,
+    providerMessageId: sms.providerMessageId || null,
+    attempts: Number(sms.attempts || 0),
+    triggeredAt: sms.triggeredAt || null,
+    sentAt: sms.sentAt || null,
+    deliveredAt: sms.deliveredAt || null,
+    failedAt: sms.failedAt || null,
+    skippedAt: sms.skippedAt || null,
+    notBefore: sms.notBefore || null,
+    text: isAdmin ? sms.text || null : undefined,
+  };
+}
+
+function mapDeliveryForGuest(delivery: any, isAdmin: boolean) {
+  const type = normalizeRoundType(delivery);
+  const round = normalizeRoundNumber(delivery, type);
+  const wa = delivery.whatsapp || {};
+
+  return {
+    roundKey: getRoundKey(type, round),
+    roundTitle: getRoundTitle(type, round),
+    source: delivery.source || null,
+    whatsapp: {
+      status: wa.status || null,
+      reasonCode: wa.reasonCode || null,
+      reasonText: wa.reasonCode ? getWhatsappReasonLabel(wa.reasonCode) : null,
+      errorCode: wa.errorCode || null,
+      errorMessage: wa.errorMessage || null,
+      messageId: wa.wamid || null,
+      intendedAt: wa.intendedAt || null,
+      attemptedAt: wa.attemptedAt || null,
+      sentAt: wa.sentAt || null,
+      deliveredAt: wa.deliveredAt || null,
+      readAt: wa.readAt || null,
+      failedAt: wa.failedAt || null,
+      notSentAt: wa.notSentAt || null,
+    },
+    sms: mapDeliverySms(delivery, isAdmin),
+    history: (Array.isArray(delivery.history) ? delivery.history : [])
+      .map((entry: any) => ({
+        at: entry.at || null,
+        channel: entry.channel || "",
+        event: entry.event || "",
+        status: entry.status || null,
+        reasonCode: entry.reasonCode || null,
+        message: entry.message || null,
+      }))
+      .sort((a: any, b: any) => getTimestamp(a.at) - getTimestamp(b.at)),
+  };
 }
 
 function mapQueueItemForReport(item: any, guest: any, isAdmin: boolean) {
@@ -256,7 +348,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const pageSize =
       pageSizeRaw > 0 ? Math.min(Math.max(pageSizeRaw, 10), 500) : 0;
 
-    const [allGuests, queueItems]: [any[], any[]] = await Promise.all([
+    const [allGuests, queueItems, deliveries]: [any[], any[], any[]] = await Promise.all([
       InvitationGuest.find(invitationIdQuery(invitationObjectId))
         .select(
           "_id name phone rsvp guestsCount arrivedCount invitationId createdAt updatedAt"
@@ -268,7 +360,34 @@ export async function GET(req: NextRequest, context: RouteContext) {
           updatedAt: -1,
         })
         .lean(),
+      RoundGuestDelivery.find({ invitationId: invitationObjectId })
+        .select("-sms.lockId")
+        .lean(),
     ]);
+
+    // Per-guest round records written at decision time (real reasons + SMS fallback).
+    const deliveryByGuestRound = new Map<string, any>();
+    const deliveriesByGuestKey = new Map<string, any[]>();
+    const trackingStartedAtByRound = new Map<string, number>();
+
+    for (const delivery of deliveries) {
+      const guestKey = `guest:${String(delivery.guestId)}`;
+      const roundKey = getDeliveryRoundKey(delivery);
+      deliveryByGuestRound.set(`${guestKey}:${roundKey}`, delivery);
+
+      if (!deliveriesByGuestKey.has(guestKey)) {
+        deliveriesByGuestKey.set(guestKey, []);
+      }
+      deliveriesByGuestKey.get(guestKey)!.push(delivery);
+
+      const intendedAt = getTimestamp(
+        delivery.whatsapp?.intendedAt || delivery.createdAt
+      );
+      const current = trackingStartedAtByRound.get(roundKey);
+      if (intendedAt > 0 && (current === undefined || intendedAt < current)) {
+        trackingStartedAtByRound.set(roundKey, intendedAt);
+      }
+    }
 
     const guestsMap = new Map(
       allGuests.map((guest) => [String(guest._id), guest])
@@ -373,6 +492,55 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
+    // Rounds where every intended guest was NOT_SENT have no queue rows at all.
+    for (const delivery of deliveries) {
+      const key = getDeliveryRoundKey(delivery);
+      if (roundsMap.has(key)) continue;
+
+      const type = normalizeRoundType(delivery);
+      const round = normalizeRoundNumber(delivery, type);
+
+      roundsMap.set(key, {
+        key,
+        title: getRoundTitle(type, round),
+        type,
+        typeLabel: getRoundTypeLabel(type),
+        round,
+        templateName: delivery.whatsapp?.templateName || "",
+        invitationId: String(delivery.invitationId || invitationId),
+        summary: emptyRoundSummary(),
+        items: [],
+        firstActivityAt: 0,
+        hasAnyMessages: false,
+        audienceFilter:
+          type === "rsvp" && (round === 2 || round === 3) ? "pending" : "all",
+      });
+    }
+
+    const MIXED_TRACKING_TOLERANCE_MS = 60 * 1000;
+
+    for (const group of roundsMap.values()) {
+      const trackingStartedAt = trackingStartedAtByRound.get(group.key);
+      group.tracked = trackingStartedAt !== undefined;
+      // Queue activity from before tracking existed → guests without a record are historical.
+      group.partiallyHistorical =
+        group.tracked &&
+        Number(group.firstActivityAt || 0) > 0 &&
+        Number(group.firstActivityAt) <
+          Number(trackingStartedAt) - MIXED_TRACKING_TOLERANCE_MS;
+      group.sms = {
+        candidates: 0,
+        waiting: 0,
+        pending: 0,
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+        skipped: 0,
+        deliveryTracking: false,
+      };
+      group.attention = [];
+    }
+
     const knownRounds = Array.from(roundsMap.values()).sort((a, b) => {
       const typeA = ROUND_TYPE_ORDER.indexOf(a.type);
       const typeB = ROUND_TYPE_ORDER.indexOf(b.type);
@@ -417,8 +585,20 @@ export async function GET(req: NextRequest, context: RouteContext) {
       // One entry per round (latest message for that round)
       const roundStatuses = knownRounds.map((roundMeta) => {
         const latest = latestByGuestRound.get(`${guestKey}:${roundMeta.key}`);
+        const delivery =
+          deliveryByGuestRound.get(`${guestKey}:${roundMeta.key}`) || null;
+        const wa = delivery?.whatsapp || {};
+        const sms = mapDeliverySms(delivery, isAdmin);
+
         if (latest) {
           const mapped = mapQueueItemForReport(latest, guest, isAdmin);
+          const isFailed = mapped.status === "failed";
+          const reasonText = isFailed
+            ? wa.reasonCode
+              ? getWhatsappReasonLabel(wa.reasonCode)
+              : mapped.failure?.text || HISTORICAL_REASON_TEXT
+            : null;
+
           return {
             roundKey: roundMeta.key,
             title: roundMeta.title,
@@ -428,45 +608,87 @@ export async function GET(req: NextRequest, context: RouteContext) {
             status: mapped.status as ReportStatusKey,
             statusLabel: mapped.statusLabel,
             hasMessage: true,
+            tracked: Boolean(delivery),
             sentAt: mapped.sentAt,
             deliveredAt: mapped.deliveredAt,
             readAt: mapped.readAt,
             failedAt: mapped.failedAt,
+            notSentAt: null,
             errorMessage: mapped.errorMessage || "",
+            errorCode: String(wa.errorCode || mapped.errorCode || ""),
             messageId: mapped.messageId || "",
+            reasonCode: isFailed ? wa.reasonCode || null : null,
+            reasonText,
             notSentReason: null as string | null,
             notSentReasonKey: null as string | null,
+            sms,
           };
         }
 
-        const inferred = inferNotSentReason({
-          guest,
-          roundMeta: {
-            type: roundMeta.type,
-            round: roundMeta.round,
-            hasAnyMessages: Boolean(roundMeta.hasAnyMessages),
-            firstActivityAt: Number(roundMeta.firstActivityAt || 0),
-            audienceFilter: roundMeta.audienceFilter,
-          },
-        });
-
-        return {
+        const base = {
           roundKey: roundMeta.key,
           title: roundMeta.title,
           type: roundMeta.type,
           typeLabel: roundMeta.typeLabel,
           round: roundMeta.round,
-          status: "not_sent" as ReportStatusKey,
-          statusLabel: getStatusLabel("not_sent"),
           hasMessage: false,
           sentAt: null,
           deliveredAt: null,
           readAt: null,
           failedAt: null,
-          errorMessage: "",
           messageId: "",
-          notSentReason: inferred.text,
-          notSentReasonKey: inferred.key,
+          sms,
+        };
+
+        if (delivery) {
+          const reasonCode = wa.reasonCode || null;
+          const reasonText = reasonCode
+            ? getWhatsappReasonLabel(reasonCode)
+            : HISTORICAL_REASON_TEXT;
+
+          return {
+            ...base,
+            status: "not_sent" as ReportStatusKey,
+            statusLabel: getStatusLabel("not_sent"),
+            tracked: true,
+            notSentAt: wa.notSentAt || wa.updatedAt || null,
+            errorMessage: wa.errorMessage || "",
+            errorCode: String(wa.errorCode || ""),
+            reasonCode,
+            reasonText,
+            notSentReason: reasonText as string | null,
+            notSentReasonKey: reasonCode as string | null,
+          };
+        }
+
+        if (roundMeta.tracked && !roundMeta.partiallyHistorical) {
+          return {
+            ...base,
+            status: "not_in_audience" as ReportStatusKey,
+            statusLabel: getStatusLabel("not_in_audience"),
+            tracked: true,
+            notSentAt: null,
+            errorMessage: "",
+            errorCode: "",
+            reasonCode: "NOT_IN_AUDIENCE",
+            reasonText: getStatusLabel("not_in_audience"),
+            notSentReason: null as string | null,
+            notSentReasonKey: null as string | null,
+          };
+        }
+
+        return {
+          ...base,
+          status: "not_sent" as ReportStatusKey,
+          statusLabel: getStatusLabel("not_sent"),
+          tracked: false,
+          notSentAt: null,
+          errorMessage: "",
+          errorCode: "",
+          reasonCode: null,
+          reasonText: HISTORICAL_REASON_TEXT,
+          notSentReason: HISTORICAL_REASON_TEXT as string | null,
+          notSentReasonKey: "historical" as string | null,
         };
       });
 
@@ -527,45 +749,24 @@ export async function GET(req: NextRequest, context: RouteContext) {
       let notSentReasonKey: string | null = null;
 
       if (mappedMessages.length === 0) {
-        const anyRound = knownRounds[0]
-          ? {
-              type: knownRounds[0].type,
-              round: knownRounds[0].round,
-              hasAnyMessages: knownRounds.some((r) => r.hasAnyMessages),
-              firstActivityAt: Math.min(
-                ...knownRounds
-                  .map((r) => Number(r.firstActivityAt || 0))
-                  .filter((n) => n > 0),
-                Number.POSITIVE_INFINITY
-              ),
-              audienceFilter: knownRounds[0].audienceFilter,
-            }
-          : null;
-
-        const inferred = inferNotSentReason({
-          guest,
-          roundMeta:
-            anyRound && Number.isFinite(anyRound.firstActivityAt)
-              ? {
-                  ...anyRound,
-                  firstActivityAt:
-                    anyRound.firstActivityAt === Number.POSITIVE_INFINITY
-                      ? 0
-                      : anyRound.firstActivityAt,
-                }
-              : anyRound
-                ? { ...anyRound, firstActivityAt: 0, hasAnyMessages: false }
-                : null,
-        });
-
-        // Prefer phone problems even when no rounds exist yet
         if (!knownRounds.length) {
+          // No round has run yet — only the current phone state is known.
           const phoneOnly = inferNotSentReason({ guest, roundMeta: null });
           notSentReason = phoneOnly.text;
           notSentReasonKey = phoneOnly.key;
         } else {
-          notSentReason = inferred.text;
-          notSentReasonKey = inferred.key;
+          const withReason =
+            roundStatuses.find((r) => r.tracked && r.notSentReason) ||
+            roundStatuses.find((r) => r.notSentReason) ||
+            null;
+
+          if (withReason) {
+            notSentReason = withReason.notSentReason;
+            notSentReasonKey = withReason.notSentReasonKey;
+          } else if (roundStatuses.every((r) => r.status === "not_in_audience")) {
+            notSentReason = getStatusLabel("not_in_audience");
+            notSentReasonKey = "not_in_audience";
+          }
         }
       }
 
@@ -614,6 +815,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
         roundsTotal: knownRounds.length,
 
         messages: includeHistory ? mappedMessages : undefined,
+        deliveries: includeHistory
+          ? (deliveriesByGuestKey.get(guestKey) || []).map((delivery) =>
+              mapDeliveryForGuest(delivery, isAdmin)
+            )
+          : undefined,
       };
 
       guestsAggregated.push(guestRow);
@@ -623,7 +829,53 @@ export async function GET(req: NextRequest, context: RouteContext) {
         const group = roundsMap.get(roundStatus.roundKey);
         if (!group) continue;
 
+        if (roundStatus.status === "not_in_audience") continue;
+
         group.summary.intended += 1;
+
+        const smsState = roundStatus.sms;
+        if (smsState) {
+          group.sms.candidates += 1;
+          const smsKey = String(smsState.status).toLowerCase();
+          if (smsKey in group.sms && smsKey !== "candidates") {
+            group.sms[smsKey] += 1;
+          }
+        }
+
+        if (
+          roundStatus.status === "failed" ||
+          roundStatus.status === "not_sent" ||
+          smsState
+        ) {
+          group.attention.push({
+            guestId: guest._id ? String(guest._id) : null,
+            identityKey: guestKey,
+            name: guest.name || "",
+            phone: guest.phone || "",
+            guestsCount: guest.guestsCount || 0,
+            rsvp: mapRsvpFilterValue(guest.rsvp),
+            rsvpLabel: mapRsvpLabel(guest.rsvp),
+            whatsappStatus: roundStatus.status,
+            whatsappStatusLabel: roundStatus.statusLabel,
+            tracked: roundStatus.tracked,
+            reasonCode: roundStatus.reasonCode || null,
+            reasonText:
+              roundStatus.reasonText ||
+              (roundStatus.status === "failed"
+                ? roundStatus.errorMessage || HISTORICAL_REASON_TEXT
+                : null),
+            errorCode: roundStatus.errorCode || "",
+            errorMessage: roundStatus.errorMessage || "",
+            at:
+              roundStatus.failedAt ||
+              roundStatus.notSentAt ||
+              roundStatus.readAt ||
+              roundStatus.deliveredAt ||
+              roundStatus.sentAt ||
+              null,
+            sms: smsState,
+          });
+        }
 
         if (!roundStatus.hasMessage) {
           group.summary.notSent += 1;
@@ -704,6 +956,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
         return nameA.localeCompare(nameB, "he");
       });
 
+      group.attention.sort((a: any, b: any) =>
+        String(a.name || "").localeCompare(String(b.name || ""), "he")
+      );
+
       group.recipients = group.items;
       group.total = group.summary.total;
       group.intended = group.summary.intended;
@@ -720,6 +976,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         firstActivityAt: _fa,
         hasAnyMessages: _ham,
         audienceFilter: _af,
+        partiallyHistorical: _ph,
         ...publicRound
       } = group;
 
@@ -773,6 +1030,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       ...queueItems.map((item) => getTimestamp(item.readAt)),
       ...queueItems.map((item) => getTimestamp(item.deliveredAt)),
       ...allGuests.map((guest) => getTimestamp(guest.updatedAt)),
+      ...deliveries.map((delivery) => getTimestamp(delivery.updatedAt)),
     ].filter((n) => n > 0);
 
     const lastUpdatedMs = lastUpdatedCandidates.length

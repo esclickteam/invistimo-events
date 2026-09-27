@@ -19,6 +19,10 @@ import {
   getRsvpRoundSentSnapshot,
   normalizeRsvpRound,
 } from "@/lib/rsvpRoundLock";
+import {
+  recordRoundDecisions,
+  type RoundDecision,
+} from "@/lib/whatsapp/roundDeliveryTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -719,17 +723,40 @@ export async function POST(req: NextRequest) {
     const guests = await InvitationGuest.find(guestQuery);
 
     const queueDocs: any[] = [];
+    const queueGuests = new Map<string, any>();
+    const decisions: RoundDecision[] = [];
     const sendDateKey = new Date().toISOString().slice(0, 10);
     const activeExecutionId =
       type === "rsvp"
         ? getActiveRsvpRoundExecutionId(invitation, round) || sendDateKey
         : sendDateKey;
 
+    const notSent = (guest: any, reasonCode: string) =>
+      decisions.push({
+        invitationId: invitation._id,
+        guest,
+        type,
+        round,
+        source: "immediate",
+        templateName,
+        outcome: { kind: "not_sent", reasonCode },
+      });
+
     for (const guest of guests) {
-      if (!guest.phone || !guest.token) continue;
+      if (!guest.phone || !String(guest.phone).trim()) {
+        notSent(guest, "MISSING_PHONE");
+        continue;
+      }
+      if (!guest.token) {
+        notSent(guest, "MISSING_GUEST_TOKEN");
+        continue;
+      }
 
       const phone = normalizePhone(guest.phone);
-      if (!phone) continue;
+      if (!phone) {
+        notSent(guest, "INVALID_PHONE");
+        continue;
+      }
 
       const tableName =
         typeof guest.tableNumber === "number"
@@ -760,6 +787,19 @@ guestPayload.urlSuffix = urlSuffix;
         );
       }
 
+      const idempotencyKey = [
+        "whatsapp",
+        "immediate",
+        type,
+        String(invitation._id),
+        String(round),
+        String(guest._id),
+        activeExecutionId,
+        templateName,
+      ].join(":");
+
+      queueGuests.set(idempotencyKey, guest);
+
       queueDocs.push({
         invitationId: invitation._id,
         guestId: guest._id,
@@ -772,16 +812,7 @@ guestPayload.urlSuffix = urlSuffix;
 
         phone,
         templateName,
-        idempotencyKey: [
-  "whatsapp",
-  "immediate",
-  type,
-  String(invitation._id),
-  String(round),
-  String(guest._id),
-  activeExecutionId,
-  templateName,
-].join(":"),
+        idempotencyKey,
 
         payload: guestPayload,
 
@@ -792,11 +823,48 @@ guestPayload.urlSuffix = urlSuffix;
       });
     }
 
+    const recordQueued = (inserted: any[]) => {
+      for (const doc of inserted) {
+        const guest = queueGuests.get(doc.idempotencyKey);
+        if (!guest) continue;
+        queueGuests.delete(doc.idempotencyKey);
+        decisions.push({
+          invitationId: invitation._id,
+          guest,
+          type,
+          round,
+          source: "immediate",
+          templateName,
+          outcome: {
+            kind: "queued",
+            queueId: doc._id,
+            idempotencyKey: doc.idempotencyKey,
+            phone: doc.phone,
+          },
+        });
+      }
+    };
+
     if (queueDocs.length > 0) {
-      await WhatsappQueue.insertMany(queueDocs, {
-        ordered: false,
-      });
+      try {
+        const inserted = await WhatsappQueue.insertMany(queueDocs, {
+          ordered: false,
+        });
+        recordQueued(inserted);
+      } catch (insertError: any) {
+        recordQueued(insertError?.insertedDocs || []);
+        const isDuplicate = (insertError?.writeErrors || []).some(
+          (e: any) => (e?.code ?? e?.err?.code) === 11000
+        );
+        for (const guest of queueGuests.values()) {
+          notSent(guest, isDuplicate ? "DUPLICATE" : "QUEUE_ERROR");
+        }
+        await recordRoundDecisions(decisions);
+        throw insertError;
+      }
     }
+
+    await recordRoundDecisions(decisions);
 
     if (queueDocs.length > 0) {
       const now = new Date();

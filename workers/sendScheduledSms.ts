@@ -25,6 +25,13 @@ import {
   sendRsvpTemplateMedia,
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import {
+  getWhatsappReasonLabel,
+  recordRoundDecisions,
+  recordWhatsappSendFailure,
+  recordWhatsappSendSuccess,
+  type RoundDecision,
+} from "@/lib/whatsapp/roundDeliveryTracking";
 
 /* ======================================================
    TYPES
@@ -907,6 +914,42 @@ export async function sendScheduledWhatsapp() {
   for (const msg of messages) {
     processed++;
 
+    let roundGuests: any[] = [];
+    const decidedGuestIds = new Set<string>();
+    const trackType = normalizeType(msg.type || msg.templateKey);
+    const trackRound = normalizeRound(msg.round ?? msg.roundNumber);
+    const decide = async (guest: any, outcome: RoundDecision["outcome"]) => {
+      decidedGuestIds.add(String(guest._id));
+      await recordRoundDecisions([
+        {
+          invitationId: msg.invitationId,
+          guest,
+          type: trackType,
+          round: trackRound,
+          source: "scheduled",
+          scheduleId: msg._id,
+          templateName: String(msg.templateName || "").trim() || null,
+          outcome,
+        },
+      ]);
+    };
+    const decideRemainingNotSent = async (reasonCode: string, errorMessage?: string) => {
+      const remaining = roundGuests.filter((g) => !decidedGuestIds.has(String(g._id)));
+      await recordRoundDecisions(
+        remaining.map((guest) => ({
+          invitationId: msg.invitationId,
+          guest,
+          type: trackType,
+          round: trackRound,
+          source: "scheduled" as const,
+          scheduleId: msg._id,
+          templateName: String(msg.templateName || "").trim() || null,
+          outcome: { kind: "not_sent" as const, reasonCode, errorMessage },
+        }))
+      );
+      for (const guest of remaining) decidedGuestIds.add(String(guest._id));
+    };
+
     try {
       const freshBefore = await ScheduledMessage.findById(msg._id).lean();
 
@@ -987,6 +1030,7 @@ export async function sendScheduledWhatsapp() {
       });
 
       const guests = await InvitationGuest.find(guestsQuery).lean();
+      roundGuests = guests;
 
       let sent = 0;
       const sentGuestIds: any[] = [];
@@ -995,11 +1039,15 @@ export async function sendScheduledWhatsapp() {
         const freshMid = await ScheduledMessage.findById(msg._id).lean();
 
         if (!freshMid || freshMid.status === "cancelled") {
+          await decideRemainingNotSent("ROUND_CANCELLED");
           break;
         }
 
         const phone = normalizePhone(guest.phone);
-        if (!phone) continue;
+        if (!phone) {
+          await decide(guest, { kind: "not_sent", reasonCode: "MISSING_PHONE" });
+          continue;
+        }
 
         const tableName = getTableName(guest);
 
@@ -1043,7 +1091,7 @@ const personalUrl = buildGuestInviteUrl({
           templateName,
         ].join(":");
 
-        const existingQueue = await WhatsappQueue.findOne({ idempotencyKey }).lean();
+        const existingQueue: any = await WhatsappQueue.findOne({ idempotencyKey }).lean();
 
 if (existingQueue) {
   console.log("⛔ Skipping duplicate scheduled WhatsApp send", {
@@ -1054,10 +1102,19 @@ if (existingQueue) {
     wamid: existingQueue.wamid,
   });
 
+  await decide(guest, {
+    kind: "queued",
+    queueId: existingQueue._id,
+    idempotencyKey,
+    phone,
+  });
+
   continue;
 }
 
-await WhatsappQueue.create({
+// Created as "sending" (locked) so the queue cron cannot pick it up
+// and send it a second time while this worker is sending it.
+const queueDoc = await WhatsappQueue.create({
   invitationId: msg.invitationId,
   guestId: guest._id,
   scheduleId: msg._id,
@@ -1073,11 +1130,20 @@ await WhatsappQueue.create({
   payload,
 
   scheduledAt: msg.scheduledAt,
-  status: "pending",
+  status: "sending",
+  lockedAt: new Date(),
+  lockedBy: "whatsapp-worker",
 
   attempts: 0,
   maxAttempts: 1,
 });
+
+        await decide(guest, {
+          kind: "queued",
+          queueId: queueDoc._id,
+          idempotencyKey,
+          phone,
+        });
 
         const freshRightBeforeSend = await ScheduledMessage.findById(
           msg._id
@@ -1099,6 +1165,18 @@ await WhatsappQueue.create({
             }
           );
 
+          await recordWhatsappSendFailure({
+            queueId: queueDoc._id,
+            outcome: {
+              status: "NOT_SENT",
+              reasonCode: "ROUND_CANCELLED",
+              reasonMessage: getWhatsappReasonLabel("ROUND_CANCELLED"),
+              errorCode: null,
+              errorMessage: "ROUND_CANCELLED",
+            },
+          });
+          await decideRemainingNotSent("ROUND_CANCELLED");
+
           break;
         }
 
@@ -1113,6 +1191,8 @@ await WhatsappQueue.create({
           {
             $set: {
               status: result.success ? "sent" : "failed",
+              lockedAt: null,
+              lockedBy: null,
               wamid: result.wamid || null,
               sentAt: result.success ? new Date() : null,
               failedAt: result.success ? null : new Date(),
@@ -1141,8 +1221,17 @@ await WhatsappQueue.create({
         );
 
         if (result.success) {
+          await recordWhatsappSendSuccess({
+            queueId: queueDoc._id,
+            wamid: result.wamid,
+          });
           sent++;
           sentGuestIds.push(guest._id);
+        } else {
+          await recordWhatsappSendFailure({
+            queueId: queueDoc._id,
+            error: result.error,
+          });
         }
       }
 
@@ -1178,6 +1267,12 @@ await WhatsappQueue.create({
       sentTotal += sent;
     } catch (err: any) {
       console.error("💥 WhatsApp worker error:", err);
+
+      const workerError = String(err?.message || "UNKNOWN_ERROR");
+      await decideRemainingNotSent(
+        workerError === "MISSING_WHATSAPP_TEMPLATE_NAME" ? "TEMPLATE_ERROR" : "WORKER_ERROR",
+        workerError
+      );
 
       await ScheduledMessage.updateOne(
         {

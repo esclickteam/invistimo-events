@@ -23,7 +23,88 @@ type ReportStatus =
   | "delivered"
   | "read"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "not_in_audience";
+
+type SmsFallbackState = {
+  status: "WAITING" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED";
+  statusLabel: string;
+  reasonCode?: string | null;
+  reasonText?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  triggeredAt?: string | null;
+  sentAt?: string | null;
+  deliveredAt?: string | null;
+  failedAt?: string | null;
+  skippedAt?: string | null;
+  text?: string | null;
+};
+
+type RoundSmsSummary = {
+  candidates: number;
+  waiting: number;
+  pending: number;
+  sent: number;
+  delivered: number;
+  failed: number;
+  skipped: number;
+  deliveryTracking: boolean;
+};
+
+type AttentionRow = {
+  guestId?: string | null;
+  identityKey: string;
+  name: string;
+  phone: string;
+  guestsCount: number;
+  rsvpLabel: string;
+  whatsappStatus: ReportStatus;
+  whatsappStatusLabel: string;
+  tracked?: boolean;
+  reasonCode?: string | null;
+  reasonText?: string | null;
+  errorCode?: string;
+  errorMessage?: string;
+  at?: string | null;
+  sms?: SmsFallbackState | null;
+};
+
+type GuestDelivery = {
+  roundKey: string;
+  roundTitle: string;
+  whatsapp: {
+    status: string | null;
+    reasonCode?: string | null;
+    reasonText?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    messageId?: string | null;
+    sentAt?: string | null;
+    deliveredAt?: string | null;
+    readAt?: string | null;
+    failedAt?: string | null;
+    notSentAt?: string | null;
+  };
+  sms?: SmsFallbackState | null;
+  history: {
+    at: string | null;
+    channel: string;
+    event: string;
+    status?: string | null;
+    reasonCode?: string | null;
+    message?: string | null;
+  }[];
+};
+
+type AttentionFilter =
+  | "failed"
+  | "not_sent"
+  | "sms_all"
+  | "sms_sent"
+  | "sms_failed"
+  | "sms_skipped"
+  | "sms_waiting";
 
 type ReportMessage = {
   id: string;
@@ -57,6 +138,9 @@ type RoundStatusChip = {
   statusLabel: string;
   hasMessage: boolean;
   notSentReason?: string | null;
+  reasonText?: string | null;
+  errorCode?: string;
+  sms?: SmsFallbackState | null;
 };
 
 type ReportGuest = {
@@ -86,6 +170,7 @@ type ReportGuest = {
   roundsSentCount: number;
   roundsTotal: number;
   messages?: ReportMessage[];
+  deliveries?: GuestDelivery[];
 };
 
 type ReportRound = {
@@ -103,6 +188,9 @@ type ReportRound = {
   pending: number;
   notSent?: number;
   scheduled?: number;
+  tracked?: boolean;
+  sms?: RoundSmsSummary;
+  attention?: AttentionRow[];
   summary?: {
     total: number;
     intended?: number;
@@ -195,9 +283,69 @@ function getStatusClass(status?: string) {
   if (normalized === "not_sent" || normalized === "לא נשלח") {
     return "border-[#E8DCCB] bg-[#F7F1E8] text-[#7A6A58]";
   }
+  if (normalized === "not_in_audience") {
+    return "border-dashed border-gray-200 bg-white text-gray-400";
+  }
 
   return "border-[#EFE2D1] bg-[#F6F1EA] text-[#7B6754]";
 }
+
+function getSmsStatusClass(status?: string) {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "SENT" || normalized === "DELIVERED") {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (normalized === "FAILED") return "border-red-200 bg-red-50 text-red-600";
+  if (normalized === "SKIPPED") return "border-gray-200 bg-gray-50 text-gray-600";
+  return "border-violet-200 bg-violet-50 text-violet-700";
+}
+
+function SmsBadge({ sms }: { sms?: SmsFallbackState | null }) {
+  if (!sms) return <span className="text-xs font-bold text-[#B6A28C]">—</span>;
+
+  return (
+    <span
+      title={[sms.statusLabel, sms.reasonText, sms.errorMessage]
+        .filter(Boolean)
+        .join(" · ")}
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getSmsStatusClass(sms.status)}`}
+    >
+      SMS · {sms.statusLabel}
+    </span>
+  );
+}
+
+function matchesAttentionFilter(row: AttentionRow, filter: AttentionFilter) {
+  const smsStatus = row.sms?.status;
+  switch (filter) {
+    case "failed":
+      return row.whatsappStatus === "failed";
+    case "not_sent":
+      return row.whatsappStatus === "not_sent";
+    case "sms_all":
+      return Boolean(smsStatus);
+    case "sms_sent":
+      return smsStatus === "SENT" || smsStatus === "DELIVERED";
+    case "sms_failed":
+      return smsStatus === "FAILED";
+    case "sms_skipped":
+      return smsStatus === "SKIPPED";
+    case "sms_waiting":
+      return smsStatus === "WAITING" || smsStatus === "PENDING";
+    default:
+      return false;
+  }
+}
+
+const ATTENTION_TITLES: Record<AttentionFilter, string> = {
+  failed: "WhatsApp נכשל",
+  not_sent: "WhatsApp לא נשלח",
+  sms_all: "זכאים לגיבוי SMS",
+  sms_sent: "גיבוי SMS נשלח",
+  sms_failed: "גיבוי SMS נכשל",
+  sms_skipped: "גיבוי SMS לא התאפשר (דילוג)",
+  sms_waiting: "גיבוי SMS ממתין",
+};
 
 function StatusBadge({
   status,
@@ -225,6 +373,7 @@ function StatBox({
   active = false,
   onClick,
   title,
+  hint,
 }: {
   label: string;
   value: number;
@@ -232,6 +381,7 @@ function StatBox({
   active?: boolean;
   onClick?: () => void;
   title?: string;
+  hint?: string;
 }) {
   const Comp: any = onClick ? "button" : "div";
 
@@ -262,6 +412,11 @@ function StatBox({
       >
         {Number(value || 0).toLocaleString("he-IL")}
       </div>
+      {hint && (
+        <div className="mt-1 text-[10px] font-bold leading-4 text-[#A08B74]">
+          {hint}
+        </div>
+      )}
     </Comp>
   );
 }
@@ -305,9 +460,14 @@ function RoundChip({ chip }: { chip: RoundStatusChip }) {
 
   return (
     <span
-      title={`${chip.title}: ${chip.statusLabel}${
-        chip.notSentReason ? ` · ${chip.notSentReason}` : ""
-      }`}
+      title={[
+        `${chip.title}: ${chip.statusLabel}`,
+        chip.notSentReason || (chip.status === "failed" ? chip.reasonText : null),
+        chip.errorCode ? `קוד ${chip.errorCode}` : null,
+        chip.sms ? `SMS: ${chip.sms.statusLabel}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black ${getStatusClass(chip.status)}`}
     >
       {short} {mark}
@@ -326,6 +486,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "delivered", label: "נמסר" },
   { value: "read", label: "נקרא" },
   { value: "failed", label: "נכשל" },
+  { value: "not_in_audience", label: "לא בקהל היעד (בסבב נבחר)" },
 ];
 
 const RSVP_FILTERS = [
@@ -375,6 +536,8 @@ export default function WhatsappRoundsReportModal({
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [attentionFilter, setAttentionFilter] =
+    useState<AttentionFilter | null>(null);
 
   const loadReport = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
@@ -549,7 +712,11 @@ export default function WhatsappRoundsReportModal({
       overallLabel: guest.overallStatusLabel,
       last: roundHit?.status || "not_sent",
       lastLabel: roundHit?.statusLabel || "לא נשלח",
-      reason: roundHit?.notSentReason || null,
+      reason:
+        roundHit?.notSentReason ||
+        (roundHit?.status === "failed" ? roundHit?.reasonText : null) ||
+        null,
+      sms: roundHit?.sms || null,
     };
   }
 
@@ -735,6 +902,13 @@ export default function WhatsappRoundsReportModal({
                             {round.failed} נכשלו · {notSent} לא נשלחו ·{" "}
                             {round.pending} ממתינים
                           </div>
+                          {round.sms && round.sms.candidates > 0 && (
+                            <div className="text-sky-700">
+                              גיבוי SMS: {round.sms.sent} נשלחו ·{" "}
+                              {round.sms.failed} נכשלו · {round.sms.skipped}{" "}
+                              דולגו
+                            </div>
+                          )}
                         </div>
                       </button>
                     );
@@ -786,32 +960,106 @@ export default function WhatsappRoundsReportModal({
                 </div>
 
                 {selectedRound ? (
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-                    <StatBox
-                      label="מיועדים"
-                      value={
-                        selectedRound.intended ??
-                        selectedRound.summary?.intended ??
-                        selectedRound.total
-                      }
-                    />
-                    <StatBox label="נשלחו" value={selectedRound.sent} />
-                    <StatBox label="נמסרו" value={selectedRound.delivered} />
-                    <StatBox label="נקראו" value={selectedRound.read} />
-                    <StatBox
-                      label="נכשלו"
-                      value={selectedRound.failed}
-                      danger
-                    />
-                    <StatBox
-                      label="לא נשלחו"
-                      value={
-                        selectedRound.notSent ??
-                        selectedRound.summary?.notSent ??
-                        0
-                      }
-                    />
-                    <StatBox label="ממתינים" value={selectedRound.pending} />
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-2 text-sm font-black text-[#3A2A1C]">
+                        WhatsApp
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+                        <StatBox
+                          label="מיועדים"
+                          value={
+                            selectedRound.intended ??
+                            selectedRound.summary?.intended ??
+                            selectedRound.total
+                          }
+                        />
+                        <StatBox label="נשלחו" value={selectedRound.sent} />
+                        <StatBox label="נמסרו" value={selectedRound.delivered} />
+                        <StatBox label="נקראו" value={selectedRound.read} />
+                        <StatBox
+                          label="נכשלו"
+                          value={selectedRound.failed}
+                          danger
+                          onClick={() => setAttentionFilter("failed")}
+                          title="פתח רשימת אורחים שה-WhatsApp אליהם נכשל"
+                          hint="לחצו לרשימה"
+                        />
+                        <StatBox
+                          label="לא נשלחו"
+                          value={
+                            selectedRound.notSent ??
+                            selectedRound.summary?.notSent ??
+                            0
+                          }
+                          onClick={() => setAttentionFilter("not_sent")}
+                          title="פתח רשימת אורחים שה-WhatsApp לא נשלח אליהם ומדוע"
+                          hint="לחצו לרשימה"
+                        />
+                        <StatBox label="ממתינים" value={selectedRound.pending} />
+                      </div>
+                      {!selectedRound.tracked && (
+                        <p className="mt-2 text-xs font-bold text-[#A08B74]">
+                          סבב זה נשלח לפני הפעלת המעקב המפורט – סיבות אי-שליחה
+                          אינן זמינות (נתון היסטורי).
+                        </p>
+                      )}
+                    </div>
+
+                    {selectedRound.sms && selectedRound.sms.candidates > 0 && (
+                      <div className="rounded-[22px] border border-sky-100 bg-sky-50/40 p-3">
+                        <div className="mb-1 text-sm font-black text-sky-800">
+                          גיבוי SMS לאותו סבב
+                        </div>
+                        <p className="mb-3 text-xs font-bold leading-5 text-sky-700/80">
+                          אותו תוכן ואותו לינק אישי של הסבב, נשלח ב-SMS רק למי
+                          שה-WhatsApp אליו נכשל או לא נשלח. זה לא קמפיין נפרד,
+                          והוא לא משנה את סטטוס ה-WhatsApp.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                          <StatBox
+                            label="זכאים לגיבוי"
+                            value={selectedRound.sms.candidates}
+                            onClick={() => setAttentionFilter("sms_all")}
+                          />
+                          <StatBox
+                            label="SMS נשלחו"
+                            value={selectedRound.sms.sent}
+                            onClick={() => setAttentionFilter("sms_sent")}
+                            hint="התקבלו אצל ספק ה-SMS"
+                          />
+                          <StatBox
+                            label="SMS נמסרו"
+                            value={selectedRound.sms.delivered}
+                            hint={
+                              selectedRound.sms.deliveryTracking
+                                ? undefined
+                                : "ספק ה-SMS לא מחזיר אישור מסירה"
+                            }
+                          />
+                          <StatBox
+                            label="SMS נכשלו"
+                            value={selectedRound.sms.failed}
+                            danger={selectedRound.sms.failed > 0}
+                            onClick={() => setAttentionFilter("sms_failed")}
+                          />
+                          <StatBox
+                            label="SMS דולגו"
+                            value={selectedRound.sms.skipped}
+                            onClick={() => setAttentionFilter("sms_skipped")}
+                            hint="אין טלפון / לא תקין / כבר ענה ועוד"
+                          />
+                          <StatBox
+                            label="ממתינים"
+                            value={
+                              selectedRound.sms.waiting +
+                              selectedRound.sms.pending
+                            }
+                            onClick={() => setAttentionFilter("sms_waiting")}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -1059,6 +1307,147 @@ export default function WhatsappRoundsReportModal({
             </div>
           )}
         </main>
+
+        {attentionFilter && selectedRound && (
+          <AttentionListModal
+            round={selectedRound}
+            filter={attentionFilter}
+            isAdmin={isAdmin}
+            onClose={() => setAttentionFilter(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AttentionListModal({
+  round,
+  filter,
+  isAdmin,
+  onClose,
+}: {
+  round: ReportRound;
+  filter: AttentionFilter;
+  isAdmin: boolean;
+  onClose: () => void;
+}) {
+  const rows = (round.attention || []).filter((row) =>
+    matchesAttentionFilter(row, filter)
+  );
+
+  return (
+    <div
+      className="absolute inset-0 z-20 flex items-start justify-center overflow-y-auto bg-black/30 p-2 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[1200px] rounded-[26px] border border-[#E7D8C6] bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-[#EFE2D1] px-5 py-4">
+          <div className="text-right">
+            <h3 className="text-xl font-black text-[#3A2A1C]">
+              {ATTENTION_TITLES[filter]} · {rows.length.toLocaleString("he-IL")}
+            </h3>
+            <p className="mt-1 text-xs font-bold text-[#8A7867]">
+              {round.title}
+              {filter.startsWith("sms_")
+                ? " · גיבוי SMS של אותו סבב (ערוץ נפרד – לא משנה את סטטוס ה-WhatsApp)"
+                : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F1EA] text-[#6B5138] hover:bg-[#F1E5D6]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="max-h-[70dvh] overflow-auto">
+          <table className="w-max min-w-full border-collapse text-right text-sm">
+            <thead className="sticky top-0 bg-[#F5EFE6] text-xs font-black text-[#7B6754]">
+              <tr>
+                <th className="whitespace-nowrap p-3">שם</th>
+                <th className="whitespace-nowrap p-3">טלפון</th>
+                <th className="whitespace-nowrap p-3">מס׳ אורחים</th>
+                <th className="whitespace-nowrap p-3">סטטוס WhatsApp</th>
+                <th className="min-w-[220px] p-3">סיבה</th>
+                <th className="whitespace-nowrap p-3">קוד שגיאה</th>
+                <th className="whitespace-nowrap p-3">תאריך ושעה</th>
+                <th className="min-w-[200px] p-3">גיבוי SMS</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EFE2D1]">
+              {rows.map((row) => (
+                <tr key={row.identityKey} className="align-top">
+                  <td className="p-3 font-black text-[#3A2A1C]">
+                    {row.name || "—"}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-bold text-[#6B5A48]" dir="ltr">
+                    {row.phone || "—"}
+                  </td>
+                  <td className="p-3 font-bold text-[#6B5A48]">
+                    {row.guestsCount || 0}
+                  </td>
+                  <td className="p-3">
+                    <StatusBadge
+                      status={row.whatsappStatus}
+                      label={row.whatsappStatusLabel}
+                    />
+                  </td>
+                  <td className="p-3 text-xs font-bold leading-5 text-[#6B5A48]">
+                    <div>{row.reasonText || "—"}</div>
+                    {row.errorMessage && row.errorMessage !== row.reasonText && (
+                      <div className="mt-1 break-words text-[11px] text-[#A08B74]">
+                        {row.errorMessage}
+                      </div>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-bold text-[#6B5A48]" dir="ltr">
+                    {row.errorCode || "—"}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-bold text-[#6B5A48]">
+                    {formatDateTime(row.at) || "—"}
+                  </td>
+                  <td className="p-3 text-xs font-bold leading-5 text-[#6B5A48]">
+                    <SmsBadge sms={row.sms} />
+                    {row.sms?.reasonText && (
+                      <div className="mt-1">{row.sms.reasonText}</div>
+                    )}
+                    {row.sms?.errorMessage && (
+                      <div className="mt-1 break-words text-red-600">
+                        {row.sms.errorCode ? `${row.sms.errorCode} · ` : ""}
+                        {row.sms.errorMessage}
+                      </div>
+                    )}
+                    {(row.sms?.sentAt || row.sms?.failedAt || row.sms?.skippedAt) && (
+                      <div className="mt-1 text-[#A08B74]">
+                        {formatDateTime(
+                          row.sms?.sentAt || row.sms?.failedAt || row.sms?.skippedAt
+                        )}
+                      </div>
+                    )}
+                    {isAdmin && row.sms?.text && (
+                      <div className="mt-1 max-w-[260px] whitespace-pre-wrap break-words text-[11px] text-[#A08B74]">
+                        {row.sms.text}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center font-bold text-[#8A7867]">
+                    אין אורחים ברשימה זו.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1080,6 +1469,7 @@ function GuestRows({
     last: string;
     lastLabel: string;
     reason?: string | null;
+    sms?: SmsFallbackState | null;
   };
   isAdmin: boolean;
   onToggle: () => void;
@@ -1153,14 +1543,15 @@ function GuestRows({
                 {display.reason}
               </div>
             )}
-            {display.last === "failed" && guest.lastError && (
+            {display.last === "failed" && (display.reason || guest.lastError) && (
               <div
                 className="max-w-[200px] whitespace-normal text-[11px] font-bold leading-4 text-red-600"
-                title={guest.lastError}
+                title={guest.lastError || display.reason || undefined}
               >
-                {guest.lastError}
+                {display.reason || guest.lastError}
               </div>
             )}
+            {display.sms && <SmsBadge sms={display.sms} />}
           </div>
         </td>
         <td className="whitespace-nowrap p-4 font-bold text-[#6B5A48]">
@@ -1199,8 +1590,9 @@ function GuestTimeline({
   isAdmin: boolean;
 }) {
   const messages = guest.messages || [];
+  const deliveries = guest.deliveries || [];
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && deliveries.length === 0) {
     return (
       <div className="rounded-2xl border border-[#EFE2D1] bg-white px-4 py-5 text-sm font-bold text-[#8A7867]">
         לא נשלחה עדיין אף הודעה לאורח זה.
@@ -1209,6 +1601,117 @@ function GuestTimeline({
     );
   }
 
+  return (
+    <div className="space-y-5">
+      {deliveries.length > 0 && <DeliveryAuditLog deliveries={deliveries} />}
+      {messages.length > 0 && (
+        <MessageHistory guest={guest} messages={messages} isAdmin={isAdmin} />
+      )}
+    </div>
+  );
+}
+
+const HISTORY_EVENT_LABELS: Record<string, string> = {
+  WA_INTENDED: "נבחר לסבב",
+  WA_QUEUED: "נכנס לתור WhatsApp",
+  WA_SENT: "WhatsApp נשלח",
+  WA_FAILED: "WhatsApp נכשל",
+  WA_NOT_SENT: "WhatsApp לא נשלח",
+  WA_WEBHOOK_SENT: "Meta: נשלח",
+  WA_WEBHOOK_DELIVERED: "Meta: נמסר",
+  WA_WEBHOOK_READ: "Meta: נקרא",
+  WA_WEBHOOK_FAILED: "Meta: נכשל",
+  SMS_FALLBACK_TRIGGERED: "גיבוי SMS הופעל",
+  SMS_SENT: "גיבוי SMS נשלח",
+  SMS_FAILED: "גיבוי SMS נכשל",
+  SMS_SKIPPED: "גיבוי SMS דולג",
+  SMS_RETRY_SCHEDULED: "גיבוי SMS: נקבע ניסיון חוזר",
+  SMS_CLAIM_RELEASED: "גיבוי SMS שוחרר לניסיון חוזר",
+};
+
+function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="text-sm font-black text-[#3A2A1C]">
+        מעקב לפי סבב · WhatsApp וגיבוי SMS
+      </div>
+      {deliveries.map((delivery) => (
+        <div
+          key={delivery.roundKey}
+          className="rounded-2xl border border-[#EFE2D1] bg-white p-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-black text-[#3A2A1C]">
+              {delivery.roundTitle}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge
+                status={String(delivery.whatsapp.status || "").toLowerCase()}
+                label={`WhatsApp · ${delivery.whatsapp.status || "—"}`}
+              />
+              <SmsBadge sms={delivery.sms} />
+            </div>
+          </div>
+
+          <div className="mt-2 grid gap-1 text-xs font-bold leading-5 text-[#6B5A48] md:grid-cols-2">
+            <div>
+              {delivery.whatsapp.reasonText
+                ? `סיבת WhatsApp: ${delivery.whatsapp.reasonText}`
+                : null}
+              {delivery.whatsapp.errorCode
+                ? ` · קוד ${delivery.whatsapp.errorCode}`
+                : ""}
+              {delivery.whatsapp.errorMessage && (
+                <div className="break-words text-[#A08B74]">
+                  {delivery.whatsapp.errorMessage}
+                </div>
+              )}
+            </div>
+            {delivery.sms && (
+              <div>
+                {delivery.sms.reasonText
+                  ? `SMS: ${delivery.sms.reasonText}`
+                  : null}
+                {delivery.sms.errorMessage && (
+                  <div className="break-words text-red-600">
+                    {delivery.sms.errorCode ? `${delivery.sms.errorCode} · ` : ""}
+                    {delivery.sms.errorMessage}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {delivery.history.length > 0 && (
+            <ol className="mt-3 space-y-1 border-r-2 border-[#EFE2D1] pr-3 text-[11px] font-bold text-[#8A7867]">
+              {delivery.history.map((entry, index) => (
+                <li key={`${entry.event}-${index}`}>
+                  <span className="text-[#6B5A48]">
+                    {formatDateTime(entry.at) || "—"}
+                  </span>{" "}
+                  · {entry.channel === "sms" ? "SMS" : "WhatsApp"} ·{" "}
+                  {HISTORY_EVENT_LABELS[entry.event] || entry.event}
+                  {entry.reasonCode ? ` · ${entry.reasonCode}` : ""}
+                  {entry.message ? ` · ${entry.message}` : ""}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MessageHistory({
+  guest,
+  messages,
+  isAdmin,
+}: {
+  guest: ReportGuest;
+  messages: ReportMessage[];
+  isAdmin: boolean;
+}) {
   return (
     <div className="space-y-3">
       <div className="text-sm font-black text-[#3A2A1C]">

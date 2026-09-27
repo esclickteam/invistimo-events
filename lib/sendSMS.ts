@@ -21,6 +21,129 @@ export function isSendableSmsPhone(value: string) {
   return Boolean(recipient && recipient.length >= 11);
 }
 
+export type SmsSendResult =
+  | {
+      ok: true;
+      provider: "sms4free";
+      providerStatus: string;
+      providerMessage: string;
+      /** SMS4Free v2 does not return a message id. */
+      providerMessageId: null;
+    }
+  | {
+      ok: false;
+      provider: "sms4free";
+      /** PROVIDER_REJECTED | PROVIDER_HTTP_ERROR | PROVIDER_UNREACHABLE | SMS_NOT_CONFIGURED */
+      errorCode: string;
+      errorMessage: string;
+      providerStatus: string | null;
+      /** true only when the provider explicitly failed to process (HTTP 5xx / 429). */
+      retryable: boolean;
+    };
+
+/**
+ * Same SMS4Free endpoint as sendSMS, but returns a structured result
+ * instead of throwing, so callers can persist provider outcomes.
+ */
+export async function sendSmsDetailed({
+  to,
+  message,
+  timeoutMs = 20000,
+}: {
+  to: string;
+  message: string;
+  timeoutMs?: number;
+}): Promise<SmsSendResult> {
+  const key = process.env.SMS4FREE_KEY;
+  const user = process.env.SMS4FREE_USER;
+  const pass = process.env.SMS4FREE_PASS;
+  const sender = process.env.SMS4FREE_SENDER;
+
+  if (!key || !user || !pass || !sender) {
+    return {
+      ok: false,
+      provider: "sms4free",
+      errorCode: "SMS_NOT_CONFIGURED",
+      errorMessage: "Missing SMS4FREE environment variables",
+      providerStatus: null,
+      retryable: false,
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key,
+        user,
+        pass,
+        sender,
+        recipient: normalizeSmsPhone(to),
+        msg: message,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timer);
+    return {
+      ok: false,
+      provider: "sms4free",
+      errorCode: "PROVIDER_UNREACHABLE",
+      errorMessage: String(err?.message || err),
+      providerStatus: null,
+      retryable: false,
+    };
+  }
+  clearTimeout(timer);
+
+  const raw = await res.text().catch(() => "");
+  let data: { status?: number | string; message?: string } = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { message: raw };
+  }
+
+  const status = Number(data?.status);
+  const providerStatus =
+    data?.status !== undefined ? String(data.status) : null;
+
+  if (res.ok && Number.isFinite(status) && status > 0) {
+    return {
+      ok: true,
+      provider: "sms4free",
+      providerStatus: String(status),
+      providerMessage: String(data?.message || ""),
+      providerMessageId: null,
+    };
+  }
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      provider: "sms4free",
+      errorCode: "PROVIDER_HTTP_ERROR",
+      errorMessage: `HTTP ${res.status}: ${String(data?.message || raw).slice(0, 300)}`,
+      providerStatus,
+      retryable: res.status >= 500 || res.status === 429,
+    };
+  }
+
+  return {
+    ok: false,
+    provider: "sms4free",
+    errorCode: "PROVIDER_REJECTED",
+    errorMessage: String(data?.message || raw || `status ${data?.status}`).slice(0, 300),
+    providerStatus,
+    retryable: false,
+  };
+}
+
 export async function sendSMS({
   to,
   message,
