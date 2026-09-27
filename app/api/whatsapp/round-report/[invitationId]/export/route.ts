@@ -11,6 +11,12 @@ import {
   workbookToNodeBuffer,
 } from "@/lib/whatsapp/exportRoundReportExcel";
 import { applyWhatsappReportGuestFilters } from "@/lib/whatsapp/roundReport";
+import {
+  CHANNEL_FILTER_LABELS,
+  getGuestChannelView,
+  matchesChannelFilter,
+  type ChannelFilter,
+} from "@/lib/whatsapp/guestChannelView";
 import { GET as getRoundReport } from "../route";
 
 export const runtime = "nodejs";
@@ -164,13 +170,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    const channel = String(body?.channel || "") as ChannelFilter;
     const guestsForSheets = applyWhatsappReportGuestFilters(allGuests, {
       roundKey: selectedRoundKey,
       status,
       rsvp,
       messageCount,
       search,
-    });
+    }).filter(
+      (guest: any) =>
+        !Object.prototype.hasOwnProperty.call(CHANNEL_FILTER_LABELS, channel) ||
+        matchesChannelFilter(
+          getGuestChannelView(guest.roundStatuses, selectedRoundKey),
+          channel
+        )
+    );
 
     const workbook = await buildWhatsappRoundReportWorkbook({
       summary,
