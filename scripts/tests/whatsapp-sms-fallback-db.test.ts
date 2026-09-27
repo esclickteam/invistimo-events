@@ -144,9 +144,9 @@ async function seedGuest({
 
 async function queueRound(
   seed: Awaited<ReturnType<typeof seedGuest>>,
-  { type = "rsvp", round = 1, status = "sending" } = {}
+  { type = "rsvp", round = 1, status = "sending", execution = "" } = {}
 ) {
-  const idempotencyKey = `${seed.invitationId}:${seed.guestId}:${type}:${round}`;
+  const idempotencyKey = `${seed.invitationId}:${seed.guestId}:${type}:${round}${execution ? `:${execution}` : ""}`;
   const inserted = await WhatsappQueue.collection.insertOne({
     invitationId: seed.invitationId,
     guestId: seed.guestId,
@@ -1022,6 +1022,221 @@ test("WhatsApp round tracking + SMS fallback (real MongoDB)", async (t) => {
         deps: makeDeps(again, { offsetMs: AFTER_GRACE_MS * 10 }),
       });
       assert.equal(again.length, 0, "an unknown outcome must never be resent automatically");
+    });
+
+    const failViaWebhook = async (queueId: any, wamid: string) => {
+      await markQueue(queueId, { status: "sent", providerStatus: "sent", wamid });
+      await recordWhatsappSendSuccess({ queueId, wamid });
+      await markQueue(queueId, { status: "failed", providerStatus: "failed", errorCode: "130472", failedAt: new Date() });
+      await applyWhatsappWebhookStatus({
+        wamids: [wamid],
+        state: "failed",
+        at: new Date(),
+        errorCode: 130472,
+        errorMessage: "User's number is part of an experiment",
+      });
+    };
+
+    await t.test("resend after SKIPPED (EVENT_PASSED): attempt 2 is evaluated with current data and sends once", async () => {
+      await clearPending();
+      process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+      const seed = await seedGuest({ phone: "0505855327" });
+      await User.collection.updateOne(
+        { _id: seed.ownerId },
+        { $set: { role: "user", isActive: true, authVersion: 0 } }
+      );
+      await Invitation.collection.updateOne(
+        { _id: seed.invitationId },
+        { $set: { eventDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }
+      );
+
+      // Attempt 1: WA failed → SMS skipped because the event date is in the past.
+      const q1 = await queueRound(seed, { execution: "exec1" });
+      await failViaWebhook(q1, "wamid.RS1");
+      const s1: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(s1) });
+      assert.equal(s1.length, 0);
+      let record = await getRecord(seed);
+      assert.equal(record.sms.status, "SKIPPED");
+      assert.equal(record.sms.reasonCode, "EVENT_PASSED");
+
+      // Owner fixes the date and explicitly resends round 1 → new queue row → new attempt.
+      await Invitation.collection.updateOne(
+        { _id: seed.invitationId },
+        { $set: { eventDate: "2026-11-25" } }
+      );
+      const q2 = await queueRound(seed, { execution: "exec2" });
+      record = await getRecord(seed);
+      assert.equal(record.attempt, 2);
+      assert.equal(String(record.whatsapp.queueId), String(q2));
+      assert.equal(record.whatsapp.status, "QUEUED");
+      assert.equal(record.sms.status, null, "attempt 2 starts with a clean SMS state");
+      assert.equal(record.previousAttempts.length, 1);
+      assert.equal(record.previousAttempts[0].attempt, 1);
+      assert.equal(record.previousAttempts[0].whatsapp.status, "FAILED");
+      assert.equal(record.previousAttempts[0].sms.status, "SKIPPED");
+      assert.equal(record.previousAttempts[0].sms.reasonCode, "EVENT_PASSED");
+
+      // Re-recording the same queue row (retry/restart) must not start attempt 3.
+      await recordRoundDecisions([
+        {
+          invitationId: seed.invitationId,
+          guest: { _id: seed.guestId, name: "דנה", phone: seed.phone, guestsCount: 2 },
+          type: "rsvp",
+          round: 1,
+          source: "immediate",
+          templateName: "rsvp_round_1",
+          outcome: { kind: "queued", queueId: q2, idempotencyKey: "x", phone: seed.phone },
+        },
+      ]);
+      assert.equal((await getRecord(seed)).attempt, 2);
+
+      await failViaWebhook(q2, "wamid.RS2");
+      record = await getRecord(seed);
+      assert.equal(record.whatsapp.status, "FAILED");
+      assert.equal(record.whatsapp.wamid, "wamid.RS2");
+
+      // Inside the 2-minute grace window: nothing yet.
+      const early: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(early, { offsetMs: 0 }) });
+      assert.equal(early.length, 0);
+
+      // Two workers race on the same attempt → exactly one SMS.
+      const sent: SentSms[] = [];
+      await Promise.all([
+        processWhatsappSmsFallbacks({ deps: makeDeps(sent, { delayMs: 30 }) }),
+        processWhatsappSmsFallbacks({ deps: makeDeps(sent, { delayMs: 30 }) }),
+      ]);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].to, "972505855327");
+
+      record = await getRecord(seed);
+      assert.equal(record.sms.status, "SENT");
+      assert.equal(
+        record.sms.idempotencyKey,
+        `sms_fallback:${seed.invitationId}:rsvp:1:${seed.guestId}:sms:attempt2`
+      );
+      assert.equal(record.previousAttempts[0].sms.status, "SKIPPED", "attempt 1 stays untouched");
+
+      const again: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(again, { offsetMs: AFTER_GRACE_MS * 10 }) });
+      assert.equal(again.length, 0, "no duplicate SMS for the same attempt");
+
+      // A late webhook for attempt 1's wamid must not touch attempt 2.
+      await applyWhatsappWebhookStatus({ wamids: ["wamid.RS1"], state: "failed", at: new Date(), errorCode: 131026 });
+      assert.equal((await getRecord(seed)).whatsapp.wamid, "wamid.RS2");
+
+      // Full audit timeline for both attempts is preserved, in order.
+      const events = record.history.map((h: any) => h.event);
+      const started = events.indexOf("WA_ATTEMPT_STARTED");
+      assert.ok(started > 0);
+      assert.ok(events.slice(0, started).includes("SMS_SKIPPED"));
+      assert.ok(events.slice(started).includes("SMS_SENT"));
+      assert.equal(record.history.find((h: any) => h.event === "SMS_SENT").attempt, 2);
+
+      const jwt = (await import("jsonwebtoken")).default;
+      const token = jwt.sign({ userId: String(seed.ownerId), role: "user", authVersion: 0 }, process.env.JWT_SECRET!);
+      const { GET } = await import("../../app/api/whatsapp/round-report/[invitationId]/route");
+      const { NextRequest } = await import("next/server");
+      const res = await GET(
+        new NextRequest(`http://localhost/api/whatsapp/round-report/${seed.invitationId}`, {
+          headers: { authorization: `Bearer ${token}` },
+        }),
+        { params: Promise.resolve({ invitationId: String(seed.invitationId) }) }
+      );
+      const body: any = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+      const guestRow = body.guests.find((g: any) => g.guestId === String(seed.guestId));
+      const view = getGuestChannelView(guestRow.roundStatuses, "rsvp:1");
+      assert.equal(view.whatsapp.status, "FAILED");
+      assert.equal(view.sms.status, "SENT", "report shows the current attempt, not the old SKIPPED");
+      const delivery = guestRow.deliveries.find((d: any) => d.roundKey === "rsvp:1");
+      assert.equal(delivery.attempt, 2);
+      assert.deepEqual(
+        delivery.attempts.map((a: any) => [a.attempt, a.whatsapp.status, a.sms?.status, a.sms?.reasonCode ?? null]),
+        [
+          [1, "FAILED", "SKIPPED", "EVENT_PASSED"],
+          [2, "FAILED", "SENT", null],
+        ]
+      );
+    });
+
+    await t.test("resend after SMS FAILED: new attempt sends once; attempt 1 FAILED kept", async () => {
+      await clearPending();
+      const seed = await seedGuest();
+
+      const q1 = await queueRound(seed, { execution: "execA" });
+      await failViaWebhook(q1, "wamid.RF1");
+      const s1: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(s1, { result: () => failResult(false) }) });
+      assert.equal(s1.length, 1);
+      assert.equal((await getRecord(seed)).sms.status, "FAILED");
+
+      const q2 = await queueRound(seed, { execution: "execB" });
+      await failViaWebhook(q2, "wamid.RF2");
+
+      const sent: SentSms[] = [];
+      const stats = await processWhatsappSmsFallbacks({ deps: makeDeps(sent) });
+      assert.equal(stats.sent, 1);
+      assert.equal(sent.length, 1);
+
+      const record = await getRecord(seed);
+      assert.equal(record.attempt, 2);
+      assert.equal(record.sms.status, "SENT");
+      assert.equal(record.previousAttempts[0].sms.status, "FAILED");
+      assert.equal(record.previousAttempts[0].sms.errorCode, "PROVIDER_REJECTED");
+
+      const again: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(again, { offsetMs: AFTER_GRACE_MS * 10 }) });
+      assert.equal(again.length, 0);
+    });
+
+    await t.test("resend after WhatsApp success: new attempt that succeeds needs no SMS", async () => {
+      await clearPending();
+      const seed = await seedGuest();
+      const q1 = await queueRound(seed, { execution: "execS1" });
+      await markQueue(q1, { status: "sent", providerStatus: "delivered", wamid: "wamid.S1" });
+      await recordWhatsappSendSuccess({ queueId: q1, wamid: "wamid.S1" });
+      await applyWhatsappWebhookStatus({ wamids: ["wamid.S1"], state: "delivered", at: new Date() });
+
+      const q2 = await queueRound(seed, { execution: "execS2" });
+      await markQueue(q2, { status: "sent", providerStatus: "delivered", wamid: "wamid.S2" });
+      await recordWhatsappSendSuccess({ queueId: q2, wamid: "wamid.S2" });
+      await applyWhatsappWebhookStatus({ wamids: ["wamid.S2"], state: "delivered", at: new Date() });
+
+      const sent: SentSms[] = [];
+      await processWhatsappSmsFallbacks({ deps: makeDeps(sent) });
+      assert.equal(sent.length, 0);
+      const record = await getRecord(seed);
+      assert.equal(record.attempt, 2);
+      assert.equal(record.whatsapp.status, "DELIVERED");
+      assert.equal(record.previousAttempts[0].whatsapp.status, "DELIVERED");
+    });
+
+    await t.test("resend while attempt 1's SMS is in flight: result lands on attempt 1, attempt 2 untouched", async () => {
+      await clearPending();
+      const seed = await seedGuest();
+      const q1 = await queueRound(seed, { execution: "execF1" });
+      await failViaWebhook(q1, "wamid.IF1");
+
+      const sent: SentSms[] = [];
+      let resendDone: Promise<any> | null = null;
+      const deps = makeDeps(sent, { delayMs: 50 });
+      const originalSend = deps.sendSms!;
+      deps.sendSms = async (input) => {
+        resendDone = queueRound(seed, { execution: "execF2" });
+        await resendDone;
+        return originalSend(input);
+      };
+      await processWhatsappSmsFallbacks({ deps });
+      assert.equal(sent.length, 1);
+
+      const record = await getRecord(seed);
+      assert.equal(record.attempt, 2);
+      assert.equal(record.whatsapp.status, "QUEUED");
+      assert.equal(record.sms.status, null, "attempt 2 SMS not yet decided");
+      assert.equal(record.previousAttempts[0].sms.status, "SENT", "in-flight send recorded on attempt 1");
+      assert.equal(record.previousAttempts[0].sms.lockId, null);
     });
 
     await t.test("kill switch disables the fallback worker", async () => {

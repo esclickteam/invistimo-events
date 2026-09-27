@@ -44,6 +44,8 @@ const HistoryEntrySchema = new Schema(
     reasonCode: { type: String, default: null },
     message: { type: String, default: null },
     meta: { type: Schema.Types.Mixed, default: null },
+    /** Delivery attempt the event belongs to (null on entries written before attempts existed). */
+    attempt: { type: Number, default: null },
   },
   { _id: false }
 );
@@ -118,7 +120,7 @@ const RoundGuestDeliverySchema = new Schema(
       status: { type: String, enum: [...SMS_FALLBACK_STATUSES, null], default: null },
       reasonCode: { type: String, default: null },
       reasonMessage: { type: String, default: null },
-      /** eventId(invitationId) + roundKey + guestId + "sms" */
+      /** eventId(invitationId) + roundKey + guestId + "sms" (+ ":attempt<n>" from attempt 2) */
       idempotencyKey: { type: String, default: null },
       /** לא לנסות fallback לפני הזמן הזה (grace לווידוא סטטוס WhatsApp סופי / backoff) */
       notBefore: { type: Date, default: null },
@@ -145,6 +147,14 @@ const RoundGuestDeliverySchema = new Schema(
       failedAt: { type: Date, default: null },
       skippedAt: { type: Date, default: null },
     },
+
+    /**
+     * Current delivery attempt. Every explicit resend (new WhatsappQueue row) starts a new attempt:
+     * the previous whatsapp/sms state is archived in previousAttempts and both channels restart.
+     */
+    attempt: { type: Number, default: 1 },
+    /** [{ attempt, whatsapp, sms, archivedAt }] — never modified except to settle an in-flight SMS. */
+    previousAttempts: { type: [Schema.Types.Mixed], default: [] },
 
     history: { type: [HistoryEntrySchema], default: [] },
   },

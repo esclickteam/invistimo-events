@@ -59,6 +59,7 @@ export const SMS_REASON_LABELS: Record<string, string> = {
   SMS_NOT_CONFIGURED: "ספק ה-SMS לא מוגדר בשרת",
   DISPATCH_OUTCOME_UNKNOWN:
     "השרת נעצר באמצע השליחה – תוצאה לא ידועה, לא נשלח שוב כדי למנוע כפילות",
+  SUPERSEDED_BY_RESEND: "בוצעה שליחה חוזרת – הגיבוי נבדק בניסיון החדש",
 };
 
 export const HISTORICAL_REASON_TEXT = "סיבה לא זמינה – נתון היסטורי";
@@ -461,6 +462,7 @@ export async function recordRoundDecisions(decisions: RoundDecision[]) {
 
   try {
     const ops: any[] = [];
+    const newAttemptOps: any[] = [];
 
     for (const decision of decisions) {
       const invitationId = toObjectId(decision.invitationId);
@@ -478,28 +480,16 @@ export async function recordRoundDecisions(decisions: RoundDecision[]) {
         updateOne: { filter, update: { $setOnInsert: doc }, upsert: true },
       });
 
-      // Round re-run after an earlier NOT_SENT: the new queue row becomes the truth.
       if (decision.outcome.kind === "queued") {
-        const at = decision.at || new Date();
-        ops.push({
-          updateOne: {
-            filter: { ...filter, "whatsapp.status": "NOT_SENT" },
-            update: {
-              $set: { whatsapp: doc.whatsapp },
-              $push: {
-                history: {
-                  at,
-                  channel: "whatsapp",
-                  event: "WA_QUEUED",
-                  status: "QUEUED",
-                  reasonCode: null,
-                  message: "round re-run",
-                  meta: { queueId: String(decision.outcome.queueId || "") },
-                },
-              },
+        const queueId = toObjectId(decision.outcome.queueId);
+        if (queueId) {
+          newAttemptOps.push({
+            updateOne: {
+              filter: { ...filter, "whatsapp.queueId": { $ne: queueId } },
+              update: buildNewAttemptPipeline(decision, doc, decision.at || new Date()),
             },
-          },
-        });
+          });
+        }
       }
     }
 
@@ -508,9 +498,98 @@ export async function recordRoundDecisions(decisions: RoundDecision[]) {
         ordered: false,
       });
     }
+
+    // After the upserts: a freshly inserted record already carries this queueId and is not matched.
+    for (let i = 0; i < newAttemptOps.length; i += 500) {
+      await RoundGuestDelivery.collection.bulkWrite(newAttemptOps.slice(i, i + 500), {
+        ordered: false,
+      });
+    }
   } catch (err) {
     logTrackingError("recordRoundDecisions", err);
   }
+}
+
+/** SMS state of a new attempt: nothing decided yet. */
+function freshSmsState() {
+  return {
+    status: null,
+    reasonCode: null,
+    reasonMessage: null,
+    idempotencyKey: null,
+    notBefore: null,
+    lockId: null,
+    lockedAt: null,
+    dispatchStartedAt: null,
+    attempts: 0,
+    phone: null,
+    text: null,
+    parts: 0,
+    provider: null,
+    providerMessageId: null,
+    providerStatus: null,
+    providerResponse: null,
+    httpStatus: null,
+    unknownAt: null,
+    errorCode: null,
+    errorMessage: null,
+    triggeredAt: null,
+    sentAt: null,
+    deliveredAt: null,
+    failedAt: null,
+    skippedAt: null,
+  };
+}
+
+/**
+ * Explicit resend (a new WhatsappQueue row for a guest+round that already has a record):
+ * archive the current attempt untouched and restart both channels, so the fallback worker
+ * evaluates the new attempt independently. Duplicate recordings of the same queue row never match.
+ */
+function buildNewAttemptPipeline(decision: RoundDecision, doc: any, at: Date) {
+  const current = { $ifNull: ["$attempt", 1] };
+  const next = { $add: [current, 1] };
+  const queueId = String((decision.outcome as any).queueId || "");
+  const entry = (event: string, status: string | null, message: string | null) => ({
+    at: { $literal: at },
+    channel: "whatsapp",
+    event: { $literal: event },
+    status: { $literal: status },
+    reasonCode: null,
+    message: { $literal: message },
+    meta: { queueId: { $literal: queueId }, source: { $literal: decision.source } },
+    attempt: next,
+  });
+
+  return [
+    {
+      $set: {
+        previousAttempts: {
+          $concatArrays: [
+            { $ifNull: ["$previousAttempts", []] },
+            [{ attempt: current, whatsapp: "$whatsapp", sms: "$sms", archivedAt: { $literal: at } }],
+          ],
+        },
+        attempt: next,
+        source: { $literal: decision.source },
+        scheduleId: { $literal: doc.scheduleId },
+        phone: { $literal: doc.phone },
+        guestName: { $literal: doc.guestName },
+        guestsCount: { $literal: doc.guestsCount },
+        whatsapp: { $literal: doc.whatsapp },
+        sms: { $literal: freshSmsState() },
+        history: {
+          $concatArrays: [
+            { $ifNull: ["$history", []] },
+            [
+              entry("WA_ATTEMPT_STARTED", null, "שליחה חוזרת – ניסיון חדש"),
+              entry("WA_QUEUED", "QUEUED", null),
+            ],
+          ],
+        },
+      },
+    },
+  ];
 }
 
 /* ======================================================

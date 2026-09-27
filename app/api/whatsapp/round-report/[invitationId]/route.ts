@@ -174,6 +174,8 @@ function mapDeliveryForGuest(delivery: any, isAdmin: boolean) {
       notSentAt: wa.notSentAt || null,
     },
     sms: mapDeliverySms(delivery, isAdmin),
+    attempt: Number(delivery.attempt || 1),
+    attempts: mapDeliveryAttempts(delivery, isAdmin),
     history: (Array.isArray(delivery.history) ? delivery.history : [])
       .map((entry: any) => ({
         at: entry.at || null,
@@ -183,9 +185,48 @@ function mapDeliveryForGuest(delivery: any, isAdmin: boolean) {
         reasonCode: entry.reasonCode || null,
         message: entry.message || null,
         meta: entry.meta || null,
+        attempt: entry.attempt ?? null,
       }))
       .sort((a: any, b: any) => getTimestamp(a.at) - getTimestamp(b.at)),
   };
+}
+
+/** Every delivery attempt of the guest in this round, oldest first (archived attempts + current). */
+function mapDeliveryAttempts(delivery: any, isAdmin: boolean) {
+  const summarize = (attempt: number, wa: any, smsSource: any, current: boolean) => {
+    // An archived attempt with no SMS decision will never be evaluated — it is not "waiting".
+    const sms =
+      current || smsSource?.status
+        ? mapDeliverySms({ whatsapp: wa, sms: smsSource }, isAdmin)
+        : null;
+    return {
+      attempt,
+      current,
+      whatsapp: {
+        status: wa?.status || null,
+        reasonCode: wa?.reasonCode || null,
+        reasonText: waReasonText(wa),
+        errorCode: wa?.errorCode || null,
+        queueId: wa?.queueId ? String(wa.queueId) : null,
+        intendedAt: wa?.intendedAt || null,
+        sentAt: wa?.sentAt || null,
+        deliveredAt: wa?.deliveredAt || null,
+        readAt: wa?.readAt || null,
+        failedAt: wa?.failedAt || null,
+        notSentAt: wa?.notSentAt || null,
+      },
+      sms,
+    };
+  };
+
+  const archived = (Array.isArray(delivery.previousAttempts) ? delivery.previousAttempts : []).map(
+    (item: any, index: number) =>
+      summarize(Number(item?.attempt || index + 1), item?.whatsapp || {}, item?.sms || {}, false)
+  );
+  return [
+    ...archived,
+    summarize(Number(delivery.attempt || 1), delivery.whatsapp || {}, delivery.sms || {}, true),
+  ];
 }
 
 /** Detailed reason recorded at the time (e.g. which template variable was missing), else the generic label. */
