@@ -5,6 +5,7 @@ import {
   getGuestChannelView,
   SMS_NO_DELIVERY_RECEIPTS_NOTE,
   type RoundChipLike,
+  type SmsProviderEvidenceView,
 } from "@/lib/whatsapp/guestChannelView";
 
 /* =========================
@@ -77,6 +78,7 @@ export type ExcelReportRound = {
     sent?: number;
     failed?: number;
     skipped?: number;
+    outcome_unknown?: number;
   };
   summary?: {
     intended?: number;
@@ -224,6 +226,26 @@ function pct(part: number, whole: number) {
   return Number(part || 0) / Number(whole);
 }
 
+function smsProviderOutcomeText(
+  status: string,
+  evidence: SmsProviderEvidenceView | null
+) {
+  if (status !== "SENT" && status !== "FAILED" && status !== "OUTCOME_UNKNOWN") return "";
+  const outcome =
+    status === "SENT"
+      ? "התקבל (accepted)"
+      : status === "OUTCOME_UNKNOWN"
+        ? "לא ידוע (unknown)"
+        : evidence?.providerStatus || evidence?.httpStatus
+          ? "נדחה (rejected)"
+          : "לא נשלח לספק";
+  const details = [
+    evidence?.providerStatus ? `status=${evidence.providerStatus}` : "",
+    evidence?.httpStatus ? `HTTP ${evidence.httpStatus}` : "",
+  ].filter(Boolean);
+  return details.length ? `${outcome} · ${details.join(" · ")}` : outcome;
+}
+
 function yesNo(value: boolean) {
   return value ? "כן" : "לא";
 }
@@ -360,6 +382,7 @@ export async function buildWhatsappRoundReportWorkbook(
     { width: 16 },
     { width: 16 },
     { width: 16 },
+    { width: 18 },
   ];
 
   summarySheet.mergeCells(1, 1, 1, 3);
@@ -447,7 +470,7 @@ export async function buildWhatsappRoundReportWorkbook(
   }
 
   row += 1;
-  addSectionTitle(summarySheet, row, "סיכום סבבים", 15);
+  addSectionTitle(summarySheet, row, "סיכום סבבים", 16);
   row += 1;
 
   const roundHeaders = [
@@ -466,6 +489,7 @@ export async function buildWhatsappRoundReportWorkbook(
     "גיבוי SMS – נשלחו",
     "גיבוי SMS – נכשלו",
     "גיבוי SMS – דולגו",
+    "גיבוי SMS – תוצאה לא ידועה",
   ];
   setRowValues(summarySheet.getRow(row), roundHeaders);
   for (let col = 1; col <= roundHeaders.length; col += 1) {
@@ -499,6 +523,7 @@ export async function buildWhatsappRoundReportWorkbook(
       Number(round.sms?.sent || 0),
       Number(round.sms?.failed || 0),
       Number(round.sms?.skipped || 0),
+      Number(round.sms?.outcome_unknown || 0),
     ]);
     summarySheet.getCell(row, 10).numFmt = "0.0%";
     summarySheet.getCell(row, 11).numFmt = "0.0%";
@@ -564,6 +589,9 @@ export async function buildWhatsappRoundReportWorkbook(
     "סיבת גיבוי SMS",
     "קוד שגיאה SMS",
     "זמן SMS",
+    "טלפון SMS שנשלח",
+    "תוצאת ספק SMS",
+    "תגובת ספק SMS (גולמית)",
     "מספר הודעות",
     "מספר סבבים",
     "סבב אחרון",
@@ -579,8 +607,8 @@ export async function buildWhatsappRoundReportWorkbook(
     "סיבת כשל אחרונה",
   ];
   const guestWidths = [
-    6, 22, 16, 12, 24, 16, 36, 16, 18, 16, 36, 14, 18, 12, 12, 24, 14, 16, 18,
-    18, 18, 18, 12, 12, 12, 36,
+    6, 22, 16, 12, 24, 16, 36, 16, 18, 16, 36, 14, 18, 16, 22, 36, 12, 12, 24,
+    14, 16, 18, 18, 18, 18, 12, 12, 12, 36,
   ];
   const guestCol = (header: string) => guestHeaders.indexOf(header) + 1;
   const statusCols = new Map<number, (g: ExcelReportGuest, wa: string, sms: string) => string>([
@@ -592,6 +620,7 @@ export async function buildWhatsappRoundReportWorkbook(
   const wrapCols = new Set([
     guestCol("סיבת WhatsApp"),
     guestCol("סיבת גיבוי SMS"),
+    guestCol("תגובת ספק SMS (גולמית)"),
     guestCol("סיבת כשל אחרונה"),
   ]);
 
@@ -625,8 +654,10 @@ export async function buildWhatsappRoundReportWorkbook(
           ? `${view.sms.label} (SENT) – סטטוס סופי`
           : `${view.sms.label} (${view.sms.status})`;
     const smsReasonText = smsSentIsFinal
-      ? "נשלח בהצלחה לספק ה-SMS. הספק אינו מספק אישור מסירה – אין סטטוס נוסף לצפות לו."
+      ? "התקבל אצל ספק ה-SMS (לא אישור מסירה). הספק אינו מספק אישור מסירה – אין סטטוס נוסף לצפות לו."
       : view.sms.reason || "";
+    const smsEvidence = view.sms.evidence;
+    const smsProviderOutcome = smsProviderOutcomeText(view.sms.status, smsEvidence);
     const values = [
       index + 1,
       safeText(guest.name || ""),
@@ -641,6 +672,9 @@ export async function buildWhatsappRoundReportWorkbook(
       safeText(smsReasonText),
       safeText(view.sms.errorCode || ""),
       formatDateTime(view.sms.at),
+      safeText(smsEvidence?.phone || ""),
+      safeText(smsProviderOutcome),
+      safeText(smsEvidence?.providerResponse || ""),
       Number(guest.messagesCount || 0),
       Number(guest.roundsSentCount || 0),
       safeText(guest.lastRoundTitle || ""),

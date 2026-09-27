@@ -97,10 +97,11 @@ function getGuestIdentityKey(guest: any) {
 const SMS_STATUS_LABELS: Record<string, string> = {
   WAITING: "ממתין לבדיקת גיבוי",
   PENDING: "בתהליך שליחה",
-  SENT: "נשלח לספק ה-SMS",
+  SENT: "התקבל אצל ספק ה-SMS",
   DELIVERED: "נמסר",
   FAILED: "נכשל",
   SKIPPED: "לא נשלח (דילוג)",
+  OUTCOME_UNKNOWN: "תוצאה לא ידועה",
 };
 
 const WA_FALLBACK_STATES = new Set(["FAILED", "NOT_SENT"]);
@@ -131,12 +132,17 @@ function mapDeliverySms(delivery: any, isAdmin: boolean) {
     errorMessage: sms.errorMessage || null,
     provider: sms.provider || null,
     providerMessageId: sms.providerMessageId || null,
+    providerStatus: sms.providerStatus || null,
+    providerResponse: sms.providerResponse || null,
+    httpStatus: sms.httpStatus ?? null,
+    phone: sms.phone || null,
     attempts: Number(sms.attempts || 0),
     triggeredAt: sms.triggeredAt || null,
     sentAt: sms.sentAt || null,
     deliveredAt: sms.deliveredAt || null,
     failedAt: sms.failedAt || null,
     skippedAt: sms.skippedAt || null,
+    unknownAt: sms.unknownAt || null,
     notBefore: sms.notBefore || null,
     text: isAdmin ? sms.text || null : undefined,
   };
@@ -154,9 +160,10 @@ function mapDeliveryForGuest(delivery: any, isAdmin: boolean) {
     whatsapp: {
       status: wa.status || null,
       reasonCode: wa.reasonCode || null,
-      reasonText: wa.reasonCode ? getWhatsappReasonLabel(wa.reasonCode) : null,
+      reasonText: waReasonText(wa),
       errorCode: wa.errorCode || null,
       errorMessage: wa.errorMessage || null,
+      templateVariable: wa.templateVariable || null,
       messageId: wa.wamid || null,
       intendedAt: wa.intendedAt || null,
       attemptedAt: wa.attemptedAt || null,
@@ -175,15 +182,31 @@ function mapDeliveryForGuest(delivery: any, isAdmin: boolean) {
         status: entry.status || null,
         reasonCode: entry.reasonCode || null,
         message: entry.message || null,
+        meta: entry.meta || null,
       }))
       .sort((a: any, b: any) => getTimestamp(a.at) - getTimestamp(b.at)),
   };
 }
 
-function mapQueueItemForReport(item: any, guest: any, isAdmin: boolean) {
+/** Detailed reason recorded at the time (e.g. which template variable was missing), else the generic label. */
+function waReasonText(wa: any) {
+  if (!wa?.reasonCode) return null;
+  return wa.reasonMessage || getWhatsappReasonLabel(wa.reasonCode);
+}
+
+function mapQueueItemForReport(
+  item: any,
+  guest: any,
+  isAdmin: boolean,
+  neverReachedProvider = false
+) {
   const type = normalizeRoundType(item);
   const round = normalizeRoundNumber(item, type);
-  const reportStatus = getReportStatus(item);
+  // Queue rows stopped by our own pre-send validation are "failed" in the queue,
+  // but WhatsApp was never attempted — the tracking record says NOT_SENT.
+  const reportStatus: ReportStatusKey = neverReachedProvider
+    ? "not_sent"
+    : getReportStatus(item);
   const failure = reportStatus === "failed" ? getFailureText(item) : null;
   const guestRsvp = String(guest?.rsvp || item?.payload?.rsvp || "pending");
 
@@ -371,6 +394,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const deliveriesByGuestKey = new Map<string, any[]>();
     const trackingStartedAtByRound = new Map<string, number>();
 
+    const notSentQueueIds = new Set<string>(
+      deliveries
+        .filter((d: any) => d.whatsapp?.status === "NOT_SENT" && d.whatsapp?.queueId)
+        .map((d: any) => String(d.whatsapp.queueId))
+    );
+    const neverReachedProvider = (item: any) => notSentQueueIds.has(String(item?._id));
+
     for (const delivery of deliveries) {
       const guestKey = `guest:${String(delivery.guestId)}`;
       const roundKey = getDeliveryRoundKey(delivery);
@@ -537,6 +567,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         delivered: 0,
         failed: 0,
         skipped: 0,
+        outcome_unknown: 0,
         deliveryTracking: ACTIVE_SMS_PROVIDER.deliveryReceipts,
       };
       group.attention = [];
@@ -580,7 +611,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         );
 
       const mappedMessages = uniqueMessages.map((item) =>
-        mapQueueItemForReport(item, guest, isAdmin)
+        mapQueueItemForReport(item, guest, isAdmin, neverReachedProvider(item))
       );
 
       // One entry per round (latest message for that round)
@@ -591,13 +622,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
         const wa = delivery?.whatsapp || {};
         const sms = mapDeliverySms(delivery, isAdmin);
 
-        if (latest) {
+        if (latest && !neverReachedProvider(latest)) {
           const mapped = mapQueueItemForReport(latest, guest, isAdmin);
           const isFailed = mapped.status === "failed";
           const reasonText = isFailed
-            ? wa.reasonCode
-              ? getWhatsappReasonLabel(wa.reasonCode)
-              : mapped.failure?.text || HISTORICAL_REASON_TEXT
+            ? waReasonText(wa) || mapped.failure?.text || HISTORICAL_REASON_TEXT
             : null;
 
           return {
@@ -643,9 +672,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
         if (delivery) {
           const reasonCode = wa.reasonCode || null;
-          const reasonText = reasonCode
-            ? getWhatsappReasonLabel(reasonCode)
-            : HISTORICAL_REASON_TEXT;
+          const reasonText = waReasonText(wa) || HISTORICAL_REASON_TEXT;
 
           return {
             ...base,

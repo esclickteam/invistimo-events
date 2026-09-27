@@ -14,6 +14,13 @@ export type SendRsvpTemplateMediaInput = {
    */
   rsvpLink?: string;
 
+  /**
+   * ערך כפתור ה-URL ({{1}}) — `${shareId}?token=${token}`.
+   * בסיס הכפתור בתבנית ב-Meta קבוע: https://www.invistimo.com/invite/{{1}}
+   * כשמועבר, הוא גובר על חילוץ מ-rsvpLink (שיכול להיות /invite/ או /w/).
+   */
+  urlSuffix?: string;
+
   // HEADER
   headerImageUrl: string;
 
@@ -118,18 +125,68 @@ function isRsvpTemplate(templateName: string) {
   );
 }
 
-function extractInviteSuffixForButton(rsvpLink: string): string {
-  const u = new URL(rsvpLink.trim());
-  const parts = u.pathname.split("/").filter(Boolean);
+export type TemplateVariableDetail = {
+  templateName: string;
+  component: "header" | "body" | "button";
+  /** body: 1-based parameter number; button: button index */
+  index: number;
+  /** placeholder as written in the Meta template, e.g. "{{1}}" */
+  variable: string;
+  source: string;
+  detail: string;
+};
 
-  const inviteIndex = parts.findIndex((p) => p.toLowerCase() === "invite");
-  const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
+/** Thrown before calling the provider when a required template parameter cannot be built. */
+export class TemplateVariableError extends Error {
+  code = "MISSING_TEMPLATE_VARIABLE" as const;
+  templateVariable: TemplateVariableDetail;
 
-  if (!inviteId) {
-    throw new Error("Invalid rsvpLink: inviteId not found");
+  constructor(templateVariable: TemplateVariableDetail) {
+    super(
+      `MISSING_TEMPLATE_VARIABLE: ${templateVariable.templateName} ${templateVariable.component}` +
+        `[${templateVariable.index}] ${templateVariable.variable} (source: ${templateVariable.source}) – ${templateVariable.detail}`
+    );
+    this.name = "TemplateVariableError";
+    this.templateVariable = templateVariable;
   }
+}
 
-  return `${inviteId}${u.search || ""}`;
+/** Personal-link path segments whose next segment is the invitation shareId. */
+const SHARE_PATH_SEGMENTS = new Set(["invite", "w"]);
+
+export function extractInviteSuffixForButton(rsvpLink: string): string {
+  let u: URL;
+  try {
+    u = new URL(rsvpLink.trim());
+  } catch {
+    return "";
+  }
+  const parts = u.pathname.split("/").filter(Boolean);
+  const index = parts.findIndex((p) => SHARE_PATH_SEGMENTS.has(p.toLowerCase()));
+  const shareId = index >= 0 ? parts[index + 1] : "";
+  if (!shareId) return "";
+
+  return `${shareId}${u.search || ""}`;
+}
+
+function resolveButtonSuffix(input: SendRsvpTemplateMediaInput, templateName: string) {
+  const explicit = String(input.urlSuffix ?? "").trim();
+  if (explicit && !explicit.includes("{{")) return explicit;
+
+  const rsvpLink = String(input.rsvpLink ?? "").trim();
+  const suffix = rsvpLink && isValidHttpsUrl(rsvpLink) ? extractInviteSuffixForButton(rsvpLink) : "";
+  if (suffix) return suffix;
+
+  throw new TemplateVariableError({
+    templateName,
+    component: "button",
+    index: 0,
+    variable: "{{1}}",
+    source: "personalLink (invitation.shareId + guest.token)",
+    detail: rsvpLink
+      ? `could not derive shareId from rsvpLink "${rsvpLink}"`
+      : "urlSuffix and rsvpLink are both missing",
+  });
 }
 
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
@@ -143,55 +200,36 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
 
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
 
+  const requireBody = (value: unknown, index: number, source: string) => {
+    if (isNonEmptyString(value)) return;
+    throw new TemplateVariableError({
+      templateName,
+      component: "body",
+      index,
+      variable: `{{${index}}}`,
+      source,
+      detail: "value is empty",
+    });
+  };
+
   if (isPreRsvpTemplate(templateName)) {
     if (templateName === SAVE_THE_DATE_TEMPLATE) {
-      const title =
-        input.templateVariables?.saveTheDateTitle || input.eventTitle;
-      const date = input.templateVariables?.eventDate || input.eventDate;
-
-      if (!isNonEmptyString(title)) {
-        throw new Error("Missing field: saveTheDateTitle");
-      }
-
-      if (!isNonEmptyString(date)) {
-        throw new Error("Missing field: eventDate");
-      }
-
+      requireBody(input.templateVariables?.saveTheDateTitle || input.eventTitle, 1, "saveTheDateTitle / invitation.title");
+      requireBody(input.templateVariables?.eventDate || input.eventDate, 2, "event.date");
       return;
     }
 
     if (templateName === EVENT_INVITATION_TEMPLATE) {
-      const title =
-        input.templateVariables?.invitationTitle || input.eventTitle;
-      const date = input.templateVariables?.eventDate || input.eventDate;
-      const location =
-        input.templateVariables?.eventLocation || input.eventLocation;
-
-      if (!isNonEmptyString(title)) {
-        throw new Error("Missing field: invitationTitle");
-      }
-
-      if (!isNonEmptyString(date)) {
-        throw new Error("Missing field: eventDate");
-      }
-
-      if (!isNonEmptyString(location)) {
-        throw new Error("Missing field: eventLocation");
-      }
-
+      requireBody(input.templateVariables?.invitationTitle || input.eventTitle, 1, "invitationTitle / invitation.title");
+      requireBody(input.templateVariables?.eventDate || input.eventDate, 2, "event.date");
+      requireBody(input.templateVariables?.eventLocation || input.eventLocation, 3, "event.location");
       return;
     }
   }
 
   if (isRsvpTemplate(templateName)) {
-    if (!isNonEmptyString(input.eventTitle)) {
-      throw new Error("Missing field: eventTitle");
-    }
-
-    if (!isNonEmptyString(input.rsvpLink)) {
-      throw new Error("Missing field: rsvpLink");
-    }
-
+    requireBody(input.eventTitle, 1, "invitation.title");
+    resolveButtonSuffix(input, templateName);
     return;
   }
 
@@ -279,13 +317,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   */
 
   if (templateName === ROUND1_TEMPLATE) {
-    const rsvpLink = String(input.rsvpLink ?? "").trim();
-
-    if (!isValidHttpsUrl(rsvpLink)) {
-      throw new Error("Invalid rsvpLink (must be https)");
-    }
-
-    buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
+    buttonUrlParam = resolveButtonSuffix(input, templateName);
 
     components = [
       buildHeaderComponent(headerImageUrl),
@@ -312,13 +344,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     templateName === ROUND2_TEMPLATE ||
     templateName === ROUND3_TEMPLATE
   ) {
-    const rsvpLink = String(input.rsvpLink ?? "").trim();
-
-    if (!isValidHttpsUrl(rsvpLink)) {
-      throw new Error("Invalid rsvpLink (must be https)");
-    }
-
-    buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
+    buttonUrlParam = resolveButtonSuffix(input, templateName);
 
     components = [
       buildHeaderComponent(headerImageUrl),
