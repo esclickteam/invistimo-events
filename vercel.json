@@ -9,6 +9,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/whatsapp-sms-fallback",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/admin/call-work-orders/auto-open",
       "schedule": "* * * * *"
     },

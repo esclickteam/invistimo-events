@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import { sendScheduledWhatsapp } from "@/workers/sendScheduledSms";
+import {
+  recordWhatsappSendFailure,
+  recordWhatsappSendSuccess,
+} from "@/lib/whatsapp/roundDeliveryTracking";
 
 import {
   sendRsvpTemplateMedia,
@@ -184,6 +188,11 @@ async function processPendingWhatsappQueue() {
         }
       );
 
+      await recordWhatsappSendSuccess({
+        queueId: job._id,
+        wamid: result.wamid,
+      });
+
       sent++;
 
       const jitter = Math.floor(Math.random() * JITTER_MAX);
@@ -229,6 +238,7 @@ async function processPendingWhatsappQueue() {
       );
 
       if (shouldFail) {
+        await recordWhatsappSendFailure({ queueId: job._id, error: err });
         failed++;
       }
 

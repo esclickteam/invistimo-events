@@ -416,11 +416,14 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   const providerResponse = await safeParseResponse(res);
 
   if (!res.ok) {
-    throw new Error(
+    const error: any = new Error(
       `WhatsApp template send failed (${res.status}): ${JSON.stringify(
         providerResponse
       )}`
     );
+    error.httpStatus = res.status;
+    error.providerResponse = providerResponse;
+    throw error;
   }
 
   const messageId = providerResponse?.messages?.[0]?.id ?? null;

@@ -10,6 +10,10 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
+import {
+  recordRoundDecisions,
+  type RoundDecision,
+} from "@/lib/whatsapp/roundDeliveryTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1062,7 +1066,7 @@ export async function POST(req: NextRequest) {
     const guests = await InvitationGuest.find({
       invitationId: toObjectId(invitationId),
     })
-      .select("_id phone phoneNumber mobile whatsapp contactPhone")
+      .select("_id name guestsCount phone phoneNumber mobile whatsapp contactPhone")
       .lean();
 
     const validGuests = guests
@@ -1218,9 +1222,108 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const inserted = await WhatsappQueue.insertMany(queueDocs, {
-      ordered: false,
-    });
+    const validGuestIds = new Set(
+      validGuests.map(({ guest }) => String(guest._id))
+    );
+    const decisionAt = new Date();
+    const decisions: RoundDecision[] = guests
+      .filter((guest: any) => !validGuestIds.has(String(guest._id)))
+      .map((guest: any) => {
+        const phone = getGuestPhone(guest);
+        return {
+          invitationId,
+          guest: { ...guest, phone },
+          type: messageType,
+          round: 1,
+          source: "pre_rsvp" as const,
+          templateName,
+          at: decisionAt,
+          outcome: {
+            kind: "not_sent" as const,
+            reasonCode: phone ? "INVALID_PHONE" : "MISSING_PHONE",
+          },
+        };
+      });
+
+    const guestById = new Map(
+      validGuests.map(({ guest, phone }) => [String(guest._id), { guest, phone }])
+    );
+
+    let inserted: any[];
+
+    try {
+      inserted = await WhatsappQueue.insertMany(queueDocs, {
+        ordered: false,
+      });
+    } catch (insertErr: any) {
+      const insertedDocs: any[] = insertErr?.insertedDocs || [];
+      const insertedIds = new Set(
+        insertedDocs.map((doc: any) => String(doc.guestId))
+      );
+
+      for (const doc of insertedDocs) {
+        const item = guestById.get(String(doc.guestId));
+        if (!item) continue;
+        decisions.push({
+          invitationId,
+          guest: { ...item.guest, phone: item.phone },
+          type: messageType,
+          round: 1,
+          source: "pre_rsvp",
+          templateName,
+          at: decisionAt,
+          outcome: {
+            kind: "queued",
+            queueId: doc._id,
+            idempotencyKey: doc.idempotencyKey,
+            phone: item.phone,
+          },
+        });
+      }
+
+      for (const [guestId, item] of guestById) {
+        if (insertedIds.has(guestId)) continue;
+        decisions.push({
+          invitationId,
+          guest: { ...item.guest, phone: item.phone },
+          type: messageType,
+          round: 1,
+          source: "pre_rsvp",
+          templateName,
+          at: decisionAt,
+          outcome: {
+            kind: "not_sent",
+            reasonCode: insertErr?.code === 11000 ? "DUPLICATE" : "QUEUE_ERROR",
+            errorMessage: String(insertErr?.message || ""),
+          },
+        });
+      }
+
+      await recordRoundDecisions(decisions);
+      throw insertErr;
+    }
+
+    for (const doc of inserted) {
+      const item = guestById.get(String(doc.guestId));
+      if (!item) continue;
+      decisions.push({
+        invitationId,
+        guest: { ...item.guest, phone: item.phone },
+        type: messageType,
+        round: 1,
+        source: "pre_rsvp",
+        templateName,
+        at: decisionAt,
+        outcome: {
+          kind: "queued",
+          queueId: doc._id,
+          idempotencyKey: doc.idempotencyKey,
+          phone: item.phone,
+        },
+      });
+    }
+
+    await recordRoundDecisions(decisions);
 
     await markPreRsvpMessageUsed({
       ownerId,

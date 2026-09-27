@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerLeadMessage from "@/models/CustomerLeadMessage";
+import { applyWhatsappWebhookStatus } from "@/lib/whatsapp/roundDeliveryTracking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -226,7 +227,7 @@ async function updateWhatsappQueueStatus({
     await WhatsappQueue.updateOne(
       {
         ...queueQuery,
-        providerStatus: { $nin: ["delivered", "read"] },
+        providerStatus: { $nin: ["delivered", "read", "failed"] },
       },
       {
         $set: {
@@ -353,6 +354,19 @@ async function updateWhatsappQueueStatus({
       }
     );
   }
+
+  const errorDetails = cleanString(status?.errors?.[0]?.error_data?.details);
+
+  await applyWhatsappWebhookStatus({
+    wamids: queueQuery.wamid.$in,
+    state,
+    at: timestamp,
+    errorCode,
+    errorMessage:
+      errorDetails && errorDetails !== errorMessage
+        ? [errorMessage, errorDetails].filter(Boolean).join(" – ")
+        : errorMessage,
+  });
 }
 
 async function saveIncomingWhatsappMessage({

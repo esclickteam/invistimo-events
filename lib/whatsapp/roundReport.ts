@@ -22,9 +22,11 @@ export type ReportStatusKey =
   | "delivered"
   | "read"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "not_in_audience";
 
 export const STATUS_RANK: Record<ReportStatusKey, number> = {
+  not_in_audience: 0,
   not_sent: 0,
   cancelled: 5,
   scheduled: 10,
@@ -38,6 +40,7 @@ export const STATUS_RANK: Record<ReportStatusKey, number> = {
 
 /** Best-ever / progress rank ignores failed so a later failure does not erase prior read. */
 export const PROGRESS_RANK: Record<ReportStatusKey, number> = {
+  not_in_audience: 0,
   not_sent: 0,
   cancelled: 0,
   scheduled: 5,
@@ -59,6 +62,7 @@ export const STATUS_LABELS: Record<ReportStatusKey, string> = {
   read: "נקרא",
   failed: "נכשל",
   cancelled: "בוטל",
+  not_in_audience: "לא בקהל היעד של הסבב",
 };
 
 export type RoundType =

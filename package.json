@@ -21,6 +21,7 @@
     "weddingWebsite:palette": "npx tsx scripts/weddingWebsite/generate-template-palette.ts",
     "test:guest-link-open": "npx tsx --test scripts/tests/guest-link-open.test.ts",
     "test:guest-link-open-db": "npx tsx --test --test-force-exit scripts/tests/guest-link-open-db.test.ts",
+    "test:whatsapp-sms-fallback-db": "npx tsx --test --test-force-exit scripts/tests/whatsapp-sms-fallback-db.test.ts",
     "test:staging-safety": "node --test --import tsx scripts/tests/staging-env-safety.test.mjs",
     "staging:seed": "npx tsx scripts/staging/seed-staging-fixtures.ts",
     "staging:isolation": "node -e \"fetch(process.env.STAGING_URL+'/api/system/env-isolation',{headers:process.env.VERCEL_AUTOMATION_BYPASS_SECRET?{'x-vercel-protection-bypass':process.env.VERCEL_AUTOMATION_BYPASS_SECRET}:{}}).then(r=>r.json()).then(j=>{console.log(JSON.stringify(j,null,2)); if(!j.ok) process.exit(1)})\"",

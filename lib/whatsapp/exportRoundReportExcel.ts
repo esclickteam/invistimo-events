@@ -65,6 +65,12 @@ export type ExcelReportRound = {
   failed: number;
   pending: number;
   notSent?: number;
+  sms?: {
+    candidates?: number;
+    sent?: number;
+    failed?: number;
+    skipped?: number;
+  };
   summary?: {
     intended?: number;
     notSent?: number;
@@ -341,6 +347,10 @@ export async function buildWhatsappRoundReportWorkbook(
     { width: 12 },
     { width: 12 },
     { width: 12 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
   ];
 
   summarySheet.mergeCells(1, 1, 1, 3);
@@ -428,7 +438,7 @@ export async function buildWhatsappRoundReportWorkbook(
   }
 
   row += 1;
-  addSectionTitle(summarySheet, row, "סיכום סבבים", 11);
+  addSectionTitle(summarySheet, row, "סיכום סבבים", 15);
   row += 1;
 
   const roundHeaders = [
@@ -443,9 +453,13 @@ export async function buildWhatsappRoundReportWorkbook(
     "ממתינים",
     "% מסירה",
     "% קריאה",
+    "גיבוי SMS – זכאים",
+    "גיבוי SMS – נשלחו",
+    "גיבוי SMS – נכשלו",
+    "גיבוי SMS – דולגו",
   ];
   setRowValues(summarySheet.getRow(row), roundHeaders);
-  for (let col = 1; col <= 11; col += 1) {
+  for (let col = 1; col <= roundHeaders.length; col += 1) {
     styleHeaderCell(summarySheet.getCell(row, col));
   }
   row += 1;
@@ -472,10 +486,14 @@ export async function buildWhatsappRoundReportWorkbook(
       Number(pending),
       pct(delivered, sent),
       pct(read, sent),
+      Number(round.sms?.candidates || 0),
+      Number(round.sms?.sent || 0),
+      Number(round.sms?.failed || 0),
+      Number(round.sms?.skipped || 0),
     ]);
     summarySheet.getCell(row, 10).numFmt = "0.0%";
     summarySheet.getCell(row, 11).numFmt = "0.0%";
-    for (let col = 1; col <= 11; col += 1) {
+    for (let col = 1; col <= roundHeaders.length; col += 1) {
       styleDataCell(summarySheet.getCell(row, col));
     }
     row += 1;
