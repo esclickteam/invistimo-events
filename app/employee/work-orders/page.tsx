@@ -1,3 +1,7 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { isEmployeeTodayWorkOrderVisible } from "@/lib/calls/callRoundScheduleTime";
 
 /* ============================================================
@@ -168,6 +172,8 @@ function getStatusLabel(status: string) {
 function isWorkOrderRecordId(id: string) {
   return /^[a-f0-9]{24}$/i.test(id);
 }
+
+function getRoundLabel(round: number) {
   if (round === 1) return "סבב 1";
   if (round === 2) return "סבב 2";
   if (round === 3) return "סבב 3";
