@@ -328,10 +328,12 @@ export function shiftCoversScheduledRound(input: {
 /**
  * Should this round appear as a work order now?
  *
- * 1) Shift-start exposure: same-day round whose scheduledAt falls inside at
- *    least one already-started shift window covering that time.
- * 2) Classic due: scheduledAt <= now (unchanged send/execution semantics).
- * 3) force: always.
+ * 1) Same Israel day + any started shift today: show the round as planned,
+ *    even if scheduledAt is later tonight (e.g. 22:00).
+ * 2) Shift-window exposure: same-day round whose scheduledAt falls inside a
+ *    covering started shift (legacy path; still honored).
+ * 3) Classic due: scheduledAt <= now (send/execution semantics).
+ * 4) force: always.
  *
  * Does NOT mutate scheduledAt; early exposure is display/assignment only.
  */
@@ -341,12 +343,15 @@ export function shouldExposeCallRoundWorkOrder(input: {
   now?: Date;
   force?: boolean;
   hasCoveringStartedShift: boolean;
+  hasStartedShiftToday?: boolean;
 }) {
   if (input.force) return true;
 
-  if (input.hasCoveringStartedShift) {
-    const scheduledKey = getCallRoundDateKeyInIsrael(input.scheduledAt);
-    if (scheduledKey === input.dateKey) return true;
+  const scheduledKey = getCallRoundDateKeyInIsrael(input.scheduledAt);
+  const sameDay = scheduledKey === input.dateKey;
+
+  if (sameDay && (input.hasStartedShiftToday || input.hasCoveringStartedShift)) {
+    return true;
   }
 
   return isCallRoundDue({
@@ -355,4 +360,50 @@ export function shouldExposeCallRoundWorkOrder(input: {
     now: input.now,
     force: false,
   });
+}
+
+export function isSameIsraelDay(
+  value?: string | Date | null,
+  dateKey?: string
+) {
+  if (!value || !dateKey) return false;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return getCallRoundDateKeyInIsrael(date) === dateKey;
+}
+
+/**
+ * Employee "today's rounds" list: any non-terminal work order on dateKey,
+ * including later planned times, even before remaining tasks exist.
+ */
+export function isEmployeeTodayWorkOrderVisible(input: {
+  status?: string | null;
+  dateKey: string;
+  configuredRoundAt?: string | Date | null;
+  workDate?: string | Date | null;
+  autoOpenAt?: string | Date | null;
+  myTasksRemaining?: number;
+}) {
+  const status = String(input.status || "").trim().toLowerCase();
+  if (
+    status === "completed" ||
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "expired"
+  ) {
+    return false;
+  }
+
+  const raw =
+    input.configuredRoundAt || input.workDate || input.autoOpenAt || null;
+  if (raw) {
+    const orderKey = getCallRoundDateKeyInIsrael(
+      raw instanceof Date ? raw : new Date(raw)
+    );
+    if (orderKey < input.dateKey) return false;
+    if (orderKey > input.dateKey) return false;
+    return true;
+  }
+
+  return Number(input.myTasksRemaining || 0) > 0;
 }

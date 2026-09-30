@@ -6,6 +6,7 @@ import {
   getCallRoundDateKeyInIsrael,
   hasEmployeeShiftStarted,
   isCallRoundDue,
+  isEmployeeTodayWorkOrderVisible,
   normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
   parseClockToMinutes,
@@ -134,5 +135,37 @@ assert.equal(
 );
 
 assert.equal(formatPlannedExecutionLabel(noonSameDay), "מתוכנן ל־12:00");
+
+const evening = parseCallRoundScheduledAt("2026-09-30T22:00")!;
+const morningNow = new Date("2026-09-30T07:36:00.000Z"); // 10:36 Israel
+assert.equal(
+  shouldExposeCallRoundWorkOrder({
+    scheduledAt: evening,
+    dateKey: "2026-09-30",
+    now: morningNow,
+    hasCoveringStartedShift: false,
+    hasStartedShiftToday: true,
+  }),
+  true
+);
+assert.equal(
+  shouldExposeCallRoundWorkOrder({
+    scheduledAt: evening,
+    dateKey: "2026-09-30",
+    now: morningNow,
+    hasCoveringStartedShift: false,
+    hasStartedShiftToday: false,
+  }),
+  false
+);
+assert.equal(
+  isEmployeeTodayWorkOrderVisible({
+    status: "scheduled",
+    dateKey: "2026-09-30",
+    configuredRoundAt: evening,
+    myTasksRemaining: 0,
+  }),
+  true
+);
 
 console.log("call-round-schedule-time.test.ts: ok");
