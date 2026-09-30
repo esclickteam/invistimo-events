@@ -7,6 +7,10 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import { isEmployeeTodayWorkOrderVisible } from "@/lib/calls/callRoundScheduleTime";
+import {
+  listScheduledCallRoundsForIsraelDate,
+} from "@/lib/calls/listScheduledCallRoundsForDate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -874,8 +878,9 @@ async function buildDebugCounts(input: {
 function serializeWorkOrderFromGroup(input: {
   workOrder: any | null;
   tasks: any[];
+  preserveWorkOrderStatus?: boolean;
 }) {
-  const { workOrder, tasks } = input;
+  const { workOrder, tasks, preserveWorkOrderStatus } = input;
 
   const firstTask = tasks[0] || {};
   const summary = countTasks(tasks);
@@ -894,8 +899,9 @@ function serializeWorkOrderFromGroup(input: {
   const progress =
     total > 0 ? Math.round((completedLogical / total) * 100) : 0;
 
-  const status =
-    remaining <= 0 && total > 0
+  const status = preserveWorkOrderStatus
+    ? cleanStr(workOrder?.status) || (remaining > 0 ? "open" : "scheduled")
+    : remaining <= 0 && total > 0
       ? "completed"
       : summary.in_progress > 0
         ? "in_progress"
@@ -1100,9 +1106,159 @@ export async function GET(req: NextRequest) {
       .filter((order) => {
         const status = normalize(order.status);
         return status !== "cancelled" && status !== "canceled";
+      });
+
+    const seenWorkOrderKeys = new Set(
+      serializedWorkOrders.map((order) => {
+        const invitationRound = `${order.invitationId}:${order.round}`;
+        return `${order.id}|${invitationRound}`;
       })
-      .sort((a, b) => getSortDate(b) - getSortDate(a))
-      .slice(0, limit);
+    );
+
+    function alreadyListed(order: {
+      id?: string;
+      invitationId?: string;
+      round?: number;
+    }) {
+      const id = extractIdString(order.id);
+      const invitationRound = `${extractIdString(order.invitationId)}:${safeNumber(order.round)}`;
+      if (id && seenWorkOrderKeys.has(`${id}|${invitationRound}`)) return true;
+      return serializedWorkOrders.some((existing) => {
+        if (id && existing.id === id) return true;
+        return (
+          extractIdString(existing.invitationId) &&
+          extractIdString(existing.invitationId) ===
+            extractIdString(order.invitationId) &&
+          safeNumber(existing.round) === safeNumber(order.round)
+        );
+      });
+    }
+
+    const extraWorkOrders: any[] = [];
+
+    if (!showAllDates) {
+      const todayWorkOrderFilter: MongoFilter = {
+        $and: [
+          buildDateMatch(dateKey),
+          {
+            $or: [
+              { status: { $exists: false } },
+              { status: { $nin: ["cancelled", "canceled"] } },
+            ],
+          },
+        ],
+      };
+
+      extraWorkOrders.push(
+        ...(await CallWorkOrder.collection
+          .find(todayWorkOrderFilter as any)
+          .toArray())
+      );
+
+      for (const workOrder of extraWorkOrders) {
+        const id = extractIdString((workOrder as any)._id);
+        if (
+          alreadyListed({
+            id,
+            invitationId: extractIdString((workOrder as any).invitationId),
+            round: safeNumber((workOrder as any).round),
+          })
+        ) {
+          continue;
+        }
+
+        const tasks = tasksByWorkOrder.get(id) || [];
+        serializedWorkOrders.push(
+          serializeWorkOrderFromGroup({
+            workOrder,
+            tasks,
+            preserveWorkOrderStatus: true,
+          })
+        );
+        seenWorkOrderKeys.add(
+          `${id}|${extractIdString((workOrder as any).invitationId)}:${safeNumber((workOrder as any).round)}`
+        );
+      }
+
+      const scheduledToday = await listScheduledCallRoundsForIsraelDate(dateKey);
+
+      for (const round of scheduledToday) {
+        if (
+          alreadyListed({
+            id: round.key,
+            invitationId: round.invitationId,
+            round: round.round,
+          })
+        ) {
+          continue;
+        }
+
+        const matchingWorkOrder =
+          extraWorkOrders.find((order) => {
+            return (
+              extractIdString((order as any).invitationId) === round.invitationId &&
+              safeNumber((order as any).round) === round.round
+            );
+          }) || null;
+
+        if (matchingWorkOrder) {
+          const id = extractIdString((matchingWorkOrder as any)._id);
+          if (alreadyListed({ id, invitationId: round.invitationId, round: round.round })) {
+            continue;
+          }
+          serializedWorkOrders.push(
+            serializeWorkOrderFromGroup({
+              workOrder: matchingWorkOrder,
+              tasks: tasksByWorkOrder.get(id) || [],
+              preserveWorkOrderStatus: true,
+            })
+          );
+          continue;
+        }
+
+        serializedWorkOrders.push({
+          id: round.key,
+          _id: round.key,
+          type: "rsvp_calls",
+          status: "scheduled",
+          title: "הוראת עבודה לשיחות",
+          description: "",
+          invitationId: round.invitationId,
+          clientName: round.clientName,
+          clientEmail: round.clientEmail,
+          eventName: round.eventName,
+          eventDate: round.eventDate,
+          round: round.round,
+          sourceAudience: round.sourceAudience,
+          workDate: startOfDateKey(dateKey),
+          configuredRoundAt: round.scheduledAt,
+          autoOpenAt: null,
+          timezone: TIMEZONE,
+          myTasksTotal: 0,
+          myTasksCompleted: 0,
+          myTasksRemaining: 0,
+          myProgressPercent: 0,
+          myPendingTasks: 0,
+          myInProgressTasks: 0,
+          myConfirmedTasks: 0,
+          myDeclinedTasks: 0,
+          myNoAnswerTasks: 0,
+          myCallbackTasks: 0,
+          myUndecidedTasks: 0,
+          myWillReplyMessageTasks: 0,
+          myNeedsFixTasks: 0,
+          myWrongNumberTasks: 0,
+          myCancelledTasks: 0,
+          createdAt: null,
+          updatedAt: null,
+        });
+      }
+    }
+
+    serializedWorkOrders.sort((a, b) => getSortDate(a) - getSortDate(b));
+    if (serializedWorkOrders.length > limit) {
+      serializedWorkOrders.length = limit;
+    }
 
     // Persist completion for open WOs that have no remaining tasks.
     const staleOpenIds = serializedWorkOrders
@@ -1143,25 +1299,31 @@ export async function GET(req: NextRequest) {
     }
 
     const todayKeyForActive = getDateKeyInIsrael(new Date());
+    const visibilityDateKey = showAllDates ? todayKeyForActive : dateKey;
 
     const activeWorkOrders = serializedWorkOrders.filter((order) => {
-      const status = normalize(order.status);
-      if (
-        status === "completed" ||
-        status === "cancelled" ||
-        status === "canceled" ||
-        status === "expired"
-      ) {
-        return false;
+      const remaining = safeNumber(order.myTasksRemaining);
+      if (remaining > 0) {
+        const status = normalize(order.status);
+        if (
+          status === "completed" ||
+          status === "cancelled" ||
+          status === "canceled" ||
+          status === "expired"
+        ) {
+          return false;
+        }
+        return true;
       }
 
-      const rawDate = order.configuredRoundAt || order.workDate;
-      if (!rawDate) return safeNumber(order.myTasksRemaining) > 0;
-
-      const orderKey = getDateKeyInIsrael(new Date(rawDate));
-      if (orderKey < todayKeyForActive) return false;
-
-      return safeNumber(order.myTasksRemaining) > 0;
+      return isEmployeeTodayWorkOrderVisible({
+        status: order.status,
+        dateKey: visibilityDateKey,
+        configuredRoundAt: order.configuredRoundAt,
+        workDate: order.workDate,
+        autoOpenAt: order.autoOpenAt,
+        myTasksRemaining: remaining,
+      });
     });
 
     const completedWorkOrders = serializedWorkOrders.filter((order) => {
@@ -1253,6 +1415,7 @@ export async function GET(req: NextRequest) {
       },
 
       count: serializedWorkOrders.length,
+      todayRoundsCount: activeWorkOrders.length,
       summary,
 
       workOrders: serializedWorkOrders,

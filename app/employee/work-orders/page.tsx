@@ -1,7 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { isEmployeeTodayWorkOrderVisible } from "@/lib/calls/callRoundScheduleTime";
 
 /* ============================================================
    Types
@@ -168,7 +165,9 @@ function getStatusLabel(status: string) {
   return map[status] || status || "—";
 }
 
-function getRoundLabel(round: number) {
+function isWorkOrderRecordId(id: string) {
+  return /^[a-f0-9]{24}$/i.test(id);
+}
   if (round === 1) return "סבב 1";
   if (round === 2) return "סבב 2";
   if (round === 3) return "סבב 3";
@@ -226,6 +225,17 @@ function isHistoricalWorkOrder(order: WorkOrder, todayKey: string) {
   const orderKey = getWorkOrderDateKey(order);
   if (orderKey && orderKey < todayKey) return true;
 
+  if (isEmployeeTodayWorkOrderVisible({
+    status: order.status,
+    dateKey: todayKey,
+    configuredRoundAt: order.configuredRoundAt,
+    workDate: order.workDate,
+    autoOpenAt: order.autoOpenAt,
+    myTasksRemaining: safeNumber(order.myTasksRemaining),
+  })) {
+    return false;
+  }
+
   return (
     safeNumber(order.myTasksTotal) > 0 &&
     safeNumber(order.myTasksRemaining) <= 0
@@ -234,7 +244,15 @@ function isHistoricalWorkOrder(order: WorkOrder, todayKey: string) {
 
 function isActiveWorkOrder(order: WorkOrder, todayKey: string) {
   if (isHistoricalWorkOrder(order, todayKey)) return false;
-  return safeNumber(order.myTasksRemaining) > 0;
+  if (safeNumber(order.myTasksRemaining) > 0) return true;
+  return isEmployeeTodayWorkOrderVisible({
+    status: order.status,
+    dateKey: todayKey,
+    configuredRoundAt: order.configuredRoundAt,
+    workDate: order.workDate,
+    autoOpenAt: order.autoOpenAt,
+    myTasksRemaining: safeNumber(order.myTasksRemaining),
+  });
 }
 
 /* ============================================================
@@ -429,25 +447,25 @@ export default function EmployeeWorkOrdersPage() {
         <section className="emptyCard">
           <h2>אין הוראות עבודה להצגה</h2>
           <p>
-            אם אמורות להיות הוראות עבודה להיום, בדקי שיש שיבוץ למשמרת שכבר
-            התחילה, ושסבבי השיחות חלים במהלך שעות המשמרת (הם מופיעים מתחילת
-            המשמרת עם שעת הביצוע המתוכננת).
+            אם אמורות להיות הוראות עבודה להיום, בדקי שיש שיבוץ למשמרת, ושסבבי
+            השיחות מתוכננים להיום — כולל סבבים לשעות מאוחרות יותר (הם מופיעים
+            ברשימת היום עם שעת הביצוע המתוכננת).
           </p>
         </section>
       ) : (
         <>
           <section className="sectionHeader">
             <div>
-              <h2>הוראות פעילות</h2>
-              <p>{activeOrders.length} הוראות שצריך לטפל בהן עכשיו</p>
+              <h2>שיחות היום</h2>
+              <p>{activeOrders.length} סבבים מתוכננים להיום</p>
             </div>
           </section>
 
           <section className="ordersGrid">
             {activeOrders.length === 0 ? (
               <section className="emptyCard inlineEmpty">
-                <h2>אין הוראות פעילות</h2>
-                <p>כל ההוראות שהוקצו אלייך טופלו, או שאין שיחות ממתינות כרגע.</p>
+                <h2>אין סבבים פעילים להיום</h2>
+                <p>כל הסבבים שהוקצו אלייך טופלו, או שאין סבבי שיחות מתוכננים להיום.</p>
               </section>
             ) : (
               activeOrders.map((order) => (
@@ -873,9 +891,15 @@ function WorkOrderCard({
         )}
       </div>
 
-      <Link className="openLink" href={`/employee/work-orders/${order.id}`}>
-        {completed ? "צפייה בשיחות" : "כניסה לרשימת השיחות"}
-      </Link>
+      {isWorkOrderRecordId(order.id) ? (
+        <Link className="openLink" href={`/employee/work-orders/${order.id}`}>
+          {completed ? "צפייה בשיחות" : "כניסה לרשימת השיחות"}
+        </Link>
+      ) : (
+        <span className="openLink plannedOnly">
+          {formatPlannedExecution(order.configuredRoundAt)}
+        </span>
+      )}
 
       <style>{`
         .orderCard {
@@ -1047,6 +1071,13 @@ function WorkOrderCard({
           font-weight: 950;
           box-shadow: 0 14px 30px rgba(37, 99, 235, 0.22);
           margin-top: auto;
+        }
+
+        .openLink.plannedOnly {
+          background: #f1f5f9;
+          color: #0f172a;
+          box-shadow: none;
+          cursor: default;
         }
 
         @media (max-width: 720px) {

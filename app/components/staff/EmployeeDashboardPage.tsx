@@ -248,6 +248,8 @@ type EmployeeWorkOrdersResponse = {
   success?: boolean;
   error?: string;
   summary?: Partial<EmployeeWorkOrderSummary>;
+  count?: number;
+  todayRoundsCount?: number;
   workOrders?: EmployeeWorkOrderListItem[];
   activeWorkOrders?: EmployeeWorkOrderListItem[];
   completedWorkOrders?: EmployeeWorkOrderListItem[];
@@ -1720,21 +1722,21 @@ export default function EmployeeDashboardPage() {
       const workOrders = Array.isArray(data?.workOrders) ? data.workOrders : [];
       const activeWorkOrders = Array.isArray(data?.activeWorkOrders)
         ? data.activeWorkOrders
-        : workOrders.filter((order) => asNumber(order.myTasksRemaining) > 0);
+        : workOrders;
       const completedWorkOrders = Array.isArray(data?.completedWorkOrders)
         ? data.completedWorkOrders
-        : workOrders.filter(
-            (order) =>
-              asNumber(order.myTasksTotal) > 0 &&
-              asNumber(order.myTasksRemaining) <= 0,
-          );
+        : [];
+      const todayRoundsCount =
+        typeof data?.todayRoundsCount === "number"
+          ? data.todayRoundsCount
+          : activeWorkOrders.length;
 
       setWorkOrdersDashboard({
         loading: false,
         error: "",
         summary: normalizeWorkOrdersSummary(data?.summary),
-        workOrdersCount: workOrders.length,
-        activeWorkOrdersCount: activeWorkOrders.length,
+        workOrdersCount: todayRoundsCount,
+        activeWorkOrdersCount: todayRoundsCount,
         completedWorkOrdersCount: completedWorkOrders.length,
       });
     } catch (loadError) {
@@ -2593,15 +2595,15 @@ export default function EmployeeDashboardPage() {
                         className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-emerald-100"
                       >
                         <p className="text-xs font-black text-emerald-700">
-                          שיחות שלי היום
+                          שיחות היום
                         </p>
                         <p className="mt-2 text-3xl font-black text-emerald-950">
                           {workOrdersDashboard.loading
                             ? "..."
-                            : workOrdersDashboard.summary.remaining}
+                            : workOrdersDashboard.activeWorkOrdersCount}
                         </p>
                         <p className="mt-1 text-[11px] font-black text-emerald-700/70">
-                          מתוך {workOrdersDashboard.summary.total} שיחות
+                          {workOrdersDashboard.summary.remaining} שיחות שנותרו
                         </p>
                       </button>
                     </>
@@ -2778,13 +2780,13 @@ export default function EmployeeDashboardPage() {
                     className="text-right"
                   >
                     <StatCard
-                      title="הוראות עבודה"
+                      title="שיחות היום"
                       value={
                         workOrdersDashboard.loading
                           ? "..."
                           : workOrdersDashboard.activeWorkOrdersCount
                       }
-                      subtitle={`נותרו ${workOrdersDashboard.summary.remaining} שיחות להיום`}
+                      subtitle={`${workOrdersDashboard.summary.remaining} שיחות שנותרו בסבבים של היום`}
                       icon={<Icon name="phone" className="h-6 w-6" />}
                       tone="green"
                     />

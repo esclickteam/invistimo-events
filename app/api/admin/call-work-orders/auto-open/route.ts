@@ -103,9 +103,9 @@ type ScheduleCandidate = {
   configuredRoundAt: Date;
   scheduleSource: "invitation" | "user";
   rawRound: any;
-  /** Employees assigned for this round (covering started shifts, or due fallback). */
+  /** Employees assigned for this round (started shift today, covering window, or due fallback). */
   assignedEmployees: ScheduledEmployee[];
-  exposureReason: "shift_started" | "round_due" | "force";
+  exposureReason: "shift_started" | "same_day_shift" | "round_due" | "force";
 };
 
 /* ============================================================
@@ -613,7 +613,7 @@ function extractScheduledRoundsForDate(
     force?: boolean;
     /**
      * When true, also includes same-day rounds that are not yet due
-     * (exposure gated later by started shift windows).
+     * so they can appear on the employee list as planned (e.g. 22:00).
      */
     includeFutureSameDay?: boolean;
   }
@@ -1136,7 +1136,7 @@ function resolveAssigneesForRound(input: {
   allEmployees: ScheduledEmployee[];
 }): {
   assignees: ScheduledEmployee[];
-  exposureReason: "shift_started" | "round_due" | "force";
+  exposureReason: "shift_started" | "same_day_shift" | "round_due" | "force";
 } | null {
   const { scheduledAt, dateKey, now, force, startedEmployees, allEmployees } =
     input;
@@ -1145,12 +1145,16 @@ function resolveAssigneesForRound(input: {
     .filter((employee) => employeeCoversScheduledAt(employee, dateKey, scheduledAt))
     .map((employee) => withPrimaryShiftForRound(employee, scheduledAt));
 
+  const sameDay = getDateKeyInIsrael(scheduledAt) === dateKey;
+  const hasStartedShiftToday = sameDay && startedEmployees.length > 0;
+
   const expose = shouldExposeCallRoundWorkOrder({
     scheduledAt,
     dateKey,
     now,
     force,
     hasCoveringStartedShift: coveringStarted.length > 0,
+    hasStartedShiftToday,
   });
 
   if (!expose) return null;
@@ -1168,6 +1172,16 @@ function resolveAssigneesForRound(input: {
 
   if (coveringStarted.length > 0) {
     return { assignees: coveringStarted, exposureReason: "shift_started" };
+  }
+
+  // Same-day rounds (including 22:00) appear as soon as anyone started a shift today.
+  if (hasStartedShiftToday) {
+    return {
+      assignees: startedEmployees.map((employee) =>
+        withPrimaryShiftForRound(employee, scheduledAt)
+      ),
+      exposureReason: "same_day_shift",
+    };
   }
 
   // Round already due but no covering window — fall back to started/day roster.
@@ -3081,7 +3095,7 @@ async function handleAutoOpen(req: NextRequest) {
         skipped: true,
         reason: "NO_EXPOSABLE_SCHEDULED_ROUNDS_FOR_DATE",
         message:
-          "לא נמצאו סבבי שיחות לחשיפה: אין סבב שחל במהלך משמרת שכבר התחילה, ואין סבב שמועד הביצוע שלו כבר הגיע",
+          "לא נמצאו סבבי שיחות לחשיפה להיום: אין סבב מתוכנן לתאריך זה לעובדים שכבר התחילו משמרת, ואין סבב שמועד הביצוע שלו כבר הגיע",
         dateKey,
         todayKey,
         timezone: TIMEZONE,
