@@ -19,9 +19,11 @@ import {
 } from "@/lib/calls/callRoundEligibility";
 import {
   hasEmployeeShiftStarted,
+  hasReachedSameDayWorkOrderOpenTime,
   isCallRoundDue,
   parseCallRoundScheduledAt,
   parseClockToMinutes,
+  SAME_DAY_WORK_ORDER_OPEN_HOUR,
   shiftCoversScheduledRound,
   shouldExposeCallRoundWorkOrder,
   type ShiftTimeWindow,
@@ -36,7 +38,7 @@ export const maxDuration = 60;
 ============================================================ */
 
 const TIMEZONE = "Asia/Jerusalem";
-const AUTO_OPEN_HOUR = 0;
+const AUTO_OPEN_HOUR = SAME_DAY_WORK_ORDER_OPEN_HOUR;
 const SHIFT_COLLECTION = "employeeshifts";
 
 const NEXT_ROUND_ELIGIBLE_STATUSES = [
@@ -105,7 +107,12 @@ type ScheduleCandidate = {
   rawRound: any;
   /** Employees assigned for this round (started shift today, covering window, or due fallback). */
   assignedEmployees: ScheduledEmployee[];
-  exposureReason: "shift_started" | "same_day_shift" | "round_due" | "force";
+  exposureReason:
+    | "shift_started"
+    | "same_day_open"
+    | "same_day_shift"
+    | "round_due"
+    | "force";
 };
 
 /* ============================================================
@@ -613,7 +620,7 @@ function extractScheduledRoundsForDate(
     force?: boolean;
     /**
      * When true, also includes same-day rounds that are not yet due
-     * so they can appear on the employee list as planned (e.g. 22:00).
+     * so they open with the 09:00 Israel same-day gate (e.g. 22:00).
      */
     includeFutureSameDay?: boolean;
   }
@@ -1136,7 +1143,12 @@ function resolveAssigneesForRound(input: {
   allEmployees: ScheduledEmployee[];
 }): {
   assignees: ScheduledEmployee[];
-  exposureReason: "shift_started" | "same_day_shift" | "round_due" | "force";
+  exposureReason:
+    | "shift_started"
+    | "same_day_open"
+    | "same_day_shift"
+    | "round_due"
+    | "force";
 } | null {
   const { scheduledAt, dateKey, now, force, startedEmployees, allEmployees } =
     input;
@@ -1146,6 +1158,8 @@ function resolveAssigneesForRound(input: {
     .map((employee) => withPrimaryShiftForRound(employee, scheduledAt));
 
   const sameDay = getDateKeyInIsrael(scheduledAt) === dateKey;
+  const sameDayOpen =
+    sameDay && hasReachedSameDayWorkOrderOpenTime({ dateKey, now });
   const hasStartedShiftToday = sameDay && startedEmployees.length > 0;
 
   const expose = shouldExposeCallRoundWorkOrder({
@@ -1159,22 +1173,23 @@ function resolveAssigneesForRound(input: {
 
   if (!expose) return null;
 
-  if (force) {
-    const pool =
-      coveringStarted.length > 0
-        ? coveringStarted
-        : (startedEmployees.length ? startedEmployees : allEmployees).map(
-            (employee) => withPrimaryShiftForRound(employee, scheduledAt)
-          );
+  const dayRoster = (allEmployees.length ? allEmployees : startedEmployees).map(
+    (employee) => withPrimaryShiftForRound(employee, scheduledAt)
+  );
 
+  if (force) {
+    const pool = coveringStarted.length > 0 ? coveringStarted : dayRoster;
     return { assignees: pool, exposureReason: "force" };
+  }
+
+  if (sameDayOpen) {
+    return { assignees: dayRoster, exposureReason: "same_day_open" };
   }
 
   if (coveringStarted.length > 0) {
     return { assignees: coveringStarted, exposureReason: "shift_started" };
   }
 
-  // Same-day rounds (including 22:00) appear as soon as anyone started a shift today.
   if (hasStartedShiftToday) {
     return {
       assignees: startedEmployees.map((employee) =>
@@ -1184,12 +1199,7 @@ function resolveAssigneesForRound(input: {
     };
   }
 
-  // Round already due but no covering window — fall back to started/day roster.
-  const fallback = (
-    startedEmployees.length ? startedEmployees : allEmployees
-  ).map((employee) => withPrimaryShiftForRound(employee, scheduledAt));
-
-  return { assignees: fallback, exposureReason: "round_due" };
+  return { assignees: dayRoster, exposureReason: "round_due" };
 }
 
 function normalizeShiftEmployee(shift: any): ScheduledEmployee | null {
@@ -3095,7 +3105,7 @@ async function handleAutoOpen(req: NextRequest) {
         skipped: true,
         reason: "NO_EXPOSABLE_SCHEDULED_ROUNDS_FOR_DATE",
         message:
-          "לא נמצאו סבבי שיחות לחשיפה להיום: אין סבב מתוכנן לתאריך זה לעובדים שכבר התחילו משמרת, ואין סבב שמועד הביצוע שלו כבר הגיע",
+          "לא נמצאו סבבי שיחות לחשיפה להיום: אין סבב מתוכנן לתאריך ישראל זה אחרי 09:00, ואין סבב שמועד הביצוע שלו כבר הגיע",
         dateKey,
         todayKey,
         timezone: TIMEZONE,

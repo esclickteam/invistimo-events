@@ -18,6 +18,10 @@ export const CALL_ROUND_TIMEZONE = DEFAULT_EVENT_TIMEZONE;
 export const LEGACY_DATE_ONLY_HOUR = 12;
 export const LEGACY_DATE_ONLY_MINUTE = 0;
 
+/** Same-day work orders become executable from this Israel wall clock. */
+export const SAME_DAY_WORK_ORDER_OPEN_HOUR = 9;
+export const SAME_DAY_WORK_ORDER_OPEN_MINUTE = 0;
+
 function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -326,31 +330,54 @@ export function shiftCoversScheduledRound(input: {
 }
 
 /**
- * Should this round appear as a work order now?
+ * Israel-day gate for opening every same-day call round to employees.
+ * scheduledAt time is display-only after this clock (e.g. 22:00 still opens at 09:00).
+ */
+export function hasReachedSameDayWorkOrderOpenTime(input: {
+  dateKey: string;
+  now?: Date;
+}) {
+  const now = input.now || new Date();
+  const nowKey = getCallRoundDateKeyInIsrael(now);
+
+  if (nowKey > input.dateKey) return true;
+  if (nowKey < input.dateKey) return false;
+
+  const openMinutes =
+    SAME_DAY_WORK_ORDER_OPEN_HOUR * 60 + SAME_DAY_WORK_ORDER_OPEN_MINUTE;
+  return getIsraelMinutesSinceMidnight(now) >= openMinutes;
+}
+
+/**
+ * Should this round be opened as a work order now?
  *
- * 1) Same Israel day + any started shift today: show the round as planned,
- *    even if scheduledAt is later tonight (e.g. 22:00).
- * 2) Shift-window exposure: same-day round whose scheduledAt falls inside a
- *    covering started shift (legacy path; still honored).
- * 3) Classic due: scheduledAt <= now (send/execution semantics).
- * 4) force: always.
+ * 1) Same Israel day, after 09:00 Israel — all of today's rounds, including
+ *    later planned times (15:00 / 22:00). scheduledAt is not mutated.
+ * 2) Classic due: scheduledAt <= now (overdue / previous Israel day).
+ * 3) force: always.
  *
- * Does NOT mutate scheduledAt; early exposure is display/assignment only.
+ * Tomorrow's rounds (scheduledKey > dateKey) never open today.
  */
 export function shouldExposeCallRoundWorkOrder(input: {
   scheduledAt: Date;
   dateKey: string;
   now?: Date;
   force?: boolean;
-  hasCoveringStartedShift: boolean;
+  hasCoveringStartedShift?: boolean;
   hasStartedShiftToday?: boolean;
 }) {
   if (input.force) return true;
 
   const scheduledKey = getCallRoundDateKeyInIsrael(input.scheduledAt);
-  const sameDay = scheduledKey === input.dateKey;
+  if (scheduledKey > input.dateKey) return false;
 
-  if (sameDay && (input.hasStartedShiftToday || input.hasCoveringStartedShift)) {
+  if (
+    scheduledKey === input.dateKey &&
+    hasReachedSameDayWorkOrderOpenTime({
+      dateKey: input.dateKey,
+      now: input.now,
+    })
+  ) {
     return true;
   }
 
