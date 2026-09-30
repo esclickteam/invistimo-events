@@ -17,6 +17,7 @@ import {
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { SAME_DAY_WORK_ORDER_OPEN_HOUR } from "@/lib/calls/callRoundScheduleTime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 const SHIFT_COLLECTION = "employeeshifts";
 const TIMEZONE = "Asia/Jerusalem";
-const AUTO_OPEN_HOUR = 8;
+const AUTO_OPEN_HOUR = SAME_DAY_WORK_ORDER_OPEN_HOUR;
 
 const EMPLOYEE_WORK_ORDER_TASK_STATUSES = [
   "pending",

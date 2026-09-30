@@ -7,10 +7,12 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
-import { isEmployeeTodayWorkOrderVisible } from "@/lib/calls/callRoundScheduleTime";
 import {
-  listScheduledCallRoundsForIsraelDate,
-} from "@/lib/calls/listScheduledCallRoundsForDate";
+  hasReachedSameDayWorkOrderOpenTime,
+  isEmployeeTodayWorkOrderVisible,
+} from "@/lib/calls/callRoundScheduleTime";
+import { listScheduledCallRoundsForIsraelDate } from "@/lib/calls/listScheduledCallRoundsForDate";
+import { triggerCallWorkOrdersAutoOpen } from "@/lib/calls/triggerCallWorkOrdersAutoOpen";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -993,6 +995,13 @@ export async function GET(req: NextRequest) {
 
     const dateKey = normalizeDateKey(url.searchParams.get("date"));
     const statusFilter = cleanStr(url.searchParams.get("status") || "all");
+
+    if (
+      !showAllDates &&
+      hasReachedSameDayWorkOrderOpenTime({ dateKey })
+    ) {
+      void triggerCallWorkOrdersAutoOpen(dateKey);
+    }
 
     const limit = Math.min(
       500,

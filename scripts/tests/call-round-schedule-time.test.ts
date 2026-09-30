@@ -5,6 +5,7 @@ import {
   formatPlannedExecutionLabel,
   getCallRoundDateKeyInIsrael,
   hasEmployeeShiftStarted,
+  hasReachedSameDayWorkOrderOpenTime,
   isCallRoundDue,
   isEmployeeTodayWorkOrderVisible,
   normalizeCallRoundScheduledAtForSave,
@@ -113,56 +114,103 @@ assert.equal(
   false
 );
 
-// Bat Sheva: shift started at 10:00, round planned 12:00 → expose now
+// After 09:00 Israel, same-day 12:00 round is open even without a covering shift.
 assert.equal(
   shouldExposeCallRoundWorkOrder({
     scheduledAt: noonSameDay,
     dateKey: "2026-09-23",
     now: shiftMorning,
-    hasCoveringStartedShift: true,
-  }),
-  true
-);
-// Before shift start, even with covering window in roster → not exposed yet
-assert.equal(
-  shouldExposeCallRoundWorkOrder({
-    scheduledAt: noonSameDay,
-    dateKey: "2026-09-23",
-    now: new Date("2026-09-23T06:59:00.000Z"),
     hasCoveringStartedShift: false,
   }),
-  false
+  true
 );
 
 assert.equal(formatPlannedExecutionLabel(noonSameDay), "מתוכנן ל־12:00");
 
-const evening = parseCallRoundScheduledAt("2026-09-30T22:00")!;
-const morningNow = new Date("2026-09-30T07:36:00.000Z"); // 10:36 Israel
+const dateKey = "2026-09-30";
+const at1000 = parseCallRoundScheduledAt("2026-09-30T10:00")!;
+const at1500 = parseCallRoundScheduledAt("2026-09-30T15:00")!;
+const at2200 = parseCallRoundScheduledAt("2026-09-30T22:00")!;
+const tomorrow1000 = parseCallRoundScheduledAt("2026-10-01T10:00")!;
+const now0859 = parseCallRoundScheduledAt("2026-09-30T08:59")!;
+const now0900 = parseCallRoundScheduledAt("2026-09-30T09:00")!;
+const now1500 = parseCallRoundScheduledAt("2026-09-30T15:00")!;
+const now2200 = parseCallRoundScheduledAt("2026-09-30T22:00")!;
+
 assert.equal(
-  shouldExposeCallRoundWorkOrder({
-    scheduledAt: evening,
-    dateKey: "2026-09-30",
-    now: morningNow,
-    hasCoveringStartedShift: false,
-    hasStartedShiftToday: true,
-  }),
-  true
-);
-assert.equal(
-  shouldExposeCallRoundWorkOrder({
-    scheduledAt: evening,
-    dateKey: "2026-09-30",
-    now: morningNow,
-    hasCoveringStartedShift: false,
-    hasStartedShiftToday: false,
-  }),
+  hasReachedSameDayWorkOrderOpenTime({ dateKey, now: now0859 }),
   false
 );
 assert.equal(
+  hasReachedSameDayWorkOrderOpenTime({ dateKey, now: now0900 }),
+  true
+);
+assert.equal(
+  hasReachedSameDayWorkOrderOpenTime({ dateKey, now: now1500 }),
+  true
+);
+assert.equal(
+  hasReachedSameDayWorkOrderOpenTime({ dateKey, now: now2200 }),
+  true
+);
+assert.equal(
+  hasReachedSameDayWorkOrderOpenTime({
+    dateKey: "2026-10-01",
+    now: now1500,
+  }),
+  false
+);
+
+for (const scheduledAt of [at1000, at1500, at2200]) {
+  assert.equal(
+    shouldExposeCallRoundWorkOrder({
+      scheduledAt,
+      dateKey,
+      now: now0859,
+    }),
+    false
+  );
+  assert.equal(
+    shouldExposeCallRoundWorkOrder({
+      scheduledAt,
+      dateKey,
+      now: now0900,
+    }),
+    true
+  );
+  assert.equal(
+    shouldExposeCallRoundWorkOrder({
+      scheduledAt,
+      dateKey,
+      now: now1500,
+    }),
+    true
+  );
+  assert.equal(
+    shouldExposeCallRoundWorkOrder({
+      scheduledAt,
+      dateKey,
+      now: now2200,
+    }),
+    true
+  );
+}
+
+assert.equal(
+  shouldExposeCallRoundWorkOrder({
+    scheduledAt: tomorrow1000,
+    dateKey,
+    now: now1500,
+  }),
+  false
+);
+assert.equal(formatPlannedExecutionLabel(at2200), "מתוכנן ל־22:00");
+assert.equal(formatPlannedExecutionLabel(at1500), "מתוכנן ל־15:00");
+assert.equal(
   isEmployeeTodayWorkOrderVisible({
     status: "scheduled",
-    dateKey: "2026-09-30",
-    configuredRoundAt: evening,
+    dateKey,
+    configuredRoundAt: at2200,
     myTasksRemaining: 0,
   }),
   true
