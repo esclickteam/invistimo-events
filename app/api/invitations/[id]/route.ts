@@ -12,8 +12,6 @@ import {
   prepareEventLocation,
   type EventLocationWarning,
 } from "@/lib/eventLocation";
-import { refreshUnsentRoundPayloads } from "@/lib/messages/refreshUnsentRoundPayloads";
-import { resolveLiveEventMessageDetails } from "@/lib/messages/liveEventDetails";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -1088,28 +1086,11 @@ export async function PUT(
       .populate("guests")
       .lean();
 
-    const syncedEvent =
-      event || (await findEventForInvitation(updated));
-
-    try {
-      await refreshUnsentRoundPayloads({
-        invitationId: invitationBeforeUpdate._id,
-        invitation: updated,
-        event: syncedEvent,
-        previous: resolveLiveEventMessageDetails(invitationBeforeUpdate),
-      });
-    } catch (refreshError: any) {
-      console.error(
-        "⚠️ Failed to refresh unsent round payloads after invitation update:",
-        refreshError?.message || refreshError
-      );
-    }
-
     return NextResponse.json({
       success: true,
       invitation: updated,
       locationWarning,
-      event: serializeEvent(syncedEvent),
+      event: serializeEvent(event || (await findEventForInvitation(updated))),
       previewImageUrl: (updated as any)?.previewImageUrl ?? null,
       headerImageUrl: (updated as any)?.headerImageUrl ?? null,
       imageUrl: (updated as any)?.imageUrl ?? null,

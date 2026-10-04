@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Event from "@/models/Event";
 import User from "@/models/User";
-import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { prepareEventLocation } from "@/lib/eventLocation";
-import { refreshUnsentRoundPayloads } from "@/lib/messages/refreshUnsentRoundPayloads";
-import { resolveLiveEventMessageDetails } from "@/lib/messages/liveEventDetails";
 
 export const dynamic = "force-dynamic";
 
@@ -105,41 +102,6 @@ export async function POST(req: NextRequest) {
     } else {
       event.set(payload);
       await event.save();
-    }
-
-    const linkedInvitations = await Invitation.find({
-      $or: [
-        { eventId: event._id },
-        { productionEventId: event._id },
-        { linkedEventId: event._id },
-      ],
-    });
-
-    for (const invitation of linkedInvitations) {
-      const previous = resolveLiveEventMessageDetails(invitation, null);
-      const set: Record<string, any> = {
-        updatedAt: new Date(),
-      };
-      if (payload.title) set.title = payload.title;
-      if (payload.date) set.eventDate = new Date(payload.date);
-      if (payload.time) set.eventTime = payload.time;
-      if (payload.location) set.location = payload.location;
-
-      await Invitation.updateOne({ _id: invitation._id }, { $set: set });
-      const updatedInvitation = { ...invitation.toObject?.() || invitation, ...set };
-      try {
-        await refreshUnsentRoundPayloads({
-          invitationId: invitation._id,
-          invitation: updatedInvitation,
-          event,
-          previous,
-        });
-      } catch (refreshError: any) {
-        console.error(
-          "⚠️ Failed to refresh unsent round payloads after event update:",
-          refreshError?.message || refreshError
-        );
-      }
     }
 
     return NextResponse.json({
