@@ -176,10 +176,12 @@ test("scheduled SMS worker reloads live reminder data at execution", () => {
   assert.match(worker, /Invitation\.findById\(msg\.invitationId\)/);
   assert.match(worker, /InvitationGuest\.find\(guestsQuery\)/);
   assert.match(worker, /InvitationGuest\.findById\(guest\._id\)/);
-  assert.match(worker, /Event\.findById\(reminderEventId\)/);
+  assert.match(worker, /Event\.findById\(linkedEventId\)/);
   assert.match(worker, /hideTableNumberForAll hiddenTableIds/);
   assert.match(worker, /buildReminderSmsTemplateForGuest/);
   assert.match(worker, /לא משתמשים ב-snapshot שנשמר בזמן התזמון/);
+  assert.match(worker, /overlayLiveEventDetailsOnWhatsappPayload/);
+  assert.match(worker, /resolveLiveEventMessageDetails/);
 });
 
 test("immediate SMS send uses the same live reminder builder", () => {

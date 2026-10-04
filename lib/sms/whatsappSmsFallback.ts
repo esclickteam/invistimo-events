@@ -22,6 +22,10 @@ import {
   getRsvpSmsRoundTemplate,
 } from "@/lib/sms/roundSmsTemplates";
 import { getSmsReasonLabel } from "@/lib/whatsapp/roundDeliveryTracking";
+import {
+  applyLiveEventPlaceholders,
+  resolveLiveEventMessageDetails,
+} from "@/lib/messages/liveEventDetails";
 
 /* ======================================================
    CONFIG
@@ -147,14 +151,6 @@ const SUPERSEDED_SMS = {
   "sms.reasonMessage": getSmsReasonLabel("SUPERSEDED_BY_RESEND"),
 };
 
-function applyPlaceholders(template: string, values: Record<string, string>) {
-  let text = template;
-  for (const [key, value] of Object.entries(values)) {
-    text = text.replace(new RegExp(`{{${key}}}`, "g"), value);
-  }
-  return text;
-}
-
 type Evaluation =
   | { action: "skip"; reasonCode: string; message?: string }
   | { action: "defer"; untilMs: number; reason: string }
@@ -179,8 +175,8 @@ async function buildFallbackText({
   deps: SmsFallbackDeps;
 }): Promise<{ text: string } | { skip: string }> {
   const type = String(record.type);
-  const invitationTitle = String(invitation?.title || "").trim() || "האירוע שלנו";
-  const shareId = String(invitation?.shareId || "").trim();
+  const live = resolveLiveEventMessageDetails(invitation);
+  const shareId = String(invitation?.shareId || "").trim() || live.shareId;
   const token = String(guest?.token || "").trim();
 
   if (type === "rsvp") {
@@ -194,9 +190,8 @@ async function buildFallbackText({
     const rsvpLink = await deps.shorten(personalUrl);
 
     return {
-      text: applyPlaceholders(getRsvpSmsRoundTemplate(Number(record.round)), {
+      text: applyLiveEventPlaceholders(getRsvpSmsRoundTemplate(Number(record.round)), live, {
         name: guest.name || "",
-        invitationTitle,
         rsvpLink,
       }),
     };
@@ -226,9 +221,8 @@ async function buildFallbackText({
     const navigationLink = navigationUrl ? await deps.shorten(navigationUrl) : "";
 
     return {
-      text: applyPlaceholders(built.template, {
+      text: applyLiveEventPlaceholders(built.template, live, {
         name: guest.name || "",
-        invitationTitle,
         tableName: built.tableName,
         navigationLink,
       }),
@@ -237,9 +231,8 @@ async function buildFallbackText({
 
   if (type === "thankyou" || type === "custom") {
     return {
-      text: applyPlaceholders(ROUND_SMS_TEMPLATES.thankyou.content || "", {
+      text: applyLiveEventPlaceholders(ROUND_SMS_TEMPLATES.thankyou.content || "", live, {
         name: guest.name || "",
-        invitationTitle,
       }),
     };
   }

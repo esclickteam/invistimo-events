@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
 import { sendScheduledWhatsapp } from "@/workers/sendScheduledSms";
 import {
   recordWhatsappSendFailure,
   recordWhatsappSendSuccess,
 } from "@/lib/whatsapp/roundDeliveryTracking";
+import { getInvitationEventId } from "@/lib/messages/reminderSmsSettings";
+import {
+  overlayLiveEventDetailsOnWhatsappPayload,
+  resolveLiveEventMessageDetails,
+} from "@/lib/messages/liveEventDetails";
 
 import {
   sendRsvpTemplateMedia,
@@ -64,7 +71,7 @@ function normalizeMaxAttempts(value: any) {
 async function sendWhatsappTemplateFromQueue(job: any) {
   const templateName = String(job.templateName || "").trim();
   const phone = String(job.phone || "").replace(/\D/g, "");
-  const payload = job.payload || {};
+  let payload = job.payload || {};
 
   if (!templateName) {
     throw new Error("MISSING_TEMPLATE_NAME");
@@ -72,6 +79,20 @@ async function sendWhatsappTemplateFromQueue(job: any) {
 
   if (!phone) {
     throw new Error("MISSING_PHONE");
+  }
+
+  if (job.invitationId) {
+    const invitation: any = await Invitation.findById(job.invitationId).lean();
+    if (invitation) {
+      const eventId = getInvitationEventId(invitation);
+      const event = eventId
+        ? await Event.findById(eventId)
+            .select("title date time location venueHallName headerImageUrl")
+            .lean()
+        : null;
+      const live = resolveLiveEventMessageDetails(invitation, event);
+      payload = overlayLiveEventDetailsOnWhatsappPayload(payload, live);
+    }
   }
 
   const result = await sendRsvpTemplateMedia({

@@ -735,7 +735,7 @@ if (inv.shareId) {
        */
       let messageContent = baseTemplateText
         .replace(/{{name}}/g, "{{name}}")
-        .replace(/{{invitationTitle}}/g, invitationTitle)
+        .replace(/{{invitationTitle}}/g, "{{invitationTitle}}")
         .replace(/{{eventDate}}/g, "{{eventDate}}")
         .replace(/{{eventLocation}}/g, "{{eventLocation}}")
         .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
