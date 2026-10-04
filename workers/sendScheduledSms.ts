@@ -20,6 +20,13 @@ import {
   getInvitationEventId,
   getReminderSmsBody,
 } from "@/lib/messages/reminderSmsSettings";
+import {
+  applyLiveEventPlaceholders,
+  overlayLiveEventDetailsOnWhatsappPayload,
+  pickSmsTemplateWithPlaceholders,
+  resolveLiveEventMessageDetails,
+} from "@/lib/messages/liveEventDetails";
+import { getRsvpSmsRoundTemplate, ROUND_SMS_TEMPLATES } from "@/lib/sms/roundSmsTemplates";
 
 import {
   sendRsvpTemplateMedia,
@@ -242,7 +249,7 @@ async function buildSmsText({
   guest: any;
   navigationLink: string;
 }) {
-  const invitationTitle = invitation?.title?.trim() || "האירוע שלנו";
+  const live = resolveLiveEventMessageDetails(invitation, event);
 
   const personalUrl = buildGuestInviteUrl({
     shareId: invitation.shareId,
@@ -253,12 +260,20 @@ async function buildSmsText({
 
   const type = normalizeType(schedule.type || schedule.templateKey);
 
-  let template = String(
-    schedule.messageContent || schedule.messageOverride || ""
-  );
+  let template = pickSmsTemplateWithPlaceholders(schedule);
   let tableName = getTableName(guest);
 
-  if (type === "reminder" || type === "table") {
+  if (type === "rsvp") {
+    const picked = pickSmsTemplateWithPlaceholders(schedule);
+    template =
+      picked.includes("{{invitationTitle}}") || picked.includes("{{rsvpLink}}")
+        ? picked
+        : getRsvpSmsRoundTemplate(
+            Number(schedule.round ?? schedule.roundNumber) || 1
+          );
+  } else if (type === "thankyou" || type === "custom") {
+    template = ROUND_SMS_TEMPLATES.thankyou.content || template;
+  } else if (type === "reminder" || type === "table") {
     /**
      * בזמן execution בלבד:
      * טוענים מחדש גוף הודעה, אירוע, אורח, שולחן והגדרות הסתרה.
@@ -273,12 +288,12 @@ async function buildSmsText({
     tableName = built.tableName;
   }
 
-  return template
-    .replace(/{{name}}/g, guest.name || "")
-    .replace(/{{invitationTitle}}/g, invitationTitle)
-    .replace(/{{rsvpLink}}/g, shortUrl)
-    .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink || "");
+  return applyLiveEventPlaceholders(template, live, {
+    name: guest.name || "",
+    rsvpLink: shortUrl,
+    tableName,
+    navigationLink: navigationLink || "",
+  });
 }
 
 function deepReplacePlaceholders(
@@ -667,13 +682,14 @@ export async function sendScheduledSms() {
 
       const isReminderSms = type === "reminder" || type === "table";
       const reminderSmsBody = isReminderSms ? await getReminderSmsBody() : "";
-      const reminderEventId = isReminderSms ? getInvitationEventId(invitation) : "";
-      const reminderEvent =
-        isReminderSms && reminderEventId
-          ? await Event.findById(reminderEventId)
-              .select("hideTableNumberForAll hiddenTableIds checkInEnabled")
-              .lean()
-          : null;
+      const linkedEventId = getInvitationEventId(invitation);
+      const reminderEvent = linkedEventId
+        ? await Event.findById(linkedEventId)
+            .select(
+              "title date time location venueHallName hideTableNumberForAll hiddenTableIds checkInEnabled headerImageUrl"
+            )
+            .lean()
+        : null;
 
       if (type === "rsvp" && round === 3 && !isRoundAllowedForUser(user, round)) {
         await cancelScheduledBecauseRoundNotAllowed({
@@ -1021,7 +1037,11 @@ export async function sendScheduledWhatsapp() {
 
       const whatsappEventId = getInvitationEventId(invitation);
       const whatsappEvent = whatsappEventId
-        ? await Event.findById(whatsappEventId).select("checkInEnabled").lean()
+        ? await Event.findById(whatsappEventId)
+            .select(
+              "title date time location venueHallName checkInEnabled headerImageUrl hideTableNumberForAll hiddenTableIds"
+            )
+            .lean()
         : null;
 
       const guestsQuery = buildGuestsQuery({
@@ -1064,16 +1084,24 @@ const personalUrl = buildGuestInviteUrl({
           whatsappEvent
         );
 
+        const live = resolveLiveEventMessageDetails(invitation, whatsappEvent);
         const replacements = {
           name: guest.name || "",
-          invitationTitle: invitation.title || "האירוע שלנו",
+          invitationTitle: live.invitationTitle,
+          eventTitle: live.eventTitle,
+          eventDate: live.eventDateTime || live.eventDate,
+          eventTime: live.eventTime,
+          eventLocation: live.eventLocation,
           rsvpLink: personalUrl,
           urlSuffix,
           tableName,
           navigationLink: navigationLink || "",
         };
 
-        const payload = deepReplacePlaceholders(msg.payload || {}, replacements);
+        const payload = overlayLiveEventDetailsOnWhatsappPayload(
+          deepReplacePlaceholders(msg.payload || {}, replacements),
+          live
+        );
 
         const templateName = String(msg.templateName || "").trim();
 

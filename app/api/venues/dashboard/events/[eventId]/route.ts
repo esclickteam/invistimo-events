@@ -16,6 +16,8 @@ import {
 import { requireLinkedVenueEventAccess } from "@/lib/venues/requireLinkedEventAccess";
 import { writeVenueAudit } from "@/lib/venues/audit";
 import { createVenueAlert } from "@/lib/venues/alerts";
+import { refreshUnsentRoundPayloads } from "@/lib/messages/refreshUnsentRoundPayloads";
+import { resolveLiveEventMessageDetails } from "@/lib/messages/liveEventDetails";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1540,6 +1542,20 @@ export async function PATCH(req: NextRequest, { params }: Props) {
             $set: invitationUpdate,
           }
         );
+
+        try {
+          await refreshUnsentRoundPayloads({
+            invitationId: invitation._id,
+            invitation: { ...invitation, ...invitationUpdate },
+            event: existingEvent,
+            previous: resolveLiveEventMessageDetails(invitation),
+          });
+        } catch (refreshError: any) {
+          console.error(
+            "⚠️ Failed to refresh unsent round payloads after venue event update:",
+            refreshError?.message || refreshError
+          );
+        }
       }
     }
 
