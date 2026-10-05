@@ -27,6 +27,10 @@ type RouteContext = {
 type BackgroundPayload = {
   url: string;
   opacity?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 };
 
 function cleanString(value: unknown) {
@@ -226,16 +230,65 @@ function normalizeBackground(rawBackground: any): BackgroundPayload | null {
   }
 
   if (rawBackground?.url) {
-    return {
+    const background: BackgroundPayload = {
       url: String(rawBackground.url).trim(),
       opacity:
         typeof rawBackground.opacity === "number"
           ? rawBackground.opacity
           : 0.28,
     };
+
+    const rect = {
+      x: Number(rawBackground.x),
+      y: Number(rawBackground.y),
+      width: Number(rawBackground.width),
+      height: Number(rawBackground.height),
+    };
+
+    if (
+      Number.isFinite(rect.x) &&
+      Number.isFinite(rect.y) &&
+      rect.width > 0 &&
+      rect.height > 0
+    ) {
+      Object.assign(background, rect);
+    }
+
+    return background;
   }
 
   return null;
+}
+
+const TABLE_GEOMETRY_KEYS = [
+  "x",
+  "y",
+  "rotation",
+  "type",
+  "width",
+  "height",
+  "radius",
+] as const;
+
+function tableGeometryChanged(previousTables: any[], nextTables: any[]) {
+  const previousById = new Map(
+    (previousTables || []).map((table: any) => [String(table?.id || ""), table])
+  );
+
+  return (nextTables || []).some((table: any) => {
+    const previous = previousById.get(String(table?.id || ""));
+    if (!previous) return false;
+
+    return TABLE_GEOMETRY_KEYS.some((key) => {
+      const before = previous?.[key];
+      const after = table?.[key];
+      if (after === undefined || after === null) return false;
+      if (typeof after === "number" || typeof before === "number") {
+        return Math.abs(Number(after) - Number(before ?? 0)) > 0.5;
+      }
+      return String(after) !== String(before ?? "");
+    });
+  });
 }
 
 function toGuestIdFilter(guestId: string) {
@@ -483,6 +536,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       השמירה עצמה נשארת לפי eventId כמו שהיה אצלך קודם.
       invitationId משמש רק להרשאות ולעדכון InvitationGuest.
     */
+    const existing = await SeatingTable.findOne({ eventId: eventIdForDb })
+      .select("tables")
+      .lean<{ tables?: any[] }>();
+
+    const layoutChanged = tableGeometryChanged(existing?.tables || [], tables);
+
     const saved = await SeatingTable.findOneAndUpdate(
       {
         eventId: eventIdForDb,
@@ -497,6 +556,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           zones,
           background,
           canvasView,
+          ...(layoutChanged ? { layoutCustomizedAt: new Date() } : {}),
           updatedAt: new Date(),
         },
         $setOnInsert: {

@@ -178,6 +178,12 @@ const BackgroundSchema = new Schema(
       min: 0,
       max: 1,
     },
+
+    /* מיקום וגודל הרקע בקואורדינטות הקנבס (כדי שהשולחנות יישארו מיושרים לסקיצה) */
+    x: { type: Number },
+    y: { type: Number },
+    width: { type: Number },
+    height: { type: Number },
   },
   { _id: false }
 );
@@ -296,6 +302,12 @@ const SeatingTableSchema = new Schema(
     /* ⭐ תצוגת קנבס */
     canvasView: {
       type: CanvasViewSchema,
+      default: null,
+    },
+
+    /* מתי הלקוח שינה בפועל מיקום/סיבוב/צורה של שולחן */
+    layoutCustomizedAt: {
+      type: Date,
       default: null,
     },
   },

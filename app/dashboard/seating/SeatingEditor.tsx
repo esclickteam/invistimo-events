@@ -43,7 +43,32 @@ type SeatingEditorProps = {
   showStats?: boolean;
   hideSeats?: boolean;
   sidebarOpen?: boolean;
+  /** When provided, the entry view waits until the event seating was loaded from the server. */
+  initialViewReady?: boolean;
 };
+
+type CanvasViewState = { x: number; y: number; scale: number };
+
+type BackgroundState = {
+  url?: string;
+  opacity?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fitOnLoad?: boolean;
+} | null;
+
+function getBackgroundRect(bg: BackgroundState) {
+  if (!bg) return null;
+  const x = Number(bg.x);
+  const y = Number(bg.y);
+  const width = Number(bg.width);
+  const height = Number(bg.height);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  if (!(width > 0) || !(height > 0)) return null;
+  return { x, y, width, height };
+}
 
 type Guest = {
   id?: string;
@@ -84,8 +109,15 @@ function SeatingEditorInner({
   showStats = false,
   hideSeats = false,
   sidebarOpen = false,
+  initialViewReady,
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
+  const storeBackground = useSeatingStore((s) => s.background) as BackgroundState;
+  const setBackground = useSeatingStore((s) => s.setBackground);
+  const backgroundRect =
+    storeBackground?.url && storeBackground.url === background
+      ? getBackgroundRect(storeBackground)
+      : null;
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
@@ -327,19 +359,111 @@ function SeatingEditorInner({
     }
   }, [invitationId]);
 
+  const isViewShowingTables = useCallback(
+    (view: CanvasViewState) => {
+      if (!tables.length) return true;
+      return tables.some((table: any) => {
+        const sx = Number(table.x) * view.scale + view.x;
+        const sy = Number(table.y) * view.scale + view.y;
+        return sx >= 0 && sx <= size.width && sy >= 0 && sy <= size.height;
+      });
+    },
+    [size.height, size.width, tables]
+  );
+
+  const [viewSettled, setViewSettled] = useState(false);
+
   useEffect(() => {
     if (didFitCanvasOnEntryRef.current) return;
     if (size.width <= 0 || size.height <= 0) return;
-    if (!tables.length && !zones.length) return;
+    if (initialViewReady === false) return;
 
-    didFitCanvasOnEntryRef.current = true;
+    const hasContent = tables.length > 0 || zones.length > 0;
+    if (initialViewReady === undefined && !hasContent) return;
 
     const timer = window.setTimeout(() => {
-      fitAllTablesIntoScreen();
+      didFitCanvasOnEntryRef.current = true;
+
+      const { canvasView: savedView, hasSavedCanvasView } =
+        useSeatingStore.getState() as {
+          canvasView: CanvasViewState | null;
+          hasSavedCanvasView?: boolean;
+        };
+
+      const canRestore =
+        hasSavedCanvasView &&
+        savedView &&
+        Number(savedView.scale) > 0 &&
+        Number.isFinite(Number(savedView.x)) &&
+        Number.isFinite(Number(savedView.y)) &&
+        isViewShowingTables(savedView);
+
+      if (canRestore && savedView) {
+        setScale(savedView.scale);
+        setStagePos({ x: savedView.x, y: savedView.y });
+      } else if (hasContent) {
+        fitAllTablesIntoScreen();
+      }
+
+      setViewSettled(true);
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [fitAllTablesIntoScreen, size.height, size.width, tables.length, zones.length]);
+  }, [
+    fitAllTablesIntoScreen,
+    initialViewReady,
+    isViewShowingTables,
+    size.height,
+    size.width,
+    tables.length,
+    zones.length,
+  ]);
+
+  /* The background lives in canvas coordinates so tables stay aligned to the hall sketch on any screen. */
+  useEffect(() => {
+    if (readOnly) return;
+    if (!viewSettled) return;
+    if (!background || backgroundRect) return;
+    if (!bgImage || bgImage.width <= 0 || bgImage.height <= 0) return;
+    if (size.width <= 0 || size.height <= 0) return;
+
+    const current = useSeatingStore.getState().background as BackgroundState;
+    if (!current?.url || current.url !== background) return;
+
+    const viewX = -stagePos.x / scale;
+    const viewY = -stagePos.y / scale;
+    const viewW = size.width / scale;
+    const viewH = size.height / scale;
+
+    let rect = { x: viewX, y: viewY, width: viewW, height: viewH };
+
+    if (current.fitOnLoad) {
+      const ratio = Math.min(viewW / bgImage.width, viewH / bgImage.height);
+      const width = bgImage.width * ratio;
+      const height = bgImage.height * ratio;
+      rect = {
+        x: viewX + (viewW - width) / 2,
+        y: viewY + (viewH - height) / 2,
+        width,
+        height,
+      };
+    }
+
+    const { fitOnLoad: _fitOnLoad, ...rest } = current;
+    setBackground({ ...rest, ...rect });
+  }, [
+    background,
+    backgroundRect,
+    bgImage,
+    readOnly,
+    scale,
+    setBackground,
+    size.height,
+    size.width,
+    stagePos.x,
+    stagePos.y,
+    viewSettled,
+  ]);
 
   useEffect(() => {
     if (!canvasView) return;
@@ -667,10 +791,12 @@ function SeatingEditorInner({
               size.height > 0 && (
                 <KonvaImage
                   image={bgImage}
-                  x={-stagePos.x / scale}
-                  y={-stagePos.y / scale}
-                  width={size.width / scale}
-                  height={size.height / scale}
+                  x={backgroundRect ? backgroundRect.x : -stagePos.x / scale}
+                  y={backgroundRect ? backgroundRect.y : -stagePos.y / scale}
+                  width={backgroundRect ? backgroundRect.width : size.width / scale}
+                  height={
+                    backgroundRect ? backgroundRect.height : size.height / scale
+                  }
                   opacity={0.28}
                 />
               )}

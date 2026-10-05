@@ -207,6 +207,7 @@ function SeatingPageInner() {
 
   const [blockReason, setBlockReason] = useState<"no-plan" | null>(null);
 
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
 
@@ -591,6 +592,7 @@ function SeatingPageInner() {
         console.error("❌ SeatingPage load error:", err);
       } finally {
         didFinishInitialLoadRef.current = true;
+        setInitialLoadDone(true);
       }
     }
 
@@ -708,12 +710,12 @@ function SeatingPageInner() {
         if (!data?.success) return;
         if (data.source !== "venue_seating_template") return;
 
-        const stamp = String(
-          data.sourceTemplateUpdatedAt || data.updatedAt || ""
-        );
+        const stamp = String(data.sourceTemplateUpdatedAt || "");
         if (!stamp) return;
         if (lastVenueTemplateSyncAtRef.current === stamp) return;
+        const isFirstObservation = lastVenueTemplateSyncAtRef.current === null;
         lastVenueTemplateSyncAtRef.current = stamp;
+        if (isFirstObservation) return;
 
         // Reload full seating (guests + tables) when template version changes
         if (invitationId) {
@@ -757,6 +759,7 @@ function SeatingPageInner() {
     setBackground({
       url: bgUrl,
       opacity: 0.28,
+      fitOnLoad: true,
     });
   };
 
@@ -1676,6 +1679,7 @@ function SeatingPageInner() {
               }}
               hideSeats={isProducer}
               sidebarOpen={sidebarOpen}
+              initialViewReady={isDemo || initialLoadDone}
             />
           </div>
         </section>

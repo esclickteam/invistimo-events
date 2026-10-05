@@ -189,6 +189,7 @@ export const useSeatingStore = create((set, get) => ({
     x: 0,
     y: 0,
   },
+  hasSavedCanvasView: false,
 
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
   setShowAddModal: (v) => set({ showAddModal: v }),
@@ -783,7 +784,12 @@ export const useSeatingStore = create((set, get) => ({
             String(table.id ?? table._id) === String(next.id ?? next._id) &&
             Number(table.seats ?? 0) === Number(next.seats ?? 0) &&
             (table.seatedGuests || []).length ===
-              (next.seatedGuests || []).length
+              (next.seatedGuests || []).length &&
+            Number(table.x ?? 0) === Number(next.x ?? 0) &&
+            Number(table.y ?? 0) === Number(next.y ?? 0) &&
+            Number(table.rotation ?? 0) === Number(next.rotation ?? 0) &&
+            String(table.type ?? "") === String(next.type ?? "") &&
+            String(table.name ?? "") === String(next.name ?? "")
           );
         });
 
@@ -805,6 +811,7 @@ export const useSeatingStore = create((set, get) => ({
         background,
         canvasView:
           canvasView ?? state.canvasView ?? { scale: 1, x: 0, y: 0 },
+        hasSavedCanvasView: canvasView != null,
       };
     });
   },
