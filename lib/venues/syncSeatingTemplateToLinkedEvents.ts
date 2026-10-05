@@ -206,20 +206,67 @@ export function analyzeDestructiveSync(
  * Keep guest seat assignments when table ids still exist on the new layout.
  * Always emits client seating format (seats:number + seatedGuests[]).
  */
-export function mergeGuestAssignments(existingTables: any[], nextTables: any[]) {
+export function mergeGuestAssignments(
+  existingTables: any[],
+  nextTables: any[],
+  options: { keepClientPositions?: boolean } = {}
+) {
   const guestsByTable = new Map<string, any[]>();
+  const existingById = new Map<string, any>();
 
   for (const table of existingTables || []) {
     const id = tableIdOf(table);
     if (!id) continue;
+    existingById.set(id, table);
     const seated = extractSeatedGuests(table);
     if (seated.length) guestsByTable.set(id, seated);
   }
 
   return toClientSeatingTables(nextTables).map((table) => {
     const prev = guestsByTable.get(table.id) || [];
-    return toClientSeatingTable(table, prev);
+    const merged = toClientSeatingTable(table, prev);
+    const existing = existingById.get(table.id);
+
+    if (!options.keepClientPositions || !existing) return merged;
+
+    return {
+      ...merged,
+      x: Number.isFinite(Number(existing.x)) ? Number(existing.x) : merged.x,
+      y: Number.isFinite(Number(existing.y)) ? Number(existing.y) : merged.y,
+      rotation: Number.isFinite(Number(existing.rotation))
+        ? Number(existing.rotation)
+        : merged.rotation,
+    };
   });
+}
+
+/**
+ * Once a client arranged tables themselves (layoutCustomizedAt), a template
+ * re-sync keeps their positions, background and view; it still applies
+ * added/removed tables and capacity changes.
+ */
+function buildSyncedCanvas(existing: any, canvas: any, templateTables: any[]) {
+  const keepClientLayout = Boolean(existing?.layoutCustomizedAt);
+
+  return {
+    tables: mergeGuestAssignments(
+      Array.isArray(existing?.tables) ? existing.tables : [],
+      templateTables,
+      { keepClientPositions: keepClientLayout }
+    ),
+    background: keepClientLayout
+      ? existing?.background ?? null
+      : canvas.background || null,
+    canvasView: keepClientLayout
+      ? existing?.canvasView ?? null
+      : canvas.canvasView || null,
+    zones:
+      keepClientLayout && Array.isArray(existing?.zones)
+        ? existing.zones
+        : Array.isArray(canvas.zones)
+          ? canvas.zones
+          : [],
+  };
 }
 
 /**
@@ -342,19 +389,11 @@ export async function syncSeatingTemplateToLinkedEvents(input: {
 
   // 1) Update seating docs already materialised from this template
   for (const doc of existingByTemplate) {
-    const mergedTables = mergeGuestAssignments(
-      Array.isArray(doc.tables) ? doc.tables : [],
-      tables
-    );
-
     await seatingTables.updateOne(
       { _id: doc._id },
       {
         $set: {
-          tables: mergedTables,
-          background: canvas.background || null,
-          canvasView: canvas.canvasView || null,
-          zones: Array.isArray(canvas.zones) ? canvas.zones : [],
+          ...buildSyncedCanvas(doc, canvas, tables),
           sourceTemplateUpdatedAt: templateUpdatedAt,
           venueHallId: hallId,
           updatedAt: now,
@@ -369,18 +408,11 @@ export async function syncSeatingTemplateToLinkedEvents(input: {
     const eventId = event._id;
     const existing = await seatingTables.findOne({ eventId });
     if (existing) {
-      const mergedTables = mergeGuestAssignments(
-        Array.isArray(existing.tables) ? existing.tables : [],
-        tables
-      );
       await seatingTables.updateOne(
         { _id: existing._id },
         {
           $set: {
-            tables: mergedTables,
-            background: canvas.background || null,
-            canvasView: canvas.canvasView || null,
-            zones: Array.isArray(canvas.zones) ? canvas.zones : [],
+            ...buildSyncedCanvas(existing, canvas, tables),
             source: "venue_seating_template",
             sourceTemplateId: templateId,
             sourceTemplateUpdatedAt: templateUpdatedAt,
