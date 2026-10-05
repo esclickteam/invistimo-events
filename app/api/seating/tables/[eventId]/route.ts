@@ -245,11 +245,21 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitationId,
     });
 
+    const eventObjectId = toObjectId(cleanEventId);
+
     let record = await SeatingTable.findOne({
-      $or: idQueries,
+      eventId: { $in: eventObjectId ? [eventObjectId, cleanEventId] : [cleanEventId] },
     })
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
+
+    if (!record) {
+      record = await SeatingTable.findOne({
+        $or: idQueries,
+      })
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean();
+    }
 
     const recordHasTables =
       Array.isArray(record?.tables) && record.tables.length > 0;
@@ -332,9 +342,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         : null,
       sourceTemplateUpdatedAt: record?.sourceTemplateUpdatedAt
         ? new Date(record.sourceTemplateUpdatedAt).toISOString()
-        : record?.updatedAt
-          ? new Date(record.updatedAt).toISOString()
-          : null,
+        : null,
       updatedAt: record?.updatedAt
         ? new Date(record.updatedAt).toISOString()
         : null,
