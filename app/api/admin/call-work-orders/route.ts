@@ -12,10 +12,12 @@ import CallTask from "@/models/CallTask";
 import {
   filterGuestsForCallRound,
   getCallRoundDescription,
+  getCarriedFollowUpForRound,
+  getGuestRsvpValue,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
-  isNoAnswerCallResult,
-  normalizeCallAnswerFromSources,
+  indexFollowUpsFromCallTasks,
   type CallRoundNumber,
+  type PreviousFollowUpByRound,
 } from "@/lib/calls/callRoundEligibility";
 import { SAME_DAY_WORK_ORDER_OPEN_HOUR } from "@/lib/calls/callRoundScheduleTime";
 
@@ -450,13 +452,7 @@ function normalizeRsvp(value: unknown) {
 }
 
 function getGuestRsvp(guest: any) {
-  return normalizeRsvp(
-    guest?.rsvp ||
-      guest?.rsvpStatus ||
-      guest?.attendanceStatus ||
-      guest?.status ||
-      ""
-  );
+  return getGuestRsvpValue(guest);
 }
 
 function isPendingGuest(guest: any) {
@@ -680,20 +676,19 @@ async function loadGuestsForInvitation(invitation: any) {
   }).lean();
 }
 
-async function loadNoAnswerGuestIdsByRound(input: {
+async function loadPreviousFollowUpByRound(input: {
   invitationObjectId: Types.ObjectId;
-  round: 1 | 2;
   dateKey: string;
-}) {
+}): Promise<PreviousFollowUpByRound> {
   const previousRoundTasks = await CallTask.find({
     invitationId: input.invitationObjectId,
-    round: input.round,
+    round: { $in: [1, 2, 3] },
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
   })
     .select(
-      "guestId invitationGuestId status result callResult outcome callStatus answerStatus callAnswered noAnswerResult updatedAt createdAt"
+      "guestId invitationGuestId round status result callResult outcome callStatus answerStatus callAnswered noAnswerResult answeredResult resultStatus nextRoundReason pendingReason pendingCallStatus callbackRequested needsFix phoneNeedsCorrection phoneInvalid note guestNotes guestNote updatedAt createdAt completedAt"
     )
     .sort({
       updatedAt: -1,
@@ -701,36 +696,7 @@ async function loadNoAnswerGuestIdsByRound(input: {
     })
     .lean();
 
-  const latestTaskByGuestId = new Map<string, any>();
-
-  for (const task of previousRoundTasks) {
-    const guestId = extractIdString((task as any)?.guestId || (task as any)?.invitationGuestId);
-    if (!guestId) continue;
-    if (!latestTaskByGuestId.has(guestId)) {
-      latestTaskByGuestId.set(guestId, task);
-    }
-  }
-
-  const guestIds = new Set<string>();
-
-  for (const [guestId, task] of latestTaskByGuestId.entries()) {
-    const answer = normalizeCallAnswerFromSources({
-      answerStatus: task?.answerStatus,
-      callAnswered: task?.callAnswered,
-      result: task?.result,
-      callResult: task?.callResult,
-      status: task?.status,
-      outcome: task?.outcome,
-      callStatus: task?.callStatus,
-      noAnswerResult: task?.noAnswerResult,
-    });
-
-    if (answer === "no_answer" || isNoAnswerCallResult(task?.status)) {
-      guestIds.add(guestId);
-    }
-  }
-
-  return guestIds;
+  return indexFollowUpsFromCallTasks(previousRoundTasks);
 }
 
 async function loadGuestsForRound(input: {
@@ -741,29 +707,21 @@ async function loadGuestsForRound(input: {
   const invitationObjectId = toObjectId(extractIdString(input.invitation?._id || ""));
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
-  const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+  const previousFollowUpByRound: PreviousFollowUpByRound = invitationObjectId
+    ? await loadPreviousFollowUpByRound({
+        invitationObjectId,
+        dateKey: input.dateKey,
+      })
+    : {};
 
-  if (invitationObjectId && (input.round === 2 || input.round === 3)) {
-    previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 1,
-      dateKey: input.dateKey,
-    });
-  }
-
-  if (invitationObjectId && input.round === 3) {
-    previousNoAnswerByRound[2] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 2,
-      dateKey: input.dateKey,
-    });
-  }
-
-  return filterGuestsForCallRound({
-    guests: allGuests,
-    round: input.round as CallRoundNumber,
-    previousNoAnswerByRound,
-  });
+  return {
+    guests: filterGuestsForCallRound({
+      guests: allGuests,
+      round: input.round as CallRoundNumber,
+      previousFollowUpByRound,
+    }),
+    previousFollowUpByRound,
+  };
 }
 
 /* ============================================================
@@ -1318,22 +1276,23 @@ export async function POST(req: NextRequest) {
         ? configuredRoundAt
         : null;
 
-    const guestsForRound = await loadGuestsForRound({
-      invitation,
-      round,
-      dateKey: workDateKey,
-    });
+    const { guests: guestsForRound, previousFollowUpByRound } =
+      await loadGuestsForRound({
+        invitation,
+        round,
+        dateKey: workDateKey,
+      });
 
     if (!guestsForRound.length) {
       return NextResponse.json(
         {
           success: false,
           error:
-            round === 1 || round === 3
+            round === 1
               ? `אין אורחים בהמתנה לשיחה בסבב ${round}`
-              : `אין אורחים להמשך סבב ${round}. סבב ${round} נפתח רק למי שהיה בסבב ${
-                  round - 1
-                } ולא נסגר סופית או שלא נגעו בו.`,
+              : round === 2
+                ? "אין אורחים זכאים לסבב 2 (ממתינים, חזרה בסבב הבא או דורש תיקון מסבב 1)"
+                : "אין אורחים זכאים לסבב 3 (ממתינים, מתלבטים, חזרות או דורשי תיקון ללא תשובה סופית)",
           round,
           workDate: workDateKey,
         },
@@ -1419,6 +1378,11 @@ export async function POST(req: NextRequest) {
     const taskDocs = guestsForRound.map((guest: any, index: number) => {
       const assignedEmployee =
         scheduledEmployees[index % scheduledEmployees.length];
+      const carried = getCarriedFollowUpForRound({
+        guest,
+        round,
+        previousFollowUpByRound,
+      });
 
       return {
         type: "rsvp_call",
@@ -1482,8 +1446,8 @@ export async function POST(req: NextRequest) {
               ? guest.guestsCount
               : null,
 
-        note: "",
-        adminNote: "",
+        note: carried.note,
+        adminNote: carried.adminNote,
       };
     });
 

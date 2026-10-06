@@ -171,6 +171,7 @@ type CallTask = {
   attendingCount: number | null;
 
   note: string;
+  adminNote?: string;
 
   isCompleted: boolean;
   canStart: boolean;
@@ -342,8 +343,8 @@ function getRoundLabel(round: number) {
 function getAudienceLabel(sourceAudience: string) {
   const map: Record<string, string> = {
     pending_rsvp: "סבב 1 - כל מי שממתין לתשובה",
-    round_1_no_answer: "סבב 2 - מי שלא ענה בסבב 1",
-    round_2_no_answer: "סבב 3 - לא ענו בסבבים 1–2 + מתלבטים",
+    round_1_no_answer: "סבב 2 - ממתינים + חזרה בסבב הבא ודורש תיקון מסבב 1",
+    round_2_no_answer: "סבב 3 - ממתינים + מתלבטים + חזרות ודורשי תיקון ללא תשובה סופית",
     all_pending: "כל הממתינים",
     no_response: "ללא תשובה",
   };
@@ -798,6 +799,8 @@ export default function EmployeeWorkOrderTasksPage() {
   }
 
   function getResultHelp() {
+    const round = safeNumber(selectedTask?.round || workOrder?.round || 1);
+
     if (!callAnswered) {
       return "בחרי קודם אם האורח ענה או לא ענה.";
     }
@@ -820,7 +823,9 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (answeredResult === "callback") {
-        return "תוצאת השיחה תישמר כחזרה בסבב הבא. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא לפי תאריך האדמין.";
+        return round >= 3
+          ? "תוצאת השיחה תישמר כחזרה בתוך סבב 3. אין סבב 4 — האורח יישאר לטיפול בסבב האחרון."
+          : "תוצאת השיחה תישמר כחזרה בסבב הבא. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא לפי תאריך האדמין.";
       }
     }
 
@@ -830,8 +835,10 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (noAnswerResult === "needs_fix") {
-  return "יישמר תיעוד שהרשומה דורשת תיקון. אם יש סבב הבא, היא תיפתח רק בתאריך שהוגדר לסבב הבא.";
-}
+        return round >= 3
+          ? "יישמר תיעוד שהרשומה דורשת תיקון. היא נשארת לטיפול בסבב 3 עם הסימון וההערה — אין סבב 4."
+          : "יישמר תיעוד שהרשומה דורשת תיקון. אם יש סבב הבא, היא תיפתח רק בתאריך שהוגדר לסבב הבא.";
+      }
 
       return "לא ענה בסבב הזה. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין.";
     }
@@ -876,7 +883,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
       const isFinal = isFinalResultStatus(input.status);
       const round = safeNumber(input.task.round || workOrder?.round || 1);
-      const nextRound = round + 1;
+      const nextRound = round >= 3 ? 3 : Math.min(3, round + 1);
       const currentWorkOrderId = input.task.workOrderId || workOrderId;
       const invitationId =
         input.task.invitationId || workOrder?.invitationId || "";
@@ -1061,23 +1068,26 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (input.status === "needs_fix" || input.status === "wrong_number") {
-  body.rsvpStatus = "needs_fix";
-  body.guestRsvpStatus = "needs_fix";
-  body.rsvpResult = "needs_fix";
-  body.needsFix = true;
-  body.requiresCorrection = true;
-  body.phoneNeedsCorrection = true;
+        body.rsvpStatus = "pending";
+        body.guestRsvpStatus = "pending";
+        body.rsvpResult = "pending";
+        body.needsFix = true;
+        body.requiresCorrection = true;
+        body.phoneNeedsCorrection = true;
+        body.callResult = "needs_fix";
+        body.callOutcome = "needs_fix";
+        body.noAnswerResult = "needs_fix";
 
-  body.eligibleForNextScheduledRound = true;
-  body.deferToScheduledRound = true;
-  body.nextScheduledRound = nextRound;
-  body.moveToNextRound = false;
-  body.transferToNextRound = false;
-  body.openInNextRound = false;
-  body.nextRound = null;
+        body.eligibleForNextScheduledRound = round < 3;
+        body.deferToScheduledRound = round < 3;
+        body.nextScheduledRound = round < 3 ? nextRound : 3;
+        body.moveToNextRound = false;
+        body.transferToNextRound = false;
+        body.openInNextRound = false;
+        body.nextRound = null;
 
-  body.keepRsvpOpen = true;
-}
+        body.keepRsvpOpen = true;
+      }
 
       const res = await fetch(
         `/api/employee/call-tasks/${encodeURIComponent(taskId)}/status`,
@@ -1635,6 +1645,13 @@ export default function EmployeeWorkOrderTasksPage() {
                   <div className="noteBox guest">
                     <span>הערות אורח חיצוניות קיימות</span>
                     <p>{selectedTask.guestNotes}</p>
+                  </div>
+                )}
+
+                {selectedTask.adminNote && (
+                  <div className="noteBox guest">
+                    <span>סימון מהסבב הקודם</span>
+                    <p>{selectedTask.adminNote}</p>
                   </div>
                 )}
 

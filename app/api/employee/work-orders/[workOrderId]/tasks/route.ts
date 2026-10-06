@@ -549,6 +549,7 @@ function serializeTask(task: any, guest?: any) {
     guestSide: syncedGuestSide,
     guestTable: syncedGuestTable,
     guestNotes: syncedGuestNotes,
+    adminNote: cleanStr(task?.adminNote),
 
     round: Number(task?.round || 1),
     sourceAudience: cleanStr(task?.sourceAudience),

@@ -12,10 +12,13 @@ import CallTask from "@/models/CallTask";
 import {
   filterGuestsForCallRound,
   getCallRoundDescription,
+  getCarriedFollowUpForRound,
+  getGuestRsvpValue,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
-  isNoAnswerCallResult,
-  normalizeCallAnswerFromSources,
+  indexFollowUpsFromCallTasks,
+  shouldReopenLastRoundFollowUpTask,
   type CallRoundNumber,
+  type PreviousFollowUpByRound,
 } from "@/lib/calls/callRoundEligibility";
 import {
   hasEmployeeShiftStarted,
@@ -1356,13 +1359,7 @@ function normalizeRsvp(value: unknown) {
 }
 
 function getGuestRsvp(guest: any) {
-  return normalizeRsvp(
-    guest?.rsvp ||
-      guest?.rsvpStatus ||
-      guest?.attendanceStatus ||
-      guest?.status ||
-      ""
-  );
+  return getGuestRsvpValue(guest);
 }
 
 function isPendingGuest(guest: any) {
@@ -1415,20 +1412,19 @@ async function loadGuestsForInvitation(invitation: any) {
     .lean();
 }
 
-async function loadNoAnswerGuestIdsByRound(input: {
+async function loadPreviousFollowUpByRound(input: {
   invitationObjectId: Types.ObjectId;
-  round: 1 | 2;
   dateKey: string;
-}) {
+}): Promise<PreviousFollowUpByRound> {
   const previousRoundTasks = await CallTask.find({
     invitationId: input.invitationObjectId,
-    round: input.round,
+    round: { $in: [1, 2, 3] },
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
   })
     .select(
-      "guestId invitationGuestId status result callResult outcome callStatus answerStatus callAnswered noAnswerResult updatedAt createdAt"
+      "guestId invitationGuestId round status result callResult outcome callStatus answerStatus callAnswered noAnswerResult answeredResult resultStatus nextRoundReason pendingReason pendingCallStatus callbackRequested needsFix phoneNeedsCorrection phoneInvalid note guestNotes guestNote updatedAt createdAt completedAt"
     )
     .sort({
       updatedAt: -1,
@@ -1436,38 +1432,7 @@ async function loadNoAnswerGuestIdsByRound(input: {
     })
     .lean();
 
-  const latestTaskByGuestId = new Map<string, any>();
-
-  for (const task of previousRoundTasks) {
-    const guestId = extractIdString(
-      (task as any)?.guestId || (task as any)?.invitationGuestId
-    );
-    if (!guestId) continue;
-    if (!latestTaskByGuestId.has(guestId)) {
-      latestTaskByGuestId.set(guestId, task);
-    }
-  }
-
-  const guestIds = new Set<string>();
-
-  for (const [guestId, task] of latestTaskByGuestId.entries()) {
-    const answer = normalizeCallAnswerFromSources({
-      answerStatus: task?.answerStatus,
-      callAnswered: task?.callAnswered,
-      result: task?.result,
-      callResult: task?.callResult,
-      status: task?.status,
-      outcome: task?.outcome,
-      callStatus: task?.callStatus,
-      noAnswerResult: task?.noAnswerResult,
-    });
-
-    if (answer === "no_answer") {
-      guestIds.add(guestId);
-    }
-  }
-
-  return guestIds;
+  return indexFollowUpsFromCallTasks(previousRoundTasks);
 }
 
 async function loadGuestsForRound(input: {
@@ -1478,29 +1443,25 @@ async function loadGuestsForRound(input: {
   const invitationObjectId = toObjectId(extractIdString(input.invitation?._id));
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
-  const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+  const previousFollowUpByRound: PreviousFollowUpByRound =
+    invitationObjectId
+      ? await loadPreviousFollowUpByRound({
+          invitationObjectId,
+          dateKey: input.dateKey,
+        })
+      : {};
 
-  if (invitationObjectId && (input.round === 2 || input.round === 3)) {
-    previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 1,
-      dateKey: input.dateKey,
-    });
-  }
-
-  if (invitationObjectId && input.round === 3) {
-    previousNoAnswerByRound[2] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 2,
-      dateKey: input.dateKey,
-    });
-  }
-
-  return filterGuestsForCallRound({
+  const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
-    previousNoAnswerByRound,
+    previousFollowUpByRound,
   });
+
+  return {
+    guests,
+    allGuests,
+    previousFollowUpByRound,
+  };
 }
 
 /* ============================================================
@@ -2126,7 +2087,11 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     };
   }
 
-  const eligibleGuests = await loadGuestsForRound({
+  const {
+    guests: eligibleGuests,
+    allGuests,
+    previousFollowUpByRound,
+  } = await loadGuestsForRound({
     invitation: candidate.invitation,
     round: candidate.round,
     dateKey,
@@ -2136,7 +2101,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     workOrderId,
   })
     .select(
-      "guestId status assignedToEmployeeId assignedEmployeeId employeeId startedAt completedAt lastAttemptAt attemptsCount"
+      "guestId status result assignedToEmployeeId assignedEmployeeId employeeId startedAt completedAt lastAttemptAt attemptsCount guestPhone note guestNotes adminNote assignedAt"
     )
     .sort({
       sortOrder: 1,
@@ -2274,6 +2239,93 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     );
   }
 
+  const guestsById = new Map<string, any>();
+  for (const guest of allGuests || []) {
+    const guestId = extractIdString(guest?._id);
+    if (guestId) guestsById.set(guestId, guest);
+  }
+
+  const reopenOps: any[] = [];
+  const refreshOps: any[] = [];
+
+  for (const task of existingTasks) {
+    const guestId = extractIdString((task as any)?.guestId);
+    if (!guestId) continue;
+
+    const guest = guestsById.get(guestId);
+    if (!guest) continue;
+
+    const currentPhone = getGuestPhone(guest);
+    const currentNotes = cleanStr(guest?.notes || guest?.note);
+    const set: Record<string, unknown> = {
+      updatedAt: now,
+    };
+
+    if (
+      currentPhone &&
+      currentPhone !== cleanStr((task as any)?.guestPhone)
+    ) {
+      set.guestPhone = currentPhone;
+    }
+
+    if (currentNotes && currentNotes !== cleanStr((task as any)?.guestNotes)) {
+      set.guestNotes = currentNotes;
+    }
+
+    const reopen = shouldReopenLastRoundFollowUpTask({
+      task,
+      guest,
+      round: candidate.round as CallRoundNumber,
+      previousFollowUpByRound,
+    });
+
+    if (reopen) {
+      const carried = getCarriedFollowUpForRound({
+        guest,
+        round: candidate.round as CallRoundNumber,
+        previousFollowUpByRound,
+      });
+
+      set.status = "pending";
+      set.result = null;
+      set.isCompleted = false;
+      set.completed = false;
+      set.completedAt = null;
+      set.rsvpStatus = getGuestRsvp(guest) || "pending";
+      if (carried.note && !cleanStr((task as any)?.note)) {
+        set.note = carried.note;
+      }
+      if (carried.adminNote) {
+        set.adminNote = carried.adminNote;
+      }
+
+      reopenOps.push({
+        updateOne: {
+          filter: { _id: (task as any)._id },
+          update: { $set: set },
+        },
+      });
+      continue;
+    }
+
+    if (Object.keys(set).length > 1) {
+      refreshOps.push({
+        updateOne: {
+          filter: { _id: (task as any)._id },
+          update: { $set: set },
+        },
+      });
+    }
+  }
+
+  const existingTaskUpdates = [...reopenOps, ...refreshOps];
+
+  if (existingTaskUpdates.length) {
+    await CallTask.bulkWrite(existingTaskUpdates, {
+      ordered: false,
+    });
+  }
+
   const docsToInsert: any[] = [];
 
   for (const guest of eligibleGuests) {
@@ -2293,6 +2345,12 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       distribution[assignedEmployee.employeeIdString] =
         Number(distribution[assignedEmployee.employeeIdString] || 0) + 1;
     }
+
+    const carried = getCarriedFollowUpForRound({
+      guest,
+      round: candidate.round as CallRoundNumber,
+      previousFollowUpByRound,
+    });
 
     docsToInsert.push({
       type: "rsvp_call",
@@ -2355,8 +2413,8 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       rsvpStatus: getGuestRsvp(guest) || "pending",
       attendingCount: getAttendingCount(guest),
 
-      note: "",
-      adminNote: "",
+      note: carried.note,
+      adminNote: carried.adminNote,
 
       createdAt: now,
       updatedAt: now,
@@ -2391,6 +2449,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     ...synced,
     addedMissingTasks: docsToInsert.length,
     realignedTasks: realignOps.length,
+    reopenedFollowUpTasks: reopenOps.length,
     eligibleGuestsCount: eligibleGuests.length,
   };
 }
@@ -2690,7 +2749,10 @@ async function createWorkOrderForCandidate(input: {
     };
   }
 
-  const guestsForRound = await loadGuestsForRound({
+  const {
+    guests: guestsForRound,
+    previousFollowUpByRound,
+  } = await loadGuestsForRound({
     invitation: candidate.invitation,
     round: candidate.round,
     dateKey,
@@ -2703,7 +2765,7 @@ async function createWorkOrderForCandidate(input: {
         candidate.round === 1
           ? "NO_PENDING_GUESTS_FOR_ROUND_1"
           : candidate.round === 2
-            ? "NO_NO_ANSWER_GUESTS_FROM_ROUND_1"
+            ? "NO_ELIGIBLE_GUESTS_FOR_ROUND_2"
             : "NO_ELIGIBLE_GUESTS_FOR_ROUND_3",
       round: candidate.round,
     };
@@ -2886,6 +2948,12 @@ async function createWorkOrderForCandidate(input: {
           Number(distribution[assignedEmployee.employeeIdString] || 0) + 1;
       }
 
+      const carried = getCarriedFollowUpForRound({
+        guest,
+        round: candidate.round as CallRoundNumber,
+        previousFollowUpByRound,
+      });
+
       return {
         type: "rsvp_call",
 
@@ -2943,8 +3011,8 @@ async function createWorkOrderForCandidate(input: {
         rsvpStatus: getGuestRsvp(guest) || "pending",
         attendingCount: getAttendingCount(guest),
 
-        note: "",
-        adminNote: "",
+        note: carried.note,
+        adminNote: carried.adminNote,
 
         createdAt: now,
         updatedAt: now,

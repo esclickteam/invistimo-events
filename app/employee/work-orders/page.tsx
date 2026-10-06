@@ -184,8 +184,8 @@ function getRoundLabel(round: number) {
 function getAudienceLabel(sourceAudience: string) {
   const map: Record<string, string> = {
     pending_rsvp: "ממתינים שעדיין לא נתנו תשובה",
-    round_1_no_answer: "לא ענו בסבב 1",
-    round_2_no_answer: "לא ענו בסבבים 1–2 + מתלבטים",
+    round_1_no_answer: "ממתינים + חזרה בסבב הבא ודורש תיקון מסבב 1",
+    round_2_no_answer: "ממתינים + מתלבטים + חזרות ודורשי תיקון ללא תשובה סופית",
   };
 
   return map[sourceAudience] || sourceAudience || "—";

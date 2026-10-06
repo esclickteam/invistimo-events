@@ -8,6 +8,10 @@ import User from "@/models/User";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import {
+  clampCallRoundNumber,
+  nextCallRoundNumber,
+} from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,11 +145,7 @@ function getJwtSecret() {
 }
 
 function normalizeRound(value: unknown) {
-  const n = Number(value || 1);
-
-  if (!Number.isFinite(n) || n < 1) return 1;
-
-  return Math.max(1, Math.min(10, Math.floor(n)));
+  return clampCallRoundNumber(value);
 }
 
 function normalizeCallAnswered(value: unknown): CallAnswered {
@@ -627,6 +627,7 @@ function serializeTask(task: any) {
     guestSide: cleanStr(task?.guestSide),
     guestTable: cleanStr(task?.guestTable),
     guestNotes: cleanStr(task?.guestNotes),
+    adminNote: cleanStr(task?.adminNote),
 
     round: Number(task?.round || 1),
     sourceAudience: cleanStr(task?.sourceAudience),
@@ -1887,9 +1888,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     const now = new Date();
     const round = normalizeRound(body?.round || (existingTask as any)?.round || 1);
-    const nextRound = normalizeRound(
-      body?.nextRound || callDocumentation?.nextRound || round + 1
-    );
+    const nextRound = nextCallRoundNumber(round);
 
     const autoMoveBecauseNoAnswer = nextStatus === "no_answer";
     const autoMoveBecauseCallbackNextRound = nextStatus === "callback";
@@ -1960,7 +1959,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
       $set.callAnswered =
         callAnswered ||
-        (nextStatus === "no_answer" ? "no_answer" : "answered");
+        (nextStatus === "no_answer" ||
+        nextStatus === "needs_fix" ||
+        nextStatus === "wrong_number"
+          ? "no_answer"
+          : "answered");
 
       $set.answeredResult = answeredResult || nextStatus || "";
 
@@ -2085,7 +2088,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
         callAnswered:
           callAnswered ||
-          (nextStatus === "no_answer" ? "no_answer" : "answered"),
+          (nextStatus === "no_answer" ||
+          nextStatus === "needs_fix" ||
+          nextStatus === "wrong_number"
+            ? "no_answer"
+            : "answered"),
         answeredResult: answeredResult || nextStatus || "",
         messageFollowUpAction:
           nextStatus === "callback"
@@ -2122,7 +2129,43 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       });
     }
 
-    const workOrderObjectId = toObjectId((updatedTask as any)?.workOrderId);
+    const stayInLastRound =
+      round === 3 &&
+      (nextStatus === "callback" ||
+        nextStatus === "needs_fix" ||
+        nextStatus === "wrong_number");
+
+    let responseTask: any = updatedTask;
+
+    if (stayInLastRound && incomingStatus) {
+      responseTask = await CallTask.findOneAndUpdate(
+        {
+          _id: taskObjectId,
+          ...assignmentMatch,
+        },
+        {
+          $set: {
+            status: "pending",
+            result: null,
+            rsvpStatus: "pending",
+            isCompleted: false,
+            completed: false,
+            completedAt: null,
+            moveToNextRound: true,
+            nextRound: 3,
+            nextRoundReason,
+            lastAttemptAt: now,
+            updatedAt: now,
+            note: note || cleanStr((updatedTask as any)?.note),
+          },
+        },
+        {
+          new: true,
+        }
+      ).lean();
+    }
+
+    const workOrderObjectId = toObjectId((responseTask || updatedTask)?.workOrderId);
 
     let syncedWorkOrder: any = null;
     let counts = emptyCounts();
@@ -2136,7 +2179,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       message: isCallResultStatus(nextStatus)
-        ? moveToNextRound
+        ? stayInLastRound
+          ? nextStatus === "needs_fix" || nextStatus === "wrong_number"
+            ? "התיעוד נשמר. הרשומה נשארת לטיפול בסבב 3 עם הסימון דורש תיקון — אין סבב 4"
+            : "התיעוד נשמר. בקשת החזרה נשארת לטיפול בסבב 3 — אין סבב 4"
+          : moveToNextRound
           ? nextStatus === "no_answer"
             ? "התיעוד נשמר. האורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
             : nextStatus === "needs_fix" || nextStatus === "wrong_number"
@@ -2152,10 +2199,10 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         role: employee.employeeRole,
       },
 
-      task: serializeTask(updatedTask),
+      task: serializeTask(responseTask || updatedTask),
 
       nextRoundTask: null,
-      nextRoundWillBeOpenedByCron: Boolean(moveToNextRound),
+      nextRoundWillBeOpenedByCron: Boolean(moveToNextRound) && !stayInLastRound,
       nextRound,
       nextRoundReason,
 
