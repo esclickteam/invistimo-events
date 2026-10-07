@@ -4778,10 +4778,11 @@ function UserRsvpScheduleModal({
             <div className="mb-6 space-y-3">
               <IvrRoundsPanel
                 schedule={ivrSchedule}
-                onScheduleChange={(next) => {
+                onScheduleChange={(next: any) => {
                   setIvrSchedule(next);
                   saveIvrSchedule(next);
                 }}
+                userId={user?._id || user?.id || ""}
               />
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-bold text-[#8A7867]">
