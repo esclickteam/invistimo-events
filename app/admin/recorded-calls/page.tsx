@@ -44,7 +44,9 @@ export default function AdminIvrNarrationPage() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "טעינה נכשלה");
+        throw new Error(
+          data?.message || data?.error || data?.detail || "טעינה נכשלה"
+        );
       }
       const next = Array.isArray(data.packs) ? data.packs : [];
       setPacks(next);
@@ -53,6 +55,11 @@ export default function AdminIvrNarrationPage() {
         female: next.find((p: VoicePack) => p.gender === "female")?.voiceId || "",
         male: next.find((p: VoicePack) => p.gender === "male")?.voiceId || "",
       });
+      if (data.warning) {
+        setMessage(
+          "נטען מצב ברירת מחדל — שמרו voiceId וצרו את הקטעים לכל Pack."
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "טעינה נכשלה");
     } finally {

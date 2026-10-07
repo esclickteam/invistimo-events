@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import {
-  getUserIdFromRequest,
-} from "@/lib/getUserIdFromRequest";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { resolveAuthUserId } from "@/lib/calls/ivrRequestAuth";
 import User from "@/models/User";
 import {
   approveAdminVoicePack,
   generateAdminVoicePack,
+  IVR_PACK_SEGMENT_LABELS,
   regenerateAdminPackSegment,
   serializeAdminVoicePacks,
   updateAdminPackVoiceId,
 } from "@/lib/calls/ivrAdminVoicePacks";
+import {
+  IVR_GLOBAL_PACK_TEXTS,
+  type IvrGlobalPackSegmentKey,
+} from "@/lib/calls/ivrScript";
 import {
   sanitizeElevenLabsErrorMessage,
   voiceErrorToClientPayload,
@@ -22,6 +25,7 @@ export const dynamic = "force-dynamic";
 
 async function requireAdmin(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
+  // Must extract bare userId — never pass the auth object to findById.
   const userId = resolveAuthUserId(auth);
   if (!userId) {
     return { error: "UNAUTHORIZED" as const, status: 401 as const };
@@ -34,6 +38,56 @@ async function requireAdmin(req: NextRequest) {
   return { user, userId };
 }
 
+function emptySegmentList() {
+  return (
+    Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
+  ).map((key) => ({
+    key,
+    label: IVR_PACK_SEGMENT_LABELS[key],
+    text: IVR_GLOBAL_PACK_TEXTS[key],
+    audioUrl: "",
+    ready: false,
+    reused: false,
+    contentHash: "",
+  }));
+}
+
+/** Empty bootstrap so the admin UI never hard-fails on first paint. */
+function emptyBootstrap() {
+  const segments = emptySegmentList();
+  return {
+    packs: [
+      {
+        gender: "female" as const,
+        label: "קול נשי",
+        voiceId: "",
+        adminNote: "",
+        segmentsReady: false,
+        approved: false,
+        approvedAt: null,
+        lastGeneratedAt: null,
+        readyCount: 0,
+        totalCount: segments.length,
+        segments,
+      },
+      {
+        gender: "male" as const,
+        label: "קול גברי",
+        voiceId: "",
+        adminNote: "",
+        segmentsReady: false,
+        approved: false,
+        approvedAt: null,
+        lastGeneratedAt: null,
+        readyCount: 0,
+        totalCount: segments.length,
+        segments,
+      },
+    ],
+    bothApproved: false,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireAdmin(req);
@@ -44,14 +98,33 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const data = await serializeAdminVoicePacks();
-    return NextResponse.json({ ok: true, ...data });
+    try {
+      const data = await serializeAdminVoicePacks();
+      return NextResponse.json({ ok: true, ...data });
+    } catch (inner) {
+      // Missing/legacy config must not 500 the admin screen.
+      console.error(
+        "[admin/ivr/voice-packs GET] serialize failed — returning bootstrap",
+        inner instanceof Error ? inner.message : inner
+      );
+      const bootstrap = emptyBootstrap();
+      return NextResponse.json({
+        ok: true,
+        ...bootstrap,
+        warning: "BOOTSTRAP_DEFAULTS",
+        detail:
+          inner instanceof Error ? inner.message : "serialize_failed",
+      });
+    }
   } catch (error) {
     console.error("[admin/ivr/voice-packs GET]", error);
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "FAILED" },
-      { status: 500 }
-    );
+    // Last resort: still avoid a naked 500 for the admin shell.
+    return NextResponse.json({
+      ok: true,
+      ...emptyBootstrap(),
+      warning: "BOOTSTRAP_DEFAULTS",
+      detail: error instanceof Error ? error.message : "FAILED",
+    });
   }
 }
 
@@ -88,7 +161,10 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "FAILED";
-    console.error("[admin/ivr/voice-packs PATCH]", sanitizeElevenLabsErrorMessage(message));
+    console.error(
+      "[admin/ivr/voice-packs PATCH]",
+      sanitizeElevenLabsErrorMessage(message)
+    );
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
@@ -132,6 +208,7 @@ export async function POST(req: NextRequest) {
       error: payload.error,
       providerStatus: payload.providerStatus,
       providerDetail: payload.providerDetail,
+      raw: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json(
       {

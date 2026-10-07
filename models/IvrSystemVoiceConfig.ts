@@ -9,7 +9,8 @@ export type IIvrPackVoiceMeta = {
   voiceId: string;
   /** Internal note for admin only — never shown to clients. */
   adminNote?: string;
-  source: "env" | "manual";
+  /** "auto" is legacy (pre Voice-Pack admin screen). */
+  source: "env" | "manual" | "auto";
   segmentsReady: boolean;
   approved: boolean;
   approvedAt?: Date | null;
@@ -28,11 +29,12 @@ export interface IIvrSystemVoiceConfig {
 
 const PackVoiceMetaSchema = new Schema<IIvrPackVoiceMeta>(
   {
-    voiceId: { type: String, required: true, trim: true, default: "" },
+    voiceId: { type: String, required: false, trim: true, default: "" },
     adminNote: { type: String, trim: true, default: "" },
     source: {
       type: String,
-      enum: ["env", "manual"],
+      // "auto" kept for legacy Mongo docs from the old Dana-resolve schema.
+      enum: ["env", "manual", "auto"],
       default: "manual",
     },
     segmentsReady: { type: Boolean, default: false },
@@ -40,7 +42,7 @@ const PackVoiceMetaSchema = new Schema<IIvrPackVoiceMeta>(
     approvedAt: { type: Date, default: null },
     lastGeneratedAt: { type: Date, default: null },
   },
-  { _id: false }
+  { _id: false, strict: false }
 );
 
 const IvrSystemVoiceConfigSchema = new Schema<IIvrSystemVoiceConfig>(

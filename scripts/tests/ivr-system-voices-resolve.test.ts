@@ -66,6 +66,10 @@ test("admin Voice Packs API + screen exist", () => {
   const api = readSrc("app/api/admin/ivr/voice-packs/route.ts");
   assert.match(api, /serializeAdminVoicePacks|generateAdminVoicePack/);
   assert.match(api, /approveAdminVoicePack|set_voice_id/);
+  assert.match(api, /resolveAuthUserId/);
+  assert.match(api, /BOOTSTRAP_DEFAULTS/);
+  // GET must not surface a naked 500 for missing packs.
+  assert.match(api, /emptyBootstrap|BOOTSTRAP_DEFAULTS/);
 
   const page = readSrc("app/admin/recorded-calls/page.tsx");
   assert.match(page, /הגדרות קריינות|Voice Pack/);
@@ -75,4 +79,19 @@ test("admin Voice Packs API + screen exist", () => {
   const nav = readSrc("app/admin/layout.tsx");
   assert.match(nav, /\/admin\/recorded-calls/);
   assert.match(nav, /שיחות מוקלטות/);
+});
+
+test("admin serialize GET path is read-only — no ElevenLabs TTS", () => {
+  const src = readSrc("lib/calls/ivrAdminVoicePacks.ts");
+  assert.match(src, /readExistingPackSegments/);
+  assert.match(src, /IvrSystemAudio\.find/);
+  // serializeAdminVoicePacks must not call ensureGlobalVoicePack / synthesize.
+  const serializeFn = src.slice(
+    src.indexOf("export async function serializeAdminVoicePacks"),
+    src.indexOf("export async function updateAdminPackVoiceId")
+  );
+  assert.equal(serializeFn.includes("ensureGlobalVoicePack"), false);
+  assert.equal(serializeFn.includes("ensureGlobalPackSegment"), false);
+  assert.equal(serializeFn.includes("synthesizeElevenLabsSpeech"), false);
+  assert.match(src, /source === "auto"|enum.*auto|legacy/i);
 });
