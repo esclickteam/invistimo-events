@@ -26,10 +26,8 @@ import {
   pickSmsTemplateWithPlaceholders,
   resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
-import {
-  filterGuestsByInvitationAudience,
-  findGuestIdsWithInvitationSendAttempt,
-} from "@/lib/messages/invitationOnlyDetails";
+import { filterGuestsByInvitationAudience } from "@/lib/messages/invitationOnlyDetails";
+import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
 import {
   buildScheduledGuestsQuery,
   needsNeverInvitedPostFilter,

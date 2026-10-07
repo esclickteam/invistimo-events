@@ -17,10 +17,10 @@ import {
 import {
   buildInvitationLocationLabel,
   filterGuestsByInvitationAudience,
-  findGuestIdsWithInvitationSendAttempt,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
 } from "@/lib/messages/invitationOnlyDetails";
+import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
 
 export const runtime = "nodejs";
