@@ -9,11 +9,24 @@ import {
 
 test("voiceErrorToClientPayload maps unauthorized clearly", () => {
   const payload = voiceErrorToClientPayload(
-    new ElevenLabsApiError("ELEVENLABS_UNAUTHORIZED", "denied", 401)
+    new ElevenLabsApiError("ELEVENLABS_UNAUTHORIZED", "denied", {
+      providerStatus: 401,
+      providerDetail: "Invalid API key",
+      providerStatusCode: "invalid_api_key",
+    })
   );
   assert.equal(payload.error, "ELEVENLABS_UNAUTHORIZED");
   assert.equal(payload.providerStatus, 401);
-  assert.match(payload.message, /401/);
+  assert.equal(payload.providerDetail, "Invalid API key");
+  assert.equal(payload.providerStatusCode, "invalid_api_key");
+  assert.equal(payload.authHeader, "xi-api-key");
+  assert.match(payload.message, /401|Redeploy|מפתח/);
+});
+
+test("normalizeSecretApiKey strips quotes whitespace and BOM", async () => {
+  const { normalizeSecretApiKey } = await import("../../lib/calls/elevenlabs");
+  assert.equal(normalizeSecretApiKey('  "sk_abc123"  '), "sk_abc123");
+  assert.equal(normalizeSecretApiKey("sk_ab c\n123"), "sk_abc123");
 });
 
 test("sanitize still redacts key material", () => {
@@ -109,9 +122,15 @@ test("listElevenLabsVoices surfaces 401 without fallback", async () => {
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ detail: "invalid api key" }), {
-      status: 401,
-    })) as typeof fetch;
+    new Response(
+      JSON.stringify({
+        detail: {
+          status: "invalid_api_key",
+          message: "Invalid API key",
+        },
+      }),
+      { status: 401 }
+    )) as typeof fetch;
 
   try {
     await assert.rejects(
@@ -119,6 +138,8 @@ test("listElevenLabsVoices surfaces 401 without fallback", async () => {
       (err: any) => {
         assert.equal(err?.code, "ELEVENLABS_UNAUTHORIZED");
         assert.equal(err?.providerStatus, 401);
+        assert.match(String(err?.providerDetail || ""), /Invalid API key/i);
+        assert.equal(err?.providerStatusCode, "invalid_api_key");
         return true;
       }
     );
