@@ -22,6 +22,10 @@ export const IVR_GLOBAL_PACK_TEXTS = {
   introBeforeEventName: "שלום, אנחנו מתקשרים בנוגע ל",
   introAfterEventName:
     "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו. לאישור הגעה, הקישו 1. לאי הגעה, הקישו 2. אם עדיין אינכם יודעים, הקישו 3.",
+  /** Inbound callback — different wording from outbound intro. */
+  inboundBeforeEventName: "שלום, הגעתם למערכת אישורי ההגעה עבור ",
+  inboundAfterEventName:
+    "לאישור הגעה הקישו 1. לאי הגעה הקישו 2. אם עדיין אינכם יודעים הקישו 3.",
   afterPress1: "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
   afterValidQuantity:
     "תודה רבה. אישור ההגעה שלכם התקבל. נתראה בשמחות.",
@@ -30,6 +34,10 @@ export const IVR_GLOBAL_PACK_TEXTS = {
   /** Extra system line (same global reuse rule). */
   invalidGuestCount:
     "המספר שהוקש אינו תקין. אנא הקישו שוב את מספר האורחים שיגיעו, כולל אתכם.",
+  inboundAmbiguous:
+    "שלום, לא הצלחנו לזהות בוודאות לאיזה אירוע שייכת השיחה. אנא פנו למארגנים או המתינו לשיחה חוזרת מאיתנו. להתראות.",
+  inboundNotFound:
+    "שלום, לא מצאנו הזמנה פעילה המשויכת למספר זה במערכת אישורי ההגעה. תודה והמשך יום נעים.",
 } as const;
 
 export type IvrGlobalPackSegmentKey = keyof typeof IVR_GLOBAL_PACK_TEXTS;
@@ -41,10 +49,8 @@ export const IVR_SYSTEM_PROMPTS = {
   thanksReceived: IVR_GLOBAL_PACK_TEXTS.afterPress2Or3,
   invalidInput: IVR_GLOBAL_PACK_TEXTS.invalidInput,
   invalidGuestCount: IVR_GLOBAL_PACK_TEXTS.invalidGuestCount,
-  inboundAmbiguous:
-    "שלום, לא הצלחנו לזהות בוודאות לאיזה אירוע שייכת השיחה. אנא פנו למארגנים או המתינו לשיחה חוזרת מאיתנו. להתראות.",
-  inboundNotFound:
-    "שלום, לא מצאנו הזמנה פעילה המשויכת למספר זה במערכת אישורי ההגעה. תודה והמשך יום נעים.",
+  inboundAmbiguous: IVR_GLOBAL_PACK_TEXTS.inboundAmbiguous,
+  inboundNotFound: IVR_GLOBAL_PACK_TEXTS.inboundNotFound,
 } as const;
 
 export type IvrSystemPromptKey = keyof typeof IVR_SYSTEM_PROMPTS;
@@ -57,6 +63,8 @@ export const IVR_SYSTEM_PROMPT_TO_PACK_SEGMENT: Partial<
   thanksReceived: "afterPress2Or3",
   invalidInput: "invalidInput",
   invalidGuestCount: "invalidGuestCount",
+  inboundAmbiguous: "inboundAmbiguous",
+  inboundNotFound: "inboundNotFound",
 };
 
 /**

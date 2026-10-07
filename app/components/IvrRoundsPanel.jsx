@@ -223,14 +223,14 @@ export default function IvrRoundsPanel({
     setError("");
     try {
       const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-      const [cfgRes, voicesRes, statsRes] = await Promise.all([
+      // Config already resolves the two system voices (Dana / male).
+      // Do NOT load /api/ivr/voices as an ElevenLabs catalog for the client.
+      const [cfgRes, statsRes] = await Promise.all([
         fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
-        fetch("/api/ivr/voices", { credentials: "include" }),
         fetch(`/api/ivr/rounds/stats${qs}`, { credentials: "include" }),
       ]);
 
       const cfg = await cfgRes.json().catch(() => null);
-      const voicesData = await voicesRes.json().catch(() => null);
       const statsData = await statsRes.json().catch(() => null);
 
       if (!cfgRes.ok || !cfg?.ok) {
@@ -242,26 +242,34 @@ export default function IvrRoundsPanel({
       const fromConfig = Array.isArray(cfg?.ivrConfig?.systemVoices)
         ? cfg.ivrConfig.systemVoices
         : [];
-      const fromApi = Array.isArray(voicesData?.voices) ? voicesData.voices : [];
-      const nextVoices = (fromApi.length ? fromApi : fromConfig).map((v) => ({
-        gender: v.gender,
-        label: v.label || v.name || (v.gender === "male" ? "קול גברי" : "קול נשי"),
-        voiceId: v.voiceId,
-      }));
+      const nextVoices =
+        fromConfig.length > 0
+          ? fromConfig.map((v) => ({
+              gender: v.gender,
+              label:
+                v.gender === "female"
+                  ? "דנה – קול נשי"
+                  : v.label ||
+                    (v.name ? `${v.name} – קול גברי` : "קול גברי"),
+              name: v.name || "",
+              voiceId: v.voiceId,
+            }))
+          : [
+              {
+                gender: "female",
+                label: "דנה – קול נשי",
+                name: "Dana",
+                voiceId: "",
+              },
+              {
+                gender: "male",
+                label: "קול גברי",
+                name: "",
+                voiceId: "",
+              },
+            ];
       setVoices(nextVoices);
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
-
-      if (!voicesRes.ok || !voicesData?.ok) {
-        if (nextVoices.length === 0) {
-          setError(
-            voicesData?.message ||
-              voicesData?.error ||
-              "קולות המערכת לא הוגדרו (קול נשי / קול גברי)"
-          );
-        }
-      } else if (nextVoices.length === 0) {
-        setError("לא הוגדרו קול נשי וקול גברי במערכת");
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה בטעינה");
     } finally {
@@ -350,7 +358,25 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || data?.message || "יצירת שם האירוע נכשלה");
+        const parts = [
+          data?.message || data?.error || "יצירת שם האירוע נכשלה",
+        ];
+        if (data?.providerStatusCode) {
+          parts.push(String(data.providerStatusCode));
+        }
+        if (data?.providerDetail) {
+          parts.push(String(data.providerDetail));
+        }
+        if (
+          data?.error === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
+          data?.error === "ELEVENLABS_PAYMENT_REQUIRED" ||
+          data?.providerStatus === 402
+        ) {
+          parts.unshift(
+            "חסרים קרדיטים ב-ElevenLabs (402) — זה הגורם, לא בחירת הקול."
+          );
+        }
+        throw new Error(parts.filter(Boolean).join(" · "));
       }
       patchLocal({
         audioMode: "ai",
@@ -634,39 +660,61 @@ export default function IvrRoundsPanel({
               <div className="mb-2 text-sm font-bold text-[#3A2A1C]">
                 בחירת קול
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row" data-testid="ivr-voice-gender">
-                {voices.map((voice) => {
+              <p className="mb-2 text-[11px] font-bold text-[#8A7867]">
+                שני קולות קבועים במערכת בלבד — ללא רשימת ElevenLabs.
+              </p>
+              <div
+                className="flex flex-col gap-2 sm:flex-row"
+                data-testid="ivr-voice-gender"
+                role="radiogroup"
+                aria-label="בחירת קול"
+              >
+                {(voices.length
+                  ? voices
+                  : [
+                      {
+                        gender: "female",
+                        label: "דנה – קול נשי",
+                        voiceId: "",
+                      },
+                      { gender: "male", label: "קול גברי", voiceId: "" },
+                    ]
+                ).map((voice) => {
                   const selected =
                     config?.ivrConfig?.voiceGender === voice.gender;
                   return (
-                    <button
+                    <label
                       key={voice.gender}
-                      type="button"
-                      onClick={() =>
-                        patchLocal({
-                          voiceGender: voice.gender,
-                          systemVoiceId: voice.voiceId,
-                          voiceId: voice.voiceId,
-                        })
-                      }
-                      className={`flex-1 rounded-xl border px-4 py-3 text-sm font-black ${
+                      className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-black ${
                         selected
                           ? "border-[#B97821] bg-[#FFF4E4] text-[#3A2A1C]"
                           : "border-[#E7D8C6] bg-white text-[#8A7867]"
                       }`}
                       data-testid={`ivr-voice-${voice.gender}`}
                     >
-                      {voice.label}
-                    </button>
+                      <input
+                        type="radio"
+                        name="ivr-voice-gender"
+                        value={voice.gender}
+                        checked={selected}
+                        onChange={() =>
+                          patchLocal({
+                            voiceGender: voice.gender,
+                            systemVoiceId: voice.voiceId,
+                            voiceId: voice.voiceId,
+                          })
+                        }
+                        className="h-4 w-4 accent-[#B97821]"
+                      />
+                      <span>
+                        {voice.gender === "female"
+                          ? "דנה – קול נשי"
+                          : voice.label || "קול גברי"}
+                      </span>
+                    </label>
                   );
                 })}
               </div>
-              {voices.length === 0 ? (
-                <p className="mt-2 text-xs font-bold text-rose-700">
-                  קול נשי / קול גברי לא הוגדרו בשרת (IVR_FEMALE_VOICE_ID /
-                  IVR_MALE_VOICE_ID).
-                </p>
-              ) : null}
             </div>
 
             <div>

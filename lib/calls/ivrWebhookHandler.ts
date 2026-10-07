@@ -53,6 +53,35 @@ async function playInboundChoiceGather(input: {
 }) {
   const eventName = cleanStr(input.attempt.eventName) || "האירוע";
   const introText = buildIvrInboundIntroText({ eventName });
+  const gender = attemptVoiceGender(input.attempt);
+  const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
+
+  // Prefer global inbound pack + per-event name (no full-intro re-TTS).
+  if (eventNameUrl) {
+    try {
+      const beforeUrl = await getGlobalPackSegmentUrl(
+        gender,
+        "inboundBeforeEventName"
+      );
+      if (beforeUrl) {
+        input.attempt.flowStep = "playing_intro_before";
+        await input.attempt.save();
+        await playbackIvrAudio(input.callControlId, beforeUrl, {
+          source: "invistimo-ivr",
+          inbound_ivr: true,
+          callAttemptId: String(input.attempt._id),
+          stage: "inbound_play_event_name",
+          voiceGender: gender,
+        });
+        return;
+      }
+    } catch (error) {
+      console.warn("INBOUND_IVR_PACK_FALLBACK", {
+        attemptId: String(input.attempt._id),
+        message: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  }
 
   try {
     const audio = await ensureIvrInboundIntroAudio({ eventName });
@@ -592,6 +621,57 @@ export async function handleIvrTelnyxWebhook(body: any) {
         !isInboundIvrAttempt(attempt)
       ) {
         await continueOutboundAiIntro({ attempt, callControlId, stage });
+        break;
+      }
+
+      if (
+        stage === "inbound_play_event_name" &&
+        callControlId &&
+        isInboundIvrAttempt(attempt)
+      ) {
+        const eventNameUrl = cleanStr(attempt.eventNameAudioUrl);
+        if (eventNameUrl) {
+          attempt.flowStep = "playing_event_name";
+          await attempt.save();
+          await playbackIvrAudio(callControlId, eventNameUrl, {
+            source: "invistimo-ivr",
+            inbound_ivr: true,
+            callAttemptId: String(attempt._id),
+            stage: "inbound_play_after",
+            voiceGender: gender,
+          });
+        }
+        break;
+      }
+
+      if (
+        stage === "inbound_play_after" &&
+        callControlId &&
+        isInboundIvrAttempt(attempt)
+      ) {
+        const afterUrl = await getGlobalPackSegmentUrl(
+          gender,
+          "inboundAfterEventName"
+        );
+        if (afterUrl) {
+          await gatherIvrUsingAudio({
+            callControlId,
+            audioUrl: afterUrl,
+            minimumDigits: 1,
+            maximumDigits: 1,
+            validDigits: "123",
+            timeoutMillis: 12000,
+            clientState: {
+              source: "invistimo-ivr",
+              inbound_ivr: true,
+              callAttemptId: String(attempt._id),
+              stage: "choice",
+              voiceGender: gender,
+            },
+          });
+          attempt.flowStep = "gather_choice";
+          await attempt.save();
+        }
         break;
       }
 

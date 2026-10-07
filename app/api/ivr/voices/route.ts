@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getElevenLabsKeyMeta,
-  getIvrFemaleVoiceId,
-  getIvrMaleVoiceId,
-  listIvrSystemVoiceOptions,
-} from "@/lib/calls/elevenlabs";
+import { getElevenLabsKeyMeta } from "@/lib/calls/elevenlabs";
+import { getIvrSystemVoiceChoices } from "@/lib/calls/ivrSystemVoices";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
+import { voiceErrorToClientPayload } from "@/lib/calls/elevenlabs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Returns only the two Invistimo system voices (female / male).
- * Never exposes the full ElevenLabs catalog to clients.
+ * Returns ONLY the two Invistimo system voices for the client UI:
+ * - דנה – קול נשי
+ * - {Name} – קול גברי  (or "קול גברי" before name is known)
+ *
+ * Never returns the full ElevenLabs catalog. Server may call ElevenLabs
+ * behind the scenes once to resolve/persist Dana + best Hebrew male.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -25,20 +26,25 @@ export async function GET(req: NextRequest) {
     }
 
     const keyMeta = getElevenLabsKeyMeta();
-    const voices = listIvrSystemVoiceOptions();
+    const force =
+      new URL(req.url).searchParams.get("resolve") === "1" ||
+      new URL(req.url).searchParams.get("force") === "1";
 
-    if (voices.length === 0) {
+    const result = await getIvrSystemVoiceChoices({ forceResolve: force || true });
+
+    if (result.voices.length === 0) {
       return NextResponse.json(
         {
           ok: false,
           error: "SYSTEM_VOICES_NOT_CONFIGURED",
           message:
-            "לא הוגדרו קולות מערכת (IVR_FEMALE_VOICE_ID / IVR_MALE_VOICE_ID)",
+            "לא הצלחנו לזהות את קול דנה / הקול הגברי. ודאו ש-ELEVENLABS_API_KEY תקין או הגדירו IVR_FEMALE_VOICE_ID / IVR_MALE_VOICE_ID.",
           voices: [],
           diagnostics: {
             keyPresent: keyMeta.present,
-            femaleConfigured: Boolean(getIvrFemaleVoiceId()),
-            maleConfigured: Boolean(getIvrMaleVoiceId()),
+            keyLength: keyMeta.length,
+            keyPrefix: keyMeta.prefix,
+            ...result.diagnostics,
           },
         },
         { status: 500 }
@@ -47,33 +53,43 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      voices: voices.map((v) => ({
+      /** Fixed two-option list only — not an ElevenLabs catalog. */
+      systemVoicesOnly: true,
+      voices: result.voices.map((v) => ({
         gender: v.gender,
         label: v.label,
+        name: v.name,
         voiceId: v.voiceId,
-        /** Keep voiceId for backward-compatible clients; UI should bind on gender. */
-        name: v.label,
       })),
       diagnostics: {
         keyPresent: keyMeta.present,
         keyLength: keyMeta.length,
         keyPrefix: keyMeta.prefix,
         keySourceEnv: keyMeta.sourceEnv,
-        femaleConfigured: Boolean(getIvrFemaleVoiceId()),
-        maleConfigured: Boolean(getIvrMaleVoiceId()),
+        resolved: result.resolved,
+        ...result.diagnostics,
         authHeader: "xi-api-key",
       },
     });
   } catch (error) {
+    const payload = voiceErrorToClientPayload(error);
     console.error("[ivr/voices]", {
-      message: error instanceof Error ? error.message : "FAILED",
+      error: payload.error,
+      providerStatus: payload.providerStatus,
+      providerStatusCode: payload.providerStatusCode,
+      providerDetail: payload.providerDetail,
+      keyPresent: payload.keyMeta.present,
     });
     return NextResponse.json(
       {
         ok: false,
-        error: "VOICES_FAILED",
-        message: error instanceof Error ? error.message : "FAILED",
+        error: payload.error,
+        message: payload.message,
+        providerStatus: payload.providerStatus,
+        providerDetail: payload.providerDetail,
+        providerStatusCode: payload.providerStatusCode,
         voices: [],
+        systemVoicesOnly: true,
       },
       { status: 500 }
     );

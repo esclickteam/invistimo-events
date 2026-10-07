@@ -18,7 +18,6 @@ import {
 } from "@/lib/calls/ivrScript";
 import {
   getIvrVoiceIdForGender,
-  listIvrSystemVoiceOptions,
   sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
   voiceErrorToClientPayload,
@@ -33,6 +32,7 @@ import {
   ensureBothGlobalVoicePacks,
   ensureGlobalVoicePack,
 } from "@/lib/calls/ivrSystemAudio";
+import { getIvrSystemVoiceChoices } from "@/lib/calls/ivrSystemVoices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,11 +53,6 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
   const fromField = normalizeIvrVoiceGender(cfg?.voiceGender);
   if (fromField) return fromField;
 
-  const voiceId = String(cfg?.systemVoiceId || cfg?.voiceId || "").trim();
-  if (!voiceId) return null;
-  for (const option of listIvrSystemVoiceOptions()) {
-    if (option.voiceId === voiceId) return option.gender;
-  }
   return null;
 }
 
@@ -142,11 +137,12 @@ function serializeIvrConfig(
       thanksAttending: IVR_GLOBAL_PACK_TEXTS.afterValidQuantity,
       thanksReceived: IVR_GLOBAL_PACK_TEXTS.afterPress2Or3,
     },
-    systemVoices: listIvrSystemVoiceOptions().map((v) => ({
-      gender: v.gender,
-      label: v.label,
-      voiceId: v.voiceId,
-    })),
+    systemVoices: [] as Array<{
+      gender: string;
+      label: string;
+      name?: string;
+      voiceId: string;
+    }>,
   };
 }
 
@@ -186,14 +182,23 @@ export async function GET(req: NextRequest) {
     }
 
     const gender = resolveConfigGender(user.ivrConfig || {});
+    const systemVoices = await getIvrSystemVoiceChoices({ forceResolve: true });
     const pack = await loadPackSafe(gender);
+    const ivrConfig = serializeIvrConfig(user.ivrConfig || {}, pack);
+    ivrConfig.systemVoices = systemVoices.voices.map((v) => ({
+      gender: v.gender,
+      label: v.label,
+      name: v.name,
+      voiceId: v.voiceId,
+    }));
 
     return NextResponse.json({
       ok: true,
       callsType: user.callsType || "human",
       includeCalls: Boolean(user.includeCalls),
-      ivrConfig: serializeIvrConfig(user.ivrConfig || {}, pack),
+      ivrConfig,
       callRoundsSchedule: user.callRoundsSchedule || { enabled: false, rounds: [] },
+      systemVoicesOnly: true,
     });
   } catch (error) {
     console.error("[ivr/config GET]", error);
@@ -291,9 +296,11 @@ export async function PATCH(req: NextRequest) {
         voiceId: body.voiceId ?? prev.voiceId,
       });
 
+    const systemVoices = await getIvrSystemVoiceChoices({ forceResolve: true });
+
     // Allow picking by system voiceId if gender omitted.
     if (!nextGender && body.voiceId) {
-      for (const option of listIvrSystemVoiceOptions()) {
+      for (const option of systemVoices.voices) {
         if (option.voiceId === String(body.voiceId).trim()) {
           nextGender = option.gender;
           break;
@@ -353,10 +360,17 @@ export async function PATCH(req: NextRequest) {
     await user.save();
 
     const pack = await loadPackSafe(nextGender);
+    const ivrConfig = serializeIvrConfig(user.ivrConfig, pack);
+    ivrConfig.systemVoices = systemVoices.voices.map((v) => ({
+      gender: v.gender,
+      label: v.label,
+      name: v.name,
+      voiceId: v.voiceId,
+    }));
 
     return NextResponse.json({
       ok: true,
-      ivrConfig: serializeIvrConfig(user.ivrConfig, pack),
+      ivrConfig,
       needsRegenerate: eventNameAudio?.status === "stale",
       needsApproval: Boolean(
         eventNameAudio?.status === "ready" && !eventNameAudio?.approved
@@ -428,8 +442,12 @@ export async function POST(req: NextRequest) {
     let voiceGender =
       normalizeIvrVoiceGender(body.voiceGender) || resolveConfigGender(cfg);
 
+    // Resolve Dana + Hebrew male once (server-side); never list full catalog.
+    await getIvrSystemVoiceChoices({ forceResolve: true });
+
     if (!voiceGender && body.voiceId) {
-      for (const option of listIvrSystemVoiceOptions()) {
+      const choices = await getIvrSystemVoiceChoices();
+      for (const option of choices.voices) {
         if (option.voiceId === String(body.voiceId).trim()) {
           voiceGender = option.gender;
           break;
@@ -439,7 +457,11 @@ export async function POST(req: NextRequest) {
 
     if (!voiceGender) {
       return NextResponse.json(
-        { ok: false, error: "VOICE_GENDER_REQUIRED", message: "בחרו קול נשי או גברי" },
+        {
+          ok: false,
+          error: "VOICE_GENDER_REQUIRED",
+          message: "בחרו דנה (קול נשי) או קול גברי",
+        },
         { status: 400 }
       );
     }
@@ -447,7 +469,13 @@ export async function POST(req: NextRequest) {
     const voiceId = getIvrVoiceIdForGender(voiceGender);
     if (!eventName || !voiceId) {
       return NextResponse.json(
-        { ok: false, error: "MISSING_FIELDS" },
+        {
+          ok: false,
+          error: "MISSING_FIELDS",
+          message: !voiceId
+            ? "קול המערכת לא הוגדר (דנה / גברי). בדקו ELEVENLABS_API_KEY או IVR_*_VOICE_ID."
+            : "חסר שם אירוע",
+        },
         { status: 400 }
       );
     }
@@ -567,8 +595,17 @@ export async function POST(req: NextRequest) {
         error: payload.error === "VOICES_FAILED" ? "TTS_FAILED" : payload.error,
         message: payload.message,
         providerStatus: payload.providerStatus,
+        providerDetail: payload.providerDetail,
+        providerStatusCode: payload.providerStatusCode,
       },
-      { status: 500 }
+      {
+        status:
+          payload.providerStatus === 402 ||
+          payload.error === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
+          payload.error === "ELEVENLABS_PAYMENT_REQUIRED"
+            ? 402
+            : 500,
+      }
     );
   }
 }
