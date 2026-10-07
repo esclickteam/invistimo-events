@@ -367,13 +367,18 @@ export default function IvrRoundsPanel({
         if (data?.providerDetail) {
           parts.push(String(data.providerDetail));
         }
-        if (
-          data?.error === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
+        if (data?.error === "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID") {
+          parts.unshift(
+            "הקול חסום ב-API על Free plan (Voice Library) — זה לא חוסר קרדיטים."
+          );
+        } else if (data?.error === "ELEVENLABS_INSUFFICIENT_CREDITS") {
+          parts.unshift("חסרים קרדיטים ב-ElevenLabs (insufficient_credits).");
+        } else if (
           data?.error === "ELEVENLABS_PAYMENT_REQUIRED" ||
           data?.providerStatus === 402
         ) {
           parts.unshift(
-            "חסרים קרדיטים ב-ElevenLabs (402) — זה הגורם, לא בחירת הקול."
+            "ElevenLabs 402 — בדקו providerDetail: ייתכן קול ספרייה שדורש Paid plan (לא בהכרח קרדיטים)."
           );
         }
         throw new Error(parts.filter(Boolean).join(" · "));

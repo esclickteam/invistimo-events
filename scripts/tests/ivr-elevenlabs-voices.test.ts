@@ -39,7 +39,21 @@ test("voiceErrorToClientPayload maps 402 insufficient_credits explicitly", () =>
   assert.doesNotMatch(payload.message, /^ELEVENLABS_HTTP_402$/);
 });
 
-test("voiceErrorToClientPayload maps bare 402 payment_required", () => {
+test("voiceErrorToClientPayload maps Free+library-voice 402 as paid plan, not credits", () => {
+  const payload = voiceErrorToClientPayload(
+    new ElevenLabsApiError("ELEVENLABS_HTTP_402", "Payment required", {
+      providerStatus: 402,
+      providerDetail:
+        "Free users cannot use library voices via the API. Please upgrade your subscription to use this voice",
+      providerStatusCode: "payment_required",
+    })
+  );
+  assert.equal(payload.error, "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID");
+  assert.match(payload.message, /Free plan|Voice Library|Paid plan|קרדיטים/);
+  assert.match(payload.message, /לא חוסר קרדיטים|לא.*קרדיטים/);
+});
+
+test("voiceErrorToClientPayload maps bare 402 payment_required toward paid-voice", () => {
   const payload = voiceErrorToClientPayload(
     new ElevenLabsApiError("ELEVENLABS_HTTP_402", "denied", {
       providerStatus: 402,
@@ -47,8 +61,8 @@ test("voiceErrorToClientPayload maps bare 402 payment_required", () => {
       providerStatusCode: "payment_required",
     })
   );
-  assert.equal(payload.error, "ELEVENLABS_PAYMENT_REQUIRED");
-  assert.match(payload.message, /תשלום|payment_required|402|קרדיטים/);
+  assert.equal(payload.error, "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID");
+  assert.match(payload.message, /Paid plan|ספרייה|Free plan|providerDetail/i);
 });
 
 test("normalizeSecretApiKey strips quotes whitespace and BOM", async () => {
