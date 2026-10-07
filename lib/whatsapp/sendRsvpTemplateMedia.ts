@@ -37,6 +37,7 @@ export type SendRsvpTemplateMediaInput = {
     saveTheDateTitle?: string;
     invitationTitle?: string;
     eventDate?: string;
+    eventTime?: string;
     eventLocation?: string;
   };
 
@@ -383,7 +384,21 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   } else if (templateName === EVENT_INVITATION_TEMPLATE) {
     const title =
       input.templateVariables?.invitationTitle || input.eventTitle;
-    const date = input.templateVariables?.eventDate || input.eventDate;
+    const dateRaw = String(
+      input.templateVariables?.eventDate || input.eventDate || ""
+    ).trim();
+    const timeRaw = String(
+      input.templateVariables?.eventTime || ""
+    ).trim();
+    /*
+      Invitation-only: label time inside the single Meta "date" body variable
+      (newlines are stripped by WhatsApp). Do not change RSVP templates above.
+    */
+    const dateAlreadyHasTimeLine = /🕒|שעה:/.test(dateRaw);
+    const date =
+      dateRaw && timeRaw && !dateAlreadyHasTimeLine
+        ? `${dateRaw} · 🕒 שעה: ${timeRaw}`
+        : dateRaw;
     const location =
       input.templateVariables?.eventLocation || input.eventLocation;
 

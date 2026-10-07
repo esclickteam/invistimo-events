@@ -31,7 +31,11 @@ export type MessageTemplateKey =
   | "save_the_date"
   | "invitation_only";
 
-export type ScheduledAudienceFilter = "all" | "pending" | "withTable";
+export type ScheduledAudienceFilter =
+  | "all"
+  | "pending"
+  | "withTable"
+  | "never_invited";
 
 export type RsvpRoundNumber = 1 | 2 | 3;
 
@@ -211,7 +215,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     filter: {
       type: String,
-      enum: ["all", "pending", "withTable"],
+      enum: ["all", "pending", "withTable", "never_invited"],
       default: "all",
       required: true,
       index: true,

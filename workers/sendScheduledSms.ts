@@ -26,6 +26,12 @@ import {
   pickSmsTemplateWithPlaceholders,
   resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
+import {
+  filterGuestsByInvitationAudience,
+  findGuestIdsWithInvitationSendAttempt,
+  formatInvitationWhatsappDateParam,
+  parseInvitationOnlyAudienceFilter,
+} from "@/lib/messages/invitationOnlyDetails";
 import { getRsvpSmsRoundTemplate, ROUND_SMS_TEMPLATES } from "@/lib/sms/roundSmsTemplates";
 
 import {
@@ -217,6 +223,7 @@ function buildGuestsQuery({
     ];
   }
 
+  // never_invited is applied after the guest query (needs delivery history).
   return query;
 }
 
@@ -1049,7 +1056,22 @@ export async function sendScheduledWhatsapp() {
         invitationId: msg.invitationId,
       });
 
-      const guests = await InvitationGuest.find(guestsQuery).lean();
+      let guests = await InvitationGuest.find(guestsQuery).lean();
+
+      if (
+        type === "invitation_only" &&
+        parseInvitationOnlyAudienceFilter(msg.filter) === "never_invited"
+      ) {
+        const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
+          String(msg.invitationId)
+        );
+        guests = filterGuestsByInvitationAudience({
+          guests,
+          filter: "never_invited",
+          alreadyInvitedGuestIds: alreadyInvited,
+        });
+      }
+
       roundGuests = guests;
 
       let sent = 0;
@@ -1085,11 +1107,18 @@ const personalUrl = buildGuestInviteUrl({
         );
 
         const live = resolveLiveEventMessageDetails(invitation, whatsappEvent);
+        const invitationWhatsappDate = formatInvitationWhatsappDateParam(
+          invitation.eventDate || whatsappEvent?.date,
+          live.eventTime
+        );
         const replacements = {
           name: guest.name || "",
           invitationTitle: live.invitationTitle,
           eventTitle: live.eventTitle,
-          eventDate: live.eventDateTime || live.eventDate,
+          eventDate:
+            type === "invitation_only"
+              ? invitationWhatsappDate
+              : live.eventDateTime || live.eventDate,
           eventTime: live.eventTime,
           eventLocation: live.eventLocation,
           rsvpLink: personalUrl,
@@ -1098,10 +1127,35 @@ const personalUrl = buildGuestInviteUrl({
           navigationLink: navigationLink || "",
         };
 
-        const payload = overlayLiveEventDetailsOnWhatsappPayload(
+        let payload = overlayLiveEventDetailsOnWhatsappPayload(
           deepReplacePlaceholders(msg.payload || {}, replacements),
           live
         );
+
+        /*
+          Invitation-only only: split date/time in the Meta body variable.
+          Leave RSVP payloads on the existing combined eventDate path.
+        */
+        if (type === "invitation_only") {
+          payload = {
+            ...payload,
+            eventDate: invitationWhatsappDate,
+            templateVariables: {
+              ...(payload.templateVariables || {}),
+              eventDate: live.eventDate.replace(/\./g, "/"),
+              eventTime: live.eventTime,
+              eventLocation: live.eventLocation,
+              invitationTitle: live.invitationTitle,
+            },
+          };
+
+          if (live.eventDateTime && Array.isArray(payload.components)) {
+            const raw = JSON.stringify(payload.components);
+            payload.components = JSON.parse(
+              raw.split(live.eventDateTime).join(invitationWhatsappDate)
+            );
+          }
+        }
 
         const templateName = String(msg.templateName || "").trim();
 

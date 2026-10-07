@@ -315,7 +315,14 @@ export function overlayLiveEventDetailsOnWhatsappPayload(
     ...(current.templateVariables || {}),
   };
   templateVariables.invitationTitle = live.eventTitle;
-  templateVariables.eventDate = live.eventDateTime || live.eventDate;
+  /*
+    RSVP WhatsApp body still reads payload.eventDate (combined date+time) above.
+    Invitation-only / Save the Date read templateVariables.eventDate — keep that
+    as date-only and expose eventTime separately so invitation copy can render
+    two lines without changing RSVP round payloads.
+  */
+  templateVariables.eventDate = live.eventDate;
+  templateVariables.eventTime = live.eventTime;
   templateVariables.eventLocation = live.eventLocation;
   if (
     !prevSaveTheDate ||
