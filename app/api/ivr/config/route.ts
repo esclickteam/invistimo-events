@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import User from "@/models/User";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import {
+  requireIvrSession,
+  resolveIvrTargetUser,
+} from "@/lib/calls/ivrRequestAuth";
 import {
   buildIvrIntroText,
   buildIvrRecommendedScriptForDisplay,
@@ -13,6 +14,7 @@ import {
   resolveIvrEventNamePronunciation,
 } from "@/lib/calls/ivrScript";
 import {
+  getDefaultIvrVoiceId,
   sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
 } from "@/lib/calls/elevenlabs";
@@ -28,23 +30,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function getAuthedIvrUser(req: NextRequest) {
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return { error: "UNAUTHORIZED", status: 401 as const };
-
-  await connectDB();
-  const user = await User.findById(userId);
-  if (!user) return { error: "UNAUTHORIZED", status: 401 as const };
-
-  const role = String(user.role || "");
-  if (role === "admin") {
-    return { user, isAdmin: true };
+  // getUserIdFromRequest returns AuthPayload — never pass it to findById.
+  const session = await requireIvrSession(req);
+  if ("error" in session) {
+    return { error: session.error, status: session.status };
   }
-
-  if (!isIvrCallsUser(user)) {
-    return { error: "FORBIDDEN", status: 403 as const };
-  }
-
-  return { user, isAdmin: false };
+  return {
+    user: session.user,
+    isAdmin: session.isAdmin,
+    userId: session.userId,
+  };
 }
 
 function serializeIvrConfig(cfg: any) {
@@ -56,7 +51,7 @@ function serializeIvrConfig(cfg: any) {
     audioMode: cfg?.audioMode || null,
     eventName,
     eventNamePronunciation,
-    voiceId: String(cfg?.voiceId || ""),
+    voiceId: String(cfg?.voiceId || getDefaultIvrVoiceId() || ""),
     introAudio: cfg?.introAudio || { status: "missing", approved: false },
     previewText,
     recommendedScript: previewText,
@@ -83,15 +78,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const targetId =
-      auth.isAdmin && new URL(req.url).searchParams.get("userId")
-        ? String(new URL(req.url).searchParams.get("userId"))
-        : String(auth.user._id);
-
-    const user =
-      targetId === String(auth.user._id)
-        ? auth.user
-        : await User.findById(targetId);
+    const user = await resolveIvrTargetUser({
+      sessionUser: auth.user,
+      isAdmin: auth.isAdmin,
+      requestedUserId: new URL(req.url).searchParams.get("userId"),
+    });
 
     if (!user) {
       return NextResponse.json({ ok: false, error: "NOT_FOUND" }, { status: 404 });
@@ -124,13 +115,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const targetId =
-      auth.isAdmin && body.userId ? String(body.userId) : String(auth.user._id);
-
-    const user =
-      targetId === String(auth.user._id)
-        ? auth.user
-        : await User.findById(targetId);
+    const user = await resolveIvrTargetUser({
+      sessionUser: auth.user,
+      isAdmin: auth.isAdmin,
+      requestedUserId: body.userId,
+    });
 
     if (!user || !isIvrCallsUser(user)) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
@@ -242,13 +231,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const action = String(body.action || "generate_ai");
 
-    const targetId =
-      auth.isAdmin && body.userId ? String(body.userId) : String(auth.user._id);
-
-    const user =
-      targetId === String(auth.user._id)
-        ? auth.user
-        : await User.findById(targetId);
+    const user = await resolveIvrTargetUser({
+      sessionUser: auth.user,
+      isAdmin: auth.isAdmin,
+      requestedUserId: body.userId,
+    });
 
     if (!user || !isIvrCallsUser(user)) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
@@ -256,7 +243,7 @@ export async function POST(req: NextRequest) {
 
     if (action === "ensure_system_prompts") {
       const prompts = await ensureAllIvrSystemPrompts(
-        body.voiceId || user.ivrConfig?.voiceId
+        body.voiceId || user.ivrConfig?.voiceId || getDefaultIvrVoiceId()
       );
       return NextResponse.json({ ok: true, prompts });
     }
@@ -270,7 +257,9 @@ export async function POST(req: NextRequest) {
         resolveIvrEventNamePronunciation(cfg) ||
         ""
     ).trim();
-    const voiceId = String(body.voiceId || cfg.voiceId || "").trim();
+    const voiceId = String(
+      body.voiceId || cfg.voiceId || getDefaultIvrVoiceId() || ""
+    ).trim();
 
     if (!eventName || !voiceId) {
       return NextResponse.json(

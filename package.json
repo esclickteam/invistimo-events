@@ -12,7 +12,7 @@
     "test:invitation-guest-writes": "npx tsx --test scripts/test-invitation-guest-writes.ts",
     "test:rsvp-site-mode": "npx tsx --test scripts/tests/rsvp-site-mode.test.ts",
     "test:reminder-sms-template": "npx tsx --test scripts/tests/reminder-sms-template.test.ts",
-    "test:ivr": "npx tsx --test scripts/tests/ivr-calls-type.test.ts scripts/tests/ivr-webhook-idempotency.test.ts scripts/tests/ivr-e2e-checklist.test.ts scripts/tests/ivr-client-menu.test.ts scripts/tests/admin-calls-type-ui.test.ts",
+    "test:ivr": "npx tsx --test scripts/tests/ivr-calls-type.test.ts scripts/tests/ivr-webhook-idempotency.test.ts scripts/tests/ivr-e2e-checklist.test.ts scripts/tests/ivr-client-menu.test.ts scripts/tests/admin-calls-type-ui.test.ts scripts/tests/ivr-request-auth.test.ts",
     "test:login-native-token": "npx tsx --test --test-force-exit scripts/tests/login-native-token.test.ts",
     "test:mobile-session": "npx tsx --test --test-force-exit scripts/tests/mobile-session.test.ts",
     "test:mobile-push": "npx tsx --test --test-force-exit scripts/tests/mobile-push.test.ts",
