@@ -826,6 +826,9 @@ export default function RsvpTab({
 
   const templateName = getWhatsappTemplateByRound(round);
 
+  const sendAudience =
+    sendTiming === "scheduled" ? [] : guestsToSend.map((g) => g._id);
+
   const sendButtonProps: any =
     selectedChannel === "whatsapp"
       ? {
@@ -833,7 +836,7 @@ export default function RsvpTab({
           type: "rsvp",
           invitationId,
           templateName,
-          audience: guestsToSend.map((g) => g._id),
+          audience: sendAudience,
           scheduledAt,
           round,
           disabled: blocked,
@@ -842,7 +845,7 @@ export default function RsvpTab({
     channel: "sms",
     type: "rsvp",
     invitationId,
-    audience: guestsToSend.map((g) => g._id),
+    audience: sendAudience,
     scheduledAt,
     ...(isAdmin ? { messageOverride: currentSmsMessage } : {}),
     round,

@@ -656,7 +656,8 @@ export async function POST(req: NextRequest) {
         includeGiftLink: !!body.giftCreditUrl,
         giftLink: body.giftCreditUrl || null,
 
-        guestIds: type === "rsvp" ? [] : audience,
+        // Criteria only — worker recomputes audience at send time.
+        guestIds: [],
 
         scheduledAt,
         guestsCount,

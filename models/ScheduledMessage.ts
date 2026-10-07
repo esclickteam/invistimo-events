@@ -448,6 +448,12 @@ ScheduledMessageSchema.pre("validate", function () {
     doc.filter = normalizedRound === 1 ? "all" : "pending";
   }
 
+  /*
+    Never persist a final recipient snapshot on schedule create/update.
+    Workers re-query by type/round/filter at send time, then lock that run.
+  */
+  doc.guestIds = [];
+
   const cleanMessageContent = (doc.messageContent || "").trim();
   const cleanMessageOverride = (doc.messageOverride || "").trim();
   const cleanText = (doc.text || "").trim();

@@ -133,12 +133,14 @@ function buildGuestQuery({
   round,
   filter,
   guestIds,
+  isScheduled = false,
 }: {
   invitationId: string;
   templateKey: MessageTemplateKey;
   round: RoundNumber;
   filter: FilterType;
   guestIds?: string[];
+  isScheduled?: boolean;
 }) {
   /**
    * חשוב:
@@ -146,7 +148,7 @@ function buildGuestQuery({
    * סבב 1 = כולם
    * סבב 2/3 = מי שעדיין pending בזמן השליחה בפועל.
    *
-   * לכן לא משתמשים ב-guestIds כמקור אמת ב-RSVP.
+   * בתזמון לעולם לא משתמשים ב-guestIds — רק בתנאי קהל.
    */
   if (templateKey === "rsvp") {
     if (round === 1) {
@@ -159,11 +161,43 @@ function buildGuestQuery({
     };
   }
 
-  /**
-   * הודעות אחרות:
-   * אפשר לכבד בחירת guestIds אם הגיעה מהפרונט.
-   */
-  if (Array.isArray(guestIds) && guestIds.length > 0) {
+  if (
+    templateKey === "reminder" ||
+    templateKey === "table" ||
+    templateKey === "thankyou" ||
+    templateKey === "custom"
+  ) {
+    const query: any = {
+      invitationId,
+      rsvp: "yes",
+    };
+
+    if (filter === "withTable") {
+      query.$or = [
+        { tableName: { $exists: true, $ne: "" } },
+        { tableNumber: { $ne: null } },
+      ];
+    }
+
+    /*
+      Immediate send may use an explicit ID list computed at click time.
+      Scheduled sends must not — worker recomputes from criteria.
+    */
+    if (
+      !isScheduled &&
+      Array.isArray(guestIds) &&
+      guestIds.length > 0
+    ) {
+      return {
+        _id: { $in: guestIds },
+        invitationId,
+      };
+    }
+
+    return query;
+  }
+
+  if (!isScheduled && Array.isArray(guestIds) && guestIds.length > 0) {
     return {
       _id: { $in: guestIds },
       invitationId,
@@ -662,6 +696,7 @@ if (inv.shareId) {
       round,
       filter,
       guestIds,
+      isScheduled: isScheduledRequest,
     });
 
     /* ======================================================
@@ -828,10 +863,10 @@ if (inv.shareId) {
           : null,
 
         /**
-         * RSVP לא שומר guestIds כמקור אמת.
-         * הודעות אחרות יכולות לשמור אם נבחרו.
+         * תזמון שומר רק תנאי קהל (filter/type/round).
+         * ה-worker מחשב מחדש את הרשימה בזמן השליחה — לא guestIds ישנים.
          */
-        guestIds: templateKey === "rsvp" ? [] : guestIds,
+        guestIds: [],
 
         round,
         roundNumber: round,
