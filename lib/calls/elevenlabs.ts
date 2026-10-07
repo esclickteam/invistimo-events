@@ -148,7 +148,23 @@ export function hashTtsContent(text: string, voiceId: string) {
     .digest("hex");
 }
 
-function classifyProviderStatus(status: number): string {
+function classifyProviderStatus(
+  status: number,
+  providerStatusCode?: string | null,
+  providerDetail?: string | null
+): string {
+  const codeBlob = `${providerStatusCode || ""} ${providerDetail || ""}`.toLowerCase();
+  if (
+    status === 402 ||
+    /insufficient[_\s-]?credits|payment[_\s-]?required|quota|out of credits|no credits/.test(
+      codeBlob
+    )
+  ) {
+    if (/insufficient[_\s-]?credits/.test(codeBlob)) {
+      return "ELEVENLABS_INSUFFICIENT_CREDITS";
+    }
+    return "ELEVENLABS_PAYMENT_REQUIRED";
+  }
   if (status === 401) return "ELEVENLABS_UNAUTHORIZED";
   if (status === 403) return "ELEVENLABS_FORBIDDEN";
   if (status === 404) return "ELEVENLABS_NOT_FOUND";
@@ -245,7 +261,11 @@ function throwFromProviderResponse(
   data: unknown
 ): never {
   const info = extractProviderInfo(data);
-  const code = classifyProviderStatus(res.status);
+  const code = classifyProviderStatus(
+    res.status,
+    info.statusCode,
+    info.detail
+  );
   const detailPart = info.detail
     ? info.detail
     : info.statusCode
@@ -260,7 +280,9 @@ function throwFromProviderResponse(
     ),
     {
       providerStatus: res.status,
-      providerDetail: info.detail ? sanitizeElevenLabsErrorMessage(info.detail) : null,
+      providerDetail: info.detail
+        ? sanitizeElevenLabsErrorMessage(info.detail)
+        : null,
       providerStatusCode: info.statusCode,
     }
   );
@@ -419,8 +441,75 @@ export function getDefaultIvrVoiceId() {
   return (
     readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
     readEnv("IVR_SYSTEM_VOICE_ID") ||
+    getIvrFemaleVoiceId() ||
+    getIvrMaleVoiceId() ||
     ""
   );
+}
+
+/** Global Invistimo female ElevenLabs voice (system-configured, not a client picker). */
+export function getIvrFemaleVoiceId() {
+  return (
+    readEnv("IVR_FEMALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_FEMALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
+    readEnv("IVR_SYSTEM_VOICE_ID") ||
+    ""
+  ).trim();
+}
+
+/** Global Invistimo male ElevenLabs voice (system-configured, not a client picker). */
+export function getIvrMaleVoiceId() {
+  return (
+    readEnv("IVR_MALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_MALE_VOICE_ID") ||
+    ""
+  ).trim();
+}
+
+export type IvrSystemVoiceOption = {
+  gender: "female" | "male";
+  label: string;
+  voiceId: string;
+};
+
+/**
+ * Sync env-only snapshot of the two system voices.
+ * Prefer async getIvrSystemVoiceChoices() (ivrSystemVoices) which also
+ * resolves Dana + Hebrew male from the account and Mongo cache.
+ * Never returns the full ElevenLabs catalog.
+ */
+export function listIvrSystemVoiceOptions(): IvrSystemVoiceOption[] {
+  const options: IvrSystemVoiceOption[] = [];
+  const female = getIvrFemaleVoiceId();
+  const male = getIvrMaleVoiceId();
+  if (female) {
+    options.push({
+      gender: "female",
+      label: "דנה – קול נשי",
+      voiceId: female,
+    });
+  }
+  if (male) {
+    const maleName = readEnv("IVR_MALE_VOICE_NAME").trim();
+    options.push({
+      gender: "male",
+      label: maleName ? `${maleName} – קול גברי` : "קול גברי",
+      voiceId: male,
+    });
+  }
+  return options;
+}
+
+export function getIvrVoiceIdForGender(
+  gender: "female" | "male" | string | null | undefined
+): string {
+  const g = String(gender || "")
+    .trim()
+    .toLowerCase();
+  if (g === "male") return getIvrMaleVoiceId();
+  if (g === "female") return getIvrFemaleVoiceId();
+  return getDefaultIvrVoiceId();
 }
 
 export function voiceErrorToClientPayload(error: unknown): {
@@ -439,6 +528,21 @@ export function voiceErrorToClientPayload(error: unknown): {
   };
 
   if (error instanceof ElevenLabsApiError) {
+    let code = error.code;
+    if (
+      error.providerStatus === 402 ||
+      code === "ELEVENLABS_HTTP_402" ||
+      /insufficient[_\s-]?credits|payment[_\s-]?required/i.test(
+        `${error.providerStatusCode || ""} ${error.providerDetail || ""}`
+      )
+    ) {
+      code = classifyProviderStatus(
+        error.providerStatus || 402,
+        error.providerStatusCode,
+        error.providerDetail
+      );
+    }
+
     const messageByCode: Record<string, string> = {
       ELEVENLABS_API_KEY_MISSING:
         "מפתח ElevenLabs חסר בשרת (ELEVENLABS_API_KEY) — ודאו שהוא מוגדר ל-Production ועשו Redeploy",
@@ -446,18 +550,33 @@ export function voiceErrorToClientPayload(error: unknown): {
         "ElevenLabs דחה את המפתח (401). אם עדכנתם env ב-Vercel — חובה Redeploy. סיבת ElevenLabs מצורפת ב-providerDetail.",
       ELEVENLABS_FORBIDDEN:
         "אין הרשאה ל-ElevenLabs (403) — בדקו הרשאות Voices/TTS של המפתח",
+      ELEVENLABS_INSUFFICIENT_CREDITS:
+        "אין מספיק קרדיטים בחשבון ElevenLabs (insufficient_credits). זה הגורם לכשל — לא בעיית בחירת קול. טענו קרדיטים ב-ElevenLabs ונסו שוב.",
+      ELEVENLABS_PAYMENT_REQUIRED:
+        "ElevenLabs דורש תשלום / קרדיטים (402 payment_required). זה הגורם לכשל — לא בעיית בחירת קול.",
       ELEVENLABS_RATE_LIMITED: "ElevenLabs חסם זמנית בגלל Rate Limit (429)",
       ELEVENLABS_NETWORK_ERROR: "לא ניתן להתחבר ל-ElevenLabs מהשרת",
       ELEVENLABS_EMPTY: "ElevenLabs החזיר רשימת קולות ריקה",
       VOICE_REQUIRED: "חובה לבחור קול לפני יצירת קריינות",
       TEXT_REQUIRED: "חסר טקסט ליצירת קריינות",
     };
+
+    const detailHint =
+      error.providerDetail || error.providerStatusCode
+        ? ` · ${[error.providerStatusCode, error.providerDetail]
+            .filter(Boolean)
+            .join(": ")}`
+        : "";
+
     return {
       ...base,
-      error: error.code,
-      message:
-        messageByCode[error.code] ||
-        `שגיאת ElevenLabs${error.providerStatus ? ` (${error.providerStatus})` : ""}`,
+      error: code,
+      message: `${
+        messageByCode[code] ||
+        `שגיאת ElevenLabs${
+          error.providerStatus ? ` (${error.providerStatus})` : ""
+        }`
+      }${detailHint}`,
       providerStatus: error.providerStatus,
       providerDetail: error.providerDetail,
       providerStatusCode: error.providerStatusCode,

@@ -23,6 +23,34 @@ test("voiceErrorToClientPayload maps unauthorized clearly", () => {
   assert.match(payload.message, /401|Redeploy|מפתח/);
 });
 
+test("voiceErrorToClientPayload maps 402 insufficient_credits explicitly", () => {
+  const payload = voiceErrorToClientPayload(
+    new ElevenLabsApiError("ELEVENLABS_HTTP_402", "Payment required", {
+      providerStatus: 402,
+      providerDetail: "You have insufficient credits",
+      providerStatusCode: "insufficient_credits",
+    })
+  );
+  assert.equal(payload.error, "ELEVENLABS_INSUFFICIENT_CREDITS");
+  assert.equal(payload.providerStatus, 402);
+  assert.equal(payload.providerStatusCode, "insufficient_credits");
+  assert.match(payload.providerDetail || "", /insufficient credits/i);
+  assert.match(payload.message, /קרדיטים|insufficient_credits|402/);
+  assert.doesNotMatch(payload.message, /^ELEVENLABS_HTTP_402$/);
+});
+
+test("voiceErrorToClientPayload maps bare 402 payment_required", () => {
+  const payload = voiceErrorToClientPayload(
+    new ElevenLabsApiError("ELEVENLABS_HTTP_402", "denied", {
+      providerStatus: 402,
+      providerDetail: "Payment required",
+      providerStatusCode: "payment_required",
+    })
+  );
+  assert.equal(payload.error, "ELEVENLABS_PAYMENT_REQUIRED");
+  assert.match(payload.message, /תשלום|payment_required|402|קרדיטים/);
+});
+
 test("normalizeSecretApiKey strips quotes whitespace and BOM", async () => {
   const { normalizeSecretApiKey } = await import("../../lib/calls/elevenlabs");
   assert.equal(normalizeSecretApiKey('  "sk_abc123"  '), "sk_abc123");

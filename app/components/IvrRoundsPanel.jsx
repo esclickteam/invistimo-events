@@ -8,17 +8,65 @@ function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function IvrCallSimulator({ introAudioUrl, systemPromptTexts, onClose }) {
+/** Play global before + event name + global after as one continuous preview. */
+function ConcatPreviewPlayer({ playlist, onEnded }) {
+  const audioRef = useRef(null);
+  const [index, setIndex] = useState(0);
+  const urls = Array.isArray(playlist) ? playlist.filter(Boolean) : [];
+
+  useEffect(() => {
+    setIndex(0);
+  }, [urls.join("|")]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !urls[index]) return;
+    el.src = urls[index];
+    el.play().catch(() => null);
+  }, [index, urls]);
+
+  if (!urls.length) return null;
+
+  return (
+    <div className="space-y-2">
+      <audio
+        ref={audioRef}
+        controls
+        className="w-full"
+        onEnded={() => {
+          if (index + 1 < urls.length) {
+            setIndex((i) => i + 1);
+          } else {
+            onEnded?.();
+          }
+        }}
+      />
+      <p className="text-[11px] font-bold text-[#8A7867]">
+        מנגן קטע {index + 1} מתוך {urls.length} (פתיח גלובלי → שם האירוע → המשך
+        גלובלי)
+      </p>
+    </div>
+  );
+}
+
+function IvrCallSimulator({
+  previewPlaylist,
+  systemPromptTexts,
+  onClose,
+}) {
   const [step, setStep] = useState("intro");
   const [choice, setChoice] = useState("");
   const [count, setCount] = useState("");
-  const audioRef = useRef(null);
 
   const followText =
     choice === "1"
-      ? systemPromptTexts?.askGuestCount || ""
+      ? systemPromptTexts?.afterPress1 ||
+        systemPromptTexts?.askGuestCount ||
+        ""
       : choice === "2" || choice === "3"
-        ? systemPromptTexts?.thanksReceived || ""
+        ? systemPromptTexts?.afterPress2Or3 ||
+          systemPromptTexts?.thanksReceived ||
+          ""
         : "";
 
   return (
@@ -47,12 +95,8 @@ function IvrCallSimulator({ introAudioUrl, systemPromptTexts, onClose }) {
 
         {step === "intro" ? (
           <div className="space-y-3">
-            <audio
-              ref={audioRef}
-              controls
-              autoPlay
-              src={introAudioUrl}
-              className="w-full"
+            <ConcatPreviewPlayer
+              playlist={previewPlaylist}
               onEnded={() => setStep("choice")}
             />
             <button
@@ -113,8 +157,10 @@ function IvrCallSimulator({ introAudioUrl, systemPromptTexts, onClose }) {
           <div className="space-y-2 text-sm font-bold text-[#3A2A1C]">
             <p>
               {choice === "1"
-                ? systemPromptTexts?.thanksAttending
-                : systemPromptTexts?.thanksReceived}
+                ? systemPromptTexts?.afterValidQuantity ||
+                  systemPromptTexts?.thanksAttending
+                : systemPromptTexts?.afterPress2Or3 ||
+                  systemPromptTexts?.thanksReceived}
             </p>
             <p className="text-xs text-[#8A7867]">
               בחירה: {choice}
@@ -160,19 +206,31 @@ export default function IvrRoundsPanel({
     );
   }, [config]);
 
+  const previewPlaylist = useMemo(() => {
+    const preview = config?.ivrConfig?.previewAudio;
+    if (Array.isArray(preview?.playlist) && preview.playlist.length) {
+      return preview.playlist;
+    }
+    return [
+      preview?.introBeforeEventNameUrl,
+      preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
+      preview?.introAfterEventNameUrl,
+    ].filter(Boolean);
+  }, [config]);
+
   async function loadAll() {
     setLoading(true);
     setError("");
     try {
       const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-      const [cfgRes, voicesRes, statsRes] = await Promise.all([
+      // Config already resolves the two system voices (Dana / male).
+      // Do NOT load /api/ivr/voices as an ElevenLabs catalog for the client.
+      const [cfgRes, statsRes] = await Promise.all([
         fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
-        fetch("/api/ivr/voices", { credentials: "include" }),
         fetch(`/api/ivr/rounds/stats${qs}`, { credentials: "include" }),
       ]);
 
       const cfg = await cfgRes.json().catch(() => null);
-      const voicesData = await voicesRes.json().catch(() => null);
       const statsData = await statsRes.json().catch(() => null);
 
       if (!cfgRes.ok || !cfg?.ok) {
@@ -180,37 +238,38 @@ export default function IvrRoundsPanel({
       }
 
       setConfig(cfg);
-      const nextVoices = Array.isArray(voicesData?.voices)
-        ? voicesData.voices
+
+      const fromConfig = Array.isArray(cfg?.ivrConfig?.systemVoices)
+        ? cfg.ivrConfig.systemVoices
         : [];
+      const nextVoices =
+        fromConfig.length > 0
+          ? fromConfig.map((v) => ({
+              gender: v.gender,
+              label:
+                v.gender === "female"
+                  ? "דנה – קול נשי"
+                  : v.label ||
+                    (v.name ? `${v.name} – קול גברי` : "קול גברי"),
+              name: v.name || "",
+              voiceId: v.voiceId,
+            }))
+          : [
+              {
+                gender: "female",
+                label: "דנה – קול נשי",
+                name: "Dana",
+                voiceId: "",
+              },
+              {
+                gender: "male",
+                label: "קול גברי",
+                name: "",
+                voiceId: "",
+              },
+            ];
       setVoices(nextVoices);
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
-
-      if (!voicesRes.ok || !voicesData?.ok) {
-        const parts = [
-          voicesData?.message ||
-            voicesData?.error ||
-            "טעינת רשימת הקולות מ-ElevenLabs נכשלה",
-        ];
-        if (typeof voicesData?.providerStatus === "number") {
-          parts.push(`HTTP ${voicesData.providerStatus}`);
-        }
-        if (voicesData?.providerStatusCode) {
-          parts.push(String(voicesData.providerStatusCode));
-        }
-        if (voicesData?.providerDetail) {
-          parts.push(String(voicesData.providerDetail));
-        }
-        const diag = voicesData?.diagnostics;
-        if (diag && typeof diag.keyLength === "number") {
-          parts.push(
-            `keyLen=${diag.keyLength}${diag.keyPrefix ? ` prefix=${diag.keyPrefix}` : ""}`
-          );
-        }
-        setError(parts.filter(Boolean).join(" · "));
-      } else if (nextVoices.length === 0) {
-        setError("לא נמצאו קולות זמינים בחשבון ElevenLabs");
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה בטעינה");
     } finally {
@@ -243,7 +302,7 @@ export default function IvrRoundsPanel({
         eventName: config?.ivrConfig?.eventName || "",
         eventNamePronunciation:
           config?.ivrConfig?.eventNamePronunciation || "",
-        voiceId: config?.ivrConfig?.voiceId || "",
+        voiceGender: config?.ivrConfig?.voiceGender || "",
         audioMode: config?.ivrConfig?.audioMode || null,
         ...extra,
       };
@@ -263,7 +322,9 @@ export default function IvrRoundsPanel({
         ivrConfig: data.ivrConfig || prev?.ivrConfig,
       }));
       if (data.needsRegenerate) {
-        setMessage("השדות השתנו — יש ליצור קריינות מחדש ולאשר לפני השיחות.");
+        setMessage(
+          "שם האירוע או הקול השתנו — יש ליצור מחדש רק את שם האירוע ולאשר."
+        );
       } else if (data.needsApproval) {
         setMessage("האודיו מוכן — יש לאשר אותו לפני חיוג.");
       } else {
@@ -276,7 +337,7 @@ export default function IvrRoundsPanel({
     }
   }
 
-  async function generateAi() {
+  async function generateAi({ force = false } = {}) {
     setSaving(true);
     setMessage("");
     setError("");
@@ -288,30 +349,50 @@ export default function IvrRoundsPanel({
         body: JSON.stringify({
           action: "generate_ai",
           userId,
-          force: true,
+          force,
           eventName: config?.ivrConfig?.eventName || "",
           eventNamePronunciation:
             config?.ivrConfig?.eventNamePronunciation || "",
-          voiceId: config?.ivrConfig?.voiceId || "",
+          voiceGender: config?.ivrConfig?.voiceGender || "",
         }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "יצירת קריינות נכשלה");
+        const parts = [
+          data?.message || data?.error || "יצירת שם האירוע נכשלה",
+        ];
+        if (data?.providerStatusCode) {
+          parts.push(String(data.providerStatusCode));
+        }
+        if (data?.providerDetail) {
+          parts.push(String(data.providerDetail));
+        }
+        if (
+          data?.error === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
+          data?.error === "ELEVENLABS_PAYMENT_REQUIRED" ||
+          data?.providerStatus === 402
+        ) {
+          parts.unshift(
+            "חסרים קרדיטים ב-ElevenLabs (402) — זה הגורם, לא בחירת הקול."
+          );
+        }
+        throw new Error(parts.filter(Boolean).join(" · "));
       }
       patchLocal({
         audioMode: "ai",
-        introAudio: data.introAudio,
-        previewText: data.previewText || data.text,
-        recommendedScript: data.previewText || data.text,
+        voiceGender: config?.ivrConfig?.voiceGender,
+        eventNameAudio: data.eventNameAudio,
+        previewAudio: data.previewAudio,
+        previewText: data.previewText,
+        recommendedScript: data.previewText,
       });
       setMessage(
         data.reused
-          ? "הקריינות הקיימת עדיין מעודכנת — מנגנים את הקובץ השמור (ללא TTS חדש)."
-          : "הקריינות נוצרה ונשמרה. האזינו ואשרו לפני השיחות."
+          ? "שם האירוע לא השתנה — מנגנים Preview מהקבצים הקיימים (ללא ElevenLabs)."
+          : "נוצר רק שם האירוע. מאזינים ל-Preview המחובר (גלובלי + שם + גלובלי) ואז מאשרים."
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "יצירת קריינות נכשלה");
+      setError(err instanceof Error ? err.message : "יצירת שם האירוע נכשלה");
     } finally {
       setSaving(false);
     }
@@ -417,9 +498,21 @@ export default function IvrRoundsPanel({
   }
 
   const rounds = Array.isArray(schedule?.rounds) ? schedule.rounds : [];
+  const eventNameAudio = config?.ivrConfig?.eventNameAudio;
   const intro = config?.ivrConfig?.introAudio;
   const audioMode = config?.ivrConfig?.audioMode || "ai";
-  const approved = Boolean(intro?.approved);
+  const approved =
+    audioMode === "self_recorded"
+      ? Boolean(intro?.approved)
+      : Boolean(eventNameAudio?.approved);
+  const aiReady =
+    audioMode === "ai" &&
+    eventNameAudio?.status === "ready" &&
+    previewPlaylist.length >= 3;
+  const selfReady =
+    audioMode === "self_recorded" &&
+    intro?.status === "ready" &&
+    Boolean(intro?.audioUrl);
 
   if (loading) {
     return (
@@ -431,9 +524,11 @@ export default function IvrRoundsPanel({
 
   return (
     <div className="space-y-5" dir="rtl">
-      {showSimulator && intro?.audioUrl ? (
+      {showSimulator && (aiReady || selfReady) ? (
         <IvrCallSimulator
-          introAudioUrl={intro.audioUrl}
+          previewPlaylist={
+            audioMode === "ai" ? previewPlaylist : [intro?.audioUrl]
+          }
           systemPromptTexts={config?.ivrConfig?.systemPromptTexts}
           onClose={() => setShowSimulator(false)}
         />
@@ -544,6 +639,7 @@ export default function IvrRoundsPanel({
             onChange={(e) => patchLocal({ eventName: e.target.value })}
             placeholder="החתונה של הדס ורועי"
             className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+            data-testid="ivr-event-name"
           />
         </label>
 
@@ -560,55 +656,89 @@ export default function IvrRoundsPanel({
               />
             </label>
 
-            <label className="block text-sm font-bold text-[#3A2A1C]">
-              בחירת קול
-              <select
-                value={config?.ivrConfig?.voiceId || ""}
-                onChange={(e) => patchLocal({ voiceId: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-                data-testid="ivr-voice-select"
-              >
-                <option value="">
-                  {voices.length ? "בחרו קול" : "טוען קולות..."}
-                </option>
-                {voices.map((voice) => (
-                  <option key={voice.voiceId} value={voice.voiceId}>
-                    {voice.name}
-                    {voice.labels?.language || voice.labels?.accent
-                      ? ` · ${[
-                          voice.labels?.language,
-                          voice.labels?.accent,
-                        ]
-                          .filter(Boolean)
-                          .join(" / ")}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {voices.length === 0 ? (
-              <p className="text-xs font-bold text-rose-700">
-                אין קולות ברשימה. בדקו את חיבור ElevenLabs או רעננו את הדף.
+            <div>
+              <div className="mb-2 text-sm font-bold text-[#3A2A1C]">
+                בחירת קול
+              </div>
+              <p className="mb-2 text-[11px] font-bold text-[#8A7867]">
+                שני קולות קבועים במערכת בלבד — ללא רשימת ElevenLabs.
               </p>
-            ) : null}
+              <div
+                className="flex flex-col gap-2 sm:flex-row"
+                data-testid="ivr-voice-gender"
+                role="radiogroup"
+                aria-label="בחירת קול"
+              >
+                {(voices.length
+                  ? voices
+                  : [
+                      {
+                        gender: "female",
+                        label: "דנה – קול נשי",
+                        voiceId: "",
+                      },
+                      { gender: "male", label: "קול גברי", voiceId: "" },
+                    ]
+                ).map((voice) => {
+                  const selected =
+                    config?.ivrConfig?.voiceGender === voice.gender;
+                  return (
+                    <label
+                      key={voice.gender}
+                      className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-black ${
+                        selected
+                          ? "border-[#B97821] bg-[#FFF4E4] text-[#3A2A1C]"
+                          : "border-[#E7D8C6] bg-white text-[#8A7867]"
+                      }`}
+                      data-testid={`ivr-voice-${voice.gender}`}
+                    >
+                      <input
+                        type="radio"
+                        name="ivr-voice-gender"
+                        value={voice.gender}
+                        checked={selected}
+                        onChange={() =>
+                          patchLocal({
+                            voiceGender: voice.gender,
+                            systemVoiceId: voice.voiceId,
+                            voiceId: voice.voiceId,
+                          })
+                        }
+                        className="h-4 w-4 accent-[#B97821]"
+                      />
+                      <span>
+                        {voice.gender === "female"
+                          ? "דנה – קול נשי"
+                          : voice.label || "קול גברי"}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
             <div>
               <div className="mb-1 text-xs font-black text-[#B97821]">
-                תצוגה מקדימה של ההודעה (לפני יצירת אודיו)
+                תצוגה מקדימה של ההודעה (טקסט)
               </div>
               <pre className="whitespace-pre-wrap rounded-xl bg-[#FFFDF8] p-3 text-xs font-bold text-[#6B5A48]">
                 {previewText || "הזינו שם אירוע כדי לראות את התבנית."}
               </pre>
+              <p className="mt-2 text-[11px] font-bold text-[#8A7867]">
+                הקריינות הקבועה זהה לכל האירועים. ElevenLabs מייצר רק את שם
+                האירוע לפי הקול שנבחר.
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={saving}
-                onClick={generateAi}
+                disabled={saving || !config?.ivrConfig?.voiceGender}
+                onClick={() => generateAi({ force: false })}
                 className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
+                data-testid="ivr-generate-event-name"
               >
-                צור קריינות
+                יצירת שם האירוע + Preview
               </button>
               <button
                 type="button"
@@ -671,7 +801,50 @@ export default function IvrRoundsPanel({
           </div>
         )}
 
-        {intro?.audioUrl && intro?.status === "ready" ? (
+        {aiReady ? (
+          <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <div className="text-sm font-black text-emerald-800">
+              {approved
+                ? "הודעה מאושרת — מוכנה לשיחות IVR"
+                : "Preview מוכן — האזינו ואשרו לפני חיוג"}
+            </div>
+            <ConcatPreviewPlayer playlist={previewPlaylist} />
+            <div className="flex flex-wrap gap-2">
+              {!approved ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={approveAudio}
+                  className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white"
+                  data-testid="ivr-approve-audio"
+                >
+                  ✓ אישור ושמירה
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setShowSimulator(true)}
+                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
+              >
+                תצוגה מקדימה של השיחה
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => generateAi({ force: true })}
+                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
+              >
+                יצירה מחדש של שם האירוע
+              </button>
+            </div>
+            <p className="text-[11px] font-bold text-emerald-800">
+              הטקסטים הקבועים (פתיח / אחרי הקשות) לא נוצרים מחדש לכל אירוע —
+              רק שם האירוע.
+            </p>
+          </div>
+        ) : null}
+
+        {selfReady ? (
           <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="text-sm font-black text-emerald-800">
               {approved
@@ -695,29 +868,15 @@ export default function IvrRoundsPanel({
                 onClick={() => setShowSimulator(true)}
                 className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
               >
-                ☎️ תצוגה מקדימה של השיחה
+                תצוגה מקדימה של השיחה
               </button>
-              {audioMode === "ai" ? (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={generateAi}
-                  className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
-                >
-                  ↻ יצירה מחדש
-                </button>
-              ) : null}
             </div>
-            <p className="text-[11px] font-bold text-emerald-800">
-              Play חוזר מנגן את הקובץ השמור בלבד ואינו שולח בקשת ElevenLabs
-              חדשה.
-            </p>
           </div>
         ) : null}
 
-        {intro?.status === "stale" ? (
+        {audioMode === "ai" && eventNameAudio?.status === "stale" ? (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-            השדות השתנו מאז יצירת הקריינות. יש ליצור קריינות מחדש ולאשר לפני
+            שם האירוע או הקול השתנו. יש ליצור מחדש רק את שם האירוע ולאשר לפני
             השיחות.
           </div>
         ) : null}

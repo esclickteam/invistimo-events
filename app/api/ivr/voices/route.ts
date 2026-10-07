@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getElevenLabsKeyMeta,
-  listElevenLabsVoices,
-  voiceErrorToClientPayload,
-} from "@/lib/calls/elevenlabs";
+import { getElevenLabsKeyMeta } from "@/lib/calls/elevenlabs";
+import { getIvrSystemVoiceChoices } from "@/lib/calls/ivrSystemVoices";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
+import { voiceErrorToClientPayload } from "@/lib/calls/elevenlabs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Returns ONLY the two Invistimo system voices for the client UI:
+ * - דנה – קול נשי
+ * - {Name} – קול גברי  (or "קול גברי" before name is known)
+ *
+ * Never returns the full ElevenLabs catalog. Server may call ElevenLabs
+ * behind the scenes once to resolve/persist Dana + best Hebrew male.
+ */
 export async function GET(req: NextRequest) {
   try {
-    // getUserIdFromRequest returns AuthPayload — use auth.userId only.
     const session = await requireIvrSession(req);
     if ("error" in session) {
       return NextResponse.json(
@@ -21,41 +26,59 @@ export async function GET(req: NextRequest) {
     }
 
     const keyMeta = getElevenLabsKeyMeta();
-    const voices = await listElevenLabsVoices();
+    const force =
+      new URL(req.url).searchParams.get("resolve") === "1" ||
+      new URL(req.url).searchParams.get("force") === "1";
+
+    const result = await getIvrSystemVoiceChoices({ forceResolve: force || true });
+
+    if (result.voices.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "SYSTEM_VOICES_NOT_CONFIGURED",
+          message:
+            "לא הצלחנו לזהות את קול דנה / הקול הגברי. ודאו ש-ELEVENLABS_API_KEY תקין או הגדירו IVR_FEMALE_VOICE_ID / IVR_MALE_VOICE_ID.",
+          voices: [],
+          diagnostics: {
+            keyPresent: keyMeta.present,
+            keyLength: keyMeta.length,
+            keyPrefix: keyMeta.prefix,
+            ...result.diagnostics,
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      voices: voices.map((v) => ({
-        voiceId: v.voice_id,
+      /** Fixed two-option list only — not an ElevenLabs catalog. */
+      systemVoicesOnly: true,
+      voices: result.voices.map((v) => ({
+        gender: v.gender,
+        label: v.label,
         name: v.name,
-        previewUrl: v.preview_url || null,
-        labels: v.labels || {},
-        category: v.category || null,
+        voiceId: v.voiceId,
       })),
-      // Safe runtime diagnostics (no secret value).
       diagnostics: {
         keyPresent: keyMeta.present,
         keyLength: keyMeta.length,
         keyPrefix: keyMeta.prefix,
         keySourceEnv: keyMeta.sourceEnv,
+        resolved: result.resolved,
+        ...result.diagnostics,
         authHeader: "xi-api-key",
       },
     });
   } catch (error) {
     const payload = voiceErrorToClientPayload(error);
-    // Never log secrets — only codes + lengths + provider reason.
     console.error("[ivr/voices]", {
       error: payload.error,
       providerStatus: payload.providerStatus,
       providerStatusCode: payload.providerStatusCode,
       providerDetail: payload.providerDetail,
       keyPresent: payload.keyMeta.present,
-      keyLength: payload.keyMeta.length,
-      keyPrefix: payload.keyMeta.prefix,
-      keySourceEnv: payload.keyMeta.sourceEnv,
-      hasWhitespace: payload.keyMeta.hasWhitespace,
-      looksQuoted: payload.keyMeta.looksQuoted,
-      authHeader: payload.authHeader,
     });
     return NextResponse.json(
       {
@@ -65,15 +88,8 @@ export async function GET(req: NextRequest) {
         providerStatus: payload.providerStatus,
         providerDetail: payload.providerDetail,
         providerStatusCode: payload.providerStatusCode,
-        diagnostics: {
-          keyPresent: payload.keyMeta.present,
-          keyLength: payload.keyMeta.length,
-          keyPrefix: payload.keyMeta.prefix,
-          keySourceEnv: payload.keyMeta.sourceEnv,
-          hasWhitespace: payload.keyMeta.hasWhitespace,
-          looksQuoted: payload.keyMeta.looksQuoted,
-          authHeader: payload.authHeader,
-        },
+        voices: [],
+        systemVoicesOnly: true,
       },
       { status: 500 }
     );

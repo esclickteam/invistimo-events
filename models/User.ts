@@ -228,7 +228,8 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
   /**
    * IVR audio + script settings (only when callsType === "ivr").
-   * Intro audio is generated/uploaded once and reused for all guests/rounds.
+   * AI mode: only event-name audio is stored per user/event.
+   * Fixed script segments come from the global female/male voice packs.
    */
   ivrConfig?: {
     audioMode?: "ai" | "self_recorded" | null;
@@ -242,7 +243,34 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     hostsNames?: string;
     /** @deprecated legacy — mapped to eventNamePronunciation */
     hostsNamesPronunciation?: string;
+    /** Client choice: global female or male pack. */
+    voiceGender?: "female" | "male" | null;
+    /** Resolved ElevenLabs voice id for the chosen gender (system-configured). */
+    systemVoiceId?: string;
+    /** @deprecated prefer voiceGender + systemVoiceId */
     voiceId?: string;
+    /**
+     * Per-event TTS: spoken event name only.
+     * Fixed intro/DTMF lines are NOT stored here — they live in IvrSystemAudio packs.
+     */
+    eventNameAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "elevenlabs" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      textSnapshot?: string;
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    /**
+     * Self-recorded full intro (optional path).
+     * AI mode must not write fixed global clips here.
+     */
     introAudio?: {
       status?: "missing" | "ready" | "stale";
       source?: "elevenlabs" | "upload" | "recording" | null;
@@ -1128,10 +1156,79 @@ preRsvpMessages: {
         trim: true,
         default: "",
       },
+      voiceGender: {
+        type: String,
+        enum: ["female", "male", null],
+        default: null,
+      },
+      systemVoiceId: {
+        type: String,
+        trim: true,
+        default: "",
+      },
       voiceId: {
         type: String,
         trim: true,
         default: "",
+      },
+      eventNameAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["elevenlabs", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        textSnapshot: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
       },
       introAudio: {
         status: {
@@ -2161,6 +2258,7 @@ UserSchema.index({ "callRoundsSchedule.rounds.scheduledAt": 1 });
 UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
 UserSchema.index({ includeCalls: 1, callsType: 1 });
 UserSchema.index({ "ivrConfig.introAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

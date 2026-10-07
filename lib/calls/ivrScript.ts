@@ -1,6 +1,6 @@
 /**
  * Fixed Invistimo IVR script templates (Hebrew).
- * Client fills "שם האירוע"; post-DTMF lines are system-fixed audio.
+ * Global voice packs hold all fixed segments; per-event TTS is event name only.
  */
 
 export type IvrScriptVariables = {
@@ -10,20 +10,68 @@ export type IvrScriptVariables = {
   eventNamePronunciation?: string;
 };
 
+export type IvrVoiceGender = "female" | "male";
+
 export const IVR_SELF_RECORD_MAX_SECONDS = 45;
 export const IVR_SELF_RECORD_RECOMMENDED_SECONDS = "20–30";
 
 /**
- * Exact template:
- * "שלום, אנחנו מתקשרים בנוגע ל[שם האירוע].
- * נשמח לדעת האם תוכלו להגיע ולחגוג איתנו.
- * לאישור הגעה, הקישו 1.
- * לאי הגעה, הקישו 2.
- * אם עדיין אינכם יודעים, הקישו 3."
+ * Fixed global segments — generated once per gender (female / male), never per event.
  */
+export const IVR_GLOBAL_PACK_TEXTS = {
+  introBeforeEventName: "שלום, אנחנו מתקשרים בנוגע ל",
+  introAfterEventName:
+    "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו. לאישור הגעה, הקישו 1. לאי הגעה, הקישו 2. אם עדיין אינכם יודעים, הקישו 3.",
+  /** Inbound callback — different wording from outbound intro. */
+  inboundBeforeEventName: "שלום, הגעתם למערכת אישורי ההגעה עבור ",
+  inboundAfterEventName:
+    "לאישור הגעה הקישו 1. לאי הגעה הקישו 2. אם עדיין אינכם יודעים הקישו 3.",
+  afterPress1: "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
+  afterValidQuantity:
+    "תודה רבה. אישור ההגעה שלכם התקבל. נתראה בשמחות.",
+  afterPress2Or3: "תודה רבה. תשובתכם התקבלה.",
+  invalidInput: "לא הצלחנו לזהות את הבחירה. אנא נסו שוב.",
+  /** Extra system line (same global reuse rule). */
+  invalidGuestCount:
+    "המספר שהוקש אינו תקין. אנא הקישו שוב את מספר האורחים שיגיעו, כולל אתכם.",
+  inboundAmbiguous:
+    "שלום, לא הצלחנו לזהות בוודאות לאיזה אירוע שייכת השיחה. אנא פנו למארגנים או המתינו לשיחה חוזרת מאיתנו. להתראות.",
+  inboundNotFound:
+    "שלום, לא מצאנו הזמנה פעילה המשויכת למספר זה במערכת אישורי ההגעה. תודה והמשך יום נעים.",
+} as const;
+
+export type IvrGlobalPackSegmentKey = keyof typeof IVR_GLOBAL_PACK_TEXTS;
+
+/** @deprecated aliases for older prompt key names — map to global pack segments. */
+export const IVR_SYSTEM_PROMPTS = {
+  askGuestCount: IVR_GLOBAL_PACK_TEXTS.afterPress1,
+  thanksAttending: IVR_GLOBAL_PACK_TEXTS.afterValidQuantity,
+  thanksReceived: IVR_GLOBAL_PACK_TEXTS.afterPress2Or3,
+  invalidInput: IVR_GLOBAL_PACK_TEXTS.invalidInput,
+  invalidGuestCount: IVR_GLOBAL_PACK_TEXTS.invalidGuestCount,
+  inboundAmbiguous: IVR_GLOBAL_PACK_TEXTS.inboundAmbiguous,
+  inboundNotFound: IVR_GLOBAL_PACK_TEXTS.inboundNotFound,
+} as const;
+
+export type IvrSystemPromptKey = keyof typeof IVR_SYSTEM_PROMPTS;
+
+export const IVR_SYSTEM_PROMPT_TO_PACK_SEGMENT: Partial<
+  Record<IvrSystemPromptKey, IvrGlobalPackSegmentKey>
+> = {
+  askGuestCount: "afterPress1",
+  thanksAttending: "afterValidQuantity",
+  thanksReceived: "afterPress2Or3",
+  invalidInput: "invalidInput",
+  invalidGuestCount: "invalidGuestCount",
+  inboundAmbiguous: "inboundAmbiguous",
+  inboundNotFound: "inboundNotFound",
+};
+
 /**
  * Hebrew definite-article absorption after ל:
  * "ל" + "החתונה..." → "לחתונה..." (not "להחתונה...").
+ * Used only for display/legacy full-text builders — audio playback uses
+ * separate global "בנוגע ל" + event-name clips per product spec.
  */
 export function attachHebrewLamedPrefix(phrase: string): string {
   const raw = String(phrase || "").trim() || "האירוע";
@@ -33,17 +81,23 @@ export function attachHebrewLamedPrefix(phrase: string): string {
   return `ל${raw}`;
 }
 
-export function buildIvrIntroText(vars: IvrScriptVariables): string {
-  const spokenName =
+/** Spoken event-name clip text (the only per-event TTS). */
+export function buildIvrEventNameSpeechText(vars: IvrScriptVariables): string {
+  return (
     String(vars.eventNamePronunciation || vars.eventName || "").trim() ||
-    "האירוע";
+    "האירוע"
+  );
+}
 
+/**
+ * Full intro as display/preview text (not a single TTS payload).
+ * Matches the three audio clips clients hear concatenated.
+ */
+export function buildIvrIntroText(vars: IvrScriptVariables): string {
+  const spokenName = buildIvrEventNameSpeechText(vars);
   return [
-    `שלום, אנחנו מתקשרים בנוגע ${attachHebrewLamedPrefix(spokenName)}.`,
-    "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו.",
-    "לאישור הגעה, הקישו 1.",
-    "לאי הגעה, הקישו 2.",
-    "אם עדיין אינכם יודעים, הקישו 3.",
+    `${IVR_GLOBAL_PACK_TEXTS.introBeforeEventName}${spokenName}.`,
+    IVR_GLOBAL_PACK_TEXTS.introAfterEventName,
   ].join("\n");
 }
 
@@ -87,6 +141,17 @@ export function resolveIvrEventNamePronunciation(cfg: {
   );
 }
 
+export function normalizeIvrVoiceGender(
+  value: unknown
+): IvrVoiceGender | null {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (raw === "female" || raw === "נשי" || raw === "f") return "female";
+  if (raw === "male" || raw === "גברי" || raw === "m") return "male";
+  return null;
+}
+
 /**
  * Exact inbound callback template:
  * "שלום, הגעתם למערכת אישורי ההגעה עבור [שם האירוע].
@@ -95,9 +160,7 @@ export function resolveIvrEventNamePronunciation(cfg: {
  * אם עדיין אינכם יודעים הקישו 3."
  */
 export function buildIvrInboundIntroText(vars: IvrScriptVariables): string {
-  const spokenName =
-    String(vars.eventNamePronunciation || vars.eventName || "").trim() ||
-    "האירוע";
+  const spokenName = buildIvrEventNameSpeechText(vars);
 
   return [
     `שלום, הגעתם למערכת אישורי ההגעה עבור ${spokenName}.`,
@@ -107,32 +170,39 @@ export function buildIvrInboundIntroText(vars: IvrScriptVariables): string {
   ].join("\n");
 }
 
-export const IVR_SYSTEM_PROMPTS = {
-  askGuestCount:
-    "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
-  thanksAttending:
-    "תודה רבה. אישור ההגעה שלכם התקבל. נתראה בשמחות.",
-  thanksReceived: "תודה רבה. תשובתכם התקבלה.",
-  invalidInput: "לא הצלחנו לזהות את הבחירה. אנא נסו שוב.",
-  invalidGuestCount:
-    "המספר שהוקש אינו תקין. אנא הקישו שוב את מספר האורחים שיגיעו, כולל אתכם.",
-  inboundAmbiguous:
-    "שלום, לא הצלחנו לזהות בוודאות לאיזה אירוע שייכת השיחה. אנא פנו למארגנים או המתינו לשיחה חוזרת מאיתנו. להתראות.",
-  inboundNotFound:
-    "שלום, לא מצאנו הזמנה פעילה המשויכת למספר זה במערכת אישורי ההגעה. תודה והמשך יום נעים.",
-} as const;
-
-export type IvrSystemPromptKey = keyof typeof IVR_SYSTEM_PROMPTS;
-
-export function contentHashForIvrIntro(input: {
+export function contentHashForIvrEventName(input: {
   eventName: string;
   eventNamePronunciation?: string;
+  voiceGender: IvrVoiceGender | string;
   voiceId: string;
 }): string {
   const parts = [
     String(input.eventName || "").trim(),
     String(input.eventNamePronunciation || "").trim(),
+    String(input.voiceGender || "").trim(),
     String(input.voiceId || "").trim(),
   ];
   return parts.join("|");
+}
+
+/** @deprecated use contentHashForIvrEventName */
+export function contentHashForIvrIntro(input: {
+  eventName: string;
+  eventNamePronunciation?: string;
+  voiceId: string;
+  voiceGender?: IvrVoiceGender | string;
+}): string {
+  return contentHashForIvrEventName({
+    eventName: input.eventName,
+    eventNamePronunciation: input.eventNamePronunciation,
+    voiceGender: input.voiceGender || "",
+    voiceId: input.voiceId,
+  });
+}
+
+export function globalPackAudioKey(
+  gender: IvrVoiceGender,
+  segment: IvrGlobalPackSegmentKey
+): string {
+  return `pack:${gender}:${segment}`;
 }

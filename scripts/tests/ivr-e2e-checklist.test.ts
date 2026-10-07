@@ -132,6 +132,7 @@ test("12) ElevenLabs audio reused when hash matches; dialer never calls TTS", ()
   const config = readSrc("app/api/ivr/config/route.ts");
   assert.match(config, /reused:\s*true/);
   assert.match(config, /contentHash === hash/);
+  assert.match(config, /eventNameOnly:\s*true/);
   const dialer = readSrc("lib/calls/ivrDialer.ts");
   assert.equal(dialer.includes("synthesizeElevenLabsSpeech"), false);
   assert.equal(dialer.includes("elevenlabs"), false);
@@ -139,10 +140,12 @@ test("12) ElevenLabs audio reused when hash matches; dialer never calls TTS", ()
   const h1 = contentHashForIvrIntro({
     eventName: "החתונה של הדס ורועי",
     voiceId: "v1",
+    voiceGender: "female",
   });
   const h2 = contentHashForIvrIntro({
     eventName: "החתונה של הדס ורועי",
     voiceId: "v1",
+    voiceGender: "female",
   });
   assert.equal(h1, h2);
 });
@@ -161,11 +164,8 @@ test("14) AI template uses event name exactly", () => {
   assert.equal(
     text,
     [
-      "שלום, אנחנו מתקשרים בנוגע לחתונה של הדס ורועי.",
-      "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו.",
-      "לאישור הגעה, הקישו 1.",
-      "לאי הגעה, הקישו 2.",
-      "אם עדיין אינכם יודעים, הקישו 3.",
+      "שלום, אנחנו מתקשרים בנוגע להחתונה של הדס ורועי.",
+      "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו. לאישור הגעה, הקישו 1. לאי הגעה, הקישו 2. אם עדיין אינכם יודעים, הקישו 3.",
     ].join("\n")
   );
 
@@ -178,8 +178,8 @@ test("14) AI template uses event name exactly", () => {
     eventName: "החתונה של הדס ורועי",
     eventNamePronunciation: "החתונה של הדאס ורועיי",
   });
-  // Hebrew ל+ה absorption: לחתונה של הדאס ורועיי
-  assert.match(spoken, /לחתונה של הדאס ורועיי/);
+  // Split clips: global "...בנוגע ל" + event-name pronunciation clip
+  assert.match(spoken, /בנוגע להחתונה של הדאס ורועיי/);
 });
 
 test("15) webhook idempotency + guest binding prevent wrong/double updates", () => {
