@@ -187,10 +187,16 @@ export default function IvrRoundsPanel({
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
 
       if (!voicesRes.ok || !voicesData?.ok) {
+        const providerBit =
+          typeof voicesData?.providerStatus === "number"
+            ? ` (HTTP ${voicesData.providerStatus})`
+            : "";
         setError(
-          voicesData?.message ||
+          `${
+            voicesData?.message ||
             voicesData?.error ||
             "טעינת רשימת הקולות מ-ElevenLabs נכשלה"
+          }${providerBit}`
         );
       } else if (nextVoices.length === 0) {
         setError("לא נמצאו קולות זמינים בחשבון ElevenLabs");

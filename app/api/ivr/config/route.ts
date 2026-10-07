@@ -15,8 +15,8 @@ import {
 } from "@/lib/calls/ivrScript";
 import {
   getDefaultIvrVoiceId,
-  sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
+  voiceErrorToClientPayload,
 } from "@/lib/calls/elevenlabs";
 import {
   buildIvrPublicAudioUrl,
@@ -349,19 +349,17 @@ export async function POST(req: NextRequest) {
       previewText: text,
     });
   } catch (error) {
-    const safe = sanitizeElevenLabsErrorMessage(
-      error instanceof Error ? error.message : "FAILED"
-    );
-    console.error("[ivr/config POST]", safe);
+    const payload = voiceErrorToClientPayload(error);
+    console.error("[ivr/config POST]", {
+      error: payload.error,
+      providerStatus: payload.providerStatus,
+    });
     return NextResponse.json(
       {
         ok: false,
-        error:
-          safe === "ELEVENLABS_API_KEY_MISSING"
-            ? "ELEVENLABS_API_KEY_MISSING"
-            : safe.startsWith("ElevenLabs")
-              ? "TTS_FAILED"
-              : "FAILED",
+        error: payload.error === "VOICES_FAILED" ? "TTS_FAILED" : payload.error,
+        message: payload.message,
+        providerStatus: payload.providerStatus,
       },
       { status: 500 }
     );
