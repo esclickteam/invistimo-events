@@ -210,11 +210,13 @@ function buildGuestQuery({
   type,
   round,
   audience,
+  isScheduled = false,
 }: {
   invitationId: string;
   type: MessageType;
   round: RoundNumber;
   audience: string[];
+  isScheduled?: boolean;
 }) {
   if (type === "rsvp") {
     if (round === 1) {
@@ -227,7 +229,25 @@ function buildGuestQuery({
     };
   }
 
-  if (Array.isArray(audience) && audience.length > 0) {
+  if (type === "reminder" || type === "table" || type === "thankyou") {
+    /*
+      Scheduled: criteria only (confirmed guests). Immediate may use
+      an ID list computed at click time.
+    */
+    if (!isScheduled && Array.isArray(audience) && audience.length > 0) {
+      return {
+        invitationId,
+        _id: { $in: audience },
+      };
+    }
+
+    return {
+      invitationId,
+      rsvp: "yes",
+    };
+  }
+
+  if (!isScheduled && Array.isArray(audience) && audience.length > 0) {
     return {
       invitationId,
       _id: { $in: audience },
@@ -581,6 +601,7 @@ export async function POST(req: NextRequest) {
       type,
       round,
       audience,
+      isScheduled: Boolean(scheduledAtRaw),
     });
 
     const guestsCount = await InvitationGuest.countDocuments(guestQuery);
