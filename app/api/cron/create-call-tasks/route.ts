@@ -17,6 +17,7 @@ import {
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -998,6 +999,8 @@ async function loadScheduleCandidates(input: {
 
   for (const user of users) {
     if (!hasPhoneCallsEnabled(user)) continue;
+    // IVR packages use /api/cron/ivr-dial — never create human CallTasks for them.
+    if (isIvrCallsUser(user)) continue;
 
     const rounds = extractScheduledRoundsForDate(user, dateKey).filter(
       (roundInfo) =>
@@ -1057,6 +1060,8 @@ async function loadScheduleCandidates(input: {
     if (!rounds.length) continue;
 
     const clientUser = await findClientUserFromInvitation(invitation);
+
+    if (isIvrCallsUser(clientUser)) continue;
 
     for (const roundInfo of rounds) {
       const invitationId = extractIdString(invitation?._id);

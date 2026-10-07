@@ -73,8 +73,10 @@ type AdminUser = {
   maxMessages?: number;
 
   includeCalls?: boolean;
+  callsType?: "human" | "ivr";
   callsRounds?: number;
   callsAddonPrice?: number;
+  ivrConfig?: Record<string, unknown> | null;
 
   includeCreditGifts?: boolean;
   creditGiftsAddonPrice?: number;
@@ -194,6 +196,7 @@ type EditFormState = {
 type UpgradeFormState = {
   plan: string;
   includeCalls: boolean;
+  callsType: "human" | "ivr";
   includeCreditGifts: boolean;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
@@ -482,14 +485,17 @@ function getPriceByPlanAndRecords(
 function getCallsStatus(user: AdminUser) {
   if (!user.includeCalls) return "לא פעיל";
 
+  const typeLabel =
+    user.callsType === "ivr" ? "שיחות מוקלטות (IVR)" : "מוקד אנושי";
+
   if (
     typeof user.callsAddonPrice === "number" &&
     user.callsAddonPrice > 0
   ) {
-    return `פעיל · ${formatMoney(user.callsAddonPrice)}`;
+    return `${typeLabel} · ${formatMoney(user.callsAddonPrice)}`;
   }
 
-  return "פעיל";
+  return typeLabel;
 }
 
 function getRoleLabel(role: AdminRole) {
@@ -1986,6 +1992,10 @@ function EditUserModal({
   const [callRoundsSchedule, setCallRoundsSchedule] =
     useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
 
+  const [callsType, setCallsType] = useState<"human" | "ivr">(
+    user.callsType === "ivr" ? "ivr" : "human"
+  );
+
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
@@ -2048,6 +2058,11 @@ function EditUserModal({
         weddingChallenges: includeWeddingChallenges,
       },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      ...(user.includeCalls
+        ? {
+            callsType,
+          }
+        : {}),
       callRoundsSchedule: {
         ...callRoundsSchedule,
         rounds: callRoundsSchedule.rounds.map((round) => ({
@@ -2496,6 +2511,37 @@ function EditUserModal({
   onChange={setVenueSeatingService}
   purchasedMode
 />
+
+{user.includeCalls ? (
+  <section className="rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+    <h3 className="text-lg font-black text-[#3A2A1C]">סוג השיחות</h3>
+    <p className="mt-1 text-xs font-bold text-[#8A7867]">
+      מוקד אנושי שומר על הלוגיקה הקיימת. IVR מפעיל 3 סבבים מוקלטים בלבד.
+    </p>
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-[#FFFDF8] px-3 py-2 text-sm font-bold">
+        <input
+          type="radio"
+          name={`edit-callsType-${user._id}`}
+          checked={callsType === "human"}
+          onChange={() => setCallsType("human")}
+          className="accent-[#B97821]"
+        />
+        מוקד אנושי
+      </label>
+      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-[#FFFDF8] px-3 py-2 text-sm font-bold">
+        <input
+          type="radio"
+          name={`edit-callsType-${user._id}`}
+          checked={callsType === "ivr"}
+          onChange={() => setCallsType("ivr")}
+          className="accent-[#B97821]"
+        />
+        שיחות מוקלטות (IVR)
+      </label>
+    </div>
+  </section>
+) : null}
 
 <CallRoundsScheduleFields
   value={callRoundsSchedule}
@@ -3344,6 +3390,7 @@ function UpgradeUserModal({
   const [form, setForm] = useState<UpgradeFormState>({
     plan: currentPlanKey || pricingPlans[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
+    callsType: user.callsType === "ivr" ? "ivr" : "human",
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
@@ -3462,6 +3509,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3527,6 +3575,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3815,6 +3864,42 @@ const calculatedTotalToPay =
               );
             })}
           </div>
+
+          {form.includeCalls ? (
+            <div className="mt-4 rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-4">
+              <div className="font-black text-[#3A2A1C]">סוג השיחות</div>
+              <p className="mt-1 text-xs font-bold text-[#8A7867]">
+                בשלב זה אין ערבוב בין מוקד אנושי ל־IVR באותו אירוע. משתמשים
+                קיימים נשארים מוקד אנושי אלא אם בוחרים אחרת במפורש.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]">
+                  <input
+                    type="radio"
+                    name="callsType"
+                    checked={form.callsType === "human"}
+                    onChange={() =>
+                      setForm((prev) => ({ ...prev, callsType: "human" }))
+                    }
+                    className="accent-[#B97821]"
+                  />
+                  מוקד אנושי
+                </label>
+                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]">
+                  <input
+                    type="radio"
+                    name="callsType"
+                    checked={form.callsType === "ivr"}
+                    onChange={() =>
+                      setForm((prev) => ({ ...prev, callsType: "ivr" }))
+                    }
+                    className="accent-[#B97821]"
+                  />
+                  שיחות מוקלטות (IVR)
+                </label>
+              </div>
+            </div>
+          ) : null}
         </section>
 
 <VenueSeatingServiceFields

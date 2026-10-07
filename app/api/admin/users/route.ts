@@ -666,9 +666,11 @@ packageName
         isActive
 
         includeCalls
+        callsType
         callsRounds
         callsAddonPrice
         callRoundsSchedule
+        ivrConfig
 
         includeCreditGifts
         creditGiftsAddonPrice
@@ -1233,8 +1235,13 @@ packageName
           allowedMessageRounds,
 
           includeCalls: Boolean(u.includeCalls),
+          callsType:
+            String(u.callsType || "").trim().toLowerCase() === "ivr"
+              ? "ivr"
+              : "human",
           callsRounds: Number(u.callsRounds || 0),
           callsAddonPrice: Number(u.callsAddonPrice || 0),
+          ivrConfig: u.ivrConfig || null,
 
           includeCreditGifts,
           creditGiftsAddonPrice: includeCreditGifts && planData.includeCreditGifts
@@ -1684,6 +1691,13 @@ export async function POST(req: Request) {
       Boolean(limits?.includeCalls) ||
       Boolean(addons?.calls?.enabled);
 
+    const finalCallsType =
+      String(body?.callsType || body?.addons?.calls?.callsType || "")
+        .trim()
+        .toLowerCase() === "ivr"
+        ? "ivr"
+        : "human";
+
     const finalIncludeCreditGifts =
       Boolean(planData.includeCreditGifts) ||
       Boolean(addons?.credit?.enabled);
@@ -1749,6 +1763,7 @@ export async function POST(req: Request) {
       smsLimit: 0,
 
       includeCalls: finalIncludeCalls,
+      callsType: finalIncludeCalls ? finalCallsType : "human",
       callsRounds: finalIncludeCalls ? 3 : 0,
       callsAddonPrice: Number(addons?.calls?.price || 0),
       callRoundsSchedule: normalizeCallRoundsSchedule(
