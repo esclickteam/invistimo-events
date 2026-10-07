@@ -530,6 +530,17 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     isSmartOrSeating || user?.includeCalls || user?.planLimits?.callsEnabled
   );
 
+  const snapshotCallsType = String(
+    sale?.activationSnapshot?.callsType ||
+      sale?.callsType ||
+      user?.callsType ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  const callsType =
+    includeCalls && snapshotCallsType === "ivr" ? "ivr" : "human";
+
   const includeDigitalSeating = Boolean(
     isSeatingPackage || salesUpsells.digitalSeating.enabled
   );
@@ -598,6 +609,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     packageName: getSalePackageName(sale, plan),
     guests,
     includeCalls,
+    callsType,
     callsRounds: includeCalls ? 3 : 0,
     includeDigitalSeating,
     includeCreditGifts,
@@ -1075,6 +1087,9 @@ export async function POST(req: Request) {
           maxMessages: packageFlags.guests,
 
           includeCalls: packageFlags.includeCalls,
+          callsType: packageFlags.includeCalls
+            ? packageFlags.callsType || "human"
+            : "human",
           callsRounds: packageFlags.callsRounds,
           callsAddonPrice: 0,
           callsEnabledBy: packageFlags.includeCalls ? "stripe" : null,
@@ -1250,6 +1265,12 @@ export async function POST(req: Request) {
       toBool(session.metadata?.includeDigitalSeating);
 
     const addonCalls = toBool(session.metadata?.includeCalls);
+    const metadataCallsType =
+      String(session.metadata?.callsType || "")
+        .trim()
+        .toLowerCase() === "ivr"
+        ? "ivr"
+        : "human";
 
     const addonCredit = toBool(session.metadata?.includeCreditGifts);
 
@@ -1389,6 +1410,7 @@ export async function POST(req: Request) {
         smsLimit: 0,
 
         includeCalls: finalIncludeCalls,
+        callsType: finalIncludeCalls ? metadataCallsType : "human",
         includeCreditGifts: finalIncludeCreditGifts,
         includeDigitalSeating: finalAccessModules.rsvpSeating,
         includeEventManagement: finalAccessModules.eventProduction,

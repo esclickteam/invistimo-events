@@ -162,6 +162,13 @@ export async function POST(
     const maxMessages = safeNumber(body.maxMessages || body.smsLimit);
 
     const includeCalls = safeBoolean(body.includeCalls);
+    const callsType =
+      includeCalls &&
+      String(body.callsType || "")
+        .trim()
+        .toLowerCase() === "ivr"
+        ? "ivr"
+        : "human";
     const includeCreditGifts = safeBoolean(body.includeCreditGifts);
     const includeDigitalSeating = safeBoolean(body.includeDigitalSeating);
     const includeEventManagement = safeBoolean(body.includeEventManagement);
@@ -273,6 +280,7 @@ export async function POST(
         maxMessages: String(maxMessages || smsLimit || 0),
 
         includeCalls: String(includeCalls),
+        callsType,
         includeCreditGifts: String(includeCreditGifts),
         includeDigitalSeating: String(includeDigitalSeating),
         includeEventManagement: String(includeEventManagement),

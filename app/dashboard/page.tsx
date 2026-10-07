@@ -24,6 +24,7 @@ import CheckInHostClient from "@/app/dashboard/check-in/CheckInHostClient";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
+import IvrRoundsPanel from "../components/IvrRoundsPanel";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
@@ -4675,6 +4676,26 @@ function UserRsvpScheduleModal({
   invitation: any;
   onClose: () => void;
 }) {
+  const isIvr = user?.includeCalls && user?.callsType === "ivr";
+  const [ivrSchedule, setIvrSchedule] = useState(() => ({
+    enabled: true,
+    rounds: [1, 2, 3].map((roundNumber) => {
+      const existing = user?.callRoundsSchedule?.rounds?.find(
+        (item: any) => Number(item.roundNumber) === roundNumber
+      );
+      return {
+        roundNumber,
+        title: existing?.title || `סבב מוקלט ${roundNumber}`,
+        scheduledAt: existing?.scheduledAt
+          ? String(existing.scheduledAt).slice(0, 16)
+          : "",
+        notes: existing?.notes || "",
+      };
+    }),
+  }));
+  const [ivrScheduleSaving, setIvrScheduleSaving] = useState(false);
+  const [ivrScheduleMessage, setIvrScheduleMessage] = useState("");
+
   const items = useMemo(() => {
     return buildExistingRsvpSchedule(user, invitation);
   }, [user, invitation]);
@@ -4696,6 +4717,30 @@ function UserRsvpScheduleModal({
   const sentCount = items.filter((item) => item.done).length;
   const blockedCount = items.filter((item) => item.blocked).length;
 
+  async function saveIvrSchedule(next = ivrSchedule) {
+    setIvrScheduleSaving(true);
+    setIvrScheduleMessage("");
+    try {
+      const res = await fetch("/api/ivr/schedule", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rounds: next.rounds }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "שמירת תזמון נכשלה");
+      }
+      setIvrScheduleMessage("תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע.");
+    } catch (err) {
+      setIvrScheduleMessage(
+        err instanceof Error ? err.message : "שמירת תזמון נכשלה"
+      );
+    } finally {
+      setIvrScheduleSaving(false);
+    }
+  }
+
   return (
     <div
       dir="rtl"
@@ -4709,11 +4754,13 @@ function UserRsvpScheduleModal({
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#E9DDC8] bg-[#FFFDF8]/95 px-6 py-5 backdrop-blur">
           <div>
             <h2 className="text-2xl font-black text-[#241A14]">
-              לו״ז אישורי הגעה
+              {isIvr ? "שיחות מוקלטות (IVR)" : "לו״ז אישורי הגעה"}
             </h2>
 
             <p className="mt-1 text-sm font-bold text-[#8A7A68]">
-              כל הסבבים הקיימים: WhatsApp, SMS ושיחות.
+              {isIvr
+                ? "תזמון 3 סבבים מוקלטים, קריינות והיסטוריית חיוגים."
+                : "כל הסבבים הקיימים: WhatsApp, SMS ושיחות."}
             </p>
           </div>
 
@@ -4727,6 +4774,33 @@ function UserRsvpScheduleModal({
         </div>
 
         <div className="max-h-[calc(92vh-91px)] overflow-y-auto p-6">
+          {isIvr ? (
+            <div className="mb-6 space-y-3">
+              <IvrRoundsPanel
+                schedule={ivrSchedule}
+                onScheduleChange={(next) => {
+                  setIvrSchedule(next);
+                  saveIvrSchedule(next);
+                }}
+              />
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-bold text-[#8A7867]">
+                  {ivrScheduleSaving
+                    ? "שומר תזמון..."
+                    : ivrScheduleMessage || ""}
+                </div>
+                <button
+                  type="button"
+                  disabled={ivrScheduleSaving}
+                  onClick={() => saveIvrSchedule()}
+                  className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
+                >
+                  שמירת תזמון סבבים
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
             <ScheduleStatCard label="מתוזמנים" value={String(plannedCount)} />
             <ScheduleStatCard label="בוצעו" value={String(sentCount)} />

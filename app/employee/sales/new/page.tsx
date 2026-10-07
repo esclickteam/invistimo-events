@@ -9,6 +9,9 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import CallsTypeField, {
+  type CallsTypeValue,
+} from "@/app/components/admin/CallsTypeField";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 
@@ -1225,6 +1228,7 @@ export default function NewEmployeeSalePage() {
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
+  const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
   const [records, setRecords] = useState("300");
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() => createEmptyUpsells());
   const [venueSeatingStaffCount, setVenueSeatingStaffCount] = useState<VenueSeatingStaffCount>(2);
@@ -1272,6 +1276,7 @@ export default function NewEmployeeSalePage() {
   }, [packageCalculation.finalPrice, packageCalculation.records, selectedPlanKey]);
 
   const hasCallRounds = selectedPlanKey === "smart" || selectedPlanKey === "seating";
+  const packageIncludesCalls = hasCallRounds;
   const allowedCallRounds = hasCallRounds ? 3 : 0;
 
   const canGiveSuppliersBudgetFree = useMemo(() => {
@@ -1669,7 +1674,10 @@ export default function NewEmployeeSalePage() {
     generatedDocument?.type === "agreement" && generatedDocument.status === "signed";
 
   const isSubmitDisabled =
-    saving || finalGrossAmount <= 0 || !signedAgreementReady;
+    saving ||
+    finalGrossAmount <= 0 ||
+    !signedAgreementReady ||
+    (packageIncludesCalls && callsType !== "human" && callsType !== "ivr");
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1694,6 +1702,9 @@ export default function NewEmployeeSalePage() {
     if (!confirmCardOwner) missing.push("אישור שהלקוח/המשלם אישר שימוש בכרטיס");
     if (!confirmSaleSummary) missing.push("אישור שסוכמו מחיר ושירותים");
     if (!confirmTerms) missing.push("אישור שהוסברו תנאי תשלום וביטול");
+    if (packageIncludesCalls && callsType !== "human" && callsType !== "ivr") {
+      missing.push("סוג השיחות (מוקד אנושי / שיחות מוקלטות)");
+    }
 
     return missing;
   }
@@ -1716,6 +1727,9 @@ export default function NewEmployeeSalePage() {
     setSelectedPlanKey(nextPlan);
     if (nextPlan === "seating") {
       setSelectedUpsells((prev) => ({ ...prev, digitalSeating: false }));
+    }
+    if (nextPlan !== "smart" && nextPlan !== "seating") {
+      setCallsType("");
     }
   }
 
@@ -1896,6 +1910,8 @@ export default function NewEmployeeSalePage() {
           packageTargetPriceWithCalls,
           hasCallRounds,
           allowedCallRounds,
+          includeCalls: packageIncludesCalls,
+          callsType: packageIncludesCalls ? callsType : "human",
 
           createCustomerFile: true,
           saveToCustomerFile: true,
@@ -2173,7 +2189,17 @@ export default function NewEmployeeSalePage() {
                 })}
               </div>
             </section>
-            
+
+            {packageIncludesCalls ? (
+              <CallsTypeField
+                name="employee-sale-callsType"
+                value={callsType}
+                onChange={setCallsType}
+                required
+                className="rounded-[34px] border-[#eadfce] shadow-sm sm:p-6"
+                description="החבילה שנבחרה כוללת שירות שיחות. חובה לבחור האם הלקוח מקבל מוקד אנושי או שיחות מוקלטות (IVR)."
+              />
+            ) : null}
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-2xl font-black text-slate-950">תוספות ושירותים</h2>

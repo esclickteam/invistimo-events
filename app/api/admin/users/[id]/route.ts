@@ -461,6 +461,12 @@ export async function PATCH(
       ? Boolean(body.includeCalls)
       : undefined;
 
+    const nextCallsType = hasField(body, "callsType")
+      ? String(body.callsType || "").trim().toLowerCase() === "ivr"
+        ? "ivr"
+        : "human"
+      : undefined;
+
     const nextIncludeCreditGifts = hasField(body, "includeCreditGifts")
       ? Boolean(body.includeCreditGifts)
       : undefined;
@@ -683,6 +689,12 @@ export async function PATCH(
       maxMessages: nextSmsLimit,
 
       includeCalls: nextIncludeCalls,
+      callsType:
+        nextCallsType !== undefined
+          ? nextCallsType
+          : nextIncludeCalls === true && !currentUser.callsType
+            ? "human"
+            : undefined,
       callsRounds: hasField(body, "callsRounds")
         ? Number(body.callsRounds || 0)
         : nextIncludeCalls !== undefined

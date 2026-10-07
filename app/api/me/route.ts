@@ -1217,8 +1217,13 @@ export async function GET(req: Request) {
           },
 
           includeCalls: !!currentUser.includeCalls,
+          callsType:
+            String(currentUser.callsType || "").trim().toLowerCase() === "ivr"
+              ? "ivr"
+              : "human",
           callsRounds: currentUser.callsRounds ?? 0,
           callsAddonPrice: currentUser.callsAddonPrice ?? 0,
+          ivrConfig: currentUser.ivrConfig ?? null,
 
           callRoundsSchedule: currentUser.callRoundsSchedule ?? {
             enabled: false,

@@ -6,6 +6,7 @@ import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
+import CallsTypeField from "@/app/components/admin/CallsTypeField";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
@@ -73,8 +74,10 @@ type AdminUser = {
   maxMessages?: number;
 
   includeCalls?: boolean;
+  callsType?: "human" | "ivr";
   callsRounds?: number;
   callsAddonPrice?: number;
+  ivrConfig?: Record<string, unknown> | null;
 
   includeCreditGifts?: boolean;
   creditGiftsAddonPrice?: number;
@@ -194,6 +197,7 @@ type EditFormState = {
 type UpgradeFormState = {
   plan: string;
   includeCalls: boolean;
+  callsType: "human" | "ivr";
   includeCreditGifts: boolean;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
@@ -482,14 +486,17 @@ function getPriceByPlanAndRecords(
 function getCallsStatus(user: AdminUser) {
   if (!user.includeCalls) return "לא פעיל";
 
+  const typeLabel =
+    user.callsType === "ivr" ? "שיחות מוקלטות (IVR)" : "מוקד אנושי";
+
   if (
     typeof user.callsAddonPrice === "number" &&
     user.callsAddonPrice > 0
   ) {
-    return `פעיל · ${formatMoney(user.callsAddonPrice)}`;
+    return `${typeLabel} · ${formatMoney(user.callsAddonPrice)}`;
   }
 
-  return "פעיל";
+  return typeLabel;
 }
 
 function getRoleLabel(role: AdminRole) {
@@ -1986,6 +1993,10 @@ function EditUserModal({
   const [callRoundsSchedule, setCallRoundsSchedule] =
     useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
 
+  const [callsType, setCallsType] = useState<"human" | "ivr">(
+    user.callsType === "ivr" ? "ivr" : "human"
+  );
+
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
@@ -2048,6 +2059,11 @@ function EditUserModal({
         weddingChallenges: includeWeddingChallenges,
       },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      ...(user.includeCalls
+        ? {
+            callsType,
+          }
+        : {}),
       callRoundsSchedule: {
         ...callRoundsSchedule,
         rounds: callRoundsSchedule.rounds.map((round) => ({
@@ -2274,6 +2290,16 @@ function EditUserModal({
             </span>
           </div>
         </section>
+
+        {user.includeCalls ? (
+          <CallsTypeField
+            name={`edit-callsType-${user._id}`}
+            value={callsType}
+            onChange={setCallsType}
+            required
+            description="מוקד אנושי שומר על הלוגיקה הקיימת. שיחות מוקלטות (IVR) מפעילות 3 סבבים מוקלטים, הגדרת הקלטה/AI ו־callback אוטומטי."
+          />
+        ) : null}
 
         <section
           className="
@@ -3344,6 +3370,7 @@ function UpgradeUserModal({
   const [form, setForm] = useState<UpgradeFormState>({
     plan: currentPlanKey || pricingPlans[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
+    callsType: user.callsType === "ivr" ? "ivr" : "human",
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
@@ -3442,7 +3469,10 @@ const calculatedTotalToPay =
   const canSubmit =
     Boolean(form.plan) &&
     Boolean(selectedRecords) &&
-    manualTotalToPay >= 0;
+    manualTotalToPay >= 0 &&
+    (!form.includeCalls ||
+      form.callsType === "human" ||
+      form.callsType === "ivr");
 
   async function saveManualPaidUpgrade() {
   const res = await fetch(`/api/admin/users/${user._id}`, {
@@ -3462,6 +3492,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3527,6 +3558,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3815,6 +3847,20 @@ const calculatedTotalToPay =
               );
             })}
           </div>
+
+          {form.includeCalls ? (
+            <div className="mt-4">
+              <CallsTypeField
+                name={`upgrade-callsType-${user._id}`}
+                value={form.callsType}
+                onChange={(next) =>
+                  setForm((prev) => ({ ...prev, callsType: next }))
+                }
+                required
+                description="בשלב זה אין ערבוב בין מוקד אנושי ל־IVR באותו אירוע. משתמשים קיימים ללא בחירה מפורשת נשארים מוקד אנושי."
+              />
+            </div>
+          ) : null}
         </section>
 
 <VenueSeatingServiceFields

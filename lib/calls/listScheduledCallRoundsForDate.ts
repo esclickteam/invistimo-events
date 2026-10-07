@@ -8,6 +8,7 @@ import {
   getSourceAudienceByRound,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { isHumanCallsUser, normalizeCallsType } from "@/lib/calls/callsType";
 
 export type ListedScheduledCallRound = {
   key: string;
@@ -78,10 +79,18 @@ export async function listScheduledCallRoundsForIsraelDate(
       { "callRoundsSchedule.rounds.scheduledAt": { $exists: true } },
     ],
   })
-    .select("_id name email includeCalls callRoundsSchedule")
+    .select("_id name email includeCalls callsType callRoundsSchedule")
     .lean()) as any[];
 
   const relevant = users
+    .filter((user) => {
+      // Human call-center schedule board only — IVR has its own dialer/dashboard.
+      if (user?.includeCalls === true) {
+        return isHumanCallsUser(user);
+      }
+      // Legacy rows without includeCalls but with schedule: treat missing type as human.
+      return normalizeCallsType(user?.callsType) === "human";
+    })
     .map((user) => {
       const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
         ? user.callRoundsSchedule.rounds
