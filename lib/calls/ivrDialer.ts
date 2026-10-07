@@ -84,7 +84,12 @@ export async function listDueIvrRounds(input?: {
       cleanStr(intro?.audioUrl) ||
       (token ? buildIvrPublicAudioUrl(token) : "");
 
-    if (!introAudioUrl || intro?.status !== "ready") {
+    // Real dials require ready + client-approved audio only.
+    if (
+      !introAudioUrl ||
+      intro?.status !== "ready" ||
+      intro?.approved !== true
+    ) {
       continue;
     }
 

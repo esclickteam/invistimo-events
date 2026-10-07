@@ -99,6 +99,8 @@ export async function POST(req: NextRequest) {
         durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
         generatedAt: new Date(),
         textSnapshot: "",
+        approved: false,
+        approvedAt: null,
       },
       updatedAt: new Date(),
     };

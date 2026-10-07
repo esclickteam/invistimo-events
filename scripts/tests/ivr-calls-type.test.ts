@@ -86,23 +86,21 @@ test("DTMF guest count rejects above max and empty", () => {
   assert.equal(parseDtmfGuestCount("", 5).ok, false);
 });
 
-test("AI intro template uses variables; pronunciation hash differs", () => {
+test("AI intro template uses event name variable", () => {
   const text = buildIvrIntroText({
-    eventTypeLabel: "חתונה",
-    hostsNames: "הדס ורועי",
+    eventName: "החתונה של הדס ורועי",
   });
-  assert.match(text, /חתונה של הדס ורועי/);
+  assert.match(text, /בנוגע לחתונה של הדס ורועי/);
   assert.match(text, /הקישו 1/);
+  assert.doesNotMatch(text, /של הדס ורועי של/);
 
   const h1 = contentHashForIvrIntro({
-    eventTypeLabel: "חתונה",
-    hostsNames: "הדס ורועי",
+    eventName: "החתונה של הדס ורועי",
     voiceId: "v1",
   });
   const h2 = contentHashForIvrIntro({
-    eventTypeLabel: "חתונה",
-    hostsNames: "הדס ורועי",
-    hostsNamesPronunciation: "הדאס ורועיי",
+    eventName: "החתונה של הדס ורועי",
+    eventNamePronunciation: "החתונה של הדאס ורועיי",
     voiceId: "v1",
   });
   assert.notEqual(h1, h2);
@@ -122,4 +120,3 @@ test("ElevenLabs error sanitizer redacts key material", () => {
     else process.env.ELEVENLABS_API_KEY = previous;
   }
 });
-

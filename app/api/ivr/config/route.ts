@@ -9,6 +9,8 @@ import {
   contentHashForIvrIntro,
   IVR_SELF_RECORD_MAX_SECONDS,
   IVR_SELF_RECORD_RECOMMENDED_SECONDS,
+  resolveIvrEventName,
+  resolveIvrEventNamePronunciation,
 } from "@/lib/calls/ivrScript";
 import {
   sanitizeElevenLabsErrorMessage,
@@ -45,6 +47,32 @@ async function getAuthedIvrUser(req: NextRequest) {
   return { user, isAdmin: false };
 }
 
+function serializeIvrConfig(cfg: any) {
+  const eventName = resolveIvrEventName(cfg);
+  const eventNamePronunciation = resolveIvrEventNamePronunciation(cfg);
+  const previewText = buildIvrRecommendedScriptForDisplay({ eventName });
+
+  return {
+    audioMode: cfg?.audioMode || null,
+    eventName,
+    eventNamePronunciation,
+    voiceId: String(cfg?.voiceId || ""),
+    introAudio: cfg?.introAudio || { status: "missing", approved: false },
+    previewText,
+    recommendedScript: previewText,
+    selfRecordMaxSeconds: IVR_SELF_RECORD_MAX_SECONDS,
+    selfRecordRecommendedSeconds: IVR_SELF_RECORD_RECOMMENDED_SECONDS,
+    systemPromptTexts: {
+      askGuestCount:
+        "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
+      thanksAttending:
+        "תודה רבה. אישור ההגעה שלכם התקבל. נתראה בשמחות.",
+      thanksReceived: "תודה רבה. תשובתכם התקבלה.",
+      invalidInput: "לא הצלחנו לזהות את הבחירה. אנא נסו שוב.",
+    },
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await getAuthedIvrUser(req);
@@ -69,27 +97,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
-    const cfg = user.ivrConfig || {};
-    const vars = {
-      eventTypeLabel: String(cfg.eventTypeLabel || ""),
-      hostsNames: String(cfg.hostsNames || ""),
-    };
-
     return NextResponse.json({
       ok: true,
       callsType: user.callsType || "human",
       includeCalls: Boolean(user.includeCalls),
-      ivrConfig: {
-        audioMode: cfg.audioMode || null,
-        eventTypeLabel: vars.eventTypeLabel,
-        hostsNames: vars.hostsNames,
-        hostsNamesPronunciation: String(cfg.hostsNamesPronunciation || ""),
-        voiceId: String(cfg.voiceId || ""),
-        introAudio: cfg.introAudio || { status: "missing" },
-        recommendedScript: buildIvrRecommendedScriptForDisplay(vars),
-        selfRecordMaxSeconds: IVR_SELF_RECORD_MAX_SECONDS,
-        selfRecordRecommendedSeconds: IVR_SELF_RECORD_RECOMMENDED_SECONDS,
-      },
+      ivrConfig: serializeIvrConfig(user.ivrConfig || {}),
       callRoundsSchedule: user.callRoundsSchedule || { enabled: false, rounds: [] },
     });
   } catch (error) {
@@ -125,42 +137,74 @@ export async function PATCH(req: NextRequest) {
     }
 
     const prev = user.ivrConfig || {};
-    const nextEventType = body.eventTypeLabel ?? prev.eventTypeLabel ?? "";
-    const nextHosts = body.hostsNames ?? prev.hostsNames ?? "";
-    const nextPronunciation =
-      body.hostsNamesPronunciation ?? prev.hostsNamesPronunciation ?? "";
-    const nextVoice = body.voiceId ?? prev.voiceId ?? "";
+    const action = String(body.action || "").trim();
+
+    // Approve / unapprove stored audio without regenerating.
+    if (action === "approve_audio") {
+      const intro = prev.introAudio || {};
+      if (intro.status !== "ready" || !intro.audioUrl) {
+        return NextResponse.json(
+          { ok: false, error: "AUDIO_NOT_READY" },
+          { status: 400 }
+        );
+      }
+
+      user.ivrConfig = {
+        ...(prev as any),
+        introAudio: {
+          ...intro,
+          approved: true,
+          approvedAt: new Date(),
+        },
+        updatedAt: new Date(),
+      };
+      await user.save();
+      return NextResponse.json({
+        ok: true,
+        ivrConfig: serializeIvrConfig(user.ivrConfig),
+      });
+    }
+
+    const nextEventName = String(
+      body.eventName ?? resolveIvrEventName(prev) ?? ""
+    ).trim();
+    const nextPronunciation = String(
+      body.eventNamePronunciation ??
+        resolveIvrEventNamePronunciation(prev) ??
+        ""
+    ).trim();
+    const nextVoice = String(body.voiceId ?? prev.voiceId ?? "").trim();
     const nextMode = body.audioMode ?? prev.audioMode ?? null;
 
     const hash = contentHashForIvrIntro({
-      eventTypeLabel: String(nextEventType),
-      hostsNames: String(nextHosts),
-      hostsNamesPronunciation: String(nextPronunciation),
-      voiceId: String(nextVoice),
+      eventName: nextEventName,
+      eventNamePronunciation: nextPronunciation,
+      voiceId: nextVoice,
     });
 
-    let introAudio = prev.introAudio || { status: "missing" };
+    let introAudio = prev.introAudio || { status: "missing", approved: false };
     const prevHash = String(introAudio?.contentHash || "");
+    const fieldsChanged =
+      (prevHash && hash !== prevHash) ||
+      String(resolveIvrEventName(prev)) !== nextEventName ||
+      String(resolveIvrEventNamePronunciation(prev)) !== nextPronunciation ||
+      String(prev.voiceId || "") !== nextVoice;
 
-    if (
-      introAudio?.status === "ready" &&
-      prevHash &&
-      hash !== prevHash &&
-      nextMode === "ai"
-    ) {
+    if (introAudio?.status === "ready" && fieldsChanged && nextMode === "ai") {
       introAudio = {
         ...introAudio,
         status: "stale",
+        approved: false,
+        approvedAt: null,
       };
     }
 
     user.ivrConfig = {
       ...(prev as any),
       audioMode: nextMode,
-      eventTypeLabel: String(nextEventType || "").trim(),
-      hostsNames: String(nextHosts || "").trim(),
-      hostsNamesPronunciation: String(nextPronunciation || "").trim(),
-      voiceId: String(nextVoice || "").trim(),
+      eventName: nextEventName,
+      eventNamePronunciation: nextPronunciation,
+      voiceId: nextVoice,
       introAudio,
       updatedAt: new Date(),
     };
@@ -169,12 +213,11 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      ivrConfig: user.ivrConfig,
-      recommendedScript: buildIvrRecommendedScriptForDisplay({
-        eventTypeLabel: String(nextEventType),
-        hostsNames: String(nextHosts),
-      }),
+      ivrConfig: serializeIvrConfig(user.ivrConfig),
       needsRegenerate: introAudio?.status === "stale",
+      needsApproval: Boolean(
+        introAudio?.status === "ready" && !introAudio?.approved
+      ),
     });
   } catch (error) {
     console.error("[ivr/config PATCH]", error);
@@ -185,7 +228,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-/** Generate AI intro once and store permanently. */
+/** Generate AI intro once and store permanently (no per-call TTS). */
 export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthedIvrUser(req);
@@ -219,14 +262,17 @@ export async function POST(req: NextRequest) {
     }
 
     const cfg = user.ivrConfig || {};
-    const eventTypeLabel = String(body.eventTypeLabel || cfg.eventTypeLabel || "").trim();
-    const hostsNames = String(body.hostsNames || cfg.hostsNames || "").trim();
-    const hostsNamesPronunciation = String(
-      body.hostsNamesPronunciation || cfg.hostsNamesPronunciation || ""
+    const eventName = String(
+      body.eventName || resolveIvrEventName(cfg) || ""
+    ).trim();
+    const eventNamePronunciation = String(
+      body.eventNamePronunciation ||
+        resolveIvrEventNamePronunciation(cfg) ||
+        ""
     ).trim();
     const voiceId = String(body.voiceId || cfg.voiceId || "").trim();
 
-    if (!eventTypeLabel || !hostsNames || !voiceId) {
+    if (!eventName || !voiceId) {
       return NextResponse.json(
         { ok: false, error: "MISSING_FIELDS" },
         { status: 400 }
@@ -234,19 +280,17 @@ export async function POST(req: NextRequest) {
     }
 
     const text = buildIvrIntroText({
-      eventTypeLabel,
-      hostsNames,
-      hostsNamesPronunciation,
+      eventName,
+      eventNamePronunciation,
     });
 
     const hash = contentHashForIvrIntro({
-      eventTypeLabel,
-      hostsNames,
-      hostsNamesPronunciation,
+      eventName,
+      eventNamePronunciation,
       voiceId,
     });
 
-    // Reuse existing audio if hash matches and ready.
+    // Reuse existing audio if hash matches and ready — never re-TTS on Play.
     if (
       cfg.introAudio?.status === "ready" &&
       cfg.introAudio?.contentHash === hash &&
@@ -258,6 +302,7 @@ export async function POST(req: NextRequest) {
         reused: true,
         introAudio: cfg.introAudio,
         text,
+        previewText: text,
       });
     }
 
@@ -276,9 +321,8 @@ export async function POST(req: NextRequest) {
     user.ivrConfig = {
       ...(cfg as any),
       audioMode: "ai",
-      eventTypeLabel,
-      hostsNames,
-      hostsNamesPronunciation,
+      eventName,
+      eventNamePronunciation,
       voiceId,
       introAudio: {
         status: "ready",
@@ -291,15 +335,21 @@ export async function POST(req: NextRequest) {
         durationSeconds: null,
         generatedAt: new Date(),
         textSnapshot: text,
+        approved: false,
+        approvedAt: null,
       },
       updatedAt: new Date(),
     };
 
     await user.save();
 
-    // Best-effort: warm system prompts with same voice.
     ensureAllIvrSystemPrompts(voiceId).catch((err) => {
-      console.warn("[ivr/config] system prompts warm failed", err);
+      console.warn(
+        "[ivr/config] system prompts warm failed",
+        sanitizeElevenLabsErrorMessage(
+          err instanceof Error ? err.message : "warm_failed"
+        )
+      );
     });
 
     return NextResponse.json({
@@ -307,6 +357,7 @@ export async function POST(req: NextRequest) {
       reused: false,
       introAudio: user.ivrConfig.introAudio,
       text,
+      previewText: text,
     });
   } catch (error) {
     const safe = sanitizeElevenLabsErrorMessage(

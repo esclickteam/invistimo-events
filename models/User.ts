@@ -232,8 +232,15 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
    */
   ivrConfig?: {
     audioMode?: "ai" | "self_recorded" | null;
+    /** Free-text event name shown in the IVR script, e.g. "החתונה של הדס ורועי" */
+    eventName?: string;
+    /** Optional TTS-only pronunciation; never replaces displayed eventName. */
+    eventNamePronunciation?: string;
+    /** @deprecated legacy — mapped to eventName via resolveIvrEventName */
     eventTypeLabel?: string;
+    /** @deprecated legacy */
     hostsNames?: string;
+    /** @deprecated legacy — mapped to eventNamePronunciation */
     hostsNamesPronunciation?: string;
     voiceId?: string;
     introAudio?: {
@@ -247,6 +254,9 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       durationSeconds?: number | null;
       generatedAt?: Date | null;
       textSnapshot?: string;
+      /** Client must approve before real IVR dials may use this audio. */
+      approved?: boolean;
+      approvedAt?: Date | null;
     };
     updatedAt?: Date | null;
   };
@@ -1092,6 +1102,17 @@ preRsvpMessages: {
         enum: ["ai", "self_recorded", null],
         default: null,
       },
+      eventName: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      eventNamePronunciation: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      // Legacy fields kept for backward-compatible reads only.
       eventTypeLabel: {
         type: String,
         trim: true,
@@ -1161,6 +1182,14 @@ preRsvpMessages: {
           type: String,
           trim: true,
           default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
         },
       },
       updatedAt: {
