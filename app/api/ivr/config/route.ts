@@ -15,6 +15,7 @@ import {
 } from "@/lib/calls/ivrScript";
 import {
   getDefaultIvrVoiceId,
+  sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
   voiceErrorToClientPayload,
 } from "@/lib/calls/elevenlabs";
