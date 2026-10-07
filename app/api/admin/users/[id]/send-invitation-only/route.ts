@@ -14,11 +14,11 @@ import {
 } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
   filterGuestsByInvitationAudience,
-  findGuestIdsWithInvitationSendAttempt,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
   buildInvitationLocationLabel,
 } from "@/lib/messages/invitationOnlyDetails";
+import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 

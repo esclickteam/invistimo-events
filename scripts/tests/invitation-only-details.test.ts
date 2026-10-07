@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   buildInvitationLocationLabel,
@@ -59,4 +61,34 @@ test("invitation image prefers permanent invite fields and pre-rsvp media", () =
     }),
     "https://cdn.example.com/header.png"
   );
+});
+
+test("invitation-only helpers used by client pages must not import mongoose models", () => {
+  const details = readFileSync(
+    join(process.cwd(), "lib/messages/invitationOnlyDetails.ts"),
+    "utf8"
+  );
+  const page = readFileSync(
+    join(process.cwd(), "app/dashboard/messages/new/page.tsx"),
+    "utf8"
+  );
+
+  const importLines = (source: string) =>
+    source
+      .split("\n")
+      .filter((line) => /^\s*import\s/.test(line) || /from ["']/.test(line))
+      .join("\n");
+
+  const detailsImports = importLines(details);
+  const pageImports = importLines(page);
+
+  assert.doesNotMatch(detailsImports, /from ["']@\/models\//);
+  assert.doesNotMatch(detailsImports, /mongoose/);
+  assert.doesNotMatch(detailsImports, /invitationOnlySendHistory/);
+  assert.match(
+    pageImports,
+    /from ["']@\/lib\/messages\/invitationOnlyDetails["']/
+  );
+  assert.doesNotMatch(pageImports, /invitationOnlySendHistory/);
+  assert.doesNotMatch(pageImports, /from ["']@\/models\//);
 });
