@@ -66,8 +66,9 @@ test("admin + employee sales APIs reject missing callsType for calls packages", 
   assert.match(employee, /callsType/);
 });
 
-test("dashboard shows IvrRoundsPanel only for callsType=ivr", () => {
+test("dashboard RSVP schedule routes IVR clients to recorded-calls management", () => {
   const dash = readSrc("app/dashboard/page.tsx");
-  assert.match(dash, /callsType === "ivr"/);
-  assert.match(dash, /IvrRoundsPanel/);
+  assert.match(dash, /isIvrCallsUser/);
+  assert.match(dash, /\/dashboard\/recorded-calls/);
+  assert.match(dash, /מעבר לשיחות מוקלטות/);
 });

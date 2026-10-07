@@ -24,11 +24,16 @@ import CheckInHostClient from "@/app/dashboard/check-in/CheckInHostClient";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
-import IvrRoundsPanel from "../components/IvrRoundsPanel";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 import { formatCallRoundDateOnlyDisplay } from "@/lib/calls/callRoundScheduleTime";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
+import {
+  callRoundChannelLabel,
+  callRoundScheduleGroup,
+  callRoundScheduleLabel,
+} from "@/lib/calls/ivrRoundLabels";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
@@ -4676,25 +4681,7 @@ function UserRsvpScheduleModal({
   invitation: any;
   onClose: () => void;
 }) {
-  const isIvr = user?.includeCalls && user?.callsType === "ivr";
-  const [ivrSchedule, setIvrSchedule] = useState(() => ({
-    enabled: true,
-    rounds: [1, 2, 3].map((roundNumber) => {
-      const existing = user?.callRoundsSchedule?.rounds?.find(
-        (item: any) => Number(item.roundNumber) === roundNumber
-      );
-      return {
-        roundNumber,
-        title: existing?.title || `סבב מוקלט ${roundNumber}`,
-        scheduledAt: existing?.scheduledAt
-          ? String(existing.scheduledAt).slice(0, 16)
-          : "",
-        notes: existing?.notes || "",
-      };
-    }),
-  }));
-  const [ivrScheduleSaving, setIvrScheduleSaving] = useState(false);
-  const [ivrScheduleMessage, setIvrScheduleMessage] = useState("");
+  const isIvr = isIvrCallsUser(user);
 
   const items = useMemo(() => {
     return buildExistingRsvpSchedule(user, invitation);
@@ -4717,30 +4704,6 @@ function UserRsvpScheduleModal({
   const sentCount = items.filter((item) => item.done).length;
   const blockedCount = items.filter((item) => item.blocked).length;
 
-  async function saveIvrSchedule(next = ivrSchedule) {
-    setIvrScheduleSaving(true);
-    setIvrScheduleMessage("");
-    try {
-      const res = await fetch("/api/ivr/schedule", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rounds: next.rounds }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "שמירת תזמון נכשלה");
-      }
-      setIvrScheduleMessage("תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע.");
-    } catch (err) {
-      setIvrScheduleMessage(
-        err instanceof Error ? err.message : "שמירת תזמון נכשלה"
-      );
-    } finally {
-      setIvrScheduleSaving(false);
-    }
-  }
-
   return (
     <div
       dir="rtl"
@@ -4754,12 +4717,12 @@ function UserRsvpScheduleModal({
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#E9DDC8] bg-[#FFFDF8]/95 px-6 py-5 backdrop-blur">
           <div>
             <h2 className="text-2xl font-black text-[#241A14]">
-              {isIvr ? "שיחות מוקלטות (IVR)" : "לו״ז אישורי הגעה"}
+              לו״ז אישורי הגעה
             </h2>
 
             <p className="mt-1 text-sm font-bold text-[#8A7A68]">
               {isIvr
-                ? "תזמון 3 סבבים מוקלטים, קריינות והיסטוריית חיוגים."
+                ? "WhatsApp, SMS וסבבי שיחות מוקלטות (IVR) — ללא מוקד אנושי."
                 : "כל הסבבים הקיימים: WhatsApp, SMS ושיחות."}
             </p>
           </div>
@@ -4775,30 +4738,19 @@ function UserRsvpScheduleModal({
 
         <div className="max-h-[calc(92vh-91px)] overflow-y-auto p-6">
           {isIvr ? (
-            <div className="mb-6 space-y-3">
-              <IvrRoundsPanel
-                schedule={ivrSchedule}
-                onScheduleChange={(next: any) => {
-                  setIvrSchedule(next);
-                  saveIvrSchedule(next);
-                }}
-                userId={user?._id || user?.id || ""}
-              />
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-bold text-[#8A7867]">
-                  {ivrScheduleSaving
-                    ? "שומר תזמון..."
-                    : ivrScheduleMessage || ""}
-                </div>
-                <button
-                  type="button"
-                  disabled={ivrScheduleSaving}
-                  onClick={() => saveIvrSchedule()}
-                  className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
-                >
-                  שמירת תזמון סבבים
-                </button>
+            <div className="mb-6 rounded-2xl border border-[#E7D8C6] bg-[#FFF8EE] px-4 py-3">
+              <div className="text-sm font-black text-[#3A2A1C]">
+                ניהול השיחות המוקלטות נמצא במסך ייעודי
               </div>
+              <p className="mt-1 text-xs font-bold text-[#8A7867]">
+                תזמון סבבים, קריינות AI / הקלטה עצמית, אישור הודעה ותצוגה מקדימה.
+              </p>
+              <a
+                href="/dashboard/recorded-calls"
+                className="mt-3 inline-flex rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
+              >
+                מעבר לשיחות מוקלטות
+              </a>
             </div>
           ) : null}
 
@@ -4818,7 +4770,10 @@ function UserRsvpScheduleModal({
             <div className="space-y-3">
               {sortedItems.map((item) => {
                 const isCallsRound =
-                  item.channel === "calls" || item.group === "סבבי שיחות";
+                  item.channel === "calls" ||
+                  item.channel === "ivr" ||
+                  item.group === "סבבי שיחות" ||
+                  item.group === "סבבי שיחות מוקלטות";
 
                 const scheduledAtText = isCallsRound
                   ? formatCallRoundDateOnlyDisplay(item.scheduledAt)
@@ -4973,6 +4928,7 @@ function formatScheduleDateTimeWithWeekday(value?: string | null) {
 function getScheduleChannelLabel(channel?: string | null) {
   if (channel === "whatsapp") return "WhatsApp";
   if (channel === "sms") return "SMS";
+  if (channel === "ivr") return "שיחות מוקלטות";
   if (channel === "calls") return "שיחות";
   return "";
 }
@@ -5087,6 +5043,9 @@ function buildScheduleFromUserMessageRounds(
 
   if (!messageRounds) return null;
 
+  const callsGroup = callRoundScheduleGroup(user);
+  const callsChannel = isIvrCallsUser(user) ? "ivr" : "calls";
+
   const normalizeItem = (
     item: any,
     group: string,
@@ -5121,7 +5080,7 @@ function buildScheduleFromUserMessageRounds(
 
     ...(Array.isArray(messageRounds.calls)
       ? messageRounds.calls.map((item: any) =>
-          normalizeItem(item, "סבבי שיחות", "📞", "calls")
+          normalizeItem(item, callsGroup, "📞", callsChannel)
         )
       : []),
 
@@ -5160,23 +5119,19 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       userRound?.status === "done" ||
       Boolean(userRound?.openedAt);
 
+    const channel = isIvrCallsUser(user) ? "ivr" : "calls";
+
     return {
       key: `call_round_${round}`,
-          label: `סבב שיחות ${round} · ${
-            round === 1
-              ? "ממתינים שעדיין לא נתנו תשובה"
-              : round === 2
-                ? "לא ענו בסבב 1"
-                : "לא ענו בסבבים 1–2 + מתלבטים"
-          }`,
-      group: "סבבי שיחות",
+      label: callRoundScheduleLabel(user, round),
+      group: callRoundScheduleGroup(user),
       icon: "📞",
       done: opened,
       blocked: false,
       sentAt: userRound?.openedAt || null,
       scheduledAt: userRound?.scheduledAt || null,
-      channel: "calls",
-      channelLabel: "שיחות",
+      channel,
+      channelLabel: callRoundChannelLabel(user),
       tasksCreated:
         typeof userRound?.tasksCreated === "number"
           ? userRound.tasksCreated

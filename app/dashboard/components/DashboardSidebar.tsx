@@ -29,6 +29,7 @@ import {
   hasWeddingWebsiteFeature,
 } from "@/lib/features/entitlements";
 import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { isPersonalRsvpSite } from "@/types/rsvpSite";
 
 export type DashboardSidebarProps = {
@@ -167,6 +168,7 @@ export default function DashboardSidebar({
     checkInEnabled &&
     userCanAccessCheckIn(user as any);
   const canCallRounds = !gameOnly && user?.includeCalls === true;
+  const isIvrCalls = canCallRounds && isIvrCallsUser(user);
   const invitationLooksLikeWebsite = isPersonalRsvpSite(
     rsvpSiteMode ?? guestExperienceType
   );
@@ -298,9 +300,17 @@ export default function DashboardSidebar({
         match: (path) => path.includes("/dashboard/seating"),
       },
       {
+        id: "recorded-calls",
+        label: "שיחות מוקלטות",
+        icon: Phone,
+        href: "/dashboard/recorded-calls",
+        hidden: !isIvrCalls,
+        match: (path) => path.startsWith("/dashboard/recorded-calls"),
+      },
+      {
         id: "call-rounds",
         label: "לו״ז אישורי הגעה",
-        icon: Phone,
+        icon: CalendarDays,
         href: `${dashboardHome}?action=calls`,
         query: "calls",
         hidden: !canCallRounds,
@@ -389,6 +399,7 @@ export default function DashboardSidebar({
     dashboardHome,
     unreadGuestMessages,
     canCallRounds,
+    isIvrCalls,
     canCheckIn,
     canWeddingWebsite,
     canGuestMessages,
