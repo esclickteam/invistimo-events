@@ -231,3 +231,14 @@ test("extra) browser simulator exists and does not call Telnyx", () => {
   assert.match(ui, /ללא שיחת Telnyx/);
   assert.equal(ui.includes("api/telnyx"), false);
 });
+
+test("extra) inbound callback IVR is gated to callsType=ivr only", () => {
+  const voice = readSrc("app/api/telnyx/voice/webhook/route.ts");
+  assert.match(voice, /tryStartInboundIvr/);
+  assert.match(voice, /inboundIvrHandled/);
+  const resolve = readSrc("lib/calls/ivrInboundResolve.ts");
+  assert.match(resolve, /callsType:\s*"ivr"/);
+  assert.match(resolve, /isIvrCallsUser/);
+  const softphone = readSrc("lib/telnyx/inboundRouting.ts");
+  assert.equal(softphone.includes("tryStartInboundIvr"), false);
+});

@@ -121,8 +121,69 @@ export async function createIvrOutboundCall(input: {
   };
 }
 
-export async function answerIvrCall(callControlId: string) {
-  return telnyxCallAction(callControlId, "answer", {});
+export async function answerIvrCall(
+  callControlId: string,
+  options?: {
+    webhookUrl?: string;
+    clientState?: Record<string, unknown>;
+  }
+) {
+  return telnyxCallAction(callControlId, "answer", {
+    ...(options?.webhookUrl
+      ? {
+          webhook_url: options.webhookUrl,
+          webhook_url_method: "POST",
+        }
+      : {}),
+    ...(options?.clientState
+      ? { client_state: encodeIvrClientState(options.clientState) }
+      : {}),
+  });
+}
+
+/** Dynamic TTS gather (inbound intro fallback when ElevenLabs audio is unavailable). */
+export async function gatherIvrUsingSpeak(input: {
+  callControlId: string;
+  text: string;
+  language?: string;
+  voice?: string;
+  minimumDigits?: number;
+  maximumDigits?: number;
+  timeoutMillis?: number;
+  terminatingDigit?: string;
+  validDigits?: string;
+  clientState?: Record<string, unknown>;
+}) {
+  return telnyxCallAction(input.callControlId, "gather_using_speak", {
+    payload: input.text,
+    language: input.language || "he-IL",
+    voice: input.voice || "female",
+    minimum_digits: input.minimumDigits ?? 1,
+    maximum_digits: input.maximumDigits ?? 1,
+    timeout_millis: input.timeoutMillis ?? 12000,
+    ...(input.terminatingDigit
+      ? { terminating_digit: input.terminatingDigit }
+      : {}),
+    ...(input.validDigits ? { valid_digits: input.validDigits } : {}),
+    ...(input.clientState
+      ? { client_state: encodeIvrClientState(input.clientState) }
+      : {}),
+  });
+}
+
+export async function speakIvrCall(
+  callControlId: string,
+  text: string,
+  clientState?: Record<string, unknown>
+) {
+  return telnyxCallAction(callControlId, "speak", {
+    payload: text,
+    language: "he-IL",
+    voice: "female",
+    ...(clientState
+      ? { client_state: encodeIvrClientState(clientState) }
+      : {}),
+  });
 }
 
 export async function playbackIvrAudio(

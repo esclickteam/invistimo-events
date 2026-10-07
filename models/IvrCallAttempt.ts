@@ -1,8 +1,8 @@
 import mongoose, { Schema, Types, type Model } from "mongoose";
 
 /**
- * One outbound IVR dial attempt for a specific guest/record.
- * Always linked to guestId before dialing. RSVP updates use InvitationGuest.rsvp / arrivedCount.
+ * One IVR call attempt (outbound dial or inbound callback) for a guest/record.
+ * Always linked to guestId before dialing/claiming. RSVP updates use InvitationGuest.rsvp / arrivedCount.
  */
 
 export type IvrCallAttemptStatus =
@@ -17,7 +17,8 @@ export type IvrCallAttemptStatus =
   | "hangup_before_response"
   | "invalid_input"
   | "completed"
-  | "canceled";
+  | "canceled"
+  | "unresolved";
 
 export type IvrCallFlowStep =
   | "dialing"
@@ -27,7 +28,11 @@ export type IvrCallFlowStep =
   | "gather_count"
   | "playing_thanks"
   | "playing_invalid"
+  | "playing_system"
   | "done";
+
+export type IvrCallChannel = "outbound_ivr" | "inbound_ivr";
+export type IvrCallDirection = "outbound" | "inbound";
 
 export type IvrRsvpResult = "yes" | "no" | "maybe" | null;
 
@@ -38,8 +43,15 @@ export interface IIvrCallAttempt {
   invitationId: Types.ObjectId;
   guestId: Types.ObjectId;
 
-  round: 1 | 2 | 3;
+  /** Outbound round 1–3; inbound callbacks omit round. */
+  round?: 1 | 2 | 3;
   phone: string;
+
+  /** History channel — inbound callbacks are stored as inbound_ivr. */
+  channel: IvrCallChannel;
+  direction: IvrCallDirection;
+  /** Snapshot of spoken/display event name for inbound greeting + history. */
+  eventName?: string;
 
   status: IvrCallAttemptStatus;
   flowStep: IvrCallFlowStep;
@@ -102,7 +114,8 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
     round: {
       type: Number,
       enum: [1, 2, 3],
-      required: true,
+      required: false,
+      default: undefined,
       index: true,
     },
     phone: {
@@ -110,6 +123,25 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       trim: true,
       required: true,
       index: true,
+    },
+    channel: {
+      type: String,
+      enum: ["outbound_ivr", "inbound_ivr"],
+      default: "outbound_ivr",
+      required: true,
+      index: true,
+    },
+    direction: {
+      type: String,
+      enum: ["outbound", "inbound"],
+      default: "outbound",
+      required: true,
+      index: true,
+    },
+    eventName: {
+      type: String,
+      trim: true,
+      default: "",
     },
     status: {
       type: String,
@@ -126,6 +158,7 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
         "invalid_input",
         "completed",
         "canceled",
+        "unresolved",
       ],
       default: "queued",
       required: true,
@@ -141,6 +174,7 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
         "gather_count",
         "playing_thanks",
         "playing_invalid",
+        "playing_system",
         "done",
       ],
       default: "dialing",
@@ -296,6 +330,17 @@ IvrCallAttemptSchema.index({
 IvrCallAttemptSchema.index({
   status: 1,
   startedAt: 1,
+});
+
+IvrCallAttemptSchema.index({
+  channel: 1,
+  phone: 1,
+  startedAt: -1,
+});
+
+IvrCallAttemptSchema.index({
+  direction: 1,
+  createdAt: -1,
 });
 
 const IvrCallAttemptModel =

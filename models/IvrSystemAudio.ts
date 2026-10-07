@@ -1,14 +1,14 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import type { IvrSystemPromptKey } from "@/lib/calls/ivrScript";
 
 /**
- * Shared system prompt audio used after DTMF (all IVR events).
- * Generated once via ElevenLabs and reused — never per-call TTS.
+ * Shared system / inbound-intro prompt audio.
+ * Generated once via ElevenLabs and reused — never per-call TTS when hash matches.
+ * Keys are fixed system prompts (askGuestCount, …) or inboundIntro:<contentHash>.
  */
 
 export interface IIvrSystemAudio {
   _id?: mongoose.Types.ObjectId;
-  key: IvrSystemPromptKey;
+  key: string;
   text: string;
   voiceId: string;
   audioUrl: string;

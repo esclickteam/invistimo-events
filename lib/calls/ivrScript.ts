@@ -87,6 +87,26 @@ export function resolveIvrEventNamePronunciation(cfg: {
   );
 }
 
+/**
+ * Exact inbound callback template:
+ * "שלום, הגעתם למערכת אישורי ההגעה עבור [שם האירוע].
+ * לאישור הגעה הקישו 1.
+ * לאי הגעה הקישו 2.
+ * אם עדיין אינכם יודעים הקישו 3."
+ */
+export function buildIvrInboundIntroText(vars: IvrScriptVariables): string {
+  const spokenName =
+    String(vars.eventNamePronunciation || vars.eventName || "").trim() ||
+    "האירוע";
+
+  return [
+    `שלום, הגעתם למערכת אישורי ההגעה עבור ${spokenName}.`,
+    "לאישור הגעה הקישו 1.",
+    "לאי הגעה הקישו 2.",
+    "אם עדיין אינכם יודעים הקישו 3.",
+  ].join("\n");
+}
+
 export const IVR_SYSTEM_PROMPTS = {
   askGuestCount:
     "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
@@ -96,6 +116,10 @@ export const IVR_SYSTEM_PROMPTS = {
   invalidInput: "לא הצלחנו לזהות את הבחירה. אנא נסו שוב.",
   invalidGuestCount:
     "המספר שהוקש אינו תקין. אנא הקישו שוב את מספר האורחים שיגיעו, כולל אתכם.",
+  inboundAmbiguous:
+    "שלום, לא הצלחנו לזהות בוודאות לאיזה אירוע שייכת השיחה. אנא פנו למארגנים או המתינו לשיחה חוזרת מאיתנו. להתראות.",
+  inboundNotFound:
+    "שלום, לא מצאנו הזמנה פעילה המשויכת למספר זה במערכת אישורי ההגעה. תודה והמשך יום נעים.",
 } as const;
 
 export type IvrSystemPromptKey = keyof typeof IVR_SYSTEM_PROMPTS;
