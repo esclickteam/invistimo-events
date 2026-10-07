@@ -208,6 +208,21 @@ function planHasCalls(plan: string) {
   return plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
 }
 
+function resolveCallsType(value: unknown): "human" | "ivr" {
+  return String(value || "")
+    .trim()
+    .toLowerCase() === "ivr"
+    ? "ivr"
+    : "human";
+}
+
+function hasExplicitCallsType(value: unknown) {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  return raw === "human" || raw === "ivr";
+}
+
 function planHasDigitalSeating(plan: string) {
   return plan === "seating" || plan === "plan3";
 }
@@ -1041,6 +1056,21 @@ export async function POST(req: NextRequest) {
     const allowedMessageRounds = getAllowedMessageRoundsFromUpsells(upsells);
     const salesUpsells = buildSalesUpsells(plan, upsells);
     const hasCallsPackage = planHasCalls(plan);
+    const rawCallsType = body?.callsType ?? body?.addons?.calls?.callsType;
+    if (hasCallsPackage && !hasExplicitCallsType(rawCallsType)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CALLS_TYPE_REQUIRED",
+          message:
+            "כאשר החבילה כוללת שיחות חובה לבחור סוג שיחות: מוקד אנושי או שיחות מוקלטות (IVR)",
+        },
+        { status: 400 },
+      );
+    }
+    const callsType = hasCallsPackage
+      ? resolveCallsType(rawCallsType)
+      : "human";
     const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
     const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
@@ -1155,7 +1185,9 @@ export async function POST(req: NextRequest) {
       features: customerFeatures,
 
       // נשמרים במכירה ונפתחים בפועל רק אחרי checkout.session.completed ב-webhook.
+      // callsType נשמר כבר ביצירה כדי שהפעלה (ידני/Stripe) תכבד IVR vs מוקד אנושי.
       includeCalls: false,
+      callsType,
       callsRounds: 0,
       callsAddonPrice: 0,
 
@@ -1309,6 +1341,7 @@ export async function POST(req: NextRequest) {
         guests,
         allowedMessageRounds,
         hasCallsPackage,
+        callsType,
         hasDigitalSeatingPackage,
         hasDigitalSeating,
         hasCreditGifts,
@@ -1421,6 +1454,7 @@ export async function POST(req: NextRequest) {
             maxMessages: guests,
 
             includeCalls,
+            callsType: includeCalls ? callsType : "human",
             callsRounds: includeCalls ? 3 : 0,
             callsAddonPrice: 0,
             callsEnabledBy: includeCalls ? "admin" : null,

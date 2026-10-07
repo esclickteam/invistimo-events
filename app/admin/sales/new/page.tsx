@@ -9,6 +9,9 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import CallsTypeField, {
+  type CallsTypeValue,
+} from "@/app/components/admin/CallsTypeField";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 
 const VAT_RATE = 0.18;
@@ -1341,6 +1344,8 @@ export default function AdminSalesNewPage() {
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
+  /** Required when package includes calls (smart/seating). Empty until admin chooses. */
+  const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
   const [records, setRecords] = useState("300");
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() => createEmptyUpsells());
   const [preRsvpUpsellMode, setPreRsvpUpsellMode] =
@@ -1393,6 +1398,8 @@ export default function AdminSalesNewPage() {
   const quoteExpiresAt = useMemo(() => toDateInputValue(addDays(new Date(), QUOTE_VALIDITY_DAYS)), []);
 
   const selectedPlan = useMemo(() => getSelectedPlan(selectedPlanKey), [selectedPlanKey]);
+  const packageIncludesCalls =
+    selectedPlanKey === "smart" || selectedPlanKey === "seating";
   const packageCalculation = useMemo(() => calculatePackagePrice(selectedPlan, clampRecords(records)), [records, selectedPlan]);
 
   const canGiveSuppliersBudgetFree = useMemo(() => {
@@ -1842,7 +1849,10 @@ export default function AdminSalesNewPage() {
 
   // באדמין הצעת מחיר/הסכם הם אופציונליים בלבד.
   // אפשר לפתוח לקוח, לסמן שולם ידנית או לעבור ל-Stripe גם בלי הסכם חתום.
-  const isSubmitDisabled = saving || finalGrossAmount <= 0;
+  const isSubmitDisabled =
+    saving ||
+    finalGrossAmount <= 0 ||
+    (packageIncludesCalls && callsType !== "human" && callsType !== "ivr");
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1859,6 +1869,9 @@ export default function AdminSalesNewPage() {
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
     if (!clientEmail.trim()) missing.push("מייל לקוח");
+    if (packageIncludesCalls && callsType !== "human" && callsType !== "ivr") {
+      missing.push("סוג השיחות (מוקד אנושי / שיחות מוקלטות)");
+    }
 
     return missing;
   }
@@ -1896,6 +1909,9 @@ export default function AdminSalesNewPage() {
     setSelectedPlanKey(nextPlan);
     if (nextPlan === "seating") {
       setSelectedUpsells((prev) => ({ ...prev, digitalSeating: false }));
+    }
+    if (nextPlan !== "smart" && nextPlan !== "seating") {
+      setCallsType("");
     }
   }
 
@@ -2125,6 +2141,8 @@ export default function AdminSalesNewPage() {
           packageName: selectedPlan.title,
           guests: packageCalculation.records,
           records: packageCalculation.records,
+          includeCalls: packageIncludesCalls,
+          callsType: packageIncludesCalls ? callsType : "human",
 
           // סכום העסקה המלא — לא הכנסה בפועל
           grossAmount: finalGrossAmount,
@@ -2467,6 +2485,17 @@ export default function AdminSalesNewPage() {
                 })}
               </div>
             </section>
+
+            {packageIncludesCalls ? (
+              <CallsTypeField
+                name="admin-sale-callsType"
+                value={callsType}
+                onChange={setCallsType}
+                required
+                className="rounded-[34px] border-[#eadfce] shadow-sm sm:p-6"
+                description="החבילה שנבחרה כוללת שירות שיחות. חובה לבחור האם הלקוח מקבל מוקד אנושי או שיחות מוקלטות (IVR)."
+              />
+            ) : null}
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-2xl font-black text-slate-950">תוספות ושירותים</h2>

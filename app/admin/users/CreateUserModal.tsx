@@ -866,14 +866,14 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                   <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
                     עריכת מחיר חבילה ואפסיילים
                   </div>
+                  <div className="rounded-2xl border border-[#f0d8b7] bg-[#fff8ed] px-4 py-3 font-black text-[#8a5c20]">
+                    סוג השיחות — מוקד אנושי / שיחות מוקלטות (IVR)
+                  </div>
                   <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
                     הנחה בשקלים או באחוזים
                   </div>
                   <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    תשלום Stripe
-                  </div>
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    שולם ידנית
+                    תשלום Stripe / שולם ידנית
                   </div>
                 </div>
               </div>

@@ -149,6 +149,21 @@ function planHasCalls(plan: string) {
   return plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
 }
 
+function resolveCallsType(value: unknown): "human" | "ivr" {
+  return String(value || "")
+    .trim()
+    .toLowerCase() === "ivr"
+    ? "ivr"
+    : "human";
+}
+
+function hasExplicitCallsType(value: unknown) {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  return raw === "human" || raw === "ivr";
+}
+
 function planHasDigitalSeating(plan: string) {
   return plan === "seating" || plan === "plan3";
 }
@@ -1102,6 +1117,21 @@ export async function POST(req: NextRequest) {
     const isManualPaid = paymentProvider === "manual";
 
     const hasCallsPackage = planHasCalls(plan);
+    const rawCallsType = body?.callsType ?? body?.addons?.calls?.callsType;
+    if (hasCallsPackage && !hasExplicitCallsType(rawCallsType)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CALLS_TYPE_REQUIRED",
+          message:
+            "כאשר החבילה כוללת שיחות חובה לבחור סוג שיחות: מוקד אנושי או שיחות מוקלטות (IVR)",
+        },
+        { status: 400 },
+      );
+    }
+    const callsType = hasCallsPackage
+      ? resolveCallsType(rawCallsType)
+      : "human";
     const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
     const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
@@ -1212,6 +1242,7 @@ export async function POST(req: NextRequest) {
       features: customerFeatures,
 
       includeCalls: isManualPaid ? hasCallsPackage : false,
+      callsType,
       callsRounds: isManualPaid && hasCallsPackage ? 3 : 0,
       callsAddonPrice: 0,
       callsEnabledBy: isManualPaid && hasCallsPackage ? "manual" : null,
@@ -1392,6 +1423,7 @@ export async function POST(req: NextRequest) {
         guests,
         allowedMessageRounds,
         hasCallsPackage,
+        callsType,
         hasDigitalSeatingPackage,
         hasDigitalSeating,
         hasCreditGifts,

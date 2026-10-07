@@ -6,6 +6,7 @@ import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
+import CallsTypeField from "@/app/components/admin/CallsTypeField";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
@@ -2290,6 +2291,16 @@ function EditUserModal({
           </div>
         </section>
 
+        {user.includeCalls ? (
+          <CallsTypeField
+            name={`edit-callsType-${user._id}`}
+            value={callsType}
+            onChange={setCallsType}
+            required
+            description="מוקד אנושי שומר על הלוגיקה הקיימת. שיחות מוקלטות (IVR) מפעילות 3 סבבים מוקלטים, הגדרת הקלטה/AI ו־callback אוטומטי."
+          />
+        ) : null}
+
         <section
           className="
             rounded-[26px]
@@ -2511,37 +2522,6 @@ function EditUserModal({
   onChange={setVenueSeatingService}
   purchasedMode
 />
-
-{user.includeCalls ? (
-  <section className="rounded-[26px] border border-[#E7D8C6] bg-white p-5">
-    <h3 className="text-lg font-black text-[#3A2A1C]">סוג השיחות</h3>
-    <p className="mt-1 text-xs font-bold text-[#8A7867]">
-      מוקד אנושי שומר על הלוגיקה הקיימת. IVR מפעיל 3 סבבים מוקלטים בלבד.
-    </p>
-    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-[#FFFDF8] px-3 py-2 text-sm font-bold">
-        <input
-          type="radio"
-          name={`edit-callsType-${user._id}`}
-          checked={callsType === "human"}
-          onChange={() => setCallsType("human")}
-          className="accent-[#B97821]"
-        />
-        מוקד אנושי
-      </label>
-      <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-[#FFFDF8] px-3 py-2 text-sm font-bold">
-        <input
-          type="radio"
-          name={`edit-callsType-${user._id}`}
-          checked={callsType === "ivr"}
-          onChange={() => setCallsType("ivr")}
-          className="accent-[#B97821]"
-        />
-        שיחות מוקלטות (IVR)
-      </label>
-    </div>
-  </section>
-) : null}
 
 <CallRoundsScheduleFields
   value={callRoundsSchedule}
@@ -3489,7 +3469,10 @@ const calculatedTotalToPay =
   const canSubmit =
     Boolean(form.plan) &&
     Boolean(selectedRecords) &&
-    manualTotalToPay >= 0;
+    manualTotalToPay >= 0 &&
+    (!form.includeCalls ||
+      form.callsType === "human" ||
+      form.callsType === "ivr");
 
   async function saveManualPaidUpgrade() {
   const res = await fetch(`/api/admin/users/${user._id}`, {
@@ -3866,38 +3849,16 @@ const calculatedTotalToPay =
           </div>
 
           {form.includeCalls ? (
-            <div className="mt-4 rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-4">
-              <div className="font-black text-[#3A2A1C]">סוג השיחות</div>
-              <p className="mt-1 text-xs font-bold text-[#8A7867]">
-                בשלב זה אין ערבוב בין מוקד אנושי ל־IVR באותו אירוע. משתמשים
-                קיימים נשארים מוקד אנושי אלא אם בוחרים אחרת במפורש.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]">
-                  <input
-                    type="radio"
-                    name="callsType"
-                    checked={form.callsType === "human"}
-                    onChange={() =>
-                      setForm((prev) => ({ ...prev, callsType: "human" }))
-                    }
-                    className="accent-[#B97821]"
-                  />
-                  מוקד אנושי
-                </label>
-                <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]">
-                  <input
-                    type="radio"
-                    name="callsType"
-                    checked={form.callsType === "ivr"}
-                    onChange={() =>
-                      setForm((prev) => ({ ...prev, callsType: "ivr" }))
-                    }
-                    className="accent-[#B97821]"
-                  />
-                  שיחות מוקלטות (IVR)
-                </label>
-              </div>
+            <div className="mt-4">
+              <CallsTypeField
+                name={`upgrade-callsType-${user._id}`}
+                value={form.callsType}
+                onChange={(next) =>
+                  setForm((prev) => ({ ...prev, callsType: next }))
+                }
+                required
+                description="בשלב זה אין ערבוב בין מוקד אנושי ל־IVR באותו אירוע. משתמשים קיימים ללא בחירה מפורשת נשארים מוקד אנושי."
+              />
             </div>
           ) : null}
         </section>
