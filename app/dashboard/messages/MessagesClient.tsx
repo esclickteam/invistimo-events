@@ -822,8 +822,7 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
         body: JSON.stringify({
           invitationId: invitation._id,
 
-          // ⛔️ filter כבר לא קריטי כשהולכים לפי IDs
-          // אפשר להשאיר או להסיר – השרת יתעלם ממנו אם יש guestIds
+          // בתזמון שומרים filter בלבד; הקהל מחושב מחדש בזמן השליחה.
           filter,
 
           templateKey,
@@ -832,8 +831,7 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
           giftLink,
           messageOverride: message,
 
-          // ⭐️ זה החלק הקריטי
-          guestIds: guestsToSend.map((g) => g._id),
+          guestIds: scheduledAt ? [] : guestsToSend.map((g) => g._id),
         }),
       });
 

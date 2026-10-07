@@ -221,21 +221,10 @@ export async function POST(req: NextRequest) {
 
     /**
      * חשוב:
-     * לא שומרים כאן קהל סופי לסבב 2/3.
-     * ה-worker ישלוף בזמן השליחה:
-     * round 1 => all
-     * round 2/3 => pending
-     *
-     * guestIds נשאר רק לתאימות / custom / הודעות אחרות.
+     * לא שומרים כאן קהל סופי לאף סוג הודעה.
+     * ה-worker ישלוף בזמן השליחה לפי type / round / filter.
      */
-    const guestIds =
-      type === "rsvp"
-        ? []
-        : Array.isArray(body.guestIds)
-        ? body.guestIds.filter(isValidObjectId)
-        : Array.isArray(body.audience)
-        ? body.audience.filter(isValidObjectId)
-        : [];
+    const guestIds: string[] = [];
 
     /**
      * אם כבר יש תזמון פעיל לאותו דבר בדיוק:

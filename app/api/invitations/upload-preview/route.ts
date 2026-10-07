@@ -135,6 +135,10 @@ export async function POST(req: Request) {
           imageUrl,
           previewImage: imageUrl,
 
+          // Keep invitation-only / pre-RSVP preview in sync with the couple's
+          // permanent invite image. Sends must never clear these fields.
+          "preRsvpMedia.invitationOnlyImageUrl": imageUrl,
+
           updatedAt: new Date(),
         },
       },

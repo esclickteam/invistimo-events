@@ -126,9 +126,9 @@ const SendButton: React.FC<Props> = ({
           invitationId,
           templateKey: mapTemplate[type],
 
-          // נשאר לתאימות, אבל ב-RSVP השרת לא משתמש בזה כמקור אמת לסבב 2/3
-          guestIds: audience,
-          audience,
+          // בתזמון: בלי רשימת נמענים. בזמן שליחה השרת/worker מחשב מחדש.
+          guestIds: isScheduled ? [] : audience,
+          audience: isScheduled ? [] : audience,
 
           scheduledAt: finalScheduledAt,
 
@@ -157,9 +157,9 @@ const SendButton: React.FC<Props> = ({
           invitationId,
           templateName,
 
-          // נשאר לתאימות, אבל ב-RSVP השרת קובע לפי הסבב
-          audience,
-          guestIds: audience,
+          // בתזמון: בלי רשימת נמענים. בזמן שליחה השרת/worker מחשב מחדש.
+          audience: isScheduled ? [] : audience,
+          guestIds: isScheduled ? [] : audience,
 
           scheduledAt: finalScheduledAt,
 

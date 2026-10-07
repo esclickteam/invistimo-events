@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import CreateUserModal from "./CreateUserModal";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
+import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
@@ -3025,7 +3026,7 @@ function AdminMessageRoundsPanel({
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
             אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה, פתיחה מחדש
-            ושליחה ידנית לכל מספר.
+            ושליחה ידנית לכל מספר. הזמנה בלבד היא פעולה נפרדת שאינה נוגעת בסבבים.
           </p>
         </div>
 
@@ -3102,7 +3103,13 @@ function AdminMessageRoundsPanel({
         </div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-5 space-y-4">
+        <AdminInvitationOnlyPanel
+          key={`invite-only-${user._id}`}
+          userId={user._id}
+          invitationId={user.invitationId}
+        />
+
         <AdminManualSmsPanel
           key={user._id}
           userId={user._id}

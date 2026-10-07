@@ -26,6 +26,14 @@ import {
   pickSmsTemplateWithPlaceholders,
   resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
+import {
+  filterGuestsByInvitationAudience,
+  findGuestIdsWithInvitationSendAttempt,
+} from "@/lib/messages/invitationOnlyDetails";
+import {
+  buildScheduledGuestsQuery,
+  needsNeverInvitedPostFilter,
+} from "@/lib/messages/resolveScheduledAudience";
 import { getRsvpSmsRoundTemplate, ROUND_SMS_TEMPLATES } from "@/lib/sms/roundSmsTemplates";
 
 import {
@@ -162,6 +170,11 @@ async function buildNavigationLink(
   return shortenUrl(url);
 }
 
+/**
+ * Audience for a scheduled run is ALWAYS recomputed at send time from
+ * type / round / filter. Stored guestIds are ignored (stale snapshots).
+ * The resulting guest array is then locked for this run only.
+ */
 function buildGuestsQuery({
   schedule,
   invitationId,
@@ -169,55 +182,7 @@ function buildGuestsQuery({
   schedule: any;
   invitationId: any;
 }) {
-  const type = normalizeType(schedule.type || schedule.templateKey);
-  const round = normalizeRound(schedule.round ?? schedule.roundNumber);
-
-  if (type === "rsvp") {
-    if (round === 1) {
-      return { invitationId };
-    }
-
-    return {
-      invitationId,
-      rsvp: "pending",
-    };
-  }
-
-  if (type === "reminder" || type === "table") {
-    return {
-      invitationId,
-      rsvp: "yes",
-    };
-  }
-
-  if (type === "thankyou") {
-    return {
-      invitationId,
-      rsvp: "yes",
-    };
-  }
-
-  if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
-    return {
-      _id: { $in: schedule.guestIds },
-      invitationId,
-    };
-  }
-
-  const query: any = { invitationId };
-
-  if (schedule.filter === "pending") {
-    query.rsvp = "pending";
-  }
-
-  if (schedule.filter === "withTable") {
-    query.$or = [
-      { tableName: { $exists: true, $ne: "" } },
-      { tableNumber: { $ne: null } },
-    ];
-  }
-
-  return query;
+  return buildScheduledGuestsQuery({ schedule, invitationId });
 }
 
 function getTableName(guest: any) {
@@ -748,6 +713,10 @@ export async function sendScheduledSms() {
         invitationId: msg.invitationId,
       });
 
+      /*
+        Fresh audience at send start. This list is locked for the SMS run;
+        liveGuest below may refresh table fields for copy, not who is included.
+      */
       const guests = await InvitationGuest.find(guestsQuery).lean();
 
       let sent = 0;
@@ -1049,7 +1018,24 @@ export async function sendScheduledWhatsapp() {
         invitationId: msg.invitationId,
       });
 
-      const guests = await InvitationGuest.find(guestsQuery).lean();
+      /*
+        Fresh audience query at send start. After this assignment, roundGuests
+        is the locked recipient set for THIS run (status changes mid-send
+        do not add/remove recipients from this execution).
+      */
+      let guests = await InvitationGuest.find(guestsQuery).lean();
+
+      if (needsNeverInvitedPostFilter(msg)) {
+        const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
+          String(msg.invitationId)
+        );
+        guests = filterGuestsByInvitationAudience({
+          guests,
+          filter: "never_invited",
+          alreadyInvitedGuestIds: alreadyInvited,
+        });
+      }
+
       roundGuests = guests;
 
       let sent = 0;

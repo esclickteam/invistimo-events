@@ -572,7 +572,9 @@ setRound2Locked(
   channel="sms"
   type="rsvp"
   invitationId={invitationId}
-  audience={guestsToSend.map((g) => g._id)}
+  audience={
+    sendTiming === "scheduled" ? [] : guestsToSend.map((g) => g._id)
+  }
   scheduledAt={scheduledAt}
   messageOverride={message}
   round={round}
