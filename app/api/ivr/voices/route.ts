@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   listElevenLabsVoices,
-  sanitizeElevenLabsErrorMessage,
+  voiceErrorToClientPayload,
 } from "@/lib/calls/elevenlabs";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
 
@@ -28,24 +28,22 @@ export async function GET(req: NextRequest) {
         name: v.name,
         previewUrl: v.preview_url || null,
         labels: v.labels || {},
+        category: v.category || null,
       })),
     });
   } catch (error) {
-    const safe = sanitizeElevenLabsErrorMessage(
-      error instanceof Error ? error.message : "VOICES_FAILED"
-    );
-    console.error("[ivr/voices]", safe);
+    const payload = voiceErrorToClientPayload(error);
+    // Never log secrets — only code + provider HTTP status.
+    console.error("[ivr/voices]", {
+      error: payload.error,
+      providerStatus: payload.providerStatus,
+    });
     return NextResponse.json(
       {
         ok: false,
-        error:
-          safe === "ELEVENLABS_API_KEY_MISSING"
-            ? "ELEVENLABS_API_KEY_MISSING"
-            : "VOICES_FAILED",
-        message:
-          safe === "ELEVENLABS_API_KEY_MISSING"
-            ? "מפתח ElevenLabs חסר בשרת"
-            : "טעינת רשימת הקולות נכשלה",
+        error: payload.error,
+        message: payload.message,
+        providerStatus: payload.providerStatus,
       },
       { status: 500 }
     );
