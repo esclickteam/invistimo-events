@@ -8,7 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import { getAuthCookieDomain } from "@/lib/env/appEnv";
 import { getCustomerFeatures, getGuestExperienceType } from "@/lib/features/entitlements";
 import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
-import { readBearerToken } from "@/lib/auth/bearerToken";
+import { getCallRoundAudienceLabel, type CallRoundNumber } from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -340,13 +340,7 @@ function buildMessageRounds(
 
         return {
           key: `call_round_${round}`,
-          label: `סבב שיחות ${round} · ${
-            round === 1
-              ? "ממתינים שעדיין לא נתנו תשובה"
-              : round === 2
-                ? "לא ענו בסבב 1"
-                : "לא ענו בסבבים 1–2 + מתלבטים"
-          }`,
+          label: `סבב שיחות ${round} · ${getCallRoundAudienceLabel(round as CallRoundNumber)}`,
           done: opened,
           blocked: false,
           sentAt: userRound?.openedAt || null,
@@ -558,13 +552,7 @@ function buildMessageRounds(
 
       return {
         key: `call_round_${round}`,
-        label: `סבב שיחות ${round} · ${
-          round === 1
-            ? "ממתינים שעדיין לא נתנו תשובה"
-            : round === 2
-              ? "לא ענו בסבב 1"
-              : "לא ענו בסבבים 1–2 + מתלבטים"
-        }`,
+        label: `סבב שיחות ${round} · ${getCallRoundAudienceLabel(round as CallRoundNumber)}`,
         done: opened,
         sentAt: userRound?.openedAt || null,
         scheduledAt,

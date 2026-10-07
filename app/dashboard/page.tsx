@@ -5087,13 +5087,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
 
     return {
       key: `call_round_${round}`,
-          label: `סבב שיחות ${round} · ${
-            round === 1
-              ? "ממתינים שעדיין לא נתנו תשובה"
-              : round === 2
-                ? "לא ענו בסבב 1"
-                : "לא ענו בסבבים 1–2 + מתלבטים"
-          }`,
+          label: `סבב שיחות ${round} · ${getCallRoundAudienceLabel(round as CallRoundNumber)}`,
       group: "סבבי שיחות",
       icon: "📞",
       done: opened,

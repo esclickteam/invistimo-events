@@ -12,10 +12,13 @@ import CallTask from "@/models/CallTask";
 import {
   filterGuestsForCallRound,
   getCallRoundDescription,
+  getCarriedFollowUpForRound,
+  getGuestRsvpValue,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
+  indexFollowUpsFromCallTasks,
   isNoAnswerCallResult,
-  normalizeCallAnswerFromSources,
   type CallRoundNumber,
+  type PreviousFollowUpByRound,
 } from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
@@ -1336,15 +1339,7 @@ function hasPhone(guest: any) {
 }
 
 function getGuestRsvp(guest: any) {
-  return normalizeStatus(
-    guest?.rsvp ||
-      guest?.rsvpStatus ||
-      guest?.attendanceStatus ||
-      guest?.status ||
-      guest?.answer ||
-      guest?.response ||
-      ""
-  );
+  return getGuestRsvpValue(guest);
 }
 
 const FINAL_GUEST_RSVP = [
@@ -1475,15 +1470,14 @@ function getTaskResult(task: any) {
   );
 }
 
-async function loadNoAnswerGuestIdsByRound(input: {
+async function loadPreviousFollowUpByRound(input: {
   invitationObjectId: Types.ObjectId;
-  round: 1 | 2;
   dateKey: string;
-}) {
+}): Promise<PreviousFollowUpByRound> {
   const tasks = await CallTask.collection
     .find({
       invitationId: input.invitationObjectId,
-      round: input.round,
+      round: { $in: [1, 2, 3] },
       workDate: {
         $lte: endOfDateKey(input.dateKey),
       },
@@ -1491,6 +1485,7 @@ async function loadNoAnswerGuestIdsByRound(input: {
     .project({
       guestId: 1,
       invitationGuestId: 1,
+      round: 1,
       result: 1,
       callResult: 1,
       status: 1,
@@ -1499,32 +1494,29 @@ async function loadNoAnswerGuestIdsByRound(input: {
       answerStatus: 1,
       callAnswered: 1,
       noAnswerResult: 1,
+      answeredResult: 1,
+      resultStatus: 1,
+      nextRoundReason: 1,
+      pendingReason: 1,
+      pendingCallStatus: 1,
+      callbackRequested: 1,
+      needsFix: 1,
+      phoneNeedsCorrection: 1,
+      phoneInvalid: 1,
+      note: 1,
+      guestNotes: 1,
+      guestNote: 1,
+      updatedAt: 1,
+      createdAt: 1,
+      completedAt: 1,
+    })
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
     })
     .toArray();
 
-  const guestIds = new Set<string>();
-
-  for (const task of tasks) {
-    const answer = normalizeCallAnswerFromSources({
-      answerStatus: (task as any).answerStatus,
-      callAnswered: (task as any).callAnswered,
-      result: task.result,
-      callResult: task.callResult,
-      status: task.status,
-      outcome: task.outcome,
-      callStatus: task.callStatus,
-      noAnswerResult: (task as any).noAnswerResult,
-    });
-
-    if (answer !== "no_answer" && !isNoAnswerCallResult(getTaskResult(task))) {
-      continue;
-    }
-
-    const guestId = extractIdString(task.guestId || task.invitationGuestId);
-    if (guestId) guestIds.add(guestId);
-  }
-
-  return guestIds;
+  return indexFollowUpsFromCallTasks(tasks);
 }
 
 async function loadGuestsForRound(input: {
@@ -1535,29 +1527,21 @@ async function loadGuestsForRound(input: {
   const invitationObjectId = toObjectId(extractIdString(input.invitation?._id));
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
-  const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+  const previousFollowUpByRound: PreviousFollowUpByRound = invitationObjectId
+    ? await loadPreviousFollowUpByRound({
+        invitationObjectId,
+        dateKey: input.dateKey,
+      })
+    : {};
 
-  if (invitationObjectId && (input.round === 2 || input.round === 3)) {
-    previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 1,
-      dateKey: input.dateKey,
-    });
-  }
-
-  if (invitationObjectId && input.round === 3) {
-    previousNoAnswerByRound[2] = await loadNoAnswerGuestIdsByRound({
-      invitationObjectId,
-      round: 2,
-      dateKey: input.dateKey,
-    });
-  }
-
-  return filterGuestsForCallRound({
-    guests: allGuests,
-    round: input.round as CallRoundNumber,
-    previousNoAnswerByRound,
-  });
+  return {
+    guests: filterGuestsForCallRound({
+      guests: allGuests,
+      round: input.round as CallRoundNumber,
+      previousFollowUpByRound,
+    }),
+    previousFollowUpByRound,
+  };
 }
 
 function getAttendingCount(guest: any) {
@@ -1850,11 +1834,12 @@ async function createOrCompleteWorkOrderForCandidate(input: {
     };
   }
 
-  const guestsForRound = await loadGuestsForRound({
-    invitation: candidate.invitation,
-    round: candidate.round,
-    dateKey,
-  });
+  const { guests: guestsForRound, previousFollowUpByRound } =
+    await loadGuestsForRound({
+      invitation: candidate.invitation,
+      round: candidate.round,
+      dateKey,
+    });
 
   if (!guestsForRound.length) {
     return {
@@ -1863,7 +1848,7 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         candidate.round === 1
           ? "NO_PENDING_GUESTS_FOR_ROUND_1"
           : candidate.round === 2
-            ? "NO_NO_ANSWER_GUESTS_FROM_ROUND_1"
+            ? "NO_ELIGIBLE_GUESTS_FOR_ROUND_2"
             : "NO_ELIGIBLE_GUESTS_FOR_ROUND_3",
       round: candidate.round,
     };
@@ -1957,6 +1942,11 @@ async function createOrCompleteWorkOrderForCandidate(input: {
 
       const guestName = getGuestName(guest);
       const guestPhone = getGuestPhone(guest);
+      const carried = getCarriedFollowUpForRound({
+        guest,
+        round: candidate.round as CallRoundNumber,
+        previousFollowUpByRound,
+      });
 
       return {
         type: "rsvp_call",
@@ -2035,8 +2025,8 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         rsvpStatus: getGuestRsvp(guest) || "pending",
         attendingCount: getAttendingCount(guest),
 
-        note: "",
-        adminNote: "",
+        note: carried.note,
+        adminNote: carried.adminNote,
 
         source: "cron_create_call_tasks",
         createdBy: "system",
