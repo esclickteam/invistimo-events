@@ -22,16 +22,33 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
     await db();
 
-    const user = await User.findOne({
-      "ivrConfig.introAudio.publicToken": token,
+    // Per-event spoken name clip
+    const byEventName = await User.findOne({
+      "ivrConfig.eventNameAudio.publicToken": token,
     })
-      .select("ivrConfig.introAudio")
+      .select("ivrConfig.eventNameAudio")
       .lean();
 
-    let r2Key = String(user?.ivrConfig?.introAudio?.r2Key || "");
+    let r2Key = String(byEventName?.ivrConfig?.eventNameAudio?.r2Key || "");
     let contentType =
-      String(user?.ivrConfig?.introAudio?.contentType || "") || "audio/mpeg";
+      String(byEventName?.ivrConfig?.eventNameAudio?.contentType || "") ||
+      "audio/mpeg";
 
+    // Self-recorded / legacy full intro
+    if (!r2Key) {
+      const byIntro = await User.findOne({
+        "ivrConfig.introAudio.publicToken": token,
+      })
+        .select("ivrConfig.introAudio")
+        .lean();
+
+      r2Key = String(byIntro?.ivrConfig?.introAudio?.r2Key || "");
+      contentType =
+        String(byIntro?.ivrConfig?.introAudio?.contentType || "") ||
+        contentType;
+    }
+
+    // Global voice-pack / system prompts
     if (!r2Key) {
       const system = await IvrSystemAudio.findOne({ publicToken: token })
         .select("r2Key contentType")

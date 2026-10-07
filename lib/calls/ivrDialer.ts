@@ -1,6 +1,8 @@
 /**
  * IVR round dialer: resolve audience at execution time, create attempts, place calls.
  * Never dials unless IVR_ALLOW_LIVE_DIAL=true or phone is on IVR_TEST_PHONE_ALLOWLIST.
+ *
+ * AI mode plays global pack segments + per-event name sequentially at answer time.
  */
 
 import User from "@/models/User";
@@ -21,6 +23,7 @@ import {
   buildIvrPublicAudioUrl,
   getAppBaseUrl,
 } from "@/lib/calls/ivrAudioStorage";
+import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import {
   createIvrOutboundCall,
   isIvrDialAllowed,
@@ -50,9 +53,55 @@ export type IvrDueRound = {
   invitationId: string;
   round: IvrRoundNumber;
   scheduledAt: Date;
+  /** Self-recorded / legacy single intro URL (optional). */
   introAudioUrl: string;
+  /** AI mode: spoken event-name clip URL. */
+  eventNameAudioUrl: string;
+  voiceGender: "female" | "male" | null;
+  audioMode: "ai" | "self_recorded" | null;
   clientName: string;
 };
+
+function resolveReadyAiAudio(user: any): {
+  eventNameAudioUrl: string;
+  voiceGender: "female" | "male";
+} | null {
+  const cfg = user?.ivrConfig || {};
+  const gender = normalizeIvrVoiceGender(cfg.voiceGender);
+  const eventAudio = cfg.eventNameAudio;
+  const token = cleanStr(eventAudio?.publicToken);
+  const eventNameAudioUrl =
+    cleanStr(eventAudio?.audioUrl) ||
+    (token ? buildIvrPublicAudioUrl(token) : "");
+
+  if (
+    !gender ||
+    !eventNameAudioUrl ||
+    eventAudio?.status !== "ready" ||
+    eventAudio?.approved !== true
+  ) {
+    return null;
+  }
+
+  return { eventNameAudioUrl, voiceGender: gender };
+}
+
+function resolveReadySelfAudio(user: any): string {
+  const intro = user?.ivrConfig?.introAudio;
+  const token = cleanStr(intro?.publicToken);
+  const introAudioUrl =
+    cleanStr(intro?.audioUrl) ||
+    (token ? buildIvrPublicAudioUrl(token) : "");
+
+  if (
+    !introAudioUrl ||
+    intro?.status !== "ready" ||
+    intro?.approved !== true
+  ) {
+    return "";
+  }
+  return introAudioUrl;
+}
 
 export async function listDueIvrRounds(input?: {
   now?: Date;
@@ -78,19 +127,21 @@ export async function listDueIvrRounds(input?: {
   for (const user of users) {
     if (!isIvrCallsUser(user)) continue;
 
-    const intro = user?.ivrConfig?.introAudio;
-    const token = cleanStr(intro?.publicToken);
-    const introAudioUrl =
-      cleanStr(intro?.audioUrl) ||
-      (token ? buildIvrPublicAudioUrl(token) : "");
+    const audioMode =
+      (user?.ivrConfig?.audioMode as "ai" | "self_recorded" | null) || "ai";
 
-    // Real dials require ready + client-approved audio only.
-    if (
-      !introAudioUrl ||
-      intro?.status !== "ready" ||
-      intro?.approved !== true
-    ) {
-      continue;
+    let introAudioUrl = "";
+    let eventNameAudioUrl = "";
+    let voiceGender: "female" | "male" | null = null;
+
+    if (audioMode === "self_recorded") {
+      introAudioUrl = resolveReadySelfAudio(user);
+      if (!introAudioUrl) continue;
+    } else {
+      const ai = resolveReadyAiAudio(user);
+      if (!ai) continue;
+      eventNameAudioUrl = ai.eventNameAudioUrl;
+      voiceGender = ai.voiceGender;
     }
 
     const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
@@ -125,17 +176,15 @@ export async function listDueIvrRounds(input?: {
         continue;
       }
 
-      // Skip if already opened for this schedule instant (idempotent reopen guard).
-      if (raw?.status === "opened" || raw?.status === "done") {
-        // Still allow retry for guests not yet attempted — dialer dedupes per guest.
-      }
-
       due.push({
         userId: String(user._id),
         invitationId: String(invitation._id),
         round: roundNumber,
         scheduledAt,
         introAudioUrl,
+        eventNameAudioUrl,
+        voiceGender,
+        audioMode,
         clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
       });
     }
@@ -185,7 +234,6 @@ export async function executeIvrRound(input: {
       continue;
     }
 
-    // Already attempted this round for this guest?
     const existing = await IvrCallAttempt.findOne({
       invitationId: input.due.invitationId,
       guestId,
@@ -207,25 +255,30 @@ export async function executeIvrRound(input: {
       continue;
     }
 
+    const attemptFields = {
+      userId: input.due.userId,
+      invitationId: input.due.invitationId,
+      guestId,
+      round: input.due.round,
+      phone,
+      channel: "outbound_ivr" as const,
+      direction: "outbound" as const,
+      answered: false,
+      dtmfDigits: [],
+      rsvpApplied: false,
+      startedAt: now,
+      introAudioUrl: input.due.introAudioUrl,
+      eventNameAudioUrl: input.due.eventNameAudioUrl,
+      voiceGender: input.due.voiceGender,
+    };
+
     if (!isIvrDialAllowed(phone)) {
-      // Create a dry-run attempt marker so we can test audience without mass dialing.
       const dry = await IvrCallAttempt.create({
-        userId: input.due.userId,
-        invitationId: input.due.invitationId,
-        guestId,
-        round: input.due.round,
-        phone,
-        channel: "outbound_ivr",
-        direction: "outbound",
+        ...attemptFields,
         status: "canceled",
         flowStep: "done",
-        answered: false,
-        dtmfDigits: [],
-        rsvpApplied: false,
-        startedAt: now,
         endedAt: now,
         durationSeconds: 0,
-        introAudioUrl: input.due.introAudioUrl,
         error: "DIAL_BLOCKED_TEST_MODE",
       });
 
@@ -240,20 +293,9 @@ export async function executeIvrRound(input: {
     }
 
     const attempt = await IvrCallAttempt.create({
-      userId: input.due.userId,
-      invitationId: input.due.invitationId,
-      guestId,
-      round: input.due.round,
-      phone,
-      channel: "outbound_ivr",
-      direction: "outbound",
+      ...attemptFields,
       status: "queued",
       flowStep: "dialing",
-      answered: false,
-      dtmfDigits: [],
-      rsvpApplied: false,
-      startedAt: now,
-      introAudioUrl: input.due.introAudioUrl,
       dialLockedAt: now,
     });
 
@@ -270,6 +312,7 @@ export async function executeIvrRound(input: {
         guest_id: guestId,
         round_id: String(input.due.round),
         call_attempt_id: String(attempt._id),
+        voiceGender: input.due.voiceGender,
       };
 
       const created = await createIvrOutboundCall({
@@ -321,7 +364,6 @@ export async function executeIvrRound(input: {
     }
   }
 
-  // Mark schedule round opened (does not mutate scheduledAt).
   await User.updateOne(
     {
       _id: input.due.userId,

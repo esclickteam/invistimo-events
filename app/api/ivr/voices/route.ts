@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getElevenLabsKeyMeta,
-  listElevenLabsVoices,
-  voiceErrorToClientPayload,
+  getIvrFemaleVoiceId,
+  getIvrMaleVoiceId,
+  listIvrSystemVoiceOptions,
 } from "@/lib/calls/elevenlabs";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Returns only the two Invistimo system voices (female / male).
+ * Never exposes the full ElevenLabs catalog to clients.
+ */
 export async function GET(req: NextRequest) {
   try {
-    // getUserIdFromRequest returns AuthPayload — use auth.userId only.
     const session = await requireIvrSession(req);
     if ("error" in session) {
       return NextResponse.json(
@@ -21,59 +25,55 @@ export async function GET(req: NextRequest) {
     }
 
     const keyMeta = getElevenLabsKeyMeta();
-    const voices = await listElevenLabsVoices();
+    const voices = listIvrSystemVoiceOptions();
+
+    if (voices.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "SYSTEM_VOICES_NOT_CONFIGURED",
+          message:
+            "לא הוגדרו קולות מערכת (IVR_FEMALE_VOICE_ID / IVR_MALE_VOICE_ID)",
+          voices: [],
+          diagnostics: {
+            keyPresent: keyMeta.present,
+            femaleConfigured: Boolean(getIvrFemaleVoiceId()),
+            maleConfigured: Boolean(getIvrMaleVoiceId()),
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
       voices: voices.map((v) => ({
-        voiceId: v.voice_id,
-        name: v.name,
-        previewUrl: v.preview_url || null,
-        labels: v.labels || {},
-        category: v.category || null,
+        gender: v.gender,
+        label: v.label,
+        voiceId: v.voiceId,
+        /** Keep voiceId for backward-compatible clients; UI should bind on gender. */
+        name: v.label,
       })),
-      // Safe runtime diagnostics (no secret value).
       diagnostics: {
         keyPresent: keyMeta.present,
         keyLength: keyMeta.length,
         keyPrefix: keyMeta.prefix,
         keySourceEnv: keyMeta.sourceEnv,
+        femaleConfigured: Boolean(getIvrFemaleVoiceId()),
+        maleConfigured: Boolean(getIvrMaleVoiceId()),
         authHeader: "xi-api-key",
       },
     });
   } catch (error) {
-    const payload = voiceErrorToClientPayload(error);
-    // Never log secrets — only codes + lengths + provider reason.
     console.error("[ivr/voices]", {
-      error: payload.error,
-      providerStatus: payload.providerStatus,
-      providerStatusCode: payload.providerStatusCode,
-      providerDetail: payload.providerDetail,
-      keyPresent: payload.keyMeta.present,
-      keyLength: payload.keyMeta.length,
-      keyPrefix: payload.keyMeta.prefix,
-      keySourceEnv: payload.keyMeta.sourceEnv,
-      hasWhitespace: payload.keyMeta.hasWhitespace,
-      looksQuoted: payload.keyMeta.looksQuoted,
-      authHeader: payload.authHeader,
+      message: error instanceof Error ? error.message : "FAILED",
     });
     return NextResponse.json(
       {
         ok: false,
-        error: payload.error,
-        message: payload.message,
-        providerStatus: payload.providerStatus,
-        providerDetail: payload.providerDetail,
-        providerStatusCode: payload.providerStatusCode,
-        diagnostics: {
-          keyPresent: payload.keyMeta.present,
-          keyLength: payload.keyMeta.length,
-          keyPrefix: payload.keyMeta.prefix,
-          keySourceEnv: payload.keyMeta.sourceEnv,
-          hasWhitespace: payload.keyMeta.hasWhitespace,
-          looksQuoted: payload.keyMeta.looksQuoted,
-          authHeader: payload.authHeader,
-        },
+        error: "VOICES_FAILED",
+        message: error instanceof Error ? error.message : "FAILED",
+        voices: [],
       },
       { status: 500 }
     );

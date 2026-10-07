@@ -1,9 +1,11 @@
 import mongoose, { Schema, type Model } from "mongoose";
 
 /**
- * Shared system / inbound-intro prompt audio.
- * Generated once via ElevenLabs and reused — never per-call TTS when hash matches.
- * Keys are fixed system prompts (askGuestCount, …) or inboundIntro:<contentHash>.
+ * Shared Invistimo IVR audio cache.
+ * Global voice packs use keys pack:{female|male}:{segment}
+ * (introBeforeEventName, introAfterEventName, afterPress1, …).
+ * Generated once per gender via ElevenLabs and reused for every user/event/call.
+ * Also stores inboundIntro:<contentHash> for callback greetings.
  */
 
 export interface IIvrSystemAudio {

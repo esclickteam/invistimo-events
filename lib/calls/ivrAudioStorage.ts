@@ -72,6 +72,11 @@ export function ivrIntroR2Key(userId: string, token: string, ext = "mp3") {
   return `ivr/intro/${userId}/${token}.${ext}`;
 }
 
+/** Per-event spoken event-name clip only (not the full intro). */
+export function ivrEventNameR2Key(userId: string, token: string, ext = "mp3") {
+  return `ivr/event-name/${userId}/${token}.${ext}`;
+}
+
 export function ivrSystemR2Key(promptKey: string, hash: string, ext = "mp3") {
   return `ivr/system/${promptKey}/${hash}.${ext}`;
 }

@@ -23,6 +23,9 @@ export type IvrCallAttemptStatus =
 export type IvrCallFlowStep =
   | "dialing"
   | "playing_intro"
+  | "playing_intro_before"
+  | "playing_event_name"
+  | "playing_intro_after"
   | "gather_choice"
   | "playing_ask_count"
   | "gather_count"
@@ -79,7 +82,12 @@ export interface IIvrCallAttempt {
   endedAt?: Date | null;
   durationSeconds: number;
 
+  /** @deprecated self-recorded / legacy single-file intro */
   introAudioUrl?: string;
+  /** Global pack gender used for this attempt's DTMF follow-ups. */
+  voiceGender?: "female" | "male" | null;
+  /** Per-event spoken name clip URL (AI mode sequential intro). */
+  eventNameAudioUrl?: string;
   error?: string;
   hangupCause?: string;
   hangupSource?: string;
@@ -265,6 +273,16 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       min: 0,
     },
     introAudioUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    voiceGender: {
+      type: String,
+      enum: ["female", "male", null],
+      default: null,
+    },
+    eventNameAudioUrl: {
       type: String,
       trim: true,
       default: "",

@@ -5,16 +5,20 @@ import {
   resolveIvrTargetUser,
 } from "@/lib/calls/ivrRequestAuth";
 import {
-  buildIvrIntroText,
+  buildIvrEventNameSpeechText,
   buildIvrRecommendedScriptForDisplay,
-  contentHashForIvrIntro,
+  contentHashForIvrEventName,
+  IVR_GLOBAL_PACK_TEXTS,
   IVR_SELF_RECORD_MAX_SECONDS,
   IVR_SELF_RECORD_RECOMMENDED_SECONDS,
+  normalizeIvrVoiceGender,
   resolveIvrEventName,
   resolveIvrEventNamePronunciation,
+  type IvrVoiceGender,
 } from "@/lib/calls/ivrScript";
 import {
-  getDefaultIvrVoiceId,
+  getIvrVoiceIdForGender,
+  listIvrSystemVoiceOptions,
   sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
   voiceErrorToClientPayload,
@@ -22,16 +26,18 @@ import {
 import {
   buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
-  ivrIntroR2Key,
+  ivrEventNameR2Key,
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
-import { ensureAllIvrSystemPrompts } from "@/lib/calls/ivrSystemAudio";
+import {
+  ensureBothGlobalVoicePacks,
+  ensureGlobalVoicePack,
+} from "@/lib/calls/ivrSystemAudio";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function getAuthedIvrUser(req: NextRequest) {
-  // getUserIdFromRequest returns AuthPayload — never pass it to findById.
   const session = await requireIvrSession(req);
   if ("error" in session) {
     return { error: session.error, status: session.status };
@@ -43,30 +49,120 @@ async function getAuthedIvrUser(req: NextRequest) {
   };
 }
 
-function serializeIvrConfig(cfg: any) {
+function resolveConfigGender(cfg: any): IvrVoiceGender | null {
+  const fromField = normalizeIvrVoiceGender(cfg?.voiceGender);
+  if (fromField) return fromField;
+
+  const voiceId = String(cfg?.systemVoiceId || cfg?.voiceId || "").trim();
+  if (!voiceId) return null;
+  for (const option of listIvrSystemVoiceOptions()) {
+    if (option.voiceId === voiceId) return option.gender;
+  }
+  return null;
+}
+
+function serializePreviewUrls(input: {
+  gender: IvrVoiceGender | null;
+  eventNameAudioUrl?: string;
+  pack?: Awaited<ReturnType<typeof ensureGlobalVoicePack>> | null;
+}) {
+  if (!input.gender || !input.pack) {
+    return {
+      introBeforeEventNameUrl: "",
+      eventNameAudioUrl: String(input.eventNameAudioUrl || ""),
+      introAfterEventNameUrl: "",
+      playlist: [] as string[],
+    };
+  }
+
+  const before = String(
+    input.pack.segments.introBeforeEventName?.audioUrl || ""
+  );
+  const eventName = String(input.eventNameAudioUrl || "");
+  const after = String(input.pack.segments.introAfterEventName?.audioUrl || "");
+  const playlist = [before, eventName, after].filter(Boolean);
+
+  return {
+    introBeforeEventNameUrl: before,
+    eventNameAudioUrl: eventName,
+    introAfterEventNameUrl: after,
+    playlist,
+  };
+}
+
+function serializeIvrConfig(
+  cfg: any,
+  pack?: Awaited<ReturnType<typeof ensureGlobalVoicePack>> | null
+) {
   const eventName = resolveIvrEventName(cfg);
   const eventNamePronunciation = resolveIvrEventNamePronunciation(cfg);
   const previewText = buildIvrRecommendedScriptForDisplay({ eventName });
+  const voiceGender = resolveConfigGender(cfg);
+  const systemVoiceId = voiceGender
+    ? getIvrVoiceIdForGender(voiceGender)
+    : String(cfg?.systemVoiceId || cfg?.voiceId || "");
+
+  const eventNameAudio =
+    cfg?.eventNameAudio ||
+    // Legacy AI full-intro was stored on introAudio — treat as missing for AI pack mode.
+    { status: "missing", approved: false };
+
+  const previewAudio = serializePreviewUrls({
+    gender: voiceGender,
+    eventNameAudioUrl: eventNameAudio?.audioUrl,
+    pack: pack || null,
+  });
 
   return {
     audioMode: cfg?.audioMode || null,
     eventName,
     eventNamePronunciation,
-    voiceId: String(cfg?.voiceId || getDefaultIvrVoiceId() || ""),
+    voiceGender,
+    systemVoiceId,
+    /** @deprecated use voiceGender */
+    voiceId: systemVoiceId,
+    eventNameAudio,
+    /** Self-recorded path only */
     introAudio: cfg?.introAudio || { status: "missing", approved: false },
     previewText,
     recommendedScript: previewText,
+    previewAudio,
+    globalPackReady: Boolean(pack),
     selfRecordMaxSeconds: IVR_SELF_RECORD_MAX_SECONDS,
     selfRecordRecommendedSeconds: IVR_SELF_RECORD_RECOMMENDED_SECONDS,
     systemPromptTexts: {
-      askGuestCount:
-        "מעולה. אנא הקישו את מספר האורחים שיגיעו, כולל אתכם.",
-      thanksAttending:
-        "תודה רבה. אישור ההגעה שלכם התקבל. נתראה בשמחות.",
-      thanksReceived: "תודה רבה. תשובתכם התקבלה.",
-      invalidInput: "לא הצלחנו לזהות את הבחירה. אנא נסו שוב.",
+      introBeforeEventName: IVR_GLOBAL_PACK_TEXTS.introBeforeEventName,
+      introAfterEventName: IVR_GLOBAL_PACK_TEXTS.introAfterEventName,
+      afterPress1: IVR_GLOBAL_PACK_TEXTS.afterPress1,
+      afterValidQuantity: IVR_GLOBAL_PACK_TEXTS.afterValidQuantity,
+      afterPress2Or3: IVR_GLOBAL_PACK_TEXTS.afterPress2Or3,
+      invalidInput: IVR_GLOBAL_PACK_TEXTS.invalidInput,
+      // Legacy keys for older UI / simulator
+      askGuestCount: IVR_GLOBAL_PACK_TEXTS.afterPress1,
+      thanksAttending: IVR_GLOBAL_PACK_TEXTS.afterValidQuantity,
+      thanksReceived: IVR_GLOBAL_PACK_TEXTS.afterPress2Or3,
     },
+    systemVoices: listIvrSystemVoiceOptions().map((v) => ({
+      gender: v.gender,
+      label: v.label,
+      voiceId: v.voiceId,
+    })),
   };
+}
+
+async function loadPackSafe(gender: IvrVoiceGender | null) {
+  if (!gender) return null;
+  try {
+    return await ensureGlobalVoicePack(gender);
+  } catch (error) {
+    console.warn(
+      "[ivr/config] global pack load failed",
+      sanitizeElevenLabsErrorMessage(
+        error instanceof Error ? error.message : "pack_failed"
+      )
+    );
+    return null;
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -89,11 +185,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
+    const gender = resolveConfigGender(user.ivrConfig || {});
+    const pack = await loadPackSafe(gender);
+
     return NextResponse.json({
       ok: true,
       callsType: user.callsType || "human",
       includeCalls: Boolean(user.includeCalls),
-      ivrConfig: serializeIvrConfig(user.ivrConfig || {}),
+      ivrConfig: serializeIvrConfig(user.ivrConfig || {}, pack),
       callRoundsSchedule: user.callRoundsSchedule || { enabled: false, rounds: [] },
     });
   } catch (error) {
@@ -129,29 +228,50 @@ export async function PATCH(req: NextRequest) {
     const prev = user.ivrConfig || {};
     const action = String(body.action || "").trim();
 
-    // Approve / unapprove stored audio without regenerating.
+    // Approve / unapprove event-name (AI) or self-recorded intro audio.
     if (action === "approve_audio") {
-      const intro = prev.introAudio || {};
-      if (intro.status !== "ready" || !intro.audioUrl) {
-        return NextResponse.json(
-          { ok: false, error: "AUDIO_NOT_READY" },
-          { status: 400 }
-        );
+      const mode = prev.audioMode || "ai";
+      if (mode === "self_recorded") {
+        const intro = prev.introAudio || {};
+        if (intro.status !== "ready" || !intro.audioUrl) {
+          return NextResponse.json(
+            { ok: false, error: "AUDIO_NOT_READY" },
+            { status: 400 }
+          );
+        }
+        user.ivrConfig = {
+          ...(prev as any),
+          introAudio: {
+            ...intro,
+            approved: true,
+            approvedAt: new Date(),
+          },
+          updatedAt: new Date(),
+        };
+      } else {
+        const eventNameAudio = prev.eventNameAudio || {};
+        if (eventNameAudio.status !== "ready" || !eventNameAudio.audioUrl) {
+          return NextResponse.json(
+            { ok: false, error: "AUDIO_NOT_READY" },
+            { status: 400 }
+          );
+        }
+        user.ivrConfig = {
+          ...(prev as any),
+          eventNameAudio: {
+            ...eventNameAudio,
+            approved: true,
+            approvedAt: new Date(),
+          },
+          updatedAt: new Date(),
+        };
       }
-
-      user.ivrConfig = {
-        ...(prev as any),
-        introAudio: {
-          ...intro,
-          approved: true,
-          approvedAt: new Date(),
-        },
-        updatedAt: new Date(),
-      };
       await user.save();
+      const gender = resolveConfigGender(user.ivrConfig);
+      const pack = await loadPackSafe(gender);
       return NextResponse.json({
         ok: true,
-        ivrConfig: serializeIvrConfig(user.ivrConfig),
+        ivrConfig: serializeIvrConfig(user.ivrConfig, pack),
       });
     }
 
@@ -163,26 +283,55 @@ export async function PATCH(req: NextRequest) {
         resolveIvrEventNamePronunciation(prev) ??
         ""
     ).trim();
-    const nextVoice = String(body.voiceId ?? prev.voiceId ?? "").trim();
+
+    let nextGender =
+      normalizeIvrVoiceGender(body.voiceGender) ||
+      resolveConfigGender({
+        ...prev,
+        voiceId: body.voiceId ?? prev.voiceId,
+      });
+
+    // Allow picking by system voiceId if gender omitted.
+    if (!nextGender && body.voiceId) {
+      for (const option of listIvrSystemVoiceOptions()) {
+        if (option.voiceId === String(body.voiceId).trim()) {
+          nextGender = option.gender;
+          break;
+        }
+      }
+    }
+
+    const nextVoice = nextGender
+      ? getIvrVoiceIdForGender(nextGender)
+      : String(body.voiceId ?? prev.systemVoiceId ?? prev.voiceId ?? "").trim();
     const nextMode = body.audioMode ?? prev.audioMode ?? null;
 
-    const hash = contentHashForIvrIntro({
-      eventName: nextEventName,
-      eventNamePronunciation: nextPronunciation,
-      voiceId: nextVoice,
-    });
+    const hash = nextGender
+      ? contentHashForIvrEventName({
+          eventName: nextEventName,
+          eventNamePronunciation: nextPronunciation,
+          voiceGender: nextGender,
+          voiceId: nextVoice,
+        })
+      : "";
 
-    let introAudio = prev.introAudio || { status: "missing", approved: false };
-    const prevHash = String(introAudio?.contentHash || "");
+    let eventNameAudio =
+      prev.eventNameAudio || ({ status: "missing", approved: false } as any);
+    const prevHash = String(eventNameAudio?.contentHash || "");
     const fieldsChanged =
-      (prevHash && hash !== prevHash) ||
+      (prevHash && hash && hash !== prevHash) ||
       String(resolveIvrEventName(prev)) !== nextEventName ||
       String(resolveIvrEventNamePronunciation(prev)) !== nextPronunciation ||
-      String(prev.voiceId || "") !== nextVoice;
+      String(prev.voiceGender || "") !== String(nextGender || "") ||
+      String(prev.systemVoiceId || prev.voiceId || "") !== nextVoice;
 
-    if (introAudio?.status === "ready" && fieldsChanged && nextMode === "ai") {
-      introAudio = {
-        ...introAudio,
+    if (
+      eventNameAudio?.status === "ready" &&
+      fieldsChanged &&
+      nextMode === "ai"
+    ) {
+      eventNameAudio = {
+        ...eventNameAudio,
         status: "stale",
         approved: false,
         approvedAt: null,
@@ -194,19 +343,23 @@ export async function PATCH(req: NextRequest) {
       audioMode: nextMode,
       eventName: nextEventName,
       eventNamePronunciation: nextPronunciation,
+      voiceGender: nextGender,
+      systemVoiceId: nextVoice,
       voiceId: nextVoice,
-      introAudio,
+      eventNameAudio,
       updatedAt: new Date(),
     };
 
     await user.save();
 
+    const pack = await loadPackSafe(nextGender);
+
     return NextResponse.json({
       ok: true,
-      ivrConfig: serializeIvrConfig(user.ivrConfig),
-      needsRegenerate: introAudio?.status === "stale",
+      ivrConfig: serializeIvrConfig(user.ivrConfig, pack),
+      needsRegenerate: eventNameAudio?.status === "stale",
       needsApproval: Boolean(
-        introAudio?.status === "ready" && !introAudio?.approved
+        eventNameAudio?.status === "ready" && !eventNameAudio?.approved
       ),
     });
   } catch (error) {
@@ -218,7 +371,10 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-/** Generate AI intro once and store permanently (no per-call TTS). */
+/**
+ * Generate AI event-name audio only.
+ * Fixed pack segments are ensured once globally — never re-TTS'd as the event payload.
+ */
 export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthedIvrUser(req);
@@ -242,11 +398,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
     }
 
-    if (action === "ensure_system_prompts") {
-      const prompts = await ensureAllIvrSystemPrompts(
-        body.voiceId || user.ivrConfig?.voiceId || getDefaultIvrVoiceId()
-      );
-      return NextResponse.json({ ok: true, prompts });
+    if (action === "ensure_system_prompts" || action === "ensure_global_packs") {
+      const packs = await ensureBothGlobalVoicePacks();
+      return NextResponse.json({
+        ok: true,
+        packs: packs.map((p) => ({
+          gender: p.gender,
+          voiceId: p.voiceId,
+          segments: Object.fromEntries(
+            Object.entries(p.segments).map(([k, v]) => [
+              k,
+              { audioUrl: v.audioUrl, reused: v.reused, contentHash: v.contentHash },
+            ])
+          ),
+        })),
+      });
     }
 
     const cfg = user.ivrConfig || {};
@@ -258,10 +424,27 @@ export async function POST(req: NextRequest) {
         resolveIvrEventNamePronunciation(cfg) ||
         ""
     ).trim();
-    const voiceId = String(
-      body.voiceId || cfg.voiceId || getDefaultIvrVoiceId() || ""
-    ).trim();
 
+    let voiceGender =
+      normalizeIvrVoiceGender(body.voiceGender) || resolveConfigGender(cfg);
+
+    if (!voiceGender && body.voiceId) {
+      for (const option of listIvrSystemVoiceOptions()) {
+        if (option.voiceId === String(body.voiceId).trim()) {
+          voiceGender = option.gender;
+          break;
+        }
+      }
+    }
+
+    if (!voiceGender) {
+      return NextResponse.json(
+        { ok: false, error: "VOICE_GENDER_REQUIRED", message: "בחרו קול נשי או גברי" },
+        { status: 400 }
+      );
+    }
+
+    const voiceId = getIvrVoiceIdForGender(voiceGender);
     if (!eventName || !voiceId) {
       return NextResponse.json(
         { ok: false, error: "MISSING_FIELDS" },
@@ -269,36 +452,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const text = buildIvrIntroText({
+    // Ensure global pack exists (reuses cached fixed segments — no per-event TTS).
+    const pack = await ensureGlobalVoicePack(voiceGender);
+    const packReuseStats = Object.fromEntries(
+      Object.entries(pack.segments).map(([k, v]) => [k, v.reused])
+    );
+
+    const spokenName = buildIvrEventNameSpeechText({
       eventName,
       eventNamePronunciation,
     });
 
-    const hash = contentHashForIvrIntro({
+    const hash = contentHashForIvrEventName({
       eventName,
       eventNamePronunciation,
+      voiceGender,
       voiceId,
     });
 
-    // Reuse existing audio if hash matches and ready — never re-TTS on Play.
+    // Reuse existing event-name audio if hash matches — never re-TTS on Play.
     if (
-      cfg.introAudio?.status === "ready" &&
-      cfg.introAudio?.contentHash === hash &&
-      cfg.introAudio?.audioUrl &&
+      cfg.eventNameAudio?.status === "ready" &&
+      cfg.eventNameAudio?.contentHash === hash &&
+      cfg.eventNameAudio?.audioUrl &&
       !body.force
     ) {
+      const previewAudio = serializePreviewUrls({
+        gender: voiceGender,
+        eventNameAudioUrl: cfg.eventNameAudio.audioUrl,
+        pack,
+      });
       return NextResponse.json({
         ok: true,
         reused: true,
-        introAudio: cfg.introAudio,
-        text,
-        previewText: text,
+        eventNameOnly: true,
+        eventNameAudio: cfg.eventNameAudio,
+        previewAudio,
+        previewText: buildIvrRecommendedScriptForDisplay({ eventName }),
+        packSegmentReuse: packReuseStats,
+        fixedTextsSynthesized: false,
       });
     }
 
-    const synth = await synthesizeElevenLabsSpeech({ text, voiceId });
+    // ONLY synthesize the event name — never the fixed pack texts here.
+    const synth = await synthesizeElevenLabsSpeech({
+      text: spokenName,
+      voiceId,
+    });
     const publicToken = createIvrAudioPublicToken();
-    const r2Key = ivrIntroR2Key(String(user._id), publicToken, "mp3");
+    const r2Key = ivrEventNameR2Key(String(user._id), publicToken, "mp3");
 
     await uploadIvrAudioToR2({
       key: r2Key,
@@ -313,8 +515,10 @@ export async function POST(req: NextRequest) {
       audioMode: "ai",
       eventName,
       eventNamePronunciation,
+      voiceGender,
+      systemVoiceId: voiceId,
       voiceId,
-      introAudio: {
+      eventNameAudio: {
         status: "ready",
         source: "elevenlabs",
         publicToken,
@@ -324,7 +528,7 @@ export async function POST(req: NextRequest) {
         contentHash: hash,
         durationSeconds: null,
         generatedAt: new Date(),
-        textSnapshot: text,
+        textSnapshot: spokenName,
         approved: false,
         approvedAt: null,
       },
@@ -333,21 +537,23 @@ export async function POST(req: NextRequest) {
 
     await user.save();
 
-    ensureAllIvrSystemPrompts(voiceId).catch((err) => {
-      console.warn(
-        "[ivr/config] system prompts warm failed",
-        sanitizeElevenLabsErrorMessage(
-          err instanceof Error ? err.message : "warm_failed"
-        )
-      );
+    const previewAudio = serializePreviewUrls({
+      gender: voiceGender,
+      eventNameAudioUrl: audioUrl,
+      pack,
     });
 
     return NextResponse.json({
       ok: true,
       reused: false,
-      introAudio: user.ivrConfig.introAudio,
-      text,
-      previewText: text,
+      eventNameOnly: true,
+      eventNameAudio: user.ivrConfig.eventNameAudio,
+      previewAudio,
+      previewText: buildIvrRecommendedScriptForDisplay({ eventName }),
+      packSegmentReuse: packReuseStats,
+      /** Proof flag: this request did not synthesize fixed pack texts as event payload. */
+      fixedTextsSynthesized: false,
+      synthesizedText: spokenName,
     });
   } catch (error) {
     const payload = voiceErrorToClientPayload(error);

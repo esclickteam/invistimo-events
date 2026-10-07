@@ -419,8 +419,61 @@ export function getDefaultIvrVoiceId() {
   return (
     readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
     readEnv("IVR_SYSTEM_VOICE_ID") ||
+    getIvrFemaleVoiceId() ||
+    getIvrMaleVoiceId() ||
     ""
   );
+}
+
+/** Global Invistimo female ElevenLabs voice (system-configured, not a client picker). */
+export function getIvrFemaleVoiceId() {
+  return (
+    readEnv("IVR_FEMALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_FEMALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
+    readEnv("IVR_SYSTEM_VOICE_ID") ||
+    ""
+  ).trim();
+}
+
+/** Global Invistimo male ElevenLabs voice (system-configured, not a client picker). */
+export function getIvrMaleVoiceId() {
+  return (
+    readEnv("IVR_MALE_VOICE_ID") ||
+    readEnv("ELEVENLABS_MALE_VOICE_ID") ||
+    ""
+  ).trim();
+}
+
+export type IvrSystemVoiceOption = {
+  gender: "female" | "male";
+  label: string;
+  voiceId: string;
+};
+
+/** Only the two system genders — never the full ElevenLabs catalog. */
+export function listIvrSystemVoiceOptions(): IvrSystemVoiceOption[] {
+  const options: IvrSystemVoiceOption[] = [];
+  const female = getIvrFemaleVoiceId();
+  const male = getIvrMaleVoiceId();
+  if (female) {
+    options.push({ gender: "female", label: "קול נשי", voiceId: female });
+  }
+  if (male) {
+    options.push({ gender: "male", label: "קול גברי", voiceId: male });
+  }
+  return options;
+}
+
+export function getIvrVoiceIdForGender(
+  gender: "female" | "male" | string | null | undefined
+): string {
+  const g = String(gender || "")
+    .trim()
+    .toLowerCase();
+  if (g === "male") return getIvrMaleVoiceId();
+  if (g === "female") return getIvrFemaleVoiceId();
+  return getDefaultIvrVoiceId();
 }
 
 export function voiceErrorToClientPayload(error: unknown): {
