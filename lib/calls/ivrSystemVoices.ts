@@ -1,9 +1,10 @@
 /**
  * Resolve and cache the two Invistimo system voices:
- * - Female: Dana (Hebrew)
- * - Male: best natural Hebrew male for IVR narration
+ * - Female: Dana when usable on this plan; else free-API-compatible female
+ * - Male: best natural Hebrew male usable on this plan; else free premade
  *
- * Clients never see the ElevenLabs catalog — only these two choices.
+ * Important (Free plan): Voice Library voices return HTTP 402 via API even when
+ * credits remain. We probe TTS before locking a voice ID.
  */
 
 import IvrSystemVoiceConfig, {
@@ -11,9 +12,11 @@ import IvrSystemVoiceConfig, {
 } from "@/models/IvrSystemVoiceConfig";
 import {
   ElevenLabsApiError,
+  ELEVENLABS_FREE_PREMADE,
   getIvrFemaleVoiceId as getEnvFemaleVoiceId,
   getIvrMaleVoiceId as getEnvMaleVoiceId,
   listElevenLabsVoices,
+  probeElevenLabsTts,
   type ElevenLabsVoice,
 } from "@/lib/calls/elevenlabs";
 
@@ -23,6 +26,8 @@ export type IvrSystemVoiceChoice = {
   name: string;
   /** Client-facing Hebrew label */
   label: string;
+  apiCompatible?: boolean;
+  category?: string | null;
 };
 
 type CacheState = {
@@ -92,16 +97,28 @@ function isFemaleVoice(voice: ElevenLabsVoice): boolean {
   );
 }
 
+/** Premade / cloned / generated in My Voices — more likely Free-API compatible. */
+function isLikelyApiFreeCompatible(voice: ElevenLabsVoice): boolean {
+  const category = String(voice.category || "")
+    .trim()
+    .toLowerCase();
+  if (!category || category === "premade" || category === "cloned") return true;
+  if (category === "generated" || category === "professional") return true;
+  // Explicit library / high_quality community voices are blocked on Free API.
+  if (category === "high_quality" || category === "library") return false;
+  return category !== "famous";
+}
+
 function scoreMaleHebrewIvr(voice: ElevenLabsVoice): number {
   let score = 0;
   if (isHebrewVoice(voice)) score += 50;
   if (isMaleVoice(voice)) score += 40;
   else return -1000;
+  if (isLikelyApiFreeCompatible(voice)) score += 30;
+  else score -= 40;
 
   const labels = labelsOf(voice);
-  const useCase = `${labels.use_case || ""} ${labels.descriptive || ""} ${
-    labels.description || ""
-  }`;
+  const useCase = `${labels.use_case || ""} ${labels.descriptive || ""}`;
   const name = voice.name.toLowerCase();
   const blob = `${name} ${useCase} ${JSON.stringify(voice.labels || {})}`;
 
@@ -111,8 +128,6 @@ function scoreMaleHebrewIvr(voice: ElevenLabsVoice): number {
   if (/middle.?aged|old|mature/.test(blob)) score += 10;
   if (/young|child|teen|cartoon|character|anime/.test(blob)) score -= 20;
   if (/hebrew|עברית|\bhe\b/.test(blob)) score += 15;
-
-  // Prefer voices already in the account (not empty category quirks).
   if (voice.category && voice.category !== "premade") score += 5;
 
   return score;
@@ -125,15 +140,13 @@ function findDanaVoice(voices: ElevenLabsVoice[]): ElevenLabsVoice | null {
   if (exact) return exact;
 
   const hebrewDana = voices.find(
-    (v) =>
-      /\bdana\b/i.test(v.name) && isFemaleVoice(v) && isHebrewVoice(v)
+    (v) => /\bdana\b/i.test(v.name) && isFemaleVoice(v) && isHebrewVoice(v)
   );
   if (hebrewDana) return hebrewDana;
 
-  const anyDana = voices.find(
-    (v) => /\bdana\b/i.test(v.name) && isFemaleVoice(v)
+  return (
+    voices.find((v) => /\bdana\b/i.test(v.name) && isFemaleVoice(v)) || null
   );
-  return anyDana || null;
 }
 
 function findBestHebrewMale(voices: ElevenLabsVoice[]): ElevenLabsVoice | null {
@@ -144,11 +157,12 @@ function findBestHebrewMale(voices: ElevenLabsVoice[]): ElevenLabsVoice | null {
 
   if (scored[0]) return scored[0].voice;
 
-  // Fallback: any male with Hebrew hint
   const maleHe = voices.filter((v) => isMaleVoice(v) && isHebrewVoice(v));
   if (maleHe[0]) return maleHe[0];
 
-  const anyMale = voices.filter((v) => isMaleVoice(v));
+  const anyMale = voices.filter(
+    (v) => isMaleVoice(v) && isLikelyApiFreeCompatible(v)
+  );
   return anyMale[0] || null;
 }
 
@@ -157,7 +171,6 @@ async function searchSharedVoices(input: {
   gender?: "male" | "female";
   language?: string;
 }): Promise<ElevenLabsVoice[]> {
-  // Optional shared-library search — never exposed to clients.
   try {
     const params = new URLSearchParams({ page_size: "30" });
     if (input.search) params.set("search", input.search);
@@ -210,14 +223,18 @@ function toChoice(
   gender: "female" | "male",
   voiceId: string,
   name: string,
-  source: IIvrResolvedVoice["source"]
+  source: IIvrResolvedVoice["source"],
+  extra?: { apiCompatible?: boolean; category?: string | null }
 ): IvrSystemVoiceChoice {
   if (gender === "female") {
+    const isDana = /\bdana\b/i.test(name || "");
     return {
       gender: "female",
       voiceId,
       name: name || "Dana",
-      label: "דנה – קול נשי",
+      label: isDana ? "דנה – קול נשי" : `${name || "Female"} – קול נשי`,
+      apiCompatible: extra?.apiCompatible,
+      category: extra?.category ?? null,
     };
   }
   const display = name ? `${name} – קול גברי` : "קול גברי";
@@ -226,6 +243,8 @@ function toChoice(
     voiceId,
     name: name || "Male",
     label: display,
+    apiCompatible: extra?.apiCompatible,
+    category: extra?.category ?? null,
   };
 }
 
@@ -237,9 +256,11 @@ function choiceFromResolved(
   return toChoice(gender, resolved.voiceId, resolved.name, resolved.source);
 }
 
-function applyMemoryCache(female: IvrSystemVoiceChoice | null, male: IvrSystemVoiceChoice | null) {
+function applyMemoryCache(
+  female: IvrSystemVoiceChoice | null,
+  male: IvrSystemVoiceChoice | null
+) {
   memoryCache = { female, male, loadedAt: Date.now() };
-  // Keep sync getters in elevenlabs.ts working via process env mirror for this process.
   if (female?.voiceId && !getEnvFemaleVoiceId()) {
     process.env.IVR_FEMALE_VOICE_ID = female.voiceId;
   }
@@ -304,12 +325,40 @@ async function saveToMongo(input: {
   );
 }
 
+async function acceptIfTtsWorks(
+  voice: ElevenLabsVoice,
+  gender: "female" | "male"
+): Promise<IvrSystemVoiceChoice | null> {
+  const probe = await probeElevenLabsTts({
+    voiceId: voice.voice_id,
+    text: "בדיקה",
+  });
+  if (!probe.ok) {
+    console.warn("[ivrSystemVoices] TTS probe rejected voice", {
+      name: voice.name,
+      voiceId: voice.voice_id,
+      category: voice.category,
+      httpStatus: probe.httpStatus,
+      providerStatusCode: probe.providerStatusCode,
+      providerDetail: probe.providerDetail,
+      errorCode: probe.errorCode,
+    });
+    return null;
+  }
+  return toChoice(gender, voice.voice_id, voice.name, "auto", {
+    apiCompatible: true,
+    category: voice.category || null,
+  });
+}
+
 /**
  * Returns the two client-facing voice choices.
  * Never returns the full ElevenLabs catalog.
  */
 export async function getIvrSystemVoiceChoices(options?: {
   forceResolve?: boolean;
+  /** Re-probe and replace Mongo cache (e.g. after plan change). */
+  revalidate?: boolean;
 }): Promise<{
   voices: IvrSystemVoiceChoice[];
   resolved: boolean;
@@ -318,6 +367,8 @@ export async function getIvrSystemVoiceChoices(options?: {
     maleSource: string | null;
     femaleName: string | null;
     maleName: string | null;
+    femaleProbe?: string | null;
+    maleProbe?: string | null;
   };
 }> {
   const envFemaleId = getEnvFemaleVoiceId();
@@ -330,9 +381,19 @@ export async function getIvrSystemVoiceChoices(options?: {
     ? toChoice("male", envMaleId, readEnv("IVR_MALE_VOICE_NAME") || "", "env")
     : null;
 
-  if (!options?.forceResolve && memoryCache?.female && memoryCache?.male) {
+  let femaleProbe: string | null = null;
+  let maleProbe: string | null = null;
+
+  if (
+    !options?.forceResolve &&
+    !options?.revalidate &&
+    memoryCache?.female &&
+    memoryCache?.male
+  ) {
     return {
-      voices: [memoryCache.female, memoryCache.male].filter(Boolean) as IvrSystemVoiceChoice[],
+      voices: [memoryCache.female, memoryCache.male].filter(
+        Boolean
+      ) as IvrSystemVoiceChoice[],
       resolved: true,
       diagnostics: {
         femaleSource: "memory",
@@ -343,41 +404,115 @@ export async function getIvrSystemVoiceChoices(options?: {
     };
   }
 
-  if (!female || !male) {
+  if ((!female || !male) && !options?.revalidate) {
     const fromDb = await loadFromMongo();
     female = female || fromDb.female;
     male = male || fromDb.male;
   }
 
-  if ((!female || !male) && options?.forceResolve !== false) {
-    // Discover missing voices from the account / shared library (server-side only).
+  if (
+    ((!female || !male) || options?.revalidate) &&
+    options?.forceResolve !== false
+  ) {
     try {
       const accountVoices = await listElevenLabsVoices();
-      if (!female) {
-        let dana = findDanaVoice(accountVoices);
-        if (!dana) {
+
+      if (!female || options?.revalidate) {
+        const danaAccount = findDanaVoice(accountVoices);
+        if (danaAccount) {
+          const accepted = await acceptIfTtsWorks(danaAccount, "female");
+          if (accepted) {
+            female = accepted;
+            femaleProbe = "dana_account_ok";
+          } else {
+            femaleProbe = "dana_account_402_or_failed";
+          }
+        }
+
+        // Shared library Dana — often 402 on Free; probe before accepting.
+        if (!female) {
           const shared = await searchSharedVoices({
             search: "Dana",
             gender: "female",
             language: "he",
           });
-          dana = findDanaVoice(shared) || findDanaVoice(accountVoices);
+          const danaShared = findDanaVoice(shared);
+          if (danaShared) {
+            const accepted = await acceptIfTtsWorks(danaShared, "female");
+            if (accepted) {
+              female = accepted;
+              femaleProbe = "dana_library_ok";
+            } else {
+              femaleProbe = "dana_library_blocked_use_premade_fallback";
+            }
+          }
         }
-        if (dana) {
-          female = toChoice("female", dana.voice_id, dana.name, "auto");
+
+        if (!female) {
+          // Free-API safe fallback (Rachel premade). Label is honest — not Dana.
+          const rachel = accountVoices.find(
+            (v) => v.voice_id === ELEVENLABS_FREE_PREMADE.rachel
+          ) || {
+            voice_id: ELEVENLABS_FREE_PREMADE.rachel,
+            name: "Rachel",
+            category: "premade",
+            labels: { gender: "female" },
+          };
+          const accepted = await acceptIfTtsWorks(rachel as ElevenLabsVoice, "female");
+          if (accepted) {
+            female = {
+              ...accepted,
+              label: "Rachel – קול נשי (Free API)",
+            };
+            femaleProbe = femaleProbe || "fallback_rachel_premade";
+          }
         }
       }
-      if (!male) {
-        let best = findBestHebrewMale(accountVoices);
-        if (!best) {
+
+      if (!male || options?.revalidate) {
+        const ranked = [...accountVoices]
+          .map((voice) => ({ voice, score: scoreMaleHebrewIvr(voice) }))
+          .filter((row) => row.score > 0)
+          .sort((a, b) => b.score - a.score);
+
+        for (const row of ranked.slice(0, 8)) {
+          const accepted = await acceptIfTtsWorks(row.voice, "male");
+          if (accepted) {
+            male = accepted;
+            maleProbe = `account_male_ok:${row.voice.name}`;
+            break;
+          }
+        }
+
+        if (!male) {
           const sharedMales = await searchSharedVoices({
             gender: "male",
             language: "he",
           });
-          best = findBestHebrewMale(sharedMales);
+          const bestShared = findBestHebrewMale(sharedMales);
+          if (bestShared) {
+            const accepted = await acceptIfTtsWorks(bestShared, "male");
+            if (accepted) {
+              male = accepted;
+              maleProbe = `library_male_ok:${bestShared.name}`;
+            } else {
+              maleProbe = "library_male_blocked_use_premade_fallback";
+            }
+          }
         }
-        if (best) {
-          male = toChoice("male", best.voice_id, best.name, "auto");
+
+        if (!male) {
+          const adam = {
+            voice_id: ELEVENLABS_FREE_PREMADE.adam,
+            name: "Adam",
+            category: "premade",
+            labels: { gender: "male" },
+          } as ElevenLabsVoice;
+          const accepted = await acceptIfTtsWorks(adam, "male");
+          if (accepted) {
+            male = accepted;
+            maleProbe = maleProbe || "fallback_adam_premade";
+          }
         }
       }
 
@@ -385,19 +520,19 @@ export async function getIvrSystemVoiceChoices(options?: {
         await saveToMongo({
           female,
           male,
-          notes: "Auto-resolved Dana (female) + best Hebrew male for IVR",
+          notes: `Resolved with TTS probe female=${femaleProbe || "n/a"} male=${maleProbe || "n/a"}`,
         });
       }
     } catch (error) {
-      // Surface later via voices/config diagnostics — keep partial env/db results.
       if (
         error instanceof ElevenLabsApiError &&
         (error.code === "ELEVENLABS_API_KEY_MISSING" ||
           error.code === "ELEVENLABS_UNAUTHORIZED" ||
           error.code === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
-          error.code === "ELEVENLABS_PAYMENT_REQUIRED")
+          error.code === "ELEVENLABS_PAYMENT_REQUIRED" ||
+          error.code === "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID")
       ) {
-        // still return whatever we have
+        // keep partial
       } else {
         console.warn(
           "[ivrSystemVoices] resolve failed",
@@ -418,11 +553,12 @@ export async function getIvrSystemVoiceChoices(options?: {
       maleSource: male ? (envMaleId ? "env" : "resolved") : null,
       femaleName: female?.name || null,
       maleName: male?.name || null,
+      femaleProbe,
+      maleProbe,
     },
   };
 }
 
-/** Sync-friendly accessors after getIvrSystemVoiceChoices() has run. */
 export function getCachedIvrFemaleVoiceId(): string {
   return memoryCache?.female?.voiceId || getEnvFemaleVoiceId() || "";
 }

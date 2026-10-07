@@ -154,14 +154,32 @@ function classifyProviderStatus(
   providerDetail?: string | null
 ): string {
   const codeBlob = `${providerStatusCode || ""} ${providerDetail || ""}`.toLowerCase();
+
+  // Free plan + Voice Library: NOT an credits problem.
+  if (
+    /library voice|free users cannot use library|cannot use library voices|paid[_ ]plan[_ ]required|upgrade your subscription to use this voice/.test(
+      codeBlob
+    )
+  ) {
+    return "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID";
+  }
+
   if (
     status === 402 ||
     /insufficient[_\s-]?credits|payment[_\s-]?required|quota|out of credits|no credits/.test(
       codeBlob
     )
   ) {
-    if (/insufficient[_\s-]?credits/.test(codeBlob)) {
+    if (/insufficient[_\s-]?credits|quota_exceeded/.test(codeBlob)) {
       return "ELEVENLABS_INSUFFICIENT_CREDITS";
+    }
+    // Bare payment_required on Free often means library/paid voice, not empty wallet.
+    if (
+      status === 402 &&
+      /payment[_\s-]?required/.test(codeBlob) &&
+      !/insufficient|quota|credit/.test(codeBlob)
+    ) {
+      return "ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID";
     }
     return "ELEVENLABS_PAYMENT_REQUIRED";
   }
@@ -436,6 +454,144 @@ export async function synthesizeElevenLabsSpeech(input: {
   };
 }
 
+/**
+ * Premade defaults that ElevenLabs documents as available on Free via API
+ * (not Voice Library community voices).
+ */
+export const ELEVENLABS_FREE_PREMADE = {
+  /** Rachel — classic premade female */
+  rachel: "21m00Tcm4TlvDq8ikWAM",
+  /** Adam — classic premade male */
+  adam: "pNInz6obpgDQGcFmaJgB",
+} as const;
+
+export type ElevenLabsTtsProbeResult = {
+  voiceId: string;
+  ok: boolean;
+  httpStatus: number;
+  providerStatusCode: string | null;
+  providerDetail: string | null;
+  errorCode: string | null;
+  bytes: number;
+  categoryHint: string | null;
+};
+
+/**
+ * Direct TTS probe — returns full provider 402 body fields without throwing.
+ * Used to distinguish library/paid-voice blocks from true credit exhaustion.
+ */
+export async function probeElevenLabsTts(input: {
+  voiceId: string;
+  text?: string;
+  modelId?: string;
+}): Promise<ElevenLabsTtsProbeResult> {
+  const voiceId = String(input.voiceId || "").trim();
+  const text = String(input.text || "בדיקה").trim() || "בדיקה";
+  if (!voiceId) {
+    return {
+      voiceId: "",
+      ok: false,
+      httpStatus: 0,
+      providerStatusCode: null,
+      providerDetail: "voiceId missing",
+      errorCode: "VOICE_REQUIRED",
+      bytes: 0,
+      categoryHint: null,
+    };
+  }
+
+  try {
+    const modelId =
+      input.modelId ||
+      readEnv("ELEVENLABS_MODEL_ID") ||
+      "eleven_multilingual_v2";
+    const res = await elevenLabsFetch(
+      `/v1/text-to-speech/${encodeURIComponent(voiceId)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: modelId,
+          voice_settings: { stability: 0.45, similarity_boost: 0.75 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => "");
+      let data: unknown = null;
+      try {
+        data = JSON.parse(bodyText);
+      } catch {
+        data = bodyText ? { message: bodyText.slice(0, 300) } : null;
+      }
+      const info = extractProviderInfo(data);
+      const errorCode = classifyProviderStatus(
+        res.status,
+        info.statusCode,
+        info.detail
+      );
+      return {
+        voiceId,
+        ok: false,
+        httpStatus: res.status,
+        providerStatusCode: info.statusCode,
+        providerDetail: info.detail
+          ? sanitizeElevenLabsErrorMessage(info.detail)
+          : bodyText
+            ? sanitizeElevenLabsErrorMessage(bodyText.slice(0, 300))
+            : null,
+        errorCode,
+        bytes: 0,
+        categoryHint: /library/i.test(`${info.detail} ${info.statusCode}`)
+          ? "voice_library"
+          : null,
+      };
+    }
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    return {
+      voiceId,
+      ok: true,
+      httpStatus: res.status,
+      providerStatusCode: null,
+      providerDetail: null,
+      errorCode: null,
+      bytes: buf.length,
+      categoryHint: "api_ok",
+    };
+  } catch (error) {
+    if (error instanceof ElevenLabsApiError) {
+      return {
+        voiceId,
+        ok: false,
+        httpStatus: error.providerStatus || 0,
+        providerStatusCode: error.providerStatusCode,
+        providerDetail: error.providerDetail,
+        errorCode: error.code,
+        bytes: 0,
+        categoryHint: null,
+      };
+    }
+    return {
+      voiceId,
+      ok: false,
+      httpStatus: 0,
+      providerStatusCode: null,
+      providerDetail: sanitizeElevenLabsErrorMessage(
+        error instanceof Error ? error.message : "probe_failed"
+      ),
+      errorCode: "ELEVENLABS_NETWORK_ERROR",
+      bytes: 0,
+      categoryHint: null,
+    };
+  }
+}
+
 /** Default voice id override via env (not secret). */
 export function getDefaultIvrVoiceId() {
   return (
@@ -532,7 +688,7 @@ export function voiceErrorToClientPayload(error: unknown): {
     if (
       error.providerStatus === 402 ||
       code === "ELEVENLABS_HTTP_402" ||
-      /insufficient[_\s-]?credits|payment[_\s-]?required/i.test(
+      /insufficient[_\s-]?credits|payment[_\s-]?required|library voice|free users cannot/i.test(
         `${error.providerStatusCode || ""} ${error.providerDetail || ""}`
       )
     ) {
@@ -550,10 +706,12 @@ export function voiceErrorToClientPayload(error: unknown): {
         "ElevenLabs דחה את המפתח (401). אם עדכנתם env ב-Vercel — חובה Redeploy. סיבת ElevenLabs מצורפת ב-providerDetail.",
       ELEVENLABS_FORBIDDEN:
         "אין הרשאה ל-ElevenLabs (403) — בדקו הרשאות Voices/TTS של המפתח",
+      ELEVENLABS_LIBRARY_VOICE_REQUIRES_PAID:
+        "הקול שנבחר (Voice Library / Dana או קול ספרייה) חסום ב-API על Free plan. זה לא חוסר קרדיטים — צריך Paid plan או קול premade/API שזמין ל-Free.",
       ELEVENLABS_INSUFFICIENT_CREDITS:
-        "אין מספיק קרדיטים בחשבון ElevenLabs (insufficient_credits). זה הגורם לכשל — לא בעיית בחירת קול. טענו קרדיטים ב-ElevenLabs ונסו שוב.",
+        "אין מספיק קרדיטים בחשבון ElevenLabs (insufficient_credits).",
       ELEVENLABS_PAYMENT_REQUIRED:
-        "ElevenLabs דורש תשלום / קרדיטים (402 payment_required). זה הגורם לכשל — לא בעיית בחירת קול.",
+        "ElevenLabs החזיר 402 payment_required. בדקו אם הקול דורש Paid plan (ספריית קולות) או אם באמת חסרים קרדיטים — ראו providerDetail.",
       ELEVENLABS_RATE_LIMITED: "ElevenLabs חסם זמנית בגלל Rate Limit (429)",
       ELEVENLABS_NETWORK_ERROR: "לא ניתן להתחבר ל-ElevenLabs מהשרת",
       ELEVENLABS_EMPTY: "ElevenLabs החזיר רשימת קולות ריקה",
