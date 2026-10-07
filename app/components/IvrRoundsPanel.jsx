@@ -137,7 +137,7 @@ function IvrCallSimulator({ introAudioUrl, systemPromptTexts, onClose }) {
 export default function IvrRoundsPanel({
   schedule,
   onScheduleChange,
-  userId,
+  userId = "",
 }) {
   const [config, setConfig] = useState(null);
   const [voices, setVoices] = useState([]);

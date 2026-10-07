@@ -5,6 +5,20 @@
 
 export type CallsType = "human" | "ivr";
 
+type CallsUserLike = {
+  includeCalls?: boolean | null;
+  callsType?: unknown;
+} | null | undefined;
+
+/** Accept lean docs, native Mongo documents, and partial user payloads. */
+function asCallsUserLike(user: unknown): CallsUserLike {
+  if (!user || typeof user !== "object") return null;
+  return user as {
+    includeCalls?: boolean | null;
+    callsType?: unknown;
+  };
+}
+
 export function normalizeCallsType(value: unknown): CallsType {
   const raw = String(value || "")
     .trim()
@@ -18,30 +32,24 @@ export function normalizeCallsType(value: unknown): CallsType {
 }
 
 /** Effective type for a user/event. Missing/null → human (backward compatible). */
-export function getUserCallsType(user: {
-  includeCalls?: boolean | null;
-  callsType?: unknown;
-} | null | undefined): CallsType {
-  if (!user?.includeCalls) {
+export function getUserCallsType(user: unknown): CallsType {
+  const u = asCallsUserLike(user);
+  if (!u?.includeCalls) {
     // No calls package — type is irrelevant; still return human as default.
-    return normalizeCallsType(user?.callsType);
+    return normalizeCallsType(u?.callsType);
   }
 
-  return normalizeCallsType(user?.callsType);
+  return normalizeCallsType(u?.callsType);
 }
 
-export function isHumanCallsUser(user: {
-  includeCalls?: boolean | null;
-  callsType?: unknown;
-} | null | undefined) {
-  return Boolean(user?.includeCalls) && getUserCallsType(user) === "human";
+export function isHumanCallsUser(user: unknown) {
+  const u = asCallsUserLike(user);
+  return Boolean(u?.includeCalls) && getUserCallsType(u) === "human";
 }
 
-export function isIvrCallsUser(user: {
-  includeCalls?: boolean | null;
-  callsType?: unknown;
-} | null | undefined) {
-  return Boolean(user?.includeCalls) && getUserCallsType(user) === "ivr";
+export function isIvrCallsUser(user: unknown) {
+  const u = asCallsUserLike(user);
+  return Boolean(u?.includeCalls) && getUserCallsType(u) === "ivr";
 }
 
 /**
