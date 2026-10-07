@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type AudienceFilter = "never_invited" | "all";
+type AudienceFilter = "never_invited" | "failed" | "not_sent" | "all";
 
 type Props = {
   userId: string;
@@ -14,14 +14,19 @@ export default function AdminInvitationOnlyPanel({
   invitationId,
 }: Props) {
   const [filter, setFilter] = useState<AudienceFilter>("never_invited");
+  const [phone, setPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [totalGuests, setTotalGuests] = useState(0);
   const [neverInvitedCount, setNeverInvitedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [notSentCount, setNotSentCount] = useState(0);
   const [status, setStatus] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const phoneMode = phone.replace(/\D/g, "").length >= 9;
 
   async function loadCounts() {
     if (!userId) return;
@@ -43,6 +48,8 @@ export default function AdminInvitationOnlyPanel({
 
       setTotalGuests(Number(data?.totalGuests || 0));
       setNeverInvitedCount(Number(data?.neverInvitedCount || 0));
+      setFailedCount(Number(data?.failedCount || 0));
+      setNotSentCount(Number(data?.notSentCount || 0));
     } catch (err) {
       console.error(err);
     } finally {
@@ -61,17 +68,30 @@ export default function AdminInvitationOnlyPanel({
       return;
     }
 
-    const audienceLabel =
-      filter === "never_invited"
+    const audienceLabel = phoneMode
+      ? `למספר ${phone.trim()} בלבד`
+      : filter === "never_invited"
         ? "למי שלא נשלחה לו הזמנה מהמערכת"
-        : "לכל המוזמנים (כולל שליחה חוזרת)";
+        : filter === "failed"
+          ? "למי שנכשלה לו שליחת ההזמנה בדוח הסבבים"
+          : filter === "not_sent"
+            ? "למי שלא נשלחה לו ההזמנה בדוח הסבבים"
+            : "לכל המוזמנים (כולל שליחה חוזרת)";
+
+    const candidatesLabel = phoneMode
+      ? ""
+      : filter === "never_invited"
+        ? `מועמדים: ${neverInvitedCount}\n\n`
+        : filter === "failed"
+          ? `מועמדים: ${failedCount}\n\n`
+          : filter === "not_sent"
+            ? `מועמדים: ${notSentCount}\n\n`
+            : `מועמדים: ${totalGuests}\n\n`;
 
     const confirmText =
       `לשלוח הזמנה בלבד (ללא אישור הגעה)?\n\n` +
       `קהל: ${audienceLabel}\n` +
-      (filter === "never_invited"
-        ? `מועמדים: ${neverInvitedCount}\n\n`
-        : `מועמדים: ${totalGuests}\n\n`) +
+      candidatesLabel +
       "הפעולה לא פותחת סבב אישורי הגעה ולא משנה סטטוס אורח.";
 
     if (!confirm(confirmText)) return;
@@ -88,7 +108,8 @@ export default function AdminInvitationOnlyPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             invitationId,
-            filter,
+            filter: phoneMode ? "all" : filter,
+            phone: phoneMode ? phone.trim() : undefined,
             allowResend: true,
           }),
         }
@@ -131,23 +152,54 @@ export default function AdminInvitationOnlyPanel({
         <div className="font-black text-[#3A2A1C]">הזמנה בלבד</div>
         <div className="mt-1 text-xs font-bold text-[#8A7867]">
           שליחה מחדש של ההזמנה עצמה — בלי סבב אישורי הגעה ובלי שינוי סטטוס אורח.
+          אפשר לשלוח למספר בודד (כמו אישורי הגעה) או לפי דוח סבבי WhatsApp.
         </div>
       </div>
 
       <div className="space-y-3">
         <label className="block text-xs font-black text-[#3A2A1C]">
+          מספר טלפון (אופציונלי — שולח רק אליו)
+        </label>
+        <input
+          type="tel"
+          dir="ltr"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="05xxxxxxxx"
+          className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2.5 text-sm font-bold text-[#3A2A1C]"
+        />
+
+        <label className="block text-xs font-black text-[#3A2A1C]">
           קהל יעד
+          {phoneMode ? " (לא בשימוש כשמזינים טלפון)" : ""}
         </label>
         <select
           value={filter}
-          onChange={(e) =>
-            setFilter(e.target.value === "all" ? "all" : "never_invited")
-          }
-          className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2.5 text-sm font-bold text-[#3A2A1C]"
+          disabled={phoneMode}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (
+              value === "all" ||
+              value === "never_invited" ||
+              value === "failed" ||
+              value === "not_sent"
+            ) {
+              setFilter(value);
+            }
+          }}
+          className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2.5 text-sm font-bold text-[#3A2A1C] disabled:opacity-50"
         >
           <option value="never_invited">
             למי שלא נשלחה לו הזמנה מהמערכת
             {loadingCounts ? "" : ` (${neverInvitedCount})`}
+          </option>
+          <option value="failed">
+            נכשלו בדוח סבבי ההזמנה
+            {loadingCounts ? "" : ` (${failedCount})`}
+          </option>
+          <option value="not_sent">
+            לא נשלחו בדוח סבבי ההזמנה
+            {loadingCounts ? "" : ` (${notSentCount})`}
           </option>
           <option value="all">
             לכל המוזמנים / שליחה חוזרת מפורשת
@@ -169,7 +221,11 @@ export default function AdminInvitationOnlyPanel({
             disabled:opacity-50
           "
         >
-          {sending ? "שולח..." : "שלח הזמנה בלבד"}
+          {sending
+            ? "שולח..."
+            : phoneMode
+              ? "שלח הזמנה למספר זה"
+              : "שלח הזמנה בלבד"}
         </button>
 
         {status && (

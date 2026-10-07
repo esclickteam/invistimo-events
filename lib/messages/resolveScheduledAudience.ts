@@ -22,7 +22,9 @@ export type ScheduledAudienceFilter =
   | "all"
   | "pending"
   | "withTable"
-  | "never_invited";
+  | "never_invited"
+  | "failed"
+  | "not_sent";
 
 export const DYNAMIC_SCHEDULE_TYPES: readonly ScheduledAudienceType[] = [
   "rsvp",
@@ -39,7 +41,7 @@ export const DYNAMIC_SCHEDULE_TYPES: readonly ScheduledAudienceType[] = [
  *
  * | type              | channel   | schedule stores | send-time query                          |
  * |-------------------|-----------|-----------------|------------------------------------------|
- * | invitation_only   | whatsapp  | filter only     | all guests (+ never_invited post-filter) |
+ * | invitation_only   | whatsapp  | filter only     | all guests (+ never_invited/failed/not_sent post-filter) |
  * | save_the_date     | whatsapp  | filter=all      | all guests                               |
  * | rsvp round 1      | wa / sms  | filter=all      | all guests                               |
  * | rsvp round 2/3    | wa / sms  | filter=pending  | rsvp === "pending"                       |
@@ -73,7 +75,9 @@ export function normalizeScheduleAudienceFilter(
   if (
     filter === "pending" ||
     filter === "withTable" ||
-    filter === "never_invited"
+    filter === "never_invited" ||
+    filter === "failed" ||
+    filter === "not_sent"
   ) {
     return filter;
   }
@@ -174,4 +178,42 @@ export function needsNeverInvitedPostFilter(schedule: {
   );
   const filter = normalizeScheduleAudienceFilter(schedule.filter);
   return type === "invitation_only" && filter === "never_invited";
+}
+
+/** invitation_only failed / not_sent — resolved from RoundGuestDelivery at send time. */
+export function needsInvitationDeliveryStatusPostFilter(schedule: {
+  type?: unknown;
+  templateKey?: unknown;
+  filter?: unknown;
+}): "failed" | "not_sent" | null {
+  const type = normalizeScheduleAudienceType(
+    schedule.type || schedule.templateKey
+  );
+  const filter = normalizeScheduleAudienceFilter(schedule.filter);
+  if (type !== "invitation_only") return null;
+  if (filter === "failed" || filter === "not_sent") return filter;
+  return null;
+}
+
+/**
+ * Explicit single-recipient / hand-picked schedules may store guestIds.
+ * Eligibility-based schedules must not — they re-query at send time.
+ */
+export function scheduleUsesExplicitGuestIds(schedule: {
+  type?: unknown;
+  templateKey?: unknown;
+  filter?: unknown;
+  guestIds?: unknown;
+}): boolean {
+  const ids = Array.isArray(schedule.guestIds) ? schedule.guestIds : [];
+  if (!ids.length) return false;
+  // Only honor stored IDs when filter is not a live eligibility criterion.
+  const filter = normalizeScheduleAudienceFilter(schedule.filter);
+  return (
+    filter !== "pending" &&
+    filter !== "withTable" &&
+    filter !== "never_invited" &&
+    filter !== "failed" &&
+    filter !== "not_sent"
+  );
 }

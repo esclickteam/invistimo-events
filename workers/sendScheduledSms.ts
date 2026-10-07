@@ -27,10 +27,15 @@ import {
   resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
 import { filterGuestsByInvitationAudience } from "@/lib/messages/invitationOnlyDetails";
-import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
+import {
+  findGuestIdsWithInvitationDeliveryStatus,
+  findGuestIdsWithInvitationSendAttempt,
+} from "@/lib/messages/invitationOnlySendHistory";
 import {
   buildScheduledGuestsQuery,
+  needsInvitationDeliveryStatusPostFilter,
   needsNeverInvitedPostFilter,
+  scheduleUsesExplicitGuestIds,
 } from "@/lib/messages/resolveScheduledAudience";
 import { getRsvpSmsRoundTemplate, ROUND_SMS_TEMPLATES } from "@/lib/sms/roundSmsTemplates";
 
@@ -1011,27 +1016,48 @@ export async function sendScheduledWhatsapp() {
             .lean()
         : null;
 
-      const guestsQuery = buildGuestsQuery({
-        schedule: msg,
-        invitationId: msg.invitationId,
-      });
-
       /*
         Fresh audience query at send start. After this assignment, roundGuests
         is the locked recipient set for THIS run (status changes mid-send
         do not add/remove recipients from this execution).
       */
-      let guests = await InvitationGuest.find(guestsQuery).lean();
+      let guests;
 
-      if (needsNeverInvitedPostFilter(msg)) {
-        const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
-          String(msg.invitationId)
-        );
-        guests = filterGuestsByInvitationAudience({
-          guests,
-          filter: "never_invited",
-          alreadyInvitedGuestIds: alreadyInvited,
+      if (scheduleUsesExplicitGuestIds(msg)) {
+        guests = await InvitationGuest.find({
+          invitationId: msg.invitationId,
+          _id: { $in: msg.guestIds },
+        }).lean();
+      } else {
+        const guestsQuery = buildGuestsQuery({
+          schedule: msg,
+          invitationId: msg.invitationId,
         });
+        guests = await InvitationGuest.find(guestsQuery).lean();
+
+        if (needsNeverInvitedPostFilter(msg)) {
+          const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
+            String(msg.invitationId)
+          );
+          guests = filterGuestsByInvitationAudience({
+            guests,
+            filter: "never_invited",
+            alreadyInvitedGuestIds: alreadyInvited,
+          });
+        }
+
+        const deliveryFilter = needsInvitationDeliveryStatusPostFilter(msg);
+        if (deliveryFilter) {
+          const deliveryIds = await findGuestIdsWithInvitationDeliveryStatus(
+            String(msg.invitationId),
+            deliveryFilter === "failed" ? ["FAILED"] : ["NOT_SENT"]
+          );
+          guests = filterGuestsByInvitationAudience({
+            guests,
+            filter: deliveryFilter,
+            deliveryStatusGuestIds: deliveryIds,
+          });
+        }
       }
 
       roundGuests = guests;

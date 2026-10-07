@@ -5,7 +5,9 @@ import {
   buildScheduledGuestsQuery,
   emptyScheduleGuestIds,
   isDynamicScheduleType,
+  needsInvitationDeliveryStatusPostFilter,
   needsNeverInvitedPostFilter,
+  scheduleUsesExplicitGuestIds,
 } from "../../lib/messages/resolveScheduledAudience";
 
 const INV = "inv-1";
@@ -159,5 +161,39 @@ test("save_the_date audience is all guests at send time", () => {
       },
     }),
     { invitationId: INV }
+  );
+});
+
+test("invitation_only failed / not_sent recompute from delivery status at send time", () => {
+  assert.equal(
+    needsInvitationDeliveryStatusPostFilter({
+      type: "invitation_only",
+      filter: "failed",
+    }),
+    "failed"
+  );
+  assert.equal(
+    needsInvitationDeliveryStatusPostFilter({
+      type: "invitation_only",
+      filter: "not_sent",
+    }),
+    "not_sent"
+  );
+  assert.equal(
+    needsInvitationDeliveryStatusPostFilter({
+      type: "rsvp",
+      filter: "failed",
+    }),
+    null
+  );
+
+  // Eligibility filters must ignore stored guestIds.
+  assert.equal(
+    scheduleUsesExplicitGuestIds({
+      type: "invitation_only",
+      filter: "failed",
+      guestIds: ["g1"],
+    }),
+    false
   );
 });

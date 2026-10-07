@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import EditScheduledMessageModal from "@/app/components/EditScheduledMessageModal";
 import {
   formatScheduleDate,
@@ -34,7 +34,13 @@ type ScheduledMessage = {
 
   scheduledAt: string;
   status: ScheduledMessageStatus;
+
+  /** Live intended audience (recomputed on each list fetch). */
+  liveGuestsCount?: number;
+  guestsCount?: number;
 };
+
+const LIVE_COUNT_POLL_MS = 15_000;
 
 /* ================= HELPERS ================= */
 
@@ -101,6 +107,18 @@ function shouldShowTableSendTimeNote(msg: ScheduledMessage) {
 
 /* ================= COMPONENT ================= */
 
+function liveIntendedLabel(msg: ScheduledMessage) {
+  const count =
+    typeof msg.liveGuestsCount === "number"
+      ? msg.liveGuestsCount
+      : typeof msg.guestsCount === "number"
+        ? msg.guestsCount
+        : null;
+
+  if (count === null) return null;
+  return `${count.toLocaleString("he-IL")} מיועדים לשליחה`;
+}
+
 export default function ScheduledMessagesTable({
   messages,
   onChange,
@@ -110,6 +128,26 @@ export default function ScheduledMessagesTable({
 }) {
   const [editing, setEditing] = useState<ScheduledMessage | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Refresh live intended counts while schedules are open.
+  useEffect(() => {
+    if (!messages.length) return;
+
+    const tick = () => {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+      onChangeRef.current();
+    };
+
+    const id = window.setInterval(tick, LIVE_COUNT_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [messages.length]);
 
   async function cancelMessage(id: string) {
     if (!confirm("לבטל את ההודעה המתוזמנת?")) return;
@@ -144,9 +182,10 @@ export default function ScheduledMessagesTable({
         <table className="w-full border rounded-xl text-sm table-fixed">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-3 text-right w-[55%]">תוכן ההודעה</th>
-              <th className="p-3 text-center w-[20%]">מועד שליחה</th>
-              <th className="p-3 text-center w-[12%]">סטטוס</th>
+              <th className="p-3 text-right w-[45%]">תוכן ההודעה</th>
+              <th className="p-3 text-center w-[18%]">מועד שליחה</th>
+              <th className="p-3 text-center w-[14%]">מיועדים</th>
+              <th className="p-3 text-center w-[10%]">סטטוס</th>
               <th className="p-3 text-center w-[13%]">פעולות</th>
             </tr>
           </thead>
@@ -155,6 +194,7 @@ export default function ScheduledMessagesTable({
             {messages.map((msg) => {
               const displayContent = getDisplayMessageContent(msg);
               const showTableNote = shouldShowTableSendTimeNote(msg);
+              const intended = liveIntendedLabel(msg);
 
               return (
                 <tr key={msg._id} className="border-t align-top">
@@ -174,6 +214,19 @@ export default function ScheduledMessagesTable({
                     <span dir="ltr" className="inline-block">
                       {formatScheduledAt(msg.scheduledAt)}
                     </span>
+                  </td>
+
+                  <td className="p-3 text-center">
+                    {intended ? (
+                      <div className="text-sm font-black text-[#6B451E]">
+                        {intended}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                    <div className="mt-1 text-[10px] font-bold text-[#A08B74]">
+                      מתעדכן לפי סטטוסים חיים
+                    </div>
                   </td>
 
                   <td
@@ -220,6 +273,7 @@ export default function ScheduledMessagesTable({
         {messages.map((msg) => {
           const displayContent = getDisplayMessageContent(msg);
           const showTableNote = shouldShowTableSendTimeNote(msg);
+          const intended = liveIntendedLabel(msg);
 
           return (
             <div key={msg._id} className="border rounded-xl p-4 bg-white">
@@ -242,6 +296,15 @@ export default function ScheduledMessagesTable({
                   {formatScheduledAt(msg.scheduledAt)}
                 </span>
               </div>
+
+              {intended && (
+                <div className="mb-2 text-sm font-black text-[#6B451E]">
+                  {intended}
+                  <span className="mr-2 text-[10px] font-bold text-[#A08B74]">
+                    (מתעדכן לפי סטטוסים חיים)
+                  </span>
+                </div>
+              )}
 
               <div
                 className={`text-sm font-semibold mb-3 ${statusColor[msg.status]}`}

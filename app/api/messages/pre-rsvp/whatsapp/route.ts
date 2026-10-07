@@ -16,11 +16,11 @@ import {
 } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
   buildInvitationLocationLabel,
-  filterGuestsByInvitationAudience,
+  invitationOnlyFilterAllowsResend,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
 } from "@/lib/messages/invitationOnlyDetails";
-import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
+import { resolveInvitationOnlyAudienceGuests } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
 
 export const runtime = "nodejs";
@@ -711,10 +711,12 @@ export async function POST(req: NextRequest) {
     const audienceFilter = parseInvitationOnlyAudienceFilter(
       formData.get("filter") || formData.get("audienceFilter")
     );
+    const phoneFromForm = cleanString(formData.get("phone"));
     const allowResend =
       cleanString(formData.get("allowResend")) === "true" ||
       cleanString(formData.get("allowResend")) === "1" ||
-      audienceFilter === "never_invited";
+      invitationOnlyFilterAllowsResend(audienceFilter) ||
+      Boolean(phoneFromForm);
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
@@ -1071,16 +1073,22 @@ export async function POST(req: NextRequest) {
       .lean();
 
     let audienceGuests = guests;
+    let resolvedAudienceFilter:
+      | "all"
+      | "never_invited"
+      | "failed"
+      | "not_sent"
+      | "phone" = audienceFilter;
 
-    if (messageType === "invitation_only" && audienceFilter === "never_invited") {
-      const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
-        invitationId
-      );
-      audienceGuests = filterGuestsByInvitationAudience({
+    if (messageType === "invitation_only") {
+      const resolved = await resolveInvitationOnlyAudienceGuests({
+        invitationId,
         guests,
-        filter: "never_invited",
-        alreadyInvitedGuestIds: alreadyInvited,
+        filter: audienceFilter,
+        phone: phoneFromForm,
       });
+      audienceGuests = resolved.guests;
+      resolvedAudienceFilter = resolved.resolvedFilter;
     }
 
     const validGuests = audienceGuests
@@ -1091,19 +1099,40 @@ export async function POST(req: NextRequest) {
       .filter((item) => /^05\d{8}$/.test(item.phone));
 
     if (validGuests.length === 0) {
+      const emptyMessage =
+        messageType === "invitation_only" && resolvedAudienceFilter === "never_invited"
+          ? "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת (עם מספר תקין)."
+          : messageType === "invitation_only" && resolvedAudienceFilter === "failed"
+            ? "לא נמצאו אורחים שנכשלה להם שליחת ההזמנה."
+            : messageType === "invitation_only" && resolvedAudienceFilter === "not_sent"
+              ? "לא נמצאו אורחים שלא נשלחה אליהם ההזמנה בדוח הסבבים."
+              : messageType === "invitation_only" && resolvedAudienceFilter === "phone"
+                ? phoneFromForm
+                  ? "לא נמצא אורח ברשימה עם מספר הטלפון שהוזן, או שהמספר אינו תקין."
+                  : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ."
+                : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.";
+
       return NextResponse.json(
         {
           success: false,
-          error:
-            messageType === "invitation_only" && audienceFilter === "never_invited"
-              ? "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת (עם מספר תקין)."
-              : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.",
+          error: emptyMessage,
         },
         { status: 400 }
       );
     }
 
     if (sendTiming === "scheduled") {
+      if (phoneFromForm) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "שליחה למספר בודד היא מיידית בלבד — בטלו את התזמון או נקו את שדה הטלפון.",
+          },
+          { status: 400 }
+        );
+      }
+
       const scheduledAt = buildScheduledAt(scheduledDate, scheduledTime);
 
       if (!scheduledAt) {
