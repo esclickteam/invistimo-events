@@ -96,12 +96,11 @@ test("system voice list is only female/male from env — not ElevenLabs catalog"
     assert.ok(
       options.every(
         (o) =>
-          o.label.includes("קול נשי") ||
-          o.label.includes("קול גברי") ||
-          o.label.includes("דנה")
+          o.label === "קול נשי" || o.label === "קול גברי"
       )
     );
-    assert.equal(options.find((o) => o.gender === "female")?.label, "דנה – קול נשי");
+    assert.equal(options.find((o) => o.gender === "female")?.label, "קול נשי");
+    assert.equal(options.find((o) => o.gender === "male")?.label, "קול גברי");
   } finally {
     if (prevF === undefined) delete process.env.IVR_FEMALE_VOICE_ID;
     else process.env.IVR_FEMALE_VOICE_ID = prevF;
@@ -113,7 +112,9 @@ test("system voice list is only female/male from env — not ElevenLabs catalog"
   assert.match(voicesRoute, /getIvrSystemVoiceChoices/);
   assert.match(voicesRoute, /systemVoicesOnly/);
   assert.equal(voicesRoute.includes("listElevenLabsVoices"), false);
-  assert.match(voicesRoute, /דנה|female/);
+  assert.match(voicesRoute, /קול נשי/);
+  assert.equal(voicesRoute.includes("דנה"), false);
+  assert.equal(voicesRoute.includes("George"), false);
 });
 
 test("config generate synthesizes event name only — never full intro as TTS payload", () => {
@@ -199,17 +200,22 @@ test("creating two events reuses global pack segments (no re-TTS of fixed texts)
   assert.notEqual(h1, h2);
 });
 
-test("UI offers only Dana/male radios — not ElevenLabs voice dropdown", () => {
+test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog", () => {
   const ui = readSrc("app/components/IvrRoundsPanel.jsx");
   assert.match(ui, /ivr-voice-gender/);
-  assert.match(ui, /דנה – קול נשי/);
+  assert.match(ui, /קול נשי/);
+  assert.match(ui, /קול גברי/);
   assert.match(ui, /type="radio"/);
   assert.match(ui, /ConcatPreviewPlayer|previewPlaylist/);
-  assert.match(ui, /יצירת שם האירוע/);
+  assert.match(ui, /יצירת שם האירוע \+ תצוגה מקדימה/);
+  assert.match(ui, /packsReady|ivr-packs-not-ready/);
   assert.match(ui, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
   assert.equal(ui.includes("listElevenLabsVoices"), false);
   assert.equal(ui.includes("<select"), false);
   assert.equal(ui.includes("טוען קולות"), false);
+  assert.equal(ui.includes("דנה"), false);
+  assert.equal(ui.includes("Dana"), false);
+  assert.equal(ui.includes("George"), false);
   // Must not fetch voices as a client catalog
   assert.equal(ui.includes('fetch("/api/ivr/voices"'), false);
 });

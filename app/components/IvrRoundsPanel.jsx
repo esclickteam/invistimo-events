@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const SELF_MAX_SECONDS = 45;
 
+const GENDER_CHOICES = [
+  { gender: "female", label: "קול נשי" },
+  { gender: "male", label: "קול גברי" },
+];
+
 function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -49,8 +54,33 @@ function ConcatPreviewPlayer({ playlist, onEnded }) {
   );
 }
 
+function SingleClipPlayer({ url, label, onEnded }) {
+  if (!url) {
+    return (
+      <p className="text-xs font-bold text-[#8A7867]">
+        {label || "קטע גלובלי"} — עדיין לא זמין ב-Voice Pack
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {label ? (
+        <p className="text-[11px] font-bold text-[#8A7867]">{label}</p>
+      ) : null}
+      <audio
+        controls
+        autoPlay
+        src={url}
+        className="w-full"
+        onEnded={() => onEnded?.()}
+      />
+    </div>
+  );
+}
+
 function IvrCallSimulator({
   previewPlaylist,
+  followUpAudio,
   systemPromptTexts,
   onClose,
 }) {
@@ -58,16 +88,9 @@ function IvrCallSimulator({
   const [choice, setChoice] = useState("");
   const [count, setCount] = useState("");
 
-  const followText =
-    choice === "1"
-      ? systemPromptTexts?.afterPress1 ||
-        systemPromptTexts?.askGuestCount ||
-        ""
-      : choice === "2" || choice === "3"
-        ? systemPromptTexts?.afterPress2Or3 ||
-          systemPromptTexts?.thanksReceived ||
-          ""
-        : "";
+  const afterPress1Url = followUpAudio?.afterPress1Url || "";
+  const afterValidQuantityUrl = followUpAudio?.afterValidQuantityUrl || "";
+  const afterPress2Or3Url = followUpAudio?.afterPress2Or3Url || "";
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 px-4">
@@ -81,7 +104,8 @@ function IvrCallSimulator({
               תצוגה מקדימה של השיחה
             </h3>
             <p className="mt-1 text-xs font-bold text-[#8A7867]">
-              סימולציה בדפדפן בלבד — ללא שיחת Telnyx אמיתית.
+              סימולציה מדפדפן — הקטעים הקבועים מה-Voice Pack הגלובלי + שם
+              האירוע בלבד.
             </p>
           </div>
           <button
@@ -121,7 +145,7 @@ function IvrCallSimulator({
                   type="button"
                   onClick={() => {
                     setChoice(digit);
-                    setStep(digit === "1" ? "count" : "done");
+                    setStep(digit === "1" ? "after1" : "after23");
                   }}
                   className="flex-1 rounded-xl bg-[#B97821] px-3 py-3 text-lg font-black text-white"
                 >
@@ -132,9 +156,16 @@ function IvrCallSimulator({
           </div>
         ) : null}
 
-        {step === "count" ? (
+        {step === "after1" ? (
           <div className="space-y-3">
-            <p className="text-sm font-bold text-[#3A2A1C]">{followText}</p>
+            <SingleClipPlayer
+              url={afterPress1Url}
+              label={
+                systemPromptTexts?.afterPress1 ||
+                systemPromptTexts?.askGuestCount ||
+                "אחרי הקשה 1"
+              }
+            />
             <input
               type="number"
               min={1}
@@ -145,7 +176,7 @@ function IvrCallSimulator({
             />
             <button
               type="button"
-              onClick={() => setStep("done")}
+              onClick={() => setStep("afterQty")}
               className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
             >
               המשך
@@ -153,18 +184,41 @@ function IvrCallSimulator({
           </div>
         ) : null}
 
-        {step === "done" ? (
-          <div className="space-y-2 text-sm font-bold text-[#3A2A1C]">
-            <p>
-              {choice === "1"
-                ? systemPromptTexts?.afterValidQuantity ||
-                  systemPromptTexts?.thanksAttending
-                : systemPromptTexts?.afterPress2Or3 ||
-                  systemPromptTexts?.thanksReceived}
+        {step === "afterQty" ? (
+          <div className="space-y-3">
+            <SingleClipPlayer
+              url={afterValidQuantityUrl}
+              label={
+                systemPromptTexts?.afterValidQuantity ||
+                systemPromptTexts?.thanksAttending ||
+                "אישור הגעה"
+              }
+            />
+            <p className="text-xs font-bold text-[#8A7867]">
+              בחירה: 1{count ? ` · כמות: ${count}` : ""}
             </p>
-            <p className="text-xs text-[#8A7867]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-[#E7D8C6] px-4 py-2"
+            >
+              סיום סימולציה
+            </button>
+          </div>
+        ) : null}
+
+        {step === "after23" ? (
+          <div className="space-y-3">
+            <SingleClipPlayer
+              url={afterPress2Or3Url}
+              label={
+                systemPromptTexts?.afterPress2Or3 ||
+                systemPromptTexts?.thanksReceived ||
+                "תשובה התקבלה"
+              }
+            />
+            <p className="text-xs font-bold text-[#8A7867]">
               בחירה: {choice}
-              {choice === "1" && count ? ` · כמות: ${count}` : ""}
             </p>
             <button
               type="button"
@@ -186,7 +240,7 @@ export default function IvrRoundsPanel({
   userId = "",
 }) {
   const [config, setConfig] = useState(null);
-  const [voices, setVoices] = useState([]);
+  const [packsReady, setPacksReady] = useState(false);
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -223,8 +277,7 @@ export default function IvrRoundsPanel({
     setError("");
     try {
       const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-      // Config already resolves the two system voices (Dana / male).
-      // Do NOT load /api/ivr/voices as an ElevenLabs catalog for the client.
+      // Never load /api/ivr/voices — gender radios are fixed (קול נשי / קול גברי).
       const [cfgRes, statsRes] = await Promise.all([
         fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
         fetch(`/api/ivr/rounds/stats${qs}`, { credentials: "include" }),
@@ -238,37 +291,7 @@ export default function IvrRoundsPanel({
       }
 
       setConfig(cfg);
-
-      const fromConfig = Array.isArray(cfg?.ivrConfig?.systemVoices)
-        ? cfg.ivrConfig.systemVoices
-        : [];
-      const nextVoices =
-        fromConfig.length > 0
-          ? fromConfig.map((v) => ({
-              gender: v.gender,
-              label:
-                v.gender === "female"
-                  ? "דנה – קול נשי"
-                  : v.label ||
-                    (v.name ? `${v.name} – קול גברי` : "קול גברי"),
-              name: v.name || "",
-              voiceId: v.voiceId,
-            }))
-          : [
-              {
-                gender: "female",
-                label: "דנה – קול נשי",
-                name: "Dana",
-                voiceId: "",
-              },
-              {
-                gender: "male",
-                label: "קול גברי",
-                name: "",
-                voiceId: "",
-              },
-            ];
-      setVoices(nextVoices);
+      setPacksReady(Boolean(cfg?.packsReady));
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה בטעינה");
@@ -321,6 +344,9 @@ export default function IvrRoundsPanel({
         ...prev,
         ivrConfig: data.ivrConfig || prev?.ivrConfig,
       }));
+      if (typeof data.packsReady === "boolean") {
+        setPacksReady(data.packsReady);
+      }
       if (data.needsRegenerate) {
         setMessage(
           "שם האירוע או הקול השתנו — יש ליצור מחדש רק את שם האירוע ולאשר."
@@ -338,6 +364,12 @@ export default function IvrRoundsPanel({
   }
 
   async function generateAi({ force = false } = {}) {
+    if (!packsReady) {
+      setError(
+        "הקריינות הגלובלית עדיין לא אושרה באדמין. לא ניתן ליצור שם אירוע."
+      );
+      return;
+    }
     setSaving(true);
     setMessage("");
     setError("");
@@ -376,6 +408,9 @@ export default function IvrRoundsPanel({
             "חסרים קרדיטים ב-ElevenLabs (402) — זה הגורם, לא בחירת הקול."
           );
         }
+        if (data?.error === "VOICE_PACKS_NOT_APPROVED") {
+          setPacksReady(false);
+        }
         throw new Error(parts.filter(Boolean).join(" · "));
       }
       patchLocal({
@@ -385,6 +420,7 @@ export default function IvrRoundsPanel({
         previewAudio: data.previewAudio,
         previewText: data.previewText,
         recommendedScript: data.previewText,
+        followUpAudio: data.followUpAudio || config?.ivrConfig?.followUpAudio,
       });
       setMessage(
         data.reused
@@ -529,6 +565,7 @@ export default function IvrRoundsPanel({
           previewPlaylist={
             audioMode === "ai" ? previewPlaylist : [intro?.audioUrl]
           }
+          followUpAudio={config?.ivrConfig?.followUpAudio}
           systemPromptTexts={config?.ivrConfig?.systemPromptTexts}
           onClose={() => setShowSimulator(false)}
         />
@@ -632,36 +669,14 @@ export default function IvrRoundsPanel({
           </button>
         </div>
 
-        <label className="mt-4 block text-sm font-bold text-[#3A2A1C]">
-          שם האירוע
-          <input
-            value={config?.ivrConfig?.eventName || ""}
-            onChange={(e) => patchLocal({ eventName: e.target.value })}
-            placeholder="החתונה של הדס ורועי"
-            className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-            data-testid="ivr-event-name"
-          />
-        </label>
-
         {audioMode === "ai" ? (
           <div className="mt-4 space-y-3">
-            <label className="block text-sm font-bold text-[#3A2A1C]">
-              הגייה לקריינות (אופציונלי)
-              <input
-                value={config?.ivrConfig?.eventNamePronunciation || ""}
-                onChange={(e) =>
-                  patchLocal({ eventNamePronunciation: e.target.value })
-                }
-                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
-              />
-            </label>
-
             <div>
               <div className="mb-2 text-sm font-bold text-[#3A2A1C]">
                 בחירת קול
               </div>
               <p className="mb-2 text-[11px] font-bold text-[#8A7867]">
-                שני קולות קבועים במערכת בלבד — ללא רשימת ElevenLabs.
+                שני קולות מערכת קבועים בלבד.
               </p>
               <div
                 className="flex flex-col gap-2 sm:flex-row"
@@ -669,17 +684,7 @@ export default function IvrRoundsPanel({
                 role="radiogroup"
                 aria-label="בחירת קול"
               >
-                {(voices.length
-                  ? voices
-                  : [
-                      {
-                        gender: "female",
-                        label: "דנה – קול נשי",
-                        voiceId: "",
-                      },
-                      { gender: "male", label: "קול גברי", voiceId: "" },
-                    ]
-                ).map((voice) => {
+                {GENDER_CHOICES.map((voice) => {
                   const selected =
                     config?.ivrConfig?.voiceGender === voice.gender;
                   return (
@@ -700,22 +705,48 @@ export default function IvrRoundsPanel({
                         onChange={() =>
                           patchLocal({
                             voiceGender: voice.gender,
-                            systemVoiceId: voice.voiceId,
-                            voiceId: voice.voiceId,
                           })
                         }
                         className="h-4 w-4 accent-[#B97821]"
                       />
-                      <span>
-                        {voice.gender === "female"
-                          ? "דנה – קול נשי"
-                          : voice.label || "קול גברי"}
-                      </span>
+                      <span>{voice.label}</span>
                     </label>
                   );
                 })}
               </div>
             </div>
+
+            {!packsReady ? (
+              <div
+                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900"
+                data-testid="ivr-packs-not-ready"
+              >
+                הקריינות הגלובלית עדיין לא אושרה באדמין (שיחות מוקלטות → הגדרות
+                קריינות). לאחר אישור שני ה-Voice Packs ניתן ליצור את שם האירוע.
+              </div>
+            ) : null}
+
+            <label className="block text-sm font-bold text-[#3A2A1C]">
+              שם האירוע
+              <input
+                value={config?.ivrConfig?.eventName || ""}
+                onChange={(e) => patchLocal({ eventName: e.target.value })}
+                placeholder="החתונה של הדר ורועי"
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                data-testid="ivr-event-name"
+              />
+            </label>
+
+            <label className="block text-sm font-bold text-[#3A2A1C]">
+              הגייה לקריינות (אופציונלי)
+              <input
+                value={config?.ivrConfig?.eventNamePronunciation || ""}
+                onChange={(e) =>
+                  patchLocal({ eventNamePronunciation: e.target.value })
+                }
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+              />
+            </label>
 
             <div>
               <div className="mb-1 text-xs font-black text-[#B97821]">
@@ -725,20 +756,25 @@ export default function IvrRoundsPanel({
                 {previewText || "הזינו שם אירוע כדי לראות את התבנית."}
               </pre>
               <p className="mt-2 text-[11px] font-bold text-[#8A7867]">
-                הקריינות הקבועה זהה לכל האירועים. ElevenLabs מייצר רק את שם
-                האירוע לפי הקול שנבחר.
+                הקריינות הקבועה זהה לכל האירועים. נוצר רק שם האירוע לפי הקול
+                שנבחר.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={saving || !config?.ivrConfig?.voiceGender}
+                disabled={
+                  saving ||
+                  !config?.ivrConfig?.voiceGender ||
+                  !packsReady ||
+                  !cleanText(config?.ivrConfig?.eventName)
+                }
                 onClick={() => generateAi({ force: false })}
                 className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
                 data-testid="ivr-generate-event-name"
               >
-                יצירת שם האירוע + Preview
+                יצירת שם האירוע + תצוגה מקדימה
               </button>
               <button
                 type="button"
@@ -752,6 +788,16 @@ export default function IvrRoundsPanel({
           </div>
         ) : (
           <div className="mt-4 space-y-3">
+            <label className="block text-sm font-bold text-[#3A2A1C]">
+              שם האירוע
+              <input
+                value={config?.ivrConfig?.eventName || ""}
+                onChange={(e) => patchLocal({ eventName: e.target.value })}
+                placeholder="החתונה של הדר ורועי"
+                className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                data-testid="ivr-event-name"
+              />
+            </label>
             <p className="text-xs font-bold text-[#8A7867]">
               מומלץ לשמור על הודעה קצרה של 20–30 שניות. ניתן להקליט עד 45 שניות.
             </p>
@@ -826,11 +872,11 @@ export default function IvrRoundsPanel({
                 onClick={() => setShowSimulator(true)}
                 className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
               >
-                תצוגה מקדימה של השיחה
+                תצוגה מקדימה מלאה של השיחה
               </button>
               <button
                 type="button"
-                disabled={saving}
+                disabled={saving || !packsReady}
                 onClick={() => generateAi({ force: true })}
                 className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
               >

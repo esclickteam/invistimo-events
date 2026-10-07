@@ -8,12 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Returns ONLY the two Invistimo system voices for the client UI:
- * - דנה – קול נשי
- * - {Name} – קול גברי  (or "קול גברי" before name is known)
+ * Returns ONLY the two Invistimo system gender choices for the client UI:
+ * - קול נשי
+ * - קול גברי
  *
- * Never returns the full ElevenLabs catalog. Server may call ElevenLabs
- * behind the scenes once to resolve/persist Dana + best Hebrew male.
+ * Never returns ElevenLabs catalog names or voiceIds to clients.
+ * Clients should prefer gender radios from /api/ivr/config (packsReady).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -26,40 +26,16 @@ export async function GET(req: NextRequest) {
     }
 
     const keyMeta = getElevenLabsKeyMeta();
-    const force =
-      new URL(req.url).searchParams.get("resolve") === "1" ||
-      new URL(req.url).searchParams.get("force") === "1";
-
-    const result = await getIvrSystemVoiceChoices({ forceResolve: force || true });
-
-    if (result.voices.length === 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "SYSTEM_VOICES_NOT_CONFIGURED",
-          message:
-            "לא הצלחנו לזהות את קול דנה / הקול הגברי. ודאו ש-ELEVENLABS_API_KEY תקין או הגדירו IVR_FEMALE_VOICE_ID / IVR_MALE_VOICE_ID.",
-          voices: [],
-          diagnostics: {
-            keyPresent: keyMeta.present,
-            keyLength: keyMeta.length,
-            keyPrefix: keyMeta.prefix,
-            ...result.diagnostics,
-          },
-        },
-        { status: 500 }
-      );
-    }
+    const result = await getIvrSystemVoiceChoices();
 
     return NextResponse.json({
       ok: true,
       /** Fixed two-option list only — not an ElevenLabs catalog. */
       systemVoicesOnly: true,
+      packsReady: result.packsReady,
       voices: result.voices.map((v) => ({
         gender: v.gender,
         label: v.label,
-        name: v.name,
-        voiceId: v.voiceId,
       })),
       diagnostics: {
         keyPresent: keyMeta.present,
@@ -68,7 +44,6 @@ export async function GET(req: NextRequest) {
         keySourceEnv: keyMeta.sourceEnv,
         resolved: result.resolved,
         ...result.diagnostics,
-        authHeader: "xi-api-key",
       },
     });
   } catch (error) {
@@ -88,8 +63,12 @@ export async function GET(req: NextRequest) {
         providerStatus: payload.providerStatus,
         providerDetail: payload.providerDetail,
         providerStatusCode: payload.providerStatusCode,
-        voices: [],
+        voices: [
+          { gender: "female", label: "קול נשי" },
+          { gender: "male", label: "קול גברי" },
+        ],
         systemVoicesOnly: true,
+        packsReady: false,
       },
       { status: 500 }
     );

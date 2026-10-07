@@ -1,42 +1,44 @@
 import mongoose, { Schema, type Model } from "mongoose";
 
 /**
- * Singleton document: the two Invistimo system voices (Dana female + chosen Hebrew male).
- * Resolved once from ElevenLabs (or env overrides) and reused everywhere.
+ * Singleton: Invistimo global IVR voice pack config (female + male).
+ * Voice IDs + approval live here; audio clips live in IvrSystemAudio / R2.
  */
 
-export type IIvrResolvedVoice = {
+export type IIvrPackVoiceMeta = {
   voiceId: string;
-  name: string;
-  label: string;
-  gender: "female" | "male";
-  language?: string;
-  source: "env" | "auto" | "manual";
+  /** Internal note for admin only — never shown to clients. */
+  adminNote?: string;
+  source: "env" | "manual";
+  segmentsReady: boolean;
+  approved: boolean;
+  approvedAt?: Date | null;
+  lastGeneratedAt?: Date | null;
 };
 
 export interface IIvrSystemVoiceConfig {
   _id?: mongoose.Types.ObjectId;
   key: string;
-  female?: IIvrResolvedVoice | null;
-  male?: IIvrResolvedVoice | null;
-  resolvedAt?: Date | null;
+  female?: IIvrPackVoiceMeta | null;
+  male?: IIvrPackVoiceMeta | null;
   notes?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-const ResolvedVoiceSchema = new Schema<IIvrResolvedVoice>(
+const PackVoiceMetaSchema = new Schema<IIvrPackVoiceMeta>(
   {
-    voiceId: { type: String, required: true, trim: true },
-    name: { type: String, required: true, trim: true, default: "" },
-    label: { type: String, required: true, trim: true, default: "" },
-    gender: { type: String, enum: ["female", "male"], required: true },
-    language: { type: String, trim: true, default: "he" },
+    voiceId: { type: String, required: true, trim: true, default: "" },
+    adminNote: { type: String, trim: true, default: "" },
     source: {
       type: String,
-      enum: ["env", "auto", "manual"],
-      default: "auto",
+      enum: ["env", "manual"],
+      default: "manual",
     },
+    segmentsReady: { type: Boolean, default: false },
+    approved: { type: Boolean, default: false },
+    approvedAt: { type: Date, default: null },
+    lastGeneratedAt: { type: Date, default: null },
   },
   { _id: false }
 );
@@ -50,9 +52,8 @@ const IvrSystemVoiceConfigSchema = new Schema<IIvrSystemVoiceConfig>(
       default: "global",
       index: true,
     },
-    female: { type: ResolvedVoiceSchema, default: null },
-    male: { type: ResolvedVoiceSchema, default: null },
-    resolvedAt: { type: Date, default: null },
+    female: { type: PackVoiceMetaSchema, default: null },
+    male: { type: PackVoiceMetaSchema, default: null },
     notes: { type: String, trim: true, default: "" },
   },
   { timestamps: true }

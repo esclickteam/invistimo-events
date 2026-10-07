@@ -83,6 +83,12 @@ export default function AdminLayout({
       description: "האזנה וניהול הקלטות",
     },
     {
+      href: "/admin/recorded-calls",
+      label: "שיחות מוקלטות",
+      icon: "recordings",
+      description: "הגדרות קריינות · Voice Packs",
+    },
+    {
       href: "/admin/reminder-sms",
       label: "הודעת תזכורת",
       icon: "reminder",

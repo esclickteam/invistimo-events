@@ -475,9 +475,9 @@ export type IvrSystemVoiceOption = {
 
 /**
  * Sync env-only snapshot of the two system voices.
- * Prefer async getIvrSystemVoiceChoices() (ivrSystemVoices) which also
- * resolves Dana + Hebrew male from the account and Mongo cache.
- * Never returns the full ElevenLabs catalog.
+ * Prefer async getIvrSystemVoiceChoices() (ivrSystemVoices) which reads
+ * approved admin Voice Packs. Never returns the full ElevenLabs catalog.
+ * Labels are gender-only — never expose catalog names to clients.
  */
 export function listIvrSystemVoiceOptions(): IvrSystemVoiceOption[] {
   const options: IvrSystemVoiceOption[] = [];
@@ -486,15 +486,14 @@ export function listIvrSystemVoiceOptions(): IvrSystemVoiceOption[] {
   if (female) {
     options.push({
       gender: "female",
-      label: "דנה – קול נשי",
+      label: "קול נשי",
       voiceId: female,
     });
   }
   if (male) {
-    const maleName = readEnv("IVR_MALE_VOICE_NAME").trim();
     options.push({
       gender: "male",
-      label: maleName ? `${maleName} – קול גברי` : "קול גברי",
+      label: "קול גברי",
       voiceId: male,
     });
   }
