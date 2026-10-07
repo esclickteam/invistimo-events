@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import User from "@/models/User";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
 import {
   IVR_SELF_RECORD_MAX_SECONDS,
 } from "@/lib/calls/ivrScript";
@@ -18,13 +16,15 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+    const session = await requireIvrSession(req);
+    if ("error" in session) {
+      return NextResponse.json(
+        { ok: false, error: session.error },
+        { status: session.status }
+      );
     }
 
-    await connectDB();
-    const user = await User.findById(userId);
+    const user = session.user;
     if (!user || !isIvrCallsUser(user)) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
     }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import User from "@/models/User";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import {
+  requireIvrSession,
+  resolveIvrTargetUser,
+} from "@/lib/calls/ivrRequestAuth";
 import {
   normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
@@ -18,24 +19,20 @@ export const dynamic = "force-dynamic";
  */
 export async function PUT(req: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+    const session = await requireIvrSession(req);
+    if ("error" in session) {
+      return NextResponse.json(
+        { ok: false, error: session.error },
+        { status: session.status }
+      );
     }
 
-    await connectDB();
     const body = await req.json().catch(() => ({}));
-    const authUser = await User.findById(userId);
-    if (!authUser) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    const targetId =
-      String(authUser.role) === "admin" && body.userId
-        ? String(body.userId)
-        : String(authUser._id);
-
-    const user = await User.findById(targetId);
+    const user = await resolveIvrTargetUser({
+      sessionUser: session.user,
+      isAdmin: session.isAdmin,
+      requestedUserId: body.userId,
+    });
     if (!user || !isIvrCallsUser(user)) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
     }

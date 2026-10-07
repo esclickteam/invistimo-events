@@ -3,30 +3,20 @@ import {
   listElevenLabsVoices,
   sanitizeElevenLabsErrorMessage,
 } from "@/lib/calls/elevenlabs";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { connectDB } from "@/lib/db";
-import User from "@/models/User";
+import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    await connectDB();
-    const user = await User.findById(userId).select("role includeCalls callsType").lean();
-    const role = String(user?.role || "");
-    const isAdmin = role === "admin";
-    const isIvrClient =
-      Boolean(user?.includeCalls) &&
-      String(user?.callsType || "") === "ivr";
-
-    if (!isAdmin && !isIvrClient) {
-      return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
+    // getUserIdFromRequest returns AuthPayload — use auth.userId only.
+    const session = await requireIvrSession(req);
+    if ("error" in session) {
+      return NextResponse.json(
+        { ok: false, error: session.error },
+        { status: session.status }
+      );
     }
 
     const voices = await listElevenLabsVoices();
@@ -52,6 +42,10 @@ export async function GET(req: NextRequest) {
           safe === "ELEVENLABS_API_KEY_MISSING"
             ? "ELEVENLABS_API_KEY_MISSING"
             : "VOICES_FAILED",
+        message:
+          safe === "ELEVENLABS_API_KEY_MISSING"
+            ? "מפתח ElevenLabs חסר בשרת"
+            : "טעינת רשימת הקולות נכשלה",
       },
       { status: 500 }
     );

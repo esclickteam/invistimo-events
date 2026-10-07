@@ -1,38 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import IvrCallAttempt from "@/models/IvrCallAttempt";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import {
+  requireIvrSession,
+  resolveIvrTargetUser,
+} from "@/lib/calls/ivrRequestAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
-    }
-
-    await connectDB();
-    const user = await User.findById(userId).lean();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+    const session = await requireIvrSession(req);
+    if ("error" in session) {
+      return NextResponse.json(
+        { ok: false, error: session.error },
+        { status: session.status }
+      );
     }
 
     const url = new URL(req.url);
     const guestId = String(url.searchParams.get("guestId") || "").trim();
     const round = Number(url.searchParams.get("round") || 0);
 
-    const targetUserId =
-      String(user.role) === "admin" && url.searchParams.get("userId")
-        ? String(url.searchParams.get("userId"))
-        : String(user._id);
-
-    const target = await User.findById(targetUserId).lean();
-    if (!target || (!isIvrCallsUser(target) && String(user.role) !== "admin")) {
+    const target = await resolveIvrTargetUser({
+      sessionUser: session.user,
+      isAdmin: session.isAdmin,
+      requestedUserId: url.searchParams.get("userId"),
+    });
+    if (!target || (!isIvrCallsUser(target) && !session.isAdmin)) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
     }
 

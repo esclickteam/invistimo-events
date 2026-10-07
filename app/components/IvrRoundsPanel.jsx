@@ -180,8 +180,21 @@ export default function IvrRoundsPanel({
       }
 
       setConfig(cfg);
-      setVoices(Array.isArray(voicesData?.voices) ? voicesData.voices : []);
+      const nextVoices = Array.isArray(voicesData?.voices)
+        ? voicesData.voices
+        : [];
+      setVoices(nextVoices);
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
+
+      if (!voicesRes.ok || !voicesData?.ok) {
+        setError(
+          voicesData?.message ||
+            voicesData?.error ||
+            "טעינת רשימת הקולות מ-ElevenLabs נכשלה"
+        );
+      } else if (nextVoices.length === 0) {
+        setError("לא נמצאו קולות זמינים בחשבון ElevenLabs");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה בטעינה");
     } finally {
@@ -537,15 +550,31 @@ export default function IvrRoundsPanel({
                 value={config?.ivrConfig?.voiceId || ""}
                 onChange={(e) => patchLocal({ voiceId: e.target.value })}
                 className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
+                data-testid="ivr-voice-select"
               >
-                <option value="">בחרו קול</option>
+                <option value="">
+                  {voices.length ? "בחרו קול" : "טוען קולות..."}
+                </option>
                 {voices.map((voice) => (
                   <option key={voice.voiceId} value={voice.voiceId}>
                     {voice.name}
+                    {voice.labels?.language || voice.labels?.accent
+                      ? ` · ${[
+                          voice.labels?.language,
+                          voice.labels?.accent,
+                        ]
+                          .filter(Boolean)
+                          .join(" / ")}`
+                      : ""}
                   </option>
                 ))}
               </select>
             </label>
+            {voices.length === 0 ? (
+              <p className="text-xs font-bold text-rose-700">
+                אין קולות ברשימה. בדקו את חיבור ElevenLabs או רעננו את הדף.
+              </p>
+            ) : null}
 
             <div>
               <div className="mb-1 text-xs font-black text-[#B97821]">
