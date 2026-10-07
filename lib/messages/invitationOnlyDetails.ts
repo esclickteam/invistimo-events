@@ -4,6 +4,9 @@
  * Intentionally separate from RSVP round send paths.
  * Location reuses buildEventLocationLabel / cleanEventAddress from liveEventDetails
  * so invitation copy matches RSVP — without modifying RSVP send logic.
+ *
+ * Date/time for WhatsApp stay on the existing approved template variable:
+ * a single eventDate string, unchanged from the current Meta template.
  */
 
 import RoundGuestDelivery from "@/models/RoundGuestDelivery";
@@ -11,8 +14,6 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import {
   buildEventLocationLabel,
   cleanEventAddress,
-  formatEventDate,
-  resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
 
 export type InvitationOnlyAudienceFilter = "all" | "never_invited";
@@ -21,65 +22,12 @@ function cleanString(value: unknown) {
   return String(value ?? "").trim();
 }
 
-/** Display date as DD/MM/YYYY (matches invitation preview). */
-export function formatInvitationDisplayDate(dateValue?: unknown): string {
-  const raw = cleanString(dateValue);
-  if (!raw) return "";
-
-  // Already formatted from the UI / a previous pass.
-  if (/^\d{2}[./]\d{2}[./]\d{4}$/.test(raw)) {
-    return raw.replace(/\./g, "/");
-  }
-
-  const dotted = formatEventDate(dateValue);
-  if (!dotted) return raw;
-  return dotted.replace(/\./g, "/");
-}
-
-export function formatInvitationDisplayTime(timeValue?: unknown): string {
-  return cleanString(timeValue);
-}
-
-/**
- * WhatsApp Meta templates expose a single "date" body variable and strip
- * newlines from text params. Keep date and time as clearly labeled parts
- * so guests never see a bare "תאריך: DD/MM/YYYY HH:mm" blob.
- */
-export function formatInvitationWhatsappDateParam(
-  dateValue?: unknown,
-  timeValue?: unknown
-): string {
-  const rawDate = cleanString(dateValue);
-  if (/🕒|שעה:/.test(rawDate)) return rawDate;
-
-  const date = formatInvitationDisplayDate(dateValue);
-  const time = formatInvitationDisplayTime(timeValue);
-
-  if (date && time) {
-    return `${date} · 🕒 שעה: ${time}`;
-  }
-
-  return date || time;
-}
-
-export function formatInvitationPreviewDateBlock(
-  dateValue?: unknown,
-  timeValue?: unknown
-): string {
-  const date = formatInvitationDisplayDate(dateValue);
-  const time = formatInvitationDisplayTime(timeValue);
-  const lines: string[] = [];
-
-  if (date) lines.push(`📅 תאריך: ${date}`);
-  if (time) lines.push(`🕒 שעה: ${time}`);
-
-  return lines.join("\n");
-}
-
 /** Same location label RSVP live-details uses (includes() guard, strip ישראל). */
 export function buildInvitationLocationLabel(invitation?: any, event?: any) {
-  return cleanEventAddress(buildEventLocationLabel(invitation, event)) ||
-    buildEventLocationLabel(invitation, event);
+  return (
+    cleanEventAddress(buildEventLocationLabel(invitation, event)) ||
+    buildEventLocationLabel(invitation, event)
+  );
 }
 
 export function resolveInvitationImageUrl(invitation?: any, event?: any) {
@@ -95,39 +43,6 @@ export function resolveInvitationImageUrl(invitation?: any, event?: any) {
       event?.coverImageUrl ||
       ""
   );
-}
-
-export function resolveInvitationOnlyMessageDetails(
-  invitation?: any,
-  event?: any
-) {
-  const live = resolveLiveEventMessageDetails(invitation, event);
-  const eventDateRaw =
-    invitation?.eventDate ||
-    invitation?.date ||
-    event?.date ||
-    event?.eventDate ||
-    null;
-  const eventTime =
-    cleanString(invitation?.eventTime) ||
-    cleanString(invitation?.time) ||
-    cleanString(event?.time) ||
-    cleanString(event?.eventTime) ||
-    live.eventTime;
-
-  return {
-    eventTitle: live.eventTitle,
-    invitationTitle: live.invitationTitle,
-    eventDate: formatInvitationDisplayDate(eventDateRaw),
-    eventTime: formatInvitationDisplayTime(eventTime),
-    eventDateWhatsapp: formatInvitationWhatsappDateParam(eventDateRaw, eventTime),
-    eventDatePreviewBlock: formatInvitationPreviewDateBlock(
-      eventDateRaw,
-      eventTime
-    ),
-    eventLocation: buildInvitationLocationLabel(invitation, event),
-    headerImageUrl: resolveInvitationImageUrl(invitation, event) || live.headerImageUrl,
-  };
 }
 
 /**

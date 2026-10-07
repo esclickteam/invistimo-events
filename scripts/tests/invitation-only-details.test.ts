@@ -4,9 +4,6 @@ import assert from "node:assert/strict";
 import {
   buildInvitationLocationLabel,
   filterGuestsByInvitationAudience,
-  formatInvitationDisplayDate,
-  formatInvitationPreviewDateBlock,
-  formatInvitationWhatsappDateParam,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
 } from "../../lib/messages/invitationOnlyDetails";
@@ -26,19 +23,6 @@ test("invitation location matches RSVP live-details (no duplicated venue name)",
   assert.equal(inviteLabel, rsvpLabel);
   assert.equal(inviteLabel, "קאלה אירועים, דרך יוליוס סימון, חיפה");
   assert.doesNotMatch(inviteLabel, /קאלה אירועים, קאלה אירועים/);
-});
-
-test("invitation date/time stay on separate lines", () => {
-  const localDate = new Date(2026, 10, 9); // 09/11/2026 local
-  const date = formatInvitationDisplayDate(localDate);
-  const whatsapp = formatInvitationWhatsappDateParam(localDate, "19:30");
-  const preview = formatInvitationPreviewDateBlock(localDate, "19:30");
-
-  assert.equal(date, "09/11/2026");
-  assert.doesNotMatch(date, /19:30/);
-  assert.equal(whatsapp, "09/11/2026 · 🕒 שעה: 19:30");
-  assert.match(preview, /📅 תאריך: 09\/11\/2026/);
-  assert.match(preview, /🕒 שעה: 19:30/);
 });
 
 test("never_invited audience excludes guests with prior invitation attempts", () => {

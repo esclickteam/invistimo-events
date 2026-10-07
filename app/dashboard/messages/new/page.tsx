@@ -10,9 +10,6 @@ import {
 } from "./shared/ScheduleDateTimeFields";
 import {
   buildInvitationLocationLabel,
-  formatInvitationDisplayDate,
-  formatInvitationDisplayTime,
-  formatInvitationPreviewDateBlock,
   type InvitationOnlyAudienceFilter,
 } from "@/lib/messages/invitationOnlyDetails";
 
@@ -53,7 +50,6 @@ type PreRsvpMedia = {
 type MessageMeta = {
   invitationTitle: string;
   eventDate: string;
-  eventTime: string;
   eventLocation: string;
   eventType?: string;
   giftCreditUrl?: string;
@@ -68,7 +64,6 @@ type MessageMeta = {
 const EMPTY_META: MessageMeta = {
   invitationTitle: "",
   eventDate: "",
-  eventTime: "",
   eventLocation: "",
   eventType: "",
   giftCreditUrl: "",
@@ -98,9 +93,11 @@ const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן �
 אנחנו מתרגשים להזמין אתכם לקחת חלק באירוע שלנו:
 {שם האירוע}
 
-{תאריך ושעה}
+נשמח לראותכם בתאריך:
+{תאריך אירוע}
 
-📍 מיקום: {מיקום האירוע}
+במיקום:
+{מיקום האירוע}
 
 פרטים נוספים יישלחו בהמשך.
 מחכים לחגוג איתכם ✨`;
@@ -108,7 +105,35 @@ const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן �
 /* ================= HELPERS ================= */
 
 function formatEventDate(value: any): string {
-  return formatInvitationDisplayDate(value);
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) return "";
+
+    const parsed = new Date(trimmed);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return trimmed;
+    }
+
+    return new Intl.DateTimeFormat("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed);
+  }
+
+  const d = value instanceof Date ? value : new Date(String(value));
+
+  if (Number.isNaN(d.getTime())) return "";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
 }
 
 function cleanString(value: unknown) {
@@ -169,18 +194,12 @@ function replaceMessageVariables({
   const title = cleanString(saveTheDateTitle);
   const eventTitle = cleanString(meta.invitationTitle);
   const eventDate = cleanString(meta.eventDate);
-  const eventTime = cleanString(meta.eventTime);
   const eventLocation = cleanString(meta.eventLocation);
-  const dateTimeBlock =
-    formatInvitationPreviewDateBlock(eventDate, eventTime) ||
-    (eventDate ? `📅 תאריך: ${eventDate}` : "📅 תאריך: תאריך האירוע");
 
   return message
     .replaceAll("{כותרת סייב דה דייט}", title || "כותרת האירוע")
     .replaceAll("{שם האירוע}", eventTitle || "שם האירוע")
-    .replaceAll("{תאריך ושעה}", dateTimeBlock)
     .replaceAll("{תאריך אירוע}", eventDate || "תאריך האירוע")
-    .replaceAll("{שעת אירוע}", eventTime || "שעת האירוע")
     .replaceAll("{מיקום האירוע}", eventLocation || "מיקום האירוע")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -350,9 +369,6 @@ setPreRsvpMessages(loadedPreRsvpMessages);
           setMeta({
             invitationTitle: invitation.title || "",
             eventDate: formatEventDate(invitation.eventDate || event?.date),
-            eventTime: formatInvitationDisplayTime(
-              invitation.eventTime || event?.time || ""
-            ),
             eventLocation: buildEventLocationText(invitation, event),
             eventType: invitation.eventType || event?.eventType || "",
             giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
@@ -969,7 +985,6 @@ function PreRsvpTab({
       const cleanSaveTheDateTitle = cleanString(saveTheDateTitle);
       const cleanEventTitle = cleanString(meta.invitationTitle);
       const cleanEventDate = cleanString(meta.eventDate);
-      const cleanEventTime = cleanString(meta.eventTime);
       const cleanEventLocation = cleanString(meta.eventLocation);
       const audienceFilter: InvitationOnlyAudienceFilter = isSaveTheDate
         ? "all"
@@ -1017,7 +1032,6 @@ function PreRsvpTab({
         : {
             invitationTitle: cleanEventTitle,
             eventDate: cleanEventDate,
-            eventTime: cleanEventTime,
             eventLocation: cleanEventLocation,
           };
 
@@ -1079,7 +1093,6 @@ function PreRsvpTab({
       );
 
       formData.append("eventDate", cleanEventDate);
-      formData.append("eventTime", isSaveTheDate ? "" : cleanEventTime);
 
       formData.append(
         "eventLocation",

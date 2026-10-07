@@ -15,12 +15,11 @@ import {
 import {
   filterGuestsByInvitationAudience,
   findGuestIdsWithInvitationSendAttempt,
-  formatInvitationWhatsappDateParam,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
   buildInvitationLocationLabel,
-  formatInvitationDisplayDate,
 } from "@/lib/messages/invitationOnlyDetails";
+import { formatEventDate } from "@/lib/messages/liveEventDetails";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
@@ -148,15 +147,10 @@ export async function POST(
       );
     }
 
-    const eventDate = formatInvitationDisplayDate(invitation.eventDate);
-    const eventTime = cleanString(invitation.eventTime);
+    const eventDate = formatEventDate(invitation.eventDate);
     const eventLocation = buildInvitationLocationLabel(invitation);
     const invitationTitle =
       cleanString(invitation.title) || "האירוע שלנו";
-    const whatsappDate = formatInvitationWhatsappDateParam(
-      invitation.eventDate,
-      eventTime
-    );
 
     if (!eventDate || !eventLocation) {
       return NextResponse.json(
@@ -168,7 +162,6 @@ export async function POST(
     const templateVariables = {
       invitationTitle,
       eventDate,
-      eventTime,
       eventLocation,
     };
 
@@ -177,7 +170,7 @@ export async function POST(
       imageUrl,
       headerImageUrl: imageUrl,
       eventTitle: invitationTitle,
-      eventDate: whatsappDate,
+      eventDate,
       eventLocation,
       templateVariables,
       components: [
@@ -194,7 +187,7 @@ export async function POST(
           type: "body",
           parameters: [
             { type: "text", text: invitationTitle },
-            { type: "text", text: whatsappDate },
+            { type: "text", text: eventDate },
             { type: "text", text: eventLocation },
           ],
         },

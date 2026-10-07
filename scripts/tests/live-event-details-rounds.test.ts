@@ -106,10 +106,6 @@ test("WhatsApp overlay replaces snapshotted date, time, hall, address and title"
   assert.doesNotMatch(String(next.eventLocation), /אולם ישן/);
   assert.equal(next.templateVariables.invitationTitle, "חתונת חדש");
   assert.equal(next.templateVariables.saveTheDateTitle, "חתונת חדש");
-  // Invitation-only variables keep date/time split; RSVP still uses payload.eventDate.
-  assert.match(String(next.templateVariables.eventDate), /20\.11\.2026|20\/11\/2026/);
-  assert.doesNotMatch(String(next.templateVariables.eventDate), /21:30/);
-  assert.equal(next.templateVariables.eventTime, "21:30");
   assert.equal(next.headerImageUrl, "https://cdn.example.com/new.png");
   assert.equal(next.name, "דני");
   assert.equal(next.rsvpLink, "https://www.invistimo.com/invite/OLDSHARE?token=abc");
@@ -268,16 +264,11 @@ test("scheduled WhatsApp jobs for every template send live details after the eve
 
     const std = bodyParams(calls[2]);
     assert.equal(std[0], "חתונת חדש");
-    // Save the Date keeps a date-only body variable.
-    assert.match(String(std[1]), /20\.11\.2026/);
-    assert.doesNotMatch(String(std[1]), /21:30/);
+    assert.match(String(std[1]), /21:30/);
 
     const invite = bodyParams(calls[3]);
     assert.equal(invite[0], "חתונת חדש");
-    // Invitation-only: date + labeled time (not a bare "date time" blob).
-    assert.match(String(invite[1]), /20\.11\.2026|20\/11\/2026/);
-    assert.match(String(invite[1]), /🕒 שעה: 21:30/);
-    assert.doesNotMatch(String(invite[1]), /^20\.11\.2026 21:30$/);
+    assert.match(String(invite[1]), /21:30/);
     assert.match(String(invite[2]), /אולם חדש/);
   });
 });

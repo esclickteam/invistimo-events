@@ -18,7 +18,6 @@ import {
   buildInvitationLocationLabel,
   filterGuestsByInvitationAudience,
   findGuestIdsWithInvitationSendAttempt,
-  formatInvitationWhatsappDateParam,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
 } from "@/lib/messages/invitationOnlyDetails";
@@ -36,7 +35,6 @@ type TemplateVariables = {
   saveTheDateTitle?: string;
   invitationTitle?: string;
   eventDate?: string;
-  eventTime?: string;
   eventLocation?: string;
 };
 
@@ -168,11 +166,6 @@ function parseJsonObject(value: unknown): Record<string, any> {
 function buildEventLocationFromInvitation(invitation: any) {
   // Match RSVP live-details location label (no duplicated venue name).
   return buildInvitationLocationLabel(invitation);
-}
-
-function formatInvitationOnlyDateOnly(invitation: any) {
-  const dotted = formatEventDate(invitation?.eventDate);
-  return dotted ? dotted.replace(/\./g, "/") : "";
 }
 
 function getGuestPhone(guest: any) {
@@ -395,7 +388,6 @@ function buildTemplateVariables({
   fallbackSaveTheDateTitle,
   fallbackInvitationTitle,
   fallbackEventDate,
-  fallbackEventTime,
   fallbackEventLocation,
 }: {
   messageType: PreRsvpMessageType;
@@ -403,7 +395,6 @@ function buildTemplateVariables({
   fallbackSaveTheDateTitle: string;
   fallbackInvitationTitle: string;
   fallbackEventDate: string;
-  fallbackEventTime?: string;
   fallbackEventLocation: string;
 }): TemplateVariables {
   if (messageType === "save_the_date") {
@@ -415,18 +406,11 @@ function buildTemplateVariables({
     };
   }
 
-  const eventDate = cleanString(rawVariables.eventDate || fallbackEventDate);
-  const eventTime = cleanString(rawVariables.eventTime || fallbackEventTime);
-  /*
-    Store date-only + time separately. The WhatsApp body variable is assembled
-    with a second "שעה" line in buildWhatsappTemplatePayload / sendRsvpTemplateMedia.
-  */
   return {
     invitationTitle: cleanString(
       rawVariables.invitationTitle || fallbackInvitationTitle
     ),
-    eventDate,
-    eventTime,
+    eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
     eventLocation: cleanString(
       rawVariables.eventLocation || fallbackEventLocation
     ),
@@ -482,14 +466,6 @@ function buildWhatsappTemplatePayload({
   previewMessage: string;
   templateMessage: string;
 }) {
-  const invitationDateBody =
-    messageType === "invitation_only"
-      ? formatInvitationWhatsappDateParam(
-          templateVariables.eventDate,
-          templateVariables.eventTime
-        ) || cleanString(templateVariables.eventDate)
-      : cleanString(templateVariables.eventDate);
-
   const bodyParameters =
     messageType === "save_the_date"
       ? [
@@ -509,7 +485,7 @@ function buildWhatsappTemplatePayload({
           },
           {
             type: "text",
-            text: invitationDateBody,
+            text: cleanString(templateVariables.eventDate),
           },
           {
             type: "text",
@@ -522,7 +498,7 @@ function buildWhatsappTemplatePayload({
     imageUrl,
     headerImageUrl: imageUrl,
     cloudinaryPublicId,
-    eventDate: invitationDateBody,
+    eventDate: cleanString(templateVariables.eventDate),
     eventLocation: cleanString(templateVariables.eventLocation),
     eventTitle: cleanString(
       templateVariables.invitationTitle || templateVariables.saveTheDateTitle
@@ -731,7 +707,6 @@ export async function POST(req: NextRequest) {
     );
 
     const eventDateFromForm = cleanString(formData.get("eventDate"));
-    const eventTimeFromForm = cleanString(formData.get("eventTime"));
     const eventLocationFromForm = cleanString(formData.get("eventLocation"));
     const audienceFilter = parseInvitationOnlyAudienceFilter(
       formData.get("filter") || formData.get("audienceFilter")
@@ -912,11 +887,7 @@ export async function POST(req: NextRequest) {
     }
 
     const invitationTitleFromEvent = cleanString(invitation.title);
-    const eventDateFromEvent =
-      messageType === "invitation_only"
-        ? formatInvitationOnlyDateOnly(invitation)
-        : formatEventDate(invitation.eventDate).replace(/\./g, "/");
-    const eventTimeFromEvent = cleanString(invitation.eventTime);
+    const eventDateFromEvent = formatEventDate(invitation.eventDate);
     const eventLocationFromEvent = buildEventLocationFromInvitation(invitation);
 
     const fallbackSaveTheDateTitle = saveTheDateTitleFromForm;
@@ -925,7 +896,6 @@ export async function POST(req: NextRequest) {
       invitationTitleFromForm || invitationTitleFromEvent;
 
     const fallbackEventDate = eventDateFromForm || eventDateFromEvent;
-    const fallbackEventTime = eventTimeFromForm || eventTimeFromEvent;
 
     const fallbackEventLocation =
       eventLocationFromForm || eventLocationFromEvent;
@@ -936,7 +906,6 @@ export async function POST(req: NextRequest) {
       fallbackSaveTheDateTitle,
       fallbackInvitationTitle,
       fallbackEventDate,
-      fallbackEventTime,
       fallbackEventLocation,
     });
 
