@@ -18,6 +18,7 @@ import {
   buildIvrIntroText,
   contentHashForIvrIntro,
 } from "../../lib/calls/ivrScript";
+import { sanitizeElevenLabsErrorMessage } from "../../lib/calls/elevenlabs";
 
 test("normalizeCallsType defaults to human", () => {
   assert.equal(normalizeCallsType(undefined), "human");
@@ -106,3 +107,19 @@ test("AI intro template uses variables; pronunciation hash differs", () => {
   });
   assert.notEqual(h1, h2);
 });
+
+test("ElevenLabs error sanitizer redacts key material", () => {
+  const previous = process.env.ELEVENLABS_API_KEY;
+  process.env.ELEVENLABS_API_KEY = "sk_test_secret_value_123456";
+  try {
+    const sanitized = sanitizeElevenLabsErrorMessage(
+      "boom sk_test_secret_value_123456 xi-api-key=sk_test_secret_value_123456"
+    );
+    assert.equal(sanitized.includes("sk_test_secret_value_123456"), false);
+    assert.match(sanitized, /REDACTED/);
+  } finally {
+    if (previous === undefined) delete process.env.ELEVENLABS_API_KEY;
+    else process.env.ELEVENLABS_API_KEY = previous;
+  }
+});
+

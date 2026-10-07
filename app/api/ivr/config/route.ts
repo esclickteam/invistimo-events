@@ -10,7 +10,10 @@ import {
   IVR_SELF_RECORD_MAX_SECONDS,
   IVR_SELF_RECORD_RECOMMENDED_SECONDS,
 } from "@/lib/calls/ivrScript";
-import { synthesizeElevenLabsSpeech } from "@/lib/calls/elevenlabs";
+import {
+  sanitizeElevenLabsErrorMessage,
+  synthesizeElevenLabsSpeech,
+} from "@/lib/calls/elevenlabs";
 import {
   buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
@@ -306,9 +309,20 @@ export async function POST(req: NextRequest) {
       text,
     });
   } catch (error) {
-    console.error("[ivr/config POST]", error);
+    const safe = sanitizeElevenLabsErrorMessage(
+      error instanceof Error ? error.message : "FAILED"
+    );
+    console.error("[ivr/config POST]", safe);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "FAILED" },
+      {
+        ok: false,
+        error:
+          safe === "ELEVENLABS_API_KEY_MISSING"
+            ? "ELEVENLABS_API_KEY_MISSING"
+            : safe.startsWith("ElevenLabs")
+              ? "TTS_FAILED"
+              : "FAILED",
+      },
       { status: 500 }
     );
   }

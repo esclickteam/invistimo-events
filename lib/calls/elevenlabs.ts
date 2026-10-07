@@ -1,6 +1,9 @@
 /**
  * Server-only ElevenLabs Text-to-Speech.
- * API key must stay in ELEVENLABS_API_KEY — never expose to frontend.
+ *
+ * Reads process.env.ELEVENLABS_API_KEY only inside this module.
+ * Never import this file from client components.
+ * Never return, log, or serialize the API key value.
  */
 
 import { createHash } from "crypto";
@@ -14,12 +17,24 @@ export type ElevenLabsVoice = {
   labels?: Record<string, string>;
 };
 
-function getApiKey() {
-  const key = process.env.ELEVENLABS_API_KEY || "";
-  if (!key) {
-    throw new Error("ELEVENLABS_API_KEY is missing");
+function getApiKey(): string {
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key || !String(key).trim()) {
+    throw new Error("ELEVENLABS_API_KEY_MISSING");
   }
-  return key;
+  return String(key).trim();
+}
+
+/** Strip any accidental secret material before surfacing errors. */
+export function sanitizeElevenLabsErrorMessage(message: unknown): string {
+  let text = String(message || "ELEVENLABS_REQUEST_FAILED");
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (key && key.length >= 8) {
+    text = text.split(key).join("[REDACTED]");
+  }
+  // Also redact common header-style leaks if a provider echoes them.
+  text = text.replace(/xi-api-key["'\s:=]+[^\s"',}]+/gi, "xi-api-key:[REDACTED]");
+  return text.slice(0, 300);
 }
 
 export function hashTtsContent(text: string, voiceId: string) {
@@ -47,7 +62,9 @@ export async function listElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
 
   if (!res.ok) {
     throw new Error(
-      `ElevenLabs voices failed (${res.status}): ${JSON.stringify(data?.detail || data)}`
+      sanitizeElevenLabsErrorMessage(
+        `ElevenLabs voices failed (${res.status})`
+      )
     );
   }
 
@@ -93,9 +110,12 @@ export async function synthesizeElevenLabsSpeech(input: {
   );
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => "");
+    // Consume body for status only — do not forward provider payload to clients/logs.
+    await res.text().catch(() => "");
     throw new Error(
-      `ElevenLabs TTS failed (${res.status}): ${errText.slice(0, 500)}`
+      sanitizeElevenLabsErrorMessage(
+        `ElevenLabs TTS failed (${res.status})`
+      )
     );
   }
 
@@ -110,7 +130,7 @@ export async function synthesizeElevenLabsSpeech(input: {
   };
 }
 
-/** Default Hebrew-friendly voice id override via env when listing fails. */
+/** Default voice id override via env (not secret). */
 export function getDefaultIvrVoiceId() {
   return (
     process.env.ELEVENLABS_DEFAULT_VOICE_ID ||

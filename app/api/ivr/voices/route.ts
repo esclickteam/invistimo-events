@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listElevenLabsVoices } from "@/lib/calls/elevenlabs";
+import {
+  listElevenLabsVoices,
+  sanitizeElevenLabsErrorMessage,
+} from "@/lib/calls/elevenlabs";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
@@ -38,11 +41,17 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("[ivr/voices]", error);
+    const safe = sanitizeElevenLabsErrorMessage(
+      error instanceof Error ? error.message : "VOICES_FAILED"
+    );
+    console.error("[ivr/voices]", safe);
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "VOICES_FAILED",
+        error:
+          safe === "ELEVENLABS_API_KEY_MISSING"
+            ? "ELEVENLABS_API_KEY_MISSING"
+            : "VOICES_FAILED",
       },
       { status: 500 }
     );
