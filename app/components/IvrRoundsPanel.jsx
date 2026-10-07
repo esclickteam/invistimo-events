@@ -187,17 +187,27 @@ export default function IvrRoundsPanel({
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
 
       if (!voicesRes.ok || !voicesData?.ok) {
-        const providerBit =
-          typeof voicesData?.providerStatus === "number"
-            ? ` (HTTP ${voicesData.providerStatus})`
-            : "";
-        setError(
-          `${
-            voicesData?.message ||
+        const parts = [
+          voicesData?.message ||
             voicesData?.error ||
-            "טעינת רשימת הקולות מ-ElevenLabs נכשלה"
-          }${providerBit}`
-        );
+            "טעינת רשימת הקולות מ-ElevenLabs נכשלה",
+        ];
+        if (typeof voicesData?.providerStatus === "number") {
+          parts.push(`HTTP ${voicesData.providerStatus}`);
+        }
+        if (voicesData?.providerStatusCode) {
+          parts.push(String(voicesData.providerStatusCode));
+        }
+        if (voicesData?.providerDetail) {
+          parts.push(String(voicesData.providerDetail));
+        }
+        const diag = voicesData?.diagnostics;
+        if (diag && typeof diag.keyLength === "number") {
+          parts.push(
+            `keyLen=${diag.keyLength}${diag.keyPrefix ? ` prefix=${diag.keyPrefix}` : ""}`
+          );
+        }
+        setError(parts.filter(Boolean).join(" · "));
       } else if (nextVoices.length === 0) {
         setError("לא נמצאו קולות זמינים בחשבון ElevenLabs");
       }

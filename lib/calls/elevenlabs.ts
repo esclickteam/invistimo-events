@@ -8,8 +8,15 @@
 
 import { createHash } from "crypto";
 
+/** Dynamic lookup — avoids accidental build-time inlining of secrets. */
+function readEnv(name: string): string {
+  const env = process.env;
+  const value = env[name];
+  return typeof value === "string" ? value : "";
+}
+
 const ELEVENLABS_API_BASE =
-  process.env.ELEVENLABS_API_BASE?.trim() || "https://api.elevenlabs.io";
+  readEnv("ELEVENLABS_API_BASE").trim() || "https://api.elevenlabs.io";
 
 export type ElevenLabsVoice = {
   voice_id: string;
@@ -19,35 +26,102 @@ export type ElevenLabsVoice = {
   category?: string | null;
 };
 
+export type ElevenLabsKeyMeta = {
+  present: boolean;
+  length: number;
+  /** First 3 chars only for shape checks (e.g. "sk_"), never enough to recover the key. */
+  prefix: string;
+  hasWhitespace: boolean;
+  looksQuoted: boolean;
+  sourceEnv: string | null;
+};
+
 export class ElevenLabsApiError extends Error {
   code: string;
   providerStatus: number | null;
+  providerDetail: string | null;
+  providerStatusCode: string | null;
 
   constructor(
     code: string,
     message: string,
-    providerStatus: number | null = null
+    options?: {
+      providerStatus?: number | null;
+      providerDetail?: string | null;
+      providerStatusCode?: string | null;
+    }
   ) {
     super(message);
     this.name = "ElevenLabsApiError";
     this.code = code;
-    this.providerStatus = providerStatus;
+    this.providerStatus = options?.providerStatus ?? null;
+    this.providerDetail = options?.providerDetail ?? null;
+    this.providerStatusCode = options?.providerStatusCode ?? null;
   }
 }
 
+/** Normalize Vercel-pasted secrets: trim, strip BOM/quotes/newlines. */
+export function normalizeSecretApiKey(raw: string): string {
+  let key = String(raw || "");
+  // BOM / zero-width / directional marks from copy-paste
+  key = key.replace(/^\uFEFF/, "");
+  key = key.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+  key = key.trim();
+  // Wrapped in quotes in Vercel UI
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1).trim();
+  }
+  // Accidental newlines/spaces inside the value
+  key = key.replace(/\s+/g, "");
+  return key;
+}
+
+export function getElevenLabsKeyMeta(): ElevenLabsKeyMeta {
+  const candidates: Array<[string, string]> = [
+    ["ELEVENLABS_API_KEY", readEnv("ELEVENLABS_API_KEY")],
+    ["ELEVEN_LABS_API_KEY", readEnv("ELEVEN_LABS_API_KEY")],
+    ["XI_API_KEY", readEnv("XI_API_KEY")],
+  ];
+  for (const [sourceEnv, raw] of candidates) {
+    if (!raw) continue;
+    const normalized = normalizeSecretApiKey(raw);
+    if (!normalized) continue;
+    return {
+      present: true,
+      length: normalized.length,
+      prefix: normalized.slice(0, 3),
+      hasWhitespace: /\s/.test(raw),
+      looksQuoted:
+        (raw.trim().startsWith('"') && raw.trim().endsWith('"')) ||
+        (raw.trim().startsWith("'") && raw.trim().endsWith("'")),
+      sourceEnv,
+    };
+  }
+  return {
+    present: false,
+    length: 0,
+    prefix: "",
+    hasWhitespace: false,
+    looksQuoted: false,
+    sourceEnv: null,
+  };
+}
+
 function getApiKey(): string {
-  const key =
-    process.env.ELEVENLABS_API_KEY ||
-    process.env.ELEVEN_LABS_API_KEY ||
-    process.env.XI_API_KEY ||
-    "";
-  if (!key || !String(key).trim()) {
+  const meta = getElevenLabsKeyMeta();
+  if (!meta.present) {
     throw new ElevenLabsApiError(
       "ELEVENLABS_API_KEY_MISSING",
       "ELEVENLABS_API_KEY_MISSING"
     );
   }
-  return String(key).trim();
+  const raw =
+    (meta.sourceEnv ? readEnv(meta.sourceEnv) : "") ||
+    readEnv("ELEVENLABS_API_KEY");
+  return normalizeSecretApiKey(raw);
 }
 
 /** Strip any accidental secret material before surfacing errors. */
@@ -58,15 +132,14 @@ export function sanitizeElevenLabsErrorMessage(message: unknown): string {
     "ELEVEN_LABS_API_KEY",
     "XI_API_KEY",
   ]) {
-    const key = process.env[envName];
+    const key = normalizeSecretApiKey(readEnv(envName));
     if (key && key.length >= 8) {
       text = text.split(key).join("[REDACTED]");
     }
   }
-  // Also redact common header-style leaks if a provider echoes them.
   text = text.replace(/xi-api-key["'\s:=]+[^\s"',}]+/gi, "xi-api-key:[REDACTED]");
   text = text.replace(/sk_[a-zA-Z0-9_]{8,}/g, "[REDACTED]");
-  return text.slice(0, 300);
+  return text.slice(0, 400);
 }
 
 export function hashTtsContent(text: string, voiceId: string) {
@@ -84,35 +157,61 @@ function classifyProviderStatus(status: number): string {
   return `ELEVENLABS_HTTP_${status}`;
 }
 
-function extractProviderDetail(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  const detail = (data as any).detail;
-  if (typeof detail === "string") return detail.slice(0, 160);
-  if (Array.isArray(detail) && detail[0]?.msg) {
-    return String(detail[0].msg).slice(0, 160);
+function extractProviderInfo(data: unknown): {
+  detail: string;
+  statusCode: string | null;
+} {
+  if (!data || typeof data !== "object") {
+    return { detail: "", statusCode: null };
   }
-  if (detail && typeof detail === "object" && detail.message) {
-    return String(detail.message).slice(0, 160);
+  const obj = data as any;
+  const detail = obj.detail;
+
+  if (typeof detail === "string") {
+    return { detail: detail.slice(0, 240), statusCode: null };
   }
-  if (typeof (data as any).message === "string") {
-    return String((data as any).message).slice(0, 160);
+
+  if (Array.isArray(detail) && detail[0]) {
+    const first = detail[0];
+    const msg = String(first.msg || first.message || "").slice(0, 240);
+    return { detail: msg, statusCode: first.type ? String(first.type) : null };
   }
-  return "";
+
+  if (detail && typeof detail === "object") {
+    const statusCode = detail.status ? String(detail.status) : null;
+    const msg = String(detail.message || detail.msg || "").slice(0, 240);
+    return {
+      detail: msg || (statusCode ? `status=${statusCode}` : ""),
+      statusCode,
+    };
+  }
+
+  if (typeof obj.message === "string") {
+    return { detail: obj.message.slice(0, 240), statusCode: null };
+  }
+
+  return { detail: "", statusCode: null };
 }
 
 async function elevenLabsFetch(pathWithQuery: string, init?: RequestInit) {
   const apiKey = getApiKey();
   const url = `${ELEVENLABS_API_BASE}${pathWithQuery}`;
 
+  // Explicit header object — xi-api-key is the documented auth header.
+  const headers: Record<string, string> = {
+    "xi-api-key": apiKey,
+    Accept: "application/json",
+  };
+  const extra = init?.headers;
+  if (extra && typeof extra === "object" && !(extra instanceof Headers)) {
+    Object.assign(headers, extra as Record<string, string>);
+  }
+
   let res: Response;
   try {
     res = await fetch(url, {
       ...init,
-      headers: {
-        "xi-api-key": apiKey,
-        Accept: "application/json",
-        ...(init?.headers || {}),
-      },
+      headers,
       cache: "no-store",
     });
   } catch (err) {
@@ -135,10 +234,36 @@ function normalizeVoice(raw: any): ElevenLabsVoice | null {
     voice_id: voiceId,
     name,
     preview_url: raw?.preview_url || raw?.previewUrl || null,
-    labels:
-      raw?.labels && typeof raw.labels === "object" ? raw.labels : {},
+    labels: raw?.labels && typeof raw.labels === "object" ? raw.labels : {},
     category: raw?.category || null,
   };
+}
+
+function throwFromProviderResponse(
+  endpoint: string,
+  res: Response,
+  data: unknown
+): never {
+  const info = extractProviderInfo(data);
+  const code = classifyProviderStatus(res.status);
+  const detailPart = info.detail
+    ? info.detail
+    : info.statusCode
+      ? `status=${info.statusCode}`
+      : "";
+  throw new ElevenLabsApiError(
+    code,
+    sanitizeElevenLabsErrorMessage(
+      detailPart
+        ? `ElevenLabs ${endpoint} failed (${res.status}): ${detailPart}`
+        : `ElevenLabs ${endpoint} failed (${res.status})`
+    ),
+    {
+      providerStatus: res.status,
+      providerDetail: info.detail ? sanitizeElevenLabsErrorMessage(info.detail) : null,
+      providerStatusCode: info.statusCode,
+    }
+  );
 }
 
 /** Preferred modern endpoint (paginated). */
@@ -159,19 +284,7 @@ async function listVoicesV2(): Promise<ElevenLabsVoice[]> {
     });
 
     const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const detail = extractProviderDetail(data);
-      const code = classifyProviderStatus(res.status);
-      throw new ElevenLabsApiError(
-        code,
-        sanitizeElevenLabsErrorMessage(
-          detail
-            ? `ElevenLabs v2/voices failed (${res.status}): ${detail}`
-            : `ElevenLabs v2/voices failed (${res.status})`
-        ),
-        res.status
-      );
-    }
+    if (!res.ok) throwFromProviderResponse("v2/voices", res, data);
 
     const batch = Array.isArray(data?.voices) ? data.voices : [];
     for (const item of batch) {
@@ -196,19 +309,7 @@ async function listVoicesV1(): Promise<ElevenLabsVoice[]> {
   });
   const data = await res.json().catch(() => null);
 
-  if (!res.ok) {
-    const detail = extractProviderDetail(data);
-    const code = classifyProviderStatus(res.status);
-    throw new ElevenLabsApiError(
-      code,
-      sanitizeElevenLabsErrorMessage(
-        detail
-          ? `ElevenLabs v1/voices failed (${res.status}): ${detail}`
-          : `ElevenLabs v1/voices failed (${res.status})`
-      ),
-      res.status
-    );
-  }
+  if (!res.ok) throwFromProviderResponse("v1/voices", res, data);
 
   const batch = Array.isArray(data?.voices) ? data.voices : [];
   return batch
@@ -230,11 +331,12 @@ export async function listElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
     ) {
       throw err;
     }
-    // Continue to v1 fallback for other failures (404/422/empty/network quirks).
     console.error(
       "[elevenlabs] v2/voices failed, trying v1:",
       err instanceof ElevenLabsApiError
-        ? `${err.code}${err.providerStatus ? ` status=${err.providerStatus}` : ""}`
+        ? `${err.code}${err.providerStatus ? ` status=${err.providerStatus}` : ""}${
+            err.providerStatusCode ? ` code=${err.providerStatusCode}` : ""
+          }`
         : sanitizeElevenLabsErrorMessage(
             err instanceof Error ? err.message : err
           )
@@ -259,12 +361,16 @@ export async function synthesizeElevenLabsSpeech(input: {
   const voiceId = String(input.voiceId || "").trim();
   const text = String(input.text || "").trim();
 
-  if (!voiceId) throw new ElevenLabsApiError("VOICE_REQUIRED", "voiceId is required");
-  if (!text) throw new ElevenLabsApiError("TEXT_REQUIRED", "text is required");
+  if (!voiceId) {
+    throw new ElevenLabsApiError("VOICE_REQUIRED", "voiceId is required");
+  }
+  if (!text) {
+    throw new ElevenLabsApiError("TEXT_REQUIRED", "text is required");
+  }
 
   const modelId =
     input.modelId ||
-    process.env.ELEVENLABS_MODEL_ID ||
+    readEnv("ELEVENLABS_MODEL_ID") ||
     "eleven_multilingual_v2";
 
   const res = await elevenLabsFetch(
@@ -288,22 +394,13 @@ export async function synthesizeElevenLabsSpeech(input: {
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => "");
-    let detail = "";
+    let data: unknown = null;
     try {
-      detail = extractProviderDetail(JSON.parse(bodyText));
+      data = JSON.parse(bodyText);
     } catch {
-      detail = "";
+      data = bodyText ? { message: bodyText.slice(0, 200) } : null;
     }
-    const code = classifyProviderStatus(res.status);
-    throw new ElevenLabsApiError(
-      code,
-      sanitizeElevenLabsErrorMessage(
-        detail
-          ? `ElevenLabs TTS failed (${res.status}): ${detail}`
-          : `ElevenLabs TTS failed (${res.status})`
-      ),
-      res.status
-    );
+    throwFromProviderResponse("v1/text-to-speech", res, data);
   }
 
   const arrayBuffer = await res.arrayBuffer();
@@ -320,8 +417,8 @@ export async function synthesizeElevenLabsSpeech(input: {
 /** Default voice id override via env (not secret). */
 export function getDefaultIvrVoiceId() {
   return (
-    process.env.ELEVENLABS_DEFAULT_VOICE_ID ||
-    process.env.IVR_SYSTEM_VOICE_ID ||
+    readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
+    readEnv("IVR_SYSTEM_VOICE_ID") ||
     ""
   );
 }
@@ -330,14 +427,25 @@ export function voiceErrorToClientPayload(error: unknown): {
   error: string;
   message: string;
   providerStatus: number | null;
+  providerDetail: string | null;
+  providerStatusCode: string | null;
+  keyMeta: ElevenLabsKeyMeta;
+  authHeader: "xi-api-key";
 } {
+  const keyMeta = getElevenLabsKeyMeta();
+  const base = {
+    keyMeta,
+    authHeader: "xi-api-key" as const,
+  };
+
   if (error instanceof ElevenLabsApiError) {
     const messageByCode: Record<string, string> = {
-      ELEVENLABS_API_KEY_MISSING: "מפתח ElevenLabs חסר בשרת (ELEVENLABS_API_KEY)",
+      ELEVENLABS_API_KEY_MISSING:
+        "מפתח ElevenLabs חסר בשרת (ELEVENLABS_API_KEY) — ודאו שהוא מוגדר ל-Production ועשו Redeploy",
       ELEVENLABS_UNAUTHORIZED:
-        "מפתח ElevenLabs נדחה (401) — בדקו את ה-API key ב-Production",
+        "ElevenLabs דחה את המפתח (401). אם עדכנתם env ב-Vercel — חובה Redeploy. סיבת ElevenLabs מצורפת ב-providerDetail.",
       ELEVENLABS_FORBIDDEN:
-        "אין הרשאה ל-ElevenLabs (403) — בדקו הרשאות המפתח",
+        "אין הרשאה ל-ElevenLabs (403) — בדקו הרשאות Voices/TTS של המפתח",
       ELEVENLABS_RATE_LIMITED: "ElevenLabs חסם זמנית בגלל Rate Limit (429)",
       ELEVENLABS_NETWORK_ERROR: "לא ניתן להתחבר ל-ElevenLabs מהשרת",
       ELEVENLABS_EMPTY: "ElevenLabs החזיר רשימת קולות ריקה",
@@ -345,11 +453,14 @@ export function voiceErrorToClientPayload(error: unknown): {
       TEXT_REQUIRED: "חסר טקסט ליצירת קריינות",
     };
     return {
+      ...base,
       error: error.code,
       message:
         messageByCode[error.code] ||
         `שגיאת ElevenLabs${error.providerStatus ? ` (${error.providerStatus})` : ""}`,
       providerStatus: error.providerStatus,
+      providerDetail: error.providerDetail,
+      providerStatusCode: error.providerStatusCode,
     };
   }
 
@@ -358,14 +469,21 @@ export function voiceErrorToClientPayload(error: unknown): {
   );
   if (safe === "ELEVENLABS_API_KEY_MISSING") {
     return {
+      ...base,
       error: "ELEVENLABS_API_KEY_MISSING",
-      message: "מפתח ElevenLabs חסר בשרת (ELEVENLABS_API_KEY)",
+      message:
+        "מפתח ElevenLabs חסר בשרת (ELEVENLABS_API_KEY) — ודאו שהוא מוגדר ל-Production ועשו Redeploy",
       providerStatus: null,
+      providerDetail: null,
+      providerStatusCode: null,
     };
   }
   return {
+    ...base,
     error: "VOICES_FAILED",
     message: "טעינת רשימת הקולות נכשלה",
     providerStatus: null,
+    providerDetail: null,
+    providerStatusCode: null,
   };
 }
