@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import CallsTypeField, {
+  type CallsTypeValue,
+} from "@/app/components/admin/CallsTypeField";
 
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
 type StaffCreateType = "system" | "seating" | "usher" | "producer";
@@ -96,7 +99,9 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
 
 
   /* ===== PLAN ===== */
-  const [plan, setPlan] = useState<PlanKey>("plan1");
+  const [plan, setPlan] = useState<PlanKey>("plan2");
+  const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
+  const [saving, setSaving] = useState(false);
 
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
@@ -307,18 +312,29 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
      SUBMIT
   ===================================================== */
   async function handleSubmit() {
-    if (role === "user") {
-      openFullClientCreation();
-      return;
-    }
-
     const included = new Set(includedByPlan[plan]);
 
     const finalAllowedMessageRounds: AllowedMessageRounds =
       Number(allowedMessageRounds) === 3 ? 3 : 2;
 
     const effectiveIncludeCalls =
-      included.has("calls") || addons.calls.enabled;
+      role === "user" &&
+      (included.has("calls") || addons.calls.enabled);
+
+    if (
+      role === "user" &&
+      effectiveIncludeCalls &&
+      callsType !== "human" &&
+      callsType !== "ivr"
+    ) {
+      alert("חובה לבחור סוג שיחות: מוקד אנושי או שיחות מוקלטות (IVR)");
+      return;
+    }
+
+    if (role === "user" && (!name.trim() || !email.trim() || !phone.trim())) {
+      alert("חובה למלא שם, אימייל וטלפון");
+      return;
+    }
 
     const includeCreditGifts =
       included.has("credit") || addons.credit.enabled;
@@ -601,32 +617,22 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
 
                 limits: {
                   records,
-
-                  /*
-                    ✅ חשוב:
-                    המערכת לא עובדת לפי כמות הודעות SMS,
-                    אלא לפי כמות סבבי הודעות פתוחים ללקוח.
-                    2 = כלול כברירת מחדל
-                    3 = פתוח ללקוח אם נבחר בדרופדאון החבילה
-                  */
                   allowedMessageRounds: finalAllowedMessageRounds,
+                  includeCalls: effectiveIncludeCalls,
                 },
 
                 billing: {
-                  price,
+                  price: price === "" ? 0 : price,
                   paymentStatus,
                 },
 
-                /*
-                  ✅ הרשאות מודולים:
-                  rsvpSeating = אישורי הגעה / הושבה
-                  eventProduction = הפקת אירוע
-                */
                 accessModules: {
                   rsvpSeating: accessModules.rsvpSeating,
                   eventProduction: accessModules.eventProduction,
                 },
 
+                includeCalls: effectiveIncludeCalls,
+                callsType: effectiveIncludeCalls ? callsType : "human",
                 includeCreditGifts,
                 seatingEnabled,
                 selfManageEnabled,
@@ -648,13 +654,6 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                   staffPaymentAmount: venueSeatingService.enabled
                     ? venueSeatingService.staffPaymentAmount
                     : 0,
-
-                  /*
-                    מידע מחושב לתצוגה/אדמין:
-                    המקדמה נקלטת בחודש הרכישה.
-                    תשלום צוות יורד קודם מהתשלום באולם.
-                    אם אין מספיק בתשלום באולם — היתרה יורדת מהסכום הכולל.
-                  */
                   staffPaidFromVenue: venueSeatingService.enabled
                     ? staffPaidFromVenue
                     : 0,
@@ -673,6 +672,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                   calls: {
                     ...addons.calls,
                     enabled: effectiveIncludeCalls,
+                    callsType: effectiveIncludeCalls ? callsType : "human",
                   },
                   credit: {
                     ...addons.credit,
@@ -694,6 +694,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
               };
 
     try {
+      setSaving(true);
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -716,6 +717,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
       }
 
       onClose();
+      router.refresh();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
       const message =
@@ -725,19 +727,24 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
           ? err.message
           : "שגיאה ביצירת משתמש";
       alert(message);
+    } finally {
+      setSaving(false);
     }
   }
 
   const isSubmitDisabled =
-  role === "user"
-    ? false
-    : !name ||
-      !email ||
-      !phone.trim() ||
-      (role === "producer" && !producerPricePerRecord) ||
-      (role === "staff" &&
-        staffCreateType === "producer" &&
-        !assignedProducerId);
+    saving ||
+    !name ||
+    !email ||
+    !phone.trim() ||
+    (role === "user" &&
+      callsEnabledForUser &&
+      callsType !== "human" &&
+      callsType !== "ivr") ||
+    (role === "producer" && !producerPricePerRecord) ||
+    (role === "staff" &&
+      staffCreateType === "producer" &&
+      !assignedProducerId);
 
   /* =====================================================
      UI
@@ -799,20 +806,18 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
               />
 
-              {role !== "user" && (
-                <label className="space-y-2 block">
-                  <input
-                    type="tel"
-                    placeholder="טלפון ל־SMS הגדרת סיסמה"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                  />
-                  <p className="text-xs text-[#8b7b68]">
-                    חובה. לינק הגדרת הסיסמה נשלח ב־SMS למספר הזה.
-                  </p>
-                </label>
-              )}
+              <label className="space-y-2 block">
+                <input
+                  type="tel"
+                  placeholder="טלפון ל־SMS הגדרת סיסמה"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                />
+                <p className="text-xs text-[#8b7b68]">
+                  חובה. לינק הגדרת הסיסמה נשלח ב־SMS למספר הזה.
+                </p>
+              </label>
 
               <select
                 value={role}
@@ -835,49 +840,113 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             </div>
           </section>
 
-          {/* USER */}
+          {/* USER — create client directly in this modal */}
           {role === "user" && (
             <section className="space-y-5 rounded-3xl border border-[#eadfce] bg-white p-5 shadow-sm">
               <div>
                 <h3 className="text-base font-bold text-[#3f4856]">
-                  יצירת לקוח מלאה
+                  חבילה ושירות שיחות
                 </h3>
-
-                <p className="mt-2 text-sm leading-7 text-[#8b7b68]">
-                  לקוח לא נוצר יותר מתוך הטופס הישן הזה. לחיצה על הכפתור תפתח
-                  את מסך המכירה המלא של האדמין — בדיוק כמו אצל העובד: חבילה,
-                  אפסיילים, עריכת מחירים, הנחות, הצעת מחיר, הסכם, שליחת SMS,
-                  Stripe או שולם ידנית.
+                <p className="mt-1 text-xs text-[#8b7b68]">
+                  יצירת לקוח ישירות מכאן. למכירה מלאה עם הצעת מחיר/הסכם אפשר גם
+                  לפתוח את מסך המכירה.
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-[#f0d8b7] bg-[#fff8ed] p-5">
-                <h4 className="text-lg font-black text-[#3f3327]">
-                  מה ייפתח במסך המלא?
-                </h4>
+              <label className="block space-y-2">
+                <span className="block text-sm font-semibold text-[#6b5a45]">
+                  חבילה
+                </span>
+                <select
+                  value={plan}
+                  onChange={(e) => {
+                    const next = e.target.value as PlanKey;
+                    setPlan(next);
+                    if (!includedByPlan[next].includes("calls")) {
+                      setCallsType("");
+                    }
+                  }}
+                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                >
+                  <option value="plan1">קל להזמין (בלי שיחות)</option>
+                  <option value="plan2">מזמינים חכם (כולל שיחות)</option>
+                  <option value="plan3">מזמינים ומושיבים (כולל שיחות)</option>
+                </select>
+              </label>
 
-                <div className="mt-4 grid grid-cols-1 gap-3 text-sm font-semibold text-[#6b5a45] md:grid-cols-2">
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    הצעת מחיר / הסכם
-                  </div>
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    שליחה ב־SMS
-                  </div>
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    עריכת מחיר חבילה ואפסיילים
-                  </div>
-                  <div className="rounded-2xl border border-[#f0d8b7] bg-[#fff8ed] px-4 py-3 font-black text-[#8a5c20]">
-                    סוג השיחות — מוקד אנושי / שיחות מוקלטות (IVR)
-                  </div>
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    הנחה בשקלים או באחוזים
-                  </div>
-                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
-                    תשלום Stripe / שולם ידנית
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="block space-y-2">
+                  <span className="block text-sm font-semibold text-[#6b5a45]">
+                    כמות רשומות
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={records}
+                    onChange={(e) => setRecords(Number(e.target.value) || 0)}
+                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                  />
+                </label>
+                <label className="block space-y-2">
+                  <span className="block text-sm font-semibold text-[#6b5a45]">
+                    מחיר (₪)
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={price}
+                    onChange={(e) =>
+                      setPrice(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                  />
+                </label>
               </div>
 
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3">
+                <span className="text-sm font-bold text-[#3f3327]">
+                  חבילת שיחות (includeCalls)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={callsEnabledForUser}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setAddons((prev) => ({
+                      ...prev,
+                      calls: { ...prev.calls, enabled },
+                    }));
+                    if (!enabled) setCallsType("");
+                  }}
+                  disabled={callsIncludedInPlan}
+                  className="h-5 w-5 accent-[#B97821]"
+                />
+              </label>
+              {callsIncludedInPlan ? (
+                <p className="text-xs font-bold text-[#8a5c20]">
+                  החבילה שנבחרה כוללת שיחות — חובה לבחור סוג למטה.
+                </p>
+              ) : null}
+
+              {callsEnabledForUser ? (
+                <CallsTypeField
+                  name="create-user-callsType"
+                  value={callsType}
+                  onChange={setCallsType}
+                  required
+                  description="חובה לפני יצירת המשתמש. מוקד אנושי = CallTask/מוקד. שיחות מוקלטות = IVR + callback."
+                />
+              ) : null}
+
+              <button
+                type="button"
+                onClick={openFullClientCreation}
+                className="w-full rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-sm font-bold text-[#6b5a45] hover:bg-[#fff7ec]"
+              >
+                או פתיחת מסך מכירה מלא (הצעת מחיר / הסכם)
+              </button>
             </section>
           )}
 
@@ -1009,7 +1078,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             disabled={isSubmitDisabled}
             className="px-6 py-3 rounded-2xl bg-[#3f3327] text-white font-bold shadow-lg shadow-black/10 hover:bg-[#2f251d] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
-            {role === "user" ? "פתיחת יצירת לקוח מלאה" : "צור משתמש"}
+            {saving ? "יוצר..." : "צור משתמש"}
           </button>
         </div>
       </div>

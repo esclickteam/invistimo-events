@@ -131,6 +131,8 @@ const CREATE_USER_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_ALREADY_EXISTS: "האימייל כבר קיים במערכת",
   ASSIGNED_PRODUCER_REQUIRED: "חסר מזהה מפיק עבור עובד מפיק",
   INVALID_LIMITS_OR_BILLING: "נתוני תמחור או מגבלות לא תקינים",
+  CALLS_TYPE_REQUIRED:
+    "כאשר יש חבילת שיחות חובה לבחור סוג שיחות: מוקד אנושי או שיחות מוקלטות (IVR)",
   SERVER_ERROR: "שגיאת שרת ביצירת משתמש",
 };
 
@@ -1689,14 +1691,23 @@ export async function POST(req: Request) {
     const finalIncludeCalls =
       Boolean(planData.includeCalls) ||
       Boolean(limits?.includeCalls) ||
+      Boolean(body?.includeCalls) ||
       Boolean(addons?.calls?.enabled);
 
+    const rawCallsType = body?.callsType ?? body?.addons?.calls?.callsType;
+    const rawCallsTypeNormalized = String(rawCallsType || "")
+      .trim()
+      .toLowerCase();
+    if (
+      finalIncludeCalls &&
+      rawCallsTypeNormalized !== "human" &&
+      rawCallsTypeNormalized !== "ivr"
+    ) {
+      return jsonError("CALLS_TYPE_REQUIRED", 400);
+    }
+
     const finalCallsType =
-      String(body?.callsType || body?.addons?.calls?.callsType || "")
-        .trim()
-        .toLowerCase() === "ivr"
-        ? "ivr"
-        : "human";
+      rawCallsTypeNormalized === "ivr" ? "ivr" : "human";
 
     const finalIncludeCreditGifts =
       Boolean(planData.includeCreditGifts) ||

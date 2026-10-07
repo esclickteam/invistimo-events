@@ -2487,14 +2487,19 @@ export default function AdminSalesNewPage() {
             </section>
 
             {packageIncludesCalls ? (
-              <CallsTypeField
-                name="admin-sale-callsType"
-                value={callsType}
-                onChange={setCallsType}
-                required
-                className="rounded-[34px] border-[#eadfce] shadow-sm sm:p-6"
-                description="החבילה שנבחרה כוללת שירות שיחות. חובה לבחור האם הלקוח מקבל מוקד אנושי או שיחות מוקלטות (IVR)."
-              />
+              <div className="space-y-3" id="admin-sale-calls-type">
+                <div className="rounded-2xl border border-[#f0d8b7] bg-[#fff3df] px-4 py-3 text-sm font-black text-[#8a5c20]">
+                  לפני תוספות ושירותים — בחרי סוג שיחות ללקוח (חובה)
+                </div>
+                <CallsTypeField
+                  name="admin-sale-callsType"
+                  value={callsType}
+                  onChange={setCallsType}
+                  required
+                  className="rounded-[34px] sm:p-6"
+                  description="החבילה שנבחרה כוללת שירות שיחות. חובה לבחור האם הלקוח מקבל מוקד אנושי או שיחות מוקלטות (IVR)."
+                />
+              </div>
             ) : null}
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">

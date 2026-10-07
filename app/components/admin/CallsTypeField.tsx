@@ -28,18 +28,19 @@ export default function CallsTypeField({
 }: Props) {
   return (
     <section
-      className={`rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5 ${className}`}
+      className={`rounded-[26px] border-2 border-[#B97821] bg-[#FFF7EC] p-5 shadow-[0_10px_30px_rgba(185,120,33,0.12)] ${className}`}
       data-testid="calls-type-field"
+      id="calls-type-field"
     >
-      <div className="flex items-center gap-2">
-        <h3 className="text-lg font-black text-[#3A2A1C]">{title}</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-xl font-black text-[#3A2A1C]">{title}</h3>
         {required ? (
-          <span className="rounded-full bg-[#B97821]/15 px-2 py-0.5 text-[11px] font-black text-[#8A5A12]">
+          <span className="rounded-full bg-[#B97821] px-2.5 py-0.5 text-[11px] font-black text-white">
             חובה
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-xs font-bold leading-5 text-[#8A7867]">
+      <p className="mt-2 text-sm font-bold leading-6 text-[#7B6754]">
         {description}
       </p>
 

@@ -48,6 +48,15 @@ test("admin edit + upgrade modals show CallsTypeField when includeCalls", () => 
   assert.match(src, /callsType/);
 });
 
+test("CreateUserModal creates clients with required callsType (not only sales redirect)", () => {
+  const src = readSrc("app/admin/users/CreateUserModal.tsx");
+  assert.match(src, /CallsTypeField/);
+  assert.match(src, /create-user-callsType/);
+  assert.match(src, /callsType: effectiveIncludeCalls \? callsType/);
+  assert.match(src, /\/api\/admin\/users/);
+  assert.match(src, /צור משתמש/);
+});
+
 test("admin + employee sales APIs reject missing callsType for calls packages", () => {
   const admin = readSrc("app/api/admin/sales/route.ts");
   const employee = readSrc("app/api/employee/sales/route.ts");
