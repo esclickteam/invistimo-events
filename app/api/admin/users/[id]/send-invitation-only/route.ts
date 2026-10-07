@@ -13,12 +13,15 @@ import {
   type RoundDecision,
 } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
-  filterGuestsByInvitationAudience,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
   buildInvitationLocationLabel,
 } from "@/lib/messages/invitationOnlyDetails";
-import { findGuestIdsWithInvitationSendAttempt } from "@/lib/messages/invitationOnlySendHistory";
+import {
+  findGuestIdsWithInvitationDeliveryStatus,
+  findGuestIdsWithInvitationSendAttempt,
+  resolveInvitationOnlyAudienceGuests,
+} from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 
@@ -71,7 +74,8 @@ function getGuestPhone(guest: any) {
 
 /**
  * Admin-only: send invitation_only WhatsApp to a user's guests.
- * Does not open or mark RSVP rounds. Audience can be never_invited.
+ * Does not open or mark RSVP rounds.
+ * Audience: never_invited | failed | not_sent | all | single phone.
  */
 export async function POST(
   req: NextRequest,
@@ -101,6 +105,7 @@ export async function POST(
     const audienceFilter = parseInvitationOnlyAudienceFilter(
       body?.filter || body?.audienceFilter
     );
+    const phoneFromBody = cleanString(body?.phone);
     const invitationIdFromBody = cleanString(body?.invitationId);
 
     const user: any = await User.findById(userId)
@@ -202,18 +207,13 @@ export async function POST(
       )
       .lean();
 
-    let audienceGuests = guests;
-
-    if (audienceFilter === "never_invited") {
-      const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
-        invitationId
-      );
-      audienceGuests = filterGuestsByInvitationAudience({
+    const { guests: audienceGuests, resolvedFilter } =
+      await resolveInvitationOnlyAudienceGuests({
+        invitationId,
         guests,
-        filter: "never_invited",
-        alreadyInvitedGuestIds: alreadyInvited,
+        filter: audienceFilter,
+        phone: phoneFromBody,
       });
-    }
 
     const validGuests = audienceGuests
       .map((guest: any) => ({
@@ -222,18 +222,48 @@ export async function POST(
       }))
       .filter((item) => /^05\d{8}$/.test(item.phone));
 
-    if (validGuests.length === 0) {
+    if (phoneFromBody && audienceGuests.length === 0) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            audienceFilter === "never_invited"
-              ? "NO_NEVER_INVITED_GUESTS"
-              : "NO_VALID_PHONES",
-          message:
-            audienceFilter === "never_invited"
-              ? "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת."
-              : "לא נמצאו מספרי טלפון תקינים.",
+          error: "GUEST_NOT_FOUND",
+          message: "לא נמצא אורח ברשימה עם מספר הטלפון שהוזן.",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (validGuests.length === 0) {
+      const emptyErrors: Record<string, { error: string; message: string }> = {
+        never_invited: {
+          error: "NO_NEVER_INVITED_GUESTS",
+          message: "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת.",
+        },
+        failed: {
+          error: "NO_FAILED_GUESTS",
+          message: "לא נמצאו אורחים שנכשלה להם שליחת ההזמנה.",
+        },
+        not_sent: {
+          error: "NO_NOT_SENT_GUESTS",
+          message: "לא נמצאו אורחים שלא נשלחה אליהם ההזמנה בדוח הסבבים.",
+        },
+        phone: {
+          error: "INVALID_PHONE",
+          message: "נמצא אורח אבל מספר הטלפון אינו תקין לשליחת WhatsApp.",
+        },
+        all: {
+          error: "NO_VALID_PHONES",
+          message: "לא נמצאו מספרי טלפון תקינים.",
+        },
+      };
+      const empty =
+        emptyErrors[resolvedFilter] || emptyErrors.all;
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: empty.error,
+          message: empty.message,
         },
         { status: 400 }
       );
@@ -342,14 +372,15 @@ export async function POST(
       adminUserId: auth.userId,
       targetUserId: userId,
       invitationId,
-      filter: audienceFilter,
+      filter: resolvedFilter,
+      phone: phoneFromBody || null,
       queued: inserted.length,
     });
 
     return NextResponse.json({
       success: true,
       message: "הזמנה בלבד נוספה לתור השליחה.",
-      filter: audienceFilter,
+      filter: resolvedFilter,
       queuedCount: inserted.length,
       guestsCount: validGuests.length,
       invitationId,
@@ -404,6 +435,8 @@ export async function GET(
         totalGuests: 0,
         neverInvitedCount: 0,
         alreadyInvitedCount: 0,
+        failedCount: 0,
+        notSentCount: 0,
       });
     }
 
@@ -414,21 +447,22 @@ export async function GET(
       .select("_id")
       .lean();
 
-    const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
-      invitationId
-    );
-    const neverInvited = filterGuestsByInvitationAudience({
-      guests,
-      filter: "never_invited",
-      alreadyInvitedGuestIds: alreadyInvited,
-    });
+    const [alreadyInvited, failedIds, notSentIds] = await Promise.all([
+      findGuestIdsWithInvitationSendAttempt(invitationId),
+      findGuestIdsWithInvitationDeliveryStatus(invitationId, ["FAILED"]),
+      findGuestIdsWithInvitationDeliveryStatus(invitationId, ["NOT_SENT"]),
+    ]);
 
     return NextResponse.json({
       success: true,
       invitationId,
       totalGuests: guests.length,
-      neverInvitedCount: neverInvited.length,
+      neverInvitedCount: guests.filter(
+        (guest) => !alreadyInvited.has(String(guest._id))
+      ).length,
       alreadyInvitedCount: alreadyInvited.size,
+      failedCount: failedIds.size,
+      notSentCount: notSentIds.size,
     });
   } catch (err: any) {
     console.error("❌ ADMIN INVITATION-ONLY COUNTS ERROR:", err);

@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Invitation from "@/models/Invitation";
 import { buildInvitationScheduleSetPatch } from "@/lib/invitationScheduleMirror";
+import { attachLiveGuestsCountToSchedules } from "@/lib/messages/countLiveScheduledAudience";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import mongoose from "mongoose";
@@ -130,9 +131,14 @@ export async function GET() {
       .sort({ scheduledAt: 1 })
       .lean();
 
+    // Live intended audience — same criteria the worker will use at send time.
+    const messagesWithLiveCount = await attachLiveGuestsCountToSchedules(
+      messages as Record<string, any>[]
+    );
+
     return NextResponse.json({
       success: true,
-      messages,
+      messages: messagesWithLiveCount,
     });
   } catch (err) {
     console.error("❌ GET /api/scheduled-messages error:", err);

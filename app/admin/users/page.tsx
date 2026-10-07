@@ -3295,6 +3295,7 @@ function AdminMessageRoundsPanel({
       {showWhatsappRoundReport && user.invitationId && (
         <WhatsappRoundsReportModal
           invitationId={user.invitationId}
+          ownerUserId={user._id}
           clientName={user.name || user.email || "לקוח"}
           onClose={() => setShowWhatsappRoundReport(false)}
         />

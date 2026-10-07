@@ -736,6 +736,7 @@ function PreRsvpTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationAudience, setInvitationAudience] =
     useState<InvitationOnlyAudienceFilter>("never_invited");
+  const [invitationPhone, setInvitationPhone] = useState("");
 
   const [savedSaveTheDateImageUrl, setSavedSaveTheDateImageUrl] = useState("");
   const [savedInvitationOnlyImageUrl, setSavedInvitationOnlyImageUrl] =
@@ -1000,6 +1001,17 @@ function PreRsvpTab({
         return;
       }
 
+      if (
+        !isSaveTheDate &&
+        sendTiming === "scheduled" &&
+        invitationPhone.replace(/\D/g, "").length >= 9
+      ) {
+        alert(
+          "שליחה למספר בודד היא מיידית בלבד — נקו את שדה הטלפון או בחרי שליחה מיידית."
+        );
+        return;
+      }
+
       if (isSaveTheDate && !cleanSaveTheDateTitle) {
         alert("יש להזין כותרת מתחת ל־Save The Date.");
         return;
@@ -1102,9 +1114,17 @@ function PreRsvpTab({
       formData.append("message", payload.message);
       formData.append("previewMessage", payload.previewMessage);
       formData.append("filter", audienceFilter);
+      if (!isSaveTheDate && invitationPhone.trim()) {
+        formData.append("phone", invitationPhone.trim());
+      }
       formData.append(
         "allowResend",
-        !isSaveTheDate && (invitationAlreadySent || audienceFilter === "never_invited")
+        !isSaveTheDate &&
+          (invitationAlreadySent ||
+            audienceFilter === "never_invited" ||
+            audienceFilter === "failed" ||
+            audienceFilter === "not_sent" ||
+            Boolean(invitationPhone.trim()))
           ? "true"
           : "false"
       );
@@ -1331,26 +1351,55 @@ function PreRsvpTab({
             {activePreTab === "invitation_only" ? (
               <>
                 <label className="block text-sm font-black text-[#3A3028]">
+                  מספר טלפון (אופציונלי — שולח רק אליו, מיידי בלבד)
+                </label>
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={invitationPhone}
+                  onChange={(e) => setInvitationPhone(e.target.value)}
+                  placeholder="05xxxxxxxx"
+                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none"
+                />
+
+                <label className="block text-sm font-black text-[#3A3028]">
                   למי לשלוח את ההזמנה
+                  {invitationPhone.replace(/\D/g, "").length >= 9
+                    ? " (לא בשימוש כשמזינים טלפון)"
+                    : ""}
                 </label>
                 <select
                   value={invitationAudience}
-                  onChange={(e) =>
-                    setInvitationAudience(
-                      e.target.value === "all" ? "all" : "never_invited"
-                    )
-                  }
-                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none"
+                  disabled={invitationPhone.replace(/\D/g, "").length >= 9}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (
+                      value === "all" ||
+                      value === "never_invited" ||
+                      value === "failed" ||
+                      value === "not_sent"
+                    ) {
+                      setInvitationAudience(value);
+                    }
+                  }}
+                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none disabled:opacity-50"
                 >
                   <option value="never_invited">
                     למי שלא נשלחה לו הזמנה מהמערכת
+                  </option>
+                  <option value="failed">
+                    נכשלו בדוח סבבי ההזמנה
+                  </option>
+                  <option value="not_sent">
+                    לא נשלחו בדוח סבבי ההזמנה
                   </option>
                   <option value="all">לכל המוזמנים (כולל שליחה חוזרת)</option>
                 </select>
                 <p className="text-xs font-bold text-[#8A7A6B]">
                   הפעולה לא פותחת סבב אישורי הגעה ולא משנה סטטוס אורח.
+                  שליחה למספר בודד היא מיידית בלבד.
                   {invitationAlreadySent
-                    ? " כבר בוצעה שליחת הזמנה בעבר — מומלץ לבחור מי שטרם קיבל."
+                    ? " כבר בוצעה שליחת הזמנה בעבר — מומלץ לבחור מי שטרם קיבל / נכשל / לא נשלח."
                     : ""}
                 </p>
               </>

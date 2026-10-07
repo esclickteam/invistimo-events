@@ -16,7 +16,11 @@ import {
   cleanEventAddress,
 } from "@/lib/messages/liveEventDetails";
 
-export type InvitationOnlyAudienceFilter = "all" | "never_invited";
+export type InvitationOnlyAudienceFilter =
+  | "all"
+  | "never_invited"
+  | "failed"
+  | "not_sent";
 
 function cleanString(value: unknown) {
   return String(value ?? "").trim();
@@ -49,22 +53,51 @@ export function filterGuestsByInvitationAudience<T extends { _id?: unknown }>({
   guests,
   filter,
   alreadyInvitedGuestIds,
+  deliveryStatusGuestIds,
 }: {
   guests: T[];
   filter: InvitationOnlyAudienceFilter;
-  alreadyInvitedGuestIds: Set<string>;
+  alreadyInvitedGuestIds?: Set<string>;
+  /** Guests whose invitation_only WhatsApp delivery is FAILED / NOT_SENT. */
+  deliveryStatusGuestIds?: Set<string>;
 }): T[] {
-  if (filter !== "never_invited") return guests;
+  if (filter === "all") return guests;
 
+  if (filter === "never_invited") {
+    const already = alreadyInvitedGuestIds || new Set<string>();
+    return guests.filter((guest) => {
+      const guestId = String(guest?._id || "");
+      if (!guestId) return false;
+      return !already.has(guestId);
+    });
+  }
+
+  // failed / not_sent — only guests currently in that delivery status set
+  const statusIds = deliveryStatusGuestIds || new Set<string>();
   return guests.filter((guest) => {
     const guestId = String(guest?._id || "");
     if (!guestId) return false;
-    return !alreadyInvitedGuestIds.has(guestId);
+    return statusIds.has(guestId);
   });
 }
 
 export function parseInvitationOnlyAudienceFilter(
   value: unknown
 ): InvitationOnlyAudienceFilter {
-  return cleanString(value) === "never_invited" ? "never_invited" : "all";
+  const filter = cleanString(value);
+  if (filter === "never_invited") return "never_invited";
+  if (filter === "failed") return "failed";
+  if (filter === "not_sent") return "not_sent";
+  return "all";
+}
+
+/** Filters that always allow resend of invitation_only (do not open RSVP). */
+export function invitationOnlyFilterAllowsResend(
+  filter: InvitationOnlyAudienceFilter
+): boolean {
+  return (
+    filter === "never_invited" ||
+    filter === "failed" ||
+    filter === "not_sent"
+  );
 }

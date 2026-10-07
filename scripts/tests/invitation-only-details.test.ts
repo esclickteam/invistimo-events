@@ -43,6 +43,30 @@ test("never_invited audience excludes guests with prior invitation attempts", ()
   );
   assert.equal(parseInvitationOnlyAudienceFilter("never_invited"), "never_invited");
   assert.equal(parseInvitationOnlyAudienceFilter("all"), "all");
+  assert.equal(parseInvitationOnlyAudienceFilter("failed"), "failed");
+  assert.equal(parseInvitationOnlyAudienceFilter("not_sent"), "not_sent");
+});
+
+test("failed / not_sent audience keeps only guests in the delivery status set", () => {
+  const guests = [{ _id: "a" }, { _id: "b" }, { _id: "c" }];
+
+  assert.deepEqual(
+    filterGuestsByInvitationAudience({
+      guests,
+      filter: "failed",
+      deliveryStatusGuestIds: new Set(["b"]),
+    }).map((g) => g._id),
+    ["b"]
+  );
+
+  assert.deepEqual(
+    filterGuestsByInvitationAudience({
+      guests,
+      filter: "not_sent",
+      deliveryStatusGuestIds: new Set(["a", "c"]),
+    }).map((g) => g._id),
+    ["a", "c"]
+  );
 });
 
 test("invitation image prefers permanent invite fields and pre-rsvp media", () => {
