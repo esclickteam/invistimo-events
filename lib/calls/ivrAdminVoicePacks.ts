@@ -856,14 +856,16 @@ export async function regenerateAdminPackSegment(input: {
   if (gender === "female") process.env.IVR_FEMALE_VOICE_ID = meta.voiceId;
   else process.env.IVR_MALE_VOICE_ID = meta.voiceId;
 
-  await IvrSystemAudio.deleteOne({
-    key: globalPackAudioKey(gender, segment),
-  });
+  const packKey = globalPackAudioKey(gender, segment);
+  // Invalidate hash so ensure re-TTS, but keep the prior row until new audio
+  // succeeds — avoids a missing segment if ElevenLabs fails mid-regen.
+  await IvrSystemAudio.updateOne(
+    { key: packKey },
+    { $set: { contentHash: `force-regen:${Date.now()}` } }
+  ).catch(() => null);
 
   const audio = await ensureGlobalPackSegment({ gender, segment });
-  const row = await IvrSystemAudio.findOne({
-    key: globalPackAudioKey(gender, segment),
-  })
+  const row = await IvrSystemAudio.findOne({ key: packKey })
     .select("r2Key")
     .lean();
   const verified = await verifyIvrAudioInR2(String(row?.r2Key || ""));
