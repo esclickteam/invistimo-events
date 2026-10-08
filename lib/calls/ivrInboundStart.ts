@@ -150,6 +150,19 @@ export async function tryStartInboundIvr(params: {
       telnyxCallSessionId: cleanStr(params.callSessionId),
       telnyxConnectionId: cleanStr(params.connectionId),
       error: "AMBIGUOUS_EVENT",
+      audioMode: "ai",
+      timeline: [
+        {
+          at: new Date(),
+          source: "server",
+          kind: "inbound",
+          label: "התקבלה שיחה נכנסת",
+          detail: "AMBIGUOUS_EVENT",
+          eventType: "",
+          digit: "",
+          stage: "",
+        },
+      ],
     });
 
     const clientState = {
@@ -221,6 +234,19 @@ export async function tryStartInboundIvr(params: {
     telnyxCallLegId: cleanStr(params.callLegId),
     telnyxCallSessionId: cleanStr(params.callSessionId),
     telnyxConnectionId: cleanStr(params.connectionId),
+    audioMode: "ai",
+    timeline: [
+      {
+        at: new Date(),
+        source: "server",
+        kind: "inbound",
+        label: "התקבלה שיחה נכנסת",
+        detail: "",
+        eventType: "",
+        digit: "",
+        stage: "",
+      },
+    ],
   });
 
   const clientState = {

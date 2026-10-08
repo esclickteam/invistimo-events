@@ -98,6 +98,31 @@ export interface IIvrCallAttempt {
   /** Retries reuse this row. A new document is not created for the same guest/round. */
   retryCount?: number;
 
+  /** ai | self_recorded. Empty on older rows. */
+  audioMode?: string;
+
+  dialRequestedAt?: Date | null;
+  ringingAt?: Date | null;
+  /** Server asked Telnyx to play. Not proof that audio started. */
+  playbackCommandAt?: Date | null;
+  /** Telnyx playback.started / speak.started. */
+  playbackStartedAt?: Date | null;
+  firstDigitAt?: Date | null;
+  choiceDigitAt?: Date | null;
+  /** First provider playback start after a digit was stored. */
+  followupPlaybackStartedAt?: Date | null;
+
+  timeline?: Array<{
+    at: Date;
+    source: "telnyx" | "server";
+    kind: string;
+    label: string;
+    detail?: string;
+    eventType?: string;
+    digit?: string;
+    stage?: string;
+  }>;
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -318,6 +343,33 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       default: 0,
       min: 0,
     },
+    audioMode: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    dialRequestedAt: { type: Date, default: null },
+    ringingAt: { type: Date, default: null },
+    playbackCommandAt: { type: Date, default: null },
+    playbackStartedAt: { type: Date, default: null },
+    firstDigitAt: { type: Date, default: null },
+    choiceDigitAt: { type: Date, default: null },
+    followupPlaybackStartedAt: { type: Date, default: null },
+    timeline: {
+      type: [
+        {
+          at: { type: Date, required: true },
+          source: { type: String, enum: ["telnyx", "server"], required: true },
+          kind: { type: String, default: "" },
+          label: { type: String, default: "" },
+          detail: { type: String, default: "" },
+          eventType: { type: String, default: "" },
+          digit: { type: String, default: "" },
+          stage: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -370,6 +422,18 @@ IvrCallAttemptSchema.index({
 
 IvrCallAttemptSchema.index({
   direction: 1,
+  createdAt: -1,
+});
+
+IvrCallAttemptSchema.index({ createdAt: -1 });
+
+IvrCallAttemptSchema.index({
+  invitationId: 1,
+  createdAt: -1,
+});
+
+IvrCallAttemptSchema.index({
+  userId: 1,
   createdAt: -1,
 });
 
