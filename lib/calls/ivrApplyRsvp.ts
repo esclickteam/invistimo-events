@@ -5,7 +5,7 @@
 
 import InvitationGuest from "@/models/InvitationGuest";
 import {
-  getGuestMaxAttendingCount,
+  IVR_ATTENDING_COUNT_SANITY_MAX,
   parseDtmfGuestCount,
 } from "@/lib/calls/ivrRoundEligibility";
 import type { IvrRsvpResult } from "@/models/IvrCallAttempt";
@@ -32,7 +32,6 @@ export async function applyIvrRsvpToGuest(input: {
     throw new Error("GUEST_NOT_FOUND");
   }
 
-  const maxCount = getGuestMaxAttendingCount(guest);
   const set: Record<string, unknown> = {
     rsvp: input.rsvp,
     status: input.rsvp,
@@ -46,10 +45,8 @@ export async function applyIvrRsvpToGuest(input: {
   };
 
   if (input.rsvp === "yes") {
-    const count = Math.min(
-      Math.max(1, Math.floor(Number(input.attendingCount) || 1)),
-      maxCount
-    );
+    const entered = Math.max(1, Math.floor(Number(input.attendingCount) || 1));
+    const count = Math.min(entered, IVR_ATTENDING_COUNT_SANITY_MAX);
     set.arrivedCount = count;
     set.amount = count;
   } else if (input.rsvp === "no") {
@@ -70,7 +67,6 @@ export async function applyIvrRsvpToGuest(input: {
 
   return {
     guest: updated,
-    maxCount,
     applied: {
       rsvp: input.rsvp,
       arrivedCount: set.arrivedCount ?? updated?.arrivedCount ?? null,

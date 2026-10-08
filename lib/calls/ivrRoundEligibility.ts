@@ -101,20 +101,28 @@ export function getGuestMaxAttendingCount(guest: any): number {
   return 1;
 }
 
+/** Sanity ceiling so a stuck keypad cannot write an unbounded count. */
+export const IVR_ATTENDING_COUNT_SANITY_MAX = 999;
+
+/**
+ * Parse the attending count the guest entered.
+ * The invited size on the record is not a limit — a party of 1 may confirm 5.
+ * The optional second argument is ignored and kept so older callers cannot reintroduce that cap.
+ */
 export function parseDtmfGuestCount(
   digits: string,
-  maxCount: number
+  _invitedCountIgnored?: number
 ): { ok: true; count: number } | { ok: false; reason: string } {
   const raw = String(digits || "").replace(/\D/g, "");
   if (!raw) return { ok: false, reason: "empty" };
 
   const count = Number(raw);
-  if (!Number.isFinite(count) || count < 1) {
+  if (
+    !Number.isFinite(count) ||
+    count < 1 ||
+    count > IVR_ATTENDING_COUNT_SANITY_MAX
+  ) {
     return { ok: false, reason: "invalid" };
-  }
-
-  if (count > maxCount) {
-    return { ok: false, reason: "above_max" };
   }
 
   return { ok: true, count: Math.floor(count) };
