@@ -139,6 +139,15 @@ export type SalesDocumentModelType = {
 
   createdByUserId?: mongoose.Types.ObjectId | null;
 
+  /** User created from this quote (admin/employee action) */
+  convertedUserId?: mongoose.Types.ObjectId | null;
+  convertedAt?: Date | null;
+  /** Temporary lock while creating a user from this quote */
+  convertingLockAt?: Date | null;
+  /** Snapshots before edits of sent/viewed quotes */
+  versionHistory?: unknown[];
+  notes?: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 };
