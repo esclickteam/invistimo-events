@@ -26,6 +26,107 @@ function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function customerIvrError(raw, fallback) {
+  const text = String(raw || "");
+  if (
+    /Cast to Object failed|User validation failed|ValidationError/i.test(text)
+  ) {
+    return "שמירת ההקלטה נכשלה בגלל מבנה נתונים לא תקין. הנתונים הקיימים לא נמחקו. נסו שוב.";
+  }
+  if (text.includes("טעינת רשימת הקולות")) {
+    return fallback || "יצירת שם האירוע נכשלה. בחרו קול נשי או קול גברי ונסו שוב.";
+  }
+  return text || fallback || "שגיאה";
+}
+
+function splitIsraelInput(value) {
+  const wall = formatCallRoundDateTimeInput(value);
+  if (!wall || !wall.includes("T")) return { date: "", time: "" };
+  const [y, m, d] = wall.slice(0, 10).split("-");
+  return { date: `${d}/${m}/${y}`, time: wall.slice(11, 16) };
+}
+
+function joinIsraelInput(dateText, timeText) {
+  const date = String(dateText || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const time = String(timeText || "")
+    .trim()
+    .match(/^(\d{2}):(\d{2})$/);
+  if (!date || !time) return "";
+  const day = Number(date[1]);
+  const month = Number(date[2]);
+  const hour = Number(time[1]);
+  const minute = Number(time[2]);
+  if (
+    day < 1 ||
+    day > 31 ||
+    month < 1 ||
+    month > 12 ||
+    hour > 23 ||
+    minute > 59
+  ) {
+    return "";
+  }
+  return `${date[3]}-${date[2]}-${date[1]}T${time[1]}:${time[2]}`;
+}
+
+function IsraelDateTimeFields({ value, onChange }) {
+  const parsed = splitIsraelInput(value);
+  const [dateText, setDateText] = useState(parsed.date);
+  const [timeText, setTimeText] = useState(parsed.time);
+
+  useEffect(() => {
+    const next = splitIsraelInput(value);
+    setDateText(next.date);
+    setTimeText(next.time);
+  }, [value]);
+
+  function commit(nextDate, nextTime) {
+    setDateText(nextDate);
+    setTimeText(nextTime);
+    const dateEmpty = !String(nextDate || "").trim();
+    const timeEmpty = !String(nextTime || "").trim();
+    if (dateEmpty && timeEmpty) {
+      onChange("");
+      return;
+    }
+    const joined = joinIsraelInput(nextDate, nextTime);
+    if (joined) onChange(joined);
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <label className="block text-[11px] font-black text-[#8A7867]">
+        תאריך (DD/MM/YYYY)
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="08/10/2026"
+          value={dateText}
+          onChange={(e) => commit(e.target.value, timeText)}
+          className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+          data-testid="ivr-round-date"
+        />
+      </label>
+      <label className="block text-[11px] font-black text-[#8A7867]">
+        שעה (HH:mm)
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="18:00"
+          value={timeText}
+          onChange={(e) => commit(dateText, e.target.value)}
+          className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+          data-testid="ivr-round-time"
+        />
+      </label>
+    </div>
+  );
+}
+
 /** Play global before + event name + global after as one continuous preview. */
 function ConcatPreviewPlayer({ playlist, onEnded }) {
   const audioRef = useRef(null);
@@ -253,7 +354,6 @@ export default function IvrRoundsPanel({
   userId = "",
 }) {
   const [config, setConfig] = useState(null);
-  const [packsReady, setPacksReady] = useState(false);
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -302,6 +402,7 @@ export default function IvrRoundsPanel({
     try {
       const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
       // Never load /api/ivr/voices — gender radios are fixed (קול נשי / קול גברי).
+      // packsReady is not a client gate.
       const [cfgRes, statsRes] = await Promise.all([
         fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
         fetch(`/api/ivr/rounds/stats${qs}`, { credentials: "include" }),
@@ -311,14 +412,23 @@ export default function IvrRoundsPanel({
       const statsData = await statsRes.json().catch(() => null);
 
       if (!cfgRes.ok || !cfg?.ok) {
-        throw new Error(cfg?.error || "טעינת הגדרות IVR נכשלה");
+        throw new Error(
+          customerIvrError(
+            cfg?.message || cfg?.error,
+            "טעינת הגדרות IVR נכשלה"
+          )
+        );
       }
 
       setConfig(cfg);
-      setPacksReady(Boolean(cfg?.packsReady));
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "שגיאה בטעינה");
+      setError(
+        customerIvrError(
+          err instanceof Error ? err.message : "",
+          "שגיאה בטעינה"
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -362,15 +472,14 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.message || data?.error || "שמירה נכשלה");
+        throw new Error(
+          customerIvrError(data?.message || data?.error, "שמירה נכשלה")
+        );
       }
       setConfig((prev) => ({
         ...prev,
         ivrConfig: data.ivrConfig || prev?.ivrConfig,
       }));
-      if (typeof data.packsReady === "boolean") {
-        setPacksReady(data.packsReady);
-      }
       if (data.needsRegenerate) {
         setMessage(
           "שם האירוע או הקול השתנו — יש ליצור מחדש רק את שם האירוע ולאשר."
@@ -381,19 +490,15 @@ export default function IvrRoundsPanel({
         setMessage("ההגדרות נשמרו.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "שמירה נכשלה");
+      setError(
+        customerIvrError(err instanceof Error ? err.message : "", "שמירה נכשלה")
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function generateAi({ force = false } = {}) {
-    if (!packsReady) {
-      setError(
-        "הקריינות הגלובלית עדיין לא אושרה באדמין. לא ניתן ליצור שם אירוע."
-      );
-      return;
-    }
     setSaving(true);
     setMessage("");
     setError("");
@@ -415,7 +520,10 @@ export default function IvrRoundsPanel({
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
         const parts = [
-          data?.message || data?.error || "יצירת שם האירוע נכשלה",
+          customerIvrError(
+            data?.message || data?.error,
+            "יצירת שם האירוע נכשלה"
+          ),
         ];
         if (data?.providerStatusCode) {
           parts.push(String(data.providerStatusCode));
@@ -431,9 +539,6 @@ export default function IvrRoundsPanel({
           parts.unshift(
             "חסרים קרדיטים ב-ElevenLabs (402) — זה הגורם, לא בחירת הקול."
           );
-        }
-        if (data?.error === "VOICE_PACKS_NOT_APPROVED") {
-          setPacksReady(false);
         }
         throw new Error(parts.filter(Boolean).join(" · "));
       }
@@ -455,7 +560,12 @@ export default function IvrRoundsPanel({
             : "נוצר רק שם האירוע וחובר למשפט אחד רציף. האזינו לתצוגה המקדימה ואשרו."
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "יצירת שם האירוע נכשלה");
+      setError(
+        customerIvrError(
+          err instanceof Error ? err.message : "",
+          "יצירת שם האירוע נכשלה"
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -473,7 +583,9 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.message || data?.error || "אישור נכשל");
+        throw new Error(
+          customerIvrError(data?.message || data?.error, "אישור נכשל")
+        );
       }
       setConfig((prev) => ({
         ...prev,
@@ -481,7 +593,9 @@ export default function IvrRoundsPanel({
       }));
       setMessage("ההודעה אושרה ומוכנה לשיחות IVR.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "אישור נכשל");
+      setError(
+        customerIvrError(err instanceof Error ? err.message : "", "אישור נכשל")
+      );
     } finally {
       setSaving(false);
     }
@@ -504,7 +618,9 @@ export default function IvrRoundsPanel({
     });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.ok) {
-      throw new Error(data?.message || data?.error || "העלאת האודיו נכשלה");
+      throw new Error(
+        customerIvrError(data?.message || data?.error, "העלאת האודיו נכשלה")
+      );
     }
     patchLocal({
       audioMode: "self_recorded",
@@ -523,7 +639,9 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.message || data?.error || "מחיקת ההקלטה נכשלה");
+        throw new Error(
+          customerIvrError(data?.message || data?.error, "מחיקת ההקלטה נכשלה")
+        );
       }
       patchLocal({
         audioMode: "self_recorded",
@@ -532,7 +650,12 @@ export default function IvrRoundsPanel({
       });
       setMessage("ההקלטה נמחקה. אפשר להקליט או להעלות מחדש.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "מחיקת ההקלטה נכשלה");
+      setError(
+        customerIvrError(
+          err instanceof Error ? err.message : "",
+          "מחיקת ההקלטה נכשלה"
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -581,7 +704,12 @@ export default function IvrRoundsPanel({
       try {
         await uploadBlob(blob, durationSeconds, "recording");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "שמירת הקלטה נכשלה");
+        setError(
+          customerIvrError(
+            err instanceof Error ? err.message : "",
+            "שמירת הקלטה נכשלה"
+          )
+        );
       }
     };
 
@@ -699,11 +827,9 @@ export default function IvrRoundsPanel({
                     {stat.failureReason}
                   </div>
                 ) : null}
-                <input
-                  type="datetime-local"
-                  value={formatCallRoundDateTimeInput(round.scheduledAt)}
-                  onChange={(e) => {
-                    const value = e.target.value;
+                <IsraelDateTimeFields
+                  value={round.scheduledAt}
+                  onChange={(value) => {
                     const nextRounds = [1, 2, 3].map((n) => {
                       const existing =
                         rounds.find((r) => Number(r.roundNumber) === n) || {
@@ -724,7 +850,6 @@ export default function IvrRoundsPanel({
                       rounds: nextRounds,
                     });
                   }}
-                  className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
                 />
               </div>
             );
@@ -807,16 +932,6 @@ export default function IvrRoundsPanel({
               </div>
             </div>
 
-            {!packsReady ? (
-              <div
-                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900"
-                data-testid="ivr-packs-not-ready"
-              >
-                הקריינות הגלובלית עדיין לא אושרה באדמין (שיחות מוקלטות → הגדרות
-                קריינות). לאחר אישור שני ה-Voice Packs ניתן ליצור את שם האירוע.
-              </div>
-            ) : null}
-
             <label className="block text-sm font-bold text-[#3A2A1C]">
               שם האירוע
               <input
@@ -858,7 +973,6 @@ export default function IvrRoundsPanel({
                 disabled={
                   saving ||
                   !config?.ivrConfig?.voiceGender ||
-                  !packsReady ||
                   !cleanText(config?.ivrConfig?.eventName)
                 }
                 onClick={() => generateAi({ force: false })}
@@ -928,7 +1042,10 @@ export default function IvrRoundsPanel({
                       await uploadBlob(file, 0, "upload");
                     } catch (err) {
                       setError(
-                        err instanceof Error ? err.message : "העלאה נכשלה"
+                        customerIvrError(
+                          err instanceof Error ? err.message : "",
+                          "העלאה נכשלה"
+                        )
                       );
                     }
                   }}
@@ -991,7 +1108,7 @@ export default function IvrRoundsPanel({
               </button>
               <button
                 type="button"
-                disabled={saving || !packsReady}
+                disabled={saving}
                 onClick={() => generateAi({ force: true })}
                 className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
               >

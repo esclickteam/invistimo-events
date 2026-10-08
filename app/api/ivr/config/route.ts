@@ -18,6 +18,8 @@ import {
 } from "@/lib/calls/ivrScript";
 import {
   getIvrVoiceIdForGender,
+  IVR_LOCKED_FEMALE_VOICE_ID,
+  IVR_LOCKED_MALE_VOICE_ID,
   sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
   voiceErrorToClientPayload,
@@ -228,11 +230,11 @@ function serializeIvrConfig(
     voiceGender,
     /** Never expose ElevenLabs voice names/ids to clients — gender only. */
     eventNameAudio: {
-      ...eventNameAudio,
+      ...normalizeIvrAudioSubdoc(eventNameAudio),
       audioUrl: eventNameAudioUrl || eventNameAudio?.audioUrl || "",
     },
     composedIntroAudio: {
-      ...composedIntroAudio,
+      ...normalizeIvrAudioSubdoc(composedIntroAudio),
       audioUrl: composedIntroAudioUrl || composedIntroAudio?.audioUrl || "",
     },
     /** Self-recorded path only */
@@ -325,9 +327,10 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ivr/config GET]", error);
+    const payload = ivrPersistErrorPayload(error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "FAILED" },
-      { status: 500 }
+      { ok: false, error: payload.error, message: payload.message },
+      { status: payload.status }
     );
   }
 }
@@ -370,7 +373,7 @@ export async function PATCH(req: NextRequest) {
         const approvedAt = new Date();
         assignIvrConfig(user, {
           introAudio: {
-            ...intro,
+            ...normalizeIvrAudioSubdoc(intro),
             approved: true,
             approvedAt,
           },
@@ -409,12 +412,12 @@ export async function PATCH(req: NextRequest) {
         assignIvrConfig(user, {
           audioMode: "ai",
           eventNameAudio: {
-            ...eventNameAudio,
+            ...normalizeIvrAudioSubdoc(eventNameAudio),
             approved: true,
             approvedAt,
           },
           composedIntroAudio: {
-            ...composedIntroAudio,
+            ...normalizeIvrAudioSubdoc(composedIntroAudio),
             approved: true,
             approvedAt,
           },
@@ -472,8 +475,7 @@ export async function PATCH(req: NextRequest) {
         })
       : "";
 
-    let eventNameAudio =
-      prev.eventNameAudio || ({ status: "missing", approved: false } as any);
+    let eventNameAudio = normalizeIvrAudioSubdoc(prev.eventNameAudio);
     const prevHash = String(eventNameAudio?.contentHash || "");
     const fieldsChanged =
       (prevHash && hash && hash !== prevHash) ||
@@ -482,10 +484,8 @@ export async function PATCH(req: NextRequest) {
       String(prev.voiceGender || "") !== String(nextGender || "") ||
       String(prev.systemVoiceId || prev.voiceId || "") !== nextVoice;
 
-    let composedIntroAudio =
-      prev.composedIntroAudio ||
-      ({ status: "missing", approved: false } as any);
-    let introAudio = prev.introAudio || { status: "missing", approved: false };
+    let composedIntroAudio = normalizeIvrAudioSubdoc(prev.composedIntroAudio);
+    let introAudio = normalizeIvrAudioSubdoc(prev.introAudio);
     let recordingApproval = prev.recordingApproval || {
       approved: false,
     };
@@ -502,7 +502,7 @@ export async function PATCH(req: NextRequest) {
       nextMode === "ai"
     ) {
       eventNameAudio = {
-        ...eventNameAudio,
+        ...normalizeIvrAudioSubdoc(eventNameAudio),
         status: "stale",
         approved: false,
         approvedAt: null,
@@ -515,7 +515,7 @@ export async function PATCH(req: NextRequest) {
       nextMode === "ai"
     ) {
       composedIntroAudio = {
-        ...composedIntroAudio,
+        ...normalizeIvrAudioSubdoc(composedIntroAudio),
         status: "stale",
         approved: false,
         approvedAt: null,
@@ -524,7 +524,7 @@ export async function PATCH(req: NextRequest) {
 
     if (selfInvalidated) {
       introAudio = {
-        ...introAudio,
+        ...normalizeIvrAudioSubdoc(introAudio),
         approved: false,
         approvedAt: null,
       };
@@ -663,7 +663,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const voiceId = getIvrVoiceIdForGender(voiceGender);
+    // Customer TTS uses only the two locked voices. No voice catalog.
+    const voiceId =
+      voiceGender === "male"
+        ? IVR_LOCKED_MALE_VOICE_ID
+        : IVR_LOCKED_FEMALE_VOICE_ID;
     if (!eventName || !voiceId) {
       return NextResponse.json(
         {
@@ -824,12 +828,12 @@ export async function POST(req: NextRequest) {
       systemVoiceId: voiceId,
       voiceId,
       eventNameAudio: {
-        ...(eventNameAudio || {}),
+        ...normalizeIvrAudioSubdoc(eventNameAudio),
         approved: keepApproval,
         approvedAt: keepApproval ? eventNameAudio?.approvedAt || null : null,
       },
       composedIntroAudio: {
-        ...(composedIntroAudio || {}),
+        ...normalizeIvrAudioSubdoc(composedIntroAudio),
         approved: keepApproval,
         approvedAt: keepApproval
           ? composedIntroAudio?.approvedAt || null
@@ -887,15 +891,24 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const persist = ivrPersistErrorPayload(error);
     const payload = voiceErrorToClientPayload(error);
-    const composeOrSave =
-      persist.error === "COMPOSE_FAILED" ||
-      persist.error === "IVR_SAVE_FAILED" ||
-      persist.error === "GLOBAL_AUDIO_MISSING";
+    const raw = error instanceof Error ? error.message : "";
+    const isEleven =
+      payload.error.startsWith("ELEVENLABS_") ||
+      payload.error === "ELEVENLABS_INSUFFICIENT_CREDITS" ||
+      payload.error === "ELEVENLABS_PAYMENT_REQUIRED" ||
+      payload.providerStatus != null;
     console.error("[ivr/config POST]", {
       error: payload.error,
       providerStatus: payload.providerStatus,
     });
-    if (composeOrSave && payload.error === "VOICES_FAILED") {
+    const voiceCatalog =
+      payload.error === "VOICES_FAILED" ||
+      /טעינת רשימת הקולות/.test(String(payload.message || ""));
+    if (
+      !isEleven ||
+      voiceCatalog ||
+      /Cast to Object failed|ValidationError|User validation failed/i.test(raw)
+    ) {
       return NextResponse.json(
         { ok: false, error: persist.error, message: persist.message },
         { status: persist.status }

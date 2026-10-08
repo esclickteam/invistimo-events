@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import User from "@/models/User";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
 import {
@@ -11,9 +12,25 @@ import {
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
 import {
-  assignIvrConfig,
+  definedAudioFields,
   ivrPersistErrorPayload,
 } from "@/lib/calls/ivrConfigPersist";
+
+function selfRecordSet(introAudio: Record<string, unknown>) {
+  return {
+    "ivrConfig.audioMode": "self_recorded",
+    "ivrConfig.introAudio": definedAudioFields(introAudio),
+    "ivrConfig.recordingApproval": {
+      approved: false,
+      approvedAt: null,
+      audioMode: "self_recorded",
+      audioPublicToken: "",
+      audioContentHash: "",
+      audioUrl: "",
+    },
+    "ivrConfig.updatedAt": new Date(),
+  };
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,38 +50,23 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
     }
 
-    assignIvrConfig(user, {
-      audioMode: "self_recorded",
-      introAudio: {
-        status: "missing",
-        source: null,
-        publicToken: "",
-        audioUrl: "",
-        r2Key: "",
-        contentType: "",
-        contentHash: "",
-        durationSeconds: null,
-        generatedAt: null,
-        textSnapshot: "",
-        approved: false,
-        approvedAt: null,
-      },
-      recordingApproval: {
-        approved: false,
-        approvedAt: null,
-        audioMode: "self_recorded",
-        voiceGender: null,
-        audioPublicToken: "",
-        audioContentHash: "",
-        audioUrl: "",
-      },
-      updatedAt: new Date(),
+    const introAudio = definedAudioFields({
+      status: "missing",
+      publicToken: "",
+      audioUrl: "",
+      r2Key: "",
+      contentHash: "",
+      approved: false,
+      approvedAt: null,
     });
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: selfRecordSet(introAudio) }
+    );
 
     return NextResponse.json({
       ok: true,
-      introAudio: user.ivrConfig.introAudio,
+      introAudio,
     });
   } catch (error) {
     console.error("[ivr/audio/upload DELETE]", error);
@@ -144,42 +146,32 @@ export async function POST(req: NextRequest) {
 
     const audioUrl = buildIvrPublicAudioUrl(publicToken);
 
-    assignIvrConfig(user, {
-      audioMode: "self_recorded",
-      introAudio: {
-        status: "ready",
-        source:
-          contentType.includes("webm") || form.get("source") === "recording"
-            ? "recording"
-            : "upload",
-        publicToken,
-        audioUrl,
-        r2Key,
-        contentType,
-        contentHash: `self:${publicToken}`,
-        durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
-        generatedAt: new Date(),
-        textSnapshot: "",
-        approved: false,
-        approvedAt: null,
-      },
-      recordingApproval: {
-        approved: false,
-        approvedAt: null,
-        audioMode: "self_recorded",
-        voiceGender: null,
-        audioPublicToken: "",
-        audioContentHash: "",
-        audioUrl: "",
-      },
-      updatedAt: new Date(),
+    const introAudio = definedAudioFields({
+      status: "ready",
+      source:
+        contentType.includes("webm") || form.get("source") === "recording"
+          ? "recording"
+          : "upload",
+      publicToken,
+      audioUrl,
+      r2Key,
+      contentType,
+      contentHash: `self:${publicToken}`,
+      durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
+      generatedAt: new Date(),
+      textSnapshot: "",
+      approved: false,
+      approvedAt: null,
     });
 
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: selfRecordSet(introAudio) }
+    );
 
     return NextResponse.json({
       ok: true,
-      introAudio: user.ivrConfig.introAudio,
+      introAudio,
       maxSeconds: IVR_SELF_RECORD_MAX_SECONDS,
     });
   } catch (error) {
