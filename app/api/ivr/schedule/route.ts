@@ -82,7 +82,7 @@ export async function PUT(req: NextRequest) {
         status: scheduleChanged
           ? scheduledAt
             ? "scheduled"
-            : "draft"
+            : "cancelled"
           : existing?.status || (scheduledAt ? "scheduled" : "draft"),
         notes: String(incoming?.notes || existing?.notes || ""),
         failureReason: scheduleChanged ? "" : existing?.failureReason || "",

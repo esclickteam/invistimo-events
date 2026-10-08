@@ -2,7 +2,7 @@
  * Global female/male IVR voice packs:
  * - Fixed texts exist once per gender
  * - Creating a new event synthesizes ONLY the event name
- * - Client UI exposes only קול נשי / קול גברי
+ * - Client UI exposes קריינות AI / הקלטה אישית, not a voice catalog
  */
 
 import assert from "node:assert/strict";
@@ -203,12 +203,13 @@ test("creating two events reuses global pack segments (no re-TTS of fixed texts)
   assert.notEqual(h1, h2);
 });
 
-test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog", () => {
+test("UI offers קריינות AI / הקלטה אישית — not a voice catalog", () => {
   const ui = readSrc("app/components/IvrRoundsPanel.jsx");
-  assert.match(ui, /ivr-voice-gender/);
-  assert.match(ui, /קול נשי/);
-  assert.match(ui, /קול גברי/);
-  assert.match(ui, /type="radio"/);
+  assert.match(ui, /קריינות AI/);
+  assert.match(ui, /הקלטה אישית/);
+  assert.equal(ui.includes("קול נשי"), false);
+  assert.equal(ui.includes("קול גברי"), false);
+  assert.equal(ui.includes('type="radio"'), false);
   assert.match(ui, /ConcatPreviewPlayer|previewPlaylist/);
   assert.match(ui, /יצירת שם האירוע \+ תצוגה מקדימה/);
   assert.match(ui, /packsReady|ivr-packs-not-ready/);
@@ -218,15 +219,20 @@ test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog"
   assert.equal(ui.includes("autoPlay"), false);
   assert.match(ui, /type="date"/);
   assert.match(ui, /data-testid="ivr-round-time"/);
+  assert.match(ui, /top-full/);
+  assert.match(ui, /max-h-32/);
   assert.match(ui, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
   assert.equal(ui.includes("listElevenLabsVoices"), false);
-  assert.equal(ui.includes("<select"), true);
+  assert.equal(ui.includes("<select"), false);
   assert.equal(ui.includes("טוען קולות"), false);
   assert.equal(ui.includes("דנה"), false);
   assert.equal(ui.includes("Dana"), false);
   assert.equal(ui.includes("George"), false);
-  // Must not fetch voices as a client catalog
   assert.equal(ui.includes('fetch("/api/ivr/voices"'), false);
+
+  const config = readSrc("app/api/ivr/config/route.ts");
+  assert.match(config, /const voiceGender = "female"/);
+  assert.match(config, /IVR_LOCKED_FEMALE_VOICE_ID/);
 });
 
 test("config composes seamless intro without extra ElevenLabs TTS", () => {
@@ -264,8 +270,13 @@ test("dialer + webhook play sequential global + event name segments", () => {
   assert.match(webhook, /getIvrSystemAudioUrlForGender/);
   assert.match(webhook, /call\.dtmf\.received/);
   assert.match(webhook, /answer_delay/);
-  assert.match(webhook, /OUTBOUND_ANSWER_DELAY_MS = 2000/);
+  assert.match(webhook, /startOutboundFromBeginning/);
+  assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
+  assert.equal(webhook.includes("setTimeout"), false);
   assert.match(webhook, /introAfterEventName/);
+  const route = readSrc("app/api/telnyx/ivr/webhook/route.ts");
+  assert.equal(route.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
+  assert.equal(route.includes("after("), false);
 });
 
 test("User model stores eventNameAudio + voiceGender, not per-event fixed packs", () => {

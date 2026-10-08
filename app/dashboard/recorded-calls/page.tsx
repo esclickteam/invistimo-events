@@ -82,7 +82,29 @@ export default function RecordedCallsPage() {
       if (!res.ok || !data?.ok) {
         throw new Error(data?.message || data?.error || "שמירת תזמון נכשלה");
       }
-      setSchedule(next);
+      const savedRounds = data?.callRoundsSchedule?.rounds;
+      if (Array.isArray(savedRounds)) {
+        setSchedule({
+          enabled: true,
+          rounds: [1, 2, 3].map((roundNumber) => {
+            const existing = savedRounds.find(
+              (item: any) => Number(item.roundNumber) === roundNumber
+            );
+            return {
+              roundNumber,
+              title: existing?.title || `סבב מוקלט ${roundNumber}`,
+              scheduledAt:
+                existing?.scheduledAtInput ||
+                formatCallRoundDateTimeInput(existing?.scheduledAt),
+              status: existing?.status || "",
+              failureReason: existing?.failureReason || "",
+              notes: existing?.notes || "",
+            };
+          }),
+        });
+      } else {
+        setSchedule(next);
+      }
       setMessage("תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "שמירת תזמון נכשלה");
@@ -112,7 +134,7 @@ export default function RecordedCallsPage() {
           </div>
           <h1 className="text-3xl font-black text-[#241A14]">שיחות מוקלטות</h1>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#8A7A68]">
-            תזמון שלושת הסבבים, יצירת ההודעה הקולית (AI או הקלטה עצמית), אישור
+            תזמון שלושת הסבבים, יצירת ההודעה הקולית (קריינות AI או הקלטה אישית), אישור
             ההודעה, תצוגה מקדימה וסטטיסטיקות אחרי הביצוע.
           </p>
         </div>

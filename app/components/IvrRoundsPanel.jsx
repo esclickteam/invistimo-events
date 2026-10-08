@@ -12,15 +12,11 @@ function roundStatusLabel(status) {
   if (raw === "failed") return "נכשל";
   if (raw === "in_progress" || raw === "opened") return "מתבצע";
   if (raw === "cancelled" || raw === "canceled") return "בוטל";
-  return "מתוזמן";
+  if (raw === "scheduled") return "מתוזמן";
+  return "אין תזמון";
 }
 
 const SELF_MAX_SECONDS = 45;
-
-const GENDER_CHOICES = [
-  { gender: "female", label: "קול נשי" },
-  { gender: "male", label: "קול גברי" },
-];
 
 function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -34,7 +30,7 @@ function customerIvrError(raw, fallback) {
     return "שמירת ההקלטה נכשלה בגלל מבנה נתונים לא תקין. הנתונים הקיימים לא נמחקו. נסו שוב.";
   }
   if (text.includes("טעינת רשימת הקולות")) {
-    return fallback || "יצירת שם האירוע נכשלה. בחרו קול נשי או קול גברי ונסו שוב.";
+    return fallback || "יצירת שם האירוע נכשלה. נסו שוב.";
   }
   return text || fallback || "שגיאה";
 }
@@ -112,8 +108,16 @@ function IsraelDateTimeFields({ value, onChange }) {
       }
     }
     document.addEventListener("mousedown", onPointerDown);
+    const selectedHour = timePickerRef.current?.querySelector(
+      `[data-hour="${hour || "00"}"]`
+    );
+    const selectedMinute = timePickerRef.current?.querySelector(
+      `[data-minute="${minute || "00"}"]`
+    );
+    selectedHour?.scrollIntoView({ block: "center" });
+    selectedMinute?.scrollIntoView({ block: "center" });
     return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [timeOpen]);
+  }, [timeOpen, hour, minute]);
 
   function commit(nextDate, nextTime) {
     setDateText(nextDate);
@@ -166,46 +170,60 @@ function IsraelDateTimeFields({ value, onChange }) {
         {timeOpen ? (
           <div
             dir="ltr"
-            className="absolute z-30 mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white p-2 shadow-lg"
+            className="absolute top-full z-30 mt-1 w-56 max-w-full rounded-xl border border-[#E7D8C6] bg-white p-2 shadow-lg"
           >
             <div className="grid grid-cols-2 gap-2">
-              <label className="block text-[11px] font-black text-[#8A7867]">
-                שעה
-                <select
-                  value={hour}
-                  onChange={(e) =>
-                    commit(dateText, `${e.target.value}:${minute || "00"}`)
-                  }
-                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
-                  aria-label="שעה HH"
-                >
-                  <option value="">שעה</option>
+              <div>
+                <div className="mb-1 text-[10px] font-black text-[#8A7867]">
+                  HH
+                </div>
+                <div className="max-h-32 overflow-y-auto rounded-lg border border-[#F0E4D4]">
                   {hours.map((item) => (
-                    <option key={item} value={item}>
+                    <button
+                      key={item}
+                      type="button"
+                      data-hour={item}
+                      onClick={() => {
+                        const nextMinute = minute || "00";
+                        commit(dateText, `${item}:${nextMinute}`);
+                        if (minute) setTimeOpen(false);
+                      }}
+                      className={`block w-full px-2 py-1 text-left text-sm font-bold ${
+                        item === hour
+                          ? "bg-[#FFF4E4] text-[#3A2A1C]"
+                          : "text-[#6B5A48]"
+                      }`}
+                    >
                       {item}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </label>
-              <label className="block text-[11px] font-black text-[#8A7867]">
-                דקות
-                <select
-                  value={minute}
-                  onChange={(e) => {
-                    commit(dateText, `${hour || "00"}:${e.target.value}`);
-                    setTimeOpen(false);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
-                  aria-label="דקות mm"
-                >
-                  <option value="">דקות</option>
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 text-[10px] font-black text-[#8A7867]">
+                  mm
+                </div>
+                <div className="max-h-32 overflow-y-auto rounded-lg border border-[#F0E4D4]">
                   {minutes.map((item) => (
-                    <option key={item} value={item}>
+                    <button
+                      key={item}
+                      type="button"
+                      data-minute={item}
+                      onClick={() => {
+                        commit(dateText, `${hour || "00"}:${item}`);
+                        setTimeOpen(false);
+                      }}
+                      className={`block w-full px-2 py-1 text-left text-sm font-bold ${
+                        item === minute
+                          ? "bg-[#FFF4E4] text-[#3A2A1C]"
+                          : "text-[#6B5A48]"
+                      }`}
+                    >
                       {item}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
@@ -491,7 +509,7 @@ export default function IvrRoundsPanel({
     setError("");
     try {
       const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-      // Never load /api/ivr/voices — gender radios are fixed (קול נשי / קול גברי).
+      // Never load /api/ivr/voices. New AI speech uses the locked female pack only.
       // packsReady is not a client gate.
       const [cfgRes, statsRes] = await Promise.all([
         fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
@@ -554,7 +572,6 @@ export default function IvrRoundsPanel({
         eventName: config?.ivrConfig?.eventName || "",
         eventNamePronunciation:
           config?.ivrConfig?.eventNamePronunciation || "",
-        voiceGender: config?.ivrConfig?.voiceGender || "",
         audioMode: config?.ivrConfig?.audioMode || null,
         ...extra,
       };
@@ -609,7 +626,7 @@ export default function IvrRoundsPanel({
           eventName: config?.ivrConfig?.eventName || "",
           eventNamePronunciation:
             config?.ivrConfig?.eventNamePronunciation || "",
-          voiceGender: config?.ivrConfig?.voiceGender || "",
+          voiceGender: "female",
         }),
       });
       const data = await res.json().catch(() => null);
@@ -884,6 +901,34 @@ export default function IvrRoundsPanel({
                   <div className="font-black text-[#3A2A1C]">
                     סבב מוקלט {roundNumber}
                   </div>
+                  <button
+                    type="button"
+                    className="text-[11px] font-black text-[#8A7867] underline"
+                    onClick={() => {
+                      const nextRounds = [1, 2, 3].map((n) => {
+                        const existing =
+                          rounds.find((r) => Number(r.roundNumber) === n) || {
+                            roundNumber: n,
+                            scheduledAt: "",
+                            title: `סבב מוקלט ${n}`,
+                          };
+                        if (n !== roundNumber) return existing;
+                        return {
+                          ...existing,
+                          roundNumber: n,
+                          scheduledAt: "",
+                          status: "cancelled",
+                          title: `סבב מוקלט ${n}`,
+                        };
+                      });
+                      onScheduleChange?.({
+                        enabled: true,
+                        rounds: nextRounds,
+                      });
+                    }}
+                  >
+                    ביטול תזמון
+                  </button>
                   {stat ? (
                     <div className="text-[11px] font-bold text-[#8A7867]">
                       לחייג: {stat.toDial} · חויגו: {stat.attempted} · נענו:{" "}
@@ -922,10 +967,17 @@ export default function IvrRoundsPanel({
                           title: `סבב מוקלט ${n}`,
                         };
                       if (n !== roundNumber) return existing;
+                      const changed =
+                        String(existing.scheduledAt || "") !== String(value || "");
                       return {
                         ...existing,
                         roundNumber: n,
                         scheduledAt: value,
+                        status: changed
+                          ? value
+                            ? "scheduled"
+                            : "cancelled"
+                          : existing.status,
                         title: `סבב מוקלט ${n}`,
                       };
                     });
@@ -965,56 +1017,15 @@ export default function IvrRoundsPanel({
                 : "border-[#E7D8C6] bg-white text-[#8A7867]"
             }`}
           >
-            הקלטה עצמית
+            הקלטה אישית
           </button>
         </div>
 
         {audioMode === "ai" ? (
           <div className="mt-4 space-y-3">
-            <div>
-              <div className="mb-2 text-sm font-bold text-[#3A2A1C]">
-                בחירת קול
-              </div>
-              <p className="mb-2 text-[11px] font-bold text-[#8A7867]">
-                שני קולות מערכת קבועים בלבד.
-              </p>
-              <div
-                className="flex flex-col gap-2 sm:flex-row"
-                data-testid="ivr-voice-gender"
-                role="radiogroup"
-                aria-label="בחירת קול"
-              >
-                {GENDER_CHOICES.map((voice) => {
-                  const selected =
-                    config?.ivrConfig?.voiceGender === voice.gender;
-                  return (
-                    <label
-                      key={voice.gender}
-                      className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-black ${
-                        selected
-                          ? "border-[#B97821] bg-[#FFF4E4] text-[#3A2A1C]"
-                          : "border-[#E7D8C6] bg-white text-[#8A7867]"
-                      }`}
-                      data-testid={`ivr-voice-${voice.gender}`}
-                    >
-                      <input
-                        type="radio"
-                        name="ivr-voice-gender"
-                        value={voice.gender}
-                        checked={selected}
-                        onChange={() =>
-                          patchLocal({
-                            voiceGender: voice.gender,
-                          })
-                        }
-                        className="h-4 w-4 accent-[#B97821]"
-                      />
-                      <span>{voice.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+            <p className="text-[11px] font-bold text-[#8A7867]">
+              הודעה מוכנה מראש. נוצר רק שם האירוע, בלי בחירת קול.
+            </p>
 
             <label className="block text-sm font-bold text-[#3A2A1C]">
               שם האירוע
@@ -1046,8 +1057,7 @@ export default function IvrRoundsPanel({
                 {previewText || "הזינו שם אירוע כדי לראות את התבנית."}
               </pre>
               <p className="mt-2 text-[11px] font-bold text-[#8A7867]">
-                הקריינות הקבועה זהה לכל האירועים. נוצר רק שם האירוע לפי הקול
-                שנבחר.
+                הקריינות הקבועה זהה לכל האירועים. נוצר רק שם האירוע.
               </p>
             </div>
 
@@ -1055,9 +1065,7 @@ export default function IvrRoundsPanel({
               <button
                 type="button"
                 disabled={
-                  saving ||
-                  !config?.ivrConfig?.voiceGender ||
-                  !cleanText(config?.ivrConfig?.eventName)
+                  saving || !cleanText(config?.ivrConfig?.eventName)
                 }
                 onClick={() => generateAi({ force: false })}
                 className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
