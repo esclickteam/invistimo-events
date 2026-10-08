@@ -31,7 +31,13 @@ export type MessageTemplateKey =
   | "save_the_date"
   | "invitation_only";
 
-export type ScheduledAudienceFilter = "all" | "pending" | "withTable";
+export type ScheduledAudienceFilter =
+  | "all"
+  | "pending"
+  | "withTable"
+  | "never_invited"
+  | "failed"
+  | "not_sent";
 
 export type RsvpRoundNumber = 1 | 2 | 3;
 
@@ -211,7 +217,14 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     filter: {
       type: String,
-      enum: ["all", "pending", "withTable"],
+      enum: [
+        "all",
+        "pending",
+        "withTable",
+        "never_invited",
+        "failed",
+        "not_sent",
+      ],
       default: "all",
       required: true,
       index: true,
@@ -443,6 +456,12 @@ ScheduledMessageSchema.pre("validate", function () {
   if (doc.type === "rsvp") {
     doc.filter = normalizedRound === 1 ? "all" : "pending";
   }
+
+  /*
+    Never persist a final recipient snapshot on schedule create/update.
+    Workers re-query by type/round/filter at send time, then lock that run.
+  */
+  doc.guestIds = [];
 
   const cleanMessageContent = (doc.messageContent || "").trim();
   const cleanMessageOverride = (doc.messageOverride || "").trim();

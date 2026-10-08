@@ -139,6 +139,15 @@ export type SalesDocumentModelType = {
 
   createdByUserId?: mongoose.Types.ObjectId | null;
 
+  /** User created from this quote (admin/employee action) */
+  convertedUserId?: mongoose.Types.ObjectId | null;
+  convertedAt?: Date | null;
+  /** Temporary lock while creating a user from this quote */
+  convertingLockAt?: Date | null;
+  /** Snapshots before edits of sent/viewed quotes */
+  versionHistory?: unknown[];
+  notes?: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -360,6 +369,31 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
       index: true,
+    },
+
+    /** User created from this quote (admin/employee action) */
+    convertedUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    convertedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Snapshots before edits of approved/sent quotes */
+    versionHistory: {
+      type: [AnySchema],
+      default: [],
+    },
+
+    notes: {
+      type: String,
+      default: "",
+      trim: true,
     },
   },
   {

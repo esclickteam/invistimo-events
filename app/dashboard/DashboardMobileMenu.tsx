@@ -16,10 +16,12 @@ import {
   ClipboardList,
   Bus,
   WandSparkles,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 
 type Props = {
   open: boolean;
@@ -55,6 +57,7 @@ export default function DashboardMobileMenu({
   const [showDemoModal, setShowDemoModal] = useState(false);
   const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
   const canOpenGuestMessages = hasGuestMessagesFeature(user);
+  const canOpenRecordedCalls = isIvrCallsUser(user);
 
   const hasInvitation = Boolean(invitationId);
 
@@ -158,7 +161,7 @@ export default function DashboardMobileMenu({
       },
     },
     {
-      title: "עריכת פרטי האירוע",
+      title: "הגדרת פרטי אירוע",
       subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
       icon: Settings2,
       badge: "אירוע",
@@ -251,6 +254,20 @@ export default function DashboardMobileMenu({
         isDemo
           ? go("/try/dashboard/messages/new")
           : go("/dashboard/messages/new"),
+    },
+    {
+      title: "שיחות מוקלטות",
+      subtitle: "תזמון סבבים, קריינות, אישור הודעה וסטטיסטיקות IVR",
+      icon: Phone,
+      badge: "IVR",
+      hidden: gameOnly || !canOpenRecordedCalls,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/recorded-calls");
+      },
     },
   ];
 

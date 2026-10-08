@@ -34,6 +34,7 @@ import {
   shouldExposeCallRoundWorkOrder,
   type ShiftTimeWindow,
 } from "@/lib/calls/callRoundScheduleTime";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -961,6 +962,11 @@ async function loadScheduleCandidates(
 
     const clientUser = await findClientUserFromInvitation(invitation);
 
+    // IVR packages use a separate dialer — never open human CallWorkOrders for them.
+    if (isIvrCallsUser(clientUser)) {
+      continue;
+    }
+
     for (const roundInfo of rounds) {
       const resolved = resolveAssigneesForRound({
         scheduledAt: roundInfo.scheduledAt,
@@ -999,6 +1005,11 @@ async function loadScheduleCandidates(
     .toArray();
 
   for (const user of users) {
+    // IVR packages use a separate dialer — never open human CallWorkOrders for them.
+    if (isIvrCallsUser(user)) {
+      continue;
+    }
+
     const rounds = extractScheduledRoundsForDate(user, dateKey, extractOptions);
 
     if (!rounds.length) continue;

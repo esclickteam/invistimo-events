@@ -37,6 +37,11 @@ import {
   resolveAndPersistEventLocation,
 } from "@/lib/persistEventMapPin";
 import { withResolvedMapPin } from "@/lib/resolveMapPin";
+import {
+  eventTypeGreeting,
+  eventTypeHeadline,
+  resolveCentralEventDetails,
+} from "@/lib/eventDetails/centralEventDetails";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -175,13 +180,12 @@ function getPublicEventPage(invitation: any) {
   return invitation?.publicEventPage || {};
 }
 
-function getGiftSettings(publicEventPage: any) {
-  const gifts = publicEventPage?.gifts || {};
-
+function getGiftSettings(event: any, invitation: any) {
+  const central = resolveCentralEventDetails(event, invitation).gifts;
   return {
-    creditUrl: normalizeUrl(gifts?.creditUrl || publicEventPage?.creditUrl),
-    payboxUrl: normalizeUrl(gifts?.payboxUrl || publicEventPage?.payboxUrl),
-    bitPhone: cleanString(gifts?.bitPhone || publicEventPage?.bitPhone),
+    creditUrl: central.creditEnabled ? normalizeUrl(central.creditUrl) : "",
+    payboxUrl: central.payboxEnabled ? normalizeUrl(central.payboxUrl) : "",
+    bitPhone: central.bitEnabled ? cleanString(central.bitPhone) : "",
   };
 }
 
@@ -484,10 +488,19 @@ export default async function PublicEventInfoPage({
     );
   }
 
-  const title = getInvitationTitle(invitation, event);
+  const central = resolveCentralEventDetails(event, invitation);
+  const hostsNames = cleanString(central.hostsNames);
+  const title = eventTypeHeadline(
+    central.eventType,
+    hostsNames,
+    central.title || getInvitationTitle(invitation, event)
+  );
+  const greeting = eventTypeGreeting(central.eventType);
 
-  const eventDate = getEventDate(invitation, event);
-  const eventTime = getEventTime(invitation, event);
+  const eventDate = central.date || getEventDate(invitation, event);
+  const eventTime = central.time || getEventTime(invitation, event);
+  const receptionTime = central.receptionTime;
+  const ceremonyTime = central.ceremonyTime;
 
   const dateLabel = formatHebrewDate(eventDate);
 
@@ -512,8 +525,9 @@ export default async function PublicEventInfoPage({
     (invitation as any)?.showGoogleMaps
   );
   const googleMapsUrl = allowGoogleMaps
-    ? getGoogleMapsLinkForTarget(navTarget)
+    ? getGoogleMapsLinkForTarget(navTarget) || ""
     : "";
+  const mapsNavHref = cleanString(central.googleMapsUrl) || googleMapsUrl;
   const hasWaze =
     allowWaze &&
     Boolean(
@@ -570,77 +584,133 @@ export default async function PublicEventInfoPage({
   const hasSchedule = schedule.enabled && schedule.items.length > 0;
 
   const coupleImage = getCoupleImageSettings(publicEventPage);
-  const hasCoupleImage = coupleImage.enabled && coupleImage.url;
+  const heroImageUrl =
+    normalizeUrl(central.eventImageUrl) ||
+    (coupleImage.enabled ? coupleImage.url : "") ||
+    "";
+  const hasCoupleImage = Boolean(heroImageUrl);
 
-  const gifts = getGiftSettings(publicEventPage);
+  const gifts = getGiftSettings(event, invitation);
   const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
-  const note = getNoteSettings(publicEventPage);
+  const baseNote = getNoteSettings(publicEventPage);
+  const note = {
+    enabled: Boolean(baseNote.enabled || central.guestNote),
+    text: central.guestNote || baseNote.text,
+  };
+
+  const venueCity = central.city;
 
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#F6EFE6] text-[#2F2924]"
+      className="min-h-screen overflow-hidden bg-[#F3E9DC] text-[#2F2924]"
+      style={{
+        fontFamily:
+          '"Frank Ruhl Libre", "Heebo", "Assistant", "Segoe UI", sans-serif',
+      }}
     >
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;600;700;800&display=swap"
+      />
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes softGlow {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.85; }
+        }
+        @keyframes floatSpark {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+      `}</style>
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E6CDB2]/45 blur-3xl" />
-        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#D9BFA3]/40 blur-3xl" />
-        <div className="absolute left-1/2 top-[30%] h-[260px] w-[260px] -translate-x-1/2 rounded-full bg-white/45 blur-3xl" />
+        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E8D5B8]/60 blur-3xl" />
+        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#C9B089]/40 blur-3xl" />
+        <div
+          className="absolute left-1/2 top-24 h-40 w-40 -translate-x-1/2 rounded-full bg-[#F0D9A8]/35 blur-3xl"
+          style={{ animation: "softGlow 5s ease-in-out infinite" }}
+        />
       </div>
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-10">
-        <div className="mb-5 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-xs font-black text-[#7A6049] shadow-sm backdrop-blur">
-            <Sparkles className="h-4 w-4" />
-            פרטי האירוע
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[2.2rem] border border-white/80 bg-white/82 shadow-[0_28px_100px_rgba(89,64,43,0.20)] backdrop-blur-xl">
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#F1DFC9] via-[#F8EFE5] to-[#FFFFFF] px-6 pb-8 pt-10 text-center sm:px-10 sm:pt-12">
-          
-
-            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-white shadow-[0_18px_50px_rgba(107,78,52,0.16)]">
-              <Heart className="h-8 w-8 fill-[#C54D64] text-[#C54D64]" />
+      <section className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-0 pb-10 sm:max-w-2xl sm:px-4 sm:py-8">
+        <div className="overflow-hidden border-white/80 bg-white/92 shadow-[0_28px_100px_rgba(89,64,43,0.20)] backdrop-blur-xl sm:rounded-[2.2rem] sm:border">
+          {/* Hero — full-bleed image plane */}
+          <div className="relative min-h-[48vh] overflow-hidden bg-gradient-to-b from-[#EDE2D2] via-[#F5EEE4] to-[#FFFDF9] sm:min-h-[420px]">
+            {hasCoupleImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={heroImageUrl}
+                alt={title}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#F6E8D4_0%,_#E5D2B6_45%,_#CDB894_100%)]" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1C1612]/85 via-[#2F2924]/35 to-[#2F2924]/10" />
+            <div
+              className="pointer-events-none absolute left-6 top-8 text-[#F5E6D0]/70"
+              style={{ animation: "floatSpark 3.2s ease-in-out infinite" }}
+            >
+              <Heart className="h-5 w-5 fill-current" />
+            </div>
+            <div
+              className="pointer-events-none absolute right-8 top-14 text-[#F5E6D0]/55"
+              style={{ animation: "floatSpark 3.8s ease-in-out infinite 0.4s" }}
+            >
+              <Sparkles className="h-5 w-5" />
             </div>
 
-            <p className="relative text-sm font-black text-[#8B6B50]">
-              מחכים לראותכם באירוע
-            </p>
-
-            <h1 className="relative mt-3 text-3xl font-black leading-tight text-[#2F2924] sm:text-4xl">
-              {title}
-            </h1>
-
-            {(dateLabel || eventTime) && (
-              <div className="relative mx-auto mt-7 grid max-w-xl grid-cols-2 gap-3">
-                {dateLabel && (
-                  <div className="rounded-3xl border border-white/80 bg-white/70 p-4 text-right shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-black text-[#8B6B50]">
-                      <CalendarDays className="h-4 w-4" />
-                      תאריך
-                    </div>
-
-                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
-                      {dateLabel}
-                    </p>
-                  </div>
-                )}
-
-                {eventTime && (
-                  <div className="rounded-3xl border border-white/80 bg-white/70 p-4 text-right shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-black text-[#8B6B50]">
-                      <Clock className="h-4 w-4" />
-                      שעה
-                    </div>
-
-                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
-                      {eventTime}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="relative flex min-h-[48vh] flex-col justify-end px-6 pb-9 pt-16 text-center sm:min-h-[420px] sm:px-10">
+              <p
+                className="text-sm font-semibold tracking-[0.08em] text-[#F5E6D0]/95"
+                style={{ animation: "fadeUp 0.7s ease-out both" }}
+              >
+                {greeting}
+              </p>
+              {hostsNames ? (
+                <h1
+                  className="mt-3 text-[2.05rem] font-bold leading-[1.15] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:text-5xl"
+                  style={{
+                    fontFamily: '"Frank Ruhl Libre", serif',
+                    animation: "fadeUp 0.85s ease-out both",
+                  }}
+                >
+                  {hostsNames}
+                </h1>
+              ) : (
+                <h1
+                  className="mt-3 text-[2.05rem] font-bold leading-[1.15] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:text-5xl"
+                  style={{
+                    fontFamily: '"Frank Ruhl Libre", serif',
+                    animation: "fadeUp 0.85s ease-out both",
+                  }}
+                >
+                  {title}
+                </h1>
+              )}
+              {hostsNames ? (
+                <p
+                  className="mt-2 text-base font-semibold text-[#F8EFE3]/92"
+                  style={{ animation: "fadeUp 0.95s ease-out both" }}
+                >
+                  {title}
+                </p>
+              ) : null}
+              {dateLabel && (
+                <p
+                  className="mt-4 inline-flex self-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-[#F8EFE3] backdrop-blur-sm"
+                  style={{ animation: "fadeUp 1.05s ease-out both" }}
+                >
+                  {dateLabel}
+                  {eventTime ? ` · ${eventTime}` : ""}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-8">
@@ -648,12 +718,36 @@ export default async function PublicEventInfoPage({
               shareId={safeShareId}
               location={location}
             />
+
+            {(dateLabel || eventTime || receptionTime || ceremonyTime) && (
+              <SectionShell
+                title="מתי?"
+                icon={
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <CalendarDays className="h-6 w-6 text-[#8A6748]" />
+                  </div>
+                }
+              >
+                <div className="mt-3 space-y-2 text-sm font-bold text-[#4A4038]">
+                  {dateLabel && <p>{dateLabel}</p>}
+                  {receptionTime && <p>קבלת פנים: {receptionTime}</p>}
+                  {ceremonyTime && <p>חופה / טקס: {ceremonyTime}</p>}
+                  {eventTime && !receptionTime && !ceremonyTime && (
+                    <p>שעה: {eventTime}</p>
+                  )}
+                  {eventTime && (receptionTime || ceremonyTime) && (
+                    <p>שעת האירוע: {eventTime}</p>
+                  )}
+                </div>
+              </SectionShell>
+            )}
+
             {(location.name || location.address || hasWaze || googleMapsUrl) && (
               <SectionShell
-                title="הגעה וניווט לאירוע"
+                title="איפה?"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] via-[#FFF7EE] to-white shadow-[0_0_24px_rgba(138,103,72,0.28)]">
-                    <MapPin className="h-7 w-7 text-[#8A6748] drop-shadow-[0_0_7px_rgba(138,103,72,0.45)]" />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <MapPin className="h-6 w-6 text-[#8A6748]" />
                   </div>
                 }
               >
@@ -670,8 +764,14 @@ export default async function PublicEventInfoPage({
                     </p>
                   )}
 
-                {(hasWaze || googleMapsUrl) && (
-                  <div className="mt-5 grid grid-cols-2 gap-3">
+                {venueCity && (
+                  <p className="mt-1 text-sm font-bold text-[#746A61]">
+                    {venueCity}
+                  </p>
+                )}
+
+                {(hasWaze || mapsNavHref) && (
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {hasWaze && (
                       <WazeNavButton
                         location={location}
@@ -679,14 +779,14 @@ export default async function PublicEventInfoPage({
                         className={darkNavButtonClassName}
                       >
                         <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                        Waze
+                        ניווט ב-Waze
                       </WazeNavButton>
                     )}
 
-                    {googleMapsUrl && (
-                      <LightButton href={googleMapsUrl}>
+                    {mapsNavHref && (
+                      <LightButton href={mapsNavHref}>
                         <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
-                        מפות
+                        ניווט ב-Google Maps
                       </LightButton>
                     )}
                   </div>
@@ -807,159 +907,61 @@ export default async function PublicEventInfoPage({
             )}
 
             {hasGifts && (
-              <SectionShell
-                title="מתנות לזוג"
-                icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#FCE7F3] via-[#FFF1F5] to-white shadow-[0_0_26px_rgba(185,77,99,0.25)]">
-                    <Gift className="h-7 w-7 text-[#B94D63] drop-shadow-[0_0_7px_rgba(185,77,99,0.45)]" />
+              <section className="rounded-[2rem] border border-[#E8D4B4] bg-gradient-to-br from-[#FFF9F0] via-white to-[#F7F0E6] p-5 shadow-[0_18px_48px_rgba(98,70,42,0.10)] sm:p-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <Gift className="h-6 w-6 text-[#8A6748]" />
                   </div>
-                }
-              >
-                <p className="mt-2 text-sm font-bold leading-7 text-[#746A61]">
-                  ניתן לשלוח מתנה בדרך שנוחה לכם.
-                </p>
-
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {gifts.creditUrl && (
-                    <a
-                      href={gifts.creditUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="
-                        group
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#FFF7EE]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(98,70,42,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(98,70,42,0.16)]
-                      "
-                    >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E4D1] shadow-sm">
-                        <CreditCard className="h-5 w-5 text-[#8A6748]" />
-                      </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          אשראי
-                        </span>
-                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                          תשלום מאובטח
-                        </span>
-                      </span>
-
-                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                        ←
-                      </span>
-                    </a>
-                  )}
-
-                  {gifts.payboxUrl && (
-                    <a
-                      href={gifts.payboxUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="
-                        group
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#F5F8FF]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(73,108,168,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(73,108,168,0.16)]
-                      "
-                    >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF3FF] shadow-sm">
-                        <Smartphone className="h-5 w-5 text-[#496CA8]" />
-                      </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          PayBox
-                        </span>
-                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                          פתיחה בקישור
-                        </span>
-                      </span>
-
-                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                        ←
-                      </span>
-                    </a>
-                  )}
-
-                  {gifts.bitPhone && (
-                    <div
-                      className="
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#FFF3F6]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(185,77,99,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(185,77,99,0.16)]
-                      "
-                    >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4DEE3] shadow-sm">
-                        <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
-                      </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          Bit
-                        </span>
-
-                        <span
-                          className="mt-1 block text-sm font-black tracking-wide text-[#2F2924]"
-                          dir="ltr"
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-black text-[#2F2924]">
+                      רוצים לשמח אותנו במתנה?
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-[#7A6A5A]">
+                      בחרו את הדרך הנוחה לכם — אשראי, PayBox או Bit
+                    </p>
+                    <div className="mt-5 grid grid-cols-1 gap-3">
+                      {gifts.creditUrl && (
+                        <a
+                          href={gifts.creditUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028] px-4 py-3 text-sm font-black text-white shadow-[0_14px_32px_rgba(36,25,15,0.22)] transition hover:-translate-y-0.5"
                         >
-                          {gifts.bitPhone}
-                        </span>
-                      </span>
+                          <CreditCard className="h-4 w-4" />
+                          מתנה באשראי
+                        </a>
+                      )}
 
-                      <CopyButton value={gifts.bitPhone} />
+                      {gifts.payboxUrl && (
+                        <a
+                          href={gifts.payboxUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#C9D7F0] bg-gradient-to-l from-white to-[#EEF4FF] px-4 py-3 text-sm font-black text-[#2F3B55] shadow-[0_12px_28px_rgba(73,108,168,0.12)] transition hover:-translate-y-0.5"
+                        >
+                          <Smartphone className="h-4 w-4 text-[#496CA8]" />
+                          מתנה ב-PayBox
+                        </a>
+                      )}
+
+                      {gifts.bitPhone && (
+                        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E8D9CB] bg-white px-4 py-5 shadow-sm">
+                          <p className="text-xs font-black tracking-wide text-[#8A6A43]">
+                            העברה ב-Bit
+                          </p>
+                          <span
+                            className="text-xl font-black tracking-wide text-[#2F2924]"
+                            dir="ltr"
+                          >
+                            {gifts.bitPhone}
+                          </span>
+                          <CopyButton value={gifts.bitPhone} />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </SectionShell>
+              </section>
             )}
 
             {note.enabled && note.text && (
@@ -970,29 +972,8 @@ export default async function PublicEventInfoPage({
               </section>
             )}
 
-            {hasCoupleImage && (
-              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/75 p-4 shadow-[0_18px_50px_rgba(98,70,42,0.12)]">
-                <div className="relative overflow-hidden rounded-[1.7rem] bg-gradient-to-br from-[#F8F0E7] via-[#FFF8EF] to-white">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#E6CDB2]/45 blur-3xl" />
-                    <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-[#F4DEE3]/45 blur-3xl" />
-                  </div>
-
-                  <div className="relative flex min-h-[280px] items-center justify-center p-3 sm:min-h-[390px]">
-                    <img
-                      src={coupleImage.url}
-                      alt="תמונת הזוג / האירוע"
-                      className="mx-auto h-auto max-h-[80vh] w-auto max-w-full rounded-[1.3rem] object-contain shadow-[0_16px_46px_rgba(47,41,36,0.13)]"
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
-
             <section className="rounded-[2rem] border border-white/80 bg-white/70 p-5 text-center shadow-sm">
-              <p className="text-lg font-black text-[#2F2924]">
-                נשמח לראותכם ❤️
-              </p>
+              <p className="text-lg font-black text-[#2F2924]">{greeting}</p>
             </section>
           </div>
         </div>

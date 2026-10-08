@@ -186,6 +186,11 @@ function buildMediaSetData({
   return {
     "preRsvpMedia.invitationOnlyImageUrl": imageUrl,
     "preRsvpMedia.invitationOnlyImagePublicId": publicId,
+    // Permanent invite image — available for preview and future resends.
+    headerImageUrl: imageUrl,
+    previewImageUrl: imageUrl,
+    imageUrl,
+    previewImage: imageUrl,
   };
 }
 
@@ -428,7 +433,12 @@ export async function DELETE(req: NextRequest) {
       }
     );
 
-    if (publicId) {
+    /*
+      Never destroy Cloudinary assets for invitation_only — the same file is the
+      permanent invite image (headerImageUrl). Save the Date may still destroy
+      its dedicated asset on explicit remove.
+    */
+    if (publicId && messageType === "save_the_date") {
       cloudinary.uploader
         .destroy(publicId, {
           resource_type: "image",

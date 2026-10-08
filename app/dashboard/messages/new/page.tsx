@@ -8,6 +8,10 @@ import {
   ScheduleDateField,
   ScheduleTimeField,
 } from "./shared/ScheduleDateTimeFields";
+import {
+  buildInvitationLocationLabel,
+  type InvitationOnlyAudienceFilter,
+} from "@/lib/messages/invitationOnlyDetails";
 
 /* ================= TYPES ================= */
 
@@ -49,6 +53,7 @@ type MessageMeta = {
   eventLocation: string;
   eventType?: string;
   giftCreditUrl?: string;
+  headerImageUrl?: string;
   preRsvpMedia: PreRsvpMedia;
   lat?: number;
   lng?: number;
@@ -62,6 +67,7 @@ const EMPTY_META: MessageMeta = {
   eventLocation: "",
   eventType: "",
   giftCreditUrl: "",
+  headerImageUrl: "",
   preRsvpMedia: {
     saveTheDateImageUrl: "",
     saveTheDateImagePublicId: "",
@@ -165,36 +171,9 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
   return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
 }
 
-function normalizeCompareText(value: unknown) {
-  return cleanString(value)
-    .replace(/\s+/g, " ")
-    .replace(/,+/g, ",")
-    .replace(/\s*,\s*/g, ", ")
-    .trim();
-}
-
 function buildEventLocationText(invitation: any, event: any): string {
-  const invitationName = cleanString(invitation?.location?.name);
-  const invitationAddress = cleanString(invitation?.location?.address);
-
-  const eventName = cleanString(event?.location?.name);
-  const eventAddress = cleanString(event?.location?.address);
-
-  const locationName = invitationName || eventName;
-  const locationAddress = invitationAddress || eventAddress;
-
-  const normalizedName = normalizeCompareText(locationName);
-  const normalizedAddress = normalizeCompareText(locationAddress);
-
-  if (locationName && locationAddress) {
-    if (normalizedName === normalizedAddress) {
-      return locationName;
-    }
-
-    return `${locationName}, ${locationAddress}`;
-  }
-
-  return locationName || locationAddress || "";
+  // Same location label as RSVP live-details (no duplicated venue/address).
+  return buildInvitationLocationLabel(invitation, event);
 }
 
 function getCurrentTemplate(type: PreRsvpType) {
@@ -289,7 +268,9 @@ function canUsePreRsvpType(
   const enabledByMode = mode === "invitation_only" || mode === "both";
   const enabledByFlag = access.invitationOnlyEnabled === true;
 
-  return (enabledByMode || enabledByFlag) && !hasUsedPreRsvpType(access, type);
+  // Invitation-only stays available for resends (e.g. never_invited).
+  // Save the Date remains one-shot.
+  return enabledByMode || enabledByFlag;
 }
 
 function getBlockedPreRsvpMessage(
@@ -303,7 +284,7 @@ function getBlockedPreRsvpMessage(
   return "השירות לא פתוח בחבילה הנוכחית.";
 }
 
-  if (hasUsedPreRsvpType(access, type)) {
+  if (type === "save_the_date" && hasUsedPreRsvpType(access, type)) {
     return "השליחה הזאת כבר נוצלה וננעלה לאחר שליחה בפועל.";
   }
 
@@ -373,12 +354,25 @@ setPreRsvpMessages(loadedPreRsvpMessages);
         if (invitation) {
           setInvitationId(invitation._id || "");
 
+          const headerImageUrl = getHighQualityCloudinaryImageUrl(
+            invitation.preRsvpMedia?.invitationOnlyImageUrl ||
+              invitation.headerImageUrl ||
+              invitation.previewImageUrl ||
+              invitation.imageUrl ||
+              invitation.canvasImageUrl ||
+              invitation.previewImage ||
+              event?.imageUrl ||
+              event?.coverImageUrl ||
+              ""
+          );
+
           setMeta({
             invitationTitle: invitation.title || "",
             eventDate: formatEventDate(invitation.eventDate || event?.date),
             eventLocation: buildEventLocationText(invitation, event),
             eventType: invitation.eventType || event?.eventType || "",
             giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
+            headerImageUrl,
             preRsvpMedia: {
               saveTheDateImageUrl: getHighQualityCloudinaryImageUrl(
                 invitation.preRsvpMedia?.saveTheDateImageUrl || ""
@@ -386,7 +380,9 @@ setPreRsvpMessages(loadedPreRsvpMessages);
               saveTheDateImagePublicId:
                 invitation.preRsvpMedia?.saveTheDateImagePublicId || "",
               invitationOnlyImageUrl: getHighQualityCloudinaryImageUrl(
-                invitation.preRsvpMedia?.invitationOnlyImageUrl || ""
+                invitation.preRsvpMedia?.invitationOnlyImageUrl ||
+                  headerImageUrl ||
+                  ""
               ),
               invitationOnlyImagePublicId:
                 invitation.preRsvpMedia?.invitationOnlyImagePublicId || "",
@@ -738,6 +734,9 @@ function PreRsvpTab({
     useState<File | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [invitationAudience, setInvitationAudience] =
+    useState<InvitationOnlyAudienceFilter>("never_invited");
+  const [invitationPhone, setInvitationPhone] = useState("");
 
   const [savedSaveTheDateImageUrl, setSavedSaveTheDateImageUrl] = useState("");
   const [savedInvitationOnlyImageUrl, setSavedInvitationOnlyImageUrl] =
@@ -749,6 +748,11 @@ function PreRsvpTab({
   );
 
   const canUseInvitationOnly = canUsePreRsvpType(
+    preRsvpMessages,
+    "invitation_only"
+  );
+
+  const invitationAlreadySent = hasUsedPreRsvpType(
     preRsvpMessages,
     "invitation_only"
   );
@@ -774,7 +778,7 @@ function PreRsvpTab({
   const currentSavedImageUrl = getHighQualityCloudinaryImageUrl(
     activePreTab === "save_the_date"
       ? savedSaveTheDateImageUrl
-      : savedInvitationOnlyImageUrl
+      : savedInvitationOnlyImageUrl || meta.headerImageUrl || ""
   );
 
   const displayImage = currentImage || currentSavedImageUrl;
@@ -792,11 +796,14 @@ function PreRsvpTab({
       getHighQualityCloudinaryImageUrl(meta.preRsvpMedia?.saveTheDateImageUrl)
     );
     setSavedInvitationOnlyImageUrl(
-      getHighQualityCloudinaryImageUrl(meta.preRsvpMedia?.invitationOnlyImageUrl)
+      getHighQualityCloudinaryImageUrl(
+        meta.preRsvpMedia?.invitationOnlyImageUrl || meta.headerImageUrl || ""
+      )
     );
   }, [
     meta.preRsvpMedia?.saveTheDateImageUrl,
     meta.preRsvpMedia?.invitationOnlyImageUrl,
+    meta.headerImageUrl,
   ]);
 
   useEffect(() => {
@@ -980,6 +987,9 @@ function PreRsvpTab({
       const cleanEventTitle = cleanString(meta.invitationTitle);
       const cleanEventDate = cleanString(meta.eventDate);
       const cleanEventLocation = cleanString(meta.eventLocation);
+      const audienceFilter: InvitationOnlyAudienceFilter = isSaveTheDate
+        ? "all"
+        : invitationAudience;
 
       if (!cleanInvitationId) {
         alert("לא נמצאה הזמנה פעילה לשליחה.");
@@ -988,6 +998,17 @@ function PreRsvpTab({
 
       if (sendTiming === "scheduled" && (!scheduledDate || !scheduledTime)) {
         alert("בחרי תאריך ושעה לשליחה מתוזמנת.");
+        return;
+      }
+
+      if (
+        !isSaveTheDate &&
+        sendTiming === "scheduled" &&
+        invitationPhone.replace(/\D/g, "").length >= 9
+      ) {
+        alert(
+          "שליחה למספר בודד היא מיידית בלבד — נקו את שדה הטלפון או בחרי שליחה מיידית."
+        );
         return;
       }
 
@@ -1030,8 +1051,19 @@ function PreRsvpTab({
         alert(
           isSaveTheDate
             ? "יש להעלות תמונה ייעודית ל־Save The Date לפני השליחה."
-            : "יש להעלות תמונה ייעודית להזמנה מוקדמת לפני השליחה."
+            : "חסרה תמונת הזמנה. העלו תמונה בעריכת ההזמנה או כאן לפני השליחה."
         );
+        return;
+      }
+
+      if (
+        !isSaveTheDate &&
+        invitationAlreadySent &&
+        audienceFilter === "all" &&
+        !confirm(
+          "כבר נשלחה הזמנה בעבר.\nלשלוח שוב לכל המוזמנים (כולל מי שכבר קיבל)?"
+        )
+      ) {
         return;
       }
 
@@ -1081,6 +1113,26 @@ function PreRsvpTab({
 
       formData.append("message", payload.message);
       formData.append("previewMessage", payload.previewMessage);
+      formData.append("filter", audienceFilter);
+      if (!isSaveTheDate && invitationPhone.trim()) {
+        formData.append("phone", invitationPhone.trim());
+      }
+      formData.append(
+        "allowResend",
+        !isSaveTheDate &&
+          (invitationAlreadySent ||
+            audienceFilter === "never_invited" ||
+            audienceFilter === "failed" ||
+            audienceFilter === "not_sent" ||
+            Boolean(invitationPhone.trim()))
+          ? "true"
+          : "false"
+      );
+
+      if (currentSavedImageUrl && !currentImageFile) {
+        formData.append("headerImageUrl", currentSavedImageUrl);
+        formData.append("existingImageUrl", currentSavedImageUrl);
+      }
 
       if (currentImageFile) {
         formData.append("image", currentImageFile);
@@ -1289,14 +1341,75 @@ function PreRsvpTab({
         <Panel
           icon="👥"
           title="קהל יעד"
-          description="הקהל נקבע אוטומטית מרשימת האורחים"
+          description={
+            activePreTab === "invitation_only"
+              ? "לפי היסטוריית שליחת הזמנה בפועל — לא לפי סטטוס RSVP"
+              : "הקהל נקבע אוטומטית מרשימת האורחים"
+          }
         >
-          <div className="rounded-[24px] border border-[#E7D8C3] bg-white p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <MiniStat value="כל האורחים" label="ברירת מחדל" />
-              <MiniStat value="WhatsApp" label="ערוץ שליחה" />
-              <MiniStat value="ללא RSVP" label="לא משנה סטטוסים" />
-            </div>
+          <div className="rounded-[24px] border border-[#E7D8C3] bg-white p-4 space-y-4">
+            {activePreTab === "invitation_only" ? (
+              <>
+                <label className="block text-sm font-black text-[#3A3028]">
+                  מספר טלפון (אופציונלי — שולח רק אליו, מיידי בלבד)
+                </label>
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={invitationPhone}
+                  onChange={(e) => setInvitationPhone(e.target.value)}
+                  placeholder="05xxxxxxxx"
+                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none"
+                />
+
+                <label className="block text-sm font-black text-[#3A3028]">
+                  למי לשלוח את ההזמנה
+                  {invitationPhone.replace(/\D/g, "").length >= 9
+                    ? " (לא בשימוש כשמזינים טלפון)"
+                    : ""}
+                </label>
+                <select
+                  value={invitationAudience}
+                  disabled={invitationPhone.replace(/\D/g, "").length >= 9}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (
+                      value === "all" ||
+                      value === "never_invited" ||
+                      value === "failed" ||
+                      value === "not_sent"
+                    ) {
+                      setInvitationAudience(value);
+                    }
+                  }}
+                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none disabled:opacity-50"
+                >
+                  <option value="never_invited">
+                    למי שלא נשלחה לו הזמנה מהמערכת
+                  </option>
+                  <option value="failed">
+                    נכשלו בדוח סבבי ההזמנה
+                  </option>
+                  <option value="not_sent">
+                    לא נשלחו בדוח סבבי ההזמנה
+                  </option>
+                  <option value="all">לכל המוזמנים (כולל שליחה חוזרת)</option>
+                </select>
+                <p className="text-xs font-bold text-[#8A7A6B]">
+                  הפעולה לא פותחת סבב אישורי הגעה ולא משנה סטטוס אורח.
+                  שליחה למספר בודד היא מיידית בלבד.
+                  {invitationAlreadySent
+                    ? " כבר בוצעה שליחת הזמנה בעבר — מומלץ לבחור מי שטרם קיבל / נכשל / לא נשלח."
+                    : ""}
+                </p>
+              </>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <MiniStat value="כל האורחים" label="ברירת מחדל" />
+                <MiniStat value="WhatsApp" label="ערוץ שליחה" />
+                <MiniStat value="ללא RSVP" label="לא משנה סטטוסים" />
+              </div>
+            )}
           </div>
         </Panel>
 

@@ -6,6 +6,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { resolveDataOwnerUserId } from "@/lib/admin/manageContext";
 import {
   buildInvitationRsvpFields,
   getOwnerRsvpSiteMode,
@@ -215,8 +216,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const userId = String(auth.userId);
+    // Admin manage mode: scope data to the managed customer while JWT stays admin.
+    const dataOwnerId = resolveDataOwnerUserId(auth) || String(auth.userId);
+    const userId = dataOwnerId;
     const userObjectId = toObjectId(userId);
+    const isAdminManaging =
+      auth.role === "admin" &&
+      Boolean(auth.adminManagingUserId) &&
+      String(auth.adminManagingUserId) === userId;
 
     const { searchParams } = new URL(req.url);
     const includeVenueClient =
@@ -256,7 +263,14 @@ export async function GET(req: Request) {
       );
     }
 
-    const ctx = resolveProducerContext(auth, user);
+    // Producer context must stay on the real JWT actor, not the managed customer.
+    const actorUser = isAdminManaging
+      ? await User.findById(auth.userId)
+          .select("role staffType createdByProducer assignedProducerId assignedClientIds")
+          .lean()
+      : user;
+
+    const ctx = resolveProducerContext(auth, actorUser || user);
 
     const orFilters: any[] = [];
 
@@ -270,19 +284,22 @@ export async function GET(req: Request) {
       orFilters.push({ userId });
     }
 
-    const producerIdObj = toObjectId(ctx.effectiveProducerId);
+    // In admin-manage mode only load the managed customer's invitations.
+    if (!isAdminManaging) {
+      const producerIdObj = toObjectId(ctx.effectiveProducerId);
 
-    if (producerIdObj) {
-      orFilters.push({ producerId: producerIdObj });
-    }
+      if (producerIdObj) {
+        orFilters.push({ producerId: producerIdObj });
+      }
 
-    const assignedClientObjIds = ctx.assignedClientIds
-      .map((id) => toObjectId(id))
-      .filter(Boolean) as mongoose.Types.ObjectId[];
+      const assignedClientObjIds = ctx.assignedClientIds
+        .map((id) => toObjectId(id))
+        .filter(Boolean) as mongoose.Types.ObjectId[];
 
-    if (assignedClientObjIds.length > 0) {
-      orFilters.push({ ownerId: { $in: assignedClientObjIds } });
-      orFilters.push({ userId: { $in: assignedClientObjIds } });
+      if (assignedClientObjIds.length > 0) {
+        orFilters.push({ ownerId: { $in: assignedClientObjIds } });
+        orFilters.push({ userId: { $in: assignedClientObjIds } });
+      }
     }
 
     const venueClientInvitationId = toObjectId(

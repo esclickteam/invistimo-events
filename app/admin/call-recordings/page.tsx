@@ -391,45 +391,23 @@ export default function AdminCallRecordingsPage() {
   const total = pagination?.total || 0;
 
   return (
-    <main
-      dir="rtl"
-      className="w-full min-w-0 bg-[#f7f3ec] py-2 text-[#2f251d]"
-    >
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-6 overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-[0_24px_80px_rgba(47,37,29,0.08)]">
-          <div className="relative p-6 md:p-8">
-            <div className="absolute left-0 top-0 h-32 w-32 rounded-br-[60px] bg-[#b9945a]/10" />
-
-            <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm font-black tracking-[0.18em] text-[#b9945a]">
-                  CALL LOG
-                </p>
-
-                <h1 className="mt-3 text-3xl font-black text-[#2f251d] md:text-4xl">
-                  יומן שיחות והקלטות
-                </h1>
-
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#8b7b68]">
-                  כאן האדמין יכול לראות שיחות נכנסות, שיחות יוצאות, ניסיונות
-                  חיוג והקלטות. בשיחה נכנסת “מאת” הוא המספר שהתקשר ו“אל” הוא
-                  מספר המערכת. בשיחה יוצאת “מאת” הוא העובד ו“אל” הוא הלקוח.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={loadRecordings}
-                disabled={loading}
-                className="h-12 rounded-2xl bg-[#2f251d] px-6 text-sm font-black text-white shadow-[0_14px_30px_rgba(47,37,29,0.22)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? "מרענן..." : "רענון"}
-              </button>
-            </div>
-          </div>
+    <main dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
+      <section className="mx-auto max-w-7xl space-y-4">
+        <div className="flex flex-col gap-3 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-[var(--admin-muted)]">
+            שיחות נכנסות/יוצאות, ניסיונות חיוג והקלטות
+          </p>
+          <button
+            type="button"
+            onClick={loadRecordings}
+            disabled={loading}
+            className="h-9 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-xs font-bold text-white disabled:opacity-60"
+          >
+            {loading ? "מרענן..." : "רענון"}
+          </button>
         </div>
 
-        <div className="mb-5 grid gap-3 rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+        <div className="grid gap-3 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
           <input
             value={search}
             onChange={(event) => {

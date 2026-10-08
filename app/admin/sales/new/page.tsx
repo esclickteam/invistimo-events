@@ -9,6 +9,9 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import CallsTypeField, {
+  type CallsTypeValue,
+} from "@/app/components/admin/CallsTypeField";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 
 const VAT_RATE = 0.18;
@@ -1341,6 +1344,8 @@ export default function AdminSalesNewPage() {
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
+  /** Required when package includes calls (smart/seating). Empty until admin chooses. */
+  const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
   const [records, setRecords] = useState("300");
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() => createEmptyUpsells());
   const [preRsvpUpsellMode, setPreRsvpUpsellMode] =
@@ -1393,6 +1398,8 @@ export default function AdminSalesNewPage() {
   const quoteExpiresAt = useMemo(() => toDateInputValue(addDays(new Date(), QUOTE_VALIDITY_DAYS)), []);
 
   const selectedPlan = useMemo(() => getSelectedPlan(selectedPlanKey), [selectedPlanKey]);
+  const packageIncludesCalls =
+    selectedPlanKey === "smart" || selectedPlanKey === "seating";
   const packageCalculation = useMemo(() => calculatePackagePrice(selectedPlan, clampRecords(records)), [records, selectedPlan]);
 
   const canGiveSuppliersBudgetFree = useMemo(() => {
@@ -1842,7 +1849,10 @@ export default function AdminSalesNewPage() {
 
   // באדמין הצעת מחיר/הסכם הם אופציונליים בלבד.
   // אפשר לפתוח לקוח, לסמן שולם ידנית או לעבור ל-Stripe גם בלי הסכם חתום.
-  const isSubmitDisabled = saving || finalGrossAmount <= 0;
+  const isSubmitDisabled =
+    saving ||
+    finalGrossAmount <= 0 ||
+    (packageIncludesCalls && callsType !== "human" && callsType !== "ivr");
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1859,6 +1869,9 @@ export default function AdminSalesNewPage() {
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
     if (!clientEmail.trim()) missing.push("מייל לקוח");
+    if (packageIncludesCalls && callsType !== "human" && callsType !== "ivr") {
+      missing.push("סוג השיחות (מוקד אנושי / שיחות מוקלטות)");
+    }
 
     return missing;
   }
@@ -1896,6 +1909,9 @@ export default function AdminSalesNewPage() {
     setSelectedPlanKey(nextPlan);
     if (nextPlan === "seating") {
       setSelectedUpsells((prev) => ({ ...prev, digitalSeating: false }));
+    }
+    if (nextPlan !== "smart" && nextPlan !== "seating") {
+      setCallsType("");
     }
   }
 
@@ -2125,6 +2141,8 @@ export default function AdminSalesNewPage() {
           packageName: selectedPlan.title,
           guests: packageCalculation.records,
           records: packageCalculation.records,
+          includeCalls: packageIncludesCalls,
+          callsType: packageIncludesCalls ? callsType : "human",
 
           // סכום העסקה המלא — לא הכנסה בפועל
           grossAmount: finalGrossAmount,
@@ -2467,6 +2485,22 @@ export default function AdminSalesNewPage() {
                 })}
               </div>
             </section>
+
+            {packageIncludesCalls ? (
+              <div className="space-y-3" id="admin-sale-calls-type">
+                <div className="rounded-2xl border border-[#f0d8b7] bg-[#fff3df] px-4 py-3 text-sm font-black text-[#8a5c20]">
+                  לפני תוספות ושירותים — בחרי סוג שיחות ללקוח (חובה)
+                </div>
+                <CallsTypeField
+                  name="admin-sale-callsType"
+                  value={callsType}
+                  onChange={setCallsType}
+                  required
+                  className="rounded-[34px] sm:p-6"
+                  description="החבילה שנבחרה כוללת שירות שיחות. חובה לבחור האם הלקוח מקבל מוקד אנושי או שיחות מוקלטות (IVR)."
+                />
+              </div>
+            ) : null}
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-2xl font-black text-slate-950">תוספות ושירותים</h2>
@@ -2974,6 +3008,57 @@ export default function AdminSalesNewPage() {
                           </button>
                         ) : null}
                       </div>
+
+                      {generatedDocument.type === "quote" &&
+                      generatedDocument.token ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <a
+                            href={`/admin/sales/quotes/${encodeURIComponent(generatedDocument.token)}/edit`}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d8b777] bg-white px-4 text-xs font-black text-[#3A271D] transition hover:bg-[#fff7ec]"
+                          >
+                            עריכת הצעה
+                          </a>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmed = confirm(
+                                "לפתוח משתמש מההצעה? הפרטים, החבילה והמחירים יועברו אוטומטית. לא יבוצע חיוב אוטומטי."
+                              );
+                              if (!confirmed || !generatedDocument.token) return;
+                              try {
+                                const res = await fetch(
+                                  `/api/employee/sales/documents/${encodeURIComponent(generatedDocument.token)}/create-user`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({}),
+                                  }
+                                );
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                  alert(
+                                    data?.message ||
+                                      data?.error ||
+                                      "יצירת משתמש נכשלה"
+                                  );
+                                  return;
+                                }
+                                alert(data.message || "המשתמש נוצר בהצלחה");
+                                window.location.href =
+                                  data.redirectTo || "/admin/users";
+                              } catch {
+                                alert("יצירת משתמש נכשלה");
+                              }
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-xl bg-[#B87920] px-4 text-xs font-black text-white transition hover:bg-[#9F6818]"
+                          >
+                            פתיחת משתמש מההצעה
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>

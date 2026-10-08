@@ -215,10 +215,97 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   venueSeatingTemplateImportedAt?: Date | null;
 
   includeCalls: boolean;
+  /**
+   * Call package mode. Existing users default to "human".
+   * Phase 1: event/user-level only — no mixing human + IVR rounds.
+   * Optional per-round callType on rounds is reserved for a future mixed model.
+   */
+  callsType?: "human" | "ivr";
   callsRounds: number;
   callsAddonPrice: number;
   callsEnabledBy?: "admin" | "system" | "stripe" | null;
   callsEnabledAt?: Date | null;
+
+  /**
+   * IVR audio + script settings (only when callsType === "ivr").
+   * AI mode: only event-name audio is stored per user/event.
+   * Fixed script segments come from the global female/male voice packs.
+   */
+  ivrConfig?: {
+    audioMode?: "ai" | "self_recorded" | null;
+    /** Free-text event name shown in the IVR script, e.g. "החתונה של הדס ורועי" */
+    eventName?: string;
+    /** Optional TTS-only pronunciation; never replaces displayed eventName. */
+    eventNamePronunciation?: string;
+    /** @deprecated legacy — mapped to eventName via resolveIvrEventName */
+    eventTypeLabel?: string;
+    /** @deprecated legacy */
+    hostsNames?: string;
+    /** @deprecated legacy — mapped to eventNamePronunciation */
+    hostsNamesPronunciation?: string;
+    /** Client choice: global female or male pack. */
+    voiceGender?: "female" | "male" | null;
+    /** Resolved ElevenLabs voice id for the chosen gender (system-configured). */
+    systemVoiceId?: string;
+    /** @deprecated prefer voiceGender + systemVoiceId */
+    voiceId?: string;
+    /**
+     * Per-event TTS: spoken event name only.
+     * Fixed intro/DTMF lines are NOT stored here — they live in IvrSystemAudio packs.
+     */
+    eventNameAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "elevenlabs" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      textSnapshot?: string;
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    /**
+     * Seamless server compose of before + eventName + after (no ElevenLabs).
+     * Preview + Telnyx play this single file so narration sounds continuous.
+     */
+    composedIntroAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "compose" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      composeVersion?: string;
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    /**
+     * Self-recorded full intro (optional path).
+     * AI mode must not write fixed global clips here.
+     */
+    introAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "elevenlabs" | "upload" | "recording" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      textSnapshot?: string;
+      /** Client must approve before real IVR dials may use this audio. */
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    updatedAt?: Date | null;
+  };
 
     callRoundsSchedule?: {
     enabled: boolean;
@@ -226,6 +313,11 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       roundNumber: number;
       title?: string;
       scheduledAt?: Date | null;
+      /**
+       * Reserved for future mixed human/IVR rounds.
+       * Phase 1: unused — effective type comes from user.callsType.
+       */
+      callType?: "human" | "ivr";
       status:
         | "draft"
         | "scheduled"
@@ -1022,6 +1114,13 @@ preRsvpMessages: {
       default: false,
     },
 
+    callsType: {
+      type: String,
+      enum: ["human", "ivr"],
+      default: "human",
+      index: true,
+    },
+
     callsRounds: {
       type: Number,
       default: 0,
@@ -1041,6 +1140,236 @@ preRsvpMessages: {
     callsEnabledAt: {
       type: Date,
       default: null,
+    },
+
+    ivrConfig: {
+      audioMode: {
+        type: String,
+        enum: ["ai", "self_recorded", null],
+        default: null,
+      },
+      eventName: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      eventNamePronunciation: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      // Legacy fields kept for backward-compatible reads only.
+      eventTypeLabel: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      hostsNames: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      hostsNamesPronunciation: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      voiceGender: {
+        type: String,
+        enum: ["female", "male", null],
+        default: null,
+      },
+      systemVoiceId: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      voiceId: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      eventNameAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["elevenlabs", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        textSnapshot: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      composedIntroAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["compose", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        composeVersion: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      introAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["elevenlabs", "upload", "recording", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        textSnapshot: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
     },
 
         callRoundsSchedule: {
@@ -1067,6 +1396,12 @@ preRsvpMessages: {
           scheduledAt: {
             type: Date,
             default: null,
+          },
+
+          callType: {
+            type: String,
+            enum: ["human", "ivr"],
+            default: undefined,
           },
 
           status: {
@@ -1667,6 +2002,11 @@ UserSchema.pre("validate", function () {
     if (doc.includeCalls) {
     doc.callsRounds = doc.callsRounds || 3;
 
+    // Backward compatible: existing/new call packages default to human call-center.
+    if (doc.callsType !== "human" && doc.callsType !== "ivr") {
+      doc.callsType = "human";
+    }
+
     doc.planLimits = {
       ...(doc.planLimits || {}),
       callsEnabled: true,
@@ -1993,6 +2333,10 @@ UserSchema.index({ role: 1, "accessModules.venues": 1 });
 UserSchema.index({ "callRoundsSchedule.enabled": 1 });
 UserSchema.index({ "callRoundsSchedule.rounds.scheduledAt": 1 });
 UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
+UserSchema.index({ includeCalls: 1, callsType: 1 });
+UserSchema.index({ "ivrConfig.introAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.composedIntroAudio.publicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

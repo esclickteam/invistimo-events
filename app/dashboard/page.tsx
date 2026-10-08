@@ -28,6 +28,12 @@ import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 import { formatCallRoundDateOnlyDisplay } from "@/lib/calls/callRoundScheduleTime";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
+import {
+  callRoundChannelLabel,
+  callRoundScheduleGroup,
+  callRoundScheduleLabel,
+} from "@/lib/calls/ivrRoundLabels";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
@@ -4675,6 +4681,8 @@ function UserRsvpScheduleModal({
   invitation: any;
   onClose: () => void;
 }) {
+  const isIvr = isIvrCallsUser(user);
+
   const items = useMemo(() => {
     return buildExistingRsvpSchedule(user, invitation);
   }, [user, invitation]);
@@ -4713,7 +4721,9 @@ function UserRsvpScheduleModal({
             </h2>
 
             <p className="mt-1 text-sm font-bold text-[#8A7A68]">
-              כל הסבבים הקיימים: WhatsApp, SMS ושיחות.
+              {isIvr
+                ? "WhatsApp, SMS וסבבי שיחות מוקלטות (IVR) — ללא מוקד אנושי."
+                : "כל הסבבים הקיימים: WhatsApp, SMS ושיחות."}
             </p>
           </div>
 
@@ -4727,6 +4737,23 @@ function UserRsvpScheduleModal({
         </div>
 
         <div className="max-h-[calc(92vh-91px)] overflow-y-auto p-6">
+          {isIvr ? (
+            <div className="mb-6 rounded-2xl border border-[#E7D8C6] bg-[#FFF8EE] px-4 py-3">
+              <div className="text-sm font-black text-[#3A2A1C]">
+                ניהול השיחות המוקלטות נמצא במסך ייעודי
+              </div>
+              <p className="mt-1 text-xs font-bold text-[#8A7867]">
+                תזמון סבבים, קריינות AI / הקלטה עצמית, אישור הודעה ותצוגה מקדימה.
+              </p>
+              <a
+                href="/dashboard/recorded-calls"
+                className="mt-3 inline-flex rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
+              >
+                מעבר לשיחות מוקלטות
+              </a>
+            </div>
+          ) : null}
+
           <section className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
             <ScheduleStatCard label="מתוזמנים" value={String(plannedCount)} />
             <ScheduleStatCard label="בוצעו" value={String(sentCount)} />
@@ -4743,7 +4770,10 @@ function UserRsvpScheduleModal({
             <div className="space-y-3">
               {sortedItems.map((item) => {
                 const isCallsRound =
-                  item.channel === "calls" || item.group === "סבבי שיחות";
+                  item.channel === "calls" ||
+                  item.channel === "ivr" ||
+                  item.group === "סבבי שיחות" ||
+                  item.group === "סבבי שיחות מוקלטות";
 
                 const scheduledAtText = isCallsRound
                   ? formatCallRoundDateOnlyDisplay(item.scheduledAt)
@@ -4898,6 +4928,7 @@ function formatScheduleDateTimeWithWeekday(value?: string | null) {
 function getScheduleChannelLabel(channel?: string | null) {
   if (channel === "whatsapp") return "WhatsApp";
   if (channel === "sms") return "SMS";
+  if (channel === "ivr") return "שיחות מוקלטות";
   if (channel === "calls") return "שיחות";
   return "";
 }
@@ -5012,6 +5043,9 @@ function buildScheduleFromUserMessageRounds(
 
   if (!messageRounds) return null;
 
+  const callsGroup = callRoundScheduleGroup(user);
+  const callsChannel = isIvrCallsUser(user) ? "ivr" : "calls";
+
   const normalizeItem = (
     item: any,
     group: string,
@@ -5046,7 +5080,7 @@ function buildScheduleFromUserMessageRounds(
 
     ...(Array.isArray(messageRounds.calls)
       ? messageRounds.calls.map((item: any) =>
-          normalizeItem(item, "סבבי שיחות", "📞", "calls")
+          normalizeItem(item, callsGroup, "📞", callsChannel)
         )
       : []),
 
@@ -5085,23 +5119,19 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       userRound?.status === "done" ||
       Boolean(userRound?.openedAt);
 
+    const channel = isIvrCallsUser(user) ? "ivr" : "calls";
+
     return {
       key: `call_round_${round}`,
-          label: `סבב שיחות ${round} · ${
-            round === 1
-              ? "ממתינים שעדיין לא נתנו תשובה"
-              : round === 2
-                ? "לא ענו בסבב 1 + ביקשו חזרה"
-                : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
-          }`,
-      group: "סבבי שיחות",
+      label: callRoundScheduleLabel(user, round),
+      group: callRoundScheduleGroup(user),
       icon: "📞",
       done: opened,
       blocked: false,
       sentAt: userRound?.openedAt || null,
       scheduledAt: userRound?.scheduledAt || null,
-      channel: "calls",
-      channelLabel: "שיחות",
+      channel,
+      channelLabel: callRoundChannelLabel(user),
       tasksCreated:
         typeof userRound?.tasksCreated === "number"
           ? userRound.tasksCreated
@@ -5341,9 +5371,9 @@ function GoldenEventDetailsCard({
       <button
         type="button"
         onClick={onOpen}
-        className="w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-4 py-2.5 text-sm font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
+        className="w-full rounded-2xl bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028] px-4 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(36,25,15,0.22)] transition hover:scale-[1.01]"
       >
-        צפייה בפרטי האירוע
+        הגדרת פרטי אירוע
       </button>
 
       <button
@@ -6116,17 +6146,18 @@ function EventDetailsCard({
           w-full
           rounded-2xl
           border
-          border-[#E7DED1]
-          bg-[#FBFAF7]
+          border-[#D9B46F]/55
+          bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028]
           px-5
           py-3
           font-black
-          text-[#1E1B2E]
-          hover:bg-[#F2EEE8]
+          text-white
+          shadow-[0_10px_24px_rgba(36,25,15,0.18)]
+          hover:scale-[1.01]
           transition
         "
       >
-        צפייה בפרטי האירוע
+        הגדרת פרטי אירוע
       </button>
     </div>
   );

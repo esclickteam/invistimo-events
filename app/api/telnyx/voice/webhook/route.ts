@@ -9,6 +9,7 @@ import {
   updateBridgeFromWebhook,
 } from "@/lib/telnyx/inboundBridgeState";
 import { isSoftphoneWebrtcEnabled } from "@/lib/telnyx/webrtcSecurity";
+import { tryStartInboundIvr } from "@/lib/calls/ivrInboundStart";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1491,10 +1492,47 @@ export async function POST(req: NextRequest) {
         }
 
         /*
+          Inbound IVR callback (callsType=ivr guests only) — claim before softphone.
+          Human / unmatched callers fall through to existing softphone routing.
+          Subsequent IVR DTMF events use webhook_url override → /api/telnyx/ivr/webhook.
+        */
+        let inboundIvrHandled = false;
+        if (inbound && callControlId && !bridgeIntent) {
+          try {
+            const ivrStart = await tryStartInboundIvr({
+              callControlId,
+              from,
+              to,
+              callLegId,
+              callSessionId,
+              connectionId: connectionId || undefined,
+              direction,
+              inbound,
+              clientState,
+              bridgeIntent,
+            });
+
+            console.log("INBOUND IVR START RESULT:", ivrStart);
+
+            if (ivrStart.handled) {
+              inboundIvrHandled = true;
+            }
+          } catch (error) {
+            console.error("INBOUND IVR START FAILED — falling through to softphone", {
+              message: error instanceof Error ? error.message : error,
+              callControlId,
+              from,
+              to,
+            });
+          }
+        }
+
+        /*
           Softphone routing only for the original PSTN root leg to Invistimo DID.
           Hard filter lives in isRoutablePstnInboundLeg (default deny).
+          Skipped when inbound IVR claimed the call.
         */
-        if (isSoftphoneWebrtcEnabled() && callControlId) {
+        if (!inboundIvrHandled && isSoftphoneWebrtcEnabled() && callControlId) {
           const routeResult = await routeInboundCallToSoftphone({
             callControlId,
             from,
@@ -1531,6 +1569,7 @@ export async function POST(req: NextRequest) {
                 : null,
           });
         } else if (
+          !inboundIvrHandled &&
           inbound &&
           callControlId &&
           getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)

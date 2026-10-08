@@ -592,16 +592,22 @@ const MESSAGE_COUNT_FILTERS = [
 
 export default function WhatsappRoundsReportModal({
   invitationId,
+  ownerUserId,
   clientName,
   onClose,
 }: {
   invitationId: string;
+  /** Admin resend for invitation_only failed/not_sent. */
+  ownerUserId?: string;
   clientName?: string;
   onClose: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [resending, setResending] = useState<"failed" | "not_sent" | null>(
+    null
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [invitationTitle, setInvitationTitle] = useState("");
   const [eventDate, setEventDate] = useState<string | null>(null);
@@ -807,6 +813,61 @@ export default function WhatsappRoundsReportModal({
 
   function toggleExpand(guestId: string) {
     setExpandedId((current) => (current === guestId ? null : guestId));
+  }
+
+  async function resendInvitationOnly(filter: "failed" | "not_sent") {
+    if (!ownerUserId || !isAdmin || resending) return;
+
+    const count =
+      filter === "failed"
+        ? selectedRound?.failed || 0
+        : selectedRound?.notSent ?? selectedRound?.summary?.notSent ?? 0;
+
+    const label =
+      filter === "failed"
+        ? "למי שנכשלה לו שליחת ההזמנה"
+        : "למי שלא נשלחה לו ההזמנה";
+
+    if (
+      !confirm(
+        `לשלוח הזמנה בלבד ${label}?\n\nמועמדים בדוח: ${count}\nהפעולה לא פותחת סבב אישורי הגעה.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setResending(filter);
+      setError("");
+
+      const res = await fetch(
+        `/api/admin/users/${ownerUserId}/send-invitation-only`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invitationId,
+            filter,
+            allowResend: true,
+          }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(
+          data?.message || data?.error || "שליחת ההזמנה מחדש נכשלה"
+        );
+      }
+
+      alert(`הזמנה בלבד נוספה לתור · ${data?.queuedCount || 0} אורחים`);
+      await loadReport("refresh");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שליחה מחדש נכשלה");
+    } finally {
+      setResending(null);
+    }
   }
 
   async function handleExportExcel() {
@@ -1086,6 +1147,52 @@ export default function WhatsappRoundsReportModal({
                       )}
                     </div>
 
+                    {isAdmin &&
+                      ownerUserId &&
+                      (selectedRound.type === "invitation_only" ||
+                        String(selectedRound.key || "").startsWith(
+                          "invitation_only"
+                        )) && (
+                        <div className="flex flex-col gap-2 rounded-2xl border border-[#E7D8C6] bg-[#FFFDF8] p-3 md:flex-row">
+                          <button
+                            type="button"
+                            disabled={
+                              resending !== null ||
+                              Number(selectedRound.failed || 0) <= 0
+                            }
+                            onClick={() => void resendInvitationOnly("failed")}
+                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#B97821] px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {resending === "failed" ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : null}
+                            שלח הזמנה מחדש לנכשלים (
+                            {selectedRound.failed || 0})
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              resending !== null ||
+                              Number(
+                                selectedRound.notSent ??
+                                  selectedRound.summary?.notSent ??
+                                  0
+                              ) <= 0
+                            }
+                            onClick={() => void resendInvitationOnly("not_sent")}
+                            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 text-sm font-black text-[#6B451E] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {resending === "not_sent" ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : null}
+                            שלח הזמנה למי שלא נשלח (
+                            {selectedRound.notSent ??
+                              selectedRound.summary?.notSent ??
+                              0}
+                            )
+                          </button>
+                        </div>
+                      )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">

@@ -2,6 +2,84 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+function IvrHistorySection({ guestId }) {
+  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!guestId) return;
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/ivr/history?guestId=${encodeURIComponent(guestId)}`,
+          { credentials: "include" }
+        );
+        const data = await res.json().catch(() => null);
+        if (!cancelled) {
+          setAttempts(Array.isArray(data?.attempts) ? data.attempts : []);
+        }
+      } catch {
+        if (!cancelled) setAttempts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [guestId]);
+
+  if (loading) {
+    return (
+      <div className="mt-4 text-xs font-bold text-[#8A7867]">
+        טוען היסטוריית IVR...
+      </div>
+    );
+  }
+
+  if (!attempts.length) return null;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-[#E7D8C6] bg-[#FFFDF8] p-4">
+      <h4 className="mb-3 text-sm font-black text-[#3A2A1C]">
+        היסטוריית שיחות מוקלטות (IVR)
+      </h4>
+      <div className="space-y-2">
+        {attempts.map((attempt) => (
+          <div
+            key={attempt.id}
+            className="rounded-xl border border-[#EFE2D1] bg-white px-3 py-2 text-xs font-bold text-[#6B5A48]"
+          >
+            <div>
+              סבב {attempt.round} · {formatDateTime(attempt.startedAt)} ·{" "}
+              {attempt.phone}
+            </div>
+            <div className="mt-1">
+              סטטוס: {attempt.status}
+              {attempt.answered ? " · נענה" : " · לא נענה"}
+              {attempt.dtmfDigits?.length
+                ? ` · DTMF: ${attempt.dtmfDigits.join(",")}`
+                : ""}
+              {attempt.rsvpResult
+                ? ` · RSVP: ${attempt.rsvpResult}`
+                : ""}
+              {typeof attempt.attendingCount === "number"
+                ? ` · מגיעים: ${attempt.attendingCount}`
+                : ""}
+              {attempt.durationSeconds
+                ? ` · ${attempt.durationSeconds} שנ׳`
+                : ""}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const ROUND_LABELS = {
   1: "סבב ראשון",
   2: "סבב שני",
@@ -970,6 +1048,8 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
                 )}
               </section>
             )}
+
+            <IvrHistorySection guestId={guest?._id || guest?.id} />
           </div>
         </div>
 

@@ -131,6 +131,8 @@ const CREATE_USER_ERROR_MESSAGES: Record<string, string> = {
   EMAIL_ALREADY_EXISTS: "האימייל כבר קיים במערכת",
   ASSIGNED_PRODUCER_REQUIRED: "חסר מזהה מפיק עבור עובד מפיק",
   INVALID_LIMITS_OR_BILLING: "נתוני תמחור או מגבלות לא תקינים",
+  CALLS_TYPE_REQUIRED:
+    "כאשר יש חבילת שיחות חובה לבחור סוג שיחות: מוקד אנושי או שיחות מוקלטות (IVR)",
   SERVER_ERROR: "שגיאת שרת ביצירת משתמש",
 };
 
@@ -666,9 +668,11 @@ packageName
         isActive
 
         includeCalls
+        callsType
         callsRounds
         callsAddonPrice
         callRoundsSchedule
+        ivrConfig
 
         includeCreditGifts
         creditGiftsAddonPrice
@@ -1233,8 +1237,13 @@ packageName
           allowedMessageRounds,
 
           includeCalls: Boolean(u.includeCalls),
+          callsType:
+            String(u.callsType || "").trim().toLowerCase() === "ivr"
+              ? "ivr"
+              : "human",
           callsRounds: Number(u.callsRounds || 0),
           callsAddonPrice: Number(u.callsAddonPrice || 0),
+          ivrConfig: u.ivrConfig || null,
 
           includeCreditGifts,
           creditGiftsAddonPrice: includeCreditGifts && planData.includeCreditGifts
@@ -1682,7 +1691,23 @@ export async function POST(req: Request) {
     const finalIncludeCalls =
       Boolean(planData.includeCalls) ||
       Boolean(limits?.includeCalls) ||
+      Boolean(body?.includeCalls) ||
       Boolean(addons?.calls?.enabled);
+
+    const rawCallsType = body?.callsType ?? body?.addons?.calls?.callsType;
+    const rawCallsTypeNormalized = String(rawCallsType || "")
+      .trim()
+      .toLowerCase();
+    if (
+      finalIncludeCalls &&
+      rawCallsTypeNormalized !== "human" &&
+      rawCallsTypeNormalized !== "ivr"
+    ) {
+      return jsonError("CALLS_TYPE_REQUIRED", 400);
+    }
+
+    const finalCallsType =
+      rawCallsTypeNormalized === "ivr" ? "ivr" : "human";
 
     const finalIncludeCreditGifts =
       Boolean(planData.includeCreditGifts) ||
@@ -1749,6 +1774,7 @@ export async function POST(req: Request) {
       smsLimit: 0,
 
       includeCalls: finalIncludeCalls,
+      callsType: finalIncludeCalls ? finalCallsType : "human",
       callsRounds: finalIncludeCalls ? 3 : 0,
       callsAddonPrice: Number(addons?.calls?.price || 0),
       callRoundsSchedule: normalizeCallRoundsSchedule(

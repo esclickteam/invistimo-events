@@ -1546,25 +1546,20 @@ export default function AdminShiftManagementPage() {
   }, [employees, query, statusFilter, tick]);
 
   return (
-    <div className="space-y-5 text-slate-950" dir="rtl">
-      <section className="overflow-hidden rounded-[30px] border border-[#E9ECF5] bg-gradient-to-l from-white via-[#F8FBFF] to-[#F3F0FF] p-5 shadow-xl shadow-slate-100/80">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="space-y-4 text-[var(--admin-text)]" dir="rtl">
+      <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100 shadow-sm">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
-              LIVE · מונה זמן כל שנייה · סנכרון כל שנייה
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              LIVE · סנכרון כל שנייה
             </div>
-
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-              ניהול משמרת
-            </h1>
-
-            <p className="mt-2 max-w-4xl text-sm font-bold leading-6 text-slate-500">
-              עובד שמחובר לסופטפון נחשב במשמרת בפועל וניתן להוציא אותו. בנוסף מוצגים עובדים שמשובצים היום גם אם עוד לא התחברו.
+            <p className="mt-2 text-xs font-medium text-[var(--admin-muted)]">
+              מחוברים לסופטפון נחשבים במשמרת; מוצגים גם משובצים להיום שעוד לא התחברו
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <HeroMetric label="מחוברים" value={stats.connected} />
             <HeroMetric label="בשיחה" value={stats.inCall} />
             <HeroMetric label="מחייגים" value={stats.dialing} />

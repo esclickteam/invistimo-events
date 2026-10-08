@@ -14,6 +14,14 @@ import {
   recordRoundDecisions,
   type RoundDecision,
 } from "@/lib/whatsapp/roundDeliveryTracking";
+import {
+  buildInvitationLocationLabel,
+  invitationOnlyFilterAllowsResend,
+  parseInvitationOnlyAudienceFilter,
+  resolveInvitationImageUrl,
+} from "@/lib/messages/invitationOnlyDetails";
+import { resolveInvitationOnlyAudienceGuests } from "@/lib/messages/invitationOnlySendHistory";
+import { formatEventDate } from "@/lib/messages/liveEventDetails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,14 +114,6 @@ function isHttpImageUrl(value: unknown) {
   }
 }
 
-function normalizeCompareText(value: unknown) {
-  return cleanString(value)
-    .replace(/\s+/g, " ")
-    .replace(/,+/g, ",")
-    .replace(/\s*,\s*/g, ", ")
-    .trim();
-}
-
 function isValidObjectId(value: unknown) {
   return mongoose.Types.ObjectId.isValid(cleanString(value));
 }
@@ -163,54 +163,9 @@ function parseJsonObject(value: unknown): Record<string, any> {
   }
 }
 
-function formatEventDate(value: unknown) {
-  if (!value) return "";
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    if (!trimmed) return "";
-
-    const parsed = new Date(trimmed);
-
-    if (!Number.isNaN(parsed.getTime())) {
-      return new Intl.DateTimeFormat("he-IL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(parsed);
-    }
-
-    return trimmed;
-  }
-
-  const parsed = value instanceof Date ? value : new Date(String(value));
-
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  return new Intl.DateTimeFormat("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed);
-}
-
 function buildEventLocationFromInvitation(invitation: any) {
-  const locationName = cleanString(invitation?.location?.name);
-  const locationAddress = cleanString(invitation?.location?.address);
-
-  const normalizedName = normalizeCompareText(locationName);
-  const normalizedAddress = normalizeCompareText(locationAddress);
-
-  if (locationName && locationAddress) {
-    if (normalizedName === normalizedAddress) {
-      return locationName;
-    }
-
-    return `${locationName}, ${locationAddress}`;
-  }
-
-  return locationName || locationAddress || "";
+  // Match RSVP live-details location label (no duplicated venue name).
+  return buildInvitationLocationLabel(invitation);
 }
 
 function getGuestPhone(guest: any) {
@@ -543,6 +498,11 @@ function buildWhatsappTemplatePayload({
     imageUrl,
     headerImageUrl: imageUrl,
     cloudinaryPublicId,
+    eventDate: cleanString(templateVariables.eventDate),
+    eventLocation: cleanString(templateVariables.eventLocation),
+    eventTitle: cleanString(
+      templateVariables.invitationTitle || templateVariables.saveTheDateTitle
+    ),
     templateVariables,
     previewMessage,
     templateMessage,
@@ -748,6 +708,15 @@ export async function POST(req: NextRequest) {
 
     const eventDateFromForm = cleanString(formData.get("eventDate"));
     const eventLocationFromForm = cleanString(formData.get("eventLocation"));
+    const audienceFilter = parseInvitationOnlyAudienceFilter(
+      formData.get("filter") || formData.get("audienceFilter")
+    );
+    const phoneFromForm = cleanString(formData.get("phone"));
+    const allowResend =
+      cleanString(formData.get("allowResend")) === "true" ||
+      cleanString(formData.get("allowResend")) === "1" ||
+      invitationOnlyFilterAllowsResend(audienceFilter) ||
+      Boolean(phoneFromForm);
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
@@ -852,7 +821,9 @@ export async function POST(req: NextRequest) {
     const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
     })
-      .select("_id ownerId title eventDate location preRsvpMedia")
+      .select(
+        "_id ownerId title eventDate eventTime location preRsvpMedia headerImageUrl previewImageUrl imageUrl canvasImageUrl previewImage"
+      )
       .lean();
 
     if (!invitation) {
@@ -897,7 +868,17 @@ export async function POST(req: NextRequest) {
       messageType,
     });
 
-    if (!hasPreRsvpAccess || !messageTypeAllowed || preRsvpAlreadySent) {
+    /*
+      Invitation-only may be resent:
+      - to guests who never received an invitation (never_invited)
+      - or when allowResend is explicit (admin / selected audience)
+      Save the Date stays one-shot. This does not open RSVP rounds.
+    */
+    const blockAlreadySent =
+      preRsvpAlreadySent &&
+      !(messageType === "invitation_only" && allowResend);
+
+    if (!hasPreRsvpAccess || !messageTypeAllowed || blockAlreadySent) {
       return NextResponse.json(
         {
           success: false,
@@ -993,9 +974,16 @@ export async function POST(req: NextRequest) {
       messageType,
     });
 
+    const invitationImageFallback =
+      messageType === "invitation_only"
+        ? getHighQualityCloudinaryImageUrl(resolveInvitationImageUrl(invitation))
+        : "";
+
     const existingPreRsvpImageUrl =
       messageType === "invitation_only"
-        ? clientExistingImageUrl || existingPreRsvpImageUrlFromDb
+        ? clientExistingImageUrl ||
+          existingPreRsvpImageUrlFromDb ||
+          invitationImageFallback
         : existingPreRsvpImageUrlFromDb;
 
     const existingPreRsvpPublicId = getPreRsvpSpecificPublicId({
@@ -1018,6 +1006,21 @@ export async function POST(req: NextRequest) {
         imageUrl: uploadResult.secureUrl,
         publicId: uploadResult.publicId,
       });
+
+      // Invitation-only image is also the permanent invite image for resends.
+      if (messageType === "invitation_only") {
+        await Invitation.updateOne(
+          { _id: toObjectId(invitationId) },
+          {
+            $set: {
+              headerImageUrl: uploadResult.secureUrl,
+              previewImageUrl: uploadResult.secureUrl,
+              imageUrl: uploadResult.secureUrl,
+              previewImage: uploadResult.secureUrl,
+            },
+          }
+        );
+      }
     }
 
     const imageUrl = getHighQualityCloudinaryImageUrl(
@@ -1069,7 +1072,26 @@ export async function POST(req: NextRequest) {
       .select("_id name guestsCount phone phoneNumber mobile whatsapp contactPhone")
       .lean();
 
-    const validGuests = guests
+    let audienceGuests = guests;
+    let resolvedAudienceFilter:
+      | "all"
+      | "never_invited"
+      | "failed"
+      | "not_sent"
+      | "phone" = audienceFilter;
+
+    if (messageType === "invitation_only") {
+      const resolved = await resolveInvitationOnlyAudienceGuests({
+        invitationId,
+        guests,
+        filter: audienceFilter,
+        phone: phoneFromForm,
+      });
+      audienceGuests = resolved.guests;
+      resolvedAudienceFilter = resolved.resolvedFilter;
+    }
+
+    const validGuests = audienceGuests
       .map((guest: any) => ({
         guest,
         phone: getGuestPhone(guest),
@@ -1077,16 +1099,40 @@ export async function POST(req: NextRequest) {
       .filter((item) => /^05\d{8}$/.test(item.phone));
 
     if (validGuests.length === 0) {
+      const emptyMessage =
+        messageType === "invitation_only" && resolvedAudienceFilter === "never_invited"
+          ? "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת (עם מספר תקין)."
+          : messageType === "invitation_only" && resolvedAudienceFilter === "failed"
+            ? "לא נמצאו אורחים שנכשלה להם שליחת ההזמנה."
+            : messageType === "invitation_only" && resolvedAudienceFilter === "not_sent"
+              ? "לא נמצאו אורחים שלא נשלחה אליהם ההזמנה בדוח הסבבים."
+              : messageType === "invitation_only" && resolvedAudienceFilter === "phone"
+                ? phoneFromForm
+                  ? "לא נמצא אורח ברשימה עם מספר הטלפון שהוזן, או שהמספר אינו תקין."
+                  : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ."
+                : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.";
+
       return NextResponse.json(
         {
           success: false,
-          error: "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.",
+          error: emptyMessage,
         },
         { status: 400 }
       );
     }
 
     if (sendTiming === "scheduled") {
+      if (phoneFromForm) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "שליחה למספר בודד היא מיידית בלבד — בטלו את התזמון או נקו את שדה הטלפון.",
+          },
+          { status: 400 }
+        );
+      }
+
       const scheduledAt = buildScheduledAt(scheduledDate, scheduledTime);
 
       if (!scheduledAt) {
@@ -1112,7 +1158,8 @@ export async function POST(req: NextRequest) {
 
         channel: "whatsapp",
         type: messageType,
-        filter: "all",
+        filter:
+          messageType === "invitation_only" ? audienceFilter : ("all" as const),
         guestIds: [],
         templateKey: messageType,
         roundNumber: 1,
@@ -1226,7 +1273,7 @@ export async function POST(req: NextRequest) {
       validGuests.map(({ guest }) => String(guest._id))
     );
     const decisionAt = new Date();
-    const decisions: RoundDecision[] = guests
+    const decisions: RoundDecision[] = audienceGuests
       .filter((guest: any) => !validGuestIds.has(String(guest._id)))
       .map((guest: any) => {
         const phone = getGuestPhone(guest);

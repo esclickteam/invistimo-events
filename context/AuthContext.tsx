@@ -86,6 +86,8 @@ interface User {
   accessModules?: AccessModules;
   includeDigitalSeating?: boolean;
   includeCalls?: boolean;
+  /** human = מוקד אנושי · ivr = שיחות מוקלטות */
+  callsType?: "human" | "ivr";
   includeCreditGifts?: boolean;
   includeEventManagement?: boolean;
   includeTransportationManagement?: boolean;

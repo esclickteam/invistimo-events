@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Invitation from "@/models/Invitation";
 import { buildInvitationScheduleSetPatch } from "@/lib/invitationScheduleMirror";
+import { attachLiveGuestsCountToSchedules } from "@/lib/messages/countLiveScheduledAudience";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import mongoose from "mongoose";
@@ -130,9 +131,14 @@ export async function GET() {
       .sort({ scheduledAt: 1 })
       .lean();
 
+    // Live intended audience — same criteria the worker will use at send time.
+    const messagesWithLiveCount = await attachLiveGuestsCountToSchedules(
+      messages as Record<string, any>[]
+    );
+
     return NextResponse.json({
       success: true,
-      messages,
+      messages: messagesWithLiveCount,
     });
   } catch (err) {
     console.error("❌ GET /api/scheduled-messages error:", err);
@@ -221,21 +227,10 @@ export async function POST(req: NextRequest) {
 
     /**
      * חשוב:
-     * לא שומרים כאן קהל סופי לסבב 2/3.
-     * ה-worker ישלוף בזמן השליחה:
-     * round 1 => all
-     * round 2/3 => pending
-     *
-     * guestIds נשאר רק לתאימות / custom / הודעות אחרות.
+     * לא שומרים כאן קהל סופי לאף סוג הודעה.
+     * ה-worker ישלוף בזמן השליחה לפי type / round / filter.
      */
-    const guestIds =
-      type === "rsvp"
-        ? []
-        : Array.isArray(body.guestIds)
-        ? body.guestIds.filter(isValidObjectId)
-        : Array.isArray(body.audience)
-        ? body.audience.filter(isValidObjectId)
-        : [];
+    const guestIds: string[] = [];
 
     /**
      * אם כבר יש תזמון פעיל לאותו דבר בדיוק:

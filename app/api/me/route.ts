@@ -283,6 +283,35 @@ function findScheduledMessage(
   });
 }
 
+function isIvrUser(user: any) {
+  return (
+    Boolean(user?.includeCalls) &&
+    String(user?.callsType || "")
+      .trim()
+      .toLowerCase() === "ivr"
+  );
+}
+
+function callRoundLabelForUser(user: any, round: number) {
+  if (isIvrUser(user)) {
+    const audience =
+      round === 1
+        ? "אורחים שעדיין לא השיבו להזמנה"
+        : round === 2
+          ? "לא ענו בסבב המוקלט הראשון"
+          : "לא ענו בסבבים 1–2 + מתלבטים";
+    return `סבב מוקלט ${round} · ${audience}`;
+  }
+
+  const audience =
+    round === 1
+      ? "ממתינים שעדיין לא נתנו תשובה"
+      : round === 2
+        ? "לא ענו בסבב 1 + ביקשו חזרה"
+        : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  return `סבב שיחות ${round} · ${audience}`;
+}
+
 function buildMessageRounds(
   invitation: any,
   scheduledMessages: any[] = [],
@@ -340,18 +369,12 @@ function buildMessageRounds(
 
         return {
           key: `call_round_${round}`,
-          label: `סבב שיחות ${round} · ${
-            round === 1
-              ? "ממתינים שעדיין לא נתנו תשובה"
-              : round === 2
-                ? "לא ענו בסבב 1 + ביקשו חזרה"
-                : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
-          }`,
+          label: callRoundLabelForUser(user, round),
           done: opened,
           blocked: false,
           sentAt: userRound?.openedAt || null,
           scheduledAt: userRound?.scheduledAt || null,
-          channel: "calls",
+          channel: isIvrUser(user) ? "ivr" : "calls",
           tasksCreated:
             typeof userRound?.tasksCreated === "number"
               ? userRound.tasksCreated
@@ -541,8 +564,8 @@ function buildMessageRounds(
       const scheduledMessage = findScheduledMessage(scheduledMessages, {
         invitationId,
         userId,
-        types: ["call_round", "calls", "phone_calls"],
-        templateKeys: ["call_round", "calls", "phone_calls"],
+        types: ["call_round", "calls", "phone_calls", "ivr"],
+        templateKeys: ["call_round", "calls", "phone_calls", "ivr"],
         roundNumber: round,
       });
 
@@ -558,17 +581,11 @@ function buildMessageRounds(
 
       return {
         key: `call_round_${round}`,
-        label: `סבב שיחות ${round} · ${
-          round === 1
-            ? "ממתינים שעדיין לא נתנו תשובה"
-            : round === 2
-              ? "לא ענו בסבב 1 + ביקשו חזרה"
-              : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
-        }`,
+        label: callRoundLabelForUser(user, round),
         done: opened,
         sentAt: userRound?.openedAt || null,
         scheduledAt,
-        channel: "calls",
+        channel: isIvrUser(user) ? "ivr" : "calls",
         blocked: Boolean(locks?.[`call_round_${round}`]),
         tasksCreated:
           typeof userRound?.tasksCreated === "number"
@@ -1217,8 +1234,13 @@ export async function GET(req: Request) {
           },
 
           includeCalls: !!currentUser.includeCalls,
+          callsType:
+            String(currentUser.callsType || "").trim().toLowerCase() === "ivr"
+              ? "ivr"
+              : "human",
           callsRounds: currentUser.callsRounds ?? 0,
           callsAddonPrice: currentUser.callsAddonPrice ?? 0,
+          ivrConfig: currentUser.ivrConfig ?? null,
 
           callRoundsSchedule: currentUser.callRoundsSchedule ?? {
             enabled: false,

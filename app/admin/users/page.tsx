@@ -4,7 +4,9 @@ import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import CreateUserModal from "./CreateUserModal";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
+import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
 import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
+import CallsTypeField from "@/app/components/admin/CallsTypeField";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
@@ -72,8 +74,10 @@ type AdminUser = {
   maxMessages?: number;
 
   includeCalls?: boolean;
+  callsType?: "human" | "ivr";
   callsRounds?: number;
   callsAddonPrice?: number;
+  ivrConfig?: Record<string, unknown> | null;
 
   includeCreditGifts?: boolean;
   creditGiftsAddonPrice?: number;
@@ -193,6 +197,7 @@ type EditFormState = {
 type UpgradeFormState = {
   plan: string;
   includeCalls: boolean;
+  callsType: "human" | "ivr";
   includeCreditGifts: boolean;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
@@ -481,14 +486,17 @@ function getPriceByPlanAndRecords(
 function getCallsStatus(user: AdminUser) {
   if (!user.includeCalls) return "לא פעיל";
 
+  const typeLabel =
+    user.callsType === "ivr" ? "שיחות מוקלטות (IVR)" : "מוקד אנושי";
+
   if (
     typeof user.callsAddonPrice === "number" &&
     user.callsAddonPrice > 0
   ) {
-    return `פעיל · ${formatMoney(user.callsAddonPrice)}`;
+    return `${typeLabel} · ${formatMoney(user.callsAddonPrice)}`;
   }
 
-  return "פעיל";
+  return typeLabel;
 }
 
 function getRoleLabel(role: AdminRole) {
@@ -833,6 +841,7 @@ export default function AdminUsersPage() {
   const [staff, setStaff] = useState<Assignee[]>([]);
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [managing, setManaging] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
 
   const [search, setSearch] = useState("");
@@ -944,33 +953,56 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function impersonateUser(userId: string) {
-  setImpersonating(userId);
-
-  try {
-    const res = await fetch("/api/admin/impersonate", {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data.success) {
-      alert(data?.error || "כניסה בהתחזות נכשלה");
-      return;
+  async function manageUserAsAdmin(userId: string) {
+    try {
+      setManaging(userId);
+      const res = await fetch("/api/admin/manage-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        alert(data?.error || "כניסה לניהול אדמין נכשלה");
+        return;
+      }
+      window.location.href = data.redirectTo || "/dashboard";
+    } catch (err) {
+      console.error("Admin manage failed:", err);
+      alert("שגיאה בכניסה לניהול אדמין");
+    } finally {
+      setManaging(null);
     }
-
-    window.location.href = data.redirectUrl || "/dashboard";
-  } catch (err) {
-    console.error("Admin impersonation failed:", err);
-    alert("שגיאה בכניסה בהתחזות");
-  } finally {
-    setImpersonating(null);
   }
-}
+
+  async function impersonateUser(userId: string) {
+    setImpersonating(userId);
+
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        alert(data?.error || "כניסה בהתחזות נכשלה");
+        return;
+      }
+
+      window.location.href = data.redirectUrl || "/dashboard";
+    } catch (err) {
+      console.error("Admin impersonation failed:", err);
+      alert("שגיאה בכניסה בהתחזות");
+    } finally {
+      setImpersonating(null);
+    }
+  }
 
   async function removeUser(userId: string) {
     const confirmed = confirm("האם למחוק את המשתמש לצמיתות?");
@@ -1044,7 +1076,11 @@ export default function AdminUsersPage() {
           normalizeText(u._id).includes(q) ||
           normalizeText(getPlanLabel(u, pricingPlans)).includes(q);
 
-        const matchesRole = roleFilter === "all" || u.role === roleFilter;
+        const matchesRole =
+          roleFilter === "all" ||
+          (roleFilter === "clients" &&
+            (u.role === "user" || u.role === "client")) ||
+          u.role === roleFilter;
 
         let matchesEvent = true;
 
@@ -1105,14 +1141,22 @@ export default function AdminUsersPage() {
   }, [producers, users]);
 
   const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const allVisible = users.filter((u) => !hiddenUserIds.includes(u._id));
     return {
-      total: filteredUsers.length,
-      calls: filteredUsers.filter((u) => u.includeCalls).length,
-      future: filteredUsers.filter(
-        (u) => u.eventDate && new Date(u.eventDate) >= new Date()
+      total: allVisible.length,
+      clients: allVisible.filter((u) => u.role === "user" || u.role === "client")
+        .length,
+      staff: allVisible.filter((u) => u.role === "staff").length,
+      producers: allVisible.filter((u) => u.role === "producer").length,
+      future: allVisible.filter(
+        (u) => u.eventDate && new Date(u.eventDate) >= today
       ).length,
+      filtered: filteredUsers.length,
+      calls: filteredUsers.filter((u) => u.includeCalls).length,
     };
-  }, [filteredUsers]);
+  }, [filteredUsers, users, hiddenUserIds]);
 
   if (loading) {
     return (
@@ -1124,73 +1168,77 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div dir="rtl" className="w-full min-w-0 bg-[#F6F4F1] py-2">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section
-          className="
-            rounded-[32px]
-            border border-[#E7D8C6]
-            bg-gradient-to-br from-[#FFFDF8] to-[#F3E7D8]
-            p-5 md:p-7
-            shadow-[0_18px_55px_rgba(60,43,25,0.08)]
-          "
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div
-                className="
-                  mb-3 inline-flex items-center gap-2
-                  rounded-full
-                  bg-white/70
-                  px-4 py-2
-                  text-xs font-black
-                  text-[#8A6A43]
-                  ring-1 ring-[#E7D8C6]
-                "
-              >
-                <ShieldCheck size={15} />
-                Admin Panel
-              </div>
-
-              <h1 className="text-3xl font-black text-[#352618] md:text-5xl">
-                ניהול משתמשים
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6754]">
-                ניהול לקוחות, חבילות, הרשאות, מטפלים, שדרוגים וכניסה בהתחזות.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="
-                flex h-12 items-center justify-center gap-2
-                rounded-2xl
-                bg-[#24190F]
-                px-5
-                text-sm font-black
-                text-white
-                shadow-[0_12px_30px_rgba(36,25,15,0.22)]
-                transition
-                hover:bg-black
-              "
-            >
-              <UserPlus size={18} />
-              יצירת משתמש
-            </button>
-          </div>
-        </section>
+    <div dir="rtl" className="w-full min-w-0 space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-[var(--admin-muted)] md:hidden">
+            ניהול חשבונות, הרשאות וניהול כאדמין
+          </p>
+          <button
+            onClick={() => setOpenCreate(true)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-[13px] font-bold text-white hover:bg-[var(--admin-brand-hover)]"
+          >
+            <UserPlus size={16} />
+            יצירת משתמש
+          </button>
+        </div>
 
         <section
           className="
-            rounded-[28px]
-            border border-[#E7D8C6]
+            space-y-3
+            rounded-[var(--admin-radius)]
+            border border-[var(--admin-border)]
             bg-white
-            p-4 md:p-5
-            shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+            p-3 md:p-4
+            shadow-[var(--admin-shadow)]
           "
         >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_220px_180px]">
+          <div>
+            <p className="mb-2 text-xs font-black tracking-wide text-[#8A6A43]">
+              סינון לפי סוג משתמש
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: "all", label: "כל המשתמשים", count: stats.total },
+                  { key: "clients", label: "לקוחות", count: stats.clients },
+                  { key: "staff", label: "עובדים", count: stats.staff },
+                  {
+                    key: "producer",
+                    label: "מפיקים",
+                    count: stats.producers,
+                  },
+                ] as const
+              ).map((chip) => {
+                const active = roleFilter === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setRoleFilter(chip.key)}
+                    className={`inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] px-3 text-xs font-bold transition ${
+                      active
+                        ? "bg-[var(--admin-brand)] text-white"
+                        : "border border-[var(--admin-border)] bg-white text-[var(--admin-text)] hover:bg-gray-50"
+                    }`}
+                  >
+                    {chip.label}
+                    <span
+                      className={`rounded-xl px-2 py-0.5 text-xs ${
+                        active
+                          ? "bg-white/15 text-white"
+                          : "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
+                      }`}
+                    >
+                      {chip.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
             <div
               className="
                 flex h-12 items-center gap-3
@@ -1215,27 +1263,6 @@ export default function AdminUsersPage() {
                 "
               />
             </div>
-
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="
-                h-12 rounded-2xl
-                border border-[#E7D8C6]
-                bg-[#FFFDF8]
-                px-4
-                text-sm font-bold
-                text-[#3A2A1C]
-                outline-none
-              "
-            >
-              <option value="all">כל המשתמשים</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-              <option value="producer">Producer</option>
-              <option value="staff">Staff</option>
-              <option value="client">Client</option>
-            </select>
 
             <select
               value={eventFilter}
@@ -1266,28 +1293,46 @@ export default function AdminUsersPage() {
                 text-[#8A5A24]
               "
             >
-              נמצאו {stats.total} משתמשים
+              מוצגים {stats.filtered} מתוך {stats.total}
             </div>
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <InfoCard
-            title="משתמשים מוצגים"
+            title="כל המשתמשים"
             value={String(stats.total)}
-            icon={<Users size={22} />}
+            icon={<Users size={20} />}
+            active={roleFilter === "all"}
+            onClick={() => setRoleFilter("all")}
           />
-
           <InfoCard
-            title="שירות שיחות פעיל"
-            value={String(stats.calls)}
-            icon={<Phone size={22} />}
+            title="לקוחות"
+            value={String(stats.clients)}
+            icon={<UserRound size={20} />}
+            active={roleFilter === "clients"}
+            onClick={() => setRoleFilter("clients")}
           />
-
+          <InfoCard
+            title="עובדים"
+            value={String(stats.staff)}
+            icon={<ShieldCheck size={20} />}
+            active={roleFilter === "staff"}
+            onClick={() => setRoleFilter("staff")}
+          />
+          <InfoCard
+            title="מפיקים"
+            value={String(stats.producers)}
+            icon={<Crown size={20} />}
+            active={roleFilter === "producer"}
+            onClick={() => setRoleFilter("producer")}
+          />
           <InfoCard
             title="אירועים עתידיים"
             value={String(stats.future)}
-            icon={<CalendarDays size={22} />}
+            icon={<CalendarDays size={20} />}
+            active={eventFilter === "future"}
+            onClick={() => setEventFilter("future")}
           />
         </section>
 
@@ -1409,8 +1454,10 @@ export default function AdminUsersPage() {
                       onUpgrade={() => setUpgradingUser(u)}
                       onSendPassword={() => setPasswordUser(u)}
                       onImpersonate={() => impersonateUser(u._id)}
+                      onManageAsAdmin={() => manageUserAsAdmin(u._id)}
                       onDelete={() => removeUser(u._id)}
                       isImpersonating={impersonating === u._id}
+                      isManaging={managing === u._id}
                     />
                   </td>
                 </tr>
@@ -1510,8 +1557,10 @@ export default function AdminUsersPage() {
                   onUpgrade={() => setUpgradingUser(u)}
                   onSendPassword={() => setPasswordUser(u)}
                   onImpersonate={() => impersonateUser(u._id)}
+                  onManageAsAdmin={() => manageUserAsAdmin(u._id)}
                   onDelete={() => removeUser(u._id)}
                   isImpersonating={impersonating === u._id}
+                  isManaging={managing === u._id}
                   fullWidth
                 />
               </div>
@@ -1985,6 +2034,10 @@ function EditUserModal({
   const [callRoundsSchedule, setCallRoundsSchedule] =
     useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
 
+  const [callsType, setCallsType] = useState<"human" | "ivr">(
+    user.callsType === "ivr" ? "ivr" : "human"
+  );
+
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
 
@@ -2047,6 +2100,11 @@ function EditUserModal({
         weddingChallenges: includeWeddingChallenges,
       },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      ...(user.includeCalls
+        ? {
+            callsType,
+          }
+        : {}),
       callRoundsSchedule: {
         ...callRoundsSchedule,
         rounds: callRoundsSchedule.rounds.map((round) => ({
@@ -2273,6 +2331,16 @@ function EditUserModal({
             </span>
           </div>
         </section>
+
+        {user.includeCalls ? (
+          <CallsTypeField
+            name={`edit-callsType-${user._id}`}
+            value={callsType}
+            onChange={setCallsType}
+            required
+            description="מוקד אנושי שומר על הלוגיקה הקיימת. שיחות מוקלטות (IVR) מפעילות 3 סבבים מוקלטים, הגדרת הקלטה/AI ו־callback אוטומטי."
+          />
+        ) : null}
 
         <section
           className="
@@ -3025,7 +3093,7 @@ function AdminMessageRoundsPanel({
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
             אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה, פתיחה מחדש
-            ושליחה ידנית לכל מספר.
+            ושליחה ידנית לכל מספר. הזמנה בלבד היא פעולה נפרדת שאינה נוגעת בסבבים.
           </p>
         </div>
 
@@ -3102,7 +3170,13 @@ function AdminMessageRoundsPanel({
         </div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-5 space-y-4">
+        <AdminInvitationOnlyPanel
+          key={`invite-only-${user._id}`}
+          userId={user._id}
+          invitationId={user.invitationId}
+        />
+
         <AdminManualSmsPanel
           key={user._id}
           userId={user._id}
@@ -3288,6 +3362,7 @@ function AdminMessageRoundsPanel({
       {showWhatsappRoundReport && user.invitationId && (
         <WhatsappRoundsReportModal
           invitationId={user.invitationId}
+          ownerUserId={user._id}
           clientName={user.name || user.email || "לקוח"}
           onClose={() => setShowWhatsappRoundReport(false)}
         />
@@ -3336,6 +3411,7 @@ function UpgradeUserModal({
   const [form, setForm] = useState<UpgradeFormState>({
     plan: currentPlanKey || pricingPlans[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
+    callsType: user.callsType === "ivr" ? "ivr" : "human",
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
@@ -3434,7 +3510,10 @@ const calculatedTotalToPay =
   const canSubmit =
     Boolean(form.plan) &&
     Boolean(selectedRecords) &&
-    manualTotalToPay >= 0;
+    manualTotalToPay >= 0 &&
+    (!form.includeCalls ||
+      form.callsType === "human" ||
+      form.callsType === "ivr");
 
   async function saveManualPaidUpgrade() {
   const res = await fetch(`/api/admin/users/${user._id}`, {
@@ -3454,6 +3533,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3519,6 +3599,7 @@ const calculatedTotalToPay =
       maxMessages: finalSmsLimit,
 
       includeCalls: form.includeCalls,
+      callsType: form.includeCalls ? form.callsType : "human",
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3807,6 +3888,20 @@ const calculatedTotalToPay =
               );
             })}
           </div>
+
+          {form.includeCalls ? (
+            <div className="mt-4">
+              <CallsTypeField
+                name={`upgrade-callsType-${user._id}`}
+                value={form.callsType}
+                onChange={(next) =>
+                  setForm((prev) => ({ ...prev, callsType: next }))
+                }
+                required
+                description="בשלב זה אין ערבוב בין מוקד אנושי ל־IVR באותו אירוע. משתמשים קיימים ללא בחירה מפורשת נשארים מוקד אנושי."
+              />
+            </div>
+          ) : null}
         </section>
 
 <VenueSeatingServiceFields
@@ -4216,29 +4311,60 @@ function InfoCard({
   title,
   value,
   icon,
+  active = false,
+  onClick,
 }: {
   title: string;
   value: string;
   icon: ReactNode;
+  active?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div
-      className="
-        rounded-[26px]
-        border border-[#E7D8C6]
-        bg-white
-        p-5
-        shadow-[0_14px_40px_rgba(60,43,25,0.06)]
-      "
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
-        <div className="text-[#B97821]">{icon}</div>
+  const className = `
+        h-[105px] rounded-[var(--admin-radius)]
+        border p-3.5 text-right transition
+        shadow-[var(--admin-shadow)]
+        ${
+          active
+            ? "border-[var(--admin-brand)] bg-[var(--admin-brand)] text-white"
+            : "border-[var(--admin-border)] bg-white hover:border-[var(--admin-brand)] hover:bg-[var(--admin-brand-soft)]"
+        }
+      `;
+
+  const body = (
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <div
+          className={`text-xs font-bold ${
+            active ? "text-white" : "text-[var(--admin-text)]"
+          }`}
+        >
+          {title}
+        </div>
+        <div className={active ? "text-white/80" : "text-[var(--admin-brand)]"}>
+          {icon}
+        </div>
       </div>
 
-      <div className="text-3xl font-black text-[#B97821]">{value}</div>
-    </div>
+      <div
+        className={`text-2xl font-bold ${
+          active ? "text-white" : "text-[var(--admin-text)]"
+        }`}
+      >
+        {value}
+      </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
 }
 
 function MiniDetail({ label, value }: { label: string; value: string }) {
@@ -4360,8 +4486,10 @@ function UserActionsDropdown({
   onUpgrade,
   onSendPassword,
   onImpersonate,
+  onManageAsAdmin,
   onDelete,
   isImpersonating,
+  isManaging,
   fullWidth = false,
 }: {
   user: AdminUser;
@@ -4373,8 +4501,10 @@ function UserActionsDropdown({
   onUpgrade: () => void;
   onSendPassword: () => void;
   onImpersonate: () => void;
+  onManageAsAdmin?: () => void;
   onDelete: () => void;
   isImpersonating?: boolean;
+  isManaging?: boolean;
   fullWidth?: boolean;
 }) {
   function runAction(action: () => void) {
@@ -4385,15 +4515,42 @@ function UserActionsDropdown({
   return (
     <div
       className={`relative ${
-  fullWidth ? "w-full" : "w-full sm:w-[190px]"
+  fullWidth ? "w-full" : "w-full sm:w-[210px]"
 }`}
     >
+      {user.role !== "admin" && onManageAsAdmin ? (
+        <button
+          type="button"
+          onClick={onManageAsAdmin}
+          disabled={Boolean(isManaging)}
+          className="
+            inline-flex h-11 w-full items-center justify-center gap-2
+            rounded-2xl
+            bg-[#B87920]
+            px-4
+            text-sm font-black
+            text-white
+            shadow-[0_10px_24px_rgba(184,121,32,0.28)]
+            transition
+            hover:bg-[#9F6818]
+            disabled:opacity-60
+          "
+        >
+          {isManaging ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <ShieldCheck size={16} />
+          )}
+          ניהול משתמש כאדמין
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={onToggle}
         className="
-          inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-full
+          mt-2 inline-flex h-10 w-full items-center justify-center gap-2
+          rounded-2xl
           bg-[#24190F]
           px-4
           text-sm font-black
@@ -4403,7 +4560,7 @@ function UserActionsDropdown({
           hover:bg-black
         "
       >
-        פעולות
+        פעולות נוספות
         <ChevronDown
           size={16}
           className={`transition ${open ? "rotate-180" : ""}`}
@@ -4415,7 +4572,7 @@ function UserActionsDropdown({
         onClick={onSendPassword}
         className="
           mt-2 inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-full
+          rounded-2xl
           border border-[#E7D8C6]
           bg-[#FFF8E6]
           px-4
@@ -4444,26 +4601,26 @@ function UserActionsDropdown({
           "
         >
           {user.role !== "admin" && (
-  <DropdownAction
-    icon={
-      isImpersonating ? (
-        <Loader2 className="animate-spin" size={16} />
-      ) : (
-        <LogIn size={16} />
-      )
-    }
-    label="התחזות"
-    tone="blue"
-    onClick={() => runAction(onImpersonate)}
-  />
-)}
+            <DropdownAction
+              icon={
+                isImpersonating ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <LogIn size={16} />
+                )
+              }
+              label="התחזות (legacy)"
+              tone="blue"
+              onClick={() => runAction(onImpersonate)}
+            />
+          )}
 
-<DropdownAction
-  icon={<KeyRound size={16} />}
-  label="שליחת סיסמה"
-  tone="gold"
-  onClick={() => runAction(onSendPassword)}
-/>
+          <DropdownAction
+            icon={<KeyRound size={16} />}
+            label="שליחת סיסמה"
+            tone="gold"
+            onClick={() => runAction(onSendPassword)}
+          />
 
 <DropdownAction
   icon={<Pencil size={16} />}

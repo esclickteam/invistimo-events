@@ -52,6 +52,7 @@ type CustomerQuote = {
   validUntil?: string | Date;
   status?: string;
   publicToken?: string;
+  salesDocumentId?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
@@ -437,26 +438,25 @@ export default function AdminCustomerFilePage() {
   return (
     <main
       dir="rtl"
-      className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D]"
+      className="w-full min-w-0 space-y-4 text-[var(--admin-text)]"
     >
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-[2rem] border border-[#E8D8C4] bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mx-auto max-w-7xl space-y-4">
+        <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] sm:p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <Link
                 href="/admin/customers"
-                className="text-sm font-black text-[#B87920] hover:underline"
+                className="text-xs font-bold text-[var(--admin-brand)] hover:underline"
               >
                 ← חזרה לכל הלקוחות
               </Link>
 
-              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">
+              <h1 className="mt-1 text-base font-bold tracking-tight sm:text-lg">
                 תיק לקוח · {customerName}
               </h1>
 
-              <p className="mt-2 text-sm font-semibold leading-6 text-[#8A6A43]">
-                כל המידע על הלקוח: חבילה, הצעות מחיר, הסכמים, חתימות, תשלומים
-                וסבבי שיחות.
+              <p className="mt-1 text-xs font-medium text-[var(--admin-muted)]">
+                חבילה, הצעות, הסכמים, תשלומים וסבבי שיחות
               </p>
             </div>
 
@@ -464,7 +464,7 @@ export default function AdminCustomerFilePage() {
               <button
                 type="button"
                 onClick={loadCustomer}
-                className="rounded-2xl border border-[#D9C3A8] bg-white px-5 py-3 text-sm font-black text-[#3A271D] transition hover:bg-[#FFF7EC]"
+                className="h-9 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold"
               >
                 רענון
               </button>
@@ -472,7 +472,7 @@ export default function AdminCustomerFilePage() {
               {userId ? (
                 <Link
                   href={`/admin/users?impersonate=${userId}`}
-                  className="rounded-2xl bg-[#3A271D] px-5 py-3 text-sm font-black text-white transition hover:bg-[#24170f]"
+                  className="inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white"
                 >
                   כניסה ללקוח עצמו
                 </Link>
@@ -480,7 +480,7 @@ export default function AdminCustomerFilePage() {
                 <button
                   type="button"
                   disabled
-                  className="cursor-not-allowed rounded-2xl border border-[#E8D8C4] bg-[#F7F1EA] px-5 py-3 text-sm font-black text-[#B9A28A]"
+                  className="h-9 cursor-not-allowed rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-gray-50 px-3 text-xs font-bold text-[var(--admin-subtle)]"
                 >
                   אין משתמש מחובר
                 </button>
@@ -702,20 +702,73 @@ export default function AdminCustomerFilePage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        {quote.publicToken ? (
-                          <Link
+                        <div className="flex flex-wrap items-center gap-2">
+                          {quote.publicToken ? (
+                            <Link
                               href={`/sales-documents/${encodeURIComponent(quote.publicToken)}?preview=1`}
-
-                            target="_blank"
-                            className="rounded-xl border border-[#D9C3A8] bg-white px-4 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
-                          >
-                            צפייה
-                          </Link>
-                        ) : (
-                          <span className="text-xs font-black text-[#B9A28A]">
-                            אין קישור
-                          </span>
-                        )}
+                              target="_blank"
+                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
+                            >
+                              צפייה
+                            </Link>
+                          ) : null}
+                          {quote.publicToken ? (
+                            <Link
+                              href={`/admin/sales/quotes/${encodeURIComponent(quote.publicToken)}/edit`}
+                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
+                            >
+                              עריכת הצעה
+                            </Link>
+                          ) : null}
+                          {quote.userId || quote.status === "converted" ? (
+                            <Link
+                              href={`/admin/users?q=${encodeURIComponent(quote.userId || "")}`}
+                              className="rounded-xl bg-[#24190F] px-3 py-2 text-xs font-black text-white"
+                            >
+                              מעבר למשתמש
+                            </Link>
+                          ) : quote.publicToken ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const confirmed = confirm(
+                                  "לפתוח משתמש מההצעה? לא יבוצע חיוב אוטומטי."
+                                );
+                                if (!confirmed) return;
+                                const res = await fetch(
+                                  `/api/employee/sales/documents/${encodeURIComponent(quote.publicToken!)}/create-user`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({}),
+                                  }
+                                );
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                  alert(
+                                    data?.message ||
+                                      data?.error ||
+                                      "יצירת משתמש נכשלה"
+                                  );
+                                  return;
+                                }
+                                alert(data.message || "המשתמש נוצר בהצלחה");
+                                window.location.href =
+                                  data.redirectTo || "/admin/users";
+                              }}
+                              className="rounded-xl bg-[#B87920] px-3 py-2 text-xs font-black text-white"
+                            >
+                              פתיחת משתמש מההצעה
+                            </button>
+                          ) : (
+                            <span className="text-xs font-black text-[#B9A28A]">
+                              אין קישור
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
