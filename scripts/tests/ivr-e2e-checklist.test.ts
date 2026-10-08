@@ -130,7 +130,7 @@ test("11) attending count cannot exceed guest max", () => {
 
 test("12) ElevenLabs audio reused when hash matches; dialer never calls TTS", () => {
   const config = readSrc("app/api/ivr/config/route.ts");
-  assert.match(config, /reused:\s*true/);
+  assert.match(config, /reusedEventName\s*=\s*true/);
   assert.match(config, /contentHash === hash/);
   assert.match(config, /eventNameOnly:\s*true/);
   const dialer = readSrc("lib/calls/ivrDialer.ts");
