@@ -22,6 +22,7 @@ import {
 import {
   IVR_MALE_AUDITION_TEXT,
   IVR_REQUIRED_FEMALE_VOICE_NAME,
+  listElevenLabsVoices,
   sanitizeElevenLabsErrorMessage,
   voiceErrorToClientPayload,
 } from "@/lib/calls/elevenlabs";
@@ -214,8 +215,46 @@ export async function POST(req: NextRequest) {
     const action = String(body.action || "generate_pack").trim();
 
     if (action === "male_audition") {
-      const data = await buildMaleVoiceAuditions();
+      const data = await buildMaleVoiceAuditions({
+        modelId: body.modelId ? String(body.modelId) : undefined,
+      });
       return NextResponse.json({ ok: true, ...data });
+    }
+
+    // Admin diagnostic: list account voices (name + id) to locate Dana / Hebrew candidates.
+    if (action === "list_account_voices") {
+      const voices = await listElevenLabsVoices();
+      const q = String(body.query || "").trim().toLowerCase();
+      const mapped = voices.map((v) => ({
+        voiceId: v.voice_id,
+        name: v.name,
+        category: v.category || null,
+        labels: v.labels || {},
+      }));
+      const filtered = q
+        ? mapped.filter(
+            (v) =>
+              v.name.toLowerCase().includes(q) ||
+              v.voiceId.toLowerCase().includes(q) ||
+              Object.values(v.labels || {}).some((x) =>
+                String(x).toLowerCase().includes(q)
+              )
+          )
+        : mapped;
+      const danaExact = mapped.filter(
+        (v) => v.name.trim().toLowerCase() === "dana"
+      );
+      const danaLike = mapped.filter((v) =>
+        /dana|דנה/i.test(v.name)
+      );
+      return NextResponse.json({
+        ok: true,
+        total: mapped.length,
+        returned: filtered.length,
+        danaExact,
+        danaLike,
+        voices: filtered.slice(0, 200),
+      });
     }
 
     if (action === "generate_pack") {

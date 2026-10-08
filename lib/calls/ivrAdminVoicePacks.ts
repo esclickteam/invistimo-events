@@ -30,6 +30,7 @@ import {
   findExactDanaVoice,
   getIvrFemaleVoiceId,
   getIvrMaleVoiceId,
+  getIvrTtsModelId,
   IVR_MALE_AUDITION_TEXT,
   IVR_REQUIRED_FEMALE_VOICE_NAME,
   listMaleAuditionCandidates,
@@ -612,21 +613,30 @@ export async function lockMaleVoiceFromAudition(voiceId: string) {
  * Build Hebrew audition clips for 2–3 male candidates (admin hearing test).
  * Uploads to R2 under ephemeral keys — not pack segments.
  */
-export async function buildMaleVoiceAuditions() {
+export async function buildMaleVoiceAuditions(options?: {
+  /** Optional model override for ear-test only — never auto-used for packs. */
+  modelId?: string;
+}) {
   const candidates = await listMaleAuditionCandidates(3);
   if (!candidates.length) {
     throw new Error("NO_MALE_VOICES_IN_ACCOUNT");
   }
 
+  const modelId = String(options?.modelId || "").trim() || undefined;
   const auditions = [];
   for (const c of candidates) {
     const synth = await synthesizeElevenLabsSpeech({
       text: IVR_MALE_AUDITION_TEXT,
       voiceId: c.voiceId,
+      modelId,
+      // Only attached when modelSupportsLanguageCode(modelId) is true.
       languageCode: "he",
     });
     const token = createIvrAudioPublicToken();
-    const r2Key = ivrSystemR2Key(`audition:male:${c.voiceId}`, token, "mp3");
+    const keySuffix = modelId
+      ? `audition:male:${modelId}:${c.voiceId}`
+      : `audition:male:${c.voiceId}`;
+    const r2Key = ivrSystemR2Key(keySuffix, token, "mp3");
     await uploadIvrAudioToR2({
       key: r2Key,
       buffer: synth.buffer,
@@ -634,10 +644,10 @@ export async function buildMaleVoiceAuditions() {
     });
     // Store a short-lived lookup row so /api/ivr/media can serve it.
     await IvrSystemAudio.findOneAndUpdate(
-      { key: `audition:male:${c.voiceId}` },
+      { key: keySuffix },
       {
         $set: {
-          key: `audition:male:${c.voiceId}`,
+          key: keySuffix,
           text: IVR_MALE_AUDITION_TEXT,
           voiceId: c.voiceId,
           audioUrl: buildIvrPublicAudioUrl(token),
@@ -654,6 +664,7 @@ export async function buildMaleVoiceAuditions() {
       name: c.name,
       category: c.category,
       labels: c.labels,
+      modelId: modelId || getIvrTtsModelId(),
       audioUrl: buildIvrPublicAudioUrl(token),
       sampleText: IVR_MALE_AUDITION_TEXT,
     });
@@ -661,6 +672,7 @@ export async function buildMaleVoiceAuditions() {
 
   return {
     sampleText: IVR_MALE_AUDITION_TEXT,
+    modelId: modelId || getIvrTtsModelId(),
     auditions,
   };
 }
