@@ -26,7 +26,10 @@ import {
   IVR_SELF_RECORD_MAX_SECONDS,
   resolveIvrEventName,
 } from "../../lib/calls/ivrScript";
-import { isIvrDialAllowed } from "../../lib/telnyx/ivrCallControl";
+import {
+  explainIvrCallFailure,
+  isIvrDialAllowed,
+} from "../../lib/telnyx/ivrCallControl";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
 
@@ -194,15 +197,30 @@ test("15) webhook idempotency + guest binding prevent wrong/double updates", () 
 test("16) live dial safety defaults off", () => {
   const prevAllow = process.env.IVR_ALLOW_LIVE_DIAL;
   const prevList = process.env.IVR_TEST_PHONE_ALLOWLIST;
+  const prevVercel = process.env.VERCEL_ENV;
   delete process.env.IVR_ALLOW_LIVE_DIAL;
   delete process.env.IVR_TEST_PHONE_ALLOWLIST;
+  delete process.env.VERCEL_ENV;
   try {
     assert.equal(isIvrDialAllowed("+972501234567"), false);
+    process.env.VERCEL_ENV = "production";
+    assert.equal(isIvrDialAllowed("+972501234567"), true);
+    process.env.IVR_ALLOW_LIVE_DIAL = "false";
+    assert.equal(isIvrDialAllowed("+972501234567"), false);
+    assert.match(explainIvrCallFailure("DIAL_BLOCKED_TEST_MODE"), /Telnyx/);
+    assert.match(
+      explainIvrCallFailure(
+        'TELNYX_CREATE_IVR_CALL_FAILED (422): [{"detail":"Invalid from number"}]'
+      ),
+      /422/
+    );
   } finally {
     if (prevAllow === undefined) delete process.env.IVR_ALLOW_LIVE_DIAL;
     else process.env.IVR_ALLOW_LIVE_DIAL = prevAllow;
     if (prevList === undefined) delete process.env.IVR_TEST_PHONE_ALLOWLIST;
     else process.env.IVR_TEST_PHONE_ALLOWLIST = prevList;
+    if (prevVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prevVercel;
   }
 
   const dialer = readSrc("lib/calls/ivrDialer.ts");

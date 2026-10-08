@@ -9,6 +9,7 @@ import {
   requireIvrSession,
   resolveIvrTargetUser,
 } from "@/lib/calls/ivrRequestAuth";
+import { explainIvrCallFailure } from "@/lib/telnyx/ivrCallControl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     const attempts = await IvrCallAttempt.find({
       invitationId: invitation._id,
     })
-      .select("round status answered rsvpResult attendingCount")
+      .select("round status answered rsvpResult attendingCount error")
       .lean();
 
     const scheduleRounds = Array.isArray(target.callRoundsSchedule?.rounds)
@@ -94,9 +95,17 @@ export async function GET(req: NextRequest) {
       const noAnswer = roundAttempts.filter((a) =>
         ["no_answer", "busy", "voicemail"].includes(String(a.status))
       ).length;
-      const failed = roundAttempts.filter((a) =>
+      const failedAttempts = roundAttempts.filter((a) =>
         ["failed", "canceled"].includes(String(a.status))
-      ).length;
+      );
+      const failed = failedAttempts.length;
+      const storedError = String(
+        (failedAttempts.find((a) => String((a as { error?: string }).error || "").trim()) as
+          | { error?: string }
+          | undefined)?.error ||
+          scheduleRound?.failureReason ||
+          ""
+      );
       const hangup = roundAttempts.filter(
         (a) => a.status === "hangup_before_response"
       ).length;
@@ -109,7 +118,8 @@ export async function GET(req: NextRequest) {
         round,
         executionStatus,
         executionLabel,
-        failureReason: String(scheduleRound?.failureReason || ""),
+        failureReason:
+          executionStatus === "failed" ? explainIvrCallFailure(storedError) : "",
         scheduledAtDisplay: formatCallRoundDateTimeDmy(scheduleRound?.scheduledAt),
         toDial: eligibleNow.length,
         attempted: roundAttempts.length,
