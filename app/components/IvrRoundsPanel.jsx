@@ -71,10 +71,30 @@ function joinIsraelInput(dateText, timeText) {
   return `${date[3]}-${date[2]}-${date[1]}T${time[1]}:${time[2]}`;
 }
 
+function dmyToIsoDate(dateText) {
+  const match = String(dateText || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return "";
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function isoDateToDmy(iso) {
+  const match = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
 function IsraelDateTimeFields({ value, onChange }) {
   const parsed = splitIsraelInput(value);
   const [dateText, setDateText] = useState(parsed.date);
   const [timeText, setTimeText] = useState(parsed.time);
+  const hour = timeText.slice(0, 2);
+  const minute = timeText.slice(3, 5);
+  const hours = Array.from({ length: 24 }, (_, index) =>
+    String(index).padStart(2, "0")
+  );
+  const minutes = Array.from({ length: 60 }, (_, index) =>
+    String(index).padStart(2, "0")
+  );
 
   useEffect(() => {
     const next = splitIsraelInput(value);
@@ -100,29 +120,56 @@ function IsraelDateTimeFields({ value, onChange }) {
       <label className="block text-[11px] font-black text-[#8A7867]">
         תאריך (DD/MM/YYYY)
         <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="08/10/2026"
-          value={dateText}
-          onChange={(e) => commit(e.target.value, timeText)}
+          type="date"
+          lang="he-IL"
+          dir="ltr"
+          value={dmyToIsoDate(dateText)}
+          onChange={(e) => commit(isoDateToDmy(e.target.value), timeText)}
           className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
           data-testid="ivr-round-date"
         />
+        {dateText ? (
+          <span className="mt-1 block text-[11px] font-bold text-[#3A2A1C]">
+            {dateText}
+          </span>
+        ) : null}
       </label>
-      <label className="block text-[11px] font-black text-[#8A7867]">
+      <div className="block text-[11px] font-black text-[#8A7867]">
         שעה (HH:mm)
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="18:00"
-          value={timeText}
-          onChange={(e) => commit(dateText, e.target.value)}
-          className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
-          data-testid="ivr-round-time"
-        />
-      </label>
+        <div className="mt-1 grid grid-cols-2 gap-2">
+          <select
+            value={hour}
+            onChange={(e) =>
+              commit(dateText, `${e.target.value}:${minute || "00"}`)
+            }
+            className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+            data-testid="ivr-round-time"
+            aria-label="שעה HH"
+          >
+            <option value="">שעה</option>
+            {hours.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select
+            value={minute}
+            onChange={(e) =>
+              commit(dateText, `${hour || "00"}:${e.target.value}`)
+            }
+            className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+            aria-label="דקות mm"
+          >
+            <option value="">דקות</option>
+            {minutes.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </div>
   );
 }
@@ -137,12 +184,16 @@ function ConcatPreviewPlayer({ playlist, onEnded, label }) {
     setIndex(0);
   }, [urls.join("|")]);
 
+  const playlistKey = urls.join("|");
+
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !urls[index]) return;
     el.src = urls[index];
-    el.play().catch(() => null);
-  }, [index, urls]);
+    if (index > 0) {
+      el.play().catch(() => null);
+    }
+  }, [index, playlistKey]);
 
   if (!urls.length) return null;
 
@@ -151,6 +202,8 @@ function ConcatPreviewPlayer({ playlist, onEnded, label }) {
       <audio
         ref={audioRef}
         controls
+        preload="metadata"
+        data-testid="ivr-composed-preview"
         className="w-full"
         onEnded={() => {
           if (index + 1 < urls.length) {
@@ -183,7 +236,7 @@ function SingleClipPlayer({ url, label, onEnded }) {
       ) : null}
       <audio
         controls
-        autoPlay
+        preload="metadata"
         src={url}
         className="w-full"
         onEnded={() => onEnded?.()}
@@ -362,8 +415,6 @@ export default function IvrRoundsPanel({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
-  const [showSimulator, setShowSimulator] = useState(false);
-  const [simulatorDirection, setSimulatorDirection] = useState("outbound");
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const startedAtRef = useRef(0);
@@ -378,29 +429,16 @@ export default function IvrRoundsPanel({
 
   const previewPlaylist = useMemo(() => {
     const preview = config?.ivrConfig?.previewAudio;
-    if (preview?.seamless && preview?.composedIntroAudioUrl) {
-      return [preview.composedIntroAudioUrl];
-    }
-    if (Array.isArray(preview?.playlist) && preview.playlist.length) {
-      return preview.playlist;
-    }
-    return [
+    const clips = [
       preview?.introBeforeEventNameUrl,
       preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
       preview?.introAfterEventNameUrl,
     ].filter(Boolean);
-  }, [config]);
-
-  const inboundPreviewPlaylist = useMemo(() => {
-    const preview = config?.ivrConfig?.previewAudio;
-    if (Array.isArray(preview?.inboundPlaylist) && preview.inboundPlaylist.length) {
-      return preview.inboundPlaylist;
+    if (clips.length) return clips;
+    if (Array.isArray(preview?.playlist) && preview.playlist.length) {
+      return preview.playlist;
     }
-    return [
-      preview?.inboundBeforeEventNameUrl,
-      preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
-      preview?.inboundAfterEventNameUrl,
-    ].filter(Boolean);
+    return [];
   }, [config]);
 
   const composedReady = Boolean(
@@ -779,24 +817,6 @@ export default function IvrRoundsPanel({
 
   return (
     <div className="space-y-5" dir="rtl">
-      {showSimulator && (aiReady || selfReady || inboundPreviewPlaylist.length) ? (
-        <IvrCallSimulator
-          previewPlaylist={
-            simulatorDirection === "inbound"
-              ? inboundPreviewPlaylist
-              : audioMode === "ai"
-                ? previewPlaylist
-                : [intro?.audioUrl]
-          }
-          followUpAudio={config?.ivrConfig?.followUpAudio}
-          systemPromptTexts={config?.ivrConfig?.systemPromptTexts}
-          directionLabel={
-            simulatorDirection === "inbound" ? "שיחה נכנסת" : "שיחה יוצאת"
-          }
-          onClose={() => setShowSimulator(false)}
-        />
-      ) : null}
-
       <section className="rounded-2xl border border-[#E7D8C6] bg-white p-5">
         <h3 className="text-lg font-black text-[#3A2A1C]">
           תזמון 3 סבבי שיחות מוקלטות
@@ -1086,41 +1106,14 @@ export default function IvrRoundsPanel({
                 ? "ההקלטה אושרה לשיחות"
                 : "ממתין לאישור הקלטה"}
             </div>
-            <p className="text-[11px] font-bold text-emerald-800">
-              שיחה יוצאת: פתיח יוצא, שם האירוע, והוראות ההקשה (1 / 2 / 3). שיחה
-              נכנסת מושמעת בנפרד, עם קטעי ההמשך לפי הבחירה.
+            <p className="text-xs font-black text-emerald-900">
+              תצוגה מקדימה של השיחה היוצאת
             </p>
-            <p className="text-xs font-black text-emerald-900">שיחה יוצאת</p>
-            {composedReady ? (
-              <div className="space-y-2">
-                <audio
-                  controls
-                  preload="metadata"
-                  src={previewPlaylist[0]}
-                  className="w-full"
-                  data-testid="ivr-composed-preview"
-                />
-                <p className="text-[11px] font-bold text-emerald-800">
-                  קריינות אחת רציפה (פתיח יוצא + שם האירוע + המשך יוצא).
-                </p>
-              </div>
-            ) : (
-              <ConcatPreviewPlayer
-                playlist={previewPlaylist}
-                label="שיחה יוצאת"
-              />
-            )}
-            {inboundPreviewPlaylist.length ? (
-              <div className="space-y-2">
-                <p className="text-xs font-black text-emerald-900">
-                  שיחה נכנסת / שיחה חוזרת
-                </p>
-                <ConcatPreviewPlayer
-                  playlist={inboundPreviewPlaylist}
-                  label="שיחה נכנסת"
-                />
-              </div>
-            ) : null}
+            <p className="text-[11px] font-bold text-emerald-800">
+              נגן אחד, ללא שיחת Telnyx. ההשמעה מתחילה רק אחרי Play: פתיח יוצא,
+              שם האירוע, ואז נוסח אישורי ההגעה.
+            </p>
+            <ConcatPreviewPlayer playlist={previewPlaylist} label="שיחה יוצאת" />
             <div className="flex flex-wrap gap-2">
               {!approved ? (
                 <button
@@ -1138,26 +1131,6 @@ export default function IvrRoundsPanel({
                   אני מאשר/ת את ההקלטה לשיחות
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setSimulatorDirection("outbound");
-                  setShowSimulator(true);
-                }}
-                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
-              >
-                תצוגה מקדימה — שיחה יוצאת
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSimulatorDirection("inbound");
-                  setShowSimulator(true);
-                }}
-                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
-              >
-                תצוגה מקדימה — שיחה נכנסת
-              </button>
               <button
                 type="button"
                 disabled={saving}
@@ -1204,13 +1177,6 @@ export default function IvrRoundsPanel({
                 className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-black text-rose-800"
               >
                 מחיקה והקלטה מחדש
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSimulator(true)}
-                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
-              >
-                תצוגה מקדימה של השיחה
               </button>
             </div>
           </div>

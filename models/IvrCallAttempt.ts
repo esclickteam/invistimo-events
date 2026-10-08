@@ -22,6 +22,7 @@ export type IvrCallAttemptStatus =
 
 export type IvrCallFlowStep =
   | "dialing"
+  | "answer_delay"
   | "playing_intro"
   | "playing_intro_before"
   | "playing_event_name"
@@ -178,7 +179,11 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       type: String,
       enum: [
         "dialing",
+        "answer_delay",
         "playing_intro",
+        "playing_intro_before",
+        "playing_event_name",
+        "playing_intro_after",
         "gather_choice",
         "playing_ask_count",
         "gather_count",

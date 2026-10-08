@@ -214,10 +214,13 @@ test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog"
   assert.match(ui, /packsReady|ivr-packs-not-ready/);
   assert.match(ui, /composedIntroAudio|ivr-composed-preview/);
   assert.match(ui, /שיחה יוצאת/);
-  assert.match(ui, /שיחה נכנסת/);
+  assert.equal(ui.includes("תצוגה מקדימה — שיחה נכנסת"), false);
+  assert.equal(ui.includes("autoPlay"), false);
+  assert.match(ui, /type="date"/);
+  assert.match(ui, /data-testid="ivr-round-time"/);
   assert.match(ui, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
   assert.equal(ui.includes("listElevenLabsVoices"), false);
-  assert.equal(ui.includes("<select"), false);
+  assert.equal(ui.includes("<select"), true);
   assert.equal(ui.includes("טוען קולות"), false);
   assert.equal(ui.includes("דנה"), false);
   assert.equal(ui.includes("Dana"), false);
@@ -260,6 +263,9 @@ test("dialer + webhook play sequential global + event name segments", () => {
   assert.match(webhook, /getGlobalPackSegmentUrl/);
   assert.match(webhook, /getIvrSystemAudioUrlForGender/);
   assert.match(webhook, /call\.dtmf\.received/);
+  assert.match(webhook, /answer_delay/);
+  assert.match(webhook, /OUTBOUND_ANSWER_DELAY_MS = 2000/);
+  assert.match(webhook, /introAfterEventName/);
 });
 
 test("User model stores eventNameAudio + voiceGender, not per-event fixed packs", () => {
