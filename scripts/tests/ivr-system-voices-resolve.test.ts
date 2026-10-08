@@ -34,9 +34,12 @@ test("female voice is exact Dana lock; male requires audition; Hebrew language_c
   assert.match(eleven, /IVR_REQUIRED_FEMALE_VOICE_NAME/);
   assert.match(eleven, /language_code/);
   assert.match(eleven, /modelSupportsLanguageCode/);
-  assert.match(eleven, /MODELS_SUPPORTING_LANGUAGE_CODE/);
+  assert.match(eleven, /MODELS_SUPPORTING_HEBREW_LANGUAGE_CODE/);
+  assert.match(eleven, /isExactDanaName/);
   // multilingual_v2 must NOT always force language_code he
   assert.match(eleven, /Never send language_code to models that reject it/);
+  // Dana - Patient Support Agent must match
+  assert.match(eleven, /Dana - …|dana\(\\s\*\[/);
   assert.match(eleven, /listMaleAuditionCandidates/);
   assert.match(eleven, /IVR_MALE_AUDITION_TEXT/);
 

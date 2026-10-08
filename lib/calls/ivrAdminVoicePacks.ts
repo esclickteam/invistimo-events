@@ -677,6 +677,61 @@ export async function buildMaleVoiceAuditions(options?: {
   };
 }
 
+/**
+ * Ear-test one voiceId with the fixed Hebrew sample (not a pack segment).
+ * Used to verify Dana / male candidates before locking.
+ */
+export async function buildSingleVoiceAudition(input: {
+  voiceId: string;
+  modelId?: string;
+  label?: string;
+}) {
+  const voiceId = String(input.voiceId || "").trim();
+  if (!voiceId) throw new Error("VOICE_ID_REQUIRED");
+  const modelId = String(input.modelId || "").trim() || undefined;
+
+  const synth = await synthesizeElevenLabsSpeech({
+    text: IVR_MALE_AUDITION_TEXT,
+    voiceId,
+    modelId,
+    languageCode: "he",
+  });
+  const token = createIvrAudioPublicToken();
+  const key = modelId
+    ? `audition:probe:${modelId}:${voiceId}`
+    : `audition:probe:${voiceId}`;
+  const r2Key = ivrSystemR2Key(key, token, "mp3");
+  await uploadIvrAudioToR2({
+    key: r2Key,
+    buffer: synth.buffer,
+    contentType: synth.contentType || "audio/mpeg",
+  });
+  await IvrSystemAudio.findOneAndUpdate(
+    { key },
+    {
+      $set: {
+        key,
+        text: IVR_MALE_AUDITION_TEXT,
+        voiceId,
+        audioUrl: buildIvrPublicAudioUrl(token),
+        publicToken: token,
+        r2Key,
+        contentType: synth.contentType || "audio/mpeg",
+        contentHash: synth.contentHash,
+      },
+    },
+    { upsert: true }
+  );
+
+  return {
+    sampleText: IVR_MALE_AUDITION_TEXT,
+    modelId: modelId || getIvrTtsModelId(),
+    voiceId,
+    label: String(input.label || "").trim(),
+    audioUrl: buildIvrPublicAudioUrl(token),
+  };
+}
+
 export async function generateAdminVoicePack(input: {
   gender: IvrVoiceGender | string;
   force?: boolean;

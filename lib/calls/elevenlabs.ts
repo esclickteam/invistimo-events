@@ -405,17 +405,19 @@ export function getIvrTtsModelId(override?: string) {
 export const IVR_TTS_LANGUAGE_CODE = "he";
 
 /** Models that accept language_code in the TTS body (ElevenLabs API). */
-const MODELS_SUPPORTING_LANGUAGE_CODE = new Set([
-  "eleven_turbo_v2_5",
-  "eleven_flash_v2_5",
-  "eleven_v3",
-]);
+/**
+ * Models that accept language_code "he" for Hebrew IVR probes/TTS.
+ * - eleven_multilingual_v2: API rejects language_code entirely
+ * - eleven_turbo_v2_5 / eleven_flash_v2_5: reject language_code "he"
+ * - eleven_v3: documents Hebrew (HEB) support with language_code
+ */
+const MODELS_SUPPORTING_HEBREW_LANGUAGE_CODE = new Set(["eleven_v3"]);
 
 export function modelSupportsLanguageCode(modelId: string) {
   const id = String(modelId || "")
     .trim()
     .toLowerCase();
-  return MODELS_SUPPORTING_LANGUAGE_CODE.has(id);
+  return MODELS_SUPPORTING_HEBREW_LANGUAGE_CODE.has(id);
 }
 
 /** Female system voice must be this exact ElevenLabs name — never auto-picked. */
@@ -531,8 +533,18 @@ export function getIvrMaleVoiceId() {
   ).trim();
 }
 
-function isExactDanaName(name: string) {
-  return String(name || "").trim().toLowerCase() === "dana";
+/**
+ * Dana lock: exact "Dana", or ElevenLabs display names like
+ * "Dana - Patient Support Agent" where the primary token is Dana.
+ * Still rejects unrelated names that merely contain "dana" mid-string.
+ */
+export function isExactDanaName(name: string) {
+  const n = String(name || "").trim().toLowerCase();
+  if (!n) return false;
+  if (n === "dana") return true;
+  // "Dana - …" / "Dana (…)" / "Dana | …"
+  if (/^dana(\s*[-–—|:|(].*)?$/.test(n)) return true;
+  return false;
 }
 
 function voiceLooksMale(v: ElevenLabsVoice) {
@@ -563,16 +575,22 @@ export async function findExactDanaVoice(): Promise<{
   if (!exact.length) {
     throw new ElevenLabsApiError(
       "DANA_VOICE_NOT_FOUND",
-      'לא נמצא קול בשם המדויק "Dana" בחשבון ElevenLabs. הוסיפו את Dana או הגדירו IVR_FEMALE_VOICE_ID ידנית אחרי אימות שם.'
+      'לא נמצא קול Dana בחשבון ElevenLabs (שם "Dana" או "Dana - …"). הוסיפו את Dana או הגדירו IVR_FEMALE_VOICE_ID ידנית אחרי אימות.'
     );
   }
-  // Prefer non-legacy / premade if multiple (still all named Dana).
+  // Prefer Hebrew-labeled Dana, then generated/premade.
   const ranked = [...exact].sort((a, b) => {
     const score = (v: ElevenLabsVoice) => {
+      const lang = String(v.labels?.language || "")
+        .trim()
+        .toLowerCase();
+      let s = 0;
+      if (lang === "he" || lang === "heb" || lang === "hebrew") s -= 10;
       const cat = String(v.category || "").toLowerCase();
-      if (cat.includes("premade") || cat.includes("default")) return 0;
-      if (cat.includes("cloned")) return 2;
-      return 1;
+      if (cat.includes("generated")) s -= 1;
+      if (cat.includes("premade") || cat.includes("default")) s -= 0;
+      if (cat.includes("cloned")) s += 2;
+      return s;
     };
     return score(a) - score(b);
   });
@@ -616,15 +634,25 @@ export async function listMaleAuditionCandidates(limit = 3): Promise<
   const voices = await listElevenLabsVoices();
   const males = voices.filter((v) => voiceLooksMale(v) && !isExactDanaName(v.name));
 
-  // Prefer names that are not famously English-only library defaults when possible,
-  // but NEVER auto-lock — this is only an audition shortlist.
+  const langHe = (v: ElevenLabsVoice) => {
+    const lang = String(v.labels?.language || "")
+      .trim()
+      .toLowerCase();
+    return lang === "he" || lang === "heb" || lang === "hebrew";
+  };
+
+  // Prefer Hebrew-labeled males first; never auto-lock — audition shortlist only.
+  const hebrewMales = males.filter(langHe);
   const preferred = males.filter((v) => {
+    if (langHe(v)) return false;
     const n = v.name.toLowerCase();
-    // Deprioritize known poor Hebrew fits in the shortlist order only.
     return !/\b(george|adam|antoni|josh|sam|brian)\b/.test(n);
   });
-  const rest = males.filter((v) => !preferred.includes(v));
-  const ordered = [...preferred, ...rest].slice(0, Math.max(1, limit));
+  const rest = males.filter((v) => !hebrewMales.includes(v) && !preferred.includes(v));
+  const ordered = [...hebrewMales, ...preferred, ...rest].slice(
+    0,
+    Math.max(1, limit)
+  );
 
   return ordered.map((v) => ({
     voiceId: v.voice_id,

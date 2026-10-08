@@ -6,6 +6,7 @@ import User from "@/models/User";
 import {
   approveAdminVoicePack,
   buildMaleVoiceAuditions,
+  buildSingleVoiceAudition,
   generateAdminVoicePack,
   invalidateWrongVoicePacks,
   IVR_PACK_SEGMENT_LABELS,
@@ -20,6 +21,7 @@ import {
   type IvrGlobalPackSegmentKey,
 } from "@/lib/calls/ivrScript";
 import {
+  isExactDanaName,
   IVR_MALE_AUDITION_TEXT,
   IVR_REQUIRED_FEMALE_VOICE_NAME,
   listElevenLabsVoices,
@@ -221,6 +223,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ...data });
     }
 
+    if (action === "probe_voice") {
+      const data = await buildSingleVoiceAudition({
+        voiceId: body.voiceId,
+        modelId: body.modelId ? String(body.modelId) : undefined,
+        label: body.label ? String(body.label) : undefined,
+      });
+      return NextResponse.json({ ok: true, ...data });
+    }
+
     // Admin diagnostic: list account voices (name + id) to locate Dana / Hebrew candidates.
     if (action === "list_account_voices") {
       const voices = await listElevenLabsVoices();
@@ -241,12 +252,8 @@ export async function POST(req: NextRequest) {
               )
           )
         : mapped;
-      const danaExact = mapped.filter(
-        (v) => v.name.trim().toLowerCase() === "dana"
-      );
-      const danaLike = mapped.filter((v) =>
-        /dana|דנה/i.test(v.name)
-      );
+      const danaExact = mapped.filter((v) => isExactDanaName(v.name));
+      const danaLike = mapped.filter((v) => /dana|דנה/i.test(v.name));
       return NextResponse.json({
         ok: true,
         total: mapped.length,
