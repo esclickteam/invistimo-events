@@ -12,6 +12,13 @@ import {
   prepareEventLocation,
   type EventLocationWarning,
 } from "@/lib/eventLocation";
+import {
+  giftsToInvitationMirrors,
+  normalizeCentralGifts,
+  validateCentralGifts,
+} from "@/lib/eventDetails/centralEventDetails";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -167,6 +174,7 @@ function normalizeEventType(value: unknown) {
     "brit",
     "brita",
     "henna",
+    "business",
     "other",
   ];
 
@@ -182,6 +190,7 @@ function normalizeEventType(value: unknown) {
   if (lower.includes("בריתה")) return "brita";
   if (lower.includes("ברית")) return "brit";
   if (lower.includes("חינה")) return "henna";
+  if (lower.includes("עסקי") || lower.includes("business")) return "business";
 
   return "wedding";
 }
@@ -856,10 +865,49 @@ export async function PUT(
       locationWarning = prepared.warning;
     }
 
+    // Central gifts from body.gifts (preferred) or publicEventPage/giftOptions.
+    let centralGifts = null as ReturnType<typeof normalizeCentralGifts> | null;
+    if (body.gifts !== undefined) {
+      centralGifts = normalizeCentralGifts(body.gifts);
+      const giftErrors = validateCentralGifts(centralGifts);
+      if (giftErrors.length) {
+        return NextResponse.json(
+          { success: false, error: giftErrors[0], errors: giftErrors },
+          { status: 400 }
+        );
+      }
+    } else if (body.publicEventPage !== undefined || body.giftOptions !== undefined) {
+      const publicGifts = body.publicEventPage?.gifts || {};
+      const optionGifts = body.giftOptions || invitationBeforeUpdate.giftOptions || {};
+      centralGifts = normalizeCentralGifts({
+        creditEnabled:
+          optionGifts.creditEnabled ?? Boolean(cleanUrl(publicGifts.creditUrl)),
+        creditUrl: publicGifts.creditUrl || optionGifts.creditUrl,
+        payboxEnabled:
+          optionGifts.payboxEnabled ?? Boolean(cleanUrl(publicGifts.payboxUrl)),
+        payboxUrl: publicGifts.payboxUrl || optionGifts.payboxUrl,
+        bitEnabled: Boolean(cleanString(publicGifts.bitPhone)),
+        bitPhone: publicGifts.bitPhone,
+      });
+      const giftErrors = validateCentralGifts(centralGifts);
+      if (giftErrors.length) {
+        return NextResponse.json(
+          { success: false, error: giftErrors[0], errors: giftErrors },
+          { status: 400 }
+        );
+      }
+    }
+
     if (body.publicEventPage !== undefined) {
       updatePayload.publicEventPage = normalizePublicEventPage(
         body.publicEventPage
       );
+
+      if (centralGifts) {
+        const mirrors = giftsToInvitationMirrors(centralGifts);
+        updatePayload.publicEventPage.gifts = mirrors.publicGifts;
+        updatePayload.giftOptions = mirrors.giftOptions;
+      }
 
       const parking = updatePayload.publicEventPage.parking;
       if (parking?.enabled && (parking.address || parking.name)) {
@@ -871,6 +919,37 @@ export async function PUT(
         parking.lat = prepared.location.lat;
         parking.lng = prepared.location.lng;
       }
+    } else if (centralGifts) {
+      const mirrors = giftsToInvitationMirrors(centralGifts);
+      updatePayload.giftOptions = mirrors.giftOptions;
+      const prevPublic =
+        (invitationBeforeUpdate as any)?.publicEventPage || {};
+      updatePayload.publicEventPage = normalizePublicEventPage({
+        ...prevPublic,
+        gifts: mirrors.publicGifts,
+      });
+    }
+
+    if (typeof body.hostsNames === "string") {
+      updatePayload.hostsNames = cleanString(body.hostsNames);
+    }
+    if (typeof body.receptionTime === "string") {
+      updatePayload.receptionTime = cleanString(body.receptionTime);
+    }
+    if (typeof body.ceremonyTime === "string") {
+      updatePayload.ceremonyTime = cleanString(body.ceremonyTime);
+    }
+    if (typeof body.guestNote === "string") {
+      updatePayload.guestNote = cleanString(body.guestNote);
+    }
+    if (typeof body.city === "string") {
+      updatePayload.city = cleanString(body.city);
+    }
+    if (typeof body.googleMapsUrl === "string") {
+      updatePayload.googleMapsUrl = cleanUrl(body.googleMapsUrl);
+    }
+    if (typeof body.parkingNotes === "string") {
+      updatePayload.parkingNotes = cleanString(body.parkingNotes);
     }
 
     if (body.showWaze !== undefined) {
@@ -976,30 +1055,100 @@ export async function PUT(
       }
     );
 
-    if (updatePayload.location) {
-      const eventIdToSync = getExistingEventId(invitationBeforeUpdate, body);
-      if (eventIdToSync) {
+    const eventIdToSync = getExistingEventId(invitationBeforeUpdate, body);
+    if (eventIdToSync) {
+      const eventSet: Record<string, unknown> = {
+        updatedAt: new Date(),
+      };
+
+      if (updatePayload.title) eventSet.title = updatePayload.title;
+      if (updatePayload.eventType) eventSet.eventType = updatePayload.eventType;
+      if (updatePayload.eventDate) eventSet.date = updatePayload.eventDate;
+      if (updatePayload.eventTime) eventSet.time = updatePayload.eventTime;
+      if (updatePayload.hostsNames !== undefined) {
+        eventSet.hostsNames = updatePayload.hostsNames;
+      }
+      if (updatePayload.receptionTime !== undefined) {
+        eventSet.receptionTime = updatePayload.receptionTime;
+      }
+      if (updatePayload.ceremonyTime !== undefined) {
+        eventSet.ceremonyTime = updatePayload.ceremonyTime;
+      }
+      if (updatePayload.guestNote !== undefined) {
+        eventSet.guestNote = updatePayload.guestNote;
+      }
+      if (updatePayload.city !== undefined) {
+        eventSet.city = updatePayload.city;
+      }
+      if (updatePayload.googleMapsUrl !== undefined) {
+        eventSet.googleMapsUrl = updatePayload.googleMapsUrl;
+      }
+      if (updatePayload.parkingNotes !== undefined) {
+        eventSet.parkingNotes = updatePayload.parkingNotes;
+      }
+
+      if (updatePayload.location) {
+        eventSet["location.name"] = updatePayload.location.name || "";
+        eventSet["location.address"] = updatePayload.location.address || "";
+        eventSet["location.lat"] = updatePayload.location.lat ?? null;
+        eventSet["location.lng"] = updatePayload.location.lng ?? null;
+        eventSet["location.placeId"] = updatePayload.location.placeId || "";
+        eventSet["location.placeName"] = updatePayload.location.placeName || "";
+        eventSet["location.formattedAddress"] =
+          updatePayload.location.formattedAddress || "";
+        eventSet["location.wazeLat"] = updatePayload.location.wazeLat ?? null;
+        eventSet["location.wazeLng"] = updatePayload.location.wazeLng ?? null;
+        eventSet["location.wazeUrl"] = updatePayload.location.wazeUrl || "";
+      }
+
+      if (centralGifts) {
+        eventSet.gifts = centralGifts;
+        eventSet.giftCreditUrl = centralGifts.creditEnabled
+          ? centralGifts.creditUrl
+          : "";
+      }
+
+      if (Object.keys(eventSet).length > 1) {
         await Event.updateOne(
           { _id: new mongoose.Types.ObjectId(eventIdToSync) },
-          {
-            $set: {
-              "location.name": updatePayload.location.name || "",
-              "location.address": updatePayload.location.address || "",
-              "location.lat": updatePayload.location.lat ?? null,
-              "location.lng": updatePayload.location.lng ?? null,
-              "location.placeId": updatePayload.location.placeId || "",
-              "location.placeName": updatePayload.location.placeName || "",
-              "location.formattedAddress":
-                updatePayload.location.formattedAddress || "",
-              "location.wazeLat": updatePayload.location.wazeLat ?? null,
-              "location.wazeLng": updatePayload.location.wazeLng ?? null,
-              "location.wazeUrl": updatePayload.location.wazeUrl || "",
-              updatedAt: new Date(),
-            },
-          }
+          { $set: eventSet }
         );
       }
 
+      try {
+        const auth = await getUserIdFromRequest(request);
+        if (
+          auth?.role === "admin" &&
+          auth.adminManagingUserId &&
+          !auth.impersonated
+        ) {
+          await writeAdminAuditLog({
+            adminUserId: String(auth.userId),
+            managedUserId: String(auth.adminManagingUserId),
+            eventId: eventIdToSync,
+            invitationId: String(invitationBeforeUpdate._id),
+            action: "event_details_update",
+            summary: "אדמין עדכן פרטי אירוע בחשבון של לקוח",
+            after: {
+              title: updatePayload.title,
+              eventTime: updatePayload.eventTime,
+              ceremonyTime: updatePayload.ceremonyTime,
+              gifts: centralGifts
+                ? {
+                    creditEnabled: centralGifts.creditEnabled,
+                    payboxEnabled: centralGifts.payboxEnabled,
+                    bitEnabled: centralGifts.bitEnabled,
+                  }
+                : undefined,
+            },
+          });
+        }
+      } catch (auditErr) {
+        console.error("admin audit (event details) failed:", auditErr);
+      }
+    }
+
+    if (updatePayload.location) {
       // Keep the wedding-website copy of the pin in sync so guests on /w
       // do not keep navigating to the previous venue.
       const website = (invitationBeforeUpdate as any)?.weddingWebsite;
@@ -1131,8 +1280,54 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
+    let patchCentralGifts: ReturnType<typeof normalizeCentralGifts> | null =
+      null;
+
     if (body?.giftOptions !== undefined) {
-      updatePayload.giftOptions = normalizeGiftOptions(body.giftOptions);
+      const existingInvitation = await Invitation.findById(id).lean();
+      if (!existingInvitation) {
+        return NextResponse.json(
+          { success: false, error: "Invitation not found" },
+          { status: 404 }
+        );
+      }
+
+      const normalized = normalizeGiftOptions(body.giftOptions);
+      const existingBitPhone = cleanString(
+        (existingInvitation as any)?.publicEventPage?.gifts?.bitPhone ||
+          (existingInvitation as any)?.gifts?.bitPhone
+      );
+      const existingEventId = getExistingEventId(existingInvitation, body);
+      let existingEventGifts: any = null;
+      if (existingEventId) {
+        const ev = await Event.findById(existingEventId).select("gifts").lean();
+        existingEventGifts = (ev as any)?.gifts || null;
+      }
+
+      patchCentralGifts = normalizeCentralGifts({
+        creditEnabled: normalized.creditEnabled,
+        creditUrl: normalized.creditUrl,
+        payboxEnabled: normalized.payboxEnabled,
+        payboxUrl: normalized.payboxUrl,
+        bitEnabled:
+          body?.gifts?.bitEnabled ??
+          existingEventGifts?.bitEnabled ??
+          Boolean(existingBitPhone),
+        bitPhone:
+          body?.gifts?.bitPhone ??
+          existingEventGifts?.bitPhone ??
+          existingBitPhone,
+      });
+      const giftErrors = validateCentralGifts(patchCentralGifts);
+      if (giftErrors.length) {
+        return NextResponse.json(
+          { success: false, error: giftErrors[0], errors: giftErrors },
+          { status: 400 }
+        );
+      }
+      const mirrors = giftsToInvitationMirrors(patchCentralGifts);
+      updatePayload.giftOptions = mirrors.giftOptions;
+      updatePayload["publicEventPage.gifts"] = mirrors.publicGifts;
     }
 
     if (body?.publicEventPage !== undefined) {
@@ -1204,6 +1399,24 @@ export async function PATCH(
         { success: false, error: "Invitation not found" },
         { status: 404 }
       );
+    }
+
+    if (patchCentralGifts) {
+      const eventIdToSync = getExistingEventId(updatedRaw, body);
+      if (eventIdToSync) {
+        await Event.updateOne(
+          { _id: new mongoose.Types.ObjectId(eventIdToSync) },
+          {
+            $set: {
+              gifts: patchCentralGifts,
+              giftCreditUrl: patchCentralGifts.creditEnabled
+                ? patchCentralGifts.creditUrl
+                : "",
+              updatedAt: new Date(),
+            },
+          }
+        );
+      }
     }
 
     let event: any = null;

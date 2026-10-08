@@ -1131,91 +1131,20 @@ export default function RsvpTab({
 
             <PremiumCard
               icon="🎁"
-              title="קישור למתנה"
-              subtitle="הקישורים נשמרים בהזמנה ומתעדכנים בדף האישי"
-              rightSlot={
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-black ${
-                    savingGift
-                      ? "bg-[#FFF3DD] text-[#8A5A25]"
-                      : giftSaveError
-                      ? "bg-red-50 text-red-600"
-                      : "bg-green-50 text-green-700"
-                  }`}
-                >
-                  {savingGift ? "שומר..." : giftSaveError ? "שגיאה" : "נשמר"}
-                </span>
-              }
+              title="פרטי אירוע ומתנות"
+              subtitle="נמשכים אוטומטית מהגדרות האירוע המרכזיות"
             >
-              {giftSaveError && (
-                <div className="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-                  {giftSaveError}
-                </div>
+              <p className="text-sm font-bold leading-7 text-[#7A5A3A]">
+                פרטי האירוע ואפשרויות המתנה נמשכים אוטומטית מהגדרות האירוע.
+              </p>
+              {invitationId && (
+                <a
+                  href={`/dashboard/invitations/${invitationId}/edit`}
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-2xl bg-[#2F2924] px-5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5"
+                >
+                  עריכת פרטי האירוע
+                </a>
               )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <GiftOptionCard
-                  icon="💳"
-                  title="מתנה באשראי"
-                  checked={giftOptions.creditEnabled}
-                  disabled={sendingNow}
-                  onCheckedChange={(checked) =>
-                    setGiftOptions((p) => ({
-                      ...p,
-                      creditEnabled: checked,
-                      creditUrl: checked ? p.creditUrl : "",
-                    }))
-                  }
-                >
-                  {giftOptions.creditEnabled && (
-                    <input
-                      value={giftOptions.creditUrl}
-                      disabled={sendingNow}
-                      onChange={(e) =>
-                        setGiftOptions((p) => ({
-                          ...p,
-                          creditUrl: e.target.value,
-                        }))
-                      }
-                      placeholder="הדביקו כאן קישור לתשלום באשראי"
-                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
-                      dir="ltr"
-                      inputMode="url"
-                    />
-                  )}
-                </GiftOptionCard>
-
-                <GiftOptionCard
-                  icon="💰"
-                  title="מתנה ב-PayBox"
-                  checked={giftOptions.payboxEnabled}
-                  disabled={sendingNow}
-                  onCheckedChange={(checked) =>
-                    setGiftOptions((p) => ({
-                      ...p,
-                      payboxEnabled: checked,
-                      payboxUrl: checked ? p.payboxUrl : "",
-                    }))
-                  }
-                >
-                  {giftOptions.payboxEnabled && (
-                    <input
-                      value={giftOptions.payboxUrl}
-                      disabled={sendingNow}
-                      onChange={(e) =>
-                        setGiftOptions((p) => ({
-                          ...p,
-                          payboxUrl: e.target.value,
-                        }))
-                      }
-                      placeholder="הדביקו כאן קישור ל-PayBox"
-                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
-                      dir="ltr"
-                      inputMode="url"
-                    />
-                  )}
-                </GiftOptionCard>
-              </div>
             </PremiumCard>
 
             <PremiumCard

@@ -420,85 +420,19 @@ setRound2Locked(
         <p className="text-xs text-gray-500 mt-1">החצי נקבע לפי סדר אלפביתי</p>
       </div>
 
-      {/* GIFT OPTIONS */}
       <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">🎁 קישור למתנה (מתעדכן בדף ההזמנה)</h3>
-
-          <div className="text-xs text-gray-500">
-            {savingGift ? "שומר..." : giftSaveError ? "שגיאה" : "נשמר"}
-          </div>
-        </div>
-
-        {giftSaveError && (
-          <div className="text-sm text-red-600">{giftSaveError}</div>
-        )}
-
-        {/* Credit */}
-        <div className="rounded-xl border border-gray-200 p-3 space-y-2">
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">💳 מתנה באשראי</span>
-            <input
-              type="checkbox"
-              checked={giftOptions.creditEnabled}
-              onChange={(e) =>
-                setGiftOptions((p) => ({
-                  ...p,
-                  creditEnabled: e.target.checked,
-                  creditUrl: e.target.checked ? p.creditUrl : "",
-                }))
-              }
-            />
-          </label>
-
-          {giftOptions.creditEnabled && (
-            <input
-              value={giftOptions.creditUrl}
-              onChange={(e) =>
-                setGiftOptions((p) => ({ ...p, creditUrl: e.target.value }))
-              }
-              placeholder="הדביקו כאן קישור לתשלום באשראי"
-              className="w-full border rounded-xl p-3 text-sm"
-              dir="ltr"
-              inputMode="url"
-            />
-          )}
-        </div>
-
-        {/* PayBox */}
-        <div className="rounded-xl border border-gray-200 p-3 space-y-2">
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">💰 מתנה ב-PayBox</span>
-            <input
-              type="checkbox"
-              checked={giftOptions.payboxEnabled}
-              onChange={(e) =>
-                setGiftOptions((p) => ({
-                  ...p,
-                  payboxEnabled: e.target.checked,
-                  payboxUrl: e.target.checked ? p.payboxUrl : "",
-                }))
-              }
-            />
-          </label>
-
-          {giftOptions.payboxEnabled && (
-            <input
-              value={giftOptions.payboxUrl}
-              onChange={(e) =>
-                setGiftOptions((p) => ({ ...p, payboxUrl: e.target.value }))
-              }
-              placeholder="הדביקו כאן קישור ל-PayBox"
-              className="w-full border rounded-xl p-3 text-sm"
-              dir="ltr"
-              inputMode="url"
-            />
-          )}
-        </div>
-
-        <p className="text-xs text-gray-500">
-          הקישורים נשמרים בהזמנה, והאורחים רואים אותם רק בקישור האישי.
+        <h3 className="font-semibold">פרטי אירוע ומתנות</h3>
+        <p className="text-sm text-gray-600 leading-6">
+          פרטי האירוע ואפשרויות המתנה נמשכים אוטומטית מהגדרות האירוע.
         </p>
+        {invitationId && (
+          <a
+            href={`/dashboard/invitations/${invitationId}/edit`}
+            className="inline-flex items-center justify-center rounded-xl bg-[#2F2924] px-4 py-2 text-sm font-bold text-white"
+          >
+            עריכת פרטי האירוע
+          </a>
+        )}
       </div>
 
       <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">

@@ -37,6 +37,11 @@ import {
   resolveAndPersistEventLocation,
 } from "@/lib/persistEventMapPin";
 import { withResolvedMapPin } from "@/lib/resolveMapPin";
+import {
+  eventTypeGreeting,
+  eventTypeHeadline,
+  resolveCentralEventDetails,
+} from "@/lib/eventDetails/centralEventDetails";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -175,13 +180,12 @@ function getPublicEventPage(invitation: any) {
   return invitation?.publicEventPage || {};
 }
 
-function getGiftSettings(publicEventPage: any) {
-  const gifts = publicEventPage?.gifts || {};
-
+function getGiftSettings(event: any, invitation: any) {
+  const central = resolveCentralEventDetails(event, invitation).gifts;
   return {
-    creditUrl: normalizeUrl(gifts?.creditUrl || publicEventPage?.creditUrl),
-    payboxUrl: normalizeUrl(gifts?.payboxUrl || publicEventPage?.payboxUrl),
-    bitPhone: cleanString(gifts?.bitPhone || publicEventPage?.bitPhone),
+    creditUrl: central.creditEnabled ? normalizeUrl(central.creditUrl) : "",
+    payboxUrl: central.payboxEnabled ? normalizeUrl(central.payboxUrl) : "",
+    bitPhone: central.bitEnabled ? cleanString(central.bitPhone) : "",
   };
 }
 
@@ -484,10 +488,18 @@ export default async function PublicEventInfoPage({
     );
   }
 
-  const title = getInvitationTitle(invitation, event);
+  const central = resolveCentralEventDetails(event, invitation);
+  const title = eventTypeHeadline(
+    central.eventType,
+    central.hostsNames,
+    central.title || getInvitationTitle(invitation, event)
+  );
+  const greeting = eventTypeGreeting(central.eventType);
 
-  const eventDate = getEventDate(invitation, event);
-  const eventTime = getEventTime(invitation, event);
+  const eventDate = central.date || getEventDate(invitation, event);
+  const eventTime = central.time || getEventTime(invitation, event);
+  const receptionTime = central.receptionTime;
+  const ceremonyTime = central.ceremonyTime;
 
   const dateLabel = formatHebrewDate(eventDate);
 
@@ -570,77 +582,71 @@ export default async function PublicEventInfoPage({
   const hasSchedule = schedule.enabled && schedule.items.length > 0;
 
   const coupleImage = getCoupleImageSettings(publicEventPage);
-  const hasCoupleImage = coupleImage.enabled && coupleImage.url;
+  const heroImageUrl =
+    normalizeUrl(central.eventImageUrl) ||
+    (coupleImage.enabled ? coupleImage.url : "") ||
+    "";
+  const hasCoupleImage = Boolean(heroImageUrl);
 
-  const gifts = getGiftSettings(publicEventPage);
+  const gifts = getGiftSettings(event, invitation);
   const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
-  const note = getNoteSettings(publicEventPage);
+  const baseNote = getNoteSettings(publicEventPage);
+  const note = {
+    enabled: Boolean(baseNote.enabled || central.guestNote),
+    text: central.guestNote || baseNote.text,
+  };
+
+  const venueCity = central.city;
 
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#F6EFE6] text-[#2F2924]"
+      className="min-h-screen overflow-hidden bg-[#F7F1E8] text-[#2F2924]"
+      style={{
+        fontFamily:
+          '"Frank Ruhl Libre", "Heebo", "Assistant", "Segoe UI", sans-serif',
+      }}
     >
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;600;700;800&display=swap"
+      />
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E6CDB2]/45 blur-3xl" />
-        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#D9BFA3]/40 blur-3xl" />
-        <div className="absolute left-1/2 top-[30%] h-[260px] w-[260px] -translate-x-1/2 rounded-full bg-white/45 blur-3xl" />
+        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E8D5B8]/50 blur-3xl" />
+        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#D4C4A8]/35 blur-3xl" />
       </div>
 
-      <section className="relative mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-10">
-        <div className="mb-5 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-xs font-black text-[#7A6049] shadow-sm backdrop-blur">
-            <Sparkles className="h-4 w-4" />
-            פרטי האירוע
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[2.2rem] border border-white/80 bg-white/82 shadow-[0_28px_100px_rgba(89,64,43,0.20)] backdrop-blur-xl">
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#F1DFC9] via-[#F8EFE5] to-[#FFFFFF] px-6 pb-8 pt-10 text-center sm:px-10 sm:pt-12">
-          
-
-            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-white shadow-[0_18px_50px_rgba(107,78,52,0.16)]">
-              <Heart className="h-8 w-8 fill-[#C54D64] text-[#C54D64]" />
-            </div>
-
-            <p className="relative text-sm font-black text-[#8B6B50]">
-              מחכים לראותכם באירוע
-            </p>
-
-            <h1 className="relative mt-3 text-3xl font-black leading-tight text-[#2F2924] sm:text-4xl">
-              {title}
-            </h1>
-
-            {(dateLabel || eventTime) && (
-              <div className="relative mx-auto mt-7 grid max-w-xl grid-cols-2 gap-3">
-                {dateLabel && (
-                  <div className="rounded-3xl border border-white/80 bg-white/70 p-4 text-right shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-black text-[#8B6B50]">
-                      <CalendarDays className="h-4 w-4" />
-                      תאריך
-                    </div>
-
-                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
-                      {dateLabel}
-                    </p>
-                  </div>
-                )}
-
-                {eventTime && (
-                  <div className="rounded-3xl border border-white/80 bg-white/70 p-4 text-right shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-black text-[#8B6B50]">
-                      <Clock className="h-4 w-4" />
-                      שעה
-                    </div>
-
-                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
-                      {eventTime}
-                    </p>
-                  </div>
-                )}
-              </div>
+      <section className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-0 pb-10 sm:max-w-2xl sm:px-4 sm:py-8">
+        <div className="overflow-hidden border-white/80 bg-white/90 shadow-[0_28px_100px_rgba(89,64,43,0.18)] backdrop-blur-xl sm:rounded-[2.2rem] sm:border">
+          {/* Hero — full-bleed image plane */}
+          <div className="relative min-h-[42vh] overflow-hidden bg-gradient-to-b from-[#EDE2D2] via-[#F5EEE4] to-[#FFFDF9] sm:min-h-[380px]">
+            {hasCoupleImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={heroImageUrl}
+                alt={title}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#F3E6D4_0%,_#E8D9C4_45%,_#D9C7AE_100%)]" />
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/75 via-[#2F2924]/25 to-transparent" />
+
+            <div className="relative flex min-h-[42vh] flex-col justify-end px-6 pb-8 pt-16 text-center sm:min-h-[380px] sm:px-10">
+              <p className="text-sm font-semibold tracking-wide text-[#F5E6D0]/95 animate-[fadeUp_0.7s_ease-out]">
+                {greeting}
+              </p>
+              <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold leading-tight text-white drop-shadow-sm sm:text-4xl animate-[fadeUp_0.85s_ease-out]">
+                {title}
+              </h1>
+              {dateLabel && (
+                <p className="mt-3 text-sm font-semibold text-[#F8EFE3]/90 animate-[fadeUp_1s_ease-out]">
+                  {dateLabel}
+                  {eventTime ? ` · ${eventTime}` : ""}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-8">
@@ -648,12 +654,36 @@ export default async function PublicEventInfoPage({
               shareId={safeShareId}
               location={location}
             />
+
+            {(dateLabel || eventTime || receptionTime || ceremonyTime) && (
+              <SectionShell
+                title="מתי?"
+                icon={
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <CalendarDays className="h-6 w-6 text-[#8A6748]" />
+                  </div>
+                }
+              >
+                <div className="mt-3 space-y-2 text-sm font-bold text-[#4A4038]">
+                  {dateLabel && <p>{dateLabel}</p>}
+                  {receptionTime && <p>קבלת פנים: {receptionTime}</p>}
+                  {ceremonyTime && <p>חופה / טקס: {ceremonyTime}</p>}
+                  {eventTime && !receptionTime && !ceremonyTime && (
+                    <p>שעה: {eventTime}</p>
+                  )}
+                  {eventTime && (receptionTime || ceremonyTime) && (
+                    <p>שעת האירוע: {eventTime}</p>
+                  )}
+                </div>
+              </SectionShell>
+            )}
+
             {(location.name || location.address || hasWaze || googleMapsUrl) && (
               <SectionShell
-                title="הגעה וניווט לאירוע"
+                title="איפה?"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] via-[#FFF7EE] to-white shadow-[0_0_24px_rgba(138,103,72,0.28)]">
-                    <MapPin className="h-7 w-7 text-[#8A6748] drop-shadow-[0_0_7px_rgba(138,103,72,0.45)]" />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <MapPin className="h-6 w-6 text-[#8A6748]" />
                   </div>
                 }
               >
@@ -670,8 +700,14 @@ export default async function PublicEventInfoPage({
                     </p>
                   )}
 
-                {(hasWaze || googleMapsUrl) && (
-                  <div className="mt-5 grid grid-cols-2 gap-3">
+                {venueCity && (
+                  <p className="mt-1 text-sm font-bold text-[#746A61]">
+                    {venueCity}
+                  </p>
+                )}
+
+                {(hasWaze || googleMapsUrl || central.googleMapsUrl) && (
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {hasWaze && (
                       <WazeNavButton
                         location={location}
@@ -679,14 +715,16 @@ export default async function PublicEventInfoPage({
                         className={darkNavButtonClassName}
                       >
                         <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                        Waze
+                        ניווט ב-Waze
                       </WazeNavButton>
                     )}
 
-                    {googleMapsUrl && (
-                      <LightButton href={googleMapsUrl}>
+                    {(googleMapsUrl || central.googleMapsUrl) && (
+                      <LightButton
+                        href={central.googleMapsUrl || googleMapsUrl}
+                      >
                         <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
-                        מפות
+                        ניווט ב-Google Maps
                       </LightButton>
                     )}
                   </div>
@@ -808,62 +846,23 @@ export default async function PublicEventInfoPage({
 
             {hasGifts && (
               <SectionShell
-                title="מתנות לזוג"
+                title="רוצים לשמח אותנו במתנה?"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#FCE7F3] via-[#FFF1F5] to-white shadow-[0_0_26px_rgba(185,77,99,0.25)]">
-                    <Gift className="h-7 w-7 text-[#B94D63] drop-shadow-[0_0_7px_rgba(185,77,99,0.45)]" />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
+                    <Gift className="h-6 w-6 text-[#8A6748]" />
                   </div>
                 }
               >
-                <p className="mt-2 text-sm font-bold leading-7 text-[#746A61]">
-                  ניתן לשלוח מתנה בדרך שנוחה לכם.
-                </p>
-
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid grid-cols-1 gap-3">
                   {gifts.creditUrl && (
                     <a
                       href={gifts.creditUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="
-                        group
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#FFF7EE]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(98,70,42,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(98,70,42,0.16)]
-                      "
+                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#E6D4BF] bg-gradient-to-l from-white to-[#FFF7EE] px-4 py-3 text-sm font-black text-[#3A2E27] shadow-[0_12px_28px_rgba(98,70,42,0.10)] transition hover:-translate-y-0.5"
                     >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E4D1] shadow-sm">
-                        <CreditCard className="h-5 w-5 text-[#8A6748]" />
-                      </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          אשראי
-                        </span>
-                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                          תשלום מאובטח
-                        </span>
-                      </span>
-
-                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                        ←
-                      </span>
+                      <CreditCard className="h-4 w-4 text-[#8A6748]" />
+                      מתנה באשראי
                     </a>
                   )}
 
@@ -872,89 +871,21 @@ export default async function PublicEventInfoPage({
                       href={gifts.payboxUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="
-                        group
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#F5F8FF]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(73,108,168,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(73,108,168,0.16)]
-                      "
+                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#E6D4BF] bg-gradient-to-l from-white to-[#F5F8FF] px-4 py-3 text-sm font-black text-[#3A2E27] shadow-[0_12px_28px_rgba(73,108,168,0.10)] transition hover:-translate-y-0.5"
                     >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF3FF] shadow-sm">
-                        <Smartphone className="h-5 w-5 text-[#496CA8]" />
-                      </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          PayBox
-                        </span>
-                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                          פתיחה בקישור
-                        </span>
-                      </span>
-
-                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                        ←
-                      </span>
+                      <Smartphone className="h-4 w-4 text-[#496CA8]" />
+                      מתנה ב-PayBox
                     </a>
                   )}
 
                   {gifts.bitPhone && (
-                    <div
-                      className="
-                        flex
-                        min-h-[132px]
-                        flex-col
-                        items-center
-                        justify-center
-                        gap-3
-                        rounded-[26px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-b
-                        from-white
-                        to-[#FFF3F6]
-                        px-4
-                        py-5
-                        text-center
-                        shadow-[0_14px_34px_rgba(185,77,99,0.10)]
-                        transition
-                        hover:-translate-y-1
-                        hover:shadow-[0_20px_44px_rgba(185,77,99,0.16)]
-                      "
-                    >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4DEE3] shadow-sm">
-                        <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
+                    <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E8D9CB] bg-[#FFFDFC] px-4 py-5">
+                      <span
+                        className="text-base font-black tracking-wide text-[#2F2924]"
+                        dir="ltr"
+                      >
+                        {gifts.bitPhone}
                       </span>
-
-                      <span>
-                        <span className="block text-sm font-black text-[#2F2924]">
-                          Bit
-                        </span>
-
-                        <span
-                          className="mt-1 block text-sm font-black tracking-wide text-[#2F2924]"
-                          dir="ltr"
-                        >
-                          {gifts.bitPhone}
-                        </span>
-                      </span>
-
                       <CopyButton value={gifts.bitPhone} />
                     </div>
                   )}
@@ -970,29 +901,8 @@ export default async function PublicEventInfoPage({
               </section>
             )}
 
-            {hasCoupleImage && (
-              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/75 p-4 shadow-[0_18px_50px_rgba(98,70,42,0.12)]">
-                <div className="relative overflow-hidden rounded-[1.7rem] bg-gradient-to-br from-[#F8F0E7] via-[#FFF8EF] to-white">
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#E6CDB2]/45 blur-3xl" />
-                    <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-[#F4DEE3]/45 blur-3xl" />
-                  </div>
-
-                  <div className="relative flex min-h-[280px] items-center justify-center p-3 sm:min-h-[390px]">
-                    <img
-                      src={coupleImage.url}
-                      alt="תמונת הזוג / האירוע"
-                      className="mx-auto h-auto max-h-[80vh] w-auto max-w-full rounded-[1.3rem] object-contain shadow-[0_16px_46px_rgba(47,41,36,0.13)]"
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
-
             <section className="rounded-[2rem] border border-white/80 bg-white/70 p-5 text-center shadow-sm">
-              <p className="text-lg font-black text-[#2F2924]">
-                נשמח לראותכם ❤️
-              </p>
+              <p className="text-lg font-black text-[#2F2924]">{greeting}</p>
             </section>
           </div>
         </div>

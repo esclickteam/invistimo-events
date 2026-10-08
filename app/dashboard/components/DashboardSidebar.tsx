@@ -264,7 +264,7 @@ export default function DashboardSidebar({
       },
       {
         id: "event-details",
-        label: "פרטי האירוע",
+        label: "הגדרת פרטי אירוע",
         icon: CalendarDays,
         href: eventDetailsHref,
         hidden: gameOnly || !invitationId,
