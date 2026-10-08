@@ -105,7 +105,36 @@ export function parseCallRoundScheduledAt(
 export function formatCallRoundDateTimeInput(
   value?: string | Date | null
 ): string {
+  if (typeof value === "string") {
+    const wall = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(wall)) return wall;
+  }
   return utcToWallTimeInput(value || null, CALL_ROUND_TIMEZONE);
+}
+
+/** Recorded-calls UI: DD/MM/YYYY HH:mm in Asia/Jerusalem, 24-hour clock. */
+export function formatCallRoundDateTimeDmy(
+  value?: string | Date | null
+): string {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const wall = value.trim().match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
+    );
+    if (wall) {
+      return `${wall[3]}/${wall[2]}/${wall[1]} ${wall[4]}:${wall[5]}`;
+    }
+  }
+
+  try {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const parts = getTimeZoneParts(date);
+    return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year} ${pad2(parts.hour)}:${pad2(parts.minute)}`;
+  } catch {
+    return "";
+  }
 }
 
 /** Admin display: date + time in Israel. */

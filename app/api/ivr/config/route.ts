@@ -42,6 +42,11 @@ import {
   contentHashForComposedIntro,
   IVR_COMPOSE_VERSION,
 } from "@/lib/calls/ivrComposeIntro";
+import {
+  assignIvrConfig,
+  ivrPersistErrorPayload,
+  normalizeIvrAudioSubdoc,
+} from "@/lib/calls/ivrConfigPersist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,58 +70,6 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
   return null;
 }
 
-/** Plain object from mongoose subdoc / lean / undefined — never leave undefined. */
-function plainIvrConfig(cfg: any): Record<string, unknown> {
-  if (!cfg) return {};
-  if (typeof cfg.toObject === "function") {
-    try {
-      return cfg.toObject({ depopulate: true }) || {};
-    } catch {
-      /* fall through */
-    }
-  }
-  return { ...cfg };
-}
-
-/**
- * Mongoose CastError "Cast to Object failed for value undefined" happens when
- * nested audio subdocs are explicitly set to undefined (e.g. spreading a
- * Subdocument that never initialized those paths). Always persist objects.
- */
-function normalizeIvrAudioSubdoc(raw: unknown): Record<string, unknown> {
-  if (!raw || typeof raw !== "object") {
-    return { status: "missing", approved: false };
-  }
-  const src =
-    typeof (raw as any).toObject === "function"
-      ? (raw as any).toObject()
-      : (raw as Record<string, unknown>);
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(src || {})) {
-    if (value !== undefined) out[key] = value;
-  }
-  if (!out.status) out.status = "missing";
-  if (typeof out.approved !== "boolean") out.approved = false;
-  return out;
-}
-
-function assignIvrConfig(
-  user: { ivrConfig?: any },
-  next: Record<string, unknown>
-) {
-  const base = plainIvrConfig(user.ivrConfig);
-  const merged: Record<string, unknown> = { ...base, ...next };
-  // Drop keys that are still undefined after merge — mongoose rejects them.
-  for (const key of Object.keys(merged)) {
-    if (merged[key] === undefined) delete merged[key];
-  }
-  merged.eventNameAudio = normalizeIvrAudioSubdoc(merged.eventNameAudio);
-  merged.composedIntroAudio = normalizeIvrAudioSubdoc(
-    merged.composedIntroAudio
-  );
-  merged.introAudio = normalizeIvrAudioSubdoc(merged.introAudio);
-  user.ivrConfig = merged as any;
-}
 
 function serializePreviewUrls(input: {
   gender: IvrVoiceGender | null;
@@ -284,6 +237,15 @@ function serializeIvrConfig(
     },
     /** Self-recorded path only */
     introAudio: cfg?.introAudio || { status: "missing", approved: false },
+    recordingApproval: cfg?.recordingApproval || {
+      approved: false,
+      approvedAt: null,
+      audioMode: cfg?.audioMode || null,
+      voiceGender,
+      audioPublicToken: "",
+      audioContentHash: "",
+      audioUrl: "",
+    },
     previewText,
     recommendedScript: previewText,
     previewAudio,
@@ -405,13 +367,23 @@ export async function PATCH(req: NextRequest) {
             { status: 400 }
           );
         }
+        const approvedAt = new Date();
         assignIvrConfig(user, {
           introAudio: {
             ...intro,
             approved: true,
-            approvedAt: new Date(),
+            approvedAt,
           },
-          updatedAt: new Date(),
+          recordingApproval: {
+            approved: true,
+            approvedAt,
+            audioMode: "self_recorded",
+            voiceGender: null,
+            audioPublicToken: String(intro.publicToken || ""),
+            audioContentHash: String(intro.contentHash || ""),
+            audioUrl: String(intro.audioUrl || ""),
+          },
+          updatedAt: approvedAt,
         });
       } else {
         const eventNameAudio = prev.eventNameAudio || {};
@@ -435,6 +407,7 @@ export async function PATCH(req: NextRequest) {
         }
         const approvedAt = new Date();
         assignIvrConfig(user, {
+          audioMode: "ai",
           eventNameAudio: {
             ...eventNameAudio,
             approved: true,
@@ -444,6 +417,15 @@ export async function PATCH(req: NextRequest) {
             ...composedIntroAudio,
             approved: true,
             approvedAt,
+          },
+          recordingApproval: {
+            approved: true,
+            approvedAt,
+            audioMode: "ai",
+            voiceGender: resolveConfigGender(prev),
+            audioPublicToken: String(composedIntroAudio.publicToken || ""),
+            audioContentHash: String(composedIntroAudio.contentHash || ""),
+            audioUrl: String(composedIntroAudio.audioUrl || ""),
           },
           updatedAt: approvedAt,
         });
@@ -503,6 +485,16 @@ export async function PATCH(req: NextRequest) {
     let composedIntroAudio =
       prev.composedIntroAudio ||
       ({ status: "missing", approved: false } as any);
+    let introAudio = prev.introAudio || { status: "missing", approved: false };
+    let recordingApproval = prev.recordingApproval || {
+      approved: false,
+    };
+
+    const modeChanged = String(prev.audioMode || "") !== String(nextMode || "");
+    const selfInvalidated =
+      nextMode === "self_recorded" &&
+      (fieldsChanged || modeChanged) &&
+      introAudio?.approved;
 
     if (
       eventNameAudio?.status === "ready" &&
@@ -530,6 +522,26 @@ export async function PATCH(req: NextRequest) {
       };
     }
 
+    if (selfInvalidated) {
+      introAudio = {
+        ...introAudio,
+        approved: false,
+        approvedAt: null,
+      };
+    }
+
+    if (fieldsChanged || modeChanged || selfInvalidated) {
+      recordingApproval = {
+        approved: false,
+        approvedAt: null,
+        audioMode: nextMode,
+        voiceGender: nextGender,
+        audioPublicToken: "",
+        audioContentHash: "",
+        audioUrl: "",
+      };
+    }
+
     assignIvrConfig(user, {
       audioMode: nextMode,
       eventName: nextEventName,
@@ -539,8 +551,8 @@ export async function PATCH(req: NextRequest) {
       voiceId: nextVoice,
       eventNameAudio,
       composedIntroAudio,
-      // Preserve existing introAudio — never wipe with undefined from spreads.
-      introAudio: prev.introAudio,
+      introAudio,
+      recordingApproval,
       updatedAt: new Date(),
     });
 
@@ -564,9 +576,10 @@ export async function PATCH(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ivr/config PATCH]", error);
+    const payload = ivrPersistErrorPayload(error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "FAILED" },
-      { status: 500 }
+      { ok: false, error: payload.error, message: payload.message },
+      { status: payload.status }
     );
   }
 }
@@ -719,7 +732,7 @@ export async function POST(req: NextRequest) {
       });
 
       const audioUrl = buildIvrPublicAudioUrl(publicToken);
-      eventNameAudio = {
+      eventNameAudio = normalizeIvrAudioSubdoc({
         status: "ready",
         source: "elevenlabs",
         publicToken,
@@ -732,11 +745,36 @@ export async function POST(req: NextRequest) {
         textSnapshot: spokenName,
         approved: false,
         approvedAt: null,
-      };
+      });
+
+      // Persist the clip before compose. A compose/save failure must not
+      // force another ElevenLabs call on the next attempt.
+      assignIvrConfig(user, {
+        audioMode: "ai",
+        eventName,
+        eventNamePronunciation,
+        voiceGender,
+        systemVoiceId: voiceId,
+        voiceId,
+        eventNameAudio,
+        composedIntroAudio: cfg.composedIntroAudio,
+        introAudio: cfg.introAudio,
+        recordingApproval: {
+          approved: false,
+          approvedAt: null,
+          audioMode: "ai",
+          voiceGender,
+          audioPublicToken: "",
+          audioContentHash: "",
+          audioUrl: "",
+        },
+        updatedAt: new Date(),
+      });
+      await user.save();
     }
 
     // Seamless compose on the server (ffmpeg) — no ElevenLabs credits.
-    let composedIntroAudio = cfg.composedIntroAudio;
+    let composedIntroAudio = user.ivrConfig?.composedIntroAudio || cfg.composedIntroAudio;
     let reusedCompose = false;
     if (
       composedIntroAudio?.status === "ready" &&
@@ -747,14 +785,36 @@ export async function POST(req: NextRequest) {
     ) {
       reusedCompose = true;
     } else {
-      composedIntroAudio = await buildAndStoreComposedIntro({
-        userId: String(user._id),
-        voiceId,
-        eventNameHash: hash,
-        eventNameR2Key: String(eventNameAudio.r2Key || ""),
-        pack,
-      });
+      try {
+        composedIntroAudio = await buildAndStoreComposedIntro({
+          userId: String(user._id),
+          voiceId,
+          eventNameHash: hash,
+          eventNameR2Key: String(eventNameAudio.r2Key || ""),
+          pack,
+        });
+      } catch (composeError) {
+        const payload = ivrPersistErrorPayload(composeError);
+        console.error("[ivr/config POST compose]", composeError);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "COMPOSE_FAILED",
+            message: payload.message,
+            eventNameSaved: true,
+            eventNameAudio,
+          },
+          { status: 500 }
+        );
+      }
     }
+
+    const keepApproval =
+      reusedEventName &&
+      reusedCompose &&
+      !body.force &&
+      eventNameAudio?.approved === true &&
+      composedIntroAudio?.approved === true;
 
     assignIvrConfig(user, {
       audioMode: "ai",
@@ -765,15 +825,28 @@ export async function POST(req: NextRequest) {
       voiceId,
       eventNameAudio: {
         ...(eventNameAudio || {}),
-        approved: false,
-        approvedAt: null,
+        approved: keepApproval,
+        approvedAt: keepApproval ? eventNameAudio?.approvedAt || null : null,
       },
       composedIntroAudio: {
         ...(composedIntroAudio || {}),
-        approved: false,
-        approvedAt: null,
+        approved: keepApproval,
+        approvedAt: keepApproval
+          ? composedIntroAudio?.approvedAt || null
+          : null,
       },
       introAudio: cfg.introAudio,
+      recordingApproval: keepApproval
+        ? user.ivrConfig?.recordingApproval
+        : {
+            approved: false,
+            approvedAt: null,
+            audioMode: "ai",
+            voiceGender,
+            audioPublicToken: "",
+            audioContentHash: "",
+            audioUrl: "",
+          },
       updatedAt: new Date(),
     });
 
@@ -795,7 +868,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      reused: reusedEventName && reusedCompose,
+      // Hash match returns reused: true and does not call ElevenLabs again.
+      reused: Boolean(reusedEventName && reusedCompose),
       reusedEventName,
       reusedCompose,
       eventNameOnly: true,
@@ -811,11 +885,22 @@ export async function POST(req: NextRequest) {
       synthesizedText: reusedEventName ? undefined : spokenName,
     });
   } catch (error) {
+    const persist = ivrPersistErrorPayload(error);
     const payload = voiceErrorToClientPayload(error);
+    const composeOrSave =
+      persist.error === "COMPOSE_FAILED" ||
+      persist.error === "IVR_SAVE_FAILED" ||
+      persist.error === "GLOBAL_AUDIO_MISSING";
     console.error("[ivr/config POST]", {
       error: payload.error,
       providerStatus: payload.providerStatus,
     });
+    if (composeOrSave && payload.error === "VOICES_FAILED") {
+      return NextResponse.json(
+        { ok: false, error: persist.error, message: persist.message },
+        { status: persist.status }
+      );
+    }
     return NextResponse.json(
       {
         ok: false,

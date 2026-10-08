@@ -231,6 +231,17 @@ const InvitationGuestSchema = new Schema(
     },
 
     /**
+     * Last IVR keypad answer. Does not replace rsvp/status.
+     * Guest lists keep reading rsvp; this stores when/which call wrote it.
+     */
+    ivrResponse: {
+      respondedAt: { type: Date, default: null },
+      round: { type: Number, default: null },
+      callAttemptId: { type: String, trim: true, default: "" },
+      callControlId: { type: String, trim: true, default: "" },
+    },
+
+    /**
      * כמה הגיעו בפועל ביום האירוע
      */
     actualArrivedCount: {

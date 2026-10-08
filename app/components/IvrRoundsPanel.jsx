@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  formatCallRoundDateTimeDmy,
+  formatCallRoundDateTimeInput,
+} from "@/lib/calls/callRoundScheduleTime";
+
+function roundStatusLabel(status) {
+  const raw = String(status || "").toLowerCase();
+  if (raw === "done" || raw === "completed") return "הושלם";
+  if (raw === "failed") return "נכשל";
+  if (raw === "in_progress" || raw === "opened") return "מתבצע";
+  if (raw === "cancelled" || raw === "canceled") return "בוטל";
+  return "מתוזמן";
+}
 
 const SELF_MAX_SECONDS = 45;
 
@@ -104,8 +117,8 @@ function IvrCallSimulator({
               תצוגה מקדימה של השיחה
             </h3>
             <p className="mt-1 text-xs font-bold text-[#8A7867]">
-              סימולציה מדפדפן — הקטעים הקבועים מה-Voice Pack הגלובלי + שם
-              האירוע בלבד.
+              סימולציה מדפדפן, ללא שיחת Telnyx — הקטעים הקבועים מה-Voice Pack
+              הגלובלי + שם האירוע בלבד.
             </p>
           </div>
           <button
@@ -349,7 +362,7 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "שמירה נכשלה");
+        throw new Error(data?.message || data?.error || "שמירה נכשלה");
       }
       setConfig((prev) => ({
         ...prev,
@@ -460,7 +473,7 @@ export default function IvrRoundsPanel({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "אישור נכשל");
+        throw new Error(data?.message || data?.error || "אישור נכשל");
       }
       setConfig((prev) => ({
         ...prev,
@@ -491,7 +504,7 @@ export default function IvrRoundsPanel({
     });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || "העלאת האודיו נכשלה");
+      throw new Error(data?.message || data?.error || "העלאת האודיו נכשלה");
     }
     patchLocal({
       audioMode: "self_recorded",
@@ -500,10 +513,52 @@ export default function IvrRoundsPanel({
     setMessage("ההקלטה נשמרה — האזינו ואשרו לפני השיחות.");
   }
 
+  async function deleteRecording() {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/ivr/audio/upload", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.message || data?.error || "מחיקת ההקלטה נכשלה");
+      }
+      patchLocal({
+        audioMode: "self_recorded",
+        introAudio: data.introAudio,
+        recordingApproval: { approved: false },
+      });
+      setMessage("ההקלטה נמחקה. אפשר להקליט או להעלות מחדש.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "מחיקת ההקלטה נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function startRecording() {
     setError("");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("הדפדפן לא מאפשר הקלטה. אפשר להעלות קובץ אודיו מהמכשיר.");
+      return;
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("לא ניתנה הרשאת מיקרופון. אפשר להעלות קובץ אודיו במקום.");
+      return;
+    }
+    const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(
+      (type) =>
+        typeof MediaRecorder !== "undefined" &&
+        MediaRecorder.isTypeSupported?.(type)
+    );
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
     chunksRef.current = [];
     startedAtRef.current = Date.now();
 
@@ -520,7 +575,9 @@ export default function IvrRoundsPanel({
         setError(`ההקלטה ארוכה מדי. מקסימום ${SELF_MAX_SECONDS} שניות.`);
         return;
       }
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const blob = new Blob(chunksRef.current, {
+        type: recorder.mimeType || "audio/webm",
+      });
       try {
         await uploadBlob(blob, durationSeconds, "recording");
       } catch (err) {
@@ -625,9 +682,26 @@ export default function IvrRoundsPanel({
                     </div>
                   ) : null}
                 </div>
+                <div className="mb-2 text-[11px] font-black text-[#3A2A1C]">
+                  {stat?.executionLabel ||
+                    roundStatusLabel(round.status)}
+                  {stat?.scheduledAtDisplay
+                    ? ` · ${stat.scheduledAtDisplay}`
+                    : round.scheduledAt
+                      ? ` · ${formatCallRoundDateTimeDmy(
+                          formatCallRoundDateTimeInput(round.scheduledAt) ||
+                            round.scheduledAt
+                        )}`
+                      : ""}
+                </div>
+                {stat?.failureReason ? (
+                  <div className="mb-2 text-[11px] font-bold text-rose-700">
+                    {stat.failureReason}
+                  </div>
+                ) : null}
                 <input
                   type="datetime-local"
-                  value={String(round.scheduledAt || "").slice(0, 16)}
+                  value={formatCallRoundDateTimeInput(round.scheduledAt)}
                   onChange={(e) => {
                     const value = e.target.value;
                     const nextRounds = [1, 2, 3].map((n) => {
@@ -868,11 +942,12 @@ export default function IvrRoundsPanel({
           <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="text-sm font-black text-emerald-800">
               {approved
-                ? "הודעה מאושרת — מוכנה לשיחות IVR"
-                : composedReady
-                  ? "תצוגה מקדימה מחוברת (משפט אחד) — האזינו ואשרו לפני חיוג"
-                  : "Preview מוכן — האזינו ואשרו לפני חיוג"}
+                ? "ההקלטה אושרה לשיחות"
+                : "ממתין לאישור הקלטה"}
             </div>
+            <p className="text-[11px] font-bold text-emerald-800">
+              הנגן כולל את הפתיח, שם האירוע, המשך הנוסח והוראות ההקשה (1 / 2 / 3).
+            </p>
             {composedReady ? (
               <div className="space-y-2">
                 <audio
@@ -904,7 +979,7 @@ export default function IvrRoundsPanel({
                       : "יש ליצור תצוגה מקדימה מחוברת לפני אישור"
                   }
                 >
-                  ✓ אישור ושמירה
+                  אני מאשר/ת את ההקלטה לשיחות
                 </button>
               ) : null}
               <button
@@ -934,9 +1009,12 @@ export default function IvrRoundsPanel({
           <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="text-sm font-black text-emerald-800">
               {approved
-                ? "הודעה מאושרת — מוכנה לשיחות IVR"
-                : "קובץ מוכן — האזינו ואשרו לפני חיוג"}
+                ? "ההקלטה אושרה לשיחות"
+                : "ממתין לאישור הקלטה"}
             </div>
+            <p className="text-[11px] font-bold text-emerald-800">
+              זו ההקלטה המלאה שתושמע לאורחים, בלי קריינות AI.
+            </p>
             <audio controls src={intro.audioUrl} className="w-full" />
             <div className="flex flex-wrap gap-2">
               {!approved ? (
@@ -945,10 +1023,19 @@ export default function IvrRoundsPanel({
                   disabled={saving}
                   onClick={approveAudio}
                   className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white"
+                  data-testid="ivr-approve-self-audio"
                 >
-                  ✓ אישור ההודעה
+                  אני מאשר/ת את ההקלטה לשיחות
                 </button>
               ) : null}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={deleteRecording}
+                className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-black text-rose-800"
+              >
+                מחיקה והקלטה מחדש
+              </button>
               <button
                 type="button"
                 onClick={() => setShowSimulator(true)}
