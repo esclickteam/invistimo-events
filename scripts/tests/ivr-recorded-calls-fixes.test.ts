@@ -15,6 +15,7 @@ import {
   assignIvrConfig,
   normalizeIvrAudioSubdoc,
 } from "../../lib/calls/ivrConfigPersist";
+import { selectFfmpegBinary } from "../../lib/calls/ivrComposeIntro";
 
 const root = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
@@ -87,6 +88,23 @@ test("customer schedule fields are DD/MM/YYYY and HH:mm", () => {
   assert.match(upload, /User\.updateOne/);
   assert.equal(upload.includes("eventNameAudio"), false);
   assert.equal(upload.includes("composedIntroAudio"), false);
+});
+
+test("ffmpeg resolution skips the bundled /ROOT path", () => {
+  const placeholder = "/ROOT/node_modules/ffmpeg-static/ffmpeg";
+  const real = "/var/task/node_modules/ffmpeg-static/ffmpeg";
+  assert.equal(
+    selectFfmpegBinary([placeholder, real], (filePath) => filePath === real),
+    real
+  );
+  assert.equal(
+    selectFfmpegBinary([placeholder], () => true),
+    null
+  );
+  const config = readFileSync(path.join(root, "next.config.ts"), "utf8");
+  assert.match(config, /serverExternalPackages:\s*\[[^\]]*ffmpeg-static/);
+  assert.match(config, /outputFileTracingIncludes/);
+  assert.match(config, /ffmpeg-static\/ffmpeg/);
 });
 
 test("locked Dana and Roger voice ids stay in the IVR code", () => {

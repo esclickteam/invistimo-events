@@ -6,6 +6,7 @@
  */
 
 import { createHash } from "crypto";
+import { chmodSync, copyFileSync, existsSync, statSync } from "fs";
 import { createRequire } from "module";
 import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
@@ -21,14 +22,75 @@ const CROSSFADE_SEC = 0.03;
 
 const require = createRequire(import.meta.url);
 
+let resolvedFfmpegBin: string | null = null;
+
+/** Ignore Next's bundled placeholder (`/ROOT/node_modules/...`), which does not exist on Vercel. */
+export function selectFfmpegBinary(
+  candidates: string[],
+  exists: (filePath: string) => boolean
+): string | null {
+  for (const candidate of candidates) {
+    const filePath = String(candidate || "").trim();
+    if (!filePath) continue;
+    if (filePath === "/ROOT" || filePath.startsWith("/ROOT/")) continue;
+    if (exists(filePath)) return filePath;
+  }
+  return null;
+}
+
+function ffmpegSearchPaths(reported: string | null): string[] {
+  const cwd = process.cwd();
+  const taskRoot = process.env.LAMBDA_TASK_ROOT || "";
+  return [
+    process.env.FFMPEG_PATH || "",
+    process.env.FFMPEG_BIN || "",
+    reported || "",
+    path.join(cwd, "node_modules", "ffmpeg-static", "ffmpeg"),
+    taskRoot
+      ? path.join(taskRoot, "node_modules", "ffmpeg-static", "ffmpeg")
+      : "",
+    "/var/task/node_modules/ffmpeg-static/ffmpeg",
+  ];
+}
+
+function makeRunnable(source: string): string {
+  const dest = path.join(tmpdir(), "ivr-ffmpeg");
+  try {
+    if ((statSync(source).mode & 0o111) !== 0) return source;
+    chmodSync(source, 0o755);
+    return source;
+  } catch {
+    /* The traced binary is often not executable on the read-only function bundle. */
+  }
+  copyFileSync(source, dest);
+  chmodSync(dest, 0o755);
+  return dest;
+}
+
 function resolveFfmpegPath() {
+  if (resolvedFfmpegBin) return resolvedFfmpegBin;
+
+  let reported: string | null = null;
   try {
     const ffmpegStatic = require("ffmpeg-static") as string | null;
-    if (ffmpegStatic) return ffmpegStatic;
+    if (typeof ffmpegStatic === "string") reported = ffmpegStatic;
   } catch {
-    /* fall through */
+    reported = null;
   }
-  return "ffmpeg";
+
+  const found = selectFfmpegBinary(ffmpegSearchPaths(reported), existsSync);
+  if (!found) {
+    if (reported && (reported === "/ROOT" || reported.startsWith("/ROOT/"))) {
+      throw new Error(
+        "ffmpeg_failed:ENOENT:static binary was not included in the function bundle"
+      );
+    }
+    resolvedFfmpegBin = "ffmpeg";
+    return resolvedFfmpegBin;
+  }
+
+  resolvedFfmpegBin = makeRunnable(found);
+  return resolvedFfmpegBin;
 }
 
 function runFfmpeg(args: string[]): Promise<void> {
