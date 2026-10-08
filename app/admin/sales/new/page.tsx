@@ -3008,6 +3008,57 @@ export default function AdminSalesNewPage() {
                           </button>
                         ) : null}
                       </div>
+
+                      {generatedDocument.type === "quote" &&
+                      generatedDocument.token ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <a
+                            href={`/admin/sales/quotes/${encodeURIComponent(generatedDocument.token)}/edit`}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d8b777] bg-white px-4 text-xs font-black text-[#3A271D] transition hover:bg-[#fff7ec]"
+                          >
+                            עריכת הצעה
+                          </a>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmed = confirm(
+                                "לפתוח משתמש מההצעה? הפרטים, החבילה והמחירים יועברו אוטומטית. לא יבוצע חיוב אוטומטי."
+                              );
+                              if (!confirmed || !generatedDocument.token) return;
+                              try {
+                                const res = await fetch(
+                                  `/api/employee/sales/documents/${encodeURIComponent(generatedDocument.token)}/create-user`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({}),
+                                  }
+                                );
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                  alert(
+                                    data?.message ||
+                                      data?.error ||
+                                      "יצירת משתמש נכשלה"
+                                  );
+                                  return;
+                                }
+                                alert(data.message || "המשתמש נוצר בהצלחה");
+                                window.location.href =
+                                  data.redirectTo || "/admin/users";
+                              } catch {
+                                alert("יצירת משתמש נכשלה");
+                              }
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-xl bg-[#B87920] px-4 text-xs font-black text-white transition hover:bg-[#9F6818]"
+                          >
+                            פתיחת משתמש מההצעה
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>

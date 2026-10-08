@@ -1076,7 +1076,11 @@ export default function AdminUsersPage() {
           normalizeText(u._id).includes(q) ||
           normalizeText(getPlanLabel(u, pricingPlans)).includes(q);
 
-        const matchesRole = roleFilter === "all" || u.role === roleFilter;
+        const matchesRole =
+          roleFilter === "all" ||
+          (roleFilter === "clients" &&
+            (u.role === "user" || u.role === "client")) ||
+          u.role === roleFilter;
 
         let matchesEvent = true;
 
@@ -1197,8 +1201,8 @@ export default function AdminUsersPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6754]">
-                ניהול לקוחות, חבילות, הרשאות, מטפלים, שדרוגים, ניהול כאדמין
-                והתחזות.
+                ניהול לקוחות, עובדים ומפיקים — כולל כניסה לחשבון בניהול אדמין
+                עם הרשאות מלאות (לא התחזות).
               </p>
             </div>
 
@@ -1224,6 +1228,7 @@ export default function AdminUsersPage() {
 
         <section
           className="
+            space-y-4
             rounded-[28px]
             border border-[#E7D8C6]
             bg-white
@@ -1231,7 +1236,52 @@ export default function AdminUsersPage() {
             shadow-[0_14px_40px_rgba(60,43,25,0.06)]
           "
         >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_220px_180px]">
+          <div>
+            <p className="mb-2 text-xs font-black tracking-wide text-[#8A6A43]">
+              סינון לפי סוג משתמש
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: "all", label: "כל המשתמשים", count: stats.total },
+                  { key: "clients", label: "לקוחות", count: stats.clients },
+                  { key: "staff", label: "עובדים", count: stats.staff },
+                  {
+                    key: "producer",
+                    label: "מפיקים",
+                    count: stats.producers,
+                  },
+                ] as const
+              ).map((chip) => {
+                const active = roleFilter === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setRoleFilter(chip.key)}
+                    className={`inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${
+                      active
+                        ? "bg-[#24190F] text-white shadow-[0_10px_24px_rgba(36,25,15,0.22)]"
+                        : "border border-[#E7D8C6] bg-[#FFFDF8] text-[#3A2A1C] hover:bg-[#FFF4E4]"
+                    }`}
+                  >
+                    {chip.label}
+                    <span
+                      className={`rounded-xl px-2 py-0.5 text-xs ${
+                        active
+                          ? "bg-white/15 text-white"
+                          : "bg-[#F6EBDD] text-[#8A5A24]"
+                      }`}
+                    >
+                      {chip.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
             <div
               className="
                 flex h-12 items-center gap-3
@@ -1256,28 +1306,6 @@ export default function AdminUsersPage() {
                 "
               />
             </div>
-
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="
-                h-12 rounded-2xl
-                border border-[#E7D8C6]
-                bg-[#FFFDF8]
-                px-4
-                text-sm font-bold
-                text-[#3A2A1C]
-                outline-none
-              "
-            >
-              <option value="all">כל המשתמשים</option>
-              <option value="user">לקוחות</option>
-              <option value="client">לקוחות (client)</option>
-              <option value="staff">עובדים</option>
-              <option value="producer">מפיקים</option>
-              <option value="admin">מנהלי מערכת</option>
-              <option value="venue_owner">בעלי אולם</option>
-            </select>
 
             <select
               value={eventFilter}
@@ -1315,29 +1343,39 @@ export default function AdminUsersPage() {
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <InfoCard
-            title="סך משתמשים"
+            title="כל המשתמשים"
             value={String(stats.total)}
             icon={<Users size={20} />}
+            active={roleFilter === "all"}
+            onClick={() => setRoleFilter("all")}
           />
           <InfoCard
             title="לקוחות"
             value={String(stats.clients)}
             icon={<UserRound size={20} />}
+            active={roleFilter === "clients"}
+            onClick={() => setRoleFilter("clients")}
           />
           <InfoCard
             title="עובדים"
             value={String(stats.staff)}
             icon={<ShieldCheck size={20} />}
+            active={roleFilter === "staff"}
+            onClick={() => setRoleFilter("staff")}
           />
           <InfoCard
             title="מפיקים"
             value={String(stats.producers)}
             icon={<Crown size={20} />}
+            active={roleFilter === "producer"}
+            onClick={() => setRoleFilter("producer")}
           />
           <InfoCard
             title="אירועים עתידיים"
             value={String(stats.future)}
             icon={<CalendarDays size={20} />}
+            active={eventFilter === "future"}
+            onClick={() => setEventFilter("future")}
           />
         </section>
 
@@ -4316,29 +4354,60 @@ function InfoCard({
   title,
   value,
   icon,
+  active = false,
+  onClick,
 }: {
   title: string;
   value: string;
   icon: ReactNode;
+  active?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div
-      className="
+  const className = `
         rounded-[26px]
-        border border-[#E7D8C6]
-        bg-white
-        p-5
+        border p-5 text-right transition
         shadow-[0_14px_40px_rgba(60,43,25,0.06)]
-      "
-    >
+        ${
+          active
+            ? "border-[#24190F] bg-[#24190F] text-white"
+            : "border-[#E7D8C6] bg-white hover:border-[#D4B48A] hover:bg-[#FFFDF8]"
+        }
+      `;
+
+  const body = (
+    <>
       <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
-        <div className="text-[#B97821]">{icon}</div>
+        <div
+          className={`text-sm font-black ${
+            active ? "text-white" : "text-[#3A2A1C]"
+          }`}
+        >
+          {title}
+        </div>
+        <div className={active ? "text-[#F0D7A8]" : "text-[#B97821]"}>
+          {icon}
+        </div>
       </div>
 
-      <div className="text-3xl font-black text-[#B97821]">{value}</div>
-    </div>
+      <div
+        className={`text-3xl font-black ${
+          active ? "text-[#F6E7C8]" : "text-[#B97821]"
+        }`}
+      >
+        {value}
+      </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
 }
 
 function MiniDetail({ label, value }: { label: string; value: string }) {
@@ -4489,15 +4558,42 @@ function UserActionsDropdown({
   return (
     <div
       className={`relative ${
-  fullWidth ? "w-full" : "w-full sm:w-[190px]"
+  fullWidth ? "w-full" : "w-full sm:w-[210px]"
 }`}
     >
+      {user.role !== "admin" && onManageAsAdmin ? (
+        <button
+          type="button"
+          onClick={onManageAsAdmin}
+          disabled={Boolean(isManaging)}
+          className="
+            inline-flex h-11 w-full items-center justify-center gap-2
+            rounded-2xl
+            bg-[#B87920]
+            px-4
+            text-sm font-black
+            text-white
+            shadow-[0_10px_24px_rgba(184,121,32,0.28)]
+            transition
+            hover:bg-[#9F6818]
+            disabled:opacity-60
+          "
+        >
+          {isManaging ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <ShieldCheck size={16} />
+          )}
+          ניהול משתמש כאדמין
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={onToggle}
         className="
-          inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-full
+          mt-2 inline-flex h-10 w-full items-center justify-center gap-2
+          rounded-2xl
           bg-[#24190F]
           px-4
           text-sm font-black
@@ -4507,7 +4603,7 @@ function UserActionsDropdown({
           hover:bg-black
         "
       >
-        פעולות
+        פעולות נוספות
         <ChevronDown
           size={16}
           className={`transition ${open ? "rotate-180" : ""}`}
@@ -4519,7 +4615,7 @@ function UserActionsDropdown({
         onClick={onSendPassword}
         className="
           mt-2 inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-full
+          rounded-2xl
           border border-[#E7D8C6]
           bg-[#FFF8E6]
           px-4
@@ -4547,21 +4643,6 @@ function UserActionsDropdown({
             sm:absolute sm:left-0 sm:top-[calc(100%+8px)] sm:z-50 sm:mt-0 sm:min-w-[210px]
           "
         >
-          {user.role !== "admin" && onManageAsAdmin && (
-            <DropdownAction
-              icon={
-                isManaging ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <ShieldCheck size={16} />
-                )
-              }
-              label="ניהול משתמש כאדמין"
-              tone="gold"
-              onClick={() => runAction(onManageAsAdmin)}
-            />
-          )}
-
           {user.role !== "admin" && (
             <DropdownAction
               icon={
@@ -4571,7 +4652,7 @@ function UserActionsDropdown({
                   <LogIn size={16} />
                 )
               }
-              label="התחזות"
+              label="התחזות (legacy)"
               tone="blue"
               onClick={() => runAction(onImpersonate)}
             />

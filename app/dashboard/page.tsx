@@ -5371,9 +5371,9 @@ function GoldenEventDetailsCard({
       <button
         type="button"
         onClick={onOpen}
-        className="w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-4 py-2.5 text-sm font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
+        className="w-full rounded-2xl bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028] px-4 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(36,25,15,0.22)] transition hover:scale-[1.01]"
       >
-        צפייה בפרטי האירוע
+        הגדרת פרטי אירוע
       </button>
 
       <button
@@ -6146,17 +6146,18 @@ function EventDetailsCard({
           w-full
           rounded-2xl
           border
-          border-[#E7DED1]
-          bg-[#FBFAF7]
+          border-[#D9B46F]/55
+          bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028]
           px-5
           py-3
           font-black
-          text-[#1E1B2E]
-          hover:bg-[#F2EEE8]
+          text-white
+          shadow-[0_10px_24px_rgba(36,25,15,0.18)]
+          hover:scale-[1.01]
           transition
         "
       >
-        צפייה בפרטי האירוע
+        הגדרת פרטי אירוע
       </button>
     </div>
   );

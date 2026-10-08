@@ -38,13 +38,6 @@ type Props = {
   isAdmin?: boolean;
 };
 
-type GiftOptions = {
-  creditEnabled: boolean;
-  creditUrl: string;
-  payboxEnabled: boolean;
-  payboxUrl: string;
-};
-
 type InvitationPreviewData = {
   title: string;
   eventDate: string;
@@ -86,24 +79,6 @@ const RSVP_SMS_TEMPLATES: Record<RoundNumber, string> = {
 };
 
 /* ================= HELPERS ================= */
-
-function normalizeGiftOptions(raw: any): GiftOptions {
-  const g = raw ?? {};
-
-  return {
-    creditEnabled: !!g.creditEnabled,
-    creditUrl: String(g.creditUrl ?? ""),
-    payboxEnabled: !!g.payboxEnabled,
-    payboxUrl: String(g.payboxUrl ?? ""),
-  };
-}
-
-function ensureHttp(u: string) {
-  const s = (u ?? "").trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  return `https://${s}`;
-}
 
 function getInvitationLocation(inv: any, fallback = "") {
   if (!inv) return fallback || "";
@@ -336,19 +311,6 @@ export default function RsvpTab({
     failed: number;
   } | null>(null);
 
-  const [giftOptions, setGiftOptions] = useState<GiftOptions>({
-    creditEnabled: false,
-    creditUrl: "",
-    payboxEnabled: false,
-    payboxUrl: "",
-  });
-
-  const [savingGift, setSavingGift] = useState(false);
-  const [giftSaveError, setGiftSaveError] = useState("");
-
-  const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didInitGift = useRef(false);
-
   const sendingResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -357,7 +319,6 @@ export default function RsvpTab({
 
   useEffect(() => {
     return () => {
-      if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
       if (sendingResetTimerRef.current) {
         clearTimeout(sendingResetTimerRef.current);
       }
@@ -564,8 +525,6 @@ export default function RsvpTab({
         setRound2Locked(r2Snapshot.done);
         setRound3Locked(r3Snapshot.done);
 
-        setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
-        didInitGift.current = true;
       } catch (err) {
         console.error("❌ Failed to load RSVP data", err);
       } finally {
@@ -582,52 +541,6 @@ export default function RsvpTab({
     eventLocation,
     headerImageUrl,
   ]);
-
-  /* ================= SAVE GIFT OPTIONS ================= */
-
-  useEffect(() => {
-    if (!didInitGift.current || !invitationId) return;
-
-    if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
-
-    giftSaveTimer.current = setTimeout(async () => {
-      try {
-        setSavingGift(true);
-        setGiftSaveError("");
-
-        const payload: GiftOptions = {
-          creditEnabled: !!giftOptions.creditEnabled,
-          creditUrl: giftOptions.creditEnabled
-            ? ensureHttp(giftOptions.creditUrl)
-            : "",
-          payboxEnabled: !!giftOptions.payboxEnabled,
-          payboxUrl: giftOptions.payboxEnabled
-            ? ensureHttp(giftOptions.payboxUrl)
-            : "",
-        };
-
-        const res = await fetch(`/api/invitations/${invitationId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ giftOptions: payload }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "FAILED_TO_SAVE_GIFT_OPTIONS");
-        }
-      } catch (e) {
-        console.error("❌ Failed to save giftOptions", e);
-        setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסו שוב.");
-      } finally {
-        setSavingGift(false);
-      }
-    }, 500);
-
-    return () => {
-      if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
-    };
-  }, [giftOptions, invitationId]);
 
   /* ================= WHATSAPP STATS ================= */
 
@@ -1132,17 +1045,19 @@ export default function RsvpTab({
             <PremiumCard
               icon="🎁"
               title="פרטי אירוע ומתנות"
-              subtitle="נמשכים אוטומטית מהגדרות האירוע המרכזיות"
+              subtitle="מקור אחד בלבד — ללא הגדרה כפולה בסבבי הודעות"
             >
               <p className="text-sm font-bold leading-7 text-[#7A5A3A]">
-                פרטי האירוע ואפשרויות המתנה נמשכים אוטומטית מהגדרות האירוע.
+                שמות, תאריך, אולם, ניווט ומתנות (אשראי / PayBox / Bit) מוגדרים
+                רק במסך &quot;הגדרת פרטי אירוע&quot; ומופיעים אוטומטית בקישור
+                האישי ובתזכורת.
               </p>
               {invitationId && (
                 <a
                   href={`/dashboard/invitations/${invitationId}/edit`}
                   className="mt-4 inline-flex min-h-11 items-center justify-center rounded-2xl bg-[#2F2924] px-5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5"
                 >
-                  עריכת פרטי האירוע
+                  הגדרת פרטי אירוע
                 </a>
               )}
             </PremiumCard>

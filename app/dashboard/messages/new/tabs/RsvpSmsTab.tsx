@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AudienceFilterSelector, {
   FilterType,
 } from "../shared/AudienceFilterSelector";
@@ -29,30 +29,6 @@ type Props = {
   invitationId: string;
   invitationTitle: string;
 };
-
-type GiftOptions = {
-  creditEnabled: boolean;
-  creditUrl: string;
-  payboxEnabled: boolean;
-  payboxUrl: string;
-};
-
-function normalizeGiftOptions(raw: any): GiftOptions {
-  const g = raw ?? {};
-  return {
-    creditEnabled: !!g.creditEnabled,
-    creditUrl: String(g.creditUrl ?? ""),
-    payboxEnabled: !!g.payboxEnabled,
-    payboxUrl: String(g.payboxUrl ?? ""),
-  };
-}
-
-function ensureHttp(u: string) {
-  const s = (u ?? "").trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  return `https://${s}`;
-}
 
 /* ================= HELPERS ================= */
 
@@ -103,22 +79,8 @@ const [rsvpRound2Scheduled, setRsvpRound2Scheduled] = useState(false);
 
 const [round1Locked, setRound1Locked] = useState(true);
 const [round2Locked, setRound2Locked] = useState(true);
-  /* ================= GIFT OPTIONS ================= */
-
-  const [giftOptions, setGiftOptions] = useState<GiftOptions>({
-    creditEnabled: false,
-    creditUrl: "",
-    payboxEnabled: false,
-    payboxUrl: "",
-  });
-
-  const [savingGift, setSavingGift] = useState(false);
-  const [giftSaveError, setGiftSaveError] = useState<string>("");
   const [invitationShareId, setInvitationShareId] = useState("");
   const [rsvpSiteMode, setRsvpSiteMode] = useState<unknown>("standard");
-
-  const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didInitGift = useRef(false);
 
   /* ================= TIMING ================= */
 
@@ -192,7 +154,7 @@ const round2Scheduled = scheduledMessages.some(
     loadScheduledMessages();
   }, []);
 
-  /* ================= LOAD GUESTS + INVITATION (giftOptions) ================= */
+  /* ================= LOAD GUESTS + INVITATION ================= */
 
   useEffect(() => {
     async function loadGuestsAndInvitation() {
@@ -242,10 +204,8 @@ setRound2Locked(
   inv?.messageLocks?.rsvpSmsRound2 ?? true
 );
 
-        setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         setInvitationShareId(inv?.shareId || "");
         setRsvpSiteMode(getInvitationRsvpSiteMode(inv));
-        didInitGift.current = true;
       } catch (e) {
         console.error("❌ Failed to load guests/invitation", e);
       } finally {
@@ -255,52 +215,6 @@ setRound2Locked(
 
     if (invitationId) loadGuestsAndInvitation();
   }, [invitationId]);
-
-  /* ================= SAVE GIFT OPTIONS (debounced) ================= */
-
-  useEffect(() => {
-    if (!didInitGift.current) return;
-
-    if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
-
-    giftSaveTimer.current = setTimeout(async () => {
-      try {
-        setSavingGift(true);
-        setGiftSaveError("");
-
-        const payload: GiftOptions = {
-          creditEnabled: !!giftOptions.creditEnabled,
-          creditUrl: giftOptions.creditEnabled
-            ? ensureHttp(giftOptions.creditUrl)
-            : "",
-          payboxEnabled: !!giftOptions.payboxEnabled,
-          payboxUrl: giftOptions.payboxEnabled
-            ? ensureHttp(giftOptions.payboxUrl)
-            : "",
-        };
-
-        const res = await fetch(`/api/invitations/${invitationId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ giftOptions: payload }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "FAILED_TO_SAVE_GIFT_OPTIONS");
-        }
-      } catch (e: any) {
-        console.error("❌ Failed to save giftOptions", e);
-        setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסו שוב.");
-      } finally {
-        setSavingGift(false);
-      }
-    }, 500);
-
-    return () => {
-      if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
-    };
-  }, [giftOptions, invitationId]);
 
   /* ================= COUNTS ================= */
 
@@ -420,17 +334,18 @@ setRound2Locked(
         <p className="text-xs text-gray-500 mt-1">החצי נקבע לפי סדר אלפביתי</p>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
-        <h3 className="font-semibold">פרטי אירוע ומתנות</h3>
-        <p className="text-sm text-gray-600 leading-6">
-          פרטי האירוע ואפשרויות המתנה נמשכים אוטומטית מהגדרות האירוע.
+      <div className="rounded-2xl border border-[#E6D6BC] bg-[#FFF9F1] p-4 space-y-3">
+        <h3 className="font-black text-[#2F2924]">פרטי אירוע ומתנות</h3>
+        <p className="text-sm font-semibold text-[#7A5A3A] leading-6">
+          מקור אחד בלבד: שמות, תאריך, אולם ומתנות (אשראי / PayBox / Bit)
+          מוגדרים במסך &quot;הגדרת פרטי אירוע&quot; — ללא הגדרה כפולה כאן.
         </p>
         {invitationId && (
           <a
             href={`/dashboard/invitations/${invitationId}/edit`}
-            className="inline-flex items-center justify-center rounded-xl bg-[#2F2924] px-4 py-2 text-sm font-bold text-white"
+            className="inline-flex items-center justify-center rounded-xl bg-[#2F2924] px-4 py-2.5 text-sm font-black text-white"
           >
-            עריכת פרטי האירוע
+            הגדרת פרטי אירוע
           </a>
         )}
       </div>

@@ -489,9 +489,10 @@ export default async function PublicEventInfoPage({
   }
 
   const central = resolveCentralEventDetails(event, invitation);
+  const hostsNames = cleanString(central.hostsNames);
   const title = eventTypeHeadline(
     central.eventType,
-    central.hostsNames,
+    hostsNames,
     central.title || getInvitationTitle(invitation, event)
   );
   const greeting = eventTypeGreeting(central.eventType);
@@ -603,7 +604,7 @@ export default async function PublicEventInfoPage({
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#F7F1E8] text-[#2F2924]"
+      className="min-h-screen overflow-hidden bg-[#F3E9DC] text-[#2F2924]"
       style={{
         fontFamily:
           '"Frank Ruhl Libre", "Heebo", "Assistant", "Segoe UI", sans-serif',
@@ -613,15 +614,33 @@ export default async function PublicEventInfoPage({
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;600;700;800&display=swap"
       />
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes softGlow {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.85; }
+        }
+        @keyframes floatSpark {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+      `}</style>
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E8D5B8]/50 blur-3xl" />
-        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#D4C4A8]/35 blur-3xl" />
+        <div className="absolute right-[-120px] top-[-120px] h-[330px] w-[330px] rounded-full bg-[#E8D5B8]/60 blur-3xl" />
+        <div className="absolute bottom-[-130px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#C9B089]/40 blur-3xl" />
+        <div
+          className="absolute left-1/2 top-24 h-40 w-40 -translate-x-1/2 rounded-full bg-[#F0D9A8]/35 blur-3xl"
+          style={{ animation: "softGlow 5s ease-in-out infinite" }}
+        />
       </div>
 
       <section className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-0 pb-10 sm:max-w-2xl sm:px-4 sm:py-8">
-        <div className="overflow-hidden border-white/80 bg-white/90 shadow-[0_28px_100px_rgba(89,64,43,0.18)] backdrop-blur-xl sm:rounded-[2.2rem] sm:border">
+        <div className="overflow-hidden border-white/80 bg-white/92 shadow-[0_28px_100px_rgba(89,64,43,0.20)] backdrop-blur-xl sm:rounded-[2.2rem] sm:border">
           {/* Hero — full-bleed image plane */}
-          <div className="relative min-h-[42vh] overflow-hidden bg-gradient-to-b from-[#EDE2D2] via-[#F5EEE4] to-[#FFFDF9] sm:min-h-[380px]">
+          <div className="relative min-h-[48vh] overflow-hidden bg-gradient-to-b from-[#EDE2D2] via-[#F5EEE4] to-[#FFFDF9] sm:min-h-[420px]">
             {hasCoupleImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -630,19 +649,63 @@ export default async function PublicEventInfoPage({
                 className="absolute inset-0 h-full w-full object-cover"
               />
             ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#F3E6D4_0%,_#E8D9C4_45%,_#D9C7AE_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#F6E8D4_0%,_#E5D2B6_45%,_#CDB894_100%)]" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/75 via-[#2F2924]/25 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1C1612]/85 via-[#2F2924]/35 to-[#2F2924]/10" />
+            <div
+              className="pointer-events-none absolute left-6 top-8 text-[#F5E6D0]/70"
+              style={{ animation: "floatSpark 3.2s ease-in-out infinite" }}
+            >
+              <Heart className="h-5 w-5 fill-current" />
+            </div>
+            <div
+              className="pointer-events-none absolute right-8 top-14 text-[#F5E6D0]/55"
+              style={{ animation: "floatSpark 3.8s ease-in-out infinite 0.4s" }}
+            >
+              <Sparkles className="h-5 w-5" />
+            </div>
 
-            <div className="relative flex min-h-[42vh] flex-col justify-end px-6 pb-8 pt-16 text-center sm:min-h-[380px] sm:px-10">
-              <p className="text-sm font-semibold tracking-wide text-[#F5E6D0]/95 animate-[fadeUp_0.7s_ease-out]">
+            <div className="relative flex min-h-[48vh] flex-col justify-end px-6 pb-9 pt-16 text-center sm:min-h-[420px] sm:px-10">
+              <p
+                className="text-sm font-semibold tracking-[0.08em] text-[#F5E6D0]/95"
+                style={{ animation: "fadeUp 0.7s ease-out both" }}
+              >
                 {greeting}
               </p>
-              <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-bold leading-tight text-white drop-shadow-sm sm:text-4xl animate-[fadeUp_0.85s_ease-out]">
-                {title}
-              </h1>
+              {hostsNames ? (
+                <h1
+                  className="mt-3 text-[2.05rem] font-bold leading-[1.15] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:text-5xl"
+                  style={{
+                    fontFamily: '"Frank Ruhl Libre", serif',
+                    animation: "fadeUp 0.85s ease-out both",
+                  }}
+                >
+                  {hostsNames}
+                </h1>
+              ) : (
+                <h1
+                  className="mt-3 text-[2.05rem] font-bold leading-[1.15] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:text-5xl"
+                  style={{
+                    fontFamily: '"Frank Ruhl Libre", serif',
+                    animation: "fadeUp 0.85s ease-out both",
+                  }}
+                >
+                  {title}
+                </h1>
+              )}
+              {hostsNames ? (
+                <p
+                  className="mt-2 text-base font-semibold text-[#F8EFE3]/92"
+                  style={{ animation: "fadeUp 0.95s ease-out both" }}
+                >
+                  {title}
+                </p>
+              ) : null}
               {dateLabel && (
-                <p className="mt-3 text-sm font-semibold text-[#F8EFE3]/90 animate-[fadeUp_1s_ease-out]">
+                <p
+                  className="mt-4 inline-flex self-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-[#F8EFE3] backdrop-blur-sm"
+                  style={{ animation: "fadeUp 1.05s ease-out both" }}
+                >
                   {dateLabel}
                   {eventTime ? ` · ${eventTime}` : ""}
                 </p>
@@ -844,52 +907,61 @@ export default async function PublicEventInfoPage({
             )}
 
             {hasGifts && (
-              <SectionShell
-                title="רוצים לשמח אותנו במתנה?"
-                icon={
+              <section className="rounded-[2rem] border border-[#E8D4B4] bg-gradient-to-br from-[#FFF9F0] via-white to-[#F7F0E6] p-5 shadow-[0_18px_48px_rgba(98,70,42,0.10)] sm:p-6">
+                <div className="flex items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4EADB]">
                     <Gift className="h-6 w-6 text-[#8A6748]" />
                   </div>
-                }
-              >
-                <div className="mt-5 grid grid-cols-1 gap-3">
-                  {gifts.creditUrl && (
-                    <a
-                      href={gifts.creditUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#E6D4BF] bg-gradient-to-l from-white to-[#FFF7EE] px-4 py-3 text-sm font-black text-[#3A2E27] shadow-[0_12px_28px_rgba(98,70,42,0.10)] transition hover:-translate-y-0.5"
-                    >
-                      <CreditCard className="h-4 w-4 text-[#8A6748]" />
-                      מתנה באשראי
-                    </a>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-black text-[#2F2924]">
+                      רוצים לשמח אותנו במתנה?
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-[#7A6A5A]">
+                      בחרו את הדרך הנוחה לכם — אשראי, PayBox או Bit
+                    </p>
+                    <div className="mt-5 grid grid-cols-1 gap-3">
+                      {gifts.creditUrl && (
+                        <a
+                          href={gifts.creditUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028] px-4 py-3 text-sm font-black text-white shadow-[0_14px_32px_rgba(36,25,15,0.22)] transition hover:-translate-y-0.5"
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          מתנה באשראי
+                        </a>
+                      )}
 
-                  {gifts.payboxUrl && (
-                    <a
-                      href={gifts.payboxUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#E6D4BF] bg-gradient-to-l from-white to-[#F5F8FF] px-4 py-3 text-sm font-black text-[#3A2E27] shadow-[0_12px_28px_rgba(73,108,168,0.10)] transition hover:-translate-y-0.5"
-                    >
-                      <Smartphone className="h-4 w-4 text-[#496CA8]" />
-                      מתנה ב-PayBox
-                    </a>
-                  )}
+                      {gifts.payboxUrl && (
+                        <a
+                          href={gifts.payboxUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-[#C9D7F0] bg-gradient-to-l from-white to-[#EEF4FF] px-4 py-3 text-sm font-black text-[#2F3B55] shadow-[0_12px_28px_rgba(73,108,168,0.12)] transition hover:-translate-y-0.5"
+                        >
+                          <Smartphone className="h-4 w-4 text-[#496CA8]" />
+                          מתנה ב-PayBox
+                        </a>
+                      )}
 
-                  {gifts.bitPhone && (
-                    <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E8D9CB] bg-[#FFFDFC] px-4 py-5">
-                      <span
-                        className="text-base font-black tracking-wide text-[#2F2924]"
-                        dir="ltr"
-                      >
-                        {gifts.bitPhone}
-                      </span>
-                      <CopyButton value={gifts.bitPhone} />
+                      {gifts.bitPhone && (
+                        <div className="flex flex-col items-center gap-3 rounded-[22px] border border-[#E8D9CB] bg-white px-4 py-5 shadow-sm">
+                          <p className="text-xs font-black tracking-wide text-[#8A6A43]">
+                            העברה ב-Bit
+                          </p>
+                          <span
+                            className="text-xl font-black tracking-wide text-[#2F2924]"
+                            dir="ltr"
+                          >
+                            {gifts.bitPhone}
+                          </span>
+                          <CopyButton value={gifts.bitPhone} />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </SectionShell>
+              </section>
             )}
 
             {note.enabled && note.text && (
