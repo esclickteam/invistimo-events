@@ -164,6 +164,7 @@ const EventSchema = new mongoose.Schema(
         "brit",
         "brita",
         "henna",
+        "business",
         "other",
       ],
       default: "wedding",
@@ -263,8 +264,68 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       מתנות באשראי
+       פרטי אירוע מרכזיים (מקור אמת)
     ========================= */
+    hostsNames: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    receptionTime: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    ceremonyTime: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    guestNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    googleMapsUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    parkingNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    eventImage: {
+      url: { type: String, default: "", trim: true },
+      publicId: { type: String, default: "", trim: true },
+    },
+
+    /* =========================
+       מתנות — מקור אמת מרכזי
+       giftCreditUrl נשאר לתאימות לאחור ומסונכרן מ-gifts.creditUrl
+    ========================= */
+    gifts: {
+      creditEnabled: { type: Boolean, default: false },
+      creditUrl: { type: String, default: "", trim: true },
+      payboxEnabled: { type: Boolean, default: false },
+      payboxUrl: { type: String, default: "", trim: true },
+      bitEnabled: { type: Boolean, default: false },
+      bitPhone: { type: String, default: "", trim: true },
+    },
+
     giftCreditUrl: {
       type: String,
       default: "",

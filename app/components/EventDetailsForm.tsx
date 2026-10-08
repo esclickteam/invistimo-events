@@ -50,6 +50,7 @@ const EVENT_TYPES = [
   { label: "ברית", value: "brit" },
   { label: "בריתה", value: "brita" },
   { label: "חינה", value: "henna" },
+  { label: "אירוע עסקי", value: "business" },
   { label: "אחר…", value: "other" },
 ];
 
@@ -92,8 +93,13 @@ export default function EventDetailsForm({
   const [form, setForm] = useState({
     title: "",
     eventType: "wedding",
+    hostsNames: "",
     date: "",
     time: "",
+    receptionTime: "",
+    ceremonyTime: "",
+    city: "",
+    googleMapsUrl: "",
     location: {
       name: "",
       address: "",
@@ -108,6 +114,14 @@ export default function EventDetailsForm({
     },
     showWaze: true,
     showGoogleMaps: true,
+    gifts: {
+      creditEnabled: false,
+      creditUrl: "",
+      payboxEnabled: false,
+      payboxUrl: "",
+      bitEnabled: false,
+      bitPhone: "",
+    },
     publicEventPage: {
       enabled: true,
       gifts: {
@@ -138,6 +152,7 @@ export default function EventDetailsForm({
       },
     },
   });
+  const [formError, setFormError] = useState("");
 
   /* ============================================================
      🔄 Sync Invitation → Local State
@@ -155,13 +170,31 @@ export default function EventDetailsForm({
 
     setWazeOverrideEnabled(hasManualWazeDest(event.location));
     setWazeInputMode(wazeInputModeFromLocation(event.location));
+    const creditUrl =
+      event.gifts?.creditUrl ??
+      event.giftOptions?.creditUrl ??
+      event.publicEventPage?.gifts?.creditUrl ??
+      "";
+    const payboxUrl =
+      event.gifts?.payboxUrl ??
+      event.giftOptions?.payboxUrl ??
+      event.publicEventPage?.gifts?.payboxUrl ??
+      "";
+    const bitPhone =
+      event.gifts?.bitPhone ?? event.publicEventPage?.gifts?.bitPhone ?? "";
+
     setForm({
       title: event.title ?? "",
       eventType: event.eventType ?? "wedding",
+      hostsNames: event.hostsNames ?? "",
       date: event.eventDate
         ? new Date(event.eventDate).toISOString().slice(0, 10)
         : "",
       time: event.eventTime ?? "",
+      receptionTime: event.receptionTime ?? "",
+      ceremonyTime: event.ceremonyTime ?? "",
+      city: event.city ?? "",
+      googleMapsUrl: event.googleMapsUrl ?? "",
       location: {
         name: event.location?.name ?? "",
         address: event.location?.address ?? "",
@@ -176,12 +209,26 @@ export default function EventDetailsForm({
       },
       showWaze: event.showWaze !== false,
       showGoogleMaps: event.showGoogleMaps !== false,
+      gifts: {
+        creditEnabled:
+          event.gifts?.creditEnabled ??
+          event.giftOptions?.creditEnabled ??
+          Boolean(creditUrl),
+        creditUrl,
+        payboxEnabled:
+          event.gifts?.payboxEnabled ??
+          event.giftOptions?.payboxEnabled ??
+          Boolean(payboxUrl),
+        payboxUrl,
+        bitEnabled: event.gifts?.bitEnabled ?? Boolean(bitPhone),
+        bitPhone,
+      },
       publicEventPage: {
         enabled: true,
         gifts: {
-          creditUrl: event.publicEventPage?.gifts?.creditUrl ?? "",
-          payboxUrl: event.publicEventPage?.gifts?.payboxUrl ?? "",
-          bitPhone: event.publicEventPage?.gifts?.bitPhone ?? "",
+          creditUrl,
+          payboxUrl,
+          bitPhone,
         },
         parking: {
           enabled: event.publicEventPage?.parking?.enabled === true,
@@ -189,7 +236,10 @@ export default function EventDetailsForm({
           address: event.publicEventPage?.parking?.address ?? "",
           lat: event.publicEventPage?.parking?.lat ?? null,
           lng: event.publicEventPage?.parking?.lng ?? null,
-          instructions: event.publicEventPage?.parking?.instructions ?? "",
+          instructions:
+            event.parkingNotes ||
+            event.publicEventPage?.parking?.instructions ||
+            "",
         },
         schedule: {
           enabled: event.publicEventPage?.schedule?.enabled === true,
@@ -203,10 +253,12 @@ export default function EventDetailsForm({
         note: {
           enabled:
             event.publicEventPage?.note?.enabled === true ||
-            event.publicEventPage?.noteEnabled === true,
+            event.publicEventPage?.noteEnabled === true ||
+            Boolean(event.guestNote),
           text:
-            event.publicEventPage?.note?.text ??
-            event.publicEventPage?.noteText ??
+            event.guestNote ||
+            event.publicEventPage?.note?.text ||
+            event.publicEventPage?.noteText ||
             "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
         },
       },
@@ -344,6 +396,37 @@ export default function EventDetailsForm({
     try {
       setSaving(true);
       setLocationWarning("");
+      setFormError("");
+
+      const gifts = {
+        creditEnabled: form.gifts.creditEnabled,
+        creditUrl: form.gifts.creditEnabled ? form.gifts.creditUrl.trim() : "",
+        payboxEnabled: form.gifts.payboxEnabled,
+        payboxUrl: form.gifts.payboxEnabled ? form.gifts.payboxUrl.trim() : "",
+        bitEnabled: form.gifts.bitEnabled,
+        bitPhone: form.gifts.bitEnabled ? form.gifts.bitPhone.trim() : "",
+      };
+
+      if (gifts.creditEnabled && !/^https?:\/\//i.test(gifts.creditUrl)) {
+        setFormError(
+          "יש להזין קישור תשלום באשראי תקין כאשר המתנה באשראי מופעלת"
+        );
+        setSaving(false);
+        return;
+      }
+      if (gifts.payboxEnabled && !/^https?:\/\//i.test(gifts.payboxUrl)) {
+        setFormError("יש להזין קישור PayBox תקין כאשר PayBox מופעל");
+        setSaving(false);
+        return;
+      }
+      if (
+        gifts.bitEnabled &&
+        !/^05\d{8}$/.test(gifts.bitPhone.replace(/[\s\-()]/g, ""))
+      ) {
+        setFormError("יש להזין מספר טלפון ישראלי תקין לקבלת מתנות ב-Bit");
+        setSaving(false);
+        return;
+      }
 
       // A typed address (no autocomplete pick) still needs a pin. The
       // production Maps key is referrer-restricted, so this has to happen
@@ -382,8 +465,18 @@ export default function EventDetailsForm({
       const payload = {
         title: form.title.trim(),
         eventType: form.eventType,
+        hostsNames: form.hostsNames.trim(),
         eventDate: form.date,
         eventTime: form.time,
+        receptionTime: form.receptionTime.trim(),
+        ceremonyTime: form.ceremonyTime.trim(),
+        city: form.city.trim(),
+        googleMapsUrl: form.googleMapsUrl.trim(),
+        guestNote: form.publicEventPage.note.enabled
+          ? form.publicEventPage.note.text.trim()
+          : "",
+        parkingNotes: parking.instructions.trim(),
+        gifts,
         location: {
           name: location.name,
           address: location.address,
@@ -401,9 +494,9 @@ export default function EventDetailsForm({
         publicEventPage: {
           enabled: true,
           gifts: {
-            creditUrl: form.publicEventPage.gifts.creditUrl.trim(),
-            payboxUrl: form.publicEventPage.gifts.payboxUrl.trim(),
-            bitPhone: form.publicEventPage.gifts.bitPhone.trim(),
+            creditUrl: gifts.creditUrl,
+            payboxUrl: gifts.payboxUrl,
+            bitPhone: gifts.bitPhone,
             bitUrl: "",
           },
           parking: {
@@ -446,7 +539,8 @@ export default function EventDetailsForm({
       const data = await res.json();
 
       if (!data?.success) {
-        alert("❌ שגיאה בשמירת פרטי האירוע");
+        setFormError(data?.error || "שגיאה בשמירת פרטי האירוע");
+        alert(data?.error || "❌ שגיאה בשמירת פרטי האירוע");
         return;
       }
 
@@ -640,6 +734,38 @@ export default function EventDetailsForm({
             </select>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <label className="px-1 text-sm font-black text-[#6B5B4A]">
+              שמות בעלי השמחה
+            </label>
+            <input
+              placeholder="לדוגמה: נועה ואדם"
+              value={form.hostsNames}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, hostsNames: e.target.value }))
+              }
+              className="
+                h-[56px]
+                w-full
+                rounded-[20px]
+                border
+                border-[#E3D6C3]
+                bg-[#FCFAF6]
+                px-5
+                text-base
+                font-bold
+                text-[#241A14]
+                outline-none
+                transition
+                placeholder:text-[#B0A79D]
+                focus:border-[#B8844F]
+                focus:bg-white
+                focus:ring-4
+                focus:ring-[#D9B46F]/15
+              "
+            />
+          </div>
+
           {/* תאריך + שעה */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
@@ -703,6 +829,65 @@ export default function EventDetailsForm({
                   focus:ring-4
                   focus:ring-[#D9B46F]/15
                 "
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                שעת קבלת פנים
+              </label>
+              <input
+                type="time"
+                value={form.receptionTime}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, receptionTime: e.target.value }))
+                }
+                className="h-[56px] w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-5 text-base font-bold text-[#241A14] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                שעת חופה / טקס
+              </label>
+              <input
+                type="time"
+                value={form.ceremonyTime}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, ceremonyTime: e.target.value }))
+                }
+                className="h-[56px] w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-5 text-base font-bold text-[#241A14] outline-none transition focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                עיר
+              </label>
+              <input
+                placeholder="לדוגמה: תל אביב"
+                value={form.city}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, city: e.target.value }))
+                }
+                className="h-[56px] w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-5 text-base font-bold text-[#241A14] outline-none transition placeholder:text-[#B0A79D] focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                קישור Google Maps
+              </label>
+              <input
+                placeholder="https://maps.google.com/..."
+                value={form.googleMapsUrl}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, googleMapsUrl: e.target.value }))
+                }
+                className="h-[56px] w-full rounded-[20px] border border-[#E3D6C3] bg-[#FCFAF6] px-5 text-base font-bold text-[#241A14] outline-none transition placeholder:text-[#B0A79D] focus:border-[#B8844F] focus:bg-white focus:ring-4 focus:ring-[#D9B46F]/15"
+                dir="ltr"
               />
             </div>
           </div>
@@ -1017,148 +1202,140 @@ export default function EventDetailsForm({
             </div>
 
             <div className="grid gap-4">
-              {/* Gifts */}
+              {/* אפשרויות למתנה — מקור מרכזי */}
               <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="text-lg">🎁</span>
+                <div className="mb-4">
                   <h4 className="text-sm font-black text-[#6B5B4A]">
-                    מתנות לאורחים
+                    אפשרויות למתנה
                   </h4>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                      קישור מתנה באשראי
-                    </label>
-
-                    <input
-                      placeholder="https://..."
-                      value={form.publicEventPage.gifts.creditUrl}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          publicEventPage: {
-                            ...f.publicEventPage,
-                            enabled: true,
-                            gifts: {
-                              ...f.publicEventPage.gifts,
-                              creditUrl: e.target.value,
-                            },
-                          },
-                        }))
-                      }
-                      className="
-                        h-[52px]
-                        w-full
-                        rounded-[18px]
-                        border
-                        border-[#E3D6C3]
-                        bg-[#FCFAF6]
-                        px-4
-                        text-sm
-                        font-bold
-                        text-[#241A14]
-                        outline-none
-                        transition
-                        placeholder:text-[#B0A79D]
-                        focus:border-[#B8844F]
-                        focus:bg-white
-                        focus:ring-4
-                        focus:ring-[#D9B46F]/15
-                      "
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                      קישור PayBox
-                    </label>
-
-                    <input
-                      placeholder="https://..."
-                      value={form.publicEventPage.gifts.payboxUrl}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          publicEventPage: {
-                            ...f.publicEventPage,
-                            enabled: true,
-                            gifts: {
-                              ...f.publicEventPage.gifts,
-                              payboxUrl: e.target.value,
-                            },
-                          },
-                        }))
-                      }
-                      className="
-                        h-[52px]
-                        w-full
-                        rounded-[18px]
-                        border
-                        border-[#E3D6C3]
-                        bg-[#FCFAF6]
-                        px-4
-                        text-sm
-                        font-bold
-                        text-[#241A14]
-                        outline-none
-                        transition
-                        placeholder:text-[#B0A79D]
-                        focus:border-[#B8844F]
-                        focus:bg-white
-                        focus:ring-4
-                        focus:ring-[#D9B46F]/15
-                      "
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-2">
-                  <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                    מספר Bit
-                  </label>
-
-                  <input
-                    placeholder="לדוגמה: 0501234567"
-                    value={form.publicEventPage.gifts.bitPhone}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        publicEventPage: {
-                          ...f.publicEventPage,
-                          enabled: true,
-                          gifts: {
-                            ...f.publicEventPage.gifts,
-                            bitPhone: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-[18px]
-                      border
-                      border-[#E3D6C3]
-                      bg-[#FCFAF6]
-                      px-4
-                      text-sm
-                      font-bold
-                      text-[#241A14]
-                      outline-none
-                      transition
-                      placeholder:text-[#B0A79D]
-                      focus:border-[#B8844F]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#D9B46F]/15
-                    "
-                  />
-
-                  <p className="px-1 text-xs font-semibold leading-6 text-[#9B8D7D]">
-                    בעמוד הציבורי יוצג מספר הביט עם כפתור העתקה בלבד.
+                  <p className="mt-1 text-xs font-semibold text-[#9B8D7D]">
+                    רק אמצעים מופעלים עם מידע תקין יוצגו לאורחים בכל הקישורים.
                   </p>
+                </div>
+
+                {formError && (
+                  <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                    {formError}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
+                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                      <span className="text-sm font-black text-[#6B5B4A]">
+                        מתנה באשראי
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={form.gifts.creditEnabled}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: {
+                              ...f.gifts,
+                              creditEnabled: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-5 w-5 accent-[#B8844F]"
+                      />
+                    </label>
+                    {form.gifts.creditEnabled && (
+                      <input
+                        placeholder="https://... קישור תשלום באשראי"
+                        value={form.gifts.creditUrl}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: { ...f.gifts, creditUrl: e.target.value },
+                          }))
+                        }
+                        className="mt-3 h-[52px] w-full rounded-[18px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                        dir="ltr"
+                      />
+                    )}
+                    <p className="mt-2 text-xs font-semibold text-[#9B8D7D]">
+                      כפתור ציבורי: מתנה באשראי
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
+                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                      <span className="text-sm font-black text-[#6B5B4A]">
+                        PayBox
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={form.gifts.payboxEnabled}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: {
+                              ...f.gifts,
+                              payboxEnabled: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-5 w-5 accent-[#B8844F]"
+                      />
+                    </label>
+                    {form.gifts.payboxEnabled && (
+                      <input
+                        placeholder="https://... קישור PayBox"
+                        value={form.gifts.payboxUrl}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: { ...f.gifts, payboxUrl: e.target.value },
+                          }))
+                        }
+                        className="mt-3 h-[52px] w-full rounded-[18px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                        dir="ltr"
+                      />
+                    )}
+                    <p className="mt-2 text-xs font-semibold text-[#9B8D7D]">
+                      כפתור ציבורי: מתנה ב-PayBox
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
+                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                      <span className="text-sm font-black text-[#6B5B4A]">
+                        Bit
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={form.gifts.bitEnabled}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: {
+                              ...f.gifts,
+                              bitEnabled: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-5 w-5 accent-[#B8844F]"
+                      />
+                    </label>
+                    {form.gifts.bitEnabled && (
+                      <input
+                        placeholder="0501234567"
+                        value={form.gifts.bitPhone}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            gifts: { ...f.gifts, bitPhone: e.target.value },
+                          }))
+                        }
+                        className="mt-3 h-[52px] w-full rounded-[18px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                        dir="ltr"
+                      />
+                    )}
+                    <p className="mt-2 text-xs font-semibold text-[#9B8D7D]">
+                      כפתור ציבורי: העתקת מספר ל-Bit
+                    </p>
+                  </div>
                 </div>
               </div>
 

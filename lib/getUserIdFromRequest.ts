@@ -44,6 +44,12 @@ export type AuthPayload = {
   impersonatedByAdmin?: boolean;
   /** who started the impersonation chain: admin / producer / ... */
   impersonationSourceRole?: string | null;
+
+  /**
+   * Admin "manage user" mode (NOT impersonation):
+   * admin stays identified as admin; this is the customer account being managed.
+   */
+  adminManagingUserId?: string | null;
 };
 
 /* =========================
@@ -442,6 +448,7 @@ export async function getUserIdFromRequest(
         impersonationRole: "admin",
         impersonatedByAdmin: true,
         impersonationSourceRole: "admin",
+        adminManagingUserId: null,
       };
     }
 
@@ -473,7 +480,33 @@ export async function getUserIdFromRequest(
         impersonationRole,
         impersonatedByAdmin,
         impersonationSourceRole,
+        adminManagingUserId: null,
       };
+    }
+
+    /* ---------------------------------
+       5b) Admin manage mode (not impersonation)
+       Cookie scopes dashboard data to a customer while JWT stays admin.
+    ---------------------------------- */
+    let adminManagingUserId: string | null = null;
+    if (role === "admin") {
+      const manageCookie =
+        getCookieFromReq(req, "adminManageUserId") ||
+        (await getCookieFromHeadersStore("adminManageUserId"));
+      const manageHeader = req?.headers?.get("x-admin-manage-user") || null;
+      const candidate = String(manageHeader || manageCookie || "").trim();
+      if (
+        candidate &&
+        candidate !== String(userId) &&
+        /^[a-f\d]{24}$/i.test(candidate)
+      ) {
+        const managed = await getFreshUserAuthFields(candidate, {
+          allowInactive: true,
+        });
+        if (managed) {
+          adminManagingUserId = candidate;
+        }
+      }
     }
 
     /* ---------------------------------
@@ -489,6 +522,7 @@ export async function getUserIdFromRequest(
       impersonationRole: null,
       impersonatedByAdmin: false,
       impersonationSourceRole: null,
+      adminManagingUserId,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);

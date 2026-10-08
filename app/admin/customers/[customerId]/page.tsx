@@ -52,6 +52,7 @@ type CustomerQuote = {
   validUntil?: string | Date;
   status?: string;
   publicToken?: string;
+  salesDocumentId?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
@@ -702,20 +703,73 @@ export default function AdminCustomerFilePage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        {quote.publicToken ? (
-                          <Link
+                        <div className="flex flex-wrap items-center gap-2">
+                          {quote.publicToken ? (
+                            <Link
                               href={`/sales-documents/${encodeURIComponent(quote.publicToken)}?preview=1`}
-
-                            target="_blank"
-                            className="rounded-xl border border-[#D9C3A8] bg-white px-4 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
-                          >
-                            צפייה
-                          </Link>
-                        ) : (
-                          <span className="text-xs font-black text-[#B9A28A]">
-                            אין קישור
-                          </span>
-                        )}
+                              target="_blank"
+                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
+                            >
+                              צפייה
+                            </Link>
+                          ) : null}
+                          {quote.publicToken ? (
+                            <Link
+                              href={`/admin/sales/quotes/${encodeURIComponent(quote.publicToken)}/edit`}
+                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
+                            >
+                              עריכת הצעה
+                            </Link>
+                          ) : null}
+                          {quote.userId || quote.status === "converted" ? (
+                            <Link
+                              href={`/admin/users?q=${encodeURIComponent(quote.userId || "")}`}
+                              className="rounded-xl bg-[#24190F] px-3 py-2 text-xs font-black text-white"
+                            >
+                              מעבר למשתמש
+                            </Link>
+                          ) : quote.publicToken ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const confirmed = confirm(
+                                  "לפתוח משתמש מההצעה? לא יבוצע חיוב אוטומטי."
+                                );
+                                if (!confirmed) return;
+                                const res = await fetch(
+                                  `/api/employee/sales/documents/${encodeURIComponent(quote.publicToken!)}/create-user`,
+                                  {
+                                    method: "POST",
+                                    credentials: "include",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({}),
+                                  }
+                                );
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                  alert(
+                                    data?.message ||
+                                      data?.error ||
+                                      "יצירת משתמש נכשלה"
+                                  );
+                                  return;
+                                }
+                                alert(data.message || "המשתמש נוצר בהצלחה");
+                                window.location.href =
+                                  data.redirectTo || "/admin/users";
+                              }}
+                              className="rounded-xl bg-[#B87920] px-3 py-2 text-xs font-black text-white"
+                            >
+                              פתיחת משתמש מההצעה
+                            </button>
+                          ) : (
+                            <span className="text-xs font-black text-[#B9A28A]">
+                              אין קישור
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

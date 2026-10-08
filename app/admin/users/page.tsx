@@ -841,6 +841,7 @@ export default function AdminUsersPage() {
   const [staff, setStaff] = useState<Assignee[]>([]);
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [managing, setManaging] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
 
   const [search, setSearch] = useState("");
@@ -952,33 +953,56 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function impersonateUser(userId: string) {
-  setImpersonating(userId);
-
-  try {
-    const res = await fetch("/api/admin/impersonate", {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data.success) {
-      alert(data?.error || "כניסה בהתחזות נכשלה");
-      return;
+  async function manageUserAsAdmin(userId: string) {
+    try {
+      setManaging(userId);
+      const res = await fetch("/api/admin/manage-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        alert(data?.error || "כניסה לניהול אדמין נכשלה");
+        return;
+      }
+      window.location.href = data.redirectTo || "/dashboard";
+    } catch (err) {
+      console.error("Admin manage failed:", err);
+      alert("שגיאה בכניסה לניהול אדמין");
+    } finally {
+      setManaging(null);
     }
-
-    window.location.href = data.redirectUrl || "/dashboard";
-  } catch (err) {
-    console.error("Admin impersonation failed:", err);
-    alert("שגיאה בכניסה בהתחזות");
-  } finally {
-    setImpersonating(null);
   }
-}
+
+  async function impersonateUser(userId: string) {
+    setImpersonating(userId);
+
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        alert(data?.error || "כניסה בהתחזות נכשלה");
+        return;
+      }
+
+      window.location.href = data.redirectUrl || "/dashboard";
+    } catch (err) {
+      console.error("Admin impersonation failed:", err);
+      alert("שגיאה בכניסה בהתחזות");
+    } finally {
+      setImpersonating(null);
+    }
+  }
 
   async function removeUser(userId: string) {
     const confirmed = confirm("האם למחוק את המשתמש לצמיתות?");
@@ -1113,14 +1137,22 @@ export default function AdminUsersPage() {
   }, [producers, users]);
 
   const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const allVisible = users.filter((u) => !hiddenUserIds.includes(u._id));
     return {
-      total: filteredUsers.length,
-      calls: filteredUsers.filter((u) => u.includeCalls).length,
-      future: filteredUsers.filter(
-        (u) => u.eventDate && new Date(u.eventDate) >= new Date()
+      total: allVisible.length,
+      clients: allVisible.filter((u) => u.role === "user" || u.role === "client")
+        .length,
+      staff: allVisible.filter((u) => u.role === "staff").length,
+      producers: allVisible.filter((u) => u.role === "producer").length,
+      future: allVisible.filter(
+        (u) => u.eventDate && new Date(u.eventDate) >= today
       ).length,
+      filtered: filteredUsers.length,
+      calls: filteredUsers.filter((u) => u.includeCalls).length,
     };
-  }, [filteredUsers]);
+  }, [filteredUsers, users, hiddenUserIds]);
 
   if (loading) {
     return (
@@ -1165,7 +1197,8 @@ export default function AdminUsersPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6754]">
-                ניהול לקוחות, חבילות, הרשאות, מטפלים, שדרוגים וכניסה בהתחזות.
+                ניהול לקוחות, חבילות, הרשאות, מטפלים, שדרוגים, ניהול כאדמין
+                והתחזות.
               </p>
             </div>
 
@@ -1238,11 +1271,12 @@ export default function AdminUsersPage() {
               "
             >
               <option value="all">כל המשתמשים</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-              <option value="producer">Producer</option>
-              <option value="staff">Staff</option>
-              <option value="client">Client</option>
+              <option value="user">לקוחות</option>
+              <option value="client">לקוחות (client)</option>
+              <option value="staff">עובדים</option>
+              <option value="producer">מפיקים</option>
+              <option value="admin">מנהלי מערכת</option>
+              <option value="venue_owner">בעלי אולם</option>
             </select>
 
             <select
@@ -1274,28 +1308,36 @@ export default function AdminUsersPage() {
                 text-[#8A5A24]
               "
             >
-              נמצאו {stats.total} משתמשים
+              מוצגים {stats.filtered} מתוך {stats.total}
             </div>
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <InfoCard
-            title="משתמשים מוצגים"
+            title="סך משתמשים"
             value={String(stats.total)}
-            icon={<Users size={22} />}
+            icon={<Users size={20} />}
           />
-
           <InfoCard
-            title="שירות שיחות פעיל"
-            value={String(stats.calls)}
-            icon={<Phone size={22} />}
+            title="לקוחות"
+            value={String(stats.clients)}
+            icon={<UserRound size={20} />}
           />
-
+          <InfoCard
+            title="עובדים"
+            value={String(stats.staff)}
+            icon={<ShieldCheck size={20} />}
+          />
+          <InfoCard
+            title="מפיקים"
+            value={String(stats.producers)}
+            icon={<Crown size={20} />}
+          />
           <InfoCard
             title="אירועים עתידיים"
             value={String(stats.future)}
-            icon={<CalendarDays size={22} />}
+            icon={<CalendarDays size={20} />}
           />
         </section>
 
@@ -1417,8 +1459,10 @@ export default function AdminUsersPage() {
                       onUpgrade={() => setUpgradingUser(u)}
                       onSendPassword={() => setPasswordUser(u)}
                       onImpersonate={() => impersonateUser(u._id)}
+                      onManageAsAdmin={() => manageUserAsAdmin(u._id)}
                       onDelete={() => removeUser(u._id)}
                       isImpersonating={impersonating === u._id}
+                      isManaging={managing === u._id}
                     />
                   </td>
                 </tr>
@@ -1518,8 +1562,10 @@ export default function AdminUsersPage() {
                   onUpgrade={() => setUpgradingUser(u)}
                   onSendPassword={() => setPasswordUser(u)}
                   onImpersonate={() => impersonateUser(u._id)}
+                  onManageAsAdmin={() => manageUserAsAdmin(u._id)}
                   onDelete={() => removeUser(u._id)}
                   isImpersonating={impersonating === u._id}
+                  isManaging={managing === u._id}
                   fullWidth
                 />
               </div>
@@ -4414,8 +4460,10 @@ function UserActionsDropdown({
   onUpgrade,
   onSendPassword,
   onImpersonate,
+  onManageAsAdmin,
   onDelete,
   isImpersonating,
+  isManaging,
   fullWidth = false,
 }: {
   user: AdminUser;
@@ -4427,8 +4475,10 @@ function UserActionsDropdown({
   onUpgrade: () => void;
   onSendPassword: () => void;
   onImpersonate: () => void;
+  onManageAsAdmin?: () => void;
   onDelete: () => void;
   isImpersonating?: boolean;
+  isManaging?: boolean;
   fullWidth?: boolean;
 }) {
   function runAction(action: () => void) {
@@ -4497,27 +4547,42 @@ function UserActionsDropdown({
             sm:absolute sm:left-0 sm:top-[calc(100%+8px)] sm:z-50 sm:mt-0 sm:min-w-[210px]
           "
         >
-          {user.role !== "admin" && (
-  <DropdownAction
-    icon={
-      isImpersonating ? (
-        <Loader2 className="animate-spin" size={16} />
-      ) : (
-        <LogIn size={16} />
-      )
-    }
-    label="התחזות"
-    tone="blue"
-    onClick={() => runAction(onImpersonate)}
-  />
-)}
+          {user.role !== "admin" && onManageAsAdmin && (
+            <DropdownAction
+              icon={
+                isManaging ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <ShieldCheck size={16} />
+                )
+              }
+              label="ניהול משתמש כאדמין"
+              tone="gold"
+              onClick={() => runAction(onManageAsAdmin)}
+            />
+          )}
 
-<DropdownAction
-  icon={<KeyRound size={16} />}
-  label="שליחת סיסמה"
-  tone="gold"
-  onClick={() => runAction(onSendPassword)}
-/>
+          {user.role !== "admin" && (
+            <DropdownAction
+              icon={
+                isImpersonating ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <LogIn size={16} />
+                )
+              }
+              label="התחזות"
+              tone="blue"
+              onClick={() => runAction(onImpersonate)}
+            />
+          )}
+
+          <DropdownAction
+            icon={<KeyRound size={16} />}
+            label="שליחת סיסמה"
+            tone="gold"
+            onClick={() => runAction(onSendPassword)}
+          />
 
 <DropdownAction
   icon={<Pencil size={16} />}

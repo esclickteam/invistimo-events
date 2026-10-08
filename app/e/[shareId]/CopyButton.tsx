@@ -5,9 +5,15 @@ import { Check, Copy } from "lucide-react";
 
 type Props = {
   value: string;
+  label?: string;
+  successLabel?: string;
 };
 
-export default function CopyButton({ value }: Props) {
+export default function CopyButton({
+  value,
+  label = "העתקת מספר ל-Bit",
+  successLabel = "המספר הועתק בהצלחה",
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -17,7 +23,7 @@ export default function CopyButton({ value }: Props) {
 
       window.setTimeout(() => {
         setCopied(false);
-      }, 1800);
+      }, 2200);
     } catch {
       alert("לא הצלחנו להעתיק. אפשר לסמן ולהעתיק ידנית.");
     }
@@ -29,7 +35,7 @@ export default function CopyButton({ value }: Props) {
       onClick={copy}
       className="
         inline-flex
-        h-10
+        min-h-11
         items-center
         justify-center
         gap-2
@@ -48,12 +54,12 @@ export default function CopyButton({ value }: Props) {
       {copied ? (
         <>
           <Check className="h-4 w-4" />
-          הועתק
+          {successLabel}
         </>
       ) : (
         <>
           <Copy className="h-4 w-4" />
-          העתק
+          {label}
         </>
       )}
     </button>

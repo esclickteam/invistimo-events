@@ -1,3 +1,8 @@
+import {
+  resolveCentralGifts,
+  type CentralGiftOptions,
+} from "@/lib/eventDetails/centralEventDetails";
+
 export type WeddingGiftLinks = {
   creditUrl: string;
   payboxUrl: string;
@@ -27,33 +32,38 @@ function toHttpUrl(value: unknown) {
   return "";
 }
 
-export function resolveWeddingGifts(invitation?: {
-  giftOptions?: {
-    creditEnabled?: boolean;
-    creditUrl?: string;
-    payboxEnabled?: boolean;
-    payboxUrl?: string;
-  } | null;
-  publicEventPage?: {
-    gifts?: {
+/**
+ * Resolve guest-facing gift links from the central Event source (with Invitation fallback).
+ */
+export function resolveWeddingGifts(
+  invitation?: {
+    giftOptions?: {
+      creditEnabled?: boolean;
       creditUrl?: string;
+      payboxEnabled?: boolean;
       payboxUrl?: string;
-      bitPhone?: string;
-      bitUrl?: string;
     } | null;
-  } | null;
-} | null): WeddingGiftLinks {
-  const options = invitation?.giftOptions || {};
-  const publicGifts = invitation?.publicEventPage?.gifts || {};
-
-  const creditFromOptions = options.creditEnabled ? toHttpUrl(options.creditUrl) : "";
-  const payboxFromOptions = options.payboxEnabled ? toHttpUrl(options.payboxUrl) : "";
+    publicEventPage?: {
+      gifts?: {
+        creditUrl?: string;
+        payboxUrl?: string;
+        bitPhone?: string;
+        bitUrl?: string;
+      } | null;
+    } | null;
+  } | null,
+  event?: {
+    gifts?: Partial<CentralGiftOptions> | null;
+    giftCreditUrl?: string | null;
+  } | null
+): WeddingGiftLinks {
+  const resolved = resolveCentralGifts(event, invitation);
 
   return {
-    creditUrl: creditFromOptions || toHttpUrl(publicGifts.creditUrl),
-    payboxUrl: payboxFromOptions || toHttpUrl(publicGifts.payboxUrl),
-    bitPhone: cleanString(publicGifts.bitPhone),
-    bitUrl: toHttpUrl(publicGifts.bitUrl),
+    creditUrl: resolved.creditEnabled ? resolved.creditUrl : "",
+    payboxUrl: resolved.payboxEnabled ? resolved.payboxUrl : "",
+    bitPhone: resolved.bitEnabled ? resolved.bitPhone : "",
+    bitUrl: toHttpUrl(invitation?.publicEventPage?.gifts?.bitUrl),
   };
 }
 

@@ -361,6 +361,31 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
       default: null,
       index: true,
     },
+
+    /** User created from this quote (admin/employee action) */
+    convertedUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    convertedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Snapshots before edits of approved/sent quotes */
+    versionHistory: {
+      type: [AnySchema],
+      default: [],
+    },
+
+    notes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,

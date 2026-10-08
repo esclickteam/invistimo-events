@@ -511,7 +511,7 @@ function EditEventPageInner() {
                     md:text-5xl
                   "
                 >
-                  עריכת אירוע
+                  הגדרת פרטי אירוע
                 </h1>
 
                 <p
