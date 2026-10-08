@@ -55,8 +55,6 @@ async function ensureCachedPromptAudio(input: {
   voiceId?: string;
   /** When true, never call ElevenLabs — throw if missing/stale. */
   reuseOnly?: boolean;
-  /** Prosody hint only — not spoken; used for introBefore → event name join. */
-  nextText?: string;
 }): Promise<{ doc: any; reused: boolean }> {
   const text = String(input.text || "").trim();
   if (!text) {
@@ -72,12 +70,7 @@ async function ensureCachedPromptAudio(input: {
     );
   }
 
-  // Include nextText in hash so introBefore regenerates when join hint changes.
-  const nextText = String(input.nextText || "").trim();
-  const contentHash = hashTtsContent(
-    nextText ? `${text}\n→${nextText}` : text,
-    resolvedVoice
-  );
+  const contentHash = hashTtsContent(text, resolvedVoice);
   const existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
 
   if (
@@ -136,7 +129,6 @@ async function ensureCachedPromptAudio(input: {
   const synth = await synthesizeElevenLabsSpeech({
     text,
     voiceId: resolvedVoice,
-    ...(nextText ? { nextText } : {}),
   });
 
   if (!synth?.buffer?.length) {
@@ -195,17 +187,11 @@ export async function ensureGlobalPackSegment(input: {
 
   const text = IVR_GLOBAL_PACK_TEXTS[input.segment];
   const key = globalPackAudioKey(input.gender, input.segment);
-  // Continuity hint so "...לאירוע" finishes fully and flows into event-name TTS.
-  const nextText =
-    input.segment === "introBeforeEventName"
-      ? "החתונה של יונתן ואלמוג"
-      : undefined;
   const { doc, reused } = await ensureCachedPromptAudio({
     key,
     text,
     voiceId,
     reuseOnly: input.reuseOnly,
-    nextText,
   });
 
   return {
