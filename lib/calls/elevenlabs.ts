@@ -440,6 +440,11 @@ export async function synthesizeElevenLabsSpeech(input: {
    * Pass null/"" to force omit even on supporting models.
    */
   languageCode?: string | null;
+  /**
+   * Prosody hint for the following clip (not spoken). Helps finish the last
+   * word of introBefore and blend into the dynamic event-name audio.
+   */
+  nextText?: string;
 }): Promise<{ buffer: Buffer; contentType: string; contentHash: string }> {
   const voiceId = String(input.voiceId || "").trim();
   const text = String(input.text || "").trim();
@@ -472,6 +477,11 @@ export async function synthesizeElevenLabsSpeech(input: {
     if (languageCode) {
       body.language_code = languageCode;
     }
+  }
+
+  const nextText = String(input.nextText || "").trim();
+  if (nextText) {
+    body.next_text = nextText;
   }
 
   const res = await elevenLabsFetch(

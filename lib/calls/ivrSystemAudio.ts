@@ -55,6 +55,8 @@ async function ensureCachedPromptAudio(input: {
   voiceId?: string;
   /** When true, never call ElevenLabs — throw if missing/stale. */
   reuseOnly?: boolean;
+  /** Prosody hint only — not spoken; used for introBefore → event name join. */
+  nextText?: string;
 }): Promise<{ doc: any; reused: boolean }> {
   const text = String(input.text || "").trim();
   if (!text) {
@@ -70,7 +72,12 @@ async function ensureCachedPromptAudio(input: {
     );
   }
 
-  const contentHash = hashTtsContent(text, resolvedVoice);
+  // Include nextText in hash so introBefore regenerates when join hint changes.
+  const nextText = String(input.nextText || "").trim();
+  const contentHash = hashTtsContent(
+    nextText ? `${text}\n→${nextText}` : text,
+    resolvedVoice
+  );
   const existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
 
   if (
