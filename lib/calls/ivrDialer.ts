@@ -57,6 +57,8 @@ export type IvrDueRound = {
   introAudioUrl: string;
   /** AI mode: spoken event-name clip URL. */
   eventNameAudioUrl: string;
+  /** AI mode: seamless composed before+name+after (preferred for Telnyx). */
+  composedIntroAudioUrl: string;
   voiceGender: "female" | "male" | null;
   audioMode: "ai" | "self_recorded" | null;
   clientName: string;
@@ -64,27 +66,36 @@ export type IvrDueRound = {
 
 function resolveReadyAiAudio(user: any): {
   eventNameAudioUrl: string;
+  composedIntroAudioUrl: string;
   voiceGender: "female" | "male";
 } | null {
   const cfg = user?.ivrConfig || {};
   const gender = normalizeIvrVoiceGender(cfg.voiceGender);
   const eventAudio = cfg.eventNameAudio;
-  const token = cleanStr(eventAudio?.publicToken);
+  const composed = cfg.composedIntroAudio;
   const eventNameAudioUrl = resolveIvrPublicAudioUrl({
-    publicToken: token,
+    publicToken: eventAudio?.publicToken,
     storedUrl: eventAudio?.audioUrl,
   });
+  const composedIntroAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: composed?.publicToken,
+    storedUrl: composed?.audioUrl,
+  });
 
+  // Require seamless composed intro approved — not just the event-name clip.
   if (
     !gender ||
     !eventNameAudioUrl ||
+    !composedIntroAudioUrl ||
     eventAudio?.status !== "ready" ||
-    eventAudio?.approved !== true
+    eventAudio?.approved !== true ||
+    composed?.status !== "ready" ||
+    composed?.approved !== true
   ) {
     return null;
   }
 
-  return { eventNameAudioUrl, voiceGender: gender };
+  return { eventNameAudioUrl, composedIntroAudioUrl, voiceGender: gender };
 }
 
 function resolveReadySelfAudio(user: any): string {
@@ -134,6 +145,7 @@ export async function listDueIvrRounds(input?: {
 
     let introAudioUrl = "";
     let eventNameAudioUrl = "";
+    let composedIntroAudioUrl = "";
     let voiceGender: "female" | "male" | null = null;
 
     if (audioMode === "self_recorded") {
@@ -143,6 +155,9 @@ export async function listDueIvrRounds(input?: {
       const ai = resolveReadyAiAudio(user);
       if (!ai) continue;
       eventNameAudioUrl = ai.eventNameAudioUrl;
+      composedIntroAudioUrl = ai.composedIntroAudioUrl;
+      // Prefer seamless composed file as the dial intro when available.
+      introAudioUrl = ai.composedIntroAudioUrl;
       voiceGender = ai.voiceGender;
     }
 
@@ -185,6 +200,7 @@ export async function listDueIvrRounds(input?: {
         scheduledAt,
         introAudioUrl,
         eventNameAudioUrl,
+        composedIntroAudioUrl,
         voiceGender,
         audioMode,
         clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",

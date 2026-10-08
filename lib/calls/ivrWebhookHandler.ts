@@ -128,25 +128,46 @@ async function playInboundChoiceGather(input: {
   });
 }
 
-/** Start AI sequential intro: before → event name → after+gather */
+/** Start AI intro: prefer seamless composed file; else sequential before→name→after. */
 async function startOutboundAiIntro(input: {
   attempt: any;
   callControlId: string;
 }) {
   const gender = attemptVoiceGender(input.attempt);
+  // Dialer stores composedIntro on introAudioUrl for AI mode (single continuous file).
+  const composedUrl = cleanStr(input.attempt.introAudioUrl);
+  const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
+
+  if (composedUrl && eventNameUrl) {
+    await gatherIvrUsingAudio({
+      callControlId: input.callControlId,
+      audioUrl: composedUrl,
+      minimumDigits: 1,
+      maximumDigits: 1,
+      validDigits: "123",
+      timeoutMillis: 12000,
+      clientState: {
+        source: "invistimo-ivr",
+        callAttemptId: String(input.attempt._id),
+        stage: "choice",
+        seamlessCompose: true,
+      },
+    });
+    input.attempt.flowStep = "gather_choice";
+    await input.attempt.save();
+    return;
+  }
+
   const beforeUrl = await getGlobalPackSegmentUrl(
     gender,
     "introBeforeEventName"
   );
-  const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
 
   if (!beforeUrl || !eventNameUrl) {
-    // Fallback: legacy single intro file if present
-    const introUrl = cleanStr(input.attempt.introAudioUrl);
-    if (introUrl) {
+    if (composedUrl) {
       await gatherIvrUsingAudio({
         callControlId: input.callControlId,
-        audioUrl: introUrl,
+        audioUrl: composedUrl,
         minimumDigits: 1,
         maximumDigits: 1,
         validDigits: "123",

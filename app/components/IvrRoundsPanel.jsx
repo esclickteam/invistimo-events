@@ -262,6 +262,11 @@ export default function IvrRoundsPanel({
 
   const previewPlaylist = useMemo(() => {
     const preview = config?.ivrConfig?.previewAudio;
+    const composed =
+      preview?.composedIntroAudioUrl ||
+      config?.ivrConfig?.composedIntroAudio?.audioUrl;
+    // Prefer single seamless composed file — sounds like one narration.
+    if (composed) return [composed];
     if (Array.isArray(preview?.playlist) && preview.playlist.length) {
       return preview.playlist;
     }
@@ -271,6 +276,12 @@ export default function IvrRoundsPanel({
       preview?.introAfterEventNameUrl,
     ].filter(Boolean);
   }, [config]);
+
+  const composedReady = Boolean(
+    config?.ivrConfig?.composedIntroAudio?.status === "ready" &&
+      (config?.ivrConfig?.composedIntroAudio?.audioUrl ||
+        config?.ivrConfig?.previewAudio?.composedIntroAudioUrl)
+  );
 
   async function loadAll() {
     setLoading(true);
@@ -417,6 +428,7 @@ export default function IvrRoundsPanel({
         audioMode: "ai",
         voiceGender: config?.ivrConfig?.voiceGender,
         eventNameAudio: data.eventNameAudio,
+        composedIntroAudio: data.composedIntroAudio,
         previewAudio: data.previewAudio,
         previewText: data.previewText,
         recommendedScript: data.previewText,
@@ -424,8 +436,10 @@ export default function IvrRoundsPanel({
       });
       setMessage(
         data.reused
-          ? "שם האירוע לא השתנה — מנגנים Preview מהקבצים הקיימים (ללא ElevenLabs)."
-          : "נוצר רק שם האירוע. מאזינים ל-Preview המחובר (גלובלי + שם + גלובלי) ואז מאשרים."
+          ? "שם האירוע לא השתנה — מנגנים Preview מחובר מהקבצים הקיימים (ללא ElevenLabs)."
+          : data.reusedEventName
+            ? "חובר מחדש משפט אחד רציף מהקטעים הקיימים (ללא ElevenLabs נוסף). האזינו ואשרו."
+            : "נוצר רק שם האירוע וחובר למשפט אחד רציף. האזינו לתצוגה המקדימה ואשרו."
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "יצירת שם האירוע נכשלה");
@@ -540,11 +554,14 @@ export default function IvrRoundsPanel({
   const approved =
     audioMode === "self_recorded"
       ? Boolean(intro?.approved)
-      : Boolean(eventNameAudio?.approved);
+      : Boolean(
+          eventNameAudio?.approved &&
+            config?.ivrConfig?.composedIntroAudio?.approved
+        );
   const aiReady =
     audioMode === "ai" &&
     eventNameAudio?.status === "ready" &&
-    previewPlaylist.length >= 3;
+    (composedReady || previewPlaylist.length >= 3);
   const selfReady =
     audioMode === "self_recorded" &&
     intro?.status === "ready" &&
@@ -852,17 +869,40 @@ export default function IvrRoundsPanel({
             <div className="text-sm font-black text-emerald-800">
               {approved
                 ? "הודעה מאושרת — מוכנה לשיחות IVR"
-                : "Preview מוכן — האזינו ואשרו לפני חיוג"}
+                : composedReady
+                  ? "תצוגה מקדימה מחוברת (משפט אחד) — האזינו ואשרו לפני חיוג"
+                  : "Preview מוכן — האזינו ואשרו לפני חיוג"}
             </div>
-            <ConcatPreviewPlayer playlist={previewPlaylist} />
+            {composedReady ? (
+              <div className="space-y-2">
+                <audio
+                  controls
+                  preload="metadata"
+                  src={previewPlaylist[0]}
+                  className="w-full"
+                  data-testid="ivr-composed-preview"
+                />
+                <p className="text-[11px] font-bold text-emerald-800">
+                  קריינות אחת רציפה (פתיח + שם האירוע + המשך) — בלי חיבור ידני של
+                  3 קבצים.
+                </p>
+              </div>
+            ) : (
+              <ConcatPreviewPlayer playlist={previewPlaylist} />
+            )}
             <div className="flex flex-wrap gap-2">
               {!approved ? (
                 <button
                   type="button"
-                  disabled={saving}
+                  disabled={saving || !composedReady}
                   onClick={approveAudio}
-                  className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white"
+                  className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white disabled:opacity-60"
                   data-testid="ivr-approve-audio"
+                  title={
+                    composedReady
+                      ? "אישור אחרי האזנה למשפט המחובר"
+                      : "יש ליצור תצוגה מקדימה מחוברת לפני אישור"
+                  }
                 >
                   ✓ אישור ושמירה
                 </button>

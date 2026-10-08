@@ -375,6 +375,28 @@ export async function listElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
   return v1Voices;
 }
 
+/**
+ * Shared IVR TTS settings — packs + per-event eventName must match exactly
+ * so server-side compose sounds like one continuous narration.
+ */
+export const IVR_TTS_MODEL_ID = "eleven_multilingual_v2";
+/** mp3 @ 44.1kHz 128kbps — same container/sample rate for every IVR clip. */
+export const IVR_TTS_OUTPUT_FORMAT = "mp3_44100_128";
+export const IVR_TTS_VOICE_SETTINGS = {
+  stability: 0.45,
+  similarity_boost: 0.75,
+  style: 0,
+  use_speaker_boost: true,
+} as const;
+
+export function getIvrTtsModelId(override?: string) {
+  return (
+    String(override || "").trim() ||
+    readEnv("ELEVENLABS_MODEL_ID") ||
+    IVR_TTS_MODEL_ID
+  );
+}
+
 export async function synthesizeElevenLabsSpeech(input: {
   text: string;
   voiceId: string;
@@ -390,13 +412,12 @@ export async function synthesizeElevenLabsSpeech(input: {
     throw new ElevenLabsApiError("TEXT_REQUIRED", "text is required");
   }
 
-  const modelId =
-    input.modelId ||
-    readEnv("ELEVENLABS_MODEL_ID") ||
-    "eleven_multilingual_v2";
+  const modelId = getIvrTtsModelId(input.modelId);
+  const outputFormat =
+    readEnv("ELEVENLABS_OUTPUT_FORMAT") || IVR_TTS_OUTPUT_FORMAT;
 
   const res = await elevenLabsFetch(
-    `/v1/text-to-speech/${encodeURIComponent(voiceId)}`,
+    `/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${encodeURIComponent(outputFormat)}`,
     {
       method: "POST",
       headers: {
@@ -406,10 +427,7 @@ export async function synthesizeElevenLabsSpeech(input: {
       body: JSON.stringify({
         text,
         model_id: modelId,
-        voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.75,
-        },
+        voice_settings: { ...IVR_TTS_VOICE_SETTINGS },
       }),
     }
   );

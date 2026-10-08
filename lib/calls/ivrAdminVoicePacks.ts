@@ -228,15 +228,10 @@ async function readExistingPackSegments(
         }
 
         const r2Key = String(row.r2Key || "").trim();
-        const audioUrl = resolveIvrPublicAudioUrl({
-          publicToken: row.publicToken,
-          storedUrl: row.audioUrl,
-        });
-
         if (!r2Key) {
           out[segment] = {
             key,
-            audioUrl,
+            audioUrl: "",
             contentHash: String(row.contentHash || ""),
             ready: false,
             status: "unplayable",
@@ -249,7 +244,7 @@ async function readExistingPackSegments(
         if (!verified.ok) {
           out[segment] = {
             key,
-            audioUrl,
+            audioUrl: "",
             contentHash: String(row.contentHash || ""),
             ready: false,
             status: "unplayable",
@@ -260,11 +255,25 @@ async function readExistingPackSegments(
           return;
         }
 
-        // Refresh stale URL in Mongo (best-effort, don't fail GET).
-        if (audioUrl && audioUrl !== row.audioUrl) {
+        // Ensure a publicToken exists so media route + UI can play the clip.
+        let publicToken = String(row.publicToken || "").trim();
+        if (!publicToken) {
+          publicToken = createIvrAudioPublicToken();
+        }
+
+        const audioUrl = resolveIvrPublicAudioUrl({
+          publicToken,
+          storedUrl: row.audioUrl,
+        });
+
+        // Refresh stale/missing token+URL in Mongo (best-effort, don't fail GET).
+        if (
+          audioUrl &&
+          (audioUrl !== row.audioUrl || publicToken !== row.publicToken)
+        ) {
           IvrSystemAudio.updateOne(
             { key },
-            { $set: { audioUrl } }
+            { $set: { audioUrl, publicToken } }
           ).catch(() => null);
         }
 

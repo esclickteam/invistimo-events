@@ -209,6 +209,7 @@ test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog"
   assert.match(ui, /ConcatPreviewPlayer|previewPlaylist/);
   assert.match(ui, /יצירת שם האירוע \+ תצוגה מקדימה/);
   assert.match(ui, /packsReady|ivr-packs-not-ready/);
+  assert.match(ui, /composedIntroAudio|ivr-composed-preview/);
   assert.match(ui, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
   assert.equal(ui.includes("listElevenLabsVoices"), false);
   assert.equal(ui.includes("<select"), false);
@@ -218,6 +219,24 @@ test("UI offers only קול נשי / קול גברי — not ElevenLabs catalog"
   assert.equal(ui.includes("George"), false);
   // Must not fetch voices as a client catalog
   assert.equal(ui.includes('fetch("/api/ivr/voices"'), false);
+});
+
+test("config composes seamless intro without extra ElevenLabs TTS", () => {
+  const config = readSrc("app/api/ivr/config/route.ts");
+  assert.match(config, /composeIvrIntroAudio|buildAndStoreComposedIntro/);
+  assert.match(config, /composedWithoutElevenLabs:\s*true/);
+  assert.match(config, /COMPOSED_INTRO_NOT_READY/);
+  assert.match(config, /composedIntroAudio/);
+
+  const compose = readSrc("lib/calls/ivrComposeIntro.ts");
+  assert.match(compose, /silenceremove/);
+  assert.match(compose, /loudnorm/);
+  assert.match(compose, /acrossfade/);
+  assert.equal(compose.includes("synthesizeElevenLabsSpeech"), false);
+
+  const eleven = readSrc("lib/calls/elevenlabs.ts");
+  assert.match(eleven, /IVR_TTS_VOICE_SETTINGS/);
+  assert.match(eleven, /IVR_TTS_OUTPUT_FORMAT|mp3_44100_128/);
 });
 
 test("dialer + webhook play sequential global + event name segments", () => {

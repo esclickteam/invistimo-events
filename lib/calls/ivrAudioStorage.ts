@@ -275,6 +275,15 @@ export function ivrEventNameR2Key(userId: string, token: string, ext = "mp3") {
   return `ivr/event-name/${userId}/${token}.${ext}`;
 }
 
+/** Server-side seamless compose of before + eventName + after (no ElevenLabs). */
+export function ivrComposedIntroR2Key(
+  userId: string,
+  token: string,
+  ext = "mp3"
+) {
+  return `ivr/composed-intro/${userId}/${token}.${ext}`;
+}
+
 export function ivrSystemR2Key(promptKey: string, hash: string, ext = "mp3") {
   return `ivr/system/${promptKey}/${hash}.${ext}`;
 }

@@ -25,7 +25,10 @@ import {
 import {
   buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
+  getIvrAudioObjectFromR2,
+  ivrComposedIntroR2Key,
   ivrEventNameR2Key,
+  resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
 import { ensureGlobalVoicePack } from "@/lib/calls/ivrSystemAudio";
@@ -34,6 +37,11 @@ import {
   getIvrSystemVoiceChoices,
 } from "@/lib/calls/ivrSystemVoices";
 import { hydrateApprovedPackVoiceIds } from "@/lib/calls/ivrAdminVoicePacks";
+import {
+  composeIvrIntroAudio,
+  contentHashForComposedIntro,
+  IVR_COMPOSE_VERSION,
+} from "@/lib/calls/ivrComposeIntro";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +68,7 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
 function serializePreviewUrls(input: {
   gender: IvrVoiceGender | null;
   eventNameAudioUrl?: string;
+  composedIntroAudioUrl?: string;
   pack?: Awaited<ReturnType<typeof ensureGlobalVoicePack>> | null;
 }) {
   if (!input.gender || !input.pack) {
@@ -67,7 +76,12 @@ function serializePreviewUrls(input: {
       introBeforeEventNameUrl: "",
       eventNameAudioUrl: String(input.eventNameAudioUrl || ""),
       introAfterEventNameUrl: "",
-      playlist: [] as string[],
+      composedIntroAudioUrl: String(input.composedIntroAudioUrl || ""),
+      /** Prefer single seamless file for Preview; playlist is fallback only. */
+      playlist: input.composedIntroAudioUrl
+        ? [String(input.composedIntroAudioUrl)]
+        : ([] as string[]),
+      seamless: Boolean(input.composedIntroAudioUrl),
     };
   }
 
@@ -76,13 +90,76 @@ function serializePreviewUrls(input: {
   );
   const eventName = String(input.eventNameAudioUrl || "");
   const after = String(input.pack.segments.introAfterEventName?.audioUrl || "");
-  const playlist = [before, eventName, after].filter(Boolean);
+  const composed = String(input.composedIntroAudioUrl || "");
+  const playlist = composed
+    ? [composed]
+    : [before, eventName, after].filter(Boolean);
 
   return {
     introBeforeEventNameUrl: before,
     eventNameAudioUrl: eventName,
     introAfterEventNameUrl: after,
+    composedIntroAudioUrl: composed,
     playlist,
+    seamless: Boolean(composed),
+  };
+}
+
+async function buildAndStoreComposedIntro(input: {
+  userId: string;
+  voiceId: string;
+  eventNameHash: string;
+  eventNameR2Key: string;
+  pack: Awaited<ReturnType<typeof ensureGlobalVoicePack>>;
+}) {
+  const beforeSeg = input.pack.segments.introBeforeEventName;
+  const afterSeg = input.pack.segments.introAfterEventName;
+  if (!beforeSeg?.r2Key || !afterSeg?.r2Key || !input.eventNameR2Key) {
+    throw new Error("IVR_COMPOSE_SEGMENTS_MISSING");
+  }
+
+  const composeHash = contentHashForComposedIntro({
+    beforeHash: String(beforeSeg.contentHash || ""),
+    eventNameHash: input.eventNameHash,
+    afterHash: String(afterSeg.contentHash || ""),
+    voiceId: input.voiceId,
+  });
+
+  const [beforeObj, nameObj, afterObj] = await Promise.all([
+    getIvrAudioObjectFromR2(String(beforeSeg.r2Key)),
+    getIvrAudioObjectFromR2(String(input.eventNameR2Key)),
+    getIvrAudioObjectFromR2(String(afterSeg.r2Key)),
+  ]);
+
+  const composed = await composeIvrIntroAudio({
+    beforeMp3: beforeObj.buffer,
+    eventNameMp3: nameObj.buffer,
+    afterMp3: afterObj.buffer,
+  });
+
+  const publicToken = createIvrAudioPublicToken();
+  const r2Key = ivrComposedIntroR2Key(input.userId, publicToken, "mp3");
+  await uploadIvrAudioToR2({
+    key: r2Key,
+    buffer: composed.buffer,
+    contentType: composed.contentType,
+  });
+
+  const audioUrl = buildIvrPublicAudioUrl(publicToken);
+
+  return {
+    status: "ready" as const,
+    source: "compose" as const,
+    publicToken,
+    audioUrl,
+    r2Key,
+    contentType: composed.contentType,
+    contentHash: composeHash,
+    durationSeconds: composed.durationSeconds,
+    generatedAt: new Date(),
+    composeVersion: IVR_COMPOSE_VERSION,
+    approved: false,
+    approvedAt: null,
   };
 }
 
@@ -103,9 +180,22 @@ function serializeIvrConfig(
     // Legacy AI full-intro was stored on introAudio — treat as missing for AI pack mode.
     { status: "missing", approved: false };
 
+  const composedIntroAudio =
+    cfg?.composedIntroAudio || { status: "missing", approved: false };
+
+  const eventNameAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: eventNameAudio?.publicToken,
+    storedUrl: eventNameAudio?.audioUrl,
+  });
+  const composedIntroAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: composedIntroAudio?.publicToken,
+    storedUrl: composedIntroAudio?.audioUrl,
+  });
+
   const previewAudio = serializePreviewUrls({
     gender: voiceGender,
-    eventNameAudioUrl: eventNameAudio?.audioUrl,
+    eventNameAudioUrl,
+    composedIntroAudioUrl,
     pack: pack || null,
   });
 
@@ -131,7 +221,14 @@ function serializeIvrConfig(
     eventNamePronunciation,
     voiceGender,
     /** Never expose ElevenLabs voice names/ids to clients — gender only. */
-    eventNameAudio,
+    eventNameAudio: {
+      ...eventNameAudio,
+      audioUrl: eventNameAudioUrl || eventNameAudio?.audioUrl || "",
+    },
+    composedIntroAudio: {
+      ...composedIntroAudio,
+      audioUrl: composedIntroAudioUrl || composedIntroAudio?.audioUrl || "",
+    },
     /** Self-recorded path only */
     introAudio: cfg?.introAudio || { status: "missing", approved: false },
     previewText,
@@ -266,20 +363,38 @@ export async function PATCH(req: NextRequest) {
         };
       } else {
         const eventNameAudio = prev.eventNameAudio || {};
-        if (eventNameAudio.status !== "ready" || !eventNameAudio.audioUrl) {
+        const composedIntroAudio = prev.composedIntroAudio || {};
+        // Approve only after listening to the seamless composed intro.
+        if (
+          eventNameAudio.status !== "ready" ||
+          !eventNameAudio.audioUrl ||
+          composedIntroAudio.status !== "ready" ||
+          !composedIntroAudio.audioUrl
+        ) {
           return NextResponse.json(
-            { ok: false, error: "AUDIO_NOT_READY" },
+            {
+              ok: false,
+              error: "COMPOSED_INTRO_NOT_READY",
+              message:
+                "יש להאזין לתצוגה המקדימה המחוברת (משפט אחד) לפני אישור.",
+            },
             { status: 400 }
           );
         }
+        const approvedAt = new Date();
         user.ivrConfig = {
           ...(prev as any),
           eventNameAudio: {
             ...eventNameAudio,
             approved: true,
-            approvedAt: new Date(),
+            approvedAt,
           },
-          updatedAt: new Date(),
+          composedIntroAudio: {
+            ...composedIntroAudio,
+            approved: true,
+            approvedAt,
+          },
+          updatedAt: approvedAt,
         };
       }
       await user.save();
@@ -334,6 +449,10 @@ export async function PATCH(req: NextRequest) {
       String(prev.voiceGender || "") !== String(nextGender || "") ||
       String(prev.systemVoiceId || prev.voiceId || "") !== nextVoice;
 
+    let composedIntroAudio =
+      prev.composedIntroAudio ||
+      ({ status: "missing", approved: false } as any);
+
     if (
       eventNameAudio?.status === "ready" &&
       fieldsChanged &&
@@ -341,6 +460,19 @@ export async function PATCH(req: NextRequest) {
     ) {
       eventNameAudio = {
         ...eventNameAudio,
+        status: "stale",
+        approved: false,
+        approvedAt: null,
+      };
+    }
+
+    if (
+      composedIntroAudio?.status === "ready" &&
+      fieldsChanged &&
+      nextMode === "ai"
+    ) {
+      composedIntroAudio = {
+        ...composedIntroAudio,
         status: "stale",
         approved: false,
         approvedAt: null,
@@ -356,6 +488,7 @@ export async function PATCH(req: NextRequest) {
       systemVoiceId: nextVoice,
       voiceId: nextVoice,
       eventNameAudio,
+      composedIntroAudio,
       updatedAt: new Date(),
     };
 
@@ -497,68 +630,44 @@ export async function POST(req: NextRequest) {
       voiceId,
     });
 
+    const expectedComposeHash = contentHashForComposedIntro({
+      beforeHash: String(
+        pack.segments.introBeforeEventName?.contentHash || ""
+      ),
+      eventNameHash: hash,
+      afterHash: String(pack.segments.introAfterEventName?.contentHash || ""),
+      voiceId,
+    });
+
+    let eventNameAudio = cfg.eventNameAudio;
+    let reusedEventName = false;
+
     // Reuse existing event-name audio if hash matches — never re-TTS on Play.
     if (
-      cfg.eventNameAudio?.status === "ready" &&
-      cfg.eventNameAudio?.contentHash === hash &&
-      cfg.eventNameAudio?.audioUrl &&
+      eventNameAudio?.status === "ready" &&
+      eventNameAudio?.contentHash === hash &&
+      eventNameAudio?.audioUrl &&
+      eventNameAudio?.r2Key &&
       !body.force
     ) {
-      const previewAudio = serializePreviewUrls({
-        gender: voiceGender,
-        eventNameAudioUrl: cfg.eventNameAudio.audioUrl,
-        pack,
+      reusedEventName = true;
+    } else {
+      // ONLY synthesize the event name — never the fixed pack texts here.
+      const synth = await synthesizeElevenLabsSpeech({
+        text: spokenName,
+        voiceId,
       });
-      const serialized = serializeIvrConfig(
-        {
-          ...cfg,
-          eventName,
-          eventNamePronunciation,
-          voiceGender,
-          systemVoiceId: voiceId,
-          voiceId,
-          audioMode: "ai",
-        },
-        pack
-      );
-      return NextResponse.json({
-        ok: true,
-        reused: true,
-        eventNameOnly: true,
-        eventNameAudio: cfg.eventNameAudio,
-        previewAudio,
-        followUpAudio: serialized.followUpAudio,
-        previewText: buildIvrRecommendedScriptForDisplay({ eventName }),
-        packSegmentReuse: packReuseStats,
-        fixedTextsSynthesized: false,
+      const publicToken = createIvrAudioPublicToken();
+      const r2Key = ivrEventNameR2Key(String(user._id), publicToken, "mp3");
+
+      await uploadIvrAudioToR2({
+        key: r2Key,
+        buffer: synth.buffer,
+        contentType: synth.contentType,
       });
-    }
 
-    // ONLY synthesize the event name — never the fixed pack texts here.
-    const synth = await synthesizeElevenLabsSpeech({
-      text: spokenName,
-      voiceId,
-    });
-    const publicToken = createIvrAudioPublicToken();
-    const r2Key = ivrEventNameR2Key(String(user._id), publicToken, "mp3");
-
-    await uploadIvrAudioToR2({
-      key: r2Key,
-      buffer: synth.buffer,
-      contentType: synth.contentType,
-    });
-
-    const audioUrl = buildIvrPublicAudioUrl(publicToken);
-
-    user.ivrConfig = {
-      ...(cfg as any),
-      audioMode: "ai",
-      eventName,
-      eventNamePronunciation,
-      voiceGender,
-      systemVoiceId: voiceId,
-      voiceId,
-      eventNameAudio: {
+      const audioUrl = buildIvrPublicAudioUrl(publicToken);
+      eventNameAudio = {
         status: "ready",
         source: "elevenlabs",
         publicToken,
@@ -571,6 +680,47 @@ export async function POST(req: NextRequest) {
         textSnapshot: spokenName,
         approved: false,
         approvedAt: null,
+      };
+    }
+
+    // Seamless compose on the server (ffmpeg) — no ElevenLabs credits.
+    let composedIntroAudio = cfg.composedIntroAudio;
+    let reusedCompose = false;
+    if (
+      composedIntroAudio?.status === "ready" &&
+      composedIntroAudio?.contentHash === expectedComposeHash &&
+      composedIntroAudio?.audioUrl &&
+      composedIntroAudio?.r2Key &&
+      !body.force
+    ) {
+      reusedCompose = true;
+    } else {
+      composedIntroAudio = await buildAndStoreComposedIntro({
+        userId: String(user._id),
+        voiceId,
+        eventNameHash: hash,
+        eventNameR2Key: String(eventNameAudio.r2Key || ""),
+        pack,
+      });
+    }
+
+    user.ivrConfig = {
+      ...(cfg as any),
+      audioMode: "ai",
+      eventName,
+      eventNamePronunciation,
+      voiceGender,
+      systemVoiceId: voiceId,
+      voiceId,
+      eventNameAudio: {
+        ...eventNameAudio,
+        approved: false,
+        approvedAt: null,
+      },
+      composedIntroAudio: {
+        ...composedIntroAudio,
+        approved: false,
+        approvedAt: null,
       },
       updatedAt: new Date(),
     };
@@ -579,23 +729,34 @@ export async function POST(req: NextRequest) {
 
     const previewAudio = serializePreviewUrls({
       gender: voiceGender,
-      eventNameAudioUrl: audioUrl,
+      eventNameAudioUrl: resolveIvrPublicAudioUrl({
+        publicToken: eventNameAudio.publicToken,
+        storedUrl: eventNameAudio.audioUrl,
+      }),
+      composedIntroAudioUrl: resolveIvrPublicAudioUrl({
+        publicToken: composedIntroAudio.publicToken,
+        storedUrl: composedIntroAudio.audioUrl,
+      }),
       pack,
     });
     const serialized = serializeIvrConfig(user.ivrConfig, pack);
 
     return NextResponse.json({
       ok: true,
-      reused: false,
+      reused: reusedEventName && reusedCompose,
+      reusedEventName,
+      reusedCompose,
       eventNameOnly: true,
+      composedWithoutElevenLabs: true,
       eventNameAudio: user.ivrConfig.eventNameAudio,
+      composedIntroAudio: user.ivrConfig.composedIntroAudio,
       previewAudio,
       followUpAudio: serialized.followUpAudio,
       previewText: buildIvrRecommendedScriptForDisplay({ eventName }),
       packSegmentReuse: packReuseStats,
       /** Proof flag: this request did not synthesize fixed pack texts as event payload. */
       fixedTextsSynthesized: false,
-      synthesizedText: spokenName,
+      synthesizedText: reusedEventName ? undefined : spokenName,
     });
   } catch (error) {
     const payload = voiceErrorToClientPayload(error);

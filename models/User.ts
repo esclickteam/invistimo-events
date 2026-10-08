@@ -268,6 +268,24 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       approvedAt?: Date | null;
     };
     /**
+     * Seamless server compose of before + eventName + after (no ElevenLabs).
+     * Preview + Telnyx play this single file so narration sounds continuous.
+     */
+    composedIntroAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "compose" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      composeVersion?: string;
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    /**
      * Self-recorded full intro (optional path).
      * AI mode must not write fixed global clips here.
      */
@@ -1217,6 +1235,65 @@ preRsvpMessages: {
           default: null,
         },
         textSnapshot: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      composedIntroAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["compose", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        composeVersion: {
           type: String,
           trim: true,
           default: "",
@@ -2259,6 +2336,7 @@ UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
 UserSchema.index({ includeCalls: 1, callsType: 1 });
 UserSchema.index({ "ivrConfig.introAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.composedIntroAudio.publicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

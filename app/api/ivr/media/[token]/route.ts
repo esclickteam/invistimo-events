@@ -22,17 +22,31 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
     await db();
 
-    // Per-event spoken name clip
-    const byEventName = await User.findOne({
-      "ivrConfig.eventNameAudio.publicToken": token,
+    // Seamless composed intro (before + eventName + after)
+    const byComposed = await User.findOne({
+      "ivrConfig.composedIntroAudio.publicToken": token,
     })
-      .select("ivrConfig.eventNameAudio")
+      .select("ivrConfig.composedIntroAudio")
       .lean();
 
-    let r2Key = String(byEventName?.ivrConfig?.eventNameAudio?.r2Key || "");
+    let r2Key = String(byComposed?.ivrConfig?.composedIntroAudio?.r2Key || "");
     let contentType =
-      String(byEventName?.ivrConfig?.eventNameAudio?.contentType || "") ||
+      String(byComposed?.ivrConfig?.composedIntroAudio?.contentType || "") ||
       "audio/mpeg";
+
+    // Per-event spoken name clip
+    if (!r2Key) {
+      const byEventName = await User.findOne({
+        "ivrConfig.eventNameAudio.publicToken": token,
+      })
+        .select("ivrConfig.eventNameAudio")
+        .lean();
+
+      r2Key = String(byEventName?.ivrConfig?.eventNameAudio?.r2Key || "");
+      contentType =
+        String(byEventName?.ivrConfig?.eventNameAudio?.contentType || "") ||
+        contentType;
+    }
 
     // Self-recorded / legacy full intro
     if (!r2Key) {
