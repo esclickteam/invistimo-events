@@ -81,7 +81,10 @@ export function ivrMaxParallelCalls() {
   return Math.min(IVR_PARALLEL_CALL_HARD_CAP, Math.floor(raw));
 }
 
-async function countOccupiedOutboundCalls(invitationId: string, round: number) {
+async function countOccupiedOutboundCalls(
+  invitationId: string,
+  round: 1 | 2 | 3
+) {
   return IvrCallAttempt.countDocuments({
     invitationId,
     round,
