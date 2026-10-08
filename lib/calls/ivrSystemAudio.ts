@@ -136,6 +136,7 @@ async function ensureCachedPromptAudio(input: {
   const synth = await synthesizeElevenLabsSpeech({
     text,
     voiceId: resolvedVoice,
+    ...(nextText ? { nextText } : {}),
   });
 
   if (!synth?.buffer?.length) {
@@ -194,11 +195,17 @@ export async function ensureGlobalPackSegment(input: {
 
   const text = IVR_GLOBAL_PACK_TEXTS[input.segment];
   const key = globalPackAudioKey(input.gender, input.segment);
+  // Continuity hint so "...לאירוע" finishes fully and flows into event-name TTS.
+  const nextText =
+    input.segment === "introBeforeEventName"
+      ? "החתונה של יונתן ואלמוג"
+      : undefined;
   const { doc, reused } = await ensureCachedPromptAudio({
     key,
     text,
     voiceId,
     reuseOnly: input.reuseOnly,
+    nextText,
   });
 
   return {
