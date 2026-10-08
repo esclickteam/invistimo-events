@@ -1,17 +1,13 @@
-import { after, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import {
-  beginOutboundPlaybackAfterAnswer,
-  handleIvrTelnyxWebhook,
-  OUTBOUND_ANSWER_DELAY_MS,
-} from "@/lib/calls/ivrWebhookHandler";
+import { handleIvrTelnyxWebhook } from "@/lib/calls/ivrWebhookHandler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * Dedicated IVR webhook — does not alter the softphone voice webhook.
- * Outbound IVR calls set webhook_url to this route explicitly.
+ * Outbound playback starts inside the answered handler. No artificial delay.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -19,27 +15,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const result = await handleIvrTelnyxWebhook(body);
-
-    if (
-      result &&
-      "deferOutboundPlayback" in result &&
-      result.deferOutboundPlayback &&
-      result.attemptId &&
-      result.callControlId
-    ) {
-      const attemptId = String(result.attemptId);
-      const callControlId = String(result.callControlId);
-      after(async () => {
-        await new Promise((resolve) =>
-          setTimeout(resolve, OUTBOUND_ANSWER_DELAY_MS)
-        );
-        try {
-          await beginOutboundPlaybackAfterAnswer({ attemptId, callControlId });
-        } catch (error) {
-          console.error("[telnyx/ivr/webhook] delayed playback failed", error);
-        }
-      });
-    }
 
     return NextResponse.json(result);
   } catch (error) {

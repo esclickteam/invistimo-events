@@ -139,7 +139,9 @@ test("11) attending count is not capped by the invited size", () => {
   assert.match(apply, /arrivedCount/);
 
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
-  assert.match(webhook, /stopIvrPlayback/);
+  assert.match(webhook, /startOutboundFromBeginning/);
+  assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
+  assert.equal(webhook.includes("stopIvrPlayback"), false);
   assert.match(webhook, /claimChoiceDigit/);
   assert.match(webhook, /CHOICE_FLOW_STEPS/);
   assert.match(webhook, /playing_intro_before/);

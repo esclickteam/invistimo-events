@@ -19,7 +19,6 @@ import {
 import {
   getIvrVoiceIdForGender,
   IVR_LOCKED_FEMALE_VOICE_ID,
-  IVR_LOCKED_MALE_VOICE_ID,
   sanitizeElevenLabsErrorMessage,
   synthesizeElevenLabsSpeech,
   voiceErrorToClientPayload,
@@ -699,21 +698,11 @@ export async function POST(req: NextRequest) {
         ""
     ).trim();
 
-    const voiceGender =
-      normalizeIvrVoiceGender(body.voiceGender) || resolveConfigGender(cfg);
+    // New customer AI audio is the locked female pack only.
+    // Stored audio is left unchanged until this generate request runs.
+    const voiceGender = "female";
 
     await hydrateApprovedPackVoiceIds();
-
-    if (!voiceGender) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "VOICE_GENDER_REQUIRED",
-          message: "בחרו קול נשי או קול גברי",
-        },
-        { status: 400 }
-      );
-    }
 
     try {
       await assertApprovedPackForGender(voiceGender);
@@ -730,10 +719,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Customer TTS uses only the two locked voices. No voice catalog.
-    const voiceId =
-      voiceGender === "male"
-        ? IVR_LOCKED_MALE_VOICE_ID
-        : IVR_LOCKED_FEMALE_VOICE_ID;
+    const voiceId = IVR_LOCKED_FEMALE_VOICE_ID;
     if (!eventName || !voiceId) {
       return NextResponse.json(
         {

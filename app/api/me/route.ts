@@ -312,6 +312,19 @@ function callRoundLabelForUser(user: any, round: number) {
   return `סבב שיחות ${round} · ${audience}`;
 }
 
+function describeCallRound(userRound: any) {
+  const status = String(userRound?.status || "").toLowerCase();
+  return {
+    status,
+    done: status === "done" || status === "completed",
+    sentAt: userRound?.openedAt || null,
+    scheduledAt: userRound?.scheduledAt || null,
+    tasksCreated:
+      typeof userRound?.tasksCreated === "number" ? userRound.tasksCreated : null,
+    openedAt: userRound?.openedAt || null,
+  };
+}
+
 function buildMessageRounds(
   invitation: any,
   scheduledMessages: any[] = [],
@@ -361,25 +374,19 @@ function buildMessageRounds(
         const userRound = user?.callRoundsSchedule?.rounds?.find(
           (item: any) => Number(item.roundNumber) === Number(round)
         );
-
-        const opened =
-          userRound?.status === "opened" ||
-          userRound?.status === "done" ||
-          Boolean(userRound?.openedAt);
+        const described = describeCallRound(userRound);
 
         return {
           key: `call_round_${round}`,
           label: callRoundLabelForUser(user, round),
-          done: opened,
+          done: described.done,
           blocked: false,
-          sentAt: userRound?.openedAt || null,
-          scheduledAt: userRound?.scheduledAt || null,
+          sentAt: described.sentAt,
+          scheduledAt: described.scheduledAt,
+          status: described.status,
           channel: isIvrUser(user) ? "ivr" : "calls",
-          tasksCreated:
-            typeof userRound?.tasksCreated === "number"
-              ? userRound.tasksCreated
-              : null,
-          openedAt: userRound?.openedAt || null,
+          tasksCreated: described.tasksCreated,
+          openedAt: described.openedAt,
         };
       }),
     };
@@ -569,29 +576,23 @@ function buildMessageRounds(
         roundNumber: round,
       });
 
+      const described = describeCallRound(userRound);
       const scheduledAt =
-        userRound?.scheduledAt ||
+        described.scheduledAt ||
         scheduledMessage?.scheduledAt ||
         null;
-
-      const opened =
-        userRound?.status === "opened" ||
-        userRound?.status === "done" ||
-        Boolean(userRound?.openedAt);
 
       return {
         key: `call_round_${round}`,
         label: callRoundLabelForUser(user, round),
-        done: opened,
-        sentAt: userRound?.openedAt || null,
+        done: described.done,
+        sentAt: described.sentAt,
         scheduledAt,
+        status: described.status,
         channel: isIvrUser(user) ? "ivr" : "calls",
         blocked: Boolean(locks?.[`call_round_${round}`]),
-        tasksCreated:
-          typeof userRound?.tasksCreated === "number"
-            ? userRound.tasksCreated
-            : null,
-        openedAt: userRound?.openedAt || null,
+        tasksCreated: described.tasksCreated,
+        openedAt: described.openedAt,
       };
     }),
   };

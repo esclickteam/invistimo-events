@@ -27,7 +27,7 @@ import CallRoundsModal from "../components/CallRoundsModal";
 import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
-import { formatCallRoundDateOnlyDisplay } from "@/lib/calls/callRoundScheduleTime";
+import { formatCallRoundDateTimeDisplay } from "@/lib/calls/callRoundScheduleTime";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import {
   callRoundChannelLabel,
@@ -4667,10 +4667,34 @@ type UserRsvpScheduleItem = {
   sentAt?: string | null;
   tasksCreated?: number | null;
   openedAt?: string | null;
+  status?: string | null;
   reopened?: boolean;
   reopenedAt?: string | null;
   originalSentAt?: string | null;
 };
+
+function callRoundStatusKey(item: {
+  status?: string | null;
+  done?: boolean;
+  scheduledAt?: string | null;
+}) {
+  const status = String(item.status || "").toLowerCase();
+  if (status === "failed") return "failed";
+  if (status === "cancelled" || status === "canceled") return "cancelled";
+  if (status === "in_progress" || status === "opened") return "in_progress";
+  if (status === "done" || status === "completed" || item.done) return "done";
+  if (item.scheduledAt) return "scheduled";
+  return "none";
+}
+
+function callRoundStatusLabel(key: string) {
+  if (key === "failed") return "נכשל";
+  if (key === "cancelled") return "בוטל";
+  if (key === "in_progress") return "מתבצע";
+  if (key === "done") return "הושלם";
+  if (key === "scheduled") return "מתוזמן";
+  return "אין תזמון";
+}
 
 function UserRsvpScheduleModal({
   user,
@@ -4681,11 +4705,27 @@ function UserRsvpScheduleModal({
   invitation: any;
   onClose: () => void;
 }) {
-  const isIvr = isIvrCallsUser(user);
+  const [scheduleUser, setScheduleUser] = useState(user);
+  const isIvr = isIvrCallsUser(scheduleUser);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me", { credentials: "include", cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!cancelled && data?.user) {
+          setScheduleUser({ ...user, ...data.user });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const items = useMemo(() => {
-    return buildExistingRsvpSchedule(user, invitation);
-  }, [user, invitation]);
+    return buildExistingRsvpSchedule(scheduleUser, invitation);
+  }, [scheduleUser, invitation]);
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
@@ -4743,7 +4783,7 @@ function UserRsvpScheduleModal({
                 ניהול השיחות המוקלטות נמצא במסך ייעודי
               </div>
               <p className="mt-1 text-xs font-bold text-[#8A7867]">
-                תזמון סבבים, קריינות AI / הקלטה עצמית, אישור הודעה ותצוגה מקדימה.
+                תזמון סבבים, קריינות AI / הקלטה אישית, אישור הודעה ותצוגה מקדימה.
               </p>
               <a
                 href="/dashboard/recorded-calls"
@@ -4776,10 +4816,16 @@ function UserRsvpScheduleModal({
                   item.group === "סבבי שיחות מוקלטות";
 
                 const scheduledAtText = isCallsRound
-                  ? formatCallRoundDateOnlyDisplay(item.scheduledAt)
+                  ? formatCallRoundDateTimeDisplay(item.scheduledAt)
                   : formatScheduleDateTimeWithWeekday(item.scheduledAt);
+                const callStatus = isCallsRound ? callRoundStatusKey(item) : "";
+                const callLabel = isCallsRound
+                  ? callRoundStatusLabel(callStatus)
+                  : "";
 
-                const sentAtText = formatScheduleDateTimeWithWeekday(item.sentAt);
+                const sentAtText = isCallsRound
+                  ? formatCallRoundDateTimeDisplay(item.sentAt)
+                  : formatScheduleDateTimeWithWeekday(item.sentAt);
                 const tasksCreated =
                   typeof item.tasksCreated === "number" ? item.tasksCreated : null;
 
@@ -4805,24 +4851,31 @@ function UserRsvpScheduleModal({
                         <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
                           <span
                             className={`rounded-full px-3 py-1 ${
-                              item.done
-                                ? "bg-[#EAF8EF] text-[#1F9A55]"
-                                : item.reopened
-                                  ? "bg-[#EEF4FF] text-[#2F5EA8]"
-                                : isCallsRound && item.scheduledAt
-                                  ? "bg-[#EEF4FF] text-[#2563EB]"
-                                  : "bg-[#F6F1EA] text-[#7B6754]"
+                              isCallsRound
+                                ? callStatus === "done"
+                                  ? "bg-[#EAF8EF] text-[#1F9A55]"
+                                  : callStatus === "failed"
+                                    ? "bg-rose-50 text-rose-700"
+                                    : callStatus === "in_progress" ||
+                                        callStatus === "scheduled"
+                                      ? "bg-[#EEF4FF] text-[#2563EB]"
+                                      : "bg-[#F6F1EA] text-[#7B6754]"
+                                : item.done
+                                  ? "bg-[#EAF8EF] text-[#1F9A55]"
+                                  : item.reopened
+                                    ? "bg-[#EEF4FF] text-[#2F5EA8]"
+                                    : "bg-[#F6F1EA] text-[#7B6754]"
                             }`}
                           >
-                            {item.done
-                              ? isCallsRound && tasksCreated != null
-                                ? `נוצרו ${tasksCreated} שיחות`
-                                : "בוצע"
-                              : item.reopened
-                                ? "נפתח מחדש"
-                              : isCallsRound && item.scheduledAt
-                                ? "ממתין למועד הביצוע"
-                                : "טרם בוצע"}
+                            {isCallsRound
+                              ? callStatus === "done" && tasksCreated != null
+                                ? `${callLabel} · ${tasksCreated} שיחות`
+                                : callLabel
+                              : item.done
+                                ? "בוצע"
+                                : item.reopened
+                                  ? "נפתח מחדש"
+                                  : "טרם בוצע"}
                           </span>
 
                           {item.blocked && (
@@ -4841,12 +4894,22 @@ function UserRsvpScheduleModal({
                     </div>
 
                     <div className="min-w-[260px] rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#6B5A48]">
-                      {item.done && isCallsRound ? (
+                      {isCallsRound ? (
                         <span>
-                          נפתח
+                          {callLabel}
                           {item.channelLabel ? ` · ${item.channelLabel}` : ""}
-                          {tasksCreated != null ? ` · ${tasksCreated} שיחות` : ""}
-                          {sentAtText ? ` · ${sentAtText}` : ""}
+                          {callStatus === "done" && tasksCreated != null
+                            ? ` · ${tasksCreated} שיחות`
+                            : ""}
+                          {(callStatus === "done"
+                            ? sentAtText || scheduledAtText
+                            : scheduledAtText)
+                            ? ` · ${
+                                callStatus === "done"
+                                  ? sentAtText || scheduledAtText
+                                  : scheduledAtText
+                              }`
+                            : ""}
                         </span>
                       ) : sentAtText && !isCallsRound ? (
                         <span>
@@ -5068,6 +5131,7 @@ function buildScheduleFromUserMessageRounds(
       tasksCreated:
         typeof item?.tasksCreated === "number" ? item.tasksCreated : null,
       openedAt: item?.openedAt || null,
+      status: item?.status ? String(item.status).toLowerCase() : "",
     };
   };
 
@@ -5079,9 +5143,15 @@ function buildScheduleFromUserMessageRounds(
       : []),
 
     ...(Array.isArray(messageRounds.calls)
-      ? messageRounds.calls.map((item: any) =>
-          normalizeItem(item, callsGroup, "📞", callsChannel)
-        )
+      ? messageRounds.calls.map((item: any) => {
+          const normalized = normalizeItem(item, callsGroup, "📞", callsChannel);
+          const status = String(item?.status || "").toLowerCase();
+          return {
+            ...normalized,
+            status,
+            done: status === "done" || status === "completed",
+          };
+        })
       : []),
 
     ...(Array.isArray(messageRounds.reminder)
@@ -5114,11 +5184,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       (item: any) => Number(item.roundNumber) === Number(round)
     );
 
-    const opened =
-      userRound?.status === "opened" ||
-      userRound?.status === "done" ||
-      Boolean(userRound?.openedAt);
-
+    const status = String(userRound?.status || "").toLowerCase();
     const channel = isIvrCallsUser(user) ? "ivr" : "calls";
 
     return {
@@ -5126,10 +5192,11 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       label: callRoundScheduleLabel(user, round),
       group: callRoundScheduleGroup(user),
       icon: "📞",
-      done: opened,
+      done: status === "done" || status === "completed",
       blocked: false,
       sentAt: userRound?.openedAt || null,
       scheduledAt: userRound?.scheduledAt || null,
+      status,
       channel,
       channelLabel: callRoundChannelLabel(user),
       tasksCreated:
