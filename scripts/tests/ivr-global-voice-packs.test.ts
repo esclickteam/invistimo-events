@@ -123,6 +123,9 @@ test("config generate synthesizes event name only — never full intro as TTS pa
   assert.match(config, /eventNameOnly:\s*true/);
   assert.match(config, /fixedTextsSynthesized:\s*false/);
   assert.match(config, /ensureGlobalVoicePack/);
+  assert.match(config, /ensureGlobalPackSegment/);
+  assert.match(config, /introBeforeEventName/);
+  assert.match(config, /GENERATE_FAILED/);
   assert.match(config, /ivrEventNameR2Key/);
   // Must not TTS the assembled full intro in POST generate.
   assert.equal(config.includes("synthesizeElevenLabsSpeech({\n      text: buildIvrIntroText"), false);

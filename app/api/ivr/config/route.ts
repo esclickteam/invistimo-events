@@ -31,7 +31,10 @@ import {
   resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
-import { ensureGlobalVoicePack } from "@/lib/calls/ivrSystemAudio";
+import {
+  ensureGlobalPackSegment,
+  ensureGlobalVoicePack,
+} from "@/lib/calls/ivrSystemAudio";
 import {
   assertApprovedPackForGender,
   getIvrSystemVoiceChoices,
@@ -664,8 +667,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load approved global pack only (reuse — never create fixed texts here).
-    const pack = await ensureGlobalVoicePack(voiceGender, { reuseOnly: true });
+    // Compose only needs the two intro clips. Loading the full pack with
+    // reuseOnly throws if ANY unrelated segment hash mismatches, which
+    // incorrectly blocks event-name creation after packs were approved.
+    const introBefore = await ensureGlobalPackSegment({
+      gender: voiceGender,
+      segment: "introBeforeEventName",
+      reuseOnly: true,
+    });
+    const introAfter = await ensureGlobalPackSegment({
+      gender: voiceGender,
+      segment: "introAfterEventName",
+      reuseOnly: true,
+    });
+    if (!introBefore.r2Key || !introAfter.r2Key) {
+      throw new Error("IVR_COMPOSE_SEGMENTS_MISSING");
+    }
+    let pack: Awaited<ReturnType<typeof ensureGlobalVoicePack>>;
+    try {
+      pack = await ensureGlobalVoicePack(voiceGender, { reuseOnly: true });
+    } catch {
+      pack = {
+        gender: voiceGender,
+        voiceId,
+        segments: {
+          introBeforeEventName: introBefore,
+          introAfterEventName: introAfter,
+        } as Awaited<ReturnType<typeof ensureGlobalVoicePack>>["segments"],
+      };
+    }
     const packReuseStats = Object.fromEntries(
       Object.entries(pack.segments).map(([k, v]) => [k, v.reused])
     );
@@ -812,17 +842,29 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const payload = voiceErrorToClientPayload(error);
+    const raw = sanitizeElevenLabsErrorMessage(
+      error instanceof Error ? error.message : "FAILED"
+    );
+    const isGenericVoices = payload.error === "VOICES_FAILED";
+    const generateError = isGenericVoices
+      ? raw.startsWith("IVR_") || raw.startsWith("ffmpeg")
+        ? "GENERATE_FAILED"
+        : "TTS_FAILED"
+      : payload.error;
     console.error("[ivr/config POST]", {
-      error: payload.error,
+      error: generateError,
+      detail: raw,
       providerStatus: payload.providerStatus,
     });
     return NextResponse.json(
       {
         ok: false,
-        error: payload.error === "VOICES_FAILED" ? "TTS_FAILED" : payload.error,
-        message: payload.message,
+        error: generateError,
+        message: isGenericVoices
+          ? raw || payload.message
+          : payload.message,
         providerStatus: payload.providerStatus,
-        providerDetail: payload.providerDetail,
+        providerDetail: payload.providerDetail || raw,
         providerStatusCode: payload.providerStatusCode,
       },
       {
