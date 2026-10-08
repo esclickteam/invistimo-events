@@ -63,6 +63,7 @@
     "node_modules",
     "mobile",
     "scripts/test-whatsapp-excel-export.ts",
-    "scripts/test-sms-excel-export.ts"
+    "scripts/test-sms-excel-export.ts",
+    "scripts/restore-callback-carry-forward.ts"
   ]
 }

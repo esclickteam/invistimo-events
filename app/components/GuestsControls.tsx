@@ -71,11 +71,11 @@ const CALL_ROUND_FILTERS: FilterButton[] = [
   },
   {
     key: "call_round_2" as QuickFilter,
-    label: "סבב 2 · לא ענו בסבב 1",
+    label: "סבב 2 · לא ענו בסבב 1 + ביקשו חזרה",
   },
   {
     key: "call_round_3" as QuickFilter,
-    label: "סבב 3 · לא ענו בסבבים 1–2 + מתלבטים",
+    label: "סבב 3 · לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים",
   },
 ];
 

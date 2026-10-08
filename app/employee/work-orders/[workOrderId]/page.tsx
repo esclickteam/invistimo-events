@@ -172,6 +172,10 @@ type CallTask = {
 
   note: string;
 
+  manualHandlingRequired?: boolean;
+  callbackFromRound?: number | null;
+  inclusionReason?: string;
+
   isCompleted: boolean;
   canStart: boolean;
   canUpdate: boolean;
@@ -342,8 +346,8 @@ function getRoundLabel(round: number) {
 function getAudienceLabel(sourceAudience: string) {
   const map: Record<string, string> = {
     pending_rsvp: "סבב 1 - כל מי שממתין לתשובה",
-    round_1_no_answer: "סבב 2 - מי שלא ענה בסבב 1",
-    round_2_no_answer: "סבב 3 - לא ענו בסבבים 1–2 + מתלבטים",
+    round_1_no_answer: "סבב 2 - לא ענו בסבב 1 + ביקשו חזרה",
+    round_2_no_answer: "סבב 3 - לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים",
     all_pending: "כל הממתינים",
     no_response: "ללא תשובה",
   };
@@ -384,6 +388,8 @@ function isFinalResultStatus(status: TaskStatus) {
 
 function isOpenTask(task: CallTask) {
   const status = String(task.status || "");
+
+  if (task.manualHandlingRequired && status === "callback") return true;
 
   return (
     status === "pending" ||
@@ -820,7 +826,11 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (answeredResult === "callback") {
-        return "תוצאת השיחה תישמר כחזרה בסבב הבא. ה-RSVP יישאר בהמתנה, והאורח ייכנס לסבב הבא לפי תאריך האדמין.";
+        const round = safeNumber(selectedTask?.round || workOrder?.round || 1);
+        if (round >= 3) {
+          return "ה-RSVP יישאר בהמתנה. אין סבב נוסף, לכן האורח יישאר ברשימת הטיפול הידני ולא ייעלם.";
+        }
+        return "ה-RSVP יישאר בהמתנה. האורח ייכנס אוטומטית לרשימת החיוג של הסבב הבא, גם אם כבר חייגו אליו בסבב הזה.";
       }
     }
 
@@ -1107,6 +1117,10 @@ export default function EmployeeWorkOrderTasksPage() {
         const updated = current.map((task) => {
           if (getTaskId(task) !== taskId) return task;
 
+          const manualHandlingRequired =
+            input.status === "callback" &&
+            safeNumber(input.task.round || workOrder?.round || 1) >= 3;
+
           return {
             ...task,
             status: input.status,
@@ -1117,8 +1131,9 @@ export default function EmployeeWorkOrderTasksPage() {
               input.attendingCount !== undefined
                 ? input.attendingCount
                 : task.attendingCount,
-            isCompleted: isFinal,
-            completedAt: isFinal ? nowIso : task.completedAt,
+            manualHandlingRequired,
+            isCompleted: isFinal && !manualHandlingRequired,
+            completedAt: isFinal && !manualHandlingRequired ? nowIso : null,
             lastAttemptAt: nowIso,
             attemptsCount:
               input.status === "in_progress"
@@ -1562,6 +1577,13 @@ export default function EmployeeWorkOrderTasksPage() {
                     >
                       <span className="guestCell">
                         <strong>{task.guestName || "אורח ללא שם"}</strong>
+                        {task.manualHandlingRequired ? (
+                          <small className="carryLabel">טיפול ידני</small>
+                        ) : task.callbackFromRound ? (
+                          <small className="carryLabel">
+                            חזרה מסבב {task.callbackFromRound}
+                          </small>
+                        ) : null}
                       </span>
 
                       <span dir="ltr">{task.guestPhone || "—"}</span>
@@ -1605,6 +1627,16 @@ export default function EmployeeWorkOrderTasksPage() {
                     </span>
 
                     <h2>{selectedTask.guestName || "אורח ללא שם"}</h2>
+
+                    {selectedTask.manualHandlingRequired ? (
+                      <p className="carryLabel">
+                        טיפול ידני: האורח ביקש חזרה ואין סבב נוסף. עדיין אין תשובת הגעה סופית.
+                      </p>
+                    ) : selectedTask.callbackFromRound ? (
+                      <p className="carryLabel">
+                        האורח ביקש בסבב {selectedTask.callbackFromRound} שיחזרו אליו בסבב הזה.
+                      </p>
+                    ) : null}
 
                     <p dir="ltr">{selectedTask.guestPhone || "אין טלפון"}</p>
                   </div>
@@ -2325,6 +2357,14 @@ export default function EmployeeWorkOrderTasksPage() {
           white-space: nowrap;
           text-overflow: ellipsis;
           font-size: 14px;
+        }
+
+        .carryLabel {
+          display: block;
+          margin-top: 2px;
+          color: #1d4ed8;
+          font-size: 12px;
+          font-weight: 700;
         }
 
         .statusPill {

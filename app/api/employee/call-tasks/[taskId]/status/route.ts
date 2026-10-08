@@ -8,6 +8,8 @@ import User from "@/models/User";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import { resolveMaxCallRounds } from "@/lib/calls/callRoundEligibility";
+import { countManualHandlingTasks } from "@/lib/calls/callbackCarryForward";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,6 +67,7 @@ type NextRoundReason =
   | ""
   | "no_answer"
   | "callback_next_round"
+  | "callback_manual"
   | "needs_fix"
   | "manual";
 
@@ -666,7 +669,13 @@ function serializeTask(task: any) {
       ? task.previousCallHistory.map(serializeCallHistoryItem)
       : [],
 
-    isCompleted: isCompletedStatus(status),
+    manualHandlingRequired: Boolean(task?.manualHandlingRequired),
+    callbackFromRound: Number(task?.callbackFromRound || 0) || null,
+    inclusionReason: cleanStr(task?.inclusionReason),
+
+    isCompleted:
+      isCompletedStatus(status) &&
+      !(status === "callback" && task?.manualHandlingRequired),
     canUpdate: status !== "cancelled",
 
     createdAt: task?.createdAt || null,
@@ -893,12 +902,16 @@ async function getCountsForWorkOrder(workOrderId: Types.ObjectId) {
     addCount(counts, status, count);
   }
 
+  (counts as StatusCounts & { manualHandling?: number }).manualHandling =
+    await countManualHandlingTasks({ workOrderId });
+
   return counts;
 }
 
 async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
   const counts = await getCountsForWorkOrder(workOrderId);
-  const completed = getCompletedFromCounts(counts);
+  const manualHandling = Number((counts as { manualHandling?: number }).manualHandling || 0);
+  const completed = Math.max(0, getCompletedFromCounts(counts) - manualHandling);
 
   const unassignedTasks = await CallTask.countDocuments({
     workOrderId,
@@ -933,7 +946,7 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
     status: nextStatus,
 
     totalTasks: counts.total,
-    pendingTasks: counts.pending,
+    pendingTasks: counts.pending + manualHandling,
     inProgressTasks: counts.in_progress,
     completedTasks: completed,
 
@@ -1391,6 +1404,10 @@ async function syncInvitationGuest(input: {
     nextRound: input.moveToNextRound ? input.nextRound : null,
     nextRoundTaskId: input.nextRoundTaskId || null,
     nextRoundWorkOrderId: input.nextRoundWorkOrderId || null,
+    callbackRequested: input.status === "callback",
+    manualHandlingRequired:
+      input.status === "callback" && !input.moveToNextRound,
+    transferredToRound: input.moveToNextRound ? input.nextRound : null,
 
     calledAt: input.now,
     completedAt: input.now,
@@ -1423,8 +1440,8 @@ async function syncInvitationGuest(input: {
     callStatus: input.status,
     callResult: result,
     callRound: round,
-    callCompleted: true,
-    callCompletedAt: input.now,
+    callCompleted: input.status !== "callback",
+    callCompletedAt: input.status === "callback" ? null : input.now,
 
     rsvpCallStatus: input.status,
     rsvpCallResult: result,
@@ -1449,8 +1466,10 @@ async function syncInvitationGuest(input: {
     [`${roundKey}CallResult`]: result,
     [`${roundKey}CallAnswerStatus`]: answerStatus,
     [`${roundKey}CallResultStatus`]: resultStatus,
-    [`${roundKey}CallCompleted`]: true,
-    [`${roundKey}CallCompletedAt`]: input.now,
+    [`${roundKey}CallCompleted`]: input.status !== "callback",
+    [`${roundKey}CallCompletedAt`]:
+      input.status === "callback" ? null : input.now,
+    [`${roundKey}CallbackRequested`]: input.status === "callback",
     [`${roundKey}CallTaskId`]: taskObjectId,
     [`${roundKey}CallWorkOrderId`]: workOrderObjectId,
     [`${roundKey}CallEmployeeId`]: input.employeeId,
@@ -1720,6 +1739,10 @@ async function syncInvitationGuest(input: {
     nextRound: input.moveToNextRound ? input.nextRound : null,
     nextRoundTaskId: input.nextRoundTaskId || null,
     nextRoundWorkOrderId: input.nextRoundWorkOrderId || null,
+    callbackRequested: input.status === "callback",
+    manualHandlingRequired:
+      input.status === "callback" && !input.moveToNextRound,
+    transferredToRound: input.moveToNextRound ? input.nextRound : null,
 
     at: input.now,
     createdAt: input.now,
@@ -1732,12 +1755,42 @@ async function syncInvitationGuest(input: {
     },
   };
 
+  if (input.status === "callback") {
+    set.callbackRequested = true;
+    set.needsFollowUp = true;
+    set.manualHandlingRequired = !input.moveToNextRound;
+    set.manualHandlingReason = input.moveToNextRound
+      ? ""
+      : "callback_last_round";
+
+    updatePayload.$push.callbackTransfers = {
+      requestedOnRound: round,
+      transferredToRound: input.moveToNextRound ? input.nextRound : null,
+      manualHandling: !input.moveToNextRound,
+      reason: input.nextRoundReason || "",
+      taskId: taskObjectId,
+      workOrderId: workOrderObjectId,
+      guestId: guestObjectId,
+      at: input.now,
+    };
+  }
+
   await InvitationGuest.collection.updateOne(
     {
       _id: guestObjectId,
     },
     updatePayload
   );
+}
+
+async function resolveMaxCallRoundsForTask(task: any): Promise<1 | 2 | 3> {
+  const userId = task?.userId || task?.clientUserId;
+  const userObjectId = toObjectId(userId);
+
+  if (!userObjectId) return 3;
+
+  const user = await User.findById(userObjectId).select("callsRounds").lean();
+  return resolveMaxCallRounds(user);
 }
 
 /* ============================================================
@@ -1887,12 +1940,20 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     const now = new Date();
     const round = normalizeRound(body?.round || (existingTask as any)?.round || 1);
-    const nextRound = normalizeRound(
-      body?.nextRound || callDocumentation?.nextRound || round + 1
-    );
+    const maxCallRounds =
+      nextStatus === "callback"
+        ? await resolveMaxCallRoundsForTask(existingTask)
+        : 3;
+    const callbackHasNextRound =
+      nextStatus === "callback" && round < maxCallRounds;
+    const nextRound = callbackHasNextRound
+      ? normalizeRound(round + 1)
+      : normalizeRound(
+          body?.nextRound || callDocumentation?.nextRound || round + 1
+        );
 
     const autoMoveBecauseNoAnswer = nextStatus === "no_answer";
-    const autoMoveBecauseCallbackNextRound = nextStatus === "callback";
+    const autoMoveBecauseCallbackNextRound = callbackHasNextRound;
     const autoMoveBecauseNeedsFix =
       nextStatus === "needs_fix" || nextStatus === "wrong_number";
 
@@ -1910,11 +1971,13 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       ? "no_answer"
       : autoMoveBecauseCallbackNextRound
         ? "callback_next_round"
-        : autoMoveBecauseNeedsFix
-          ? "needs_fix"
-          : moveToNextRound
-            ? "manual"
-            : "";
+        : nextStatus === "callback"
+          ? "callback_manual"
+          : autoMoveBecauseNeedsFix
+            ? "needs_fix"
+            : moveToNextRound
+              ? "manual"
+              : "";
 
     let attendingCount = requestedAttendingCount;
 
@@ -1988,10 +2051,21 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         $set.startedAt = (existingTask as any)?.startedAt || now;
       }
 
-      if (isFinal) {
+      if (isFinal && nextStatus !== "callback") {
         $set.completedAt = now;
         $set.isCompleted = true;
         $set.completed = true;
+      }
+
+      if (nextStatus === "callback") {
+        $set.isCompleted = false;
+        $set.completed = false;
+        $unset.completedAt = "";
+        $set.manualHandlingRequired = !moveToNextRound;
+        $set.inclusionReason = moveToNextRound
+          ? "callback_recorded"
+          : "callback_manual_handling";
+        $set.callbackRequested = true;
       }
 
       if (nextStatus === "pending") {
@@ -2136,13 +2210,15 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       message: isCallResultStatus(nextStatus)
-        ? moveToNextRound
-          ? nextStatus === "no_answer"
-            ? "התיעוד נשמר. האורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
-            : nextStatus === "needs_fix" || nextStatus === "wrong_number"
-              ? "התיעוד נשמר. האורח שדורש תיקון ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
-              : "התיעוד נשמר. החזרה תיפתח רק בסבב הבא לפי התאריך באדמין והעובדים שבמשמרת"
-          : "התיעוד נשמר והאורח עודכן"
+        ? nextStatus === "callback" && !moveToNextRound
+          ? "התיעוד נשמר. אין סבב נוסף, והאורח נשאר ברשימת הטיפול הידני"
+          : moveToNextRound
+            ? nextStatus === "no_answer"
+              ? "התיעוד נשמר. האורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
+              : nextStatus === "needs_fix" || nextStatus === "wrong_number"
+                ? "התיעוד נשמר. האורח שדורש תיקון ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
+                : "התיעוד נשמר. האורח ייכנס אוטומטית לרשימת החיוג של הסבב הבא"
+            : "התיעוד נשמר והאורח עודכן"
         : "סטטוס השיחה עודכן בהצלחה",
 
       employee: {

@@ -3,8 +3,8 @@ import { isIvrCallsUser } from "@/lib/calls/callsType";
 /** Audience blurbs for the three outbound call rounds (human call-center copy). */
 export function humanCallRoundAudience(round: number): string {
   if (round === 1) return "ממתינים שעדיין לא נתנו תשובה";
-  if (round === 2) return "לא ענו בסבב 1";
-  return "לא ענו בסבבים 1–2 + מתלבטים";
+  if (round === 2) return "לא ענו בסבב 1 + ביקשו חזרה";
+  return "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
 }
 
 /** Audience blurbs for IVR recorded-call rounds. */
