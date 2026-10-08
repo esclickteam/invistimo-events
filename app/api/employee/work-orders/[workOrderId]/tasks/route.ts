@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
 import db from "@/lib/db";
+import { countManualHandlingTasks } from "@/lib/calls/callbackCarryForward";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -407,7 +408,8 @@ function serializeWorkOrder(
   counts: TaskStatusCount,
   invitation?: any
 ) {
-  const completed = getCompletedFromCounts(counts);
+  const manualHandling = Number((counts as { manualHandling?: number }).manualHandling || 0);
+  const completed = Math.max(0, getCompletedFromCounts(counts) - manualHandling);
   const remaining = Math.max(0, counts.total - completed);
 
   const invitationShareId = getInvitationShareId(invitation, order);
@@ -579,6 +581,10 @@ function serializeTask(task: any, guest?: any) {
     messageFollowUpAction: cleanStr(task?.messageFollowUpAction),
     noAnswerResult: cleanStr(task?.noAnswerResult),
 
+    manualHandlingRequired: Boolean(task?.manualHandlingRequired),
+    callbackFromRound: Number(task?.callbackFromRound || 0) || null,
+    inclusionReason: cleanStr(task?.inclusionReason),
+
     moveToNextRound: Boolean(task?.moveToNextRound),
     nextRound:
       typeof task?.nextRound === "number"
@@ -601,11 +607,14 @@ function serializeTask(task: any, guest?: any) {
     previousCallHistory: mergedHistory,
     guestCallHistory: mergedHistory,
 
-    isCompleted: isCompletedStatus(status),
+    isCompleted:
+      isCompletedStatus(status) &&
+      !(status === "callback" && task?.manualHandlingRequired),
 
-    canStart: ["pending", "in_progress", "open", "assigned", "active"].includes(
-      status
-    ),
+    canStart:
+      ["pending", "in_progress", "open", "assigned", "active"].includes(
+        status
+      ) || Boolean(task?.manualHandlingRequired && status === "callback"),
     canUpdate: status !== "cancelled",
 
     createdAt: task?.createdAt || null,
@@ -782,9 +791,13 @@ function buildTaskQuery(input: {
   const statusParam = normalizeStatusParam(searchParams.get("status"));
 
   if (Array.isArray(statusParam)) {
-    query.status = {
-      $in: statusParam,
-    };
+    query.$and = query.$and || [];
+    query.$and.push({
+      $or: [
+        { status: { $in: statusParam } },
+        { status: "callback", manualHandlingRequired: true },
+      ],
+    });
   } else if (statusParam) {
     query.status = statusParam;
   }
@@ -1034,7 +1047,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const tasks = await tasksQuery.lean();
     const guestsMap = await getGuestsMapForTasks(tasks);
 
-    const completed = getCompletedFromCounts(counts);
+    const manualHandling = await countManualHandlingTasks({
+      workOrderId: workOrderObjectId,
+      ...buildEmployeeAssignmentMatch(employee.employeeId),
+    });
+    (counts as TaskStatusCount & { manualHandling?: number }).manualHandling =
+      manualHandling;
+    const completed = Math.max(0, getCompletedFromCounts(counts) - manualHandling);
     const remaining = Math.max(0, counts.total - completed);
 
     return NextResponse.json({
