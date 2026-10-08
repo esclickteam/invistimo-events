@@ -1,6 +1,7 @@
 /**
  * IVR round dialer: resolve audience at execution time, create attempts, place calls.
- * Never dials unless IVR_ALLOW_LIVE_DIAL=true or phone is on IVR_TEST_PHONE_ALLOWLIST.
+ * Production (VERCEL_ENV=production) dials through Telnyx.
+ * Other environments dial only when IVR_ALLOW_LIVE_DIAL=true or the phone is allowlisted.
  *
  * AI mode plays global pack segments + per-event name sequentially at answer time.
  */
@@ -535,7 +536,7 @@ export async function executeIvrRound(input: {
         phone,
         status: "blocked_test_mode",
         attemptId: String(attempt._id),
-        reason: "החיוג חסום — אין אישור חיוג חי למספר זה",
+        reason: "DIAL_BLOCKED_TEST_MODE",
       });
       continue;
     }

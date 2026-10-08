@@ -238,33 +238,93 @@ export function normalizePhoneForTelnyx(phone: unknown) {
     raw = `+${raw.slice(2)}`;
   }
 
-  if (raw.startsWith("0") && !raw.startsWith("00")) {
+  if (raw.startsWith("+")) return raw;
+
+  if (raw.startsWith("972")) return `+${raw}`;
+
+  if (raw.startsWith("0")) {
     // Israel local → E.164
-    raw = `+972${raw.slice(1)}`;
+    return `+972${raw.slice(1)}`;
   }
 
-  if (!raw.startsWith("+") && raw.length >= 9) {
-    raw = `+${raw}`;
-  }
+  if (raw.length === 9 && raw.startsWith("5")) return `+972${raw}`;
+  if (raw.length === 8 && /^[23489]/.test(raw)) return `+972${raw}`;
+
+  if (raw.length >= 9) return `+${raw}`;
 
   return raw;
 }
 
-/** Safety: only allow real dialing when IVR_ALLOW_LIVE_DIAL=true or number is in allowlist. */
-export function isIvrDialAllowed(phoneE164: string) {
-  if (process.env.IVR_ALLOW_LIVE_DIAL === "true") {
-    return true;
-  }
-
+function isIvrAllowlisted(phoneE164: string) {
   const allowlist = String(process.env.IVR_TEST_PHONE_ALLOWLIST || "")
     .split(",")
     .map((p) => normalizePhoneForTelnyx(p))
     .filter(Boolean);
 
-  if (!allowlist.length) {
-    // Default safe: block all live dials in non-explicit mode.
-    return false;
+  return allowlist.includes(phoneE164);
+}
+
+/**
+ * Production scheduled rounds dial through the existing Telnyx connection.
+ * Preview and local runs stay blocked unless IVR_ALLOW_LIVE_DIAL=true or the
+ * number is on IVR_TEST_PHONE_ALLOWLIST. IVR_ALLOW_LIVE_DIAL=false always blocks.
+ */
+export function isIvrDialAllowed(phoneE164: string) {
+  if (process.env.IVR_ALLOW_LIVE_DIAL === "false") {
+    return isIvrAllowlisted(phoneE164);
   }
 
-  return allowlist.includes(phoneE164);
+  if (process.env.IVR_ALLOW_LIVE_DIAL === "true") {
+    return true;
+  }
+
+  if (String(process.env.VERCEL_ENV || "").toLowerCase() === "production") {
+    return true;
+  }
+
+  return isIvrAllowlisted(phoneE164);
+}
+
+/** Customer-facing text for a stored attempt error. Keeps the provider detail. */
+export function explainIvrCallFailure(raw: unknown): string {
+  const text = String(raw || "").trim();
+  if (!text) return "החיוג נכשל";
+
+  if (
+    text.includes("DIAL_BLOCKED_TEST_MODE") ||
+    text.includes("אין אישור חיוג חי")
+  ) {
+    return "השיחה לא נשלחה ל-Telnyx. חיוג חי היה חסום בשרת, ולכן אין מזהה שיחה ואין תשובת ספק.";
+  }
+
+  if (
+    text.includes("TELNYX_API_KEY is missing") ||
+    text.includes("TELNYX_CONNECTION_ID is missing")
+  ) {
+    return "השיחה לא נשלחה: חסר מפתח או מזהה חיבור של Telnyx בשרת.";
+  }
+
+  const telnyx = text.match(/TELNYX_CREATE_IVR_CALL_FAILED \((\d+)\)/);
+  if (telnyx) {
+    let detail = "";
+    const jsonAt = text.search(/[\[{]/);
+    if (jsonAt >= 0) {
+      try {
+        const parsed = JSON.parse(text.slice(jsonAt));
+        const first = Array.isArray(parsed) ? parsed[0] : parsed;
+        detail = String(first?.detail || first?.title || first?.code || "").trim();
+      } catch {
+        detail = "";
+      }
+    }
+    return detail
+      ? `Telnyx דחה את החיוג (${telnyx[1]}): ${detail}`
+      : `Telnyx דחה את החיוג (סטטוס ${telnyx[1]}).`;
+  }
+
+  if (text === "החיוג נכשל") {
+    return "החיוג נכשל לפני חיבור לספק.";
+  }
+
+  return text;
 }
