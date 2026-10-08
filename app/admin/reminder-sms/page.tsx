@@ -71,10 +71,21 @@ export default function AdminReminderSmsTemplatePage() {
 
   return (
     <div dir="rtl" className="space-y-4">
-      <p className="max-w-2xl text-xs font-medium leading-6 text-[var(--admin-muted)]">
-        גוף הודעת התזכורת לכל המערכת. השינוי נכנס בזמן השליחה בפועל, גם לתזמונים שכבר נוצרו.
-        משתנה מספר שולחן: {"{{tableName}}"} — יוצג רק לאורחים שיש להם שולחן ושלא חלה עליהם הסתרה.
-      </p>
+      <div>
+        <h1 className="text-lg font-bold text-[var(--admin-text)] sm:text-xl">
+          הודעת תזכורת
+        </h1>
+        <p className="mt-1 max-w-2xl text-xs font-medium leading-6 text-[var(--admin-muted)]">
+          גוף הודעת התזכורת לכל המערכת. השינוי נכנס בזמן השליחה בפועל, גם לתזמונים
+          שכבר נוצרו.
+          <br />
+          קישור פרטי האירוע (חובה): {"{{navigationLink}}"} →{" "}
+          https://www.invistimo.com/e/…
+          <br />
+          משתנה מספר שולחן: {"{{tableName}}"} — יוצג רק לאורחים שיש להם שולחן
+          ושלא חלה עליהם הסתרה.
+        </p>
+      </div>
 
       <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-4 shadow-[var(--admin-shadow)]">
         {loading ? (

@@ -401,11 +401,13 @@ export default function MessagesPage() {
     // ⭐ מקור אמת אחד
     const baseTemplate = message;
 
-    // 📍 קישור לעמוד פרטי האירוע — רק בהודעת תזכורת עם מספר שולחן
-const navigationLink =
-  templateKey === "table" && invitation?.shareId
-    ? `https://www.invistimo.com/e/${invitation.shareId}`
-    : "";
+    // 📍 קישור קלאסי לעמוד פרטי האירוע /e/{shareId}
+    const needsEventLink =
+      baseTemplate.includes("{{navigationLink}}") || templateKey === "table";
+    const navigationLink =
+      needsEventLink && invitation?.shareId
+        ? `https://www.invistimo.com/e/${invitation.shareId}`
+        : "";
 
     const rsvpLink = buildGuestInviteUrl({
       shareId: invitation.shareId,

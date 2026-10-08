@@ -3,6 +3,24 @@ import { REMINDER_WITH_TABLE_SERVER_TEMPLATE } from "@/lib/messages/resolveRemin
 
 const GLOBAL_KEY = "global";
 
+/** Classic reminder event-details link placeholder — must stay in every reminder body. */
+export const REMINDER_NAVIGATION_LINK_BLOCK =
+  "לכל פרטי האירוע והניווט:\n{{navigationLink}}";
+
+/**
+ * If a saved/custom body lost {{navigationLink}}, put the classic link block back.
+ * Does not rewrite bodies that already include the placeholder.
+ */
+export function ensureReminderNavigationPlaceholder(body: string): string {
+  const raw = String(body || "").trim();
+  if (!raw) return REMINDER_WITH_TABLE_SERVER_TEMPLATE;
+  if (raw.includes("{{navigationLink}}")) return raw;
+
+  return `${raw}\n\n${REMINDER_NAVIGATION_LINK_BLOCK}\n\nנשמח לראותכם ❤️`
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function getInvitationEventId(invitation: any): string {
   const raw =
     invitation?.eventId ||
@@ -20,11 +38,13 @@ export async function getReminderSmsBody(): Promise<string> {
     .lean();
 
   const body = String((doc as any)?.reminderSmsBody || "").trim();
-  return body || REMINDER_WITH_TABLE_SERVER_TEMPLATE;
+  return ensureReminderNavigationPlaceholder(
+    body || REMINDER_WITH_TABLE_SERVER_TEMPLATE
+  );
 }
 
 export async function saveReminderSmsBody(body: string): Promise<string> {
-  const next = String(body ?? "");
+  const next = ensureReminderNavigationPlaceholder(String(body ?? ""));
 
   await SystemSettings.findOneAndUpdate(
     { key: GLOBAL_KEY },
@@ -37,7 +57,7 @@ export async function saveReminderSmsBody(body: string): Promise<string> {
     { upsert: true, new: true }
   );
 
-  return next.trim() || REMINDER_WITH_TABLE_SERVER_TEMPLATE;
+  return next;
 }
 
 export async function pruneHiddenTableIdsForEvent({
