@@ -379,7 +379,12 @@ export async function listElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
  * Shared IVR TTS settings — packs + per-event eventName must match exactly
  * so server-side compose sounds like one continuous narration.
  */
-export const IVR_TTS_MODEL_ID = "eleven_multilingual_v2";
+/**
+ * Default IVR TTS model. Ear-tested: eleven_multilingual_v2 mangled Hebrew
+ * (even for Dana); eleven_v3 + language_code he produced natural Hebrew for
+ * Dana and male audition candidates.
+ */
+export const IVR_TTS_MODEL_ID = "eleven_v3";
 /** mp3 @ 44.1kHz 128kbps — same container/sample rate for every IVR clip. */
 export const IVR_TTS_OUTPUT_FORMAT = "mp3_44100_128";
 export const IVR_TTS_VOICE_SETTINGS = {
