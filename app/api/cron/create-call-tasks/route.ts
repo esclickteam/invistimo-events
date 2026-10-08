@@ -10,6 +10,8 @@ import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
 import {
+  annotateCallbackCarryForward,
+  callbackCarryTaskPatch,
   filterGuestsForCallRound,
   getCallRoundDescription,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
@@ -17,6 +19,10 @@ import {
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import {
+  linkCallbackCarryForwardHistory,
+  loadCallbackGuestIdsByRound,
+} from "@/lib/calls/callbackCarryForward";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1536,12 +1542,18 @@ async function loadGuestsForRound(input: {
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
   const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+  const previousCallbackByRound: Partial<Record<1 | 2, Set<string>>> = {};
 
   if (invitationObjectId && (input.round === 2 || input.round === 3)) {
     previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
       invitationObjectId,
       round: 1,
       dateKey: input.dateKey,
+    });
+    previousCallbackByRound[1] = await loadCallbackGuestIdsByRound({
+      invitationId: invitationObjectId,
+      round: 1,
+      workDateLte: endOfDateKey(input.dateKey),
     });
   }
 
@@ -1551,12 +1563,25 @@ async function loadGuestsForRound(input: {
       round: 2,
       dateKey: input.dateKey,
     });
+    previousCallbackByRound[2] = await loadCallbackGuestIdsByRound({
+      invitationId: invitationObjectId,
+      round: 2,
+      workDateLte: endOfDateKey(input.dateKey),
+    });
   }
 
-  return filterGuestsForCallRound({
+  const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
     previousNoAnswerByRound,
+    previousCallbackByRound,
+  });
+
+  return annotateCallbackCarryForward({
+    guests,
+    round: input.round as CallRoundNumber,
+    previousNoAnswerByRound,
+    previousCallbackByRound,
   });
 }
 
@@ -1957,6 +1982,7 @@ async function createOrCompleteWorkOrderForCandidate(input: {
 
       const guestName = getGuestName(guest);
       const guestPhone = getGuestPhone(guest);
+      const carry = callbackCarryTaskPatch(guest);
 
       return {
         type: "rsvp_call",
@@ -2018,8 +2044,11 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         result: null,
         callResult: null,
 
-        priority: 0,
-        sortOrder: existingTasks.length + index,
+        priority: carry.priority ?? 0,
+        sortOrder: carry.callbackFromRound ? -1 : existingTasks.length + index,
+        callbackFromRound: carry.callbackFromRound ?? null,
+        inclusionReason: carry.inclusionReason || "",
+        movedFromRound: carry.movedFromRound ?? null,
 
         assignedAt: now,
         startedAt: null,
@@ -2036,7 +2065,7 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         attendingCount: getAttendingCount(guest),
 
         note: "",
-        adminNote: "",
+        adminNote: carry.adminNote || "",
 
         source: "cron_create_call_tasks",
         createdBy: "system",
@@ -2058,6 +2087,12 @@ async function createOrCompleteWorkOrderForCandidate(input: {
   await CallTask.collection.insertMany(taskDocs as any[], {
     ordered: false,
   });
+
+  try {
+    await linkCallbackCarryForwardHistory(workOrderId);
+  } catch (historyError) {
+    console.error("callback carry-forward history link failed:", historyError);
+  }
 
   if (assignedShiftIds.length) {
     await CallWorkOrder.collection.updateOne(

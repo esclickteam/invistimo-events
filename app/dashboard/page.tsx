@@ -5091,8 +5091,8 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
             round === 1
               ? "ממתינים שעדיין לא נתנו תשובה"
               : round === 2
-                ? "לא ענו בסבב 1"
-                : "לא ענו בסבבים 1–2 + מתלבטים"
+                ? "לא ענו בסבב 1 + ביקשו חזרה"
+                : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
           }`,
       group: "סבבי שיחות",
       icon: "📞",

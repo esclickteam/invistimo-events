@@ -144,6 +144,14 @@ export interface ICallTask {
    */
   adminNote?: string;
 
+  /**
+   * אורח שנכנס לסבב כי ביקש חזרה בסבב קודם.
+   */
+  callbackFromRound?: 1 | 2 | null;
+  movedFromRound?: number | null;
+  inclusionReason?: string;
+  manualHandlingRequired?: boolean;
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -276,6 +284,30 @@ const CallTaskSchema = new Schema<ICallTask>(
       type: String,
       enum: ["pending_rsvp", "round_1_no_answer", "round_2_no_answer"],
       required: true,
+      index: true,
+    },
+
+    callbackFromRound: {
+      type: Number,
+      min: 1,
+      max: 2,
+      default: null,
+    },
+
+    movedFromRound: {
+      type: Number,
+      default: null,
+    },
+
+    inclusionReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    manualHandlingRequired: {
+      type: Boolean,
+      default: false,
       index: true,
     },
 
@@ -480,7 +512,11 @@ CallTaskSchema.pre("validate", function () {
     doc.assignedAt = new Date();
   }
 
-  if (isCompletedStatus(doc.status) && !doc.completedAt) {
+  if (
+    isCompletedStatus(doc.status) &&
+    !doc.completedAt &&
+    !(doc.status === "callback" && doc.manualHandlingRequired)
+  ) {
     doc.completedAt = new Date();
   }
 });

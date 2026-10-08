@@ -554,6 +554,13 @@ function getTaskResultKey(task: any) {
 }
 
 function isTaskRemaining(task: any) {
+  if (
+    task?.manualHandlingRequired === true &&
+    normalizeTaskResultKey(task?.status) === "callback"
+  ) {
+    return true;
+  }
+
   const key = getTaskResultKey(task);
 
   return key === "pending" || key === "in_progress";

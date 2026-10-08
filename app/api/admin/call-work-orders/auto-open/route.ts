@@ -10,6 +10,8 @@ import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
 import {
+  annotateCallbackCarryForward,
+  callbackCarryTaskPatch,
   filterGuestsForCallRound,
   getCallRoundDescription,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
@@ -17,6 +19,10 @@ import {
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import {
+  linkCallbackCarryForwardHistory,
+  loadCallbackGuestIdsByRound,
+} from "@/lib/calls/callbackCarryForward";
 import {
   hasEmployeeShiftStarted,
   hasReachedSameDayWorkOrderOpenTime,
@@ -1479,12 +1485,18 @@ async function loadGuestsForRound(input: {
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
   const previousNoAnswerByRound: Partial<Record<1 | 2, Set<string>>> = {};
+  const previousCallbackByRound: Partial<Record<1 | 2, Set<string>>> = {};
 
   if (invitationObjectId && (input.round === 2 || input.round === 3)) {
     previousNoAnswerByRound[1] = await loadNoAnswerGuestIdsByRound({
       invitationObjectId,
       round: 1,
       dateKey: input.dateKey,
+    });
+    previousCallbackByRound[1] = await loadCallbackGuestIdsByRound({
+      invitationId: invitationObjectId,
+      round: 1,
+      workDateLte: endOfDateKey(input.dateKey),
     });
   }
 
@@ -1494,12 +1506,25 @@ async function loadGuestsForRound(input: {
       round: 2,
       dateKey: input.dateKey,
     });
+    previousCallbackByRound[2] = await loadCallbackGuestIdsByRound({
+      invitationId: invitationObjectId,
+      round: 2,
+      workDateLte: endOfDateKey(input.dateKey),
+    });
   }
 
-  return filterGuestsForCallRound({
+  const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
     previousNoAnswerByRound,
+    previousCallbackByRound,
+  });
+
+  return annotateCallbackCarryForward({
+    guests,
+    round: input.round as CallRoundNumber,
+    previousNoAnswerByRound,
+    previousCallbackByRound,
   });
 }
 
@@ -2284,6 +2309,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
 
     if (existingGuestIds.has(guestId)) continue;
 
+    const carry = callbackCarryTaskPatch(guest);
     const previousEmployee = previousEmployeeByGuestId.get(guestId);
     const assignedEmployee =
       previousEmployee ||
@@ -2338,8 +2364,13 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       status: "pending",
       result: null,
 
-      priority: 0,
-      sortOrder: existingTasks.length + docsToInsert.length,
+      priority: carry.priority ?? 0,
+      sortOrder: carry.callbackFromRound
+        ? -1
+        : existingTasks.length + docsToInsert.length,
+      callbackFromRound: carry.callbackFromRound ?? null,
+      inclusionReason: carry.inclusionReason || "",
+      movedFromRound: carry.movedFromRound ?? null,
 
       assignedAt: assignedEmployee ? now : null,
       startedAt: null,
@@ -2356,7 +2387,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       attendingCount: getAttendingCount(guest),
 
       note: "",
-      adminNote: "",
+      adminNote: carry.adminNote || "",
 
       createdAt: now,
       updatedAt: now,
@@ -2367,6 +2398,12 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     await (CallTask as any).insertMany(docsToInsert, {
       ordered: false,
     });
+
+    try {
+      await linkCallbackCarryForwardHistory(workOrderId);
+    } catch (historyError) {
+      console.error("callback carry-forward history link failed:", historyError);
+    }
   }
 
   await CallWorkOrder.findByIdAndUpdate(workOrderId, {
@@ -2876,6 +2913,7 @@ async function createWorkOrderForCandidate(input: {
 
       if (!guestId || !guestObjectId) return null;
 
+      const carry = callbackCarryTaskPatch(guest);
       const previousEmployee = previousEmployeeByGuestId.get(guestId);
       const assignedEmployee =
         previousEmployee ||
@@ -2926,8 +2964,11 @@ async function createWorkOrderForCandidate(input: {
         status: "pending",
         result: null,
 
-        priority: 0,
-        sortOrder: index,
+        priority: carry.priority ?? 0,
+        sortOrder: carry.callbackFromRound ? -1 : index,
+        callbackFromRound: carry.callbackFromRound ?? null,
+        inclusionReason: carry.inclusionReason || "",
+        movedFromRound: carry.movedFromRound ?? null,
 
         assignedAt: assignedEmployee ? now : null,
         startedAt: null,
@@ -2944,7 +2985,7 @@ async function createWorkOrderForCandidate(input: {
         attendingCount: getAttendingCount(guest),
 
         note: "",
-        adminNote: "",
+        adminNote: carry.adminNote || "",
 
         createdAt: now,
         updatedAt: now,
@@ -2956,6 +2997,12 @@ async function createWorkOrderForCandidate(input: {
     await (CallTask as any).insertMany(taskDocs, {
       ordered: true,
     });
+
+    try {
+      await linkCallbackCarryForwardHistory(workOrderId);
+    } catch (historyError) {
+      console.error("callback carry-forward history link failed:", historyError);
+    }
   } catch (error) {
     await CallTask.deleteMany({
       workOrderId,
