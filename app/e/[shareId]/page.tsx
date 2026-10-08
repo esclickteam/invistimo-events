@@ -524,8 +524,9 @@ export default async function PublicEventInfoPage({
     (invitation as any)?.showGoogleMaps
   );
   const googleMapsUrl = allowGoogleMaps
-    ? getGoogleMapsLinkForTarget(navTarget)
+    ? getGoogleMapsLinkForTarget(navTarget) || ""
     : "";
+  const mapsNavHref = cleanString(central.googleMapsUrl) || googleMapsUrl;
   const hasWaze =
     allowWaze &&
     Boolean(
@@ -706,7 +707,7 @@ export default async function PublicEventInfoPage({
                   </p>
                 )}
 
-                {(hasWaze || googleMapsUrl || central.googleMapsUrl) && (
+                {(hasWaze || mapsNavHref) && (
                   <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {hasWaze && (
                       <WazeNavButton
@@ -719,10 +720,8 @@ export default async function PublicEventInfoPage({
                       </WazeNavButton>
                     )}
 
-                    {(googleMapsUrl || central.googleMapsUrl) && (
-                      <LightButton
-                        href={central.googleMapsUrl || googleMapsUrl}
-                      >
+                    {mapsNavHref && (
+                      <LightButton href={mapsNavHref}>
                         <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
                         ניווט ב-Google Maps
                       </LightButton>
