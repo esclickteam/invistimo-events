@@ -1630,21 +1630,21 @@ export default function AdminShiftManagementPage() {
         </section>
       )}
 
-      <section className="overflow-hidden rounded-[30px] border border-[#E9ECF5] bg-white shadow-xl shadow-slate-100/80">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1500px] border-collapse text-right">
+      <section className="admin-table-region w-full min-w-0">
+        <div className="admin-table-scroll">
+          <table className="admin-table" style={{ minWidth: 1500 }}>
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-black text-slate-500">
-                <th className="px-5 py-4">עובד</th>
-                <th className="px-5 py-4">חיבור</th>
-                <th className="px-5 py-4">מה קורה עכשיו</th>
-                <th className="px-5 py-4">מספר פעיל</th>
-                <th className="px-5 py-4">זמן מצב</th>
-                <th className="px-5 py-4">שיבוץ / משמרת</th>
-                <th className="px-5 py-4">זמן משמרת</th>
-                <th className="px-5 py-4">שיחות היום</th>
-                <th className="px-5 py-4">עדכון אחרון</th>
-                <th className="px-5 py-4">פעולות</th>
+              <tr>
+                <th>עובד</th>
+                <th>חיבור</th>
+                <th>מה קורה עכשיו</th>
+                <th>מספר פעיל</th>
+                <th>זמן מצב</th>
+                <th>שיבוץ / משמרת</th>
+                <th>זמן משמרת</th>
+                <th>שיחות היום</th>
+                <th>עדכון אחרון</th>
+                <th>פעולות</th>
               </tr>
             </thead>
 

@@ -188,7 +188,7 @@ export default function AdminWeddingChallengesSalesPage() {
   const labelClass = "mb-1 block text-sm font-black text-[#3b2419]";
 
   return (
-    <main className="mx-auto max-w-5xl space-y-4" dir="rtl">
+    <main className="admin-content w-full min-w-0 max-w-none space-y-4" dir="rtl">
       <p className="text-xs font-medium text-[var(--admin-muted)]">
         יצירת משתמש, קביעת מחיר ושליחת לינק להגדרת סיסמה — ואז ניהול החשבון כאדמין
       </p>
@@ -433,92 +433,106 @@ export default function AdminWeddingChallengesSalesPage() {
         </button>
       </form>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold text-[#3b2419]">מכירות אחרונות</h2>
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-[#eadfd4] bg-white">
-          <table className="w-full min-w-[920px] text-right text-sm">
-            <thead className="bg-[#f7efe6] text-[#6b5344]">
-              <tr>
-                <th className="px-3 py-2">לקוח</th>
-                <th className="px-3 py-2">טלפון</th>
-                <th className="px-3 py-2">אימייל</th>
-                <th className="px-3 py-2">סטטוס</th>
-                <th className="px-3 py-2">סכום</th>
-                <th className="px-3 py-2">אירוע</th>
-                <th className="px-3 py-2">ניהול</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const userId = row.userId || row.user?._id || "";
-                return (
-                  <tr key={row._id} className="border-t border-[#f0e4d8]">
-                    <td className="px-3 py-2 font-bold">{row.customerName || row.user?.name || "—"}</td>
-                    <td className="px-3 py-2" dir="ltr">{row.phone || row.user?.phone || "—"}</td>
-                    <td className="px-3 py-2" dir="ltr">{row.email || row.user?.email || "—"}</td>
-                    <td className="px-3 py-2">{row.paymentStatus}</td>
-                    <td className="px-3 py-2">
-                      {editingId === row._id ? (
-                        <span className="flex items-center gap-1">
-                          <input
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
-                            className="w-20 rounded-lg border border-[#eadfd4] px-2 py-1"
-                            dir="ltr"
-                          />
-                          <button type="button" onClick={() => savePrice(row)} className="text-xs font-black text-[#A86F2B]">
-                            שמירה
-                          </button>
+      <section className="mt-6 space-y-3">
+        <h2 className="text-sm font-bold text-[var(--admin-text)]">
+          מכירות אחרונות
+        </h2>
+        <div className="admin-table-region w-full min-w-0">
+          <div className="admin-table-scroll">
+            <table className="admin-table" style={{ minWidth: 920 }}>
+              <thead>
+                <tr>
+                  <th>לקוח</th>
+                  <th>טלפון</th>
+                  <th>אימייל</th>
+                  <th>סטטוס</th>
+                  <th>סכום</th>
+                  <th>אירוע</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const userId = row.userId || row.user?._id || "";
+                  return (
+                    <tr key={row._id}>
+                      <td>
+                        <span className="cell-clip font-bold">
+                          {row.customerName || row.user?.name || "—"}
                         </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(row._id);
-                            setEditPrice(String(row.pricePaid || 0));
-                          }}
-                          className="font-bold"
-                        >
-                          {row.pricePaid} ₪
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">{row.eventId ? "מקושר" : "בלי אירוע עדיין"}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={!userId || busyId === userId}
-                          onClick={() => impersonate(userId)}
-                          className="rounded-full bg-[#3b2419] px-3 py-1 text-xs font-black text-white disabled:opacity-40"
-                        >
-                          כניסה לניהול
-                        </button>
-                        {userId ? (
-                          <a
-                            href={`/admin/users?q=${encodeURIComponent(row.email || row.phone || userId)}`}
-                            className="rounded-full border border-[#d8c4a8] px-3 py-1 text-xs font-black"
-                          >
-                            משתמש
-                          </a>
-                        ) : null}
-                        {userId ? (
+                      </td>
+                      <td dir="ltr">
+                        {row.phone || row.user?.phone || "—"}
+                      </td>
+                      <td>
+                        <span className="cell-clip-wide" dir="ltr">
+                          {row.email || row.user?.email || "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="admin-row-badge bg-gray-100 text-gray-700">
+                          {row.paymentStatus}
+                        </span>
+                      </td>
+                      <td>
+                        {editingId === row._id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <input
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(e.target.value)}
+                              className="admin-input h-8 w-20"
+                              dir="ltr"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => savePrice(row)}
+                              className="text-xs font-bold text-[var(--admin-brand)]"
+                            >
+                              שמירה
+                            </button>
+                          </span>
+                        ) : (
                           <button
                             type="button"
-                            disabled={busyId === userId}
-                            onClick={() => sendSetup(userId)}
-                            className="rounded-full border border-[#d8c4a8] px-3 py-1 text-xs font-black"
+                            onClick={() => {
+                              setEditingId(row._id);
+                              setEditPrice(String(row.pricePaid || 0));
+                            }}
+                            className="font-bold"
                           >
-                            לינק סיסמה
+                            {row.pricePaid} ₪
                           </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        )}
+                      </td>
+                      <td>
+                        {row.eventId ? "מקושר" : "בלי אירוע"}
+                      </td>
+                      <td className="admin-actions-cell">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={!userId || busyId === userId}
+                            onClick={() => impersonate(userId)}
+                            className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-2.5 text-xs font-bold text-white disabled:opacity-40"
+                          >
+                            ניהול
+                          </button>
+                          {userId ? (
+                            <a
+                              href={`/admin/users?q=${encodeURIComponent(row.email || row.phone || userId)}`}
+                              className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] px-2.5 text-xs font-bold"
+                            >
+                              משתמש
+                            </a>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>

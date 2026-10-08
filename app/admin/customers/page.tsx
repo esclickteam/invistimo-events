@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AdminActionsItem,
+  AdminActionsMenu,
+  AdminFilterBar,
+  AdminListPage,
+  AdminLoadingState,
+  AdminTableShell,
+} from "@/app/components/admin/ui/AdminUI";
 
 type StaffMember = {
   _id: string;
@@ -196,34 +204,17 @@ function getStatusClass(status?: string) {
   switch (status) {
     case "active":
     case "paid":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+      return "bg-emerald-50 text-emerald-700";
     case "quote_sent":
-      return "bg-blue-50 text-blue-700 ring-blue-100";
+      return "bg-blue-50 text-blue-700";
     case "lead":
-      return "bg-amber-50 text-amber-700 ring-amber-100";
+      return "bg-amber-50 text-amber-700";
     case "completed":
-      return "bg-slate-50 text-slate-700 ring-slate-100";
+      return "bg-slate-50 text-slate-700";
     case "cancelled":
-      return "bg-red-50 text-red-700 ring-red-100";
+      return "bg-red-50 text-red-700";
     default:
-      return "bg-stone-50 text-stone-700 ring-stone-100";
-  }
-}
-
-function getLeadStatusClass(status?: string) {
-  switch (status) {
-    case "new":
-      return "bg-amber-50 text-amber-700 ring-amber-100";
-    case "contacted":
-      return "bg-blue-50 text-blue-700 ring-blue-100";
-    case "quote_sent":
-      return "bg-indigo-50 text-indigo-700 ring-indigo-100";
-    case "converted":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-    case "lost":
-      return "bg-red-50 text-red-700 ring-red-100";
-    default:
-      return "bg-amber-50 text-amber-700 ring-amber-100";
+      return "bg-stone-50 text-stone-700";
   }
 }
 
@@ -237,18 +228,6 @@ function isFacebookLead(customer: CustomerFile) {
 
 function isLeadCustomer(customer: CustomerFile) {
   return customer.status === "lead" || isFacebookLead(customer);
-}
-
-function getInitials(name?: string) {
-  const cleanName = cleanText(name);
-
-  if (!cleanName) return "ל";
-
-  const parts = cleanName.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 1) return parts[0].slice(0, 2);
-
-  return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`;
 }
 
 function getStaffId(staff: string | StaffMember) {
@@ -280,45 +259,6 @@ function getStaffLabel(staff?: StaffMember | null) {
   return staff.name || staff.email || "עובד ללא שם";
 }
 
-function InfoItem({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  strong?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#EFE3D4] bg-[#FFFCF7] px-4 py-3">
-      <p className="text-[11px] font-black text-[#9A7A55]">{label}</p>
-      <div
-        className={`mt-1 min-h-[1.35rem] break-words text-sm ${
-          strong ? "font-black text-[#3A271D]" : "font-bold text-[#5B4638]"
-        }`}
-      >
-        {value || "-"}
-      </div>
-    </div>
-  );
-}
-
-function Pill({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className: string;
-}) {
-  return (
-    <span
-      className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<CustomerFile[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -335,6 +275,8 @@ export default function AdminCustomersPage() {
   const [assignMessageByCustomer, setAssignMessageByCustomer] = useState<
     Record<string, string>
   >({});
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [assignRowId, setAssignRowId] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -497,403 +439,250 @@ export default function AdminCustomersPage() {
   }
 
   return (
-    <main dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
-      <div className="w-full max-w-none space-y-4">
-        <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-xs font-medium text-[var(--admin-muted)]">
-              לידים ולקוחות במקום אחד — שיוך עובד זמין ללידים
-            </p>
-            <div className="flex w-full max-w-xl items-center gap-2">
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי שם, טלפון, מייל, שירות, Facebook או Make..."
-                className="admin-input h-10 flex-1"
-              />
-              <button
-                type="button"
-                onClick={loadCustomers}
-                className="h-10 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-[13px] font-bold text-white hover:bg-[var(--admin-brand-hover)]"
-              >
-                רענון
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-7">
-          <StatCard title="סה״כ תיקים" value={stats.total} tone="dark" />
-          <StatCard title="סה״כ לידים" value={stats.leads} tone="amber" />
-          <StatCard
-            title="לידים משויכים"
-            value={stats.assignedLeads}
-            tone="indigo"
-          />
-          <StatCard
-            title="לידים מפייסבוק"
-            value={stats.facebookLeads}
-            tone="blue"
-          />
-          <StatCard title="לקוחות פעילים" value={stats.active} tone="green" />
-          <StatCard title="עם סבבי שיחות" value={stats.withCalls} tone="orange" />
-          <StatCard
-            title="שווי עסקאות"
-            value={formatMoney(stats.totalRevenue)}
-            tone="gold"
-          />
-        </section>
-
-        <section className="rounded-[2rem] border border-[#E8D8C4] bg-white p-4 shadow-sm sm:p-5">
-          <div className="mb-5 flex flex-col gap-2 px-1 sm:px-2">
-            <h2 className="text-2xl font-black">כל הלקוחות והלידים</h2>
-            <p className="text-sm font-semibold leading-6 text-[#8A6A43]">
-              פרטי ליד ושיוך לעובד מוצגים רק כאשר מדובר בליד.
-            </p>
-          </div>
-
-          {error ? (
-            <div className="mb-5 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-black text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          {loading ? (
-            <div className="rounded-[1.5rem] border border-[#EFE3D4] bg-[#FFFCF7] px-5 py-12 text-center text-sm font-black text-[#8A6A43]">
-              טוען לקוחות ולידים...
-            </div>
-          ) : customers.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-[#EFE3D4] bg-[#FFFCF7] px-5 py-12 text-center text-sm font-black text-[#8A6A43]">
-              לא נמצאו לקוחות או לידים.
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {customers.map((customer) => {
-                const customerId = String(customer._id);
-                const userId = String(customer.userId || "");
-                const facebookLead = isFacebookLead(customer);
-                const leadCustomer = isLeadCustomer(customer);
-                const interestedService = cleanText(customer.interestedService);
-                const leadSourceLabel = getLeadSourceLabel(
-                  customer.leadSource,
-                  customer.leadProvider
-                );
-                const assignedStaff = getAssignedStaff(customer, staff);
-                const selectedStaffId =
-                  selectedStaffByCustomer[customerId] ||
-                  getStaffId(assignedStaff || "");
-
-                return (
-                  <article
-                    key={customerId}
-                    className="rounded-[2rem] border border-[#E8D8C4] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
-                  >
-                    <div className="grid gap-5 xl:grid-cols-[minmax(260px,1.1fr)_minmax(0,3fr)_auto] xl:items-center">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#3A271D] text-lg font-black text-white shadow-sm">
-                          {getInitials(customer.fullName)}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="break-words text-xl font-black text-[#3A271D]">
-                              {customer.fullName || "לקוח ללא שם"}
-                            </h3>
-
-                            <Pill className={getStatusClass(customer.status)}>
-                              {getStatusLabel(customer.status)}
-                            </Pill>
-
-                            {facebookLead ? (
-                              <Pill className="bg-blue-50 text-blue-700 ring-blue-100">
-                                ליד מפייסבוק
-                              </Pill>
-                            ) : null}
-
-                            {leadCustomer && assignedStaff ? (
-                              <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-100">
-                                משויך לעובד
-                              </Pill>
-                            ) : null}
-                          </div>
-
-                          <div className="mt-2 space-y-1 text-xs font-bold text-[#9A7A55]">
-                            <p>תיק לקוח: {customerId.slice(-6)}</p>
-                            <p>נוצר: {formatDateTime(customer.createdAt)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-4 ${
-                          leadCustomer ? "xl:grid-cols-6" : "xl:grid-cols-5"
-                        }`}
-                      >
-                        <InfoItem label="טלפון" value={customer.phone || "-"} strong />
-                        <InfoItem label="מייל" value={customer.email || "-"} />
-                        <InfoItem
-                          label="תאריך אירוע"
-                          value={formatDate(customer.eventDate)}
-                        />
-
-                        {leadCustomer ? (
-                          <>
-                            <InfoItem
-                              label="שירות מעניין"
-                              value={interestedService || "-"}
-                              strong
-                            />
-
-                            <InfoItem
-                              label="מקור ליד"
-                              value={
-                                leadSourceLabel !== "-" ? (
-                                  <div className="space-y-1">
-                                    <div>{leadSourceLabel}</div>
-                                    {customer.facebookLeadId ? (
-                                      <div className="text-[11px] text-[#9A7A55]">
-                                        Lead ID:{" "}
-                                        {String(customer.facebookLeadId).slice(-8)}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : (
-                                  "-"
-                                )
-                              }
-                            />
-
-                            <InfoItem
-                              label="סטטוס ליד"
-                              value={
-                                <Pill
-                                  className={getLeadStatusClass(
-                                    customer.leadStatus || "new"
-                                  )}
-                                >
-                                  {getLeadStatusLabel(customer.leadStatus || "new")}
-                                </Pill>
-                              }
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <InfoItem
-                              label="חבילה / שירות"
-                              value={customer.packageName || "-"}
-                              strong
-                            />
-
-                            <InfoItem
-                              label="סטטוס"
-                              value={
-                                <Pill className={getStatusClass(customer.status)}>
-                                  {getStatusLabel(customer.status)}
-                                </Pill>
-                              }
-                            />
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2 xl:min-w-[150px]">
-                        <Link
-                          href={`/admin/customers/${customerId}`}
-                          className="rounded-2xl bg-[#3A271D] px-5 py-3 text-center text-sm font-black text-white transition hover:bg-[#24170f]"
-                        >
-                          תיק לקוח
-                        </Link>
-
-                        {userId ? (
-                          <Link
-                            href={`/admin/users?impersonate=${userId}`}
-                            className="rounded-2xl border border-[#D9C3A8] bg-white px-5 py-3 text-center text-sm font-black text-[#3A271D] transition hover:bg-[#FFF7EC]"
-                          >
-                            כניסה ללקוח
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled
-                            className="cursor-not-allowed rounded-2xl border border-[#E8D8C4] bg-[#F7F1EA] px-5 py-3 text-center text-sm font-black text-[#B9A28A]"
-                          >
-                            אין משתמש
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 border-t border-[#F1E7DA] pt-4 sm:grid-cols-2 lg:grid-cols-4">
-                      <InfoItem
-                        label={leadCustomer ? "שירות מעניין" : "חבילה / שירות"}
-                        value={
-                          leadCustomer
-                            ? interestedService || "-"
-                            : customer.packageName || "-"
-                        }
-                      />
-
-                      <InfoItem
-                        label="סכום עסקה"
-                        value={formatMoney(customer.totalPrice)}
-                        strong
-                      />
-
-                      <InfoItem label="יתרה" value={formatMoney(customer.balance)} />
-
-                      <InfoItem
-                        label="סבבי שיחות"
-                        value={
-                          customer.hasCallRounds
-                            ? `פעיל · ${customer.allowedCallRounds || 3} סבבים`
-                            : "לא פעיל"
-                        }
-                      />
-                    </div>
-
-                    {leadCustomer ? (
-                      <div className="mt-4 rounded-[1.5rem] border border-[#E8D8C4] bg-[#FFFCF7] p-4">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                          <div>
-                            <h4 className="text-base font-black text-[#3A271D]">
-                              הקצאת ליד לעובד
-                            </h4>
-                            <p className="mt-1 text-xs font-bold leading-5 text-[#8A6A43]">
-                              בחרי עובד שיטפל בליד. לאחר השיוך הליד יופיע אצל
-                              העובד באזור הלידים שלו.
-                            </p>
-
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <Pill className="bg-white text-[#8A6A43] ring-[#E8D8C4]">
-                                עובד נוכחי: {getStaffLabel(assignedStaff)}
-                              </Pill>
-                            </div>
-                          </div>
-
-                          <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto">
-                            <select
-                              value={selectedStaffId}
-                              onChange={(event) =>
-                                setSelectedStaffByCustomer((prev) => ({
-                                  ...prev,
-                                  [customerId]: event.target.value,
-                                }))
-                              }
-                              disabled={staffLoading || assigningCustomerId === customerId}
-                              className="h-12 w-full min-w-0 rounded-2xl border border-[#D9C3A8] bg-white px-4 text-sm font-black text-[#3A271D] outline-none transition focus:border-[#C58B2B] sm:min-w-[240px] sm:w-auto"
-                            >
-                              <option value="">
-                                {staffLoading ? "טוען עובדים..." : "בחר עובד"}
-                              </option>
-
-                              {staff.map((staffMember) => (
-                                <option
-                                  key={staffMember._id}
-                                  value={String(staffMember._id)}
-                                >
-                                  {staffMember.name ||
-                                    staffMember.email ||
-                                    "עובד ללא שם"}
-                                </option>
-                              ))}
-                            </select>
-
-                            <button
-                              type="button"
-                              onClick={() => handleAssignStaff(customerId)}
-                              disabled={
-                                assigningCustomerId === customerId ||
-                                staffLoading ||
-                                !selectedStaffId
-                              }
-                              className={`h-12 rounded-2xl px-5 text-sm font-black transition ${
-                                assigningCustomerId === customerId ||
-                                staffLoading ||
-                                !selectedStaffId
-                                  ? "cursor-not-allowed bg-[#E8D8C4] text-[#9A7A55]"
-                                  : "bg-[#3A271D] text-white hover:bg-[#24170f]"
-                              }`}
-                            >
-                              {assigningCustomerId === customerId
-                                ? "משייך..."
-                                : "הקצה ליד"}
-                            </button>
-                          </div>
-                        </div>
-
-                        {assignMessageByCustomer[customerId] ? (
-                          <div className="mt-3 rounded-2xl border border-[#E8D8C4] bg-white px-4 py-3 text-xs font-black text-[#3A271D]">
-                            {assignMessageByCustomer[customerId]}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {customer.venueName ||
-                    customer.city ||
-                    customer.campaignName ||
-                    customer.adName ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {customer.venueName || customer.city ? (
-                          <Pill className="bg-[#FFF7EC] text-[#B87920] ring-[#E8D8C4]">
-                            {[customer.venueName, customer.city]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </Pill>
-                        ) : null}
-
-                        {leadCustomer && customer.campaignName ? (
-                          <Pill className="bg-stone-50 text-stone-700 ring-stone-100">
-                            קמפיין: {customer.campaignName}
-                          </Pill>
-                        ) : null}
-
-                        {leadCustomer && customer.adName ? (
-                          <Pill className="bg-stone-50 text-stone-700 ring-stone-100">
-                            מודעה: {customer.adName}
-                          </Pill>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+    <AdminListPage>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-[var(--admin-muted)]">
+          לידים ולקוחות במקום אחד · {stats.total} תיקים · {stats.leads} לידים ·{" "}
+          {formatMoney(stats.totalRevenue)} שווי
+        </p>
+        <button
+          type="button"
+          onClick={loadCustomers}
+          className="inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3.5 text-xs font-bold text-white hover:bg-[var(--admin-brand-hover)]"
+        >
+          רענון
+        </button>
       </div>
-    </main>
-  );
-}
 
-function StatCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: React.ReactNode;
-  tone: "dark" | "amber" | "blue" | "green" | "orange" | "gold" | "indigo";
-}) {
-  const toneClass =
-    tone === "amber"
-      ? "text-amber-700"
-      : tone === "blue"
-        ? "text-blue-700"
-        : tone === "green"
-          ? "text-emerald-700"
-          : tone === "orange"
-            ? "text-orange-700"
-            : tone === "gold"
-              ? "text-[#B87920]"
-              : tone === "indigo"
-                ? "text-indigo-700"
-                : "text-[#3A271D]";
+      <AdminFilterBar>
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="חיפוש לפי שם, טלפון, מייל, שירות, Facebook או Make..."
+          className="admin-input h-10 min-w-0 flex-1"
+        />
+      </AdminFilterBar>
 
-  return (
-    <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
-      <p className="text-xs font-black text-[#8A6A43]">{title}</p>
-      <p className={`mt-3 text-3xl font-black ${toneClass}`}>{value}</p>
-    </div>
+      {error ? (
+        <div className="rounded-[var(--admin-radius)] border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <AdminLoadingState text="טוען לקוחות ולידים…" />
+      ) : (
+        <AdminTableShell
+          headers={[
+            "שם",
+            "אימייל",
+            "טלפון",
+            "תאריך אירוע",
+            "סטטוס",
+            "חבילה / שירות",
+            "סכום",
+            "מקור",
+            "עובד",
+            "פעולות",
+          ]}
+          isEmpty={customers.length === 0}
+          empty="לא נמצאו לקוחות או לידים."
+          minWidth={1200}
+          footer={
+            <>
+              <span>
+                מוצגים {customers.length} תיקים · פעילים {stats.active} · עם
+                שיחות {stats.withCalls}
+              </span>
+              <span>
+                לידים משויכים {stats.assignedLeads} · פייסבוק{" "}
+                {stats.facebookLeads}
+              </span>
+            </>
+          }
+        >
+          {customers.map((customer) => {
+            const customerId = String(customer._id);
+            const userId = String(customer.userId || "");
+            const leadCustomer = isLeadCustomer(customer);
+            const interestedService = cleanText(customer.interestedService);
+            const leadSourceLabel = getLeadSourceLabel(
+              customer.leadSource,
+              customer.leadProvider
+            );
+            const assignedStaff = getAssignedStaff(customer, staff);
+            const selectedStaffId =
+              selectedStaffByCustomer[customerId] ||
+              getStaffId(assignedStaff || "");
+            const open = openActionsId === customerId;
+            const packageOrService = leadCustomer
+              ? interestedService || "—"
+              : customer.packageName || "—";
+
+            return (
+              <tr
+                key={customerId}
+                className={open || assignRowId === customerId ? "actions-open" : undefined}
+              >
+                <td>
+                  <span
+                    className="cell-clip font-bold"
+                    title={customer.fullName || ""}
+                  >
+                    {customer.fullName || "לקוח ללא שם"}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className="cell-clip-wide text-[var(--admin-muted)]"
+                    title={customer.email || ""}
+                  >
+                    {customer.email || "—"}
+                  </span>
+                </td>
+                <td dir="ltr">{customer.phone || "—"}</td>
+                <td>{formatDate(customer.eventDate)}</td>
+                <td>
+                  <span
+                    className={`admin-row-badge ${getStatusClass(customer.status)}`}
+                    title={
+                      leadCustomer
+                        ? getLeadStatusLabel(customer.leadStatus || "new")
+                        : undefined
+                    }
+                  >
+                    {getStatusLabel(customer.status)}
+                  </span>
+                </td>
+                <td>
+                  <span className="cell-clip" title={packageOrService}>
+                    {packageOrService}
+                  </span>
+                </td>
+                <td className="font-bold">
+                  {formatMoney(customer.totalPrice)}
+                </td>
+                <td>
+                  <span className="cell-clip-sm" title={leadSourceLabel}>
+                    {leadCustomer ? leadSourceLabel : "—"}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className="cell-clip-sm"
+                    title={getStaffLabel(assignedStaff)}
+                  >
+                    {leadCustomer ? getStaffLabel(assignedStaff) : "—"}
+                  </span>
+                </td>
+                <td className="admin-actions-cell">
+                  <AdminActionsMenu
+                    open={open}
+                    onToggle={() =>
+                      setOpenActionsId(open ? null : customerId)
+                    }
+                    onClose={() => setOpenActionsId(null)}
+                  >
+                    <Link
+                      href={`/admin/customers/${customerId}`}
+                      onClick={() => setOpenActionsId(null)}
+                      className="text-[var(--admin-text)] hover:bg-gray-50"
+                    >
+                      תיק לקוח
+                    </Link>
+                    {userId ? (
+                      <Link
+                        href={`/admin/users?impersonate=${userId}`}
+                        onClick={() => setOpenActionsId(null)}
+                        className="text-[var(--admin-text)] hover:bg-gray-50"
+                      >
+                        כניסה ללקוח
+                      </Link>
+                    ) : (
+                      <AdminActionsItem disabled>
+                        אין משתמש מקושר
+                      </AdminActionsItem>
+                    )}
+                    {leadCustomer ? (
+                      <AdminActionsItem
+                        onClick={() => {
+                          setOpenActionsId(null);
+                          setAssignRowId(customerId);
+                        }}
+                      >
+                        הקצאת ליד לעובד
+                      </AdminActionsItem>
+                    ) : null}
+                  </AdminActionsMenu>
+
+                  {assignRowId === customerId ? (
+                    <div className="absolute left-0 top-[calc(100%+4px)] z-50 w-[280px] rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white p-3 shadow-md">
+                      <p className="mb-2 text-[11px] font-bold text-[var(--admin-muted)]">
+                        שיוך ליד · נוצר {formatDateTime(customer.createdAt)}
+                      </p>
+                      <select
+                        value={selectedStaffId}
+                        onChange={(event) =>
+                          setSelectedStaffByCustomer((prev) => ({
+                            ...prev,
+                            [customerId]: event.target.value,
+                          }))
+                        }
+                        disabled={
+                          staffLoading || assigningCustomerId === customerId
+                        }
+                        className="admin-select mb-2 h-9"
+                      >
+                        <option value="">
+                          {staffLoading ? "טוען עובדים..." : "בחר עובד"}
+                        </option>
+                        {staff.map((staffMember) => (
+                          <option
+                            key={staffMember._id}
+                            value={String(staffMember._id)}
+                          >
+                            {staffMember.name ||
+                              staffMember.email ||
+                              "עובד ללא שם"}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleAssignStaff(customerId)}
+                          disabled={
+                            assigningCustomerId === customerId ||
+                            staffLoading ||
+                            !selectedStaffId
+                          }
+                          className="inline-flex h-8 flex-1 items-center justify-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] text-xs font-bold text-white disabled:opacity-50"
+                        >
+                          {assigningCustomerId === customerId
+                            ? "משייך..."
+                            : "הקצה"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAssignRowId(null)}
+                          className="inline-flex h-8 items-center justify-center rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] px-3 text-xs font-bold"
+                        >
+                          סגור
+                        </button>
+                      </div>
+                      {assignMessageByCustomer[customerId] ? (
+                        <p className="mt-2 text-[11px] font-bold text-[var(--admin-text)]">
+                          {assignMessageByCustomer[customerId]}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
+        </AdminTableShell>
+      )}
+    </AdminListPage>
   );
 }

@@ -264,7 +264,7 @@ export function AdminLoadingState({ text = "טוען…" }: { text?: string }) {
 
 export function AdminFilterBar({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-3 flex flex-col gap-2 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] sm:flex-row sm:flex-wrap sm:items-center">
+    <div className="admin-filter-bar mb-3 flex w-full min-w-0 flex-col gap-2 border-b border-[var(--admin-border)] bg-transparent pb-3 sm:flex-row sm:flex-wrap sm:items-center">
       {children}
     </div>
   );
@@ -275,28 +275,129 @@ export function AdminTableShell({
   children,
   empty,
   isEmpty,
+  footer,
+  minWidth,
 }: {
   headers: string[];
   children: ReactNode;
   empty?: string;
   isEmpty?: boolean;
+  footer?: ReactNode;
+  /** Minimum table width before horizontal scroll (px) */
+  minWidth?: number;
 }) {
   if (isEmpty) {
     return <AdminEmptyState text={empty || "אין נתונים להצגה."} />;
   }
 
   return (
-    <AdminPanel padding={false} className="overflow-x-auto">
-      <table className="admin-table">
-        <thead>
-          <tr>
-            {headers.map((header) => (
-              <th key={header}>{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>{children}</tbody>
-      </table>
-    </AdminPanel>
+    <div className="admin-table-region w-full min-w-0">
+      <div className="admin-table-scroll">
+        <table
+          className="admin-table"
+          style={minWidth ? { minWidth } : undefined}
+        >
+          <thead>
+            <tr>
+              {headers.map((header) => (
+                <th key={header}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+      {footer ? <div className="admin-table-footer">{footer}</div> : null}
+    </div>
+  );
+}
+
+/** Compact row actions menu — single trigger, opens above clipping */
+export function AdminActionsMenu({
+  open,
+  onToggle,
+  onClose,
+  label = "פעולות",
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  label?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-actions-menu relative inline-block">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
+        aria-expanded={open}
+      >
+        {label}
+        <span
+          className={`inline-block text-[10px] transition ${
+            open ? "rotate-180" : ""
+          }`}
+        >
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            aria-label="סגור תפריט"
+            onClick={onClose}
+          />
+          <div className="admin-actions-dropdown absolute left-0 top-[calc(100%+4px)] z-50 min-w-[180px] rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white py-1 shadow-md">
+            {children}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function AdminActionsItem({
+  children,
+  onClick,
+  danger,
+  disabled,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex w-full items-center px-3 py-2 text-right text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        danger
+          ? "text-[var(--admin-danger)] hover:bg-red-50"
+          : "text-[var(--admin-text)] hover:bg-gray-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Page frame for list/table screens — full content width */
+export function AdminListPage({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div dir="rtl" className={`admin-content w-full min-w-0 max-w-none space-y-3 ${className}`}>
+      {children}
+    </div>
   );
 }

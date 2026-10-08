@@ -3,6 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
+import {
+  AdminActionsItem,
+  AdminActionsMenu,
+  AdminButton,
+  AdminFilterBar,
+  AdminListPage,
+  AdminLoadingState,
+  AdminTableShell,
+} from "@/app/components/admin/ui/AdminUI";
 
 type QuoteRow = {
   _id: string;
@@ -43,11 +52,23 @@ function statusLabel(status?: string) {
   return map[String(status || "").toLowerCase()] || status || "—";
 }
 
+function statusTone(status?: string) {
+  const key = String(status || "").toLowerCase();
+  if (key === "converted" || key === "accepted") {
+    return "bg-emerald-50 text-emerald-700";
+  }
+  if (key === "expired") return "bg-red-50 text-red-700";
+  if (key === "viewed" || key === "sent") return "bg-blue-50 text-blue-700";
+  return "bg-gray-100 text-gray-700";
+}
+
 export default function AdminQuotesPage() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -104,143 +125,193 @@ export default function AdminQuotesPage() {
     }
   }
 
+  const filtered = quotes.filter((quote) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [
+      quote.quoteNumber,
+      quote.fullName,
+      quote.email,
+      quote.phone,
+      quote.eventName,
+      quote.packageTitle,
+      quote.status,
+    ]
+      .map((v) => String(v || "").toLowerCase())
+      .some((v) => v.includes(q));
+  });
+
   return (
-    <div dir="rtl" className="mx-auto max-w-6xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <AdminListPage>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-[var(--admin-muted)]">
           עריכת הצעה ופתיחת משתמש מההצעה — בלי למלא הכול פעמיים
         </p>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold text-[var(--admin-text)]"
-          >
+          <AdminButton variant="secondary" size="sm" onClick={load}>
             <RefreshCw size={14} />
             רענון
-          </button>
+          </AdminButton>
           <Link
             href="/admin/sales/new"
-            className="inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3.5 text-xs font-bold text-white"
+            className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white hover:bg-[var(--admin-brand-hover)]"
           >
             הצעה חדשה
           </Link>
         </div>
       </div>
 
+      <AdminFilterBar>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש לפי לקוח, אימייל, מספר הצעה…"
+          className="admin-input h-10 min-w-0 flex-1"
+        />
+      </AdminFilterBar>
+
       {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-[var(--admin-radius)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
         </div>
       ) : null}
 
       {loading ? (
-        <div className="flex min-h-[30vh] items-center justify-center text-[#6B5A48]">
-          <Loader2 className="ml-2 animate-spin" size={22} />
-          טוען הצעות…
-        </div>
-      ) : quotes.length === 0 ? (
-        <div className="rounded-[28px] border border-[#E7D8C6] bg-white p-8 text-center text-sm font-bold text-[#7B6754]">
-          אין הצעות מחיר עדיין.
-        </div>
+        <AdminLoadingState text="טוען הצעות…" />
       ) : (
-        <div className="overflow-hidden rounded-[28px] border border-[#E7D8C6] bg-white shadow-[0_14px_40px_rgba(60,43,25,0.06)]">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-right">
-              <thead className="bg-[#FFF9EF] text-xs font-black text-[#7B6754]">
-                <tr>
-                  <th className="p-4">מספר</th>
-                  <th className="p-4">לקוח</th>
-                  <th className="p-4">אירוע</th>
-                  <th className="p-4">חבילה</th>
-                  <th className="p-4">סכום</th>
-                  <th className="p-4">סטטוס</th>
-                  <th className="p-4">נוצר</th>
-                  <th className="p-4">פעולות</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EFE2D1]">
-                {quotes.map((quote) => (
-                  <tr key={quote._id} className="text-sm hover:bg-[#FFFDF8]">
-                    <td className="p-4 font-black text-[#3A2A1C]">
-                      {quote.quoteNumber || quote._id.slice(-6)}
-                    </td>
-                    <td className="p-4">
-                      <div className="font-black text-[#3A2A1C]">
-                        {quote.fullName || "—"}
-                      </div>
-                      <div className="mt-1 text-xs font-semibold text-[#7B6754]">
-                        {quote.email || quote.phone || ""}
-                      </div>
-                    </td>
-                    <td className="p-4 font-bold text-[#5B4638]">
-                      {quote.eventName || "—"}
-                    </td>
-                    <td className="p-4 font-bold text-[#5B4638]">
-                      {quote.packageTitle || "—"}
-                    </td>
-                    <td className="p-4 font-black text-[#B87920]">
-                      {formatMoney(quote.total)}
-                    </td>
-                    <td className="p-4 font-bold text-[#5B4638]">
-                      {statusLabel(quote.status)}
-                    </td>
-                    <td className="p-4 font-bold text-[#5B4638]">
-                      {formatDate(quote.createdAt)}
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-wrap gap-2">
-                        {quote.token ? (
-                          <>
-                            <Link
-                              href={`/sales-documents/${encodeURIComponent(quote.token)}?preview=1`}
-                              target="_blank"
-                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
-                            >
-                              צפייה
-                            </Link>
-                            <Link
-                              href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
-                              className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
-                            >
-                              עריכת הצעה
-                            </Link>
-                            {quote.convertedUserId ? (
-                              <Link
-                                href={`/admin/users?q=${encodeURIComponent(quote.convertedUserId)}`}
-                                className="rounded-xl bg-[#24190F] px-3 py-2 text-xs font-black text-white"
-                              >
-                                מעבר למשתמש
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={creatingFor === quote.token}
-                                onClick={() =>
-                                  createUserFromQuote(quote.token)
-                                }
-                                className="rounded-xl bg-[#B87920] px-3 py-2 text-xs font-black text-white disabled:opacity-60"
-                              >
-                                {creatingFor === quote.token
-                                  ? "יוצר..."
-                                  : "פתיחת משתמש מההצעה"}
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-xs font-black text-[#B9A28A]">
-                            אין קישור
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <AdminTableShell
+          headers={[
+            "מספר",
+            "לקוח",
+            "אימייל",
+            "אירוע",
+            "חבילה",
+            "סכום",
+            "סטטוס",
+            "נוצר",
+            "פעולות",
+          ]}
+          isEmpty={filtered.length === 0}
+          empty={
+            quotes.length === 0
+              ? "אין הצעות מחיר עדיין."
+              : "לא נמצאו הצעות התואמות לחיפוש."
+          }
+          minWidth={1100}
+          footer={
+            <>
+              <span>
+                מוצגות {filtered.length} מתוך {quotes.length}
+              </span>
+              <span>
+                <Loader2 className="hidden" size={12} />
+              </span>
+            </>
+          }
+        >
+          {filtered.map((quote) => {
+            const open = openActionsId === quote._id;
+            return (
+              <tr
+                key={quote._id}
+                className={open ? "actions-open" : undefined}
+              >
+                <td className="font-bold">
+                  {quote.quoteNumber || quote._id.slice(-6)}
+                </td>
+                <td>
+                  <span
+                    className="cell-clip font-bold"
+                    title={quote.fullName || ""}
+                  >
+                    {quote.fullName || "—"}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className="cell-clip-wide text-[var(--admin-muted)]"
+                    title={quote.email || quote.phone || ""}
+                  >
+                    {quote.email || quote.phone || "—"}
+                  </span>
+                </td>
+                <td>
+                  <span className="cell-clip" title={quote.eventName || ""}>
+                    {quote.eventName || "—"}
+                  </span>
+                </td>
+                <td>
+                  <span className="cell-clip" title={quote.packageTitle || ""}>
+                    {quote.packageTitle || "—"}
+                  </span>
+                </td>
+                <td className="font-bold">{formatMoney(quote.total)}</td>
+                <td>
+                  <span
+                    className={`admin-row-badge ${statusTone(quote.status)}`}
+                  >
+                    {statusLabel(quote.status)}
+                  </span>
+                </td>
+                <td>{formatDate(quote.createdAt)}</td>
+                <td className="admin-actions-cell">
+                  {quote.token ? (
+                    <AdminActionsMenu
+                      open={open}
+                      onToggle={() =>
+                        setOpenActionsId(open ? null : quote._id)
+                      }
+                      onClose={() => setOpenActionsId(null)}
+                    >
+                      <Link
+                        href={`/sales-documents/${encodeURIComponent(quote.token)}?preview=1`}
+                        target="_blank"
+                        onClick={() => setOpenActionsId(null)}
+                        className="text-[var(--admin-text)] hover:bg-gray-50"
+                      >
+                        צפייה
+                      </Link>
+                      <Link
+                        href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
+                        onClick={() => setOpenActionsId(null)}
+                        className="text-[var(--admin-text)] hover:bg-gray-50"
+                      >
+                        עריכת הצעה
+                      </Link>
+                      {quote.convertedUserId ? (
+                        <Link
+                          href={`/admin/users?q=${encodeURIComponent(quote.convertedUserId)}`}
+                          onClick={() => setOpenActionsId(null)}
+                          className="text-[var(--admin-text)] hover:bg-gray-50"
+                        >
+                          מעבר למשתמש
+                        </Link>
+                      ) : (
+                        <AdminActionsItem
+                          disabled={creatingFor === quote.token}
+                          onClick={() => {
+                            setOpenActionsId(null);
+                            void createUserFromQuote(quote.token);
+                          }}
+                        >
+                          {creatingFor === quote.token
+                            ? "יוצר..."
+                            : "פתיחת משתמש מההצעה"}
+                        </AdminActionsItem>
+                      )}
+                    </AdminActionsMenu>
+                  ) : (
+                    <span className="text-xs text-[var(--admin-subtle)]">
+                      אין קישור
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </AdminTableShell>
       )}
-    </div>
+    </AdminListPage>
   );
 }

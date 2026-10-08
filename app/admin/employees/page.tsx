@@ -188,27 +188,6 @@ function detailsStatusLabel(employee: EmployeeRow) {
   }`;
 }
 
-function detailsStatusClass(employee: EmployeeRow) {
-  const missing = getMissingFields(employee);
-
-  if (missing.length === 0) {
-    return "border-sky-200 bg-sky-50 text-sky-700";
-  }
-
-  return "border-amber-200 bg-amber-50 text-amber-700";
-}
-
-function initials(name: string) {
-  return (
-    name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("") || "ע"
-  );
-}
-
 function Icon({
   name,
   className = "h-5 w-5",
@@ -566,426 +545,243 @@ export default function AdminEmployeesPage() {
   }, [employees]);
 
   return (
-    <div dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
-      <div className="mx-auto w-full min-w-0 max-w-[1550px] space-y-4">
-        <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <p className="text-xs font-medium text-[var(--admin-muted)]">
-              רשימת עובדים מסונכרנת מתיק העובד — מייל, טלפון, ת״ז, העסקה ושכר
-            </p>
+    <div dir="rtl" className="admin-content w-full min-w-0 max-w-none space-y-3 text-[var(--admin-text)]">
+      <div className="w-full min-w-0 max-w-none space-y-3">
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <p className="text-xs font-medium text-[var(--admin-muted)]">
+            {stats.total} עובדים · {stats.active} פעילים · {stats.missing} חסר
+            מידע
+          </p>
 
-            <div className="flex flex-col gap-2 xl:items-end">
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/admin/forms/101/mapper"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold text-[var(--admin-text)]"
-                >
-                  <Icon name="template" className="h-3.5 w-3.5" />
-                  תבנית טופס 101
-                </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/forms/101/mapper"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold text-[var(--admin-text)]"
+            >
+              <Icon name="template" className="h-3.5 w-3.5" />
+              תבנית טופס 101
+            </Link>
 
-                <div ref={templateMenuRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setTemplateMenuOpen((open) => !open)}
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white"
-                  >
-                    <Icon name="template" className="h-3.5 w-3.5" />
-                    תבנית הסכם לעובדים
-                    <Icon
-                      name="chevronDown"
-                      className={`h-3.5 w-3.5 transition ${templateMenuOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
+            <div ref={templateMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setTemplateMenuOpen((open) => !open)}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white"
+              >
+                <Icon name="template" className="h-3.5 w-3.5" />
+                תבנית הסכם
+                <Icon
+                  name="chevronDown"
+                  className={`h-3.5 w-3.5 transition ${templateMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
 
-                  {templateMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                      {(
-                        Object.values(
-                          EMPLOYEE_AGREEMENT_TEMPLATE_TYPES
-                        ) as EmployeeAgreementTemplateType[]
-                      ).map((type) => (
-                        <Link
-                          key={type}
-                          href={`/admin/employees/agreement-template?type=${encodeURIComponent(type)}`}
-                          onClick={() => setTemplateMenuOpen(false)}
-                          className="block rounded-xl px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-violet-50 hover:text-violet-700"
-                        >
-                          {TEMPLATE_TYPE_LABELS[type]}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+              {templateMenuOpen && (
+                <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-2 shadow-md">
+                  {(
+                    Object.values(
+                      EMPLOYEE_AGREEMENT_TEMPLATE_TYPES
+                    ) as EmployeeAgreementTemplateType[]
+                  ).map((type) => (
+                    <Link
+                      key={type}
+                      href={`/admin/employees/agreement-template?type=${encodeURIComponent(type)}`}
+                      onClick={() => setTemplateMenuOpen(false)}
+                      className="block rounded-[var(--admin-radius-sm)] px-3 py-2 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
+                    >
+                      {TEMPLATE_TYPE_LABELS[type]}
+                    </Link>
+                  ))}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => void loadEmployees()}
-                  disabled={refreshing}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Icon
-                    name="refresh"
-                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                  />
-                  רענון
-                </button>
-              </div>
-
-              <div className="flex w-full flex-col gap-3 rounded-[24px] border border-indigo-100 bg-indigo-50/60 p-3 sm:flex-row xl:w-auto">
-                <label className="relative flex h-11 w-full min-w-0 items-center rounded-2xl border border-indigo-100 bg-white px-4 pr-11 text-sm font-black text-slate-700 shadow-sm sm:min-w-[190px] sm:w-auto">
-                  <span className="pointer-events-none absolute right-4 text-indigo-400">
-                    <Icon name="calendar" className="h-4 w-4" />
-                  </span>
-
-                  <input
-                    type="month"
-                    value={payrollMonth}
-                    onChange={(event) => setPayrollMonth(event.target.value)}
-                    className="w-full bg-transparent text-sm font-black text-slate-800 outline-none"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => void handleExportPayrollReport()}
-                  disabled={exportingPayroll || !payrollMonth}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Icon
-                    name={exportingPayroll ? "refresh" : "download"}
-                    className={`h-4 w-4 ${
-                      exportingPayroll ? "animate-spin" : ""
-                    }`}
-                  />
-                  {exportingPayroll
-                    ? "מייצא דוח..."
-                    : "ייצוא דוח משכורת חודשית"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-[26px] border border-indigo-100 bg-indigo-50 p-5">
-              <p className="text-xs font-black text-indigo-500">סה״כ עובדים</p>
-              <p className="mt-2 text-3xl font-black text-indigo-950">
-                {stats.total}
-              </p>
+              )}
             </div>
 
-            <div className="rounded-[26px] border border-emerald-100 bg-emerald-50 p-5">
-              <p className="text-xs font-black text-emerald-600">פעילים</p>
-              <p className="mt-2 text-3xl font-black text-emerald-900">
-                {stats.active}
-              </p>
-            </div>
-
-            <div className="rounded-[26px] border border-rose-100 bg-rose-50 p-5">
-              <p className="text-xs font-black text-rose-600">סיימו העסקה</p>
-              <p className="mt-2 text-3xl font-black text-rose-900">
-                {stats.ended}
-              </p>
-            </div>
-
-            <div className="rounded-[26px] border border-sky-100 bg-sky-50 p-5">
-              <p className="text-xs font-black text-sky-600">פרטים מלאים</p>
-              <p className="mt-2 text-3xl font-black text-sky-900">
-                {stats.complete}
-              </p>
-            </div>
-
-            <div className="rounded-[26px] border border-amber-100 bg-amber-50 p-5">
-              <p className="text-xs font-black text-amber-600">חסר מידע</p>
-              <p className="mt-2 text-3xl font-black text-amber-900">
-                {stats.missing}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur">
-          <div className="grid gap-3 xl:grid-cols-[1fr_220px_220px_auto]">
-            <div className="relative">
+            <label className="inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2 text-xs font-bold">
               <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי שם עובד, מייל, טלפון, כתובת, תעודת זהות או מזהה..."
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                type="month"
+                value={payrollMonth}
+                onChange={(event) => setPayrollMonth(event.target.value)}
+                className="bg-transparent outline-none"
               />
-
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <Icon name="search" className="h-5 w-5" />
-              </span>
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-            >
-              <option value="">כל העובדים</option>
-              <option value="active">פעילים</option>
-              <option value="ended">סיימו העסקה</option>
-            </select>
-
-            <select
-              value={detailsFilter}
-              onChange={(event) => setDetailsFilter(event.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-            >
-              <option value="">כל הפרטים</option>
-              <option value="complete">פרטים מלאים</option>
-              <option value="missing">חסר מידע</option>
-            </select>
+            </label>
 
             <button
               type="button"
-              onClick={() => {
-                setSearch("");
-                setStatusFilter("");
-                setDetailsFilter("");
-              }}
-              className="h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
+              onClick={() => void handleExportPayrollReport()}
+              disabled={exportingPayroll || !payrollMonth}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold disabled:opacity-50"
             >
-              ניקוי
+              <Icon
+                name={exportingPayroll ? "refresh" : "download"}
+                className={`h-3.5 w-3.5 ${exportingPayroll ? "animate-spin" : ""}`}
+              />
+              {exportingPayroll ? "מייצא..." : "דוח משכורת"}
             </button>
-          </div>
-        </section>
-
-        {loading ? (
-          <section className="rounded-[34px] border border-white/80 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-500" />
-            <p className="mt-4 text-sm font-black text-slate-600">
-              טוען עובדים...
-            </p>
-          </section>
-        ) : error ? (
-          <section className="rounded-[34px] border border-rose-200 bg-rose-50 p-8 text-center shadow-sm">
-            <Icon name="warning" className="mx-auto h-10 w-10 text-rose-600" />
-            <h2 className="mt-4 text-xl font-black text-rose-700">
-              לא הצלחנו לטעון את העובדים
-            </h2>
-            <p className="mt-2 text-sm font-bold text-rose-600">{error}</p>
 
             <button
               type="button"
               onClick={() => void loadEmployees()}
-              className="mt-5 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
+              disabled={refreshing}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold disabled:opacity-50"
+            >
+              <Icon
+                name="refresh"
+                className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+              />
+              רענון
+            </button>
+          </div>
+        </div>
+
+        <div className="admin-filter-bar flex w-full min-w-0 flex-col gap-2 border-b border-[var(--admin-border)] pb-3 xl:flex-row xl:items-center">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="חיפוש לפי שם, מייל, טלפון, כתובת, ת״ז או מזהה..."
+            className="admin-input h-10 min-w-0 flex-1"
+          />
+
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="admin-select h-10 w-full xl:w-[180px]"
+          >
+            <option value="">כל העובדים</option>
+            <option value="active">פעילים</option>
+            <option value="ended">סיימו העסקה</option>
+          </select>
+
+          <select
+            value={detailsFilter}
+            onChange={(event) => setDetailsFilter(event.target.value)}
+            className="admin-select h-10 w-full xl:w-[180px]"
+          >
+            <option value="">כל הפרטים</option>
+            <option value="complete">פרטים מלאים</option>
+            <option value="missing">חסר מידע</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSearch("");
+              setStatusFilter("");
+              setDetailsFilter("");
+            }}
+            className="h-10 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-4 text-xs font-bold"
+          >
+            ניקוי
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex min-h-[240px] items-center justify-center text-sm font-semibold text-[var(--admin-muted)]">
+            טוען עובדים…
+          </div>
+        ) : error ? (
+          <div className="rounded-[var(--admin-radius)] border border-rose-200 bg-rose-50 p-6 text-center">
+            <p className="text-sm font-bold text-rose-700">{error}</p>
+            <button
+              type="button"
+              onClick={() => void loadEmployees()}
+              className="mt-4 inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-rose-600 px-4 text-xs font-bold text-white"
             >
               נסה שוב
             </button>
-          </section>
+          </div>
         ) : filteredEmployees.length === 0 ? (
-          <section className="rounded-[34px] border border-dashed border-indigo-200 bg-white/90 p-10 text-center shadow-sm">
-            <Icon name="users" className="mx-auto h-12 w-12 text-indigo-300" />
-            <h2 className="mt-4 text-xl font-black text-slate-800">
-              אין עובדים להצגה
-            </h2>
-            <p className="mt-2 text-sm font-semibold text-slate-500">
-              לא נמצאו עובדים או שאין התאמה לחיפוש/סינון.
-            </p>
-          </section>
+          <div className="rounded-[var(--admin-radius)] border border-dashed border-[var(--admin-border)] bg-white px-4 py-10 text-center text-sm font-semibold text-[var(--admin-muted)]">
+            אין עובדים להצגה
+          </div>
         ) : (
-          <>
-            <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] border-collapse text-right">
-              <thead className="bg-slate-50/80">
-                <tr className="text-sm text-slate-500">
-                  <th className="px-5 py-4 font-black">עובד</th>
-                  <th className="px-5 py-4 font-black">מייל</th>
-                  <th className="px-5 py-4 font-black">טלפון</th>
-                  <th className="px-5 py-4 font-black">כתובת</th>
-                  <th className="px-5 py-4 font-black">תעודת זהות</th>
-                  <th className="px-5 py-4 font-black">תחילת העסקה</th>
-                  <th className="px-5 py-4 font-black">סיום העסקה</th>
-                  <th className="px-5 py-4 font-black">שכר שעתי</th>
-                  <th className="px-5 py-4 font-black">סטטוס</th>
-                  <th className="px-5 py-4 font-black">תיק עובד</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-                {filteredEmployees.map((employee) => (
-                  <tr
-                    key={employee.id}
-                    className="transition hover:bg-indigo-50/40"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
-                          {initials(employee.name)}
-                        </div>
-
-                        <div>
-                          <p className="font-black text-slate-900">
-                            {employee.name}
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-slate-400">
-                            ID: {employee.id}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <Icon name="mail" className="h-4 w-4 text-slate-400" />
-                        <span className="max-w-[220px] truncate">
+          <div className="admin-table-region w-full min-w-0">
+            <div className="admin-table-scroll">
+              <table className="admin-table" style={{ minWidth: 1100 }}>
+                <thead>
+                  <tr>
+                    <th>עובד</th>
+                    <th>מייל</th>
+                    <th>טלפון</th>
+                    <th>כתובת</th>
+                    <th>תעודת זהות</th>
+                    <th>תחילת העסקה</th>
+                    <th>סיום העסקה</th>
+                    <th>שכר שעתי</th>
+                    <th>סטטוס</th>
+                    <th>פעולות</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEmployees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td>
+                        <span
+                          className="cell-clip font-bold"
+                          title={employee.name}
+                        >
+                          {employee.name}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className="cell-clip-wide text-[var(--admin-muted)]"
+                          title={employee.email || ""}
+                        >
                           {employee.email || "—"}
                         </span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <Icon name="phone" className="h-4 w-4 text-slate-400" />
-                        <span dir="ltr">{employee.phone || "—"}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm font-bold text-slate-700">
-                      <span className="block max-w-[210px] truncate">
-                        {employee.address || "—"}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <Icon name="id" className="h-4 w-4 text-slate-400" />
-                        <span dir="ltr">{employee.idNumber || "—"}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm font-black text-slate-700">
-                      {formatDate(employee.startDate)}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm font-black text-slate-700">
-                      {formatDate(employee.endDate)}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm font-black text-slate-700">
-                      {employee.hourlyRate > 0
-                        ? formatMoney(employee.hourlyRate)
-                        : "—"}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-2">
+                      </td>
+                      <td dir="ltr">{employee.phone || "—"}</td>
+                      <td>
                         <span
-                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                          className="cell-clip"
+                          title={employee.address || ""}
+                        >
+                          {employee.address || "—"}
+                        </span>
+                      </td>
+                      <td dir="ltr">{employee.idNumber || "—"}</td>
+                      <td>{formatDate(employee.startDate)}</td>
+                      <td>{formatDate(employee.endDate)}</td>
+                      <td className="font-bold">
+                        {employee.hourlyRate > 0
+                          ? formatMoney(employee.hourlyRate)
+                          : "—"}
+                      </td>
+                      <td>
+                        <span
+                          className={`admin-row-badge ${employmentStatusClass(
                             employee
                           )}`}
+                          title={detailsStatusLabel(employee)}
                         >
                           {employmentStatusLabel(employee)}
                         </span>
-
-                        <span
-                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
-                            employee
+                      </td>
+                      <td className="admin-actions-cell">
+                        <Link
+                          href={`/admin/employees/${encodeURIComponent(
+                            employee.id
                           )}`}
+                          className="inline-flex h-8 items-center justify-center rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold hover:bg-gray-50"
                         >
-                          {detailsStatusLabel(employee)}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <Link
-                        href={`/admin/employees/${encodeURIComponent(
-                          employee.id
-                        )}`}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
-                      >
-                        <Icon name="open" className="h-3.5 w-3.5" />
-                        תיק עובד
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-              </div>
-            </section>
-
-            <section className="grid grid-cols-1 gap-4 xl:hidden">
-              {filteredEmployees.map((employee) => (
-                <article
-                  key={employee.id}
-                  className="rounded-[26px] border border-white/80 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
-                        {initials(employee.name)}
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="truncate font-black text-slate-900">
-                          {employee.name}
-                        </p>
-                        <p className="mt-1 truncate text-xs font-bold text-slate-400">
-                          {employee.email || "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Link
-                      href={`/admin/employees/${encodeURIComponent(employee.id)}`}
-                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100"
-                    >
-                      <Icon name="open" className="h-3.5 w-3.5" />
-                      תיק עובד
-                    </Link>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                    <p className="font-bold text-slate-600">
-                      <span className="text-slate-400">טלפון: </span>
-                      <span dir="ltr">{employee.phone || "—"}</span>
-                    </p>
-                    <p className="font-bold text-slate-600">
-                      <span className="text-slate-400">ת.ז.: </span>
-                      <span dir="ltr">{employee.idNumber || "—"}</span>
-                    </p>
-                    <p className="font-bold text-slate-600 sm:col-span-2">
-                      <span className="text-slate-400">כתובת: </span>
-                      {employee.address || "—"}
-                    </p>
-                    <p className="font-bold text-slate-600">
-                      <span className="text-slate-400">התחלה: </span>
-                      {formatDate(employee.startDate)}
-                    </p>
-                    <p className="font-bold text-slate-600">
-                      <span className="text-slate-400">שכר שעתי: </span>
-                      {employee.hourlyRate > 0
-                        ? formatMoney(employee.hourlyRate)
-                        : "—"}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
-                        employee
-                      )}`}
-                    >
-                      {employmentStatusLabel(employee)}
-                    </span>
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
-                        employee
-                      )}`}
-                    >
-                      {detailsStatusLabel(employee)}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </section>
-          </>
+                          תיק עובד
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="admin-table-footer">
+              <span>
+                מוצגים {filteredEmployees.length} מתוך {stats.total}
+              </span>
+              <span>
+                פעילים {stats.active} · סיימו {stats.ended} · מלאים{" "}
+                {stats.complete}
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </div>
