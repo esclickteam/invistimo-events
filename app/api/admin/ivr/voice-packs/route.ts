@@ -31,6 +31,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Pack generate / approve can touch many R2 objects — allow up to 60s. */
+export const maxDuration = 60;
 
 async function requireAdmin(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
