@@ -396,22 +396,6 @@ export default async function PublicEventInfoPage({
 
   await dbConnect();
 
-  if (
-    shouldOpenCheckInQrFirst({
-      checkInEnabled: true,
-      guestToken,
-      details: query.details,
-    })
-  ) {
-    const pass = await loadGuestPassForEventDetailsLink({
-      shareId: safeShareId,
-      guestToken,
-    });
-    if (pass) {
-      return <CheckInPassClient initialPass={pass} />;
-    }
-  }
-
   const invitation = await Invitation.findOne({ shareId: safeShareId }).lean();
 
   if (!invitation) {
@@ -458,6 +442,23 @@ export default async function PublicEventInfoPage({
       event = await Event.findById(eventId).lean();
     } catch {
       event = null;
+    }
+  }
+
+  // Reminder SMS link /e/{shareId}?token=… → QR first only when Check-in is on
+  if (
+    shouldOpenCheckInQrFirst({
+      checkInEnabled: Boolean(event?.checkInEnabled),
+      guestToken,
+      details: query.details,
+    })
+  ) {
+    const pass = await loadGuestPassForEventDetailsLink({
+      shareId: safeShareId,
+      guestToken,
+    });
+    if (pass) {
+      return <CheckInPassClient initialPass={pass} />;
     }
   }
 

@@ -1,7 +1,5 @@
 import { shortenUrl } from "@/lib/shortenUrl";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { getWazeLink } from "@/lib/navigationLinks";
-import { resolveAndPersistEventLocation } from "@/lib/persistEventMapPin";
 import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 
 type BuildSmsParams = {
@@ -65,24 +63,21 @@ export async function buildFinalSmsText({
     tableName = `שולחן ${guest.tableNumber}`;
   }
 
-  /* ================= NAVIGATION ================= */
+  /* ================= NAVIGATION =================
+     מקור אמת: קישור לדף פרטי האירוע /e/{shareId}
+     (כמו ב-worker ובשליחת SMS) — לא קישור Waze ישיר.
+  ============================================== */
 
   let navigationLink = "";
 
-  if (event?.checkInEnabled && invitation.shareId && guest.token) {
+  if (invitation.shareId) {
     navigationLink = await shortenUrl(
       buildReminderNavigationUrl({
         shareId: invitation.shareId,
         guestToken: guest.token,
-        checkInEnabled: true,
+        checkInEnabled: Boolean(event?.checkInEnabled),
       })
     );
-  } else {
-    const location = await resolveAndPersistEventLocation(invitation, event);
-    const wazeUrl = getWazeLink(location);
-    if (wazeUrl) {
-      navigationLink = await shortenUrl(wazeUrl);
-    }
   }
 
   /* ================= RSVP ================= */
