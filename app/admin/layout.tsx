@@ -569,8 +569,8 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-x-hidden px-3 pb-6 pt-[4.25rem] sm:px-4 md:px-5 md:pt-5">
-          <div className="mx-auto w-full min-w-0 max-w-[1480px]">{children}</div>
+        <main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-[4.25rem] sm:px-5 md:px-5 md:pt-5">
+          <div className="admin-content w-full min-w-0 max-w-none">{children}</div>
         </main>
       </div>
     </div>

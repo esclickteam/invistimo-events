@@ -390,320 +390,235 @@ export default function AdminCallRecordingsPage() {
 
   const total = pagination?.total || 0;
 
+  const inboundOnPage = recordings.filter(
+    (item) => item.direction === "inbound"
+  ).length;
+  const outboundOnPage = recordings.filter(
+    (item) => item.direction === "outbound"
+  ).length;
+  const withAudio = recordings.filter((item) => hasRecordingFile(item)).length;
+
   return (
-    <main dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
-      <section className="mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-col gap-3 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-medium text-[var(--admin-muted)]">
-            שיחות נכנסות/יוצאות, ניסיונות חיוג והקלטות
-          </p>
-          <button
-            type="button"
-            onClick={loadRecordings}
-            disabled={loading}
-            className="h-9 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-xs font-bold text-white disabled:opacity-60"
-          >
-            {loading ? "מרענן..." : "רענון"}
-          </button>
+    <main dir="rtl" className="admin-content w-full min-w-0 max-w-none space-y-3 text-[var(--admin-text)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-[var(--admin-muted)]">
+          {total} שיחות · בעמוד: {inboundOnPage} נכנסות · {outboundOnPage}{" "}
+          יוצאות · {withAudio} עם שמע
+        </p>
+        <button
+          type="button"
+          onClick={loadRecordings}
+          disabled={loading}
+          className="inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3.5 text-xs font-bold text-white disabled:opacity-60"
+        >
+          {loading ? "מרענן..." : "רענון"}
+        </button>
+      </div>
+
+      <div className="admin-filter-bar flex w-full min-w-0 flex-col gap-2 border-b border-[var(--admin-border)] pb-3 md:flex-row md:flex-wrap md:items-center">
+        <input
+          value={search}
+          onChange={(event) => {
+            setPage(1);
+            setSearch(event.target.value);
+          }}
+          placeholder="חיפוש לפי עובד, מייל, מספר, לקוח, מזהה שיחה..."
+          className="admin-input h-10 min-w-0 flex-1"
+        />
+
+        <select
+          value={direction}
+          onChange={(event) => {
+            setPage(1);
+            setDirection(event.target.value as "" | CallDirection);
+          }}
+          className="admin-select h-10 w-full md:w-[160px]"
+        >
+          <option value="">כל הכיוונים</option>
+          <option value="inbound">נכנסות</option>
+          <option value="outbound">יוצאות</option>
+          <option value="unknown">לא ידוע</option>
+        </select>
+
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(event) => {
+            setPage(1);
+            setFromDate(event.target.value);
+          }}
+          className="admin-input h-10 w-full md:w-[160px]"
+        />
+
+        <input
+          type="date"
+          value={toDate}
+          onChange={(event) => {
+            setPage(1);
+            setToDate(event.target.value);
+          }}
+          className="admin-input h-10 w-full md:w-[160px]"
+        />
+
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="h-10 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-4 text-xs font-bold"
+        >
+          איפוס
+        </button>
+      </div>
+
+      {error ? (
+        <div className="rounded-[var(--admin-radius)] border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+          {error}
         </div>
+      ) : null}
 
-        <div className="grid gap-3 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)] md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
-          <input
-            value={search}
-            onChange={(event) => {
-              setPage(1);
-              setSearch(event.target.value);
-            }}
-            placeholder="חיפוש לפי עובד, מייל עובד, מספר, לקוח, מזהה שיחה..."
-            className="h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#b9945a]"
-          />
+      <div className="admin-table-region w-full min-w-0">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-sm font-semibold text-[var(--admin-muted)]">
+            טוען שיחות…
+          </div>
+        ) : recordings.length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm font-semibold text-[var(--admin-muted)]">
+            אין עדיין שיחות להצגה
+          </div>
+        ) : (
+          <div className="admin-table-scroll">
+            <table className="admin-table" style={{ minWidth: 1120 }}>
+              <thead>
+                <tr>
+                  <th>תאריך</th>
+                  <th>כיוון</th>
+                  <th>מאת</th>
+                  <th>אל</th>
+                  <th>משך</th>
+                  <th>סטטוס</th>
+                  <th>הקלטה</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recordings.map((recording) => {
+                  const canPlay = hasRecordingFile(recording);
+                  const streamUrl = getRecordingStreamUrl(recording);
+                  const downloadUrl = getRecordingStreamUrl(recording, true);
+                  const fromMain = getFromMain(recording);
+                  const fromSub = getFromSub(recording);
+                  const toMain = getToMain(recording);
 
-          <select
-            value={direction}
-            onChange={(event) => {
-              setPage(1);
-              setDirection(event.target.value as "" | CallDirection);
-            }}
-            className="h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#b9945a]"
-          >
-            <option value="">כל הכיוונים</option>
-            <option value="inbound">נכנסות</option>
-            <option value="outbound">יוצאות</option>
-            <option value="unknown">לא ידוע</option>
-          </select>
-
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(event) => {
-              setPage(1);
-              setFromDate(event.target.value);
-            }}
-            className="h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#b9945a]"
-          />
-
-          <input
-            type="date"
-            value={toDate}
-            onChange={(event) => {
-              setPage(1);
-              setToDate(event.target.value);
-            }}
-            className="h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#b9945a]"
-          />
-
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="h-12 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
-          >
-            איפוס
-          </button>
-        </div>
-
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="סה״כ שיחות" value={total} />
-          <StatCard
-            label="נכנסות בעמוד"
-            value={recordings.filter((item) => item.direction === "inbound").length}
-          />
-          <StatCard
-            label="יוצאות בעמוד"
-            value={recordings.filter((item) => item.direction === "outbound").length}
-          />
-          <StatCard
-            label="עם קובץ שמע"
-            value={recordings.filter((item) => hasRecordingFile(item)).length}
-          />
-        </div>
-
-        {error && (
-          <div className="mb-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-            {error}
+                  return (
+                    <tr key={recording.id}>
+                      <td>
+                        {formatDate(
+                          recording.recordedAt || recording.createdAt
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`admin-row-badge ${
+                            recording.direction === "inbound"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : recording.direction === "outbound"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {DIRECTION_LABELS[recording.direction || "unknown"]}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className="cell-clip font-bold"
+                          title={[fromMain, fromSub].filter(Boolean).join(" · ")}
+                          dir={
+                            recording.direction === "inbound" ? "ltr" : "rtl"
+                          }
+                        >
+                          {fromMain}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="cell-clip" dir="ltr" title={toMain}>
+                          {cleanPhone(toMain)}
+                        </span>
+                      </td>
+                      <td dir="ltr">
+                        {formatDuration(recording.durationSeconds)}
+                      </td>
+                      <td>
+                        <span
+                          className="admin-row-badge bg-gray-100 text-gray-700"
+                          title={`הקלטה: ${getRecordingStatusLabel(recording)}`}
+                        >
+                          {getCallStatusLabel(recording)}
+                        </span>
+                      </td>
+                      <td>
+                        {canPlay && streamUrl ? (
+                          <audio
+                            controls
+                            preload="none"
+                            src={streamUrl}
+                            className="h-9 w-[220px]"
+                          />
+                        ) : (
+                          <span className="text-xs text-[var(--admin-subtle)]">
+                            {getNoRecordingText(recording)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="admin-actions-cell">
+                        {canPlay && downloadUrl ? (
+                          <a
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            download
+                            className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold hover:bg-gray-50"
+                          >
+                            הורדה
+                          </a>
+                        ) : (
+                          <span className="text-xs text-[var(--admin-subtle)]">
+                            —
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
-        <div className="overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-[0_18px_60px_rgba(47,37,29,0.07)]">
-          {loading ? (
-            <div className="p-10 text-center text-sm font-black text-[#8b7b68]">
-              טוען שיחות...
-            </div>
-          ) : recordings.length === 0 ? (
-            <div className="p-10 text-center">
-              <p className="text-lg font-black text-[#2f251d]">
-                אין עדיין שיחות להצגה
-              </p>
-              <p className="mt-2 text-sm font-semibold text-[#8b7b68]">
-                אחרי שיחה או ניסיון חיוג, הרשומה תופיע כאן.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] border-collapse text-right">
-                <thead>
-                  <tr className="border-b border-[#eadfce] bg-[#fff8ed] text-xs font-black text-[#6b5a45]">
-                    <th className="p-4">תאריך</th>
-                    <th className="p-4">כיוון</th>
-                    <th className="p-4">מאת</th>
-                    <th className="p-4">אל</th>
-                    <th className="p-4">משך</th>
-                    <th className="p-4">סטטוס</th>
-                    <th className="p-4">הקלטה</th>
-                    <th className="p-4">פעולות</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {recordings.map((recording) => {
-                    const canPlay = hasRecordingFile(recording);
-                    const streamUrl = getRecordingStreamUrl(recording);
-                    const downloadUrl = getRecordingStreamUrl(recording, true);
-
-                    const fromMain = getFromMain(recording);
-                    const fromSub = getFromSub(recording);
-
-                    const toMain = getToMain(recording);
-                    const toSub = getToSub(recording);
-
-                    return (
-                      <tr
-                        key={recording.id}
-                        className="border-b border-[#f0e5d6] text-sm last:border-b-0 hover:bg-[#fffaf3]"
-                      >
-                        <td className="p-4 font-bold text-[#2f251d]">
-                          {formatDate(recording.recordedAt || recording.createdAt)}
-                        </td>
-
-                        <td className="p-4">
-                          <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                              recording.direction === "inbound"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : recording.direction === "outbound"
-                                  ? "border-blue-200 bg-blue-50 text-blue-700"
-                                  : "border-slate-200 bg-slate-50 text-slate-600"
-                            }`}
-                          >
-                            {DIRECTION_LABELS[recording.direction || "unknown"]}
-                          </span>
-                        </td>
-
-                        <td className="p-4">
-                          <p
-                            dir={
-                              recording.direction === "inbound" ? "ltr" : "rtl"
-                            }
-                            className="font-black text-[#2f251d]"
-                          >
-                            {fromMain}
-                          </p>
-
-                          {fromSub ? (
-                            <p
-                              dir={
-                                recording.direction === "outbound" &&
-                                fromSub.includes("@")
-                                  ? "ltr"
-                                  : "rtl"
-                              }
-                              className={`mt-1 text-xs font-bold ${
-                                recording.direction === "outbound" &&
-                                !cleanText(recording.agentEmail)
-                                  ? "text-red-500"
-                                  : "text-[#8b7b68]"
-                              }`}
-                            >
-                              {fromSub}
-                            </p>
-                          ) : null}
-                        </td>
-
-                        <td className="p-4">
-                          <p dir="ltr" className="font-mono font-black">
-                            {cleanPhone(toMain)}
-                          </p>
-
-                          {toSub ? (
-                            <p className="mt-1 text-xs font-bold text-[#8b7b68]">
-                              {toSub}
-                            </p>
-                          ) : null}
-                        </td>
-
-                        <td className="p-4">
-                          <p dir="ltr" className="font-mono font-black">
-                            {formatDuration(recording.durationSeconds)}
-                          </p>
-
-                          {recording.ringDurationSeconds ||
-                          recording.talkDurationSeconds ? (
-                            <p className="mt-1 text-[11px] font-bold text-[#8b7b68]">
-                              צלצול:{" "}
-                              <span dir="ltr">
-                                {formatDuration(recording.ringDurationSeconds)}
-                              </span>
-                              {" · "}
-                              דיבור:{" "}
-                              <span dir="ltr">
-                                {formatDuration(recording.talkDurationSeconds)}
-                              </span>
-                            </p>
-                          ) : null}
-                        </td>
-
-                        <td className="p-4">
-                          <div className="grid gap-1">
-                            <span className="w-fit rounded-full bg-[#f7f3ec] px-3 py-1 text-xs font-black text-[#6b5a45]">
-                              {getCallStatusLabel(recording)}
-                            </span>
-
-                            <span className="text-[11px] font-bold text-[#8b7b68]">
-                              הקלטה: {getRecordingStatusLabel(recording)}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="p-4">
-                          {canPlay && streamUrl ? (
-                            <div className="grid gap-2">
-                              <audio
-                                controls
-                                preload="none"
-                                src={streamUrl}
-                                className="h-10 w-full max-w-[260px]"
-                              />
-
-                              <span className="text-[11px] font-bold text-[#8b7b68]">
-                                הנגן נטען דרך השרת כדי שלא נשתמש בלינק שפג תוקף.
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-bold text-[#8b7b68]">
-                              {getNoRecordingText(recording)}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="p-4">
-                          {canPlay && downloadUrl ? (
-                            <a
-                              href={downloadUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              download
-                              className="inline-flex h-10 items-center justify-center rounded-2xl bg-[#b9945a] px-4 text-xs font-black text-white transition hover:bg-[#9f7a3f]"
-                            >
-                              הורדה / פתיחה
-                            </a>
-                          ) : (
-                            <span className="text-xs text-[#8b7b68]">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-          <p className="text-sm font-bold text-[#8b7b68]">
-            עמוד {pagination?.page || page} מתוך {pagination?.totalPages || 1} ·{" "}
-            סה״כ {pagination?.total || 0} שיחות
-          </p>
-
+        <div className="admin-table-footer">
+          <span>
+            עמוד {pagination?.page || page} מתוך{" "}
+            {pagination?.totalPages || 1} · סה״כ {pagination?.total || 0}
+          </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={!pagination?.hasPrevPage || loading}
-              className="h-11 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6b5a45] transition hover:bg-[#fff8ed] disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold disabled:opacity-45"
             >
               קודם
             </button>
-
             <button
               type="button"
               onClick={() => setPage((prev) => prev + 1)}
               disabled={!pagination?.hasNextPage || loading}
-              className="h-11 rounded-2xl bg-[#2f251d] px-5 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-8 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white disabled:opacity-45"
             >
               הבא
             </button>
           </div>
         </div>
-      </section>
+      </div>
     </main>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[26px] border border-[#eadfce] bg-white p-5 shadow-sm">
-      <p className="text-xs font-black text-[#8b7b68]">{label}</p>
-      <p className="mt-2 text-3xl font-black text-[#2f251d]">{value}</p>
-    </div>
   );
 }

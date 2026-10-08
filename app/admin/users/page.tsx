@@ -1168,280 +1168,170 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div dir="rtl" className="w-full min-w-0 space-y-4">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-medium text-[var(--admin-muted)] md:hidden">
-            ניהול חשבונות, הרשאות וניהול כאדמין
-          </p>
-          <button
-            onClick={() => setOpenCreate(true)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-[13px] font-bold text-white hover:bg-[var(--admin-brand-hover)]"
-          >
-            <UserPlus size={16} />
-            יצירת משתמש
-          </button>
+    <div dir="rtl" className="admin-content w-full min-w-0 max-w-none space-y-3" data-admin-list="users">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { key: "all", label: "כל המשתמשים", count: stats.total },
+              { key: "clients", label: "לקוחות", count: stats.clients },
+              { key: "staff", label: "עובדים", count: stats.staff },
+              { key: "producer", label: "מפיקים", count: stats.producers },
+            ] as const
+          ).map((chip) => {
+            const active = roleFilter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={() => setRoleFilter(chip.key)}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-[var(--admin-radius-sm)] px-2.5 text-xs font-bold transition ${
+                  active
+                    ? "bg-[var(--admin-brand)] text-white"
+                    : "border border-[var(--admin-border)] bg-white text-[var(--admin-text)] hover:bg-gray-50"
+                }`}
+              >
+                {chip.label}
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${
+                    active
+                      ? "bg-white/15 text-white"
+                      : "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
+                  }`}
+                >
+                  {chip.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-
-        <section
-          className="
-            space-y-3
-            rounded-[var(--admin-radius)]
-            border border-[var(--admin-border)]
-            bg-white
-            p-3 md:p-4
-            shadow-[var(--admin-shadow)]
-          "
+        <button
+          onClick={() => setOpenCreate(true)}
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3.5 text-xs font-bold text-white hover:bg-[var(--admin-brand-hover)]"
         >
-          <div>
-            <p className="mb-2 text-xs font-black tracking-wide text-[#8A6A43]">
-              סינון לפי סוג משתמש
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { key: "all", label: "כל המשתמשים", count: stats.total },
-                  { key: "clients", label: "לקוחות", count: stats.clients },
-                  { key: "staff", label: "עובדים", count: stats.staff },
-                  {
-                    key: "producer",
-                    label: "מפיקים",
-                    count: stats.producers,
-                  },
-                ] as const
-              ).map((chip) => {
-                const active = roleFilter === chip.key;
-                return (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    onClick={() => setRoleFilter(chip.key)}
-                    className={`inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] px-3 text-xs font-bold transition ${
-                      active
-                        ? "bg-[var(--admin-brand)] text-white"
-                        : "border border-[var(--admin-border)] bg-white text-[var(--admin-text)] hover:bg-gray-50"
-                    }`}
-                  >
-                    {chip.label}
-                    <span
-                      className={`rounded-xl px-2 py-0.5 text-xs ${
-                        active
-                          ? "bg-white/15 text-white"
-                          : "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
-                      }`}
-                    >
-                      {chip.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <UserPlus size={14} />
+          יצירת משתמש
+        </button>
+      </div>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_180px]">
-            <div
-              className="
-                flex h-12 items-center gap-3
-                rounded-2xl
-                border border-[#E7D8C6]
-                bg-[#FFFDF8]
-                px-4
-              "
-            >
-              <Search size={18} className="text-[#9A7A52]" />
-              <input
-                type="text"
-                placeholder="חיפוש לפי שם, אימייל או חבילה..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="
-                  w-full bg-transparent
-                  text-sm font-semibold
-                  text-[#3A2A1C]
-                  outline-none
-                  placeholder:text-[#B6A28C]
-                "
-              />
-            </div>
-
-            <select
-              value={eventFilter}
-              onChange={(e) => setEventFilter(e.target.value)}
-              className="
-                h-12 rounded-2xl
-                border border-[#E7D8C6]
-                bg-[#FFFDF8]
-                px-4
-                text-sm font-bold
-                text-[#3A2A1C]
-                outline-none
-              "
-            >
-              <option value="future">אירועים עתידיים</option>
-              <option value="past">אירועים שעברו</option>
-              <option value="noDate">ללא תאריך</option>
-              <option value="all">הכל</option>
-            </select>
-
-            <div
-              className="
-                flex h-12 items-center justify-center
-                rounded-2xl
-                bg-[#F6EBDD]
-                px-4
-                text-sm font-black
-                text-[#8A5A24]
-              "
-            >
-              מוצגים {stats.filtered} מתוך {stats.total}
-            </div>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <InfoCard
-            title="כל המשתמשים"
-            value={String(stats.total)}
-            icon={<Users size={20} />}
-            active={roleFilter === "all"}
-            onClick={() => setRoleFilter("all")}
+      <div className="flex w-full min-w-0 flex-col gap-2 border-b border-[var(--admin-border)] pb-3 lg:flex-row lg:items-center">
+        <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3">
+          <Search size={15} className="shrink-0 text-[var(--admin-subtle)]" />
+          <input
+            type="text"
+            placeholder="חיפוש לפי שם, אימייל או חבילה..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full min-w-0 bg-transparent text-sm font-semibold outline-none placeholder:text-[var(--admin-subtle)]"
           />
-          <InfoCard
-            title="לקוחות"
-            value={String(stats.clients)}
-            icon={<UserRound size={20} />}
-            active={roleFilter === "clients"}
-            onClick={() => setRoleFilter("clients")}
-          />
-          <InfoCard
-            title="עובדים"
-            value={String(stats.staff)}
-            icon={<ShieldCheck size={20} />}
-            active={roleFilter === "staff"}
-            onClick={() => setRoleFilter("staff")}
-          />
-          <InfoCard
-            title="מפיקים"
-            value={String(stats.producers)}
-            icon={<Crown size={20} />}
-            active={roleFilter === "producer"}
-            onClick={() => setRoleFilter("producer")}
-          />
-          <InfoCard
-            title="אירועים עתידיים"
-            value={String(stats.future)}
-            icon={<CalendarDays size={20} />}
-            active={eventFilter === "future"}
-            onClick={() => setEventFilter("future")}
-          />
-        </section>
-
-        <section
-          className="
-            hidden overflow-visible rounded-[28px]
-            border border-[#E7D8C6]
-            bg-white
-            shadow-[0_18px_55px_rgba(60,43,25,0.07)]
-            xl:block
-          "
+        </div>
+        <select
+          value={eventFilter}
+          onChange={(e) => setEventFilter(e.target.value)}
+          className="admin-select h-10 w-full lg:w-[200px]"
         >
-          <table className="min-w-full text-right">
-            <thead className="bg-[#FFF9EF] text-xs font-black text-[#7B6754]">
+          <option value="future">אירועים עתידיים</option>
+          <option value="past">אירועים שעברו</option>
+          <option value="noDate">ללא תאריך</option>
+          <option value="all">הכל</option>
+        </select>
+      </div>
+
+      <div className="admin-table-region w-full min-w-0">
+        <div className="admin-table-scroll">
+          <table className="admin-table" style={{ minWidth: 1280 }}>
+            <thead>
               <tr>
-                <th className="p-4">שם</th>
-                <th className="p-4">אימייל</th>
-                <th className="p-4">תפקיד</th>
-                <th className="p-4">חבילה</th>
-                <th className="p-4">רשומות</th>
-                <th className="p-4">תאריך אירוע</th>
-                <th className="p-4">אישור תקנון</th>
-                <th className="p-4">הסכם</th>
-                <th className="p-4">מפיקים מטפלים</th>
-                <th className="p-4">עובדים מטפלים</th>
-                <th className="p-4">שירות שיחות</th>
-                <th className="p-4">פעולות</th>
+                <th>שם</th>
+                <th>אימייל</th>
+                <th>תפקיד</th>
+                <th>חבילה</th>
+                <th>רשומות</th>
+                <th>תאריך אירוע</th>
+                <th>תקנון</th>
+                <th>הסכם</th>
+                <th>מפיקים</th>
+                <th>עובדים</th>
+                <th>שיחות</th>
+                <th>פעולות</th>
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[#EFE2D1]">
+            <tbody>
               {filteredUsers.map((u) => (
                 <tr
-  key={u._id}
-
-  className={`relative text-sm hover:bg-[#FFFDF8] ${
-  openActionsId === u._id ? "z-10" : "z-0"
-}`}
->
-                  <td className="p-4 font-black text-[#3A2A1C]">
-                    <div className="flex flex-col items-start gap-2">
-                      <span>{u.name || "—"}</span>
-                      <GuestExperienceBadge user={u} />
-                    </div>
+                  key={u._id}
+                  className={`relative ${
+                    openActionsId === u._id ? "z-20" : "z-0"
+                  }`}
+                >
+                  <td>
+                    <span className="cell-clip font-bold" title={u.name || ""}>
+                      {u.name || "—"}
+                    </span>
                   </td>
-
-                  <td className="p-4 text-[#6B5A48]">{u.email}</td>
-
-                  <td className="p-4">
+                  <td>
+                    <span className="cell-clip-wide text-[var(--admin-muted)]" title={u.email}>
+                      {u.email}
+                    </span>
+                  </td>
+                  <td>
                     <RoleBadge role={u.role} />
                   </td>
-
-                  <td className="p-4 font-bold text-[#6B5A48]">
-                    {getPlanLabel(u, pricingPlans)}
+                  <td>
+                    <span className="cell-clip" title={getPlanLabel(u, pricingPlans)}>
+                      {getPlanLabel(u, pricingPlans)}
+                    </span>
                   </td>
-
-                  <td className="p-4 font-black text-[#3A2A1C]">
-                    {getUserRecords(u)}
-                  </td>
-
-                  <td className="p-4 text-[#6B5A48]">
-                    {formatDate(u.eventDate)}
-                  </td>
-
-                  <td className="p-4 text-[#6B5A48]">
-                    {formatTermsAcceptedAt(u.termsAcceptedAt)}
-                  </td>
-
-                  <td className="p-4 text-[#6B5A48]">
+                  <td className="font-bold">{getUserRecords(u)}</td>
+                  <td>{formatDate(u.eventDate)}</td>
+                  <td>{formatTermsAcceptedAt(u.termsAcceptedAt)}</td>
+                  <td>
                     {u.onboardingAgreementToken ? (
-                      <div className="flex flex-col items-start gap-1">
-                        <a
-                          href={`/sales-documents/${u.onboardingAgreementToken}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-black underline"
-                        >
-                          לצפייה
-                        </a>
-                        <span>
-                          {u.onboardingAgreementSignedAt
+                      <a
+                        href={`/sales-documents/${u.onboardingAgreementToken}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-[var(--admin-brand)] underline"
+                        title={
+                          u.onboardingAgreementSignedAt
                             ? formatTermsAcceptedAt(u.onboardingAgreementSignedAt)
-                            : "ממתין לחתימה"}
-                        </span>
-                      </div>
+                            : "ממתין לחתימה"
+                        }
+                      >
+                        {u.onboardingAgreementSignedAt ? "נחתם" : "ממתין"}
+                      </a>
                     ) : (
                       "—"
                     )}
                   </td>
-
-                  <td className="p-4 text-[#6B5A48]">
-                    {formatAssigneeNames(
-                      resolveAssignedProducerIds(u),
-                      producerOptions
-                    )}
+                  <td>
+                    <span
+                      className="cell-clip"
+                      title={formatAssigneeNames(
+                        resolveAssignedProducerIds(u),
+                        producerOptions
+                      )}
+                    >
+                      {formatAssigneeNames(
+                        resolveAssignedProducerIds(u),
+                        producerOptions
+                      )}
+                    </span>
                   </td>
-
-                  <td className="p-4 text-[#6B5A48]">
-                    {formatAssigneeNames(u.assignedStaffIds, staff)}
+                  <td>
+                    <span
+                      className="cell-clip"
+                      title={formatAssigneeNames(u.assignedStaffIds, staff)}
+                    >
+                      {formatAssigneeNames(u.assignedStaffIds, staff)}
+                    </span>
                   </td>
-
-                  <td className="p-4">
+                  <td>
                     <StatusBadge active={Boolean(u.includeCalls)}>
                       {getCallsStatus(u)}
                     </StatusBadge>
                   </td>
-
-                  <td className="relative overflow-visible p-4">
-
+                  <td className="relative overflow-visible">
                     <UserActionsDropdown
                       user={u}
                       open={openActionsId === u._id}
@@ -1465,108 +1355,26 @@ export default function AdminUsersPage() {
 
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="p-8 text-center text-[#7B6754]">
+                  <td
+                    colSpan={12}
+                    className="!h-24 text-center text-[var(--admin-muted)]"
+                  >
                     לא נמצאו משתמשים
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </section>
-
-        <section className="grid grid-cols-1 gap-4 xl:hidden">
-          {filteredUsers.map((u) => (
-            <div
-              key={u._id}
-              className="
-                rounded-[26px]
-                border border-[#E7D8C6]
-                bg-white
-                p-4
-                shadow-[0_14px_40px_rgba(60,43,25,0.06)]
-              "
-            >
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-lg font-black text-[#3A2A1C]">
-                    {u.name || "—"}
-                  </div>
-                  <div className="mt-2">
-                    <GuestExperienceBadge user={u} />
-                  </div>
-
-                  <div className="mt-1 text-sm font-semibold text-[#7B6754]">
-                    {u.email}
-                  </div>
-                </div>
-
-                <RoleBadge role={u.role} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <MiniDetail
-                  label="חבילה"
-                  value={getPlanLabel(u, pricingPlans)}
-                />
-                <MiniDetail
-                  label="רשומות"
-                  value={String(getUserRecords(u))}
-                />
-                <MiniDetail
-                  label="תאריך אירוע"
-                  value={formatDate(u.eventDate)}
-                />
-                <MiniDetail
-                  label="אישור תקנון"
-                  value={formatTermsAcceptedAt(u.termsAcceptedAt)}
-                />
-                <MiniDetail
-                  label="הסכם"
-                  value={
-                    u.onboardingAgreementToken
-                      ? u.onboardingAgreementSignedAt
-                        ? `נחתם ${formatTermsAcceptedAt(u.onboardingAgreementSignedAt)}`
-                        : "ממתין לחתימה"
-                      : "—"
-                  }
-                />
-                <MiniDetail label="שיחות" value={getCallsStatus(u)} />
-              </div>
-
-              {u.onboardingAgreementToken ? (
-                <a
-                  href={`/sales-documents/${u.onboardingAgreementToken}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex text-sm font-black underline"
-                >
-                  לצפייה בהסכם
-                </a>
-              ) : null}
-
-              <div className="mt-4">
-                <UserActionsDropdown
-                  user={u}
-                  open={openActionsId === u._id}
-                  onToggle={() =>
-                    setOpenActionsId(openActionsId === u._id ? null : u._id)
-                  }
-                  onClose={() => setOpenActionsId(null)}
-                  onEventSchedule={() => openEventSchedule(u)}
-                  onEdit={() => setEditingUser(u)}
-                  onUpgrade={() => setUpgradingUser(u)}
-                  onSendPassword={() => setPasswordUser(u)}
-                  onImpersonate={() => impersonateUser(u._id)}
-                  onManageAsAdmin={() => manageUserAsAdmin(u._id)}
-                  onDelete={() => removeUser(u._id)}
-                  isImpersonating={impersonating === u._id}
-                  isManaging={managing === u._id}
-                  fullWidth
-                />
-              </div>
-            </div>
-          ))}
-        </section>
+        </div>
+        <div className="admin-table-footer">
+          <span>
+            מוצגים {stats.filtered} מתוך {stats.total}
+          </span>
+          <span>
+            לקוחות {stats.clients} · עובדים {stats.staff} · מפיקים{" "}
+            {stats.producers}
+          </span>
+        </div>
       </div>
 
       {openCreate && (
@@ -4513,93 +4321,46 @@ function UserActionsDropdown({
   }
 
   return (
-    <div
-      className={`relative ${
-  fullWidth ? "w-full" : "w-full sm:w-[210px]"
-}`}
-    >
-      {user.role !== "admin" && onManageAsAdmin ? (
-        <button
-          type="button"
-          onClick={onManageAsAdmin}
-          disabled={Boolean(isManaging)}
-          className="
-            inline-flex h-11 w-full items-center justify-center gap-2
-            rounded-2xl
-            bg-[#B87920]
-            px-4
-            text-sm font-black
-            text-white
-            shadow-[0_10px_24px_rgba(184,121,32,0.28)]
-            transition
-            hover:bg-[#9F6818]
-            disabled:opacity-60
-          "
-        >
-          {isManaging ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : (
-            <ShieldCheck size={16} />
-          )}
-          ניהול משתמש כאדמין
-        </button>
-      ) : null}
-
+    <div className={`relative ${fullWidth ? "w-full" : "inline-block"}`}>
       <button
         type="button"
         onClick={onToggle}
-        className="
-          mt-2 inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-2xl
-          bg-[#24190F]
-          px-4
-          text-sm font-black
-          text-white
-          shadow-[0_10px_24px_rgba(36,25,15,0.18)]
-          transition
-          hover:bg-black
-        "
+        className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
       >
-        פעולות נוספות
+        פעולות
         <ChevronDown
-          size={16}
+          size={14}
           className={`transition ${open ? "rotate-180" : ""}`}
         />
-      </button>
-
-      <button
-        type="button"
-        onClick={onSendPassword}
-        className="
-          mt-2 inline-flex h-10 w-full items-center justify-center gap-2
-          rounded-2xl
-          border border-[#E7D8C6]
-          bg-[#FFF8E6]
-          px-4
-          text-sm font-black
-          text-[#8A5A24]
-          transition
-          hover:bg-[#FFF3DF]
-        "
-      >
-        <KeyRound size={16} />
-        שליחת סיסמה
       </button>
 
       {open && (
         <div
           className="
-            mt-2
-            w-full
-            min-w-0
-            overflow-hidden
-            rounded-2xl
-            border border-[#E7D8C6]
+            absolute left-0 top-[calc(100%+4px)] z-50
+            min-w-[200px]
+            overflow-visible
+            rounded-[var(--admin-radius-sm)]
+            border border-[var(--admin-border)]
             bg-white
-            shadow-[0_18px_45px_rgba(36,25,15,0.16)]
-            sm:absolute sm:left-0 sm:top-[calc(100%+8px)] sm:z-50 sm:mt-0 sm:min-w-[210px]
+            shadow-md
           "
         >
+          {user.role !== "admin" && onManageAsAdmin ? (
+            <DropdownAction
+              icon={
+                isManaging ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <ShieldCheck size={16} />
+                )
+              }
+              label="ניהול משתמש כאדמין"
+              tone="gold"
+              onClick={() => runAction(onManageAsAdmin)}
+            />
+          ) : null}
+
           {user.role !== "admin" && (
             <DropdownAction
               icon={
@@ -4622,34 +4383,33 @@ function UserActionsDropdown({
             onClick={() => runAction(onSendPassword)}
           />
 
-<DropdownAction
-  icon={<Pencil size={16} />}
-  label="עריכה"
-  onClick={() => runAction(onEdit)}
-/>
+          <DropdownAction
+            icon={<Pencil size={16} />}
+            label="עריכה"
+            onClick={() => runAction(onEdit)}
+          />
 
-<DropdownAction
-  icon={<ArrowUpCircle size={16} />}
-  label="שדרוג"
-  tone="gold"
-  onClick={() => runAction(onUpgrade)}
-/>
+          <DropdownAction
+            icon={<ArrowUpCircle size={16} />}
+            label="שדרוג"
+            tone="gold"
+            onClick={() => runAction(onUpgrade)}
+          />
 
-<DropdownAction
-  icon={<CalendarDays size={16} />}
-  label='לו"ז אירוע'
-  onClick={() => runAction(onEventSchedule)}
-/>
+          <DropdownAction
+            icon={<CalendarDays size={16} />}
+            label='לו"ז אירוע'
+            onClick={() => runAction(onEventSchedule)}
+          />
 
-{user.role !== "admin" && (
-  <DropdownAction
-    icon={<Trash2 size={16} />}
-    label="מחק"
-    tone="red"
-    onClick={() => runAction(onDelete)}
-  />
-)}
-
+          {user.role !== "admin" && (
+            <DropdownAction
+              icon={<Trash2 size={16} />}
+              label="מחק"
+              tone="red"
+              onClick={() => runAction(onDelete)}
+            />
+          )}
         </div>
       )}
     </div>
