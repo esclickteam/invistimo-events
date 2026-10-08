@@ -397,10 +397,21 @@ export function getIvrTtsModelId(override?: string) {
   );
 }
 
+/** Required Hebrew language hint for multilingual models. */
+export const IVR_TTS_LANGUAGE_CODE = "he";
+
+/** Female system voice must be this exact ElevenLabs name — never auto-picked. */
+export const IVR_REQUIRED_FEMALE_VOICE_NAME = "Dana";
+
+export const IVR_MALE_AUDITION_TEXT =
+  "שלום, אנחנו מתקשרים בנוגע לחתונה של יונתן ואלמוג. נשמח לדעת האם תוכלו להגיע ולחגוג איתנו.";
+
 export async function synthesizeElevenLabsSpeech(input: {
   text: string;
   voiceId: string;
   modelId?: string;
+  /** ISO language code — Hebrew IVR always uses "he". */
+  languageCode?: string;
 }): Promise<{ buffer: Buffer; contentType: string; contentHash: string }> {
   const voiceId = String(input.voiceId || "").trim();
   const text = String(input.text || "").trim();
@@ -415,6 +426,16 @@ export async function synthesizeElevenLabsSpeech(input: {
   const modelId = getIvrTtsModelId(input.modelId);
   const outputFormat =
     readEnv("ELEVENLABS_OUTPUT_FORMAT") || IVR_TTS_OUTPUT_FORMAT;
+  const languageCode =
+    String(input.languageCode || IVR_TTS_LANGUAGE_CODE || "he").trim() || "he";
+
+  const body: Record<string, unknown> = {
+    text,
+    model_id: modelId,
+    voice_settings: { ...IVR_TTS_VOICE_SETTINGS },
+    // Force Hebrew pronunciation on multilingual models (ignored if unsupported).
+    language_code: languageCode,
+  };
 
   const res = await elevenLabsFetch(
     `/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${encodeURIComponent(outputFormat)}`,
@@ -424,11 +445,7 @@ export async function synthesizeElevenLabsSpeech(input: {
         "Content-Type": "application/json",
         Accept: "audio/mpeg",
       },
-      body: JSON.stringify({
-        text,
-        model_id: modelId,
-        voice_settings: { ...IVR_TTS_VOICE_SETTINGS },
-      }),
+      body: JSON.stringify(body),
     }
   );
 
@@ -467,11 +484,10 @@ export function getDefaultIvrVoiceId() {
 
 /** Global Invistimo female ElevenLabs voice (system-configured, not a client picker). */
 export function getIvrFemaleVoiceId() {
+  // Only explicit female id — never fall back to a generic default that isn't Dana.
   return (
     readEnv("IVR_FEMALE_VOICE_ID") ||
     readEnv("ELEVENLABS_FEMALE_VOICE_ID") ||
-    readEnv("ELEVENLABS_DEFAULT_VOICE_ID") ||
-    readEnv("IVR_SYSTEM_VOICE_ID") ||
     ""
   ).trim();
 }
@@ -483,6 +499,109 @@ export function getIvrMaleVoiceId() {
     readEnv("ELEVENLABS_MALE_VOICE_ID") ||
     ""
   ).trim();
+}
+
+function isExactDanaName(name: string) {
+  return String(name || "").trim().toLowerCase() === "dana";
+}
+
+function voiceLooksMale(v: ElevenLabsVoice) {
+  const gender = String(v.labels?.gender || v.labels?.sex || "")
+    .trim()
+    .toLowerCase();
+  if (gender === "male" || gender === "man") return true;
+  if (gender === "female" || gender === "woman") return false;
+  // Name heuristics only when labels missing — never used for female lock.
+  const n = v.name.toLowerCase();
+  if (/\b(female|woman|girl|dana|rachel|sarah|emily|aria)\b/.test(n)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Resolve the exact Dana voice from THIS ElevenLabs account.
+ * Exact name match only — never "best Hebrew female" heuristics.
+ */
+export async function findExactDanaVoice(): Promise<{
+  voiceId: string;
+  name: string;
+  category: string | null;
+}> {
+  const voices = await listElevenLabsVoices();
+  const exact = voices.filter((v) => isExactDanaName(v.name));
+  if (!exact.length) {
+    throw new ElevenLabsApiError(
+      "DANA_VOICE_NOT_FOUND",
+      'לא נמצא קול בשם המדויק "Dana" בחשבון ElevenLabs. הוסיפו את Dana או הגדירו IVR_FEMALE_VOICE_ID ידנית אחרי אימות שם.'
+    );
+  }
+  // Prefer non-legacy / premade if multiple (still all named Dana).
+  const ranked = [...exact].sort((a, b) => {
+    const score = (v: ElevenLabsVoice) => {
+      const cat = String(v.category || "").toLowerCase();
+      if (cat.includes("premade") || cat.includes("default")) return 0;
+      if (cat.includes("cloned")) return 2;
+      return 1;
+    };
+    return score(a) - score(b);
+  });
+  const pick = ranked[0];
+  return {
+    voiceId: pick.voice_id,
+    name: pick.name,
+    category: pick.category || null,
+  };
+}
+
+/** Verify a voiceId is literally named Dana in the account. */
+export async function assertVoiceIdIsDana(voiceId: string) {
+  const id = String(voiceId || "").trim();
+  if (!id) throw new Error("VOICE_ID_REQUIRED");
+  const voices = await listElevenLabsVoices();
+  const match = voices.find((v) => v.voice_id === id);
+  if (!match) {
+    throw new Error("VOICE_ID_NOT_IN_ACCOUNT");
+  }
+  if (!isExactDanaName(match.name)) {
+    throw new Error(
+      `FEMALE_MUST_BE_DANA:got=${match.name}`
+    );
+  }
+  return match;
+}
+
+/**
+ * Candidate male voices for admin hearing test — NOT auto-selected.
+ * Returns up to 3 males; admin must listen and pick one.
+ */
+export async function listMaleAuditionCandidates(limit = 3): Promise<
+  Array<{
+    voiceId: string;
+    name: string;
+    category: string | null;
+    labels: Record<string, string>;
+  }>
+> {
+  const voices = await listElevenLabsVoices();
+  const males = voices.filter((v) => voiceLooksMale(v) && !isExactDanaName(v.name));
+
+  // Prefer names that are not famously English-only library defaults when possible,
+  // but NEVER auto-lock — this is only an audition shortlist.
+  const preferred = males.filter((v) => {
+    const n = v.name.toLowerCase();
+    // Deprioritize known poor Hebrew fits in the shortlist order only.
+    return !/\b(george|adam|antoni|josh|sam|brian)\b/.test(n);
+  });
+  const rest = males.filter((v) => !preferred.includes(v));
+  const ordered = [...preferred, ...rest].slice(0, Math.max(1, limit));
+
+  return ordered.map((v) => ({
+    voiceId: v.voice_id,
+    name: v.name,
+    category: v.category || null,
+    labels: v.labels || {},
+  }));
 }
 
 export type IvrSystemVoiceOption = {

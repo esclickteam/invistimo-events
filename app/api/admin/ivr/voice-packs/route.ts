@@ -5,8 +5,12 @@ import { resolveAuthUserId } from "@/lib/calls/ivrRequestAuth";
 import User from "@/models/User";
 import {
   approveAdminVoicePack,
+  buildMaleVoiceAuditions,
   generateAdminVoicePack,
+  invalidateWrongVoicePacks,
   IVR_PACK_SEGMENT_LABELS,
+  lockFemaleVoiceToDana,
+  lockMaleVoiceFromAudition,
   regenerateAdminPackSegment,
   serializeAdminVoicePacks,
   updateAdminPackVoiceId,
@@ -16,6 +20,8 @@ import {
   type IvrGlobalPackSegmentKey,
 } from "@/lib/calls/ivrScript";
 import {
+  IVR_MALE_AUDITION_TEXT,
+  IVR_REQUIRED_FEMALE_VOICE_NAME,
   sanitizeElevenLabsErrorMessage,
   voiceErrorToClientPayload,
 } from "@/lib/calls/elevenlabs";
@@ -25,7 +31,6 @@ export const dynamic = "force-dynamic";
 
 async function requireAdmin(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
-  // Must extract bare userId — never pass the auth object to findById.
   const userId = resolveAuthUserId(auth);
   if (!userId) {
     return { error: "UNAUTHORIZED" as const, status: 401 as const };
@@ -52,7 +57,6 @@ function emptySegmentList() {
   }));
 }
 
-/** Empty bootstrap so the admin UI never hard-fails on first paint. */
 function emptyBootstrap() {
   const segments = emptySegmentList();
   return {
@@ -100,30 +104,35 @@ export async function GET(req: NextRequest) {
 
     try {
       const data = await serializeAdminVoicePacks();
-      return NextResponse.json({ ok: true, ...data });
+      return NextResponse.json({
+        ok: true,
+        ...data,
+        requiredFemaleName: IVR_REQUIRED_FEMALE_VOICE_NAME,
+        maleAuditionText: IVR_MALE_AUDITION_TEXT,
+      });
     } catch (inner) {
-      // Missing/legacy config must not 500 the admin screen.
       console.error(
         "[admin/ivr/voice-packs GET] serialize failed — returning bootstrap",
         inner instanceof Error ? inner.message : inner
       );
-      const bootstrap = emptyBootstrap();
       return NextResponse.json({
         ok: true,
-        ...bootstrap,
+        ...emptyBootstrap(),
         warning: "BOOTSTRAP_DEFAULTS",
-        detail:
-          inner instanceof Error ? inner.message : "serialize_failed",
+        detail: inner instanceof Error ? inner.message : "serialize_failed",
+        requiredFemaleName: IVR_REQUIRED_FEMALE_VOICE_NAME,
+        maleAuditionText: IVR_MALE_AUDITION_TEXT,
       });
     }
   } catch (error) {
     console.error("[admin/ivr/voice-packs GET]", error);
-    // Last resort: still avoid a naked 500 for the admin shell.
     return NextResponse.json({
       ok: true,
       ...emptyBootstrap(),
       warning: "BOOTSTRAP_DEFAULTS",
       detail: error instanceof Error ? error.message : "FAILED",
+      requiredFemaleName: IVR_REQUIRED_FEMALE_VOICE_NAME,
+      maleAuditionText: IVR_MALE_AUDITION_TEXT,
     });
   }
 }
@@ -140,6 +149,21 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const action = String(body.action || "set_voice_id").trim();
+
+    if (action === "invalidate_wrong_packs") {
+      const data = await invalidateWrongVoicePacks();
+      return NextResponse.json({ ok: true, ...data });
+    }
+
+    if (action === "lock_female_dana") {
+      const data = await lockFemaleVoiceToDana();
+      return NextResponse.json({ ok: true, ...data });
+    }
+
+    if (action === "lock_male_from_audition") {
+      const data = await lockMaleVoiceFromAudition(body.voiceId);
+      return NextResponse.json({ ok: true, ...data });
+    }
 
     if (action === "set_voice_id") {
       const data = await updateAdminPackVoiceId({
@@ -165,7 +189,14 @@ export async function PATCH(req: NextRequest) {
       "[admin/ivr/voice-packs PATCH]",
       sanitizeElevenLabsErrorMessage(message)
     );
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: message,
+        message: sanitizeElevenLabsErrorMessage(message),
+      },
+      { status: 400 }
+    );
   }
 }
 
@@ -181,6 +212,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const action = String(body.action || "generate_pack").trim();
+
+    if (action === "male_audition") {
+      const data = await buildMaleVoiceAuditions();
+      return NextResponse.json({ ok: true, ...data });
+    }
 
     if (action === "generate_pack") {
       const data = await generateAdminVoicePack({

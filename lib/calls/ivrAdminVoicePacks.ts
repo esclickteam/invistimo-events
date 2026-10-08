@@ -17,14 +17,23 @@ import {
 } from "@/lib/calls/ivrScript";
 import { ensureGlobalPackSegment } from "@/lib/calls/ivrSystemAudio";
 import {
+  buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
+  ivrSystemR2Key,
   resolveIvrPublicAudioUrl,
+  uploadIvrAudioToR2,
   verifyIvrAudioInR2,
   verifyIvrPublicAudioHttp,
 } from "@/lib/calls/ivrAudioStorage";
 import {
+  assertVoiceIdIsDana,
+  findExactDanaVoice,
   getIvrFemaleVoiceId,
   getIvrMaleVoiceId,
+  IVR_MALE_AUDITION_TEXT,
+  IVR_REQUIRED_FEMALE_VOICE_NAME,
+  listMaleAuditionCandidates,
+  synthesizeElevenLabsSpeech,
 } from "@/lib/calls/elevenlabs";
 
 export const IVR_PACK_SEGMENT_LABELS: Record<
@@ -315,15 +324,34 @@ async function readExistingPackSegments(
   return out;
 }
 
+function isTrustedFemaleLock(meta: IIvrPackVoiceMeta) {
+  // Female must be explicitly locked to Dana (not a random auto voice).
+  return (
+    Boolean(meta.voiceId) &&
+    (meta.adminNote === IVR_REQUIRED_FEMALE_VOICE_NAME ||
+      meta.adminNote === "Dana")
+  );
+}
+
+function isTrustedMaleLock(meta: IIvrPackVoiceMeta) {
+  return (
+    Boolean(meta.voiceId) && meta.adminNote === "admin_audition_locked"
+  );
+}
+
 export async function getGlobalPacksApprovalStatus() {
   try {
     const doc = await getOrCreateConfigDoc();
     const female = normalizeMeta(doc.female, getIvrFemaleVoiceId());
     const male = normalizeMeta(doc.male, getIvrMaleVoiceId());
+    // Wrong/auto packs stay unusable for clients even if approved flag is stale.
+    const femaleApproved =
+      packReady(female) && isTrustedFemaleLock(female);
+    const maleApproved = packReady(male) && isTrustedMaleLock(male);
     return {
-      femaleApproved: packReady(female),
-      maleApproved: packReady(male),
-      bothApproved: packReady(female) && packReady(male),
+      femaleApproved,
+      maleApproved,
+      bothApproved: femaleApproved && maleApproved,
     };
   } catch (err) {
     console.warn(
@@ -414,9 +442,30 @@ export async function serializeAdminVoicePacks() {
     });
   }
 
+  const status = await getGlobalPacksApprovalStatus();
   return {
-    packs,
-    bothApproved: packs.every((p) => p.approved && p.segmentsReady && p.voiceId),
+    packs: packs.map((p) => {
+      if (p.gender === "female" && p.approved && !isTrustedFemaleLock({
+        voiceId: p.voiceId,
+        adminNote: p.adminNote,
+        source: "manual",
+        segmentsReady: p.segmentsReady,
+        approved: p.approved,
+      })) {
+        return { ...p, approved: false };
+      }
+      if (p.gender === "male" && p.approved && !isTrustedMaleLock({
+        voiceId: p.voiceId,
+        adminNote: p.adminNote,
+        source: "manual",
+        segmentsReady: p.segmentsReady,
+        approved: p.approved,
+      })) {
+        return { ...p, approved: false };
+      }
+      return p;
+    }),
+    bothApproved: status.bothApproved,
   };
 }
 
@@ -431,6 +480,11 @@ export async function updateAdminPackVoiceId(input: {
   const voiceId = String(input.voiceId || "").trim();
   if (!voiceId) throw new Error("VOICE_ID_REQUIRED");
 
+  // Female is locked to exact Dana — reject any other voice id.
+  if (gender === "female") {
+    await assertVoiceIdIsDana(voiceId);
+  }
+
   const doc = await getOrCreateConfigDoc();
   const prev = normalizeMeta(
     gender === "female" ? doc.female : doc.male,
@@ -441,11 +495,15 @@ export async function updateAdminPackVoiceId(input: {
   const next = plainMeta({
     ...prev,
     voiceId,
-    adminNote: String(input.adminNote ?? prev.adminNote ?? "").trim(),
+    adminNote:
+      gender === "female"
+        ? IVR_REQUIRED_FEMALE_VOICE_NAME
+        : String(input.adminNote ?? prev.adminNote ?? "").trim(),
     source: "manual",
+    // Changing voice always invalidates pack audio / approval.
     segmentsReady: changed ? false : prev.segmentsReady,
-    approved: changed ? false : prev.approved,
-    approvedAt: changed ? null : prev.approvedAt,
+    approved: false,
+    approvedAt: null,
   });
 
   doc.set(gender, next);
@@ -454,7 +512,157 @@ export async function updateAdminPackVoiceId(input: {
   else process.env.IVR_MALE_VOICE_ID = voiceId;
 
   await doc.save();
+
+  if (changed) {
+    await deletePackAudioForGender(gender);
+  }
+
   return serializeAdminVoicePacks();
+}
+
+async function deletePackAudioForGender(gender: IvrVoiceGender) {
+  const keys = (
+    Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
+  ).map((segment) => globalPackAudioKey(gender, segment));
+  await IvrSystemAudio.deleteMany({ key: { $in: keys } });
+}
+
+/**
+ * Revoke both packs and delete their audio — wrong voices must not stay "ready".
+ * Does NOT auto-regenerate. Admin must lock Dana + male, then generate once.
+ */
+export async function invalidateWrongVoicePacks() {
+  const doc = await getOrCreateConfigDoc();
+
+  // Clear wrong voice IDs entirely — do not leave auto-picked IDs usable.
+  delete process.env.IVR_FEMALE_VOICE_ID;
+  delete process.env.IVR_MALE_VOICE_ID;
+
+  doc.set(
+    "female",
+    plainMeta({
+      voiceId: "",
+      adminNote: "revoked_wrong_voice",
+      source: "manual",
+      segmentsReady: false,
+      approved: false,
+      approvedAt: null,
+      lastGeneratedAt: null,
+    })
+  );
+  doc.set(
+    "male",
+    plainMeta({
+      voiceId: "",
+      adminNote: "revoked_wrong_voice",
+      source: "manual",
+      segmentsReady: false,
+      approved: false,
+      approvedAt: null,
+      lastGeneratedAt: null,
+    })
+  );
+  doc.markModified("female");
+  doc.markModified("male");
+  await doc.save();
+
+  await deletePackAudioForGender("female");
+  await deletePackAudioForGender("male");
+
+  return {
+    ...(await serializeAdminVoicePacks()),
+    revoked: true,
+    message:
+      "ה-Voice Packs השגויים בוטלו והקבצים נמחקו. יש לנעול Dana + קול גברי מאושר ואז ליצור מחדש פעם אחת.",
+  };
+}
+
+/** Resolve Dana from ElevenLabs account and lock as female voiceId. */
+export async function lockFemaleVoiceToDana() {
+  const dana = await findExactDanaVoice();
+  process.env.IVR_FEMALE_VOICE_ID = dana.voiceId;
+  const data = await updateAdminPackVoiceId({
+    gender: "female",
+    voiceId: dana.voiceId,
+    adminNote: IVR_REQUIRED_FEMALE_VOICE_NAME,
+  });
+  return {
+    ...data,
+    dana: {
+      voiceId: dana.voiceId,
+      name: dana.name,
+      category: dana.category,
+    },
+  };
+}
+
+/** Lock admin-chosen male voice after audition (no auto-pick). */
+export async function lockMaleVoiceFromAudition(voiceId: string) {
+  const id = String(voiceId || "").trim();
+  if (!id) throw new Error("VOICE_ID_REQUIRED");
+  process.env.IVR_MALE_VOICE_ID = id;
+  return updateAdminPackVoiceId({
+    gender: "male",
+    voiceId: id,
+    adminNote: "admin_audition_locked",
+  });
+}
+
+/**
+ * Build Hebrew audition clips for 2–3 male candidates (admin hearing test).
+ * Uploads to R2 under ephemeral keys — not pack segments.
+ */
+export async function buildMaleVoiceAuditions() {
+  const candidates = await listMaleAuditionCandidates(3);
+  if (!candidates.length) {
+    throw new Error("NO_MALE_VOICES_IN_ACCOUNT");
+  }
+
+  const auditions = [];
+  for (const c of candidates) {
+    const synth = await synthesizeElevenLabsSpeech({
+      text: IVR_MALE_AUDITION_TEXT,
+      voiceId: c.voiceId,
+      languageCode: "he",
+    });
+    const token = createIvrAudioPublicToken();
+    const r2Key = ivrSystemR2Key(`audition:male:${c.voiceId}`, token, "mp3");
+    await uploadIvrAudioToR2({
+      key: r2Key,
+      buffer: synth.buffer,
+      contentType: synth.contentType || "audio/mpeg",
+    });
+    // Store a short-lived lookup row so /api/ivr/media can serve it.
+    await IvrSystemAudio.findOneAndUpdate(
+      { key: `audition:male:${c.voiceId}` },
+      {
+        $set: {
+          key: `audition:male:${c.voiceId}`,
+          text: IVR_MALE_AUDITION_TEXT,
+          voiceId: c.voiceId,
+          audioUrl: buildIvrPublicAudioUrl(token),
+          publicToken: token,
+          r2Key,
+          contentType: synth.contentType || "audio/mpeg",
+          contentHash: synth.contentHash,
+        },
+      },
+      { upsert: true }
+    );
+    auditions.push({
+      voiceId: c.voiceId,
+      name: c.name,
+      category: c.category,
+      labels: c.labels,
+      audioUrl: buildIvrPublicAudioUrl(token),
+      sampleText: IVR_MALE_AUDITION_TEXT,
+    });
+  }
+
+  return {
+    sampleText: IVR_MALE_AUDITION_TEXT,
+    auditions,
+  };
 }
 
 export async function generateAdminVoicePack(input: {
@@ -471,14 +679,25 @@ export async function generateAdminVoicePack(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
-  if (gender === "female") process.env.IVR_FEMALE_VOICE_ID = meta.voiceId;
-  else process.env.IVR_MALE_VOICE_ID = meta.voiceId;
+  if (gender === "female") {
+    await assertVoiceIdIsDana(meta.voiceId);
+    if (!isTrustedFemaleLock(meta)) {
+      throw new Error("FEMALE_MUST_LOCK_DANA_FIRST");
+    }
+    process.env.IVR_FEMALE_VOICE_ID = meta.voiceId;
+  } else {
+    if (!isTrustedMaleLock(meta)) {
+      throw new Error("MALE_MUST_LOCK_FROM_AUDITION_FIRST");
+    }
+    process.env.IVR_MALE_VOICE_ID = meta.voiceId;
+  }
 
   const segmentKeys = Object.keys(
     IVR_GLOBAL_PACK_TEXTS
   ) as IvrGlobalPackSegmentKey[];
 
   // Check what already exists and is playable in R2 before any TTS.
+  // After voice lock / invalidate, missing rows regenerate once.
   const existing = await readExistingPackSegments(gender);
   const reuseStats: Record<string, boolean> = {};
   const generatedSegments: string[] = [];
@@ -633,7 +852,17 @@ export async function approveAdminVoicePack(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
+  if (gender === "female") {
+    await assertVoiceIdIsDana(meta.voiceId);
+    if (!isTrustedFemaleLock(meta)) {
+      throw new Error("FEMALE_MUST_LOCK_DANA_FIRST");
+    }
+  } else if (!isTrustedMaleLock(meta)) {
+    throw new Error("MALE_MUST_LOCK_FROM_AUDITION_FIRST");
+  }
+
   // Approve only when every segment is playable in R2 AND reachable over HTTPS.
+  // Never auto-approve — this function runs only on explicit admin click.
   const existing = await readExistingPackSegments(gender, { verifyHttp: true });
   const notReady = (
     Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
@@ -668,10 +897,10 @@ export async function hydrateApprovedPackVoiceIds() {
     const doc = await getOrCreateConfigDoc();
     const female = normalizeMeta(doc.female);
     const male = normalizeMeta(doc.male);
-    if (female.voiceId && female.approved) {
+    if (female.voiceId && female.approved && isTrustedFemaleLock(female)) {
       process.env.IVR_FEMALE_VOICE_ID = female.voiceId;
     }
-    if (male.voiceId && male.approved) {
+    if (male.voiceId && male.approved && isTrustedMaleLock(male)) {
       process.env.IVR_MALE_VOICE_ID = male.voiceId;
     }
   } catch (err) {

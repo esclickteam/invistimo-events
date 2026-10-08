@@ -62,7 +62,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         contentType;
     }
 
-    // Global voice-pack / system prompts
+    // Global voice-pack / system prompts / admin audition clips
     if (!r2Key) {
       const system = await IvrSystemAudio.findOne({ publicToken: token })
         .select("r2Key contentType")

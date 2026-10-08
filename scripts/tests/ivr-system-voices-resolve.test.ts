@@ -28,6 +28,31 @@ test("ivrSystemVoices exposes gender-only choices from approved packs", () => {
   assert.equal(src.includes("דנה"), false);
 });
 
+test("female voice is exact Dana lock; male requires audition; Hebrew language_code", () => {
+  const eleven = readSrc("lib/calls/elevenlabs.ts");
+  assert.match(eleven, /findExactDanaVoice/);
+  assert.match(eleven, /IVR_REQUIRED_FEMALE_VOICE_NAME/);
+  assert.match(eleven, /language_code/);
+  assert.match(eleven, /listMaleAuditionCandidates/);
+  assert.match(eleven, /IVR_MALE_AUDITION_TEXT/);
+
+  const admin = readSrc("lib/calls/ivrAdminVoicePacks.ts");
+  assert.match(admin, /invalidateWrongVoicePacks/);
+  assert.match(admin, /lockFemaleVoiceToDana/);
+  assert.match(admin, /lockMaleVoiceFromAudition/);
+  assert.match(admin, /buildMaleVoiceAuditions/);
+  assert.match(admin, /assertVoiceIdIsDana/);
+  assert.match(admin, /admin_audition_locked/);
+
+  const page = readSrc("app/admin/recorded-calls/page.tsx");
+  assert.match(page, /lock_female_dana|מצא ונעל את Dana/);
+  assert.match(page, /male_audition|השמע 2–3 קולות/);
+  assert.match(page, /invalidate_wrong_packs|בטל שימוש/);
+  assert.match(page, /hasHeardRequired|REQUIRED_LISTEN_KEYS/);
+  assert.match(page, /השמע פתיח מלא/);
+  assert.match(page, /אישור Voice Pack \(ידני\)/);
+});
+
 test("voices API is systemVoicesOnly — not ElevenLabs picker", () => {
   const src = readSrc("app/api/ivr/voices/route.ts");
   assert.match(src, /systemVoicesOnly:\s*true/);
