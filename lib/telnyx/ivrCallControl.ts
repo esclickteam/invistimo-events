@@ -240,6 +240,7 @@ export async function gatherIvrUsingAudio(input: {
   minimumDigits?: number;
   maximumDigits?: number;
   timeoutMillis?: number;
+  interDigitTimeoutMillis?: number;
   terminatingDigit?: string;
   validDigits?: string;
   clientState?: Record<string, unknown>;
@@ -249,6 +250,9 @@ export async function gatherIvrUsingAudio(input: {
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
     timeout_millis: input.timeoutMillis ?? 10000,
+    ...(input.interDigitTimeoutMillis
+      ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
+      : {}),
     ...(input.terminatingDigit
       ? { terminating_digit: input.terminatingDigit }
       : {}),
@@ -267,12 +271,17 @@ export async function stopIvrPlayback(callControlId: string) {
   return telnyxCallAction(callControlId, "playback_stop", { stop: "all" });
 }
 
+export async function stopIvrGather(callControlId: string) {
+  return telnyxCallAction(callControlId, "gather_stop", {});
+}
+
 /** Wait for DTMF without starting another audio file. */
 export async function gatherIvrDigits(input: {
   callControlId: string;
   minimumDigits?: number;
   maximumDigits?: number;
   timeoutMillis?: number;
+  interDigitTimeoutMillis?: number;
   terminatingDigit?: string;
   validDigits?: string;
   clientState?: Record<string, unknown>;
@@ -281,6 +290,9 @@ export async function gatherIvrDigits(input: {
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
     timeout_millis: input.timeoutMillis ?? 45000,
+    ...(input.interDigitTimeoutMillis
+      ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
+      : {}),
     ...(input.terminatingDigit
       ? { terminating_digit: input.terminatingDigit }
       : {}),

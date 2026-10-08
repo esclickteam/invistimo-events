@@ -68,7 +68,34 @@ const LIVE_ATTEMPT_STATUSES = new Set([
   "initiated",
   "ringing",
   "answered",
+  "invalid_input",
 ]);
+
+/** In-flight Telnyx calls. Completed-but-still-playing stays occupied until hangup. */
+const IVR_DEFAULT_PARALLEL_CALLS = 8;
+const IVR_PARALLEL_CALL_HARD_CAP = 20;
+
+export function ivrMaxParallelCalls() {
+  const raw = Number(process.env.IVR_MAX_PARALLEL_CALLS || IVR_DEFAULT_PARALLEL_CALLS);
+  if (!Number.isFinite(raw) || raw < 1) return IVR_DEFAULT_PARALLEL_CALLS;
+  return Math.min(IVR_PARALLEL_CALL_HARD_CAP, Math.floor(raw));
+}
+
+async function countOccupiedOutboundCalls(invitationId: string, round: number) {
+  return IvrCallAttempt.countDocuments({
+    invitationId,
+    round,
+    channel: "outbound_ivr",
+    $or: [
+      { status: { $in: [...LIVE_ATTEMPT_STATUSES] } },
+      {
+        status: "completed",
+        endedAt: null,
+        flowStep: { $ne: "done" },
+      },
+    ],
+  });
+}
 
 function approvedPlaybackUrl(cfg: any, fallback: string) {
   const approval = cfg?.recordingApproval;
@@ -150,6 +177,54 @@ function resolveReadyAiAudio(user: any): {
   return { eventNameAudioUrl, composedIntroAudioUrl, voiceGender: gender };
 }
 
+function resolveRoundAudio(user: any): {
+  introAudioUrl: string;
+  eventNameAudioUrl: string;
+  composedIntroAudioUrl: string;
+  voiceGender: "female" | "male" | null;
+  audioMode: "ai" | "self_recorded";
+  audioReady: boolean;
+  audioBlockReason: string;
+} {
+  const audioMode =
+    (user?.ivrConfig?.audioMode as "ai" | "self_recorded" | null) || "ai";
+  let introAudioUrl = "";
+  let eventNameAudioUrl = "";
+  let composedIntroAudioUrl = "";
+  let voiceGender: "female" | "male" | null = null;
+  let audioReady = false;
+  let audioBlockReason = "";
+
+  if (audioMode === "self_recorded") {
+    introAudioUrl = resolveReadySelfAudio(user);
+    audioReady = Boolean(introAudioUrl);
+    if (!audioReady) {
+      audioBlockReason = "אין הקלטה עצמית מאושרת לשיחות";
+    }
+  } else {
+    const ai = resolveReadyAiAudio(user);
+    if (ai) {
+      eventNameAudioUrl = ai.eventNameAudioUrl;
+      composedIntroAudioUrl = ai.composedIntroAudioUrl;
+      introAudioUrl = ai.composedIntroAudioUrl;
+      voiceGender = ai.voiceGender;
+      audioReady = true;
+    } else {
+      audioBlockReason = "אין הקלטת AI מאושרת לשיחות";
+    }
+  }
+
+  return {
+    introAudioUrl,
+    eventNameAudioUrl,
+    composedIntroAudioUrl,
+    voiceGender,
+    audioMode: audioMode === "self_recorded" ? "self_recorded" : "ai",
+    audioReady,
+    audioBlockReason,
+  };
+}
+
 function resolveReadySelfAudio(user: any): string {
   const intro = user?.ivrConfig?.introAudio;
   const token = cleanStr(intro?.publicToken);
@@ -199,34 +274,7 @@ export async function listDueIvrRounds(input?: {
   for (const user of users) {
     if (!isIvrCallsUser(user)) continue;
 
-    const audioMode =
-      (user?.ivrConfig?.audioMode as "ai" | "self_recorded" | null) || "ai";
-
-    let introAudioUrl = "";
-    let eventNameAudioUrl = "";
-    let composedIntroAudioUrl = "";
-    let voiceGender: "female" | "male" | null = null;
-    let audioReady = false;
-    let audioBlockReason = "";
-
-    if (audioMode === "self_recorded") {
-      introAudioUrl = resolveReadySelfAudio(user);
-      audioReady = Boolean(introAudioUrl);
-      if (!audioReady) {
-        audioBlockReason = "אין הקלטה עצמית מאושרת לשיחות";
-      }
-    } else {
-      const ai = resolveReadyAiAudio(user);
-      if (ai) {
-        eventNameAudioUrl = ai.eventNameAudioUrl;
-        composedIntroAudioUrl = ai.composedIntroAudioUrl;
-        introAudioUrl = ai.composedIntroAudioUrl;
-        voiceGender = ai.voiceGender;
-        audioReady = true;
-      } else {
-        audioBlockReason = "אין הקלטת AI מאושרת לשיחות";
-      }
-    }
+    const audio = resolveRoundAudio(user);
 
     const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
       ? user.callRoundsSchedule.rounds
@@ -265,14 +313,14 @@ export async function listDueIvrRounds(input?: {
         invitationId: String(invitation._id),
         round: roundNumber,
         scheduledAt,
-        introAudioUrl,
-        eventNameAudioUrl,
-        composedIntroAudioUrl,
-        voiceGender,
-        audioMode,
+        introAudioUrl: audio.introAudioUrl,
+        eventNameAudioUrl: audio.eventNameAudioUrl,
+        composedIntroAudioUrl: audio.composedIntroAudioUrl,
+        voiceGender: audio.voiceGender,
+        audioMode: audio.audioMode,
         clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
-        audioReady,
-        audioBlockReason,
+        audioReady: audio.audioReady,
+        audioBlockReason: audio.audioBlockReason,
       });
     }
   }
@@ -315,7 +363,7 @@ async function setRoundExecution(input: {
 }
 
 async function claimRound(userId: string, round: number, now: Date) {
-  const stale = new Date(now.getTime() - 2 * 60 * 1000);
+  const stale = new Date(now.getTime() - 20 * 1000);
   const res = await User.updateOne(
     {
       _id: userId,
@@ -352,7 +400,7 @@ export async function executeIvrRound(input: {
   now?: Date;
 }) {
   const now = input.now || new Date();
-  const maxCalls = Math.max(1, Number(input.maxCalls) || 50);
+  const requested = Math.max(1, Number(input.maxCalls) || 50);
 
   if (!input.due.audioReady) {
     await User.updateOne(
@@ -401,6 +449,32 @@ export async function executeIvrRound(input: {
       dialed: 0,
       skipped: true,
       reason: "ROUND_ALREADY_RUNNING",
+      results: [],
+      appBaseUrl: getAppBaseUrl(),
+    };
+  }
+
+  const occupied = await countOccupiedOutboundCalls(
+    input.due.invitationId,
+    input.due.round
+  );
+  const room = Math.max(0, ivrMaxParallelCalls() - occupied);
+  const maxCalls = Math.min(requested, room);
+  if (maxCalls < 1) {
+    await setRoundExecution({
+      userId: input.due.userId,
+      round: input.due.round,
+      status: "in_progress",
+      now,
+      clearClaim: true,
+    });
+    return {
+      invitationId: input.due.invitationId,
+      round: input.due.round,
+      eligibleCount: 0,
+      dialed: 0,
+      skipped: true,
+      reason: "PARALLEL_CAP",
       results: [],
       appBaseUrl: getAppBaseUrl(),
     };
@@ -620,7 +694,11 @@ export async function executeIvrRound(input: {
     .select("status error")
     .lean();
 
-  const live = attempts.some((a) => LIVE_ATTEMPT_STATUSES.has(String(a.status)));
+  const live =
+    (await countOccupiedOutboundCalls(
+      input.due.invitationId,
+      input.due.round
+    )) > 0;
   const anyPlaced = attempts.some((a) =>
     ["initiated", "ringing", "answered", "completed", "no_answer", "busy", "voicemail", "hangup_before_response"].includes(
       String(a.status)
@@ -657,4 +735,72 @@ export async function executeIvrRound(input: {
     results,
     appBaseUrl: getAppBaseUrl(),
   };
+}
+
+/** When a live channel ends, dial the next eligible guest without waiting for cron. */
+export async function fillIvrRoundCapacity(input: {
+  userId: string;
+  invitationId: string;
+  round: number;
+}) {
+  const round = Number(input.round);
+  if (round !== 1 && round !== 2 && round !== 3) return null;
+
+  const now = new Date();
+  const user = (await User.findById(input.userId)
+    .select(
+      "_id name email includeCalls callsType callRoundsSchedule ivrConfig"
+    )
+    .lean()) as any;
+  if (!user || !isIvrCallsUser(user)) return null;
+
+  const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
+    ? user.callRoundsSchedule.rounds
+    : [];
+  const raw = rounds.find(
+    (item: any) => Number(item?.roundNumber || item?.round || 0) === round
+  );
+  if (!raw || isRoundTerminal(raw)) return null;
+
+  const scheduledAt = parseCallRoundScheduledAt(raw?.scheduledAt);
+  if (!scheduledAt) return null;
+  if (
+    !isCallRoundDue({
+      scheduledAt,
+      dateKey: getCallRoundDateKeyInIsrael(now),
+      now,
+      force: false,
+    })
+  ) {
+    return null;
+  }
+
+  const audio = resolveRoundAudio(user);
+  if (!audio.audioReady) return null;
+
+  const baseUrl = getAppBaseUrl();
+  const webhookUrl =
+    process.env.TELNYX_IVR_WEBHOOK_URL ||
+    (baseUrl ? `${baseUrl}/api/telnyx/ivr/webhook` : "");
+  if (!webhookUrl) return null;
+
+  return executeIvrRound({
+    due: {
+      userId: String(user._id),
+      invitationId: String(input.invitationId),
+      round,
+      scheduledAt,
+      introAudioUrl: audio.introAudioUrl,
+      eventNameAudioUrl: audio.eventNameAudioUrl,
+      composedIntroAudioUrl: audio.composedIntroAudioUrl,
+      voiceGender: audio.voiceGender,
+      audioMode: audio.audioMode,
+      clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
+      audioReady: audio.audioReady,
+      audioBlockReason: audio.audioBlockReason,
+    },
+    webhookUrl,
+    maxCalls: ivrMaxParallelCalls(),
+    now,
+  });
 }

@@ -87,6 +87,8 @@ function IsraelDateTimeFields({ value, onChange }) {
   const parsed = splitIsraelInput(value);
   const [dateText, setDateText] = useState(parsed.date);
   const [timeText, setTimeText] = useState(parsed.time);
+  const [timeOpen, setTimeOpen] = useState(false);
+  const timePickerRef = useRef(null);
   const hour = timeText.slice(0, 2);
   const minute = timeText.slice(3, 5);
   const hours = Array.from({ length: 24 }, (_, index) =>
@@ -101,6 +103,17 @@ function IsraelDateTimeFields({ value, onChange }) {
     setDateText(next.date);
     setTimeText(next.time);
   }, [value]);
+
+  useEffect(() => {
+    if (!timeOpen) return;
+    function onPointerDown(event) {
+      if (!timePickerRef.current?.contains(event.target)) {
+        setTimeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [timeOpen]);
 
   function commit(nextDate, nextTime) {
     setDateText(nextDate);
@@ -134,41 +147,68 @@ function IsraelDateTimeFields({ value, onChange }) {
           </span>
         ) : null}
       </label>
-      <div className="block text-[11px] font-black text-[#8A7867]">
+      <div
+        className="relative block text-[11px] font-black text-[#8A7867]"
+        ref={timePickerRef}
+      >
         שעה (HH:mm)
-        <div className="mt-1 grid grid-cols-2 gap-2">
-          <select
-            value={hour}
-            onChange={(e) =>
-              commit(dateText, `${e.target.value}:${minute || "00"}`)
-            }
-            className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
-            data-testid="ivr-round-time"
-            aria-label="שעה HH"
+        <button
+          type="button"
+          dir="ltr"
+          onClick={() => setTimeOpen((open) => !open)}
+          className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-left text-sm font-bold text-[#3A2A1C]"
+          data-testid="ivr-round-time"
+          aria-label="שעה HH:mm"
+          aria-expanded={timeOpen}
+        >
+          {timeText || "HH:mm"}
+        </button>
+        {timeOpen ? (
+          <div
+            dir="ltr"
+            className="absolute z-30 mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white p-2 shadow-lg"
           >
-            <option value="">שעה</option>
-            {hours.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-          <select
-            value={minute}
-            onChange={(e) =>
-              commit(dateText, `${hour || "00"}:${e.target.value}`)
-            }
-            className="w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
-            aria-label="דקות mm"
-          >
-            <option value="">דקות</option>
-            {minutes.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-[11px] font-black text-[#8A7867]">
+                שעה
+                <select
+                  value={hour}
+                  onChange={(e) =>
+                    commit(dateText, `${e.target.value}:${minute || "00"}`)
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+                  aria-label="שעה HH"
+                >
+                  <option value="">שעה</option>
+                  {hours.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-[11px] font-black text-[#8A7867]">
+                דקות
+                <select
+                  value={minute}
+                  onChange={(e) => {
+                    commit(dateText, `${hour || "00"}:${e.target.value}`);
+                    setTimeOpen(false);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-[#E7D8C6] bg-white px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+                  aria-label="דקות mm"
+                >
+                  <option value="">דקות</option>
+                  {minutes.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

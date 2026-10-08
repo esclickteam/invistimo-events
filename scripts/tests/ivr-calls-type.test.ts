@@ -80,10 +80,12 @@ test("guest max attending uses guestsCount", () => {
   assert.equal(getGuestMaxAttendingCount({}), 1);
 });
 
-test("DTMF guest count rejects above max and empty", () => {
+test("DTMF guest count is not capped by invited size", () => {
   assert.deepEqual(parseDtmfGuestCount("3", 5), { ok: true, count: 3 });
-  assert.equal(parseDtmfGuestCount("6", 5).ok, false);
+  assert.deepEqual(parseDtmfGuestCount("6", 5), { ok: true, count: 6 });
+  assert.deepEqual(parseDtmfGuestCount("5", 1), { ok: true, count: 5 });
   assert.equal(parseDtmfGuestCount("", 5).ok, false);
+  assert.equal(parseDtmfGuestCount("1000").ok, false);
 });
 
 test("AI intro template uses event name variable", () => {

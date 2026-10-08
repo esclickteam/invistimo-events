@@ -125,10 +125,33 @@ test("9/10) final yes/no excluded; maybe + pending continue by round rules", () 
   );
 });
 
-test("11) attending count cannot exceed guest max", () => {
-  assert.equal(getGuestMaxAttendingCount({ guestsCount: 4 }), 4);
-  assert.equal(parseDtmfGuestCount("5", 4).ok, false);
+test("11) attending count is not capped by the invited size", () => {
+  assert.equal(getGuestMaxAttendingCount({ guestsCount: 1 }), 1);
+  assert.deepEqual(parseDtmfGuestCount("5", 1), { ok: true, count: 5 });
   assert.deepEqual(parseDtmfGuestCount("3", 4), { ok: true, count: 3 });
+  assert.equal(parseDtmfGuestCount("", 4).ok, false);
+  assert.equal(parseDtmfGuestCount("0").ok, false);
+  assert.equal(parseDtmfGuestCount("1000").ok, false);
+
+  const apply = readSrc("lib/calls/ivrApplyRsvp.ts");
+  assert.equal(apply.includes("guestsCount"), false);
+  assert.equal(apply.includes("getGuestMaxAttendingCount"), false);
+  assert.match(apply, /arrivedCount/);
+
+  const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
+  assert.match(webhook, /stopIvrPlayback/);
+  assert.match(webhook, /claimChoiceDigit/);
+  assert.match(webhook, /CHOICE_FLOW_STEPS/);
+  assert.match(webhook, /playing_intro_before/);
+  assert.match(webhook, /hangup_after_thanks/);
+  assert.match(webhook, /fillIvrRoundCapacity/);
+  assert.match(webhook, /terminatingDigit: "#"/);
+  assert.equal(webhook.includes("getGuestMaxAttendingCount"), false);
+
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(dialer, /IVR_MAX_PARALLEL_CALLS/);
+  assert.match(dialer, /fillIvrRoundCapacity/);
+  assert.match(dialer, /20 \* 1000/);
 });
 
 test("12) ElevenLabs audio reused when hash matches; dialer never calls TTS", () => {
