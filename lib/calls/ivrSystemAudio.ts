@@ -185,7 +185,13 @@ export async function ensureGlobalPackSegment(input: {
     );
   }
 
-  const text = IVR_GLOBAL_PACK_TEXTS[input.segment];
+  const baseText = IVR_GLOBAL_PACK_TEXTS[input.segment];
+  // Roger/eleven_v3 was clipping the final ע of "לאירוע". A trailing period
+  // (male introBefore only) gives the phoneme room to finish; Dana is unchanged.
+  const text =
+    input.segment === "introBeforeEventName" && input.gender === "male"
+      ? `${baseText}.`
+      : baseText;
   const key = globalPackAudioKey(input.gender, input.segment);
   const { doc, reused } = await ensureCachedPromptAudio({
     key,
