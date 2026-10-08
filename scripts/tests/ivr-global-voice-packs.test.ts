@@ -35,7 +35,7 @@ function readSrc(rel: string) {
 test("global pack texts match product script segments", () => {
   assert.equal(
     IVR_GLOBAL_PACK_TEXTS.introBeforeEventName,
-    "שלום, אנחנו מתקשרים בנוגע ל"
+    "שלום, אנחנו מתקשרים בנוגע לאירוע"
   );
   assert.match(IVR_GLOBAL_PACK_TEXTS.introAfterEventName, /הקישו 1/);
   assert.match(IVR_GLOBAL_PACK_TEXTS.afterPress1, /מספר האורחים/);
@@ -62,7 +62,7 @@ test("per-event speech text is event name only", () => {
   const preview = buildIvrIntroText({
     eventName: "החתונה של הדס ורועי",
   });
-  assert.match(preview, /בנוגע להחתונה של הדס ורועי/);
+  assert.match(preview, /בנוגע לאירוע החתונה של הדס ורועי/);
   assert.match(preview, /הקישו 3/);
 });
 

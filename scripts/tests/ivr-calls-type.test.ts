@@ -90,8 +90,8 @@ test("AI intro template uses event name variable", () => {
   const text = buildIvrIntroText({
     eventName: "החתונה של הדס ורועי",
   });
-  // Global before-clip ends with ל; event name plays as its own clip.
-  assert.match(text, /בנוגע להחתונה של הדס ורועי/);
+  // Global before-clip ends with "לאירוע"; event name plays as its own clip.
+  assert.match(text, /בנוגע לאירוע החתונה של הדס ורועי/);
   assert.match(text, /הקישו 1/);
   assert.doesNotMatch(text, /של הדס ורועי של/);
 

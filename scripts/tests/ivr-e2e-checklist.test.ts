@@ -164,7 +164,7 @@ test("14) AI template uses event name exactly", () => {
   assert.equal(
     text,
     [
-      "שלום, אנחנו מתקשרים בנוגע להחתונה של הדס ורועי.",
+      "שלום, אנחנו מתקשרים בנוגע לאירוע החתונה של הדס ורועי.",
       "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו. לאישור הגעה, הקישו 1. לאי הגעה, הקישו 2. אם עדיין אינכם יודעים, הקישו 3.",
     ].join("\n")
   );
@@ -178,8 +178,8 @@ test("14) AI template uses event name exactly", () => {
     eventName: "החתונה של הדס ורועי",
     eventNamePronunciation: "החתונה של הדאס ורועיי",
   });
-  // Split clips: global "...בנוגע ל" + event-name pronunciation clip
-  assert.match(spoken, /בנוגע להחתונה של הדאס ורועיי/);
+  // Split clips: global "...לאירוע" + event-name pronunciation clip
+  assert.match(spoken, /בנוגע לאירוע החתונה של הדאס ורועיי/);
 });
 
 test("15) webhook idempotency + guest binding prevent wrong/double updates", () => {

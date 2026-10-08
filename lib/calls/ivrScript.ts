@@ -19,7 +19,8 @@ export const IVR_SELF_RECORD_RECOMMENDED_SECONDS = "20–30";
  * Fixed global segments — generated once per gender (female / male), never per event.
  */
 export const IVR_GLOBAL_PACK_TEXTS = {
-  introBeforeEventName: "שלום, אנחנו מתקשרים בנוגע ל",
+  /** Fixed outbound open — event name audio follows immediately after. */
+  introBeforeEventName: "שלום, אנחנו מתקשרים בנוגע לאירוע",
   introAfterEventName:
     "נשמח לדעת האם תוכלו להגיע ולחגוג איתנו. לאישור הגעה, הקישו 1. לאי הגעה, הקישו 2. אם עדיין אינכם יודעים, הקישו 3.",
   /** Inbound callback — different wording from outbound intro. */
@@ -70,8 +71,7 @@ export const IVR_SYSTEM_PROMPT_TO_PACK_SEGMENT: Partial<
 /**
  * Hebrew definite-article absorption after ל:
  * "ל" + "החתונה..." → "לחתונה..." (not "להחתונה...").
- * Used only for display/legacy full-text builders — audio playback uses
- * separate global "בנוגע ל" + event-name clips per product spec.
+ * Legacy helper — outbound audio uses fixed "...לאירוע" + separate event-name clip.
  */
 export function attachHebrewLamedPrefix(phrase: string): string {
   const raw = String(phrase || "").trim() || "האירוע";
@@ -91,12 +91,13 @@ export function buildIvrEventNameSpeechText(vars: IvrScriptVariables): string {
 
 /**
  * Full intro as display/preview text (not a single TTS payload).
- * Matches the three audio clips clients hear concatenated.
+ * Matches the three audio clips clients hear concatenated:
+ * "...לאירוע" + event name + introAfter.
  */
 export function buildIvrIntroText(vars: IvrScriptVariables): string {
   const spokenName = buildIvrEventNameSpeechText(vars);
   return [
-    `${IVR_GLOBAL_PACK_TEXTS.introBeforeEventName}${spokenName}.`,
+    `${IVR_GLOBAL_PACK_TEXTS.introBeforeEventName} ${spokenName}.`,
     IVR_GLOBAL_PACK_TEXTS.introAfterEventName,
   ].join("\n");
 }
