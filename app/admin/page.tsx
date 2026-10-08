@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   ChevronLeft,
@@ -12,15 +12,21 @@ import {
   X,
   ReceiptText,
   CreditCard,
-  Mail,
-  ShieldCheck,
   Search,
-  Package,
   CalendarRange,
   BarChart3,
-  UserRound,
   AlertTriangle,
 } from "lucide-react";
+import {
+  AdminAlert,
+  AdminBadge,
+  AdminButton,
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminPanel,
+  AdminStatCard,
+  AdminTableShell,
+} from "@/app/components/admin/ui/AdminUI";
 
 /* =====================================================
    TYPES
@@ -55,18 +61,15 @@ interface RangeSummary {
   fromDay: number;
   fromMonth: number;
   fromYear: number;
-
   toDay: number;
   toMonth: number;
   toYear: number;
-
   revenue: number;
   customers: number;
   paymentsCount: number;
   monthlyBreakdown: RangeMonthItem[];
   byType: RangeTypeItem[];
 }
-
 
 interface UpcomingCallRound {
   id: string;
@@ -97,24 +100,17 @@ interface AdminStats {
   users: number;
   invitations: number;
   calls: number;
-
   revenue: number;
   payingUsers?: number;
   payingCustomers?: PayingCustomer[];
-
   paymentsCount?: number;
   callsRevenue?: number;
   creditGiftsRevenue?: number;
-
   month: number;
   year: number;
-
   rangeSummary?: RangeSummary;
 }
 
-/* =====================================================
-   CONST
-===================================================== */
 const MONTHS = [
   { value: 1, label: "ינואר" },
   { value: 2, label: "פברואר" },
@@ -137,14 +133,8 @@ const DAYS = Array.from({ length: 31 }, (_, index) => ({
 
 const AUTO_REFRESH_MS = 10000;
 
-/* =====================================================
-   HELPERS
-===================================================== */
 function getMonthLabel(date: Date) {
-  return date.toLocaleDateString("he-IL", {
-    month: "long",
-    year: "numeric",
-  });
+  return date.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
 }
 
 function getMonthName(month: number) {
@@ -157,7 +147,6 @@ function formatMoney(value: number) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-
   try {
     return new Date(value).toLocaleDateString("he-IL", {
       day: "2-digit",
@@ -169,13 +158,10 @@ function formatDate(value?: string | null) {
   }
 }
 
-
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-
   return new Intl.DateTimeFormat("he-IL", {
     day: "2-digit",
     month: "2-digit",
@@ -215,21 +201,16 @@ function startOfNextMonth(date: Date) {
 
 function getRelativeDayLabel(value?: string | null) {
   if (!value) return "לא הוגדר";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "לא הוגדר";
-
   const today = getDateOnly(new Date());
   const target = getDateOnly(date);
-
   const diffDays = Math.round(
     (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   );
-
   if (diffDays === 0) return "היום";
   if (diffDays === 1) return "מחר";
   if (diffDays === 2) return "מחרתיים";
-
   return date.toLocaleDateString("he-IL", {
     weekday: "long",
     day: "2-digit",
@@ -239,10 +220,8 @@ function getRelativeDayLabel(value?: string | null) {
 
 function getHourLabel(value?: string | null) {
   if (!value) return "—";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-
   return date.toLocaleTimeString("he-IL", {
     hour: "2-digit",
     minute: "2-digit",
@@ -262,13 +241,9 @@ function getPaymentTypeLabel(type: string) {
     "producer-client": "לקוח מפיק",
     other: "אחר",
   };
-
   return labels[type] || type;
 }
 
-/* =====================================================
-   PAGE
-===================================================== */
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -279,14 +254,13 @@ export default function AdminDashboardPage() {
     useState<UpcomingCallRoundsResponse | null>(null);
   const [loadingUpcomingCalls, setLoadingUpcomingCalls] = useState(true);
 
-  // Fixed calendar seed for SSR/hydration — sync to real "now" after mount
-  const [selectedDate, setSelectedDate] = useState(() => new Date(Date.UTC(2026, 0, 1)));
+  const [selectedDate, setSelectedDate] = useState(
+    () => new Date(Date.UTC(2026, 0, 1))
+  );
   const [currentYear, setCurrentYear] = useState(2026);
-
   const [fromDay, setFromDay] = useState(1);
   const [fromMonth, setFromMonth] = useState(1);
   const [fromYear, setFromYear] = useState(2026);
-
   const [toDay, setToDay] = useState(31);
   const [toMonth, setToMonth] = useState(12);
   const [toYear, setToYear] = useState(2026);
@@ -302,24 +276,17 @@ export default function AdminDashboardPage() {
 
   const yearOptions = useMemo(() => {
     const years: number[] = [];
-
     for (let year = currentYear - 3; year <= currentYear + 5; year++) {
       years.push(year);
     }
-
     return years;
   }, [currentYear]);
 
   const selectedMonth = selectedDate.getMonth() + 1;
   const selectedYear = selectedDate.getFullYear();
-
-  const monthTitle = useMemo(() => {
-    return getMonthLabel(selectedDate);
-  }, [selectedDate]);
-
+  const monthTitle = useMemo(() => getMonthLabel(selectedDate), [selectedDate]);
   const isCurrentMonth = useMemo(() => {
     const realNow = new Date();
-
     return (
       selectedDate.getFullYear() === realNow.getFullYear() &&
       selectedDate.getMonth() === realNow.getMonth()
@@ -329,14 +296,11 @@ export default function AdminDashboardPage() {
   const payingCustomers = useMemo(() => {
     const list = stats?.payingCustomers || [];
     const q = customerSearch.trim().toLowerCase();
-
     if (!q) return list;
-
     return list.filter((customer) => {
       const email = String(customer.email || "").toLowerCase();
       const name = String(customer.name || "").toLowerCase();
       const packageName = String(customer.packageName || "").toLowerCase();
-
       return email.includes(q) || name.includes(q) || packageName.includes(q);
     });
   }, [stats?.payingCustomers, customerSearch]);
@@ -344,1101 +308,592 @@ export default function AdminDashboardPage() {
   const averagePayment = useMemo(() => {
     const paymentsCount = Number(stats?.paymentsCount || 0);
     const revenue = Number(stats?.revenue || 0);
-
     if (!paymentsCount) return 0;
-
     return Math.round(revenue / paymentsCount);
   }, [stats?.paymentsCount, stats?.revenue]);
 
   const rangeAverageMonthlyRevenue = useMemo(() => {
     const revenue = Number(stats?.rangeSummary?.revenue || 0);
-
-    // Average over the selected calendar span (incl. zero-revenue months),
-    // not only months that appear in monthlyBreakdown.
     const fromIndex = fromYear * 12 + (fromMonth - 1);
     const toIndex = toYear * 12 + (toMonth - 1);
     const monthsCount = Math.max(0, toIndex - fromIndex + 1);
-
     if (!monthsCount) return 0;
-
     return Math.round(revenue / monthsCount);
   }, [stats?.rangeSummary?.revenue, fromMonth, fromYear, toMonth, toYear]);
 
-
-  const upcomingCallRounds = useMemo(() => {
-    return upcomingCalls?.rounds || [];
-  }, [upcomingCalls?.rounds]);
+  const upcomingCallRounds = useMemo(
+    () => upcomingCalls?.rounds || [],
+    [upcomingCalls?.rounds]
+  );
 
   const nearestCallRound = useMemo(() => {
     if (!upcomingCallRounds.length) return null;
-
-    return [...upcomingCallRounds].sort((a, b) => {
-      return (
-        new Date(a.scheduledAt).getTime() -
-        new Date(b.scheduledAt).getTime()
-      );
-    })[0];
+    return [...upcomingCallRounds].sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    )[0];
   }, [upcomingCallRounds]);
 
+  const maxMonthlyRevenue = useMemo(() => {
+    const list = stats?.rangeSummary?.monthlyBreakdown || [];
+    return Math.max(1, ...list.map((item) => Number(item.revenue || 0)));
+  }, [stats?.rangeSummary?.monthlyBreakdown]);
+
   async function fetchStats(showLoader = true) {
-  try {
-    if (showLoader) {
-      setLoading(true);
-    }
-
-    const params = new URLSearchParams({
-      month: String(selectedMonth),
-      year: String(selectedYear),
-
-      fromDay: String(fromDay),
-      fromMonth: String(fromMonth),
-      fromYear: String(fromYear),
-
-      toDay: String(toDay),
-      toMonth: String(toMonth),
-      toYear: String(toYear),
-    });
-
-    const res = await fetch(`/api/admin/stats?${params.toString()}`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    if (!res.ok) throw new Error("Failed to fetch stats");
-
-    const data = await res.json();
-    setStats(data);
-  } catch (err) {
-    console.error("❌ Failed to load admin stats:", err);
-    setStats(null);
-  } finally {
-    if (showLoader) {
-      setLoading(false);
+    try {
+      if (showLoader) setLoading(true);
+      const params = new URLSearchParams({
+        month: String(selectedMonth),
+        year: String(selectedYear),
+        fromDay: String(fromDay),
+        fromMonth: String(fromMonth),
+        fromYear: String(fromYear),
+        toDay: String(toDay),
+        toMonth: String(toMonth),
+        toYear: String(toYear),
+      });
+      const res = await fetch(`/api/admin/stats?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to fetch stats");
+      setStats(await res.json());
+    } catch (err) {
+      console.error("❌ Failed to load admin stats:", err);
+      setStats(null);
+    } finally {
+      if (showLoader) setLoading(false);
     }
   }
-}
-
 
   async function fetchUpcomingCallRounds(showLoader = true) {
     try {
-      if (showLoader) {
-        setLoadingUpcomingCalls(true);
-      }
-
+      if (showLoader) setLoadingUpcomingCalls(true);
       const res = await fetch("/api/admin/call-rounds/upcoming?days=30", {
         credentials: "include",
         cache: "no-store",
       });
-
       const data = await res.json().catch(() => ({}));
-
       if (!res.ok || data?.success === false) {
         throw new Error(data?.message || "Failed to fetch upcoming call rounds");
       }
-
       setUpcomingCalls(data);
     } catch (err) {
       console.error("❌ Failed to load upcoming call rounds:", err);
       setUpcomingCalls({
-  success: false,
-  total: 0,
-  today: 0,
-  tomorrow: 0,
-  week: 0,
-  month: 0,
-  rounds: [],
-});
+        success: false,
+        total: 0,
+        today: 0,
+        tomorrow: 0,
+        week: 0,
+        month: 0,
+        rounds: [],
+      });
     } finally {
-      if (showLoader) {
-        setLoadingUpcomingCalls(false);
-      }
+      if (showLoader) setLoadingUpcomingCalls(false);
     }
   }
 
   useEffect(() => {
-  fetchStats(true);
-  fetchUpcomingCallRounds(true);
-
-  const intervalId = window.setInterval(() => {
-    fetchStats(false);
-    fetchUpcomingCallRounds(false);
-  }, AUTO_REFRESH_MS);
-
-  return () => {
-    window.clearInterval(intervalId);
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [
-  selectedMonth,
-  selectedYear,
-  fromDay,
-  fromMonth,
-  fromYear,
-  toDay,
-  toMonth,
-  toYear,
-]);
-
-  const goPrevMonth = () => {
-    setSelectedDate((prev) => {
-      return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
-    });
-  };
-
-  const goNextMonth = () => {
-    setSelectedDate((prev) => {
-      return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
-    });
-  };
-
-  const goCurrentMonth = () => {
-    const realNow = new Date();
-    setSelectedDate(new Date(realNow.getFullYear(), realNow.getMonth(), 1));
-  };
+    fetchStats(true);
+    fetchUpcomingCallRounds(true);
+    const intervalId = window.setInterval(() => {
+      fetchStats(false);
+      fetchUpcomingCallRounds(false);
+    }, AUTO_REFRESH_MS);
+    return () => window.clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedMonth,
+    selectedYear,
+    fromDay,
+    fromMonth,
+    fromYear,
+    toDay,
+    toMonth,
+    toYear,
+  ]);
 
   return (
-    <div
-      dir="rtl"
-      className="w-full min-w-0 bg-[#F6F4F1]"
-    >
-      <div className="mx-auto max-w-7xl space-y-7">
-        {/* =====================================================
-            HERO
-        ====================================================== */}
-        <section
-          className="
-            relative overflow-hidden
-            rounded-[34px]
-            border border-[#E7D8C6]
-            bg-gradient-to-br from-[#FFFDF8] via-[#F8EFE3] to-[#EEDFCC]
-            p-5 md:p-8
-            shadow-[0_22px_75px_rgba(84,58,32,0.12)]
-          "
-        >
-          <div
-            className="
-              pointer-events-none absolute -left-20 -top-20
-              h-64 w-64 rounded-full
-              bg-white/55 blur-3xl
-            "
-          />
-
-          <div
-            className="
-              pointer-events-none absolute -bottom-28 right-16
-              h-72 w-72 rounded-full
-              bg-[#D7B37C]/35 blur-3xl
-            "
-          />
-
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
-              <div
-                className="
-                  mb-4 inline-flex items-center gap-2
-                  rounded-full
-                  border border-[#E7D8C6]
-                  bg-white/60
-                  px-4 py-2
-                  text-xs font-black
-                  text-[#8A6A43]
-                  shadow-sm
-                "
-              >
-                <ShieldCheck size={15} />
-                Admin Panel
-              </div>
-
-              <h1 className="text-4xl font-black tracking-tight text-[#352618] md:text-6xl">
-                סקירת מערכת
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#7B6754] md:text-base">
-                דשבורד ניהול מקצועי עם הכנסות חודשיות, לקוחות משלמים,
-                חבילות, תשלומים, אירועים עתידיים וסיכום הכנסות לפי טווח.
-              </p>
-            </div>
-
-            {/* Month Controls */}
-            <div
-              className="
-                w-full rounded-[28px]
-                border border-white/75
-                bg-white/80
-                p-4
-                shadow-[0_16px_45px_rgba(72,51,31,0.12)]
-                backdrop-blur
-                lg:w-[360px]
-              "
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-black text-[#9A7A52]">
-                    חודש הכנסות
-                  </div>
-
-                  <div className="mt-1 text-2xl font-black text-[#3A2A1C]">
-                    {monthTitle}
-                  </div>
-                </div>
-
-                {isCurrentMonth && (
-                  <span
-                    className="
-                      rounded-full
-                      bg-[#FFF2D8]
-                      px-3 py-1
-                      text-xs font-black
-                      text-[#B97821]
-                    "
-                  >
-                    חודש נוכחי
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={goPrevMonth}
-                  className="
-                    flex h-12 flex-1 items-center justify-center gap-2
-                    rounded-2xl
-                    border border-[#E7D9C7]
-                    bg-white
-                    text-sm font-black
-                    text-[#6B4D2E]
-                    transition
-                    hover:bg-[#F7EBD9]
-                  "
-                >
-                  <ChevronRight size={18} />
-                  חודש קודם
-                </button>
-
-                <button
-                  type="button"
-                  onClick={goNextMonth}
-                  className="
-                    flex h-12 flex-1 items-center justify-center gap-2
-                    rounded-2xl
-                    border border-[#E7D9C7]
-                    bg-white
-                    text-sm font-black
-                    text-[#6B4D2E]
-                    transition
-                    hover:bg-[#F7EBD9]
-                  "
-                >
-                  חודש הבא
-                  <ChevronLeft size={18} />
-                </button>
-              </div>
-
-              {!isCurrentMonth && (
-                <button
-                  type="button"
-                  onClick={goCurrentMonth}
-                  className="
-                    mt-3 flex h-11 w-full items-center justify-center gap-2
-                    rounded-2xl
-                    bg-[#3A2A1C]
-                    text-sm font-black
-                    text-white
-                    transition
-                    hover:bg-[#24190F]
-                  "
-                >
-                  חזרה לחודש הנוכחי
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <AdminCallRoundsAlert
-          loading={loadingUpcomingCalls}
-          data={upcomingCalls}
-          nearestRound={nearestCallRound}
-          onOpen={() => setShowUpcomingCalls(true)}
-        />
-
-        {/* =====================================================
-            MAIN REVENUE
-        ====================================================== */}
-        <section
-          className="
-            rounded-[32px]
-            border border-[#E7D8C6]
-            bg-white
-            p-5 md:p-7
-            shadow-[0_18px_55px_rgba(60,43,25,0.08)]
-          "
-        >
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="
-                  flex h-16 w-16 shrink-0 items-center justify-center
-                  rounded-[24px]
-                  bg-gradient-to-br from-[#D99B43] to-[#A8691D]
-                  text-white
-                  shadow-[0_14px_32px_rgba(168,105,29,0.30)]
-                "
-              >
-                <Wallet size={30} />
-              </div>
-
-              <div>
-                <p className="text-sm font-black text-[#9A7A52]">
-                  הכנסה חודשית
-                </p>
-
-                <h2 className="mt-1 text-4xl font-black text-[#3A2A1C] md:text-6xl">
-                  {loading ? "—" : formatMoney(stats?.revenue ?? 0)}
-                </h2>
-
-                <p className="mt-2 text-sm text-[#7B6754]">
-                  לפי תשלומים בפועל בחודש {monthTitle}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:min-w-[520px]">
-              <MiniMetric
-                title="לקוחות משלמים"
-                value={loading ? "—" : String(stats?.payingUsers ?? 0)}
-                icon={<Users size={18} />}
-                onClick={() => setShowPayingCustomers(true)}
-                clickable
-              />
-
-              <MiniMetric
-                title="תשלומים"
-                value={loading ? "—" : String(stats?.paymentsCount ?? 0)}
-                icon={<ReceiptText size={18} />}
-              />
-
-              <MiniMetric
-                title="ממוצע לתשלום"
-                value={loading ? "—" : formatMoney(averagePayment)}
-                icon={<CreditCard size={18} />}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* =====================================================
-            MONTHLY STATS
-        ====================================================== */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <AdminBox
-            title="משתמשים פעילים"
-            subtitle="משתמשים שקיימים כרגע במערכת"
-            value={loading ? "—" : String(stats?.users ?? 0)}
-            icon={<Users size={24} />}
-            tone="green"
-          />
-
-          <AdminBox
-            title="אירועים פעילים"
-            subtitle="אירועים עתידיים בלבד"
-            value={loading ? "—" : String(stats?.invitations ?? 0)}
-            icon={<CalendarDays size={24} />}
-            tone="blue"
-          />
-
-          <AdminBox
-            title="שירותי שיחות"
-            subtitle="לקוחות עם שירות שיחות פעיל"
-            value={loading ? "—" : String(stats?.calls ?? 0)}
-            icon={<PhoneCall size={24} />}
-            tone="orange"
-          />
-
-          <AdminBox
-            title="סבבים קרובים"
-            subtitle="סבבי שיחות לחודש הקרוב"
-            value={
-              loadingUpcomingCalls ? "—" : String(upcomingCalls?.total ?? 0)
+    <div dir="rtl" className="space-y-4">
+      {/* Compact month controls — header title comes from layout */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-medium text-[var(--admin-muted)] md:hidden">
+          נתוני פעילות וסקירה עסקית
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminButton
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              setSelectedDate(
+                (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+              )
             }
-            icon={<PhoneCall size={24} />}
-            tone="orange"
-            onClick={() => setShowUpcomingCalls(true)}
-            clickable
-          />
-
-          <AdminBox
-            title="הכנסות החודש"
-            subtitle={`תשלומים ב-${monthTitle}`}
-            value={loading ? "—" : formatMoney(stats?.revenue ?? 0)}
-            icon={<Wallet size={24} />}
-            tone="gold"
-            highlight
-          />
-        </section>
-
-        
-
-        {/* =====================================================
-            RANGE SUMMARY
-        ====================================================== */}
-        <section
-          className="
-            rounded-[32px]
-            border border-[#E7D8C6]
-            bg-white
-            p-5 md:p-6
-            shadow-[0_18px_55px_rgba(60,43,25,0.07)]
-          "
-        >
-          <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div
-                className="
-                  mb-3 inline-flex items-center gap-2
-                  rounded-full
-                  bg-[#FFF2D8]
-                  px-4 py-2
-                  text-xs font-black
-                  text-[#9A6A24]
-                "
-              >
-                <CalendarRange size={15} />
-                סיכום לפי טווח
-              </div>
-
-              <h3 className="text-2xl font-black text-[#3A2A1C]">
-                סיכום הכנסות בין חודשים ושנים
-              </h3>
-
-              <p className="mt-1 text-sm text-[#8A7867]">
-              לדוגמה: מ־01.05.2025 עד 31.05.2027
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-  <SelectBox
-    label="מיום"
-    value={fromDay}
-    onChange={(value) => setFromDay(Number(value))}
-    options={DAYS}
-  />
-
-  <SelectBox
-    label="מחודש"
-    value={fromMonth}
-    onChange={(value) => setFromMonth(Number(value))}
-    options={MONTHS.map((m) => ({
-      value: m.value,
-      label: m.label,
-    }))}
-  />
-
-  <SelectBox
-    label="משנה"
-    value={fromYear}
-    onChange={(value) => setFromYear(Number(value))}
-    options={yearOptions.map((year) => ({
-      value: year,
-      label: String(year),
-    }))}
-  />
-
-  <SelectBox
-    label="עד יום"
-    value={toDay}
-    onChange={(value) => setToDay(Number(value))}
-    options={DAYS}
-  />
-
-  <SelectBox
-    label="עד חודש"
-    value={toMonth}
-    onChange={(value) => setToMonth(Number(value))}
-    options={MONTHS.map((m) => ({
-      value: m.value,
-      label: m.label,
-    }))}
-  />
-
-  <SelectBox
-    label="עד שנה"
-    value={toYear}
-    onChange={(value) => setToYear(Number(value))}
-    options={yearOptions.map((year) => ({
-      value: year,
-      label: String(year),
-    }))}
-  />
-</div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <RangeBox
-              title="סה״כ הכנסות בטווח"
-              value={
-                loading
-                  ? "—"
-                  : formatMoney(stats?.rangeSummary?.revenue ?? 0)
-              }
-              icon={<Wallet size={22} />}
-              highlight
-            />
-
-            <RangeBox
-              title="לקוחות משלמים בטווח"
-              value={
-                loading ? "—" : String(stats?.rangeSummary?.customers ?? 0)
-              }
-              icon={<Users size={22} />}
-            />
-
-            <RangeBox
-              title="תשלומים בטווח"
-              value={
-                loading
-                  ? "—"
-                  : String(stats?.rangeSummary?.paymentsCount ?? 0)
-              }
-              icon={<ReceiptText size={22} />}
-            />
-
-            <RangeBox
-              title="ממוצע חודשי"
-              value={loading ? "—" : formatMoney(rangeAverageMonthlyRevenue)}
-              icon={<BarChart3 size={22} />}
-            />
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <div className="rounded-[24px] border border-[#EFE2D1] bg-[#FFFDF8] p-4">
-              <h4 className="mb-4 text-base font-black text-[#3A2A1C]">
-                פירוט לפי חודשים
-              </h4>
-
-              {!stats?.rangeSummary?.monthlyBreakdown?.length ? (
-                <EmptyBox text="אין הכנסות בטווח שנבחר." />
-              ) : (
-                <div className="space-y-2">
-                  {stats.rangeSummary.monthlyBreakdown.map((item) => (
-                    <div
-                      key={`${item.month}-${item.year}`}
-                      className="
-                        flex items-center justify-between gap-4
-                        rounded-2xl
-                        border border-[#EFE2D1]
-                        bg-white
-                        px-4 py-3
-                      "
-                    >
-                      <div>
-                        <div className="font-black text-[#3A2A1C]">
-                          {getMonthName(item.month)} {item.year}
-                        </div>
-
-                        <div className="text-xs font-bold text-[#8A7867]">
-                          {item.paymentsCount} תשלומים
-                        </div>
-                      </div>
-
-                      <div className="text-xl font-black text-[#B97821]">
-                        {formatMoney(item.revenue)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[24px] border border-[#EFE2D1] bg-[#FFFDF8] p-4">
-              <h4 className="mb-4 text-base font-black text-[#3A2A1C]">
-                פילוח לפי סוג תשלום
-              </h4>
-
-              {!stats?.rangeSummary?.byType?.length ? (
-                <EmptyBox text="אין סוגי תשלום להצגה." />
-              ) : (
-                <div className="space-y-2">
-                  {stats.rangeSummary.byType.map((item) => (
-                    <div
-                      key={item.type}
-                      className="
-                        flex items-center justify-between gap-4
-                        rounded-2xl
-                        border border-[#EFE2D1]
-                        bg-white
-                        px-4 py-3
-                      "
-                    >
-                      <div>
-                        <div className="font-black text-[#3A2A1C]">
-                          {getPaymentTypeLabel(item.type)}
-                        </div>
-
-                        <div className="text-xs font-bold text-[#8A7867]">
-                          {item.paymentsCount} תשלומים
-                        </div>
-                      </div>
-
-                      <div className="text-xl font-black text-[#B97821]">
-                        {formatMoney(item.revenue)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* =====================================================
-            MONTH CUSTOMERS TABLE PREVIEW
-        ====================================================== */}
-        <section
-          className="
-            rounded-[32px]
-            border border-[#E7D8C6]
-            bg-white
-            p-5 md:p-6
-            shadow-[0_18px_55px_rgba(60,43,25,0.07)]
-          "
-        >
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 className="text-xl font-black text-[#3A2A1C]">
-                לקוחות משלמים בחודש {monthTitle}
-              </h3>
-
-              <p className="mt-1 text-sm text-[#8A7867]">
-                שם לקוח, חבילה, אימייל, כמות תשלומים וסכום ששולם
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowPayingCustomers(true)}
-              className="
-                h-11 rounded-2xl
-                bg-[#3A2A1C]
-                px-5
-                text-sm font-black
-                text-white
-                transition
-                hover:bg-[#24190F]
-              "
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+            חודש קודם
+          </AdminButton>
+          <span className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--admin-border)] bg-white px-3 text-xs font-bold">
+            {monthTitle}
+            {isCurrentMonth ? <AdminBadge tone="brand">נוכחי</AdminBadge> : null}
+          </span>
+          <AdminButton
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              setSelectedDate(
+                (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+              )
+            }
+          >
+            חודש הבא
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </AdminButton>
+          {!isCurrentMonth ? (
+            <AdminButton
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                const now = new Date();
+                setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
+              }}
             >
-              צפייה בכל הלקוחות
-            </button>
+              חודש נוכחי
+            </AdminButton>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <AdminStatCard
+          title="הכנסה חודשית"
+          value={loading ? "—" : formatMoney(stats?.revenue ?? 0)}
+          icon={<Wallet className="h-3.5 w-3.5" />}
+          hint={`תשלומים ב-${monthTitle}`}
+        />
+        <AdminStatCard
+          title="משתמשים פעילים"
+          value={loading ? "—" : String(stats?.users ?? 0)}
+          icon={<Users className="h-3.5 w-3.5" />}
+          hint="סה״כ משתמשים במערכת"
+        />
+        <AdminStatCard
+          title="אירועים עתידיים"
+          value={loading ? "—" : String(stats?.invitations ?? 0)}
+          icon={<CalendarDays className="h-3.5 w-3.5" />}
+          hint="אירועים פעילים בלבד"
+        />
+        <AdminStatCard
+          title="שירותי שיחות"
+          value={loading ? "—" : String(stats?.calls ?? 0)}
+          icon={<PhoneCall className="h-3.5 w-3.5" />}
+          hint="לקוחות עם שירות פעיל"
+        />
+        <AdminStatCard
+          title="סבבי שיחות קרובים"
+          value={
+            loadingUpcomingCalls ? "—" : String(upcomingCalls?.total ?? 0)
+          }
+          icon={<AlertTriangle className="h-3.5 w-3.5" />}
+          hint="30 הימים הקרובים"
+          onClick={() => setShowUpcomingCalls(true)}
+        />
+      </section>
+
+      {/* Compact operational alert */}
+      {!loadingUpcomingCalls &&
+      upcomingCalls?.total &&
+      nearestCallRound ? (
+        <AdminAlert
+          tone="warning"
+          count={upcomingCalls.total}
+          title="סבבי שיחות קרובים לטיפול"
+          description={`הקרוב: ${nearestCallRound.clientName || "לקוח"} · ${
+            nearestCallRound.eventName || "אירוע"
+          } · סבב ${nearestCallRound.roundNumber} · ${getRelativeDayLabel(
+            nearestCallRound.scheduledAt
+          )} ${getHourLabel(nearestCallRound.scheduledAt)} · היום ${
+            upcomingCalls.today
+          } · מחר ${upcomingCalls.tomorrow} · השבוע ${upcomingCalls.week}`}
+          actionLabel="טיפול"
+          onAction={() => setShowUpcomingCalls(true)}
+        />
+      ) : null}
+
+      {/* Revenue summary strip */}
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <AdminStatCard
+          title="לקוחות משלמים"
+          value={loading ? "—" : String(stats?.payingUsers ?? 0)}
+          icon={<Users className="h-3.5 w-3.5" />}
+          onClick={() => setShowPayingCustomers(true)}
+        />
+        <AdminStatCard
+          title="תשלומים החודש"
+          value={loading ? "—" : String(stats?.paymentsCount ?? 0)}
+          icon={<ReceiptText className="h-3.5 w-3.5" />}
+        />
+        <AdminStatCard
+          title="ממוצע לתשלום"
+          value={loading ? "—" : formatMoney(averagePayment)}
+          icon={<CreditCard className="h-3.5 w-3.5" />}
+        />
+      </section>
+
+      {/* Range + charts */}
+      <AdminPanel>
+        <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-[var(--admin-muted)]">
+              <CalendarRange className="h-3.5 w-3.5" />
+              סיכום לפי טווח
+            </div>
+            <h2 className="text-sm font-bold text-[var(--admin-text)]">
+              הכנסות לאורך זמן
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <SelectBox
+              label="מיום"
+              value={fromDay}
+              onChange={setFromDay}
+              options={DAYS}
+            />
+            <SelectBox
+              label="מחודש"
+              value={fromMonth}
+              onChange={setFromMonth}
+              options={MONTHS}
+            />
+            <SelectBox
+              label="משנה"
+              value={fromYear}
+              onChange={setFromYear}
+              options={yearOptions.map((y) => ({ value: y, label: String(y) }))}
+            />
+            <SelectBox
+              label="עד יום"
+              value={toDay}
+              onChange={setToDay}
+              options={DAYS}
+            />
+            <SelectBox
+              label="עד חודש"
+              value={toMonth}
+              onChange={setToMonth}
+              options={MONTHS}
+            />
+            <SelectBox
+              label="עד שנה"
+              value={toYear}
+              onChange={setToYear}
+              options={yearOptions.map((y) => ({ value: y, label: String(y) }))}
+            />
+          </div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MiniStat
+            label="הכנסות בטווח"
+            value={
+              loading ? "—" : formatMoney(stats?.rangeSummary?.revenue ?? 0)
+            }
+          />
+          <MiniStat
+            label="לקוחות משלמים"
+            value={
+              loading ? "—" : String(stats?.rangeSummary?.customers ?? 0)
+            }
+          />
+          <MiniStat
+            label="תשלומים"
+            value={
+              loading
+                ? "—"
+                : String(stats?.rangeSummary?.paymentsCount ?? 0)
+            }
+          />
+          <MiniStat
+            label="ממוצע חודשי"
+            value={loading ? "—" : formatMoney(rangeAverageMonthlyRevenue)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] p-3">
+            <h3 className="mb-3 text-xs font-bold text-[var(--admin-muted)]">
+              השוואה בין חודשים
+            </h3>
+            {!stats?.rangeSummary?.monthlyBreakdown?.length ? (
+              <AdminEmptyState text="אין הכנסות בטווח שנבחר." />
+            ) : (
+              <div className="space-y-2">
+                {stats.rangeSummary.monthlyBreakdown.map((item) => {
+                  const width = Math.max(
+                    4,
+                    Math.round((item.revenue / maxMonthlyRevenue) * 100)
+                  );
+                  return (
+                    <div key={`${item.month}-${item.year}`}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-[var(--admin-text)]">
+                          {getMonthName(item.month)} {item.year}
+                        </span>
+                        <span className="font-bold text-[var(--admin-brand)]">
+                          {formatMoney(item.revenue)}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-100">
+                        <div
+                          className="h-2 rounded-full bg-[var(--admin-brand)]"
+                          style={{ width: `${width}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] font-medium text-[var(--admin-subtle)]">
+                        {item.paymentsCount} תשלומים
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {!stats?.payingCustomers?.length ? (
-            <EmptyBox text="אין לקוחות משלמים בחודש הזה." />
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-[#EFE2D1]">
-              <div className="hidden grid-cols-[1fr_1.4fr_1.1fr_0.8fr_0.8fr] bg-[#FFF9EF] px-4 py-3 text-xs font-black text-[#7B6754] md:grid">
-                <div>לקוח</div>
-                <div>אימייל</div>
-                <div>חבילה</div>
-                <div>סכום</div>
-                <div>תשלום אחרון</div>
-              </div>
-
-              <div className="divide-y divide-[#EFE2D1]">
-                {(stats.payingCustomers || []).slice(0, 6).map((customer) => (
+          <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] p-3">
+            <h3 className="mb-3 text-xs font-bold text-[var(--admin-muted)]">
+              פילוח לפי סוג תשלום
+            </h3>
+            {!stats?.rangeSummary?.byType?.length ? (
+              <AdminEmptyState text="אין סוגי תשלום להצגה." />
+            ) : (
+              <div className="space-y-2">
+                {stats.rangeSummary.byType.map((item) => (
                   <div
-                    key={customer.email}
-                    className="
-                      grid grid-cols-1 gap-3
-                      px-4 py-4
-                      text-sm
-                      md:grid-cols-[1fr_1.4fr_1.1fr_0.8fr_0.8fr]
-                      md:items-center
-                    "
+                    key={item.type}
+                    className="flex items-center justify-between rounded-md border border-[var(--admin-border)] px-3 py-2"
                   >
-                    <div className="font-black text-[#3A2A1C]">
-                      {customer.name || "לא הוגדר שם"}
+                    <div>
+                      <p className="text-xs font-bold text-[var(--admin-text)]">
+                        {getPaymentTypeLabel(item.type)}
+                      </p>
+                      <p className="text-[10px] font-medium text-[var(--admin-subtle)]">
+                        {item.paymentsCount} תשלומים
+                      </p>
                     </div>
-
-                    <div className="truncate font-bold text-[#7B6754]">
-                      {customer.email}
-                    </div>
-
-                    <div className="font-bold text-[#7B6754]">
-                      {customer.packageName || "לא הוגדרה חבילה"}
-                    </div>
-
-                    <div className="font-black text-[#B97821]">
-                      {formatMoney(customer.totalPaid)}
-                    </div>
-
-                    <div className="text-[#7B6754]">
-                      {formatDate(customer.lastPaymentAt)}
-                    </div>
+                    <p className="text-sm font-bold text-[var(--admin-brand)]">
+                      {formatMoney(item.revenue)}
+                    </p>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* =====================================================
-          PAYING CUSTOMERS MODAL
-      ====================================================== */}
-      {showPayingCustomers && (
-        <div
-          className="
-            fixed inset-0 z-50
-            flex items-center justify-center
-            bg-black/35
-            px-4
-            backdrop-blur-sm
-          "
-          onClick={() => setShowPayingCustomers(false)}
-        >
-          <div
-            dir="rtl"
-            className="
-              w-full max-w-4xl
-              overflow-hidden
-              rounded-[32px]
-              border border-[#E7D8C6]
-              bg-white
-              shadow-[0_28px_90px_rgba(0,0,0,0.22)]
-            "
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="
-                border-b border-[#EFE2D1]
-                bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
-                p-5 md:p-6
-              "
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-2xl font-black text-[#3A2A1C]">
-                    לקוחות משלמים
-                  </h3>
-
-                  <p className="mt-1 text-sm text-[#8A7867]">
-                    פירוט לקוחות ששילמו בחודש {monthTitle}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowPayingCustomers(false)}
-                  className="
-                    flex h-11 w-11 shrink-0 items-center justify-center
-                    rounded-full
-                    bg-white
-                    text-[#6B5138]
-                    shadow-sm
-                    transition
-                    hover:bg-[#F1E5D6]
-                  "
-                  aria-label="סגירה"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div
-                className="
-                  mt-5 flex items-center gap-3
-                  rounded-2xl
-                  border border-[#E7D8C6]
-                  bg-white
-                  px-4 py-3
-                "
-              >
-                <Search size={18} className="text-[#9A7A52]" />
-
-                <input
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="חיפוש לפי שם, אימייל או חבילה..."
-                  className="
-                    w-full bg-transparent
-                    text-sm font-semibold
-                    text-[#3A2A1C]
-                    outline-none
-                    placeholder:text-[#B6A28C]
-                  "
-                />
-              </div>
-            </div>
-
-            <div className="max-h-[560px] overflow-y-auto p-5 md:p-6">
-              {loading ? (
-                <div className="flex items-center justify-center gap-3 py-12 text-[#7B6754]">
-                  <Loader2 className="animate-spin" size={22} />
-                  <span className="font-bold">טוען לקוחות...</span>
-                </div>
-              ) : !payingCustomers.length ? (
-                <EmptyBox text="אין לקוחות להצגה בחודש הזה." />
-              ) : (
-                <div className="space-y-3">
-                  {payingCustomers.map((customer) => (
-                    <div
-                      key={customer.email}
-                      className="
-                        rounded-2xl
-                        border border-[#EFE2D1]
-                        bg-[#FFFDF8]
-                        p-4
-                        transition
-                        hover:bg-white
-                        hover:shadow-sm
-                      "
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <span className="inline-flex items-center gap-2 font-black text-[#3A2A1C]">
-                              <UserRound size={17} className="text-[#9A7A52]" />
-                              {customer.name || "לא הוגדר שם"}
-                            </span>
-
-                            <span className="inline-flex items-center gap-2 font-bold text-[#7B6754]">
-                              <Mail size={16} className="text-[#9A7A52]" />
-                              {customer.email || "ללא אימייל"}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#8A7867]">
-                            <span
-                              className="
-                                inline-flex items-center gap-2
-                                rounded-full
-                                bg-white
-                                px-3 py-1
-                                font-bold
-                                ring-1 ring-[#EFE2D1]
-                              "
-                            >
-                              <Package size={14} />
-                              {customer.packageName || "לא הוגדרה חבילה"}
-                            </span>
-
-                            <span
-                              className="
-                                rounded-full
-                                bg-white
-                                px-3 py-1
-                                font-bold
-                                ring-1 ring-[#EFE2D1]
-                              "
-                            >
-                              {customer.paymentsCount} תשלומים
-                            </span>
-
-                            <span
-                              className="
-                                rounded-full
-                                bg-white
-                                px-3 py-1
-                                font-bold
-                                ring-1 ring-[#EFE2D1]
-                              "
-                            >
-                              תשלום אחרון: {formatDate(customer.lastPaymentAt)}
-                            </span>
-
-                            {customer.hasCallsAddon && (
-                              <span className="rounded-full bg-[#FFF2D8] px-3 py-1 font-bold text-[#9A6A24]">
-                                שירות שיחות
-                              </span>
-                            )}
-
-                            {customer.hasCreditGiftsAddon && (
-                              <span className="rounded-full bg-[#FFF2D8] px-3 py-1 font-bold text-[#9A6A24]">
-                                מתנות באשראי
-                              </span>
-                            )}
-
-                            {customer.types?.map((type) => (
-                              <span
-                                key={type}
-                                className="
-                                  rounded-full
-                                  bg-[#F6F1EA]
-                                  px-3 py-1
-                                  font-bold
-                                  text-[#7B6754]
-                                "
-                              >
-                                {getPaymentTypeLabel(type)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="text-3xl font-black text-[#B97821]">
-                          {formatMoney(customer.totalPaid)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div
-              className="
-                flex flex-col gap-2
-                border-t border-[#EFE2D1]
-                bg-[#FFFDF8]
-                px-5 py-4
-                text-sm
-                md:flex-row
-                md:items-center
-                md:justify-between
-              "
-            >
-              <span className="font-bold text-[#7B6754]">
-                סה״כ לקוחות מוצגים: {payingCustomers.length}
-              </span>
-
-              <span className="font-black text-[#3A2A1C]">
-                סה״כ הכנסות החודש: {formatMoney(stats?.revenue ?? 0)}
-              </span>
-            </div>
+            )}
           </div>
         </div>
-      )}
+      </AdminPanel>
 
-      {showUpcomingCalls && (
+      {/* Paying customers preview table */}
+      <AdminPanel>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-[var(--admin-text)]">
+              לקוחות משלמים · {monthTitle}
+            </h2>
+            <p className="text-[11px] font-medium text-[var(--admin-muted)]">
+              פעילות תשלומים בחודש הנבחר
+            </p>
+          </div>
+          <AdminButton
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowPayingCustomers(true)}
+          >
+            כל הלקוחות
+          </AdminButton>
+        </div>
+
+        <AdminTableShell
+          headers={["לקוח", "אימייל", "חבילה", "סכום", "תשלום אחרון"]}
+          isEmpty={!stats?.payingCustomers?.length}
+          empty="אין לקוחות משלמים בחודש הזה."
+        >
+          {(stats?.payingCustomers || []).slice(0, 8).map((customer) => (
+            <tr key={customer.email}>
+              <td className="font-bold">{customer.name || "לא הוגדר שם"}</td>
+              <td className="text-[var(--admin-muted)]">{customer.email}</td>
+              <td>{customer.packageName || "—"}</td>
+              <td className="font-bold text-[var(--admin-brand)]">
+                {formatMoney(customer.totalPaid)}
+              </td>
+              <td>{formatDate(customer.lastPaymentAt)}</td>
+            </tr>
+          ))}
+        </AdminTableShell>
+      </AdminPanel>
+
+      {showPayingCustomers ? (
+        <ModalShell
+          title="לקוחות משלמים"
+          subtitle={`פירוט לקוחות ששילמו ב${monthTitle}`}
+          onClose={() => setShowPayingCustomers(false)}
+        >
+          <AdminFilterBar>
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--admin-subtle)]" />
+              <input
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="חיפוש לפי שם, אימייל או חבילה..."
+                className="admin-input h-9 pr-8"
+              />
+            </div>
+          </AdminFilterBar>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--admin-muted)]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              טוען לקוחות…
+            </div>
+          ) : !payingCustomers.length ? (
+            <AdminEmptyState text="אין לקוחות להצגה בחודש הזה." />
+          ) : (
+            <AdminTableShell
+              headers={["לקוח", "אימייל", "חבילה", "תשלומים", "סכום", "אחרון"]}
+            >
+              {payingCustomers.map((customer) => (
+                <tr key={customer.email}>
+                  <td className="font-bold">
+                    {customer.name || "לא הוגדר שם"}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {customer.hasCallsAddon ? (
+                        <AdminBadge tone="warning">שיחות</AdminBadge>
+                      ) : null}
+                      {customer.hasCreditGiftsAddon ? (
+                        <AdminBadge tone="brand">מתנות</AdminBadge>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="text-[var(--admin-muted)]">{customer.email}</td>
+                  <td>{customer.packageName || "—"}</td>
+                  <td>{customer.paymentsCount}</td>
+                  <td className="font-bold text-[var(--admin-brand)]">
+                    {formatMoney(customer.totalPaid)}
+                  </td>
+                  <td>{formatDate(customer.lastPaymentAt)}</td>
+                </tr>
+              ))}
+            </AdminTableShell>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[var(--admin-muted)]">
+            <span>מוצגים: {payingCustomers.length}</span>
+            <span className="font-bold text-[var(--admin-text)]">
+              סה״כ: {formatMoney(stats?.revenue ?? 0)}
+            </span>
+          </div>
+        </ModalShell>
+      ) : null}
+
+      {showUpcomingCalls ? (
         <UpcomingCallRoundsModal
           loading={loadingUpcomingCalls}
           rounds={upcomingCallRounds}
           data={upcomingCalls}
           onClose={() => setShowUpcomingCalls(false)}
         />
-      )}
+      ) : null}
     </div>
   );
 }
 
-
-/* =====================================================
-   UPCOMING CALL ROUNDS ALERT
-===================================================== */
-function AdminCallRoundsAlert({
-  loading,
-  data,
-  nearestRound,
-  onOpen,
-}: {
-  loading: boolean;
-  data: UpcomingCallRoundsResponse | null;
-  nearestRound: UpcomingCallRound | null;
-  onOpen: () => void;
-}) {
-  const total = Number(data?.total || 0);
-
-  if (loading) {
-    return (
-      <section className="rounded-[28px] border border-[#E7D8C6] bg-white p-5 shadow-[0_14px_40px_rgba(60,43,25,0.06)]">
-        <div className="flex items-center gap-3 text-sm font-black text-[#8A7867]">
-          <Loader2 className="animate-spin" size={18} />
-          בודק סבבי שיחות קרובים...
-        </div>
-      </section>
-    );
-  }
-
-  if (!total || !nearestRound) return null;
-
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <section
-      className="
-        rounded-[32px]
-        border border-[#E6C079]
-        bg-gradient-to-br from-[#FFF9ED] via-white to-[#F7E7CB]
-        p-5 md:p-6
-        shadow-[0_18px_55px_rgba(158,103,33,0.12)]
-      "
-    >
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-start gap-4">
-          <div
-            className="
-              flex h-14 w-14 shrink-0 items-center justify-center
-              rounded-[22px]
-              bg-[#FFF2D8]
-              text-[#B97821]
-              shadow-sm
-            "
-          >
-            <AlertTriangle size={26} />
-          </div>
-
-          <div>
-            <div className="text-xs font-black uppercase tracking-wide text-[#B97821]">
-              התראת תפעול
-            </div>
-
-            <h2 className="mt-1 text-2xl font-black text-[#3A2A1C]">
-              יש {total} סבבי שיחות קרובים
-            </h2>
-
-            <p className="mt-2 text-sm font-bold leading-6 text-[#7B6754]">
-              הקרוב ביותר: {nearestRound.clientName || "לקוח ללא שם"} ·{" "}
-              {nearestRound.eventName || "אירוע ללא שם"} · סבב שיחות{" "}
-              {nearestRound.roundNumber} ·{" "}
-              {getRelativeDayLabel(nearestRound.scheduledAt)} בשעה{" "}
-              {getHourLabel(nearestRound.scheduledAt)}
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-    היום: {data?.today || 0}
-  </span>
-
-  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-    מחר: {data?.tomorrow || 0}
-  </span>
-
-  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-    השבוע: {data?.week || 0}
-  </span>
-
-  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-    החודש: {data?.month || 0}
-  </span>
-</div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpen}
-          className="
-            flex h-12 items-center justify-center gap-2
-            rounded-2xl
-            bg-[#3A2A1C]
-            px-6
-            text-sm font-black
-            text-white
-            transition
-            hover:bg-[#24190F]
-          "
-        >
-          פתח לוח שיחות
-          <PhoneCall size={18} />
-        </button>
-      </div>
-    </section>
+    <div className="rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-gray-50 px-3 py-2.5">
+      <p className="text-[11px] font-bold text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-1 text-base font-bold text-[var(--admin-text)]">{value}</p>
+    </div>
   );
 }
 
-/* =====================================================
-   UPCOMING CALL ROUNDS MODAL
-===================================================== */
+function SelectBox({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  options: Array<{ value: number; label: string }>;
+}) {
+  return (
+    <label className="block">
+      <span className="admin-label">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="admin-select h-9"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ModalShell({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-3"
+      onClick={onClose}
+    >
+      <div
+        dir="rtl"
+        className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--admin-border)] px-4 py-3">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--admin-text)]">
+              {title}
+            </h3>
+            {subtitle ? (
+              <p className="mt-0.5 text-xs text-[var(--admin-muted)]">
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-muted)] hover:bg-gray-50"
+            aria-label="סגירה"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-[calc(90vh-64px)] overflow-y-auto p-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UpcomingCallRoundsModal({
   loading,
   rounds,
@@ -1457,7 +912,6 @@ function UpcomingCallRoundsModal({
       week: [],
       month: [],
     };
-
     const todayStart = getDateOnly(new Date());
     const tomorrowStart = addDays(todayStart, 1);
     const afterTomorrowStart = addDays(todayStart, 2);
@@ -1466,517 +920,84 @@ function UpcomingCallRoundsModal({
 
     rounds.forEach((round) => {
       const scheduledAt = new Date(round.scheduledAt);
-
       if (Number.isNaN(scheduledAt.getTime())) return;
-
-      if (isSameDate(scheduledAt, todayStart)) {
-        groups.today.push(round);
-      } else if (
-        scheduledAt >= tomorrowStart &&
-        scheduledAt < afterTomorrowStart
-      ) {
+      if (isSameDate(scheduledAt, todayStart)) groups.today.push(round);
+      else if (scheduledAt >= tomorrowStart && scheduledAt < afterTomorrowStart)
         groups.tomorrow.push(round);
-      } else if (
-        scheduledAt >= afterTomorrowStart &&
-        scheduledAt < nextWeekStart
-      ) {
+      else if (scheduledAt >= afterTomorrowStart && scheduledAt < nextWeekStart)
         groups.week.push(round);
-      } else if (
-        scheduledAt >= nextWeekStart &&
-        scheduledAt < nextMonthStart
-      ) {
+      else if (scheduledAt >= nextWeekStart && scheduledAt < nextMonthStart)
         groups.month.push(round);
-      }
     });
-
     return groups;
   }, [rounds]);
 
+  const sections = [
+    { key: "today", label: "היום", items: groupedRounds.today },
+    { key: "tomorrow", label: "מחר", items: groupedRounds.tomorrow },
+    { key: "week", label: "השבוע", items: groupedRounds.week },
+    { key: "month", label: "החודש", items: groupedRounds.month },
+  ];
+
   return (
-    <div
-      className="
-        fixed inset-0 z-50
-        flex items-center justify-center
-        bg-black/35
-        px-4
-        backdrop-blur-sm
-      "
-      onClick={onClose}
+    <ModalShell
+      title="לו״ז סבבי שיחות"
+      subtitle={`סה״כ ${data?.total || 0} · היום ${data?.today || 0} · מחר ${
+        data?.tomorrow || 0
+      }`}
+      onClose={onClose}
     >
-      <div
-        dir="rtl"
-        className="
-          w-full max-w-5xl
-          overflow-hidden
-          rounded-[32px]
-          border border-[#E7D8C6]
-          bg-white
-          shadow-[0_28px_90px_rgba(0,0,0,0.22)]
-        "
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="
-            border-b border-[#EFE2D1]
-            bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
-            p-5 md:p-6
-          "
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div
-                className="
-                  mb-3 inline-flex items-center gap-2
-                  rounded-full
-                  bg-[#FFF2D8]
-                  px-4 py-2
-                  text-xs font-black
-                  text-[#9A6A24]
-                "
-              >
-                <PhoneCall size={15} />
-                לו״ז שיחות מכל המשתמשים
-              </div>
-
-              <h3 className="text-2xl font-black text-[#3A2A1C]">
-                סבבי שיחות לביצוע
-              </h3>
-
-              <p className="mt-1 text-sm text-[#8A7867]">
-                היום: {data?.today || 0} · מחר: {data?.tomorrow || 0} · השבוע: {data?.week || 0} · החודש: {data?.month || 0}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="
-                flex h-11 w-11 shrink-0 items-center justify-center
-                rounded-full
-                bg-white
-                text-[#6B5138]
-                shadow-sm
-                transition
-                hover:bg-[#F1E5D6]
-              "
-              aria-label="סגירה"
-            >
-              <X size={20} />
-            </button>
-          </div>
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--admin-muted)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          טוען סבבים…
         </div>
-
-        <div className="max-h-[620px] overflow-y-auto p-5 md:p-6">
-          {loading ? (
-            <div className="flex items-center justify-center gap-3 py-12 text-[#7B6754]">
-              <Loader2 className="animate-spin" size={22} />
-              <span className="font-bold">טוען לו״ז שיחות...</span>
-            </div>
-          ) : !rounds.length ? (
-            <EmptyBox text="אין סבבי שיחות קרובים לביצוע." />
-          ) : (
-            <div className="space-y-6">
-              <CallRoundsGroup
-                title="היום"
-                rounds={groupedRounds.today}
-              />
-
-              <CallRoundsGroup
-                title="מחר"
-                rounds={groupedRounds.tomorrow}
-              />
-
-              <CallRoundsGroup
-                title="השבוע"
-                rounds={groupedRounds.week}
-              />
-
-              <CallRoundsGroup
-                title="החודש"
-                rounds={groupedRounds.month}
-              />
-            </div>
+      ) : !rounds.length ? (
+        <AdminEmptyState text="אין סבבי שיחות קרובים." />
+      ) : (
+        <div className="space-y-4">
+          {sections.map((section) =>
+            section.items.length ? (
+              <div key={section.key}>
+                <div className="mb-2 flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-[var(--admin-muted)]">
+                    {section.label}
+                  </h4>
+                  <AdminBadge tone="neutral">{section.items.length}</AdminBadge>
+                </div>
+                <AdminTableShell
+                  headers={[
+                    "לקוח",
+                    "אירוע",
+                    "סבב",
+                    "מועד",
+                    "ממתינים",
+                    "בוצעו",
+                  ]}
+                >
+                  {section.items.map((round) => (
+                    <tr key={round.id}>
+                      <td>
+                        <p className="font-bold">
+                          {round.clientName || "ללא שם"}
+                        </p>
+                        <p className="text-[11px] text-[var(--admin-muted)]">
+                          {round.clientEmail}
+                        </p>
+                      </td>
+                      <td>{round.eventName || "—"}</td>
+                      <td>{round.roundNumber}</td>
+                      <td>{formatDateTime(round.scheduledAt)}</td>
+                      <td>{round.guestsWaiting}</td>
+                      <td>{round.guestsDone}</td>
+                    </tr>
+                  ))}
+                </AdminTableShell>
+              </div>
+            ) : null
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function CallRoundsGroup({
-  title,
-  rounds,
-}: {
-  title: string;
-  rounds: UpcomingCallRound[];
-}) {
-  if (!rounds.length) return null;
-
-  return (
-    <section>
-      <h4 className="mb-3 text-lg font-black text-[#3A2A1C]">{title}</h4>
-
-      <div className="space-y-3">
-        {rounds.map((round) => (
-          <div
-            key={round.id}
-            className="
-              rounded-[24px]
-              border border-[#EFE2D1]
-              bg-[#FFFDF8]
-              p-4
-              transition
-              hover:bg-white
-              hover:shadow-sm
-            "
-          >
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-2 text-base font-black text-[#3A2A1C]">
-                    <PhoneCall size={18} className="text-[#B97821]" />
-                    סבב שיחות {round.roundNumber}
-                  </span>
-
-                  <span className="rounded-full bg-[#FFF2D8] px-3 py-1 text-xs font-black text-[#9A6A24]">
-                    {getRelativeDayLabel(round.scheduledAt)} ·{" "}
-                    {getHourLabel(round.scheduledAt)}
-                  </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#EFE2D1]">
-                    <div className="text-xs font-black text-[#8A7867]">
-                      לקוח
-                    </div>
-                    <div className="mt-1 truncate font-black text-[#3A2A1C]">
-                      {round.clientName || "לא הוגדר שם"}
-                    </div>
-                    <div className="mt-1 truncate text-xs font-bold text-[#8A7867]">
-                      {round.clientEmail || "ללא אימייל"}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#EFE2D1]">
-                    <div className="text-xs font-black text-[#8A7867]">
-                      אירוע
-                    </div>
-                    <div className="mt-1 truncate font-black text-[#3A2A1C]">
-                      {round.eventName || "אירוע ללא שם"}
-                    </div>
-                    <div className="mt-1 text-xs font-bold text-[#8A7867]">
-                      תאריך אירוע: {formatDate(round.eventDate)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 xl:min-w-[270px]">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center ring-1 ring-[#EFE2D1]">
-                    <div className="text-xs font-black text-[#8A7867]">
-                      ממתינים
-                    </div>
-                    <div className="mt-1 text-2xl font-black text-[#B97821]">
-                      {round.guestsWaiting}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-white px-4 py-3 text-center ring-1 ring-[#EFE2D1]">
-                    <div className="text-xs font-black text-[#8A7867]">
-                      בוצעו
-                    </div>
-                    <div className="mt-1 text-2xl font-black text-[#1F9A55]">
-                      {round.guestsDone}
-                    </div>
-                  </div>
-                </div>
-
-                
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-
-/* =====================================================
-   MINI METRIC
-===================================================== */
-function MiniMetric({
-  title,
-  value,
-  icon,
-  clickable = false,
-  onClick,
-}: {
-  title: string;
-  value: string;
-  icon: ReactNode;
-  clickable?: boolean;
-  onClick?: () => void;
-}) {
-  if (clickable) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="
-          rounded-2xl
-          border border-[#EFE2D1]
-          bg-[#FFF9EF]
-          p-4
-          text-right
-          transition
-          hover:bg-[#F7EBD9]
-          hover:shadow-sm
-        "
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="text-xs font-black text-[#8A7867]">{title}</div>
-          <div className="text-[#9A6A24]">{icon}</div>
-        </div>
-
-        <div className="text-2xl font-black text-[#3A2A1C]">{value}</div>
-      </button>
-    );
-  }
-
-  return (
-    <div
-      className="
-        rounded-2xl
-        border border-[#EFE2D1]
-        bg-[#FFF9EF]
-        p-4
-        text-right
-      "
-    >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-xs font-black text-[#8A7867]">{title}</div>
-        <div className="text-[#9A6A24]">{icon}</div>
-      </div>
-
-      <div className="text-2xl font-black text-[#3A2A1C]">{value}</div>
-    </div>
-  );
-}
-
-/* =====================================================
-   SELECT BOX
-===================================================== */
-function SelectBox({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: string) => void;
-  options: { value: number; label: string }[];
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-black text-[#8A7867]">
-        {label}
-      </span>
-
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="
-          h-11 w-full
-          rounded-2xl
-          border border-[#E7D8C6]
-          bg-white
-          px-3
-          text-sm font-black
-          text-[#3A2A1C]
-          outline-none
-          transition
-          focus:border-[#C8944E]
-        "
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-/* =====================================================
-   ADMIN BOX
-===================================================== */
-function AdminBox({
-  title,
-  subtitle,
-  value,
-  icon,
-  tone,
-  highlight = false,
-  clickable = false,
-  onClick,
-}: {
-  title: string;
-  subtitle: string;
-  value: string;
-  icon: ReactNode;
-  tone: "green" | "blue" | "orange" | "gold";
-  highlight?: boolean;
-  clickable?: boolean;
-  onClick?: () => void;
-}) {
-  const styles = {
-    green: {
-      box: "from-[#EAF8EF] to-white border-[#CFEED9]",
-      icon: "bg-[#E8F8EE] text-[#1F9A55]",
-      value: "text-[#1F9A55]",
-    },
-    blue: {
-      box: "from-[#EEF5FF] to-white border-[#D7E6FF]",
-      icon: "bg-[#EEF5FF] text-[#2E6FEA]",
-      value: "text-[#2E6FEA]",
-    },
-    orange: {
-      box: "from-[#FFF3E8] to-white border-[#F3DDC4]",
-      icon: "bg-[#FFF1E5] text-[#E77721]",
-      value: "text-[#E77721]",
-    },
-    gold: {
-      box: "from-[#FFF7E8] to-white border-[#E8C98D]",
-      icon: "bg-[#FFF2D8] text-[#B97821]",
-      value: "text-[#B97821]",
-    },
-  }[tone];
-
-  const className = `
-    relative overflow-hidden
-    rounded-[28px]
-    border
-    bg-gradient-to-br
-    p-5
-    text-right
-    shadow-[0_16px_45px_rgba(60,43,25,0.07)]
-    transition
-    hover:-translate-y-1
-    hover:shadow-[0_22px_60px_rgba(60,43,25,0.12)]
-    ${clickable ? "cursor-pointer" : ""}
-    ${styles.box}
-    ${highlight ? "ring-1 ring-[#E2B96E]" : ""}
-  `;
-
-  const content = (
-    <>
-      <div
-        className="
-          pointer-events-none absolute -left-10 -top-10
-          h-28 w-28 rounded-full bg-white/60 blur-2xl
-        "
-      />
-
-      <div className="relative z-10">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
-
-            <div className="mt-1 text-xs leading-5 text-[#8A7867]">
-              {subtitle}
-            </div>
-          </div>
-
-          <div
-            className={`
-              flex h-12 w-12 shrink-0 items-center justify-center
-              rounded-2xl
-              ${styles.icon}
-            `}
-          >
-            {icon}
-          </div>
-        </div>
-
-        <div className={`text-3xl font-black md:text-4xl ${styles.value}`}>
-          {value}
-        </div>
-      </div>
-    </>
-  );
-
-  if (clickable) {
-    return (
-      <button type="button" onClick={onClick} className={className}>
-        {content}
-      </button>
-    );
-  }
-
-  return <div className={className}>{content}</div>;
-}
-
-
-/* =====================================================
-   RANGE BOX
-===================================================== */
-function RangeBox({
-  title,
-  value,
-  icon,
-  highlight = false,
-}: {
-  title: string;
-  value: string;
-  icon: ReactNode;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`
-        rounded-[24px]
-        border
-        p-5
-        shadow-[0_12px_35px_rgba(60,43,25,0.05)]
-        ${
-          highlight
-            ? "border-[#E8C98D] bg-[#FFF7E8]"
-            : "border-[#EFE2D1] bg-[#FFFDF8]"
-        }
-      `}
-    >
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
-
-        <div className="text-[#B97821]">{icon}</div>
-      </div>
-
-      <div className="text-2xl font-black text-[#B97821]">{value}</div>
-    </div>
-  );
-}
-
-/* =====================================================
-   EMPTY BOX
-===================================================== */
-function EmptyBox({ text }: { text: string }) {
-  return (
-    <div
-      className="
-        rounded-2xl
-        border border-[#EFE2D1]
-        bg-[#FFF9EF]
-        p-6
-        text-center
-        text-sm font-bold
-        text-[#7B6754]
-      "
-    >
-      {text}
-    </div>
+      )}
+    </ModalShell>
   );
 }

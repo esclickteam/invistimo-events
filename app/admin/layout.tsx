@@ -1,434 +1,578 @@
 "use client";
 
-// 🔒 קריטי לספארי iOS – מונע snapshot / BFCache
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
+import {
+  BarChart3,
+  Bell,
+  Briefcase,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  FileText,
+  Headphones,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  PanelRightClose,
+  PanelRightOpen,
+  PhoneCall,
+  Search,
+  Sparkles,
+  Users,
+  UserRound,
+  X,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import "./admin-theme.css";
 
-/* =====================================================
-   ADMIN LAYOUT
-===================================================== */
+type NavItem = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+};
+
+type NavGroup = {
+  id: string;
+  label: string;
+  items: NavItem[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "overview",
+    label: "סקירה",
+    items: [
+      {
+        href: "/admin",
+        label: "סקירת מערכת",
+        icon: <LayoutDashboard className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    id: "customers",
+    label: "לקוחות ומשתמשים",
+    items: [
+      {
+        href: "/admin/customers",
+        label: "לקוחות",
+        icon: <Briefcase className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/users",
+        label: "משתמשים",
+        icon: <Users className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/wedding-challenges",
+        label: "Wedding Challenges",
+        icon: <Sparkles className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    id: "sales",
+    label: "מכירות והצעות",
+    items: [
+      {
+        href: "/admin/sales/quotes",
+        label: "הצעות מחיר",
+        icon: <FileText className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/sales/new",
+        label: "יצירת מכירה",
+        icon: <FileText className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    id: "events",
+    label: "אירועים",
+    items: [
+      {
+        href: "/admin/invitations",
+        label: "ניהול אירועים",
+        icon: <CalendarDays className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/calls",
+        label: "שירות שיחות",
+        icon: <PhoneCall className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    id: "ops",
+    label: "תפעול",
+    items: [
+      {
+        href: "/admin/call-recordings",
+        label: "הקלטות שיחות",
+        icon: <Headphones className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/recorded-calls",
+        label: "שיחות מוקלטות",
+        icon: <PhoneCall className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/reminder-sms",
+        label: "הודעת תזכורת",
+        icon: <MessageSquareText className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    id: "staff",
+    label: "עובדים",
+    items: [
+      {
+        href: "/admin/employees",
+        label: "עובדים",
+        icon: <UserRound className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/shift-management",
+        label: "ניהול משמרת",
+        icon: <BarChart3 className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/employees/shifts",
+        label: "שיבוץ משמרות",
+        icon: <CalendarDays className="h-4 w-4" />,
+      },
+    ],
+  },
+];
+
+const PAGE_META: Array<{
+  match: (path: string) => boolean;
+  title: string;
+  description?: string;
+}> = [
+  {
+    match: (p) => p === "/admin",
+    title: "סקירת מערכת",
+    description: "נתוני פעילות וסקירה עסקית",
+  },
+  {
+    match: (p) => p.startsWith("/admin/customers/"),
+    title: "תיק לקוח",
+    description: "פרטים, הצעות, הסכמים ותשלומים",
+  },
+  {
+    match: (p) => p.startsWith("/admin/customers"),
+    title: "לקוחות",
+    description: "תיקי לקוח, הסכמים והצעות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/sales/quotes/") && p.includes("/edit"),
+    title: "עריכת הצעה",
+  },
+  {
+    match: (p) => p.startsWith("/admin/sales/quotes"),
+    title: "הצעות מחיר",
+    description: "עריכה ופתיחת משתמש מההצעה",
+  },
+  {
+    match: (p) => p.startsWith("/admin/sales/new"),
+    title: "יצירת מכירה",
+  },
+  {
+    match: (p) => p.startsWith("/admin/users"),
+    title: "משתמשים",
+    description: "ניהול חשבונות, הרשאות וניהול כאדמין",
+  },
+  {
+    match: (p) => p.startsWith("/admin/wedding-challenges"),
+    title: "Wedding Challenges",
+  },
+  {
+    match: (p) => p.startsWith("/admin/employees/shifts"),
+    title: "שיבוץ משמרות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/employees/agreement-template"),
+    title: "תבנית הסכם עובדים",
+  },
+  {
+    match: (p) => p.startsWith("/admin/employees/"),
+    title: "תיק עובד",
+  },
+  {
+    match: (p) => p.startsWith("/admin/employees"),
+    title: "עובדים",
+  },
+  {
+    match: (p) => p.startsWith("/admin/shift-management"),
+    title: "ניהול משמרת",
+  },
+  {
+    match: (p) => p.startsWith("/admin/call-recordings"),
+    title: "הקלטות שיחות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/recorded-calls"),
+    title: "שיחות מוקלטות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/reminder-sms"),
+    title: "הודעת תזכורת",
+  },
+  {
+    match: (p) => p.startsWith("/admin/invitations"),
+    title: "ניהול אירועים",
+  },
+  {
+    match: (p) => p.startsWith("/admin/calls"),
+    title: "שירות שיחות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/forms"),
+    title: "טפסים",
+  },
+];
+
+function resolvePageMeta(pathname: string) {
+  for (const item of PAGE_META) {
+    if (item.match(pathname)) return item;
+  }
+  return { title: "ניהול מערכת", description: undefined as string | undefined };
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NAV_GROUPS.map((g) => [g.id, true]))
+  );
 
-  // ✅ שמתי any כדי שלא יישבר אם ה־AuthContext שלך לא מוגדר עם user בטייפים
   const auth = useAuth() as any;
   const { logout } = auth;
-
   const user = auth?.user || auth?.currentUser || null;
   const authLoading = Boolean(auth?.loading);
-
-  // Keep SSR/client first paint identical — never flash cached user name before mount
   const adminName =
     authLoading || !user
       ? "Admin"
       : user?.name || user?.fullName || user?.email || "Admin";
 
-  const pathname = usePathname();
-
-  const nav = [
-    {
-      href: "/admin",
-      label: "סקירה",
-      icon: "overview",
-      description: "תמונת מצב כללית",
-    },
-    {
-      href: "/admin/customers",
-      label: "לקוחות",
-      icon: "customers",
-      description: "תיקי לקוח, הסכמים והצעות",
-    },
-    {
-      href: "/admin/sales/quotes",
-      label: "הצעות מחיר",
-      icon: "customers",
-      description: "עריכה ופתיחת משתמש מההצעה",
-    },
-    {
-      href: "/admin/users",
-      label: "משתמשים",
-      icon: "users",
-      description: "ניהול חשבונות והרשאות",
-    },
-    {
-      href: "/admin/wedding-challenges",
-      label: "Wedding Challenges",
-      icon: "users",
-      description: "מכירה עצמאית בלי פרטי אירוע",
-    },
-    {
-      href: "/admin/employees",
-      label: "עובדים",
-      icon: "employees",
-      description: "תיק עובד, מסמכים ושעות",
-    },
-    {
-      href: "/admin/shift-management",
-      label: "ניהול משמרת",
-      icon: "shiftManagement",
-      description: "מעקב עובדים וסופטפון",
-    },
-    {
-      href: "/admin/employees/shifts",
-      label: "שיבוץ משמרות",
-      icon: "calendar",
-      description: "שעות, מיקום ובית/אולם",
-    },
-    {
-      href: "/admin/call-recordings",
-      label: "הקלטות שיחות",
-      icon: "recordings",
-      description: "האזנה וניהול הקלטות",
-    },
-    {
-      href: "/admin/recorded-calls",
-      label: "שיחות מוקלטות",
-      icon: "recordings",
-      description: "הגדרות קריינות · Voice Packs",
-    },
-    {
-      href: "/admin/reminder-sms",
-      label: "הודעת תזכורת",
-      icon: "reminder",
-      description: "עריכת גוף הודעת התזכורת",
-    },
-  ];
-
-  /* --------------------------------------------------
-     LOGOUT
-  -------------------------------------------------- */
-  const handleLogout = async () => {
-    await logout();
-    setOpen(false);
-  };
-
-  const isActivePath = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+  const pathname = usePathname() || "/admin";
+  const pageMeta = useMemo(() => resolvePageMeta(pathname), [pathname]);
 
   useEffect(() => {
-    if (!open) return;
+    setMobileOpen(false);
+    setProfileOpen(false);
+  }, [pathname]);
 
-    const previousOverflow = document.body.style.overflow;
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previous;
     };
-  }, [open]);
+  }, [mobileOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    setMobileOpen(false);
+  };
+
+  const sidebarWidth = collapsed
+    ? "var(--admin-sidebar-collapsed)"
+    : "var(--admin-sidebar-w)";
 
   return (
-    <div
-      className="flex min-h-screen overflow-x-hidden bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
-      dir="rtl"
-    >
-      {/* ================= Mobile Header ================= */}
-      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur sm:px-4 md:hidden">
+    <div className="admin-app flex min-h-screen overflow-x-hidden" dir="rtl">
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap"
+      />
+
+      {/* Mobile top bar */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--admin-border)] bg-white px-3 md:hidden">
         <button
-          onClick={() => setOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-xl font-black text-slate-700"
-          aria-label="Open menu"
           type="button"
+          onClick={() => setMobileOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-text)]"
+          aria-label="פתיחת תפריט"
         >
-          ☰
+          <Menu className="h-4 w-4" />
         </button>
-
-        <div className="text-center">
-          <p className="text-sm font-black text-slate-900">Admin Panel</p>
-          <p className="text-[11px] font-bold text-slate-400">Invistimo</p>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/invistimo-logo.png"
+            alt="Invistimo"
+            width={24}
+            height={24}
+            className="h-6 w-6 object-contain"
+          />
+          <span className="text-sm font-bold">Invistimo Admin</span>
         </div>
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-sm font-black text-indigo-700">
-          ⚡
-        </div>
+        <div className="h-9 w-9" />
       </header>
 
-      {/* ================= Overlay Mobile ================= */}
-      {open && (
+      {mobileOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm md:hidden"
-          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          onClick={() => setMobileOpen(false)}
         />
-      )}
+      ) : null}
 
-      {/* ================= Sidebar ================= */}
+      {/* Sidebar */}
       <aside
         className={`
-          fixed inset-y-0 right-0 z-50 flex h-[100dvh] w-[min(292px,100vw)] flex-col
-          border-l border-white/70 bg-white/95 p-4 shadow-[-18px_0_60px_rgba(79,70,229,0.12)]
-          backdrop-blur-xl transition-transform duration-300
-          md:static md:z-auto md:h-screen md:w-[292px] md:max-w-none md:shrink-0 md:translate-x-0
-          ${open ? "translate-x-0" : "translate-x-full md:translate-x-0"}
+          fixed inset-y-0 right-0 z-50 flex h-[100dvh] flex-col border-l border-[var(--admin-border)] bg-white transition-all duration-200
+          md:static md:z-auto md:h-screen md:translate-x-0
+          ${mobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
         `}
+        style={{ width: mobileOpen ? 232 : undefined, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
       >
-        {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-13 w-13 items-center justify-center rounded-[22px] bg-gradient-to-br from-indigo-500 to-violet-500 p-3 text-lg font-black text-white shadow-lg shadow-indigo-200">
-              🛡️
-            </div>
-
-            <div>
-              <h2 className="text-xl font-black tracking-tight text-slate-950">
-                Admin Panel
-              </h2>
-              <p className="mt-0.5 text-xs font-bold text-slate-400">
-                Invistimo Management
-              </p>
-            </div>
-          </div>
+        <div
+          className={`flex h-[var(--admin-header-h)] items-center border-b border-[var(--admin-border)] px-3 ${
+            collapsed ? "justify-center" : "justify-between"
+          }`}
+        >
+          <Link href="/admin" className="flex min-w-0 items-center gap-2">
+            <Image
+              src="/invistimo-logo.png"
+              alt="Invistimo"
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0 object-contain"
+            />
+            {!collapsed ? (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-[var(--admin-text)]">
+                  Invistimo
+                </p>
+                <p className="truncate text-[10px] font-semibold text-[var(--admin-subtle)]">
+                  מערכת ניהול
+                </p>
+              </div>
+            ) : null}
+          </Link>
 
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-lg font-black text-slate-600 md:hidden"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
             type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--admin-muted)] hover:bg-gray-100 md:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-label="סגירת תפריט"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Admin Card */}
-        <div className="mb-6 rounded-[26px] border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-indigo-700 shadow-sm ring-1 ring-indigo-100">
-              {String(adminName).slice(0, 2)}
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-slate-900">
-                {adminName}
-              </p>
-              <p className="mt-1 text-xs font-bold text-indigo-500">
-                מנהל מערכת
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-1">
-          {nav.map((item) => {
-            const isActive = isActivePath(item.href);
-
+        <nav className="admin-sidebar-scroll flex-1 space-y-3 overflow-y-auto px-2 py-3">
+          {NAV_GROUPS.map((group) => {
+            const groupOpen = openGroups[group.id] !== false;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`
-                  group flex items-center gap-3 rounded-[22px] px-4 py-3 transition
-                  ${
-                    isActive
-                      ? "bg-gradient-to-l from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-100"
-                      : "border border-transparent text-slate-600 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700"
-                  }
-                `}
-              >
-                <span
-                  className={`
-                    flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-base transition
-                    ${
-                      isActive
-                        ? "bg-white/18 text-white"
-                        : "bg-slate-50 text-slate-500 group-hover:bg-white group-hover:text-indigo-600"
+              <div key={group.id}>
+                {!collapsed ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenGroups((prev) => ({
+                        ...prev,
+                        [group.id]: !groupOpen,
+                      }))
                     }
-                  `}
-                >
-                  <NavIcon name={item.icon} />
-                </span>
-
-                <span className="min-w-0">
-                  <span
-                    className={`
-                      block text-sm font-black
-                      ${isActive ? "text-white" : "text-slate-800"}
-                    `}
+                    className="mb-1 flex w-full items-center justify-between px-2 text-[10px] font-bold uppercase tracking-wide text-[var(--admin-subtle)]"
                   >
-                    {item.label}
-                  </span>
+                    <span>{group.label}</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition ${
+                        groupOpen ? "" : "-rotate-90"
+                      }`}
+                    />
+                  </button>
+                ) : null}
 
-                  <span
-                    className={`
-                      mt-0.5 block truncate text-[11px] font-bold
-                      ${isActive ? "text-white/75" : "text-slate-400"}
-                    `}
-                  >
-                    {item.description}
-                  </span>
-                </span>
-              </Link>
+                {(collapsed || groupOpen) && (
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const active = isActivePath(pathname, item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          title={item.label}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex h-10 items-center gap-2.5 rounded-[var(--admin-radius-sm)] px-2.5 text-[13px] font-semibold transition ${
+                            active
+                              ? "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
+                              : "text-[var(--admin-muted)] hover:bg-gray-50 hover:text-[var(--admin-text)]"
+                          } ${collapsed ? "justify-center px-0" : ""}`}
+                        >
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                              active
+                                ? "bg-white text-[var(--admin-brand)]"
+                                : "text-[var(--admin-subtle)]"
+                            }`}
+                          >
+                            {item.icon}
+                          </span>
+                          {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
 
-        {/* Bottom */}
-        <div className="mt-6 space-y-3 border-t border-slate-100 pt-5">
-          <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs font-black text-slate-500">מערכת</p>
-            <p className="mt-1 text-sm font-black text-slate-900">
-              Invistimo Admin
-            </p>
-            <p className="mt-1 text-xs font-bold text-slate-400">
-              ניהול לקוחות, עובדים ודוחות
-            </p>
+        <div className="border-t border-[var(--admin-border)] p-2">
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            className="mb-2 hidden h-9 w-full items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] text-xs font-bold text-[var(--admin-muted)] hover:bg-gray-50 md:flex"
+            title={collapsed ? "הרחבת תפריט" : "צמצום תפריט"}
+          >
+            {collapsed ? (
+              <PanelRightOpen className="h-4 w-4" />
+            ) : (
+              <>
+                <PanelRightClose className="h-4 w-4" />
+                צמצום תפריט
+              </>
+            )}
+          </button>
+
+          <div
+            className={`mb-2 flex items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-gray-50 px-2 py-2 ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--admin-brand-soft)] text-xs font-bold text-[var(--admin-brand)]">
+              {String(adminName).slice(0, 2)}
+            </div>
+            {!collapsed ? (
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-[var(--admin-text)]">
+                  {adminName}
+                </p>
+                <p className="truncate text-[10px] font-semibold text-[var(--admin-subtle)]">
+                  מנהל מערכת
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <button
-            onClick={handleLogout}
             type="button"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 px-4 text-sm font-black text-rose-600 transition hover:bg-rose-100"
+            onClick={handleLogout}
+            className={`flex h-9 w-full items-center gap-2 rounded-[var(--admin-radius-sm)] border border-red-100 bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 ${
+              collapsed ? "justify-center px-0" : "px-3"
+            }`}
           >
-            <span>התנתקות</span>
-            <span>↩</span>
+            <LogOut className="h-3.5 w-3.5" />
+            {!collapsed ? "התנתקות" : null}
           </button>
         </div>
       </aside>
 
-      {/* ================= Content ================= */}
-      <main className="min-w-0 flex-1 overflow-x-hidden p-3 pt-[4.25rem] sm:p-4 md:p-6 md:pt-6">
-        <div className="mx-auto w-full min-w-0 max-w-[1700px]">{children}</div>
-      </main>
+      {/* Main column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 hidden h-[var(--admin-header-h)] items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/95 px-5 backdrop-blur md:flex">
+          <div className="min-w-0">
+            <h1 className="truncate text-[15px] font-bold text-[var(--admin-text)]">
+              {pageMeta.title}
+            </h1>
+            {pageMeta.description ? (
+              <p className="truncate text-[11px] font-medium text-[var(--admin-muted)]">
+                {pageMeta.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative hidden lg:block">
+              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--admin-subtle)]" />
+              <input
+                type="search"
+                placeholder="חיפוש מהיר…"
+                className="admin-input h-9 w-56 pr-8 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const q = (e.target as HTMLInputElement).value.trim();
+                  if (!q) return;
+                  window.location.href = `/admin/users?q=${encodeURIComponent(q)}`;
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-muted)] hover:bg-gray-50"
+              title="התראות"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((v) => !v)}
+                className="flex h-9 items-center gap-2 rounded-md border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--admin-brand-soft)] text-[10px] text-[var(--admin-brand)]">
+                  {String(adminName).slice(0, 2)}
+                </span>
+                <span className="max-w-[120px] truncate">{adminName}</span>
+                <ChevronLeft
+                  className={`h-3.5 w-3.5 text-[var(--admin-subtle)] transition ${
+                    profileOpen ? "-rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {profileOpen ? (
+                <div className="absolute left-0 top-[calc(100%+6px)] z-40 w-44 overflow-hidden rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white shadow-md">
+                  <Link
+                    href="/admin/users"
+                    className="block px-3 py-2.5 text-xs font-semibold text-[var(--admin-text)] hover:bg-gray-50"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    ניהול משתמשים
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    התנתקות
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </header>
+
+        <main className="min-w-0 flex-1 overflow-x-hidden px-3 pb-6 pt-[4.25rem] sm:px-4 md:px-5 md:pt-5">
+          <div className="mx-auto w-full min-w-0 max-w-[1480px]">{children}</div>
+        </main>
+      </div>
     </div>
-  );
-}
-
-/* =====================================================
-   ICONS
-===================================================== */
-function NavIcon({ name }: { name: string }) {
-  const common = {
-    className: "h-5 w-5",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
-  if (name === "overview") {
-    return (
-      <svg {...common}>
-        <path d="M3 13h8V3H3z" />
-        <path d="M13 21h8v-8h-8z" />
-        <path d="M13 3h8v6h-8z" />
-        <path d="M3 21h8v-4H3z" />
-      </svg>
-    );
-  }
-
-  if (name === "customers") {
-    return (
-      <svg {...common}>
-        <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z" />
-        <path d="M8 8h8" />
-        <path d="M8 12h8" />
-        <path d="M8 16h5" />
-        <path d="M6.5 8h.01" />
-        <path d="M6.5 12h.01" />
-        <path d="M6.5 16h.01" />
-      </svg>
-    );
-  }
-
-  if (name === "users") {
-    return (
-      <svg {...common}>
-        <path d="M17 21a5 5 0 0 0-10 0" />
-        <circle cx="12" cy="7" r="4" />
-        <path d="M22 21a4 4 0 0 0-3-3.87" />
-        <path d="M2 21a4 4 0 0 1 3-3.87" />
-      </svg>
-    );
-  }
-
-  if (name === "employees") {
-    return (
-      <svg {...common}>
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <circle cx="9" cy="10" r="2" />
-        <path d="M6.5 16a3 3 0 0 1 5 0" />
-        <path d="M14 9h4" />
-        <path d="M14 13h4" />
-        <path d="M14 17h3" />
-      </svg>
-    );
-  }
-
-  if (name === "shiftManagement") {
-    return (
-      <svg {...common}>
-        <path d="M4 12a8 8 0 0 1 16 0" />
-        <path d="M4 12v3a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2" />
-        <path d="M20 12v3a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2" />
-        <path d="M13 19h2a3 3 0 0 0 3-3" />
-        <path d="M8 21h8" />
-        <path d="M12 17v4" />
-      </svg>
-    );
-  }
-
-  if (name === "calendar") {
-    return (
-      <svg {...common}>
-        <path d="M8 2v4" />
-        <path d="M16 2v4" />
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <path d="M3 10h18" />
-        <path d="M8 14h.01" />
-        <path d="M12 14h.01" />
-        <path d="M16 14h.01" />
-        <path d="M8 18h.01" />
-        <path d="M12 18h.01" />
-      </svg>
-    );
-  }
-
-  if (name === "wedding") {
-    return (
-      <svg {...common}>
-        <path d="M12 3 9 8l3 2 3-2z" />
-        <path d="M8 10c-2 2-3 4-3 6a7 7 0 0 0 14 0c0-2-1-4-3-6" />
-        <path d="M12 10v10" />
-      </svg>
-    );
-  }
-
-  if (name === "recordings") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 3v3" />
-        <path d="M12 18v3" />
-        <path d="M3 12h3" />
-        <path d="M18 12h3" />
-      </svg>
-    );
-  }
-
-  if (name === "reminder") {
-    return (
-      <svg {...common}>
-        <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v4l3 2" />
-    </svg>
   );
 }

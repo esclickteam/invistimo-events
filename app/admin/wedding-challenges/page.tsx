@@ -188,16 +188,12 @@ export default function AdminWeddingChallengesSalesPage() {
   const labelClass = "mb-1 block text-sm font-black text-[#3b2419]";
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8" dir="rtl">
-      <h1 className="font-[family-name:var(--font-playfair)] text-3xl text-[#3b2419]">
-        מכירת Wedding Challenges
-      </h1>
-      <p className="mt-2 text-sm text-[#6b5344]">
-        יוצרים כאן משתמש אמיתי עם שם, טלפון ואימייל, קובעים מחיר, ושולחים לינק להגדרת סיסמה.
-        אחר כך אפשר להיכנס לניהול החשבון כמו הלקוח.
+    <main className="mx-auto max-w-5xl space-y-4" dir="rtl">
+      <p className="text-xs font-medium text-[var(--admin-muted)]">
+        יצירת משתמש, קביעת מחיר ושליחת לינק להגדרת סיסמה — ואז ניהול החשבון כאדמין
       </p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4 rounded-2xl border border-[#e8d5c4] bg-white p-5">
+      <form onSubmit={onSubmit} className="space-y-4 rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-4 shadow-[var(--admin-shadow)]">
         <h2 className="text-lg font-black text-[#3b2419]">יצירת משתמש ומכירה</h2>
         <fieldset className="rounded-2xl border border-[#eadfd4] bg-[#fffaf3] p-4">
           <legend className="px-1 text-sm font-black text-[#3b2419]">סוג מכירה</legend>

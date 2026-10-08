@@ -566,48 +566,35 @@ export default function AdminEmployeesPage() {
   }, [employees]);
 
   return (
-    <div dir="rtl" className="w-full min-w-0 space-y-6 text-slate-900">
-      <div className="mx-auto w-full min-w-0 max-w-[1550px] space-y-6">
-        <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-700">
-                <Icon name="sparkles" className="h-4 w-4" />
-                ניהול עובדים
-              </div>
+    <div dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
+      <div className="mx-auto w-full min-w-0 max-w-[1550px] space-y-4">
+        <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <p className="text-xs font-medium text-[var(--admin-muted)]">
+              רשימת עובדים מסונכרנת מתיק העובד — מייל, טלפון, ת״ז, העסקה ושכר
+            </p>
 
-              <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-900 md:text-5xl">
-                עובדים
-              </h1>
-
-              <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
-                כאן מוצגת רשימת עובדים בלבד. הנתונים מסתנכרנים מתיק העובד:
-                מייל, טלפון, כתובת, תעודת זהות, תחילת העסקה, סיום העסקה ושכר
-                שעתי.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 xl:items-end">
-              <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-2 xl:items-end">
+              <div className="flex flex-wrap gap-2">
                 <Link
                   href="/admin/forms/101/mapper"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-sky-500 to-cyan-500 px-5 text-sm font-black text-white shadow-lg shadow-sky-200 transition hover:scale-[1.01]"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold text-[var(--admin-text)]"
                 >
-                  <Icon name="template" className="h-4 w-4" />
-                  יצירת תבנית טופס 101
+                  <Icon name="template" className="h-3.5 w-3.5" />
+                  תבנית טופס 101
                 </Link>
 
                 <div ref={templateMenuRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setTemplateMenuOpen((open) => !open)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3 text-xs font-bold text-white"
                   >
-                    <Icon name="template" className="h-4 w-4" />
-                    יצירת תבנית הסכם לעובדים
+                    <Icon name="template" className="h-3.5 w-3.5" />
+                    תבנית הסכם לעובדים
                     <Icon
                       name="chevronDown"
-                      className={`h-4 w-4 transition ${templateMenuOpen ? "rotate-180" : ""}`}
+                      className={`h-3.5 w-3.5 transition ${templateMenuOpen ? "rotate-180" : ""}`}
                     />
                   </button>
 
