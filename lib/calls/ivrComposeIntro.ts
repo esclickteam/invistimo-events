@@ -13,7 +13,8 @@ import { tmpdir } from "os";
 import path from "path";
 import { spawn } from "child_process";
 
-export const IVR_COMPOSE_VERSION = "v1-trim-norm-xfade";
+/** Outbound only: introBeforeEventName + event name + introAfterEventName. */
+export const IVR_COMPOSE_VERSION = "v2-outbound-segments";
 
 /** Very short natural pause around the event name (seconds). */
 const NAME_PAUSE_SEC = 0.08;

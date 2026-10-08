@@ -14,12 +14,10 @@ import {
 } from "@/lib/calls/ivrApplyRsvp";
 import { getGuestMaxAttendingCount } from "@/lib/calls/ivrRoundEligibility";
 import {
-  ensureIvrInboundIntroAudio,
   getGlobalPackSegmentUrl,
   getIvrSystemAudioUrlForGender,
 } from "@/lib/calls/ivrSystemAudio";
 import {
-  buildIvrInboundIntroText,
   normalizeIvrVoiceGender,
   type IvrVoiceGender,
 } from "@/lib/calls/ivrScript";
@@ -27,7 +25,6 @@ import {
   answerIvrCall,
   decodeIvrClientState,
   gatherIvrUsingAudio,
-  gatherIvrUsingSpeak,
   hangupIvrCall,
   playbackIvrAudio,
 } from "@/lib/telnyx/ivrCallControl";
@@ -51,73 +48,39 @@ async function playInboundChoiceGather(input: {
   attempt: any;
   callControlId: string;
 }) {
-  const eventName = cleanStr(input.attempt.eventName) || "האירוע";
-  const introText = buildIvrInboundIntroText({ eventName });
   const gender = attemptVoiceGender(input.attempt);
   const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
+  const beforeUrl = await getGlobalPackSegmentUrl(
+    gender,
+    "inboundBeforeEventName"
+  );
 
-  // Prefer global inbound pack + per-event name (no full-intro re-TTS).
-  if (eventNameUrl) {
-    try {
-      const beforeUrl = await getGlobalPackSegmentUrl(
-        gender,
-        "inboundBeforeEventName"
-      );
-      if (beforeUrl) {
-        input.attempt.flowStep = "playing_intro_before";
-        await input.attempt.save();
-        await playbackIvrAudio(input.callControlId, beforeUrl, {
-          source: "invistimo-ivr",
-          inbound_ivr: true,
-          callAttemptId: String(input.attempt._id),
-          stage: "inbound_play_event_name",
-          voiceGender: gender,
-        });
-        return;
-      }
-    } catch (error) {
-      console.warn("INBOUND_IVR_PACK_FALLBACK", {
-        attemptId: String(input.attempt._id),
-        message: error instanceof Error ? error.message : "unknown",
-      });
-    }
-  }
-
-  try {
-    const audio = await ensureIvrInboundIntroAudio({ eventName });
-    const introUrl = cleanStr(audio?.audioUrl);
-    if (introUrl) {
-      await gatherIvrUsingAudio({
-        callControlId: input.callControlId,
-        audioUrl: introUrl,
-        minimumDigits: 1,
-        maximumDigits: 1,
-        validDigits: "123",
-        timeoutMillis: 12000,
-        clientState: {
-          source: "invistimo-ivr",
-          inbound_ivr: true,
-          channel: "inbound_ivr",
-          callAttemptId: String(input.attempt._id),
-          stage: "choice",
-        },
-      });
-      return;
-    }
-  } catch (error) {
-    console.warn("INBOUND_IVR_INTRO_AUDIO_FALLBACK_SPEAK", {
-      attemptId: String(input.attempt._id),
-      message: error instanceof Error ? error.message : "unknown",
+  if (beforeUrl) {
+    input.attempt.flowStep = "playing_intro_before";
+    await input.attempt.save();
+    await playbackIvrAudio(input.callControlId, beforeUrl, {
+      source: "invistimo-ivr",
+      inbound_ivr: true,
+      callAttemptId: String(input.attempt._id),
+      stage: eventNameUrl ? "inbound_play_event_name" : "inbound_play_after",
+      voiceGender: gender,
     });
+    return;
   }
 
-  await gatherIvrUsingSpeak({
+  const afterUrl = await getGlobalPackSegmentUrl(
+    gender,
+    "inboundAfterEventName"
+  );
+  if (!afterUrl) return;
+
+  await gatherIvrUsingAudio({
     callControlId: input.callControlId,
-    text: introText,
+    audioUrl: afterUrl,
     minimumDigits: 1,
     maximumDigits: 1,
     validDigits: "123",
-    timeoutMillis: 12000,
+    timeoutMillis: 45000,
     clientState: {
       source: "invistimo-ivr",
       inbound_ivr: true,
@@ -126,6 +89,8 @@ async function playInboundChoiceGather(input: {
       stage: "choice",
     },
   });
+  input.attempt.flowStep = "gather_choice";
+  await input.attempt.save();
 }
 
 /** Start AI intro: prefer seamless composed file; else sequential before→name→after. */
@@ -145,7 +110,7 @@ async function startOutboundAiIntro(input: {
       minimumDigits: 1,
       maximumDigits: 1,
       validDigits: "123",
-      timeoutMillis: 12000,
+      timeoutMillis: 45000,
       clientState: {
         source: "invistimo-ivr",
         callAttemptId: String(input.attempt._id),
@@ -171,12 +136,12 @@ async function startOutboundAiIntro(input: {
         minimumDigits: 1,
         maximumDigits: 1,
         validDigits: "123",
-        timeoutMillis: 12000,
-        clientState: {
-          source: "invistimo-ivr",
-          callAttemptId: String(input.attempt._id),
-          stage: "choice",
-        },
+      timeoutMillis: 45000,
+      clientState: {
+        source: "invistimo-ivr",
+        callAttemptId: String(input.attempt._id),
+        stage: "choice",
+      },
       });
       input.attempt.flowStep = "gather_choice";
       await input.attempt.save();
@@ -235,7 +200,7 @@ async function continueOutboundAiIntro(input: {
       minimumDigits: 1,
       maximumDigits: 1,
       validDigits: "123",
-      timeoutMillis: 12000,
+      timeoutMillis: 45000,
       clientState: {
         source: "invistimo-ivr",
         callAttemptId: String(input.attempt._id),
@@ -341,6 +306,7 @@ async function applyRsvpOnce(input: {
     round: claimed.round ?? null,
     callAttemptId: String(claimed._id),
     callControlId: String(claimed.telnyxCallControlId || ""),
+    source: isInboundIvrAttempt(claimed) ? "inbound" : "outbound",
   });
 
   return { applied: true };
@@ -388,30 +354,22 @@ export async function handleIvrTelnyxWebhook(body: any) {
     }
 
     case "call.answered": {
-      if (
-        isInboundIvrAttempt(attempt) &&
-        (attempt.status === "unresolved" ||
-          cleanStr(attempt.error) === "AMBIGUOUS_EVENT")
-      ) {
+      if (isInboundIvrAttempt(attempt)) {
         attempt.answered = true;
         attempt.answeredAt = attempt.answeredAt || new Date();
-        await attempt.save();
-        break;
-      }
-
-      if (
-        isInboundIvrAttempt(attempt) &&
-        (attempt.flowStep === "gather_choice" ||
-          attempt.flowStep === "gather_count" ||
-          attempt.flowStep === "playing_ask_count" ||
-          attempt.rsvpApplied)
-      ) {
-        attempt.answered = true;
-        attempt.answeredAt = attempt.answeredAt || new Date();
-        if (attempt.status !== "completed") {
+        if (attempt.status !== "completed" && attempt.status !== "unresolved") {
           attempt.status = "answered";
         }
-        await attempt.save();
+        const alreadyPlaying =
+          attempt.flowStep !== "playing_intro" &&
+          attempt.flowStep !== "dialing";
+        if (!alreadyPlaying && callControlId && !attempt.rsvpApplied) {
+          attempt.flowStep = "playing_intro_before";
+          await attempt.save();
+          await playInboundChoiceGather({ attempt, callControlId });
+        } else {
+          await attempt.save();
+        }
         break;
       }
 
@@ -422,16 +380,7 @@ export async function handleIvrTelnyxWebhook(body: any) {
       await attempt.save();
 
       if (callControlId) {
-        if (!isInboundIvrAttempt(attempt)) {
-          await answerIvrCall(callControlId).catch(() => null);
-        }
-
-        if (isInboundIvrAttempt(attempt)) {
-          await playInboundChoiceGather({ attempt, callControlId });
-          attempt.flowStep = "gather_choice";
-          await attempt.save();
-          break;
-        }
+        await answerIvrCall(callControlId).catch(() => null);
 
         // AI sequential pack intro, or legacy/self-recorded single file.
         if (cleanStr(attempt.eventNameAudioUrl)) {
@@ -460,19 +409,62 @@ export async function handleIvrTelnyxWebhook(body: any) {
       break;
     }
 
+    case "call.dtmf.received":
     case "call.gather.ended": {
+      if (attempt.rsvpApplied || attempt.flowStep === "done") break;
+      if (
+        attempt.status === "unresolved" ||
+        attempt.error === "AMBIGUOUS_EVENT"
+      ) {
+        break;
+      }
+      if (!attempt.guestId || !attempt.invitationId) break;
+
       const digits = cleanStr(
-        payload?.digits || payload?.digit || payload?.result
+        payload?.digit || payload?.digits || payload?.result
       );
+      const stage = cleanStr(
+        decodeIvrClientState(payload?.client_state).stage
+      );
+      const choiceAccepted = ["1", "2", "3"].includes(
+        cleanStr(attempt.choiceDigit)
+      );
+      // Choice gather and a parallel DTMF event must not be re-read as the
+      // guest count after the choice already advanced the flow.
+      if (
+        choiceAccepted &&
+        stage !== "count" &&
+        attempt.flowStep !== "gather_choice"
+      ) {
+        break;
+      }
+
+      if (eventType === "call.dtmf.received") {
+        if (!digits) break;
+        // Multi-digit guest counts arrive on gather.ended only.
+        if (
+          stage === "count" ||
+          attempt.flowStep === "gather_count" ||
+          attempt.flowStep === "playing_ask_count"
+        ) {
+          break;
+        }
+        const waitingChoice =
+          !choiceAccepted &&
+          (attempt.flowStep === "gather_choice" ||
+            attempt.flowStep === "playing_intro_after" ||
+            stage === "choice");
+        if (!waitingChoice) break;
+      }
+
       if (digits) {
         attempt.dtmfDigits = [...(attempt.dtmfDigits || []), digits];
       }
 
-      const stage = cleanStr(
-        decodeIvrClientState(payload?.client_state).stage
-      );
-
-      if (stage === "count" || attempt.flowStep === "gather_count") {
+      if (
+        stage === "count" ||
+        (attempt.flowStep === "gather_count" && stage !== "choice")
+      ) {
         attempt.guestCountDigits = digits;
         const guest = await InvitationGuest.findById(attempt.guestId).lean();
         const maxCount = getGuestMaxAttendingCount(guest);
@@ -685,7 +677,7 @@ export async function handleIvrTelnyxWebhook(body: any) {
             minimumDigits: 1,
             maximumDigits: 1,
             validDigits: "123",
-            timeoutMillis: 12000,
+            timeoutMillis: 45000,
             clientState: {
               source: "invistimo-ivr",
               inbound_ivr: true,

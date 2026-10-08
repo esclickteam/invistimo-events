@@ -128,7 +128,7 @@ function IsraelDateTimeFields({ value, onChange }) {
 }
 
 /** Play global before + event name + global after as one continuous preview. */
-function ConcatPreviewPlayer({ playlist, onEnded }) {
+function ConcatPreviewPlayer({ playlist, onEnded, label }) {
   const audioRef = useRef(null);
   const [index, setIndex] = useState(0);
   const urls = Array.isArray(playlist) ? playlist.filter(Boolean) : [];
@@ -161,8 +161,8 @@ function ConcatPreviewPlayer({ playlist, onEnded }) {
         }}
       />
       <p className="text-[11px] font-bold text-[#8A7867]">
-        מנגן קטע {index + 1} מתוך {urls.length} (פתיח גלובלי → שם האירוע → המשך
-        גלובלי)
+        {label ? `${label} · ` : ""}
+        מנגן קטע {index + 1} מתוך {urls.length} (פתיח → שם האירוע → המשך)
       </p>
     </div>
   );
@@ -197,6 +197,7 @@ function IvrCallSimulator({
   followUpAudio,
   systemPromptTexts,
   onClose,
+  directionLabel,
 }) {
   const [step, setStep] = useState("intro");
   const [choice, setChoice] = useState("");
@@ -215,7 +216,7 @@ function IvrCallSimulator({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-black text-[#3A2A1C]">
-              תצוגה מקדימה של השיחה
+              תצוגה מקדימה — {directionLabel || "שיחה יוצאת"}
             </h3>
             <p className="mt-1 text-xs font-bold text-[#8A7867]">
               סימולציה מדפדפן, ללא שיחת Telnyx — הקטעים הקבועים מה-Voice Pack
@@ -235,6 +236,7 @@ function IvrCallSimulator({
           <div className="space-y-3">
             <ConcatPreviewPlayer
               playlist={previewPlaylist}
+              label={directionLabel || "שיחה יוצאת"}
               onEnded={() => setStep("choice")}
             />
             <button
@@ -361,6 +363,7 @@ export default function IvrRoundsPanel({
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [simulatorDirection, setSimulatorDirection] = useState("outbound");
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const startedAtRef = useRef(0);
@@ -375,11 +378,9 @@ export default function IvrRoundsPanel({
 
   const previewPlaylist = useMemo(() => {
     const preview = config?.ivrConfig?.previewAudio;
-    const composed =
-      preview?.composedIntroAudioUrl ||
-      config?.ivrConfig?.composedIntroAudio?.audioUrl;
-    // Prefer single seamless composed file — sounds like one narration.
-    if (composed) return [composed];
+    if (preview?.seamless && preview?.composedIntroAudioUrl) {
+      return [preview.composedIntroAudioUrl];
+    }
     if (Array.isArray(preview?.playlist) && preview.playlist.length) {
       return preview.playlist;
     }
@@ -390,10 +391,21 @@ export default function IvrRoundsPanel({
     ].filter(Boolean);
   }, [config]);
 
+  const inboundPreviewPlaylist = useMemo(() => {
+    const preview = config?.ivrConfig?.previewAudio;
+    if (Array.isArray(preview?.inboundPlaylist) && preview.inboundPlaylist.length) {
+      return preview.inboundPlaylist;
+    }
+    return [
+      preview?.inboundBeforeEventNameUrl,
+      preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
+      preview?.inboundAfterEventNameUrl,
+    ].filter(Boolean);
+  }, [config]);
+
   const composedReady = Boolean(
-    config?.ivrConfig?.composedIntroAudio?.status === "ready" &&
-      (config?.ivrConfig?.composedIntroAudio?.audioUrl ||
-        config?.ivrConfig?.previewAudio?.composedIntroAudioUrl)
+    config?.ivrConfig?.previewAudio?.seamless &&
+      config?.ivrConfig?.previewAudio?.composedIntroAudioUrl
   );
 
   async function loadAll() {
@@ -411,6 +423,11 @@ export default function IvrRoundsPanel({
       const cfg = await cfgRes.json().catch(() => null);
       const statsData = await statsRes.json().catch(() => null);
 
+      if (cfg?.approvalReset) {
+        setMessage(
+          "נוסח השיחה היוצאת תוקן. יש להאזין לרצף היוצא ולאשר מחדש לפני חיוג."
+        );
+      }
       if (!cfgRes.ok || !cfg?.ok) {
         throw new Error(
           customerIvrError(
@@ -762,13 +779,20 @@ export default function IvrRoundsPanel({
 
   return (
     <div className="space-y-5" dir="rtl">
-      {showSimulator && (aiReady || selfReady) ? (
+      {showSimulator && (aiReady || selfReady || inboundPreviewPlaylist.length) ? (
         <IvrCallSimulator
           previewPlaylist={
-            audioMode === "ai" ? previewPlaylist : [intro?.audioUrl]
+            simulatorDirection === "inbound"
+              ? inboundPreviewPlaylist
+              : audioMode === "ai"
+                ? previewPlaylist
+                : [intro?.audioUrl]
           }
           followUpAudio={config?.ivrConfig?.followUpAudio}
           systemPromptTexts={config?.ivrConfig?.systemPromptTexts}
+          directionLabel={
+            simulatorDirection === "inbound" ? "שיחה נכנסת" : "שיחה יוצאת"
+          }
           onClose={() => setShowSimulator(false)}
         />
       ) : null}
@@ -1063,8 +1087,10 @@ export default function IvrRoundsPanel({
                 : "ממתין לאישור הקלטה"}
             </div>
             <p className="text-[11px] font-bold text-emerald-800">
-              הנגן כולל את הפתיח, שם האירוע, המשך הנוסח והוראות ההקשה (1 / 2 / 3).
+              שיחה יוצאת: פתיח יוצא, שם האירוע, והוראות ההקשה (1 / 2 / 3). שיחה
+              נכנסת מושמעת בנפרד, עם קטעי ההמשך לפי הבחירה.
             </p>
+            <p className="text-xs font-black text-emerald-900">שיחה יוצאת</p>
             {composedReady ? (
               <div className="space-y-2">
                 <audio
@@ -1075,13 +1101,26 @@ export default function IvrRoundsPanel({
                   data-testid="ivr-composed-preview"
                 />
                 <p className="text-[11px] font-bold text-emerald-800">
-                  קריינות אחת רציפה (פתיח + שם האירוע + המשך) — בלי חיבור ידני של
-                  3 קבצים.
+                  קריינות אחת רציפה (פתיח יוצא + שם האירוע + המשך יוצא).
                 </p>
               </div>
             ) : (
-              <ConcatPreviewPlayer playlist={previewPlaylist} />
+              <ConcatPreviewPlayer
+                playlist={previewPlaylist}
+                label="שיחה יוצאת"
+              />
             )}
+            {inboundPreviewPlaylist.length ? (
+              <div className="space-y-2">
+                <p className="text-xs font-black text-emerald-900">
+                  שיחה נכנסת / שיחה חוזרת
+                </p>
+                <ConcatPreviewPlayer
+                  playlist={inboundPreviewPlaylist}
+                  label="שיחה נכנסת"
+                />
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {!approved ? (
                 <button
@@ -1101,10 +1140,23 @@ export default function IvrRoundsPanel({
               ) : null}
               <button
                 type="button"
-                onClick={() => setShowSimulator(true)}
+                onClick={() => {
+                  setSimulatorDirection("outbound");
+                  setShowSimulator(true);
+                }}
                 className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
               >
-                תצוגה מקדימה מלאה של השיחה
+                תצוגה מקדימה — שיחה יוצאת
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSimulatorDirection("inbound");
+                  setShowSimulator(true);
+                }}
+                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
+              >
+                תצוגה מקדימה — שיחה נכנסת
               </button>
               <button
                 type="button"

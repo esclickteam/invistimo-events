@@ -192,6 +192,8 @@ test("inbound start only claims IVR guests; human path untouched on none", () =>
   assert.match(start, /channel:\s*"inbound_ivr"/);
   assert.match(start, /webhook_url|webhookUrl/);
   assert.match(start, /AMBIGUOUS_EVENT/);
+  assert.match(start, /inboundBeforeEventName/);
+  assert.equal(start.includes("ensureIvrInboundIntroAudio"), false);
   // Must not call softphone bridge helpers.
   assert.equal(start.includes("routeInboundCallToSoftphone"), false);
 });

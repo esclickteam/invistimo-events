@@ -71,33 +71,8 @@ async function ensureCachedPromptAudio(input: {
   }
 
   const contentHash = hashTtsContent(text, resolvedVoice);
-  let existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
-
-  // Same clip stored under another key must be reused — never a second row.
-  if (!existing) {
-    const byVoiceAndText = await IvrSystemAudio.findOne({
-      voiceId: resolvedVoice,
-      text,
-      r2Key: { $exists: true, $nin: ["", null] },
-    }).lean();
-    if (byVoiceAndText) {
-      existing = byVoiceAndText;
-      if (String(byVoiceAndText.key || "") !== input.key) {
-        const canonicalTaken = await IvrSystemAudio.findOne({
-          key: input.key,
-        })
-          .select("_id")
-          .lean();
-        if (!canonicalTaken) {
-          await IvrSystemAudio.updateOne(
-            { _id: byVoiceAndText._id },
-            { $set: { key: input.key } }
-          );
-          existing = { ...byVoiceAndText, key: input.key };
-        }
-      }
-    }
-  }
+  // Exact pack key only. Never retarget another segment's file onto this key.
+  const existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
 
   if (existing?.r2Key) {
     const verifiedExisting = await verifyIvrAudioInR2(String(existing.r2Key));
@@ -122,7 +97,6 @@ async function ensureCachedPromptAudio(input: {
             $set: {
               audioUrl,
               publicToken,
-              key: input.key,
             },
           }
         );
@@ -329,11 +303,20 @@ export async function getGlobalPackSegmentUrl(
   gender: IvrVoiceGender | string,
   segment: IvrGlobalPackSegmentKey
 ): Promise<string> {
-  const audio = await ensureGlobalPackSegment({
-    gender: normalizeIvrVoiceGender(gender) || "female",
-    segment,
-  });
-  return String(audio.audioUrl || "");
+  try {
+    const audio = await ensureGlobalPackSegment({
+      gender: normalizeIvrVoiceGender(gender) || "female",
+      segment,
+      reuseOnly: true,
+    });
+    return String(audio.audioUrl || "");
+  } catch (error) {
+    console.error("[ivr] global segment unavailable", {
+      segment,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return "";
+  }
 }
 
 /** Resolve DTMF follow-up audio from the caller's selected global pack. */

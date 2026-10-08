@@ -21,6 +21,7 @@ export async function applyIvrRsvpToGuest(input: {
   round?: number | null;
   callAttemptId?: string;
   callControlId?: string;
+  source?: "inbound" | "outbound";
 }) {
   const guest = await InvitationGuest.findOne({
     _id: input.guestId,
@@ -40,6 +41,7 @@ export async function applyIvrRsvpToGuest(input: {
       round: input.round ?? null,
       callAttemptId: String(input.callAttemptId || ""),
       callControlId: String(input.callControlId || ""),
+      source: input.source === "inbound" ? "inbound" : "outbound",
     },
   };
 

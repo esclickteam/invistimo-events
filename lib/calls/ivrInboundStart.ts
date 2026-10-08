@@ -5,20 +5,19 @@
 
 import { connectDB } from "@/lib/db";
 import IvrCallAttempt from "@/models/IvrCallAttempt";
-import { getAppBaseUrl } from "@/lib/calls/ivrAudioStorage";
-import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
+import User from "@/models/User";
 import {
-  buildIvrInboundIntroText,
-  IVR_SYSTEM_PROMPTS,
-} from "@/lib/calls/ivrScript";
-import { ensureIvrInboundIntroAudio } from "@/lib/calls/ivrSystemAudio";
+  getAppBaseUrl,
+  resolveIvrPublicAudioUrl,
+} from "@/lib/calls/ivrAudioStorage";
+import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
+import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
+import { getGlobalPackSegmentUrl } from "@/lib/calls/ivrSystemAudio";
 import {
   answerIvrCall,
-  gatherIvrUsingAudio,
-  gatherIvrUsingSpeak,
   hangupIvrCall,
   normalizePhoneForTelnyx,
-  speakIvrCall,
+  playbackIvrAudio,
 } from "@/lib/telnyx/ivrCallControl";
 import {
   getConfiguredInvistimoDid,
@@ -168,14 +167,18 @@ export async function tryStartInboundIvr(params: {
       clientState,
     });
 
-    await speakIvrCall(
-      callControlId,
-      IVR_SYSTEM_PROMPTS.inboundAmbiguous,
-      {
+    const ambiguousUrl = await getGlobalPackSegmentUrl(
+      "female",
+      "inboundAmbiguous"
+    );
+    if (ambiguousUrl) {
+      await playbackIvrAudio(callControlId, ambiguousUrl, {
         ...clientState,
         stage: "hangup_after_system",
-      }
-    );
+      });
+    } else {
+      await hangupIvrCall(callControlId);
+    }
 
     return {
       handled: true,
@@ -185,6 +188,18 @@ export async function tryStartInboundIvr(params: {
   }
 
   const { candidate, disambiguation } = resolved;
+  const owner = await User.findById(candidate.userId)
+    .select("ivrConfig")
+    .lean();
+  const ownerCfg = (owner as { ivrConfig?: any } | null)?.ivrConfig || {};
+  const voiceGender = normalizeIvrVoiceGender(ownerCfg.voiceGender) || "female";
+  const eventNameAudioUrl =
+    ownerCfg.eventNameAudio?.status === "ready"
+      ? resolveIvrPublicAudioUrl({
+          publicToken: ownerCfg.eventNameAudio?.publicToken,
+          storedUrl: ownerCfg.eventNameAudio?.audioUrl,
+        })
+      : "";
 
   const attempt = await IvrCallAttempt.create({
     userId: candidate.userId,
@@ -194,8 +209,10 @@ export async function tryStartInboundIvr(params: {
     channel: "inbound_ivr",
     direction: "inbound",
     eventName: candidate.eventName,
+    voiceGender,
+    eventNameAudioUrl,
     status: "initiated",
-    flowStep: "playing_intro",
+    flowStep: "playing_intro_before",
     answered: false,
     dtmfDigits: [],
     rsvpApplied: false,
@@ -227,68 +244,22 @@ export async function tryStartInboundIvr(params: {
     clientState,
   });
 
-  // Start gather immediately after answer; IVR webhook also handles call.answered
-  // idempotently if flowStep is already gather_choice.
-  const choiceState = {
-    source: "invistimo-ivr",
-    ivr: true,
-    inbound_ivr: true,
-    channel: "inbound_ivr",
-    callAttemptId: String(attempt._id),
-    call_attempt_id: String(attempt._id),
-    stage: "choice",
-  };
-
-  try {
-    const audio = await ensureIvrInboundIntroAudio({
-      eventName: candidate.eventName,
-      eventNamePronunciation: candidate.eventNamePronunciation,
-    });
-    const introUrl = cleanStr(audio?.audioUrl);
-    if (introUrl) {
-      await gatherIvrUsingAudio({
-        callControlId,
-        audioUrl: introUrl,
-        minimumDigits: 1,
-        maximumDigits: 1,
-        validDigits: "123",
-        timeoutMillis: 12000,
-        clientState: choiceState,
-      });
-    } else {
-      throw new Error("INBOUND_INTRO_URL_EMPTY");
-    }
-  } catch (error) {
-    console.warn("INBOUND_IVR_INTRO_AUDIO_FALLBACK_SPEAK", {
-      attemptId: String(attempt._id),
-      message: error instanceof Error ? error.message : "unknown",
-    });
-    await gatherIvrUsingSpeak({
-      callControlId,
-      text: buildIvrInboundIntroText({
-        eventName: candidate.eventName,
-        eventNamePronunciation: candidate.eventNamePronunciation,
-      }),
-      minimumDigits: 1,
-      maximumDigits: 1,
-      validDigits: "123",
-      timeoutMillis: 12000,
-      clientState: choiceState,
-    });
-  }
-
-  await IvrCallAttempt.updateOne(
-    { _id: attempt._id },
-    {
-      $set: {
-        status: "answered",
-        answered: true,
-        answeredAt: new Date(),
-        flowStep: "gather_choice",
-        introAudioUrl: "",
-      },
-    }
+  const beforeUrl = await getGlobalPackSegmentUrl(
+    voiceGender,
+    "inboundBeforeEventName"
   );
+  if (beforeUrl) {
+    await playbackIvrAudio(callControlId, beforeUrl, {
+      source: "invistimo-ivr",
+      inbound_ivr: true,
+      callAttemptId: String(attempt._id),
+      stage: eventNameAudioUrl ? "inbound_play_event_name" : "inbound_play_after",
+      voiceGender,
+    });
+  } else {
+    attempt.flowStep = "playing_intro";
+    await attempt.save();
+  }
 
   console.log("INBOUND_IVR_CLAIMED", {
     attemptId: String(attempt._id),

@@ -25,6 +25,7 @@ import {
   resolveIvrPublicAudioUrl,
   getAppBaseUrl,
 } from "@/lib/calls/ivrAudioStorage";
+import { IVR_COMPOSE_VERSION } from "@/lib/calls/ivrComposeIntro";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import {
   createIvrOutboundCall,
@@ -126,6 +127,11 @@ function resolveReadyAiAudio(user: any): {
   const explicitlyApproved =
     approval?.approved === true &&
     approval?.audioMode !== "self_recorded";
+
+  // Require the exact approved outbound composition — not a stale mix.
+  if (String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION) {
+    return null;
+  }
 
   // Require the exact approved composed intro — not just the event-name clip.
   if (

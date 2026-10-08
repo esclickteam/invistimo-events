@@ -239,6 +239,7 @@ const InvitationGuestSchema = new Schema(
       round: { type: Number, default: null },
       callAttemptId: { type: String, trim: true, default: "" },
       callControlId: { type: String, trim: true, default: "" },
+      source: { type: String, trim: true, default: "" },
     },
 
     /**
