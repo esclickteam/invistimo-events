@@ -397,8 +397,26 @@ export function getIvrTtsModelId(override?: string) {
   );
 }
 
-/** Required Hebrew language hint for multilingual models. */
+/**
+ * Hebrew language hint — only send when the chosen model supports language_code.
+ * eleven_multilingual_v2 rejects language_code "he" (unsupported_language).
+ * Models known to accept it: eleven_turbo_v2_5, eleven_flash_v2_5, eleven_v3.
+ */
 export const IVR_TTS_LANGUAGE_CODE = "he";
+
+/** Models that accept language_code in the TTS body (ElevenLabs API). */
+const MODELS_SUPPORTING_LANGUAGE_CODE = new Set([
+  "eleven_turbo_v2_5",
+  "eleven_flash_v2_5",
+  "eleven_v3",
+]);
+
+export function modelSupportsLanguageCode(modelId: string) {
+  const id = String(modelId || "")
+    .trim()
+    .toLowerCase();
+  return MODELS_SUPPORTING_LANGUAGE_CODE.has(id);
+}
 
 /** Female system voice must be this exact ElevenLabs name — never auto-picked. */
 export const IVR_REQUIRED_FEMALE_VOICE_NAME = "Dana";
@@ -410,8 +428,11 @@ export async function synthesizeElevenLabsSpeech(input: {
   text: string;
   voiceId: string;
   modelId?: string;
-  /** ISO language code — Hebrew IVR always uses "he". */
-  languageCode?: string;
+  /**
+   * Optional ISO language code. Only attached when the model supports it.
+   * Pass null/"" to force omit even on supporting models.
+   */
+  languageCode?: string | null;
 }): Promise<{ buffer: Buffer; contentType: string; contentHash: string }> {
   const voiceId = String(input.voiceId || "").trim();
   const text = String(input.text || "").trim();
@@ -426,16 +447,25 @@ export async function synthesizeElevenLabsSpeech(input: {
   const modelId = getIvrTtsModelId(input.modelId);
   const outputFormat =
     readEnv("ELEVENLABS_OUTPUT_FORMAT") || IVR_TTS_OUTPUT_FORMAT;
-  const languageCode =
-    String(input.languageCode || IVR_TTS_LANGUAGE_CODE || "he").trim() || "he";
 
   const body: Record<string, unknown> = {
     text,
     model_id: modelId,
     voice_settings: { ...IVR_TTS_VOICE_SETTINGS },
-    // Force Hebrew pronunciation on multilingual models (ignored if unsupported).
-    language_code: languageCode,
   };
+
+  // Never send language_code to models that reject it (e.g. multilingual_v2 + "he").
+  if (modelSupportsLanguageCode(modelId) && input.languageCode !== null) {
+    const languageCode =
+      String(
+        input.languageCode === undefined
+          ? IVR_TTS_LANGUAGE_CODE
+          : input.languageCode
+      ).trim() || IVR_TTS_LANGUAGE_CODE;
+    if (languageCode) {
+      body.language_code = languageCode;
+    }
+  }
 
   const res = await elevenLabsFetch(
     `/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${encodeURIComponent(outputFormat)}`,
