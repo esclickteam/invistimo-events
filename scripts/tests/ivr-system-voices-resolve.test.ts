@@ -95,3 +95,22 @@ test("admin serialize GET path is read-only — no ElevenLabs TTS", () => {
   assert.equal(serializeFn.includes("synthesizeElevenLabsSpeech"), false);
   assert.match(src, /source === "auto"|enum.*auto|legacy/i);
 });
+
+test("ready requires R2 verification — not Mongo URL alone", () => {
+  const admin = readSrc("lib/calls/ivrAdminVoicePacks.ts");
+  assert.match(admin, /verifyIvrAudioInR2/);
+  assert.match(admin, /resolveIvrPublicAudioUrl/);
+  assert.match(admin, /status: "unplayable"|status: "missing"/);
+  assert.match(admin, /SEGMENTS_NOT_READY/);
+  assert.match(admin, /verifyHttp/);
+
+  const storage = readSrc("lib/calls/ivrAudioStorage.ts");
+  assert.match(storage, /HeadObjectCommand/);
+  assert.match(storage, /verifyIvrAudioInR2/);
+  assert.match(storage, /www\.invistimo\.com/);
+  assert.match(storage, /resolveIvrPublicAudioUrl/);
+
+  const systemAudio = readSrc("lib/calls/ivrSystemAudio.ts");
+  assert.match(systemAudio, /verifyIvrAudioInR2/);
+  assert.match(systemAudio, /IVR_GLOBAL_SEGMENT_UNPLAYABLE|IVR_TTS_EMPTY_AUDIO/);
+});

@@ -26,7 +26,9 @@ import {
   buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
   ivrSystemR2Key,
+  resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
+  verifyIvrAudioInR2,
 } from "@/lib/calls/ivrAudioStorage";
 
 export type GlobalPackSegmentAudio = {
@@ -74,9 +76,49 @@ async function ensureCachedPromptAudio(input: {
   if (
     existing &&
     existing.contentHash === contentHash &&
-    existing.audioUrl &&
-    existing.r2Key
+    existing.r2Key &&
+    existing.publicToken
   ) {
+    const verified = await verifyIvrAudioInR2(String(existing.r2Key));
+    if (verified.ok) {
+      // Refresh public URL to current production host (avoid stale *.vercel.app).
+      const audioUrl = resolveIvrPublicAudioUrl({
+        publicToken: existing.publicToken,
+        storedUrl: existing.audioUrl,
+      });
+      if (audioUrl && audioUrl !== existing.audioUrl) {
+        await IvrSystemAudio.updateOne(
+          { key: input.key },
+          { $set: { audioUrl } }
+        );
+      }
+      return {
+        doc: {
+          ...existing,
+          audioUrl: audioUrl || existing.audioUrl,
+          contentType: verified.contentType || existing.contentType,
+        },
+        reused: true,
+      };
+    }
+
+    // Mongo row exists but R2 object missing/empty — not ready.
+    if (input.reuseOnly) {
+      throw new Error(`IVR_GLOBAL_SEGMENT_UNPLAYABLE:${input.key}`);
+    }
+    // Fall through to regenerate.
+  } else if (
+    existing &&
+    existing.contentHash === contentHash &&
+    existing.audioUrl &&
+    existing.r2Key &&
+    input.reuseOnly
+  ) {
+    // Legacy row without publicToken — still require R2 object.
+    const verified = await verifyIvrAudioInR2(String(existing.r2Key));
+    if (!verified.ok) {
+      throw new Error(`IVR_GLOBAL_SEGMENT_UNPLAYABLE:${input.key}`);
+    }
     return { doc: existing, reused: true };
   }
 
@@ -89,16 +131,24 @@ async function ensureCachedPromptAudio(input: {
     voiceId: resolvedVoice,
   });
 
+  if (!synth?.buffer?.length) {
+    throw new Error("IVR_TTS_EMPTY_AUDIO");
+  }
+
   const publicToken = createIvrAudioPublicToken();
   const r2Key = ivrSystemR2Key(input.key, contentHash, "mp3");
 
-  await uploadIvrAudioToR2({
+  // uploadIvrAudioToR2 verifies HeadObject size > 0 before returning.
+  const uploaded = await uploadIvrAudioToR2({
     key: r2Key,
     buffer: synth.buffer,
-    contentType: synth.contentType,
+    contentType: synth.contentType || "audio/mpeg",
   });
 
   const audioUrl = buildIvrPublicAudioUrl(publicToken);
+  if (!audioUrl) {
+    throw new Error("IVR_AUDIO_URL_BUILD_FAILED");
+  }
 
   const doc = await IvrSystemAudio.findOneAndUpdate(
     { key: input.key },
@@ -110,7 +160,7 @@ async function ensureCachedPromptAudio(input: {
         audioUrl,
         publicToken,
         r2Key,
-        contentType: synth.contentType,
+        contentType: uploaded.contentType || synth.contentType || "audio/mpeg",
         contentHash,
       },
     },

@@ -20,7 +20,7 @@ import {
   type IvrRoundNumber,
 } from "@/lib/calls/ivrRoundEligibility";
 import {
-  buildIvrPublicAudioUrl,
+  resolveIvrPublicAudioUrl,
   getAppBaseUrl,
 } from "@/lib/calls/ivrAudioStorage";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
@@ -70,9 +70,10 @@ function resolveReadyAiAudio(user: any): {
   const gender = normalizeIvrVoiceGender(cfg.voiceGender);
   const eventAudio = cfg.eventNameAudio;
   const token = cleanStr(eventAudio?.publicToken);
-  const eventNameAudioUrl =
-    cleanStr(eventAudio?.audioUrl) ||
-    (token ? buildIvrPublicAudioUrl(token) : "");
+  const eventNameAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: token,
+    storedUrl: eventAudio?.audioUrl,
+  });
 
   if (
     !gender ||
@@ -89,9 +90,10 @@ function resolveReadyAiAudio(user: any): {
 function resolveReadySelfAudio(user: any): string {
   const intro = user?.ivrConfig?.introAudio;
   const token = cleanStr(intro?.publicToken);
-  const introAudioUrl =
-    cleanStr(intro?.audioUrl) ||
-    (token ? buildIvrPublicAudioUrl(token) : "");
+  const introAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: token,
+    storedUrl: intro?.audioUrl,
+  });
 
   if (
     !introAudioUrl ||

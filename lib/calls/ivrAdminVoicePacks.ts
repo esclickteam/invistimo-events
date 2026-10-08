@@ -15,11 +15,13 @@ import {
   type IvrVoiceGender,
   normalizeIvrVoiceGender,
 } from "@/lib/calls/ivrScript";
+import { ensureGlobalPackSegment } from "@/lib/calls/ivrSystemAudio";
 import {
-  ensureGlobalPackSegment,
-  ensureGlobalVoicePack,
-  type GlobalVoicePack,
-} from "@/lib/calls/ivrSystemAudio";
+  createIvrAudioPublicToken,
+  resolveIvrPublicAudioUrl,
+  verifyIvrAudioInR2,
+  verifyIvrPublicAudioHttp,
+} from "@/lib/calls/ivrAudioStorage";
 import {
   getIvrFemaleVoiceId,
   getIvrMaleVoiceId,
@@ -165,21 +167,28 @@ async function getOrCreateConfigDoc() {
   return doc;
 }
 
+export type PackSegmentStatus = {
+  key: string;
+  audioUrl: string;
+  contentHash: string;
+  ready: boolean;
+  /** Why not ready / verification detail */
+  status: "ready" | "missing" | "unplayable";
+  reason?: string;
+  sizeBytes?: number;
+  contentType?: string;
+  httpStatus?: number | null;
+};
+
 /**
- * Read-only: load existing pack segment audio from Mongo.
+ * Read-only: load existing pack segment audio from Mongo + verify R2 object.
  * Never synthesizes / never calls ElevenLabs.
+ * ready=true only when R2 object exists with size > 0.
  */
-async function readExistingPackSegments(gender: IvrVoiceGender): Promise<
-  Record<
-    IvrGlobalPackSegmentKey,
-    {
-      key: string;
-      audioUrl: string;
-      contentHash: string;
-      ready: boolean;
-    }
-  >
-> {
+async function readExistingPackSegments(
+  gender: IvrVoiceGender,
+  options?: { verifyHttp?: boolean }
+): Promise<Record<IvrGlobalPackSegmentKey, PackSegmentStatus>> {
   const keys = (
     Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
   ).map((segment) => globalPackAudioKey(gender, segment));
@@ -187,7 +196,7 @@ async function readExistingPackSegments(gender: IvrVoiceGender): Promise<
   let rows: any[] = [];
   try {
     rows = await IvrSystemAudio.find({ key: { $in: keys } })
-      .select("key audioUrl contentHash")
+      .select("key audioUrl contentHash publicToken r2Key contentType")
       .lean();
   } catch (err) {
     console.warn(
@@ -198,24 +207,102 @@ async function readExistingPackSegments(gender: IvrVoiceGender): Promise<
   }
 
   const byKey = new Map(rows.map((r) => [String(r.key), r]));
-  const out = {} as Record<
-    IvrGlobalPackSegmentKey,
-    { key: string; audioUrl: string; contentHash: string; ready: boolean }
-  >;
+  const out = {} as Record<IvrGlobalPackSegmentKey, PackSegmentStatus>;
 
-  for (const segment of Object.keys(
-    IVR_GLOBAL_PACK_TEXTS
-  ) as IvrGlobalPackSegmentKey[]) {
-    const key = globalPackAudioKey(gender, segment);
-    const row = byKey.get(key);
-    const audioUrl = String(row?.audioUrl || "");
-    out[segment] = {
-      key,
-      audioUrl,
-      contentHash: String(row?.contentHash || ""),
-      ready: Boolean(audioUrl),
-    };
-  }
+  await Promise.all(
+    (Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]).map(
+      async (segment) => {
+        const key = globalPackAudioKey(gender, segment);
+        const row = byKey.get(key);
+
+        if (!row) {
+          out[segment] = {
+            key,
+            audioUrl: "",
+            contentHash: "",
+            ready: false,
+            status: "missing",
+            reason: "NO_MONGO_ROW",
+          };
+          return;
+        }
+
+        const r2Key = String(row.r2Key || "").trim();
+        const audioUrl = resolveIvrPublicAudioUrl({
+          publicToken: row.publicToken,
+          storedUrl: row.audioUrl,
+        });
+
+        if (!r2Key) {
+          out[segment] = {
+            key,
+            audioUrl,
+            contentHash: String(row.contentHash || ""),
+            ready: false,
+            status: "unplayable",
+            reason: "MISSING_R2_KEY",
+          };
+          return;
+        }
+
+        const verified = await verifyIvrAudioInR2(r2Key);
+        if (!verified.ok) {
+          out[segment] = {
+            key,
+            audioUrl,
+            contentHash: String(row.contentHash || ""),
+            ready: false,
+            status: "unplayable",
+            reason: verified.reason || "R2_UNPLAYABLE",
+            sizeBytes: verified.sizeBytes,
+            contentType: verified.contentType,
+          };
+          return;
+        }
+
+        // Refresh stale URL in Mongo (best-effort, don't fail GET).
+        if (audioUrl && audioUrl !== row.audioUrl) {
+          IvrSystemAudio.updateOne(
+            { key },
+            { $set: { audioUrl } }
+          ).catch(() => null);
+        }
+
+        let httpStatus: number | null | undefined;
+        if (options?.verifyHttp && audioUrl) {
+          const http = await verifyIvrPublicAudioHttp(audioUrl);
+          httpStatus = http.status;
+          if (!http.ok) {
+            out[segment] = {
+              key,
+              audioUrl,
+              contentHash: String(row.contentHash || ""),
+              ready: false,
+              status: "unplayable",
+              reason: http.reason || "HTTP_UNPLAYABLE",
+              sizeBytes: verified.sizeBytes,
+              contentType: http.contentType || verified.contentType,
+              httpStatus,
+            };
+            return;
+          }
+        }
+
+        out[segment] = {
+          key,
+          audioUrl,
+          contentHash: String(row.contentHash || ""),
+          ready: Boolean(audioUrl),
+          status: audioUrl ? "ready" : "unplayable",
+          reason: audioUrl ? undefined : "MISSING_AUDIO_URL",
+          sizeBytes: verified.sizeBytes,
+          contentType: verified.contentType,
+          httpStatus,
+        };
+      }
+    )
+  );
+
   return out;
 }
 
@@ -277,6 +364,7 @@ export async function serializeAdminVoicePacks() {
 
   for (const gender of genders) {
     const meta = gender === "female" ? femaleMeta : maleMeta;
+    // R2 HeadObject verification — Mongo URL alone is not enough for ready.
     const existing = await readExistingPackSegments(gender);
 
     const segmentList = (
@@ -289,6 +377,10 @@ export async function serializeAdminVoicePacks() {
         text: IVR_GLOBAL_PACK_TEXTS[key],
         audioUrl: audio?.audioUrl || "",
         ready: Boolean(audio?.ready),
+        status: audio?.status || "missing",
+        reason: audio?.reason || "",
+        sizeBytes: audio?.sizeBytes || 0,
+        contentType: audio?.contentType || "",
         reused: Boolean(audio?.ready),
         contentHash: audio?.contentHash || "",
       };
@@ -302,8 +394,9 @@ export async function serializeAdminVoicePacks() {
       label: gender === "female" ? "קול נשי" : "קול גברי",
       voiceId: meta.voiceId || "",
       adminNote: meta.adminNote || "",
-      segmentsReady: Boolean(meta.segmentsReady) || allReady,
-      approved: Boolean(meta.approved),
+      // segmentsReady reflects verified playable clips, not stale Mongo flags.
+      segmentsReady: allReady,
+      approved: Boolean(meta.approved) && allReady,
       approvedAt: meta.approvedAt || null,
       lastGeneratedAt: meta.lastGeneratedAt || null,
       readyCount,
@@ -372,23 +465,56 @@ export async function generateAdminVoicePack(input: {
   if (gender === "female") process.env.IVR_FEMALE_VOICE_ID = meta.voiceId;
   else process.env.IVR_MALE_VOICE_ID = meta.voiceId;
 
-  let refreshed: GlobalVoicePack;
+  const segmentKeys = Object.keys(
+    IVR_GLOBAL_PACK_TEXTS
+  ) as IvrGlobalPackSegmentKey[];
 
-  if (input.force) {
-    for (const segment of Object.keys(
-      IVR_GLOBAL_PACK_TEXTS
-    ) as IvrGlobalPackSegmentKey[]) {
+  // Check what already exists and is playable in R2 before any TTS.
+  const existing = await readExistingPackSegments(gender);
+  const reuseStats: Record<string, boolean> = {};
+  const generatedSegments: string[] = [];
+
+  for (const segment of segmentKeys) {
+    const cur = existing[segment];
+    if (!input.force && cur?.ready && cur.audioUrl) {
+      reuseStats[segment] = true;
+      continue;
+    }
+
+    if (input.force || cur?.status === "unplayable") {
       await IvrSystemAudio.deleteOne({
         key: globalPackAudioKey(gender, segment),
       });
-      await ensureGlobalPackSegment({ gender, segment });
     }
-    refreshed = await ensureGlobalVoicePack(gender);
-  } else {
-    refreshed = await ensureGlobalVoicePack(gender, { reuseOnly: false });
+
+    const audio = await ensureGlobalPackSegment({ gender, segment });
+    // Post-generate verification — never mark ready on upload failure.
+    const verified = await verifyIvrAudioInR2(
+      // ensure path stores r2Key on the doc; re-read status via pack helper below
+      String(
+        (
+          await IvrSystemAudio.findOne({
+            key: globalPackAudioKey(gender, segment),
+          })
+            .select("r2Key")
+            .lean()
+        )?.r2Key || ""
+      )
+    );
+    if (!verified.ok || !audio.audioUrl) {
+      throw new Error(
+        `SEGMENT_VERIFY_FAILED:${segment}:${verified.reason || "no_url"}`
+      );
+    }
+
+    reuseStats[segment] = Boolean(audio.reused);
+    generatedSegments.push(segment);
   }
 
-  const ready = Object.values(refreshed.segments).every((s) => s.audioUrl);
+  // Final verified inventory via R2 HeadObject (size > 0). HTTP checked on approve.
+  const after = await readExistingPackSegments(gender);
+  const ready = segmentKeys.every((k) => after[k]?.ready);
+
   doc.set(
     gender,
     plainMeta({
@@ -406,9 +532,9 @@ export async function generateAdminVoicePack(input: {
     ...(await serializeAdminVoicePacks()),
     generated: {
       gender,
-      reuseStats: Object.fromEntries(
-        Object.entries(refreshed.segments).map(([k, v]) => [k, v.reused])
-      ),
+      reuseStats,
+      regeneratedSegments: generatedSegments,
+      verifiedReady: ready,
     },
   };
 }
@@ -440,6 +566,24 @@ export async function regenerateAdminPackSegment(input: {
   });
 
   const audio = await ensureGlobalPackSegment({ gender, segment });
+  const row = await IvrSystemAudio.findOne({
+    key: globalPackAudioKey(gender, segment),
+  })
+    .select("r2Key")
+    .lean();
+  const verified = await verifyIvrAudioInR2(String(row?.r2Key || ""));
+  if (!verified.ok || !audio.audioUrl) {
+    throw new Error(
+      `SEGMENT_VERIFY_FAILED:${segment}:${verified.reason || "no_url"}`
+    );
+  }
+
+  const http = await verifyIvrPublicAudioHttp(audio.audioUrl);
+  if (!http.ok) {
+    throw new Error(
+      `SEGMENT_HTTP_VERIFY_FAILED:${segment}:${http.reason || http.status}`
+    );
+  }
 
   doc.set(
     gender,
@@ -460,6 +604,9 @@ export async function regenerateAdminPackSegment(input: {
       segment,
       audioUrl: audio.audioUrl,
       reused: audio.reused,
+      sizeBytes: verified.sizeBytes,
+      contentType: http.contentType || verified.contentType,
+      httpStatus: http.status,
     },
   };
 }
@@ -477,9 +624,19 @@ export async function approveAdminVoicePack(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
-  const existing = await readExistingPackSegments(gender);
-  const ready = Object.values(existing).every((s) => s.ready);
-  if (!ready) throw new Error("SEGMENTS_NOT_READY");
+  // Approve only when every segment is playable in R2 AND reachable over HTTPS.
+  const existing = await readExistingPackSegments(gender, { verifyHttp: true });
+  const notReady = (
+    Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
+  ).filter((k) => !existing[k]?.ready);
+
+  if (notReady.length) {
+    throw new Error(
+      `SEGMENTS_NOT_READY:${notReady
+        .map((k) => `${k}:${existing[k]?.reason || "missing"}`)
+        .join(",")}`
+    );
+  }
 
   doc.set(
     gender,

@@ -63,13 +63,49 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const object = await getIvrAudioObjectFromR2(r2Key);
+    if (!object.buffer?.length) {
+      return NextResponse.json({ error: "EMPTY_AUDIO" }, { status: 404 });
+    }
 
-    return new NextResponse(new Uint8Array(object.buffer), {
+    const resolvedType = object.contentType || contentType || "audio/mpeg";
+    const bytes = object.buffer;
+    const total = bytes.length;
+    const range = _req.headers.get("range");
+
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+      if (match) {
+        const start = match[1] ? Number(match[1]) : 0;
+        const end = match[2] ? Number(match[2]) : total - 1;
+        if (
+          Number.isFinite(start) &&
+          Number.isFinite(end) &&
+          start >= 0 &&
+          end >= start &&
+          end < total
+        ) {
+          const slice = bytes.subarray(start, end + 1);
+          return new NextResponse(new Uint8Array(slice), {
+            status: 206,
+            headers: {
+              "Content-Type": resolvedType,
+              "Content-Length": String(slice.length),
+              "Content-Range": `bytes ${start}-${end}/${total}`,
+              "Accept-Ranges": "bytes",
+              "Cache-Control": "public, max-age=3600",
+            },
+          });
+        }
+      }
+    }
+
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
-        "Content-Type": object.contentType || contentType,
+        "Content-Type": resolvedType,
         "Cache-Control": "public, max-age=3600",
-        "Content-Length": String(object.buffer.length),
+        "Content-Length": String(total),
+        "Accept-Ranges": "bytes",
       },
     });
   } catch (error) {

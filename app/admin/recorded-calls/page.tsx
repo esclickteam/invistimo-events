@@ -8,6 +8,10 @@ type PackSegment = {
   text: string;
   audioUrl: string;
   ready: boolean;
+  status?: "ready" | "missing" | "unplayable" | string;
+  reason?: string;
+  sizeBytes?: number;
+  contentType?: string;
 };
 
 type VoicePack = {
@@ -301,9 +305,19 @@ export default function AdminIvrNarrationPage() {
               </button>
               <button
                 type="button"
-                disabled={Boolean(busy) || !pack.segmentsReady}
+                disabled={
+                  Boolean(busy) ||
+                  !pack.segmentsReady ||
+                  pack.readyCount < pack.totalCount ||
+                  pack.segments.some((s) => !s.ready || !s.audioUrl)
+                }
                 onClick={() => void approvePack(pack.gender)}
                 className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-black text-white disabled:opacity-50"
+                title={
+                  pack.readyCount < pack.totalCount
+                    ? "לא ניתן לאשר — יש קטעים שלא נשמעים"
+                    : "אישור Voice Pack"
+                }
               >
                 אישור Voice Pack
               </button>
@@ -327,25 +341,54 @@ export default function AdminIvrNarrationPage() {
                     <div className="text-sm font-black text-slate-800">
                       {segment.label}
                     </div>
-                    <button
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() =>
-                        void regenerateSegment(pack.gender, segment.key)
-                      }
-                      className="text-[11px] font-black text-indigo-700 disabled:opacity-50"
-                    >
-                      יצירה מחדש של הקטע
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          segment.ready
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        {segment.ready
+                          ? "נשמע"
+                          : segment.status === "unplayable"
+                            ? "לא נגיש"
+                            : "חסר"}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() =>
+                          void regenerateSegment(pack.gender, segment.key)
+                        }
+                        className="text-[11px] font-black text-indigo-700 disabled:opacity-50"
+                      >
+                        יצירה מחדש של הקטע
+                      </button>
+                    </div>
                   </div>
                   <pre className="mb-2 whitespace-pre-wrap text-[11px] font-bold text-slate-600">
                     {segment.text}
                   </pre>
-                  {segment.audioUrl ? (
-                    <audio controls src={segment.audioUrl} className="w-full" />
+                  {segment.ready && segment.audioUrl ? (
+                    <audio
+                      controls
+                      preload="metadata"
+                      src={segment.audioUrl}
+                      className="w-full"
+                      data-testid={`admin-ivr-audio-${pack.gender}-${segment.key}`}
+                    />
                   ) : (
                     <p className="text-[11px] font-bold text-rose-600">
-                      עדיין לא נוצר
+                      {segment.reason
+                        ? `לא מוכן להשמעה (${segment.reason})`
+                        : "עדיין לא נוצר / קובץ לא נגיש"}
+                      {segment.sizeBytes
+                        ? ` · ${segment.sizeBytes} bytes`
+                        : ""}
+                      {segment.contentType
+                        ? ` · ${segment.contentType}`
+                        : ""}
                     </p>
                   )}
                 </div>
