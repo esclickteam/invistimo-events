@@ -127,6 +127,9 @@ test("config generate synthesizes event name only — never full intro as TTS pa
   // Must not TTS the assembled full intro in POST generate.
   assert.equal(config.includes("synthesizeElevenLabsSpeech({\n      text: buildIvrIntroText"), false);
   assert.equal(config.includes("text: buildIvrIntroText"), false);
+  // Never persist undefined nested audio objects (Mongoose CastError).
+  assert.match(config, /assignIvrConfig/);
+  assert.match(config, /normalizeIvrAudioSubdoc/);
 });
 
 test("creating two events reuses global pack segments (no re-TTS of fixed texts)", () => {

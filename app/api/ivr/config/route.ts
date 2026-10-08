@@ -65,6 +65,59 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
   return null;
 }
 
+/** Plain object from mongoose subdoc / lean / undefined — never leave undefined. */
+function plainIvrConfig(cfg: any): Record<string, unknown> {
+  if (!cfg) return {};
+  if (typeof cfg.toObject === "function") {
+    try {
+      return cfg.toObject({ depopulate: true }) || {};
+    } catch {
+      /* fall through */
+    }
+  }
+  return { ...cfg };
+}
+
+/**
+ * Mongoose CastError "Cast to Object failed for value undefined" happens when
+ * nested audio subdocs are explicitly set to undefined (e.g. spreading a
+ * Subdocument that never initialized those paths). Always persist objects.
+ */
+function normalizeIvrAudioSubdoc(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object") {
+    return { status: "missing", approved: false };
+  }
+  const src =
+    typeof (raw as any).toObject === "function"
+      ? (raw as any).toObject()
+      : (raw as Record<string, unknown>);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(src || {})) {
+    if (value !== undefined) out[key] = value;
+  }
+  if (!out.status) out.status = "missing";
+  if (typeof out.approved !== "boolean") out.approved = false;
+  return out;
+}
+
+function assignIvrConfig(
+  user: { ivrConfig?: any },
+  next: Record<string, unknown>
+) {
+  const base = plainIvrConfig(user.ivrConfig);
+  const merged: Record<string, unknown> = { ...base, ...next };
+  // Drop keys that are still undefined after merge — mongoose rejects them.
+  for (const key of Object.keys(merged)) {
+    if (merged[key] === undefined) delete merged[key];
+  }
+  merged.eventNameAudio = normalizeIvrAudioSubdoc(merged.eventNameAudio);
+  merged.composedIntroAudio = normalizeIvrAudioSubdoc(
+    merged.composedIntroAudio
+  );
+  merged.introAudio = normalizeIvrAudioSubdoc(merged.introAudio);
+  user.ivrConfig = merged as any;
+}
+
 function serializePreviewUrls(input: {
   gender: IvrVoiceGender | null;
   eventNameAudioUrl?: string;
@@ -352,15 +405,14 @@ export async function PATCH(req: NextRequest) {
             { status: 400 }
           );
         }
-        user.ivrConfig = {
-          ...(prev as any),
+        assignIvrConfig(user, {
           introAudio: {
             ...intro,
             approved: true,
             approvedAt: new Date(),
           },
           updatedAt: new Date(),
-        };
+        });
       } else {
         const eventNameAudio = prev.eventNameAudio || {};
         const composedIntroAudio = prev.composedIntroAudio || {};
@@ -382,8 +434,7 @@ export async function PATCH(req: NextRequest) {
           );
         }
         const approvedAt = new Date();
-        user.ivrConfig = {
-          ...(prev as any),
+        assignIvrConfig(user, {
           eventNameAudio: {
             ...eventNameAudio,
             approved: true,
@@ -395,7 +446,7 @@ export async function PATCH(req: NextRequest) {
             approvedAt,
           },
           updatedAt: approvedAt,
-        };
+        });
       }
       await user.save();
       const gender = resolveConfigGender(user.ivrConfig);
@@ -479,8 +530,7 @@ export async function PATCH(req: NextRequest) {
       };
     }
 
-    user.ivrConfig = {
-      ...(prev as any),
+    assignIvrConfig(user, {
       audioMode: nextMode,
       eventName: nextEventName,
       eventNamePronunciation: nextPronunciation,
@@ -489,8 +539,10 @@ export async function PATCH(req: NextRequest) {
       voiceId: nextVoice,
       eventNameAudio,
       composedIntroAudio,
+      // Preserve existing introAudio — never wipe with undefined from spreads.
+      introAudio: prev.introAudio,
       updatedAt: new Date(),
-    };
+    });
 
     await user.save();
 
@@ -704,8 +756,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    user.ivrConfig = {
-      ...(cfg as any),
+    assignIvrConfig(user, {
       audioMode: "ai",
       eventName,
       eventNamePronunciation,
@@ -713,17 +764,18 @@ export async function POST(req: NextRequest) {
       systemVoiceId: voiceId,
       voiceId,
       eventNameAudio: {
-        ...eventNameAudio,
+        ...(eventNameAudio || {}),
         approved: false,
         approvedAt: null,
       },
       composedIntroAudio: {
-        ...composedIntroAudio,
+        ...(composedIntroAudio || {}),
         approved: false,
         approvedAt: null,
       },
+      introAudio: cfg.introAudio,
       updatedAt: new Date(),
-    };
+    });
 
     await user.save();
 

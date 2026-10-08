@@ -857,12 +857,18 @@ export async function regenerateAdminPackSegment(input: {
   else process.env.IVR_MALE_VOICE_ID = meta.voiceId;
 
   const packKey = globalPackAudioKey(gender, segment);
-  // Invalidate hash so ensure re-TTS, but keep the prior row until new audio
-  // succeeds — avoids a missing segment if ElevenLabs fails mid-regen.
-  await IvrSystemAudio.updateOne(
-    { key: packKey },
-    { $set: { contentHash: `force-regen:${Date.now()}` } }
-  ).catch(() => null);
+  const prior = await IvrSystemAudio.findOne({ key: packKey })
+    .select("_id contentHash")
+    .lean();
+  if (prior) {
+    // Invalidate hash so ensure re-TTS, but keep the prior row until new audio
+    // succeeds — avoids a missing segment if ElevenLabs fails mid-regen.
+    await IvrSystemAudio.updateOne(
+      { key: packKey },
+      { $set: { contentHash: `force-regen:${Date.now()}` } }
+    );
+  }
+  // If prior is missing (NO_MONGO_ROW), ensureGlobalPackSegment creates it.
 
   const audio = await ensureGlobalPackSegment({ gender, segment });
   const row = await IvrSystemAudio.findOne({ key: packKey })
