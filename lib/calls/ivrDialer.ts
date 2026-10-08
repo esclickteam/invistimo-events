@@ -341,6 +341,7 @@ async function setRoundExecution(input: {
   tasksCreated?: number;
   clearClaim?: boolean;
   openedAt?: Date | null;
+  eligibleCount?: number;
 }) {
   const set: Record<string, unknown> = {
     "callRoundsSchedule.rounds.$.status": input.status,
@@ -355,6 +356,9 @@ async function setRoundExecution(input: {
   }
   if (input.clearClaim) {
     set["callRoundsSchedule.rounds.$.dialClaimedAt"] = null;
+  }
+  if (typeof input.eligibleCount === "number") {
+    set["callRoundsSchedule.rounds.$.eligibleCount"] = input.eligibleCount;
   }
   await User.updateOne(
     {
@@ -577,6 +581,8 @@ export async function executeIvrRound(input: {
       eventNameAudioUrl:
         input.due.audioMode === "self_recorded" ? "" : input.due.eventNameAudioUrl,
       voiceGender: input.due.voiceGender,
+      audioMode:
+        input.due.audioMode === "self_recorded" ? "self_recorded" : "ai",
     };
 
     let attempt = existing;
@@ -588,17 +594,53 @@ export async function executeIvrRound(input: {
       attempt.dialLockedAt = now;
       attempt.introAudioUrl = attemptFields.introAudioUrl;
       attempt.eventNameAudioUrl = attemptFields.eventNameAudioUrl;
+      attempt.audioMode = attemptFields.audioMode;
       await attempt.save();
+      await IvrCallAttempt.updateOne(
+        { _id: attempt._id },
+        {
+          $push: {
+            timeline: {
+              $each: [
+                {
+                  at: now,
+                  source: "server",
+                  kind: "retry",
+                  label: "נפתח ניסיון חיוג נוסף",
+                  detail: "",
+                  eventType: "",
+                  digit: "",
+                  stage: "",
+                },
+              ],
+              $slice: -120,
+            },
+          },
+        }
+      );
     } else {
+      const allowed = isIvrDialAllowed(phone);
       attempt = await IvrCallAttempt.create({
         ...attemptFields,
-        status: isIvrDialAllowed(phone) ? "queued" : "canceled",
-        flowStep: isIvrDialAllowed(phone) ? "dialing" : "done",
+        status: allowed ? "queued" : "canceled",
+        flowStep: allowed ? "dialing" : "done",
         dialLockedAt: now,
-        endedAt: isIvrDialAllowed(phone) ? null : now,
+        endedAt: allowed ? null : now,
         durationSeconds: 0,
-        error: isIvrDialAllowed(phone) ? "" : "DIAL_BLOCKED_TEST_MODE",
+        error: allowed ? "" : "DIAL_BLOCKED_TEST_MODE",
         retryCount: 0,
+        timeline: [
+          {
+            at: now,
+            source: "server",
+            kind: allowed ? "queued" : "blocked",
+            label: allowed ? "נוצר ניסיון חיוג" : "בוטל / נחסם",
+            detail: allowed ? "" : "DIAL_BLOCKED_TEST_MODE",
+            eventType: "",
+            digit: "",
+            stage: "",
+          },
+        ],
       });
     }
 
@@ -655,6 +697,24 @@ export async function executeIvrRound(input: {
             telnyxCallLegId: created.callLegId,
             telnyxCallSessionId: created.callSessionId,
             telnyxConnectionId: created.connectionId,
+            dialRequestedAt: new Date(),
+          },
+          $push: {
+            timeline: {
+              $each: [
+                {
+                  at: new Date(),
+                  source: "server",
+                  kind: "dial_requested",
+                  label: "נשלחה בקשת חיוג ל-Telnyx",
+                  detail: "",
+                  eventType: "",
+                  digit: "",
+                  stage: "",
+                },
+              ],
+              $slice: -120,
+            },
           },
         }
       );
@@ -676,6 +736,23 @@ export async function executeIvrRound(input: {
             flowStep: "done",
             endedAt: new Date(),
             error: message,
+          },
+          $push: {
+            timeline: {
+              $each: [
+                {
+                  at: new Date(),
+                  source: "server",
+                  kind: "dial_failed",
+                  label: "ניסיון החיוג נכשל",
+                  detail: message.slice(0, 300),
+                  eventType: "",
+                  digit: "",
+                  stage: "",
+                },
+              ],
+              $slice: -120,
+            },
           },
         }
       );
@@ -727,6 +804,7 @@ export async function executeIvrRound(input: {
     ).length,
     clearClaim: true,
     openedAt: now,
+    eligibleCount: eligible.length,
   });
 
   return {

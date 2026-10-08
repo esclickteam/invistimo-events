@@ -1488,6 +1488,13 @@ preRsvpMessages: {
             min: 0,
           },
 
+          /** Guests selected when the round actually ran. Empty on older rounds. */
+          eligibleCount: {
+            type: Number,
+            default: null,
+            min: 0,
+          },
+
           createdAt: {
             type: Date,
             default: Date.now,

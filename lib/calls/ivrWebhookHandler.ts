@@ -27,6 +27,11 @@ import {
   hangupIvrCall,
   playbackIvrAudio,
 } from "@/lib/telnyx/ivrCallControl";
+import {
+  describeIvrTelnyxEvent,
+  ivrEventInstant,
+  pushIvrTimeline,
+} from "@/lib/calls/ivrCallTimeline";
 
 const COUNT_DIGIT_MAX = 3;
 const COUNT_INTER_DIGIT_MS = 2500;
@@ -308,6 +313,27 @@ async function applyRsvpOnce(input: {
             : null,
         status: "completed",
       },
+      $push: {
+        timeline: {
+          $each: [
+            {
+              at: new Date(),
+              source: "server",
+              kind: "rsvp_saved",
+              label: "נשמרה תשובה ברשומה",
+              detail: `${input.rsvp}${
+                typeof input.attendingCount === "number"
+                  ? `:${input.attendingCount}`
+                  : ""
+              }`,
+              eventType: "",
+              digit: "",
+              stage: "",
+            },
+          ],
+          $slice: -120,
+        },
+      },
     },
     { new: true }
   );
@@ -339,6 +365,23 @@ async function applyRsvpOnce(input: {
           status: "answered",
           flowStep: "gather_choice",
           choiceDigit: "",
+        },
+        $push: {
+          timeline: {
+            $each: [
+              {
+                at: new Date(),
+                source: "server",
+                kind: "rsvp_failed",
+                label: "שמירת התשובה נכשלה",
+                detail: error instanceof Error ? error.message : "RSVP_SAVE_FAILED",
+                eventType: "",
+                digit: "",
+                stage: "",
+              },
+            ],
+            $slice: -120,
+          },
         },
       }
     );
@@ -377,7 +420,50 @@ export async function handleIvrTelnyxWebhook(body: any) {
   }
 
   const gender = attemptVoiceGender(attempt);
+  const observedAt = ivrEventInstant(body);
+  const described = describeIvrTelnyxEvent(eventType, payload);
+  const setIfEmpty: Record<string, Date> = {};
+  if (eventType === "call.ringing") setIfEmpty.ringingAt = observedAt;
+  if (
+    eventType === "call.playback.started" ||
+    eventType === "call.speak.started"
+  ) {
+    setIfEmpty.playbackStartedAt = observedAt;
+  }
+  if (eventType === "call.dtmf.received" || eventType === "call.gather.ended") {
+    setIfEmpty.firstDigitAt = observedAt;
+    const choice = described.digit.slice(0, 1);
+    if (choice === "1" || choice === "2" || choice === "3") {
+      setIfEmpty.choiceDigitAt = observedAt;
+    }
+  }
+  const noted = pushIvrTimeline(
+    attempt._id,
+    {
+      at: observedAt,
+      source: "telnyx",
+      kind: described.kind,
+      label: described.label,
+      detail: described.detail,
+      eventType,
+      digit: described.digit,
+    },
+    {
+      setIfEmpty,
+      setFollowupPlayback:
+        eventType === "call.playback.started" ||
+        eventType === "call.speak.started"
+          ? observedAt
+          : undefined,
+    }
+  ).catch((error) => {
+    console.error(
+      "IVR_TIMELINE",
+      error instanceof Error ? error.message : error
+    );
+  });
 
+  try {
   switch (eventType) {
     case "call.initiated": {
       attempt.status = "initiated";
@@ -939,4 +1025,7 @@ export async function handleIvrTelnyxWebhook(body: any) {
     status: attempt.status,
     rsvpApplied: attempt.rsvpApplied,
   };
+  } finally {
+    await noted;
+  }
 }

@@ -3,6 +3,8 @@
  * Does not create a second Telnyx integration.
  */
 
+import { notePlaybackCommand } from "@/lib/calls/ivrCallTimeline";
+
 type TelnyxActionResponse = {
   data?: Record<string, unknown>;
   errors?: unknown;
@@ -226,12 +228,17 @@ export async function playbackIvrAudio(
   audioUrl: string,
   clientState?: Record<string, unknown>
 ) {
-  return telnyxCallAction(callControlId, "playback_start", {
-    audio_url: audioUrl,
-    ...(clientState
-      ? { client_state: encodeIvrClientState(clientState) }
-      : {}),
-  });
+  const noted = notePlaybackCommand(clientState);
+  try {
+    return await telnyxCallAction(callControlId, "playback_start", {
+      audio_url: audioUrl,
+      ...(clientState
+        ? { client_state: encodeIvrClientState(clientState) }
+        : {}),
+    });
+  } finally {
+    await noted;
+  }
 }
 
 export async function gatherIvrUsingAudio(input: {
@@ -245,7 +252,9 @@ export async function gatherIvrUsingAudio(input: {
   validDigits?: string;
   clientState?: Record<string, unknown>;
 }) {
-  return telnyxCallAction(input.callControlId, "gather_using_audio", {
+  const noted = notePlaybackCommand(input.clientState);
+  try {
+    return await telnyxCallAction(input.callControlId, "gather_using_audio", {
     audio_url: input.audioUrl,
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
@@ -261,6 +270,9 @@ export async function gatherIvrUsingAudio(input: {
       ? { client_state: encodeIvrClientState(input.clientState) }
       : {}),
   });
+  } finally {
+    await noted;
+  }
 }
 
 export async function hangupIvrCall(callControlId: string) {
