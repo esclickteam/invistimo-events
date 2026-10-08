@@ -37,9 +37,16 @@ test("18:00 Israel is an absolute instant and displays DD/MM/YYYY HH:mm", () => 
   );
 });
 
-test("audio subdocs are never persisted as undefined", () => {
-  const user: { ivrConfig?: any; markModified?: (path: string) => void } = {
-    ivrConfig: undefined,
+test("self-recording save never writes undefined audio objects", () => {
+  const stored: Record<string, unknown> = {
+    eventNameAudio: { status: "ready", audioUrl: "keep-me", approved: true },
+  };
+  const user = {
+    ivrConfig: stored,
+    set(path: string, value: unknown) {
+      const key = path.replace(/^ivrConfig\./, "");
+      stored[key] = value;
+    },
   };
   assignIvrConfig(user, {
     audioMode: "self_recorded",
@@ -51,15 +58,35 @@ test("audio subdocs are never persisted as undefined", () => {
       approved: false,
     },
   });
-  assert.equal(typeof user.ivrConfig.eventNameAudio, "object");
-  assert.equal(user.ivrConfig.eventNameAudio.status, "missing");
-  assert.equal(typeof user.ivrConfig.composedIntroAudio, "object");
-  assert.equal(user.ivrConfig.introAudio.status, "ready");
-  assert.equal(user.ivrConfig.recordingApproval, undefined);
+  assert.equal(
+    (stored.eventNameAudio as { audioUrl: string }).audioUrl,
+    "keep-me"
+  );
+  assert.equal(stored.composedIntroAudio, undefined);
+  assert.equal((stored.introAudio as { status: string }).status, "ready");
+  assert.equal(stored.audioMode, "self_recorded");
   assert.deepEqual(normalizeIvrAudioSubdoc(undefined), {
     status: "missing",
     approved: false,
   });
+});
+
+test("customer schedule fields are DD/MM/YYYY and HH:mm", () => {
+  const ui = readFileSync(
+    path.join(root, "app/components/IvrRoundsPanel.jsx"),
+    "utf8"
+  );
+  assert.match(ui, /DD\/MM\/YYYY/);
+  assert.match(ui, /HH:mm/);
+  assert.equal(ui.includes('type="datetime-local"'), false);
+  assert.equal(ui.includes("טעינת רשימת הקולות נכשלה"), false);
+  const upload = readFileSync(
+    path.join(root, "app/api/ivr/audio/upload/route.ts"),
+    "utf8"
+  );
+  assert.match(upload, /User\.updateOne/);
+  assert.equal(upload.includes("eventNameAudio"), false);
+  assert.equal(upload.includes("composedIntroAudio"), false);
 });
 
 test("locked Dana and Roger voice ids stay in the IVR code", () => {

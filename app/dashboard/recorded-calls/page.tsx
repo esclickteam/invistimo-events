@@ -80,7 +80,7 @@ export default function RecordedCallsPage() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || "שמירת תזמון נכשלה");
+        throw new Error(data?.message || data?.error || "שמירת תזמון נכשלה");
       }
       setSchedule(next);
       setMessage("תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע.");

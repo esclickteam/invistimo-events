@@ -10,6 +10,7 @@ import {
   normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
 } from "@/lib/calls/callRoundScheduleTime";
+import { ivrPersistErrorPayload } from "@/lib/calls/ivrConfigPersist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -115,9 +116,10 @@ export async function PUT(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ivr/schedule]", error);
+    const payload = ivrPersistErrorPayload(error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "FAILED" },
-      { status: 500 }
+      { ok: false, error: payload.error, message: payload.message },
+      { status: payload.status }
     );
   }
 }

@@ -61,36 +61,57 @@ export function normalizeRecordingApproval(raw: unknown): Record<string, unknown
   return out;
 }
 
+const AUDIO_KEYS = new Set([
+  "eventNameAudio",
+  "composedIntroAudio",
+  "introAudio",
+]);
+
 /**
- * Merge the next ivrConfig onto the user without dropping existing audio
- * and without ever assigning undefined to object paths.
+ * Set only the provided ivrConfig paths.
+ * Never replace the whole object and never assign undefined to an audio path.
+ * Self-recording must omit eventNameAudio and composedIntroAudio entirely.
  */
 export function assignIvrConfig(
-  user: { ivrConfig?: any; markModified?: (path: string) => void },
+  user: {
+    ivrConfig?: any;
+    set?: (path: string, value: unknown) => void;
+    markModified?: (path: string) => void;
+  },
   next: Record<string, unknown>
 ) {
-  const base = plainIvrConfig(user.ivrConfig);
-  const merged: Record<string, unknown> = { ...base, ...next };
-  for (const key of Object.keys(merged)) {
-    if (merged[key] === undefined) delete merged[key];
+  const set =
+    typeof user.set === "function"
+      ? (path: string, value: unknown) => user.set!(path, value)
+      : (path: string, value: unknown) => {
+          const root = plainIvrConfig(user.ivrConfig);
+          const key = path.replace(/^ivrConfig\./, "");
+          root[key] = value;
+          user.ivrConfig = root;
+        };
+
+  for (const [key, value] of Object.entries(next)) {
+    if (value === undefined) continue;
+    if (AUDIO_KEYS.has(key)) {
+      set(`ivrConfig.${key}`, normalizeIvrAudioSubdoc(value));
+      continue;
+    }
+    if (key === "recordingApproval") {
+      set(`ivrConfig.${key}`, normalizeRecordingApproval(value));
+      continue;
+    }
+    set(`ivrConfig.${key}`, value);
   }
-  merged.eventNameAudio = normalizeIvrAudioSubdoc(merged.eventNameAudio);
-  merged.composedIntroAudio = normalizeIvrAudioSubdoc(
-    merged.composedIntroAudio
-  );
-  merged.introAudio = normalizeIvrAudioSubdoc(merged.introAudio);
-  // Absent approval must stay absent so older approved clips still dial.
-  if (merged.recordingApproval == null) {
-    delete merged.recordingApproval;
-  } else {
-    merged.recordingApproval = normalizeRecordingApproval(
-      merged.recordingApproval
-    );
-  }
-  user.ivrConfig = merged as any;
   if (typeof user.markModified === "function") {
     user.markModified("ivrConfig");
   }
+}
+
+/** Drop undefined values so Mongo never receives them inside an audio object. */
+export function definedAudioFields(
+  raw: Record<string, unknown>
+): Record<string, unknown> {
+  return normalizeIvrAudioSubdoc(raw);
 }
 
 export function ivrPersistErrorPayload(error: unknown): {

@@ -1816,6 +1816,17 @@ preRsvpMessages: {
 UserSchema.pre("validate", function () {
   const doc = this as HydratedDocument<IUser>;
 
+  // Missing nested audio objects must not be cast from undefined.
+  // This does not replace an object that already holds a recording.
+  if (doc.ivrConfig) {
+    const emptyAudio = () => ({ status: "missing" as const, approved: false });
+    for (const key of ["eventNameAudio", "composedIntroAudio", "introAudio"] as const) {
+      if (doc.get(`ivrConfig.${key}`) == null) {
+        doc.set(`ivrConfig.${key}`, emptyAudio());
+      }
+    }
+  }
+
   if (doc.email) {
     doc.email = String(doc.email).trim().toLowerCase();
   }
