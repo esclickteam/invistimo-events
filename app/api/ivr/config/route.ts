@@ -73,42 +73,68 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
 }
 
 
+function composedIntroIsCurrentOutbound(composed: any) {
+  return (
+    composed?.status === "ready" &&
+    Boolean(composed?.audioUrl) &&
+    String(composed?.composeVersion || "") === IVR_COMPOSE_VERSION
+  );
+}
+
 function serializePreviewUrls(input: {
   gender: IvrVoiceGender | null;
   eventNameAudioUrl?: string;
   composedIntroAudioUrl?: string;
+  composedIsCurrent?: boolean;
   pack?: Awaited<ReturnType<typeof ensureGlobalVoicePack>> | null;
 }) {
+  const eventName = String(input.eventNameAudioUrl || "");
+  const composed =
+    input.composedIsCurrent === true
+      ? String(input.composedIntroAudioUrl || "")
+      : "";
+
   if (!input.gender || !input.pack) {
     return {
       introBeforeEventNameUrl: "",
-      eventNameAudioUrl: String(input.eventNameAudioUrl || ""),
+      eventNameAudioUrl: eventName,
       introAfterEventNameUrl: "",
-      composedIntroAudioUrl: String(input.composedIntroAudioUrl || ""),
-      /** Prefer single seamless file for Preview; playlist is fallback only. */
-      playlist: input.composedIntroAudioUrl
-        ? [String(input.composedIntroAudioUrl)]
-        : ([] as string[]),
-      seamless: Boolean(input.composedIntroAudioUrl),
+      inboundBeforeEventNameUrl: "",
+      inboundAfterEventNameUrl: "",
+      composedIntroAudioUrl: composed,
+      /** Outbound only. Inbound clips are never mixed into this playlist. */
+      playlist: composed ? [composed] : ([] as string[]),
+      inboundPlaylist: [] as string[],
+      seamless: Boolean(composed),
     };
   }
 
   const before = String(
     input.pack.segments.introBeforeEventName?.audioUrl || ""
   );
-  const eventName = String(input.eventNameAudioUrl || "");
   const after = String(input.pack.segments.introAfterEventName?.audioUrl || "");
-  const composed = String(input.composedIntroAudioUrl || "");
+  const inboundBefore = String(
+    input.pack.segments.inboundBeforeEventName?.audioUrl || ""
+  );
+  const inboundAfter = String(
+    input.pack.segments.inboundAfterEventName?.audioUrl || ""
+  );
   const playlist = composed
     ? [composed]
     : [before, eventName, after].filter(Boolean);
+  const inboundPlaylist = [inboundBefore, eventName, inboundAfter].filter(
+    Boolean
+  );
 
   return {
     introBeforeEventNameUrl: before,
     eventNameAudioUrl: eventName,
     introAfterEventNameUrl: after,
+    inboundBeforeEventNameUrl: inboundBefore,
+    inboundAfterEventNameUrl: inboundAfter,
     composedIntroAudioUrl: composed,
     playlist,
+    inboundPlaylist,
     seamless: Boolean(composed),
   };
 }
@@ -200,10 +226,12 @@ function serializeIvrConfig(
     storedUrl: composedIntroAudio?.audioUrl,
   });
 
+  const composedIsCurrent = composedIntroIsCurrentOutbound(composedIntroAudio);
   const previewAudio = serializePreviewUrls({
     gender: voiceGender,
     eventNameAudioUrl,
-    composedIntroAudioUrl,
+    composedIntroAudioUrl: composedIsCurrent ? composedIntroAudioUrl : "",
+    composedIsCurrent,
     pack: pack || null,
   });
 
@@ -310,6 +338,43 @@ export async function GET(req: NextRequest) {
     const gender = resolveConfigGender(user.ivrConfig || {});
     const systemVoices = await getIvrSystemVoiceChoices();
     const pack = await loadPackSafe(gender);
+    let approvalReset = false;
+    const cfg = user.ivrConfig || {};
+    const composed = cfg.composedIntroAudio;
+    const approval = cfg.recordingApproval;
+    const staleAiComposition =
+      cfg.audioMode !== "self_recorded" &&
+      approval?.audioMode !== "self_recorded" &&
+      composed?.status === "ready" &&
+      String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION &&
+      (approval?.approved === true ||
+        composed?.approved === true ||
+        cfg.eventNameAudio?.approved === true);
+    if (staleAiComposition) {
+      if (cfg.eventNameAudio) {
+        cfg.eventNameAudio.approved = false;
+        cfg.eventNameAudio.approvedAt = null;
+      }
+      if (cfg.composedIntroAudio) {
+        cfg.composedIntroAudio.approved = false;
+        cfg.composedIntroAudio.approvedAt = null;
+      }
+      if (cfg.recordingApproval) {
+        cfg.recordingApproval.approved = false;
+        cfg.recordingApproval.approvedAt = null;
+      }
+      await user.updateOne({
+        $set: {
+          "ivrConfig.eventNameAudio.approved": false,
+          "ivrConfig.eventNameAudio.approvedAt": null,
+          "ivrConfig.composedIntroAudio.approved": false,
+          "ivrConfig.composedIntroAudio.approvedAt": null,
+          "ivrConfig.recordingApproval.approved": false,
+          "ivrConfig.recordingApproval.approvedAt": null,
+        },
+      });
+      approvalReset = true;
+    }
     const ivrConfig = serializeIvrConfig(user.ivrConfig || {}, pack);
     ivrConfig.systemVoices = systemVoices.voices.map((v) => ({
       gender: v.gender,
@@ -320,6 +385,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       callsType: user.callsType || "human",
       includeCalls: Boolean(user.includeCalls),
+      approvalReset,
       ivrConfig,
       callRoundsSchedule: user.callRoundsSchedule || { enabled: false, rounds: [] },
       systemVoicesOnly: true,
@@ -866,6 +932,7 @@ export async function POST(req: NextRequest) {
         publicToken: composedIntroAudio.publicToken,
         storedUrl: composedIntroAudio.audioUrl,
       }),
+      composedIsCurrent: composedIntroIsCurrentOutbound(composedIntroAudio),
       pack,
     });
     const serialized = serializeIvrConfig(user.ivrConfig, pack);

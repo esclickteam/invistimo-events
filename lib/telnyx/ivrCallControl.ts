@@ -12,6 +12,41 @@ function getTelnyxApiKey() {
   return process.env.TELNYX_API_KEY || "";
 }
 
+function ivrAppBaseUrl() {
+  const explicit =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    "";
+  if (String(explicit).trim()) return String(explicit).replace(/\/$/, "");
+  const vercelEnv = String(process.env.VERCEL_ENV || "").toLowerCase();
+  const appEnv = String(process.env.APP_ENV || "").toLowerCase();
+  if (vercelEnv === "production" || appEnv === "production") {
+    return "https://www.invistimo.com";
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  }
+  return "";
+}
+
+function ivrWebhookUrl() {
+  const explicit = String(process.env.TELNYX_IVR_WEBHOOK_URL || "").trim();
+  if (explicit) return explicit;
+  const base = ivrAppBaseUrl();
+  return base ? `${base}/api/telnyx/ivr/webhook` : "";
+}
+
+function withIvrWebhook(body: Record<string, unknown>) {
+  const webhookUrl = ivrWebhookUrl();
+  if (!webhookUrl || body.webhook_url) return body;
+  return {
+    ...body,
+    webhook_url: webhookUrl,
+    webhook_url_method: "POST",
+  };
+}
+
 export function encodeIvrClientState(state: Record<string, unknown>) {
   return Buffer.from(JSON.stringify(state), "utf8").toString("base64");
 }
@@ -46,7 +81,7 @@ async function telnyxCallAction(
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(withIvrWebhook(body)),
     }
   );
 
