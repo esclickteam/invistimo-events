@@ -263,6 +263,34 @@ export async function hangupIvrCall(callControlId: string) {
   return telnyxCallAction(callControlId, "hangup", {});
 }
 
+export async function stopIvrPlayback(callControlId: string) {
+  return telnyxCallAction(callControlId, "playback_stop", { stop: "all" });
+}
+
+/** Wait for DTMF without starting another audio file. */
+export async function gatherIvrDigits(input: {
+  callControlId: string;
+  minimumDigits?: number;
+  maximumDigits?: number;
+  timeoutMillis?: number;
+  terminatingDigit?: string;
+  validDigits?: string;
+  clientState?: Record<string, unknown>;
+}) {
+  return telnyxCallAction(input.callControlId, "gather", {
+    minimum_digits: input.minimumDigits ?? 1,
+    maximum_digits: input.maximumDigits ?? 1,
+    timeout_millis: input.timeoutMillis ?? 45000,
+    ...(input.terminatingDigit
+      ? { terminating_digit: input.terminatingDigit }
+      : {}),
+    ...(input.validDigits ? { valid_digits: input.validDigits } : {}),
+    ...(input.clientState
+      ? { client_state: encodeIvrClientState(input.clientState) }
+      : {}),
+  });
+}
+
 export function normalizePhoneForTelnyx(phone: unknown) {
   let raw = String(phone || "").trim();
   if (!raw) return "";
