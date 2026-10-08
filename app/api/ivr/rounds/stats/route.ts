@@ -4,6 +4,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import IvrCallAttempt from "@/models/IvrCallAttempt";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { filterGuestsForIvrRound } from "@/lib/calls/ivrRoundEligibility";
+import { formatCallRoundDateTimeDmy } from "@/lib/calls/callRoundScheduleTime";
 import {
   requireIvrSession,
   resolveIvrTargetUser,
@@ -51,7 +52,35 @@ export async function GET(req: NextRequest) {
       .select("round status answered rsvpResult attendingCount")
       .lean();
 
+    const scheduleRounds = Array.isArray(target.callRoundsSchedule?.rounds)
+      ? target.callRoundsSchedule.rounds
+      : [];
+
     const rounds = [1, 2, 3].map((round) => {
+      const scheduleRound = scheduleRounds.find(
+        (item: any) => Number(item?.roundNumber) === round
+      );
+      const rawStatus = String(scheduleRound?.status || "scheduled").toLowerCase();
+      const executionStatus =
+        rawStatus === "done" || rawStatus === "completed"
+          ? "done"
+          : rawStatus === "failed"
+            ? "failed"
+            : rawStatus === "in_progress" || rawStatus === "opened"
+              ? "in_progress"
+              : rawStatus === "cancelled" || rawStatus === "canceled"
+                ? "cancelled"
+                : "scheduled";
+      const executionLabel =
+        executionStatus === "done"
+          ? "הושלם"
+          : executionStatus === "failed"
+            ? "נכשל"
+            : executionStatus === "in_progress"
+              ? "מתבצע"
+              : executionStatus === "cancelled"
+                ? "בוטל"
+                : "מתוזמן";
       const roundAttempts = attempts.filter((a) => Number(a.round) === round);
       const eligibleNow = filterGuestsForIvrRound({
         guests,
@@ -78,6 +107,10 @@ export async function GET(req: NextRequest) {
 
       return {
         round,
+        executionStatus,
+        executionLabel,
+        failureReason: String(scheduleRound?.failureReason || ""),
+        scheduledAtDisplay: formatCallRoundDateTimeDmy(scheduleRound?.scheduledAt),
         toDial: eligibleNow.length,
         attempted: roundAttempts.length,
         answered,

@@ -71,7 +71,81 @@ async function ensureCachedPromptAudio(input: {
   }
 
   const contentHash = hashTtsContent(text, resolvedVoice);
-  const existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
+  let existing = await IvrSystemAudio.findOne({ key: input.key }).lean();
+
+  // Same clip stored under another key must be reused — never a second row.
+  if (!existing) {
+    const byVoiceAndText = await IvrSystemAudio.findOne({
+      voiceId: resolvedVoice,
+      text,
+      r2Key: { $exists: true, $nin: ["", null] },
+    }).lean();
+    if (byVoiceAndText) {
+      existing = byVoiceAndText;
+      if (String(byVoiceAndText.key || "") !== input.key) {
+        const canonicalTaken = await IvrSystemAudio.findOne({
+          key: input.key,
+        })
+          .select("_id")
+          .lean();
+        if (!canonicalTaken) {
+          await IvrSystemAudio.updateOne(
+            { _id: byVoiceAndText._id },
+            { $set: { key: input.key } }
+          );
+          existing = { ...byVoiceAndText, key: input.key };
+        }
+      }
+    }
+  }
+
+  if (existing?.r2Key) {
+    const verifiedExisting = await verifyIvrAudioInR2(String(existing.r2Key));
+    if (verifiedExisting.ok) {
+      let publicToken = String(existing.publicToken || "").trim();
+      if (!publicToken) {
+        publicToken = createIvrAudioPublicToken();
+      }
+      const audioUrl = resolveIvrPublicAudioUrl({
+        publicToken,
+        storedUrl: existing.audioUrl,
+      });
+      if (
+        audioUrl &&
+        (audioUrl !== existing.audioUrl ||
+          publicToken !== existing.publicToken ||
+          existing.key !== input.key)
+      ) {
+        await IvrSystemAudio.updateOne(
+          { _id: existing._id },
+          {
+            $set: {
+              audioUrl,
+              publicToken,
+              key: input.key,
+            },
+          }
+        );
+      }
+      return {
+        doc: {
+          ...existing,
+          key: input.key,
+          audioUrl: audioUrl || existing.audioUrl,
+          publicToken,
+          contentType: verifiedExisting.contentType || existing.contentType,
+        },
+        reused: true,
+      };
+    }
+
+    // Row exists. Do not synthesize over a locked global clip.
+    throw new Error(
+      input.reuseOnly
+        ? `IVR_GLOBAL_SEGMENT_UNPLAYABLE:${input.key}`
+        : `IVR_GLOBAL_SEGMENT_LOCKED_UNPLAYABLE:${input.key}`
+    );
+  }
 
   if (
     existing &&

@@ -5,6 +5,8 @@ import {
   resolveIvrTargetUser,
 } from "@/lib/calls/ivrRequestAuth";
 import {
+  formatCallRoundDateTimeDmy,
+  formatCallRoundDateTimeInput,
   normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
 } from "@/lib/calls/callRoundScheduleTime";
@@ -82,6 +84,8 @@ export async function PUT(req: NextRequest) {
             : "draft"
           : existing?.status || (scheduledAt ? "scheduled" : "draft"),
         notes: String(incoming?.notes || existing?.notes || ""),
+        failureReason: scheduleChanged ? "" : existing?.failureReason || "",
+        dialClaimedAt: scheduleChanged ? null : existing?.dialClaimedAt || null,
         openedAt: scheduleChanged ? null : existing?.openedAt || null,
         tasksCreated: scheduleChanged ? null : existing?.tasksCreated ?? null,
         updatedAt: new Date(),
@@ -96,9 +100,18 @@ export async function PUT(req: NextRequest) {
 
     await user.save();
 
+    const schedule = user.callRoundsSchedule?.toObject?.()
+      ? user.callRoundsSchedule.toObject()
+      : user.callRoundsSchedule;
+    const rounds = (schedule?.rounds || []).map((round: any) => ({
+      ...round,
+      scheduledAtInput: formatCallRoundDateTimeInput(round.scheduledAt),
+      scheduledAtDisplay: formatCallRoundDateTimeDmy(round.scheduledAt),
+    }));
+
     return NextResponse.json({
       ok: true,
-      callRoundsSchedule: user.callRoundsSchedule,
+      callRoundsSchedule: { ...schedule, rounds },
     });
   } catch (error) {
     console.error("[ivr/schedule]", error);

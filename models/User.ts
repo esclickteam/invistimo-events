@@ -286,6 +286,19 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       approvedAt?: Date | null;
     };
     /**
+     * Exact audio the client approved for live dialing.
+     * Cleared when event name, voice, or the file changes.
+     */
+    recordingApproval?: {
+      approved?: boolean;
+      approvedAt?: Date | null;
+      audioMode?: "ai" | "self_recorded" | null;
+      voiceGender?: "female" | "male" | null;
+      audioPublicToken?: string;
+      audioContentHash?: string;
+      audioUrl?: string;
+    };
+    /**
      * Self-recorded full intro (optional path).
      * AI mode must not write fixed global clips here.
      */
@@ -324,9 +337,15 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
         | "waiting_for_assignment"
         | "waiting_for_previous_round"
         | "opened"
+        | "in_progress"
         | "done"
+        | "failed"
         | "cancelled";
       notes?: string;
+      /** Why an IVR round did not dial or failed. Empty when healthy. */
+      failureReason?: string;
+      /** Soft lock so two cron ticks cannot dial the same round together. */
+      dialClaimedAt?: Date | null;
       openedAt?: Date | null;
       tasksCreated?: number | null;
       createdAt?: Date;
@@ -1307,6 +1326,23 @@ preRsvpMessages: {
           default: null,
         },
       },
+      recordingApproval: {
+        approved: { type: Boolean, default: false },
+        approvedAt: { type: Date, default: null },
+        audioMode: {
+          type: String,
+          enum: ["ai", "self_recorded", null],
+          default: null,
+        },
+        voiceGender: {
+          type: String,
+          enum: ["female", "male", null],
+          default: null,
+        },
+        audioPublicToken: { type: String, trim: true, default: "" },
+        audioContentHash: { type: String, trim: true, default: "" },
+        audioUrl: { type: String, trim: true, default: "" },
+      },
       introAudio: {
         status: {
           type: String,
@@ -1412,7 +1448,9 @@ preRsvpMessages: {
               "waiting_for_assignment",
               "waiting_for_previous_round",
               "opened",
+              "in_progress",
               "done",
+              "failed",
               "cancelled",
             ],
             default: "draft",
@@ -1422,6 +1460,17 @@ preRsvpMessages: {
             type: String,
             trim: true,
             default: "",
+          },
+
+          failureReason: {
+            type: String,
+            trim: true,
+            default: "",
+          },
+
+          dialClaimedAt: {
+            type: Date,
+            default: null,
           },
 
           /**

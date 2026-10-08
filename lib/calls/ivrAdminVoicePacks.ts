@@ -32,6 +32,8 @@ import {
   getIvrMaleVoiceId,
   getIvrTtsModelId,
   IVR_MALE_AUDITION_TEXT,
+  IVR_LOCKED_FEMALE_VOICE_ID,
+  IVR_LOCKED_MALE_VOICE_ID,
   IVR_REQUIRED_FEMALE_VOICE_NAME,
   listMaleAuditionCandidates,
   synthesizeElevenLabsSpeech,
@@ -217,13 +219,41 @@ async function readExistingPackSegments(
   }
 
   const byKey = new Map(rows.map((r) => [String(r.key), r]));
+  const packVoiceId =
+    gender === "female" ? getIvrFemaleVoiceId() : getIvrMaleVoiceId();
+  let altRows: any[] = [];
+  if (rows.length < keys.length) {
+    try {
+      altRows = await IvrSystemAudio.find({
+        text: { $in: Object.values(IVR_GLOBAL_PACK_TEXTS) },
+        r2Key: { $exists: true, $nin: ["", null] },
+      })
+        .select("key text voiceId audioUrl contentHash publicToken r2Key contentType")
+        .lean();
+    } catch {
+      altRows = [];
+    }
+  }
   const out = {} as Record<IvrGlobalPackSegmentKey, PackSegmentStatus>;
 
   await Promise.all(
     (Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]).map(
       async (segment) => {
         const key = globalPackAudioKey(gender, segment);
-        const row = byKey.get(key);
+        let row = byKey.get(key);
+        if (!row) {
+          const text = IVR_GLOBAL_PACK_TEXTS[segment];
+          row = altRows.find((candidate) => {
+            if (String(candidate.text || "") !== text) return false;
+            const candidateKey = String(candidate.key || "");
+            const candidateVoice = String(candidate.voiceId || "");
+            return (
+              candidateKey.includes(`:${gender}:`) ||
+              candidateKey.startsWith(`${gender}:`) ||
+              (packVoiceId && candidateVoice === packVoiceId)
+            );
+          });
+        }
 
         if (!row) {
           out[segment] = {
@@ -326,18 +356,33 @@ async function readExistingPackSegments(
 }
 
 function isTrustedFemaleLock(meta: IIvrPackVoiceMeta) {
-  // Female must be explicitly locked to Dana (not a random auto voice).
+  // Dana voice id is the permanent lock. adminNote is extra, not required.
   return (
     Boolean(meta.voiceId) &&
-    (meta.adminNote === IVR_REQUIRED_FEMALE_VOICE_NAME ||
+    (meta.voiceId === IVR_LOCKED_FEMALE_VOICE_ID ||
+      meta.adminNote === IVR_REQUIRED_FEMALE_VOICE_NAME ||
       meta.adminNote === "Dana")
   );
 }
 
 function isTrustedMaleLock(meta: IIvrPackVoiceMeta) {
   return (
-    Boolean(meta.voiceId) && meta.adminNote === "admin_audition_locked"
+    Boolean(meta.voiceId) &&
+    (meta.voiceId === IVR_LOCKED_MALE_VOICE_ID ||
+      meta.adminNote === "admin_audition_locked" ||
+      meta.adminNote === "Roger")
   );
+}
+
+/** Approved Dana/Roger packs must never be regenerated or deleted. */
+function isPermanentlyLockedPack(
+  gender: IvrVoiceGender,
+  meta: IIvrPackVoiceMeta
+) {
+  if (!meta.approved || !meta.segmentsReady || !meta.voiceId) return false;
+  return gender === "female"
+    ? isTrustedFemaleLock(meta)
+    : isTrustedMaleLock(meta);
 }
 
 export async function getGlobalPacksApprovalStatus() {
@@ -493,6 +538,10 @@ export async function updateAdminPackVoiceId(input: {
   );
   const changed = prev.voiceId !== voiceId;
 
+  if (changed && isPermanentlyLockedPack(gender, prev)) {
+    throw new Error("PACK_SEGMENTS_LOCKED");
+  }
+
   const next = plainMeta({
     ...prev,
     voiceId,
@@ -501,10 +550,10 @@ export async function updateAdminPackVoiceId(input: {
         ? IVR_REQUIRED_FEMALE_VOICE_NAME
         : String(input.adminNote ?? prev.adminNote ?? "").trim(),
     source: "manual",
-    // Changing voice always invalidates pack audio / approval.
+    // Changing voice invalidates audio. An unchanged locked pack stays approved.
     segmentsReady: changed ? false : prev.segmentsReady,
-    approved: false,
-    approvedAt: null,
+    approved: changed ? false : prev.approved,
+    approvedAt: changed ? null : prev.approvedAt,
   });
 
   doc.set(gender, next);
@@ -534,6 +583,20 @@ async function deletePackAudioForGender(gender: IvrVoiceGender) {
  */
 export async function invalidateWrongVoicePacks() {
   const doc = await getOrCreateConfigDoc();
+  const female = normalizeMeta(doc.female, getIvrFemaleVoiceId());
+  const male = normalizeMeta(doc.male, getIvrMaleVoiceId());
+  if (
+    isPermanentlyLockedPack("female", female) ||
+    isPermanentlyLockedPack("male", male)
+  ) {
+    return {
+      ...(await serializeAdminVoicePacks()),
+      revoked: false,
+      locked: true,
+      message:
+        "החבילות של Dana ו-Roger כבר אושרו ונעולות. הקבצים לא נמחקו ולא נוצרו מחדש.",
+    };
+  }
 
   // Clear wrong voice IDs entirely — do not leave auto-picked IDs usable.
   delete process.env.IVR_FEMALE_VOICE_ID;
@@ -746,6 +809,20 @@ export async function generateAdminVoicePack(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
+  if (isPermanentlyLockedPack(gender, meta)) {
+    return {
+      ...(await serializeAdminVoicePacks()),
+      locked: true,
+      generated: {
+        gender,
+        reuseStats: {},
+        regeneratedSegments: [],
+        verifiedReady: true,
+        skipped: true,
+      },
+    };
+  }
+
   if (gender === "female") {
     await assertVoiceIdIsDana(meta.voiceId);
     if (!isTrustedFemaleLock(meta)) {
@@ -853,6 +930,10 @@ export async function regenerateAdminPackSegment(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
+  if (isPermanentlyLockedPack(gender, meta)) {
+    throw new Error("PACK_SEGMENTS_LOCKED");
+  }
+
   if (gender === "female") process.env.IVR_FEMALE_VOICE_ID = meta.voiceId;
   else process.env.IVR_MALE_VOICE_ID = meta.voiceId;
 
@@ -920,6 +1001,11 @@ export async function approveAdminVoicePack(input: {
   );
   if (!meta.voiceId) throw new Error("VOICE_ID_REQUIRED");
 
+  // Already approved and locked — do not re-run approval or touch audio.
+  if (isPermanentlyLockedPack(gender, meta)) {
+    return serializeAdminVoicePacks();
+  }
+
   if (gender === "female") {
     await assertVoiceIdIsDana(meta.voiceId);
     if (!isTrustedFemaleLock(meta)) {
@@ -969,9 +1055,13 @@ export async function hydrateApprovedPackVoiceIds() {
     const male = normalizeMeta(doc.male);
     if (female.voiceId && female.approved && isTrustedFemaleLock(female)) {
       process.env.IVR_FEMALE_VOICE_ID = female.voiceId;
+    } else if (!process.env.IVR_FEMALE_VOICE_ID) {
+      process.env.IVR_FEMALE_VOICE_ID = IVR_LOCKED_FEMALE_VOICE_ID;
     }
     if (male.voiceId && male.approved && isTrustedMaleLock(male)) {
       process.env.IVR_MALE_VOICE_ID = male.voiceId;
+    } else if (!process.env.IVR_MALE_VOICE_ID) {
+      process.env.IVR_MALE_VOICE_ID = IVR_LOCKED_MALE_VOICE_ID;
     }
   } catch (err) {
     console.warn(

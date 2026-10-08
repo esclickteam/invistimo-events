@@ -94,6 +94,8 @@ export interface IIvrCallAttempt {
 
   /** Soft lock for dialer concurrency. */
   dialLockedAt?: Date | null;
+  /** Retries reuse this row. A new document is not created for the same guest/round. */
+  retryCount?: number;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -305,6 +307,11 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
     dialLockedAt: {
       type: Date,
       default: null,
+    },
+    retryCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   {

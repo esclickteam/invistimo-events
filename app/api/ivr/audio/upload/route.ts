@@ -10,9 +10,71 @@ import {
   ivrIntroR2Key,
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
+import {
+  assignIvrConfig,
+  ivrPersistErrorPayload,
+} from "@/lib/calls/ivrConfigPersist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await requireIvrSession(req);
+    if ("error" in session) {
+      return NextResponse.json(
+        { ok: false, error: session.error },
+        { status: session.status }
+      );
+    }
+
+    const user = session.user;
+    if (!user || !isIvrCallsUser(user)) {
+      return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
+    }
+
+    assignIvrConfig(user, {
+      audioMode: "self_recorded",
+      introAudio: {
+        status: "missing",
+        source: null,
+        publicToken: "",
+        audioUrl: "",
+        r2Key: "",
+        contentType: "",
+        contentHash: "",
+        durationSeconds: null,
+        generatedAt: null,
+        textSnapshot: "",
+        approved: false,
+        approvedAt: null,
+      },
+      recordingApproval: {
+        approved: false,
+        approvedAt: null,
+        audioMode: "self_recorded",
+        voiceGender: null,
+        audioPublicToken: "",
+        audioContentHash: "",
+        audioUrl: "",
+      },
+      updatedAt: new Date(),
+    });
+    await user.save();
+
+    return NextResponse.json({
+      ok: true,
+      introAudio: user.ivrConfig.introAudio,
+    });
+  } catch (error) {
+    console.error("[ivr/audio/upload DELETE]", error);
+    const payload = ivrPersistErrorPayload(error);
+    return NextResponse.json(
+      { ok: false, error: payload.error, message: payload.message },
+      { status: payload.status }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,16 +143,15 @@ export async function POST(req: NextRequest) {
     });
 
     const audioUrl = buildIvrPublicAudioUrl(publicToken);
-    const cfg = user.ivrConfig || {};
 
-    user.ivrConfig = {
-      ...(cfg as any),
+    assignIvrConfig(user, {
       audioMode: "self_recorded",
       introAudio: {
         status: "ready",
-        source: contentType.includes("webm") || form.get("source") === "recording"
-          ? "recording"
-          : "upload",
+        source:
+          contentType.includes("webm") || form.get("source") === "recording"
+            ? "recording"
+            : "upload",
         publicToken,
         audioUrl,
         r2Key,
@@ -102,8 +163,17 @@ export async function POST(req: NextRequest) {
         approved: false,
         approvedAt: null,
       },
+      recordingApproval: {
+        approved: false,
+        approvedAt: null,
+        audioMode: "self_recorded",
+        voiceGender: null,
+        audioPublicToken: "",
+        audioContentHash: "",
+        audioUrl: "",
+      },
       updatedAt: new Date(),
-    };
+    });
 
     await user.save();
 
@@ -114,9 +184,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ivr/audio/upload]", error);
+    const payload = ivrPersistErrorPayload(error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "UPLOAD_FAILED" },
-      { status: 500 }
+      { ok: false, error: payload.error, message: payload.message },
+      { status: payload.status }
     );
   }
 }

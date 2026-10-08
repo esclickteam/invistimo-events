@@ -7,6 +7,7 @@ import { Phone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import IvrRoundsPanel from "@/app/components/IvrRoundsPanel";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import { formatCallRoundDateTimeInput } from "@/lib/calls/callRoundScheduleTime";
 
 type ScheduleState = {
   enabled: boolean;
@@ -15,6 +16,8 @@ type ScheduleState = {
     title: string;
     scheduledAt: string;
     notes: string;
+    status?: string;
+    failureReason?: string;
   }>;
 };
 
@@ -28,9 +31,9 @@ function buildScheduleFromUser(user: any): ScheduleState {
       return {
         roundNumber,
         title: existing?.title || `סבב מוקלט ${roundNumber}`,
-        scheduledAt: existing?.scheduledAt
-          ? String(existing.scheduledAt).slice(0, 16)
-          : "",
+        scheduledAt: formatCallRoundDateTimeInput(existing?.scheduledAt),
+        status: existing?.status || "scheduled",
+        failureReason: existing?.failureReason || "",
         notes: existing?.notes || "",
       };
     }),

@@ -337,6 +337,10 @@ async function applyRsvpOnce(input: {
     invitationId: String(claimed.invitationId),
     rsvp: input.rsvp,
     attendingCount: input.attendingCount,
+    respondedAt: claimed.rsvpAppliedAt || new Date(),
+    round: claimed.round ?? null,
+    callAttemptId: String(claimed._id),
+    callControlId: String(claimed.telnyxCallControlId || ""),
   });
 
   return { applied: true };

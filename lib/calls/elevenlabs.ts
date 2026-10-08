@@ -385,6 +385,9 @@ export async function listElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
  * Dana and male audition candidates.
  */
 export const IVR_TTS_MODEL_ID = "eleven_v3";
+/** Locked production voices. Never regenerate or swap these packs. */
+export const IVR_LOCKED_FEMALE_VOICE_ID = "V0stpogHp8KBgdErUZbd";
+export const IVR_LOCKED_MALE_VOICE_ID = "CwhRBWXzGAHq8TQ4Fs17";
 /** mp3 @ 44.1kHz 128kbps — same container/sample rate for every IVR clip. */
 export const IVR_TTS_OUTPUT_FORMAT = "mp3_44100_128";
 export const IVR_TTS_VOICE_SETTINGS = {
@@ -521,11 +524,11 @@ export function getDefaultIvrVoiceId() {
 
 /** Global Invistimo female ElevenLabs voice (system-configured, not a client picker). */
 export function getIvrFemaleVoiceId() {
-  // Only explicit female id — never fall back to a generic default that isn't Dana.
+  // Explicit env wins. Otherwise the locked Dana id — never a random voice.
   return (
     readEnv("IVR_FEMALE_VOICE_ID") ||
     readEnv("ELEVENLABS_FEMALE_VOICE_ID") ||
-    ""
+    IVR_LOCKED_FEMALE_VOICE_ID
   ).trim();
 }
 
@@ -534,7 +537,7 @@ export function getIvrMaleVoiceId() {
   return (
     readEnv("IVR_MALE_VOICE_ID") ||
     readEnv("ELEVENLABS_MALE_VOICE_ID") ||
-    ""
+    IVR_LOCKED_MALE_VOICE_ID
   ).trim();
 }
 
