@@ -928,9 +928,11 @@ export async function approveAdminVoicePack(input: {
     throw new Error("MALE_MUST_LOCK_FROM_AUDITION_FIRST");
   }
 
-  // Approve only when every segment is playable in R2 AND reachable over HTTPS.
+  // Approve when every segment is playable in R2 (size > 0).
+  // Skip outbound HTTP self-checks here — they can 504 on Vercel when the
+  // function fetches its own public media URLs. R2 HeadObject is authoritative.
   // Never auto-approve — this function runs only on explicit admin click.
-  const existing = await readExistingPackSegments(gender, { verifyHttp: true });
+  const existing = await readExistingPackSegments(gender, { verifyHttp: false });
   const notReady = (
     Object.keys(IVR_GLOBAL_PACK_TEXTS) as IvrGlobalPackSegmentKey[]
   ).filter((k) => !existing[k]?.ready);
