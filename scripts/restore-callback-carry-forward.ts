@@ -11,7 +11,7 @@ import {
   getGuestRsvpValue,
   isCallbackCarryForwardTask,
   resolveMaxCallRounds,
-} from "../lib/calls/callRoundEligibility.ts";
+} from "../lib/calls/callRoundEligibility";
 
 const WRITE = process.argv.includes("--write");
 const FINAL = new Set(["yes", "no"]);

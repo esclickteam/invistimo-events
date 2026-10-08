@@ -1374,10 +1374,28 @@ export async function GET(req: NextRequest) {
       .map((order) => toObjectId(order.id))
       .filter(Boolean) as Types.ObjectId[];
 
-    if (expireIds.length) {
+    const callbackCarryWorkOrderIds = expireIds.length
+      ? await CallTask.distinct("workOrderId", {
+          workOrderId: { $in: expireIds },
+          status: { $in: ["pending", "in_progress", "open", "assigned", "active", "callback"] },
+          $or: [
+            { inclusionReason: "callback_next_round" },
+            { source: "restore_callback_carry_forward" },
+            { manualHandlingRequired: true, status: "callback" },
+          ],
+        })
+      : [];
+    const callbackCarryIdSet = new Set(
+      callbackCarryWorkOrderIds.map((id) => String(id))
+    );
+    const expirableIds = expireIds.filter(
+      (id) => !callbackCarryIdSet.has(String(id))
+    );
+
+    if (expirableIds.length) {
       await CallWorkOrder.updateMany(
         {
-          _id: { $in: expireIds },
+          _id: { $in: expirableIds },
           status: { $in: ["open", "in_progress", "scheduled", "paused"] },
         },
         {
@@ -1390,7 +1408,7 @@ export async function GET(req: NextRequest) {
       );
 
       for (const order of serializedWorkOrders) {
-        if (expireIds.some((id) => String(id) === order.id)) {
+        if (expirableIds.some((id) => String(id) === order.id)) {
           order.status = "expired";
         }
       }
