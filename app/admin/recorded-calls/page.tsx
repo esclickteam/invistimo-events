@@ -359,20 +359,17 @@ export default function AdminIvrNarrationPage() {
     packs.some((p) => p.readyCount > 0 && !p.approved);
 
   return (
-    <div dir="rtl" className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">
-          שיחות מוקלטות · הגדרות קריינות
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-slate-500">
-          קול נשי = Dana בלבד (ללא בחירה אוטומטית). קול גברי = בחירה חד־פעמית אחרי
-          בדיקת שמיעה בעברית. אין קטלוג ללקוחות.
+    <div dir="rtl" className="space-y-4">
+      <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
+        <p className="max-w-3xl text-xs font-medium leading-6 text-[var(--admin-muted)]">
+          קול נשי = Dana בלבד. קול גברי = בחירה חד־פעמית אחרי בדיקת שמיעה בעברית.
+          אין קטלוג ללקוחות.
         </p>
         <div
-          className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-black ${
+          className={`mt-2 inline-flex rounded-md px-2.5 py-1 text-[11px] font-bold ${
             bothApproved
-              ? "bg-emerald-100 text-emerald-800"
-              : "bg-amber-100 text-amber-800"
+              ? "bg-emerald-50 text-emerald-800"
+              : "bg-amber-50 text-amber-800"
           }`}
         >
           {bothApproved

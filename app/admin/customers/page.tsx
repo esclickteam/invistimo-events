@@ -497,53 +497,27 @@ export default function AdminCustomersPage() {
   }
 
   return (
-    <main
-      dir="rtl"
-      className="w-full min-w-0 bg-[#F7F1EA] py-2 text-[#3A271D] sm:px-1"
-    >
-      <div className="w-full max-w-none space-y-6">
-        <section className="overflow-hidden rounded-[2rem] border border-[#E8D8C4] bg-white shadow-sm">
-          <div className="relative p-5 sm:p-7">
-            <div className="pointer-events-none absolute left-0 top-0 h-28 w-28 rounded-br-[4rem] bg-[#FFF7EC]" />
-
-            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <div className="inline-flex rounded-full border border-[#E8D8C4] bg-[#FFFCF7] px-4 py-2 text-xs font-black text-[#B87920]">
-                  ניהול לקוחות
-                </div>
-
-                <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-                  לקוחות ותיקי לקוח
-                </h1>
-
-                <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-[#8A6A43]">
-                  כאן רואים את כל הלקוחות והלידים במקום אחד. לידים ניתן להקצות
-                  לעובד לטיפול, ואז בשלב הבא הם יופיעו לעובד באזור “הלידים שלי”.
-                </p>
-              </div>
-
-              <div className="flex w-full flex-col gap-3 xl:w-[520px]">
-                <div className="flex rounded-[1.4rem] border border-[#E8D8C4] bg-[#FFFCF7] p-2 shadow-sm">
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="חיפוש לפי שם, טלפון, מייל, שירות, Facebook או Make..."
-                    className="h-12 min-w-0 flex-1 bg-transparent px-4 text-sm font-bold outline-none placeholder:text-[#B9A28A]"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={loadCustomers}
-                    className="h-12 rounded-2xl bg-[#3A271D] px-6 text-sm font-black text-white transition hover:bg-[#24170f]"
-                  >
-                    רענון
-                  </button>
-                </div>
-
-                <p className="px-2 text-xs font-bold text-[#9A7A55]">
-                  עובדים נטענים מהמערכת. שיוך עובד מופיע רק בתיקים שהם לידים.
-                </p>
-              </div>
+    <main dir="rtl" className="w-full min-w-0 space-y-4 text-[var(--admin-text)]">
+      <div className="w-full max-w-none space-y-4">
+        <section className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-xs font-medium text-[var(--admin-muted)]">
+              לידים ולקוחות במקום אחד — שיוך עובד זמין ללידים
+            </p>
+            <div className="flex w-full max-w-xl items-center gap-2">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="חיפוש לפי שם, טלפון, מייל, שירות, Facebook או Make..."
+                className="admin-input h-10 flex-1"
+              />
+              <button
+                type="button"
+                onClick={loadCustomers}
+                className="h-10 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-[13px] font-bold text-white hover:bg-[var(--admin-brand-hover)]"
+              >
+                רענון
+              </button>
             </div>
           </div>
         </section>

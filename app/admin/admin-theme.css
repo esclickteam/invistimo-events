@@ -1,0 +1,155 @@
+/* Invistimo Admin — design tokens + global soft overrides */
+
+.admin-app {
+  --admin-bg: #f4f5f7;
+  --admin-surface: #ffffff;
+  --admin-border: #e5e7eb;
+  --admin-border-strong: #d1d5db;
+  --admin-text: #111827;
+  --admin-muted: #6b7280;
+  --admin-subtle: #9ca3af;
+  --admin-brand: #5b4bcc;
+  --admin-brand-soft: #efeefe;
+  --admin-brand-hover: #4a3bb8;
+  --admin-success: #059669;
+  --admin-success-soft: #ecfdf5;
+  --admin-warning: #d97706;
+  --admin-warning-soft: #fffbeb;
+  --admin-danger: #dc2626;
+  --admin-danger-soft: #fef2f2;
+  --admin-info: #2563eb;
+  --admin-info-soft: #eff6ff;
+  --admin-radius: 10px;
+  --admin-radius-sm: 8px;
+  --admin-header-h: 60px;
+  --admin-sidebar-w: 232px;
+  --admin-sidebar-collapsed: 68px;
+  --admin-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --admin-font: "Heebo", "Assistant", "Segoe UI", sans-serif;
+
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: var(--admin-font);
+}
+
+.admin-app *,
+.admin-app *::before,
+.admin-app *::after {
+  border-color: inherit;
+}
+
+/* Soften oversized decorative radii across legacy pages */
+.admin-app [class*="rounded-[28px]"],
+.admin-app [class*="rounded-[30px]"],
+.admin-app [class*="rounded-[32px]"],
+.admin-app [class*="rounded-[34px]"],
+.admin-app [class*="rounded-[26px]"],
+.admin-app [class*="rounded-[24px]"],
+.admin-app [class*="rounded-[22px]"] {
+  border-radius: var(--admin-radius) !important;
+}
+
+/* Soften heavy decorative shadows */
+.admin-app [class*="shadow-[0_"],
+.admin-app [class*="shadow-xl"],
+.admin-app [class*="shadow-lg"],
+.admin-app [class*="shadow-2xl"] {
+  box-shadow: var(--admin-shadow) !important;
+}
+
+/* Cap oversized display headings inside content pages */
+.admin-app main .text-6xl,
+.admin-app main .text-5xl {
+  font-size: 1.35rem !important;
+  line-height: 1.35 !important;
+}
+
+.admin-app main .text-4xl {
+  font-size: 1.25rem !important;
+  line-height: 1.35 !important;
+}
+
+.admin-app main .text-3xl {
+  font-size: 1.15rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Tables */
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: right;
+}
+
+.admin-table thead th {
+  background: #f9fafb;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--admin-border);
+  white-space: nowrap;
+}
+
+.admin-table tbody td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #f0f1f3;
+  font-size: 13px;
+  vertical-align: middle;
+  color: var(--admin-text);
+}
+
+.admin-table tbody tr:hover td {
+  background: #fafafa;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Form controls */
+.admin-input,
+.admin-select,
+.admin-textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: #fff;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text);
+  outline: none;
+}
+
+.admin-textarea {
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  border-color: var(--admin-brand);
+  box-shadow: 0 0 0 3px rgba(91, 75, 204, 0.12);
+}
+
+.admin-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--admin-muted);
+}
+
+/* Scrollbars in sidebar */
+.admin-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.admin-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}

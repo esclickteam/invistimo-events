@@ -70,18 +70,13 @@ export default function AdminReminderSmsTemplatePage() {
   }
 
   return (
-    <div dir="rtl" className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">
-          הודעת תזכורת
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-slate-500">
-          גוף הודעת התזכורת לכל המערכת. השינוי נכנס בזמן השליחה בפועל, גם לתזמונים שכבר נוצרו.
-          משתנה מספר שולחן: {"{{tableName}}"} — יוצג רק לאורחים שיש להם שולחן ושלא חלה עליהם הסתרה.
-        </p>
-      </div>
+    <div dir="rtl" className="space-y-4">
+      <p className="max-w-2xl text-xs font-medium leading-6 text-[var(--admin-muted)]">
+        גוף הודעת התזכורת לכל המערכת. השינוי נכנס בזמן השליחה בפועל, גם לתזמונים שכבר נוצרו.
+        משתנה מספר שולחן: {"{{tableName}}"} — יוצג רק לאורחים שיש להם שולחן ושלא חלה עליהם הסתרה.
+      </p>
 
-      <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-4 shadow-[var(--admin-shadow)]">
         {loading ? (
           <p className="text-sm font-bold text-slate-500">טוען…</p>
         ) : (

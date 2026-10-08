@@ -1168,72 +1168,29 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div dir="rtl" className="w-full min-w-0 bg-[#F6F4F1] py-2">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section
-          className="
-            rounded-[32px]
-            border border-[#E7D8C6]
-            bg-gradient-to-br from-[#FFFDF8] to-[#F3E7D8]
-            p-5 md:p-7
-            shadow-[0_18px_55px_rgba(60,43,25,0.08)]
-          "
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div
-                className="
-                  mb-3 inline-flex items-center gap-2
-                  rounded-full
-                  bg-white/70
-                  px-4 py-2
-                  text-xs font-black
-                  text-[#8A6A43]
-                  ring-1 ring-[#E7D8C6]
-                "
-              >
-                <ShieldCheck size={15} />
-                Admin Panel
-              </div>
-
-              <h1 className="text-3xl font-black text-[#352618] md:text-5xl">
-                ניהול משתמשים
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6754]">
-                ניהול לקוחות, עובדים ומפיקים — כולל כניסה לחשבון בניהול אדמין
-                עם הרשאות מלאות (לא התחזות).
-              </p>
-            </div>
-
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="
-                flex h-12 items-center justify-center gap-2
-                rounded-2xl
-                bg-[#24190F]
-                px-5
-                text-sm font-black
-                text-white
-                shadow-[0_12px_30px_rgba(36,25,15,0.22)]
-                transition
-                hover:bg-black
-              "
-            >
-              <UserPlus size={18} />
-              יצירת משתמש
-            </button>
-          </div>
-        </section>
+    <div dir="rtl" className="w-full min-w-0 space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-[var(--admin-muted)] md:hidden">
+            ניהול חשבונות, הרשאות וניהול כאדמין
+          </p>
+          <button
+            onClick={() => setOpenCreate(true)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-4 text-[13px] font-bold text-white hover:bg-[var(--admin-brand-hover)]"
+          >
+            <UserPlus size={16} />
+            יצירת משתמש
+          </button>
+        </div>
 
         <section
           className="
-            space-y-4
-            rounded-[28px]
-            border border-[#E7D8C6]
+            space-y-3
+            rounded-[var(--admin-radius)]
+            border border-[var(--admin-border)]
             bg-white
-            p-4 md:p-5
-            shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+            p-3 md:p-4
+            shadow-[var(--admin-shadow)]
           "
         >
           <div>
@@ -1259,10 +1216,10 @@ export default function AdminUsersPage() {
                     key={chip.key}
                     type="button"
                     onClick={() => setRoleFilter(chip.key)}
-                    className={`inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${
+                    className={`inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] px-3 text-xs font-bold transition ${
                       active
-                        ? "bg-[#24190F] text-white shadow-[0_10px_24px_rgba(36,25,15,0.22)]"
-                        : "border border-[#E7D8C6] bg-[#FFFDF8] text-[#3A2A1C] hover:bg-[#FFF4E4]"
+                        ? "bg-[var(--admin-brand)] text-white"
+                        : "border border-[var(--admin-border)] bg-white text-[var(--admin-text)] hover:bg-gray-50"
                     }`}
                   >
                     {chip.label}
@@ -1270,7 +1227,7 @@ export default function AdminUsersPage() {
                       className={`rounded-xl px-2 py-0.5 text-xs ${
                         active
                           ? "bg-white/15 text-white"
-                          : "bg-[#F6EBDD] text-[#8A5A24]"
+                          : "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
                       }`}
                     >
                       {chip.count}
@@ -4364,34 +4321,34 @@ function InfoCard({
   onClick?: () => void;
 }) {
   const className = `
-        rounded-[26px]
-        border p-5 text-right transition
-        shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+        h-[105px] rounded-[var(--admin-radius)]
+        border p-3.5 text-right transition
+        shadow-[var(--admin-shadow)]
         ${
           active
-            ? "border-[#24190F] bg-[#24190F] text-white"
-            : "border-[#E7D8C6] bg-white hover:border-[#D4B48A] hover:bg-[#FFFDF8]"
+            ? "border-[var(--admin-brand)] bg-[var(--admin-brand)] text-white"
+            : "border-[var(--admin-border)] bg-white hover:border-[var(--admin-brand)] hover:bg-[var(--admin-brand-soft)]"
         }
       `;
 
   const body = (
     <>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <div
-          className={`text-sm font-black ${
-            active ? "text-white" : "text-[#3A2A1C]"
+          className={`text-xs font-bold ${
+            active ? "text-white" : "text-[var(--admin-text)]"
           }`}
         >
           {title}
         </div>
-        <div className={active ? "text-[#F0D7A8]" : "text-[#B97821]"}>
+        <div className={active ? "text-white/80" : "text-[var(--admin-brand)]"}>
           {icon}
         </div>
       </div>
 
       <div
-        className={`text-3xl font-black ${
-          active ? "text-[#F6E7C8]" : "text-[#B97821]"
+        className={`text-2xl font-bold ${
+          active ? "text-white" : "text-[var(--admin-text)]"
         }`}
       >
         {value}

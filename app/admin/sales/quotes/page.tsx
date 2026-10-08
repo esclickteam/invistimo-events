@@ -105,28 +105,23 @@ export default function AdminQuotesPage() {
   }
 
   return (
-    <div dir="rtl" className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-[#352618] md:text-4xl">
-            הצעות מחיר
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-7 text-[#7B6754]">
-            לכל הצעה יש עריכה ופתיחת משתמש מההצעה — בלי למלא הכול פעמיים.
-          </p>
-        </div>
+    <div dir="rtl" className="mx-auto max-w-6xl space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-medium text-[var(--admin-muted)]">
+          עריכת הצעה ופתיחת משתמש מההצעה — בלי למלא הכול פעמיים
+        </p>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={load}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 text-sm font-black text-[#3A2A1C]"
+            className="inline-flex h-9 items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3 text-xs font-bold text-[var(--admin-text)]"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={14} />
             רענון
           </button>
           <Link
             href="/admin/sales/new"
-            className="inline-flex h-11 items-center rounded-2xl bg-[#24190F] px-5 text-sm font-black text-white"
+            className="inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] bg-[var(--admin-brand)] px-3.5 text-xs font-bold text-white"
           >
             הצעה חדשה
           </Link>
