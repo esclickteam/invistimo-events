@@ -5,9 +5,9 @@ import {
   isGuestEligibleForCallRound,
   getCallRoundAudienceLabel,
   annotateCallbackCarryForward,
-} from "../../lib/calls/callRoundEligibility.ts";
+} from "../../lib/calls/callRoundEligibility";
 
-function guest(partial) {
+function guest(partial: Record<string, unknown>) {
   return {
     _id: partial.id || "g1",
     phone: "501234567",
