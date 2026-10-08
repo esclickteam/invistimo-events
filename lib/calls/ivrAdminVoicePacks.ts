@@ -873,13 +873,7 @@ export async function regenerateAdminPackSegment(input: {
     );
   }
 
-  const http = await verifyIvrPublicAudioHttp(audio.audioUrl);
-  if (!http.ok) {
-    throw new Error(
-      `SEGMENT_HTTP_VERIFY_FAILED:${segment}:${http.reason || http.status}`
-    );
-  }
-
+  // R2 HeadObject is enough — skip self-HTTP verify (can 504 on Vercel).
   doc.set(
     gender,
     plainMeta({
@@ -900,8 +894,7 @@ export async function regenerateAdminPackSegment(input: {
       audioUrl: audio.audioUrl,
       reused: audio.reused,
       sizeBytes: verified.sizeBytes,
-      contentType: http.contentType || verified.contentType,
-      httpStatus: http.status,
+      contentType: verified.contentType,
     },
   };
 }
