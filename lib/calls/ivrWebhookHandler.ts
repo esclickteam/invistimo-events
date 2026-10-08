@@ -48,7 +48,7 @@ async function interruptIvrPrompt(callControlId: string) {
   await stopIvrGather(callControlId).catch(() => null);
 }
 
-async function claimChoiceDigit(attemptId: unknown, digit: string) {
+async function claimChoiceDigit(attemptId: any, digit: string) {
   return IvrCallAttempt.findOneAndUpdate(
     {
       _id: attemptId,
