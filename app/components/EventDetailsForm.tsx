@@ -1202,14 +1202,15 @@ export default function EventDetailsForm({
             </div>
 
             <div className="grid gap-4">
-              {/* אפשרויות למתנה — מקור מרכזי */}
-              <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
+              {/* אפשרויות למתנה — מקור מרכזי יחיד */}
+              <div className="rounded-[22px] border border-[#D9B46F]/55 bg-gradient-to-br from-[#FFF9EF] via-white to-[#FFFDF8] p-4 shadow-sm">
                 <div className="mb-4">
-                  <h4 className="text-sm font-black text-[#6B5B4A]">
-                    אפשרויות למתנה
+                  <h4 className="text-base font-black text-[#3A2A1C]">
+                    מתנות לאורחים — מקור אחד בלבד
                   </h4>
-                  <p className="mt-1 text-xs font-semibold text-[#9B8D7D]">
-                    רק אמצעים מופעלים עם מידע תקין יוצגו לאורחים בכל הקישורים.
+                  <p className="mt-1 text-xs font-semibold leading-6 text-[#7B6754]">
+                    קישור אשראי, PayBox ומספר Bit מוגדרים כאן בלבד ומופיעים
+                    אוטומטית בקישור האישי ובתזכורת. אין הגדרה כפולה בסבבי הודעות.
                   </p>
                 </div>
 

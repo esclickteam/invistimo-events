@@ -47,6 +47,12 @@ export default function AdminLayout({
       description: "תיקי לקוח, הסכמים והצעות",
     },
     {
+      href: "/admin/sales/quotes",
+      label: "הצעות מחיר",
+      icon: "customers",
+      description: "עריכה ופתיחת משתמש מההצעה",
+    },
+    {
       href: "/admin/users",
       label: "משתמשים",
       icon: "users",

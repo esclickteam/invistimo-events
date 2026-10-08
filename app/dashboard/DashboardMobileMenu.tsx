@@ -161,7 +161,7 @@ export default function DashboardMobileMenu({
       },
     },
     {
-      title: "עריכת פרטי האירוע",
+      title: "הגדרת פרטי אירוע",
       subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
       icon: Settings2,
       badge: "אירוע",
