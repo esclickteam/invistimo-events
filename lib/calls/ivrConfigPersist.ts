@@ -136,7 +136,11 @@ export function ivrPersistErrorPayload(error: unknown): {
       status: 409,
     };
   }
-  if (/IVR_COMPOSE|ffmpeg_failed|IVR_GLOBAL_SEGMENT/i.test(raw)) {
+  if (
+    /IVR_COMPOSE|ffmpeg_failed|IVR_GLOBAL_SEGMENT|ffmpeg-static|spawn .+ ENOENT/i.test(
+      raw
+    )
+  ) {
     return {
       error: "COMPOSE_FAILED",
       message:
