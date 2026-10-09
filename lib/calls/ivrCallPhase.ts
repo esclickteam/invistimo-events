@@ -367,12 +367,16 @@ function onDigits(input: {
   ) {
     return ignore(state, "gather_closed");
   }
-  if (
-    input.generation &&
-    state.mediaGeneration &&
-    input.generation !== state.mediaGeneration
-  ) {
-    return ignore(state, "stale_gather");
+  // Gather webhooks must carry the open gather's generation. DTMF may omit it.
+  if (input.source === "gather") {
+    const eventGen = Number(input.generation);
+    const stateGen = Number(state.mediaGeneration);
+    if (
+      stateGen > 0 &&
+      (!Number.isFinite(eventGen) || eventGen !== stateGen)
+    ) {
+      return ignore(state, "stale_gather");
+    }
   }
   if (
     input.stage &&
@@ -444,10 +448,13 @@ function onPlaybackEnded(
   if (state.phase === "COMPLETED" || state.rsvpApplied && state.phase === "WAITING_FOR_INPUT") {
     return ignore(state, "playback_after_finish");
   }
+  // Reject missing/late generations when a media generation is already active.
+  // A falsy 0 must not slip through and advance the call mid-playback.
+  const eventGen = Number(event.generation);
+  const stateGen = Number(state.mediaGeneration);
   if (
-    event.generation &&
-    state.mediaGeneration &&
-    event.generation !== state.mediaGeneration
+    stateGen > 0 &&
+    (!Number.isFinite(eventGen) || eventGen !== stateGen)
   ) {
     return ignore(state, "stale_playback");
   }

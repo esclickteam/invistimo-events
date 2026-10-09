@@ -273,7 +273,9 @@ function ConcatPreviewPlayer({ playlist, onEnded, label }) {
       />
       <p className="text-[11px] font-bold text-[#8A7867]">
         {label ? `${label} · ` : ""}
-        מנגן קטע {index + 1} מתוך {urls.length} (פתיח → שם האירוע → המשך)
+        {urls.length === 1
+          ? "קובץ מחובר אחד — אותו קובץ שנשלח לשיחה"
+          : `מנגן קטע ${index + 1} מתוך ${urls.length} (פתיח → שם האירוע → המשך)`}
       </p>
     </div>
   );
@@ -487,21 +489,32 @@ export default function IvrRoundsPanel({
 
   const previewPlaylist = useMemo(() => {
     const preview = config?.ivrConfig?.previewAudio;
-    const clips = [
-      preview?.introBeforeEventNameUrl,
-      preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
-      preview?.introAfterEventNameUrl,
-    ].filter(Boolean);
-    if (clips.length) return clips;
+    const composedUrl = cleanText(
+      preview?.composedIntroAudioUrl ||
+        config?.ivrConfig?.composedIntroAudio?.audioUrl
+    );
+    // Same single file Telnyx plays after approval — never a 3-clip stitch in UI.
+    if (
+      (preview?.seamless ||
+        config?.ivrConfig?.composedIntroAudio?.status === "ready") &&
+      composedUrl
+    ) {
+      return [composedUrl];
+    }
+    if (Array.isArray(preview?.playlist) && preview.playlist.length === 1) {
+      return preview.playlist.filter(Boolean);
+    }
     if (Array.isArray(preview?.playlist) && preview.playlist.length) {
-      return preview.playlist;
+      return preview.playlist.filter(Boolean);
     }
     return [];
   }, [config]);
 
   const composedReady = Boolean(
-    config?.ivrConfig?.previewAudio?.seamless &&
-      config?.ivrConfig?.previewAudio?.composedIntroAudioUrl
+    (config?.ivrConfig?.previewAudio?.seamless &&
+      config?.ivrConfig?.previewAudio?.composedIntroAudioUrl) ||
+      (config?.ivrConfig?.composedIntroAudio?.status === "ready" &&
+        config?.ivrConfig?.composedIntroAudio?.audioUrl)
   );
 
   async function loadAll() {
@@ -1174,8 +1187,8 @@ export default function IvrRoundsPanel({
               תצוגה מקדימה של השיחה היוצאת
             </p>
             <p className="text-[11px] font-bold text-emerald-800">
-              נגן אחד, ללא שיחת Telnyx. ההשמעה מתחילה רק אחרי Play: פתיח יוצא,
-              שם האירוע, ואז נוסח אישורי ההגעה.
+              נגן אחד, ללא שיחת Telnyx. מושמע אותו קובץ מחובר שיישלח ל־Telnyx
+              אחרי אישור (לא שלושה קבצים נפרדים).
             </p>
             <ConcatPreviewPlayer playlist={previewPlaylist} label="שיחה יוצאת" />
             <div className="flex flex-wrap gap-2">

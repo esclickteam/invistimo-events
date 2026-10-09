@@ -1,9 +1,10 @@
 /**
  * IVR Call Control webhook processing — idempotent RSVP updates.
  *
- * Outbound and inbound play the same approved continuous file from the
- * first media command. The three-clip chain remains only for a call that
- * was already in that sequence. DTMF follow-ups use the stored global pack.
+ * Inbound and outbound share one phase-machine player: the approved
+ * composed file, then silent gather, then pack follow-ups. The legacy
+ * three-clip chain is only finished for legs already mid-sequence
+ * (isLegacyInFlight) — never entered from a fresh answer.
  */
 
 import IvrCallAttempt from "@/models/IvrCallAttempt";
@@ -14,6 +15,7 @@ import {
   handleIvrAnswered,
   handleIvrDigits,
   handleIvrPlaybackEnded,
+  isLegacyInFlight,
 } from "@/lib/calls/ivrCallMachine";
 import { classifyUnansweredHangup } from "@/lib/calls/ivrDialFailure";
 import {
@@ -402,8 +404,19 @@ export async function handleIvrTelnyxWebhook(body: any) {
     }
 
     case "call.answered": {
-      const machineAnswer = await handleIvrAnswered({ attempt, callControlId });
-      if (machineAnswer.handled) break;
+      // Fresh answers always enter the shared phase machine. Legacy three-clip
+      // playback is only for legs already mid-chain without a phase.
+      if (!isLegacyInFlight(attempt)) {
+        if (!cleanStr(attempt.phase)) {
+          attempt.phase = "RINGING";
+          attempt.inputTarget = attempt.inputTarget || "none";
+          attempt.introCompleted = false;
+          attempt.gatherOpen = false;
+          await attempt.save();
+        }
+        await handleIvrAnswered({ attempt, callControlId });
+        break;
+      }
 
       if (isInboundIvrAttempt(attempt)) {
         attempt.answered = true;
@@ -463,7 +476,14 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
     case "call.dtmf.received":
     case "call.gather.ended": {
-      if (cleanStr(attempt.phase)) {
+      if (cleanStr(attempt.phase) || !isLegacyInFlight(attempt)) {
+        if (!cleanStr(attempt.phase) && !isLegacyInFlight(attempt)) {
+          // Orphaned empty-phase leg: adopt the machine rather than legacy.
+          attempt.phase = attempt.introCompleted ? "WAITING_FOR_INPUT" : "PLAYING_INTRO";
+          attempt.gatherOpen = attempt.introCompleted === true;
+          attempt.inputTarget = attempt.introCompleted ? "choice" : "none";
+          await attempt.save();
+        }
         await handleIvrDigits({ attempt, callControlId, body, eventType });
         break;
       }
@@ -594,8 +614,21 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
       const choiceDigit = digits.slice(0, 1);
       if (!["1", "2", "3"].includes(choiceDigit)) {
-        // A gather that ends before any audio has started is not a wrong key.
-        if (!attempt.playbackStartedAt && !attempt.introCompleted) break;
+        // Legacy only: never play the invalid-choice clip during the intro.
+        const introStillPlaying = [
+          "dialing",
+          "playing_intro",
+          "playing_intro_before",
+          "playing_event_name",
+          "playing_intro_after",
+        ].includes(cleanStr(attempt.flowStep));
+        if (
+          introStillPlaying ||
+          (!attempt.playbackStartedAt && !attempt.introCompleted)
+        ) {
+          break;
+        }
+        if (cleanStr(attempt.flowStep) !== "gather_choice") break;
         attempt.status = "invalid_input";
         const invalidUrl = await getIvrSystemAudioUrlForGender(
           gender,
@@ -733,12 +766,19 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
     case "call.playback.ended":
     case "call.speak.ended": {
-      const machinePlayback = await handleIvrPlaybackEnded({
-        attempt,
-        callControlId,
-        body,
-      });
-      if (machinePlayback.handled) break;
+      if (cleanStr(attempt.phase) || !isLegacyInFlight(attempt)) {
+        if (!cleanStr(attempt.phase) && !isLegacyInFlight(attempt)) {
+          attempt.phase = "PLAYING_INTRO";
+          attempt.promptKind = attempt.promptKind || "intro";
+          await attempt.save();
+        }
+        await handleIvrPlaybackEnded({
+          attempt,
+          callControlId,
+          body,
+        });
+        break;
+      }
 
       const clientState = decodeIvrClientState(payload?.client_state);
       const stage = cleanStr(clientState.stage);

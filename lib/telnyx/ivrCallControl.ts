@@ -225,6 +225,18 @@ export async function speakIvrCall(
   });
 }
 
+/**
+ * Clear any open gather / prior playback before a new media command.
+ * Prevents overlapping clips when a digit or follow-up starts the next file.
+ */
+export async function clearIvrMediaSlot(callControlId: string) {
+  if (!callControlId) return;
+  await Promise.all([
+    stopIvrGather(callControlId).catch(() => null),
+    stopIvrPlayback(callControlId).catch(() => null),
+  ]);
+}
+
 export async function playbackIvrAudio(
   callControlId: string,
   audioUrl: string,
@@ -232,6 +244,7 @@ export async function playbackIvrAudio(
 ) {
   const noted = notePlaybackCommand(clientState);
   try {
+    await clearIvrMediaSlot(callControlId);
     return await telnyxCallAction(callControlId, "playback_start", {
       audio_url: audioUrl,
       ...(clientState
@@ -256,11 +269,13 @@ export async function gatherIvrUsingAudio(input: {
 }) {
   const noted = notePlaybackCommand(input.clientState);
   try {
+    await clearIvrMediaSlot(input.callControlId);
     return await telnyxCallAction(input.callControlId, "gather_using_audio", {
     audio_url: input.audioUrl,
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
-    timeout_millis: input.timeoutMillis ?? 10000,
+    // Must outlast the prompt audio so timeout cannot fire mid-clip.
+    timeout_millis: input.timeoutMillis ?? 45000,
     ...(input.interDigitTimeoutMillis
       ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
       : {}),
@@ -304,6 +319,8 @@ export async function gatherIvrDigits(input: {
   validDigits?: string;
   clientState?: Record<string, unknown>;
 }) {
+  // Silent gather after a completed playback — clear any leftover gather only.
+  await stopIvrGather(input.callControlId).catch(() => null);
   return telnyxCallAction(input.callControlId, "gather", {
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
