@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   formatCallRoundDateTimeDmy,
   formatCallRoundDateTimeInput,
@@ -232,37 +232,80 @@ function IsraelDateTimeFields({ value, onChange }) {
   );
 }
 
-/** Play global before + event name + global after as one continuous preview. */
-function ConcatPreviewPlayer({ playlist, onEnded, label }) {
+/** Play the approved composed file (or legacy clip list) with real load errors. */
+function ConcatPreviewPlayer({ playlist, onEnded, label, onMediaState }) {
   const audioRef = useRef(null);
   const [index, setIndex] = useState(0);
+  const [loadError, setLoadError] = useState("");
+  const [ready, setReady] = useState(false);
   const urls = Array.isArray(playlist) ? playlist.filter(Boolean) : [];
+  const playlistKey = urls.join("|");
+  const currentUrl = urls[index] || "";
 
   useEffect(() => {
     setIndex(0);
-  }, [urls.join("|")]);
+    setLoadError("");
+    setReady(false);
+  }, [playlistKey]);
 
-  const playlistKey = urls.join("|");
+  useEffect(() => {
+    onMediaState?.({
+      ready,
+      error: loadError,
+      url: currentUrl,
+      empty: urls.length === 0,
+    });
+  }, [ready, loadError, currentUrl, urls.length, onMediaState]);
 
   useEffect(() => {
     const el = audioRef.current;
-    if (!el || !urls[index]) return;
-    el.src = urls[index];
+    if (!el || !currentUrl) return;
+    setLoadError("");
+    setReady(false);
+    el.load();
     if (index > 0) {
       el.play().catch(() => null);
     }
-  }, [index, playlistKey]);
+  }, [index, currentUrl]);
 
-  if (!urls.length) return null;
+  if (!urls.length) {
+    return (
+      <p
+        data-testid="ivr-preview-empty"
+        className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-950"
+      >
+        אין קובץ שמע לתצוגה מקדימה. יש ליצור את שם האירוע ואז לחבר את הפתיח.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-2">
       <audio
+        key={currentUrl}
         ref={audioRef}
         controls
         preload="metadata"
+        src={currentUrl}
+        crossOrigin="anonymous"
         data-testid="ivr-composed-preview"
         className="w-full"
+        onLoadedMetadata={(event) => {
+          const duration = Number(event.currentTarget.duration);
+          if (!Number.isFinite(duration) || duration <= 0) {
+            setReady(false);
+            setLoadError("קובץ השמע נטען אבל משכו 0:00 — הקובץ אינו תקין להשמעה.");
+            return;
+          }
+          setReady(true);
+          setLoadError("");
+        }}
+        onError={() => {
+          setReady(false);
+          setLoadError(
+            "לא ניתן לטעון את קובץ הקריינות (404/פורמט/אחסון). לחצו על יצירה מחדש של הקובץ המחובר."
+          );
+        }}
         onEnded={() => {
           if (index + 1 < urls.length) {
             setIndex((i) => i + 1);
@@ -271,6 +314,14 @@ function ConcatPreviewPlayer({ playlist, onEnded, label }) {
           }
         }}
       />
+      {loadError ? (
+        <p
+          data-testid="ivr-preview-load-error"
+          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-black text-red-900"
+        >
+          {loadError}
+        </p>
+      ) : null}
       <p className="text-[11px] font-bold text-[#8A7867]">
         {label ? `${label} · ` : ""}
         {urls.length === 1
@@ -475,9 +526,15 @@ export default function IvrRoundsPanel({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
+  const [previewLoadError, setPreviewLoadError] = useState("");
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const startedAtRef = useRef(0);
+  const onPreviewMediaState = useCallback((state) => {
+    if (state?.error) setPreviewLoadError(String(state.error));
+    else if (state?.empty) setPreviewLoadError("אין קובץ שמע לתצוגה מקדימה");
+    else if (state?.ready) setPreviewLoadError("");
+  }, []);
 
   const previewText = useMemo(() => {
     return (
@@ -716,10 +773,53 @@ export default function IvrRoundsPanel({
         ...prev,
         ivrConfig: data.ivrConfig || prev?.ivrConfig,
       }));
+      setPreviewLoadError("");
       setMessage("ההודעה אושרה ומוכנה לשיחות מוקלטות.");
     } catch (err) {
       setError(
         customerIvrError(err instanceof Error ? err.message : "", "אישור נכשל")
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Rebuild composed file from existing event-name + packs — no ElevenLabs. */
+  async function recomposeIntro() {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch("/api/ivr/config", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recompose_intro", userId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        throw new Error(
+          customerIvrError(
+            data?.message || data?.error,
+            "חיבור מחדש של הקובץ נכשל"
+          )
+        );
+      }
+      setConfig((prev) => ({
+        ...prev,
+        ivrConfig: data.ivrConfig || prev?.ivrConfig,
+      }));
+      setPreviewLoadError("");
+      setMessage(
+        data.message ||
+          "הקובץ המחובר נוצר מחדש. האזינו לתצוגה המקדימה ואשרו שוב."
+      );
+    } catch (err) {
+      setError(
+        customerIvrError(
+          err instanceof Error ? err.message : "",
+          "חיבור מחדש של הקובץ נכשל"
+        )
       );
     } finally {
       setSaving(false);
@@ -868,6 +968,12 @@ export default function IvrRoundsPanel({
           eventNameAudio?.approved &&
             config?.ivrConfig?.composedIntroAudio?.approved
         );
+  const serverMediaBroken =
+    audioMode === "ai" &&
+    config?.ivrConfig?.composedIntroAudio?.status === "ready" &&
+    config?.ivrConfig?.composedIntroAudio?.mediaPlayable === false;
+  const previewBroken = Boolean(previewLoadError || serverMediaBroken);
+  const approvedButUnplayable = approved && previewBroken;
   const aiReady =
     audioMode === "ai" &&
     eventNameAudio?.status === "ready" &&
@@ -1177,38 +1283,83 @@ export default function IvrRoundsPanel({
         )}
 
         {aiReady ? (
-          <div data-tour="call-preview" className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <div className="text-sm font-black text-emerald-800">
-              {approved
-                ? "ההקלטה אושרה לשיחות"
-                : "ממתין לאישור הקלטה"}
+          <div
+            data-view="call-preview"
+            className={`mt-4 space-y-3 rounded-xl border p-3 ${
+              approvedButUnplayable
+                ? "border-red-300 bg-red-50"
+                : "border-emerald-200 bg-emerald-50"
+            }`}
+          >
+            <div
+              className={`text-sm font-black ${
+                approvedButUnplayable ? "text-red-900" : "text-emerald-800"
+              }`}
+              data-testid="ivr-approval-status-label"
+            >
+              {approvedButUnplayable
+                ? "מאושרת במערכת אבל הקובץ לא ניתן להשמעה"
+                : approved
+                  ? "ההקלטה אושרה לשיחות"
+                  : "ממתין לאישור הקלטה"}
             </div>
-            <p className="text-xs font-black text-emerald-900">
-              תצוגה מקדימה של השיחה היוצאת
-            </p>
-            <p className="text-[11px] font-bold text-emerald-800">
-              נגן אחד, ללא שיחת Telnyx. מושמע אותו קובץ מחובר שיישלח ל־Telnyx
-              אחרי אישור (לא שלושה קבצים נפרדים).
-            </p>
-            <ConcatPreviewPlayer playlist={previewPlaylist} label="שיחה יוצאת" />
+            {approvedButUnplayable ? (
+              <p
+                data-testid="ivr-approved-unplayable-banner"
+                className="text-xs font-black text-red-900"
+              >
+                אי אפשר להציג ״מאושרת לשיחות״ כשהנגן מציג 0:00 או כשהקובץ חסר
+                באחסון. לחצו על יצירה מחדש של הקובץ המחובר (ללא שינוי שם האירוע),
+                האזינו, ואשרו שוב.
+                {config?.ivrConfig?.composedIntroAudio?.mediaError
+                  ? ` · ${config.ivrConfig.composedIntroAudio.mediaError}`
+                  : ""}
+              </p>
+            ) : (
+              <>
+                <p className="text-xs font-black text-emerald-900">
+                  תצוגה מקדימה של השיחה היוצאת
+                </p>
+                <p className="text-[11px] font-bold text-emerald-800">
+                  נגן אחד, ללא שיחת Telnyx. מושמע אותו קובץ מחובר שיישלח ל־Telnyx
+                  אחרי אישור (לא שלושה קבצים נפרדים).
+                </p>
+              </>
+            )}
+            <ConcatPreviewPlayer
+              playlist={previewPlaylist}
+              label="שיחה יוצאת"
+              onMediaState={onPreviewMediaState}
+            />
             <div className="flex flex-wrap gap-2">
-              {!approved ? (
+              {!approved || approvedButUnplayable ? (
                 <button
                   type="button"
-                  data-tour="call-approve"
-                  disabled={saving || !composedReady}
+                  data-view="call-approve"
+                  disabled={saving || !composedReady || previewBroken}
                   onClick={approveAudio}
                   className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white disabled:opacity-60"
                   data-testid="ivr-approve-audio"
                   title={
-                    composedReady
-                      ? "אישור אחרי האזנה למשפט המחובר"
-                      : "יש ליצור תצוגה מקדימה מחוברת לפני אישור"
+                    previewBroken
+                      ? "לא ניתן לאשר קובץ שלא נטען בנגן"
+                      : composedReady
+                        ? "אישור אחרי האזנה למשפט המחובר"
+                        : "יש ליצור תצוגה מקדימה מחוברת לפני אישור"
                   }
                 >
                   אני מאשר/ת את ההקלטה לשיחות
                 </button>
               ) : null}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={recomposeIntro}
+                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
+                data-testid="ivr-recompose-intro"
+              >
+                יצירה מחדש של הקובץ המחובר
+              </button>
               <button
                 type="button"
                 disabled={saving}
@@ -1218,9 +1369,13 @@ export default function IvrRoundsPanel({
                 יצירה מחדש של שם האירוע
               </button>
             </div>
-            <p className="text-[11px] font-bold text-emerald-800">
+            <p
+              className={`text-[11px] font-bold ${
+                approvedButUnplayable ? "text-red-800" : "text-emerald-800"
+              }`}
+            >
               הטקסטים הקבועים (פתיח / אחרי הקשות) לא נוצרים מחדש לכל אירוע —
-              רק שם האירוע.
+              רק שם האירוע. ״הקובץ המחובר״ מחבר מחדש את המקטעים הקיימים בלבד.
             </p>
           </div>
         ) : null}

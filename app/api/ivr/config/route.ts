@@ -31,6 +31,7 @@ import {
   ivrEventNameR2Key,
   resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
+  verifyIvrAudioInR2,
 } from "@/lib/calls/ivrAudioStorage";
 import {
   ensureGlobalVoicePack,
@@ -78,9 +79,28 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
 function composedIntroIsCurrentOutbound(composed: any) {
   return (
     composed?.status === "ready" &&
-    Boolean(composed?.audioUrl) &&
+    Boolean(composed?.audioUrl || composed?.publicToken) &&
     String(composed?.composeVersion || "") === IVR_COMPOSE_VERSION
   );
+}
+
+/** Head R2 so the UI never shows "approved" for a missing/empty file. */
+async function attachComposedMediaHealth(ivrConfig: any) {
+  const composed = ivrConfig?.composedIntroAudio;
+  if (!composed || typeof composed !== "object") return ivrConfig;
+  if (composed.status !== "ready") {
+    composed.mediaPlayable = false;
+    return ivrConfig;
+  }
+  const head = await verifyIvrAudioInR2(String(composed.r2Key || ""));
+  composed.mediaPlayable = head.ok === true;
+  composed.mediaBytes = head.sizeBytes || 0;
+  if (!head.ok) {
+    composed.mediaError = head.reason || "MEDIA_UNAVAILABLE";
+  } else {
+    composed.mediaError = "";
+  }
+  return ivrConfig;
 }
 
 function serializePreviewUrls(input: {
@@ -376,7 +396,9 @@ export async function GET(req: NextRequest) {
       });
       approvalReset = true;
     }
-    const ivrConfig = serializeIvrConfig(user.ivrConfig || {}, pack);
+    const ivrConfig = await attachComposedMediaHealth(
+      serializeIvrConfig(user.ivrConfig || {}, pack)
+    );
     ivrConfig.systemVoices = systemVoices.voices.map((v) => ({
       gender: v.gender,
       label: v.label,
@@ -426,6 +448,89 @@ export async function PATCH(req: NextRequest) {
     const prev = user.ivrConfig || {};
     const action = String(body.action || "").trim();
 
+    // Rebuild composed intro from existing event-name + global packs (no TTS).
+    if (action === "recompose_intro") {
+      const eventNameAudio = prev.eventNameAudio || {};
+      if (
+        eventNameAudio.status !== "ready" ||
+        !eventNameAudio.r2Key ||
+        !eventNameAudio.contentHash
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "EVENT_NAME_AUDIO_MISSING",
+            message: "אין מקטע שם אירוע שמור — יש ליצור את שם האירוע לפני חיבור מחדש.",
+          },
+          { status: 400 }
+        );
+      }
+      const voiceGender = resolveConfigGender(prev);
+      if (!voiceGender) {
+        return NextResponse.json(
+          { ok: false, error: "VOICE_GENDER_REQUIRED" },
+          { status: 400 }
+        );
+      }
+      await hydrateApprovedPackVoiceIds();
+      await assertApprovedPackForGender(voiceGender);
+      const pack = await ensureGlobalVoicePack(voiceGender);
+      const voiceId = getIvrVoiceIdForGender(voiceGender);
+      try {
+        const composedIntroAudio = await buildAndStoreComposedIntro({
+          userId: String(user._id),
+          voiceId,
+          eventNameHash: String(eventNameAudio.contentHash || ""),
+          eventNameR2Key: String(eventNameAudio.r2Key || ""),
+          pack,
+        });
+        assignIvrConfig(user, {
+          audioMode: "ai",
+          voiceGender,
+          systemVoiceId: voiceId,
+          voiceId,
+          eventNameAudio: {
+            ...normalizeIvrAudioSubdoc(eventNameAudio),
+            approved: false,
+            approvedAt: null,
+          },
+          composedIntroAudio,
+          recordingApproval: {
+            approved: false,
+            approvedAt: null,
+            audioMode: "ai",
+            voiceGender,
+            audioPublicToken: "",
+            audioContentHash: "",
+            audioUrl: "",
+          },
+          updatedAt: new Date(),
+        });
+        await user.save();
+        const ivrConfig = await attachComposedMediaHealth(
+          serializeIvrConfig(user.ivrConfig, pack)
+        );
+        return NextResponse.json({
+          ok: true,
+          recomposed: true,
+          ivrConfig,
+          message:
+            "הקובץ המחובר נוצר מחדש מהמקטעים הקיימים. האזינו ואשרו שוב לפני חיוג.",
+        });
+      } catch (composeError) {
+        const payload = ivrPersistErrorPayload(composeError);
+        console.error("[ivr/config PATCH recompose]", composeError);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "COMPOSE_FAILED",
+            message: payload.message,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     // Approve / unapprove event-name (AI) or self-recorded intro audio.
     if (action === "approve_audio") {
       const mode = prev.audioMode || "ai";
@@ -463,7 +568,7 @@ export async function PATCH(req: NextRequest) {
           eventNameAudio.status !== "ready" ||
           !eventNameAudio.audioUrl ||
           composedIntroAudio.status !== "ready" ||
-          !composedIntroAudio.audioUrl
+          !(composedIntroAudio.audioUrl || composedIntroAudio.publicToken)
         ) {
           return NextResponse.json(
             {
@@ -475,7 +580,26 @@ export async function PATCH(req: NextRequest) {
             { status: 400 }
           );
         }
+        const mediaHead = await verifyIvrAudioInR2(
+          String(composedIntroAudio.r2Key || "")
+        );
+        if (!mediaHead.ok) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "COMPOSED_MEDIA_UNAVAILABLE",
+              message:
+                "קובץ הקריינות המחובר לא נגיש כרגע. לחצו על «יצירה מחדש של הקובץ המחובר» ואז אשרו שוב.",
+              mediaError: mediaHead.reason || "MEDIA_UNAVAILABLE",
+            },
+            { status: 400 }
+          );
+        }
         const approvedAt = new Date();
+        const lockedUrl = resolveIvrPublicAudioUrl({
+          publicToken: composedIntroAudio.publicToken,
+          storedUrl: composedIntroAudio.audioUrl,
+        });
         assignIvrConfig(user, {
           audioMode: "ai",
           eventNameAudio: {
@@ -487,6 +611,7 @@ export async function PATCH(req: NextRequest) {
             ...normalizeIvrAudioSubdoc(composedIntroAudio),
             approved: true,
             approvedAt,
+            audioUrl: lockedUrl || composedIntroAudio.audioUrl,
           },
           recordingApproval: {
             approved: true,
@@ -495,7 +620,7 @@ export async function PATCH(req: NextRequest) {
             voiceGender: resolveConfigGender(prev),
             audioPublicToken: String(composedIntroAudio.publicToken || ""),
             audioContentHash: String(composedIntroAudio.contentHash || ""),
-            audioUrl: String(composedIntroAudio.audioUrl || ""),
+            audioUrl: lockedUrl || String(composedIntroAudio.audioUrl || ""),
           },
           updatedAt: approvedAt,
         });
@@ -506,7 +631,9 @@ export async function PATCH(req: NextRequest) {
       const pack = await loadPackSafe(gender);
       return NextResponse.json({
         ok: true,
-        ivrConfig: serializeIvrConfig(user.ivrConfig, pack),
+        ivrConfig: await attachComposedMediaHealth(
+          serializeIvrConfig(user.ivrConfig, pack)
+        ),
       });
     }
 
