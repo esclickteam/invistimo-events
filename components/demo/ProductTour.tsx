@@ -274,7 +274,9 @@ function placeBubble(rect: Rect | null, mobile: boolean): CSSProperties {
   }
   const gap = 16;
   const estimated = 240;
-  const below = rect.bottom + gap;
+  const rectBottom = rect.top + rect.height;
+  const rectRight = rect.left + rect.width;
+  const below = rectBottom + gap;
   const above = rect.top - estimated - gap;
   const fitsBelow = below + estimated < window.innerHeight - 72;
   const fitsAbove = above > 64;
@@ -285,9 +287,9 @@ function placeBubble(rect: Rect | null, mobile: boolean): CSSProperties {
     window.innerWidth - width - 12
   );
   const overlaps =
-    left < rect.right + 8 &&
+    left < rectRight + 8 &&
     left + width > rect.left - 8 &&
-    top < rect.bottom + 8 &&
+    top < rectBottom + 8 &&
     top + estimated > rect.top - 8;
   if (overlaps) {
     left = rect.left > window.innerWidth / 2 ? 12 : window.innerWidth - width - 12;
