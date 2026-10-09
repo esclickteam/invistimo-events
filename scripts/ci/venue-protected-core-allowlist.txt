@@ -2,3 +2,15 @@
 # One path per line. Only add with explicit human approval in the PR.
 # Example:
 # lib/getUserIdFromRequest.ts
+#
+# Approved 2026-10-09 (PR 286): systemic Event/Invitation shared-identity layer.
+# Human approval to deploy the central sync on all create/edit paths, including
+# venues. Event-source writes never overwrite a real Invitation. No guest,
+# RSVP, seating, invitation-image, or production-data mutations.
+app/api/events/[eventId]/overview/route.ts
+app/api/events/my-production/route.ts
+app/api/events/route.ts
+app/api/invitations/[id]/guests/route.ts
+app/api/invitations/[id]/route.ts
+app/api/invitations/route.ts
+app/api/invitations/update-location/route.ts
