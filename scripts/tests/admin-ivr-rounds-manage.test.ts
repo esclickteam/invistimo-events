@@ -65,3 +65,11 @@ test("dial gates stay on executeIvrRound path only", () => {
   assert.match(dialer, /AUDIO_NOT_READY/);
   assert.match(dialer, /executeIvrRound/);
 });
+
+test("preview action uses current round fields (no canOpen/canReopen)", () => {
+  const route = readSrc("app/api/admin/users/[id]/ivr-rounds/route.ts");
+  assert.equal(route.includes("row?.canOpen"), false);
+  assert.equal(route.includes("row?.canReopen"), false);
+  assert.match(route, /canProceed = dialReady && statusAllowsOpen/);
+  assert.match(route, /canReset: row\?\.canReset/);
+});

@@ -696,8 +696,22 @@ export async function POST(
       if (action === "preview") {
         const payload = await buildRoundsPayload(user, preferredInvitationId);
         const row = payload.rounds.find((r) => r.round === round);
-        const canProceed =
-          Boolean(row?.canOpen) || (reopenIfDone && Boolean(row?.canReopen));
+        const status = String(row?.status || "");
+        const dialReady =
+          Boolean(payload.eventActive) &&
+          Boolean(payload.audioReady) &&
+          !payload.liveDialDisabled &&
+          !row?.blocked &&
+          Number(row?.liveCount || 0) === 0 &&
+          Number(row?.eligibleCount || 0) > 0;
+        const statusAllowsOpen =
+          status === "draft" ||
+          status === "scheduled" ||
+          (reopenIfDone &&
+            (status === "done" ||
+              status === "failed" ||
+              status === "cancelled"));
+        const canProceed = dialReady && statusAllowsOpen;
         return NextResponse.json({
           ok: true,
           preview: true,
@@ -710,12 +724,13 @@ export async function POST(
           status: row?.status,
           statusLabel: row?.statusLabel,
           statusMismatch: row?.statusMismatch || "",
-          canOpen: row?.canOpen ?? false,
-          canReopen: row?.canReopen ?? false,
-          showReopen: row?.showReopen ?? false,
+          blocked: row?.blocked ?? false,
+          canReset: row?.canReset ?? false,
+          canBlock: row?.canBlock ?? false,
+          canUnblock: row?.canUnblock ?? false,
           canProceed,
-          blockReasons: row?.blockReasons ?? [],
-          nextSteps: row?.nextSteps ?? [],
+          blockReasons: row?.blockReasons ?? row?.dialGateNotes ?? [],
+          dialGateNotes: row?.dialGateNotes ?? [],
           audioReady: payload.audioReady,
           audioBlockReason: payload.audioBlockReason,
           audioDiagnostics: payload.audioDiagnostics,
