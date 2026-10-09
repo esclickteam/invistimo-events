@@ -2488,6 +2488,7 @@ UserSchema.index({ "ivrConfig.introAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.composedIntroAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.composedInboundAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.recordingApproval.audioPublicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

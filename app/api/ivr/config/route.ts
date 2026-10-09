@@ -32,6 +32,7 @@ import {
   resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
   verifyIvrAudioInR2,
+  verifyIvrPublicAudioHttp,
 } from "@/lib/calls/ivrAudioStorage";
 import {
   ensureGlobalVoicePack,
@@ -97,10 +98,43 @@ async function attachComposedMediaHealth(ivrConfig: any) {
   composed.mediaBytes = head.sizeBytes || 0;
   if (!head.ok) {
     composed.mediaError = head.reason || "MEDIA_UNAVAILABLE";
+    return ivrConfig;
+  }
+  const publicUrl = resolveIvrPublicAudioUrl({
+    publicToken: composed.publicToken,
+    storedUrl: composed.audioUrl,
+  });
+  if (publicUrl) {
+    const http = await verifyIvrPublicAudioHttp(publicUrl);
+    composed.mediaPlayable = http.ok === true;
+    composed.mediaHttpStatus = http.status;
+    if (!http.ok) {
+      composed.mediaError = http.reason || `HTTP_${http.status || "FAIL"}`;
+    } else {
+      composed.mediaError = "";
+    }
   } else {
     composed.mediaError = "";
   }
   return ivrConfig;
+}
+
+/** After Mongo save — public token must resolve for browser + Telnyx. */
+async function assertSavedComposedMediaPublic(composed: any) {
+  const url = resolveIvrPublicAudioUrl({
+    publicToken: composed?.publicToken,
+    storedUrl: composed?.audioUrl,
+  });
+  if (!url) {
+    throw new Error("IVR_COMPOSE_PUBLIC_URL_MISSING");
+  }
+  const http = await verifyIvrPublicAudioHttp(url);
+  if (!http.ok) {
+    throw new Error(
+      `IVR_COMPOSE_PUBLIC_MEDIA_UNREACHABLE:${http.reason || http.status || "FAIL"}`
+    );
+  }
+  return http;
 }
 
 function serializePreviewUrls(input: {
@@ -507,6 +541,23 @@ export async function PATCH(req: NextRequest) {
           updatedAt: new Date(),
         });
         await user.save();
+        try {
+          await assertSavedComposedMediaPublic(composedIntroAudio);
+        } catch (publicErr) {
+          const detail =
+            publicErr instanceof Error ? publicErr.message : "PUBLIC_MEDIA_FAIL";
+          console.error("[ivr/config PATCH recompose] public media", detail);
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "COMPOSE_PUBLIC_MEDIA_UNREACHABLE",
+              message:
+                "הקובץ נשמר באחסון אבל כתובת המדיה הציבורית לא נגישה לדפדפן/Telnyx. נסו שוב או בדקו את /api/ivr/media.",
+              detail,
+            },
+            { status: 500 }
+          );
+        }
         const ivrConfig = await attachComposedMediaHealth(
           serializeIvrConfig(user.ivrConfig, pack)
         );
@@ -525,6 +576,8 @@ export async function PATCH(req: NextRequest) {
             ok: false,
             error: "COMPOSE_FAILED",
             message: payload.message,
+            detail:
+              composeError instanceof Error ? composeError.message : undefined,
           },
           { status: 500 }
         );
@@ -1044,6 +1097,28 @@ export async function POST(req: NextRequest) {
     await user.save();
     void warmIvrChoiceFollowUps(voiceGender);
 
+    if (!reusedCompose || body.force) {
+      try {
+        await assertSavedComposedMediaPublic(composedIntroAudio);
+      } catch (publicErr) {
+        const detail =
+          publicErr instanceof Error ? publicErr.message : "PUBLIC_MEDIA_FAIL";
+        console.error("[ivr/config POST] public media", detail);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "COMPOSE_PUBLIC_MEDIA_UNREACHABLE",
+            message:
+              "שם האירוע נשמר, אבל כתובת הקובץ המחובר לא נגישה להשמעה. לחצו שוב על יצירה/חיבור מחדש.",
+            detail,
+            eventNameSaved: true,
+            eventNameAudio: user.ivrConfig?.eventNameAudio,
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     const previewAudio = serializePreviewUrls({
       gender: voiceGender,
       eventNameAudioUrl: resolveIvrPublicAudioUrl({
@@ -1057,7 +1132,9 @@ export async function POST(req: NextRequest) {
       composedIsCurrent: composedIntroIsCurrentOutbound(composedIntroAudio),
       pack,
     });
-    const serialized = serializeIvrConfig(user.ivrConfig, pack);
+    const serialized = await attachComposedMediaHealth(
+      serializeIvrConfig(user.ivrConfig, pack)
+    );
 
     return NextResponse.json({
       ok: true,

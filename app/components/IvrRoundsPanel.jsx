@@ -287,7 +287,6 @@ function ConcatPreviewPlayer({ playlist, onEnded, label, onMediaState }) {
         controls
         preload="metadata"
         src={currentUrl}
-        crossOrigin="anonymous"
         data-testid="ivr-composed-preview"
         className="w-full"
         onLoadedMetadata={(event) => {
@@ -305,6 +304,20 @@ function ConcatPreviewPlayer({ playlist, onEnded, label, onMediaState }) {
           setLoadError(
             "לא ניתן לטעון את קובץ הקריינות (404/פורמט/אחסון). לחצו על יצירה מחדש של הקובץ המחובר."
           );
+          // Resolve the real media error code for support (NOT_FOUND / STORAGE_…).
+          if (currentUrl) {
+            fetch(currentUrl, { method: "GET", cache: "no-store" })
+              .then(async (res) => {
+                const code =
+                  res.headers.get("x-ivr-media-error") ||
+                  (await res.json().catch(() => null))?.error ||
+                  `HTTP_${res.status}`;
+                setLoadError(
+                  `לא ניתן לטעון את קובץ הקריינות (${code}). לחצו על יצירה מחדש של הקובץ המחובר.`
+                );
+              })
+              .catch(() => null);
+          }
         }}
         onEnded={() => {
           if (index + 1 < urls.length) {
