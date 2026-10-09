@@ -3,10 +3,8 @@ import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
-import InvitationGuest from "@/models/InvitationGuest";
 import { requireSeating } from "@/lib/guards/requireSeating";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { overlayGuestTableAssignments } from "@/lib/seating/overlayGuestTableAssignments";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -333,31 +331,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        3️⃣ החזרה מלאה לפרונט
-       Read-only overlay: guests that still have tableId/tableName
-       (sent yesterday) reappear on the map even if seatedGuests
-       was filtered to arrivals. Does not write Mongo.
     =============================== */
-    let tables = Array.isArray(record?.tables) ? record.tables : [];
-    let overlaidGuestCount = 0;
-
-    const overlayInvitationId = record?.invitationId || invitationId;
-
-    if (tables.length && overlayInvitationId) {
-      try {
-        const guests = await InvitationGuest.find({
-          invitationId: overlayInvitationId,
-        })
-          .select("_id tableId tableName tableNumber arrivedCount guestsCount actualArrivedCount rsvp")
-          .lean();
-
-        const overlay = overlayGuestTableAssignments(tables, guests);
-        tables = overlay.tables;
-        overlaidGuestCount = overlay.overlaidGuestIds.length;
-      } catch (overlayErr) {
-        console.warn("seating overlay skipped", overlayErr);
-      }
-    }
-
     return NextResponse.json({
       success: true,
 
@@ -381,9 +355,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       userId: record?.userId ? String(record.userId) : null,
       venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
 
-      tables,
-      overlaidGuestCount,
-      overlayOnly: true,
+      tables: Array.isArray(record?.tables) ? record.tables : [],
       background: record?.background ?? null,
       zones: Array.isArray(record?.zones) ? record.zones : [],
       canvasView: record?.canvasView ?? null,
