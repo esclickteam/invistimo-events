@@ -226,7 +226,7 @@ export default function DashboardSidebar({
 
   const { mainItems, serviceItems } = useMemo(() => {
     const invitationHref = isDemo
-      ? `/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`
+      ? `/try/dashboard/edit-invite/${invitationId || "demo-invitation"}`
       : invitationId
         ? `/dashboard/edit-invite/${invitationId}`
         : "/dashboard/create-invite";

@@ -608,6 +608,7 @@ setPreRsvpMessages(loadedPreRsvpMessages);
               label="תזכורת"
               description="תזכורת לפני האירוע"
               icon="🔔"
+              tour="message-tab-reminder"
               active={activeTab === "reminder"}
               onClick={() => setActiveTab("reminder")}
             />
@@ -2099,16 +2100,19 @@ function TabButton({
   icon,
   active,
   onClick,
+  tour,
 }: {
   label: string;
   description: string;
   icon: string;
   active: boolean;
   onClick: () => void;
+  tour?: string;
 }) {
   return (
     <button
       type="button"
+      data-tour={tour}
       onClick={onClick}
       className={`
         group

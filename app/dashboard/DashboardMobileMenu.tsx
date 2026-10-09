@@ -131,7 +131,7 @@ export default function DashboardMobileMenu({
       hidden: gameOnly,
       onClick: () => {
         if (isDemo) {
-          demoBlock();
+          go(`/try/dashboard/edit-invite/${invitationId || "demo-invitation"}`);
           return;
         }
 
@@ -267,9 +267,9 @@ export default function DashboardMobileMenu({
     },
     {
       title: "שיחות מוקלטות",
-      subtitle: "תזמון סבבים, קריינות, אישור הודעה וסטטיסטיקות IVR",
+      subtitle: "תזמון סבבים, קריינות, אישור הודעה ודוח תוצאות",
       icon: Phone,
-      badge: "IVR",
+      badge: "שיחות",
       hidden: gameOnly || !canOpenRecordedCalls,
       onClick: () => {
         if (isDemo) {

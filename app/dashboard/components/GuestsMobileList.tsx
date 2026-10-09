@@ -401,7 +401,11 @@ export default function GuestsMobileList({
                     </ActionButton>
                   ) : null}
 
-                  <ActionButton title="עריכת מוזמן" onClick={() => onEdit(g)}>
+                  <ActionButton
+                    title="עריכת מוזמן"
+                    dataTour={index === 0 ? "guest-edit" : undefined}
+                    onClick={() => onEdit(g)}
+                  >
                     ✏️
                   </ActionButton>
 

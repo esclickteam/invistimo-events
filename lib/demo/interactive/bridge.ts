@@ -5,6 +5,7 @@ import {
   markLinkOpened,
   respondByToken,
   saveIvrSchedule,
+  simulateHumanCall,
   simulateIvrDigit,
   simulateMessageRound,
   syncCheckIn,
@@ -46,6 +47,27 @@ function pathOf(raw: string) {
   return { pathname: url.pathname, searchParams: url.searchParams };
 }
 
+function demoClipUrl() {
+  const samples = 160;
+  const dataSize = samples;
+  const buffer = Buffer.alloc(44 + dataSize);
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(8000, 24);
+  buffer.writeUInt32LE(8000, 28);
+  buffer.writeUInt16LE(1, 32);
+  buffer.writeUInt16LE(8, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  buffer.fill(128, 44);
+  return `data:audio/wav;base64,${buffer.toString("base64")}`;
+}
+
 function demoCustomer() {
   return {
     _id: "demo-owner",
@@ -53,7 +75,7 @@ function demoCustomer() {
     role: "user",
     name: "מאיה לוי",
     plan: "premium",
-    guests: 500,
+    guests: 12,
     includeCalls: true,
     callsType: "ivr",
     includeDigitalSeating: true,
@@ -261,6 +283,7 @@ export function bridgeDemoRequest(
   }
 
   if (pathname === "/api/ivr/config" && verb === "GET") {
+    const clip = demoClipUrl();
     return ok({
       ok: true,
       simulated: true,
@@ -268,15 +291,23 @@ export function bridgeDemoRequest(
         eventName: current.event.title,
         eventNamePronunciation: current.event.title,
         audioMode: "ai",
+        previewText: `שלום, זו שיחה מוקלטת לדוגמה עבור ${current.event.title}. הקישו 1 למגיע, 2 ללא מגיע, 3 למתלבט.`,
         eventNameAudio: {
           status: "ready",
-          approved: true,
-          audioUrl: "",
+          approved: false,
+          audioUrl: clip,
         },
-        composedIntroAudio: { approved: true },
+        composedIntroAudio: { approved: false, audioUrl: clip },
         introAudio: { status: "idle", approved: false, audioUrl: "" },
-        previewAudio: { seamless: false, playlist: [] },
-        recordingApproval: { approved: true },
+        previewAudio: {
+          seamless: true,
+          composedIntroAudioUrl: clip,
+          introBeforeEventNameUrl: clip,
+          eventNameAudioUrl: clip,
+          introAfterEventNameUrl: clip,
+          playlist: [clip, clip, clip],
+        },
+        recordingApproval: { approved: false },
         systemVoices: [],
       },
     });
@@ -335,6 +366,20 @@ export function bridgeDemoRequest(
       ok: true,
       simulated: true,
       callRoundsSchedule: { enabled: true, rounds: next.ivrSchedule },
+    });
+  }
+
+  if (pathname === "/api/invitations/upload-preview" && verb === "POST") {
+    const next = updateEventDetails(current.id, {
+      headerImageUrl: "/homep2.png",
+    });
+    if (!next) return blocked();
+    return ok({
+      success: true,
+      simulated: true,
+      imageUrl: "/homep2.png",
+      previewImageUrl: "/homep2.png",
+      headerImageUrl: "/homep2.png",
     });
   }
 
@@ -404,6 +449,7 @@ export function applyExplicitDemoAction(sessionId: string, body: any) {
   if (type === "updateGuest") return updateGuest(sessionId, body.guestId, body.patch || body.guest || {});
   if (type === "deleteGuest") return deleteGuest(sessionId, body.guestId);
   if (type === "ivr") return simulateIvrDigit(sessionId, body.guestId, body.digit);
+  if (type === "human-call") return simulateHumanCall(sessionId, body.guestId);
   if (type === "syncCheckIn") return syncCheckIn(sessionId, body.counts || []);
   if (type === "syncSeating") return syncSeating(sessionId, body.tables || []);
   if (type === "message") {

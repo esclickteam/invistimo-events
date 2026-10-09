@@ -130,7 +130,7 @@ export default function RecordedCallsPage() {
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#E3CFB0] bg-[#FFF8EE] px-3 py-1 text-[11px] font-black tracking-[0.12em] text-[#9A7444]">
             <Phone size={13} />
-            IVR
+            סבבי שיחות
           </div>
           <h1 className="text-3xl font-black text-[#241A14]">שיחות מוקלטות</h1>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#8A7A68]">

@@ -544,6 +544,14 @@ export default function EventDetailsForm({
         return;
       }
 
+      if (window.location.pathname.startsWith("/try")) {
+        window.dispatchEvent(
+          new CustomEvent("invistimo:demo-action", {
+            detail: { action: "event-details" },
+          })
+        );
+      }
+
       const savedLat = data.invitation?.location?.lat;
       const savedLng = data.invitation?.location?.lng;
       if (savedLat != null && savedLng != null) {
@@ -669,6 +677,7 @@ export default function EventDetailsForm({
             </label>
 
             <input
+              data-tour="event-title"
               placeholder="לדוגמה: גל ואורנית"
               value={form.title}
               onChange={(e) =>
@@ -739,6 +748,7 @@ export default function EventDetailsForm({
               שמות בעלי השמחה
             </label>
             <input
+              data-tour="event-hosts"
               placeholder="לדוגמה: נועה ואדם"
               value={form.hostsNames}
               onChange={(e) =>
@@ -774,6 +784,7 @@ export default function EventDetailsForm({
               </label>
 
               <input
+                data-tour="event-date"
                 type="date"
                 value={form.date}
                 onChange={(e) =>
@@ -806,6 +817,7 @@ export default function EventDetailsForm({
               </label>
 
               <input
+                data-tour="event-time"
                 type="time"
                 value={form.time}
                 onChange={(e) =>
@@ -899,6 +911,7 @@ export default function EventDetailsForm({
             </label>
 
             <div
+              data-tour="event-location"
               className="
                 rounded-[20px]
                 border
@@ -1222,7 +1235,7 @@ export default function EventDetailsForm({
 
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
-                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                    <label data-tour="gift-credit" className="flex cursor-pointer items-center justify-between gap-3">
                       <span className="text-sm font-black text-[#6B5B4A]">
                         מתנה באשראי
                       </span>
@@ -1243,6 +1256,7 @@ export default function EventDetailsForm({
                     </label>
                     {form.gifts.creditEnabled && (
                       <input
+                        data-tour="gift-credit-url"
                         placeholder="https://... קישור תשלום באשראי"
                         value={form.gifts.creditUrl}
                         onChange={(e) =>
@@ -1261,7 +1275,7 @@ export default function EventDetailsForm({
                   </div>
 
                   <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
-                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                    <label data-tour="gift-paybox" className="flex cursor-pointer items-center justify-between gap-3">
                       <span className="text-sm font-black text-[#6B5B4A]">
                         PayBox
                       </span>
@@ -1282,6 +1296,7 @@ export default function EventDetailsForm({
                     </label>
                     {form.gifts.payboxEnabled && (
                       <input
+                        data-tour="gift-paybox-url"
                         placeholder="https://... קישור PayBox"
                         value={form.gifts.payboxUrl}
                         onChange={(e) =>
@@ -1300,7 +1315,7 @@ export default function EventDetailsForm({
                   </div>
 
                   <div className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4">
-                    <label className="flex cursor-pointer items-center justify-between gap-3">
+                    <label data-tour="gift-bit" className="flex cursor-pointer items-center justify-between gap-3">
                       <span className="text-sm font-black text-[#6B5B4A]">
                         Bit
                       </span>
@@ -1321,6 +1336,7 @@ export default function EventDetailsForm({
                     </label>
                     {form.gifts.bitEnabled && (
                       <input
+                        data-tour="gift-bit-phone"
                         placeholder="0501234567"
                         value={form.gifts.bitPhone}
                         onChange={(e) =>
@@ -1938,6 +1954,7 @@ export default function EventDetailsForm({
         )}
 
         <button
+          data-tour="event-save"
           onClick={save}
           disabled={saving || uploadingCoupleImage}
           className="

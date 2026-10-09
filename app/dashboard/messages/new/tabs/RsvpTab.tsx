@@ -959,6 +959,7 @@ export default function RsvpTab({
               subtitle="אפשר לבחור מחדש בכל סבב בין WhatsApp ל-SMS"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div data-tour="message-channel-whatsapp">
                 <ChannelOption
                   icon="💬"
                   title="WhatsApp"
@@ -969,7 +970,9 @@ export default function RsvpTab({
                     setRoundChannels((p) => ({ ...p, [round]: "whatsapp" }))
                   }
                 />
+                </div>
 
+                <div data-tour="message-channel-sms">
                 <ChannelOption
                   icon="📩"
                   title="SMS"
@@ -980,6 +983,7 @@ export default function RsvpTab({
                     setRoundChannels((p) => ({ ...p, [round]: "sms" }))
                   }
                 />
+                </div>
               </div>
             </PremiumCard>
 
@@ -988,6 +992,7 @@ export default function RsvpTab({
               title="קהל יעד"
               subtitle={`סבב ${round}: ${getRoundAudienceLabel(round)}`}
             >
+              <div data-tour="message-audience">
               <AudienceFilterSelector
                 value={round === 1 ? "all" : "pending"}
                 onChange={() => {}}
@@ -1012,6 +1017,7 @@ export default function RsvpTab({
                     {guestsToSend.length} נמענים
                   </span>
                 </div>
+              </div>
               </div>
             </PremiumCard>
 
@@ -1072,6 +1078,7 @@ export default function RsvpTab({
               subtitle="אפשר לשלוח עכשיו או לתזמן מראש כל סבב בנפרד"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div data-tour="message-timing-now">
                 <TimingOption
                   title="שליחה מיידית"
                   subtitle="ההודעה תישלח עכשיו לפי הסבב והערוץ שנבחרו"
@@ -1084,7 +1091,9 @@ export default function RsvpTab({
                     setScheduledTime("");
                   }}
                 />
+                </div>
 
+                <div data-tour="message-timing-scheduled">
                 <TimingOption
                   title="שליחה מתוזמנת"
                   subtitle="קביעת תאריך ושעה לשליחה אוטומטית"
@@ -1093,10 +1102,11 @@ export default function RsvpTab({
                   disabled={sendingNow}
                   onClick={() => setSendTiming("scheduled")}
                 />
+                </div>
               </div>
 
               {sendTiming === "scheduled" && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div data-tour="message-schedule" className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <ScheduleDateField
                     value={scheduledDate}
                     disabled={sendingNow}

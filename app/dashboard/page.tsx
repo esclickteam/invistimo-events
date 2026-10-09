@@ -504,6 +504,14 @@ const canViewActualArrived =
   const loadGroups = useGroupStore((s) => s.loadGroups);
 
   const handleGuestUpdated = async (updatedGuest: Guest) => {
+    if (isDemo) {
+      window.dispatchEvent(
+        new CustomEvent("invistimo:demo-action", {
+          detail: { action: "update-guest" },
+        })
+      );
+      window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
+    }
     const normalizedUpdatedGuest = normalizeGuestForDashboard(updatedGuest);
 
     setGuests((prev) =>
@@ -1201,7 +1209,7 @@ if (!canDeleteAllGuests) {
         setUser({
           role: "user",
           plan: "premium",
-          guests: 500,
+          guests: 12,
           includeCalls: true,
           callsType: "ivr",
         });
@@ -1235,6 +1243,16 @@ if (!canDeleteAllGuests) {
       window.removeEventListener("invistimo:demo-sync", loadDemo);
       window.clearInterval(timer);
     };
+  }, [isDemo]);
+
+  useEffect(() => {
+    if (!isDemo) return;
+    const openHuman = (event: Event) => {
+      const id = String((event as CustomEvent).detail?.id || "");
+      if (id === "human-sim") setOpenRsvpSchedule(true);
+    };
+    window.addEventListener("invistimo:demo-tour-step", openHuman);
+    return () => window.removeEventListener("invistimo:demo-tour-step", openHuman);
   }, [isDemo]);
 
   useEffect(() => {
@@ -2700,9 +2718,6 @@ const eventLocation = resolveEventLocation(invitation, event);
 
             if (isDemo) {
               router.push(`/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`);
-              window.dispatchEvent(
-                new CustomEvent("invistimo:demo-action", { detail: { action: "event-details" } })
-              );
               return;
             }
 
@@ -3262,6 +3277,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                     </IconAction>
 
                     <IconAction
+                      dataTour="guest-edit"
                       title="עריכת מוזמן"
                       onClick={() => setSelectedGuest(g)}
                     >
@@ -3771,6 +3787,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         <UserRsvpScheduleModal
           user={user}
           invitation={invitation}
+          isDemo={isDemo}
           onClose={() => setOpenRsvpSchedule(false)}
         />
       )}
@@ -3800,9 +3817,12 @@ const eventLocation = resolveEventLocation(invitation, event);
           onClose={() => setOpenAddModal(false)}
           onSuccess={async (newGuest?: Guest) => {
             if (isDemo) {
+              const digits = String(newGuest?.phone || "").replace(/\D/g, "");
               window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
               window.dispatchEvent(
-                new CustomEvent("invistimo:demo-action", { detail: { action: "add-guest" } })
+                new CustomEvent("invistimo:demo-action", {
+                  detail: { action: digits ? "add-guest" : "add-guest-free" },
+                })
               );
               return;
             }
@@ -4725,10 +4745,12 @@ function UserRsvpScheduleModal({
   user,
   invitation,
   onClose,
+  isDemo = false,
 }: {
   user: any;
   invitation: any;
   onClose: () => void;
+  isDemo?: boolean;
 }) {
   const [scheduleUser, setScheduleUser] = useState(user);
   const isIvr = isIvrCallsUser(scheduleUser);
@@ -4787,8 +4809,8 @@ function UserRsvpScheduleModal({
 
             <p className="mt-1 text-sm font-bold text-[#8A7A68]">
               {isIvr
-                ? "WhatsApp, SMS וסבבי שיחות מוקלטות (IVR) — ללא מוקד אנושי."
-                : "כל הסבבים הקיימים: WhatsApp, SMS ושיחות."}
+                ? "WhatsApp, SMS וסבבי שיחות מוקלטות. בחבילה הזו אין מוקד אנושי."
+                : "כל הסבבים הקיימים: WhatsApp, SMS ושיחות אנושיות של הצוות."}
             </p>
           </div>
 
@@ -4811,11 +4833,43 @@ function UserRsvpScheduleModal({
                 תזמון סבבים, קריינות AI / הקלטה אישית, אישור הודעה ותצוגה מקדימה.
               </p>
               <a
-                href="/dashboard/recorded-calls"
+                href={isDemo ? "/try/dashboard/recorded-calls" : "/dashboard/recorded-calls"}
                 className="mt-3 inline-flex rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
               >
                 מעבר לשיחות מוקלטות
               </a>
+              {isDemo ? (
+                <div className="mt-4 rounded-2xl border border-[#E7D8C6] bg-white p-4">
+                  <p className="text-sm font-black text-[#3A2A1C]">
+                    שיחות אנושיות — להיכרות בדמו
+                  </p>
+                  <p className="mt-1 text-xs font-bold leading-6 text-[#6B5A48]">
+                    אצל לקוח אמיתי מופיע רק סוג השיחות שנכלל בחבילה. כאן אפשר לראות איך צוות אישורי ההגעה מעדכן תשובה, בלי להיכנס למסך עובדים ובלי שיחה אמיתית.
+                  </p>
+                  <button
+                    type="button"
+                    data-tour="human-call-sim"
+                    onClick={() => {
+                      void fetch("/api/demo/interactive/action", {
+                        method: "POST",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "human-call" }),
+                      }).then(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("invistimo:demo-action", {
+                            detail: { action: "human-call" },
+                          })
+                        );
+                        window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
+                      });
+                    }}
+                    className="mt-3 rounded-xl bg-[#2F2924] px-4 py-2 text-sm font-black text-white"
+                  >
+                    הדמיית עדכון מהצוות
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -5444,7 +5498,7 @@ function GoldenEventDetailsCard({
   onOpenRsvpSchedule: () => void;
 }) {
   return (
-    <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div data-tour="event-summary" className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פרטי האירוע
@@ -5520,7 +5574,7 @@ function GoldenRecentActivityCard({
   }[];
 }) {
   return (
-    <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+    <div data-tour="activity" className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         <h3 className="text-lg font-black text-[#241A14]">
           פעילות אחרונה

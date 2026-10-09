@@ -7,6 +7,7 @@ import {
   packDemoSession,
   unpackDemoSession,
 } from "../../lib/demo/interactive/sessionPack";
+import { countGuestsTowardRecordQuota } from "../../lib/guestRecordQuota";
 import {
   addGuest,
   assignGuestToTable,
@@ -17,11 +18,13 @@ import {
   hydrateSession,
   resetSession,
   saveLead,
+  simulateHumanCall,
   simulateIvrDigit,
   simulateMessageRound,
   syncCheckIn,
+  updateEventDetails,
 } from "../../lib/demo/interactive/store";
-import { DEMO_TOUR_STEPS } from "../../lib/demo/interactive/tour";
+import { DEMO_TOUR_STEPS, DEMO_TOUR_TOPICS } from "../../lib/demo/interactive/tour";
 
 test("demo sessions stay isolated from each other", () => {
   const a = createSession();
@@ -187,30 +190,87 @@ test("production API calls from the demo surface are blocked", () => {
   );
 });
 
+test("a guest without a phone does not consume a paid record", () => {
+  const session = createSession();
+  try {
+    const before = countGuestsTowardRecordQuota(session.guests);
+    const withPhone = addGuest(session.id, { name: "עם טלפון", phone: "0500000099" });
+    assert.equal(countGuestsTowardRecordQuota(withPhone?.session.guests || []), before + 1);
+    const withoutPhone = addGuest(session.id, { name: "בלי טלפון", phone: "" });
+    assert.equal(
+      countGuestsTowardRecordQuota(withoutPhone?.session.guests || []),
+      before + 1
+    );
+    const me = bridgeDemoRequest(getSession(session.id)!, "GET", "/api/me", null);
+    assert.equal((me.json.user as any).guests, 12);
+  } finally {
+    dropSession(session.id);
+  }
+});
+
+test("event gifts and a human call stay inside the demo session", () => {
+  const session = createSession();
+  try {
+    const saved = updateEventDetails(session.id, {
+      title: "החתונה המעודכנת",
+      gifts: {
+        creditEnabled: true,
+        creditUrl: "https://demo.invistimo.com/gift",
+        payboxEnabled: true,
+        payboxUrl: "https://demo.invistimo.com/paybox",
+        bitEnabled: true,
+        bitPhone: "0501234567",
+      },
+    });
+    const invitation = saved?.invitation as any;
+    assert.equal(invitation.title, "החתונה המעודכנת");
+    assert.equal(invitation.gifts.creditUrl, "https://demo.invistimo.com/gift");
+    assert.equal(invitation.publicEventPage.gifts.bitPhone, "0501234567");
+
+    const called = simulateHumanCall(session.id, "g-noa");
+    const guest = called?.guests.find((item) => item._id === "g-noa");
+    assert.equal(guest?.rsvp, "yes");
+    assert.equal(guest?.callRounds?.some((round) => round.channel === "human"), true);
+    assert.equal(JSON.stringify(called).includes("IVR"), false);
+  } finally {
+    dropSession(session.id);
+  }
+});
+
 test("guided tour covers the customer journey on real controls", () => {
-  assert.equal(DEMO_TOUR_STEPS.length, 10);
   const ids = DEMO_TOUR_STEPS.map((step) => step.id);
-  assert.deepEqual(ids, [
+  for (const id of [
     "dashboard",
+    "go-event",
+    "event-save",
+    "invite-upload",
+    "gift-save",
     "add-guest",
-    "guest-link",
-    "messages",
-    "ivr",
-    "calls",
-    "seating",
-    "check-in",
+    "add-family",
+    "records-same",
+    "message-send",
+    "reminder-sms",
+    "call-keypad",
+    "human-sim",
+    "go-seating",
+    "seat-guest",
+    "checkin-qr",
     "reports",
-    "more",
-  ]);
+  ]) {
+    assert.equal(ids.includes(id), true, id);
+  }
+  assert.ok(DEMO_TOUR_TOPICS.length >= 8);
   for (const step of DEMO_TOUR_STEPS) {
-    assert.ok(step.selector);
-    assert.ok(step.route.startsWith("/try/dashboard"));
+    assert.ok(step.selector, step.id);
+    assert.ok(step.topic, step.id);
+    assert.ok(step.route.startsWith("/try/dashboard"), step.id);
     assert.equal(step.route.includes("/admin"), false);
+    assert.equal(/IVR/i.test(`${step.title} ${step.body} ${step.learn}`), false, step.id);
     assert.ok(step.learn.length > 0);
-    assert.ok(step.body.length < 220);
+    assert.ok(step.body.length < 220, step.id);
   }
   const actionSteps = DEMO_TOUR_STEPS.filter((step) => step.advance === "action");
-  assert.ok(actionSteps.length >= 4);
+  assert.ok(actionSteps.length >= 8);
 });
 
 test("demo engine does not import production models", () => {
@@ -233,7 +293,12 @@ test("tour targets exist on the customer screens", () => {
     "[data-tour='guest-link']": readFileSync("app/dashboard/page.tsx", "utf8"),
     "[data-tour='call-task']": readFileSync("app/dashboard/page.tsx", "utf8"),
     "[data-tour='message-send']": readFileSync("app/dashboard/messages/new/shared/SendButton.tsx", "utf8"),
-    "[data-tour='ivr-keypad']": readFileSync("app/try/dashboard/recorded-calls/page.tsx", "utf8"),
+    "[data-tour='call-keypad']": readFileSync("app/try/dashboard/recorded-calls/page.tsx", "utf8"),
+    "[data-tour='event-save']": readFileSync("app/components/EventDetailsForm.tsx", "utf8"),
+    "[data-tour='records-balance']": readFileSync("app/components/GuestsControls.tsx", "utf8"),
+    "[data-tour='message-schedule']": readFileSync("app/dashboard/messages/new/tabs/RsvpTab.tsx", "utf8"),
+    "[data-tour='checkin-qr']": readFileSync("app/dashboard/check-in/CheckInHostClient.tsx", "utf8"),
+    "[data-tour='add-table']": readFileSync("app/dashboard/seating/page.tsx", "utf8"),
     "[data-tour='seating-guest']": readFileSync("app/dashboard/seating/SeatingSidebar.tsx", "utf8"),
     "[data-tour='checkin-search']": readFileSync("app/dashboard/check-in/CheckInHostClient.tsx", "utf8"),
     "[data-tour='customer-nav']": readFileSync("app/dashboard/components/DashboardSidebar.tsx", "utf8"),

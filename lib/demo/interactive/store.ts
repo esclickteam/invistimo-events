@@ -379,16 +379,48 @@ export function simulateIvrDigit(
       simulated: true,
       notes:
         digit === "1"
-          ? "הדמיית IVR: האורח הקיש 1 — מגיע"
+          ? "שיחה מוקלטת לדוגמה: האורח הקיש 1 — מגיע"
           : digit === "2"
-            ? "הדמיית IVR: האורח הקיש 2 — לא מגיע"
-            : "הדמיית IVR: האורח הקיש 3 — מתלבט",
+            ? "שיחה מוקלטת לדוגמה: האורח הקיש 2 — לא מגיע"
+            : "שיחה מוקלטת לדוגמה: האורח הקיש 3 — מתלבט",
     },
   ];
   pushActivity(
     session,
     "ivr",
-    `${guest.name} הקיש ${digit} בשיחת IVR לדוגמה. הסטטוס עודכן בדשבורד.`
+    `${guest.name} הקיש ${digit} בשיחה מוקלטת לדוגמה. הסטטוס עודכן בדשבורד.`
+  );
+  return clone(session);
+}
+
+export function simulateHumanCall(id: string, guestId?: string): DemoSession | null {
+  const session = mutate(id);
+  if (!session) return null;
+  const guest =
+    (guestId ? findGuest(session, guestId) : null) ||
+    session.guests.find((item) => item.rsvp === "pending" && item.phone) ||
+    session.guests[0];
+  if (!guest) return null;
+  guest.rsvp = "yes";
+  guest.arrivedCount = Math.max(1, guest.guestsCount);
+  guest.rsvpRespondedAt = new Date().toISOString();
+  guest.callRounds = [
+    ...(guest.callRounds || []),
+    {
+      roundNumber: 1,
+      answerStatus: "answered",
+      resultStatus: "yes",
+      amount: guest.arrivedCount,
+      calledAt: new Date().toISOString(),
+      channel: "human",
+      simulated: true,
+      notes: "הדמיית שיחה אנושית: הצוות תיעד שהאורח מגיע",
+    },
+  ];
+  pushActivity(
+    session,
+    "human-call",
+    `הצוות תיעד שיחה לדוגמה עם ${guest.name}. הסטטוס עודכן למגיע.`
   );
   return clone(session);
 }
@@ -499,6 +531,28 @@ export function updateEventDetails(
     if (location.lat != null) session.event.lat = Number(location.lat);
     if (location.lng != null) session.event.lng = Number(location.lng);
   }
+  const gifts =
+    patch.gifts && typeof patch.gifts === "object"
+      ? (patch.gifts as Record<string, unknown>)
+      : null;
+  if (gifts) {
+    invitation.gifts = { ...(invitation.gifts || {}), ...gifts };
+    const page =
+      invitation.publicEventPage && typeof invitation.publicEventPage === "object"
+        ? invitation.publicEventPage
+        : {};
+    invitation.publicEventPage = {
+      ...page,
+      enabled: true,
+      gifts: { ...(page.gifts || {}), ...gifts },
+    };
+  }
+  if (typeof patch.headerImageUrl === "string" && patch.headerImageUrl) {
+    invitation.headerImageUrl = patch.headerImageUrl;
+    invitation.headerImage = patch.headerImageUrl;
+    invitation.previewImage = patch.headerImageUrl;
+    invitation.previewImageUrl = patch.headerImageUrl;
+  }
   pushActivity(session, "event-details", "פרטי האירוע בדמו עודכנו");
   return clone(session);
 }
@@ -516,7 +570,7 @@ export function saveIvrSchedule(
     notes: round.notes || "",
     status: round.status || "scheduled",
   }));
-  pushActivity(session, "ivr-schedule", "תזמון סבבי IVR נשמר בדמו בלבד");
+  pushActivity(session, "ivr-schedule", "תזמון סבבי השיחות המוקלטות נשמר בדמו בלבד");
   return clone(session);
 }
 

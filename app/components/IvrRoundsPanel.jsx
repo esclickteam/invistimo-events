@@ -528,7 +528,7 @@ export default function IvrRoundsPanel({
         throw new Error(
           customerIvrError(
             cfg?.message || cfg?.error,
-            "טעינת הגדרות IVR נכשלה"
+            "טעינת הגדרות השיחות המוקלטות נכשלה"
           )
         );
       }
@@ -703,7 +703,7 @@ export default function IvrRoundsPanel({
         ...prev,
         ivrConfig: data.ivrConfig || prev?.ivrConfig,
       }));
-      setMessage("ההודעה אושרה ומוכנה לשיחות IVR.");
+      setMessage("ההודעה אושרה ומוכנה לשיחות מוקלטות.");
     } catch (err) {
       setError(
         customerIvrError(err instanceof Error ? err.message : "", "אישור נכשל")
@@ -956,6 +956,7 @@ export default function IvrRoundsPanel({
                     {stat.failureReason}
                   </div>
                 ) : null}
+                <div data-tour={roundNumber === 1 ? "call-round-time" : undefined}>
                 <IsraelDateTimeFields
                   value={round.scheduledAt}
                   onChange={(value) => {
@@ -987,6 +988,7 @@ export default function IvrRoundsPanel({
                     });
                   }}
                 />
+                </div>
               </div>
             );
           })}
@@ -999,6 +1001,7 @@ export default function IvrRoundsPanel({
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
+            data-tour="call-voice-ai"
             onClick={() => patchLocal({ audioMode: "ai" })}
             className={`rounded-xl border px-4 py-2 text-sm font-black ${
               audioMode === "ai"
@@ -1010,6 +1013,7 @@ export default function IvrRoundsPanel({
           </button>
           <button
             type="button"
+            data-tour="call-voice-self"
             onClick={() => patchLocal({ audioMode: "self_recorded" })}
             className={`rounded-xl border px-4 py-2 text-sm font-black ${
               audioMode === "self_recorded"
@@ -1035,6 +1039,7 @@ export default function IvrRoundsPanel({
                 placeholder="החתונה של הדר ורועי"
                 className="mt-1 w-full rounded-xl border border-[#E7D8C6] px-3 py-2"
                 data-testid="ivr-event-name"
+                data-tour="call-event-name"
               />
             </label>
 
@@ -1148,7 +1153,7 @@ export default function IvrRoundsPanel({
         )}
 
         {aiReady ? (
-          <div className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <div data-tour="call-preview" className="mt-4 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="text-sm font-black text-emerald-800">
               {approved
                 ? "ההקלטה אושרה לשיחות"
@@ -1166,6 +1171,7 @@ export default function IvrRoundsPanel({
               {!approved ? (
                 <button
                   type="button"
+                  data-tour="call-approve"
                   disabled={saving || !composedReady}
                   onClick={approveAudio}
                   className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white disabled:opacity-60"
