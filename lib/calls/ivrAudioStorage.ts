@@ -238,20 +238,27 @@ export type IvrAudioR2Verification = {
 
 /** HeadObject check — size > 0 and audio content-type. */
 export async function verifyIvrAudioInR2(
-  key: string
+  key: string,
+  options?: { timeoutMs?: number }
 ): Promise<IvrAudioR2Verification> {
   const r2Key = String(key || "").trim();
   if (!r2Key) {
     return { ok: false, reason: "MISSING_R2_KEY", sizeBytes: 0, contentType: "" };
   }
 
+  const timeoutMs = Math.max(500, Number(options?.timeoutMs || 2500));
   try {
-    const result = await r2Client.send(
-      new HeadObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: r2Key,
-      })
-    );
+    const result = await Promise.race([
+      r2Client.send(
+        new HeadObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: r2Key,
+        })
+      ),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("R2_HEAD_TIMEOUT")), timeoutMs);
+      }),
+    ]);
 
     const sizeBytes = Number(result.ContentLength || 0);
     const contentType = String(result.ContentType || "").trim();
@@ -295,7 +302,8 @@ export async function verifyIvrAudioInR2(
 
 /** Optional live HTTP check of the public media URL (admin verify). */
 export async function verifyIvrPublicAudioHttp(
-  audioUrl: string
+  audioUrl: string,
+  options?: { timeoutMs?: number }
 ): Promise<{
   ok: boolean;
   status: number | null;
@@ -307,12 +315,14 @@ export async function verifyIvrPublicAudioHttp(
     return { ok: false, status: null, contentType: "", reason: "MISSING_URL" };
   }
 
+  const timeoutMs = Math.max(500, Number(options?.timeoutMs || 5000));
   try {
     const res = await fetch(url, {
       method: "GET",
       headers: { Range: "bytes=0-1023" },
       cache: "no-store",
       redirect: "follow",
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     const contentType = String(res.headers.get("content-type") || "");
