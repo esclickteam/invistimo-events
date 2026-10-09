@@ -10,7 +10,14 @@ import InvitationGuest from "@/models/InvitationGuest";
 import IvrCallAttempt from "@/models/IvrCallAttempt";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
-import { filterGuestsForIvrRound } from "@/lib/calls/ivrRoundEligibility";
+import {
+  filterGuestsForIvrRound,
+  isFinalRsvp,
+} from "@/lib/calls/ivrRoundEligibility";
+import {
+  getGuestRsvpValue,
+  hasGuestPhone,
+} from "@/lib/calls/callRoundEligibility";
 import {
   formatCallRoundDateTimeDmy,
   formatCallRoundDateTimeInput,
@@ -19,6 +26,7 @@ import {
 } from "@/lib/calls/callRoundScheduleTime";
 import { getAppBaseUrl } from "@/lib/calls/ivrAudioStorage";
 import {
+  describeIvrAudioDiagnostics,
   openIvrRoundManually,
   resolveIvrRoundAudio,
   setIvrRoundAdminStatus,
@@ -99,6 +107,7 @@ async function buildRoundsPayload(user: any) {
     .lean();
 
   const audio = resolveIvrRoundAudio(user);
+  const audioDiagnostics = describeIvrAudioDiagnostics(user);
   const scheduleRounds = Array.isArray(user?.callRoundsSchedule?.rounds)
     ? user.callRoundsSchedule.rounds
     : [];
@@ -115,6 +124,25 @@ async function buildRoundsPayload(user: any) {
         .select("round status")
         .lean()
     : [];
+
+  const liveByRound: Record<number, number> = { 1: 0, 2: 0, 3: 0 };
+  if (invitation) {
+    for (const round of [1, 2, 3] as const) {
+      liveByRound[round] = await IvrCallAttempt.countDocuments({
+        invitationId: invitation._id,
+        round,
+        channel: "outbound_ivr",
+        status: {
+          $in: ["queued", "initiated", "ringing", "answered", "invalid_input"],
+        },
+      });
+    }
+  }
+
+  const guestsWithPhone = guests.filter((g) => hasGuestPhone(g));
+  const finalAnsweredCount = guestsWithPhone.filter((g) =>
+    isFinalRsvp(getGuestRsvpValue(g))
+  ).length;
 
   const liveDialDisabled = process.env.IVR_ALLOW_LIVE_DIAL === "false";
   const eventActive = Boolean(event) && user.isActive !== false;
@@ -137,13 +165,34 @@ async function buildRoundsPayload(user: any) {
     });
     const remaining = Math.max(0, eligibleNow.length);
     const dialed = roundAttempts.length;
+    const liveCount = liveByRound[round] || 0;
+    const statusMismatch =
+      executionStatus === "done" && dialed === 0
+        ? "סומן כהושלם ללא ניסיונות חיוג — ניתן לפתוח מחדש"
+        : executionStatus === "done" && remaining > 0
+          ? "סומן כהושלם אך נותרו אורחים זכאים"
+          : "";
+
     const canOpen =
       eventActive &&
       audio.audioReady &&
       remaining > 0 &&
       !liveDialDisabled &&
+      liveCount === 0 &&
       (executionStatus === "draft" || executionStatus === "scheduled");
+
+    const canReopen =
+      eventActive &&
+      audio.audioReady &&
+      remaining > 0 &&
+      !liveDialDisabled &&
+      liveCount === 0 &&
+      (executionStatus === "done" ||
+        executionStatus === "failed" ||
+        executionStatus === "cancelled");
+
     const canStop =
+      liveCount > 0 ||
       executionStatus === "in_progress" ||
       executionStatus === "scheduled" ||
       executionStatus === "draft";
@@ -157,20 +206,33 @@ async function buildRoundsPayload(user: any) {
     }
     if (remaining < 1) blockReasons.push("אין אורחים זכאים לחיוג");
     if (liveDialDisabled) blockReasons.push("חיוגים מושבתים זמנית במערכת");
-    if (executionStatus === "done") blockReasons.push("הסבב כבר הושלם");
-    if (executionStatus === "failed") {
-      blockReasons.push("הסבב נכשל — לחצו חידוש לפני פתיחה");
+    if (liveCount > 0) blockReasons.push("יש שיחות פעילות בסבב");
+    if (executionStatus === "done" && !canReopen) {
+      blockReasons.push("הסבב כבר הושלם");
     }
-    if (executionStatus === "in_progress") {
+    if (executionStatus === "done" && canReopen) {
+      blockReasons.push("הסבב סומן כהושלם — יש לפתוח מחדש לזכאים שנותרו");
+    }
+    if (executionStatus === "failed" && !canReopen) {
+      blockReasons.push("הסבב נכשל");
+    }
+    if (executionStatus === "in_progress" && liveCount === 0) {
+      blockReasons.push("סטטוס מתבצע ללא שיחות חיות — רעננו או פתחו מחדש");
+    }
+    if (executionStatus === "in_progress" && liveCount > 0) {
       blockReasons.push("הסבב כבר מתבצע");
     }
-    if (executionStatus === "cancelled") blockReasons.push("הסבב נעצר");
+    if (executionStatus === "cancelled" && !canReopen) {
+      blockReasons.push("הסבב נעצר");
+    }
+    if (statusMismatch) blockReasons.push(statusMismatch);
 
     return {
       round,
       title: `סבב ${round} — שיחות אישורי הגעה`,
       status: executionStatus,
       statusLabel: statusLabel(executionStatus),
+      statusMismatch,
       failureReason: scheduleRound?.failureReason
         ? explainIvrCallFailure(String(scheduleRound.failureReason))
         : "",
@@ -180,7 +242,10 @@ async function buildRoundsPayload(user: any) {
       eligibleCount: eligibleNow.length,
       dialedCount: dialed,
       remainingCount: remaining,
+      finalAnsweredCount,
+      liveCount,
       canOpen,
+      canReopen,
       canStop,
       canResume,
       blockReasons,
@@ -192,7 +257,12 @@ async function buildRoundsPayload(user: any) {
     eventActive,
     audioReady: audio.audioReady,
     audioBlockReason: audio.audioBlockReason || "",
+    audioDiagnostics,
+    narrationSettingsPath: "/admin/recorded-calls",
+    clientRecordedCallsHint:
+      "להגדרת קריינות הלקוח: ניהול משתמש → שיחות מוקלטות, או יצירה מחדש של הקובץ המחובר אצל הלקוח.",
     liveDialDisabled,
+    finalAnsweredCount,
     rounds,
   };
 }
@@ -398,11 +468,12 @@ export async function POST(
       );
     }
 
-    if (action === "stop" || action === "resume") {
+    if (action === "stop" || action === "resume" || action === "reopen") {
       const result = await setIvrRoundAdminStatus({
         userId: String(user._id),
         round,
         action,
+        invitationId: invitation ? String(invitation._id) : undefined,
       });
       if (!result.ok) {
         return NextResponse.json(result, { status: 400 });
@@ -418,11 +489,17 @@ export async function POST(
         eventId: event ? String((event as any)._id) : null,
         invitationId: invitation ? String(invitation._id) : null,
         action:
-          action === "stop" ? "admin_ivr_round_stop" : "admin_ivr_round_resume",
+          action === "stop"
+            ? "admin_ivr_round_stop"
+            : action === "reopen"
+              ? "admin_ivr_round_reopen"
+              : "admin_ivr_round_resume",
         summary:
           action === "stop"
             ? `עצירת סבב IVR ${round} עבור ${user.name || user.email}`
-            : `חידוש סבב IVR ${round} עבור ${user.name || user.email}`,
+            : action === "reopen"
+              ? `פתיחה מחדש של סבב IVR ${round} עבור ${user.name || user.email}`
+              : `חידוש סבב IVR ${round} עבור ${user.name || user.email}`,
         meta: { round, status: result.status },
       });
 
@@ -443,18 +520,34 @@ export async function POST(
         );
       }
 
+      const reopenIfDone = body?.reopen === true || body?.reopenIfDone === true;
+
       if (action === "preview") {
         const payload = await buildRoundsPayload(user);
         const row = payload.rounds.find((r) => r.round === round);
+        const canProceed =
+          Boolean(row?.canOpen) || (reopenIfDone && Boolean(row?.canReopen));
         return NextResponse.json({
           ok: true,
           preview: true,
           round,
           eligibleCount: row?.eligibleCount ?? 0,
+          dialedCount: row?.dialedCount ?? 0,
+          remainingCount: row?.remainingCount ?? 0,
+          finalAnsweredCount:
+            row?.finalAnsweredCount ?? payload.finalAnsweredCount ?? 0,
+          status: row?.status,
+          statusLabel: row?.statusLabel,
+          statusMismatch: row?.statusMismatch || "",
           canOpen: row?.canOpen ?? false,
+          canReopen: row?.canReopen ?? false,
+          canProceed,
           blockReasons: row?.blockReasons ?? [],
           audioReady: payload.audioReady,
+          audioBlockReason: payload.audioBlockReason,
+          audioDiagnostics: payload.audioDiagnostics,
           liveDialDisabled: payload.liveDialDisabled,
+          reopenIfDone,
         });
       }
 
@@ -482,6 +575,7 @@ export async function POST(
           100,
           Math.max(1, Number(body?.maxCalls || 40))
         ),
+        reopenIfDone,
       });
 
       await writeAdminAuditLog({
@@ -493,13 +587,16 @@ export async function POST(
         managedUserEmail: cleanStr(user.email),
         eventId: event ? String((event as any)._id) : null,
         invitationId: invitation ? String(invitation._id) : null,
-        action: "admin_ivr_round_open",
+        action: reopenIfDone
+          ? "admin_ivr_round_reopen_open"
+          : "admin_ivr_round_open",
         summary: openResult.ok
-          ? `פתיחה ידנית של סבב IVR ${round} עבור ${user.name || user.email} (${openResult.eligibleCount} זכאים)`
-          : `ניסיון פתיחה ידנית של סבב IVR ${round} נחסם: ${openResult.message}`,
+          ? `${reopenIfDone ? "פתיחה מחדש" : "פתיחה ידנית"} של סבב IVR ${round} עבור ${user.name || user.email} (${openResult.eligibleCount} זכאים)`
+          : `ניסיון ${reopenIfDone ? "פתיחה מחדש" : "פתיחה ידנית"} של סבב IVR ${round} נחסם: ${openResult.message}`,
         meta: {
           round,
           ok: openResult.ok,
+          reopenIfDone,
           error: openResult.ok ? null : openResult.error,
           eligibleCount: openResult.eligibleCount ?? null,
           dialed: openResult.ok

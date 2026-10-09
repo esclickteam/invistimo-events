@@ -310,6 +310,102 @@ export type IvrDueRound = {
   audioBlockReason: string;
 };
 
+function diagnoseAiAudioBlock(user: any): string {
+  const cfg = user?.ivrConfig || {};
+  const gender = normalizeIvrVoiceGender(cfg.voiceGender);
+  const eventAudio = cfg.eventNameAudio;
+  const composed = cfg.composedIntroAudio;
+  const eventNameAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: eventAudio?.publicToken,
+    storedUrl: eventAudio?.audioUrl,
+  });
+  let composedIntroAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: composed?.publicToken,
+    storedUrl: composed?.audioUrl,
+  });
+  const approvedLocked = approvedPlaybackUrl(cfg, "");
+  composedIntroAudioUrl = approvedPlaybackUrl(cfg, composedIntroAudioUrl);
+
+  const approval = cfg.recordingApproval;
+  const legacyApproved =
+    !approval &&
+    eventAudio?.approved === true &&
+    composed?.approved === true;
+  const explicitlyApproved =
+    approval?.approved === true &&
+    approval?.audioMode !== "self_recorded";
+
+  if (!gender) {
+    return "לא נבחר קול קריינות (נקבה/זכר) אצל הלקוח";
+  }
+  if (String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION) {
+    return `הקובץ המחובר בגרסה ישנה או חסרה (${String(composed?.composeVersion || "חסר")} ≠ ${IVR_COMPOSE_VERSION}) — יש ליצור מחדש את הקובץ המחובר ולאשר`;
+  }
+  if (!eventNameAudioUrl) {
+    return "חסר קובץ שם האירוע או טוקן מדיה תקין";
+  }
+  if (!composedIntroAudioUrl) {
+    if (approval?.approved === true && !approvedLocked) {
+      return "אישור ההקלטה קיים אבל טוקן/כתובת השמע של ה־recordingApproval אינם תקינים";
+    }
+    return "חסר קובץ מחובר יוצא או טוקן מדיה תקין";
+  }
+  if (eventAudio?.status !== "ready") {
+    return `שם האירוע אינו במצב מוכן (status=${String(eventAudio?.status || "חסר")})`;
+  }
+  if (composed?.status !== "ready") {
+    return `הקובץ המחובר אינו במצב מוכן (status=${String(composed?.status || "חסר")})`;
+  }
+  if (eventAudio?.approved !== true && approval?.approved !== true) {
+    return "שם האירוע לא אושר להשמעה";
+  }
+  if (composed?.approved !== true && approval?.approved !== true) {
+    return "הקובץ המחובר לא אושר להשמעה";
+  }
+  if (!legacyApproved && !explicitlyApproved) {
+    if (approval && approval.approved === true && approval.audioMode === "self_recorded") {
+      return "אישור ההקלטה הוא למצב הקלטה עצמית, בעוד שהלקוח במצב AI — יש לאשר מחדש את הקריינות";
+    }
+    if (approval && approval.approved !== true) {
+      return "הקריינות ממתינה לאישור (recordingApproval.approved ≠ true)";
+    }
+    return "אין אישור תקף לקריינות AI (recordingApproval / approved)";
+  }
+  return "אין הקלטת AI מאושרת לשיחות";
+}
+
+function diagnoseSelfAudioBlock(user: any): string {
+  const intro = user?.ivrConfig?.introAudio;
+  const approval = user?.ivrConfig?.recordingApproval;
+  const token = cleanStr(intro?.publicToken);
+  let introAudioUrl = resolveIvrPublicAudioUrl({
+    publicToken: token,
+    storedUrl: intro?.audioUrl,
+  });
+  introAudioUrl = approvedPlaybackUrl(user?.ivrConfig, introAudioUrl);
+
+  if (!introAudioUrl) {
+    if (approval?.approved === true) {
+      return "אישור הקלטה עצמית קיים אבל טוקן/כתובת השמע אינם תקינים";
+    }
+    return "חסרה הקלטה עצמית או טוקן מדיה תקין";
+  }
+  if (intro?.status !== "ready") {
+    return `ההקלטה העצמית אינה במצב מוכן (status=${String(intro?.status || "חסר")})`;
+  }
+  if (intro?.approved !== true && approval?.approved !== true) {
+    return "ההקלטה העצמית לא אושרה להשמעה";
+  }
+  if (
+    approval &&
+    !(approval.approved === true && approval.audioMode === "self_recorded") &&
+    intro?.approved !== true
+  ) {
+    return "אין אישור תקף להקלטה עצמית (recordingApproval)";
+  }
+  return "אין הקלטה עצמית מאושרת לשיחות";
+}
+
 function resolveReadyAiAudio(user: any): {
   eventNameAudioUrl: string;
   composedIntroAudioUrl: string;
@@ -382,7 +478,7 @@ function resolveRoundAudio(user: any): {
     introAudioUrl = resolveReadySelfAudio(user);
     audioReady = Boolean(introAudioUrl);
     if (!audioReady) {
-      audioBlockReason = "אין הקלטה עצמית מאושרת לשיחות";
+      audioBlockReason = diagnoseSelfAudioBlock(user);
     }
   } else {
     const ai = resolveReadyAiAudio(user);
@@ -393,7 +489,7 @@ function resolveRoundAudio(user: any): {
       voiceGender = ai.voiceGender;
       audioReady = true;
     } else {
-      audioBlockReason = "אין הקלטת AI מאושרת לשיחות";
+      audioBlockReason = diagnoseAiAudioBlock(user);
     }
   }
 
@@ -419,6 +515,34 @@ export function resolveIvrRoundAudio(user: any) {
   return resolveRoundAudio(user);
 }
 
+/** Compact diagnostics for admin UI — never bypasses readiness gates. */
+export function describeIvrAudioDiagnostics(user: any) {
+  const cfg = user?.ivrConfig || {};
+  const audio = resolveRoundAudio(user);
+  const composed = cfg.composedIntroAudio || {};
+  const eventAudio = cfg.eventNameAudio || {};
+  const approval = cfg.recordingApproval || null;
+  return {
+    audioReady: audio.audioReady,
+    audioBlockReason: audio.audioBlockReason || "",
+    audioMode: audio.audioMode,
+    voiceGender: audio.voiceGender,
+    composeVersion: String(composed?.composeVersion || ""),
+    requiredComposeVersion: IVR_COMPOSE_VERSION,
+    eventNameStatus: String(eventAudio?.status || ""),
+    eventNameApproved: eventAudio?.approved === true,
+    composedStatus: String(composed?.status || ""),
+    composedApproved: composed?.approved === true,
+    recordingApprovalApproved: approval?.approved === true,
+    recordingApprovalMode: String(approval?.audioMode || ""),
+    hasComposedToken: Boolean(cleanStr(composed?.publicToken)),
+    hasEventNameToken: Boolean(cleanStr(eventAudio?.publicToken)),
+    hasApprovedPlaybackUrl: Boolean(
+      approvedPlaybackUrl(cfg, "") || audio.introAudioUrl
+    ),
+  };
+}
+
 /**
  * Admin / manual open of one IVR round.
  * Reuses executeIvrRound — never a separate dial path.
@@ -431,6 +555,8 @@ export async function openIvrRoundManually(input: {
   webhookUrl: string;
   maxCalls?: number;
   now?: Date;
+  /** When true, allow opening a done/failed/cancelled round after clearing live legs. */
+  reopenIfDone?: boolean;
 }) {
   const round = Number(input.round);
   if (round !== 1 && round !== 2 && round !== 3) {
@@ -488,7 +614,7 @@ export async function openIvrRoundManually(input: {
     now,
   });
 
-  const raw = rounds.find(
+  let raw = rounds.find(
     (item: any) => Number(item?.roundNumber || item?.round || 0) === round
   );
 
@@ -500,18 +626,56 @@ export async function openIvrRoundManually(input: {
     };
   }
 
-  if (isRoundTerminal(raw)) {
-    const status = String(raw?.status || "").toLowerCase();
+  const liveBefore = await countOccupiedOutboundCallsForRound(
+    String(invitation._id),
+    round
+  );
+  if (liveBefore > 0) {
     return {
       ok: false as const,
-      error: "ROUND_TERMINAL",
-      message:
-        status === "done" || status === "completed"
-          ? "הסבב כבר הושלם"
-          : status === "failed"
-            ? "הסבב נכשל — יש לפתוח מחדש לפני חיוג"
-            : "הסבב מבוטל או סגור",
-      status,
+      error: "ROUND_ALREADY_RUNNING",
+      message: "הסבב כבר מתבצע — אין לפתוח חיוג כפול",
+    };
+  }
+
+  if (isRoundTerminal(raw)) {
+    const status = String(raw?.status || "").toLowerCase();
+    const canReopenTerminal =
+      input.reopenIfDone === true &&
+      (status === "done" ||
+        status === "completed" ||
+        status === "failed" ||
+        status === "cancelled" ||
+        status === "canceled");
+    if (!canReopenTerminal) {
+      return {
+        ok: false as const,
+        error: "ROUND_TERMINAL",
+        message:
+          status === "done" || status === "completed"
+            ? "הסבב כבר הושלם — השתמשו ב״פתח מחדש סבב״"
+            : status === "failed"
+              ? "הסבב נכשל — יש לפתוח מחדש לפני חיוג"
+              : "הסבב מבוטל או סגור",
+        status,
+      };
+    }
+
+    const reopen = await setIvrRoundAdminStatus({
+      userId: String(user._id),
+      round,
+      action: "reopen",
+      now,
+      invitationId: String(invitation._id),
+    });
+    if (!reopen.ok) {
+      return reopen;
+    }
+    raw = {
+      ...raw,
+      status: reopen.status,
+      dialClaimedAt: null,
+      failureReason: "",
     };
   }
 
@@ -519,17 +683,20 @@ export async function openIvrRoundManually(input: {
     .trim()
     .toLowerCase();
   if (status === "in_progress" || status === "opened") {
-    const live = await countOccupiedOutboundCallsForRound(
-      String(invitation._id),
-      round
+    // Live legs already checked above; clear stale claim so execute can claim.
+    await User.updateOne(
+      {
+        _id: user._id,
+        "callRoundsSchedule.rounds.roundNumber": round,
+      },
+      {
+        $set: {
+          "callRoundsSchedule.rounds.$.status": "scheduled",
+          "callRoundsSchedule.rounds.$.dialClaimedAt": null,
+          "callRoundsSchedule.rounds.$.updatedAt": now,
+        },
+      }
     );
-    if (live > 0) {
-      return {
-        ok: false as const,
-        error: "ROUND_ALREADY_RUNNING",
-        message: "הסבב כבר מתבצע — אין לפתוח חיוג כפול",
-      };
-    }
   }
 
   if (earlierRoundStillRunning(rounds, round)) {
@@ -633,12 +800,13 @@ export async function openIvrRoundManually(input: {
   };
 }
 
-/** Controlled stop / resume of a scheduled IVR round (admin). */
+/** Controlled stop / resume / reopen of a scheduled IVR round (admin). */
 export async function setIvrRoundAdminStatus(input: {
   userId: string;
   round: number;
-  action: "stop" | "resume";
+  action: "stop" | "resume" | "reopen";
   now?: Date;
+  invitationId?: string;
 }) {
   const round = Number(input.round);
   if (round !== 1 && round !== 2 && round !== 3) {
@@ -696,6 +864,55 @@ export async function setIvrRoundAdminStatus(input: {
       }
     );
     return { ok: true as const, status: "cancelled" };
+  }
+
+  if (input.action === "reopen") {
+    if (
+      status !== "done" &&
+      status !== "completed" &&
+      status !== "failed" &&
+      status !== "cancelled" &&
+      status !== "canceled"
+    ) {
+      return {
+        ok: false as const,
+        error: "NOT_REOPENABLE",
+        message: "ניתן לפתוח מחדש רק סבב שהושלם, נכשל או נעצר",
+      };
+    }
+
+    if (input.invitationId) {
+      const live = await countOccupiedOutboundCallsForRound(
+        String(input.invitationId),
+        round
+      );
+      if (live > 0) {
+        return {
+          ok: false as const,
+          error: "ROUND_ALREADY_RUNNING",
+          message: "יש שיחות פעילות בסבב — אין לפתוח מחדש תוך כדי חיוג",
+        };
+      }
+    }
+
+    const hasSchedule = Boolean(parseCallRoundScheduledAt(current?.scheduledAt));
+    const nextStatus = hasSchedule ? "scheduled" : "draft";
+    // Reopen only resets execution status. Attempts and guest RSVP stay intact.
+    await User.updateOne(
+      {
+        _id: user._id,
+        "callRoundsSchedule.rounds.roundNumber": round,
+      },
+      {
+        $set: {
+          "callRoundsSchedule.rounds.$.status": nextStatus,
+          "callRoundsSchedule.rounds.$.dialClaimedAt": null,
+          "callRoundsSchedule.rounds.$.failureReason": "",
+          "callRoundsSchedule.rounds.$.updatedAt": now,
+        },
+      }
+    );
+    return { ok: true as const, status: nextStatus };
   }
 
   // resume
@@ -1341,13 +1558,27 @@ export async function executeIvrRound(input: {
       String(a.status)
     )
   );
-  const failureReason =
+  let failureReason =
     results.find((r) => r.status === "failed" || r.status === "blocked_test_mode")
       ?.reason || "";
 
   let status = "in_progress";
   if (!hitCap && !liveForRound) {
-    status = anyPlaced || attempts.length === 0 ? "done" : "failed";
+    // Never mark a round "done" when no dial history exists — that falsely
+    // locked admin/client rounds as הושלם with zero attempts.
+    if (anyPlaced) {
+      status = "done";
+    } else if (attempts.length === 0) {
+      status = "failed";
+      if (!failureReason) {
+        failureReason =
+          eligible.length === 0
+            ? "אין אורחים זכאים לחיוג"
+            : "לא בוצע אף חיוג בסבב";
+      }
+    } else {
+      status = "failed";
+    }
   }
 
   await setRoundExecution({
