@@ -1076,10 +1076,19 @@ export default function CheckInHostClient({
             ) : (
               <>
                 <h2 className="text-xl font-black text-[#241A14]">
-                  הגיעו {seatPrompt.surplus} אורחים פחות מהכמות שהוקצתה
+                  שחרור כיסאות עודפים
                 </h2>
+                <div className="mt-3 space-y-1 text-sm font-bold text-[#5A4635]">
+                  <div>{seatPrompt.guestName}</div>
+                  <div>הגיעו בפועל: {seatPrompt.actual}</div>
+                  <div>כיסאות שהוקצו: {seatPrompt.allocated}</div>
+                  <div>כיסאות שניתן לשחרר: {seatPrompt.surplus}</div>
+                </div>
                 <p className="mt-3 text-base font-black text-[#6B451E]">
-                  שחרור {seatPrompt.surplus} כיסאות?
+                  {`שחרור ${seatPrompt.surplus} כיסאות?`}
+                </p>
+                <p className="mt-2 text-xs font-bold text-[#8A7A68]">
+                  ישוחררו רק כיסאות עודפים של אורח זה. מגיעים בפועל ושיבוצי אורחים אחרים לא ישתנו.
                 </p>
                 <div className="mt-5 flex gap-2">
                   <button
@@ -1088,7 +1097,7 @@ export default function CheckInHostClient({
                     onClick={() => void releasePromptSeats()}
                     className="flex-1 rounded-[16px] bg-[#1E1B2E] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                   >
-                    שחרור כיסאות
+                    {`שחרור ${seatPrompt.surplus} כיסאות`}
                   </button>
                   <button
                     type="button"

@@ -51,8 +51,9 @@ export function useSeatingStats() {
   /* ================= SEATED CHECK ================= */
 
   const isGuestSeated = (g: Guest): boolean => {
-    const planned = getPlannedSeatCount(g);
-    return planned > 0 && guestTableMap.has(seatGuestId(g));
+    // Presence on the seating map is the source of truth — do not require
+    // arrivedCount > 0, or couple-saved assignments disappear in live mode.
+    return guestTableMap.has(seatGuestId(g));
   };
 
   /* ================= GLOBAL STATS ================= */
