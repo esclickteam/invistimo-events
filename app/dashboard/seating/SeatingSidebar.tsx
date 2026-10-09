@@ -100,8 +100,17 @@ export default function SeatingSidebar({
       const id = event
         ? String((event as CustomEvent).detail?.id || "")
         : document.documentElement.dataset.demoTour || "";
-      if (id !== "seating") return;
+      if (
+        id !== "seating" &&
+        id !== "seat-guest" &&
+        id !== "seating-move" &&
+        id !== "seating-unseated" &&
+        id !== "seating-free"
+      ) {
+        return;
+      }
       setMobileOpen(true);
+      if (id === "seating-unseated") setFilterOpen(true);
       const guests = useSeatingStore.getState().guests || [];
       const next: Record<string, boolean> = { [NO_GROUP_KEY]: true };
       for (const guest of guests) {
@@ -109,9 +118,26 @@ export default function SeatingSidebar({
       }
       setOpenGroups(next);
     };
-    if (document.documentElement.dataset.demoTour === "seating") openForTour();
+    const initialTour = document.documentElement.dataset.demoTour || "";
+    if (
+      initialTour === "seating" ||
+      initialTour === "seat-guest" ||
+      initialTour === "seating-move" ||
+      initialTour === "seating-unseated" ||
+      initialTour === "seating-free"
+    ) {
+      openForTour();
+    }
     const unsub = useSeatingStore.subscribe(() => {
-      if (document.documentElement.dataset.demoTour === "seating") openForTour();
+      const current = document.documentElement.dataset.demoTour || "";
+      if (
+        current === "seating" ||
+        current === "seat-guest" ||
+        current === "seating-move" ||
+        current === "seating-unseated"
+      ) {
+        openForTour();
+      }
     });
     window.addEventListener("invistimo:demo-tour-step", openForTour);
     return () => {
@@ -689,6 +715,7 @@ export default function SeatingSidebar({
           <div className="flex shrink-0 items-center gap-2">
             {table && (
               <select
+                data-tour="seating-move"
                 className="
                   h-8 max-w-[108px]
                   rounded-xl border border-[#E6C3AD]
@@ -848,7 +875,7 @@ export default function SeatingSidebar({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-orange-200 bg-orange-50 p-2.5 text-center">
+            <div data-tour="seating-capacity" className="rounded-2xl border border-orange-200 bg-orange-50 p-2.5 text-center">
               <div className="text-[10px] text-orange-700">נשארו</div>
               <div className="text-[18px] font-black text-orange-800">
                 {stats.remaining}
@@ -917,6 +944,7 @@ export default function SeatingSidebar({
                   </button>
 
                   <button
+                    data-tour="seating-unseated"
                     onClick={() => {
                       setFilter("unseated");
                       setFilterOpen(false);

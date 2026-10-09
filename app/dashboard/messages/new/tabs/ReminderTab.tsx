@@ -652,6 +652,7 @@ export default function ReminderTab({
             icon="💬"
           >
             <div
+              data-tour="message-sms-only"
               className="
                 rounded-[24px]
                 border border-[#C79B45]

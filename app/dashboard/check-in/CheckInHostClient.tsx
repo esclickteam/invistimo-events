@@ -816,14 +816,38 @@ export default function CheckInHostClient({
 
       {live && checkInEnabled && (
         <section className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#3F3328]">
-            <Camera size={18} className="text-[#B88A2D]" />
-            סורק QR
+          <div className="mb-3 flex items-center justify-between gap-2 text-sm font-black text-[#3F3328]">
+            <span className="inline-flex items-center gap-2">
+              <Camera size={18} className="text-[#B88A2D]" />
+              סורק QR
+            </span>
+            {demo ? (
+              <span data-tour="checkin-live" className="rounded-full bg-[#F8EFE3] px-3 py-1 text-xs text-[#8B5E24]">
+                הגיעו בפועל:{" "}
+                {demoGuests.reduce(
+                  (sum, guest) => sum + Number(guest.checkedInGuestCount || 0),
+                  0
+                )}
+              </span>
+            ) : null}
           </div>
           <div
             id={scannerBoxId}
             className="min-h-[280px] overflow-hidden rounded-[18px] bg-black/80"
           />
+          {demo && (
+            <button
+              type="button"
+              data-tour="checkin-qr"
+              onClick={() => {
+                const token = demoGuests.find((guest) => guest.token)?.token;
+                if (token) void lookupToken(token);
+              }}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#241A14] px-4 py-3 text-sm font-black text-white"
+            >
+              הדמיית סריקת QR
+            </button>
+          )}
           {!scanning && (
             <button
               type="button"

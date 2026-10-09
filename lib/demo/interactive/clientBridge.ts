@@ -63,14 +63,21 @@ export function installDemoFetchBridge() {
       body: JSON.stringify({ method, path, body: payload }),
     });
 
-    if (
-      response.ok &&
-      (parsed.pathname === "/api/whatsapp/send-template" ||
-        parsed.pathname === "/api/sms/send")
-    ) {
-      window.dispatchEvent(
-        new CustomEvent("invistimo:demo-action", { detail: { action: "simulate-send" } })
-      );
+    if (response.ok) {
+      const action =
+        parsed.pathname === "/api/whatsapp/send-template" ||
+        parsed.pathname === "/api/sms/send"
+          ? "simulate-send"
+          : parsed.pathname === "/api/invitations/upload-preview"
+            ? "invite-image"
+            : parsed.pathname === "/api/ivr/schedule"
+              ? "ivr-schedule"
+              : "";
+      if (action) {
+        window.dispatchEvent(
+          new CustomEvent("invistimo:demo-action", { detail: { action } })
+        );
+      }
     }
 
     window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));

@@ -312,7 +312,7 @@ export default function GuestsControls({
               </p>
 
               {safeRecordsLimit > 0 && (
-                <p className="text-xs font-black text-[#8B5E34]">
+                <p data-tour="records-balance" className="text-xs font-black text-[#8B5E34]">
                   יתרת רשומות להעלאה:{" "}
                   <span className="text-[#241A14]">{remainingRecords}</span>{" "}
                   מתוך{" "}

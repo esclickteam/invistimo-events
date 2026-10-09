@@ -493,6 +493,7 @@ export default function AddTableDrawer({
                 onChange={setTableCount}
               />
 
+              <div data-tour="table-capacity">
               <NumberInput
                 label="אורחים בכל שולחן"
                 hint="מקומות רגילים"
@@ -501,6 +502,7 @@ export default function AddTableDrawer({
                 max={60}
                 onChange={setSeats}
               />
+              </div>
             </div>
 
             {/* SUMMARY */}
@@ -593,6 +595,7 @@ export default function AddTableDrawer({
             </button>
 
             <button
+              data-tour="table-add-confirm"
               onClick={handleAdd}
               className="
                 rounded-2xl

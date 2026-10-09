@@ -249,6 +249,7 @@ export default function EditGuestModal({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="שם מלא">
               <input
+                data-tour="guest-edit-name"
                 className={inputClass}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -396,6 +397,7 @@ export default function EditGuestModal({
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-start">
             <button
               type="button"
+              data-tour="guest-edit-save"
               onClick={save}
               disabled={loading}
               className={`

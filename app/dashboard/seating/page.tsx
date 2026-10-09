@@ -1270,8 +1270,9 @@ function SeatingPageInner() {
                   return;
                 }
 
-                router.push("/dashboard");
+                router.push(isDemo ? "/try/dashboard" : "/dashboard");
               }}
+              data-tour="seating-back"
               className="
                 flex h-11 shrink-0 items-center gap-2 rounded-2xl
                 border border-[#e5d2b8] bg-white/90 px-4
@@ -1301,6 +1302,7 @@ function SeatingPageInner() {
             )}
 
             <button
+              data-tour="add-table"
               onClick={() => setShowAddModal(true)}
               className="
                 group flex h-11 shrink-0 items-center gap-2 rounded-2xl
@@ -1383,6 +1385,7 @@ function SeatingPageInner() {
           <div className="relative flex shrink-0 items-center gap-2 md:hidden">
             <button
               type="button"
+              data-tour="seating-actions"
               onClick={() => setMobileToolbarOpen((v) => !v)}
               className="
                 flex h-11 items-center gap-2 rounded-2xl
@@ -1419,8 +1422,9 @@ function SeatingPageInner() {
                         return;
                       }
 
-                      router.push("/dashboard");
+                      router.push(isDemo ? "/try/dashboard" : "/dashboard");
                     }}
+                    data-tour="seating-back"
                     className="
                       flex h-12 w-full items-center justify-center rounded-2xl
                       border border-[#e5d2b8] bg-white
@@ -1453,6 +1457,7 @@ function SeatingPageInner() {
 
                   <button
                     type="button"
+                    data-tour="add-table"
                     onClick={() => {
                       setMobileToolbarOpen(false);
                       setShowAddModal(true);
@@ -1666,6 +1671,7 @@ function SeatingPageInner() {
       >
         {/* CANVAS AREA */}
         <section
+          data-tour="seating-map"
           className="
             relative min-w-0 flex-1
             overflow-hidden overscroll-contain

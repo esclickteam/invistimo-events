@@ -120,6 +120,7 @@ export default function DashboardHeader({
           <div className="flex items-center justify-start gap-4">
             <button
               onClick={onOpenMenu}
+              data-tour="open-menu"
               className="
                 flex h-11 w-11 items-center justify-center
                 rounded-full

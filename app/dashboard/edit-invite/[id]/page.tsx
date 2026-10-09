@@ -404,6 +404,13 @@ export default function EditInvitePage() {
       if (!needsEventSync && !needsOrientationSync) {
         setUploadedImage(null);
         setPreviewRefreshKey((prev) => prev + 1);
+        if (window.location.pathname.startsWith("/try")) {
+          window.dispatchEvent(
+            new CustomEvent("invistimo:demo-action", {
+              detail: { action: "invite-image" },
+            })
+          );
+        }
         alert("✅ ההזמנה נשמרה בהצלחה!");
         return;
       }
@@ -882,6 +889,7 @@ export default function EditInvitePage() {
                 <div className="mt-4 space-y-3">
                   <button
                     type="button"
+                    data-tour="invite-upload"
                     onClick={() => uploadInputRef.current?.click()}
                     className="w-full rounded-2xl border border-[#d8c7ad] bg-white px-5 py-3 text-sm font-bold text-[#4b3828] shadow-sm transition hover:bg-[#fbf7f0]"
                   >
@@ -890,6 +898,7 @@ export default function EditInvitePage() {
 
                   <button
                     type="button"
+                    data-tour="invite-preview"
                     onClick={handlePreview}
                     className="w-full rounded-2xl border border-[#d8c7ad] bg-white px-5 py-3 text-sm font-bold text-[#4b3828] shadow-sm transition hover:bg-[#fbf7f0]"
                   >

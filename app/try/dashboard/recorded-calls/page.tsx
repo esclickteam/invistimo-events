@@ -102,7 +102,7 @@ export default function DemoRecordedCallsPage() {
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#E3CFB0] bg-[#FFF8EE] px-3 py-1 text-[11px] font-black tracking-[0.12em] text-[#9A7444]">
             <Phone size={13} />
-            IVR
+            סבבי שיחות
           </div>
           <h1 className="text-3xl font-black text-[#241A14]">שיחות מוקלטות</h1>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#8A7A68]">
@@ -132,6 +132,7 @@ export default function DemoRecordedCallsPage() {
         <p className="text-xs font-bold text-[#8A7867]">{message}</p>
         <button
           type="button"
+          data-tour="call-schedule-save"
           onClick={() => void saveSchedule()}
           className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
         >
@@ -140,7 +141,7 @@ export default function DemoRecordedCallsPage() {
       </div>
 
       <section
-        data-tour="ivr-keypad"
+        data-tour="call-keypad"
         className="mt-6 rounded-2xl border border-[#E7D8C6] bg-white p-5"
       >
         <h2 className="text-lg font-black text-[#241A14]">הדמיית הקשה של האורח</h2>
@@ -163,6 +164,35 @@ export default function DemoRecordedCallsPage() {
           <Key digit="2" label="לא מגיע" onPress={press} />
           <Key digit="3" label="מתלבט" onPress={press} />
         </div>
+      </section>
+
+      <section
+        data-tour="call-report"
+        className="mt-6 rounded-2xl border border-[#E7D8C6] bg-white p-5"
+      >
+        <h2 className="text-lg font-black text-[#241A14]">דוח תוצאות לדוגמה</h2>
+        <p className="mt-1 text-sm font-semibold leading-6 text-[#6B5A48]">
+          אחרי הקשה, הסטטוס של האורח מתעדכן כאן ובדשבורד. אין חיוג אמיתי.
+        </p>
+        <ul className="mt-4 space-y-2">
+          {guests.map((guest) => (
+            <li
+              key={guest._id}
+              className="flex items-center justify-between rounded-xl bg-[#FFFDF8] px-3 py-2 text-sm font-bold text-[#3A2A1C]"
+            >
+              <span>{guest.name}</span>
+              <span>
+                {guest.rsvp === "yes"
+                  ? "מגיע"
+                  : guest.rsvp === "no"
+                    ? "לא מגיע"
+                    : guest.rsvp === "maybe"
+                      ? "מתלבט"
+                      : "בהמתנה"}
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );
