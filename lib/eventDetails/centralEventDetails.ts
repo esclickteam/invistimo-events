@@ -1,9 +1,24 @@
 /**
  * מקור מידע מרכזי לפרטי אירוע ואפשרויות מתנה.
  *
- * Event הוא מקור האמת. Invitation.giftOptions / publicEventPage.gifts /
- * Event.giftCreditUrl נשארים לתאימות לאחור ומסונכרנים בכתיבה.
+ * Event הוא מקור האמת אחרי סנכרון מכתיבת הלקוח. בזמן קריאה לאורחים
+ * אסור להציג קליפת ברירת מחדל ("הזמנה חדשה", 00:00, תאריך יצירה)
+ * אם בהזמנה שמורה גרסה אמיתית שהלקוח הגדיר.
+ *
+ * Invitation.giftOptions / publicEventPage.gifts / Event.giftCreditUrl
+ * נשארים לתאימות לאחור ומסונכרנים בכתיבה.
  */
+
+export const PLACEHOLDER_EVENT_TITLES = new Set([
+  "",
+  "הזמנה חדשה",
+  "הזמנה חדשה (ארכיון — לא בשימוש)",
+  "אירוע חדש",
+  "האירוע שלך",
+  "אירוע ללא שם",
+]);
+
+const PLACEHOLDER_TIME_RE = /^0{1,2}:0{2}(?::0{2})?$/;
 
 export type CentralGiftOptions = {
   creditEnabled: boolean;
@@ -65,6 +80,228 @@ export const EMPTY_CENTRAL_EVENT_DETAILS: CentralEventDetails = {
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
+}
+
+export function isPlaceholderEventTitle(value: unknown) {
+  return PLACEHOLDER_EVENT_TITLES.has(cleanString(value));
+}
+
+export function isPlaceholderEventTime(value: unknown) {
+  const raw = cleanString(value).replace(/[^\d:]/g, "");
+  return !raw || PLACEHOLDER_TIME_RE.test(raw);
+}
+
+export function normalizeEventDateValue(value: unknown) {
+  if (!value) return "";
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = cleanString(value);
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function firstRealString(
+  values: unknown[],
+  isPlaceholder: (value: string) => boolean = (value) => !value
+) {
+  for (const value of values) {
+    const cleaned = cleanString(value);
+    if (cleaned && !isPlaceholder(cleaned)) return cleaned;
+  }
+  return "";
+}
+
+export function pickGuestFacingTitle(event?: any, invitation?: any) {
+  return firstRealString(
+    [
+      invitation?.title,
+      invitation?.eventTitle,
+      invitation?.eventName,
+      event?.title,
+      event?.eventName,
+    ],
+    isPlaceholderEventTitle
+  );
+}
+
+export function pickGuestFacingDate(event?: any, invitation?: any) {
+  return (
+    normalizeEventDateValue(invitation?.eventDate) ||
+    normalizeEventDateValue(invitation?.date) ||
+    normalizeEventDateValue(event?.eventDate) ||
+    normalizeEventDateValue(event?.date)
+  );
+}
+
+export function pickGuestFacingTime(event?: any, invitation?: any) {
+  return firstRealString(
+    [
+      invitation?.eventTime,
+      invitation?.time,
+      event?.eventTime,
+      event?.time,
+    ],
+    isPlaceholderEventTime
+  );
+}
+
+export function pickGuestFacingEventType(event?: any, invitation?: any) {
+  return (
+    firstRealString([invitation?.eventType, event?.eventType]) || "wedding"
+  );
+}
+
+function pickLocationSource(event?: any, invitation?: any) {
+  const invitationLoc = invitation?.location || {};
+  const eventLoc = event?.location || {};
+  const invitationHasPlace =
+    cleanString(invitationLoc.name) ||
+    cleanString(invitationLoc.address) ||
+    cleanString(invitationLoc.formattedAddress) ||
+    cleanString(invitationLoc.placeName);
+  return invitationHasPlace ? invitationLoc : eventLoc || invitationLoc;
+}
+
+/**
+ * Fields written from the live invitation onto Event on every client save.
+ * Never copies placeholder titles or 00:00 as if they were real details.
+ */
+export function buildEventCoreSyncFromInvitation(invitation: any) {
+  const title = firstRealString([invitation?.title, invitation?.eventTitle], isPlaceholderEventTitle);
+  const date = normalizeEventDateValue(
+    invitation?.eventDate || invitation?.date
+  );
+  const time = firstRealString(
+    [invitation?.eventTime, invitation?.time],
+    isPlaceholderEventTime
+  );
+  const eventType = cleanString(invitation?.eventType);
+  const loc = invitation?.location || {};
+
+  const eventSet: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (title) eventSet.title = title;
+  if (date) eventSet.date = date;
+  if (time) eventSet.time = time;
+  if (eventType) eventSet.eventType = eventType;
+
+  if (invitation?.hostsNames !== undefined) {
+    eventSet.hostsNames = cleanString(invitation.hostsNames);
+  }
+  if (invitation?.receptionTime !== undefined) {
+    eventSet.receptionTime = cleanString(invitation.receptionTime);
+  }
+  if (invitation?.ceremonyTime !== undefined) {
+    eventSet.ceremonyTime = cleanString(invitation.ceremonyTime);
+  }
+  if (invitation?.guestNote !== undefined) {
+    eventSet.guestNote = cleanString(invitation.guestNote);
+  }
+  if (invitation?.city !== undefined) {
+    eventSet.city = cleanString(invitation.city);
+  }
+  if (invitation?.googleMapsUrl !== undefined) {
+    eventSet.googleMapsUrl = cleanString(invitation.googleMapsUrl);
+  }
+  if (invitation?.parkingNotes !== undefined) {
+    eventSet.parkingNotes = cleanString(invitation.parkingNotes);
+  }
+
+  if (
+    loc &&
+    (cleanString(loc.name) ||
+      cleanString(loc.address) ||
+      loc.lat != null ||
+      loc.lng != null)
+  ) {
+    eventSet["location.name"] = cleanString(loc.name);
+    eventSet["location.address"] = cleanString(loc.address);
+    eventSet["location.lat"] = loc.lat ?? null;
+    eventSet["location.lng"] = loc.lng ?? null;
+    eventSet["location.placeId"] = cleanString(loc.placeId);
+    eventSet["location.placeName"] = cleanString(loc.placeName);
+    eventSet["location.formattedAddress"] = cleanString(loc.formattedAddress);
+    eventSet["location.wazeLat"] = loc.wazeLat ?? null;
+    eventSet["location.wazeLng"] = loc.wazeLng ?? null;
+    eventSet["location.wazeUrl"] = cleanString(loc.wazeUrl);
+  }
+
+  return eventSet;
+}
+
+export type GuestEventFieldMismatch = {
+  field: string;
+  eventValue: string;
+  invitationValue: string;
+  guestWouldSee: string;
+};
+
+export function detectGuestEventDetailsMismatch(event?: any, invitation?: any) {
+  const resolved = resolveCentralEventDetails(event, invitation);
+  const fields: GuestEventFieldMismatch[] = [];
+
+  const compare = (
+    field: string,
+    eventValue: unknown,
+    invitationValue: unknown,
+    guestWouldSee: string
+  ) => {
+    const eventClean = cleanString(eventValue);
+    const invitationClean = cleanString(invitationValue);
+    if (!invitationClean) return;
+    if (eventClean === invitationClean) return;
+    if (
+      field === "date" &&
+      normalizeEventDateValue(eventValue) &&
+      normalizeEventDateValue(eventValue) ===
+        normalizeEventDateValue(invitationValue)
+    ) {
+      return;
+    }
+    if (
+      field === "time" &&
+      isPlaceholderEventTime(eventValue) &&
+      isPlaceholderEventTime(invitationValue)
+    ) {
+      return;
+    }
+    fields.push({
+      field,
+      eventValue: eventClean,
+      invitationValue: invitationClean,
+      guestWouldSee,
+    });
+  };
+
+  compare("title", event?.title, invitation?.title, resolved.title);
+  compare(
+    "date",
+    event?.date || event?.eventDate,
+    invitation?.eventDate || invitation?.date,
+    resolved.date
+  );
+  compare(
+    "time",
+    event?.time || event?.eventTime,
+    invitation?.eventTime || invitation?.time,
+    resolved.time
+  );
+  compare("eventType", event?.eventType, invitation?.eventType, resolved.eventType);
+
+  const eventVenue = cleanString(event?.location?.name);
+  const invitationVenue = cleanString(invitation?.location?.name);
+  compare("venueName", eventVenue, invitationVenue, resolved.venueName);
+
+  return fields;
 }
 
 export function toHttpUrl(value: unknown) {
@@ -217,15 +454,15 @@ export function resolveCentralEventDetails(
   invitation?: any
 ): CentralEventDetails {
   const gifts = resolveCentralGifts(event, invitation);
-  const loc = event?.location || invitation?.location || {};
+  const loc = pickLocationSource(event, invitation);
   const publicPage = invitation?.publicEventPage || {};
   const parking = publicPage.parking || {};
 
   const venueName =
     cleanString(loc.name) ||
     cleanString(loc.placeName) ||
-    cleanString(event?.venueHallName) ||
-    cleanString(invitation?.venueHallName);
+    cleanString(invitation?.venueHallName) ||
+    cleanString(event?.venueHallName);
 
   const address =
     cleanString(loc.address) ||
@@ -265,28 +502,14 @@ export function resolveCentralEventDetails(
   );
 
   return {
-    title:
-      cleanString(event?.title) ||
-      cleanString(invitation?.title) ||
-      "האירוע",
-    eventType:
-      cleanString(event?.eventType) ||
-      cleanString(invitation?.eventType) ||
-      "wedding",
+    title: pickGuestFacingTitle(event, invitation),
+    eventType: pickGuestFacingEventType(event, invitation),
     hostsNames:
       cleanString(event?.hostsNames) ||
       cleanString(invitation?.hostsNames) ||
       "",
-    date: String(
-      event?.date ||
-        invitation?.eventDate ||
-        invitation?.date ||
-        ""
-    ),
-    time:
-      cleanString(event?.time) ||
-      cleanString(invitation?.eventTime) ||
-      cleanString(invitation?.time),
+    date: pickGuestFacingDate(event, invitation),
+    time: pickGuestFacingTime(event, invitation),
     receptionTime:
       cleanString(event?.receptionTime) ||
       cleanString(receptionFromSchedule?.time),

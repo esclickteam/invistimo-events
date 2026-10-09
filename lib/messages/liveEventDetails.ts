@@ -9,6 +9,12 @@
  * as they exist at send time — never from the snapshot.
  */
 
+import {
+  pickGuestFacingDate,
+  pickGuestFacingTime,
+  pickGuestFacingTitle,
+} from "@/lib/eventDetails/centralEventDetails";
+
 export const MESSAGE_ROUNDS = [
   { key: "save_the_date", channel: "whatsapp", label: "Save the Date" },
   { key: "invitation_only", channel: "whatsapp", label: "הזמנה מוקדמת" },
@@ -94,31 +100,15 @@ function pickLocation(source: any) {
 }
 
 function pickTitle(invitation: any, event: any) {
-  return (
-    cleanString(invitation?.title) ||
-    cleanString(invitation?.eventTitle) ||
-    cleanString(event?.title) ||
-    "האירוע שלנו"
-  );
+  return pickGuestFacingTitle(event, invitation) || "האירוע שלנו";
 }
 
 function pickDate(invitation: any, event: any) {
-  return (
-    invitation?.eventDate ||
-    invitation?.date ||
-    event?.date ||
-    event?.eventDate ||
-    null
-  );
+  return pickGuestFacingDate(event, invitation) || null;
 }
 
 function pickTime(invitation: any, event: any) {
-  return (
-    cleanString(invitation?.eventTime) ||
-    cleanString(invitation?.time) ||
-    cleanString(event?.time) ||
-    cleanString(event?.eventTime)
-  );
+  return pickGuestFacingTime(event, invitation);
 }
 
 export function buildEventLocationLabel(invitation?: any, event?: any) {

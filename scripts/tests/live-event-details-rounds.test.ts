@@ -80,6 +80,28 @@ test("catalog lists every guest message round in the product", () => {
   ]);
 });
 
+test("live details ignore Event placeholder title/date/time when invitation is real", () => {
+  const live = resolveLiveEventMessageDetails(
+    {
+      title: "דויד חיים מלול - בר מצווה",
+      shareId: "h_BnzL2Nis",
+      eventDate: "2026-10-11T00:00:00.000Z",
+      eventTime: "19:30",
+      location: { name: "יסמין", address: "חיפה" },
+    },
+    {
+      title: "הזמנה חדשה",
+      date: "2026-08-18",
+      time: "00:00",
+    }
+  );
+  assert.equal(live.eventTitle, "דויד חיים מלול - בר מצווה");
+  assert.equal(live.eventTime, "19:30");
+  assert.doesNotMatch(live.eventTitle, /הזמנה חדשה/);
+  assert.doesNotMatch(live.eventDateTime, /00:00/);
+  assert.doesNotMatch(live.eventDate, /18\.08\.2026/);
+});
+
 test("live details prefer the current invitation over a stale snapshot", () => {
   const live = resolveLiveEventMessageDetails(NEW_INVITATION);
   assert.equal(live.eventTitle, "חתונת חדש");
