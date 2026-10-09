@@ -15,6 +15,7 @@ import {
 import Invitation from "../../models/Invitation";
 import InvitationGuest from "../../models/InvitationGuest";
 import IvrCallAttempt from "../../models/IvrCallAttempt";
+import User from "../../models/User";
 
 const JULY = new Date("2026-07-02T12:00:00.000Z");
 const MAY = new Date("2026-05-01T12:00:00.000Z");
@@ -34,6 +35,23 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
   try {
     const userA = new mongoose.Types.ObjectId();
     const userB = new mongoose.Types.ObjectId();
+    await User.create({
+      _id: userA,
+      name: "לקוח א",
+      email: `ivr-rounds-${String(userA)}@test.local`,
+      role: "user",
+      guests: 10,
+      maxGuests: 10,
+      needsPasswordSetup: true,
+      includeCalls: true,
+      callRoundsSchedule: {
+        rounds: [
+          { roundNumber: 1, status: "done", eligibleCount: 12, callType: "ivr" },
+          { roundNumber: 2, status: "scheduled", eligibleCount: 4, callType: "ivr" },
+          { roundNumber: 3, status: "draft", callType: "ivr" },
+        ],
+      },
+    });
     const eventA = await Invitation.create({
       ownerId: userA,
       eventId: new mongoose.Types.ObjectId(),
@@ -262,6 +280,37 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
     assert.equal(allA.stats.no, 1);
     assert.equal(allA.stats.maybe, 1);
     assert.equal(allA.stats.noFinalAnswer, 3);
+    assert.equal(allA.allRounds.uniqueGuests, allA.stats.uniqueGuests);
+    assert.equal(allA.allRounds.dialAttempts, allA.stats.dialAttempts);
+    assert.equal(allA.allRounds.answered, allA.stats.answered);
+    assert.equal(allA.allRounds.yes, 1);
+    assert.equal(allA.allRounds.no, 1);
+    assert.equal(allA.allRounds.maybe, 1);
+    assert.equal(allA.allRounds.noFinalAnswer, 3);
+    assert.equal(allA.allRounds.uniqueGuests, 7);
+    const numbered = allA.rounds.filter((round) => round.key !== "unassigned");
+    assert.deepEqual(
+      numbered.map((round) => round.key),
+      ["1", "2", "3"]
+    );
+    assert.equal(numbered[0]?.title, "סבב 1 — שיחות אישורי הגעה");
+    assert.equal(numbered[0]?.intended, 12);
+    assert.equal(numbered[0]?.dialAttempts, 7);
+    assert.equal(numbered[0]?.answered, 6);
+    assert.equal(numbered[0]?.unanswered, 0);
+    assert.equal(numbered[0]?.failed, 1);
+    assert.equal(numbered[0]?.hungUpWithoutChoice, 1);
+    assert.equal(numbered[0]?.statusLabel, "בוצע");
+    assert.equal(numbered[1]?.intended, 4);
+    assert.equal(numbered[1]?.dialAttempts, 1);
+    assert.equal(numbered[1]?.unanswered, 1);
+    assert.equal(numbered[2]?.intended, 0);
+    assert.equal(numbered[2]?.dialAttempts, 1);
+    assert.equal(
+      numbered.reduce((sum, round) => sum + round.dialAttempts, 0),
+      allA.allRounds.dialAttempts
+    );
+    assert.equal(allA.rounds.some((round) => round.key === "unassigned"), false);
     assert.equal(allA.events.some((event) => event.name === "חינה של נועה"), false);
     assert.equal(allA.events.some((event) => event.name === "חתונת אור"), true);
 
@@ -271,6 +320,14 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
       ["מיכל גל"]
     );
     assert.equal(allB.rows.some((row) => row.guestName === "דנה כהן"), false);
+    assert.deepEqual(
+      allB.rounds.filter((round) => round.key !== "unassigned").map((round) => round.key),
+      ["1", "2", "3"]
+    );
+    assert.equal(allB.rounds.find((round) => round.key === "2")?.dialAttempts, 0);
+    assert.equal(allB.rounds.find((round) => round.key === "2")?.statusLabel, "טרם בוצע");
+    assert.equal(allB.rounds.find((round) => round.key === "3")?.dialAttempts, 0);
+    assert.equal(allB.rounds.some((round) => round.key === "unassigned"), false);
 
     const foreignEvent = await listUserIvrReportPage(String(userA), {
       invitationId: String(eventB._id),
@@ -282,11 +339,18 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
     assert.equal(round2.total, 1);
     assert.equal(round2.rows[0]?.guestName, "דנה כהן");
     assert.equal(round2.rows[0]?.round, 2);
+    assert.equal(round2.stats.dialAttempts, 1);
+    assert.equal(round2.stats.uniqueGuests, 1);
+    assert.equal(round2.allRounds.dialAttempts, 9);
+    assert.equal(round2.allRounds.uniqueGuests, 7);
+    assert.equal(round2.rounds.find((round) => round.key === "1")?.dialAttempts, 7);
 
     const missed = await listUserIvrReportPage(String(userA), { callStatus: "no_answer" });
     assert.equal(missed.total, 2);
     assert.equal(missed.rows.every((row) => row.callStatus === "no_answer"), true);
     assert.equal(missed.rows.some((row) => row.answeredLabel === "כן"), false);
+    assert.equal(missed.stats.dialAttempts, 2);
+    assert.equal(missed.rounds.find((round) => round.key === "1")?.dialAttempts, 7);
 
     const declined = await listUserIvrReportPage(String(userA), { rsvp: "no" });
     assert.equal(declined.total, 1);
@@ -310,6 +374,11 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
     });
     assert.equal(july.total, 8);
     assert.equal(july.rows.some((row) => row.round === 3), false);
+    assert.equal(july.stats.dialAttempts, 8);
+    assert.equal(july.allRounds.dialAttempts, 8);
+    assert.equal(july.allRounds.uniqueGuests, 7);
+    assert.equal(july.rounds.find((round) => round.key === "3")?.dialAttempts, 0);
+    assert.equal(july.rounds.find((round) => round.key === "3")?.statusLabel, "טרם בוצע");
 
     const exported = await listUserIvrReportExport(String(userA), { q: "דנה" });
     const buffer = await buildIvrUserCallReportWorkbook(exported.rows, exported.truncated);
@@ -341,6 +410,68 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
     assert.equal(body.includes("מיכל גל"), false);
     assert.equal(body.includes("חינה של נועה"), false);
     assert.equal(body.includes("יוסי לוי"), false);
+
+    const historical = await guest(eventA._id, "היסטורי ללא סבב", "0509999999");
+    await attempt({
+      userId: userA,
+      invitationId: eventA._id,
+      guestId: historical._id,
+      phone: "0509999999",
+      status: "completed",
+      answered: true,
+      choiceDigit: "1",
+      rsvpApplied: true,
+      rsvpResult: "yes",
+      channel: "inbound_ivr",
+      direction: "inbound",
+      endedAt: new Date(JULY.getTime() + 5000),
+      answeredAt: JULY,
+      durationSeconds: 5,
+    });
+
+    const withHistory = await listUserIvrReportPage(String(userA), { page: 1, pageSize: 50 });
+    assert.equal(withHistory.stats.dialAttempts, 10);
+    assert.equal(withHistory.stats.uniqueGuests, 8);
+    assert.equal(withHistory.allRounds.uniqueGuests, 8);
+    assert.equal(withHistory.allRounds.dialAttempts, 10);
+    assert.equal(withHistory.rounds.find((round) => round.key === "1")?.dialAttempts, 7);
+    assert.equal(withHistory.rounds.find((round) => round.key === "1")?.yes, 1);
+    const loose = withHistory.rounds.find((round) => round.key === "unassigned");
+    assert.equal(loose?.dialAttempts, 1);
+    assert.equal(loose?.yes, 1);
+    assert.equal(loose?.title, "ללא שיוך");
+    const onlyLoose = await listUserIvrReportPage(String(userA), { round: "unassigned" });
+    assert.equal(onlyLoose.total, 1);
+    assert.equal(onlyLoose.rows[0]?.guestName, "היסטורי ללא סבב");
+    assert.equal(onlyLoose.rows[0]?.round, null);
+    assert.equal(onlyLoose.stats.uniqueGuests, 1);
+    const stillRound1 = await listUserIvrReportPage(String(userA), { round: "1" });
+    assert.equal(stillRound1.rows.some((row) => row.guestName === "היסטורי ללא סבב"), false);
+
+    const roundExport = await listUserIvrReportExport(String(userA), {
+      round: "2",
+      callStatus: "no_answer",
+    });
+    assert.equal(roundExport.total, 1);
+    assert.equal(roundExport.rows[0]?.guestName, "דנה כהן");
+    assert.equal(roundExport.rows[0]?.round, 2);
+    const looseExport = await listUserIvrReportExport(String(userA), { round: "unassigned" });
+    const looseBook = await buildIvrUserCallReportWorkbook(
+      looseExport.rows,
+      looseExport.truncated
+    );
+    const looseWorkbook = new ExcelJS.Workbook();
+    await looseWorkbook.xlsx.load(looseBook);
+    const looseSheet = looseWorkbook.getWorksheet("דוח שיחות IVR");
+    const looseBody = looseSheet!
+      .getSheetValues()
+      .slice(2)
+      .map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")).join(" ") : ""))
+      .join("\n");
+    assert.match(looseBody, /היסטורי ללא סבב/);
+    assert.match(looseBody, /ללא שיוך/);
+    assert.equal(looseBody.includes("דנה כהן"), false);
+    assert.equal(looseBody.includes("מיכל גל"), false);
   } finally {
     await mongoose.disconnect();
     await mongod.stop();

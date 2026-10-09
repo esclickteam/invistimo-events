@@ -289,6 +289,30 @@ function formatAnswerRate(value: number | null | undefined) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+/** Shown next to the answer-rate figure: answered dial attempts / dial attempts made. */
+export const IVR_ANSWER_RATE_DEFINITION =
+  "שיעור המענה מחושב לפי שיחות שנענו מתוך ניסיונות החיוג שבוצעו";
+
+/**
+ * Status printed on a round card. A round with no stored calls stays visible as
+ * scheduled or not-yet-run. Calls are never used to invent which round they belong to.
+ */
+export function ivrRoundExecutionLabel(status: string, attempts: number) {
+  if (status === "failed") return "נכשל";
+  if (status === "cancelled") return "בוטל";
+  if (status === "in_progress" || status === "opened") return "בביצוע";
+  if (status === "done" || status === "completed") return "בוצע";
+  if (attempts > 0) return "בוצע";
+  if (
+    status === "scheduled" ||
+    status === "waiting_for_assignment" ||
+    status === "waiting_for_previous_round"
+  ) {
+    return "מתוזמן";
+  }
+  return "טרם בוצע";
+}
+
 /** Summary cards for the per-customer IVR report. Unanswered never includes an answered hangup. */
 export function shapeUserIvrSummary(stats: UserIvrSummaryInput) {
   const unanswered =
