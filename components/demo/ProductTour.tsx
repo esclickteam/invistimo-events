@@ -53,11 +53,13 @@ export default function ProductTour({
   const [rect, setRect] = useState<Rect | null>(null);
   const [success, setSuccess] = useState("");
   const [waiting, setWaiting] = useState(step?.advance !== "continue");
+  const [liftDim, setLiftDim] = useState(false);
 
   useEffect(() => {
     if (!step) return;
     setWaiting(step.advance !== "continue");
     setSuccess("");
+    setLiftDim(false);
     document.documentElement.dataset.demoTour = step.id;
     window.dispatchEvent(
       new CustomEvent("invistimo:demo-tour-step", { detail: { id: step.id } })
@@ -79,7 +81,7 @@ export default function ProductTour({
       }
       const box = node.getBoundingClientRect();
       const inView = box.top >= 72 && box.bottom <= window.innerHeight - 12;
-      if (!inView) {
+      if (!inView && !liftDim) {
         node.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
       }
       setRect({
@@ -100,7 +102,7 @@ export default function ProductTour({
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [step, pathname]);
+  }, [step, pathname, liftDim]);
 
   useEffect(() => {
     if (!step) return;
@@ -114,9 +116,13 @@ export default function ProductTour({
     };
 
     const onClick = (event: MouseEvent) => {
-      if (step.advance !== "click" || !rect) return;
       const node = findTourTarget(step.selector);
-      if (node && (node === event.target || node.contains(event.target as Node))) {
+      const hit = Boolean(
+        node && (node === event.target || node.contains(event.target as Node))
+      );
+      if (!hit) return;
+      setLiftDim(true);
+      if (step.advance === "click") {
         setWaiting(false);
         setSuccess("מצוין");
       }
@@ -133,7 +139,9 @@ export default function ProductTour({
   if (!step) return null;
 
   const mobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const bubble = placeBubble(rect, mobile);
+  const bubble = liftDim
+    ? parkedBubble(mobile)
+    : placeBubble(rect, mobile);
 
   const go = (next: number) => {
     if (next >= DEMO_TOUR_STEPS.length) {
@@ -145,10 +153,12 @@ export default function ProductTour({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[90]" dir="rtl">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[#1E1B2E]/45"
-        style={{ clipPath: hole(rect) }}
-      />
+      {!liftDim && (
+        <div
+          className="pointer-events-none absolute inset-0 bg-[#1E1B2E]/45"
+          style={{ clipPath: hole(rect) }}
+        />
+      )}
       {rect && (
         <>
           <div
@@ -252,18 +262,37 @@ function hole(rect: Rect | null) {
   return `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${x}px ${y}px, ${x + w}px ${y}px, ${x + w}px ${y + h}px, ${x}px ${y + h}px, ${x}px ${y}px)`;
 }
 
+function parkedBubble(mobile: boolean): CSSProperties {
+  const width = mobile ? Math.min(window.innerWidth - 24, 420) : 360;
+  return { top: 76, left: 12, width, right: "auto" };
+}
+
 function placeBubble(rect: Rect | null, mobile: boolean): CSSProperties {
-  const width = mobile ? Math.min(window.innerWidth - 24, 420) : 380;
+  const width = mobile ? Math.min(window.innerWidth - 24, 420) : 360;
   if (!rect || typeof window === "undefined") {
-    return { top: 88, left: 12, width, right: "auto" };
+    return parkedBubble(mobile);
   }
   const gap = 16;
-  const below = rect.top + rect.height + gap;
-  const estimated = 220;
-  const canBelow = below + estimated < window.innerHeight - 72;
-  const top = canBelow ? below : Math.max(76, rect.top - estimated - gap);
-  const left = clamp(rect.left + rect.width / 2 - width / 2, 12, window.innerWidth - width - 12);
-  return { top, left, width };
+  const estimated = 240;
+  const below = rect.bottom + gap;
+  const above = rect.top - estimated - gap;
+  const fitsBelow = below + estimated < window.innerHeight - 72;
+  const fitsAbove = above > 64;
+  let top = fitsBelow ? below : fitsAbove ? above : 76;
+  let left = clamp(
+    rect.left + rect.width / 2 - width / 2,
+    12,
+    window.innerWidth - width - 12
+  );
+  const overlaps =
+    left < rect.right + 8 &&
+    left + width > rect.left - 8 &&
+    top < rect.bottom + 8 &&
+    top + estimated > rect.top - 8;
+  if (overlaps) {
+    left = rect.left > window.innerWidth / 2 ? 12 : window.innerWidth - width - 12;
+  }
+  return { top, left, width, right: "auto" };
 }
 
 export function stepByIndex(index: number): DemoTourStep | undefined {

@@ -3799,13 +3799,7 @@ const eventLocation = resolveEventLocation(invitation, event);
           }}
           onClose={() => setOpenAddModal(false)}
           onSuccess={async (newGuest?: Guest) => {
-            if (isDemo && newGuest) {
-              await fetch("/api/demo/interactive/action", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "addGuest", guest: newGuest }),
-              });
+            if (isDemo) {
               window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
               window.dispatchEvent(
                 new CustomEvent("invistimo:demo-action", { detail: { action: "add-guest" } })
