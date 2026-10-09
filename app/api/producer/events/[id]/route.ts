@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import Event from "@/models/Event";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 
@@ -205,6 +206,21 @@ export async function PATCH(
       { $set: patch },
       { new: true, runValidators: true }
     ).lean();
+
+    if (updated) {
+      await persistSharedIdentityMirror({
+        source: "event",
+        eventId: String((updated as any)._id),
+        event: updated,
+        incoming: {
+          title: (updated as any).title,
+          eventType: (updated as any).eventType,
+          date: (updated as any).date,
+          time: (updated as any).time,
+          location: (updated as any).location || null,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, event: updated });
   } catch (error: any) {

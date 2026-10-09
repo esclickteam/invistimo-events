@@ -1116,7 +1116,9 @@ async function syncOrCheckActualArrivedToAllSeating({
         if (ownerDoc?._id) {
           await SeatingTable.collection.updateOne(
             { _id: ownerDoc._id },
-            { $push: { seatReleaseLog: releaseAudit } }
+            {
+              $push: { seatReleaseLog: releaseAudit },
+            } as any
           );
         }
       } catch (auditErr) {

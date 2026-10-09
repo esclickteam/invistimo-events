@@ -8,8 +8,12 @@ import {
   formatIvrIsraelDateTime,
   ivrAttemptTimings,
   ivrAudioModeLabel,
+  ivrDialAttemptNumber,
+  ivrRoundExecutionLabel,
+  ivrStoredRsvpLabel,
   parseIvrReportDayRange,
   redactIvrReportText,
+  shapeUserIvrSummary,
 } from "../../lib/calls/ivrCallReport";
 import { describeIvrTelnyxEvent } from "../../lib/calls/ivrCallTimeline";
 
@@ -179,18 +183,136 @@ test("Telnyx event labels are only the received event", () => {
   );
 });
 
-test("admin report is wired to stored attempts and admin auth", () => {
+test("RSVP label follows the digit stored on that attempt", () => {
+  assert.equal(
+    ivrStoredRsvpLabel({
+      choiceDigit: "2",
+      rsvpApplied: true,
+      rsvpResult: "no",
+      answered: true,
+      endedAt: new Date(),
+    }),
+    "לא מגיע"
+  );
+  assert.equal(
+    ivrStoredRsvpLabel({
+      choiceDigit: "2",
+      rsvpApplied: true,
+      rsvpResult: "yes",
+      answered: true,
+      endedAt: new Date(),
+    }),
+    "לא מגיע"
+  );
+  assert.equal(
+    ivrStoredRsvpLabel({
+      choiceDigit: "3",
+      answered: true,
+      endedAt: new Date(),
+    }),
+    "מתלבט"
+  );
+  assert.equal(
+    ivrStoredRsvpLabel({
+      choiceDigit: "1",
+      rsvpApplied: true,
+      rsvpResult: "yes",
+      answered: true,
+      endedAt: new Date(),
+    }),
+    "אישר הגעה"
+  );
+  assert.equal(
+    ivrStoredRsvpLabel({
+      choiceDigit: "1",
+      rsvpApplied: false,
+      answered: true,
+      endedAt: new Date(),
+    }),
+    "אין תשובה סופית"
+  );
+  assert.equal(
+    ivrStoredRsvpLabel({
+      answered: true,
+      choiceDigit: "",
+      endedAt: new Date(),
+    }),
+    "אין תשובה סופית"
+  );
+});
+
+test("user summary does not count an answered hangup as unanswered", () => {
+  const summary = shapeUserIvrSummary({
+    attempts: 4,
+    uniqueGuests: 3,
+    answered: 2,
+    noAnswer: 1,
+    busy: 1,
+    voicemail: 0,
+    failed: 0,
+    answeredNoResponse: 1,
+    partial: 0,
+    answeredHangup: 0,
+    yes: 1,
+    no: 0,
+    maybe: 0,
+    answerRate: 0.5,
+    avgCallMs: 12000,
+  });
+  assert.equal(summary.unanswered, 2);
+  assert.equal(summary.hungUpWithoutChoice, 1);
+  assert.equal(summary.noFinalAnswer, 1);
+  assert.equal(summary.answerRateLabel, "50%");
+  assert.equal(ivrDialAttemptNumber({ retryCount: 0 }), 1);
+  assert.equal(ivrDialAttemptNumber({ retryCount: 2 }), 3);
+  assert.equal(ivrRoundExecutionLabel("draft", 0), "טרם בוצע");
+  assert.equal(ivrRoundExecutionLabel("scheduled", 0), "מתוזמן");
+  assert.equal(ivrRoundExecutionLabel("in_progress", 2), "בביצוע");
+  assert.equal(ivrRoundExecutionLabel("done", 3), "בוצע");
+  assert.equal(ivrRoundExecutionLabel("failed", 1), "נכשל");
+  assert.equal(ivrRoundExecutionLabel("", 0), "טרם בוצע");
+});
+
+test("IVR report lives on the user being edited, not the shared calls tab", () => {
   const page = readSrc("app/admin/recorded-calls/page.tsx");
-  const route = readSrc("app/api/admin/ivr/call-report/route.ts");
+  const users = readSrc("app/admin/users/page.tsx");
+  const route = readSrc("app/api/admin/users/[id]/ivr-call-report/route.ts");
+  const legacy = readSrc("app/api/admin/ivr/call-report/route.ts");
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const control = readSrc("lib/telnyx/ivrCallControl.ts");
-  assert.match(page, /דוח שיחות/);
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(page, /הגדרות קריינות/);
   assert.match(page, /קול נשי/);
   assert.match(page, /קול גברי/);
+  assert.equal(page.includes("דוח שיחות"), false);
+  assert.equal(page.includes("IvrCallReportPanel"), false);
+  assert.match(users, /📊 דוח WhatsApp לסבבים/);
+  assert.match(users, /📊 דוח SMS לסבבים/);
+  assert.match(users, /📊 דוח שיחות IVR/);
+  assert.match(users, /IvrCallsReportModal/);
   assert.match(route, /role\) !== "admin"/);
-  assert.match(route, /format=xlsx|format"\) === "xlsx"/);
+  assert.match(route, /format"\) === "xlsx"/);
+  assert.match(route, /listUserIvrReportPage/);
+  assert.match(legacy, /USER_REQUIRED/);
+  assert.match(legacy, /listUserIvrReportExport/);
   assert.match(webhook, /pushIvrTimeline/);
   assert.match(webhook, /call\.playback\.started|playbackStartedAt/);
   assert.match(control, /notePlaybackCommand/);
   assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
+  assert.match(dialer, /IvrCallAttempt\.create/);
+  const modal = readSrc("app/components/IvrCallsReportModal.tsx");
+  const whatsapp = readSrc("app/components/WhatsappRoundsReportModal.tsx");
+  const sms = readSrc("app/components/SmsRoundsReportModal.tsx");
+  assert.match(modal, /כל הסבבים/);
+  assert.match(modal, /ללא שיוך/);
+  assert.match(modal, /min-w-\[220px\]/);
+  assert.match(modal, /border-\[#D7A34D\]/);
+  assert.match(modal, /ייצוא דוח לאקסל/);
+  assert.match(modal, /IVR_ANSWER_RATE_DEFINITION/);
+  assert.match(whatsapp, /דוח WhatsApp לסבבים/);
+  assert.match(whatsapp, /min-w-\[220px\]/);
+  assert.match(sms, /דוח SMS לסבבים/);
+  assert.equal(whatsapp.includes("דוח שיחות IVR"), false);
+  assert.equal(sms.includes("דוח שיחות IVR"), false);
+  assert.equal(dialer.includes("listUserIvrRoundCards"), false);
 });

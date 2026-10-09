@@ -1,9 +1,9 @@
 /**
  * IVR Call Control webhook processing — idempotent RSVP updates.
  *
- * AI outbound intro plays three clips in sequence:
- * global.introBeforeEventName → event.eventNameAudio → global.introAfterEventName (gather)
- * DTMF follow-ups use the same global gender pack.
+ * Outbound and inbound play the same approved continuous file from the
+ * first media command. The three-clip chain remains only for a call that
+ * was already in that sequence. DTMF follow-ups use the stored global pack.
  */
 
 import IvrCallAttempt from "@/models/IvrCallAttempt";
@@ -12,9 +12,11 @@ import {
   applyIvrRsvpToGuest,
   parseDtmfGuestCount,
 } from "@/lib/calls/ivrApplyRsvp";
+import { classifyUnansweredHangup } from "@/lib/calls/ivrDialFailure";
 import {
   getGlobalPackSegmentUrl,
   getIvrSystemAudioUrlForGender,
+  warmIvrChoiceFollowUps,
 } from "@/lib/calls/ivrSystemAudio";
 import {
   normalizeIvrVoiceGender,
@@ -83,6 +85,29 @@ async function playInboundChoiceGather(input: {
   callControlId: string;
 }) {
   const gender = attemptVoiceGender(input.attempt);
+  const sharedUrl = cleanStr(input.attempt.introAudioUrl);
+  if (sharedUrl) {
+    await gatherIvrUsingAudio({
+      callControlId: input.callControlId,
+      audioUrl: sharedUrl,
+      minimumDigits: 1,
+      maximumDigits: 1,
+      validDigits: "123",
+      timeoutMillis: 45000,
+      clientState: {
+        source: "invistimo-ivr",
+        inbound_ivr: true,
+        channel: "inbound_ivr",
+        callAttemptId: String(input.attempt._id),
+        stage: "choice",
+        voiceGender: gender,
+      },
+    });
+    input.attempt.flowStep = "gather_choice";
+    await input.attempt.save();
+    return;
+  }
+
   const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
   const beforeUrl = await getGlobalPackSegmentUrl(
     gender,
@@ -128,9 +153,9 @@ async function playInboundChoiceGather(input: {
 }
 
 /**
- * One outbound player, from second 0.
- * AI: introBeforeEventName → event name → introAfterEventName, then wait for DTMF.
- * Self-record: the saved file only, still a single player.
+ * One outbound player, from the answer webhook.
+ * The approved continuous file is already on the attempt, so playback does
+ * not wait for a segment lookup or for TTS.
  */
 async function startOutboundFromBeginning(input: {
   attempt: any;
@@ -143,6 +168,26 @@ async function startOutboundFromBeginning(input: {
     callAttemptId: String(input.attempt._id),
     voiceGender: gender,
   };
+  void warmIvrChoiceFollowUps(gender);
+
+  const introUrl = cleanStr(input.attempt.introAudioUrl);
+  if (introUrl) {
+    await gatherIvrUsingAudio({
+      callControlId: input.callControlId,
+      audioUrl: introUrl,
+      minimumDigits: 1,
+      maximumDigits: 1,
+      validDigits: "123",
+      timeoutMillis: 45000,
+      clientState: {
+        ...baseState,
+        stage: "choice",
+      },
+    });
+    input.attempt.flowStep = "gather_choice";
+    await input.attempt.save();
+    return;
+  }
 
   if (eventNameUrl) {
     const beforeUrl = await getGlobalPackSegmentUrl(
@@ -157,24 +202,6 @@ async function startOutboundFromBeginning(input: {
       return;
     }
   }
-
-  const introUrl = cleanStr(input.attempt.introAudioUrl);
-  if (!introUrl) return;
-
-  input.attempt.flowStep = "gather_choice";
-  await input.attempt.save();
-  await gatherIvrUsingAudio({
-    callControlId: input.callControlId,
-    audioUrl: introUrl,
-    minimumDigits: 1,
-    maximumDigits: 1,
-    validDigits: "123",
-    timeoutMillis: 45000,
-    clientState: {
-      ...baseState,
-      stage: "choice",
-    },
-  });
 }
 
 async function continueOutboundAiIntro(input: {
@@ -422,6 +449,20 @@ export async function handleIvrTelnyxWebhook(body: any) {
   const gender = attemptVoiceGender(attempt);
   const observedAt = ivrEventInstant(body);
   const described = describeIvrTelnyxEvent(eventType, payload);
+  let timelineDetail = described.detail;
+  if (
+    (eventType === "call.playback.started" ||
+      eventType === "call.speak.started") &&
+    attempt.answeredAt
+  ) {
+    const lag =
+      observedAt.getTime() - new Date(attempt.answeredAt).getTime();
+    if (Number.isFinite(lag) && lag >= 0 && lag < 120000) {
+      timelineDetail = [timelineDetail, `מענה עד תחילת השמעה: ${lag}ms`]
+        .filter(Boolean)
+        .join(" · ");
+    }
+  }
   const setIfEmpty: Record<string, Date> = {};
   if (eventType === "call.ringing") setIfEmpty.ringingAt = observedAt;
   if (
@@ -444,7 +485,7 @@ export async function handleIvrTelnyxWebhook(body: any) {
       source: "telnyx",
       kind: described.kind,
       label: described.label,
-      detail: described.detail,
+      detail: timelineDetail,
       eventType,
       digit: described.digit,
     },
@@ -844,6 +885,8 @@ export async function handleIvrTelnyxWebhook(body: any) {
         break;
       }
 
+      // Fallback only when the precomposed inbound file was not ready.
+      // Each of these steps waits for playback.ended, which is the audible gap.
       if (
         !choiceTaken &&
         stage === "inbound_play_event_name" &&
@@ -961,21 +1004,15 @@ export async function handleIvrTelnyxWebhook(body: any) {
         if (attempt.answered) {
           attempt.status = "hangup_before_response";
         } else if (
-          cause.includes("busy") ||
-          cause === "call_rejected" ||
-          cause === "user_busy"
+          attempt.status === "failed" ||
+          attempt.status === "canceled"
         ) {
-          attempt.status = "busy";
-        } else if (
-          cause.includes("no_answer") ||
-          cause === "timeout" ||
-          cause === "originator_cancel"
-        ) {
-          attempt.status = "no_answer";
-        } else if (cause.includes("voicemail") || cause.includes("machine")) {
-          attempt.status = "voicemail";
-        } else if (attempt.status !== "completed") {
-          attempt.status = attempt.status === "failed" ? "failed" : "no_answer";
+          attempt.answered = false;
+        } else {
+          const classified = classifyUnansweredHangup(cause);
+          attempt.status = classified.status;
+          attempt.answered = false;
+          if (classified.error) attempt.error = classified.error;
         }
         attempt.flowStep = "done";
       } else if (attempt.status !== "completed") {

@@ -6,6 +6,7 @@ import {
   venueLifecycleToInvistimoStatus,
   type VenueEventLifecycleStatus,
 } from "@/lib/venues/statuses";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 const allowedEventTypes = [
   "wedding",
@@ -669,6 +670,27 @@ export async function updateVenueCalendarEvent(input: UpdateVenueCalendarEventIn
     }
 
     await session.commitTransaction();
+
+    if (
+      updatedLinkedEvent &&
+      (eventPatch.title ||
+        eventPatch.date ||
+        eventPatch.time ||
+        eventPatch.eventType)
+    ) {
+      await persistSharedIdentityMirror({
+        source: "event",
+        eventId: String(updatedLinkedEvent._id),
+        event: updatedLinkedEvent,
+        incoming: {
+          title: (updatedLinkedEvent as any).title,
+          eventType: (updatedLinkedEvent as any).eventType,
+          date: (updatedLinkedEvent as any).date,
+          time: (updatedLinkedEvent as any).time,
+          location: (updatedLinkedEvent as any).location || null,
+        },
+      });
+    }
 
     return {
       ok: true as const,

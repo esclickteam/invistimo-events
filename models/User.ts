@@ -286,6 +286,25 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       approvedAt?: Date | null;
     };
     /**
+     * Inbound stitch of the locked callback clips + the same event-name file.
+     * Not a new script and not the outbound composition.
+     */
+    composedInboundAudio?: {
+      status?: "missing" | "ready" | "stale";
+      source?: "compose" | null;
+      publicToken?: string;
+      audioUrl?: string;
+      r2Key?: string;
+      contentType?: string;
+      contentHash?: string;
+      eventNameContentHash?: string;
+      durationSeconds?: number | null;
+      generatedAt?: Date | null;
+      composeVersion?: string;
+      approved?: boolean;
+      approvedAt?: Date | null;
+    };
+    /**
      * Exact audio the client approved for live dialing.
      * Cleared when event name, voice, or the file changes.
      */
@@ -1300,6 +1319,70 @@ preRsvpMessages: {
           default: "audio/mpeg",
         },
         contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        durationSeconds: {
+          type: Number,
+          default: null,
+        },
+        generatedAt: {
+          type: Date,
+          default: null,
+        },
+        composeVersion: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        approved: {
+          type: Boolean,
+          default: false,
+        },
+        approvedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      composedInboundAudio: {
+        status: {
+          type: String,
+          enum: ["missing", "ready", "stale"],
+          default: "missing",
+        },
+        source: {
+          type: String,
+          enum: ["compose", null],
+          default: null,
+        },
+        publicToken: {
+          type: String,
+          trim: true,
+          default: "",
+          index: true,
+        },
+        audioUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        r2Key: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        contentType: {
+          type: String,
+          trim: true,
+          default: "audio/mpeg",
+        },
+        contentHash: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        eventNameContentHash: {
           type: String,
           trim: true,
           default: "",
@@ -2404,6 +2487,7 @@ UserSchema.index({ includeCalls: 1, callsType: 1 });
 UserSchema.index({ "ivrConfig.introAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.composedIntroAudio.publicToken": 1 });
+UserSchema.index({ "ivrConfig.composedInboundAudio.publicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

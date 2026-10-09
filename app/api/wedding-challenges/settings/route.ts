@@ -21,6 +21,7 @@ import {
 } from "@/lib/weddingChallenges/constants";
 import { coupleNamesFromTitle } from "@/lib/weddingChallenges/sms";
 import { linkEntitlementToEvent } from "@/lib/weddingChallenges/purchase";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -136,19 +137,19 @@ export async function PUT(req: Request) {
   const eventDate = String(body?.eventDate || "").trim();
   if (coupleNames || eventDate) {
     const eventSet: Record<string, string> = {};
-    const invitationSet: Record<string, string> = {};
-    if (coupleNames) {
-      eventSet.title = coupleNames;
-      invitationSet.title = coupleNames;
+    if (coupleNames) eventSet.title = coupleNames;
+    if (eventDate) eventSet.date = eventDate;
+    if (Object.keys(eventSet).length) {
+      await Event.updateOne({ _id: eventId }, { $set: eventSet });
     }
-    if (eventDate) {
-      eventSet.date = eventDate;
-      invitationSet.eventDate = eventDate;
-    }
-    await Promise.all([
-      Event.updateOne({ _id: eventId }, { $set: eventSet }),
-      Invitation.updateOne({ eventId }, { $set: invitationSet }),
-    ]);
+    await persistSharedIdentityMirror({
+      source: "event",
+      eventId,
+      incoming: {
+        title: coupleNames,
+        date: eventDate,
+      },
+    });
   }
 
   const giveawayPurchased = userHasWeddingChallengesGiveawayEntitlement(context.owner);

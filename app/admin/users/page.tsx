@@ -10,6 +10,7 @@ import CallsTypeField from "@/app/components/admin/CallsTypeField";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
+import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
 import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
@@ -2810,6 +2811,7 @@ function AdminMessageRoundsPanel({
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [showWhatsappRoundReport, setShowWhatsappRoundReport] = useState(false);
   const [showSmsRoundReport, setShowSmsRoundReport] = useState(false);
+  const [showIvrCallReport, setShowIvrCallReport] = useState(false);
 
   const rounds = normalizeAdminMessageRounds(user);
 
@@ -2974,6 +2976,34 @@ function AdminMessageRoundsPanel({
             "
           >
             📊 דוח SMS לסבבים
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowIvrCallReport(true)}
+            className="
+              inline-flex
+              w-fit
+              items-center
+              justify-center
+              gap-2
+              rounded-full
+              border
+              border-[#D9B46F]/60
+              bg-[#FFFDF8]
+              px-5
+              py-2.5
+              text-sm
+              font-black
+              text-[#6B451E]
+              shadow-sm
+              transition
+              hover:-translate-y-0.5
+              hover:bg-[#FFF8E6]
+              hover:shadow-md
+            "
+          >
+            📊 דוח שיחות IVR
           </button>
         </div>
       </div>
@@ -3181,6 +3211,14 @@ function AdminMessageRoundsPanel({
           invitationId={user.invitationId}
           clientName={user.name || user.email || "לקוח"}
           onClose={() => setShowSmsRoundReport(false)}
+        />
+      )}
+
+      {showIvrCallReport && (
+        <IvrCallsReportModal
+          userId={user._id}
+          clientName={user.name || user.email || "לקוח"}
+          onClose={() => setShowIvrCallReport(false)}
         />
       )}
     </section>

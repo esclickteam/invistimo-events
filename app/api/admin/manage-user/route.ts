@@ -183,10 +183,11 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAdmin(req);
     if (!auth) {
-      return NextResponse.json(
-        { success: false, error: "אין הרשאה" },
-        { status: 403 }
-      );
+      return NextResponse.json({
+        success: true,
+        isManaging: false,
+        managedUser: null,
+      });
     }
 
     const managedId = cleanString(auth.adminManagingUserId);

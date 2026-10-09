@@ -143,35 +143,6 @@ function eventNavCustom(settings: {
   };
 }
 
-function getInvitationTitle(invitation: any, event: any) {
-  return (
-    cleanString(invitation?.title) ||
-    cleanString(event?.title) ||
-    cleanString(invitation?.eventName) ||
-    cleanString(event?.eventName) ||
-    "האירוע"
-  );
-}
-
-function getEventDate(invitation: any, event: any) {
-  return (
-    invitation?.eventDate ||
-    invitation?.date ||
-    event?.eventDate ||
-    event?.date ||
-    ""
-  );
-}
-
-function getEventTime(invitation: any, event: any) {
-  return (
-    cleanString(invitation?.eventTime) ||
-    cleanString(invitation?.time) ||
-    cleanString(event?.eventTime) ||
-    cleanString(event?.time)
-  );
-}
-
 function getPublicEventPage(invitation: any) {
   return invitation?.publicEventPage || {};
 }
@@ -359,13 +330,27 @@ export async function generateMetadata({
     await dbConnect();
 
     const invitation = await Invitation.findOne({ shareId })
-      .select("title eventType eventDate eventTime")
+      .select("title eventType eventDate eventTime eventId event event_id")
       .lean();
 
-    const title = invitation
-      ? `פרטי האירוע - ${
-          cleanString((invitation as any)?.title) || "Invistimo"
-        }`
+    let event: any = null;
+    const eventId =
+      (invitation as any)?.eventId ||
+      (invitation as any)?.event ||
+      (invitation as any)?.event_id;
+    if (eventId) {
+      try {
+        event = await Event.findById(eventId).select("title eventType date time").lean();
+      } catch {
+        event = null;
+      }
+    }
+
+    const realTitle = invitation
+      ? resolveCentralEventDetails(event, invitation).title
+      : "";
+    const title = realTitle
+      ? `פרטי האירוע - ${realTitle}`
       : "פרטי האירוע";
 
     return {
@@ -492,11 +477,10 @@ export default async function PublicEventInfoPage({
     );
   }
 
-  const title = getInvitationTitle(invitation, event);
-
-  const eventDate = getEventDate(invitation, event);
-  const eventTime = getEventTime(invitation, event);
-
+  const central = resolveCentralEventDetails(event, invitation);
+  const title = central.title || "האירוע";
+  const eventDate = central.date;
+  const eventTime = central.time;
   const dateLabel = formatHebrewDate(eventDate);
 
   const navigationSettings = getNavigationSettings(publicEventPage);

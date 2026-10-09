@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import IvrCallReportPanel from "./IvrCallReportPanel";
 
 type PackSegment = {
   key: string;
@@ -72,7 +71,6 @@ export default function AdminIvrNarrationPage() {
   const [heard, setHeard] = useState<Record<string, Record<string, boolean>>>(
     {}
   );
-  const [tab, setTab] = useState<"narration" | "report">("narration");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -346,46 +344,10 @@ export default function AdminIvrNarrationPage() {
     }
   }
 
-  const tabBar = (
-    <div className="mb-4 flex gap-2">
-      <button
-        type="button"
-        onClick={() => setTab("narration")}
-        className={`rounded-xl px-4 py-2 text-sm font-black ${
-          tab === "narration"
-            ? "bg-[#241A14] text-white"
-            : "border border-[var(--admin-border)] bg-white text-[#3A2A1C]"
-        }`}
-      >
-        הגדרות קריינות
-      </button>
-      <button
-        type="button"
-        onClick={() => setTab("report")}
-        className={`rounded-xl px-4 py-2 text-sm font-black ${
-          tab === "report"
-            ? "bg-[#241A14] text-white"
-            : "border border-[var(--admin-border)] bg-white text-[#3A2A1C]"
-        }`}
-      >
-        דוח שיחות
-      </button>
-    </div>
-  );
-
-  if (tab === "report") {
-    return (
-      <div dir="rtl" className="space-y-4">
-        {tabBar}
-        <IvrCallReportPanel />
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div dir="rtl" className="space-y-4">
-        {tabBar}
+        <h1 className="text-2xl font-black text-[#241A14]">הגדרות קריינות</h1>
         <div className="text-sm font-bold text-slate-500">
           טוען הגדרות קריינות...
         </div>
@@ -401,7 +363,7 @@ export default function AdminIvrNarrationPage() {
 
   return (
     <div dir="rtl" className="space-y-4">
-      {tabBar}
+      <h1 className="text-2xl font-black text-[#241A14]">הגדרות קריינות</h1>
       <div className="rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white p-3 shadow-[var(--admin-shadow)]">
         <p className="max-w-3xl text-xs font-medium leading-6 text-[var(--admin-muted)]">
           קול נשי = Dana בלבד. קול גברי = בחירה חד־פעמית אחרי בדיקת שמיעה בעברית.

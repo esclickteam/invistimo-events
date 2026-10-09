@@ -10,11 +10,16 @@ import {
   getAppBaseUrl,
   resolveIvrPublicAudioUrl,
 } from "@/lib/calls/ivrAudioStorage";
+import { resolveApprovedNarrationUrl } from "@/lib/calls/ivrDialer";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
-import { getGlobalPackSegmentUrl } from "@/lib/calls/ivrSystemAudio";
+import {
+  getGlobalPackSegmentUrl,
+  warmIvrChoiceFollowUps,
+} from "@/lib/calls/ivrSystemAudio";
 import {
   answerIvrCall,
+  gatherIvrUsingAudio,
   hangupIvrCall,
   normalizePhoneForTelnyx,
   playbackIvrAudio,
@@ -202,10 +207,11 @@ export async function tryStartInboundIvr(params: {
 
   const { candidate, disambiguation } = resolved;
   const owner = await User.findById(candidate.userId)
-    .select("ivrConfig")
+    .select("ivrConfig callsType includeCalls")
     .lean();
   const ownerCfg = (owner as { ivrConfig?: any } | null)?.ivrConfig || {};
   const voiceGender = normalizeIvrVoiceGender(ownerCfg.voiceGender) || "female";
+  const sharedNarrationUrl = resolveApprovedNarrationUrl(owner);
   const eventNameAudioUrl =
     ownerCfg.eventNameAudio?.status === "ready"
       ? resolveIvrPublicAudioUrl({
@@ -224,6 +230,7 @@ export async function tryStartInboundIvr(params: {
     eventName: candidate.eventName,
     voiceGender,
     eventNameAudioUrl,
+    introAudioUrl: sharedNarrationUrl,
     status: "initiated",
     flowStep: "playing_intro_before",
     answered: false,
@@ -265,26 +272,53 @@ export async function tryStartInboundIvr(params: {
     stage: "inbound_start",
   };
 
+  void warmIvrChoiceFollowUps(voiceGender);
+
   await answerIvrCall(callControlId, {
     webhookUrl,
     clientState,
   });
 
-  const beforeUrl = await getGlobalPackSegmentUrl(
-    voiceGender,
-    "inboundBeforeEventName"
-  );
-  if (beforeUrl) {
-    await playbackIvrAudio(callControlId, beforeUrl, {
-      source: "invistimo-ivr",
-      inbound_ivr: true,
-      callAttemptId: String(attempt._id),
-      stage: eventNameAudioUrl ? "inbound_play_event_name" : "inbound_play_after",
-      voiceGender,
+  if (sharedNarrationUrl) {
+    await gatherIvrUsingAudio({
+      callControlId,
+      audioUrl: sharedNarrationUrl,
+      minimumDigits: 1,
+      maximumDigits: 1,
+      validDigits: "123",
+      timeoutMillis: 45000,
+      clientState: {
+        source: "invistimo-ivr",
+        inbound_ivr: true,
+        callAttemptId: String(attempt._id),
+        stage: "choice",
+        voiceGender,
+      },
     });
-  } else {
-    attempt.flowStep = "playing_intro";
+    attempt.flowStep = "gather_choice";
+    attempt.introAudioUrl = sharedNarrationUrl;
     await attempt.save();
+  } else {
+    // The approved file is missing. Do not synthesize or stitch during the call.
+    attempt.error = "AUDIO_NOT_READY";
+    attempt.flowStep = "playing_system";
+    attempt.rsvpApplied = false;
+    await attempt.save();
+    const noticeUrl = await getGlobalPackSegmentUrl(
+      voiceGender,
+      "introBeforeEventName"
+    );
+    if (noticeUrl) {
+      await playbackIvrAudio(callControlId, noticeUrl, {
+        source: "invistimo-ivr",
+        inbound_ivr: true,
+        callAttemptId: String(attempt._id),
+        stage: "hangup_after_system",
+        voiceGender,
+      });
+    } else {
+      await hangupIvrCall(callControlId);
+    }
   }
 
   console.log("INBOUND_IVR_CLAIMED", {

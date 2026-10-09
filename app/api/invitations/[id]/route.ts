@@ -17,6 +17,7 @@ import {
   normalizeCentralGifts,
   validateCentralGifts,
 } from "@/lib/eventDetails/centralEventDetails";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 
@@ -1055,99 +1056,6 @@ export async function PUT(
       }
     );
 
-    const eventIdToSync = getExistingEventId(invitationBeforeUpdate, body);
-    if (eventIdToSync) {
-      const eventSet: Record<string, unknown> = {
-        updatedAt: new Date(),
-      };
-
-      if (updatePayload.title) eventSet.title = updatePayload.title;
-      if (updatePayload.eventType) eventSet.eventType = updatePayload.eventType;
-      if (updatePayload.eventDate) eventSet.date = updatePayload.eventDate;
-      if (updatePayload.eventTime) eventSet.time = updatePayload.eventTime;
-      if (updatePayload.hostsNames !== undefined) {
-        eventSet.hostsNames = updatePayload.hostsNames;
-      }
-      if (updatePayload.receptionTime !== undefined) {
-        eventSet.receptionTime = updatePayload.receptionTime;
-      }
-      if (updatePayload.ceremonyTime !== undefined) {
-        eventSet.ceremonyTime = updatePayload.ceremonyTime;
-      }
-      if (updatePayload.guestNote !== undefined) {
-        eventSet.guestNote = updatePayload.guestNote;
-      }
-      if (updatePayload.city !== undefined) {
-        eventSet.city = updatePayload.city;
-      }
-      if (updatePayload.googleMapsUrl !== undefined) {
-        eventSet.googleMapsUrl = updatePayload.googleMapsUrl;
-      }
-      if (updatePayload.parkingNotes !== undefined) {
-        eventSet.parkingNotes = updatePayload.parkingNotes;
-      }
-
-      if (updatePayload.location) {
-        eventSet["location.name"] = updatePayload.location.name || "";
-        eventSet["location.address"] = updatePayload.location.address || "";
-        eventSet["location.lat"] = updatePayload.location.lat ?? null;
-        eventSet["location.lng"] = updatePayload.location.lng ?? null;
-        eventSet["location.placeId"] = updatePayload.location.placeId || "";
-        eventSet["location.placeName"] = updatePayload.location.placeName || "";
-        eventSet["location.formattedAddress"] =
-          updatePayload.location.formattedAddress || "";
-        eventSet["location.wazeLat"] = updatePayload.location.wazeLat ?? null;
-        eventSet["location.wazeLng"] = updatePayload.location.wazeLng ?? null;
-        eventSet["location.wazeUrl"] = updatePayload.location.wazeUrl || "";
-      }
-
-      if (centralGifts) {
-        eventSet.gifts = centralGifts;
-        eventSet.giftCreditUrl = centralGifts.creditEnabled
-          ? centralGifts.creditUrl
-          : "";
-      }
-
-      if (Object.keys(eventSet).length > 1) {
-        await Event.updateOne(
-          { _id: new mongoose.Types.ObjectId(eventIdToSync) },
-          { $set: eventSet }
-        );
-      }
-
-      try {
-        const auth = await getUserIdFromRequest(request);
-        if (
-          auth?.role === "admin" &&
-          auth.adminManagingUserId &&
-          !auth.impersonated
-        ) {
-          await writeAdminAuditLog({
-            adminUserId: String(auth.userId),
-            managedUserId: String(auth.adminManagingUserId),
-            eventId: eventIdToSync,
-            invitationId: String(invitationBeforeUpdate._id),
-            action: "event_details_update",
-            summary: "אדמין עדכן פרטי אירוע בחשבון של לקוח",
-            after: {
-              title: updatePayload.title,
-              eventTime: updatePayload.eventTime,
-              ceremonyTime: updatePayload.ceremonyTime,
-              gifts: centralGifts
-                ? {
-                    creditEnabled: centralGifts.creditEnabled,
-                    payboxEnabled: centralGifts.payboxEnabled,
-                    bitEnabled: centralGifts.bitEnabled,
-                  }
-                : undefined,
-            },
-          });
-        }
-      } catch (auditErr) {
-        console.error("admin audit (event details) failed:", auditErr);
-      }
-    }
-
     if (updatePayload.location) {
       // Keep the wedding-website copy of the pin in sync so guests on /w
       // do not keep navigating to the previous venue.
@@ -1203,6 +1111,63 @@ export async function PUT(
         { success: false, error: "Invitation not found after update" },
         { status: 404 }
       );
+    }
+
+    const eventIdToSync = getExistingEventId(invitationAfterBasicUpdate, body);
+    if (eventIdToSync) {
+      await persistSharedIdentityMirror({
+        source: "invitation",
+        invitationId: String(invitationAfterBasicUpdate._id),
+        eventId: eventIdToSync,
+        incoming: {
+          title: cleanString((invitationAfterBasicUpdate as any).title),
+          eventType: cleanString((invitationAfterBasicUpdate as any).eventType),
+          date: normalizeEventDate(
+            (invitationAfterBasicUpdate as any).eventDate ||
+              (invitationAfterBasicUpdate as any).date
+          ),
+          time: cleanString((invitationAfterBasicUpdate as any).eventTime),
+          location: (invitationAfterBasicUpdate as any).location || null,
+          hostsNames: (invitationAfterBasicUpdate as any).hostsNames,
+          city: (invitationAfterBasicUpdate as any).city,
+          googleMapsUrl: (invitationAfterBasicUpdate as any).googleMapsUrl,
+          gifts: centralGifts,
+        },
+      });
+
+      try {
+        const auth = await getUserIdFromRequest(request);
+        if (
+          auth?.role === "admin" &&
+          auth.adminManagingUserId &&
+          !auth.impersonated
+        ) {
+          await writeAdminAuditLog({
+            adminUserId: String(auth.userId),
+            managedUserId: String(auth.adminManagingUserId),
+            eventId: eventIdToSync,
+            invitationId: String(invitationBeforeUpdate._id),
+            action: "event_details_update",
+            summary: "אדמין עדכן פרטי אירוע בחשבון של לקוח",
+            after: {
+              title: cleanString((invitationAfterBasicUpdate as any).title),
+              eventTime: cleanString((invitationAfterBasicUpdate as any).eventTime),
+              ceremonyTime: cleanString(
+                (invitationAfterBasicUpdate as any).ceremonyTime
+              ),
+              gifts: centralGifts
+                ? {
+                    creditEnabled: centralGifts.creditEnabled,
+                    payboxEnabled: centralGifts.payboxEnabled,
+                    bitEnabled: centralGifts.bitEnabled,
+                  }
+                : undefined,
+            },
+          });
+        }
+      } catch (auditErr) {
+        console.error("admin audit (event details) failed:", auditErr);
+      }
     }
 
     let event: any = null;

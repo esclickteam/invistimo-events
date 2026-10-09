@@ -32,7 +32,10 @@ import {
   resolveIvrPublicAudioUrl,
   uploadIvrAudioToR2,
 } from "@/lib/calls/ivrAudioStorage";
-import { ensureGlobalVoicePack } from "@/lib/calls/ivrSystemAudio";
+import {
+  ensureGlobalVoicePack,
+  warmIvrChoiceFollowUps,
+} from "@/lib/calls/ivrSystemAudio";
 import {
   assertApprovedPackForGender,
   getIvrSystemVoiceChoices,
@@ -121,9 +124,8 @@ function serializePreviewUrls(input: {
   const playlist = composed
     ? [composed]
     : [before, eventName, after].filter(Boolean);
-  const inboundPlaylist = [inboundBefore, eventName, inboundAfter].filter(
-    Boolean
-  );
+  // Inbound uses the same approved file. Do not preview a second script.
+  const inboundPlaylist = composed ? [composed] : [];
 
   return {
     introBeforeEventNameUrl: before,
@@ -500,6 +502,7 @@ export async function PATCH(req: NextRequest) {
       }
       await user.save();
       const gender = resolveConfigGender(user.ivrConfig);
+      void warmIvrChoiceFollowUps(gender || "female");
       const pack = await loadPackSafe(gender);
       return NextResponse.json({
         ok: true,
@@ -865,6 +868,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const composedInboundAudio = normalizeIvrAudioSubdoc(
+      user.ivrConfig?.composedInboundAudio || cfg.composedInboundAudio
+    );
+
     const keepApproval =
       reusedEventName &&
       reusedCompose &&
@@ -891,6 +898,7 @@ export async function POST(req: NextRequest) {
           ? composedIntroAudio?.approvedAt || null
           : null,
       },
+      composedInboundAudio,
       introAudio: cfg.introAudio,
       recordingApproval: keepApproval
         ? user.ivrConfig?.recordingApproval
@@ -907,6 +915,7 @@ export async function POST(req: NextRequest) {
     });
 
     await user.save();
+    void warmIvrChoiceFollowUps(voiceGender);
 
     const previewAudio = serializePreviewUrls({
       gender: voiceGender,

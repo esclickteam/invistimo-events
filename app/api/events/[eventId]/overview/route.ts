@@ -12,6 +12,7 @@ import {
   prepareEventLocation,
   type EventLocationWarning,
 } from "@/lib/eventLocation";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 /* =========================================================
    Helpers
@@ -511,6 +512,19 @@ export async function PATCH(
       location: event.location,
       budgetTotal,
       estimatedGuests: normalizedEstimatedGuests,
+    });
+
+    await persistSharedIdentityMirror({
+      source: "event",
+      eventId: String(event._id),
+      event,
+      incoming: {
+        title: event.title,
+        eventType: (event as any).eventType,
+        date: event.date,
+        time: event.time,
+        location: event.location || null,
+      },
     });
 
     return NextResponse.json({

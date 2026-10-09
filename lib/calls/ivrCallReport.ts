@@ -3,6 +3,7 @@
  * fields only. Unanswered calls are never labeled as answered-and-hung-up.
  */
 
+import { explainIvrCallFailure } from "@/lib/calls/ivrDialFailure";
 import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 
 export const IVR_REPORT_TIMEZONE = "Asia/Jerusalem";
@@ -113,6 +114,55 @@ export function rsvpResultLabel(result: unknown, applied: unknown) {
   return "אין תשובה";
 }
 
+/**
+ * RSVP shown for one stored dial attempt.
+ * Uses only the digit and result saved on that attempt. A later change to the
+ * guest record must not replace this history.
+ */
+export function ivrStoredRsvpLabel(attempt: IvrAttemptFacts) {
+  const choice = clean(attempt.choiceDigit);
+  const applied = attempt.rsvpApplied === true;
+  const result = clean(attempt.rsvpResult);
+  if (choice === "2") return "לא מגיע";
+  if (choice === "3") return "מתלבט";
+  if (applied && result === "yes") return "אישר הגעה";
+  if (applied && result === "no") return "לא מגיע";
+  if (applied && result === "maybe") return "מתלבט";
+  if (choice === "1") return "אין תשובה סופית";
+  if (attempt.answered === true && hasEnded(attempt)) return "אין תשובה סופית";
+  return "אין תשובה";
+}
+
+export function ivrChoiceDigitLabel(attempt: IvrAttemptFacts) {
+  const choice = clean(attempt.choiceDigit);
+  return choice === "1" || choice === "2" || choice === "3" ? choice : "";
+}
+
+export function ivrAnsweredLabel(attempt: IvrAttemptFacts) {
+  return attempt.answered === true ? "כן" : "לא";
+}
+
+export function ivrDialAttemptNumber(attempt: { retryCount?: number | null }) {
+  const retry = Number(attempt.retryCount || 0);
+  return Number.isFinite(retry) && retry > 0 ? retry + 1 : 1;
+}
+
+export function ivrFailureReason(attempt: IvrAttemptFacts) {
+  const error = String(attempt.error || "").trim();
+  const cause = String(attempt.hangupCause || "").trim();
+  const explained = error ? explainIvrCallFailure(error) : "";
+  if (explained && explained !== "החיוג נכשל") {
+    const withCause =
+      cause && !explained.includes(cause) ? `${explained} · ${cause}` : explained;
+    return redactIvrReportText(withCause);
+  }
+  if (clean(attempt.status) === "failed" && cause) {
+    return redactIvrReportText(explainIvrCallFailure(cause));
+  }
+  if (error) return redactIvrReportText(explained || error);
+  return "";
+}
+
 export function classifyIvrAttempt(attempt: IvrAttemptFacts): {
   callStatus: IvrReportCallStatus;
   label: string;
@@ -221,6 +271,81 @@ export function ivrAttemptTimings(attempt: IvrAttemptFacts) {
       attempt.rsvpAppliedAt
     ),
     callDurationMs,
+  };
+}
+
+export type UserIvrSummaryInput = {
+  attempts: number;
+  uniqueGuests: number;
+  answered: number;
+  noAnswer: number;
+  busy: number;
+  voicemail?: number;
+  failed: number;
+  answeredNoResponse: number;
+  partial: number;
+  answeredHangup?: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  answerRate: number | null;
+  avgCallMs: number | null;
+};
+
+function formatAnswerRate(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return "לא זמין";
+  return `${Math.round(value * 1000) / 10}%`;
+}
+
+/** Shown next to the answer-rate figure: answered dial attempts / dial attempts made. */
+export const IVR_ANSWER_RATE_DEFINITION =
+  "שיעור המענה מחושב לפי שיחות שנענו מתוך ניסיונות החיוג שבוצעו";
+
+/**
+ * Status printed on a round card. A round with no stored calls stays visible as
+ * scheduled or not-yet-run. Calls are never used to invent which round they belong to.
+ */
+export function ivrRoundExecutionLabel(status: string, attempts: number) {
+  if (status === "failed") return "נכשל";
+  if (status === "cancelled") return "בוטל";
+  if (status === "in_progress" || status === "opened") return "בביצוע";
+  if (status === "done" || status === "completed") return "בוצע";
+  if (attempts > 0) return "בוצע";
+  if (
+    status === "scheduled" ||
+    status === "waiting_for_assignment" ||
+    status === "waiting_for_previous_round"
+  ) {
+    return "מתוזמן";
+  }
+  return "טרם בוצע";
+}
+
+/** Summary cards for the per-customer IVR report. Unanswered never includes an answered hangup. */
+export function shapeUserIvrSummary(stats: UserIvrSummaryInput) {
+  const unanswered =
+    Number(stats.noAnswer || 0) +
+    Number(stats.busy || 0) +
+    Number(stats.voicemail || 0);
+  const noFinalAnswer =
+    Number(stats.answeredNoResponse || 0) +
+    Number(stats.partial || 0) +
+    Number(stats.answeredHangup || 0);
+  return {
+    dialAttempts: Number(stats.attempts || 0),
+    uniqueGuests: Number(stats.uniqueGuests || 0),
+    answered: Number(stats.answered || 0),
+    unanswered,
+    failed: Number(stats.failed || 0),
+    hungUpWithoutChoice: Number(stats.answeredNoResponse || 0),
+    yes: Number(stats.yes || 0),
+    no: Number(stats.no || 0),
+    maybe: Number(stats.maybe || 0),
+    noFinalAnswer,
+    answerRate: stats.answerRate,
+    avgCallMs: stats.avgCallMs,
+    answerRateLabel: formatAnswerRate(stats.answerRate),
+    avgCallLabel: formatIvrDuration(stats.avgCallMs),
   };
 }
 

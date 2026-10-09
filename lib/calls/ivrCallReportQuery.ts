@@ -7,11 +7,18 @@ import {
   classifyIvrAttempt,
   formatIvrDuration,
   formatIvrIsraelDateTime,
+  ivrAnsweredLabel,
   ivrAttemptTimings,
   ivrAudioModeLabel,
+  ivrChoiceDigitLabel,
+  ivrDialAttemptNumber,
   ivrDirectionLabel,
+  ivrFailureReason,
+  ivrRoundExecutionLabel,
+  ivrStoredRsvpLabel,
   parseIvrReportDayRange,
   redactIvrReportText,
+  shapeUserIvrSummary,
   type IvrAttemptFacts,
 } from "@/lib/calls/ivrCallReport";
 
@@ -107,17 +114,58 @@ export function ivrReportStatusMatch(callStatus: string) {
   }
 }
 
-async function guestIdsForSearch(q: string) {
-  const guests = await InvitationGuest.find({
+export type IvrReportFilterOptions = {
+  /** When set, guest-name search cannot match guests of other events. */
+  guestInvitationIds?: mongoose.Types.ObjectId[];
+  /** Match RSVP filters to the digit stored on the attempt. */
+  rsvpFromStoredDigit?: boolean;
+};
+
+async function guestIdsForSearch(
+  q: string,
+  invitationIds?: mongoose.Types.ObjectId[]
+) {
+  const filter: Record<string, unknown> = {
     name: new RegExp(escapeRegex(q), "i"),
-  })
+  };
+  if (invitationIds) {
+    if (!invitationIds.length) return [];
+    filter.invitationId = { $in: invitationIds };
+  }
+  const guests = await InvitationGuest.find(filter)
     .select("_id")
     .limit(300)
     .lean();
   return guests.map((guest) => guest._id);
 }
 
-export async function buildIvrReportFilter(query: IvrReportQuery) {
+function storedDigitRsvpMatch(rsvp: string) {
+  if (rsvp === "yes") {
+    return { rsvpApplied: true, rsvpResult: "yes" };
+  }
+  if (rsvp === "no") {
+    return {
+      $or: [{ rsvpApplied: true, rsvpResult: "no" }, { choiceDigit: "2" }],
+    };
+  }
+  if (rsvp === "maybe") {
+    return {
+      $or: [{ rsvpApplied: true, rsvpResult: "maybe" }, { choiceDigit: "3" }],
+    };
+  }
+  if (rsvp === "none") {
+    return {
+      rsvpApplied: { $ne: true },
+      choiceDigit: { $nin: ["2", "3"] },
+    };
+  }
+  return null;
+}
+
+export async function buildIvrReportFilter(
+  query: IvrReportQuery,
+  options: IvrReportFilterOptions = {}
+) {
   const and: Record<string, unknown>[] = [];
   const invitationId = oid(query.invitationId);
   const userId = oid(query.userId);
@@ -126,8 +174,10 @@ export async function buildIvrReportFilter(query: IvrReportQuery) {
   if (invitationId) and.push({ invitationId });
   if (userId) and.push({ userId });
 
-  const round = Number(query.round);
-  if (query.round) {
+  if (query.round === "unassigned") {
+    and.push({ round: { $nin: [1, 2, 3] } });
+  } else if (query.round) {
+    const round = Number(query.round);
     if (![1, 2, 3].includes(round)) return { empty: true as const, filter: {} };
     and.push({ round });
   }
@@ -161,10 +211,20 @@ export async function buildIvrReportFilter(query: IvrReportQuery) {
     });
   }
 
-  if (query.rsvp === "yes" || query.rsvp === "no" || query.rsvp === "maybe") {
-    and.push({ rsvpApplied: true, rsvpResult: query.rsvp });
-  } else if (query.rsvp === "none") {
-    and.push({ rsvpApplied: { $ne: true } });
+  if (query.rsvp) {
+    const stored = options.rsvpFromStoredDigit
+      ? storedDigitRsvpMatch(query.rsvp)
+      : null;
+    if (options.rsvpFromStoredDigit) {
+      if (!stored) return { empty: true as const, filter: {} };
+      and.push(stored);
+    } else if (query.rsvp === "yes" || query.rsvp === "no" || query.rsvp === "maybe") {
+      and.push({ rsvpApplied: true, rsvpResult: query.rsvp });
+    } else if (query.rsvp === "none") {
+      and.push({ rsvpApplied: { $ne: true } });
+    } else {
+      return { empty: true as const, filter: {} };
+    }
   }
 
   if (query.outcome === "completed") {
@@ -221,7 +281,7 @@ export async function buildIvrReportFilter(query: IvrReportQuery) {
     if (digits.length >= 3) {
       or.push({ phone: new RegExp(escapeRegex(digits)) });
     }
-    const guestIds = await guestIdsForSearch(q);
+    const guestIds = await guestIdsForSearch(q, options.guestInvitationIds);
     if (guestIds.length) or.push({ guestId: { $in: guestIds } });
     if (!or.length) return { empty: true as const, filter: {} };
     and.push({ $or: or });
@@ -266,6 +326,11 @@ export function shapeIvrReportRow(
     callStatus: classified.callStatus,
     callStatusLabel: classified.label,
     rsvpLabel: classified.rsvpLabel,
+    storedRsvpLabel: ivrStoredRsvpLabel(facts),
+    answeredLabel: ivrAnsweredLabel(facts),
+    choiceDigitLabel: ivrChoiceDigitLabel(facts),
+    attemptNumber: ivrDialAttemptNumber(row),
+    failureReason: ivrFailureReason(facts),
     invitedCount: names.invitedCount,
     attendingCount: attending,
     callDurationLabel: formatIvrDuration(timings.callDurationMs),
@@ -358,8 +423,10 @@ function emptyStats() {
     noAnswer: 0,
     busy: 0,
     failed: 0,
+    voicemail: 0,
     answeredNoResponse: 0,
     partial: 0,
+    answeredHangup: 0,
     yes: 0,
     no: 0,
     maybe: 0,
@@ -422,6 +489,9 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
         failed: {
           $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] },
         },
+        voicemail: {
+          $sum: { $cond: [{ $eq: ["$status", "voicemail"] }, 1, 0] },
+        },
         answeredNoResponse: {
           $sum: {
             $cond: [
@@ -453,6 +523,24 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
                       { $gt: ["$guestCountDigits", ""] },
                     ],
                   },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+        answeredHangup: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$answered", true] },
+                  { $ne: ["$rsvpApplied", true] },
+                  { $ne: ["$endedAt", null] },
+                  { $ne: ["$choiceDigit", ""] },
+                  { $ne: ["$choiceDigit", "1"] },
+                  { $ne: ["$choiceDigit", null] },
                 ],
               },
               1,
@@ -605,8 +693,10 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
     noAnswer: Number(row.noAnswer || 0),
     busy: Number(row.busy || 0),
     failed: Number(row.failed || 0),
+    voicemail: Number(row.voicemail || 0),
     answeredNoResponse: Number(row.answeredNoResponse || 0),
     partial: Number(row.partial || 0),
+    answeredHangup: Number(row.answeredHangup || 0),
     yes: Number(row.yes || 0),
     no: Number(row.no || 0),
     maybe: Number(row.maybe || 0),
@@ -841,4 +931,307 @@ export async function summarizeIvrRounds(invitationId: string) {
           : "לא זמין",
     };
   });
+}
+
+export type UserIvrEventOption = { id: string; name: string };
+
+async function ownedInvitations(userId: string) {
+  const id = oid(userId);
+  if (!id) return null;
+  const invitations = await Invitation.find({ ownerId: id })
+    .select("_id title")
+    .lean();
+  const events: UserIvrEventOption[] = invitations
+    .map((item: any) => ({
+      id: String(item._id),
+      name: String(item.title || "אירוע"),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  return {
+    userId: id,
+    invitationIds: invitations.map((item: any) => item._id as mongoose.Types.ObjectId),
+    events,
+  };
+}
+
+/**
+ * Report filter locked to one customer and that customer's events.
+ * A query string cannot widen the scope to another user.
+ */
+export async function buildUserIvrReportFilter(
+  userId: string,
+  query: IvrReportQuery
+) {
+  const owned = await ownedInvitations(userId);
+  if (!owned) {
+    return {
+      empty: true as const,
+      filter: {},
+      events: [] as UserIvrEventOption[],
+    };
+  }
+  if (query.invitationId) {
+    const requested = oid(query.invitationId);
+    const allowed =
+      requested &&
+      owned.invitationIds.some((item) => String(item) === String(requested));
+    if (!allowed) {
+      return { empty: true as const, filter: {}, events: owned.events };
+    }
+  }
+  if (!owned.invitationIds.length) {
+    return { empty: true as const, filter: {}, events: owned.events };
+  }
+
+  const built = await buildIvrReportFilter(
+    { ...query, userId: String(owned.userId) },
+    {
+      guestInvitationIds: owned.invitationIds,
+      rsvpFromStoredDigit: true,
+    }
+  );
+  if (built.empty) {
+    return { empty: true as const, filter: {}, events: owned.events };
+  }
+
+  const base =
+    built.filter && Object.keys(built.filter).length
+      ? built.filter
+      : { userId: owned.userId };
+
+  return {
+    empty: false as const,
+    filter: {
+      $and: [
+        base,
+        { userId: owned.userId },
+        { invitationId: { $in: owned.invitationIds } },
+      ],
+    },
+    events: owned.events,
+  };
+}
+
+function userReportRow(row: any, names: ReturnType<typeof namesFor>) {
+  const shaped = shapeIvrReportRow(row, names);
+  return {
+    id: shaped.id,
+    atLabel: shaped.atLabel || "לא זמין",
+    eventName: shaped.eventName,
+    guestName: shaped.guestName,
+    phone: shaped.phone,
+    round: shaped.round,
+    attemptNumber: shaped.attemptNumber,
+    callStatus: shaped.callStatus,
+    callStatusLabel: shaped.callStatusLabel,
+    answered: row.answered === true,
+    answeredLabel: shaped.answeredLabel,
+    choiceDigit: shaped.choiceDigitLabel,
+    rsvpLabel: shaped.storedRsvpLabel,
+    callDurationLabel: shaped.callDurationLabel,
+    failureReason: shaped.failureReason,
+    problem: shaped.problem,
+  };
+}
+
+export type IvrRoundCardKey = "1" | "2" | "3" | "unassigned";
+
+export type IvrRoundCard = {
+  key: IvrRoundCardKey;
+  title: string;
+  statusLabel: string;
+  intended: number;
+  dialAttempts: number;
+  answered: number;
+  unanswered: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  hungUpWithoutChoice: number;
+  failed: number;
+  noFinalAnswer: number;
+};
+
+export type IvrAllRoundsSummary = {
+  uniqueGuests: number;
+  dialAttempts: number;
+  answered: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  noFinalAnswer: number;
+};
+
+function allRoundsFrom(
+  stats: ReturnType<typeof shapeUserIvrSummary>
+): IvrAllRoundsSummary {
+  return {
+    uniqueGuests: stats.uniqueGuests,
+    dialAttempts: stats.dialAttempts,
+    answered: stats.answered,
+    yes: stats.yes,
+    no: stats.no,
+    maybe: stats.maybe,
+    noFinalAnswer: stats.noFinalAnswer,
+  };
+}
+
+function roundCardFrom(
+  key: IvrRoundCardKey,
+  title: string,
+  statusLabel: string,
+  intended: number,
+  stats: ReturnType<typeof shapeUserIvrSummary>
+): IvrRoundCard {
+  return {
+    key,
+    title,
+    statusLabel,
+    intended,
+    dialAttempts: stats.dialAttempts,
+    answered: stats.answered,
+    unanswered: stats.unanswered,
+    yes: stats.yes,
+    no: stats.no,
+    maybe: stats.maybe,
+    hungUpWithoutChoice: stats.hungUpWithoutChoice,
+    failed: stats.failed,
+    noFinalAnswer: stats.noFinalAnswer,
+  };
+}
+
+function emptyRoundCards(schedule: Array<Record<string, unknown>>): {
+  allRounds: IvrAllRoundsSummary;
+  rounds: IvrRoundCard[];
+} {
+  const blank = shapeUserIvrSummary(emptyStats());
+  return {
+    allRounds: allRoundsFrom(blank),
+    rounds: [1, 2, 3].map((round) => {
+      const saved = schedule.find((item) => Number(item.roundNumber) === round);
+      return roundCardFrom(
+        String(round) as IvrRoundCardKey,
+        `סבב ${round} — שיחות אישורי הגעה`,
+        ivrRoundExecutionLabel(String(saved?.status || ""), 0),
+        typeof saved?.eligibleCount === "number" ? saved.eligibleCount : 0,
+        blank
+      );
+    }),
+  };
+}
+
+async function savedCallRounds(userId: string) {
+  const id = oid(userId);
+  if (!id) return [] as Array<Record<string, unknown>>;
+  const user = await User.findById(id).select("callRoundsSchedule.rounds").lean();
+  const rounds = (user as { callRoundsSchedule?: { rounds?: unknown } } | null)
+    ?.callRoundsSchedule?.rounds;
+  return Array.isArray(rounds) ? (rounds as Array<Record<string, unknown>>) : [];
+}
+
+/**
+ * Round cards ignore the selected round and the row filters (status, RSVP, search)
+ * so the four cards stay comparable. Event and date still scope them.
+ * The numbered round is the value stored on the attempt. Missing rounds stay
+ * visible at zero. Attempts with no stored round are a separate "ללא שיוך" card.
+ */
+export async function listUserIvrRoundCards(userId: string, query: IvrReportQuery) {
+  const schedule = await savedCallRounds(userId);
+  const built = await buildUserIvrReportFilter(userId, {
+    invitationId: query.invitationId,
+    from: query.from,
+    to: query.to,
+  });
+  if (built.empty) return emptyRoundCards(schedule);
+
+  const unassigned = { round: { $nin: [1, 2, 3] } };
+  const [all, first, second, third, loose] = await Promise.all([
+    summarizeIvrReport(built.filter),
+    summarizeIvrReport({ $and: [built.filter, { round: 1 }] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 2 }] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 3 }] }),
+    summarizeIvrReport({ $and: [built.filter, unassigned] }),
+  ]);
+  const byRound = [first, second, third];
+  const rounds = [1, 2, 3].map((round, index) => {
+    const saved = schedule.find((item) => Number(item.roundNumber) === round);
+    const stats = shapeUserIvrSummary(byRound[index]);
+    return roundCardFrom(
+      String(round) as IvrRoundCardKey,
+      `סבב ${round} — שיחות אישורי הגעה`,
+      ivrRoundExecutionLabel(String(saved?.status || ""), stats.dialAttempts),
+      typeof saved?.eligibleCount === "number" ? saved.eligibleCount : 0,
+      stats
+    );
+  });
+  const looseStats = shapeUserIvrSummary(loose);
+  if (looseStats.dialAttempts > 0) {
+    rounds.push(
+      roundCardFrom(
+        "unassigned",
+        "ללא שיוך",
+        "לא שויך לסבב בעת החיוג",
+        0,
+        looseStats
+      )
+    );
+  }
+  return { allRounds: allRoundsFrom(shapeUserIvrSummary(all)), rounds };
+}
+
+export async function listUserIvrReportPage(userId: string, query: IvrReportQuery) {
+  const [built, cards] = await Promise.all([
+    buildUserIvrReportFilter(userId, query),
+    listUserIvrRoundCards(userId, query),
+  ]);
+  const page = Math.max(1, Math.min(500, Number(query.page) || 1));
+  const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 25));
+  if (built.empty) {
+    return {
+      rows: [],
+      total: 0,
+      page,
+      pageSize,
+      stats: shapeUserIvrSummary(emptyStats()),
+      events: built.events,
+      ...cards,
+    };
+  }
+  const [total, docs, stats] = await Promise.all([
+    IvrCallAttempt.countDocuments(built.filter),
+    IvrCallAttempt.find(built.filter)
+      .select(LIST_FIELDS)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .lean(),
+    summarizeIvrReport(built.filter),
+  ]);
+  const maps = await nameMaps(docs);
+  return {
+    rows: docs.map((row) => userReportRow(row, namesFor(row, maps))),
+    total,
+    page,
+    pageSize,
+    stats: shapeUserIvrSummary(stats),
+    events: built.events,
+    ...cards,
+  };
+}
+
+export async function listUserIvrReportExport(userId: string, query: IvrReportQuery) {
+  const built = await buildUserIvrReportFilter(userId, query);
+  if (built.empty) return { rows: [], truncated: false, total: 0 };
+  const total = await IvrCallAttempt.countDocuments(built.filter);
+  const docs = await IvrCallAttempt.find(built.filter)
+    .select(LIST_FIELDS)
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(EXPORT_LIMIT)
+    .lean();
+  const maps = await nameMaps(docs);
+  return {
+    rows: docs.map((row) => userReportRow(row, namesFor(row, maps))),
+    truncated: total > EXPORT_LIMIT,
+    total,
+  };
 }

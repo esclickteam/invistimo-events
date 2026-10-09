@@ -64,6 +64,7 @@ export function normalizeRecordingApproval(raw: unknown): Record<string, unknown
 const AUDIO_KEYS = new Set([
   "eventNameAudio",
   "composedIntroAudio",
+  "composedInboundAudio",
   "introAudio",
 ]);
 
