@@ -266,6 +266,47 @@ test("playbackIvrAudio awaits clear before playback_start", () => {
   assert.match(body, /IVR_PLAYBACK_START/);
 });
 
+test("intro playback_start does not send gather_stop or playback_stop", async () => {
+  const prevKey = process.env.TELNYX_API_KEY;
+  process.env.TELNYX_API_KEY = "test-key-not-real";
+  const actions: string[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const match = url.match(/\/actions\/([^/?]+)/);
+    if (match) actions.push(match[1]);
+    return new Response(JSON.stringify({ data: { result: "ok" } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const { playbackIvrAudio, clearIvrMediaSlot } = await import(
+      "../../lib/telnyx/ivrCallControl"
+    );
+    await clearIvrMediaSlot("cc-intro", "none");
+    assert.deepEqual(actions, []);
+
+    await playbackIvrAudio("cc-intro", "https://example.com/composed-intro.mp3", {
+      stage: "intro",
+      generation: 1,
+    });
+    assert.deepEqual(actions, ["playback_start"]);
+
+    actions.length = 0;
+    await playbackIvrAudio("cc-digit", "https://example.com/ask-count.mp3", {
+      stage: "ask_count",
+      generation: 2,
+    });
+    assert.deepEqual(actions, ["gather_stop", "playback_stop", "playback_start"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (prevKey === undefined) delete process.env.TELNYX_API_KEY;
+    else process.env.TELNYX_API_KEY = prevKey;
+  }
+});
+
 test("machine and legacy cannot both drive a phased call", () => {
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const answer = webhook.slice(
