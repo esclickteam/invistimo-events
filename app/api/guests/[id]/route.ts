@@ -24,6 +24,10 @@ import {
   getTableLiveFreeSeats,
   trimGuestSeatsToCount,
 } from "@/lib/seating/liveOccupancy";
+import {
+  buildSeatReleaseAuditEntry,
+  logSeatReleaseAudit,
+} from "@/lib/seating/seatReleaseAudit";
 
 export const dynamic = "force-dynamic";
 
@@ -882,10 +886,12 @@ async function syncOrCheckActualArrivedToAllSeating({
   invitation,
   guest,
   mode,
+  actor,
 }: {
   invitation: any;
   guest: any;
   mode: "sync" | "check";
+  actor?: { userId?: string; role?: string };
 }) {
   const guestId = normalizeLiveId(guest?._id);
   if (!guestId) return null;
@@ -905,7 +911,13 @@ async function syncOrCheckActualArrivedToAllSeating({
     const gap = describeAllocatedGap(actual, allocated);
     return {
       expected,
-      ...gap,
+      allocated: gap.allocated,
+      actual: gap.actual,
+      shortage: gap.shortage,
+      surplus: gap.surplus,
+      releasableSeats: gap.surplus,
+      diff: gap.diff,
+      status: gap.status,
     };
   };
 
@@ -977,15 +989,16 @@ async function syncOrCheckActualArrivedToAllSeating({
     const surplus = Math.max(0, allocatedBefore - actual);
 
     if (surplus > 0) {
+      let released = 0;
       for (const table of tables) {
         if (!tableHasLiveGuest(table, guestId)) continue;
-        trimGuestSeatsToCount(table, guestId, actual);
+        released += trimGuestSeatsToCount(table, guestId, actual);
       }
-      return { ok: true as const };
+      return { ok: true as const, released, allocatedBefore };
     }
 
     if (shortage <= 0) {
-      return { ok: true as const };
+      return { ok: true as const, released: 0, allocatedBefore };
     }
 
     const freeIndexes = findAbsolutelyFreeSeatIndexes(currentTable, shortage);
@@ -1019,7 +1032,7 @@ async function syncOrCheckActualArrivedToAllSeating({
     }
 
     appendGuestSeats(currentTable, guestId, freeIndexes);
-    return { ok: true as const };
+    return { ok: true as const, released: 0, allocatedBefore };
   };
 
   const handleTablesArray = async (ownerDoc: any, tables: any[]) => {
@@ -1077,11 +1090,46 @@ async function syncOrCheckActualArrivedToAllSeating({
 
     await ownerDoc.save();
 
+    const allocatedAfter = countAllocatedSeats(tables, guestId);
+    const seatStatus = buildSeatStatus(allocatedAfter);
+    let releaseAudit = null;
+
+    if (syncResult.released > 0) {
+      releaseAudit = logSeatReleaseAudit(
+        buildSeatReleaseAuditEntry({
+          guestId,
+          guestName: String(guest?.name || ""),
+          eventId: String(invitation?.eventId || ""),
+          invitationId: String(invitation?._id || ""),
+          allocatedBefore: syncResult.allocatedBefore,
+          actualArrivedCount: actual,
+          released: syncResult.released,
+          allocatedAfter,
+          actorUserId: actor?.userId,
+          actorRole: actor?.role,
+          source: "syncSeatsToActual",
+        })
+      );
+
+      // Additive audit only — never touches arrivals / other guests.
+      try {
+        if (ownerDoc?._id) {
+          await SeatingTable.collection.updateOne(
+            { _id: ownerDoc._id },
+            { $push: { seatReleaseLog: releaseAudit } }
+          );
+        }
+      } catch (auditErr) {
+        console.warn("seatReleaseLog push skipped", auditErr);
+      }
+    }
+
     return {
       tables: serializeLiveTables(tables),
-      seatStatus: buildSeatStatus(countAllocatedSeats(tables, guestId)),
+      seatStatus,
       currentTable: null,
       suggestedTables: [],
+      releaseAudit,
     };
   };
 
@@ -1599,6 +1647,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
           invitation,
           guest,
           mode: shouldSyncSeatsToActual ? "sync" : "check",
+          actor: {
+            userId: String(auth?.userId || ""),
+            role: String(effectiveRole || auth?.role || ""),
+          },
         });
       } catch (seatingError) {
         console.error("actualArrived seating check failed", seatingError);
@@ -1623,6 +1675,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
         if (seatingResult?.currentTable) {
           (guest as any).__currentTable = seatingResult.currentTable;
+        }
+
+        if (seatingResult?.releaseAudit) {
+          (guest as any).__releaseAudit = seatingResult.releaseAudit;
         }
     }
 
@@ -1651,11 +1707,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       const seatStatus = (guest as any).__seatStatus || null;
       const suggestedTables = (guest as any).__suggestedTables || [];
       const currentTable = (guest as any).__currentTable || null;
+      const releaseAudit = (guest as any).__releaseAudit || null;
 
       delete (guest as any).__syncedTables;
       delete (guest as any).__seatStatus;
       delete (guest as any).__suggestedTables;
       delete (guest as any).__currentTable;
+      delete (guest as any).__releaseAudit;
 
       console.info("[invitationGuestWrite]", {
         source: "guests.put",
@@ -1673,6 +1731,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         seatStatus,
         suggestedTables,
         currentTable,
+        releaseAudit,
       });
     }
 
@@ -1712,11 +1771,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const seatStatus = (guest as any).__seatStatus || null;
     const suggestedTables = (guest as any).__suggestedTables || [];
     const currentTable = (guest as any).__currentTable || null;
+    const releaseAudit = (guest as any).__releaseAudit || null;
 
     delete (guest as any).__syncedTables;
     delete (guest as any).__seatStatus;
     delete (guest as any).__suggestedTables;
     delete (guest as any).__currentTable;
+    delete (guest as any).__releaseAudit;
 
     return NextResponse.json({
       success: true,
@@ -1725,6 +1786,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       seatStatus,
       suggestedTables,
       currentTable,
+      releaseAudit,
     });
   } catch (error: any) {
     console.error("❌ PUT /guests/[id] error:", error);

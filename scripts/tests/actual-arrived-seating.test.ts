@@ -36,13 +36,16 @@ test("check-in and the guest stepper share actualArrived seating prompts", () =>
   assert.match(page, /השולחן הנוכחי/);
   assert.match(page, /להושיב בשולחן/);
   assert.match(page, /שולחנות נוספים/);
-  assert.match(page, /שחרור \{surplus\} כיסאות\?/);
+  assert.match(page, /שחרור \$\{surplus\} כיסאות\?/);
+  assert.match(page, /שחרור \$\{surplus\} כיסאות/);
+  assert.match(page, /כיסאות שניתן לשחרר/);
+  assert.match(page, /אישרו הגעה/);
   assert.match(page, /לא עכשיו/);
   assert.match(host, /checkSeatOptionsOnly: true/);
   assert.match(host, /חסרים \{seatPrompt\.shortage\} מקומות/);
   assert.match(host, /השולחן הנוכחי/);
   assert.match(host, /להושיב בשולחן/);
-  assert.match(host, /שחרור כיסאות/);
+  assert.match(host, /שחרור \$\{seatPrompt\.surplus\} כיסאות/);
   assert.match(host, /הכניסה נרשמה/);
   assert.match(host, /syncSeatsToActual: true/);
   assert.match(host, /move-guest-table/);

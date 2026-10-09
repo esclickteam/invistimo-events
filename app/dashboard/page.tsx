@@ -3063,11 +3063,28 @@ const eventLocation = resolveEventLocation(invitation, event);
   <td className="p-4">
     {(() => {
       const actual = Number(g.actualArrivedCount || 0);
-      const allocated =
+      const expected = Math.max(
+        0,
+        Number(g.arrivedCount || 0) || Number(g.guestsCount || 0)
+      );
+      const suggestionStatus =
+        actualArrivedMoveSuggestions[String(g._id)]?.seatStatus;
+      const allocatedFromMap =
         (seatingTables || []).length > 0
           ? countAllocatedSeats(seatingTables, String(g._id))
           : null;
-      const diff = allocated == null ? 0 : actual - allocated;
+      const allocated = Math.max(
+        0,
+        Number(
+          suggestionStatus?.allocated ??
+            (allocatedFromMap == null ? 0 : allocatedFromMap)
+        )
+      );
+      const hasAllocationSignal =
+        allocatedFromMap != null || suggestionStatus?.allocated != null;
+      const surplus = Math.max(0, allocated - actual);
+      const shortage = Math.max(0, actual - allocated);
+      const diff = hasAllocationSignal ? actual - allocated : 0;
 
       return (
         <div className="flex flex-col gap-1">
@@ -3105,10 +3122,19 @@ const eventLocation = resolveEventLocation(invitation, event);
             </button>
           </div>
 
+          {hasAllocationSignal && allocated > 0 && (
+            <div className="text-[10px] font-bold leading-4 text-[#7C746C]">
+              <div>אישרו הגעה: {expected}</div>
+              <div>הגיעו בפועל: {actual}</div>
+              <div>כיסאות שהוקצו: {allocated}</div>
+              {surplus > 0 && <div>כיסאות שניתן לשחרר: {surplus}</div>}
+            </div>
+          )}
+
           {diff > 0 && (
   <div className="flex flex-col gap-1">
     <span className="text-xs font-black text-[#6B451E]">
-      הגיעו {diff} יותר · חסרים {diff} מקומות
+      הגיעו {shortage} יותר · חסרים {shortage} מקומות
     </span>
 
     <button
@@ -3143,15 +3169,11 @@ const eventLocation = resolveEventLocation(invitation, event);
   </div>
 )}
 
-{diff < 0 && (
+{surplus > 0 && actual > 0 && (
   <div className="flex flex-col gap-1">
-    <span className="text-xs font-black text-amber-700">
-      הגיעו {Math.abs(diff)} פחות מהכיסאות שהוקצו
-    </span>
-
     <button
       type="button"
-      onClick={() => forceSyncActualArrived(g._id)}
+      onClick={() => setSeatReleaseGuestId(String(g._id))}
       className="
         w-fit
         rounded-full
@@ -3166,7 +3188,7 @@ const eventLocation = resolveEventLocation(invitation, event);
         hover:bg-amber-100
       "
     >
-      שחרור כיסאות
+      {`שחרור ${surplus} כיסאות`}
     </button>
   </div>
 )}
@@ -3670,13 +3692,26 @@ const eventLocation = resolveEventLocation(invitation, event);
             guest?.actualArrivedCount ??
             0
         );
+        const expected = Math.max(
+          0,
+          Number(
+            suggestion?.seatStatus?.expected ??
+              guest?.arrivedCount ??
+              guest?.guestsCount ??
+              0
+          )
+        );
         const allocated = Number(
           suggestion?.seatStatus?.allocated ??
             countAllocatedSeats(seatingTables || [], String(seatReleaseGuestId))
         );
         const surplus = Math.max(
           0,
-          Number(suggestion?.seatStatus?.surplus ?? allocated - actual)
+          Number(
+            suggestion?.seatStatus?.releasableSeats ??
+              suggestion?.seatStatus?.surplus ??
+              allocated - actual
+          )
         );
 
         return (
@@ -3690,13 +3725,20 @@ const eventLocation = resolveEventLocation(invitation, event);
               className="w-full max-w-md rounded-[28px] border border-[#E4C987] bg-[#FFF9EF] p-6 shadow-[0_30px_90px_rgba(30,27,46,0.32)]"
             >
               <h3 className="text-xl font-black text-[#1E1B2E]">
-                הגיעו {surplus} אורחים פחות מהכמות שהוקצתה
+                שחרור כיסאות עודפים
               </h3>
-              <p className="mt-2 text-sm font-bold text-[#7C746C]">
-                {guest?.name || "מוזמן"} · הגיעו בפועל {actual} · הוקצו {allocated} כיסאות
-              </p>
+              <div className="mt-3 space-y-1 text-sm font-bold text-[#7C746C]">
+                <div>{guest?.name || "מוזמן"}</div>
+                <div>אישרו הגעה: {expected}</div>
+                <div>הגיעו בפועל: {actual}</div>
+                <div>כיסאות שהוקצו: {allocated}</div>
+                <div>כיסאות שניתן לשחרר: {surplus}</div>
+              </div>
               <p className="mt-4 text-base font-black text-[#6B451E]">
-                שחרור {surplus} כיסאות?
+                {`שחרור ${surplus} כיסאות?`}
+              </p>
+              <p className="mt-2 text-xs font-bold text-[#8A7A68]">
+                ישוחררו רק כיסאות עודפים של אורח זה. מגיעים בפועל ושיבוצי אורחים אחרים לא ישתנו.
               </p>
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                 <button
@@ -3704,7 +3746,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                   onClick={() => forceSyncActualArrived(seatReleaseGuestId)}
                   className="rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white"
                 >
-                  שחרור כיסאות
+                  {`שחרור ${surplus} כיסאות`}
                 </button>
                 <button
                   type="button"
