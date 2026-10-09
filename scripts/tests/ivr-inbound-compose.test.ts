@@ -149,23 +149,25 @@ test("stitching three clips yields one file with only the short internal pause",
   }
 });
 
-test("live inbound prefers one gather and outbound playback is unchanged", () => {
+test("inbound and outbound play the same approved file and do not stitch on the call", () => {
   const start = readSrc("lib/calls/ivrInboundStart.ts");
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const dialer = readSrc("lib/calls/ivrDialer.ts");
+  const config = readSrc("app/api/ivr/config/route.ts");
   assert.match(start, /gatherIvrUsingAudio/);
-  assert.match(start, /composedInboundPlaybackUrl/);
+  assert.match(start, /resolveApprovedNarrationUrl/);
+  assert.match(start, /AUDIO_NOT_READY/);
   assert.equal(start.includes("synthesizeElevenLabsSpeech"), false);
+  assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
   assert.match(webhook, /startOutboundFromBeginning/);
-  assert.match(webhook, /introBeforeEventName/);
-  assert.match(webhook, /play_event_name/);
-  assert.match(dialer, /IvrCallAttempt\.create/);
+  assert.match(webhook, /introAudioUrl/);
+  assert.match(webhook, /gatherIvrUsingAudio/);
+  assert.equal(webhook.includes("synthesizeElevenLabsSpeech"), false);
+  assert.match(dialer, /audioReady/);
+  assert.match(dialer, /releaseStaleOutboundOccupancy/);
+  assert.equal(dialer.includes("ensureComposedInboundAudioForUser"), false);
   assert.equal(dialer.includes("synthesizeElevenLabsSpeech"), false);
-  assert.match(readSrc("lib/calls/ivrComposedInbound.ts"), /composeIvrIntroAudio/);
-  assert.equal(
-    readSrc("lib/calls/ivrComposedInbound.ts").includes(
-      "synthesizeElevenLabsSpeech"
-    ),
-    false
-  );
+  assert.match(config, /buildAndStoreComposedIntro/);
+  assert.equal(config.includes("buildComposedInboundAudio"), false);
+  assert.match(config, /reuseOnly:\s*true/);
 });

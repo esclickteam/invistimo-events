@@ -3,7 +3,8 @@
  * Production (VERCEL_ENV=production) dials through Telnyx.
  * Other environments dial only when IVR_ALLOW_LIVE_DIAL=true or the phone is allowlisted.
  *
- * AI mode plays global pack segments + per-event name sequentially at answer time.
+ * AI mode dials only after the approved continuous file is stored.
+ * That same file is what the guest hears. Fixed pack clips are not rebuilt here.
  */
 
 import User from "@/models/User";
@@ -26,8 +27,13 @@ import {
   getAppBaseUrl,
 } from "@/lib/calls/ivrAudioStorage";
 import { IVR_COMPOSE_VERSION } from "@/lib/calls/ivrComposeIntro";
-import { ensureComposedInboundAudioForUser } from "@/lib/calls/ivrComposedInbound";
+import {
+  explainIvrCallFailure,
+  isDialableE164,
+  isIvrDialRetryable,
+} from "@/lib/calls/ivrDialFailure";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
+import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
   createIvrOutboundCall,
   isIvrDialAllowed,
@@ -72,9 +78,11 @@ const LIVE_ATTEMPT_STATUSES = new Set([
   "invalid_input",
 ]);
 
-/** In-flight Telnyx calls. Completed-but-still-playing stays occupied until hangup. */
+/** In-flight Telnyx calls across every event. A stuck leg must not hold a slot. */
 const IVR_DEFAULT_PARALLEL_CALLS = 8;
 const IVR_PARALLEL_CALL_HARD_CAP = 20;
+const STALE_UNANSWERED_MS = 4 * 60 * 1000;
+const STALE_ANSWERED_MS = 8 * 60 * 1000;
 
 export function ivrMaxParallelCalls() {
   const raw = Number(process.env.IVR_MAX_PARALLEL_CALLS || IVR_DEFAULT_PARALLEL_CALLS);
@@ -82,14 +90,9 @@ export function ivrMaxParallelCalls() {
   return Math.min(IVR_PARALLEL_CALL_HARD_CAP, Math.floor(raw));
 }
 
-async function countOccupiedOutboundCalls(
-  invitationId: string,
-  round: 1 | 2 | 3
-) {
-  return IvrCallAttempt.countDocuments({
-    invitationId,
-    round,
-    channel: "outbound_ivr",
+function occupiedOutboundFilter() {
+  return {
+    channel: "outbound_ivr" as const,
     $or: [
       { status: { $in: [...LIVE_ATTEMPT_STATUSES] } },
       {
@@ -98,7 +101,62 @@ async function countOccupiedOutboundCalls(
         flowStep: { $ne: "done" },
       },
     ],
-  });
+  };
+}
+
+async function countOccupiedOutboundCalls() {
+  return IvrCallAttempt.countDocuments(occupiedOutboundFilter());
+}
+
+/**
+ * Free slots held by legs that never reported a result.
+ * Does not mark an unstarted call as answered and does not write an RSVP.
+ */
+async function releaseStaleOutboundOccupancy(now: Date) {
+  const unansweredBefore = new Date(now.getTime() - STALE_UNANSWERED_MS);
+  const answeredBefore = new Date(now.getTime() - STALE_ANSWERED_MS);
+
+  await IvrCallAttempt.updateMany(
+    {
+      channel: "outbound_ivr",
+      answered: { $ne: true },
+      rsvpApplied: { $ne: true },
+      status: { $in: ["queued", "initiated", "ringing"] },
+      $expr: {
+        $lt: [{ $ifNull: ["$dialLockedAt", "$startedAt"] }, unansweredBefore],
+      },
+    },
+    {
+      $set: {
+        status: "failed",
+        flowStep: "done",
+        endedAt: now,
+        answered: false,
+        error: "STALE_DIAL_NO_RESULT",
+      },
+    }
+  );
+
+  await IvrCallAttempt.updateMany(
+    {
+      channel: "outbound_ivr",
+      answered: true,
+      rsvpApplied: { $ne: true },
+      endedAt: null,
+      status: { $in: ["answered", "invalid_input", "completed"] },
+      $expr: {
+        $lt: [{ $ifNull: ["$answeredAt", "$startedAt"] }, answeredBefore],
+      },
+    },
+    {
+      $set: {
+        status: "hangup_before_response",
+        flowStep: "done",
+        endedAt: now,
+        error: "STALE_CALL_NO_HANGUP",
+      },
+    }
+  );
 }
 
 function approvedPlaybackUrl(cfg: any, fallback: string) {
@@ -227,6 +285,12 @@ function resolveRoundAudio(user: any): {
     audioReady,
     audioBlockReason,
   };
+}
+
+/** The one approved narration file for both outbound and inbound calls. */
+export function resolveApprovedNarrationUrl(user: any) {
+  const audio = resolveRoundAudio(user);
+  return audio.audioReady ? audio.introAudioUrl : "";
 }
 
 function resolveReadySelfAudio(user: any): string {
@@ -462,18 +526,12 @@ export async function executeIvrRound(input: {
     };
   }
 
-  if (input.due.audioMode !== "self_recorded") {
-    await ensureComposedInboundAudioForUser(input.due.userId, {
-      force: true,
-    }).catch((error) => {
-      console.error("[ivr] inbound compose before round failed", error);
-    });
+  if (input.due.voiceGender) {
+    void warmIvrChoiceFollowUps(input.due.voiceGender);
   }
 
-  const occupied = await countOccupiedOutboundCalls(
-    input.due.invitationId,
-    input.due.round
-  );
+  await releaseStaleOutboundOccupancy(now);
+  const occupied = await countOccupiedOutboundCalls();
   const room = Math.max(0, ivrMaxParallelCalls() - occupied);
   const maxCalls = Math.min(requested, room);
   if (maxCalls < 1) {
@@ -482,6 +540,7 @@ export async function executeIvrRound(input: {
       round: input.due.round,
       status: "in_progress",
       now,
+      failureReason: explainIvrCallFailure("PARALLEL_CAP"),
       clearClaim: true,
     });
     return {
@@ -539,17 +598,6 @@ export async function executeIvrRound(input: {
 
     const phoneRaw = cleanStr(fresh.phone || fresh.mobile || fresh.phoneNumber);
     const phone = normalizePhoneForTelnyx(phoneRaw);
-
-    if (!phone) {
-      results.push({
-        guestId,
-        phone: phoneRaw,
-        status: "skipped",
-        reason: "bad_phone",
-      });
-      continue;
-    }
-
     const existing = await IvrCallAttempt.findOne({
       invitationId: input.due.invitationId,
       guestId,
@@ -557,12 +605,57 @@ export async function executeIvrRound(input: {
       channel: "outbound_ivr",
     });
 
+    if (!phone || !isDialableE164(phone)) {
+      if (!existing) {
+        await IvrCallAttempt.create({
+          userId: input.due.userId,
+          invitationId: input.due.invitationId,
+          guestId,
+          round: input.due.round,
+          phone: phone || phoneRaw,
+          channel: "outbound_ivr",
+          direction: "outbound",
+          answered: false,
+          rsvpApplied: false,
+          status: "failed",
+          flowStep: "done",
+          startedAt: now,
+          endedAt: now,
+          error: "INVALID_PHONE",
+          retryCount: 0,
+          introAudioUrl: input.due.introAudioUrl,
+          voiceGender: input.due.voiceGender,
+          audioMode:
+            input.due.audioMode === "self_recorded" ? "self_recorded" : "ai",
+          timeline: [
+            {
+              at: now,
+              source: "server",
+              kind: "invalid_phone",
+              label: "המספר לא תקין ולכן לא נשלח חיוג",
+              detail: "INVALID_PHONE",
+              eventType: "",
+              digit: "",
+              stage: "",
+            },
+          ],
+        });
+      }
+      results.push({
+        guestId,
+        phone: phone || phoneRaw,
+        status: "failed",
+        reason: "INVALID_PHONE",
+      });
+      continue;
+    }
+
     if (existing) {
       const retryable =
         ["failed"].includes(String(existing.status)) &&
         !cleanStr(existing.telnyxCallControlId) &&
         Number(existing.retryCount || 0) < 2 &&
-        cleanStr(existing.error) !== "DIAL_BLOCKED_TEST_MODE";
+        isIvrDialRetryable(existing.error);
       if (!retryable) {
         results.push({
           guestId,
@@ -783,11 +876,7 @@ export async function executeIvrRound(input: {
     .select("status error")
     .lean();
 
-  const live =
-    (await countOccupiedOutboundCalls(
-      input.due.invitationId,
-      input.due.round
-    )) > 0;
+  const live = (await countOccupiedOutboundCalls()) > 0;
   const anyPlaced = attempts.some((a) =>
     ["initiated", "ringing", "answered", "completed", "no_answer", "busy", "voicemail", "hangup_before_response"].includes(
       String(a.status)
@@ -807,7 +896,10 @@ export async function executeIvrRound(input: {
     round: input.due.round,
     status,
     now,
-    failureReason: status === "failed" ? failureReason || "החיוג נכשל" : "",
+    failureReason:
+      status === "failed"
+        ? explainIvrCallFailure(failureReason || "החיוג נכשל")
+        : "",
     tasksCreated: results.filter((r) =>
       ["initiated", "blocked_test_mode"].includes(r.status)
     ).length,
