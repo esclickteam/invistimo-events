@@ -350,12 +350,18 @@ function TableRenderer({ table, hideSeats = false }) {
   const tableTitle = table.name || "";
 
   /*
-    הפרדה מלאה בין:
-    1. הושבה רגילה / מגיעים מתוכננים = arrivedCount
-    2. מגיעים בפועל בלייב = actualArrivedCount / liveArrivals
-    חשוב: לא משתמשים ב-plannedSeatedGuests.length לתצוגת "הושבה",
-    כי זה מספר הכיסאות/שיבוצים ולא מספר המגיעים שהוגדר בקבוצה/אורח.
+    LIVE display contract (couple plan is the base):
+    - משובצים = chairs assigned on the map (seatedGuests), even if nobody arrived
+    - בפועל = sum of actualArrivedCount / liveArrivals for those guests
+    - טרם הגיעו = max(0, משובצים - בפועל)
+    Regular mode still uses RSVP arrivedCount for the single occupancy line.
   */
+  const assignedSeatsCount = useMemo(() => {
+    if (plannedSeatedGuests.length) return plannedSeatedGuests.length;
+    if (currentSeatedGuests.length) return currentSeatedGuests.length;
+    return Math.max(0, Number(table.arrivedCount ?? 0));
+  }, [plannedSeatedGuests, currentSeatedGuests, table.arrivedCount]);
+
   const plannedArrivedCount = useMemo(() => {
     if (!plannedSeatedGuests.length) {
       return Math.max(0, Number(table.arrivedCount ?? 0));
@@ -371,20 +377,45 @@ function TableRenderer({ table, hideSeats = false }) {
 
       const g = guests.find((guest) => String(guest._id || guest.id) === guestId);
 
-      if (!g) return sum;
+      if (!g) {
+        // Guest missing from list but still assigned — count their chairs.
+        return (
+          sum +
+          plannedSeatedGuests.filter((seat) => String(seat.guestId) === guestId)
+            .length
+        );
+      }
 
-      return sum + Math.max(0, Number(g.arrivedCount ?? 0));
+      const fromArrived = Number(g.arrivedCount);
+      if (Number.isFinite(fromArrived) && fromArrived > 0) {
+        return sum + fromArrived;
+      }
+
+      const fromGuests = Number(g.guestsCount);
+      if (g.rsvp === "yes" && Number.isFinite(fromGuests) && fromGuests > 0) {
+        return sum + fromGuests;
+      }
+
+      return (
+        sum +
+        plannedSeatedGuests.filter((seat) => String(seat.guestId) === guestId)
+          .length
+      );
     }, 0);
   }, [plannedSeatedGuests, guests, table.arrivedCount]);
 
   const actualArrivedCount = useMemo(() => {
-    if (!plannedSeatedGuests.length) {
+    const seatSource = plannedSeatedGuests.length
+      ? plannedSeatedGuests
+      : currentSeatedGuests;
+
+    if (!seatSource.length) {
       return Math.max(0, Number(table.actualArrivedCount ?? 0));
     }
 
     const counted = new Set();
 
-    return plannedSeatedGuests.reduce((sum, s) => {
+    return seatSource.reduce((sum, s) => {
       const guestId = String(s.guestId);
       if (!guestId || counted.has(guestId)) return sum;
 
@@ -403,12 +434,22 @@ function TableRenderer({ table, hideSeats = false }) {
 
       return sum + Math.max(0, liveValue);
     }, 0);
-  }, [plannedSeatedGuests, guests, liveArrivals, table.actualArrivedCount]);
+  }, [
+    plannedSeatedGuests,
+    currentSeatedGuests,
+    guests,
+    liveArrivals,
+    table.actualArrivedCount,
+  ]);
 
+  const displayAssignedCount = assignedSeatsCount;
   const displayPlannedCount =
-    seatingMode === "live" ? plannedArrivedCount : plannedArrivedCount;
-
+    seatingMode === "live" ? assignedSeatsCount : plannedArrivedCount;
   const displayActualCount = actualArrivedCount;
+  const displayRemainingCount = Math.max(
+    0,
+    displayAssignedCount - displayActualCount
+  );
 
   const isHighlighted =
     highlightedTable === table.id ||
@@ -453,16 +494,23 @@ function TableRenderer({ table, hideSeats = false }) {
 
     if (seatingMode === "live") {
       lines.push({
-        text: `הושבה: ${displayPlannedCount}/${seatsTotal}`,
+        text: `משובצים: ${displayAssignedCount}`,
         fill: "#B98A45",
-        fontSize: 15,
+        fontSize: 14,
         fontStyle: "bold",
       });
 
       lines.push({
-        text: `בפועל: ${displayActualCount}/${seatsTotal}`,
+        text: `בפועל: ${displayActualCount}`,
         fill: "#DC2626",
-        fontSize: 15,
+        fontSize: 14,
+        fontStyle: "bold",
+      });
+
+      lines.push({
+        text: `טרם הגיעו: ${displayRemainingCount}`,
+        fill: "#8B6F5A",
+        fontSize: 13,
         fontStyle: "bold",
       });
     } else {
@@ -480,8 +528,10 @@ function TableRenderer({ table, hideSeats = false }) {
     tableTitle,
     tableText,
     seatingMode,
+    displayAssignedCount,
     displayPlannedCount,
     displayActualCount,
+    displayRemainingCount,
     seatsTotal,
   ]);
 

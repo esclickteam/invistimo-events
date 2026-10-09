@@ -335,9 +335,13 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   getPlannedSeatCount: (guest) => {
-    return Number(
-      guest.arrivedCount ?? (guest.rsvp === "yes" ? guest.guestsCount : 0)
-    );
+    const arrived = Number(guest?.arrivedCount);
+    // arrivedCount:0 must NOT collapse RSVP yes guests to zero seats.
+    if (Number.isFinite(arrived) && arrived > 0) return arrived;
+    if (guest?.rsvp === "yes") {
+      return Math.max(0, Number(guest?.guestsCount || 0));
+    }
+    return Math.max(0, Number.isFinite(arrived) ? arrived : 0);
   },
 
   getFreeSeats: (tableId) => {
@@ -1410,13 +1414,7 @@ export const useSeatingStore = create((set, get) => ({
     }),
 
   assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
-    const {
-      tables,
-      guests,
-      seatingMode,
-      getGuestSeatCount,
-      getPlannedSeatCount,
-    } = get();
+    const { tables, guests, seatingMode, getPlannedSeatCount } = get();
 
     const targetTableId = String(tableId || "").trim();
 

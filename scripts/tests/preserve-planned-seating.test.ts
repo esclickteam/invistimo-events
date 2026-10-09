@@ -112,7 +112,23 @@ test("sidebar + stats keep seated guests visible without arrivals", () => {
 
   assert.match(sidebar, /Already-seated guests from the saved plan/);
   assert.match(sidebar, /getTableAssignmentCount/);
+  assert.match(sidebar, /משובץ/);
   assert.match(stats, /Presence on the seating map is the source of truth/);
   assert.doesNotMatch(stats, /planned > 0 && guestTableMap/);
   assert.match(renderer, /table\.seatedGuests מהשרת/);
+  assert.match(renderer, /משובצים:/);
+  assert.match(renderer, /טרם הגיעו:/);
+  assert.match(renderer, /assignedSeatsCount/);
+});
+
+test("dashboard guests API never blanks tableName when map misses a guest", () => {
+  const guestsRoute = readFileSync("app/api/guests/route.ts", "utf8");
+  const seatingGuests = readFileSync(
+    "app/api/seating/guests/[eventId]/route.ts",
+    "utf8"
+  );
+
+  assert.match(guestsRoute, /tableName \|\| guest\.tableName/);
+  assert.match(seatingGuests, /Read-only overlay/);
+  assert.match(seatingGuests, /fromMap\?\.tableName \|\| guest\.tableName/);
 });

@@ -206,10 +206,52 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .lean()
       .exec();
 
+    /*
+      Read-only overlay: expose table assignment from seatingtables so live
+      ushers see the couple's plan even when InvitationGuest.tableName is empty.
+      Never writes to guests or arrivals.
+    */
+    const eventIdValues = objectIdOrString(cleanEventId);
+    const seating = await SeatingTable.findOne({
+      $or: [
+        { eventId: { $in: eventIdValues } },
+        { invitationId: invitation._id },
+      ],
+    })
+      .select("tables")
+      .lean();
+
+    const guestToTable = new Map<
+      string,
+      { tableId: string; tableName: string }
+    >();
+
+    for (const table of (seating as any)?.tables || []) {
+      const tableId = cleanString(table?.id || table?._id);
+      const tableName = cleanString(table?.name) || tableId;
+      for (const seat of table?.seatedGuests || []) {
+        const guestId = cleanString(seat?.guestId);
+        if (!guestId) continue;
+        guestToTable.set(guestId, { tableId, tableName });
+      }
+    }
+
+    const guestsWithTables = (Array.isArray(guests) ? guests : []).map(
+      (guest: any) => {
+        const guestId = cleanString(guest?._id || guest?.id);
+        const fromMap = guestToTable.get(guestId);
+        return {
+          ...guest,
+          tableId: fromMap?.tableId || guest.tableId || null,
+          tableName: fromMap?.tableName || guest.tableName || null,
+        };
+      }
+    );
+
     return NextResponse.json({
       success: true,
       invitationId: String(invitation._id),
-      guests: Array.isArray(guests) ? guests : [],
+      guests: guestsWithTables,
     });
   } catch (err) {
     console.error("❌ Error loading seating guests:", err);

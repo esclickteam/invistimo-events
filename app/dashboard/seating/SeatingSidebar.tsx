@@ -78,6 +78,10 @@ export default function SeatingSidebar({
   /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
+  const liveArrivals = useSeatingStore((s) => s.liveArrivals) as Record<
+    string,
+    number
+  >;
   const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
@@ -623,6 +627,18 @@ export default function SeatingSidebar({
     const gid = seatGuestId(g);
     const table = guestTableMap.get(gid);
     const count = getSeatCount(g);
+    const allocated = getAllocatedChairCount(g);
+    const arrivedLive = Number(
+      liveArrivals?.[gid] ?? g.actualArrivedCount ?? 0
+    );
+
+    const subtitle = table
+      ? isLiveMode
+        ? `${table.name} · משובץ (${allocated || count}) · הגיעו ${arrivedLive}`
+        : `${table.name} · ${count} מוזמנים`
+      : isLiveMode
+        ? `לא משובץ · הגיעו ${arrivedLive}`
+        : `לא משובץ · ${count} מוזמנים`;
 
     return (
       <div
@@ -641,13 +657,7 @@ export default function SeatingSidebar({
             </div>
 
             <div className="mt-0.5 truncate text-[11px] text-[#8B6F5A]">
-              {table
-                ? `${table.name} · ${count} ${
-                    isLiveMode ? "הגיעו" : "מוזמנים"
-                  }`
-                : `לא משובץ · ${count} ${
-                    isLiveMode ? "הגיעו" : "מוזמנים"
-                  }`}
+              {subtitle}
             </div>
           </div>
 

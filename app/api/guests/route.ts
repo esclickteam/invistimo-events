@@ -839,7 +839,9 @@ export async function GET(req: NextRequest) {
       return {
         ...guest,
         actualArrivedCount: guest.actualArrivedCount ?? 0,
-        tableName,
+        // Prefer live map assignment; never blank out a denormalized tableName
+        // when seatedGuests temporarily omit a guest.
+        tableName: tableName || guest.tableName || null,
       };
     });
 
