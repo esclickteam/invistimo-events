@@ -455,8 +455,19 @@ export async function handleIvrAnswered(input: {
     cleanStr(attempt.phase) ? attempt : { ...attempt, phase: "RINGING" }
   );
   const decision = reduceIvrCall(state, { type: "answered" });
-  const playIntro = decision.commands.find((command) => command.type === "play_intro");
-  if (!playIntro || playIntro.type !== "play_intro") {
+  let playIntro = decision.commands.find((command) => command.type === "play_intro");
+  const introUrl = cleanStr(attempt.introAudioUrl);
+  // Recovery: claimed PLAYING_INTRO earlier but no playback command was ever
+  // recorded (stop/play race left the guest in silence). Re-send intro once.
+  const stuckSilentIntro =
+    (!playIntro || playIntro.type !== "play_intro") &&
+    state.phase === "PLAYING_INTRO" &&
+    state.introCompleted !== true &&
+    !attempt.playbackCommandAt &&
+    !attempt.playbackStartedAt &&
+    Boolean(introUrl);
+
+  if ((!playIntro || playIntro.type !== "play_intro") && !stuckSilentIntro) {
     if (!attempt.answered) {
       await IvrCallAttempt.updateOne(
         { _id: attempt._id, answered: { $ne: true } },
@@ -475,7 +486,36 @@ export async function handleIvrAnswered(input: {
     return { handled: true };
   }
 
-  const introUrl = cleanStr(attempt.introAudioUrl);
+  if (stuckSilentIntro) {
+    playIntro = {
+      type: "play_intro",
+      generation: Number(state.mediaGeneration || 1),
+    };
+    console.error("IVR_ANSWER_RECOVER_SILENT_INTRO", {
+      attemptId: String(attempt._id),
+      phase: state.phase,
+      mediaGeneration: state.mediaGeneration,
+    });
+    void warmIvrChoiceFollowUps(voiceGender(attempt));
+    const played = await playFile(
+      attempt,
+      callControlId,
+      introUrl,
+      "intro",
+      playIntro.generation
+    );
+    if (!played) {
+      await failClosed(attempt, callControlId, "AUDIO_PLAYBACK_FAILED");
+    } else {
+      await IvrCallAttempt.updateOne(
+        { _id: attempt._id },
+        { $set: { playbackCommandAt: new Date() } }
+      ).catch(() => null);
+      await note(attempt._id, "שוחזר פתיח אחרי שקט", introUrl);
+    }
+    return { handled: true };
+  }
+
   // Do not gate the claim on playbackStartedAt. That field is telemetry from
   // Telnyx webhooks (via timeline pipeline). A failed/racy timeline write must
   // never leave the guest in silence after answer.
@@ -506,13 +546,34 @@ export async function handleIvrAnswered(input: {
   if (!claimed) {
     // Another writer may have stamped AUDIO_NOT_READY between load and claim.
     const fresh = await IvrCallAttempt.findById(attempt._id)
-      .select("error introAudioUrl phase introCompleted rsvpApplied")
+      .select(
+        "error introAudioUrl phase introCompleted rsvpApplied playbackCommandAt playbackStartedAt mediaGeneration"
+      )
       .lean();
     if (cleanStr(fresh?.error) === "AUDIO_NOT_READY" || !cleanStr(fresh?.introAudioUrl)) {
       await speakNotReady(
         { ...attempt, ...(fresh || {}), _id: attempt._id },
         callControlId
       );
+    } else if (
+      cleanStr(fresh?.phase) === "PLAYING_INTRO" &&
+      !fresh?.playbackCommandAt &&
+      !fresh?.playbackStartedAt &&
+      cleanStr(fresh?.introAudioUrl)
+    ) {
+      const played = await playFile(
+        { ...attempt, ...fresh, _id: attempt._id },
+        callControlId,
+        cleanStr(fresh?.introAudioUrl),
+        "intro",
+        Number(fresh?.mediaGeneration || 1)
+      );
+      if (played) {
+        await IvrCallAttempt.updateOne(
+          { _id: attempt._id },
+          { $set: { playbackCommandAt: new Date() } }
+        ).catch(() => null);
+      }
     } else {
       console.error("IVR_ANSWER_CLAIM_MISSED", {
         attemptId: String(attempt._id),
@@ -541,6 +602,10 @@ export async function handleIvrAnswered(input: {
   if (!played) {
     await failClosed(claimed, callControlId, "AUDIO_PLAYBACK_FAILED");
   } else {
+    await IvrCallAttempt.updateOne(
+      { _id: claimed._id },
+      { $set: { playbackCommandAt: new Date() } }
+    ).catch(() => null);
     await note(claimed._id, "הושמע הפתיח המאושר אחרי מענה", introUrl);
   }
   return { handled: true };

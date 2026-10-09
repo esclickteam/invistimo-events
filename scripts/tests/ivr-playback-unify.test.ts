@@ -195,9 +195,10 @@ test("media helpers clear the slot before the next clip", () => {
   assert.match(gatherAudio, /timeout_millis: input\.timeoutMillis \?\? 45000/);
 });
 
-test("playback_stop is only used for controlled replace_after_input", async () => {
+test("intro clear sends no Telnyx stop (avoids late-stop silence race)", async () => {
   const {
     ivrClearStopsPlayback,
+    ivrClearStopsGather,
     mediaClearReasonForPlaybackStage,
   } = await import("../../lib/telnyx/ivrCallControl");
 
@@ -205,11 +206,20 @@ test("playback_stop is only used for controlled replace_after_input", async () =
   assert.equal(ivrClearStopsPlayback("start_followup_audio"), false);
   assert.equal(ivrClearStopsPlayback("legacy_next_clip"), false);
   assert.equal(ivrClearStopsPlayback("replace_after_input"), true);
+  assert.equal(ivrClearStopsGather("none"), false);
+  assert.equal(ivrClearStopsGather("open_silent_gather"), true);
 
-  // Active intro must not be stopped just because a new playback helper runs.
-  assert.equal(mediaClearReasonForPlaybackStage("intro"), "start_followup_audio");
+  // First media after answer: never gather_stop/playback_stop before play.
+  assert.equal(mediaClearReasonForPlaybackStage("intro"), "none");
+  assert.equal(mediaClearReasonForPlaybackStage("system"), "none");
+  assert.equal(mediaClearReasonForPlaybackStage(""), "none");
+  assert.equal(mediaClearReasonForPlaybackStage("play_event_name"), "none");
   assert.equal(
     ivrClearStopsPlayback(mediaClearReasonForPlaybackStage("intro")),
+    false
+  );
+  assert.equal(
+    ivrClearStopsGather(mediaClearReasonForPlaybackStage("intro")),
     false
   );
   // After an accepted digit, replace is intentional.
@@ -222,6 +232,38 @@ test("playback_stop is only used for controlled replace_after_input", async () =
     "replace_after_input"
   );
   assert.equal(mediaClearReasonForPlaybackStage("thanks"), "replace_after_input");
+  assert.equal(
+    mediaClearReasonForPlaybackStage("hangup_after_thanks"),
+    "replace_after_input"
+  );
+});
+
+test("machine recovers silent PLAYING_INTRO without playbackCommandAt", () => {
+  const machine = readSrc("lib/calls/ivrCallMachine.ts");
+  assert.match(machine, /IVR_ANSWER_RECOVER_SILENT_INTRO/);
+  assert.match(machine, /stuckSilentIntro/);
+  assert.match(machine, /playbackCommandAt/);
+  // Claim-miss path also re-sends intro when still silent.
+  assert.match(machine, /IVR_ANSWER_CLAIM_MISSED/);
+  const answered = machine.slice(
+    machine.indexOf("export async function handleIvrAnswered"),
+    machine.indexOf("function eventFromPlayback")
+  );
+  assert.match(answered, /!fresh\?\.playbackCommandAt/);
+  assert.match(answered, /playFile/);
+  assert.match(answered, /\$set: \{ playbackCommandAt: new Date\(\) \}/);
+});
+
+test("playbackIvrAudio awaits clear before playback_start", () => {
+  const control = readSrc("lib/telnyx/ivrCallControl.ts");
+  assert.match(control, /if \(!callControlId \|\| reason === "none"\) return/);
+  const body = control.slice(
+    control.indexOf("export async function playbackIvrAudio"),
+    control.indexOf("export async function gatherIvrUsingAudio")
+  );
+  assert.match(body, /await clearIvrMediaSlot/);
+  assert.match(body, /playback_start/);
+  assert.match(body, /IVR_PLAYBACK_START/);
 });
 
 test("machine and legacy cannot both drive a phased call", () => {

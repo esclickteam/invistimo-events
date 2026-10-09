@@ -143,10 +143,11 @@ test("11) attending count is not capped by the invited size", () => {
   assert.match(webhook, /isLegacyInFlight/);
   assert.match(webhook, /phase:\s*"RINGING"|phase = "RINGING"/);
   assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
-  // Gather is always cleared; playback_stop only on controlled replace.
+  // Intro uses clear reason none; playback_stop only on controlled replace.
   assert.match(control, /clearIvrMediaSlot/);
   assert.match(control, /ivrClearStopsPlayback/);
   assert.match(control, /replace_after_input/);
+  assert.match(control, /reason === "none"/);
   assert.match(control, /start_followup_audio/);
   assert.match(control, /stopIvrGather/);
   assert.match(webhook, /claimChoiceDigit/);

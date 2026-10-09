@@ -226,11 +226,18 @@ export async function speakIvrCall(
 }
 
 /**
- * Why the media slot is being cleared. `playback_stop` is only sent for
- * controlled replaces after accepted input — never to cut an active intro
- * that is still supposed to finish.
+ * Why the media slot is being cleared.
+ * - `none`: first intro/system after answer, or a natural next clip after the
+ *   prior media already finished — never send stop. A late gather_stop /
+ *   playback_stop can cancel the playback_start that follows (Telnyx race →
+ *   total silence on an answered call).
+ * - `open_silent_gather` / `legacy_next_clip` / `start_followup_audio`:
+ *   gather_stop only, when an open gather must be closed before the next
+ *   command (explicit callers only).
+ * - `replace_after_input`: controlled cancel after an accepted digit.
  */
 export type IvrMediaClearReason =
+  | "none"
   | "open_silent_gather"
   | "start_followup_audio"
   | "replace_after_input"
@@ -241,31 +248,40 @@ export function ivrClearStopsPlayback(reason: IvrMediaClearReason) {
   return reason === "replace_after_input";
 }
 
+export function ivrClearStopsGather(reason: IvrMediaClearReason) {
+  return reason !== "none";
+}
+
+/** Stages that intentionally interrupt lingering gather/playback after a digit. */
+const REPLACE_AFTER_INPUT_STAGES = new Set([
+  "ask_count",
+  "invalid_choice",
+  "invalid_count",
+  "thanks",
+  "maybe",
+]);
+
 export function mediaClearReasonForPlaybackStage(stage: unknown): IvrMediaClearReason {
   const raw = String(stage || "").trim();
-  // Intro / system prompts start after answer or after a completed prior clip.
-  // Do not send playback_stop — that would chop a still-valid sentence.
-  if (
-    !raw ||
-    raw === "intro" ||
-    raw === "system" ||
-    raw.startsWith("hangup_after")
-  ) {
-    return "start_followup_audio";
+  if (REPLACE_AFTER_INPUT_STAGES.has(raw) || raw.startsWith("hangup_after")) {
+    return "replace_after_input";
   }
-  // Digit / invalid-choice follow-ups may replace a lingering gather prompt.
-  return "replace_after_input";
+  // Intro / system / natural next clip: no Telnyx stop before playback_start.
+  return "none";
 }
 
 /**
- * Clear an open gather; optionally stop playback on a controlled replace.
+ * Clear gather and/or playback only for the given reason.
+ * Stop commands always finish before the caller starts new media.
  */
 export async function clearIvrMediaSlot(
   callControlId: string,
   reason: IvrMediaClearReason
 ) {
-  if (!callControlId) return;
-  await stopIvrGather(callControlId).catch(() => null);
+  if (!callControlId || reason === "none") return;
+  if (ivrClearStopsGather(reason)) {
+    await stopIvrGather(callControlId).catch(() => null);
+  }
   if (ivrClearStopsPlayback(reason)) {
     await stopIvrPlayback(callControlId).catch(() => null);
   }
@@ -282,13 +298,22 @@ export async function playbackIvrAudio(
     const reason =
       options?.mediaClear ||
       mediaClearReasonForPlaybackStage(clientState?.stage);
+    // Await clear fully before play so a late stop cannot cancel this start.
     await clearIvrMediaSlot(callControlId, reason);
-    return await telnyxCallAction(callControlId, "playback_start", {
+    const started = await telnyxCallAction(callControlId, "playback_start", {
       audio_url: audioUrl,
       ...(clientState
         ? { client_state: encodeIvrClientState(clientState) }
         : {}),
     });
+    console.log("IVR_PLAYBACK_START", {
+      callControlId,
+      stage: clientState?.stage || "",
+      mediaClear: reason,
+      audioUrl: String(audioUrl || "").slice(0, 160),
+      failed: Boolean(started?.errors),
+    });
+    return started;
   } finally {
     await noted;
   }
