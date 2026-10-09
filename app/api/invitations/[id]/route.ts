@@ -13,11 +13,11 @@ import {
   type EventLocationWarning,
 } from "@/lib/eventLocation";
 import {
-  buildEventCoreSyncFromInvitation,
   giftsToInvitationMirrors,
   normalizeCentralGifts,
   validateCentralGifts,
 } from "@/lib/eventDetails/centralEventDetails";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 
@@ -1115,23 +1115,25 @@ export async function PUT(
 
     const eventIdToSync = getExistingEventId(invitationAfterBasicUpdate, body);
     if (eventIdToSync) {
-      const eventSet = buildEventCoreSyncFromInvitation(
-        invitationAfterBasicUpdate
-      );
-
-      if (centralGifts) {
-        eventSet.gifts = centralGifts;
-        eventSet.giftCreditUrl = centralGifts.creditEnabled
-          ? centralGifts.creditUrl
-          : "";
-      }
-
-      if (Object.keys(eventSet).length > 1) {
-        await Event.updateOne(
-          { _id: new mongoose.Types.ObjectId(eventIdToSync) },
-          { $set: eventSet }
-        );
-      }
+      await persistSharedIdentityMirror({
+        source: "invitation",
+        invitationId: String(invitationAfterBasicUpdate._id),
+        eventId: eventIdToSync,
+        incoming: {
+          title: cleanString((invitationAfterBasicUpdate as any).title),
+          eventType: cleanString((invitationAfterBasicUpdate as any).eventType),
+          date: normalizeEventDate(
+            (invitationAfterBasicUpdate as any).eventDate ||
+              (invitationAfterBasicUpdate as any).date
+          ),
+          time: cleanString((invitationAfterBasicUpdate as any).eventTime),
+          location: (invitationAfterBasicUpdate as any).location || null,
+          hostsNames: (invitationAfterBasicUpdate as any).hostsNames,
+          city: (invitationAfterBasicUpdate as any).city,
+          googleMapsUrl: (invitationAfterBasicUpdate as any).googleMapsUrl,
+          gifts: centralGifts,
+        },
+      });
 
       try {
         const auth = await getUserIdFromRequest(request);
@@ -1148,9 +1150,11 @@ export async function PUT(
             action: "event_details_update",
             summary: "אדמין עדכן פרטי אירוע בחשבון של לקוח",
             after: {
-              title: eventSet.title,
-              eventTime: eventSet.time,
-              ceremonyTime: eventSet.ceremonyTime,
+              title: cleanString((invitationAfterBasicUpdate as any).title),
+              eventTime: cleanString((invitationAfterBasicUpdate as any).eventTime),
+              ceremonyTime: cleanString(
+                (invitationAfterBasicUpdate as any).ceremonyTime
+              ),
               gifts: centralGifts
                 ? {
                     creditEnabled: centralGifts.creditEnabled,

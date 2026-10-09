@@ -4,6 +4,7 @@ import Event from "@/models/Event";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { prepareEventLocation } from "@/lib/eventLocation";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,19 @@ export async function POST(req: NextRequest) {
       event.set(payload);
       await event.save();
     }
+
+    await persistSharedIdentityMirror({
+      source: "event",
+      eventId: String(event._id),
+      event: event.toObject ? event.toObject() : event,
+      incoming: {
+        title: payload.title,
+        eventType: payload.eventType,
+        date: payload.date,
+        time: payload.time,
+        location: preparedLocation.location,
+      },
+    });
 
     return NextResponse.json({
       success: true,

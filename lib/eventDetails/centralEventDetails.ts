@@ -1,9 +1,9 @@
 /**
  * מקור מידע מרכזי לפרטי אירוע ואפשרויות מתנה.
  *
- * Event הוא מקור האמת אחרי סנכרון מכתיבת הלקוח. בזמן קריאה לאורחים
- * אסור להציג קליפת ברירת מחדל ("הזמנה חדשה", 00:00, תאריך יצירה)
- * אם בהזמנה שמורה גרסה אמיתית שהלקוח הגדיר.
+ * Invitation הוא מקור האמת לפרטים שהלקוח מגדיר לאורחים.
+ * Event הוא מקור האמת להפקה (תקציב, הושבה, check-in, אולם).
+ * שדות משותפים מסונכרנים דרך sharedEventIdentity.
  *
  * Invitation.giftOptions / publicEventPage.gifts / Event.giftCreditUrl
  * נשארים לתאימות לאחור ומסונכרנים בכתיבה.
@@ -132,24 +132,40 @@ export function pickGuestFacingTitle(event?: any, invitation?: any) {
 }
 
 export function pickGuestFacingDate(event?: any, invitation?: any) {
-  return (
+  const invitationDate =
     normalizeEventDateValue(invitation?.eventDate) ||
-    normalizeEventDateValue(invitation?.date) ||
+    normalizeEventDateValue(invitation?.date);
+  if (invitationDate) return invitationDate;
+
+  const eventDate =
     normalizeEventDateValue(event?.eventDate) ||
-    normalizeEventDateValue(event?.date)
-  );
+    normalizeEventDateValue(event?.date);
+  if (eventDate && !isPlaceholderEventTitle(event?.title)) return eventDate;
+  return "";
 }
 
 export function pickGuestFacingTime(event?: any, invitation?: any) {
-  return firstRealString(
-    [
-      invitation?.eventTime,
-      invitation?.time,
-      event?.eventTime,
-      event?.time,
-    ],
-    isPlaceholderEventTime
+  const invitationTime = firstRealString(
+    [invitation?.eventTime, invitation?.time],
+    (value) => !value
   );
+  if (
+    invitationTime &&
+    (!isPlaceholderEventTime(invitationTime) ||
+      !isPlaceholderEventTitle(invitation?.title))
+  ) {
+    return invitationTime;
+  }
+
+  const eventTime = firstRealString([event?.eventTime, event?.time], (value) => !value);
+  if (
+    eventTime &&
+    (!isPlaceholderEventTime(eventTime) || !isPlaceholderEventTitle(event?.title))
+  ) {
+    return eventTime;
+  }
+
+  return "";
 }
 
 export function pickGuestFacingEventType(event?: any, invitation?: any) {
@@ -178,10 +194,16 @@ export function buildEventCoreSyncFromInvitation(invitation: any) {
   const date = normalizeEventDateValue(
     invitation?.eventDate || invitation?.date
   );
-  const time = firstRealString(
+  const rawTime = firstRealString(
     [invitation?.eventTime, invitation?.time],
-    isPlaceholderEventTime
+    (value) => !value
   );
+  const time =
+    rawTime &&
+    (!isPlaceholderEventTime(rawTime) ||
+      !isPlaceholderEventTitle(invitation?.title))
+      ? rawTime
+      : "";
   const eventType = cleanString(invitation?.eventType);
   const loc = invitation?.location || {};
 

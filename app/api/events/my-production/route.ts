@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Event from "@/models/Event";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,13 +62,13 @@ function buildMinimalProductionEvent(userId: string, user: any) {
     userId,
 
     email: user?.email || "",
-    title: "האירוע שלך",
+    title: "",
 
     eventType: "wedding",
     status: "active",
 
     date: new Date(),
-    time: "00:00",
+    time: "",
 
     maxGuests: 100,
     location: {},
@@ -280,9 +281,9 @@ export async function PATCH(req: NextRequest) {
 
       time:
         body.time !== undefined
-          ? String(body.time || "00:00")
+          ? String(body.time || "")
           : body.eventTime !== undefined
-            ? String(body.eventTime || "00:00")
+            ? String(body.eventTime || "")
             : undefined,
 
       maxGuests:
@@ -313,6 +314,21 @@ export async function PATCH(req: NextRequest) {
         runValidators: true,
       }
     ).lean();
+
+    if (updatedEvent) {
+      await persistSharedIdentityMirror({
+        source: "event",
+        eventId: String(updatedEvent._id),
+        event: updatedEvent,
+        incoming: {
+          title: (updatedEvent as any).title,
+          eventType: (updatedEvent as any).eventType,
+          date: (updatedEvent as any).date,
+          time: (updatedEvent as any).time,
+          location: (updatedEvent as any).location || null,
+        },
+      });
+    }
 
     return NextResponse.json(
       {

@@ -125,11 +125,11 @@ export async function POST(
         const createdEvent = await Event.create({
           userId,
           email: (user as any)?.email || "noemail@placeholder.com",
-          title: "אירוע חדש",
+          title: "",
           eventType: "wedding",
           status: "active",
           date: new Date(),
-          time: "00:00",
+          time: "",
           maxGuests: HARD_GUEST_CAP,
           location: {},
         });
@@ -156,7 +156,7 @@ export async function POST(
   eventId: event._id,
 
   // ✅ SNAPSHOT אמיתי מהאירוע
-  title: event.title || "הזמנה חדשה",
+  title: event.title || "",
   eventType: event.eventType || "",
   eventDate: event.date || null,
   eventTime: event.time || "",
@@ -170,7 +170,7 @@ export async function POST(
   sentSmsCount: 0,
   guests: [],
   ...buildInvitationRsvpFields(rsvpSiteMode, {
-    title: event.title || "הזמנה חדשה",
+    title: event.title || "",
     eventDate: event.date || null,
     eventTime: event.time || "",
     location: event.location || {},

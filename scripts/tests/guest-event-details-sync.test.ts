@@ -130,6 +130,6 @@ test("/e page and invitation PUT keep a single guest-facing source of truth", ()
   assert.doesNotMatch(eventPage, /function getEventTime/);
 
   const putRoute = read("app/api/invitations/[id]/route.ts");
-  assert.match(putRoute, /buildEventCoreSyncFromInvitation/);
+  assert.match(putRoute, /persistSharedIdentityMirror/);
   assert.match(putRoute, /invitationAfterBasicUpdate/);
 });

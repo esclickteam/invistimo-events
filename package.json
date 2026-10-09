@@ -24,7 +24,7 @@
     "test:guest-link-open-db": "npx tsx --test --test-force-exit scripts/tests/guest-link-open-db.test.ts",
     "test:whatsapp-sms-fallback-db": "npx tsx --test --test-force-exit scripts/tests/whatsapp-sms-fallback-db.test.ts",
     "test:live-event-details-rounds": "npx tsx --test scripts/tests/live-event-details-rounds.test.ts",
-    "test:central-event-details": "npx tsx --test scripts/tests/central-event-details.test.ts scripts/tests/guest-event-details-sync.test.ts",
+    "test:central-event-details": "npx tsx --test scripts/tests/central-event-details.test.ts scripts/tests/guest-event-details-sync.test.ts scripts/tests/shared-event-identity.test.ts scripts/tests/live-event-details-rounds.test.ts",
     "audit:guest-event-details": "npx tsx scripts/audit-guest-event-details-mismatch.ts",
     "migrate:central-event-gifts:dry": "npx tsx scripts/migrate-central-event-gifts.ts --dry-run",
     "migrate:central-event-gifts:write": "npx tsx scripts/migrate-central-event-gifts.ts --write",

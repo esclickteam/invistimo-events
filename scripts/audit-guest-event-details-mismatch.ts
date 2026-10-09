@@ -1,22 +1,29 @@
 /**
- * Dry-run audit: find active invitations whose Event shell no longer
- * matches the client-edited invitation (title / date / time / type / venue).
+ * Dry-run audit: classify Event/Invitation shared-identity mismatches.
  *
  *   npx tsx scripts/audit-guest-event-details-mismatch.ts
  *
  * Read-only. Does not write to the database.
  */
 
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import Event from "../models/Event";
-import Invitation from "../models/Invitation";
-import {
-  detectGuestEventDetailsMismatch,
-  resolveCentralEventDetails,
-} from "../lib/eventDetails/centralEventDetails";
+import fs from "node:fs";
+import path from "node:path";
 
-dotenv.config({ path: ".env.local" });
+function loadLocalEnv() {
+  const envPath = path.join(process.cwd(), ".env.local");
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+    if (key && process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadLocalEnv();
 
 const mongoUri =
   process.env.MONGO_URI ||
@@ -34,10 +41,32 @@ function toIsoDay(value: unknown) {
 async function audit() {
   if (!mongoUri) {
     console.log(
-      "NO_DB: missing MONGO_URI / MONGODB_URI. Skipping live scan."
+      JSON.stringify(
+        {
+          scannedInvitations: 0,
+          mismatchedTotal: 0,
+          mismatchedActive: 0,
+          byClass: {},
+          note: "NO_DB: missing MONGO_URI / MONGODB_URI. Read-only scan skipped.",
+          livePublicSample: "use /api/invite/{shareId} + classifySharedIdentity",
+        },
+        null,
+        2
+      )
     );
-    process.exit(0);
+    return;
   }
+
+  const mongoose = (await import("mongoose")).default;
+  const Event = (await import("../models/Event")).default;
+  const Invitation = (await import("../models/Invitation")).default;
+  const {
+    detectGuestEventDetailsMismatch,
+    resolveCentralEventDetails,
+  } = await import("../lib/eventDetails/centralEventDetails");
+  const { classifySharedIdentity } = await import(
+    "../lib/eventDetails/sharedEventIdentity"
+  );
 
   await mongoose.connect(mongoUri);
   const today = new Date();
@@ -57,6 +86,7 @@ async function audit() {
     shareId: string;
     invitationId: string;
     eventId: string;
+    class: string;
     fields: string[];
     guestTitle: string;
     guestDate: string;
@@ -82,6 +112,7 @@ async function audit() {
       shareId: String(invitation.shareId || ""),
       invitationId: String(invitation._id),
       eventId: String(invitation.eventId),
+      class: classifySharedIdentity(event, invitation),
       fields: fields.map((row) => row.field),
       guestTitle: resolved.title,
       guestDate: resolved.date,
@@ -91,12 +122,19 @@ async function audit() {
   }
 
   const activeMismatches = mismatches.filter((row) => row.active);
+  const byClass = mismatches.reduce<Record<string, number>>((acc, row) => {
+    acc[row.class] = (acc[row.class] || 0) + 1;
+    return acc;
+  }, {});
+
   console.log(
     JSON.stringify(
       {
         scannedInvitations: invitations.length,
         mismatchedTotal: mismatches.length,
         mismatchedActive: activeMismatches.length,
+        byClass,
+        note: "Read-only. event-shell-invitation-real is safe to heal Event later. real-conflict must not be auto-overwritten.",
         active: activeMismatches,
       },
       null,

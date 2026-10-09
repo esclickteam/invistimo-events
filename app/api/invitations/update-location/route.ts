@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import Event from "@/models/Event";
 import mongoose from "mongoose";
 import { prepareEventLocation } from "@/lib/eventLocation";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 
@@ -97,33 +97,20 @@ const userId = auth.userId;
       .map((value) => String(value || "").trim())
       .filter((value) => mongoose.Types.ObjectId.isValid(value));
 
-    if (eventIds.length) {
-      await Event.updateOne(
-        {
-          _id: { $in: eventIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    const uniqueEventIds = [...new Set(eventIds)];
+    for (const eventId of uniqueEventIds) {
+      await persistSharedIdentityMirror({
+        source: "invitation",
+        invitationId: String(invitation._id),
+        eventId,
+        incoming: {
+          title: invitation.title,
+          eventType: invitation.eventType,
+          date: invitation.eventDate,
+          time: invitation.eventTime,
+          location: invitation.location || null,
         },
-        {
-          $set: {
-            "location.name": name || "",
-            "location.address": address,
-            "location.lat": lat,
-            "location.lng": lng,
-            "location.placeId":
-              typeof placeId === "string" ? placeId.trim() : "",
-            "location.placeName":
-              typeof placeName === "string" ? placeName.trim() : "",
-            "location.formattedAddress":
-              typeof formattedAddress === "string"
-                ? formattedAddress.trim()
-                : "",
-            "location.wazeLat": wazeLat,
-            "location.wazeLng": wazeLng,
-            "location.wazeUrl":
-              typeof wazeUrl === "string" ? wazeUrl.trim() : "",
-            updatedAt: new Date(),
-          },
-        }
-      );
+      });
     }
 
     return NextResponse.json({
