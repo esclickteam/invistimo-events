@@ -64,7 +64,7 @@ test("rounds panel warns before dial when approved audio is missing", () => {
   const panel = readSrc("app/components/IvrRoundsPanel.jsx");
   assert.match(panel, /ivr-audio-not-ready-banner/);
   assert.match(panel, /אין עדיין קובץ שמע מאושר לשיחות/);
-  assert.match(panel, /לא יתחיל לחייג/);
+  assert.match(panel, /לא\s+יתחיל לחייג/);
   assert.match(panel, /ivr-approve-audio/);
   assert.match(panel, /ConcatPreviewPlayer/);
 });
