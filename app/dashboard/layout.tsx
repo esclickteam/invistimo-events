@@ -211,13 +211,14 @@ function DashboardLayoutInner({
 
   useEffect(() => {
     function onWorkMode(event: Event) {
+      if (isDemo) return;
       const mode = String((event as CustomEvent)?.detail?.workMode || "");
       if (mode === "live") setEventLive(true);
       if (mode === "regular") setEventLive(false);
     }
     window.addEventListener("invistimo:work-mode", onWorkMode);
     return () => window.removeEventListener("invistimo:work-mode", onWorkMode);
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
     if (isDemo || !invitationLoaded) return;

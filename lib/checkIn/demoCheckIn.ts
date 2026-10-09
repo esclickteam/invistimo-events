@@ -11,6 +11,7 @@ export const DEMO_CHECKIN_CHANNEL = "invistimo-demo-checkin";
 export type DemoCheckInGuest = {
   token: string;
   name: string;
+  phone?: string;
   eventTitle: string;
   coupleNames: string;
   confirmedGuestCount: number;
@@ -87,7 +88,7 @@ export function serializeDemoGuest(guest: DemoCheckInGuest) {
   return {
     id: guest.token,
     name: guest.name,
-    phone: "",
+    phone: guest.phone || "",
     rsvp: "yes",
     confirmedGuestCount: guest.confirmedGuestCount,
     checkedInGuestCount: guest.checkedInGuestCount,

@@ -166,6 +166,16 @@ function SeatingPageInner() {
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
   const isVenueTemplateMode = seatingMode === "venue-template";
+  const [demoMobileGuests, setDemoMobileGuests] = useState(false);
+
+  useEffect(() => {
+    if (!isDemo) return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setDemoMobileGuests(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, [isDemo]);
 
   const [storedWorkMode, setStoredWorkMode] = useState<"regular" | "live">(
     () => {
@@ -1635,8 +1645,12 @@ function SeatingPageInner() {
         </div>
       )}
 
+      {isDemo && demoMobileGuests && !isVenueTemplateMode && (
+        <SeatingSidebar invitationId={invitationId} />
+      )}
+
       {/* MOBILE GUESTS BUTTON */}
-      {!isVenueTemplateMode && (
+      {!isVenueTemplateMode && !isDemo && (
         <button
           onClick={() => setShowGuests(true)}
           className="
@@ -1652,7 +1666,7 @@ function SeatingPageInner() {
         </button>
       )}
 
-      {!isVenueTemplateMode && showGuests && (
+      {!isVenueTemplateMode && !isDemo && showGuests && (
         <Suspense fallback={null}>
           <MobileGuests
             onDragStart={handleDragStart}

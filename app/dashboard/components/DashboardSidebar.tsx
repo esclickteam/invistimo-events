@@ -158,7 +158,7 @@ export default function DashboardSidebar({
       ? {
           role: "user",
           includeCalls: true,
-          callsType: "ivr",
+          callsType: "human",
           includeDigitalSeating: true,
           plan: "premium",
           includeCreditGifts: false,
@@ -328,7 +328,7 @@ export default function DashboardSidebar({
         label: "שיחות מוקלטות",
         icon: Phone,
         href: isDemo ? "/try/dashboard/recorded-calls" : "/dashboard/recorded-calls",
-        hidden: !isIvrCalls,
+        hidden: !isIvrCalls || isDemo,
         match: (path) =>
           path.startsWith("/dashboard/recorded-calls") ||
           path.startsWith("/try/dashboard/recorded-calls"),
