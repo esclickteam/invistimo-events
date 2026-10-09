@@ -83,6 +83,28 @@ export interface IIvrCallAttempt {
   endedAt?: Date | null;
   durationSeconds: number;
 
+  /**
+   * Shared phase for inbound and outbound.
+   * Empty on rows created before the phase machine.
+   */
+  phase?:
+    | ""
+    | "RINGING"
+    | "ANSWERED"
+    | "PLAYING_INTRO"
+    | "WAITING_FOR_INPUT"
+    | "PROCESSING_INPUT"
+    | "PLAYING_RESPONSE"
+    | "COMPLETED";
+  inputTarget?: "" | "none" | "choice" | "count";
+  introCompleted?: boolean;
+  gatherOpen?: boolean;
+  mediaGeneration?: number;
+  invalidReprompts?: number;
+  countReprompts?: number;
+  promptKind?: string;
+  playbackRetries?: number;
+
   /** @deprecated self-recorded / legacy single-file intro */
   introAudioUrl?: string;
   /** Global pack gender used for this attempt's DTMF follow-ups. */
@@ -219,6 +241,54 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       ],
       default: "dialing",
       index: true,
+    },
+    phase: {
+      type: String,
+      enum: [
+        "",
+        "RINGING",
+        "ANSWERED",
+        "PLAYING_INTRO",
+        "WAITING_FOR_INPUT",
+        "PROCESSING_INPUT",
+        "PLAYING_RESPONSE",
+        "COMPLETED",
+      ],
+      default: "",
+    },
+    inputTarget: {
+      type: String,
+      enum: ["", "none", "choice", "count"],
+      default: "",
+    },
+    introCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    gatherOpen: {
+      type: Boolean,
+      default: false,
+    },
+    mediaGeneration: {
+      type: Number,
+      default: 0,
+    },
+    invalidReprompts: {
+      type: Number,
+      default: 0,
+    },
+    countReprompts: {
+      type: Number,
+      default: 0,
+    },
+    promptKind: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    playbackRetries: {
+      type: Number,
+      default: 0,
     },
     telnyxCallControlId: {
       type: String,

@@ -152,15 +152,18 @@ function ActionButton({
   children,
   onClick,
   danger = false,
+  dataTour,
 }: {
   title: string;
   children: ReactNode;
   onClick: () => void | Promise<void>;
   danger?: boolean;
+  dataTour?: string;
 }) {
   return (
     <button
       type="button"
+      data-tour={dataTour}
       onClick={() => {
         void onClick();
       }}
@@ -279,7 +282,7 @@ export default function GuestsMobileList({
 
   return (
     <div className="space-y-4">
-      {guests.map((g) => {
+      {guests.map((g, index) => {
         const arrived = Number(g.arrivedCount ?? 0);
 
         return (
@@ -382,6 +385,7 @@ export default function GuestsMobileList({
                   {onCall ? (
                     <ActionButton
                       title="מעקב סבבי שיחה"
+                      dataTour={index === 0 ? "call-task" : undefined}
                       onClick={() => onCall(g)}
                     >
                       📞
@@ -415,6 +419,7 @@ export default function GuestsMobileList({
                   {handleOpenInviteLink ? (
                     <ActionButton
                       title="פתיחת קישור הזמנה"
+                      dataTour={index === 0 ? "guest-link" : undefined}
                       onClick={() => handleOpenInviteLink(g)}
                     >
                       🔗

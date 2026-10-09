@@ -264,7 +264,11 @@ export async function gatherIvrUsingAudio(input: {
     ...(input.interDigitTimeoutMillis
       ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
       : {}),
-    ...(input.terminatingDigit
+    // Telnyx replays gather_using_audio by default. One try — the phase
+    // machine decides whether a retry is legal. Empty terminating_digit
+    // disables the default "#" terminator.
+    maximum_tries: 1,
+    ...(input.terminatingDigit !== undefined
       ? { terminating_digit: input.terminatingDigit }
       : {}),
     ...(input.validDigits ? { valid_digits: input.validDigits } : {}),
@@ -307,7 +311,7 @@ export async function gatherIvrDigits(input: {
     ...(input.interDigitTimeoutMillis
       ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
       : {}),
-    ...(input.terminatingDigit
+    ...(input.terminatingDigit !== undefined
       ? { terminating_digit: input.terminatingDigit }
       : {}),
     ...(input.validDigits ? { valid_digits: input.validDigits } : {}),

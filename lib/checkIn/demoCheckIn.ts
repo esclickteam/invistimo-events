@@ -73,7 +73,10 @@ export const DEMO_CHECKIN_GUESTS: DemoCheckInGuest[] = [
 ];
 
 export function isDemoCheckInToken(token: unknown): boolean {
-  return DEMO_CHECKIN_GUESTS.some((guest) => guest.token === String(token || ""));
+  const value = String(token || "");
+  if (!value) return false;
+  if (value.startsWith("dmo_")) return true;
+  return DEMO_CHECKIN_GUESTS.some((guest) => guest.token === value);
 }
 
 export function serializeDemoGuest(guest: DemoCheckInGuest) {
@@ -130,6 +133,11 @@ export function readDemoCheckInState(): { guests: DemoCheckInGuest[] } {
     const raw = window.localStorage.getItem(DEMO_CHECKIN_STORAGE_KEY);
     if (!raw) return defaultDemoCheckInState();
     const parsed = JSON.parse(raw);
+    if (parsed?.interactive === true && Array.isArray(parsed.guests)) {
+      return {
+        guests: parsed.guests.map((guest: DemoCheckInGuest) => ({ ...guest })),
+      };
+    }
     const saved = Array.isArray(parsed?.guests) ? parsed.guests : [];
     return {
       guests: DEMO_CHECKIN_GUESTS.map((seed) => {
@@ -149,12 +157,21 @@ export function readDemoCheckInState(): { guests: DemoCheckInGuest[] } {
   }
 }
 
-export function writeDemoCheckInState(state: { guests: DemoCheckInGuest[] }) {
+export function writeDemoCheckInState(state: {
+  guests: DemoCheckInGuest[];
+  interactive?: boolean;
+}) {
+  const interactive =
+    state.interactive === true ||
+    state.guests.some((guest) => String(guest.token || "").startsWith("dmo_"));
   memoryDemoState = {
     guests: state.guests.map((guest) => ({ ...guest })),
   };
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DEMO_CHECKIN_STORAGE_KEY, JSON.stringify(state));
+  window.localStorage.setItem(
+    DEMO_CHECKIN_STORAGE_KEY,
+    JSON.stringify({ ...state, interactive })
+  );
   try {
     window.dispatchEvent(
       new CustomEvent(DEMO_CHECKIN_CHANNEL, { detail: state })
@@ -180,6 +197,11 @@ export function applyDemoCheckIn(token: string, quantityAdded: number) {
   const previous = guest.checkedInGuestCount;
   guest.checkedInGuestCount = previous + quantity;
   writeDemoCheckInState(state);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("invistimo:demo-action", { detail: { action: "check-in" } })
+    );
+  }
 
   return {
     ok: true as const,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
@@ -233,7 +234,10 @@ export default function RsvpTab({
   headerImageUrl,
   isAdmin = false,
 }: Props) {
- 
+  const pathname = usePathname();
+  const eventDetailsHref = pathname.startsWith("/try")
+    ? `/try/dashboard/invitations/${invitationId}/edit`
+    : `/dashboard/invitations/${invitationId}/edit`;
 
   const [loading, setLoading] = useState(true);
   const [sendingNow, setSendingNow] = useState(false);
@@ -1054,7 +1058,7 @@ export default function RsvpTab({
               </p>
               {invitationId && (
                 <a
-                  href={`/dashboard/invitations/${invitationId}/edit`}
+                  href={eventDetailsHref}
                   className="mt-4 inline-flex min-h-11 items-center justify-center rounded-2xl bg-[#2F2924] px-5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5"
                 >
                   הגדרת פרטי אירוע

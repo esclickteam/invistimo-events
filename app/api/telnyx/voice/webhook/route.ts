@@ -1609,7 +1609,20 @@ export async function POST(req: NextRequest) {
           callControlId,
         });
 
+        const ivrOwnsMedia = (() => {
+          try {
+            const raw = String(payload.client_state || "");
+            if (!raw) return false;
+            return Buffer.from(raw, "base64")
+              .toString("utf8")
+              .includes("invistimo-ivr");
+          } catch {
+            return false;
+          }
+        })();
+
         if (
+          !ivrOwnsMedia &&
           inbound &&
           callControlId &&
           getBooleanEnv("TELNYX_PLAY_GREETING_ON_ANSWER", false)

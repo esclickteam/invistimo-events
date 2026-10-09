@@ -95,6 +95,31 @@ export default function SeatingSidebar({
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  useEffect(() => {
+    const openForTour = (event?: Event) => {
+      const id = event
+        ? String((event as CustomEvent).detail?.id || "")
+        : document.documentElement.dataset.demoTour || "";
+      if (id !== "seating") return;
+      setMobileOpen(true);
+      const guests = useSeatingStore.getState().guests || [];
+      const next: Record<string, boolean> = { [NO_GROUP_KEY]: true };
+      for (const guest of guests) {
+        next[String(guest.groupId || NO_GROUP_KEY)] = true;
+      }
+      setOpenGroups(next);
+    };
+    if (document.documentElement.dataset.demoTour === "seating") openForTour();
+    const unsub = useSeatingStore.subscribe(() => {
+      if (document.documentElement.dataset.demoTour === "seating") openForTour();
+    });
+    window.addEventListener("invistimo:demo-tour-step", openForTour);
+    return () => {
+      unsub();
+      window.removeEventListener("invistimo:demo-tour-step", openForTour);
+    };
+  }, []);
+
   const { stats, isGuestSeated, getGroupStats } = useSeatingStats();
 
   /* ===== UI STATE ===== */
@@ -688,6 +713,7 @@ export default function SeatingSidebar({
             )}
 
             <button
+              data-tour={table ? undefined : "seating-guest"}
               className={`
                 rounded-xl border px-3 py-1.5
                 text-[11px] font-bold transition

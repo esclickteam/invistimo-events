@@ -15,6 +15,7 @@ import {
 } from "../../lib/calls/ivrPhoneMatch";
 import {
   disambiguateIvrInboundCandidates,
+  filterInboundCandidatesByDestination,
   isIvrInvitationActiveForInbound,
   type IvrInboundCandidate,
 } from "../../lib/calls/ivrInboundResolve";
@@ -51,6 +52,8 @@ function candidate(
     guestName: partial.guestName || "אורח",
     guestId: partial.guestId,
     invitationId: partial.invitationId,
+    storedPhone: partial.storedPhone,
+    inboundDid: partial.inboundDid,
   };
 }
 
@@ -109,6 +112,67 @@ test("unique phone → matched; multiple without hint → ambiguous", () => {
     assert.equal(ambiguous.reason, "MULTIPLE_ACTIVE_IVR_EVENTS");
     assert.equal(ambiguous.candidates.length, 2);
   }
+});
+
+test("same event with two guest rows is one match, not an arbitrary event", () => {
+  const a = candidate({
+    guestId: "g1",
+    invitationId: "inv1",
+    eventName: "חתונה א",
+    storedPhone: "0509999999",
+  });
+  const duplicate = candidate({
+    guestId: "g2",
+    invitationId: "inv1",
+    eventName: "חתונה א",
+    storedPhone: "+972501111111",
+  });
+  const collapsed = disambiguateIvrInboundCandidates({
+    candidates: [a, duplicate],
+  });
+  assert.equal(collapsed.status, "matched");
+  if (collapsed.status === "matched") {
+    assert.equal(collapsed.candidate.invitationId, "inv1");
+    assert.equal(collapsed.candidate.guestId, "g2");
+  }
+});
+
+test("destination number keeps only the event line that was dialed", () => {
+  const shared = candidate({
+    guestId: "g1",
+    invitationId: "inv1",
+    eventName: "חתונה א",
+  });
+  const dedicated = candidate({
+    guestId: "g2",
+    invitationId: "inv2",
+    eventName: "חתונה ב",
+    inboundDid: "+972501111111",
+  });
+  const onDedicated = filterInboundCandidatesByDestination({
+    candidates: [shared, dedicated],
+    toPhone: "0501111111",
+    platformDid: "+972555172720",
+  });
+  assert.equal(onDedicated.rejected, null);
+  assert.equal(onDedicated.candidates.length, 1);
+  assert.equal(onDedicated.candidates[0].invitationId, "inv2");
+
+  const onPlatform = filterInboundCandidatesByDestination({
+    candidates: [shared, dedicated],
+    toPhone: "+972555172720",
+    platformDid: "+972555172720",
+  });
+  assert.equal(onPlatform.candidates.length, 1);
+  assert.equal(onPlatform.candidates[0].invitationId, "inv1");
+
+  const unknownLine = filterInboundCandidatesByDestination({
+    candidates: [shared],
+    toPhone: "+972509999999",
+    platformDid: "+972555172720",
+  });
+  assert.equal(unknownLine.rejected, "DESTINATION_MISMATCH");
+  assert.equal(unknownLine.candidates.length, 0);
 });
 
 test("multi-event disambiguation by event name or recent outbound invitation", () => {
@@ -194,8 +258,10 @@ test("inbound start only claims IVR guests; human path untouched on none", () =>
   assert.match(start, /AMBIGUOUS_EVENT/);
   assert.match(start, /resolveApprovedNarrationUrl/);
   assert.match(start, /AUDIO_NOT_READY/);
-  assert.match(start, /gatherIvrUsingAudio/);
-  assert.match(start, /stage: "choice"/);
+  assert.match(start, /phase:\s*"RINGING"/);
+  assert.match(start, /toPhone/);
+  assert.equal(start.includes("gatherIvrUsingAudio"), false);
+  assert.equal(start.includes("stage: \"choice\""), false);
   assert.equal(start.includes("ensureIvrInboundIntroAudio"), false);
   assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
   assert.equal(start.includes("synthesizeElevenLabsSpeech"), false);
@@ -219,13 +285,14 @@ test("inbound history channel + RSVP updates reuse outbound DTMF apply", () => {
   assert.match(model, /channel:/);
 
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
+  const machine = readSrc("lib/calls/ivrCallMachine.ts");
   assert.match(webhook, /inbound_ivr|isInboundIvrAttempt/);
-  assert.match(webhook, /applyIvrRsvpToGuest|applyRsvpOnce/);
+  assert.match(machine, /applyIvrRsvpToGuest/);
   assert.match(webhook, /rsvp:\s*"yes"/);
   assert.match(webhook, /rsvp:\s*"no"/);
   assert.match(webhook, /rsvp:\s*"maybe"/);
   // Existing guest RSVP must not block a new inbound attempt (claim uses rsvpApplied:false).
-  assert.match(webhook, /rsvpApplied:\s*false/);
+  assert.match(machine, /rsvpApplied:\s*false/);
 });
 
 test("inbound IVR webhook override separates DTMF from softphone webhook", () => {

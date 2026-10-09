@@ -212,11 +212,12 @@ test("14) AI template uses event name exactly", () => {
 
 test("15) webhook idempotency + guest binding prevent wrong/double updates", () => {
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
+  const machine = readSrc("lib/calls/ivrCallMachine.ts");
   assert.match(webhook, /processedWebhookEventIds/);
-  assert.match(webhook, /rsvpApplied:\s*false/);
+  assert.match(machine, /rsvpApplied:\s*false/);
   assert.match(webhook, /DUPLICATE_EVENT|already_applied|race_already_applied/);
-  assert.match(webhook, /guestId:\s*String\(claimed\.guestId\)/);
-  assert.match(webhook, /invitationId:\s*String\(claimed\.invitationId\)/);
+  assert.match(machine, /guestId:\s*String\(claimed\.guestId\)/);
+  assert.match(machine, /invitationId:\s*String\(claimed\.invitationId\)/);
 });
 
 test("16) live dial safety defaults off", () => {

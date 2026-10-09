@@ -880,6 +880,48 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ---------------- DEMO INIT ---------------- */
 
+  hydrateDemoSession: (session) => {
+    const guests = (session?.guests || []).map((guest) => ({
+      id: guest._id || guest.id,
+      _id: guest._id || guest.id,
+      name: guest.name,
+      phone: guest.phone,
+      guestsCount: guest.guestsCount || 1,
+      arrivedCount:
+        guest.rsvp === "yes" ? guest.arrivedCount || guest.guestsCount || 1 : 0,
+      actualArrivedCount: guest.actualArrivedCount || 0,
+      rsvp: guest.rsvp || "pending",
+      groupId: guest.groupId || null,
+    }));
+
+    const tables = (session?.tables || []).map((table) =>
+      normalizeTableForStore({
+        id: table.id,
+        number: table.number,
+        name: table.name,
+        type: table.type || "round",
+        seats: table.seats || table.capacity || 8,
+        x: table.x ?? 200,
+        y: table.y ?? 200,
+        rotation: table.rotation || 0,
+        seatedGuests: table.seatedGuests || [],
+      })
+    );
+
+    set({
+      demoMode: true,
+      seatingMode: "regular",
+      guests,
+      tables,
+      groups: session?.groups || [],
+      liveArrivals: {},
+      background: null,
+      highlightedTable: null,
+      highlightedSeats: [],
+      draggingGuest: null,
+    });
+  },
+
   initDemo: () => {
     set({
       demoMode: true,

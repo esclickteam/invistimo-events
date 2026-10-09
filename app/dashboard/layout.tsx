@@ -61,6 +61,16 @@ function DashboardLayoutInner({
   const isDemo = pathname.startsWith("/try");
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isDemo) return;
+    const openForTour = (event: Event) => {
+      const id = String((event as CustomEvent).detail?.id || "");
+      if (id === "more" && window.innerWidth < 1024) setMenuOpen(true);
+    };
+    window.addEventListener("invistimo:demo-tour-step", openForTour);
+    return () => window.removeEventListener("invistimo:demo-tour-step", openForTour);
+  }, [isDemo]);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [invitationLoaded, setInvitationLoaded] = useState(false);
   const [eventLive, setEventLive] = useState(false);
@@ -275,7 +285,7 @@ function DashboardLayoutInner({
   if (showSidebar) {
     return (
       <div className="h-[100vh] overflow-hidden bg-[#faf7f3]" dir="rtl">
-        <AdminManageBanner />
+        {!isDemo && <AdminManageBanner />}
         <DashboardSidebar
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -294,9 +304,11 @@ function DashboardLayoutInner({
           eventId={eventIdForMenu}
           eventLive={eventLive}
           checkInEnabled={checkInEnabled}
-          canOpenEventManagement={canOpenEventManagement}
-          canOpenTransportationManagement={canOpenTransportationManagement}
-          canOpenWeddingChallenges={canOpenWeddingChallenges}
+          canOpenEventManagement={isDemo ? false : canOpenEventManagement}
+          canOpenTransportationManagement={
+            isDemo ? false : canOpenTransportationManagement
+          }
+          canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
           gameOnly={gameOnly}
           isDemo={isDemo}
         />
@@ -313,7 +325,7 @@ function DashboardLayoutInner({
 
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      <AdminManageBanner />
+      {!isDemo && <AdminManageBanner />}
       {header}
 
       {/* Legacy mobile menu kept for seating / game-only paths without sidebar */}
@@ -331,9 +343,11 @@ function DashboardLayoutInner({
           invitation?.guestExperienceType
         }
         eventId={eventIdForMenu}
-        canOpenEventManagement={canOpenEventManagement}
-        canOpenTransportationManagement={canOpenTransportationManagement}
-        canOpenWeddingChallenges={canOpenWeddingChallenges}
+        canOpenEventManagement={isDemo ? false : canOpenEventManagement}
+        canOpenTransportationManagement={
+          isDemo ? false : canOpenTransportationManagement
+        }
+        canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
         gameOnly={gameOnly}
         isDemo={isDemo}
       />

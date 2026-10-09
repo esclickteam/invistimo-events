@@ -738,6 +738,10 @@ export async function executeIvrRound(input: {
     if (attempt && ["failed"].includes(String(attempt.status))) {
       attempt.retryCount = Number(attempt.retryCount || 0) + 1;
       attempt.status = "queued";
+      attempt.phase = "RINGING";
+      attempt.inputTarget = "none";
+      attempt.introCompleted = false;
+      attempt.gatherOpen = false;
       attempt.flowStep = "dialing";
       attempt.error = "";
       attempt.dialLockedAt = now;
@@ -772,6 +776,10 @@ export async function executeIvrRound(input: {
       attempt = await IvrCallAttempt.create({
         ...attemptFields,
         status: allowed ? "queued" : "canceled",
+        phase: allowed ? "RINGING" : "COMPLETED",
+        inputTarget: "none",
+        introCompleted: false,
+        gatherOpen: false,
         flowStep: allowed ? "dialing" : "done",
         dialLockedAt: now,
         endedAt: allowed ? null : now,

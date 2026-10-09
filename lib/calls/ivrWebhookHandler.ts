@@ -8,10 +8,13 @@
 
 import IvrCallAttempt from "@/models/IvrCallAttempt";
 import { fillIvrRoundCapacity } from "@/lib/calls/ivrDialer";
+import { parseDtmfGuestCount } from "@/lib/calls/ivrApplyRsvp";
 import {
-  applyIvrRsvpToGuest,
-  parseDtmfGuestCount,
-} from "@/lib/calls/ivrApplyRsvp";
+  applyRsvpOnce,
+  handleIvrAnswered,
+  handleIvrDigits,
+  handleIvrPlaybackEnded,
+} from "@/lib/calls/ivrCallMachine";
 import { classifyUnansweredHangup } from "@/lib/calls/ivrDialFailure";
 import {
   getGlobalPackSegmentUrl,
@@ -87,24 +90,10 @@ async function playInboundChoiceGather(input: {
   const gender = attemptVoiceGender(input.attempt);
   const sharedUrl = cleanStr(input.attempt.introAudioUrl);
   if (sharedUrl) {
-    await gatherIvrUsingAudio({
+    await handleIvrAnswered({
+      attempt: input.attempt,
       callControlId: input.callControlId,
-      audioUrl: sharedUrl,
-      minimumDigits: 1,
-      maximumDigits: 1,
-      validDigits: "123",
-      timeoutMillis: 45000,
-      clientState: {
-        source: "invistimo-ivr",
-        inbound_ivr: true,
-        channel: "inbound_ivr",
-        callAttemptId: String(input.attempt._id),
-        stage: "choice",
-        voiceGender: gender,
-      },
     });
-    input.attempt.flowStep = "gather_choice";
-    await input.attempt.save();
     return;
   }
 
@@ -161,6 +150,14 @@ async function startOutboundFromBeginning(input: {
   attempt: any;
   callControlId: string;
 }) {
+  const introUrl = cleanStr(input.attempt.introAudioUrl);
+  // Approved file: playback starts only after call.answered, inside the
+  // shared phase machine. Gather opens after playback.ended — never here.
+  if (introUrl) {
+    await handleIvrAnswered(input);
+    return;
+  }
+
   const gender = attemptVoiceGender(input.attempt);
   const eventNameUrl = cleanStr(input.attempt.eventNameAudioUrl);
   const baseState = {
@@ -169,25 +166,6 @@ async function startOutboundFromBeginning(input: {
     voiceGender: gender,
   };
   void warmIvrChoiceFollowUps(gender);
-
-  const introUrl = cleanStr(input.attempt.introAudioUrl);
-  if (introUrl) {
-    await gatherIvrUsingAudio({
-      callControlId: input.callControlId,
-      audioUrl: introUrl,
-      minimumDigits: 1,
-      maximumDigits: 1,
-      validDigits: "123",
-      timeoutMillis: 45000,
-      clientState: {
-        ...baseState,
-        stage: "choice",
-      },
-    });
-    input.attempt.flowStep = "gather_choice";
-    await input.attempt.save();
-    return;
-  }
 
   if (eventNameUrl) {
     const beforeUrl = await getGlobalPackSegmentUrl(
@@ -315,111 +293,6 @@ async function findAttemptFromEvent(body: any) {
   return null;
 }
 
-async function applyRsvpOnce(input: {
-  attempt: any;
-  rsvp: "yes" | "no" | "maybe";
-  attendingCount?: number | null;
-}) {
-  if (input.attempt.rsvpApplied) {
-    return { applied: false, reason: "already_applied" };
-  }
-
-  const claimed = await IvrCallAttempt.findOneAndUpdate(
-    {
-      _id: input.attempt._id,
-      rsvpApplied: false,
-    },
-    {
-      $set: {
-        rsvpApplied: true,
-        rsvpAppliedAt: new Date(),
-        rsvpResult: input.rsvp,
-        attendingCount:
-          typeof input.attendingCount === "number"
-            ? input.attendingCount
-            : null,
-        status: "completed",
-      },
-      $push: {
-        timeline: {
-          $each: [
-            {
-              at: new Date(),
-              source: "server",
-              kind: "rsvp_saved",
-              label: "נשמרה תשובה ברשומה",
-              detail: `${input.rsvp}${
-                typeof input.attendingCount === "number"
-                  ? `:${input.attendingCount}`
-                  : ""
-              }`,
-              eventType: "",
-              digit: "",
-              stage: "",
-            },
-          ],
-          $slice: -120,
-        },
-      },
-    },
-    { new: true }
-  );
-
-  if (!claimed) {
-    return { applied: false, reason: "race_already_applied" };
-  }
-
-  try {
-    await applyIvrRsvpToGuest({
-      guestId: String(claimed.guestId),
-      invitationId: String(claimed.invitationId),
-      rsvp: input.rsvp,
-      attendingCount: input.attendingCount,
-      respondedAt: claimed.rsvpAppliedAt || new Date(),
-      round: claimed.round ?? null,
-      callAttemptId: String(claimed._id),
-      callControlId: String(claimed.telnyxCallControlId || ""),
-      source: isInboundIvrAttempt(claimed) ? "inbound" : "outbound",
-    });
-  } catch (error) {
-    await IvrCallAttempt.updateOne(
-      { _id: claimed._id },
-      {
-        $set: {
-          rsvpApplied: false,
-          rsvpAppliedAt: null,
-          rsvpResult: null,
-          status: "answered",
-          flowStep: "gather_choice",
-          choiceDigit: "",
-        },
-        $push: {
-          timeline: {
-            $each: [
-              {
-                at: new Date(),
-                source: "server",
-                kind: "rsvp_failed",
-                label: "שמירת התשובה נכשלה",
-                detail: error instanceof Error ? error.message : "RSVP_SAVE_FAILED",
-                eventType: "",
-                digit: "",
-                stage: "",
-              },
-            ],
-            $slice: -120,
-          },
-        },
-      }
-    );
-    throw error;
-  }
-
-  input.attempt.rsvpApplied = true;
-  input.attempt.status = "completed";
-  return { applied: true };
-}
-
 export async function handleIvrTelnyxWebhook(body: any) {
   const eventType = getEventType(body);
   const payload = getPayload(body);
@@ -472,10 +345,12 @@ export async function handleIvrTelnyxWebhook(body: any) {
     setIfEmpty.playbackStartedAt = observedAt;
   }
   if (eventType === "call.dtmf.received" || eventType === "call.gather.ended") {
-    setIfEmpty.firstDigitAt = observedAt;
     const choice = described.digit.slice(0, 1);
-    if (choice === "1" || choice === "2" || choice === "3") {
-      setIfEmpty.choiceDigitAt = observedAt;
+    if (choice) {
+      setIfEmpty.firstDigitAt = observedAt;
+      if (choice === "1" || choice === "2" || choice === "3") {
+        setIfEmpty.choiceDigitAt = observedAt;
+      }
     }
   }
   const noted = pushIvrTimeline(
@@ -504,6 +379,14 @@ export async function handleIvrTelnyxWebhook(body: any) {
     );
   });
 
+  if (
+    attempt.isModified("telnyxCallControlId") ||
+    attempt.isModified("telnyxCallLegId") ||
+    attempt.isModified("telnyxCallSessionId")
+  ) {
+    await attempt.save();
+  }
+
   try {
   switch (eventType) {
     case "call.initiated": {
@@ -519,6 +402,9 @@ export async function handleIvrTelnyxWebhook(body: any) {
     }
 
     case "call.answered": {
+      const machineAnswer = await handleIvrAnswered({ attempt, callControlId });
+      if (machineAnswer.handled) break;
+
       if (isInboundIvrAttempt(attempt)) {
         attempt.answered = true;
         attempt.answeredAt = attempt.answeredAt || new Date();
@@ -577,6 +463,10 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
     case "call.dtmf.received":
     case "call.gather.ended": {
+      if (cleanStr(attempt.phase)) {
+        await handleIvrDigits({ attempt, callControlId, body, eventType });
+        break;
+      }
       if (attempt.rsvpApplied || attempt.flowStep === "done") break;
       if (
         attempt.status === "unresolved" ||
@@ -704,6 +594,8 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
       const choiceDigit = digits.slice(0, 1);
       if (!["1", "2", "3"].includes(choiceDigit)) {
+        // A gather that ends before any audio has started is not a wrong key.
+        if (!attempt.playbackStartedAt && !attempt.introCompleted) break;
         attempt.status = "invalid_input";
         const invalidUrl = await getIvrSystemAudioUrlForGender(
           gender,
@@ -841,6 +733,13 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
     case "call.playback.ended":
     case "call.speak.ended": {
+      const machinePlayback = await handleIvrPlaybackEnded({
+        attempt,
+        callControlId,
+        body,
+      });
+      if (machinePlayback.handled) break;
+
       const clientState = decodeIvrClientState(payload?.client_state);
       const stage = cleanStr(clientState.stage);
       const playbackStatus = cleanStr(payload?.status).toLowerCase();
@@ -1000,6 +899,8 @@ export async function handleIvrTelnyxWebhook(body: any) {
         );
       }
 
+      attempt.phase = "COMPLETED";
+      attempt.gatherOpen = false;
       if (!attempt.rsvpApplied) {
         if (attempt.answered) {
           attempt.status = "hangup_before_response";

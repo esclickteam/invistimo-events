@@ -28,6 +28,10 @@ export type IvrInboundCandidate = {
   eventName: string;
   eventNamePronunciation: string;
   guestName: string;
+  /** Guest phone as stored, used only to pick among duplicate rows of one event. */
+  storedPhone?: string;
+  /** Optional per-event IVR number. Empty means the shared Invistimo line. */
+  inboundDid?: string;
 };
 
 export type IvrInboundResolveResult =
@@ -43,7 +47,7 @@ export type IvrInboundResolveResult =
     }
   | {
       status: "none";
-      reason: "NO_IVR_GUEST" | "BAD_PHONE";
+      reason: "NO_IVR_GUEST" | "BAD_PHONE" | "DESTINATION_MISMATCH";
     };
 
 function cleanStr(value: unknown) {
@@ -78,16 +82,77 @@ export function isIvrInvitationActiveForInbound(
 }
 
 /**
+ * Two guest rows on the same invitation are one event.
+ * An exact stored-phone match wins; otherwise the first row is kept.
+ * This never chooses between different events.
+ */
+export function collapseIvrCandidatesToEvents(
+  candidates: IvrInboundCandidate[]
+): IvrInboundCandidate[] {
+  const byEvent = new Map<string, IvrInboundCandidate>();
+  for (const candidate of candidates) {
+    const key = cleanStr(candidate.invitationId);
+    if (!key) continue;
+    const current = byEvent.get(key);
+    if (!current) {
+      byEvent.set(key, candidate);
+      continue;
+    }
+    const rank = (row: IvrInboundCandidate) => {
+      const stored = normalizePhoneForTelnyx(row.storedPhone || "");
+      const caller = normalizePhoneForTelnyx(row.phone || "");
+      if (stored && caller && stored === caller) return 2;
+      if (stored && phonesLikelyMatch(stored, caller)) return 1;
+      return 0;
+    };
+    if (rank(candidate) > rank(current)) byEvent.set(key, candidate);
+  }
+  return [...byEvent.values()];
+}
+
+/**
+ * Destination must be the event's own IVR number when one is configured,
+ * otherwise the shared Invistimo number. A mismatch drops the candidate.
+ * If nobody remains, the caller is not assigned to a leftover event.
+ */
+export function filterInboundCandidatesByDestination(input: {
+  candidates: IvrInboundCandidate[];
+  toPhone?: string | null;
+  platformDid?: string | null;
+}): {
+  candidates: IvrInboundCandidate[];
+  rejected: "DESTINATION_MISMATCH" | null;
+} {
+  const list = Array.isArray(input.candidates) ? input.candidates : [];
+  const toPhone = normalizePhoneForTelnyx(input.toPhone || "");
+  if (!toPhone) {
+    return { candidates: list, rejected: null };
+  }
+  const platformDid = normalizePhoneForTelnyx(input.platformDid || "");
+  const matched = list.filter((candidate) => {
+    const eventDid = normalizePhoneForTelnyx(candidate.inboundDid || "");
+    if (eventDid) return eventDid === toPhone;
+    return Boolean(platformDid) && toPhone === platformDid;
+  });
+  if (!matched.length) {
+    return { candidates: [], rejected: "DESTINATION_MISMATCH" };
+  }
+  return { candidates: matched, rejected: null };
+}
+
+/**
  * Pure disambiguation among already-filtered IVR candidates.
- * Prefer the invitation tied to the most recent outbound IVR attempt for this phone.
- * If eventNameHint is provided and uniquely matches one candidate's event name, use it.
+ * Order: one event, unique event-name hint, unique recent outbound invitation.
+ * Anything still tied stays ambiguous — the first row is never chosen.
  */
 export function disambiguateIvrInboundCandidates(input: {
   candidates: IvrInboundCandidate[];
   recentInvitationId?: string | null;
   eventNameHint?: string | null;
 }): IvrInboundResolveResult {
-  const candidates = Array.isArray(input.candidates) ? input.candidates : [];
+  const candidates = collapseIvrCandidatesToEvents(
+    Array.isArray(input.candidates) ? input.candidates : []
+  );
 
   if (!candidates.length) {
     return { status: "none", reason: "NO_IVR_GUEST" };
@@ -136,6 +201,8 @@ export function disambiguateIvrInboundCandidates(input: {
 
 export async function resolveInboundIvrGuest(input: {
   fromPhone: string;
+  toPhone?: string | null;
+  platformDid?: string | null;
   eventNameHint?: string | null;
   now?: Date;
 }): Promise<IvrInboundResolveResult> {
@@ -228,6 +295,8 @@ export async function resolveInboundIvrGuest(input: {
       invitationId: String(invitation._id),
       userId: String(owner._id),
       phone: fromE164,
+      storedPhone: cleanStr(guest.phone || guest.mobile || guest.phoneNumber),
+      inboundDid: cleanStr(owner?.ivrConfig?.inboundDid),
       eventName,
       eventNamePronunciation,
       guestName: cleanStr(guest.name),
@@ -240,10 +309,19 @@ export async function resolveInboundIvrGuest(input: {
     uniqueByGuest.set(c.guestId, c);
   }
   const uniqueCandidates = [...uniqueByGuest.values()];
+  const byDestination = filterInboundCandidatesByDestination({
+    candidates: uniqueCandidates,
+    toPhone: input.toPhone,
+    platformDid: input.platformDid,
+  });
+  if (byDestination.rejected) {
+    return { status: "none", reason: "DESTINATION_MISMATCH" };
+  }
+  const destinationCandidates = byDestination.candidates;
 
   let recentInvitationId: string | null = null;
-  if (uniqueCandidates.length > 1) {
-    const candidateInvitationIds = uniqueCandidates.map((c) => c.invitationId);
+  if (destinationCandidates.length > 1) {
+    const candidateInvitationIds = destinationCandidates.map((c) => c.invitationId);
 
     const recentByVariant = await IvrCallAttempt.findOne({
       phone: { $in: variants },
@@ -275,7 +353,7 @@ export async function resolveInboundIvrGuest(input: {
   }
 
   return disambiguateIvrInboundCandidates({
-    candidates: uniqueCandidates,
+    candidates: destinationCandidates,
     recentInvitationId,
     eventNameHint: input.eventNameHint,
   });
