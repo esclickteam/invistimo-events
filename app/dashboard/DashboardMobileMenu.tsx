@@ -54,14 +54,17 @@ export default function DashboardMobileMenu({
 }: Props) {
   const router = useRouter();
   const { user: authUser } = useAuth();
-  const user = isDemo
-    ? {
-        role: "user",
-        includeCalls: true,
-        callsType: "ivr",
-        plan: "premium",
-      }
-    : authUser;
+  const user = (
+    isDemo
+      ? {
+          role: "user",
+          includeCalls: true,
+          callsType: "ivr",
+          plan: "premium",
+          includeCreditGifts: false,
+        }
+      : authUser
+  ) as typeof authUser;
   const [showDemoModal, setShowDemoModal] = useState(false);
   const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
   const canOpenGuestMessages = hasGuestMessagesFeature(user);

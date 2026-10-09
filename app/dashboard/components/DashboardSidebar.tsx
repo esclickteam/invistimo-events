@@ -153,20 +153,23 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser } = useAuth();
-  const user = isDemo
-    ? {
-        role: "user",
-        includeCalls: true,
-        callsType: "ivr",
-        includeDigitalSeating: true,
-        plan: "premium",
-        accessModules: {
-          checkIn: true,
-          liveDashboard: true,
-          rsvpSeating: true,
-        },
-      }
-    : authUser;
+  const user = (
+    isDemo
+      ? {
+          role: "user",
+          includeCalls: true,
+          callsType: "ivr",
+          includeDigitalSeating: true,
+          plan: "premium",
+          includeCreditGifts: false,
+          accessModules: {
+            checkIn: true,
+            liveDashboard: true,
+            rsvpSeating: true,
+          },
+        }
+      : authUser
+  ) as typeof authUser;
   const [hash, setHash] = useState("");
   const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
 

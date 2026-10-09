@@ -294,9 +294,11 @@ function DashboardLayoutInner({
           eventId={eventIdForMenu}
           eventLive={eventLive}
           checkInEnabled={checkInEnabled}
-          canOpenEventManagement={canOpenEventManagement}
-          canOpenTransportationManagement={canOpenTransportationManagement}
-          canOpenWeddingChallenges={canOpenWeddingChallenges}
+          canOpenEventManagement={isDemo ? false : canOpenEventManagement}
+          canOpenTransportationManagement={
+            isDemo ? false : canOpenTransportationManagement
+          }
+          canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
           gameOnly={gameOnly}
           isDemo={isDemo}
         />
@@ -331,9 +333,11 @@ function DashboardLayoutInner({
           invitation?.guestExperienceType
         }
         eventId={eventIdForMenu}
-        canOpenEventManagement={canOpenEventManagement}
-        canOpenTransportationManagement={canOpenTransportationManagement}
-        canOpenWeddingChallenges={canOpenWeddingChallenges}
+        canOpenEventManagement={isDemo ? false : canOpenEventManagement}
+        canOpenTransportationManagement={
+          isDemo ? false : canOpenTransportationManagement
+        }
+        canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
         gameOnly={gameOnly}
         isDemo={isDemo}
       />
