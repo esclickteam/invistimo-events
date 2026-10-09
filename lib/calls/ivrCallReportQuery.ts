@@ -7,11 +7,17 @@ import {
   classifyIvrAttempt,
   formatIvrDuration,
   formatIvrIsraelDateTime,
+  ivrAnsweredLabel,
   ivrAttemptTimings,
   ivrAudioModeLabel,
+  ivrChoiceDigitLabel,
+  ivrDialAttemptNumber,
   ivrDirectionLabel,
+  ivrFailureReason,
+  ivrStoredRsvpLabel,
   parseIvrReportDayRange,
   redactIvrReportText,
+  shapeUserIvrSummary,
   type IvrAttemptFacts,
 } from "@/lib/calls/ivrCallReport";
 
@@ -107,17 +113,58 @@ export function ivrReportStatusMatch(callStatus: string) {
   }
 }
 
-async function guestIdsForSearch(q: string) {
-  const guests = await InvitationGuest.find({
+export type IvrReportFilterOptions = {
+  /** When set, guest-name search cannot match guests of other events. */
+  guestInvitationIds?: mongoose.Types.ObjectId[];
+  /** Match RSVP filters to the digit stored on the attempt. */
+  rsvpFromStoredDigit?: boolean;
+};
+
+async function guestIdsForSearch(
+  q: string,
+  invitationIds?: mongoose.Types.ObjectId[]
+) {
+  const filter: Record<string, unknown> = {
     name: new RegExp(escapeRegex(q), "i"),
-  })
+  };
+  if (invitationIds) {
+    if (!invitationIds.length) return [];
+    filter.invitationId = { $in: invitationIds };
+  }
+  const guests = await InvitationGuest.find(filter)
     .select("_id")
     .limit(300)
     .lean();
   return guests.map((guest) => guest._id);
 }
 
-export async function buildIvrReportFilter(query: IvrReportQuery) {
+function storedDigitRsvpMatch(rsvp: string) {
+  if (rsvp === "yes") {
+    return { rsvpApplied: true, rsvpResult: "yes" };
+  }
+  if (rsvp === "no") {
+    return {
+      $or: [{ rsvpApplied: true, rsvpResult: "no" }, { choiceDigit: "2" }],
+    };
+  }
+  if (rsvp === "maybe") {
+    return {
+      $or: [{ rsvpApplied: true, rsvpResult: "maybe" }, { choiceDigit: "3" }],
+    };
+  }
+  if (rsvp === "none") {
+    return {
+      rsvpApplied: { $ne: true },
+      choiceDigit: { $nin: ["2", "3"] },
+    };
+  }
+  return null;
+}
+
+export async function buildIvrReportFilter(
+  query: IvrReportQuery,
+  options: IvrReportFilterOptions = {}
+) {
   const and: Record<string, unknown>[] = [];
   const invitationId = oid(query.invitationId);
   const userId = oid(query.userId);
@@ -161,10 +208,20 @@ export async function buildIvrReportFilter(query: IvrReportQuery) {
     });
   }
 
-  if (query.rsvp === "yes" || query.rsvp === "no" || query.rsvp === "maybe") {
-    and.push({ rsvpApplied: true, rsvpResult: query.rsvp });
-  } else if (query.rsvp === "none") {
-    and.push({ rsvpApplied: { $ne: true } });
+  if (query.rsvp) {
+    const stored = options.rsvpFromStoredDigit
+      ? storedDigitRsvpMatch(query.rsvp)
+      : null;
+    if (options.rsvpFromStoredDigit) {
+      if (!stored) return { empty: true as const, filter: {} };
+      and.push(stored);
+    } else if (query.rsvp === "yes" || query.rsvp === "no" || query.rsvp === "maybe") {
+      and.push({ rsvpApplied: true, rsvpResult: query.rsvp });
+    } else if (query.rsvp === "none") {
+      and.push({ rsvpApplied: { $ne: true } });
+    } else {
+      return { empty: true as const, filter: {} };
+    }
   }
 
   if (query.outcome === "completed") {
@@ -221,7 +278,7 @@ export async function buildIvrReportFilter(query: IvrReportQuery) {
     if (digits.length >= 3) {
       or.push({ phone: new RegExp(escapeRegex(digits)) });
     }
-    const guestIds = await guestIdsForSearch(q);
+    const guestIds = await guestIdsForSearch(q, options.guestInvitationIds);
     if (guestIds.length) or.push({ guestId: { $in: guestIds } });
     if (!or.length) return { empty: true as const, filter: {} };
     and.push({ $or: or });
@@ -266,6 +323,11 @@ export function shapeIvrReportRow(
     callStatus: classified.callStatus,
     callStatusLabel: classified.label,
     rsvpLabel: classified.rsvpLabel,
+    storedRsvpLabel: ivrStoredRsvpLabel(facts),
+    answeredLabel: ivrAnsweredLabel(facts),
+    choiceDigitLabel: ivrChoiceDigitLabel(facts),
+    attemptNumber: ivrDialAttemptNumber(row),
+    failureReason: ivrFailureReason(facts),
     invitedCount: names.invitedCount,
     attendingCount: attending,
     callDurationLabel: formatIvrDuration(timings.callDurationMs),
@@ -358,8 +420,10 @@ function emptyStats() {
     noAnswer: 0,
     busy: 0,
     failed: 0,
+    voicemail: 0,
     answeredNoResponse: 0,
     partial: 0,
+    answeredHangup: 0,
     yes: 0,
     no: 0,
     maybe: 0,
@@ -422,6 +486,9 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
         failed: {
           $sum: { $cond: [{ $eq: ["$status", "failed"] }, 1, 0] },
         },
+        voicemail: {
+          $sum: { $cond: [{ $eq: ["$status", "voicemail"] }, 1, 0] },
+        },
         answeredNoResponse: {
           $sum: {
             $cond: [
@@ -453,6 +520,24 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
                       { $gt: ["$guestCountDigits", ""] },
                     ],
                   },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+        answeredHangup: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$answered", true] },
+                  { $ne: ["$rsvpApplied", true] },
+                  { $ne: ["$endedAt", null] },
+                  { $ne: ["$choiceDigit", ""] },
+                  { $ne: ["$choiceDigit", "1"] },
+                  { $ne: ["$choiceDigit", null] },
                 ],
               },
               1,
@@ -605,8 +690,10 @@ export async function summarizeIvrReport(filter: Record<string, unknown>) {
     noAnswer: Number(row.noAnswer || 0),
     busy: Number(row.busy || 0),
     failed: Number(row.failed || 0),
+    voicemail: Number(row.voicemail || 0),
     answeredNoResponse: Number(row.answeredNoResponse || 0),
     partial: Number(row.partial || 0),
+    answeredHangup: Number(row.answeredHangup || 0),
     yes: Number(row.yes || 0),
     no: Number(row.no || 0),
     maybe: Number(row.maybe || 0),
@@ -841,4 +928,157 @@ export async function summarizeIvrRounds(invitationId: string) {
           : "לא זמין",
     };
   });
+}
+
+export type UserIvrEventOption = { id: string; name: string };
+
+async function ownedInvitations(userId: string) {
+  const id = oid(userId);
+  if (!id) return null;
+  const invitations = await Invitation.find({ ownerId: id })
+    .select("_id title")
+    .lean();
+  const events: UserIvrEventOption[] = invitations
+    .map((item: any) => ({
+      id: String(item._id),
+      name: String(item.title || "אירוע"),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  return {
+    userId: id,
+    invitationIds: invitations.map((item: any) => item._id as mongoose.Types.ObjectId),
+    events,
+  };
+}
+
+/**
+ * Report filter locked to one customer and that customer's events.
+ * A query string cannot widen the scope to another user.
+ */
+export async function buildUserIvrReportFilter(
+  userId: string,
+  query: IvrReportQuery
+) {
+  const owned = await ownedInvitations(userId);
+  if (!owned) {
+    return {
+      empty: true as const,
+      filter: {},
+      events: [] as UserIvrEventOption[],
+    };
+  }
+  if (query.invitationId) {
+    const requested = oid(query.invitationId);
+    const allowed =
+      requested &&
+      owned.invitationIds.some((item) => String(item) === String(requested));
+    if (!allowed) {
+      return { empty: true as const, filter: {}, events: owned.events };
+    }
+  }
+  if (!owned.invitationIds.length) {
+    return { empty: true as const, filter: {}, events: owned.events };
+  }
+
+  const built = await buildIvrReportFilter(
+    { ...query, userId: String(owned.userId) },
+    {
+      guestInvitationIds: owned.invitationIds,
+      rsvpFromStoredDigit: true,
+    }
+  );
+  if (built.empty) {
+    return { empty: true as const, filter: {}, events: owned.events };
+  }
+
+  const base =
+    built.filter && Object.keys(built.filter).length
+      ? built.filter
+      : { userId: owned.userId };
+
+  return {
+    empty: false as const,
+    filter: {
+      $and: [
+        base,
+        { userId: owned.userId },
+        { invitationId: { $in: owned.invitationIds } },
+      ],
+    },
+    events: owned.events,
+  };
+}
+
+function userReportRow(row: any, names: ReturnType<typeof namesFor>) {
+  const shaped = shapeIvrReportRow(row, names);
+  return {
+    id: shaped.id,
+    atLabel: shaped.atLabel || "לא זמין",
+    eventName: shaped.eventName,
+    guestName: shaped.guestName,
+    phone: shaped.phone,
+    round: shaped.round,
+    attemptNumber: shaped.attemptNumber,
+    callStatus: shaped.callStatus,
+    callStatusLabel: shaped.callStatusLabel,
+    answered: row.answered === true,
+    answeredLabel: shaped.answeredLabel,
+    choiceDigit: shaped.choiceDigitLabel,
+    rsvpLabel: shaped.storedRsvpLabel,
+    callDurationLabel: shaped.callDurationLabel,
+    failureReason: shaped.failureReason,
+    problem: shaped.problem,
+  };
+}
+
+export async function listUserIvrReportPage(userId: string, query: IvrReportQuery) {
+  const built = await buildUserIvrReportFilter(userId, query);
+  const page = Math.max(1, Math.min(500, Number(query.page) || 1));
+  const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 25));
+  if (built.empty) {
+    return {
+      rows: [],
+      total: 0,
+      page,
+      pageSize,
+      stats: shapeUserIvrSummary(emptyStats()),
+      events: built.events,
+    };
+  }
+  const [total, docs, stats] = await Promise.all([
+    IvrCallAttempt.countDocuments(built.filter),
+    IvrCallAttempt.find(built.filter)
+      .select(LIST_FIELDS)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .lean(),
+    summarizeIvrReport(built.filter),
+  ]);
+  const maps = await nameMaps(docs);
+  return {
+    rows: docs.map((row) => userReportRow(row, namesFor(row, maps))),
+    total,
+    page,
+    pageSize,
+    stats: shapeUserIvrSummary(stats),
+    events: built.events,
+  };
+}
+
+export async function listUserIvrReportExport(userId: string, query: IvrReportQuery) {
+  const built = await buildUserIvrReportFilter(userId, query);
+  if (built.empty) return { rows: [], truncated: false, total: 0 };
+  const total = await IvrCallAttempt.countDocuments(built.filter);
+  const docs = await IvrCallAttempt.find(built.filter)
+    .select(LIST_FIELDS)
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(EXPORT_LIMIT)
+    .lean();
+  const maps = await nameMaps(docs);
+  return {
+    rows: docs.map((row) => userReportRow(row, namesFor(row, maps))),
+    truncated: total > EXPORT_LIMIT,
+    total,
+  };
 }

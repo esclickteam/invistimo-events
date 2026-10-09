@@ -32,22 +32,21 @@ function readQuery(req: NextRequest): IvrReportQuery {
   const params = req.nextUrl.searchParams;
   return {
     invitationId: params.get("invitationId") || "",
-    userId: params.get("userId") || "",
     from: params.get("from") || "",
     to: params.get("to") || "",
     round: params.get("round") || "",
-    direction: params.get("direction") || "",
     callStatus: params.get("callStatus") || "",
     rsvp: params.get("rsvp") || "",
-    audioMode: params.get("audioMode") || "",
-    outcome: params.get("outcome") || "",
     q: params.get("q") || "",
     page: Number(params.get("page") || 1),
-    pageSize: Number(params.get("pageSize") || 50),
+    pageSize: Number(params.get("pageSize") || 25),
   };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const auth = await requireAdmin(req);
     if ("error" in auth) {
@@ -57,17 +56,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const params = req.nextUrl.searchParams;
+    const { id } = await context.params;
     const query = readQuery(req);
-    if (!query.userId) {
-      return NextResponse.json(
-        { ok: false, error: "USER_REQUIRED" },
-        { status: 400 }
-      );
-    }
+    const params = req.nextUrl.searchParams;
 
     if (params.get("format") === "xlsx") {
-      const exported = await listUserIvrReportExport(query.userId, query);
+      const exported = await listUserIvrReportExport(id, query);
       const buffer = await buildIvrUserCallReportWorkbook(
         exported.rows,
         exported.truncated
@@ -83,13 +77,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const page = await listUserIvrReportPage(query.userId, query);
-    return NextResponse.json({
-      ok: true,
-      ...page,
-    });
+    const page = await listUserIvrReportPage(id, query);
+    return NextResponse.json({ ok: true, ...page });
   } catch (error) {
-    console.error("[admin/ivr/call-report]", error);
+    console.error("[admin/users/ivr-call-report]", error);
     return NextResponse.json(
       { ok: false, error: "IVR_CALL_REPORT_FAILED" },
       { status: 500 }
