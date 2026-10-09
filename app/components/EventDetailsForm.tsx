@@ -1889,6 +1889,12 @@ export default function EventDetailsForm({
               </div>
 
               <p className="px-1 text-xs font-semibold leading-6 text-[#9B8D7D]">
+                באחריות הזוג לוודא שמילאו את כל הפרטים הנדרשים, ולבדוק את העמוד
+                בתצוגה מקדימה. הפרטים האלה נשלחים בהודעת תזכורת, ולכן יש להוסיף
+                שוב תמונה של הזוג ו/או הזמנה לאירוע.
+              </p>
+
+              <p className="px-1 text-xs font-semibold leading-6 text-[#9B8D7D]">
                 אם לא יוזן קישור מתנה, PayBox או מספר Bit — אזור המתנות לא יופיע
                 בעמוד הציבורי.
               </p>
