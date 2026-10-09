@@ -81,14 +81,11 @@ export function isPlayableAudioContentType(contentType: string | null | undefine
   return raw.startsWith("audio/");
 }
 
-/** Reject empty / tiny / non-audio payloads so Telnyx is not given a silent "200". */
-export function looksLikePlayableAudioBuffer(
-  buffer: Buffer | Uint8Array | null | undefined,
-  contentType?: string | null
+/** True when the first bytes are a known playable audio container. */
+export function bufferHasPlayableAudioMagic(
+  buffer: Buffer | Uint8Array | null | undefined
 ) {
   if (!buffer || buffer.length < 64) return false;
-  if (contentType && !isPlayableAudioContentType(contentType)) return false;
-
   const b0 = buffer[0];
   const b1 = buffer[1];
   const b2 = buffer[2];
@@ -123,6 +120,78 @@ export function looksLikePlayableAudioBuffer(
     return true;
   }
   return false;
+}
+
+/**
+ * Reject empty / tiny / non-audio payloads so Telnyx is not given a silent "200".
+ * Magic bytes win over R2 Content-Type: some objects are stored as
+ * application/octet-stream even when the body is a valid mp3.
+ */
+export function looksLikePlayableAudioBuffer(
+  buffer: Buffer | Uint8Array | null | undefined,
+  contentType?: string | null
+) {
+  if (!bufferHasPlayableAudioMagic(buffer)) return false;
+
+  const raw = String(contentType || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (!raw || isPlayableAudioContentType(raw)) return true;
+  // Neutral / missing types are OK when magic is clearly audio.
+  if (
+    raw === "application/octet-stream" ||
+    raw === "binary/octet-stream" ||
+    raw === "application/mp3" ||
+    raw === "application/x-mp3"
+  ) {
+    return true;
+  }
+  // HTML/JSON error bodies must never be served as "audio".
+  if (
+    raw.startsWith("text/") ||
+    raw.includes("json") ||
+    raw.includes("xml") ||
+    raw.includes("javascript")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Prefer a browser/Telnyx-friendly audio Content-Type for responses. */
+export function resolvePlayableAudioContentType(
+  buffer: Buffer | Uint8Array,
+  storedType?: string | null
+) {
+  const stored = String(storedType || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (isPlayableAudioContentType(stored)) return stored;
+
+  if (!buffer || buffer.length < 12) return "audio/mpeg";
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46
+  ) {
+    return "audio/wav";
+  }
+  if (buffer[0] === 0x4f && buffer[1] === 0x67 && buffer[2] === 0x67) {
+    return "audio/ogg";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[4] === 0x66 &&
+    buffer[5] === 0x74 &&
+    buffer[6] === 0x79 &&
+    buffer[7] === 0x70
+  ) {
+    return "audio/mp4";
+  }
+  return "audio/mpeg";
 }
 
 export async function uploadIvrAudioToR2(input: {
