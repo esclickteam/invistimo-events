@@ -4,6 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
 import { formatCallRoundDateTimeInput } from "@/lib/calls/callRoundScheduleTime";
 
+type Eligibility = {
+  totalGuests: number;
+  withPhone: number;
+  noPhone: number;
+  finalYes: number;
+  finalNo: number;
+  finalAnswered: number;
+  pending: number;
+  maybe: number;
+  eligible: number;
+  filterReasons: string[];
+};
+
 type IvrRoundRow = {
   round: number;
   title: string;
@@ -18,12 +31,16 @@ type IvrRoundRow = {
   dialedCount: number;
   remainingCount: number;
   finalAnsweredCount?: number;
+  eligibility?: Eligibility;
   liveCount?: number;
   canOpen: boolean;
   canReopen?: boolean;
+  showReopen?: boolean;
+  canRepairStatus?: boolean;
   canStop: boolean;
   canResume: boolean;
   blockReasons: string[];
+  nextSteps?: string[];
 };
 
 type AudioDiagnostics = {
@@ -44,6 +61,7 @@ type AudioDiagnostics = {
 type Props = {
   userId: string;
   clientName: string;
+  invitationId?: string;
   onScheduleChanged?: () => void;
 };
 
@@ -59,22 +77,32 @@ function statusBadgeClass(status: string) {
 export default function AdminIvrRoundsPanel({
   userId,
   clientName,
+  invitationId,
   onScheduleChanged,
 }: Props) {
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [rounds, setRounds] = useState<IvrRoundRow[]>([]);
   const [audioReady, setAudioReady] = useState(true);
   const [audioBlockReason, setAudioBlockReason] = useState("");
   const [audioDiagnostics, setAudioDiagnostics] =
     useState<AudioDiagnostics | null>(null);
+  const [previewAudioUrl, setPreviewAudioUrl] = useState("");
+  const [canApproveAudio, setCanApproveAudio] = useState(false);
+  const [heardPreview, setHeardPreview] = useState(false);
   const [liveDialDisabled, setLiveDialDisabled] = useState(false);
   const [eventActive, setEventActive] = useState(true);
+  const [eventBlockReason, setEventBlockReason] = useState("");
   const [narrationPath, setNarrationPath] = useState("/admin/recorded-calls");
   const [clientHint, setClientHint] = useState("");
   const [reportRound, setReportRound] = useState<string | null>(null);
   const [draftTimes, setDraftTimes] = useState<Record<number, string>>({});
+
+  const qs = invitationId
+    ? `?invitationId=${encodeURIComponent(invitationId)}`
+    : "";
 
   const applyPayload = useCallback((data: any) => {
     const nextRounds: IvrRoundRow[] = Array.isArray(data.rounds)
@@ -84,8 +112,11 @@ export default function AdminIvrRoundsPanel({
     setAudioReady(Boolean(data.audioReady));
     setAudioBlockReason(String(data.audioBlockReason || ""));
     setAudioDiagnostics(data.audioDiagnostics || null);
+    setPreviewAudioUrl(String(data.previewAudioUrl || ""));
+    setCanApproveAudio(Boolean(data.canApproveAudio));
     setLiveDialDisabled(Boolean(data.liveDialDisabled));
     setEventActive(data.eventActive !== false);
+    setEventBlockReason(String(data.eventBlockReason || ""));
     if (data.narrationSettingsPath) {
       setNarrationPath(String(data.narrationSettingsPath));
     }
@@ -108,7 +139,7 @@ export default function AdminIvrRoundsPanel({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/users/${userId}/ivr-rounds`, {
+      const res = await fetch(`/api/admin/users/${userId}/ivr-rounds${qs}`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -125,7 +156,7 @@ export default function AdminIvrRoundsPanel({
     } finally {
       setLoading(false);
     }
-  }, [userId, applyPayload]);
+  }, [userId, qs, applyPayload]);
 
   useEffect(() => {
     void load();
@@ -134,12 +165,16 @@ export default function AdminIvrRoundsPanel({
   async function postAction(body: Record<string, unknown>, key: string) {
     setBusyKey(key);
     setError("");
+    setMessage("");
     try {
       const res = await fetch(`/api/admin/users/${userId}/ivr-rounds`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...body,
+          invitationId: invitationId || undefined,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -161,6 +196,44 @@ export default function AdminIvrRoundsPanel({
     }
   }
 
+  async function approveAudio() {
+    if (!heardPreview) {
+      alert("יש להאזין לתצוגה המקדימה לפני אישור הקריינות");
+      return;
+    }
+    setBusyKey("approve-audio");
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch("/api/ivr/config", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "approve_audio",
+          userId,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(
+          data?.message ||
+            data?.error ||
+            "אישור הקריינות נכשל — ייתכן שהקובץ אינו נגיש"
+        );
+        return;
+      }
+      setMessage("הקריינות אושרה. ניתן לפתוח/לפתוח מחדש סבב אם שאר התנאים מתקיימים.");
+      await load();
+      onScheduleChanged?.();
+    } catch (err) {
+      console.error(err);
+      setError("אישור הקריינות נכשל");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   async function openRound(round: IvrRoundRow, reopen: boolean) {
     setBusyKey(`preview-${round.round}`);
     try {
@@ -172,6 +245,7 @@ export default function AdminIvrRoundsPanel({
           action: "preview",
           round: round.round,
           reopen,
+          invitationId: invitationId || undefined,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -183,7 +257,10 @@ export default function AdminIvrRoundsPanel({
         const reasons = Array.isArray(data.blockReasons)
           ? data.blockReasons.join("\n• ")
           : "לא ניתן לפתוח את הסבב";
-        const msg = `לא ניתן ${reopen ? "לפתוח מחדש" : "לפתוח"} את סבב ${round.round}:\n• ${reasons}`;
+        const steps = Array.isArray(data.nextSteps)
+          ? `\n\nמה נדרש:\n• ${data.nextSteps.join("\n• ")}`
+          : "";
+        const msg = `לא ניתן ${reopen ? "לפתוח מחדש" : "לפתוח"} את סבב ${round.round}:\n• ${reasons}${steps}`;
         setError(msg);
         alert(msg);
         return;
@@ -192,6 +269,9 @@ export default function AdminIvrRoundsPanel({
       const eligible = Number(data.eligibleCount || 0);
       const finalAnswered = Number(data.finalAnsweredCount || 0);
       const dialed = Number(data.dialedCount || 0);
+      const filter = Array.isArray(data.eligibility?.filterReasons)
+        ? data.eligibility.filterReasons.join(" · ")
+        : "";
       const confirmed = confirm(
         [
           reopen
@@ -201,6 +281,7 @@ export default function AdminIvrRoundsPanel({
           `זכאים לחיוג כעת: ${eligible}`,
           `כבר נתנו תשובה סופית (לא יחייגו): ${finalAnswered}`,
           `ניסיונות חיוג קיימים בסבב: ${dialed}`,
+          filter ? `סינון: ${filter}` : "",
           "",
           "מה יתבצע:",
           "• ייפתח אותו מנגנון חיוג של המערכת (executeIvrRound)",
@@ -209,7 +290,9 @@ export default function AdminIvrRoundsPanel({
           "• לא תתבצע פתיחה כפולה אם יש שיחות פעילות",
           "",
           "הפתיחה לא עוקפת בדיקות תקינות שמע.",
-        ].join("\n")
+        ]
+          .filter(Boolean)
+          .join("\n")
       );
       if (!confirmed) return;
     } finally {
@@ -264,9 +347,13 @@ export default function AdminIvrRoundsPanel({
         </button>
       </div>
 
-      {(!eventActive || !audioReady || liveDialDisabled) && (
+      {(!eventActive || !audioReady || liveDialDisabled || canApproveAudio) && (
         <div className="mb-3 space-y-2 rounded-xl border border-[#F0D7B0] bg-[#FFF8E6] px-3 py-2 text-xs font-bold text-[#9A651B]">
-          {!eventActive && <div>האירוע אינו פעיל — לא ניתן לפתוח סבב.</div>}
+          {!eventActive && (
+            <div>
+              {eventBlockReason || "האירוע אינו פעיל — לא ניתן לפתוח סבב."}
+            </div>
+          )}
           {!audioReady && (
             <div>
               <div>
@@ -274,6 +361,34 @@ export default function AdminIvrRoundsPanel({
               </div>
               {clientHint ? (
                 <div className="mt-1 text-[#7B6754]">{clientHint}</div>
+              ) : null}
+              {previewAudioUrl ? (
+                <div className="mt-2 space-y-2">
+                  <audio
+                    controls
+                    src={previewAudioUrl}
+                    className="w-full"
+                    data-testid="admin-ivr-preview-audio"
+                    onPlay={() => setHeardPreview(true)}
+                    onEnded={() => setHeardPreview(true)}
+                  />
+                  {canApproveAudio ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busyKey) || !heardPreview}
+                      onClick={() => void approveAudio()}
+                      className="h-8 rounded-full bg-[#2F3742] px-3 text-[11px] font-black text-white disabled:opacity-40"
+                      data-testid="admin-ivr-approve-audio"
+                    >
+                      אשר קריינות לאחר האזנה
+                    </button>
+                  ) : null}
+                  {!heardPreview && canApproveAudio ? (
+                    <div className="text-[10px] text-[#7B6754]">
+                      יש להפעיל את התצוגה המקדימה לפני האישור.
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
               <div className="mt-2 flex flex-wrap gap-2">
                 <a
@@ -293,12 +408,16 @@ export default function AdminIvrRoundsPanel({
                   </span>
                   <span>
                     שם אירוע: {audioDiagnostics.eventNameStatus || "חסר"}
-                    {audioDiagnostics.eventNameApproved ? " · מאושר" : " · לא מאושר"}
+                    {audioDiagnostics.eventNameApproved
+                      ? " · מאושר"
+                      : " · לא מאושר"}
                     {audioDiagnostics.hasEventNameToken ? "" : " · בלי טוקן"}
                   </span>
                   <span>
                     קובץ מחובר: {audioDiagnostics.composedStatus || "חסר"}
-                    {audioDiagnostics.composedApproved ? " · מאושר" : " · לא מאושר"}
+                    {audioDiagnostics.composedApproved
+                      ? " · מאושר"
+                      : " · לא מאושר"}
                     {audioDiagnostics.hasComposedToken ? "" : " · בלי טוקן"}
                   </span>
                   <span>
@@ -314,6 +433,12 @@ export default function AdminIvrRoundsPanel({
           {liveDialDisabled && (
             <div>חיוגי IVR מושבתים זמנית במערכת.</div>
           )}
+        </div>
+      )}
+
+      {message && (
+        <div className="mb-3 rounded-xl border border-[#CDEAD7] bg-[#F3FBF6] px-3 py-2 text-xs font-bold text-[#1F9A55]">
+          {message}
         </div>
       )}
 
@@ -336,7 +461,9 @@ export default function AdminIvrRoundsPanel({
               busyKey === `preview-${round.round}` ||
               busyKey === `stop-${round.round}` ||
               busyKey === `resume-${round.round}` ||
-              busyKey === `schedule-${round.round}`;
+              busyKey === `repair-${round.round}` ||
+              busyKey === `schedule-${round.round}` ||
+              busyKey === "approve-audio";
 
             return (
               <div
@@ -362,18 +489,27 @@ export default function AdminIvrRoundsPanel({
                       ) : null}
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold text-[#6B5A48]">
-                      <span>מיועדים: {round.eligibleCount}</span>
+                      <span>זכאים: {round.eligibleCount}</span>
                       <span>בוצעו: {round.dialedCount}</span>
                       <span>נותרו: {round.remainingCount}</span>
-                      {typeof round.finalAnsweredCount === "number" ? (
-                        <span>תשובה סופית: {round.finalAnsweredCount}</span>
-                      ) : null}
+                      <span>
+                        תשובה סופית: {round.finalAnsweredCount ?? 0}
+                      </span>
                       {(round.liveCount || 0) > 0 ? (
                         <span className="text-[#2F5EA8]">
                           פעילות: {round.liveCount}
                         </span>
                       ) : null}
                     </div>
+                    {round.eligibility?.filterReasons?.length ? (
+                      <div className="mt-1 text-[11px] font-bold text-[#8A7867]">
+                        סינון: {round.eligibility.filterReasons.join(" · ")}
+                        {` · ממתינים ${round.eligibility.pending}`}
+                        {round.eligibility.maybe
+                          ? ` · מתלבטים ${round.eligibility.maybe}`
+                          : ""}
+                      </div>
+                    ) : null}
                     {round.statusMismatch ? (
                       <div className="mt-1 text-[11px] font-bold text-[#9A651B]">
                         {round.statusMismatch}
@@ -384,12 +520,17 @@ export default function AdminIvrRoundsPanel({
                         {round.failureReason}
                       </div>
                     ) : null}
-                    {!round.canOpen && !round.canReopen && round.blockReasons?.length ? (
+                    {round.blockReasons?.length ? (
                       <div className="mt-1 text-[11px] font-bold text-[#8A7867]">
                         חסימה: {round.blockReasons[0]}
                         {round.blockReasons.length > 1
                           ? ` (+${round.blockReasons.length - 1})`
                           : ""}
+                      </div>
+                    ) : null}
+                    {round.nextSteps?.length ? (
+                      <div className="mt-1 text-[11px] font-bold text-[#6B451E]">
+                        כדי לפתוח: {round.nextSteps[0]}
                       </div>
                     ) : null}
                   </div>
@@ -411,16 +552,46 @@ export default function AdminIvrRoundsPanel({
                       פתח סבב עכשיו
                     </button>
 
-                    {round.canReopen ? (
+                    {round.showReopen ? (
                       <button
                         type="button"
-                        disabled={busy}
-                        title="פתח מחדש סבב שהושלם/נכשל — רק לזכאים שנותרו"
+                        disabled={busy || !round.canReopen}
+                        title={
+                          round.canReopen
+                            ? "פתח מחדש סבב שהושלם — רק לזכאים שנותרו"
+                            : (round.blockReasons || []).join(" · ") ||
+                              "ממתין לתנאי בטיחות"
+                        }
                         onClick={() => void openRound(round, true)}
-                        className="h-8 rounded-full bg-[#B97821] px-3 text-[11px] font-black text-white disabled:opacity-40"
+                        className="h-8 rounded-full bg-[#B97821] px-3 text-[11px] font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
                         data-testid={`admin-ivr-reopen-${round.round}`}
                       >
                         פתח מחדש סבב
+                      </button>
+                    ) : null}
+
+                    {round.canRepairStatus ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        title="מאפס רק את סטטוס ההושלם השגוי — בלי חיוג"
+                        onClick={() => {
+                          if (
+                            !confirm(
+                              `לתקן את סטטוס סבב ${round.round} מ״הושלם״ חזרה למתוזמן/טיוטה?\nלא יבוצע חיוג ולא יימחקו ניסיונות.`
+                            )
+                          ) {
+                            return;
+                          }
+                          void postAction(
+                            { action: "repair_status", round: round.round },
+                            `repair-${round.round}`
+                          ).then((ok) => ok && onScheduleChanged?.());
+                        }}
+                        className="h-8 rounded-full border border-[#E7D8C6] bg-white px-3 text-[11px] font-black text-[#3A2A1C] disabled:opacity-40"
+                        data-testid={`admin-ivr-repair-${round.round}`}
+                      >
+                        תקן סטטוס
                       </button>
                     ) : null}
 
@@ -441,7 +612,7 @@ export default function AdminIvrRoundsPanel({
                       </button>
                     ) : null}
 
-                    {round.canResume && !round.canReopen ? (
+                    {round.canResume && !round.showReopen ? (
                       <button
                         type="button"
                         disabled={busy}

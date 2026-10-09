@@ -422,29 +422,9 @@ export async function GET(req: NextRequest) {
       (approval?.approved === true ||
         composed?.approved === true ||
         cfg.eventNameAudio?.approved === true);
+    // GET must not mutate approvals. Dialer already blocks stale composeVersion.
+    // Persisting a wipe here silently lost client approvals after deploy/version bumps.
     if (staleAiComposition) {
-      if (cfg.eventNameAudio) {
-        cfg.eventNameAudio.approved = false;
-        cfg.eventNameAudio.approvedAt = null;
-      }
-      if (cfg.composedIntroAudio) {
-        cfg.composedIntroAudio.approved = false;
-        cfg.composedIntroAudio.approvedAt = null;
-      }
-      if (cfg.recordingApproval) {
-        cfg.recordingApproval.approved = false;
-        cfg.recordingApproval.approvedAt = null;
-      }
-      await user.updateOne({
-        $set: {
-          "ivrConfig.eventNameAudio.approved": false,
-          "ivrConfig.eventNameAudio.approvedAt": null,
-          "ivrConfig.composedIntroAudio.approved": false,
-          "ivrConfig.composedIntroAudio.approvedAt": null,
-          "ivrConfig.recordingApproval.approved": false,
-          "ivrConfig.recordingApproval.approvedAt": null,
-        },
-      });
       approvalReset = true;
     }
     // Never await R2/HTTP on GET — a hung media check froze the whole screen.

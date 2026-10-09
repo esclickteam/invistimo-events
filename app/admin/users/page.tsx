@@ -3031,6 +3031,7 @@ function AdminMessageRoundsPanel({
           <AdminIvrRoundsPanel
             key={`ivr-rounds-${user._id}`}
             userId={user._id}
+            invitationId={user.invitationId}
             clientName={user.name || user.email || "לקוח"}
             onScheduleChanged={onChanged}
           />
