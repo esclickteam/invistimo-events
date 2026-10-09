@@ -96,15 +96,28 @@ export default function SeatingSidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const openForTour = (event: Event) => {
-      const id = String((event as CustomEvent).detail?.id || "");
-      if (id === "seating") setMobileOpen(true);
-    };
-    if (document.documentElement.dataset.demoTour === "seating") {
+    const openForTour = (event?: Event) => {
+      const id = event
+        ? String((event as CustomEvent).detail?.id || "")
+        : document.documentElement.dataset.demoTour || "";
+      if (id !== "seating") return;
       setMobileOpen(true);
-    }
+      const guests = useSeatingStore.getState().guests || [];
+      const next: Record<string, boolean> = { [NO_GROUP_KEY]: true };
+      for (const guest of guests) {
+        next[String(guest.groupId || NO_GROUP_KEY)] = true;
+      }
+      setOpenGroups(next);
+    };
+    if (document.documentElement.dataset.demoTour === "seating") openForTour();
+    const unsub = useSeatingStore.subscribe(() => {
+      if (document.documentElement.dataset.demoTour === "seating") openForTour();
+    });
     window.addEventListener("invistimo:demo-tour-step", openForTour);
-    return () => window.removeEventListener("invistimo:demo-tour-step", openForTour);
+    return () => {
+      unsub();
+      window.removeEventListener("invistimo:demo-tour-step", openForTour);
+    };
   }, []);
 
   const { stats, isGuestSeated, getGroupStats } = useSeatingStats();
