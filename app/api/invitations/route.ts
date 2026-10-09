@@ -17,6 +17,7 @@ import {
 } from "@/lib/venues/eventVenueLinkInvariant";
 import { prepareEventLocation } from "@/lib/eventLocation";
 import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
+import { invitationCreateTitle } from "@/lib/eventDetails/sharedEventIdentity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -658,7 +659,9 @@ export async function POST(req: NextRequest) {
         ? "square"
         : "portrait";
 
-    const invitationTitle = event.title || cleanString(body.title) || "";
+    const invitationTitle = invitationCreateTitle(
+      event.title || cleanString(body.title)
+    );
     const rsvpSiteMode = await getOwnerRsvpSiteMode(userId);
 
     const invitation = await Invitation.create({

@@ -22,7 +22,7 @@ export async function loadLinkedInvitations(eventId: unknown) {
   }).lean();
 }
 
-export async function persistSharedIdentityMirror(input: {
+async function persistSharedIdentityMirrorInner(input: {
   source: SharedIdentitySource;
   incoming: SharedIdentityPatch;
   eventId?: string | null;
@@ -88,4 +88,26 @@ export async function persistSharedIdentityMirror(input: {
     eventUpdated,
     invitationsUpdated,
   };
+}
+
+export async function persistSharedIdentityMirror(input: {
+  source: SharedIdentitySource;
+  incoming: SharedIdentityPatch;
+  eventId?: string | null;
+  invitationId?: string | null;
+  event?: any | null;
+  invitations?: any[];
+}): Promise<SharedIdentityWriteResult> {
+  try {
+    return await persistSharedIdentityMirrorInner(input);
+  } catch (err) {
+    console.error("persistSharedIdentityMirror failed:", err);
+    return {
+      eventSet: {},
+      invitationUpdates: [],
+      conflicts: [],
+      eventUpdated: false,
+      invitationsUpdated: 0,
+    };
+  }
 }

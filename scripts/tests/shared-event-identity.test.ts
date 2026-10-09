@@ -5,6 +5,7 @@ import path from "path";
 
 import {
   classifySharedIdentity,
+  invitationCreateTitle,
   isIdentityShell,
   isRealTitle,
   isRealTimeOn,
@@ -233,4 +234,30 @@ it("planner writes only identity fields and never guests, design, or seating", (
     );
   }
   assert.equal(plan.invitationUpdates.length, 0);
+});
+
+it("invitation create uses a schema-safe title so empty Event shells do not 500", () => {
+  assert.equal(invitationCreateTitle(""), "הזמנה חדשה");
+  assert.equal(invitationCreateTitle("הזמנה חדשה"), "הזמנה חדשה");
+  assert.equal(invitationCreateTitle("בר המצווה של דויד"), "בר המצווה של דויד");
+  assert.equal(isIdentityShell({ title: invitationCreateTitle("") }), true);
+
+  const createRoute = read("app/api/invitations/route.ts");
+  assert.match(createRoute, /invitationCreateTitle/);
+  assert.doesNotMatch(
+    createRoute,
+    /const invitationTitle = event\.title \|\| cleanString\(body\.title\) \|\| ""/
+  );
+
+  const guestsRoute = read("app/api/invitations/[id]/guests/route.ts");
+  assert.match(guestsRoute, /invitationCreateTitle/);
+
+  const invitationModel = read("models/Invitation.ts");
+  assert.match(invitationModel, /title:\s*\{[\s\S]*required:\s*true/);
+
+  const persist = read("lib/eventDetails/persistSharedIdentity.ts");
+  assert.match(persist, /persistSharedIdentityMirror failed/);
+
+  const manageUser = read("app/api/admin/manage-user/route.ts");
+  assert.match(manageUser, /isManaging:\s*false/);
 });
