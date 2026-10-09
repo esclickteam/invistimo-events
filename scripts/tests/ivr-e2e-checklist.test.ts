@@ -139,12 +139,18 @@ test("11) attending count is not capped by the invited size", () => {
   assert.match(apply, /arrivedCount/);
 
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
-  assert.match(webhook, /startOutboundFromBeginning/);
+  const control = readSrc("lib/telnyx/ivrCallControl.ts");
+  assert.match(webhook, /isLegacyInFlight/);
+  assert.match(webhook, /phase:\s*"RINGING"|phase = "RINGING"/);
   assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
-  assert.equal(webhook.includes("stopIvrPlayback"), false);
+  // Gather is always cleared; playback_stop only on controlled replace.
+  assert.match(control, /clearIvrMediaSlot/);
+  assert.match(control, /ivrClearStopsPlayback/);
+  assert.match(control, /replace_after_input/);
+  assert.match(control, /start_followup_audio/);
+  assert.match(control, /stopIvrGather/);
   assert.match(webhook, /claimChoiceDigit/);
   assert.match(webhook, /CHOICE_FLOW_STEPS/);
-  assert.match(webhook, /playing_intro_before/);
   assert.match(webhook, /hangup_after_thanks/);
   assert.match(webhook, /fillIvrRoundCapacity/);
   assert.match(webhook, /terminatingDigit: "#"/);

@@ -67,4 +67,6 @@ test("rounds panel warns before dial when approved audio is missing", () => {
   assert.match(panel, /לא\s+יתחיל לחייג/);
   assert.match(panel, /ivr-approve-audio/);
   assert.match(panel, /ConcatPreviewPlayer/);
+  assert.match(panel, /composedIntroAudioUrl/);
+  assert.match(panel, /return \[composedUrl\]/);
 });

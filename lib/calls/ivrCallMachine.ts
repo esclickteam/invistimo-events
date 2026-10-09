@@ -32,6 +32,7 @@ import {
   decodeIvrClientState,
   gatherIvrDigits,
   hangupIvrCall,
+  mediaClearReasonForPlaybackStage,
   playbackIvrAudio,
   speakIvrCall,
 } from "@/lib/telnyx/ivrCallControl";
@@ -98,7 +99,12 @@ function payloadOf(body: any) {
   return body?.data?.payload || body?.payload || {};
 }
 
-function isLegacyInFlight(attempt: any) {
+/**
+ * True only for calls already mid three-clip chain without a phase.
+ * New answered legs always use the shared phase machine — never switch
+ * into legacy mid-call once phase is set.
+ */
+export function isLegacyInFlight(attempt: any) {
   if (cleanStr(attempt?.phase)) return false;
   return LEGACY_CHAIN_STEPS.has(cleanStr(attempt?.flowStep));
 }
@@ -255,7 +261,8 @@ async function playFile(
   const result = await playbackIvrAudio(
     callControlId,
     audioUrl,
-    clientState(attempt, { stage, generation })
+    clientState(attempt, { stage, generation }),
+    { mediaClear: mediaClearReasonForPlaybackStage(stage) }
   );
   return !telnyxCommandFailed(result);
 }

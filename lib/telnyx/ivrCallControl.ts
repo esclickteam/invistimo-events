@@ -225,13 +225,64 @@ export async function speakIvrCall(
   });
 }
 
+/**
+ * Why the media slot is being cleared. `playback_stop` is only sent for
+ * controlled replaces after accepted input — never to cut an active intro
+ * that is still supposed to finish.
+ */
+export type IvrMediaClearReason =
+  | "open_silent_gather"
+  | "start_followup_audio"
+  | "replace_after_input"
+  | "legacy_next_clip";
+
+/** True only when a controlled stage replace may cancel lingering audio. */
+export function ivrClearStopsPlayback(reason: IvrMediaClearReason) {
+  return reason === "replace_after_input";
+}
+
+export function mediaClearReasonForPlaybackStage(stage: unknown): IvrMediaClearReason {
+  const raw = String(stage || "").trim();
+  // Intro / system prompts start after answer or after a completed prior clip.
+  // Do not send playback_stop — that would chop a still-valid sentence.
+  if (
+    !raw ||
+    raw === "intro" ||
+    raw === "system" ||
+    raw.startsWith("hangup_after")
+  ) {
+    return "start_followup_audio";
+  }
+  // Digit / invalid-choice follow-ups may replace a lingering gather prompt.
+  return "replace_after_input";
+}
+
+/**
+ * Clear an open gather; optionally stop playback on a controlled replace.
+ */
+export async function clearIvrMediaSlot(
+  callControlId: string,
+  reason: IvrMediaClearReason
+) {
+  if (!callControlId) return;
+  await stopIvrGather(callControlId).catch(() => null);
+  if (ivrClearStopsPlayback(reason)) {
+    await stopIvrPlayback(callControlId).catch(() => null);
+  }
+}
+
 export async function playbackIvrAudio(
   callControlId: string,
   audioUrl: string,
-  clientState?: Record<string, unknown>
+  clientState?: Record<string, unknown>,
+  options?: { mediaClear?: IvrMediaClearReason }
 ) {
   const noted = notePlaybackCommand(clientState);
   try {
+    const reason =
+      options?.mediaClear ||
+      mediaClearReasonForPlaybackStage(clientState?.stage);
+    await clearIvrMediaSlot(callControlId, reason);
     return await telnyxCallAction(callControlId, "playback_start", {
       audio_url: audioUrl,
       ...(clientState
@@ -256,11 +307,14 @@ export async function gatherIvrUsingAudio(input: {
 }) {
   const noted = notePlaybackCommand(input.clientState);
   try {
+    // Prior clip already ended (legacy chain) or gather is being replaced.
+    await clearIvrMediaSlot(input.callControlId, "legacy_next_clip");
     return await telnyxCallAction(input.callControlId, "gather_using_audio", {
     audio_url: input.audioUrl,
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
-    timeout_millis: input.timeoutMillis ?? 10000,
+    // Must outlast the prompt audio so timeout cannot fire mid-clip.
+    timeout_millis: input.timeoutMillis ?? 45000,
     ...(input.interDigitTimeoutMillis
       ? { inter_digit_timeout_millis: input.interDigitTimeoutMillis }
       : {}),
@@ -304,6 +358,8 @@ export async function gatherIvrDigits(input: {
   validDigits?: string;
   clientState?: Record<string, unknown>;
 }) {
+  // Silent gather after a completed playback — never stop that completed clip.
+  await clearIvrMediaSlot(input.callControlId, "open_silent_gather");
   return telnyxCallAction(input.callControlId, "gather", {
     minimum_digits: input.minimumDigits ?? 1,
     maximum_digits: input.maximumDigits ?? 1,
