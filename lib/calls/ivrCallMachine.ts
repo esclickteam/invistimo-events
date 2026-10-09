@@ -469,13 +469,15 @@ export async function handleIvrAnswered(input: {
   }
 
   const introUrl = cleanStr(attempt.introAudioUrl);
+  // Do not gate the claim on playbackStartedAt. That field is telemetry from
+  // Telnyx webhooks (via timeline pipeline). A failed/racy timeline write must
+  // never leave the guest in silence after answer.
   const claimed = await claimFields(
     attempt._id,
     {
       rsvpApplied: { $ne: true },
       introCompleted: { $ne: true },
       choiceDigit: { $nin: ["1", "2", "3"] },
-      playbackStartedAt: null,
       error: { $nin: ["AMBIGUOUS_EVENT", "AUDIO_NOT_READY"] },
       $or: [
         { phase: { $in: ["RINGING", "ANSWERED"] } },
@@ -494,7 +496,26 @@ export async function handleIvrAnswered(input: {
       answeredAt: attempt.answeredAt || new Date(),
     }
   );
-  if (!claimed) return { handled: true };
+  if (!claimed) {
+    // Another writer may have stamped AUDIO_NOT_READY between load and claim.
+    const fresh = await IvrCallAttempt.findById(attempt._id)
+      .select("error introAudioUrl phase introCompleted rsvpApplied")
+      .lean();
+    if (cleanStr(fresh?.error) === "AUDIO_NOT_READY" || !cleanStr(fresh?.introAudioUrl)) {
+      await speakNotReady(
+        { ...attempt, ...(fresh || {}), _id: attempt._id },
+        callControlId
+      );
+    } else {
+      console.error("IVR_ANSWER_CLAIM_MISSED", {
+        attemptId: String(attempt._id),
+        phase: fresh?.phase,
+        introCompleted: fresh?.introCompleted,
+        hasIntro: Boolean(cleanStr(fresh?.introAudioUrl)),
+      });
+    }
+    return { handled: true };
+  }
   copyClaim(attempt, claimed);
 
   if (!introUrl) {

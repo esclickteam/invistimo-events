@@ -213,6 +213,9 @@ export async function tryStartInboundIvr(params: {
         })
       : "";
 
+  // Persist AUDIO_NOT_READY before answer so call.answered cannot race a
+  // silent claim miss (empty intro URL + error set mid-webhook → no speak).
+  const audioNotReady = !sharedNarrationUrl;
   const attempt = await IvrCallAttempt.create({
     userId: candidate.userId,
     invitationId: candidate.invitationId,
@@ -240,13 +243,14 @@ export async function tryStartInboundIvr(params: {
     telnyxCallSessionId: cleanStr(params.callSessionId),
     telnyxConnectionId: cleanStr(params.connectionId),
     audioMode: "ai",
+    ...(audioNotReady ? { error: "AUDIO_NOT_READY" } : {}),
     timeline: [
       {
         at: new Date(),
         source: "server",
         kind: "inbound",
         label: "התקבלה שיחה נכנסת",
-        detail: "",
+        detail: audioNotReady ? "AUDIO_NOT_READY" : "",
         eventType: "",
         digit: "",
         stage: "",
@@ -277,14 +281,6 @@ export async function tryStartInboundIvr(params: {
     clientState,
   });
 
-  if (!sharedNarrationUrl) {
-    // The approved file is missing. Do not stitch, and do not play the
-    // invalid-choice prompt. call.answered speaks a safe line and hangs up.
-    attempt.error = "AUDIO_NOT_READY";
-    attempt.rsvpApplied = false;
-    await attempt.save();
-  }
-
   console.log("INBOUND_IVR_CLAIMED", {
     attemptId: String(attempt._id),
     guestId: candidate.guestId,
@@ -294,6 +290,8 @@ export async function tryStartInboundIvr(params: {
     disambiguation,
     fromPhone,
     to: params.to,
+    hasIntroAudio: Boolean(sharedNarrationUrl),
+    audioNotReady,
   });
 
   return {
