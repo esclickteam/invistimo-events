@@ -844,6 +844,8 @@ export async function handleIvrTelnyxWebhook(body: any) {
         break;
       }
 
+      // Fallback only when the precomposed inbound file was not ready.
+      // Each of these steps waits for playback.ended, which is the audible gap.
       if (
         !choiceTaken &&
         stage === "inbound_play_event_name" &&

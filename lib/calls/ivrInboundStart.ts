@@ -12,9 +12,17 @@ import {
 } from "@/lib/calls/ivrAudioStorage";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
-import { getGlobalPackSegmentUrl } from "@/lib/calls/ivrSystemAudio";
+import {
+  composedInboundPlaybackUrl,
+  ensureComposedInboundAudioForUser,
+} from "@/lib/calls/ivrComposedInbound";
+import {
+  getGlobalPackSegmentUrl,
+  warmIvrChoiceFollowUps,
+} from "@/lib/calls/ivrSystemAudio";
 import {
   answerIvrCall,
+  gatherIvrUsingAudio,
   hangupIvrCall,
   normalizePhoneForTelnyx,
   playbackIvrAudio,
@@ -265,26 +273,61 @@ export async function tryStartInboundIvr(params: {
     stage: "inbound_start",
   };
 
+  void warmIvrChoiceFollowUps(voiceGender);
+
   await answerIvrCall(callControlId, {
     webhookUrl,
     clientState,
   });
 
-  const beforeUrl = await getGlobalPackSegmentUrl(
-    voiceGender,
-    "inboundBeforeEventName"
-  );
-  if (beforeUrl) {
-    await playbackIvrAudio(callControlId, beforeUrl, {
-      source: "invistimo-ivr",
-      inbound_ivr: true,
-      callAttemptId: String(attempt._id),
-      stage: eventNameAudioUrl ? "inbound_play_event_name" : "inbound_play_after",
-      voiceGender,
+  let continuousUrl = composedInboundPlaybackUrl(ownerCfg);
+  if (!continuousUrl && eventNameAudioUrl) {
+    continuousUrl = await ensureComposedInboundAudioForUser(
+      String(candidate.userId)
+    ).catch((error) => {
+      console.error("[ivr] inbound compose before playback failed", error);
+      return "";
     });
-  } else {
-    attempt.flowStep = "playing_intro";
+  }
+
+  if (continuousUrl) {
+    await gatherIvrUsingAudio({
+      callControlId,
+      audioUrl: continuousUrl,
+      minimumDigits: 1,
+      maximumDigits: 1,
+      validDigits: "123",
+      timeoutMillis: 45000,
+      clientState: {
+        source: "invistimo-ivr",
+        inbound_ivr: true,
+        callAttemptId: String(attempt._id),
+        stage: "choice",
+        voiceGender,
+      },
+    });
+    attempt.flowStep = "gather_choice";
+    attempt.introAudioUrl = continuousUrl;
     await attempt.save();
+  } else {
+    const beforeUrl = await getGlobalPackSegmentUrl(
+      voiceGender,
+      "inboundBeforeEventName"
+    );
+    if (beforeUrl) {
+      await playbackIvrAudio(callControlId, beforeUrl, {
+        source: "invistimo-ivr",
+        inbound_ivr: true,
+        callAttemptId: String(attempt._id),
+        stage: eventNameAudioUrl
+          ? "inbound_play_event_name"
+          : "inbound_play_after",
+        voiceGender,
+      });
+    } else {
+      attempt.flowStep = "playing_intro";
+      await attempt.save();
+    }
   }
 
   console.log("INBOUND_IVR_CLAIMED", {

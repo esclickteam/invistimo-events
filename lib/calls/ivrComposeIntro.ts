@@ -16,8 +16,24 @@ import { spawn } from "child_process";
 /** Outbound only: introBeforeEventName + event name + introAfterEventName. */
 export const IVR_COMPOSE_VERSION = "v2-outbound-segments";
 
+/**
+ * Inbound only: inboundBeforeEventName + event name + inboundAfterEventName.
+ * Different wording from the outbound file, so it must not reuse that hash.
+ */
+export const IVR_INBOUND_COMPOSE_VERSION = "v1-inbound-segments";
+
 /** Very short natural pause around the event name (seconds). */
 const NAME_PAUSE_SEC = 0.08;
+
+/** Silence inserted around the event name inside one file, in milliseconds. */
+export const IVR_COMPOSED_SEGMENT_PAUSE_MS = Math.round(NAME_PAUSE_SEC * 1000);
+
+/**
+ * The old inbound player issued a separate Telnyx media command per clip and
+ * waited for call.playback.ended between them. One composed file is a single command.
+ */
+export const IVR_INBOUND_CHAINED_MEDIA_COMMANDS = 3;
+export const IVR_INBOUND_CONTINUOUS_MEDIA_COMMANDS = 1;
 /** Crossfade duration at junctions (seconds) — soft join, not a hard cut. */
 const CROSSFADE_SEC = 0.03;
 
@@ -200,16 +216,19 @@ async function joinWithNaturalPauses(input: {
   ]);
 }
 
-export function contentHashForComposedIntro(input: {
-  beforeHash: string;
-  eventNameHash: string;
-  afterHash: string;
-  voiceId: string;
-}) {
+function composeContentHash(
+  version: string,
+  input: {
+    beforeHash: string;
+    eventNameHash: string;
+    afterHash: string;
+    voiceId: string;
+  }
+) {
   return createHash("sha256")
     .update(
       [
-        IVR_COMPOSE_VERSION,
+        version,
         input.voiceId,
         input.beforeHash,
         input.eventNameHash,
@@ -219,6 +238,24 @@ export function contentHashForComposedIntro(input: {
       ].join("|")
     )
     .digest("hex");
+}
+
+export function contentHashForComposedIntro(input: {
+  beforeHash: string;
+  eventNameHash: string;
+  afterHash: string;
+  voiceId: string;
+}) {
+  return composeContentHash(IVR_COMPOSE_VERSION, input);
+}
+
+export function contentHashForComposedInbound(input: {
+  beforeHash: string;
+  eventNameHash: string;
+  afterHash: string;
+  voiceId: string;
+}) {
+  return composeContentHash(IVR_INBOUND_COMPOSE_VERSION, input);
 }
 
 export async function composeIvrIntroAudio(input: {

@@ -299,17 +299,33 @@ export async function ensureGlobalVoicePack(
   return { gender: normalized, voiceId, segments };
 }
 
+const segmentUrlCache = new Map<string, { url: string; at: number }>();
+/** Warm lambdas reuse the URL. A pack rebuild is picked up after this window. */
+const SEGMENT_URL_TTL_MS = 10 * 60 * 1000;
+
+export function clearIvrSegmentUrlCache() {
+  segmentUrlCache.clear();
+}
+
 export async function getGlobalPackSegmentUrl(
   gender: IvrVoiceGender | string,
   segment: IvrGlobalPackSegmentKey
 ): Promise<string> {
+  const normalized = normalizeIvrVoiceGender(gender) || "female";
+  const cacheKey = `${normalized}:${segment}`;
+  const cached = segmentUrlCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < SEGMENT_URL_TTL_MS && cached.url) {
+    return cached.url;
+  }
   try {
     const audio = await ensureGlobalPackSegment({
-      gender: normalizeIvrVoiceGender(gender) || "female",
+      gender: normalized,
       segment,
       reuseOnly: true,
     });
-    return String(audio.audioUrl || "");
+    const url = String(audio.audioUrl || "");
+    if (url) segmentUrlCache.set(cacheKey, { url, at: Date.now() });
+    return url;
   } catch (error) {
     console.error("[ivr] global segment unavailable", {
       segment,
@@ -317,6 +333,18 @@ export async function getGlobalPackSegmentUrl(
     });
     return "";
   }
+}
+
+/** Overlap DTMF follow-up lookups with the prompt so the keypress handler skips R2. */
+export function warmIvrChoiceFollowUps(gender: IvrVoiceGender | string) {
+  return Promise.all([
+    getIvrSystemAudioUrlForGender(gender, "askGuestCount"),
+    getIvrSystemAudioUrlForGender(gender, "thanksReceived"),
+    getIvrSystemAudioUrlForGender(gender, "thanksAttending"),
+    getIvrSystemAudioUrlForGender(gender, "invalidInput"),
+  ])
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 /** Resolve DTMF follow-up audio from the caller's selected global pack. */

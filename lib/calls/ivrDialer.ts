@@ -26,6 +26,7 @@ import {
   getAppBaseUrl,
 } from "@/lib/calls/ivrAudioStorage";
 import { IVR_COMPOSE_VERSION } from "@/lib/calls/ivrComposeIntro";
+import { ensureComposedInboundAudioForUser } from "@/lib/calls/ivrComposedInbound";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import {
   createIvrOutboundCall,
@@ -459,6 +460,14 @@ export async function executeIvrRound(input: {
       results: [],
       appBaseUrl: getAppBaseUrl(),
     };
+  }
+
+  if (input.due.audioMode !== "self_recorded") {
+    await ensureComposedInboundAudioForUser(input.due.userId, {
+      force: true,
+    }).catch((error) => {
+      console.error("[ivr] inbound compose before round failed", error);
+    });
   }
 
   const occupied = await countOccupiedOutboundCalls(

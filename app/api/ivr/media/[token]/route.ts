@@ -34,6 +34,18 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       String(byComposed?.ivrConfig?.composedIntroAudio?.contentType || "") ||
       "audio/mpeg";
 
+    if (!r2Key) {
+      const byInbound = await User.findOne({
+        "ivrConfig.composedInboundAudio.publicToken": token,
+      })
+        .select("ivrConfig.composedInboundAudio")
+        .lean();
+      r2Key = String(byInbound?.ivrConfig?.composedInboundAudio?.r2Key || "");
+      contentType =
+        String(byInbound?.ivrConfig?.composedInboundAudio?.contentType || "") ||
+        contentType;
+    }
+
     // Per-event spoken name clip
     if (!r2Key) {
       const byEventName = await User.findOne({
