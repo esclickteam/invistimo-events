@@ -9,6 +9,7 @@ import {
   ivrAttemptTimings,
   ivrAudioModeLabel,
   ivrDialAttemptNumber,
+  ivrRoundExecutionLabel,
   ivrStoredRsvpLabel,
   parseIvrReportDayRange,
   redactIvrReportText,
@@ -264,6 +265,12 @@ test("user summary does not count an answered hangup as unanswered", () => {
   assert.equal(summary.answerRateLabel, "50%");
   assert.equal(ivrDialAttemptNumber({ retryCount: 0 }), 1);
   assert.equal(ivrDialAttemptNumber({ retryCount: 2 }), 3);
+  assert.equal(ivrRoundExecutionLabel("draft", 0), "טרם בוצע");
+  assert.equal(ivrRoundExecutionLabel("scheduled", 0), "מתוזמן");
+  assert.equal(ivrRoundExecutionLabel("in_progress", 2), "בביצוע");
+  assert.equal(ivrRoundExecutionLabel("done", 3), "בוצע");
+  assert.equal(ivrRoundExecutionLabel("failed", 1), "נכשל");
+  assert.equal(ivrRoundExecutionLabel("", 0), "טרם בוצע");
 });
 
 test("IVR report lives on the user being edited, not the shared calls tab", () => {
@@ -293,4 +300,19 @@ test("IVR report lives on the user being edited, not the shared calls tab", () =
   assert.match(control, /notePlaybackCommand/);
   assert.equal(webhook.includes("OUTBOUND_ANSWER_DELAY_MS"), false);
   assert.match(dialer, /IvrCallAttempt\.create/);
+  const modal = readSrc("app/components/IvrCallsReportModal.tsx");
+  const whatsapp = readSrc("app/components/WhatsappRoundsReportModal.tsx");
+  const sms = readSrc("app/components/SmsRoundsReportModal.tsx");
+  assert.match(modal, /כל הסבבים/);
+  assert.match(modal, /ללא שיוך/);
+  assert.match(modal, /min-w-\[220px\]/);
+  assert.match(modal, /border-\[#D7A34D\]/);
+  assert.match(modal, /ייצוא דוח לאקסל/);
+  assert.match(modal, /IVR_ANSWER_RATE_DEFINITION/);
+  assert.match(whatsapp, /דוח WhatsApp לסבבים/);
+  assert.match(whatsapp, /min-w-\[220px\]/);
+  assert.match(sms, /דוח SMS לסבבים/);
+  assert.equal(whatsapp.includes("דוח שיחות IVR"), false);
+  assert.equal(sms.includes("דוח שיחות IVR"), false);
+  assert.equal(dialer.includes("listUserIvrRoundCards"), false);
 });

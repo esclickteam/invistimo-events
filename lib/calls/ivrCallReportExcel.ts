@@ -170,7 +170,7 @@ export async function buildIvrUserCallReportWorkbook(
   for (const row of rows) {
     sheet.addRow({
       ...row,
-      round: row.round ?? "",
+      round: row.round == null ? "ללא שיוך" : row.round,
       choiceDigit: row.choiceDigit || "",
       failureReason: row.failureReason || "",
     });

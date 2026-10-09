@@ -14,6 +14,7 @@ import {
   ivrDialAttemptNumber,
   ivrDirectionLabel,
   ivrFailureReason,
+  ivrRoundExecutionLabel,
   ivrStoredRsvpLabel,
   parseIvrReportDayRange,
   redactIvrReportText,
@@ -173,8 +174,10 @@ export async function buildIvrReportFilter(
   if (invitationId) and.push({ invitationId });
   if (userId) and.push({ userId });
 
-  const round = Number(query.round);
-  if (query.round) {
+  if (query.round === "unassigned") {
+    and.push({ round: { $nin: [1, 2, 3] } });
+  } else if (query.round) {
+    const round = Number(query.round);
     if (![1, 2, 3].includes(round)) return { empty: true as const, filter: {} };
     and.push({ round });
   }
@@ -1031,8 +1034,156 @@ function userReportRow(row: any, names: ReturnType<typeof namesFor>) {
   };
 }
 
+export type IvrRoundCardKey = "1" | "2" | "3" | "unassigned";
+
+export type IvrRoundCard = {
+  key: IvrRoundCardKey;
+  title: string;
+  statusLabel: string;
+  intended: number;
+  dialAttempts: number;
+  answered: number;
+  unanswered: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  hungUpWithoutChoice: number;
+  failed: number;
+  noFinalAnswer: number;
+};
+
+export type IvrAllRoundsSummary = {
+  uniqueGuests: number;
+  dialAttempts: number;
+  answered: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  noFinalAnswer: number;
+};
+
+function allRoundsFrom(
+  stats: ReturnType<typeof shapeUserIvrSummary>
+): IvrAllRoundsSummary {
+  return {
+    uniqueGuests: stats.uniqueGuests,
+    dialAttempts: stats.dialAttempts,
+    answered: stats.answered,
+    yes: stats.yes,
+    no: stats.no,
+    maybe: stats.maybe,
+    noFinalAnswer: stats.noFinalAnswer,
+  };
+}
+
+function roundCardFrom(
+  key: IvrRoundCardKey,
+  title: string,
+  statusLabel: string,
+  intended: number,
+  stats: ReturnType<typeof shapeUserIvrSummary>
+): IvrRoundCard {
+  return {
+    key,
+    title,
+    statusLabel,
+    intended,
+    dialAttempts: stats.dialAttempts,
+    answered: stats.answered,
+    unanswered: stats.unanswered,
+    yes: stats.yes,
+    no: stats.no,
+    maybe: stats.maybe,
+    hungUpWithoutChoice: stats.hungUpWithoutChoice,
+    failed: stats.failed,
+    noFinalAnswer: stats.noFinalAnswer,
+  };
+}
+
+function emptyRoundCards(schedule: Array<Record<string, unknown>>): {
+  allRounds: IvrAllRoundsSummary;
+  rounds: IvrRoundCard[];
+} {
+  const blank = shapeUserIvrSummary(emptyStats());
+  return {
+    allRounds: allRoundsFrom(blank),
+    rounds: [1, 2, 3].map((round) => {
+      const saved = schedule.find((item) => Number(item.roundNumber) === round);
+      return roundCardFrom(
+        String(round) as IvrRoundCardKey,
+        `סבב ${round} — שיחות אישורי הגעה`,
+        ivrRoundExecutionLabel(String(saved?.status || ""), 0),
+        typeof saved?.eligibleCount === "number" ? saved.eligibleCount : 0,
+        blank
+      );
+    }),
+  };
+}
+
+async function savedCallRounds(userId: string) {
+  const id = oid(userId);
+  if (!id) return [] as Array<Record<string, unknown>>;
+  const user = await User.findById(id).select("callRoundsSchedule.rounds").lean();
+  const rounds = (user as { callRoundsSchedule?: { rounds?: unknown } } | null)
+    ?.callRoundsSchedule?.rounds;
+  return Array.isArray(rounds) ? (rounds as Array<Record<string, unknown>>) : [];
+}
+
+/**
+ * Round cards ignore the selected round and the row filters (status, RSVP, search)
+ * so the four cards stay comparable. Event and date still scope them.
+ * The numbered round is the value stored on the attempt. Missing rounds stay
+ * visible at zero. Attempts with no stored round are a separate "ללא שיוך" card.
+ */
+export async function listUserIvrRoundCards(userId: string, query: IvrReportQuery) {
+  const schedule = await savedCallRounds(userId);
+  const built = await buildUserIvrReportFilter(userId, {
+    invitationId: query.invitationId,
+    from: query.from,
+    to: query.to,
+  });
+  if (built.empty) return emptyRoundCards(schedule);
+
+  const unassigned = { round: { $nin: [1, 2, 3] } };
+  const [all, first, second, third, loose] = await Promise.all([
+    summarizeIvrReport(built.filter),
+    summarizeIvrReport({ $and: [built.filter, { round: 1 }] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 2 }] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 3 }] }),
+    summarizeIvrReport({ $and: [built.filter, unassigned] }),
+  ]);
+  const byRound = [first, second, third];
+  const rounds = [1, 2, 3].map((round, index) => {
+    const saved = schedule.find((item) => Number(item.roundNumber) === round);
+    const stats = shapeUserIvrSummary(byRound[index]);
+    return roundCardFrom(
+      String(round) as IvrRoundCardKey,
+      `סבב ${round} — שיחות אישורי הגעה`,
+      ivrRoundExecutionLabel(String(saved?.status || ""), stats.dialAttempts),
+      typeof saved?.eligibleCount === "number" ? saved.eligibleCount : 0,
+      stats
+    );
+  });
+  const looseStats = shapeUserIvrSummary(loose);
+  if (looseStats.dialAttempts > 0) {
+    rounds.push(
+      roundCardFrom(
+        "unassigned",
+        "ללא שיוך",
+        "לא שויך לסבב בעת החיוג",
+        0,
+        looseStats
+      )
+    );
+  }
+  return { allRounds: allRoundsFrom(shapeUserIvrSummary(all)), rounds };
+}
+
 export async function listUserIvrReportPage(userId: string, query: IvrReportQuery) {
-  const built = await buildUserIvrReportFilter(userId, query);
+  const [built, cards] = await Promise.all([
+    buildUserIvrReportFilter(userId, query),
+    listUserIvrRoundCards(userId, query),
+  ]);
   const page = Math.max(1, Math.min(500, Number(query.page) || 1));
   const pageSize = Math.max(1, Math.min(100, Number(query.pageSize) || 25));
   if (built.empty) {
@@ -1043,6 +1194,7 @@ export async function listUserIvrReportPage(userId: string, query: IvrReportQuer
       pageSize,
       stats: shapeUserIvrSummary(emptyStats()),
       events: built.events,
+      ...cards,
     };
   }
   const [total, docs, stats] = await Promise.all([
@@ -1063,6 +1215,7 @@ export async function listUserIvrReportPage(userId: string, query: IvrReportQuer
     pageSize,
     stats: shapeUserIvrSummary(stats),
     events: built.events,
+    ...cards,
   };
 }
 
