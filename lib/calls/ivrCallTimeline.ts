@@ -183,9 +183,14 @@ export async function pushIvrTimeline(
     };
   }
 
-  await IvrCallAttempt.updateOne({ _id: attemptId } as any, [
-    { $set: setStage },
-  ] as any);
+  // Mongoose 9+ rejects aggregation-pipeline updates unless updatePipeline is set.
+  // Without it every IVR webhook logs IVR_TIMELINE and never persists timeline /
+  // playbackStartedAt / firstDigitAt — call state history stays empty.
+  await IvrCallAttempt.updateOne(
+    { _id: attemptId } as any,
+    [{ $set: setStage }],
+    { updatePipeline: true } as any
+  );
 }
 
 export function notePlaybackCommand(clientState?: Record<string, unknown>) {

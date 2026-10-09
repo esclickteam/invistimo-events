@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import User from "@/models/User";
 import IvrSystemAudio from "@/models/IvrSystemAudio";
-import { getIvrAudioObjectFromR2 } from "@/lib/calls/ivrAudioStorage";
+import {
+  getIvrAudioObjectFromR2,
+  looksLikePlayableAudioBuffer,
+} from "@/lib/calls/ivrAudioStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,6 +97,16 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const resolvedType = object.contentType || contentType || "audio/mpeg";
+    if (!looksLikePlayableAudioBuffer(object.buffer, resolvedType)) {
+      console.error("[ivr/media] invalid audio payload", {
+        token: token.slice(0, 8),
+        r2Key,
+        contentType: resolvedType,
+        bytes: object.buffer.length,
+      });
+      return NextResponse.json({ error: "INVALID_AUDIO" }, { status: 404 });
+    }
+
     const bytes = object.buffer;
     const total = bytes.length;
     const range = _req.headers.get("range");

@@ -81,6 +81,50 @@ export function isPlayableAudioContentType(contentType: string | null | undefine
   return raw.startsWith("audio/");
 }
 
+/** Reject empty / tiny / non-audio payloads so Telnyx is not given a silent "200". */
+export function looksLikePlayableAudioBuffer(
+  buffer: Buffer | Uint8Array | null | undefined,
+  contentType?: string | null
+) {
+  if (!buffer || buffer.length < 64) return false;
+  if (contentType && !isPlayableAudioContentType(contentType)) return false;
+
+  const b0 = buffer[0];
+  const b1 = buffer[1];
+  const b2 = buffer[2];
+  const b3 = buffer[3];
+  // ID3 tag or MPEG frame sync
+  if (b0 === 0x49 && b1 === 0x44 && b2 === 0x33) return true;
+  if (b0 === 0xff && (b1 & 0xe0) === 0xe0) return true;
+  // RIFF....WAVE
+  if (
+    b0 === 0x52 &&
+    b1 === 0x49 &&
+    b2 === 0x46 &&
+    b3 === 0x46 &&
+    buffer.length >= 12 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x41 &&
+    buffer[10] === 0x56 &&
+    buffer[11] === 0x45
+  ) {
+    return true;
+  }
+  // Ogg
+  if (b0 === 0x4f && b1 === 0x67 && b2 === 0x67 && b3 === 0x53) return true;
+  // ftyp (mp4/m4a)
+  if (
+    buffer.length >= 8 &&
+    buffer[4] === 0x66 &&
+    buffer[5] === 0x74 &&
+    buffer[6] === 0x79 &&
+    buffer[7] === 0x70
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export async function uploadIvrAudioToR2(input: {
   key: string;
   buffer: Buffer;

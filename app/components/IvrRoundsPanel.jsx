@@ -883,6 +883,17 @@ export default function IvrRoundsPanel({
           התזמון.
         </p>
 
+        {!approved ? (
+          <div
+            data-testid="ivr-audio-not-ready-banner"
+            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-950"
+          >
+            אין עדיין קובץ שמע מאושר לשיחות. אפשר לשמור תזמון, אבל הסבב לא
+            יתחיל לחייג עד שתיצרו את שם האירוע, תשמעו את התצוגה המקדימה
+            ותאשרו את ההקלטה.
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-3">
           {[1, 2, 3].map((roundNumber) => {
             const round =
