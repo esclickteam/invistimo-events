@@ -189,12 +189,19 @@ export default function IvrCallsReportModal({
   userId,
   clientName,
   onClose,
+  initialRound,
 }: {
   userId: string;
   clientName: string;
   onClose: () => void;
+  /** Optional round filter ("1" | "2" | "3") when opened from a specific IVR round. */
+  initialRound?: string;
 }) {
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() =>
+    initialRound && ["1", "2", "3"].includes(String(initialRound))
+      ? { ...EMPTY_FILTERS, round: String(initialRound) }
+      : EMPTY_FILTERS
+  );
   const [draftQ, setDraftQ] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Row[]>([]);
