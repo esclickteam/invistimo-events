@@ -18,6 +18,25 @@ function tourRouteMatches(pathname: string, route: string) {
   return pathname === route || pathname.startsWith(`${route}/`);
 }
 
+function isTourTargetVisible(node: HTMLElement) {
+  const box = node.getBoundingClientRect();
+  if (box.width < 2 || box.height < 2) return false;
+  let current: HTMLElement | null = node;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    current = current.parentElement;
+  }
+  const viewW = window.innerWidth;
+  const viewH = window.innerHeight;
+  return box.bottom > 0 && box.right > 0 && box.top < viewH && box.left < viewW;
+}
+
+function findTourTarget(selector: string) {
+  const nodes = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+  return nodes.find(isTourTargetVisible) || null;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -39,6 +58,10 @@ export default function ProductTour({
     if (!step) return;
     setWaiting(step.advance !== "continue");
     setSuccess("");
+    document.documentElement.dataset.demoTour = step.id;
+    window.dispatchEvent(
+      new CustomEvent("invistimo:demo-tour-step", { detail: { id: step.id } })
+    );
     if (step.route && !tourRouteMatches(pathname, step.route)) {
       router.push(step.route);
     }
@@ -49,7 +72,7 @@ export default function ProductTour({
     let frame = 0;
 
     const measure = () => {
-      const node = document.querySelector(step.selector) as HTMLElement | null;
+      const node = findTourTarget(step.selector);
       if (!node) {
         setRect(null);
         return;
@@ -92,7 +115,7 @@ export default function ProductTour({
 
     const onClick = (event: MouseEvent) => {
       if (step.advance !== "click" || !rect) return;
-      const node = document.querySelector(step.selector);
+      const node = findTourTarget(step.selector);
       if (node && (node === event.target || node.contains(event.target as Node))) {
         setWaiting(false);
         setSuccess("מצוין");

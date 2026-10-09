@@ -156,7 +156,13 @@ export default function DashboardHeader({
               </button>
 
               <button
-                onClick={() => router.push("/dashboard/contact")}
+                onClick={() => {
+                  if (isDemo) {
+                    window.dispatchEvent(new CustomEvent("invistimo:demo-lead"));
+                    return;
+                  }
+                  router.push("/dashboard/contact");
+                }}
                 className="
                   inline-flex items-center gap-2
                   whitespace-nowrap

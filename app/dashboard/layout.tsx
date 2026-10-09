@@ -61,6 +61,16 @@ function DashboardLayoutInner({
   const isDemo = pathname.startsWith("/try");
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isDemo) return;
+    const openForTour = (event: Event) => {
+      const id = String((event as CustomEvent).detail?.id || "");
+      if (id === "more" && window.innerWidth < 1024) setMenuOpen(true);
+    };
+    window.addEventListener("invistimo:demo-tour-step", openForTour);
+    return () => window.removeEventListener("invistimo:demo-tour-step", openForTour);
+  }, [isDemo]);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [invitationLoaded, setInvitationLoaded] = useState(false);
   const [eventLive, setEventLive] = useState(false);

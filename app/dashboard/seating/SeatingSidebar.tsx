@@ -95,6 +95,18 @@ export default function SeatingSidebar({
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  useEffect(() => {
+    const openForTour = (event: Event) => {
+      const id = String((event as CustomEvent).detail?.id || "");
+      if (id === "seating") setMobileOpen(true);
+    };
+    if (document.documentElement.dataset.demoTour === "seating") {
+      setMobileOpen(true);
+    }
+    window.addEventListener("invistimo:demo-tour-step", openForTour);
+    return () => window.removeEventListener("invistimo:demo-tour-step", openForTour);
+  }, []);
+
   const { stats, isGuestSeated, getGroupStats } = useSeatingStats();
 
   /* ===== UI STATE ===== */

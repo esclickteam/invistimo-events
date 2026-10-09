@@ -3311,7 +3311,16 @@ const eventLocation = resolveEventLocation(invitation, event);
       await navigator.clipboard.writeText(link);
       alert("📋 הקישור הועתק");
     }}
-    onCall={(g) => setOpenCallsGuest(g)}
+    onCall={(g) => {
+      setOpenCallsGuest(g);
+      if (isDemo) {
+        window.dispatchEvent(
+          new CustomEvent("invistimo:demo-action", {
+            detail: { action: "view-calls" },
+          })
+        );
+      }
+    }}
     onWhatsApp={(g) => sendWhatsApp(g)}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}

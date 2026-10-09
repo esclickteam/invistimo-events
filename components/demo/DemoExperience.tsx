@@ -37,9 +37,12 @@ export default function DemoExperience({ children }: Props) {
       boot();
     };
     window.addEventListener("invistimo:demo-sync", onSync);
+    const onLead = () => setSummaryOpen(true);
+    window.addEventListener("invistimo:demo-lead", onLead);
     return () => {
       cancelled = true;
       window.removeEventListener("invistimo:demo-sync", onSync);
+      window.removeEventListener("invistimo:demo-lead", onLead);
       removeBridge();
     };
   }, []);
