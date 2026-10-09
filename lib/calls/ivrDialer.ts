@@ -414,6 +414,320 @@ export function resolveApprovedNarrationUrl(user: any) {
   return audio.audioReady ? audio.introAudioUrl : "";
 }
 
+/** Approved + ready narration check shared by cron and admin open-now. */
+export function resolveIvrRoundAudio(user: any) {
+  return resolveRoundAudio(user);
+}
+
+/**
+ * Admin / manual open of one IVR round.
+ * Reuses executeIvrRound — never a separate dial path.
+ * Ignores the schedule due-window (open now) but never bypasses audio,
+ * eligibility, claim, parallel-cap, or live-dial gates inside executeIvrRound.
+ */
+export async function openIvrRoundManually(input: {
+  userId: string;
+  round: number;
+  webhookUrl: string;
+  maxCalls?: number;
+  now?: Date;
+}) {
+  const round = Number(input.round);
+  if (round !== 1 && round !== 2 && round !== 3) {
+    return {
+      ok: false as const,
+      error: "INVALID_ROUND",
+      message: "סבב לא תקין",
+    };
+  }
+
+  const now = input.now || new Date();
+  const user = (await User.findById(input.userId)
+    .select(
+      "_id name email includeCalls callsType callRoundsSchedule ivrConfig isActive"
+    )
+    .lean()) as any;
+
+  if (!user || !isIvrCallsUser(user)) {
+    return {
+      ok: false as const,
+      error: "NOT_IVR_USER",
+      message: "המשתמש אינו בחבילת שיחות מוקלטות",
+    };
+  }
+
+  if (user.isActive === false) {
+    return {
+      ok: false as const,
+      error: "USER_INACTIVE",
+      message: "המשתמש אינו פעיל",
+    };
+  }
+
+  const invitation = await Invitation.findOne({ ownerId: user._id })
+    .select("_id ownerId")
+    .sort({ eventDate: 1, createdAt: -1 })
+    .lean();
+
+  if (!invitation?._id) {
+    return {
+      ok: false as const,
+      error: "NO_INVITATION",
+      message: "לא נמצאה הזמנה למשתמש",
+    };
+  }
+
+  const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
+    ? user.callRoundsSchedule.rounds
+    : [];
+
+  await reconcileIdleRoundStatuses({
+    userId: String(user._id),
+    invitationId: String(invitation._id),
+    rounds,
+    now,
+  });
+
+  const raw = rounds.find(
+    (item: any) => Number(item?.roundNumber || item?.round || 0) === round
+  );
+
+  if (!raw) {
+    return {
+      ok: false as const,
+      error: "ROUND_MISSING",
+      message: "הסבב לא מוגדר בלו״ז",
+    };
+  }
+
+  if (isRoundTerminal(raw)) {
+    const status = String(raw?.status || "").toLowerCase();
+    return {
+      ok: false as const,
+      error: "ROUND_TERMINAL",
+      message:
+        status === "done" || status === "completed"
+          ? "הסבב כבר הושלם"
+          : status === "failed"
+            ? "הסבב נכשל — יש לפתוח מחדש לפני חיוג"
+            : "הסבב מבוטל או סגור",
+      status,
+    };
+  }
+
+  const status = String(raw?.status || "")
+    .trim()
+    .toLowerCase();
+  if (status === "in_progress" || status === "opened") {
+    const live = await countOccupiedOutboundCallsForRound(
+      String(invitation._id),
+      round
+    );
+    if (live > 0) {
+      return {
+        ok: false as const,
+        error: "ROUND_ALREADY_RUNNING",
+        message: "הסבב כבר מתבצע — אין לפתוח חיוג כפול",
+      };
+    }
+  }
+
+  if (earlierRoundStillRunning(rounds, round)) {
+    return {
+      ok: false as const,
+      error: "EARLIER_ROUND_RUNNING",
+      message: "סבב קודם עדיין מתבצע",
+    };
+  }
+
+  if (process.env.IVR_ALLOW_LIVE_DIAL === "false") {
+    return {
+      ok: false as const,
+      error: "LIVE_DIAL_DISABLED",
+      message: "חיוגי IVR מושבתים זמנית במערכת (IVR_ALLOW_LIVE_DIAL=false)",
+    };
+  }
+
+  const audio = resolveRoundAudio(user);
+  if (!audio.audioReady) {
+    return {
+      ok: false as const,
+      error: "AUDIO_NOT_READY",
+      message: audio.audioBlockReason || "אין קריינות מאושרת ונגישה",
+      audioBlockReason: audio.audioBlockReason,
+    };
+  }
+
+  const guests = await InvitationGuest.find({
+    invitationId: invitation._id,
+  }).lean();
+  const eligible = filterGuestsForIvrRound({
+    guests,
+    round: round as IvrRoundNumber,
+  });
+
+  if (eligible.length < 1) {
+    return {
+      ok: false as const,
+      error: "NO_ELIGIBLE_GUESTS",
+      message: "אין אורחים זכאים לחיוג בסבב זה",
+      eligibleCount: 0,
+    };
+  }
+
+  const scheduledAt =
+    parseCallRoundScheduledAt(raw?.scheduledAt) || now;
+
+  const result = await executeIvrRound({
+    due: {
+      userId: String(user._id),
+      invitationId: String(invitation._id),
+      round: round as IvrRoundNumber,
+      scheduledAt,
+      introAudioUrl: audio.introAudioUrl,
+      eventNameAudioUrl: audio.eventNameAudioUrl,
+      composedIntroAudioUrl: audio.composedIntroAudioUrl,
+      voiceGender: audio.voiceGender,
+      audioMode: audio.audioMode,
+      clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
+      audioReady: audio.audioReady,
+      audioBlockReason: audio.audioBlockReason,
+    },
+    webhookUrl: input.webhookUrl,
+    maxCalls: input.maxCalls,
+    now,
+  });
+
+  if ((result as any)?.blocked) {
+    return {
+      ok: false as const,
+      error: "AUDIO_BLOCKED",
+      message:
+        (result as any)?.reason ||
+        audio.audioBlockReason ||
+        "החיוג נחסם — אין קריינות תקינה",
+      result,
+      eligibleCount: eligible.length,
+    };
+  }
+
+  if ((result as any)?.skipped) {
+    return {
+      ok: false as const,
+      error: String((result as any)?.reason || "SKIPPED"),
+      message:
+        (result as any)?.reason === "ROUND_ALREADY_RUNNING"
+          ? "הסבב כבר מתבצע — אין לפתוח חיוג כפול"
+          : (result as any)?.reason === "PARALLEL_CAP"
+            ? "מגבלת חיוגים מקבילים — נסו שוב בעוד רגע"
+            : "הסבב לא נפתח",
+      result,
+      eligibleCount: eligible.length,
+    };
+  }
+
+  return {
+    ok: true as const,
+    eligibleCount: eligible.length,
+    result,
+  };
+}
+
+/** Controlled stop / resume of a scheduled IVR round (admin). */
+export async function setIvrRoundAdminStatus(input: {
+  userId: string;
+  round: number;
+  action: "stop" | "resume";
+  now?: Date;
+}) {
+  const round = Number(input.round);
+  if (round !== 1 && round !== 2 && round !== 3) {
+    return { ok: false as const, error: "INVALID_ROUND", message: "סבב לא תקין" };
+  }
+
+  const now = input.now || new Date();
+  const user = (await User.findById(input.userId)
+    .select("_id callRoundsSchedule includeCalls callsType")
+    .lean()) as any;
+
+  if (!user || !isIvrCallsUser(user)) {
+    return {
+      ok: false as const,
+      error: "NOT_IVR_USER",
+      message: "המשתמש אינו בחבילת שיחות מוקלטות",
+    };
+  }
+
+  const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
+    ? [...user.callRoundsSchedule.rounds]
+    : [];
+  const idx = rounds.findIndex(
+    (item: any) => Number(item?.roundNumber || item?.round || 0) === round
+  );
+  if (idx < 0) {
+    return { ok: false as const, error: "ROUND_MISSING", message: "הסבב לא מוגדר" };
+  }
+
+  const current = rounds[idx];
+  const status = String(current?.status || "")
+    .trim()
+    .toLowerCase();
+
+  if (input.action === "stop") {
+    if (status === "done" || status === "completed") {
+      return {
+        ok: false as const,
+        error: "ALREADY_DONE",
+        message: "לא ניתן לעצור סבב שהושלם",
+      };
+    }
+    await User.updateOne(
+      {
+        _id: user._id,
+        "callRoundsSchedule.rounds.roundNumber": round,
+      },
+      {
+        $set: {
+          "callRoundsSchedule.rounds.$.status": "cancelled",
+          "callRoundsSchedule.rounds.$.dialClaimedAt": null,
+          "callRoundsSchedule.rounds.$.updatedAt": now,
+          "callRoundsSchedule.rounds.$.failureReason": "נעצר ידנית מהאדמין",
+        },
+      }
+    );
+    return { ok: true as const, status: "cancelled" };
+  }
+
+  // resume
+  if (status !== "cancelled" && status !== "canceled" && status !== "failed") {
+    return {
+      ok: false as const,
+      error: "NOT_RESUMABLE",
+      message: "ניתן לחדש רק סבב שנעצר או נכשל",
+    };
+  }
+
+  const hasSchedule = Boolean(parseCallRoundScheduledAt(current?.scheduledAt));
+  const nextStatus = hasSchedule ? "scheduled" : "draft";
+
+  await User.updateOne(
+    {
+      _id: user._id,
+      "callRoundsSchedule.rounds.roundNumber": round,
+    },
+    {
+      $set: {
+        "callRoundsSchedule.rounds.$.status": nextStatus,
+        "callRoundsSchedule.rounds.$.dialClaimedAt": null,
+        "callRoundsSchedule.rounds.$.failureReason": "",
+        "callRoundsSchedule.rounds.$.updatedAt": now,
+      },
+    }
+  );
+
+  return { ok: true as const, status: nextStatus };
+}
+
 function resolveReadySelfAudio(user: any): string {
   const intro = user?.ivrConfig?.introAudio;
   const token = cleanStr(intro?.publicToken);

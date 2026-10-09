@@ -11,6 +11,7 @@ import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
+import AdminIvrRoundsPanel from "@/app/components/admin/AdminIvrRoundsPanel";
 import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
@@ -3025,6 +3026,15 @@ function AdminMessageRoundsPanel({
           rsvpSiteMode={user.rsvpSiteMode}
           guestExperienceType={user.guestExperienceType}
         />
+
+        {user.includeCalls && user.callsType === "ivr" ? (
+          <AdminIvrRoundsPanel
+            key={`ivr-rounds-${user._id}`}
+            userId={user._id}
+            clientName={user.name || user.email || "לקוח"}
+            onScheduleChanged={onChanged}
+          />
+        ) : null}
       </div>
 
       <div className="space-y-5">
