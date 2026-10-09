@@ -18,6 +18,7 @@ import { writeVenueAudit } from "@/lib/venues/audit";
 import { createVenueAlert } from "@/lib/venues/alerts";
 import { refreshUnsentRoundPayloads } from "@/lib/messages/refreshUnsentRoundPayloads";
 import { resolveLiveEventMessageDetails } from "@/lib/messages/liveEventDetails";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1466,6 +1467,26 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       ownerId
     );
 
+    await persistSharedIdentityMirror({
+      source: "event",
+      eventId: String(existingEvent._id),
+      event: existingEvent.toObject ? existingEvent.toObject() : existingEvent,
+      incoming: {
+        title: requestedTitle,
+        eventType: requestedEventType,
+        date: requestedDate,
+        time: requestedTime,
+        location:
+          body.location && typeof body.location === "object"
+            ? {
+                address: cleanString(body.location.address),
+                lat: body.location.lat ?? null,
+                lng: body.location.lng ?? null,
+              }
+            : existingEvent.location || null,
+      },
+    });
+
     if (invitation?._id) {
       const invitations = getCollection("invitations");
 
@@ -1491,25 +1512,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
             cleanString(existingEvent.venueSeatingTemplateName),
         };
 
-        if (requestedTitle) {
-          invitationUpdate.title = requestedTitle;
-          invitationUpdate.eventTitle = requestedTitle;
-        }
-
-        if (allowedEventTypes.includes(requestedEventType)) {
-          invitationUpdate.eventType = requestedEventType;
-        }
-
-        if (requestedDate) {
-          invitationUpdate.eventDate = requestedDate;
-          invitationUpdate.date = requestedDate;
-        }
-
-        if (requestedTime) {
-          invitationUpdate.eventTime = requestedTime;
-          invitationUpdate.time = requestedTime;
-        }
-
         const estimatedGuests = Math.max(
           0,
           toNumber(
@@ -1527,14 +1529,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         invitationUpdate.budgetTotal = existingEvent.budgetTotal;
         invitationUpdate.paymentStatus = existingEvent.paymentStatus;
         invitationUpdate.notes = existingEvent.notes;
-
-        if (body.location && typeof body.location === "object") {
-          invitationUpdate.location = {
-            address: cleanString(body.location.address),
-            lat: body.location.lat,
-            lng: body.location.lng,
-          };
-        }
 
         await invitations.updateOne(
           { _id: invitation._id },

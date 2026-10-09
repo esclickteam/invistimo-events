@@ -16,6 +16,7 @@ import {
   findVenueHallByAnyId,
 } from "@/lib/venues/eventVenueLinkInvariant";
 import { prepareEventLocation } from "@/lib/eventLocation";
+import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -309,7 +310,7 @@ async function createOrUpdateEventForInvitation({
 
       email: user.email || "noemail@placeholder.com",
 
-      title: cleanString(body.title) || "הזמנה חדשה",
+      title: cleanString(body.title) || "",
       eventType: normalizeEventType(body.eventType),
 
       budgetTotal: 0,
@@ -320,7 +321,7 @@ async function createOrUpdateEventForInvitation({
       date:
         normalizeEventDate(body.eventDate || body.date) ||
         new Date().toISOString().slice(0, 10),
-      time: cleanString(body.eventTime || body.time) || "00:00",
+      time: cleanString(body.eventTime || body.time) || "",
 
       maxGuests: 100,
 
@@ -657,7 +658,7 @@ export async function POST(req: NextRequest) {
         ? "square"
         : "portrait";
 
-    const invitationTitle = event.title || cleanString(body.title) || "הזמנה חדשה";
+    const invitationTitle = event.title || cleanString(body.title) || "";
     const rsvpSiteMode = await getOwnerRsvpSiteMode(userId);
 
     const invitation = await Invitation.create({
@@ -707,6 +708,19 @@ export async function POST(req: NextRequest) {
         invitationId: invitation._id,
         userId,
       })) || event;
+
+    await persistSharedIdentityMirror({
+      source: "invitation",
+      invitationId: String(invitation._id),
+      eventId: String(event._id),
+      incoming: {
+        title: invitation.title,
+        eventType: invitation.eventType,
+        date: invitation.eventDate,
+        time: invitation.eventTime,
+        location: invitation.location || null,
+      },
+    });
 
     return NextResponse.json(
       {
