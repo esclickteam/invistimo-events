@@ -118,3 +118,16 @@ test("the customer document keeps the approved hours and hides the change log", 
     "18:30",
   );
 });
+
+test("a quote shows only event hours that were actually saved", () => {
+  const onlyReception = toCustomerSeatingSchedule({
+    receptionStartTime: "19:30",
+    plannedChuppahTime: "",
+    plannedSeatingStartTime: "לא הוגדר",
+    teamArrivalTime: null,
+  });
+
+  assert.deepEqual(onlyReception, { receptionStartTime: "19:30" });
+  assert.equal(toCustomerSeatingSchedule({ receptionStartTime: "" }), null);
+  assert.equal(JSON.stringify(onlyReception).includes("לא הוגדר"), false);
+});
