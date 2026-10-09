@@ -119,7 +119,6 @@ export default function DemoExperience({ children }: Props) {
     });
     const data = await res.json().catch(() => null);
     if (data?.session) setSession(data.session);
-    router.push("/try/dashboard");
   }
 
   async function saveTour(patch: Partial<DemoSession["tour"]>) {
@@ -172,7 +171,7 @@ export default function DemoExperience({ children }: Props) {
 
       <div
         dir="rtl"
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-[70] flex justify-center px-3"
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-[100] flex justify-center px-3"
       >
         <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-[#E7D3B0] bg-[#FFFDF8]/95 px-3 py-1.5 text-[11px] font-black text-[#5C4A38] shadow-sm backdrop-blur">
           <span>דמו מבודד · בלי שליחה אמיתית</span>
