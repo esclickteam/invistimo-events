@@ -11,7 +11,10 @@ import {
   instrumentGuestWrite,
   normalizeTableNumber,
 } from "@/lib/invitationGuestWrites";
-import { reclaimUnusedAllocatedSeats } from "@/lib/seating/liveOccupancy";
+import {
+  countGuestAllocatedChairs,
+  getSeatsCountForLiveMove,
+} from "@/lib/seating/preservePlannedSeating";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -98,19 +101,12 @@ function getExpectedArrivedCount(guest: any) {
 }
 
 /*
-  מצב לייב:
-  אם actualArrivedCount קיים — הוא הקובע, גם אם הוא 0.
-  אם actualArrivedCount לא קיים בכלל — fallback למגיעים שסומנו / מוזמנים.
+  מצב לייב — העברת אורח בין שולחנות:
+  ההושבה שהזוג שמר היא הבסיס. actualArrivedCount=0 לא משחרר כיסאות.
+  שימוש ב-getSeatsCountForLiveMove עם currentAllocated בנתיב ה-PATCH.
 */
-function getGuestSeatsCountForLive(guest: any) {
-  if (hasActualArrivedValue(guest)) {
-    return getActualArrivedCount(guest);
-  }
-
-  return Math.max(
-    1,
-    Number(guest?.arrivedCount || 0) || Number(guest?.guestsCount || 1)
-  );
+function getGuestSeatsCountForLive(guest: any, currentAllocated = 0) {
+  return getSeatsCountForLiveMove(guest, currentAllocated);
 }
 
 function getGuestSeatStatus(guest: any) {
@@ -498,7 +494,7 @@ function placeGuestInTable({
   guest,
   guestId,
   seatsCount,
-  guestLookup,
+  guestLookup: _guestLookup,
 }: {
   table: any;
   guest: any;
@@ -516,10 +512,12 @@ function placeGuestInTable({
     };
   }
 
-  if (guestLookup) {
-    reclaimUnusedAllocatedSeats(table, guestLookup, guestId);
-  }
-
+  /*
+    Never reclaim other guests' planned chairs as a side-effect of a move.
+    Free chairs come only from truly empty seat indexes. Explicit
+    syncSeatsToActual (with confirmation) is the only path that trims
+    surplus planned seats.
+  */
   const freeSeats = findFreeSeatIndexes(table, seatsCount, guestId);
 
   if (freeSeats.length < seatsCount) {
@@ -858,13 +856,31 @@ export async function PATCH(req: NextRequest) {
     }
 
     const actualArrivedCount = getActualArrivedCount(guest);
-    const seatsCount = getGuestSeatsCountForLive(guest);
     const scopedQuery = buildScopedQuery(eventId, guest);
 
     const seatingTableDoc = await findSeatingTableDocByScopeOrDirect({
       scopedQuery,
       toTableId,
     });
+
+    const seatingDoc = scopedQuery.length
+      ? await Seating.findOne({
+          $or: scopedQuery,
+        })
+      : null;
+
+    const legacyTables = await findLegacyStandaloneTables({
+      scopedQuery,
+      toTableId,
+    });
+
+    const currentAllocated = Math.max(
+      countGuestAllocatedChairs(seatingTableDoc?.tables, guestId),
+      countGuestAllocatedChairs(seatingDoc?.tables, guestId),
+      countGuestAllocatedChairs(legacyTables, guestId)
+    );
+
+    const seatsCount = getGuestSeatsCountForLive(guest, currentAllocated);
 
     if (seatingTableDoc?.tables?.length) {
       const hasTarget = toTableId
@@ -892,12 +908,6 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const seatingDoc = scopedQuery.length
-      ? await Seating.findOne({
-          $or: scopedQuery,
-        })
-      : null;
-
     if (seatingDoc?.tables?.length) {
       const hasTarget = toTableId
         ? seatingDoc.tables.some((table: any) => isTargetTable(table, toTableId))
@@ -921,11 +931,6 @@ export async function PATCH(req: NextRequest) {
         if (response) return response;
       }
     }
-
-    const legacyTables = await findLegacyStandaloneTables({
-      scopedQuery,
-      toTableId,
-    });
 
     if (legacyTables.length) {
       const response = await applyMoveToLegacyStandaloneTables({
@@ -951,6 +956,7 @@ export async function PATCH(req: NextRequest) {
           toTableId,
           actualArrivedCount,
           seatsCount,
+          currentAllocated,
           hasActualArrivedValue: hasActualArrivedValue(guest),
           guestInvitationId: normalizeId(guest.invitationId),
           scopedQueryCount: scopedQuery.length,

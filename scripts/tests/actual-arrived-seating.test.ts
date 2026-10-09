@@ -27,7 +27,8 @@ test("check-in and the guest stepper share actualArrived seating prompts", () =>
 
   assert.match(route, /countAllocatedSeats/);
   assert.match(route, /buildCurrentTableLiveOption/);
-  assert.match(route, /reclaimUnusedAllocatedSeats/);
+  assert.match(route, /trimGuestSeatsToCount/);
+  assert.doesNotMatch(route, /reclaimUnusedAllocatedSeats/);
   assert.match(route, /mode: shouldSyncSeatsToActual \? "sync" : "check"/);
   assert.match(route, /shortage/);
   assert.doesNotMatch(page, /CheckInStatusBadge/);

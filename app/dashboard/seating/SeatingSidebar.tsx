@@ -121,31 +121,57 @@ export default function SeatingSidebar({
 
   const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
+  const getAllocatedChairCount = (g: Guest) => {
+    const guestId = seatGuestId(g);
+    let count = 0;
+    for (const table of tables) {
+      for (const seat of table.seatedGuests || []) {
+        if (String(seat.guestId) === guestId) count += 1;
+      }
+    }
+    return count;
+  };
+
   const getSeatCount = (g: any) => {
-  const store = useSeatingStore.getState();
+    const store = useSeatingStore.getState();
 
-  if (!isLiveMode) {
-    return store.getPlannedSeatCount(g);
-  }
+    if (!isLiveMode) {
+      return store.getPlannedSeatCount(g);
+    }
 
-  const guestId = String(g.id ?? g._id);
+    const guestId = String(g.id ?? g._id);
+    const allocated = getAllocatedChairCount(g);
+    const fromLiveStore = Number(store.liveArrivals?.[guestId] ?? 0);
+    const actual =
+      fromLiveStore > 0
+        ? fromLiveStore
+        : Number(g.actualArrivedCount || 0) || Number(g.arrivedCount || 0) || 0;
+    const planned = Number(store.getPlannedSeatCount(g) || 0);
 
-  const fromLiveStore = Number(store.liveArrivals?.[guestId] ?? 0);
+    // Live UI must keep showing the couple's plan even before check-in.
+    return Math.max(allocated, actual, planned);
+  };
 
-  if (fromLiveStore > 0) {
-    return fromLiveStore;
-  }
+  /* ================= TABLE MAPS ================= */
 
-  return (
-    Number(g.actualArrivedCount || 0) ||
-    Number(g.arrivedCount || 0) ||
-    0
-  );
-};
+  const guestTableMap = useMemo(() => {
+    const map = new Map<string, Table>();
+
+    tables.forEach((t) => {
+      (t.seatedGuests || []).forEach((sg) => {
+        map.set(String(sg.guestId), t);
+      });
+    });
+
+    return map;
+  }, [tables]);
 
   const isEligibleInCurrentMode = (g: Guest) => {
     if (!isLiveMode) return g.rsvp === "yes";
-    return getSeatCount(g) > 0;
+    // Already-seated guests from the saved plan must stay visible in live.
+    if (guestTableMap.has(seatGuestId(g))) return true;
+    if (getSeatCount(g) > 0) return true;
+    return g.rsvp === "yes";
   };
 
   const getMaxTableSeats = () =>
@@ -213,20 +239,6 @@ export default function SeatingSidebar({
     }
   };
 
-  /* ================= TABLE MAPS ================= */
-
-  const guestTableMap = useMemo(() => {
-    const map = new Map<string, Table>();
-
-    tables.forEach((t) => {
-      (t.seatedGuests || []).forEach((sg) => {
-        map.set(String(sg.guestId), t);
-      });
-    });
-
-    return map;
-  }, [tables]);
-
   const getSeatRecordForGuest = (guestId: string) => {
     for (const table of tables) {
       const seat = (table.seatedGuests || []).find(
@@ -293,14 +305,14 @@ export default function SeatingSidebar({
     return "";
   };
 
+  const getTableAssignmentCount = (t: Table) => {
+    // Live + regular: chair assignments on the map are the couple's plan.
+    // Do not collapse to "arrived only" or tables look empty mid-event.
+    return (t.seatedGuests || []).length;
+  };
+
   const tableLabel = (t: Table) => {
-    const count = guests
-      .filter(
-        (g) =>
-          isEligibleInCurrentMode(g) &&
-          guestTableMap.get(seatGuestId(g))?.id === t.id
-      )
-      .reduce((sum, g) => sum + getSeatCount(g), 0);
+    const count = getTableAssignmentCount(t);
 
     const groupLabel = getTableGroupLabel(t.id);
 
@@ -310,13 +322,7 @@ export default function SeatingSidebar({
   };
 
   const simpleTableLabel = (t: Table) => {
-    const count = guests
-      .filter(
-        (g) =>
-          isEligibleInCurrentMode(g) &&
-          guestTableMap.get(seatGuestId(g))?.id === t.id
-      )
-      .reduce((sum, g) => sum + getSeatCount(g), 0);
+    const count = getTableAssignmentCount(t);
 
     return `${t.name} (${count}/${t.seats})`;
   };

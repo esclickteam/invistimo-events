@@ -22,7 +22,6 @@ import {
   describeAllocatedGap,
   findAbsolutelyFreeSeatIndexes,
   getTableLiveFreeSeats,
-  reclaimUnusedAllocatedSeats,
   trimGuestSeatsToCount,
 } from "@/lib/seating/liveOccupancy";
 
@@ -968,10 +967,12 @@ async function syncOrCheckActualArrivedToAllSeating({
     currentTable: any,
     allocatedBefore: number
   ) => {
-    for (const table of tables) {
-      reclaimUnusedAllocatedSeats(table, guestLookup, guestId);
-    }
-
+    /*
+      Critical (live event safety):
+      Only adjust the focused guest's chairs after explicit syncSeatsToActual.
+      Never reclaim / delete other guests' planned seating as a side-effect —
+      the couple's saved seating is the base for live seating.
+    */
     const shortage = Math.max(0, actual - allocatedBefore);
     const surplus = Math.max(0, allocatedBefore - actual);
 
@@ -986,8 +987,6 @@ async function syncOrCheckActualArrivedToAllSeating({
     if (shortage <= 0) {
       return { ok: true as const };
     }
-
-    reclaimUnusedAllocatedSeats(currentTable, guestLookup, guestId);
 
     const freeIndexes = findAbsolutelyFreeSeatIndexes(currentTable, shortage);
     if (freeIndexes.length < shortage) {

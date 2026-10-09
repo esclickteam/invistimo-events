@@ -218,11 +218,11 @@ function TableRenderer({ table, hideSeats = false }) {
   const liveSnapshotKey = tableId ? `invistimo:planned-seating:${tableId}` : "";
 
   /*
-    מקור אמת להושבה המקורית:
-    - אם יש snapshot מהשרת, משתמשים בו.
-    - במצב רגיל שומרים את ההושבה הקיימת.
-    - בלייב קוראים את ההושבה המקורית מה־localStorage.
-    - fallback אחרון: table.seatedGuests.
+    מקור אמת להושבה המקורית (התוכנית שהזוג שמר):
+    1. snapshot מהשרת אם קיים
+    2. table.seatedGuests מהשרת — הבסיס להושבה בלייב
+    3. localStorage רק אם השרת ריק (שחזור מקומי אחרי שחרור מפורש)
+    אסור להעדיף localStorage על נתוני השרת — זה הסתיר שיבוצים במכשירים אחרים.
   */
   const plannedSeatedGuests = useMemo(() => {
     const serverSnapshot =
@@ -236,11 +236,12 @@ function TableRenderer({ table, hideSeats = false }) {
       return normalizeSeatedGuests(serverSnapshot);
     }
 
-    if (seatingMode !== "live") {
-      return normalizeSeatedGuests(table.seatedGuests || []);
+    const fromServer = normalizeSeatedGuests(table.seatedGuests || []);
+    if (fromServer.length) {
+      return fromServer;
     }
 
-    if (typeof window !== "undefined" && liveSnapshotKey) {
+    if (seatingMode === "live" && typeof window !== "undefined" && liveSnapshotKey) {
       try {
         const raw = window.localStorage.getItem(liveSnapshotKey);
         const parsed = raw ? JSON.parse(raw) : null;
@@ -253,7 +254,7 @@ function TableRenderer({ table, hideSeats = false }) {
       }
     }
 
-    return normalizeSeatedGuests(table.seatedGuests || []);
+    return fromServer;
   }, [
     table.id,
     table._id,

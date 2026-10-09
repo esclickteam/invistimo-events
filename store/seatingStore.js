@@ -32,12 +32,21 @@ function normalizeSeatIndexList(seatedGuests, seatsTotal) {
     .map((seat) => Number(seat?.seatIndex))
     .filter((value) => Number.isFinite(value));
 
+  /*
+    Never wipe planned seating when capacity is missing/0.
+    Infer a safe capacity from the highest seat index instead.
+  */
+  let effectiveTotal = Math.max(0, Math.floor(Number(seatsTotal || 0)));
+  if ((!effectiveTotal || effectiveTotal <= 0) && numericIndexes.length > 0) {
+    effectiveTotal = Math.max(...numericIndexes) + 1;
+  }
+
   const looksOneBased =
-    seatsTotal > 0 &&
+    effectiveTotal > 0 &&
     numericIndexes.length > 0 &&
-    numericIndexes.every((idx) => idx >= 1 && idx <= seatsTotal) &&
+    numericIndexes.every((idx) => idx >= 1 && idx <= effectiveTotal) &&
     !numericIndexes.includes(0) &&
-    numericIndexes.includes(seatsTotal);
+    numericIndexes.includes(effectiveTotal);
 
   return rawSeats
     .map((seat) => {
@@ -47,9 +56,14 @@ function normalizeSeatIndexList(seatedGuests, seatsTotal) {
 
       const normalizedIndex = looksOneBased ? rawIndex - 1 : rawIndex;
 
-      if (normalizedIndex < 0 || normalizedIndex >= seatsTotal) {
+      if (
+        effectiveTotal > 0 &&
+        (normalizedIndex < 0 || normalizedIndex >= effectiveTotal)
+      ) {
         return null;
       }
+
+      if (normalizedIndex < 0) return null;
 
       const guestId = String(
         seat?.guestId ?? seat?._id ?? seat?.id ?? ""
@@ -76,6 +90,29 @@ function normalizeTableForStore(table) {
     number: table?.number ?? extractNumberFromName(table?.name) ?? null,
     seatedGuests: normalizeSeatIndexList(table?.seatedGuests || [], seats),
   };
+}
+
+function countAllocatedChairsForGuest(tables, guestId) {
+  const gid = String(guestId || "");
+  if (!gid) return 0;
+
+  return (tables || []).reduce((sum, table) => {
+    return (
+      sum +
+      (table?.seatedGuests || []).filter(
+        (seat) => String(seat?.guestId) === gid
+      ).length
+    );
+  }, 0);
+}
+
+function resolveLiveSeatCount(get, guest, guestId) {
+  const liveCount = Number(get().getGuestSeatCount(guest) || 0);
+  const plannedCount = Number(get().getPlannedSeatCount(guest) || 0);
+  const allocated = countAllocatedChairsForGuest(get().tables, guestId);
+
+  // Preserve couple-saved chairs; never collapse to 0 before check-in.
+  return Math.max(liveCount, allocated) || plannedCount || 0;
 }
 
 function findFreeBlockZeroBased(table, count, preferredSeatIndex = null) {
@@ -350,9 +387,10 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   canSeatGuestAtTable: (tableId, guest) => {
+    const guestId = String(guest?.id ?? guest?._id);
     const needed =
       get().seatingMode === "live"
-        ? get().getGuestSeatCount(guest)
+        ? resolveLiveSeatCount(get, guest, guestId)
         : get().getPlannedSeatCount(guest);
 
     if (needed <= 0) return false;
@@ -362,14 +400,8 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   canSeatGroupAtTable: (tableId, groupId) => {
-    const {
-      guests,
-      tables,
-      getPlannedSeatCount,
-      getGuestSeatCount,
-      getFreeSeats,
-      seatingMode,
-    } = get();
+    const { guests, tables, getPlannedSeatCount, getFreeSeats, seatingMode } =
+      get();
 
     const table = tables.find((t) => String(t.id) === String(tableId));
     if (!table) return false;
@@ -392,23 +424,26 @@ export const useSeatingStore = create((set, get) => ({
     if (free <= 0) return false;
 
     return remainingGroupGuests.some((g) => {
+      const gid = String(g.id ?? g._id);
       const count =
-        seatingMode === "live" ? getGuestSeatCount(g) : getPlannedSeatCount(g);
+        seatingMode === "live"
+          ? resolveLiveSeatCount(get, g, gid)
+          : getPlannedSeatCount(g);
 
       return count > 0 && count <= free;
     });
   },
 
   canSeatGuests: (tableId, guest) => {
-    const { tables, seatingMode, getPlannedSeatCount, getGuestSeatCount } =
-      get();
+    const { tables, seatingMode, getPlannedSeatCount } = get();
 
     const table = tables.find((t) => getTableId(t) === String(tableId));
     if (!table) return false;
 
+    const guestId = String(guest?.id ?? guest?._id);
     const count =
       seatingMode === "live"
-        ? getGuestSeatCount(guest)
+        ? resolveLiveSeatCount(get, guest, guestId)
         : getPlannedSeatCount(guest);
 
     if (!count || count <= 0) return false;
@@ -606,13 +641,7 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   moveGuestsToTable: ({ guestIds, tableId }) => {
-    const {
-      tables,
-      guests,
-      seatingMode,
-      getPlannedSeatCount,
-      getGuestSeatCount,
-    } = get();
+    const { tables, guests, seatingMode, getPlannedSeatCount } = get();
 
     if (!Array.isArray(guestIds) || !guestIds.length) {
       return { ok: false, message: "לא נבחרו אורחים להעברה" };
@@ -626,15 +655,17 @@ export const useSeatingStore = create((set, get) => ({
 
     const idsToMove = new Set(guestIds.map(String));
 
-    const seatCountFn =
-      seatingMode === "live" ? getGuestSeatCount : getPlannedSeatCount;
-
     const guestsToMove = guests.filter((g) =>
       idsToMove.has(String(g.id ?? g._id))
     );
 
     const neededSeats = guestsToMove.reduce((sum, guest) => {
-      return sum + Number(seatCountFn(guest) || 0);
+      const gid = String(guest.id ?? guest._id);
+      const count =
+        seatingMode === "live"
+          ? resolveLiveSeatCount(get, guest, gid)
+          : Number(getPlannedSeatCount(guest) || 0);
+      return sum + count;
     }, 0);
 
     if (neededSeats <= 0) {
@@ -665,7 +696,11 @@ export const useSeatingStore = create((set, get) => ({
     let cursor = 0;
 
     const newSeats = guestsToMove.flatMap((guest) => {
-      const count = Number(seatCountFn(guest) || 0);
+      const gid = String(guest.id ?? guest._id);
+      const count =
+        seatingMode === "live"
+          ? resolveLiveSeatCount(get, guest, gid)
+          : Number(getPlannedSeatCount(guest) || 0);
       const seats = block.slice(cursor, cursor + count);
 
       cursor += count;
@@ -1008,9 +1043,10 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
+    const dragId = String(draggingGuest.id ?? draggingGuest._id);
     const count =
       get().seatingMode === "live"
-        ? get().getGuestSeatCount(draggingGuest)
+        ? resolveLiveSeatCount(get, draggingGuest, dragId)
         : get().getPlannedSeatCount(draggingGuest);
 
     if (count <= 0) return;
@@ -1060,7 +1096,7 @@ export const useSeatingStore = create((set, get) => ({
 
     const count =
       get().seatingMode === "live"
-        ? get().getGuestSeatCount(guestObj)
+        ? resolveLiveSeatCount(get, guestObj, guestId)
         : get().getPlannedSeatCount(guestObj);
 
     if (count <= 0) {
@@ -1145,7 +1181,7 @@ export const useSeatingStore = create((set, get) => ({
 
     const count =
       get().seatingMode === "live"
-        ? get().getGuestSeatCount(guest)
+        ? resolveLiveSeatCount(get, guest, guestId)
         : get().getPlannedSeatCount(guest);
 
     if (count <= 0) return;
@@ -1243,7 +1279,7 @@ export const useSeatingStore = create((set, get) => ({
 
     const count = guest
       ? get().seatingMode === "live"
-        ? get().getGuestSeatCount(guest)
+        ? resolveLiveSeatCount(get, guest, guestId)
         : get().getPlannedSeatCount(guest)
       : 1;
 
@@ -1396,7 +1432,7 @@ export const useSeatingStore = create((set, get) => ({
 
     const realCount =
       seatingMode === "live"
-        ? Number(getGuestSeatCount(guest) || 0)
+        ? resolveLiveSeatCount(get, guest, guestId)
         : Number(getPlannedSeatCount(guest) || 0);
 
     if (realCount <= 0) {
@@ -1404,7 +1440,7 @@ export const useSeatingStore = create((set, get) => ({
         ok: false,
         message:
           seatingMode === "live"
-            ? "האורח לא הגיע בפועל"
+            ? "אין שיבוץ שמור ואין הגעה בפועל לאורח"
             : "אין כמות מושבים תקינה לאורח",
       };
     }
