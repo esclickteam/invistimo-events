@@ -434,6 +434,7 @@ export default function GuestsControls({
 
           <button
             type="button"
+            data-tour="add-guest"
             onClick={onAddGuest}
             disabled={disabledAddGuest}
             className={`

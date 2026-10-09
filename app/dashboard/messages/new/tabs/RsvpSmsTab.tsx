@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import AudienceFilterSelector, {
   FilterType,
 } from "../shared/AudienceFilterSelector";
@@ -62,6 +63,10 @@ const RSVP_SMS_TEMPLATES = {
 /* ================= COMPONENT ================= */
 
 export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
+  const pathname = usePathname();
+  const eventDetailsHref = pathname.startsWith("/try")
+    ? `/try/dashboard/invitations/${invitationId}/edit`
+    : `/dashboard/invitations/${invitationId}/edit`;
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSmsReport, setShowSmsReport] = useState(false);
@@ -342,7 +347,7 @@ setRound2Locked(
         </p>
         {invitationId && (
           <a
-            href={`/dashboard/invitations/${invitationId}/edit`}
+            href={eventDetailsHref}
             className="inline-flex items-center justify-center rounded-xl bg-[#2F2924] px-4 py-2.5 text-sm font-black text-white"
           >
             הגדרת פרטי אירוע

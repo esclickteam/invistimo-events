@@ -930,7 +930,27 @@ const canViewActualArrived =
 
   const handleExportExcel = async () => {
     if (isDemo) {
-      handleDemoBlockedAction();
+      const header = ["שם", "טלפון", "סטטוס", "מוזמנים", "שולחן"];
+      const rows = guests.map((guest) =>
+        [
+          guest.name,
+          guest.phone,
+          guest.rsvp,
+          guest.guestsCount,
+          guest.tableName || "",
+        ].join(",")
+      );
+      const blob = new Blob(["\uFEFF" + [header.join(","), ...rows].join("\n")], {
+        type: "text/csv;charset=utf-8",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "מוזמנים-דמו.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
       return;
     }
 
@@ -1038,7 +1058,17 @@ if (!canDeleteAllGuests) {
 
   async function deleteGuest(guest: Guest) {
   if (isDemo) {
-    alert("מצב דמו – הפעולה לא נשמרת");
+    const guestId = String(guest._id || guest.id || "");
+    const ok = window.confirm(`האם למחוק את "${guest.name || "ללא שם"}" מנתוני הדמו?`);
+    if (!ok || !guestId) return;
+    setGuests((prev) => prev.filter((item) => String(item._id || item.id) !== guestId));
+    await fetch("/api/demo/interactive/action", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "deleteGuest", guestId }),
+    });
+    window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
     return;
   }
 
@@ -1155,150 +1185,56 @@ if (!canDeleteAllGuests) {
 
   useEffect(() => {
     if (!isDemo) return;
+    let cancelled = false;
+    useSeatingStore.getState().setDemoMode(true);
 
-    setUser({ role: "user", plan: "premium" });
+    async function loadDemo() {
+      try {
+        const res = await fetch("/api/demo/interactive", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled || !data?.session) return;
+        const session = data.session;
+        const invitation = session.invitation || {};
+        setUser({
+          role: "user",
+          plan: "premium",
+          guests: 500,
+          includeCalls: true,
+          callsType: "ivr",
+        });
+        setInvitation(invitation);
+        setEvent({
+          title: session.event?.title,
+          date: session.event?.date,
+          time: session.event?.time,
+          location: invitation.location,
+        });
+        setInvitationId(String(invitation._id || "demo-invitation"));
+        setGuests(Array.isArray(session.guests) ? session.guests : []);
+        useGroupStore.getState().setGroups(session.groups || []);
+        setCheckInEnabled(true);
+        setLoading(false);
+        setInvitationReady(true);
+      } catch (err) {
+        console.error("demo session load failed", err);
+        if (!cancelled) {
+          setLoading(false);
+          setInvitationReady(true);
+        }
+      }
+    }
 
-    setInvitation({
-      _id: "demo",
-      shareId: "demo",
-      eventDate: new Date().toISOString(),
-    });
-
-    setInvitationId("demo");
-
-    const demoAt = (hour: number, minute: number) => {
-      const d = new Date();
-      d.setHours(hour, minute, 0, 0);
-      return d.toISOString();
+    loadDemo();
+    window.addEventListener("invistimo:demo-sync", loadDemo);
+    const timer = window.setInterval(loadDemo, 2500);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("invistimo:demo-sync", loadDemo);
+      window.clearInterval(timer);
     };
-
-    setGuests([
-      {
-        _id: "1",
-        name: "אורן לוי",
-        phone: "0501234567",
-        token: "demo1",
-        rsvp: "yes",
-        guestsCount: 2,
-        tableName: "5",
-        relation: "משפחה",
-        firstOpenedAt: demoAt(17, 15),
-        lastOpenedAt: demoAt(17, 37),
-        openCount: 3,
-        rsvpRespondedAt: demoAt(17, 20),
-      },
-      {
-        _id: "2",
-        name: "נועה כהן",
-        phone: "0529876543",
-        token: "demo2",
-        rsvp: "pending",
-        guestsCount: 1,
-        relation: "חברים",
-      },
-      {
-        _id: "3",
-        name: "דניאל לוי",
-        phone: "0541112233",
-        token: "demo3",
-        rsvp: "yes",
-        guestsCount: 3,
-        tableName: "3",
-        relation: "משפחה",
-        firstOpenedAt: demoAt(16, 5),
-        lastOpenedAt: demoAt(16, 40),
-        openCount: 2,
-        rsvpRespondedAt: demoAt(16, 12),
-      },
-      {
-        _id: "4",
-        name: "מאיה ישראלי",
-        phone: "0534445566",
-        token: "demo4",
-        rsvp: "no",
-        guestsCount: 1,
-        relation: "חברים",
-        firstOpenedAt: demoAt(15, 48),
-        lastOpenedAt: demoAt(15, 48),
-        openCount: 1,
-        rsvpRespondedAt: demoAt(15, 52),
-      },
-      {
-        _id: "5",
-        name: "יוסי כהן",
-        phone: "0507778899",
-        token: "demo5",
-        rsvp: "yes",
-        guestsCount: 1,
-        tableName: "1",
-        relation: "עבודה",
-        firstOpenedAt: demoAt(14, 10),
-        lastOpenedAt: demoAt(18, 2),
-        openCount: 4,
-        rsvpRespondedAt: demoAt(14, 22),
-      },
-      {
-        _id: "6",
-        name: "שירה לוי",
-        phone: "0523332211",
-        token: "demo6",
-        rsvp: "pending",
-        guestsCount: 2,
-        relation: "משפחה",
-        firstOpenedAt: demoAt(13, 30),
-        lastOpenedAt: demoAt(13, 30),
-        openCount: 1,
-      },
-      {
-        _id: "7",
-        name: "אלון פרץ",
-        phone: "0549991122",
-        token: "demo7",
-        rsvp: "yes",
-        guestsCount: 2,
-        tableName: "2",
-        relation: "חברים",
-        firstOpenedAt: demoAt(12, 18),
-        lastOpenedAt: demoAt(17, 5),
-        openCount: 2,
-        rsvpRespondedAt: demoAt(12, 40),
-      },
-      {
-        _id: "8",
-        name: "רוני אברהם",
-        phone: "0506665544",
-        token: "demo8",
-        rsvp: "pending",
-        guestsCount: 1,
-        relation: "עבודה",
-      },
-      {
-        _id: "9",
-        name: "תמר כהן",
-        phone: "0528887766",
-        token: "demo9",
-        rsvp: "yes",
-        guestsCount: 1,
-        tableName: "3",
-        relation: "משפחה",
-        firstOpenedAt: demoAt(11, 8),
-        lastOpenedAt: demoAt(11, 8),
-        openCount: 1,
-        rsvpRespondedAt: demoAt(11, 15),
-      },
-      {
-        _id: "10",
-        name: "איתי רוזן",
-        phone: "0532223344",
-        token: "demo10",
-        rsvp: "no",
-        guestsCount: 2,
-        relation: "חברים",
-      },
-    ]);
-
-    setLoading(false);
-    setInvitationReady(true);
   }, [isDemo]);
 
   useEffect(() => {
@@ -1306,7 +1242,9 @@ if (!canDeleteAllGuests) {
     if (action !== "import" && action !== "calls") return;
     if (!isDemo && !invitationReady) return;
 
-    if (isDemo) {
+    if (isDemo && action === "calls") {
+      setOpenRsvpSchedule(true);
+    } else if (isDemo) {
       setShowDemoToast(true);
     } else if (action === "import" && invitationId) {
       setShowImportModal(true);
@@ -1673,9 +1611,10 @@ const pending = guests.filter(
   const getGuestInviteLink = (guest: Guest) => {
     if (!invitation?.shareId) return "";
     return getGuestInvitationUrl({
-      shareId: invitation.shareId,
+      shareId: isDemo ? "demo-share" : invitation.shareId,
       token: guest.token,
       rsvpSiteMode: getInvitationRsvpSiteMode(invitation),
+      origin: isDemo ? "" : undefined,
     });
   };
 
@@ -1693,6 +1632,24 @@ const pending = guests.filter(
         : "";
 
     if (!cleanPhone) return;
+
+    if (isDemo) {
+      void fetch("/api/whatsapp/send-template", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invitationId,
+          templateName: "rsvp_invitation_media",
+          type: "rsvp",
+          round: 1,
+          guestIds: [guest._id],
+          audience: [guest._id],
+        }),
+      });
+      alert("ההודעה הודגמה בתוך הדמו ולא נשלחה ב-WhatsApp.");
+      return;
+    }
 
     const phone = `972${cleanPhone}`;
 
@@ -2650,9 +2607,8 @@ const eventLocation = resolveEventLocation(invitation, event);
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
           <p className="text-sm leading-relaxed">
-            🧪 <strong>מצב דמו פעיל</strong> – המערכת פתוחה לצפייה
-            בדשבורד, סידורי הושבה והודעות. רוצים גישה מלאה לכל
-            הפונקציות?{" "}
+            <strong>דמו מבודד.</strong> השינויים נשמרים רק באירוע הדוגמה
+            שלכם, בלי הודעות, שיחות או חיובים אמיתיים.{" "}
             <a
               href="https://www.invistimo.com/pricing"
               className="
@@ -2743,18 +2699,16 @@ const eventLocation = resolveEventLocation(invitation, event);
             if (!invitation) return;
 
             if (isDemo) {
-              handleDemoBlockedAction();
+              router.push(`/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`);
+              window.dispatchEvent(
+                new CustomEvent("invistimo:demo-action", { detail: { action: "event-details" } })
+              );
               return;
             }
 
             router.push(`/dashboard/invitations/${invitationId}/edit`);
           }}
           onOpenRsvpSchedule={() => {
-            if (isDemo) {
-              handleDemoBlockedAction();
-              return;
-            }
-
             setOpenRsvpSchedule(true);
           }}
         />
@@ -3248,6 +3202,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <button
+                      data-tour="guest-link"
                       title="פתיחת הזמנה"
                       onClick={() => {
                         const link = getGuestInviteLink(g);
@@ -3283,8 +3238,18 @@ const eventLocation = resolveEventLocation(invitation, event);
                 <td className="p-4">
                   <div className="flex gap-2">
                     <IconAction
+                      dataTour="call-task"
                       title="מעקב סבבי שיחה"
-                      onClick={() => setOpenCallsGuest(g)}
+                      onClick={() => {
+                        setOpenCallsGuest(g);
+                        if (isDemo) {
+                          window.dispatchEvent(
+                            new CustomEvent("invistimo:demo-action", {
+                              detail: { action: "view-calls" },
+                            })
+                          );
+                        }
+                      }}
                     >
                       📞
                     </IconAction>
@@ -3346,7 +3311,16 @@ const eventLocation = resolveEventLocation(invitation, event);
       await navigator.clipboard.writeText(link);
       alert("📋 הקישור הועתק");
     }}
-    onCall={(g) => setOpenCallsGuest(g)}
+    onCall={(g) => {
+      setOpenCallsGuest(g);
+      if (isDemo) {
+        window.dispatchEvent(
+          new CustomEvent("invistimo:demo-action", {
+            detail: { action: "view-calls" },
+          })
+        );
+      }
+    }}
     onWhatsApp={(g) => sendWhatsApp(g)}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
@@ -3825,6 +3799,14 @@ const eventLocation = resolveEventLocation(invitation, event);
           }}
           onClose={() => setOpenAddModal(false)}
           onSuccess={async (newGuest?: Guest) => {
+            if (isDemo) {
+              window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
+              window.dispatchEvent(
+                new CustomEvent("invistimo:demo-action", { detail: { action: "add-guest" } })
+              );
+              return;
+            }
+
             if (newGuest) {
               setGuests((prev) => [...prev, newGuest]);
               return;
@@ -4013,6 +3995,7 @@ function GoldenEventHero({
               </button>
 
               <button
+                data-tour="live-mode"
                 onClick={() => setWorkMode("live")}
                 className={`
                   px-5 py-2.5 rounded-full text-sm font-black transition
@@ -5479,6 +5462,7 @@ function GoldenEventDetailsCard({
       <div className="mt-3 shrink-0">
       <button
         type="button"
+        data-tour="event-details"
         onClick={onOpen}
         className="w-full rounded-2xl bg-gradient-to-l from-[#24190F] via-[#3A2A1C] to-[#5A4028] px-4 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(36,25,15,0.22)] transition hover:scale-[1.01]"
       >
@@ -5970,14 +5954,17 @@ function IconAction({
   title,
   onClick,
   danger,
+  dataTour,
 }: {
   children: ReactNode;
   title: string;
   onClick: () => void;
   danger?: boolean;
+  dataTour?: string;
 }) {
   return (
     <button
+      data-tour={dataTour}
       onClick={onClick}
       title={title}
       className={`

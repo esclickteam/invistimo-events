@@ -274,6 +274,7 @@ await onAfterSend?.();
   return (
     <button
       type="button"
+      data-tour="message-send"
       onClick={handleSend}
       disabled={isDisabled}
       className="

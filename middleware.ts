@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { decodeJwt } from "jose";
 
 import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
+import { DEMO_BLOCK_BODY, shouldBlockProductionApi } from "@/lib/demo/interactive/guard";
 
 /* ========================================================
    Types
@@ -140,7 +141,18 @@ export function middleware(req: NextRequest) {
   const pathname = nextUrl.pathname;
   const hostname = nextUrl.hostname;
 
-  /* 0) NEVER gate API */
+  /* 0) Demo surface must not reach production APIs */
+  if (
+    shouldBlockProductionApi({
+      pathname,
+      method: req.method,
+      surface: req.headers.get("x-invistimo-surface"),
+      referer: req.headers.get("referer"),
+    })
+  ) {
+    return NextResponse.json(DEMO_BLOCK_BODY, { status: 403 });
+  }
+
   if (pathname.startsWith("/api")) return NextResponse.next();
 
   /* 1) Read token */
@@ -286,5 +298,8 @@ export const config = {
     "/staff/:path*",
     "/employee/:path*",
     "/venues/:path*",
+    "/api/:path*",
+    "/try",
+    "/try/:path*",
   ],
 };
