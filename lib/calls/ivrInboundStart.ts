@@ -13,16 +13,11 @@ import {
 import { resolveApprovedNarrationUrl } from "@/lib/calls/ivrDialer";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
-import {
-  getGlobalPackSegmentUrl,
-  warmIvrChoiceFollowUps,
-} from "@/lib/calls/ivrSystemAudio";
+import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
   answerIvrCall,
-  gatherIvrUsingAudio,
   hangupIvrCall,
   normalizePhoneForTelnyx,
-  playbackIvrAudio,
 } from "@/lib/telnyx/ivrCallControl";
 import {
   getConfiguredInvistimoDid,
@@ -121,7 +116,12 @@ export async function tryStartInboundIvr(params: {
     };
   }
 
-  const resolved = await resolveInboundIvrGuest({ fromPhone });
+  const toPhone = normalizePhoneForTelnyx(params.to);
+  const resolved = await resolveInboundIvrGuest({
+    fromPhone,
+    toPhone,
+    platformDid: getConfiguredInvistimoDid(),
+  });
 
   if (resolved.status === "none") {
     // Not an IVR guest — leave the call for softphone / human routing.
@@ -145,7 +145,12 @@ export async function tryStartInboundIvr(params: {
       direction: "inbound",
       eventName: "",
       status: "unresolved",
-      flowStep: "playing_system",
+      phase: "RINGING",
+      inputTarget: "none",
+      introCompleted: false,
+      gatherOpen: false,
+      promptKind: "",
+      flowStep: "dialing",
       answered: false,
       dtmfDigits: [],
       rsvpApplied: false,
@@ -180,23 +185,11 @@ export async function tryStartInboundIvr(params: {
       stage: "ambiguous_hangup",
     };
 
+    // Answer only. The safe prompt plays from call.answered, not while ringing.
     await answerIvrCall(callControlId, {
       webhookUrl,
       clientState,
     });
-
-    const ambiguousUrl = await getGlobalPackSegmentUrl(
-      "female",
-      "inboundAmbiguous"
-    );
-    if (ambiguousUrl) {
-      await playbackIvrAudio(callControlId, ambiguousUrl, {
-        ...clientState,
-        stage: "hangup_after_system",
-      });
-    } else {
-      await hangupIvrCall(callControlId);
-    }
 
     return {
       handled: true,
@@ -232,7 +225,12 @@ export async function tryStartInboundIvr(params: {
     eventNameAudioUrl,
     introAudioUrl: sharedNarrationUrl,
     status: "initiated",
-    flowStep: "playing_intro_before",
+    phase: "RINGING",
+    inputTarget: "none",
+    introCompleted: false,
+    gatherOpen: false,
+    promptKind: "",
+    flowStep: "dialing",
     answered: false,
     dtmfDigits: [],
     rsvpApplied: false,
@@ -279,46 +277,12 @@ export async function tryStartInboundIvr(params: {
     clientState,
   });
 
-  if (sharedNarrationUrl) {
-    await gatherIvrUsingAudio({
-      callControlId,
-      audioUrl: sharedNarrationUrl,
-      minimumDigits: 1,
-      maximumDigits: 1,
-      validDigits: "123",
-      timeoutMillis: 45000,
-      clientState: {
-        source: "invistimo-ivr",
-        inbound_ivr: true,
-        callAttemptId: String(attempt._id),
-        stage: "choice",
-        voiceGender,
-      },
-    });
-    attempt.flowStep = "gather_choice";
-    attempt.introAudioUrl = sharedNarrationUrl;
-    await attempt.save();
-  } else {
-    // The approved file is missing. Do not synthesize or stitch during the call.
+  if (!sharedNarrationUrl) {
+    // The approved file is missing. Do not stitch, and do not play the
+    // invalid-choice prompt. call.answered speaks a safe line and hangs up.
     attempt.error = "AUDIO_NOT_READY";
-    attempt.flowStep = "playing_system";
     attempt.rsvpApplied = false;
     await attempt.save();
-    const noticeUrl = await getGlobalPackSegmentUrl(
-      voiceGender,
-      "introBeforeEventName"
-    );
-    if (noticeUrl) {
-      await playbackIvrAudio(callControlId, noticeUrl, {
-        source: "invistimo-ivr",
-        inbound_ivr: true,
-        callAttemptId: String(attempt._id),
-        stage: "hangup_after_system",
-        voiceGender,
-      });
-    } else {
-      await hangupIvrCall(callControlId);
-    }
   }
 
   console.log("INBOUND_IVR_CLAIMED", {

@@ -154,7 +154,8 @@ test("inbound and outbound play the same approved file and do not stitch on the 
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const dialer = readSrc("lib/calls/ivrDialer.ts");
   const config = readSrc("app/api/ivr/config/route.ts");
-  assert.match(start, /gatherIvrUsingAudio/);
+  assert.equal(start.includes("gatherIvrUsingAudio"), false);
+  assert.match(start, /phase:\s*"RINGING"/);
   assert.match(start, /resolveApprovedNarrationUrl/);
   assert.match(start, /AUDIO_NOT_READY/);
   assert.equal(start.includes("synthesizeElevenLabsSpeech"), false);
