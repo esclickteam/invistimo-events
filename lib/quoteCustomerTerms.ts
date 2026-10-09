@@ -30,6 +30,7 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
       "שינוי כאמור אינו מבטיח אפשרות להתאמת שעות עבודת הצוות, וההתאמה כפופה לזמינות וליכולת התפעולית של Invistimo.",
       "מובהר כי שינוי מהותי בתנאי ההושבה עשוי להיחשב לשינוי בהיקף השירות, גם כאשר שעות עבודת הצוות הכוללות אינן מתארכות.",
       "בין המקרים הרלוונטיים: (1) הושבה שתוכננה להתקיים במהלך קבלת הפנים, אך בפועל ניתן להתחיל בה רק לאחר החופה. (2) דחיית תחילת ההושבה בשל החלטת האולם, הלקוח, מנהל האירוע או מי מטעמם. (3) עיכוב בחופה או בלוחות הזמנים המשפיע על תחילת ההושבה. (4) צורך לבצע הושבה של מספר רב של אורחים בפרק זמן קצר משמעותית מהמתוכנן. (5) אי מוכנות האולם, עמדת ההושבה, השולחנות או הכיסאות בשעה שנקבעה. (6) שינוי מהותי בסידור השולחנות, מספריהם או הקיבולת שלהם ביחס למפה שהועברה מראש. (7) שינוי משמעותי ברגע האחרון בשיבוץ האורחים או במפת ההושבה, המחייב היערכות חריגה. (8) פיצול ההושבה למספר שלבים שלא תוכננו מראש. (9) עיכוב הנגרם בשל היעדר איש קשר מוסמך או עיכוב בקבלת החלטות הנדרשות לביצוע ההושבה. (10) שינוי מהותי בהנחיות האולם, מנהל האירוע או מי מטעם הלקוח. (11) דרישה להארכת עבודת הצוות מעבר לשעות שסוכמו. (12) דרישה לביצוע משימות נוספות שאינן כלולות בשירות שנרכש.",
+      "בהיעדר קביעה מפורשת אחרת בהצעת המחיר או בהסכמה בכתב בין הצדדים, שעת תחילת שירות ההושבה באולם תהיה שעת תחילת קבלת הפנים של האירוע.",
     ],
   },
   {
@@ -134,10 +135,16 @@ function syncVenueSeatingDetails(existing: unknown): DetailSection[] {
   return [...serviceSections, ...VENUE_SEATING_QUOTE_TERM_SECTIONS];
 }
 
+function isVenueSeatingUpsell(record: Record<string, unknown>) {
+  const key = String(record.key || "");
+  const title = String(record.title || "").trim();
+  return key === "venueSeating" || title === "הושבה באולם";
+}
+
 function syncUpsell(upsell: unknown) {
   if (!upsell || typeof upsell !== "object") return upsell;
   const record = upsell as Record<string, unknown>;
-  if (String(record.key || "") !== "venueSeating") return upsell;
+  if (!isVenueSeatingUpsell(record)) return upsell;
 
   return {
     ...record,

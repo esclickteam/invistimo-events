@@ -122,8 +122,74 @@ test("a current quote, a valid quote, and an expired quote show the updated term
       seating.some((section) => section.title === "הארכת שעות השירות"),
       true,
     );
+    assert.equal(
+      seating.some((section) =>
+        section.items.some((item) =>
+          item.includes(
+            "בהיעדר קביעה מפורשת אחרת בהצעת המחיר או בהסכמה בכתב בין הצדדים, שעת תחילת שירות ההושבה באולם תהיה שעת תחילת קבלת הפנים של האירוע.",
+          ),
+        ),
+      ),
+      true,
+    );
     assert.deepEqual(updated.upsells[1].customerDetails, original.upsells[1].customerDetails);
+    assert.equal(updated.seatingSchedule, original.seatingSchedule);
   }
+});
+
+test("a quote without venue seating does not receive seating terms, and saved hours stay unchanged", () => {
+  const original = {
+    type: "quote",
+    status: "paid",
+    token: "quote-no-seating",
+    quote: { expiresAt: "2025-12-01", validityDays: 4 },
+    totals: { grossAmount: 1200 },
+    seatingSchedule: {
+      receptionStartTime: "18:30",
+      plannedChuppahTime: "20:00",
+    },
+    upsells: [
+      {
+        key: "digitalSeating",
+        title: "הושבה דיגיטלית באתר",
+        price: 100,
+        customerDetails: [{ title: "הושבה דיגיטלית באתר", items: ["מערכת באתר בלבד."] }],
+      },
+    ],
+  };
+
+  const updated = withCurrentQuoteTerms(original);
+  const text = JSON.stringify(updated.upsells);
+  assert.equal(text.includes("בהיעדר קביעה מפורשת אחרת"), false);
+  assert.equal(text.includes("500 ₪"), false);
+  assert.deepEqual(updated.seatingSchedule, original.seatingSchedule);
+  assert.equal(updated.quote.expiresAt, "2025-12-01");
+  assert.equal(updated.status, "paid");
+  assert.equal(updated.upsells[0].price, 100);
+});
+
+test("an older venue-seating title still receives the current seating terms", () => {
+  const updated = withCurrentQuoteTerms({
+    type: "quote",
+    upsells: [
+      {
+        key: "legacy",
+        title: "הושבה באולם",
+        price: 2100,
+        customerDetails: [{ title: "שירות הושבה באולם", items: ["הצוות מגיע כחצי שעה לפני האירוע."] }],
+      },
+    ],
+  });
+
+  const seating = updated.upsells[0].customerDetails as Array<{ title: string; items: string[] }>;
+  assert.equal(seating[0].items[0], "הצוות מגיע כחצי שעה לפני האירוע.");
+  assert.equal(updated.upsells[0].price, 2100);
+  assert.equal(
+    seating.some((section) =>
+      section.items.some((item) => item.startsWith("בהיעדר קביעה מפורשת אחרת")),
+    ),
+    true,
+  );
 });
 
 test("an agreement keeps its stored terms", () => {

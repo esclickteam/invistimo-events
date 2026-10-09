@@ -1163,19 +1163,44 @@ export default function SalesDocumentPage() {
             {approvedSeatingSchedule ? (
               <SectionCard title="לוחות זמנים שסוכמו להושבה">
                 <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
-                  השעות שלהלן נשמרו כפי שאושרו בעת ההתקשרות.
+                  מוצגות רק שעות שהוגדרו בפועל. שעת תחילת ההושבה מוצגת בנפרד משעות האירוע, ורק אם נקבעה במפורש.
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {SEATING_SCHEDULE_FIELDS.filter(
-                    (field) => approvedSeatingSchedule[field.key],
-                  ).map((field) => (
-                    <Field
-                      key={field.key}
-                      label={field.label}
-                      value={approvedSeatingSchedule[field.key]}
-                    />
-                  ))}
-                </div>
+                {(
+                  [
+                    {
+                      title: "שעות האירוע",
+                      keys: ["receptionStartTime", "plannedChuppahTime"],
+                    },
+                    {
+                      title: "שעת תחילת ההושבה והגעת הצוות",
+                      keys: ["plannedSeatingStartTime", "teamArrivalTime"],
+                    },
+                  ] as const
+                ).map((group) => {
+                  const fields = SEATING_SCHEDULE_FIELDS.filter(
+                    (field) =>
+                      (group.keys as readonly string[]).includes(field.key) &&
+                      approvedSeatingSchedule[field.key],
+                  );
+                  if (fields.length === 0) return null;
+
+                  return (
+                    <div key={group.title} className="mb-4 last:mb-0">
+                      <p className="mb-3 text-sm font-black text-[#3f3327]">
+                        {group.title}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {fields.map((field) => (
+                          <Field
+                            key={field.key}
+                            label={field.label}
+                            value={approvedSeatingSchedule[field.key]}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </SectionCard>
             ) : null}
 
