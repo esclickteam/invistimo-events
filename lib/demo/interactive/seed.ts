@@ -320,6 +320,9 @@ export function createDemoInvitation() {
     },
     rsvpRoundSent: {},
     giftCreditUrl: "",
+    headerImageUrl: "/homep1.png",
+    headerImage: "/homep1.png",
+    previewImage: "/homep1.png",
   };
 }
 

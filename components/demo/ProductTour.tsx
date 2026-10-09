@@ -145,11 +145,14 @@ export default function ProductTour({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[90]" dir="rtl">
-      <div className="absolute inset-0 bg-[#1E1B2E]/45" style={{ clipPath: hole(rect) }} />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[#1E1B2E]/45"
+        style={{ clipPath: hole(rect) }}
+      />
       {rect && (
         <>
           <div
-            className="absolute rounded-2xl border-2 border-white shadow-[0_0_0_6px_rgba(201,164,92,0.45)]"
+            className="pointer-events-none absolute rounded-2xl border-2 border-white shadow-[0_0_0_6px_rgba(201,164,92,0.45)]"
             style={{
               top: rect.top - 6,
               left: rect.left - 6,
@@ -158,7 +161,7 @@ export default function ProductTour({
             }}
           />
           <div
-            className="absolute h-3 w-3 rounded-full bg-[#C9A45C]"
+            className="pointer-events-none absolute h-3 w-3 rounded-full bg-[#C9A45C]"
             style={{
               top: Math.max(8, rect.top - 14),
               left: rect.left + rect.width / 2 - 6,
