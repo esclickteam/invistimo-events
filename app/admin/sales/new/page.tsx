@@ -9,6 +9,12 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import SeatingScheduleFields from "@/app/components/sales/SeatingScheduleFields";
+import {
+  emptySeatingScheduleTimes,
+  missingSeatingScheduleLabels,
+  type SeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
 import CallsTypeField, {
   type CallsTypeValue,
 } from "@/app/components/admin/CallsTypeField";
@@ -1419,6 +1425,8 @@ export default function AdminSalesNewPage() {
   const [eventDate, setEventDate] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [seatingScheduleTimes, setSeatingScheduleTimes] =
+    useState<SeatingScheduleTimes>(() => emptySeatingScheduleTimes());
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
@@ -1778,6 +1786,9 @@ export default function AdminSalesNewPage() {
       city: effectiveEventCity,
       venueName: effectiveVenueName,
     },
+    ...(selectedUpsellsList.some((upsell) => upsell.key === "venueSeating")
+      ? { seatingSchedule: seatingScheduleTimes }
+      : {}),
     quote: {
       createdAt: quoteCreatedAt,
       expiresAt: quoteExpiresAt,
@@ -1866,7 +1877,7 @@ export default function AdminSalesNewPage() {
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
     engagementTerms: ENGAGEMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
     if (showUpsellPricesInDocument) return documentPayload;
@@ -1937,6 +1948,9 @@ export default function AdminSalesNewPage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
 
     return missing;
   }
@@ -1947,6 +1961,9 @@ export default function AdminSalesNewPage() {
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
     if (!clientEmail.trim()) missing.push("מייל לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
     if (packageIncludesCalls && callsType !== "human" && callsType !== "ivr") {
       missing.push("סוג השיחות (מוקד אנושי / שיחות מוקלטות)");
     }
@@ -2716,6 +2733,13 @@ export default function AdminSalesNewPage() {
                             })}
                           </div>
                         </div>
+                      )}
+
+                      {upsell.key === "venueSeating" && selected && (
+                        <SeatingScheduleFields
+                          value={seatingScheduleTimes}
+                          onChange={setSeatingScheduleTimes}
+                        />
                       )}
 
                       {upsell.key === "alcoholManagement" && selected && (

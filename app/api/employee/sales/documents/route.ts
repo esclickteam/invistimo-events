@@ -3,6 +3,12 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 
 import db from "@/lib/db";
+import {
+  applySeatingScheduleUpdate,
+  orderIncludesVenueSeating,
+  parseSeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
+import { resolveSeatingScheduleActor } from "@/lib/seatingScheduleActor";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerQuote from "@/models/CustomerQuote";
@@ -631,6 +637,27 @@ export async function POST(req: NextRequest) {
     const selectedPackageRecords = asNumber(selectedPackage.records);
 
     const upsells = normalizeArray(payload.upsells);
+    const includesVenueSeating = orderIncludesVenueSeating(upsells);
+    let seatingSchedule: Record<string, unknown> | null = null;
+
+    if (includesVenueSeating) {
+      const parsedSchedule = parseSeatingScheduleTimes(payload.seatingSchedule);
+      if (!parsedSchedule.ok) {
+        return jsonError(
+          `בהזמנה עם הושבה באולם חובה למלא: ${parsedSchedule.missing.join(", ")}`,
+          400,
+        );
+      }
+
+      const actor = await resolveSeatingScheduleActor(req);
+      const applied = applySeatingScheduleUpdate({
+        nextTimes: parsedSchedule.times,
+        status: "draft",
+        actor,
+      });
+      if (!applied.ok) return jsonError(applied.error, 400);
+      seatingSchedule = applied.schedule;
+    }
 
     const customerFile = await upsertCustomerFile({
       type,
@@ -669,6 +696,8 @@ export async function POST(req: NextRequest) {
         city: eventCity,
         venueName,
       },
+
+      ...(seatingSchedule ? { seatingSchedule } : {}),
 
       quote: {
         createdAt: quoteDates.createdAt,

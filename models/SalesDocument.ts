@@ -1,4 +1,5 @@
 import mongoose, { Schema, model, models, type Model } from "mongoose";
+import type { SeatingScheduleRecord } from "@/lib/seatingSchedule";
 
 export type SalesDocumentType = "quote" | "agreement";
 
@@ -33,6 +34,8 @@ export type SalesDocumentModelType = {
     city?: string;
     venueName?: string;
   };
+
+  seatingSchedule?: SeatingScheduleRecord | null;
 
   quote?: {
     createdAt?: string;
@@ -195,6 +198,11 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
       date: { type: String, default: "", trim: true },
       city: { type: String, default: "", trim: true },
       venueName: { type: String, default: "", trim: true },
+    },
+
+    seatingSchedule: {
+      type: Schema.Types.Mixed,
+      default: undefined,
     },
 
     quote: {

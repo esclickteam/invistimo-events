@@ -9,6 +9,12 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import SeatingScheduleFields from "@/app/components/sales/SeatingScheduleFields";
+import {
+  emptySeatingScheduleTimes,
+  missingSeatingScheduleLabels,
+  type SeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
 import CallsTypeField, {
   type CallsTypeValue,
 } from "@/app/components/admin/CallsTypeField";
@@ -1303,6 +1309,8 @@ export default function NewEmployeeSalePage() {
   const [eventDate, setEventDate] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [seatingScheduleTimes, setSeatingScheduleTimes] =
+    useState<SeatingScheduleTimes>(() => emptySeatingScheduleTimes());
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
@@ -1603,6 +1611,9 @@ export default function NewEmployeeSalePage() {
       city: effectiveEventCity,
       venueName: effectiveVenueName,
     },
+    ...(selectedUpsellsList.some((upsell) => upsell.key === "venueSeating")
+      ? { seatingSchedule: seatingScheduleTimes }
+      : {}),
     quote: {
       createdAt: quoteCreatedAt,
       expiresAt: quoteExpiresAt,
@@ -1670,7 +1681,7 @@ export default function NewEmployeeSalePage() {
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
     engagementTerms: ENGAGEMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const customerFilePayload = useMemo(() => ({
     source: "employee_sale",
@@ -1762,6 +1773,9 @@ export default function NewEmployeeSalePage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
 
     return missing;
   }
@@ -1771,6 +1785,9 @@ export default function NewEmployeeSalePage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
@@ -2345,6 +2362,13 @@ export default function NewEmployeeSalePage() {
                             })}
                           </div>
                         </div>
+                      )}
+
+                      {upsell.key === "venueSeating" && selected && (
+                        <SeatingScheduleFields
+                          value={seatingScheduleTimes}
+                          onChange={setSeatingScheduleTimes}
+                        />
                       )}
 
                       {upsell.key === "alcoholManagement" && selected && (

@@ -9,6 +9,10 @@ import React, {
 } from "react";
 import { useParams } from "next/navigation";
 import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer, CUSTOMER_ENGAGEMENT_TERMS } from "@/lib/salesDocumentTerms";
+import {
+  SEATING_SCHEDULE_FIELDS,
+  toCustomerSeatingSchedule,
+} from "@/lib/seatingSchedule";
 
 type DetailSection = {
   title: string;
@@ -59,6 +63,13 @@ type SalesDocument = {
     city?: string;
     venueName?: string;
   };
+
+  seatingSchedule?: {
+    receptionStartTime?: string;
+    plannedChuppahTime?: string;
+    plannedSeatingStartTime?: string;
+    teamArrivalTime?: string;
+  } | null;
 
   quote?: {
     createdAt?: string;
@@ -1052,6 +1063,10 @@ export default function SalesDocumentPage() {
     );
   }
 
+  const approvedSeatingSchedule = toCustomerSeatingSchedule(
+    document.seatingSchedule,
+  );
+
   return (
     <main
       dir="rtl"
@@ -1144,6 +1159,23 @@ export default function SalesDocumentPage() {
                 <Field label="שם האולם" value={document.event?.venueName} />
               </div>
             </SectionCard>
+
+            {approvedSeatingSchedule ? (
+              <SectionCard title="לוחות זמנים שסוכמו להושבה">
+                <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
+                  השעות שלהלן נשמרו כפי שאושרו בעת ההתקשרות.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {SEATING_SCHEDULE_FIELDS.map((field) => (
+                    <Field
+                      key={field.key}
+                      label={field.label}
+                      value={approvedSeatingSchedule[field.key]}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
+            ) : null}
 
             <SectionCard title="תאריכי מסמך">
               <div className="grid gap-3 sm:grid-cols-3">

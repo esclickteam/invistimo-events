@@ -1,3 +1,5 @@
+import { toCustomerSeatingSchedule } from "@/lib/seatingSchedule";
+
 export type DetailSection = {
   title: string;
   items: string[];
@@ -191,11 +193,13 @@ export function sanitizeSalesDocumentForCustomer(
     createdByUserId: _createdByUserId,
     audit: _audit,
     sms: _sms,
+    seatingSchedule: _seatingSchedule,
     ...rest
   } = document;
 
   return {
     ...rest,
+    seatingSchedule: toCustomerSeatingSchedule(document.seatingSchedule),
     engagementTerms: sanitizeDetailSectionsForCustomer(
       document.engagementTerms as DetailSection[] | undefined,
     ),

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  applySeatingScheduleUpdate,
+  orderIncludesVenueSeating,
+  parseSeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
+import { resolveSeatingScheduleActor } from "@/lib/seatingScheduleActor";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerQuote from "@/models/CustomerQuote";
 import User from "@/models/User";
@@ -65,19 +71,35 @@ export async function PATCH(
     }
 
     const doc = await SalesDocument.findOne({ token: safeToken });
-    if (!doc || doc.type !== "quote") {
+    if (!doc || (doc.type !== "quote" && doc.type !== "agreement")) {
       return NextResponse.json(
-        { success: false, error: "הצעת מחיר לא נמצאה" },
+        { success: false, error: "המסמך לא נמצא" },
         { status: 404 }
       );
     }
 
     const body = await req.json().catch(() => ({}));
+    const bodyKeys = Object.keys(body || {});
+    const scheduleOnly =
+      bodyKeys.length === 1 && bodyKeys[0] === "seatingSchedule";
 
-    // Preserve original version for sent/viewed/signed quotes
-    const shouldSnapshot = ["sent", "viewed", "signed"].includes(
-      String(doc.status)
-    );
+    if (doc.type === "agreement" && !scheduleOnly) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "הסכם אינו נערך מכאן. ניתן לשמור רק שינוי מאוחר בלוחות הזמנים של ההושבה, בלי לדרוס את השעות המקוריות.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Preserve original version for sent/viewed/signed quotes.
+    // A seating-schedule amendment is recorded on the schedule itself.
+    const shouldSnapshot =
+      doc.type === "quote" &&
+      !scheduleOnly &&
+      ["sent", "viewed", "signed"].includes(String(doc.status));
     if (shouldSnapshot) {
       const history = Array.isArray((doc as any).versionHistory)
         ? [...(doc as any).versionHistory]
@@ -88,6 +110,7 @@ export async function PATCH(
         status: doc.status,
         client: doc.client,
         event: doc.event,
+        seatingSchedule: (doc as any).seatingSchedule || null,
         selectedPackage: doc.selectedPackage,
         upsells: doc.upsells,
         totals: doc.totals,
@@ -172,8 +195,51 @@ export async function PATCH(
       };
     }
 
-    if (typeof body.notes === "string") {
+    if (typeof body.notes === "string" && doc.type === "quote" && !scheduleOnly) {
       (doc as any).notes = cleanString(body.notes);
+    }
+
+    let seatingScheduleChanged = false;
+
+    if (body.seatingSchedule && typeof body.seatingSchedule === "object") {
+      if (!orderIncludesVenueSeating(doc.upsells)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "לוחות זמנים להושבה נשמרים רק בהזמנה שכוללת הושבה באולם.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const parsedSchedule = parseSeatingScheduleTimes(body.seatingSchedule);
+      if (!parsedSchedule.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `חסרות שעות הושבה: ${parsedSchedule.missing.join(", ")}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const actor = await resolveSeatingScheduleActor(req);
+      const applied = applySeatingScheduleUpdate({
+        current: (doc as any).seatingSchedule,
+        nextTimes: parsedSchedule.times,
+        status: doc.status,
+        actor,
+      });
+      if (!applied.ok) {
+        return NextResponse.json(
+          { success: false, error: applied.error },
+          { status: 400 }
+        );
+      }
+
+      seatingScheduleChanged = applied.changed;
+      (doc as any).seatingSchedule = applied.schedule;
+      doc.markModified("seatingSchedule");
     }
 
     await doc.save();
@@ -205,10 +271,23 @@ export async function PATCH(
       );
     }
 
+    const scheduleFrozen = ["sent", "viewed", "signed", "expired"].includes(
+      String(doc.status)
+    );
+    const message =
+      scheduleOnly && scheduleFrozen && seatingScheduleChanged
+        ? "השינוי המאוחר נשמר עם מועד וזהות המבצע. לוחות הזמנים המקוריים לא נדרסו."
+        : scheduleOnly && scheduleFrozen
+          ? "השעות זהות ללוח הזמנים המקורי, ולא נשמר שינוי."
+          : doc.type === "agreement"
+            ? "לוחות הזמנים נשמרו"
+            : "ההצעה עודכנה בהצלחה";
+
     return NextResponse.json({
       success: true,
       document: doc.toObject(),
-      message: "ההצעה עודכנה בהצלחה",
+      seatingScheduleChanged,
+      message,
     });
   } catch (err: any) {
     console.error("quote PATCH failed:", err);
@@ -237,12 +316,12 @@ export async function GET(
     const { token } = await context.params;
     const doc = await SalesDocument.findOne({
       token: cleanString(token),
-      type: "quote",
+      type: { $in: ["quote", "agreement"] },
     }).lean();
 
     if (!doc) {
       return NextResponse.json(
-        { success: false, error: "הצעת מחיר לא נמצאה" },
+        { success: false, error: "המסמך לא נמצא" },
         { status: 404 }
       );
     }
