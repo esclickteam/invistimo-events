@@ -156,25 +156,6 @@ export default function AddGuestModal({
       return;
     }
 
-    if (demoMode) {
-      for (const row of validRows) {
-        const demoGuest: Guest = {
-          _id: crypto.randomUUID(),
-          name: row.name,
-          phone: row.phone,
-          token: "demo-token",
-          relation: row.relation || undefined,
-          rsvp: "pending",
-          guestsCount: row.guestsCount,
-        };
-
-        await onSuccess(demoGuest);
-      }
-
-      onClose();
-      return;
-    }
-
     try {
       setLoading(true);
 

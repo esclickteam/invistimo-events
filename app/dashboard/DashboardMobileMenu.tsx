@@ -59,7 +59,7 @@ export default function DashboardMobileMenu({
       ? {
           role: "user",
           includeCalls: true,
-          callsType: "ivr",
+          callsType: "human",
           plan: "premium",
           includeCreditGifts: false,
         }
@@ -270,7 +270,7 @@ export default function DashboardMobileMenu({
       subtitle: "תזמון סבבים, קריינות, אישור הודעה ודוח תוצאות",
       icon: Phone,
       badge: "שיחות",
-      hidden: gameOnly || !canOpenRecordedCalls,
+      hidden: gameOnly || !canOpenRecordedCalls || isDemo,
       onClick: () => {
         if (isDemo) {
           go("/try/dashboard/recorded-calls");

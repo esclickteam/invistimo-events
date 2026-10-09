@@ -52,6 +52,7 @@ export default function DemoExperience({ children }: Props) {
     const guests = (session.guests || []).map((guest) => ({
       token: guest.token,
       name: guest.name,
+      phone: guest.phone || "",
       eventTitle: session.event.title,
       coupleNames: "מאיה ואיתי",
       confirmedGuestCount:

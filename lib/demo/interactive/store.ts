@@ -1,4 +1,8 @@
 import {
+  canAssignPhoneToGuest,
+  GUEST_PHONE_LOCKED_ERROR,
+} from "@/lib/guestRecordQuota";
+import {
   createDemoSessionData,
   createDemoTour,
   DEMO_SESSION_TTL_MS,
@@ -208,14 +212,19 @@ export function updateGuest(
   id: string,
   guestId: string,
   patch: Partial<DemoGuest>
-): { session: DemoSession; guest: DemoGuest } | null {
+): { session: DemoSession; guest: DemoGuest } | { error: string } | null {
   const session = mutate(id);
   if (!session) return null;
   const guest = findGuest(session, guestId);
   if (!guest) return null;
 
   if (patch.name != null) guest.name = String(patch.name).trim() || guest.name;
-  if (patch.phone != null) guest.phone = String(patch.phone).replace(/\D/g, "");
+  if (patch.phone != null) {
+    if (!canAssignPhoneToGuest(guest.phone, patch.phone)) {
+      return { error: GUEST_PHONE_LOCKED_ERROR };
+    }
+    guest.phone = String(patch.phone).replace(/\D/g, "");
+  }
   if (patch.relation != null) guest.relation = String(patch.relation);
   if (patch.notes != null) guest.notes = String(patch.notes);
   if (patch.groupId !== undefined) guest.groupId = patch.groupId;
@@ -521,9 +530,21 @@ export function updateEventDetails(
   }
   if (typeof patch.hostsNames === "string") invitation.hostsNames = patch.hostsNames;
   if (patch.location && typeof patch.location === "object") {
+    const incoming = patch.location as Record<string, unknown>;
+    const previous = (invitation.location || {}) as Record<string, unknown>;
+    const coord = (value: unknown) => {
+      if (value == null || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    };
+    const lat = coord(incoming.lat) ?? previous.lat ?? null;
+    const lng = coord(incoming.lng) ?? previous.lng ?? null;
     invitation.location = {
-      ...(invitation.location || {}),
-      ...(patch.location as object),
+      ...previous,
+      ...incoming,
+      lat,
+      lng,
+      placeId: incoming.placeId || previous.placeId || "",
     };
     const location = invitation.location || {};
     if (location.name) session.event.venue = String(location.name);

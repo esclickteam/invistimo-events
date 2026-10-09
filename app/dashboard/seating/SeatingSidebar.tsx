@@ -803,6 +803,8 @@ export default function SeatingSidebar({
   return (
     <>
       <button
+        type="button"
+        data-tour="seating-guests"
         onClick={() => setMobileOpen(true)}
         className="
           md:hidden fixed bottom-5 left-5 z-40

@@ -1211,7 +1211,7 @@ if (!canDeleteAllGuests) {
           plan: "premium",
           guests: 12,
           includeCalls: true,
-          callsType: "ivr",
+          callsType: "human",
         });
         setInvitation(invitation);
         setEvent({
@@ -4756,6 +4756,7 @@ function UserRsvpScheduleModal({
   const isIvr = isIvrCallsUser(scheduleUser);
 
   useEffect(() => {
+    if (isDemo) return;
     let cancelled = false;
     fetch("/api/me", { credentials: "include", cache: "no-store" })
       .then((response) => response.json())
@@ -4768,7 +4769,7 @@ function UserRsvpScheduleModal({
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [isDemo, user]);
 
   const items = useMemo(() => {
     return buildExistingRsvpSchedule(scheduleUser, invitation);
@@ -4833,43 +4834,44 @@ function UserRsvpScheduleModal({
                 תזמון סבבים, קריינות AI / הקלטה אישית, אישור הודעה ותצוגה מקדימה.
               </p>
               <a
-                href={isDemo ? "/try/dashboard/recorded-calls" : "/dashboard/recorded-calls"}
+                href="/dashboard/recorded-calls"
                 className="mt-3 inline-flex rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
               >
                 מעבר לשיחות מוקלטות
               </a>
-              {isDemo ? (
-                <div className="mt-4 rounded-2xl border border-[#E7D8C6] bg-white p-4">
-                  <p className="text-sm font-black text-[#3A2A1C]">
-                    שיחות אנושיות — להיכרות בדמו
-                  </p>
-                  <p className="mt-1 text-xs font-bold leading-6 text-[#6B5A48]">
-                    אצל לקוח אמיתי מופיע רק סוג השיחות שנכלל בחבילה. כאן אפשר לראות איך צוות אישורי ההגעה מעדכן תשובה, בלי להיכנס למסך עובדים ובלי שיחה אמיתית.
-                  </p>
-                  <button
-                    type="button"
-                    data-tour="human-call-sim"
-                    onClick={() => {
-                      void fetch("/api/demo/interactive/action", {
-                        method: "POST",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ type: "human-call" }),
-                      }).then(() => {
-                        window.dispatchEvent(
-                          new CustomEvent("invistimo:demo-action", {
-                            detail: { action: "human-call" },
-                          })
-                        );
-                        window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
-                      });
-                    }}
-                    className="mt-3 rounded-xl bg-[#2F2924] px-4 py-2 text-sm font-black text-white"
-                  >
-                    הדמיית עדכון מהצוות
-                  </button>
-                </div>
-              ) : null}
+            </div>
+          ) : null}
+
+          {isDemo ? (
+            <div className="mb-6 rounded-2xl border border-[#E7D8C6] bg-white p-4">
+              <p className="text-sm font-black text-[#3A2A1C]">
+                עדכון מצוות אישורי ההגעה
+              </p>
+              <p className="mt-1 text-xs font-bold leading-6 text-[#6B5A48]">
+                הצוות מתקשר לאורחים ומעדכן את התשובה. כאן רואים את אותו עדכון אצל בעל האירוע, בלי מסך עובדים ובלי שיחה אמיתית.
+              </p>
+              <button
+                type="button"
+                data-tour="human-call-sim"
+                onClick={() => {
+                  void fetch("/api/demo/interactive/action", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "human-call" }),
+                  }).then(() => {
+                    window.dispatchEvent(
+                      new CustomEvent("invistimo:demo-action", {
+                        detail: { action: "human-call" },
+                      })
+                    );
+                    window.dispatchEvent(new CustomEvent("invistimo:demo-sync"));
+                  });
+                }}
+                className="mt-3 rounded-xl bg-[#2F2924] px-4 py-2 text-sm font-black text-white"
+              >
+                הדמיית עדכון מהצוות
+              </button>
             </div>
           ) : null}
 

@@ -347,11 +347,11 @@ export default function CheckInHostClient({
   }, [stopScanner]);
 
   useEffect(() => {
-    if (!canScan || !checkInEnabled || !live) return;
+    if (demo || !canScan || !checkInEnabled || !live) return;
     if (autoStartedRef.current) return;
     autoStartedRef.current = true;
     void startScanner();
-  }, [canScan, checkInEnabled, live, startScanner]);
+  }, [demo, canScan, checkInEnabled, live, startScanner]);
 
   useEffect(() => {
     if (!checkInEnabled || !live) {
@@ -366,9 +366,14 @@ export default function CheckInHostClient({
       try {
         if (demo) {
           const q = query.trim();
+          const digits = q.replace(/\D/g, "");
           setSearchResults(
             readDemoCheckInState()
-              .guests.filter((guest) => guest.name.includes(q))
+              .guests.filter((guest) => {
+                if (guest.name.includes(q)) return true;
+                const phone = String(guest.phone || "").replace(/\D/g, "");
+                return digits.length >= 2 && phone.includes(digits);
+              })
               .map((guest) => serializeDemoGuest(guest) as GuestPreview)
           );
           return;
@@ -753,8 +758,19 @@ export default function CheckInHostClient({
       <div className="mb-5">
         <h1 className="text-2xl font-black text-[#3F3328]">כניסה לאירוע</h1>
         <p className="mt-1 text-sm font-bold text-[#7C6A58]">
-          סריקת QR או חיפוש ידני — בחירת כמות שומרת מיד ומוכנה לאורח הבא.
+          {demo
+            ? "חיפוש לפי שם או טלפון, וסימון הגעה. הנתונים מתעדכנים מיד."
+            : "סריקת QR או חיפוש ידני — בחירת כמות שומרת מיד ומוכנה לאורח הבא."}
         </p>
+        {demo ? (
+          <p data-tour="checkin-live" className="mt-3 inline-flex rounded-full bg-[#F8EFE3] px-3 py-1 text-xs font-black text-[#8B5E24]">
+            הגיעו בפועל:{" "}
+            {demoGuests.reduce(
+              (sum, guest) => sum + Number(guest.checkedInGuestCount || 0),
+              0
+            )}
+          </p>
+        ) : null}
       </div>
 
       {!live && !assumeLive && (
@@ -814,40 +830,18 @@ export default function CheckInHostClient({
         </section>
       )}
 
-      {live && checkInEnabled && (
+      {!demo && live && checkInEnabled && (
         <section className="rounded-[24px] border border-[#EADBC4] bg-[#FFFDF8] p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-2 text-sm font-black text-[#3F3328]">
             <span className="inline-flex items-center gap-2">
               <Camera size={18} className="text-[#B88A2D]" />
               סורק QR
             </span>
-            {demo ? (
-              <span data-tour="checkin-live" className="rounded-full bg-[#F8EFE3] px-3 py-1 text-xs text-[#8B5E24]">
-                הגיעו בפועל:{" "}
-                {demoGuests.reduce(
-                  (sum, guest) => sum + Number(guest.checkedInGuestCount || 0),
-                  0
-                )}
-              </span>
-            ) : null}
           </div>
           <div
             id={scannerBoxId}
             className="min-h-[280px] overflow-hidden rounded-[18px] bg-black/80"
           />
-          {demo && (
-            <button
-              type="button"
-              data-tour="checkin-qr"
-              onClick={() => {
-                const token = demoGuests.find((guest) => guest.token)?.token;
-                if (token) void lookupToken(token);
-              }}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#241A14] px-4 py-3 text-sm font-black text-white"
-            >
-              הדמיית סריקת QR
-            </button>
-          )}
           {!scanning && (
             <button
               type="button"
@@ -876,10 +870,11 @@ export default function CheckInHostClient({
           />
           {searchResults.length > 0 && (
             <ul className="mt-3 divide-y divide-[#F0E6D8] rounded-[16px] border border-[#EADBC4] bg-white">
-              {searchResults.map((g) => (
+              {searchResults.map((g, index) => (
                 <li key={g.id}>
                   <button
                     type="button"
+                    data-tour={demo && index === 0 ? "checkin-result" : undefined}
                     onClick={() => openManual(g)}
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition hover:bg-[#FBF7F0]"
                   >
@@ -942,6 +937,7 @@ export default function CheckInHostClient({
                 <button
                   key={n}
                   type="button"
+                  data-tour={demo && n === 1 ? "checkin-mark" : undefined}
                   disabled={busy}
                   onClick={() => void saveQuantity(n)}
                   className="h-12 w-12 rounded-full border border-[#E3D6C3] bg-white text-base font-black text-[#3F3328] transition hover:bg-[#2F6B4F] hover:text-white disabled:opacity-50"

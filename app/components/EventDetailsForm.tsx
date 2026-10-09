@@ -544,17 +544,16 @@ export default function EventDetailsForm({
         return;
       }
 
-      if (window.location.pathname.startsWith("/try")) {
-        window.dispatchEvent(
-          new CustomEvent("invistimo:demo-action", {
-            detail: { action: "event-details" },
-          })
-        );
-      }
-
       const savedLat = data.invitation?.location?.lat;
       const savedLng = data.invitation?.location?.lng;
       if (savedLat != null && savedLng != null) {
+        if (window.location.pathname.startsWith("/try")) {
+          window.dispatchEvent(
+            new CustomEvent("invistimo:demo-action", {
+              detail: { action: "event-details" },
+            })
+          );
+        }
         onSaved();
         onClose?.();
         return;

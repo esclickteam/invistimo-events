@@ -77,7 +77,7 @@ function demoCustomer() {
     plan: "premium",
     guests: 12,
     includeCalls: true,
-    callsType: "ivr",
+    callsType: "human",
     includeDigitalSeating: true,
     includeSeating: true,
     hasPaid: true,
@@ -196,6 +196,9 @@ export function bridgeDemoRequest(
   if (guestWrite && (verb === "PUT" || verb === "PATCH")) {
     const updated = updateGuest(current.id, decodeURIComponent(guestWrite[1]), body || {});
     if (!updated) return ok({ success: false, message: "האורח לא נמצא בדמו" }, 404);
+    if ("error" in updated) {
+      return ok({ success: false, error: updated.error }, 409);
+    }
     return ok({ success: true, simulated: true, guest: updated.guest });
   }
 
