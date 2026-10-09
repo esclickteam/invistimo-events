@@ -12,6 +12,7 @@ import {
   buildInvitationRsvpFields,
   getOwnerRsvpSiteMode,
 } from "@/lib/weddingWebsite/rsvpSiteMode";
+import { invitationCreateTitle } from "@/lib/eventDetails/sharedEventIdentity";
 
 import Group from "@/models/Group";
 import {
@@ -150,13 +151,15 @@ export async function POST(
       // 4️⃣ עכשיו ליצור Invitation עם eventId תקין
       const rsvpSiteMode = await getOwnerRsvpSiteMode(userId);
 
+      const invitationTitle = invitationCreateTitle(event.title);
+
       invitation = await Invitation.create({
   ownerId: userId,
   producerId: producerId,
   eventId: event._id,
 
   // ✅ SNAPSHOT אמיתי מהאירוע
-  title: event.title || "",
+  title: invitationTitle,
   eventType: event.eventType || "",
   eventDate: event.date || null,
   eventTime: event.time || "",
@@ -170,7 +173,7 @@ export async function POST(
   sentSmsCount: 0,
   guests: [],
   ...buildInvitationRsvpFields(rsvpSiteMode, {
-    title: event.title || "",
+    title: invitationTitle,
     eventDate: event.date || null,
     eventTime: event.time || "",
     location: event.location || {},

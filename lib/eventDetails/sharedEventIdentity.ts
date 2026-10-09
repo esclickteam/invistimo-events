@@ -180,35 +180,47 @@ function hasLocationData(loc?: SharedLocation | null) {
   );
 }
 
+function optionalCoord(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 function locationSet(prefix: "event" | "invitation", loc: SharedLocation) {
   if (prefix === "event") {
-    return {
+    const set: Record<string, unknown> = {
       "location.name": clean(loc.name),
       "location.address": clean(loc.address),
-      "location.lat": loc.lat ?? null,
-      "location.lng": loc.lng ?? null,
       "location.placeId": clean(loc.placeId),
       "location.placeName": clean(loc.placeName),
       "location.formattedAddress": clean(loc.formattedAddress),
-      "location.wazeLat": loc.wazeLat ?? null,
-      "location.wazeLng": loc.wazeLng ?? null,
       "location.wazeUrl": clean(loc.wazeUrl),
     };
+    const lat = optionalCoord(loc.lat);
+    const lng = optionalCoord(loc.lng);
+    const wazeLat = optionalCoord(loc.wazeLat);
+    const wazeLng = optionalCoord(loc.wazeLng);
+    if (lat !== undefined) set["location.lat"] = lat;
+    if (lng !== undefined) set["location.lng"] = lng;
+    if (wazeLat !== undefined) set["location.wazeLat"] = wazeLat;
+    if (wazeLng !== undefined) set["location.wazeLng"] = wazeLng;
+    return set;
   }
-  return {
-    location: {
-      name: clean(loc.name),
-      address: clean(loc.address),
-      lat: loc.lat ?? null,
-      lng: loc.lng ?? null,
-      placeId: clean(loc.placeId),
-      placeName: clean(loc.placeName),
-      formattedAddress: clean(loc.formattedAddress),
-      wazeLat: loc.wazeLat ?? null,
-      wazeLng: loc.wazeLng ?? null,
-      wazeUrl: clean(loc.wazeUrl),
-    },
+  const location: SharedLocation = {
+    name: clean(loc.name),
+    address: clean(loc.address),
+    placeId: clean(loc.placeId),
+    placeName: clean(loc.placeName),
+    formattedAddress: clean(loc.formattedAddress),
+    wazeUrl: clean(loc.wazeUrl),
   };
+  const lat = optionalCoord(loc.lat);
+  const lng = optionalCoord(loc.lng);
+  const wazeLat = optionalCoord(loc.wazeLat);
+  const wazeLng = optionalCoord(loc.wazeLng);
+  if (lat !== undefined) location.lat = lat;
+  if (lng !== undefined) location.lng = lng;
+  if (wazeLat !== undefined) location.wazeLat = wazeLat;
+  if (wazeLng !== undefined) location.wazeLng = wazeLng;
+  return { location };
 }
 
 function shouldWriteScalar(args: {
@@ -495,6 +507,13 @@ export function classifySharedIdentity(
 export function sanitizeCreatedTitle(value: unknown) {
   const title = clean(value);
   return isRealTitle(title) ? title : "";
+}
+
+/** Invitation.title is required. Empty string fails mongoose validation. */
+export const INVITATION_SCHEMA_TITLE_FALLBACK = "הזמנה חדשה";
+
+export function invitationCreateTitle(value: unknown) {
+  return sanitizeCreatedTitle(value) || INVITATION_SCHEMA_TITLE_FALLBACK;
 }
 
 export function sanitizeCreatedTime(value: unknown, title?: unknown) {
