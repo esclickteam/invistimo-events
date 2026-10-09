@@ -11,6 +11,8 @@ import {
   explainIvrCallFailure,
   isDialableE164,
   isIvrDialRetryable,
+  shouldReleaseStaleOutbound,
+  staleOutboundReleaseAction,
 } from "../../lib/calls/ivrDialFailure";
 import { ivrFailureReason } from "../../lib/calls/ivrCallReport";
 import { normalizePhoneForTelnyx } from "../../lib/telnyx/ivrCallControl";
@@ -88,6 +90,96 @@ test("an unanswered hangup is not stored as answered", () => {
   assert.match(reason, /מספר לא תקין/);
 });
 
+test("a live call is not released just because the dial lock is old", () => {
+  const now = new Date("2026-10-09T12:00:00.000Z");
+  const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+  const justNow = new Date(now.getTime() - 20 * 1000);
+
+  const ringing = staleOutboundReleaseAction(
+    {
+      status: "ringing",
+      flowStep: "dialing",
+      answered: false,
+      rsvpApplied: false,
+      dialLockedAt: tenMinutesAgo,
+      startedAt: tenMinutesAgo,
+      ringingAt: justNow,
+      updatedAt: justNow,
+    },
+    now
+  );
+  assert.equal(ringing, "keep");
+
+  const inMenu = staleOutboundReleaseAction(
+    {
+      status: "answered",
+      flowStep: "gather_choice",
+      answered: true,
+      rsvpApplied: false,
+      answeredAt: tenMinutesAgo,
+      firstDigitAt: justNow,
+      updatedAt: justNow,
+    },
+    now
+  );
+  assert.equal(inMenu, "keep");
+
+  const silentQueue = staleOutboundReleaseAction(
+    {
+      status: "queued",
+      flowStep: "dialing",
+      answered: false,
+      rsvpApplied: false,
+      dialLockedAt: tenMinutesAgo,
+      startedAt: tenMinutesAgo,
+      updatedAt: tenMinutesAgo,
+    },
+    now
+  );
+  assert.equal(silentQueue, "stuck_dial");
+
+  assert.equal(
+    shouldReleaseStaleOutbound({
+      action: "stuck_dial",
+      hasCallControlId: true,
+      liveness: "alive",
+    }),
+    false
+  );
+  assert.equal(
+    shouldReleaseStaleOutbound({
+      action: "stuck_dial",
+      hasCallControlId: true,
+      liveness: "unknown",
+    }),
+    false
+  );
+  assert.equal(
+    shouldReleaseStaleOutbound({
+      action: "stuck_dial",
+      hasCallControlId: true,
+      liveness: "ended",
+    }),
+    true
+  );
+  assert.equal(
+    shouldReleaseStaleOutbound({
+      action: "stuck_dial",
+      hasCallControlId: false,
+      liveness: "unknown",
+    }),
+    true
+  );
+  assert.equal(
+    shouldReleaseStaleOutbound({
+      action: ringing,
+      hasCallControlId: true,
+      liveness: "ended",
+    }),
+    false
+  );
+});
+
 test("saving narration builds the shared file before any call", () => {
   const config = readFileSync(
     path.join(root, "app/api/ivr/config/route.ts"),
@@ -111,6 +203,9 @@ test("saving narration builds the shared file before any call", () => {
   assert.equal(config.includes("IVR_GLOBAL_PACK_TEXTS"), true);
   assert.match(dialer, /if \(!input\.due\.audioReady\)/);
   assert.match(dialer, /releaseStaleOutboundOccupancy/);
+  assert.match(dialer, /readIvrCallLiveness/);
+  assert.match(dialer, /shouldReleaseStaleOutbound/);
+  assert.match(webhook, /rsvpApplied/);
   assert.match(dialer, /countOccupiedOutboundCalls\(\)/);
   assert.match(webhook, /מענה עד תחילת השמעה/);
   assert.match(webhook, /classifyUnansweredHangup/);

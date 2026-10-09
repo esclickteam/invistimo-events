@@ -31,6 +31,10 @@ import {
   explainIvrCallFailure,
   isDialableE164,
   isIvrDialRetryable,
+  shouldReleaseStaleOutbound,
+  staleOutboundReleaseAction,
+  STALE_ANSWERED_MS,
+  STALE_UNANSWERED_MS,
 } from "@/lib/calls/ivrDialFailure";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
@@ -38,6 +42,7 @@ import {
   createIvrOutboundCall,
   isIvrDialAllowed,
   normalizePhoneForTelnyx,
+  readIvrCallLiveness,
 } from "@/lib/telnyx/ivrCallControl";
 
 function cleanStr(value: unknown) {
@@ -81,8 +86,6 @@ const LIVE_ATTEMPT_STATUSES = new Set([
 /** In-flight Telnyx calls across every event. A stuck leg must not hold a slot. */
 const IVR_DEFAULT_PARALLEL_CALLS = 8;
 const IVR_PARALLEL_CALL_HARD_CAP = 20;
-const STALE_UNANSWERED_MS = 4 * 60 * 1000;
-const STALE_ANSWERED_MS = 8 * 60 * 1000;
 
 export function ivrMaxParallelCalls() {
   const raw = Number(process.env.IVR_MAX_PARALLEL_CALLS || IVR_DEFAULT_PARALLEL_CALLS);
@@ -109,54 +112,95 @@ async function countOccupiedOutboundCalls() {
 }
 
 /**
- * Free slots held by legs that never reported a result.
- * Does not mark an unstarted call as answered and does not write an RSVP.
+ * Free a slot only after the stored state says the leg is stuck and, when a
+ * Telnyx call id exists, the provider says that call is already over.
+ * A live ring or an in-progress menu is left alone. RSVP fields are not written.
  */
 async function releaseStaleOutboundOccupancy(now: Date) {
   const unansweredBefore = new Date(now.getTime() - STALE_UNANSWERED_MS);
   const answeredBefore = new Date(now.getTime() - STALE_ANSWERED_MS);
-
-  await IvrCallAttempt.updateMany(
-    {
-      channel: "outbound_ivr",
-      answered: { $ne: true },
-      rsvpApplied: { $ne: true },
-      status: { $in: ["queued", "initiated", "ringing"] },
-      $expr: {
-        $lt: [{ $ifNull: ["$dialLockedAt", "$startedAt"] }, unansweredBefore],
-      },
+  const candidates = await IvrCallAttempt.find({
+    channel: "outbound_ivr",
+    rsvpApplied: { $ne: true },
+    endedAt: null,
+    flowStep: { $ne: "done" },
+    status: {
+      $in: ["queued", "initiated", "ringing", "answered", "invalid_input", "completed"],
     },
-    {
-      $set: {
-        status: "failed",
-        flowStep: "done",
-        endedAt: now,
-        answered: false,
-        error: "STALE_DIAL_NO_RESULT",
-      },
-    }
-  );
+    $or: [
+      { dialLockedAt: { $lt: unansweredBefore } },
+      { startedAt: { $lt: unansweredBefore } },
+      { answeredAt: { $lt: answeredBefore } },
+    ],
+  })
+    .select(
+      "status flowStep answered answeredAt ringingAt dialLockedAt dialRequestedAt startedAt playbackCommandAt playbackStartedAt firstDigitAt choiceDigitAt followupPlaybackStartedAt timeline updatedAt telnyxCallControlId rsvpApplied endedAt"
+    )
+    .limit(40)
+    .lean();
 
-  await IvrCallAttempt.updateMany(
-    {
-      channel: "outbound_ivr",
-      answered: true,
-      rsvpApplied: { $ne: true },
-      endedAt: null,
-      status: { $in: ["answered", "invalid_input", "completed"] },
-      $expr: {
-        $lt: [{ $ifNull: ["$answeredAt", "$startedAt"] }, answeredBefore],
-      },
-    },
-    {
-      $set: {
-        status: "hangup_before_response",
-        flowStep: "done",
-        endedAt: now,
-        error: "STALE_CALL_NO_HANGUP",
-      },
+  const stuckDialIds: unknown[] = [];
+  const stuckHangupIds: unknown[] = [];
+
+  for (const attempt of candidates) {
+    const action = staleOutboundReleaseAction(attempt, now);
+    const callControlId = cleanStr(attempt.telnyxCallControlId);
+    const liveness = callControlId
+      ? await readIvrCallLiveness(callControlId)
+      : "unknown";
+    if (
+      !shouldReleaseStaleOutbound({
+        action,
+        hasCallControlId: Boolean(callControlId),
+        liveness,
+      })
+    ) {
+      continue;
     }
-  );
+    if (action === "stuck_hangup") stuckHangupIds.push(attempt._id);
+    else stuckDialIds.push(attempt._id);
+  }
+
+  if (stuckDialIds.length) {
+    await IvrCallAttempt.updateMany(
+      {
+        _id: { $in: stuckDialIds },
+        channel: "outbound_ivr",
+        answered: { $ne: true },
+        rsvpApplied: { $ne: true },
+        status: { $in: ["queued", "initiated", "ringing"] },
+      },
+      {
+        $set: {
+          status: "failed",
+          flowStep: "done",
+          endedAt: now,
+          answered: false,
+          error: "STALE_DIAL_NO_RESULT",
+        },
+      }
+    );
+  }
+
+  if (stuckHangupIds.length) {
+    await IvrCallAttempt.updateMany(
+      {
+        _id: { $in: stuckHangupIds },
+        channel: "outbound_ivr",
+        rsvpApplied: { $ne: true },
+        endedAt: null,
+        answered: true,
+      },
+      {
+        $set: {
+          status: "hangup_before_response",
+          flowStep: "done",
+          endedAt: now,
+          error: "STALE_CALL_NO_HANGUP",
+        },
+      }
+    );
+  }
 }
 
 function approvedPlaybackUrl(cfg: any, fallback: string) {

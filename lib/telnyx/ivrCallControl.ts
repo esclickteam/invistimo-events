@@ -374,3 +374,38 @@ export function isIvrDialAllowed(phoneE164: string) {
   return isIvrAllowlisted(phoneE164);
 }
 
+/**
+ * Read whether a call-control leg is still up. Never places a call.
+ * Unknown means the check failed; callers must keep the slot.
+ */
+export async function readIvrCallLiveness(
+  callControlId: string
+): Promise<"alive" | "ended" | "unknown"> {
+  const id = String(callControlId || "").trim();
+  const apiKey = getTelnyxApiKey();
+  if (!id || !apiKey) return "unknown";
+
+  try {
+    const res = await fetch(
+      `https://api.telnyx.com/v2/calls/${encodeURIComponent(id)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+        },
+      }
+    );
+    if (res.status === 404 || res.status === 410) return "ended";
+    if (!res.ok) return "unknown";
+    const data = (await res.json().catch(() => null)) as {
+      data?: { is_alive?: unknown };
+    } | null;
+    if (data?.data?.is_alive === true) return "alive";
+    if (data?.data?.is_alive === false) return "ended";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+

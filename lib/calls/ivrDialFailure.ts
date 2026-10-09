@@ -9,6 +9,151 @@ export type IvrUnansweredHangupStatus =
   | "voicemail"
   | "failed";
 
+/** A dial that never rang or was answered can be stale after this silence. */
+export const STALE_UNANSWERED_MS = 4 * 60 * 1000;
+/** An answered call is stale only after this long with no new progress. */
+export const STALE_ANSWERED_MS = 8 * 60 * 1000;
+
+const ACTIVE_CALL_FLOW = new Set([
+  "answer_delay",
+  "playing_intro",
+  "playing_intro_before",
+  "playing_event_name",
+  "playing_intro_after",
+  "gather_choice",
+  "playing_ask_count",
+  "gather_count",
+  "playing_thanks",
+  "playing_invalid",
+  "playing_system",
+]);
+
+function asDate(value: unknown): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Latest stored sign that the leg is still moving. */
+export function outboundProgressAt(attempt: {
+  dialRequestedAt?: unknown;
+  ringingAt?: unknown;
+  answeredAt?: unknown;
+  playbackCommandAt?: unknown;
+  playbackStartedAt?: unknown;
+  firstDigitAt?: unknown;
+  choiceDigitAt?: unknown;
+  followupPlaybackStartedAt?: unknown;
+  dialLockedAt?: unknown;
+  startedAt?: unknown;
+  updatedAt?: unknown;
+  timeline?: Array<{ at?: unknown }> | null;
+}): Date | null {
+  const stamps = [
+    attempt.dialRequestedAt,
+    attempt.ringingAt,
+    attempt.answeredAt,
+    attempt.playbackCommandAt,
+    attempt.playbackStartedAt,
+    attempt.firstDigitAt,
+    attempt.choiceDigitAt,
+    attempt.followupPlaybackStartedAt,
+    attempt.dialLockedAt,
+    attempt.startedAt,
+    attempt.updatedAt,
+    ...(Array.isArray(attempt.timeline) ? attempt.timeline.map((entry) => entry?.at) : []),
+  ];
+  let latest: Date | null = null;
+  for (const stamp of stamps) {
+    const date = asDate(stamp);
+    if (!date) continue;
+    if (!latest || date.getTime() > latest.getTime()) latest = date;
+  }
+  return latest;
+}
+
+export type StaleOutboundAction = "keep" | "stuck_dial" | "stuck_hangup";
+
+/**
+ * Local state only. A ringing or answered call with recent progress stays.
+ * A silent record is only a candidate; the dialer still asks Telnyx before
+ * freeing a leg that has a call id.
+ */
+export function staleOutboundReleaseAction(
+  attempt: {
+    status?: unknown;
+    flowStep?: unknown;
+    answered?: unknown;
+    rsvpApplied?: unknown;
+    endedAt?: unknown;
+    ringingAt?: unknown;
+    answeredAt?: unknown;
+    dialRequestedAt?: unknown;
+    playbackCommandAt?: unknown;
+    playbackStartedAt?: unknown;
+    firstDigitAt?: unknown;
+    choiceDigitAt?: unknown;
+    followupPlaybackStartedAt?: unknown;
+    dialLockedAt?: unknown;
+    startedAt?: unknown;
+    updatedAt?: unknown;
+    timeline?: Array<{ at?: unknown }> | null;
+  },
+  now: Date
+): StaleOutboundAction {
+  if (attempt.rsvpApplied === true) return "keep";
+  if (asDate(attempt.endedAt)) return "keep";
+  if (String(attempt.flowStep || "") === "done") return "keep";
+
+  const status = String(attempt.status || "");
+  if (
+    ![
+      "queued",
+      "initiated",
+      "ringing",
+      "answered",
+      "invalid_input",
+      "completed",
+    ].includes(status)
+  ) {
+    return "keep";
+  }
+
+  const progress = outboundProgressAt(attempt);
+  const age = progress ? now.getTime() - progress.getTime() : Number.POSITIVE_INFINITY;
+  const inConversation =
+    attempt.answered === true ||
+    status === "answered" ||
+    status === "invalid_input" ||
+    status === "completed" ||
+    ACTIVE_CALL_FLOW.has(String(attempt.flowStep || ""));
+
+  if (inConversation) {
+    return age >= STALE_ANSWERED_MS ? "stuck_hangup" : "keep";
+  }
+
+  if (status === "ringing" || asDate(attempt.ringingAt) || asDate(attempt.answeredAt)) {
+    return age >= STALE_UNANSWERED_MS ? "stuck_dial" : "keep";
+  }
+
+  return age >= STALE_UNANSWERED_MS ? "stuck_dial" : "keep";
+}
+
+/**
+ * Free the slot only when local state says the leg is stuck and, if Telnyx
+ * has a call id, the provider says that call is already over.
+ * Unknown provider state keeps the slot so a live call is not cut off.
+ */
+export function shouldReleaseStaleOutbound(input: {
+  action: StaleOutboundAction;
+  hasCallControlId: boolean;
+  liveness: "alive" | "ended" | "unknown";
+}) {
+  if (input.action === "keep") return false;
+  if (!input.hasCallControlId) return input.action === "stuck_dial";
+  return input.liveness === "ended";
+}
+
 /** E.164 that Telnyx can accept. Israeli numbers must not keep the trunk 0. */
 export function isDialableE164(phone: string) {
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) return false;
