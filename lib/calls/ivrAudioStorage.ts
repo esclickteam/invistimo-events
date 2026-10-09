@@ -284,6 +284,15 @@ export function ivrComposedIntroR2Key(
   return `ivr/composed-intro/${userId}/${token}.${ext}`;
 }
 
+/** Inbound stitch: inboundBefore + event name + inboundAfter. Not the outbound file. */
+export function ivrComposedInboundR2Key(
+  userId: string,
+  token: string,
+  ext = "mp3"
+) {
+  return `ivr/composed-inbound/${userId}/${token}.${ext}`;
+}
+
 export function ivrSystemR2Key(promptKey: string, hash: string, ext = "mp3") {
   return `ivr/system/${promptKey}/${hash}.${ext}`;
 }

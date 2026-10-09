@@ -40,9 +40,12 @@ import {
 import { hydrateApprovedPackVoiceIds } from "@/lib/calls/ivrAdminVoicePacks";
 import {
   composeIvrIntroAudio,
+  contentHashForComposedInbound,
   contentHashForComposedIntro,
   IVR_COMPOSE_VERSION,
+  IVR_INBOUND_COMPOSE_VERSION,
 } from "@/lib/calls/ivrComposeIntro";
+import { buildComposedInboundAudio } from "@/lib/calls/ivrComposedInbound";
 import {
   assignIvrConfig,
   ivrPersistErrorPayload,
@@ -865,6 +868,53 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const expectedInboundHash = contentHashForComposedInbound({
+      beforeHash: String(
+        pack.segments.inboundBeforeEventName?.contentHash || ""
+      ),
+      eventNameHash: hash,
+      afterHash: String(pack.segments.inboundAfterEventName?.contentHash || ""),
+      voiceId,
+    });
+    let composedInboundAudio = normalizeIvrAudioSubdoc(
+      user.ivrConfig?.composedInboundAudio || cfg.composedInboundAudio
+    );
+    const inboundBeforeKey = String(
+      pack.segments.inboundBeforeEventName?.r2Key || ""
+    );
+    const inboundAfterKey = String(
+      pack.segments.inboundAfterEventName?.r2Key || ""
+    );
+    if (
+      composedInboundAudio?.status === "ready" &&
+      composedInboundAudio?.contentHash === expectedInboundHash &&
+      composedInboundAudio?.composeVersion === IVR_INBOUND_COMPOSE_VERSION &&
+      composedInboundAudio?.audioUrl &&
+      composedInboundAudio?.r2Key &&
+      !body.force
+    ) {
+      // Current inbound stitch already stored.
+    } else if (inboundBeforeKey && inboundAfterKey && eventNameAudio?.r2Key) {
+      try {
+        composedInboundAudio = await buildComposedInboundAudio({
+          userId: String(user._id),
+          voiceId,
+          eventNameHash: hash,
+          eventNameR2Key: String(eventNameAudio.r2Key),
+          beforeR2Key: inboundBeforeKey,
+          beforeHash: String(
+            pack.segments.inboundBeforeEventName?.contentHash || ""
+          ),
+          afterR2Key: inboundAfterKey,
+          afterHash: String(
+            pack.segments.inboundAfterEventName?.contentHash || ""
+          ),
+        });
+      } catch (inboundComposeError) {
+        console.error("[ivr/config POST inbound compose]", inboundComposeError);
+      }
+    }
+
     const keepApproval =
       reusedEventName &&
       reusedCompose &&
@@ -891,6 +941,7 @@ export async function POST(req: NextRequest) {
           ? composedIntroAudio?.approvedAt || null
           : null,
       },
+      composedInboundAudio,
       introAudio: cfg.introAudio,
       recordingApproval: keepApproval
         ? user.ivrConfig?.recordingApproval
