@@ -260,6 +260,20 @@ test("guided tour covers the customer journey on real controls", () => {
     assert.equal(ids.includes(id), true, id);
   }
   assert.ok(DEMO_TOUR_TOPICS.length >= 8);
+  assert.deepEqual(
+    DEMO_TOUR_TOPICS.slice(0, 4).map((topic) => topic.id),
+    ["start", "invite", "event", "gifts"]
+  );
+  const firstClick = DEMO_TOUR_STEPS.find((step) => step.advance === "click");
+  assert.equal(firstClick?.id, "go-invite");
+  assert.equal(firstClick?.selector, "[data-tour='nav-invitation']");
+  assert.ok(ids.indexOf("menu") < ids.indexOf("go-invite"));
+  assert.ok(ids.indexOf("invite-preview") < ids.indexOf("go-event"));
+  assert.ok(ids.indexOf("event-save") < ids.indexOf("event-saved"));
+  assert.ok(ids.indexOf("event-invite-view") < ids.indexOf("gift-credit"));
+  assert.ok(ids.indexOf("gift-save") < ids.indexOf("gift-link-view"));
+  assert.ok(ids.indexOf("gift-link-view") < ids.indexOf("go-guests"));
+  assert.equal(DEMO_TOUR_STEPS[0]?.id, "dashboard");
   for (const step of DEMO_TOUR_STEPS) {
     assert.ok(step.selector, step.id);
     assert.ok(step.topic, step.id);
@@ -302,6 +316,7 @@ test("tour targets exist on the customer screens", () => {
     "[data-tour='seating-guest']": readFileSync("app/dashboard/seating/SeatingSidebar.tsx", "utf8"),
     "[data-tour='checkin-search']": readFileSync("app/dashboard/check-in/CheckInHostClient.tsx", "utf8"),
     "[data-tour='customer-nav']": readFileSync("app/dashboard/components/DashboardSidebar.tsx", "utf8"),
+    "[data-tour='invite-guest-view']": readFileSync("app/dashboard/edit-invite/[id]/page.tsx", "utf8"),
     "#rsvp-stats": readFileSync("app/dashboard/page.tsx", "utf8"),
   };
   for (const [selector, source] of Object.entries(sources)) {

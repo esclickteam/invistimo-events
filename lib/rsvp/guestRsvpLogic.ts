@@ -18,6 +18,8 @@ export type GiftOptions = {
   creditUrl?: string;
   payboxEnabled?: boolean;
   payboxUrl?: string;
+  bitEnabled?: boolean;
+  bitPhone?: string;
 };
 
 export type PublicEventNote = {

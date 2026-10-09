@@ -119,6 +119,7 @@ export default function DemoExperience({ children }: Props) {
     });
     const data = await res.json().catch(() => null);
     if (data?.session) setSession(data.session);
+    router.push("/try/dashboard");
   }
 
   async function saveTour(patch: Partial<DemoSession["tour"]>) {
