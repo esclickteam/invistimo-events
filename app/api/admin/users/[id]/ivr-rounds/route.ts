@@ -24,7 +24,10 @@ import {
   normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
 } from "@/lib/calls/callRoundScheduleTime";
-import { getAppBaseUrl } from "@/lib/calls/ivrAudioStorage";
+import {
+  getAppBaseUrl,
+  resolveIvrPublicAudioUrl,
+} from "@/lib/calls/ivrAudioStorage";
 import {
   describeIvrAudioDiagnostics,
   openIvrRoundManually,
@@ -92,22 +95,172 @@ async function loadIvrTarget(userId: string) {
   return user as any;
 }
 
-async function buildRoundsPayload(user: any) {
-  const invitation = await Invitation.findOne({ ownerId: user._id })
-    .select("_id")
-    .sort({ eventDate: 1, createdAt: -1 })
-    .lean();
+function buildEligibilityBreakdown(guests: any[], round: 1 | 2 | 3) {
+  let noPhone = 0;
+  let finalYes = 0;
+  let finalNo = 0;
+  let pending = 0;
+  let maybe = 0;
+  let other = 0;
+  for (const guest of guests) {
+    if (!hasGuestPhone(guest)) {
+      noPhone += 1;
+      continue;
+    }
+    const rsvp = getGuestRsvpValue(guest);
+    if (rsvp === "yes") finalYes += 1;
+    else if (rsvp === "no") finalNo += 1;
+    else if (rsvp === "pending") pending += 1;
+    else if (rsvp === "maybe") maybe += 1;
+    else other += 1;
+  }
+  const eligible = filterGuestsForIvrRound({ guests, round }).length;
+  const finalAnswered = finalYes + finalNo;
+  const reasons: string[] = [];
+  if (noPhone) reasons.push(`ללא טלפון תקין: ${noPhone}`);
+  if (finalYes) reasons.push(`אישרו הגעה: ${finalYes}`);
+  if (finalNo) reasons.push(`דחו: ${finalNo}`);
+  if (round === 3) {
+    if (pending + maybe === 0 && finalAnswered > 0) {
+      reasons.push("אין ממתינים/מתלבטים לסבב 3");
+    }
+  } else if (pending === 0 && finalAnswered > 0) {
+    reasons.push("אין ממתינים (pending) לסבב זה");
+  }
+  return {
+    totalGuests: guests.length,
+    withPhone: guests.length - noPhone,
+    noPhone,
+    finalYes,
+    finalNo,
+    finalAnswered,
+    pending,
+    maybe,
+    other,
+    eligible,
+    filterReasons: reasons,
+  };
+}
 
-  const event = await Event.findOne({
-    userId: user._id,
-    status: "active",
-  })
-    .select("_id status")
-    .sort({ date: -1 })
-    .lean();
+async function resolveInvitationForUser(
+  user: any,
+  preferredInvitationId?: string | null
+) {
+  const preferred = cleanStr(preferredInvitationId);
+  if (preferred) {
+    const byId = await Invitation.findOne({
+      _id: preferred,
+      ownerId: user._id,
+    })
+      .select("_id ownerId eventId eventDate title")
+      .lean();
+    if (byId) return byId as any;
+  }
+  return (await Invitation.findOne({ ownerId: user._id })
+    .select("_id ownerId eventId eventDate title")
+    .sort({ eventDate: 1, createdAt: -1 })
+    .lean()) as any;
+}
+
+async function resolveEventActivity(user: any, invitation: any) {
+  if (user.isActive === false) {
+    return {
+      eventActive: false,
+      eventStatus: "user_inactive",
+      eventBlockReason: "המשתמש מסומן כלא פעיל (isActive=false)",
+      eventId: null as string | null,
+    };
+  }
+
+  let event: any = null;
+  if (invitation?.eventId) {
+    event = await Event.findById(invitation.eventId).select("_id status").lean();
+  }
+  if (!event) {
+    event = await Event.findOne({ userId: user._id })
+      .select("_id status")
+      .sort({ date: -1 })
+      .lean();
+  }
+
+  if (event) {
+    const status = String(event.status || "");
+    if (status === "archived") {
+      return {
+        eventActive: false,
+        eventStatus: "archived",
+        eventBlockReason: "האירוע בארכיון",
+        eventId: String(event._id),
+      };
+    }
+    if (status && status !== "active") {
+      return {
+        eventActive: false,
+        eventStatus: status,
+        eventBlockReason: `סטטוס האירוע במערכת: ${status}`,
+        eventId: String(event._id),
+      };
+    }
+    return {
+      eventActive: true,
+      eventStatus: status || "active",
+      eventBlockReason: "",
+      eventId: String(event._id),
+    };
+  }
+
+  // Many IVR clients have an invitation without a separate Event row.
+  if (invitation?._id) {
+    return {
+      eventActive: true,
+      eventStatus: "invitation_only",
+      eventBlockReason: "",
+      eventId: null as string | null,
+    };
+  }
+
+  return {
+    eventActive: false,
+    eventStatus: "missing",
+    eventBlockReason: "לא נמצאו אירוע או הזמנה למשתמש",
+    eventId: null as string | null,
+  };
+}
+
+async function buildRoundsPayload(
+  user: any,
+  preferredInvitationId?: string | null
+) {
+  const invitation = await resolveInvitationForUser(
+    user,
+    preferredInvitationId
+  );
+  const eventInfo = await resolveEventActivity(user, invitation);
 
   const audio = resolveIvrRoundAudio(user);
   const audioDiagnostics = describeIvrAudioDiagnostics(user);
+  const cfg = user?.ivrConfig || {};
+  const composed = cfg.composedIntroAudio || {};
+  const intro = cfg.introAudio || {};
+  const previewAudioUrl =
+    audio.introAudioUrl ||
+    resolveIvrPublicAudioUrl({
+      publicToken: composed.publicToken,
+      storedUrl: composed.audioUrl,
+    }) ||
+    resolveIvrPublicAudioUrl({
+      publicToken: intro.publicToken,
+      storedUrl: intro.audioUrl,
+    }) ||
+    "";
+  const canApproveAudio =
+    !audio.audioReady &&
+    audio.audioMode === "ai" &&
+    audioDiagnostics.composedStatus === "ready" &&
+    audioDiagnostics.eventNameStatus === "ready" &&
+    audioDiagnostics.composeVersion ===
+      audioDiagnostics.requiredComposeVersion &&
+    Boolean(previewAudioUrl);
   const scheduleRounds = Array.isArray(user?.callRoundsSchedule?.rounds)
     ? user.callRoundsSchedule.rounds
     : [];
@@ -139,13 +292,8 @@ async function buildRoundsPayload(user: any) {
     }
   }
 
-  const guestsWithPhone = guests.filter((g) => hasGuestPhone(g));
-  const finalAnsweredCount = guestsWithPhone.filter((g) =>
-    isFinalRsvp(getGuestRsvpValue(g))
-  ).length;
-
   const liveDialDisabled = process.env.IVR_ALLOW_LIVE_DIAL === "false";
-  const eventActive = Boolean(event) && user.isActive !== false;
+  const eventActive = eventInfo.eventActive;
 
   const rounds = [1, 2, 3].map((round) => {
     const scheduleRound = scheduleRounds.find(
@@ -159,19 +307,24 @@ async function buildRoundsPayload(user: any) {
       hasSchedule
     );
     const roundAttempts = attempts.filter((a) => Number(a.round) === round);
-    const eligibleNow = filterGuestsForIvrRound({
+    const breakdown = buildEligibilityBreakdown(
       guests,
-      round: round as 1 | 2 | 3,
-    });
-    const remaining = Math.max(0, eligibleNow.length);
+      round as 1 | 2 | 3
+    );
+    const remaining = Math.max(0, breakdown.eligible);
     const dialed = roundAttempts.length;
     const liveCount = liveByRound[round] || 0;
     const statusMismatch =
       executionStatus === "done" && dialed === 0
-        ? "סומן כהושלם ללא ניסיונות חיוג — ניתן לפתוח מחדש"
+        ? "סומן כהושלם ללא ניסיונות חיוג — ניתן לתקן סטטוס / לפתוח מחדש"
         : executionStatus === "done" && remaining > 0
           ? "סומן כהושלם אך נותרו אורחים זכאים"
           : "";
+
+    const reopenableStatus =
+      executionStatus === "done" ||
+      executionStatus === "failed" ||
+      executionStatus === "cancelled";
 
     const canOpen =
       eventActive &&
@@ -187,9 +340,12 @@ async function buildRoundsPayload(user: any) {
       remaining > 0 &&
       !liveDialDisabled &&
       liveCount === 0 &&
-      (executionStatus === "done" ||
-        executionStatus === "failed" ||
-        executionStatus === "cancelled");
+      reopenableStatus;
+
+    const showReopen =
+      reopenableStatus && liveCount === 0 && remaining > 0;
+    const canRepairStatus =
+      executionStatus === "done" && dialed === 0 && liveCount === 0;
 
     const canStop =
       liveCount > 0 ||
@@ -200,11 +356,21 @@ async function buildRoundsPayload(user: any) {
       executionStatus === "cancelled" || executionStatus === "failed";
 
     const blockReasons: string[] = [];
-    if (!eventActive) blockReasons.push("האירוע אינו פעיל");
+    if (!eventActive) {
+      blockReasons.push(
+        eventInfo.eventBlockReason || "האירוע אינו פעיל"
+      );
+    }
     if (!audio.audioReady) {
       blockReasons.push(audio.audioBlockReason || "אין קריינות מאושרת ונגישה");
     }
-    if (remaining < 1) blockReasons.push("אין אורחים זכאים לחיוג");
+    if (remaining < 1) {
+      blockReasons.push(
+        breakdown.filterReasons[0]
+          ? `אין אורחים זכאים לחיוג (${breakdown.filterReasons.join(" · ")})`
+          : "אין אורחים זכאים לחיוג"
+      );
+    }
     if (liveDialDisabled) blockReasons.push("חיוגים מושבתים זמנית במערכת");
     if (liveCount > 0) blockReasons.push("יש שיחות פעילות בסבב");
     if (executionStatus === "done" && !canReopen) {
@@ -227,6 +393,39 @@ async function buildRoundsPayload(user: any) {
     }
     if (statusMismatch) blockReasons.push(statusMismatch);
 
+    const nextSteps: string[] = [];
+    if (!eventActive) {
+      nextSteps.push(
+        eventInfo.eventBlockReason || "יש להפעיל את האירוע/המשתמש"
+      );
+    }
+    if (!audio.audioReady) {
+      if (canApproveAudio) {
+        nextSteps.push("להאזין לקריינות המחוברת ולאשר אותה באדמין");
+      } else if (
+        audioDiagnostics.composeVersion !==
+        audioDiagnostics.requiredComposeVersion
+      ) {
+        nextSteps.push(
+          "ליצור מחדש את הקובץ המחובר אצל הלקוח (גרסת compose ישנה) ואז לאשר"
+        );
+      } else {
+        nextSteps.push("להשלים קריינות מוכנה ומאושרת אצל הלקוח");
+      }
+    }
+    if (remaining < 1) {
+      nextSteps.push("אין למי לחייג כרגע — כל הזכאים כבר עם תשובה סופית או בלי טלפון");
+    }
+    if (showReopen && !canReopen) {
+      nextSteps.push("לאחר עמידה בתנאי הבטיחות — לחצו ״פתח מחדש סבב״");
+    } else if (canReopen) {
+      nextSteps.push("ניתן לפתוח מחדש — יחייגו רק זכאים שנותרו (בלי איפוס RSVP)");
+    } else if (canOpen) {
+      nextSteps.push("ניתן לפתוח את הסבב עכשיו");
+    } else if (canRepairStatus) {
+      nextSteps.push("ניתן לתקן סטטוס ״הושלם״ השגוי (ללא חיוג)");
+    }
+
     return {
       round,
       title: `סבב ${round} — שיחות אישורי הגעה`,
@@ -239,30 +438,46 @@ async function buildRoundsPayload(user: any) {
       scheduledAt: scheduleRound?.scheduledAt || null,
       scheduledAtInput: formatCallRoundDateTimeInput(scheduleRound?.scheduledAt),
       scheduledAtDisplay: formatCallRoundDateTimeDmy(scheduleRound?.scheduledAt),
-      eligibleCount: eligibleNow.length,
+      eligibleCount: breakdown.eligible,
       dialedCount: dialed,
       remainingCount: remaining,
-      finalAnsweredCount,
+      finalAnsweredCount: breakdown.finalAnswered,
+      eligibility: breakdown,
       liveCount,
       canOpen,
       canReopen,
+      showReopen,
+      canRepairStatus,
       canStop,
       canResume,
       blockReasons,
+      nextSteps,
     };
   });
 
   return {
     invitationId: invitation ? String(invitation._id) : null,
     eventActive,
+    eventStatus: eventInfo.eventStatus,
+    eventBlockReason: eventInfo.eventBlockReason,
+    eventId: eventInfo.eventId,
     audioReady: audio.audioReady,
     audioBlockReason: audio.audioBlockReason || "",
     audioDiagnostics,
+    previewAudioUrl,
+    canApproveAudio,
     narrationSettingsPath: "/admin/recorded-calls",
-    clientRecordedCallsHint:
-      "להגדרת קריינות הלקוח: ניהול משתמש → שיחות מוקלטות, או יצירה מחדש של הקובץ המחובר אצל הלקוח.",
+    clientRecordedCallsHint: canApproveAudio
+      ? "הקריינות מוכנה אך לא מאושרת — האזינו ואשרו כאן לפני חיוג. לא נוצרים קבצים מחדש."
+      : "להשלמת קריינות: אצל הלקוח בשיחות מוקלטות, או הגדרות קריינות גלובליות.",
     liveDialDisabled,
-    finalAnsweredCount,
+    guestTotals: {
+      totalGuests: guests.length,
+      withPhone: guests.filter((g) => hasGuestPhone(g)).length,
+      finalAnswered: guests.filter(
+        (g) => hasGuestPhone(g) && isFinalRsvp(getGuestRsvpValue(g))
+      ).length,
+    },
     rounds,
   };
 }
@@ -292,7 +507,10 @@ export async function GET(
       );
     }
 
-    const payload = await buildRoundsPayload(user);
+    const preferredInvitationId = new URL(req.url).searchParams.get(
+      "invitationId"
+    );
+    const payload = await buildRoundsPayload(user, preferredInvitationId);
     return NextResponse.json({ ok: true, ...payload });
   } catch (err: any) {
     if (err?.message === "UNAUTHORIZED") {
@@ -359,17 +577,15 @@ export async function POST(
     }
 
     const admin = await User.findById(auth.userId).select("name email").lean();
-    const invitation = await Invitation.findOne({ ownerId: user._id })
-      .select("_id")
-      .sort({ eventDate: 1, createdAt: -1 })
-      .lean();
-    const event = await Event.findOne({
-      userId: user._id,
-      status: "active",
-    })
-      .select("_id")
-      .sort({ date: -1 })
-      .lean();
+    const preferredInvitationId =
+      cleanStr(body?.invitationId) ||
+      new URL(req.url).searchParams.get("invitationId");
+    const invitation = await resolveInvitationForUser(
+      user,
+      preferredInvitationId
+    );
+    const eventInfo = await resolveEventActivity(user, invitation);
+    const eventId = eventInfo.eventId;
 
     if (action === "schedule") {
       const incomingRounds = Array.isArray(body?.rounds) ? body.rounds : [];
@@ -448,7 +664,7 @@ export async function POST(
         managedUserId: String(user._id),
         managedUserName: cleanStr(user.name),
         managedUserEmail: cleanStr(user.email),
-        eventId: event ? String((event as any)._id) : null,
+        eventId,
         invitationId: invitation ? String(invitation._id) : null,
         action: "admin_ivr_schedule_update",
         summary: `עדכון תזמון סבבי IVR עבור ${user.name || user.email}`,
@@ -457,7 +673,7 @@ export async function POST(
       });
 
       const refreshed = await loadIvrTarget(id);
-      const payload = await buildRoundsPayload(refreshed);
+      const payload = await buildRoundsPayload(refreshed, preferredInvitationId);
       return NextResponse.json({ ok: true, ...payload });
     }
 
@@ -468,13 +684,26 @@ export async function POST(
       );
     }
 
-    if (action === "stop" || action === "resume" || action === "reopen") {
-      const result = await setIvrRoundAdminStatus({
-        userId: String(user._id),
-        round,
-        action,
-        invitationId: invitation ? String(invitation._id) : undefined,
-      });
+    if (
+      action === "stop" ||
+      action === "resume" ||
+      action === "reopen" ||
+      action === "repair_status"
+    ) {
+      const result =
+        action === "repair_status"
+          ? await setIvrRoundAdminStatus({
+              userId: String(user._id),
+              round,
+              action: "reopen",
+              invitationId: invitation ? String(invitation._id) : undefined,
+            })
+          : await setIvrRoundAdminStatus({
+              userId: String(user._id),
+              round,
+              action,
+              invitationId: invitation ? String(invitation._id) : undefined,
+            });
       if (!result.ok) {
         return NextResponse.json(result, { status: 400 });
       }
@@ -486,35 +715,38 @@ export async function POST(
         managedUserId: String(user._id),
         managedUserName: cleanStr(user.name),
         managedUserEmail: cleanStr(user.email),
-        eventId: event ? String((event as any)._id) : null,
+        eventId,
         invitationId: invitation ? String(invitation._id) : null,
         action:
           action === "stop"
             ? "admin_ivr_round_stop"
-            : action === "reopen"
+            : action === "reopen" || action === "repair_status"
               ? "admin_ivr_round_reopen"
               : "admin_ivr_round_resume",
         summary:
           action === "stop"
             ? `עצירת סבב IVR ${round} עבור ${user.name || user.email}`
-            : action === "reopen"
-              ? `פתיחה מחדש של סבב IVR ${round} עבור ${user.name || user.email}`
-              : `חידוש סבב IVR ${round} עבור ${user.name || user.email}`,
-        meta: { round, status: result.status },
+            : action === "repair_status"
+              ? `תיקון סטטוס סבב IVR ${round} עבור ${user.name || user.email}`
+              : action === "reopen"
+                ? `פתיחה מחדש של סבב IVR ${round} עבור ${user.name || user.email}`
+                : `חידוש סבב IVR ${round} עבור ${user.name || user.email}`,
+        meta: { round, status: result.status, action },
       });
 
       const refreshed = await loadIvrTarget(id);
-      const payload = await buildRoundsPayload(refreshed);
+      const payload = await buildRoundsPayload(refreshed, preferredInvitationId);
       return NextResponse.json({ ok: true, ...payload, actionResult: result });
     }
 
     if (action === "open" || action === "preview") {
-      if (!event || user.isActive === false) {
+      if (!eventInfo.eventActive) {
         return NextResponse.json(
           {
             ok: false,
             error: "EVENT_INACTIVE",
-            message: "האירוע אינו פעיל",
+            message: eventInfo.eventBlockReason || "האירוע אינו פעיל",
+            eventStatus: eventInfo.eventStatus,
           },
           { status: 400 }
         );
@@ -523,7 +755,7 @@ export async function POST(
       const reopenIfDone = body?.reopen === true || body?.reopenIfDone === true;
 
       if (action === "preview") {
-        const payload = await buildRoundsPayload(user);
+        const payload = await buildRoundsPayload(user, preferredInvitationId);
         const row = payload.rounds.find((r) => r.round === round);
         const canProceed =
           Boolean(row?.canOpen) || (reopenIfDone && Boolean(row?.canReopen));
@@ -534,18 +766,23 @@ export async function POST(
           eligibleCount: row?.eligibleCount ?? 0,
           dialedCount: row?.dialedCount ?? 0,
           remainingCount: row?.remainingCount ?? 0,
-          finalAnsweredCount:
-            row?.finalAnsweredCount ?? payload.finalAnsweredCount ?? 0,
+          finalAnsweredCount: row?.finalAnsweredCount ?? 0,
+          eligibility: row?.eligibility || null,
           status: row?.status,
           statusLabel: row?.statusLabel,
           statusMismatch: row?.statusMismatch || "",
           canOpen: row?.canOpen ?? false,
           canReopen: row?.canReopen ?? false,
+          showReopen: row?.showReopen ?? false,
           canProceed,
           blockReasons: row?.blockReasons ?? [],
+          nextSteps: row?.nextSteps ?? [],
           audioReady: payload.audioReady,
           audioBlockReason: payload.audioBlockReason,
           audioDiagnostics: payload.audioDiagnostics,
+          canApproveAudio: payload.canApproveAudio,
+          eventActive: payload.eventActive,
+          eventBlockReason: payload.eventBlockReason,
           liveDialDisabled: payload.liveDialDisabled,
           reopenIfDone,
         });
@@ -585,7 +822,7 @@ export async function POST(
         managedUserId: String(user._id),
         managedUserName: cleanStr(user.name),
         managedUserEmail: cleanStr(user.email),
-        eventId: event ? String((event as any)._id) : null,
+        eventId,
         invitationId: invitation ? String(invitation._id) : null,
         action: reopenIfDone
           ? "admin_ivr_round_reopen_open"
@@ -611,7 +848,7 @@ export async function POST(
       }
 
       const refreshed = await loadIvrTarget(id);
-      const payload = await buildRoundsPayload(refreshed);
+      const payload = await buildRoundsPayload(refreshed, preferredInvitationId);
       return NextResponse.json({
         ok: true,
         ...payload,

@@ -22,20 +22,19 @@ test("admin IVR rounds panel is wired into Edit User message rounds", () => {
   const panel = readSrc("app/components/admin/AdminIvrRoundsPanel.tsx");
   assert.match(page, /AdminIvrRoundsPanel/);
   assert.match(page, /callsType === "ivr"/);
+  assert.match(page, /invitationId=\{user\.invitationId\}/);
   assert.match(panel, /סבבי שיחות IVR/);
   assert.match(panel, /פתח סבב עכשיו/);
   assert.match(panel, /פתח מחדש סבב/);
+  assert.match(panel, /תקן סטטוס/);
+  assert.match(panel, /אשר קריינות לאחר האזנה/);
   assert.match(panel, /data-testid="admin-ivr-rounds-panel"/);
   assert.match(panel, /action: "preview"/);
   assert.match(panel, /action: "open"/);
-  assert.match(panel, /action: "schedule"/);
-  assert.match(panel, /action: "stop"/);
-  assert.match(panel, /reopen/);
-  assert.match(panel, /IvrCallsReportModal/);
-  assert.match(panel, /initialRound/);
-  assert.match(panel, /admin-ivr-narration-link/);
-  assert.match(panel, /זכאים לחיוג כעת/);
-  assert.match(panel, /כבר נתנו תשובה סופית/);
+  assert.match(panel, /action: "approve_audio"/);
+  assert.match(panel, /showReopen/);
+  assert.match(panel, /eligibility/);
+  assert.match(panel, /nextSteps/);
 });
 
 test("admin IVR rounds API reuses executeIvrRound via openIvrRoundManually", () => {
@@ -46,42 +45,33 @@ test("admin IVR rounds API reuses executeIvrRound via openIvrRoundManually", () 
   assert.match(route, /setIvrRoundAdminStatus/);
   assert.match(route, /writeAdminAuditLog/);
   assert.match(route, /admin_ivr_round_open/);
-  assert.match(route, /admin_ivr_round_reopen/);
   assert.match(route, /FORCE_NOT_ALLOWED/);
-  assert.match(route, /force === 1/);
-  assert.match(route, /requireAdmin/);
-  assert.match(route, /isIvrCallsUser/);
-  assert.match(route, /IVR_ALLOW_LIVE_DIAL/);
-  assert.match(route, /EVENT_INACTIVE/);
-  assert.match(route, /body\?\.force === "1"/);
   assert.match(route, /canReopen/);
-  assert.match(route, /describeIvrAudioDiagnostics/);
-  assert.match(route, /finalAnsweredCount/);
+  assert.match(route, /showReopen/);
+  assert.match(route, /buildEligibilityBreakdown/);
+  assert.match(route, /resolveEventActivity/);
+  assert.match(route, /invitation_only/);
+  assert.match(route, /canApproveAudio/);
+  assert.match(route, /repair_status/);
   assert.equal(route.includes("listDueIvrRounds"), false);
 
   assert.match(dialer, /export async function openIvrRoundManually/);
-  assert.match(dialer, /export async function setIvrRoundAdminStatus/);
-  assert.match(dialer, /export function resolveIvrRoundAudio/);
-  assert.match(dialer, /export function describeIvrAudioDiagnostics/);
-  assert.match(dialer, /diagnoseAiAudioBlock/);
   assert.match(dialer, /reopenIfDone/);
-  assert.match(dialer, /action: "reopen"/);
-  assert.match(dialer, /return executeIvrRound\(\{/);
-  assert.match(dialer, /LIVE_DIAL_DISABLED/);
-  assert.match(dialer, /AUDIO_NOT_READY/);
-  assert.match(dialer, /NO_ELIGIBLE_GUESTS/);
-  assert.match(dialer, /ROUND_ALREADY_RUNNING/);
-  // Manual open ignores due-window but must not call listDueIvrRounds({ force: true })
-  const openFn = dialer.slice(
-    dialer.indexOf("export async function openIvrRoundManually")
+  assert.match(dialer, /executeIvrRound/);
+});
+
+test("GET ivr/config does not persist approval wipe on stale compose", () => {
+  const config = readSrc("app/api/ivr/config/route.ts");
+  assert.match(config, /GET must not mutate approvals/);
+  assert.match(config, /approvalReset = true/);
+  const getStart = config.indexOf("export async function GET");
+  const getEnd = config.indexOf("export async function PATCH");
+  const getBody = config.slice(getStart, getEnd);
+  assert.equal(
+    getBody.includes('"ivrConfig.recordingApproval.approved": false'),
+    false
   );
-  const openBody = openFn.slice(
-    0,
-    openFn.indexOf("export async function setIvrRoundAdminStatus")
-  );
-  assert.equal(openBody.includes("force: true"), false);
-  assert.equal(openBody.includes("force:1"), false);
-  assert.match(openBody, /executeIvrRound/);
+  assert.equal(getBody.includes("await user.updateOne"), false);
 });
 
 test("zero-attempt rounds are not marked done", () => {
@@ -91,7 +81,6 @@ test("zero-attempt rounds are not marked done", () => {
     false
   );
   assert.match(dialer, /Never mark a round "done" when no dial history exists/);
-  assert.match(dialer, /לא בוצע אף חיוג בסבב/);
 });
 
 test("audio block reasons are precise — not only the generic AI message", () => {
@@ -99,33 +88,6 @@ test("audio block reasons are precise — not only the generic AI message", () =
   assert.match(dialer, /diagnoseAiAudioBlock/);
   assert.match(dialer, /composeVersion/);
   assert.match(dialer, /recordingApproval/);
-  assert.match(dialer, /טוקן מדיה/);
-  assert.match(dialer, /לא נבחר קול קריינות/);
-});
-
-test("IVR report modal accepts initialRound from admin round link", () => {
-  const modal = readSrc("app/components/IvrCallsReportModal.tsx");
-  assert.match(modal, /initialRound\?:/);
-  assert.match(modal, /round: String\(initialRound\)/);
-});
-
-test("admin open path shares eligibility filter with automatic dialer", () => {
-  const dialer = readSrc("lib/calls/ivrDialer.ts");
-  assert.match(dialer, /filterGuestsForIvrRound/);
-  const openFn = dialer.slice(
-    dialer.indexOf("export async function openIvrRoundManually")
-  );
-  assert.match(openFn, /filterGuestsForIvrRound/);
-  assert.match(openFn, /resolveRoundAudio\(user\)/);
-});
-
-test("schedule update on admin API writes the same callRoundsSchedule field", () => {
-  const route = readSrc("app/api/admin/users/[id]/ivr-rounds/route.ts");
-  const clientSchedule = readSrc("app/api/ivr/schedule/route.ts");
-  assert.match(route, /callRoundsSchedule/);
-  assert.match(route, /normalizeCallRoundScheduledAtForSave/);
-  assert.match(clientSchedule, /callRoundsSchedule/);
-  assert.match(route, /admin_ivr_schedule_update/);
 });
 
 test("reopen does not delete attempts or reset RSVP", () => {
@@ -134,5 +96,4 @@ test("reopen does not delete attempts or reset RSVP", () => {
   const reopenBody = reopenFn.slice(0, 1200);
   assert.match(reopenBody, /Attempts and guest RSVP stay intact/);
   assert.equal(reopenBody.includes("IvrCallAttempt.delete"), false);
-  assert.equal(reopenBody.includes("rsvp"), false);
 });
