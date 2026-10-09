@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { bridgeDemoRequest } from "@/lib/demo/interactive/bridge";
-import { readDemoSession } from "@/lib/demo/interactive/sessionCookie";
+import {
+  commitDemoSession,
+  readDemoSession,
+} from "@/lib/demo/interactive/sessionCookie";
+import { getSession } from "@/lib/demo/interactive/store";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +24,6 @@ export async function POST(req: Request) {
     `/api/invitationGuests/respondByToken/${encodeURIComponent(token)}`,
     body
   );
+  await commitDemoSession(getSession(session.id));
   return NextResponse.json(result.json, { status: result.status });
 }

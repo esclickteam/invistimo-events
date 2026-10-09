@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { ensureDemoSession } from "@/lib/demo/interactive/sessionCookie";
+import {
+  commitDemoSession,
+  ensureDemoSession,
+} from "@/lib/demo/interactive/sessionCookie";
 import { setSessionMode } from "@/lib/demo/interactive/store";
 
 export const dynamic = "force-dynamic";
@@ -16,5 +19,6 @@ export async function POST(req: Request) {
   const next = mode
     ? setSessionMode(session.id, mode, { restart: Boolean(body?.restart) })
     : session;
+  await commitDemoSession(next || session);
   return NextResponse.json({ success: true, session: next || session });
 }

@@ -4,12 +4,17 @@ import test from "node:test";
 import { bridgeDemoRequest } from "../../lib/demo/interactive/bridge";
 import { shouldBlockProductionApi } from "../../lib/demo/interactive/guard";
 import {
+  packDemoSession,
+  unpackDemoSession,
+} from "../../lib/demo/interactive/sessionPack";
+import {
   addGuest,
   assignGuestToTable,
   createSession,
   dropSession,
   expireSession,
   getSession,
+  hydrateSession,
   resetSession,
   saveLead,
   simulateIvrDigit,
@@ -252,4 +257,19 @@ test("tour targets exist on the customer screens", () => {
       plain
     );
   }
+});
+
+test("a packed demo session survives a cleared server memory", () => {
+  const session = createSession();
+  addGuest(session.id, { name: "בדיקת עוגייה", phone: "0501111111" });
+  const packed = packDemoSession(getSession(session.id)!);
+  dropSession(session.id);
+  assert.equal(getSession(session.id), null);
+  const restored = unpackDemoSession(packed);
+  assert.ok(restored);
+  hydrateSession(restored!);
+  const again = getSession(session.id);
+  assert.equal(again?.guests.some((guest) => guest.name === "בדיקת עוגייה"), true);
+  assert.equal(again?.guests.some((guest) => guest.name === "לקוח אמיתי"), false);
+  dropSession(session.id);
 });

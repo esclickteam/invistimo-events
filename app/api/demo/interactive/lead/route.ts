@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { ensureDemoSession } from "@/lib/demo/interactive/sessionCookie";
-import { saveLead } from "@/lib/demo/interactive/store";
+import {
+  commitDemoSession,
+  ensureDemoSession,
+} from "@/lib/demo/interactive/sessionCookie";
+import { getSession, saveLead } from "@/lib/demo/interactive/store";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +27,7 @@ export async function POST(req: Request) {
     email,
     note: String(body?.note || ""),
   });
+  await commitDemoSession(getSession(session.id));
 
   return NextResponse.json({
     success: true,

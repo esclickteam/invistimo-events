@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { applyExplicitDemoAction } from "@/lib/demo/interactive/bridge";
-import { ensureDemoSession } from "@/lib/demo/interactive/sessionCookie";
+import {
+  commitDemoSession,
+  ensureDemoSession,
+} from "@/lib/demo/interactive/sessionCookie";
 import { getSession, patchTour } from "@/lib/demo/interactive/store";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +14,7 @@ export async function POST(req: Request) {
 
   if (body?.type === "tour") {
     const next = patchTour(session.id, body.tour || {});
+    await commitDemoSession(next);
     return NextResponse.json({ success: true, session: next });
   }
 
@@ -23,6 +27,7 @@ export async function POST(req: Request) {
   }
 
   const fresh = getSession(session.id);
+  await commitDemoSession(fresh);
   return NextResponse.json({
     success: true,
     simulated: true,

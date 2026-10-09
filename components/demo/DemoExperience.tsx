@@ -110,6 +110,18 @@ export default function DemoExperience({ children }: Props) {
     if (data?.session) setSession(data.session);
   }
 
+  async function restartTour() {
+    const res = await fetch("/api/demo/interactive", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "guided", restart: true }),
+    });
+    const data = await res.json().catch(() => null);
+    if (data?.session) setSession(data.session);
+    router.push("/try/dashboard");
+  }
+
   async function saveTour(patch: Partial<DemoSession["tour"]>) {
     const res = await fetch("/api/demo/interactive/action", {
       method: "POST",
@@ -169,8 +181,12 @@ export default function DemoExperience({ children }: Props) {
               {Math.min(completed, DEMO_TOUR_STEPS.length)}/{DEMO_TOUR_STEPS.length}
             </span>
           )}
-          <button type="button" className="underline" onClick={() => choose("guided")}>
-            חזרה להדרכה
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void restartTour()}
+          >
+            התחל סיור מחדש
           </button>
           <button type="button" className="underline" onClick={() => void resetDemo()}>
             איפוס

@@ -546,6 +546,14 @@ export function sessionCount() {
   return sessions.size;
 }
 
+export function hydrateSession(session: DemoSession): DemoSession | null {
+  if (!session?.id || session.expiresAt <= now()) return null;
+  const current = sessions.get(session.id);
+  if (current && current.lastSeenAt > session.lastSeenAt) return clone(current);
+  sessions.set(session.id, clone(session));
+  return getSession(session.id);
+}
+
 export function dropSession(id: string) {
   sessions.delete(id);
 }

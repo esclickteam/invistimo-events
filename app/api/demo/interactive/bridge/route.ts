@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { bridgeDemoRequest } from "@/lib/demo/interactive/bridge";
-import { ensureDemoSession } from "@/lib/demo/interactive/sessionCookie";
+import {
+  commitDemoSession,
+  ensureDemoSession,
+} from "@/lib/demo/interactive/sessionCookie";
 import { getSession } from "@/lib/demo/interactive/store";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +24,7 @@ export async function POST(req: Request) {
 
   const result = bridgeDemoRequest(session, method, path, payload);
   const fresh = getSession(session.id);
+  await commitDemoSession(fresh);
   const response = NextResponse.json(
     { ...result.json, demoSession: fresh },
     { status: result.status }
