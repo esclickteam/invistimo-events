@@ -590,6 +590,10 @@ export async function handleIvrAnswered(input: {
     await speakNotReady(claimed, callControlId);
     return { handled: true };
   }
+  if (!playIntro || playIntro.type !== "play_intro") {
+    // Unreachable after the early returns above; keeps the type checker honest.
+    return { handled: true };
+  }
 
   void warmIvrChoiceFollowUps(voiceGender(claimed));
   const played = await playFile(
