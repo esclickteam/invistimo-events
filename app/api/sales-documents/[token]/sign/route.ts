@@ -5,6 +5,7 @@ import SalesDocument from "@/models/SalesDocument";
 import CustomerAgreement from "@/models/CustomerAgreement";
 import EmployeeSale from "@/models/EmployeeSale";
 import User from "@/models/User";
+import { withCurrentQuoteTerms } from "@/lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 
 export const runtime = "nodejs";
@@ -120,11 +121,13 @@ function normalizeSignedDocumentForClient(document: any) {
       ? document.toObject()
       : document || {};
 
-  return sanitizeSalesDocumentForCustomer({
-    ...obj,
-    _id: obj._id ? String(obj._id) : "",
-    createdByUserId: obj.createdByUserId ? String(obj.createdByUserId) : null,
-  });
+  return sanitizeSalesDocumentForCustomer(
+    withCurrentQuoteTerms({
+      ...obj,
+      _id: obj._id ? String(obj._id) : "",
+      createdByUserId: obj.createdByUserId ? String(obj.createdByUserId) : null,
+    }),
+  );
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {

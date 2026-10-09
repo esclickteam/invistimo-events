@@ -27,7 +27,7 @@ export type SeatingScheduleRecord = SeatingScheduleTimes & {
   changes: SeatingScheduleChange[];
 };
 
-export type CustomerSeatingSchedule = SeatingScheduleTimes;
+export type CustomerSeatingSchedule = Partial<SeatingScheduleTimes>;
 
 const FROZEN_STATUSES = new Set(["sent", "viewed", "signed", "expired"]);
 
@@ -196,9 +196,15 @@ export function applySeatingScheduleUpdate({
 export function toCustomerSeatingSchedule(
   record: unknown,
 ): CustomerSeatingSchedule | null {
-  if (!hasApprovedSeatingSchedule(record as Partial<SeatingScheduleRecord>)) {
-    return null;
+  if (!record || typeof record !== "object") return null;
+
+  const source = record as Record<string, unknown>;
+  const visible: CustomerSeatingSchedule = {};
+
+  for (const field of SEATING_SCHEDULE_FIELDS) {
+    const value = normalizeClockTime(source[field.key]);
+    if (value) visible[field.key] = value;
   }
 
-  return readStoredTimes(record as Partial<SeatingScheduleRecord>);
+  return Object.keys(visible).length > 0 ? visible : null;
 }

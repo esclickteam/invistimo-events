@@ -1166,7 +1166,9 @@ export default function SalesDocumentPage() {
                   השעות שלהלן נשמרו כפי שאושרו בעת ההתקשרות.
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {SEATING_SCHEDULE_FIELDS.map((field) => (
+                  {SEATING_SCHEDULE_FIELDS.filter(
+                    (field) => approvedSeatingSchedule[field.key],
+                  ).map((field) => (
                     <Field
                       key={field.key}
                       label={field.label}
