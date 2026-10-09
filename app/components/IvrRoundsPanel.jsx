@@ -590,13 +590,21 @@ export default function IvrRoundsPanel({
   async function loadAll() {
     setLoading(true);
     setError("");
+    const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
-      const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
-      // Never load /api/ivr/voices. New AI speech uses the locked female pack only.
-      // packsReady is not a client gate.
+      // Never load /api/ivr/voices. packsReady is not a client gate.
+      // Settings/rounds must load even when media/R2 is down. 12s hard stop.
       const [cfgRes, statsRes] = await Promise.all([
-        fetch(`/api/ivr/config${qs}`, { credentials: "include" }),
-        fetch(`/api/ivr/rounds/stats${qs}`, { credentials: "include" }),
+        fetch(`/api/ivr/config${qs}`, {
+          credentials: "include",
+          signal: ctrl.signal,
+        }),
+        fetch(`/api/ivr/rounds/stats${qs}`, {
+          credentials: "include",
+          signal: ctrl.signal,
+        }),
       ]);
 
       const cfg = await cfgRes.json().catch(() => null);
@@ -617,15 +625,33 @@ export default function IvrRoundsPanel({
       }
 
       setConfig(cfg);
+      // Stats failure must not blank the whole settings screen.
       setStats(Array.isArray(statsData?.rounds) ? statsData.rounds : []);
+      if (!statsRes.ok || !statsData?.ok) {
+        setMessage((prev) =>
+          prev || "הגדרות נטענו, אך סטטיסטיקות הסבבים לא זמינות כרגע."
+        );
+      }
     } catch (err) {
+      const aborted =
+        (err instanceof Error && err.name === "AbortError") ||
+        (typeof DOMException !== "undefined" &&
+          err instanceof DOMException &&
+          err.name === "AbortError");
       setError(
         customerIvrError(
-          err instanceof Error ? err.message : "",
-          "שגיאה בטעינה"
+          aborted
+            ? "TIMEOUT"
+            : err instanceof Error
+              ? err.message
+              : "",
+          aborted
+            ? "טעינת המסך ארכה יותר מדי. לחצו על נסה שוב."
+            : "שגיאה בטעינה"
         )
       );
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }
@@ -998,14 +1024,55 @@ export default function IvrRoundsPanel({
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-[#E7D8C6] bg-white p-5 text-sm font-bold text-[#8A7867]">
+      <div
+        data-testid="ivr-rounds-loading"
+        className="rounded-2xl border border-[#E7D8C6] bg-white p-5 text-sm font-bold text-[#8A7867]"
+      >
         טוען הגדרות שיחות מוקלטות...
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div
+        data-testid="ivr-rounds-load-error"
+        className="rounded-2xl border border-red-300 bg-red-50 p-5 space-y-3"
+        dir="rtl"
+      >
+        <p className="text-sm font-black text-red-900">
+          {error || "טעינת הגדרות השיחות המוקלטות נכשלה."}
+        </p>
+        <button
+          type="button"
+          data-testid="ivr-rounds-retry"
+          onClick={() => loadAll()}
+          className="rounded-xl bg-[#B97821] px-4 py-2 text-sm font-black text-white"
+        >
+          נסה שוב
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-5" dir="rtl">
+      {error ? (
+        <div
+          data-testid="ivr-rounds-inline-error"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black text-amber-950 flex flex-wrap items-center justify-between gap-2"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            data-testid="ivr-rounds-retry"
+            onClick={() => loadAll()}
+            className="underline"
+          >
+            נסה שוב
+          </button>
+        </div>
+      ) : null}
       <section className="rounded-2xl border border-[#E7D8C6] bg-white p-5">
         <h3 className="text-lg font-black text-[#3A2A1C]">
           תזמון 3 סבבי שיחות מוקלטות

@@ -85,7 +85,35 @@ function composedIntroIsCurrentOutbound(composed: any) {
   );
 }
 
-/** Head R2 so the UI never shows "approved" for a missing/empty file. */
+/**
+ * Page-load safe: no R2/HTTP. Missing token/key marks unplayable; otherwise
+ * leave mediaPlayable null so the browser player reports the real result.
+ * Never blocks GET /api/ivr/config.
+ */
+function attachComposedMediaHealthLight(ivrConfig: any) {
+  const composed = ivrConfig?.composedIntroAudio;
+  if (!composed || typeof composed !== "object") return ivrConfig;
+  if (composed.status !== "ready") {
+    composed.mediaPlayable = false;
+    composed.mediaError = composed.mediaError || "";
+    return ivrConfig;
+  }
+  const hasKey = Boolean(String(composed.r2Key || "").trim());
+  const hasToken = Boolean(String(composed.publicToken || "").trim());
+  if (!hasKey || !hasToken) {
+    composed.mediaPlayable = false;
+    composed.mediaError = !hasKey ? "MISSING_R2_KEY" : "MISSING_TOKEN";
+  } else {
+    composed.mediaPlayable = null;
+    composed.mediaError = "";
+  }
+  return ivrConfig;
+}
+
+/**
+ * Write-path health only (approve/recompose/generate). Timed R2 HEAD — never
+ * nested public HTTP fetch (that deadlocked page load via self-fetch).
+ */
 async function attachComposedMediaHealth(ivrConfig: any) {
   const composed = ivrConfig?.composedIntroAudio;
   if (!composed || typeof composed !== "object") return ivrConfig;
@@ -93,28 +121,17 @@ async function attachComposedMediaHealth(ivrConfig: any) {
     composed.mediaPlayable = false;
     return ivrConfig;
   }
-  const head = await verifyIvrAudioInR2(String(composed.r2Key || ""));
-  composed.mediaPlayable = head.ok === true;
-  composed.mediaBytes = head.sizeBytes || 0;
-  if (!head.ok) {
-    composed.mediaError = head.reason || "MEDIA_UNAVAILABLE";
-    return ivrConfig;
-  }
-  const publicUrl = resolveIvrPublicAudioUrl({
-    publicToken: composed.publicToken,
-    storedUrl: composed.audioUrl,
-  });
-  if (publicUrl) {
-    const http = await verifyIvrPublicAudioHttp(publicUrl);
-    composed.mediaPlayable = http.ok === true;
-    composed.mediaHttpStatus = http.status;
-    if (!http.ok) {
-      composed.mediaError = http.reason || `HTTP_${http.status || "FAIL"}`;
-    } else {
-      composed.mediaError = "";
-    }
-  } else {
-    composed.mediaError = "";
+  try {
+    const head = await verifyIvrAudioInR2(String(composed.r2Key || ""), {
+      timeoutMs: 2500,
+    });
+    composed.mediaPlayable = head.ok === true;
+    composed.mediaBytes = head.sizeBytes || 0;
+    composed.mediaError = head.ok ? "" : head.reason || "MEDIA_UNAVAILABLE";
+  } catch (error) {
+    composed.mediaPlayable = null;
+    composed.mediaError =
+      error instanceof Error ? error.message.slice(0, 80) : "MEDIA_CHECK_FAILED";
   }
   return ivrConfig;
 }
@@ -128,7 +145,7 @@ async function assertSavedComposedMediaPublic(composed: any) {
   if (!url) {
     throw new Error("IVR_COMPOSE_PUBLIC_URL_MISSING");
   }
-  const http = await verifyIvrPublicAudioHttp(url);
+  const http = await verifyIvrPublicAudioHttp(url, { timeoutMs: 8000 });
   if (!http.ok) {
     throw new Error(
       `IVR_COMPOSE_PUBLIC_MEDIA_UNREACHABLE:${http.reason || http.status || "FAIL"}`
@@ -430,7 +447,8 @@ export async function GET(req: NextRequest) {
       });
       approvalReset = true;
     }
-    const ivrConfig = await attachComposedMediaHealth(
+    // Never await R2/HTTP on GET — a hung media check froze the whole screen.
+    const ivrConfig = attachComposedMediaHealthLight(
       serializeIvrConfig(user.ivrConfig || {}, pack)
     );
     ivrConfig.systemVoices = systemVoices.voices.map((v) => ({

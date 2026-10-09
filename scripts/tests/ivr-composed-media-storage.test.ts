@@ -57,6 +57,7 @@ test("compose/recompose verify public media after save", () => {
   assert.match(config, /assertSavedComposedMediaPublic/);
   assert.match(config, /COMPOSE_PUBLIC_MEDIA_UNREACHABLE/);
   assert.match(config, /verifyIvrPublicAudioHttp/);
+  assert.match(config, /attachComposedMediaHealthLight/);
 });
 
 test("preview player does not force CORS crossOrigin on same-origin media", () => {
