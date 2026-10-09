@@ -9,6 +9,12 @@ import {
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
+import SeatingScheduleFields from "@/app/components/sales/SeatingScheduleFields";
+import {
+  emptySeatingScheduleTimes,
+  missingSeatingScheduleLabels,
+  type SeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
 import CallsTypeField, {
   type CallsTypeValue,
 } from "@/app/components/admin/CallsTypeField";
@@ -417,6 +423,84 @@ const DETAILED_VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] = [
       "השירות כולל סיוע בניהול ההושבה ובצמצום הצורך בפתיחת רזרבות מיותרות, ככל שניתן ובהתאם למצב בפועל באירוע.",
       "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
       "ככל שנדרשת חתימה על פתיחת רזרבות מול האולם, החתימה תתבצע על ידי נציג המשפחה או הגורם המוסמך בלבד, ולא על ידי צוות ההושבה.",
+    ],
+  },
+  {
+    title: "אחריות למפת ההושבה",
+    items: [
+      "הלקוח אחראי לוודא שמפת ההושבה, מספרי השולחנות, כמות המקומות, הרשומות והשיבוצים במערכת תואמים למצב בפועל באולם. באחריותו לתאם מראש מול האולם את הסקיצה הסופית ולמסור לצוות מידע מדויק ומעודכן. הצוות יסייע בטיפול בפערים בזמן אמת בהתאם לנסיבות, אך אינו מחליף את אחריות הלקוח להכנת התכנון המקורי.",
+    ],
+  },
+  {
+    title: "שינויים בתנאי ההושבה ובלוחות הזמנים",
+    items: [
+      "מחיר שירותי ההושבה נקבע בהתאם ללוחות הזמנים, שעת הגעת הצוות, שעת תחילת ההושבה, משך השירות, היקף העבודה, מספר אנשי הצוות ותנאי ביצוע השירות כפי שנמסרו ל־Invistimo וסוכמו מראש.",
+      "הלקוח מתחייב להודיע ל־Invistimo בכתב לפחות 48 שעות לפני האירוע על כל שינוי מהותי העלול להשפיע על תנאי השירות, לרבות שינוי בשעת קבלת הפנים, החופה, תחילת ההושבה, פתיחת האולם או סדר התנהלות האירוע.",
+      "שינוי כאמור אינו מבטיח אפשרות להתאמת שעות עבודת הצוות, וההתאמה כפופה לזמינות וליכולת התפעולית של Invistimo.",
+      "מובהר כי שינוי מהותי בתנאי ההושבה עשוי להיחשב לשינוי בהיקף השירות, גם כאשר שעות עבודת הצוות הכוללות אינן מתארכות.",
+      "בין המקרים הרלוונטיים: (1) הושבה שתוכננה להתקיים במהלך קבלת הפנים, אך בפועל ניתן להתחיל בה רק לאחר החופה. (2) דחיית תחילת ההושבה בשל החלטת האולם, הלקוח, מנהל האירוע או מי מטעמם. (3) עיכוב בחופה או בלוחות הזמנים המשפיע על תחילת ההושבה. (4) צורך לבצע הושבה של מספר רב של אורחים בפרק זמן קצר משמעותית מהמתוכנן. (5) אי מוכנות האולם, עמדת ההושבה, השולחנות או הכיסאות בשעה שנקבעה. (6) שינוי מהותי בסידור השולחנות, מספריהם או הקיבולת שלהם ביחס למפה שהועברה מראש. (7) שינוי משמעותי ברגע האחרון בשיבוץ האורחים או במפת ההושבה, המחייב היערכות חריגה. (8) פיצול ההושבה למספר שלבים שלא תוכננו מראש. (9) עיכוב הנגרם בשל היעדר איש קשר מוסמך או עיכוב בקבלת החלטות הנדרשות לביצוע ההושבה. (10) שינוי מהותי בהנחיות האולם, מנהל האירוע או מי מטעם הלקוח. (11) דרישה להארכת עבודת הצוות מעבר לשעות שסוכמו. (12) דרישה לביצוע משימות נוספות שאינן כלולות בשירות שנרכש.",
+    ],
+  },
+  {
+    title: "תשלום בגין דחייה מהותית של תחילת ההושבה",
+    items: [
+      "כאשר צוות Invistimo התייצב במועד שסוכם, אך תחילת ההושבה נדחתה ב־60 דקות או יותר ביחס לשעה שנקבעה מראש, בשל נסיבות שאינן באחריות Invistimo, תחול תוספת תשלום בסך 500 ₪.",
+      "החיוב יחול גם אם שעות העבודה הכוללות לא התארכו, שכן עצם הדחייה משנה את תנאי העבודה ואת אופן ביצוע השירות כפי שתוכננו והוסכמו מראש.",
+      "הוראה זו חלה, בין היתר, כאשר הושבה שהייתה אמורה להתחיל במהלך קבלת הפנים מתאפשרת בפועל רק לאחר החופה, או כאשר האולם אינו מאפשר את תחילת ההושבה במועד שסוכם.",
+      "דחייה קצרה מ־60 דקות לא תיצור חיוב מכוח הוראת דחייה זו בלבד.",
+      "החיוב יחול רק כאשר שעת תחילת ההושבה המתוכננת נמסרה והוסכמה מראש וניתן לקבוע את משך הדחייה בפועל.",
+    ],
+  },
+  {
+    title: "עבודה חריגה, עומס בלתי מתוכנן ושינויים מהותיים",
+    items: [
+      "כאשר שינוי בלתי מתוכנן בתנאי ההושבה מחייב את הצוות לבצע עבודה נוספת או עבודה מוגברת באופן מהותי שאינה כלולה בהיקף השירות המקורי, עשויה לחול תוספת תשלום נפרדת, בהתאם לתעריף מפורש שהוצג ואושר מראש בהצעת המחיר.",
+      "בכלל זה: ארגון מחדש של מפת הושבה שאינה תואמת את האולם, שינוי רחב בשיבוץ האורחים, דחיסת ההושבה לפרק זמן קצר באופן מהותי או שינוי חריג במתכונת השירות.",
+      "אין לקבוע חיוב אוטומטי או סכום נוסף בגין עבודה חריגה שאינה נמדדת בשעות, כל עוד לא הוגדר ואושר עבורה תעריף ברור מראש. אין לגבות פעמיים בגין אותה חריגה.",
+    ],
+  },
+  {
+    title: "הארכת שעות השירות",
+    items: [
+      "במקרה שבו נדרשת הארכת עבודת צוות ההושבה או המתנתו מעבר למסגרת השעות שסוכמה מראש, תחול תוספת תשלום בסך 500 ₪ לכל שעה נוספת או חלק ממנה, עבור צוות ההושבה שנקבע בהזמנה.",
+      "הארכת השירות תתאפשר אך ורק בהתאם לזמינות אנשי הצוות וליכולת התפעולית של Invistimo.",
+      "מובהר כי Invistimo אינה מתחייבת להאריך את שעות השירות מעבר למסגרת שסוכמה, גם כאשר הלקוח מבקש זאת או מסכים לשלם את התוספת.",
+      "עיכוב בתחילת ההושבה אינו מאריך באופן אוטומטי את שעות השירות שנרכשו.",
+      "לא ייגבה תשלום נוסף עבור שעות או פעולות שכבר כלולות בחבילה, או עבור חריגה שנגרמה באחריות Invistimo.",
+      "ככל שקיים חיוב בגין דחיית תחילת ההושבה לצד חיוב בגין שעות נוספות, יש להפריד בפירוט החיוב בין שתי העילות, ולא לגבות פעמיים בגין אותו פרק זמן.",
+    ],
+  },
+  {
+    title: "מסירת אנשי קשר עד 24 שעות לפני האירוע",
+    items: [
+      "הלקוח מתחייב להעביר ל־Invistimo, בכתב, לא יאוחר מ־24 שעות לפני תחילת האירוע, את פרטיו של איש קשר מוסמך מטעמו שיהיה זמין לאורך כל זמן פעילות צוות ההושבה.",
+      "הפרטים יכללו שם מלא, מספר טלפון נייד ותפקיד או קשר לבעלי האירוע.",
+      "באחריות הלקוח לוודא שאיש הקשר מודע למינויו, מסכים לקבל את הפניות, מכיר את מפת ההושבה ואת הנחיות האירוע, ומוסמך לקבל החלטות תפעוליות ולתת מענה בזמן אמת.",
+      "הלקוח רשאי למסור פרטים של יותר מאיש קשר אחד, ובמקרה כזה עליו להבהיר את תחומי הסמכות של כל אחד מהם.",
+      "אנשי צוות Invistimo יתנהלו בנושאים התפעוליים של ההושבה מול אנשי הקשר שהוגדרו ונמסרו על ידי הלקוח בלבד.",
+      "הצוות אינו מחויב לקבל הוראות מגורמים אחרים באולם, לרבות קרובי משפחה, אורחים או נציגים שלא הוסמכו לכך על ידי הלקוח, ואינו מחויב לפנות לבני הזוג במהלך האירוע לצורך קבלת החלטות שוטפות.",
+      "הוראה זו אינה מונעת תיאום מקצועי הכרחי עם צוות האולם בנושאי בטיחות, גישה, לוגיסטיקה והפעלת השירות, אך אין בתיאום כזה כדי להעניק לאולם סמכות להתחייב בשם הלקוח.",
+      "אם הלקוח לא מסר איש קשר במועד, מסר פרטים שגויים, או שאיש הקשר אינו זמין או אינו מוסמך לקבל החלטות, האחריות לעיכובים ולתוצאות הנובעות מכך תחול על הלקוח, ככל שאינן נובעות ממעשה או מחדל שבאחריות Invistimo.",
+    ],
+  },
+  {
+    title: "איש קשר המורשה לחתום על רזרבות",
+    items: [
+      "באחריות הלקוח לדאוג לכך שבין אנשי הקשר שמסר יהיה לפחות אדם אחד הנוכח באולם בזמן ההושבה, בעל סמכות מלאה לאשר ולחתום מול האולם על פתיחת שולחנות רזרבה, תוספת מקומות וכל התחייבות כספית הנובעת מכך.",
+      "איש הקשר חייב להיות זמין לקבלת החלטות בזמן אמת.",
+      "צוות Invistimo רשאי להציג את מצב ההושבה, להמליץ על פתרונות, לשקף את מספר המקומות הפנויים ולסייע בצמצום הצורך בפתיחת רזרבות.",
+      "פתיחת רזרבות, אישור תוספת כספית או חתימה על התחייבויות מול האולם הם באחריות הלקוח או הגורם שהוסמך על ידו בלבד.",
+      "אנשי צוות Invistimo אינם מוסמכים לחתום בשם הלקוח, להתחייב לתשלום מול האולם או לקבל החלטות כספיות המחייבות אותו.",
+    ],
+  },
+  {
+    title: "חובת תשלום בסיום עבודת הצוות",
+    items: [
+      "האחריות להסדרת מלוא יתרת התשלום עבור שירותי הדיילות וההושבה חלה על הלקוח שהזמין את השירות.",
+      "כאשר נקבע בהזמנה כי יתרת התשלום תשולם ביום האירוע, הלקוח מתחייב להסדירה מיד עם סיום עבודתם של אנשי הצוות, בהתאם לסכומים ולתנאי התשלום שסוכמו.",
+      "באחריות הלקוח לדאוג מראש לאמצעי תשלום זמין ולאיש קשר מוסמך מטעמו אשר יהיה אחראי להעברת התשלום במועד.",
+      "אי זמינותם של בני הזוג, איש הקשר או מי מטעמם, עומס במהלך האירוע או עיכוב מצד הלקוח אינם מהווים עילה לדחיית מועד התשלום.",
+      "גם כאשר התשלום בפועל מתבצע באמצעות גורם אחר שמונה על ידי הלקוח, האחריות להסדרת התשלום נותרת על הלקוח שהזמין את השירות.",
     ],
   },
 ];
@@ -1225,6 +1309,8 @@ export default function NewEmployeeSalePage() {
   const [eventDate, setEventDate] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [seatingScheduleTimes, setSeatingScheduleTimes] =
+    useState<SeatingScheduleTimes>(() => emptySeatingScheduleTimes());
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
@@ -1525,6 +1611,9 @@ export default function NewEmployeeSalePage() {
       city: effectiveEventCity,
       venueName: effectiveVenueName,
     },
+    ...(selectedUpsellsList.some((upsell) => upsell.key === "venueSeating")
+      ? { seatingSchedule: seatingScheduleTimes }
+      : {}),
     quote: {
       createdAt: quoteCreatedAt,
       expiresAt: quoteExpiresAt,
@@ -1592,7 +1681,7 @@ export default function NewEmployeeSalePage() {
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
     engagementTerms: ENGAGEMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const customerFilePayload = useMemo(() => ({
     source: "employee_sale",
@@ -1684,6 +1773,9 @@ export default function NewEmployeeSalePage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
 
     return missing;
   }
@@ -1693,6 +1785,9 @@ export default function NewEmployeeSalePage() {
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (selectedUpsells.venueSeating) {
+      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
+    }
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
@@ -2267,6 +2362,13 @@ export default function NewEmployeeSalePage() {
                             })}
                           </div>
                         </div>
+                      )}
+
+                      {upsell.key === "venueSeating" && selected && (
+                        <SeatingScheduleFields
+                          value={seatingScheduleTimes}
+                          onChange={setSeatingScheduleTimes}
+                        />
                       )}
 
                       {upsell.key === "alcoholManagement" && selected && (
