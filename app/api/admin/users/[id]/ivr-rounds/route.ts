@@ -321,119 +321,48 @@ async function buildRoundsPayload(
           ? "סומן כהושלם אך נותרו אורחים זכאים"
           : "";
 
-    const reopenableStatus =
-      executionStatus === "done" ||
-      executionStatus === "failed" ||
-      executionStatus === "cancelled";
+    const failureReasonRaw = String(scheduleRound?.failureReason || "");
+    const blocked =
+      executionStatus === "cancelled" &&
+      (/חסום|נעצר ידנית|blocked/i.test(failureReasonRaw) ||
+        failureReasonRaw.includes("אדמין"));
 
-    const canOpen =
-      eventActive &&
-      audio.audioReady &&
-      remaining > 0 &&
-      !liveDialDisabled &&
-      liveCount === 0 &&
-      (executionStatus === "draft" || executionStatus === "scheduled");
+    // Parity with WhatsApp/SMS: reopen/block always available (except live dials).
+    const canReset = liveCount === 0;
+    const canBlock = liveCount === 0 && !blocked;
+    const canUnblock = liveCount === 0 && blocked;
 
-    const canReopen =
-      eventActive &&
-      audio.audioReady &&
-      remaining > 0 &&
-      !liveDialDisabled &&
-      liveCount === 0 &&
-      reopenableStatus;
-
-    const showReopen =
-      reopenableStatus && liveCount === 0 && remaining > 0;
-    const canRepairStatus =
-      executionStatus === "done" && dialed === 0 && liveCount === 0;
-
-    const canStop =
-      liveCount > 0 ||
-      executionStatus === "in_progress" ||
-      executionStatus === "scheduled" ||
-      executionStatus === "draft";
-    const canResume =
-      executionStatus === "cancelled" || executionStatus === "failed";
-
-    const blockReasons: string[] = [];
+    const dialGateNotes: string[] = [];
     if (!eventActive) {
-      blockReasons.push(
+      dialGateNotes.push(
         eventInfo.eventBlockReason || "האירוע אינו פעיל"
       );
     }
     if (!audio.audioReady) {
-      blockReasons.push(audio.audioBlockReason || "אין קריינות מאושרת ונגישה");
+      dialGateNotes.push(
+        audio.audioBlockReason || "אין קריינות מאושרת ונגישה"
+      );
     }
     if (remaining < 1) {
-      blockReasons.push(
+      dialGateNotes.push(
         breakdown.filterReasons[0]
-          ? `אין אורחים זכאים לחיוג (${breakdown.filterReasons.join(" · ")})`
+          ? `אין אורחים זכאים (${breakdown.filterReasons.join(" · ")})`
           : "אין אורחים זכאים לחיוג"
       );
     }
-    if (liveDialDisabled) blockReasons.push("חיוגים מושבתים זמנית במערכת");
-    if (liveCount > 0) blockReasons.push("יש שיחות פעילות בסבב");
-    if (executionStatus === "done" && !canReopen) {
-      blockReasons.push("הסבב כבר הושלם");
-    }
-    if (executionStatus === "done" && canReopen) {
-      blockReasons.push("הסבב סומן כהושלם — יש לפתוח מחדש לזכאים שנותרו");
-    }
-    if (executionStatus === "failed" && !canReopen) {
-      blockReasons.push("הסבב נכשל");
-    }
-    if (executionStatus === "in_progress" && liveCount === 0) {
-      blockReasons.push("סטטוס מתבצע ללא שיחות חיות — רעננו או פתחו מחדש");
-    }
-    if (executionStatus === "in_progress" && liveCount > 0) {
-      blockReasons.push("הסבב כבר מתבצע");
-    }
-    if (executionStatus === "cancelled" && !canReopen) {
-      blockReasons.push("הסבב נעצר");
-    }
-    if (statusMismatch) blockReasons.push(statusMismatch);
-
-    const nextSteps: string[] = [];
-    if (!eventActive) {
-      nextSteps.push(
-        eventInfo.eventBlockReason || "יש להפעיל את האירוע/המשתמש"
-      );
-    }
-    if (!audio.audioReady) {
-      if (canApproveAudio) {
-        nextSteps.push("להאזין לקריינות המחוברת ולאשר אותה באדמין");
-      } else if (
-        audioDiagnostics.composeVersion !==
-        audioDiagnostics.requiredComposeVersion
-      ) {
-        nextSteps.push(
-          "ליצור מחדש את הקובץ המחובר אצל הלקוח (גרסת compose ישנה) ואז לאשר"
-        );
-      } else {
-        nextSteps.push("להשלים קריינות מוכנה ומאושרת אצל הלקוח");
-      }
-    }
-    if (remaining < 1) {
-      nextSteps.push("אין למי לחייג כרגע — כל הזכאים כבר עם תשובה סופית או בלי טלפון");
-    }
-    if (showReopen && !canReopen) {
-      nextSteps.push("לאחר עמידה בתנאי הבטיחות — לחצו ״פתח מחדש סבב״");
-    } else if (canReopen) {
-      nextSteps.push("ניתן לפתוח מחדש — יחייגו רק זכאים שנותרו (בלי איפוס RSVP)");
-    } else if (canOpen) {
-      nextSteps.push("ניתן לפתוח את הסבב עכשיו");
-    } else if (canRepairStatus) {
-      nextSteps.push("ניתן לתקן סטטוס ״הושלם״ השגוי (ללא חיוג)");
-    }
+    if (liveDialDisabled) dialGateNotes.push("חיוגים מושבתים זמנית במערכת");
+    if (blocked) dialGateNotes.push("הסבב חסום באדמין");
+    if (statusMismatch) dialGateNotes.push(statusMismatch);
 
     return {
       round,
       title: `סבב ${round} — שיחות אישורי הגעה`,
       status: executionStatus,
-      statusLabel: statusLabel(executionStatus),
+      statusLabel: blocked ? "חסום" : statusLabel(executionStatus),
       statusMismatch,
-      failureReason: scheduleRound?.failureReason
-        ? explainIvrCallFailure(String(scheduleRound.failureReason))
+      blocked,
+      failureReason: failureReasonRaw
+        ? explainIvrCallFailure(failureReasonRaw)
         : "",
       scheduledAt: scheduleRound?.scheduledAt || null,
       scheduledAtInput: formatCallRoundDateTimeInput(scheduleRound?.scheduledAt),
@@ -444,14 +373,12 @@ async function buildRoundsPayload(
       finalAnsweredCount: breakdown.finalAnswered,
       eligibility: breakdown,
       liveCount,
-      canOpen,
-      canReopen,
-      showReopen,
-      canRepairStatus,
-      canStop,
-      canResume,
-      blockReasons,
-      nextSteps,
+      canReset,
+      canBlock,
+      canUnblock,
+      // Dial gates are informational only — reopen/block do not require them.
+      dialGateNotes,
+      blockReasons: dialGateNotes,
     };
   });
 
@@ -688,25 +615,44 @@ export async function POST(
       action === "stop" ||
       action === "resume" ||
       action === "reopen" ||
+      action === "reset" ||
+      action === "block" ||
+      action === "unblock" ||
       action === "repair_status"
     ) {
-      const result =
+      const normalizedAction =
         action === "repair_status"
-          ? await setIvrRoundAdminStatus({
-              userId: String(user._id),
-              round,
-              action: "reopen",
-              invitationId: invitation ? String(invitation._id) : undefined,
-            })
-          : await setIvrRoundAdminStatus({
-              userId: String(user._id),
-              round,
-              action,
-              invitationId: invitation ? String(invitation._id) : undefined,
-            });
+          ? "reopen"
+          : action === "reset"
+            ? "reopen"
+            : action === "block"
+              ? "block"
+              : action === "unblock"
+                ? "unblock"
+                : action;
+
+      const result = await setIvrRoundAdminStatus({
+        userId: String(user._id),
+        round,
+        action: normalizedAction as
+          | "stop"
+          | "resume"
+          | "reopen"
+          | "block"
+          | "unblock"
+          | "reset",
+        invitationId: invitation ? String(invitation._id) : undefined,
+      });
       if (!result.ok) {
         return NextResponse.json(result, { status: 400 });
       }
+
+      const auditAction =
+        normalizedAction === "block" || normalizedAction === "stop"
+          ? "admin_ivr_round_block"
+          : normalizedAction === "unblock" || normalizedAction === "resume"
+            ? "admin_ivr_round_unblock"
+            : "admin_ivr_round_reopen";
 
       await writeAdminAuditLog({
         adminUserId: String(auth.userId),
@@ -717,21 +663,14 @@ export async function POST(
         managedUserEmail: cleanStr(user.email),
         eventId,
         invitationId: invitation ? String(invitation._id) : null,
-        action:
-          action === "stop"
-            ? "admin_ivr_round_stop"
-            : action === "reopen" || action === "repair_status"
-              ? "admin_ivr_round_reopen"
-              : "admin_ivr_round_resume",
+        action: auditAction,
         summary:
-          action === "stop"
-            ? `עצירת סבב IVR ${round} עבור ${user.name || user.email}`
-            : action === "repair_status"
-              ? `תיקון סטטוס סבב IVR ${round} עבור ${user.name || user.email}`
-              : action === "reopen"
-                ? `פתיחה מחדש של סבב IVR ${round} עבור ${user.name || user.email}`
-                : `חידוש סבב IVR ${round} עבור ${user.name || user.email}`,
-        meta: { round, status: result.status, action },
+          auditAction === "admin_ivr_round_block"
+            ? `חסימת סבב IVR ${round} עבור ${user.name || user.email}`
+            : auditAction === "admin_ivr_round_unblock"
+              ? `ביטול חסימת סבב IVR ${round} עבור ${user.name || user.email}`
+              : `פתיחה מחדש של סבב IVR ${round} עבור ${user.name || user.email} (ללא חיוג)`,
+        meta: { round, status: result.status, action: normalizedAction },
       });
 
       const refreshed = await loadIvrTarget(id);
@@ -757,8 +696,22 @@ export async function POST(
       if (action === "preview") {
         const payload = await buildRoundsPayload(user, preferredInvitationId);
         const row = payload.rounds.find((r) => r.round === round);
-        const canProceed =
-          Boolean(row?.canOpen) || (reopenIfDone && Boolean(row?.canReopen));
+        const status = String(row?.status || "");
+        const dialReady =
+          Boolean(payload.eventActive) &&
+          Boolean(payload.audioReady) &&
+          !payload.liveDialDisabled &&
+          !row?.blocked &&
+          Number(row?.liveCount || 0) === 0 &&
+          Number(row?.eligibleCount || 0) > 0;
+        const statusAllowsOpen =
+          status === "draft" ||
+          status === "scheduled" ||
+          (reopenIfDone &&
+            (status === "done" ||
+              status === "failed" ||
+              status === "cancelled"));
+        const canProceed = dialReady && statusAllowsOpen;
         return NextResponse.json({
           ok: true,
           preview: true,
@@ -771,12 +724,13 @@ export async function POST(
           status: row?.status,
           statusLabel: row?.statusLabel,
           statusMismatch: row?.statusMismatch || "",
-          canOpen: row?.canOpen ?? false,
-          canReopen: row?.canReopen ?? false,
-          showReopen: row?.showReopen ?? false,
+          blocked: row?.blocked ?? false,
+          canReset: row?.canReset ?? false,
+          canBlock: row?.canBlock ?? false,
+          canUnblock: row?.canUnblock ?? false,
           canProceed,
-          blockReasons: row?.blockReasons ?? [],
-          nextSteps: row?.nextSteps ?? [],
+          blockReasons: row?.blockReasons ?? row?.dialGateNotes ?? [],
+          dialGateNotes: row?.dialGateNotes ?? [],
           audioReady: payload.audioReady,
           audioBlockReason: payload.audioBlockReason,
           audioDiagnostics: payload.audioDiagnostics,

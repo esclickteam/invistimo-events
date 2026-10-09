@@ -800,11 +800,19 @@ export async function openIvrRoundManually(input: {
   };
 }
 
-/** Controlled stop / resume / reopen of a scheduled IVR round (admin). */
+/**
+ * Admin parity with WhatsApp/SMS message-round controls:
+ * - reset / reopen: clear execution lock so the round can be rescheduled
+ * - block / stop: cancel so cron/manual dial will not run
+ * - unblock / resume: clear an admin block
+ *
+ * Never dials. Never deletes IvrCallAttempt history or guest RSVP.
+ * Audio approval is checked only later inside executeIvrRound.
+ */
 export async function setIvrRoundAdminStatus(input: {
   userId: string;
   round: number;
-  action: "stop" | "resume" | "reopen";
+  action: "stop" | "resume" | "reopen" | "block" | "unblock" | "reset";
   now?: Date;
   invitationId?: string;
 }) {
@@ -814,6 +822,15 @@ export async function setIvrRoundAdminStatus(input: {
   }
 
   const now = input.now || new Date();
+  const action =
+    input.action === "block"
+      ? "stop"
+      : input.action === "unblock"
+        ? "resume"
+        : input.action === "reset"
+          ? "reopen"
+          : input.action;
+
   const user = (await User.findById(input.userId)
     .select("_id callRoundsSchedule includeCalls callsType")
     .lean()) as any;
@@ -826,123 +843,111 @@ export async function setIvrRoundAdminStatus(input: {
     };
   }
 
-  const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
+  const existingRounds = Array.isArray(user?.callRoundsSchedule?.rounds)
     ? [...user.callRoundsSchedule.rounds]
     : [];
+
+  // Ensure all three IVR rounds exist (same shape the client schedule uses).
+  const rounds = [1, 2, 3].map((roundNumber) => {
+    const existing = existingRounds.find(
+      (item: any) => Number(item?.roundNumber || item?.round || 0) === roundNumber
+    );
+    if (existing) return { ...existing, roundNumber };
+    return {
+      roundNumber,
+      title: `סבב מוקלט ${roundNumber}`,
+      scheduledAt: null,
+      callType: "ivr",
+      status: "draft",
+      notes: "",
+      failureReason: "",
+      dialClaimedAt: null,
+      openedAt: null,
+      tasksCreated: null,
+      updatedAt: now,
+      createdAt: now,
+    };
+  });
+
   const idx = rounds.findIndex(
     (item: any) => Number(item?.roundNumber || item?.round || 0) === round
   );
-  if (idx < 0) {
-    return { ok: false as const, error: "ROUND_MISSING", message: "הסבב לא מוגדר" };
-  }
-
   const current = rounds[idx];
-  const status = String(current?.status || "")
-    .trim()
-    .toLowerCase();
 
-  if (input.action === "stop") {
-    if (status === "done" || status === "completed") {
+  if (input.invitationId) {
+    const live = await countOccupiedOutboundCallsForRound(
+      String(input.invitationId),
+      round
+    );
+    if (live > 0 && (action === "reopen" || action === "stop")) {
       return {
         ok: false as const,
-        error: "ALREADY_DONE",
-        message: "לא ניתן לעצור סבב שהושלם",
+        error: "ROUND_ALREADY_RUNNING",
+        message: "יש שיחות פעילות בסבב — אין לשנות סטטוס תוך כדי חיוג",
       };
     }
+  }
+
+  if (action === "stop") {
+    // Block like WhatsApp/SMS — allowed even when previously marked done.
+    rounds[idx] = {
+      ...current,
+      status: "cancelled",
+      dialClaimedAt: null,
+      failureReason: "חסום ידנית מהאדמין",
+      updatedAt: now,
+    };
     await User.updateOne(
-      {
-        _id: user._id,
-        "callRoundsSchedule.rounds.roundNumber": round,
-      },
+      { _id: user._id },
       {
         $set: {
-          "callRoundsSchedule.rounds.$.status": "cancelled",
-          "callRoundsSchedule.rounds.$.dialClaimedAt": null,
-          "callRoundsSchedule.rounds.$.updatedAt": now,
-          "callRoundsSchedule.rounds.$.failureReason": "נעצר ידנית מהאדמין",
+          callRoundsSchedule: {
+            enabled: true,
+            rounds,
+          },
         },
       }
     );
-    return { ok: true as const, status: "cancelled" };
+    return { ok: true as const, status: "cancelled", blocked: true };
   }
 
-  if (input.action === "reopen") {
-    if (
-      status !== "done" &&
-      status !== "completed" &&
-      status !== "failed" &&
-      status !== "cancelled" &&
-      status !== "canceled"
-    ) {
-      return {
-        ok: false as const,
-        error: "NOT_REOPENABLE",
-        message: "ניתן לפתוח מחדש רק סבב שהושלם, נכשל או נעצר",
-      };
-    }
-
-    if (input.invitationId) {
-      const live = await countOccupiedOutboundCallsForRound(
-        String(input.invitationId),
-        round
-      );
-      if (live > 0) {
-        return {
-          ok: false as const,
-          error: "ROUND_ALREADY_RUNNING",
-          message: "יש שיחות פעילות בסבב — אין לפתוח מחדש תוך כדי חיוג",
-        };
-      }
-    }
-
+  if (action === "reopen" || action === "resume") {
     const hasSchedule = Boolean(parseCallRoundScheduledAt(current?.scheduledAt));
     const nextStatus = hasSchedule ? "scheduled" : "draft";
-    // Reopen only resets execution status. Attempts and guest RSVP stay intact.
+    // Reset execution lock only. Attempts and guest RSVP stay intact.
+    // Allowed even when narration is not approved — dial gates run later.
+    rounds[idx] = {
+      ...current,
+      status: nextStatus,
+      dialClaimedAt: null,
+      failureReason: "",
+      // Keep openedAt/tasksCreated history markers; do not wipe dial history.
+      updatedAt: now,
+    };
     await User.updateOne(
-      {
-        _id: user._id,
-        "callRoundsSchedule.rounds.roundNumber": round,
-      },
+      { _id: user._id },
       {
         $set: {
-          "callRoundsSchedule.rounds.$.status": nextStatus,
-          "callRoundsSchedule.rounds.$.dialClaimedAt": null,
-          "callRoundsSchedule.rounds.$.failureReason": "",
-          "callRoundsSchedule.rounds.$.updatedAt": now,
+          callRoundsSchedule: {
+            enabled: true,
+            rounds,
+          },
         },
       }
     );
-    return { ok: true as const, status: nextStatus };
-  }
-
-  // resume
-  if (status !== "cancelled" && status !== "canceled" && status !== "failed") {
     return {
-      ok: false as const,
-      error: "NOT_RESUMABLE",
-      message: "ניתן לחדש רק סבב שנעצר או נכשל",
+      ok: true as const,
+      status: nextStatus,
+      blocked: false,
+      reopened: true,
     };
   }
 
-  const hasSchedule = Boolean(parseCallRoundScheduledAt(current?.scheduledAt));
-  const nextStatus = hasSchedule ? "scheduled" : "draft";
-
-  await User.updateOne(
-    {
-      _id: user._id,
-      "callRoundsSchedule.rounds.roundNumber": round,
-    },
-    {
-      $set: {
-        "callRoundsSchedule.rounds.$.status": nextStatus,
-        "callRoundsSchedule.rounds.$.dialClaimedAt": null,
-        "callRoundsSchedule.rounds.$.failureReason": "",
-        "callRoundsSchedule.rounds.$.updatedAt": now,
-      },
-    }
-  );
-
-  return { ok: true as const, status: nextStatus };
+  return {
+    ok: false as const,
+    error: "UNKNOWN_ACTION",
+    message: "פעולה לא מוכרת",
+  };
 }
 
 function resolveReadySelfAudio(user: any): string {
