@@ -846,6 +846,7 @@ export default function CheckInHostClient({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            data-tour="checkin-search"
             placeholder="שם או טלפון..."
             className="w-full rounded-[14px] border border-[#E3D6C3] bg-white px-4 py-3 text-sm font-bold text-[#241A14] outline-none focus:border-[#B88A2D]"
           />

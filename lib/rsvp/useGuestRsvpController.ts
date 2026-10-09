@@ -125,9 +125,12 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
         }
 
         const queryString = query.toString();
+        const demoShare = shareId === "demo-share";
         const res = await fetch(
-          `/api/invite/${shareId}${queryString ? `?${queryString}` : ""}`,
-          { cache: "no-store" }
+          demoShare
+            ? `/api/demo/interactive/public-invite${queryString ? `?${queryString}` : ""}`
+            : `/api/invite/${shareId}${queryString ? `?${queryString}` : ""}`,
+          { cache: "no-store", credentials: demoShare ? "include" : "same-origin" }
         );
         const data = await res.json().catch(() => ({}));
 
@@ -279,12 +282,16 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
           arrivedCount: nextArrivedCount(form.rsvp, form.arrivedCount),
         });
 
+        const demoShare = shareId === "demo-share";
         const res = await fetch(
-          `/api/invitationGuests/respondByToken/${guestToken}`,
+          demoShare
+            ? "/api/demo/interactive/respond"
+            : `/api/invitationGuests/respondByToken/${guestToken}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            credentials: demoShare ? "include" : "same-origin",
+            body: JSON.stringify(demoShare ? { ...payload, token: guestToken } : payload),
           }
         );
 

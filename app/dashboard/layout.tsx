@@ -275,7 +275,7 @@ function DashboardLayoutInner({
   if (showSidebar) {
     return (
       <div className="h-[100vh] overflow-hidden bg-[#faf7f3]" dir="rtl">
-        <AdminManageBanner />
+        {!isDemo && <AdminManageBanner />}
         <DashboardSidebar
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -313,7 +313,7 @@ function DashboardLayoutInner({
 
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      <AdminManageBanner />
+      {!isDemo && <AdminManageBanner />}
       {header}
 
       {/* Legacy mobile menu kept for seating / game-only paths without sidebar */}

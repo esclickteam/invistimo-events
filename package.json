@@ -21,6 +21,7 @@
     "test:wedding-challenges": "npx tsx --test scripts/tests/wedding-challenges-assignment.test.ts scripts/tests/wedding-challenges-sms.test.ts",
     "weddingWebsite:palette": "npx tsx scripts/weddingWebsite/generate-template-palette.ts",
     "test:guest-link-open": "npx tsx --test scripts/tests/guest-link-open.test.ts",
+    "test:interactive-demo": "npx tsx --test --test-force-exit scripts/tests/interactive-demo.test.ts",
     "test:guest-link-open-db": "npx tsx --test --test-force-exit scripts/tests/guest-link-open-db.test.ts",
     "test:whatsapp-sms-fallback-db": "npx tsx --test --test-force-exit scripts/tests/whatsapp-sms-fallback-db.test.ts",
     "test:live-event-details-rounds": "npx tsx --test scripts/tests/live-event-details-rounds.test.ts",

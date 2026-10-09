@@ -53,7 +53,15 @@ export default function DashboardMobileMenu({
   isDemo = false,
 }: Props) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const user = isDemo
+    ? {
+        role: "user",
+        includeCalls: true,
+        callsType: "ivr",
+        plan: "premium",
+      }
+    : authUser;
   const [showDemoModal, setShowDemoModal] = useState(false);
   const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
   const canOpenGuestMessages = hasGuestMessagesFeature(user);
@@ -77,7 +85,7 @@ export default function DashboardMobileMenu({
     if (!invitationShareId) return;
 
     if (isDemo) {
-      demoBlock();
+      go("/invite/demo-share");
       return;
     }
 
@@ -168,7 +176,7 @@ export default function DashboardMobileMenu({
       hidden: gameOnly,
       onClick: () => {
         if (isDemo) {
-          demoBlock();
+          go(`/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`);
           return;
         }
 
@@ -231,10 +239,9 @@ export default function DashboardMobileMenu({
         : "המשחק של האירוע הזה",
       icon: WandSparkles,
       badge: canOpenWeddingChallenges ? "Live" : "299 ₪",
-      hidden: false,
+      hidden: isDemo,
       onClick: () => {
         if (isDemo) {
-          go("/live/demo");
           return;
         }
         go(
@@ -263,7 +270,7 @@ export default function DashboardMobileMenu({
       hidden: gameOnly || !canOpenRecordedCalls,
       onClick: () => {
         if (isDemo) {
-          demoBlock();
+          go("/try/dashboard/recorded-calls");
           return;
         }
         go("/dashboard/recorded-calls");

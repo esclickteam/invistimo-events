@@ -36,7 +36,7 @@ export default function DemoToast({ open, onClose }: DemoToastProps) {
         "
       >
         <span className="leading-relaxed">
-          🧪 בדמו ניתן לצפות בדשבורד, הושבה והודעות בלבד.{" "}
+          בדמו הפעולה נשארת בתוך סביבת הדוגמה.{" "}
           <a
             href="https://www.invistimo.com/pricing"
             className="

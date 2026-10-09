@@ -107,6 +107,7 @@ function NavButton({
     <li>
       <button
         type="button"
+        data-tour={`nav-${item.id}`}
         onClick={onClick}
         title={item.label}
         className={`
@@ -151,7 +152,21 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const user = isDemo
+    ? {
+        role: "user",
+        includeCalls: true,
+        callsType: "ivr",
+        includeDigitalSeating: true,
+        plan: "premium",
+        accessModules: {
+          checkIn: true,
+          liveDashboard: true,
+          rsvpSeating: true,
+        },
+      }
+    : authUser;
   const [hash, setHash] = useState("");
   const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
 
@@ -207,12 +222,16 @@ export default function DashboardSidebar({
   const dashboardHome = isDemo ? "/try/dashboard" : "/dashboard";
 
   const { mainItems, serviceItems } = useMemo(() => {
-    const invitationHref = invitationId
-      ? `/dashboard/edit-invite/${invitationId}`
-      : "/dashboard/create-invite";
-    const eventDetailsHref = invitationId
-      ? `/dashboard/invitations/${invitationId}/edit`
-      : dashboardHome;
+    const invitationHref = isDemo
+      ? `/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`
+      : invitationId
+        ? `/dashboard/edit-invite/${invitationId}`
+        : "/dashboard/create-invite";
+    const eventDetailsHref = isDemo
+      ? `/try/dashboard/invitations/${invitationId || "demo-invitation"}/edit`
+      : invitationId
+        ? `/dashboard/invitations/${invitationId}/edit`
+        : dashboardHome;
     const messagesHref = isDemo
       ? "/try/dashboard/messages/new"
       : "/dashboard/messages/new";
@@ -251,15 +270,17 @@ export default function DashboardSidebar({
         id: "invitation-preview",
         label: "צפייה בהזמנה",
         icon: Eye,
-        href: invitationShareId
-          ? getGuestInvitationUrl({
-              shareId: invitationShareId,
-              rsvpSiteMode: rsvpSiteMode ?? guestExperienceType,
-              guestExperienceType,
-              origin: "",
-            })
-          : "",
-        external: true,
+        href: isDemo
+          ? "/invite/demo-share"
+          : invitationShareId
+            ? getGuestInvitationUrl({
+                shareId: invitationShareId,
+                rsvpSiteMode: rsvpSiteMode ?? guestExperienceType,
+                guestExperienceType,
+                origin: "",
+              })
+            : "",
+        external: !isDemo,
         hidden: gameOnly || !invitationShareId,
       },
       {
@@ -303,9 +324,11 @@ export default function DashboardSidebar({
         id: "recorded-calls",
         label: "שיחות מוקלטות",
         icon: Phone,
-        href: "/dashboard/recorded-calls",
+        href: isDemo ? "/try/dashboard/recorded-calls" : "/dashboard/recorded-calls",
         hidden: !isIvrCalls,
-        match: (path) => path.startsWith("/dashboard/recorded-calls"),
+        match: (path) =>
+          path.startsWith("/dashboard/recorded-calls") ||
+          path.startsWith("/try/dashboard/recorded-calls"),
       },
       {
         id: "call-rounds",
@@ -435,7 +458,7 @@ export default function DashboardSidebar({
   };
 
   const nav = (
-    <nav className="flex h-full min-h-0 flex-col">
+    <nav data-tour="customer-nav" className="flex h-full min-h-0 flex-col">
       <div
         className={`flex shrink-0 items-center border-b border-[#EADBC4] px-3 py-4 ${
           collapsed ? "justify-center" : "justify-between"

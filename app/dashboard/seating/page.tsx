@@ -268,6 +268,11 @@ function SeatingPageInner() {
      PLAN BLOCK
   =============================== */
   useEffect(() => {
+    if (isDemo) {
+      setBlockReason(null);
+      return;
+    }
+
     if (!user) return;
 
     if (isVenueTemplateMode) {
@@ -302,7 +307,7 @@ function SeatingPageInner() {
     } else {
       setBlockReason(null);
     }
-  }, [user, isVenueTemplateMode, isVenueView]);
+  }, [user, isVenueTemplateMode, isVenueView, isDemo]);
 
   /* ===============================
      SYNC LIVE MODE FROM DASHBOARD
