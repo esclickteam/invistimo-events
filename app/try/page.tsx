@@ -14,7 +14,7 @@ export default function TryEntryPage() {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ mode, restart: true }),
     });
     router.push("/try/dashboard");
   }

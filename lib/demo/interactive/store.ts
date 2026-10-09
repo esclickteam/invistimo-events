@@ -134,15 +134,22 @@ export function resetSession(id: string): DemoSession | null {
 
 export function setSessionMode(
   id: string,
-  mode: "guided" | "free"
+  mode: "guided" | "free",
+  options?: { restart?: boolean }
 ): DemoSession | null {
   const session = mutate(id);
   if (!session) return null;
   session.mode = mode;
-  session.tour.active = mode === "guided";
-  if (mode === "guided" && session.tour.finished) {
-    session.tour.finished = false;
-    session.tour.stepIndex = 0;
+  const restart = Boolean(options?.restart) || session.tour.finished;
+  if (mode === "guided" && restart) {
+    session.tour = {
+      active: true,
+      stepIndex: 0,
+      completed: [],
+      finished: false,
+    };
+  } else {
+    session.tour.active = mode === "guided";
   }
   return clone(session);
 }
