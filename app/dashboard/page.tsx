@@ -36,6 +36,7 @@ import {
 } from "@/lib/calls/ivrRoundLabels";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
+import { plannedAllocatedSeats } from "@/lib/seating/overlayGuestTableAssignments";
 import {
   matchesGuestLinkOpenFilter,
   guestLinkWasOpened,
@@ -871,24 +872,11 @@ const canViewActualArrived =
       return;
     }
 
-    const hasSeatingAccess =
-      effectiveRole === "admin" ||
-      effectiveRole === "producer" ||
-      user?.impersonated === true ||
-      user?.impersonatedByAdmin === true ||
-      user?.impersonationRole === "admin" ||
-      user?.plan === "premium" ||
-      user?.plan === "seating" ||
-      user?.plan === "plan3" ||
-      user?.planLimits?.seatingEnabled === true ||
-      user?.accessModules?.seating === true ||
-      user?.accessModules?.rsvpSeating === true;
-
-    if (!hasSeatingAccess) {
-      setSeatingTables([]);
-      return;
-    }
-
+    /*
+      Live dashboard ushers must load the couple's seating even without a
+      seating-plan subscription. Empty tables here hid assignments and
+      replaced "שחרור כיסאות" with "בדוק מקום פנוי".
+    */
     try {
       const res = await fetch(
         `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(
@@ -3069,19 +3057,20 @@ const eventLocation = resolveEventLocation(invitation, event);
       );
       const suggestionStatus =
         actualArrivedMoveSuggestions[String(g._id)]?.seatStatus;
-      const allocatedFromMap =
-        (seatingTables || []).length > 0
-          ? countAllocatedSeats(seatingTables, String(g._id))
-          : null;
+      const allocatedFromMap = countAllocatedSeats(
+        seatingTables,
+        String(g._id)
+      );
       const allocated = Math.max(
         0,
         Number(
           suggestionStatus?.allocated ??
-            (allocatedFromMap == null ? 0 : allocatedFromMap)
+            plannedAllocatedSeats(g, allocatedFromMap)
         )
       );
       const hasAllocationSignal =
-        allocatedFromMap != null || suggestionStatus?.allocated != null;
+        allocated > 0 ||
+        Boolean(g.tableName || g.tableId || g.tableNumber);
       const surplus = Math.max(0, allocated - actual);
       const shortage = Math.max(0, actual - allocated);
       const diff = hasAllocationSignal ? actual - allocated : 0;
