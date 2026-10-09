@@ -195,6 +195,77 @@ test("media helpers clear the slot before the next clip", () => {
   assert.match(gatherAudio, /timeout_millis: input\.timeoutMillis \?\? 45000/);
 });
 
+test("playback_stop is only used for controlled replace_after_input", async () => {
+  const {
+    ivrClearStopsPlayback,
+    mediaClearReasonForPlaybackStage,
+  } = await import("../../lib/telnyx/ivrCallControl");
+
+  assert.equal(ivrClearStopsPlayback("open_silent_gather"), false);
+  assert.equal(ivrClearStopsPlayback("start_followup_audio"), false);
+  assert.equal(ivrClearStopsPlayback("legacy_next_clip"), false);
+  assert.equal(ivrClearStopsPlayback("replace_after_input"), true);
+
+  // Active intro must not be stopped just because a new playback helper runs.
+  assert.equal(mediaClearReasonForPlaybackStage("intro"), "start_followup_audio");
+  assert.equal(
+    ivrClearStopsPlayback(mediaClearReasonForPlaybackStage("intro")),
+    false
+  );
+  // After an accepted digit, replace is intentional.
+  assert.equal(
+    mediaClearReasonForPlaybackStage("ask_count"),
+    "replace_after_input"
+  );
+  assert.equal(
+    mediaClearReasonForPlaybackStage("invalid_choice"),
+    "replace_after_input"
+  );
+  assert.equal(mediaClearReasonForPlaybackStage("thanks"), "replace_after_input");
+});
+
+test("machine and legacy cannot both drive a phased call", () => {
+  const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
+  const answer = webhook.slice(
+    webhook.indexOf('case "call.answered"'),
+    webhook.indexOf('case "call.dtmf.received"')
+  );
+  const playback = webhook.slice(
+    webhook.indexOf('case "call.playback.ended"'),
+    webhook.indexOf('case "call.hangup"')
+  );
+  assert.match(answer, /!isLegacyInFlight\(attempt\)/);
+  assert.match(answer, /handleIvrAnswered/);
+  assert.match(playback, /cleanStr\(attempt\.phase\) \|\| !isLegacyInFlight/);
+  assert.match(playback, /handleIvrPlaybackEnded/);
+  // Once phase is set, legacy continueOutbound / inbound chain must not run.
+  assert.equal(playback.includes("continueOutboundAiIntro") && playback.indexOf("isLegacyInFlight") < 0, false);
+});
+
+test("original tree paths stay available after unify", () => {
+  const waiting = toChoiceWindow();
+  assert.equal(waiting.phase, "WAITING_FOR_INPUT");
+  assert.equal(waiting.introCompleted, true);
+
+  const noDigit = apply(waiting, {
+    type: "gather_ended",
+    digits: "",
+    status: "timeout",
+    generation: waiting.mediaGeneration,
+    stage: "choice",
+  });
+  assert.deepEqual(noDigit.commands.map((c) => c.type), ["play_invalid_choice"]);
+
+  const bad = apply(waiting, {
+    type: "gather_ended",
+    digits: "9",
+    status: "invalid",
+    generation: waiting.mediaGeneration,
+    stage: "choice",
+  });
+  assert.equal(bad.commands[0]?.type, "play_invalid_choice");
+});
+
 test("legacy invalid-choice path blocked while intro flow steps run", () => {
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   assert.match(webhook, /introStillPlaying/);

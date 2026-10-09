@@ -32,6 +32,7 @@ import {
   decodeIvrClientState,
   gatherIvrDigits,
   hangupIvrCall,
+  mediaClearReasonForPlaybackStage,
   playbackIvrAudio,
   speakIvrCall,
 } from "@/lib/telnyx/ivrCallControl";
@@ -260,7 +261,8 @@ async function playFile(
   const result = await playbackIvrAudio(
     callControlId,
     audioUrl,
-    clientState(attempt, { stage, generation })
+    clientState(attempt, { stage, generation }),
+    { mediaClear: mediaClearReasonForPlaybackStage(stage) }
   );
   return !telnyxCommandFailed(result);
 }
