@@ -341,6 +341,14 @@ function diagnoseAiAudioBlock(user: any): string {
   if (String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION) {
     return `הקובץ המחובר בגרסה ישנה או חסרה (${String(composed?.composeVersion || "חסר")} ≠ ${IVR_COMPOSE_VERSION}) — יש ליצור מחדש את הקובץ המחובר ולאשר`;
   }
+  if (
+    explicitlyApproved &&
+    approval?.audioContentHash &&
+    composed?.contentHash &&
+    String(approval.audioContentHash) !== String(composed.contentHash)
+  ) {
+    return "אישור ההקלטה מצביע על קובץ מחובר אחר מהקובץ הנוכחי — יש להאזין ולאשר מחדש את התצוגה המקדימה";
+  }
   if (!eventNameAudioUrl) {
     return "חסר קובץ שם האירוע או טוקן מדיה תקין";
   }
@@ -436,6 +444,16 @@ function resolveReadyAiAudio(user: any): {
 
   // Require the exact approved outbound composition — not a stale mix.
   if (String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION) {
+    return null;
+  }
+
+  // Locked approval must point at the same composed checksum (preview identity).
+  if (
+    explicitlyApproved &&
+    approval?.audioContentHash &&
+    composed?.contentHash &&
+    String(approval.audioContentHash) !== String(composed.contentHash)
+  ) {
     return null;
   }
 

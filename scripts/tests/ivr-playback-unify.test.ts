@@ -52,6 +52,12 @@ test("preview prefers the single composed file Telnyx plays", () => {
   );
   assert.match(playlistFn, /composedUrl/);
   assert.match(playlistFn, /return \[composedUrl\]/);
+  // Never fall back to a stale composedIntroAudio.audioUrl when not current.
+  assert.match(playlistFn, /preview\?\.seamless && composedUrl/);
+  assert.equal(
+    playlistFn.includes("composedIntroAudio?.status === \"ready\""),
+    false
+  );
 });
 
 test("inbound and outbound answers share the phase machine", () => {

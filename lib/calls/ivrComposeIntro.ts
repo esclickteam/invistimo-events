@@ -2,7 +2,12 @@
  * Server-side seamless compose of:
  *   global introBeforeEventName + eventNameAudio + global introAfterEventName
  *
- * No ElevenLabs credits — ffmpeg only (trim silence, normalize, short crossfade).
+ * No ElevenLabs credits — ffmpeg only (trim silence, normalize, concat).
+ *
+ * Important: do NOT use acrossfade with a reused pause input. That filter chain
+ * dropped the event-name segment in production (preview started at the "after"
+ * RSVP prompt). Concat of silence-trimmed clips + short pause pads is the
+ * reliable path.
  */
 
 import { createHash } from "crypto";
@@ -13,8 +18,11 @@ import { tmpdir } from "os";
 import path from "path";
 import { spawn } from "child_process";
 
-/** Outbound only: introBeforeEventName + event name + introAfterEventName. */
-export const IVR_COMPOSE_VERSION = "v2-outbound-segments";
+/**
+ * Outbound only: introBeforeEventName + event name + introAfterEventName.
+ * v3 = concat pads (v2 acrossfade dropped the name / could skip the open).
+ */
+export const IVR_COMPOSE_VERSION = "v3-outbound-concat";
 
 /**
  * Inbound only: inboundBeforeEventName + event name + inboundAfterEventName.
@@ -34,8 +42,9 @@ export const IVR_COMPOSED_SEGMENT_PAUSE_MS = Math.round(NAME_PAUSE_SEC * 1000);
  */
 export const IVR_INBOUND_CHAINED_MEDIA_COMMANDS = 3;
 export const IVR_INBOUND_CONTINUOUS_MEDIA_COMMANDS = 1;
-/** Crossfade duration at junctions (seconds) — soft join, not a hard cut. */
-const CROSSFADE_SEC = 0.03;
+
+/** Minimum composed duration vs sum of prepared segment durations (trim variance). */
+const MIN_COMPOSED_DURATION_RATIO = 0.9;
 
 const require = createRequire(import.meta.url);
 
@@ -128,6 +137,65 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
+function probeDurationSeconds(filePath: string): Promise<number | null> {
+  const bin = resolveFfmpegPath();
+  // Prefer ffprobe next to ffmpeg-static; fall back to ffmpeg -i parse.
+  const ffprobeCandidates = [
+    bin.replace(/ffmpeg$/, "ffprobe"),
+    "ffprobe",
+    "/usr/bin/ffprobe",
+  ];
+  const ffprobe = ffprobeCandidates.find((c) => c && existsSync(c)) || "";
+
+  if (ffprobe) {
+    return new Promise((resolve) => {
+      const child = spawn(
+        ffprobe,
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
+          filePath,
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] }
+      );
+      let stdout = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += String(chunk || "");
+      });
+      child.on("error", () => resolve(null));
+      child.on("close", (code) => {
+        if (code !== 0) return resolve(null);
+        const n = Number(String(stdout || "").trim());
+        resolve(Number.isFinite(n) && n > 0 ? n : null);
+      });
+    });
+  }
+
+  return new Promise((resolve) => {
+    const child = spawn(bin, ["-i", filePath], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk || "");
+    });
+    child.on("error", () => resolve(null));
+    child.on("close", () => {
+      const match = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
+      if (!match) return resolve(null);
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const seconds = Number(match[3]);
+      const total = hours * 3600 + minutes * 60 + seconds;
+      resolve(Number.isFinite(total) && total > 0 ? total : null);
+    });
+  });
+}
+
 /**
  * Prepare one clip: mono 44.1kHz PCM wav, silence trimmed, loudness normalized.
  */
@@ -172,7 +240,7 @@ async function makeSilenceWav(outputPath: string, seconds: number) {
 }
 
 /**
- * Join prepared wavs with short silence pads + micro crossfade.
+ * Join prepared wavs with short silence pads.
  * Order: before | pause | name | pause | after
  */
 async function joinWithNaturalPauses(input: {
@@ -181,29 +249,25 @@ async function joinWithNaturalPauses(input: {
   afterWav: string;
   pauseWav: string;
   outMp3: string;
+  listFile: string;
 }) {
-  // acrossfade chain for soft junctions after short silence pads.
-  // Graph: before~pause → ab; ab~name → abn; abn~pause → abnp; abnp~after → out
-  const filter = [
-    `[0][3]acrossfade=d=${CROSSFADE_SEC}:c1=tri:c2=tri[bp]`,
-    `[bp][1]acrossfade=d=${CROSSFADE_SEC}:c1=tri:c2=tri[bpn]`,
-    `[bpn][3]acrossfade=d=${CROSSFADE_SEC}:c1=tri:c2=tri[bpnp]`,
-    `[bpnp][2]acrossfade=d=${CROSSFADE_SEC}:c1=tri:c2=tri[out]`,
-  ].join(";");
-
+  await writeFile(
+    input.listFile,
+    [
+      `file '${input.beforeWav}'`,
+      `file '${input.pauseWav}'`,
+      `file '${input.nameWav}'`,
+      `file '${input.pauseWav}'`,
+      `file '${input.afterWav}'`,
+    ].join("\n")
+  );
   await runFfmpeg([
+    "-f",
+    "concat",
+    "-safe",
+    "0",
     "-i",
-    input.beforeWav,
-    "-i",
-    input.nameWav,
-    "-i",
-    input.afterWav,
-    "-i",
-    input.pauseWav,
-    "-filter_complex",
-    filter,
-    "-map",
-    "[out]",
+    input.listFile,
     "-ar",
     "44100",
     "-ac",
@@ -234,7 +298,7 @@ function composeContentHash(
         input.eventNameHash,
         input.afterHash,
         String(NAME_PAUSE_SEC),
-        String(CROSSFADE_SEC),
+        "concat",
       ].join("|")
     )
     .digest("hex");
@@ -258,11 +322,43 @@ export function contentHashForComposedInbound(input: {
   return composeContentHash(IVR_INBOUND_COMPOSE_VERSION, input);
 }
 
+/** True when a composed file is long enough to include before + name + after. */
+export function composedDurationCoversSegments(input: {
+  composedSeconds: number;
+  beforeSeconds: number;
+  nameSeconds: number;
+  afterSeconds: number;
+  pauseSeconds?: number;
+}) {
+  const pause = input.pauseSeconds ?? NAME_PAUSE_SEC;
+  const expected =
+    input.beforeSeconds +
+    input.nameSeconds +
+    input.afterSeconds +
+    pause * 2;
+  if (!(expected > 0) || !(input.composedSeconds > 0)) return false;
+  // Reject after-only / name-dropped files (classic acrossfade failure).
+  if (input.composedSeconds < input.afterSeconds + input.nameSeconds * 0.5) {
+    return false;
+  }
+  return input.composedSeconds + 0.05 >= expected * MIN_COMPOSED_DURATION_RATIO;
+}
+
 export async function composeIvrIntroAudio(input: {
   beforeMp3: Buffer;
   eventNameMp3: Buffer;
   afterMp3: Buffer;
-}): Promise<{ buffer: Buffer; contentType: string; durationSeconds: number | null }> {
+}): Promise<{
+  buffer: Buffer;
+  contentType: string;
+  durationSeconds: number | null;
+  segmentDurations: {
+    beforeSeconds: number;
+    nameSeconds: number;
+    afterSeconds: number;
+    pauseSeconds: number;
+  };
+}> {
   if (!input.beforeMp3?.length || !input.eventNameMp3?.length || !input.afterMp3?.length) {
     throw new Error("IVR_COMPOSE_MISSING_INPUT");
   }
@@ -277,6 +373,7 @@ export async function composeIvrIntroAudio(input: {
     const afterWav = path.join(dir, "after.wav");
     const pauseWav = path.join(dir, "pause.wav");
     const outMp3 = path.join(dir, "composed.mp3");
+    const listFile = path.join(dir, "concat.txt");
 
     await Promise.all([
       writeFile(beforeIn, input.beforeMp3),
@@ -291,60 +388,64 @@ export async function composeIvrIntroAudio(input: {
       makeSilenceWav(pauseWav, NAME_PAUSE_SEC),
     ]);
 
-    try {
-      await joinWithNaturalPauses({
-        beforeWav,
-        nameWav,
-        afterWav,
-        pauseWav,
-        outMp3,
-      });
-    } catch (xfadeErr) {
-      // Fallback for very short clips where acrossfade can't run.
-      console.warn(
-        "[ivrComposeIntro] acrossfade failed — concat fallback",
-        xfadeErr instanceof Error ? xfadeErr.message : xfadeErr
+    const [beforeSeconds, nameSeconds, afterSeconds] = await Promise.all([
+      probeDurationSeconds(beforeWav),
+      probeDurationSeconds(nameWav),
+      probeDurationSeconds(afterWav),
+    ]);
+
+    if (
+      !(beforeSeconds && beforeSeconds > 0.05) ||
+      !(nameSeconds && nameSeconds > 0.05) ||
+      !(afterSeconds && afterSeconds > 0.05)
+    ) {
+      throw new Error(
+        `IVR_COMPOSE_SEGMENT_TOO_SHORT:before=${beforeSeconds}:name=${nameSeconds}:after=${afterSeconds}`
       );
-      const listFile = path.join(dir, "concat.txt");
-      await writeFile(
-        listFile,
-        [
-          `file '${beforeWav}'`,
-          `file '${pauseWav}'`,
-          `file '${nameWav}'`,
-          `file '${pauseWav}'`,
-          `file '${afterWav}'`,
-        ].join("\n")
-      );
-      await runFfmpeg([
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        listFile,
-        "-ar",
-        "44100",
-        "-ac",
-        "1",
-        "-b:a",
-        "128k",
-        "-f",
-        "mp3",
-        outMp3,
-      ]);
     }
+
+    await joinWithNaturalPauses({
+      beforeWav,
+      nameWav,
+      afterWav,
+      pauseWav,
+      outMp3,
+      listFile,
+    });
 
     const buffer = await readFile(outMp3);
     if (!buffer.length) throw new Error("IVR_COMPOSE_EMPTY_OUTPUT");
 
-    // Rough duration from mp3 size @ 128kbps (optional metadata).
-    const durationSeconds = Math.max(1, Math.round((buffer.length * 8) / 128000));
+    const probed = await probeDurationSeconds(outMp3);
+    const durationSeconds =
+      probed && probed > 0
+        ? probed
+        : Math.max(1, Math.round((buffer.length * 8) / 128000));
+
+    if (
+      !composedDurationCoversSegments({
+        composedSeconds: durationSeconds,
+        beforeSeconds,
+        nameSeconds,
+        afterSeconds,
+        pauseSeconds: NAME_PAUSE_SEC,
+      })
+    ) {
+      throw new Error(
+        `IVR_COMPOSE_DURATION_INCOMPLETE:composed=${durationSeconds}:before=${beforeSeconds}:name=${nameSeconds}:after=${afterSeconds}`
+      );
+    }
 
     return {
       buffer,
       contentType: "audio/mpeg",
       durationSeconds,
+      segmentDurations: {
+        beforeSeconds,
+        nameSeconds,
+        afterSeconds,
+        pauseSeconds: NAME_PAUSE_SEC,
+      },
     };
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => null);

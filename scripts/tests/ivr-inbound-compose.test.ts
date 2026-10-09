@@ -144,6 +144,20 @@ test("stitching three clips yields one file with only the short internal pause",
     assert.ok(composed.buffer.length > afterMp3.length);
     assert.equal(IVR_COMPOSED_SEGMENT_PAUSE_MS < 200, true);
     assert.ok(stitchMs < 15000, `stitch took ${stitchMs}ms`);
+    // Concat must keep before + name + after (acrossfade previously dropped name).
+    const composedDur = Number(composed.durationSeconds || 0);
+    assert.ok(composedDur >= 1.1, `composed too short: ${composedDur}`);
+    assert.ok(
+      composed.segmentDurations.beforeSeconds > 0.2 &&
+        composed.segmentDurations.nameSeconds > 0.2 &&
+        composed.segmentDurations.afterSeconds > 0.3
+    );
+    assert.ok(
+      composedDur + 0.05 >=
+        composed.segmentDurations.beforeSeconds +
+          composed.segmentDurations.nameSeconds +
+          composed.segmentDurations.afterSeconds
+    );
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => null);
   }

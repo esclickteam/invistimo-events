@@ -77,11 +77,37 @@ function resolveConfigGender(cfg: any): IvrVoiceGender | null {
 }
 
 
-function composedIntroIsCurrentOutbound(composed: any) {
-  return (
-    composed?.status === "ready" &&
-    Boolean(composed?.audioUrl || composed?.publicToken) &&
-    String(composed?.composeVersion || "") === IVR_COMPOSE_VERSION
+function composedIntroIsCurrentOutbound(
+  composed: any,
+  expectedContentHash?: string
+) {
+  if (
+    composed?.status !== "ready" ||
+    !Boolean(composed?.audioUrl || composed?.publicToken) ||
+    String(composed?.composeVersion || "") !== IVR_COMPOSE_VERSION
+  ) {
+    return false;
+  }
+  const expected = String(expectedContentHash || "").trim();
+  if (expected) {
+    return String(composed?.contentHash || "") === expected;
+  }
+  return true;
+}
+
+/** Pack must expose both outbound open segments before approve/dial. */
+function outboundPackSegmentsReady(
+  pack: Awaited<ReturnType<typeof ensureGlobalVoicePack>> | null | undefined
+) {
+  const before = pack?.segments?.introBeforeEventName;
+  const after = pack?.segments?.introAfterEventName;
+  return Boolean(
+    before?.r2Key &&
+      before?.contentHash &&
+      (before?.audioUrl || before?.publicToken) &&
+      after?.r2Key &&
+      after?.contentHash &&
+      (after?.audioUrl || after?.publicToken)
   );
 }
 
@@ -179,6 +205,7 @@ function serializePreviewUrls(input: {
       playlist: composed ? [composed] : ([] as string[]),
       inboundPlaylist: [] as string[],
       seamless: Boolean(composed),
+      segmentsComplete: false,
     };
   }
 
@@ -192,9 +219,14 @@ function serializePreviewUrls(input: {
   const inboundAfter = String(
     input.pack.segments.inboundAfterEventName?.audioUrl || ""
   );
+  const segmentsComplete = Boolean(before && eventName && after);
+  // Prefer the single composed file Telnyx will play. Never emit a partial
+  // [after]-only playlist that skips the open + event name.
   const playlist = composed
     ? [composed]
-    : [before, eventName, after].filter(Boolean);
+    : segmentsComplete
+      ? [before, eventName, after]
+      : [];
   // Inbound uses the same approved file. Do not preview a second script.
   const inboundPlaylist = composed ? [composed] : [];
 
@@ -208,6 +240,7 @@ function serializePreviewUrls(input: {
     playlist,
     inboundPlaylist,
     seamless: Boolean(composed),
+    segmentsComplete,
   };
 }
 
@@ -264,6 +297,10 @@ async function buildAndStoreComposedIntro(input: {
     durationSeconds: composed.durationSeconds,
     generatedAt: new Date(),
     composeVersion: IVR_COMPOSE_VERSION,
+    segmentDurations: composed.segmentDurations,
+    beforeContentHash: String(beforeSeg.contentHash || ""),
+    eventNameContentHash: input.eventNameHash,
+    afterContentHash: String(afterSeg.contentHash || ""),
     approved: false,
     approvedAt: null,
   };
@@ -298,7 +335,23 @@ function serializeIvrConfig(
     storedUrl: composedIntroAudio?.audioUrl,
   });
 
-  const composedIsCurrent = composedIntroIsCurrentOutbound(composedIntroAudio);
+  const expectedComposeHash =
+    voiceGender &&
+    pack?.segments?.introBeforeEventName?.contentHash &&
+    pack?.segments?.introAfterEventName?.contentHash &&
+    eventNameAudio?.contentHash
+      ? contentHashForComposedIntro({
+          beforeHash: String(pack.segments.introBeforeEventName.contentHash),
+          eventNameHash: String(eventNameAudio.contentHash),
+          afterHash: String(pack.segments.introAfterEventName.contentHash),
+          voiceId: systemVoiceId || getIvrVoiceIdForGender(voiceGender),
+        })
+      : "";
+
+  const composedIsCurrent = composedIntroIsCurrentOutbound(
+    composedIntroAudio,
+    expectedComposeHash
+  );
   const previewAudio = serializePreviewUrls({
     gender: voiceGender,
     eventNameAudioUrl,
@@ -614,10 +667,13 @@ export async function PATCH(req: NextRequest) {
       } else {
         const eventNameAudio = prev.eventNameAudio || {};
         const composedIntroAudio = prev.composedIntroAudio || {};
+        const voiceGender = resolveConfigGender(prev);
         // Approve only after listening to the seamless composed intro.
         if (
           eventNameAudio.status !== "ready" ||
           !eventNameAudio.audioUrl ||
+          !eventNameAudio.r2Key ||
+          !eventNameAudio.contentHash ||
           composedIntroAudio.status !== "ready" ||
           !(composedIntroAudio.audioUrl || composedIntroAudio.publicToken)
         ) {
@@ -627,6 +683,57 @@ export async function PATCH(req: NextRequest) {
               error: "COMPOSED_INTRO_NOT_READY",
               message:
                 "יש להאזין לתצוגה המקדימה המחוברת (משפט אחד) לפני אישור.",
+            },
+            { status: 400 }
+          );
+        }
+        if (!voiceGender) {
+          return NextResponse.json(
+            { ok: false, error: "VOICE_GENDER_REQUIRED" },
+            { status: 400 }
+          );
+        }
+        await hydrateApprovedPackVoiceIds();
+        await assertApprovedPackForGender(voiceGender);
+        const pack = await ensureGlobalVoicePack(voiceGender, {
+          reuseOnly: true,
+        });
+        if (!outboundPackSegmentsReady(pack)) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "OUTBOUND_SEGMENTS_MISSING",
+              message:
+                "חסר מקטע פתיח או המשך קריינות ב־Voice Pack. אין לאשר לפני שיש את כל שלושת המקטעים.",
+            },
+            { status: 400 }
+          );
+        }
+        const voiceId = getIvrVoiceIdForGender(voiceGender);
+        const expectedComposeHash = contentHashForComposedIntro({
+          beforeHash: String(
+            pack.segments.introBeforeEventName.contentHash || ""
+          ),
+          eventNameHash: String(eventNameAudio.contentHash || ""),
+          afterHash: String(
+            pack.segments.introAfterEventName.contentHash || ""
+          ),
+          voiceId,
+        });
+        if (
+          !composedIntroIsCurrentOutbound(
+            composedIntroAudio,
+            expectedComposeHash
+          )
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "COMPOSED_INTRO_STALE",
+              message:
+                "הקובץ המחובר אינו כולל את הפתיח המלא + שם האירוע בגרסה העדכנית. לחצו על «יצירה מחדש של הקובץ המחובר», האזינו ואשרו.",
+              requiredComposeVersion: IVR_COMPOSE_VERSION,
+              composeVersion: String(composedIntroAudio.composeVersion || ""),
             },
             { status: 400 }
           );
@@ -663,14 +770,16 @@ export async function PATCH(req: NextRequest) {
             approved: true,
             approvedAt,
             audioUrl: lockedUrl || composedIntroAudio.audioUrl,
+            contentHash: expectedComposeHash,
+            composeVersion: IVR_COMPOSE_VERSION,
           },
           recordingApproval: {
             approved: true,
             approvedAt,
             audioMode: "ai",
-            voiceGender: resolveConfigGender(prev),
+            voiceGender,
             audioPublicToken: String(composedIntroAudio.publicToken || ""),
-            audioContentHash: String(composedIntroAudio.contentHash || ""),
+            audioContentHash: expectedComposeHash,
             audioUrl: lockedUrl || String(composedIntroAudio.audioUrl || ""),
           },
           updatedAt: approvedAt,
@@ -1127,7 +1236,10 @@ export async function POST(req: NextRequest) {
         publicToken: composedIntroAudio.publicToken,
         storedUrl: composedIntroAudio.audioUrl,
       }),
-      composedIsCurrent: composedIntroIsCurrentOutbound(composedIntroAudio),
+      composedIsCurrent: composedIntroIsCurrentOutbound(
+        composedIntroAudio,
+        expectedComposeHash
+      ),
       pack,
     });
     const serialized = await attachComposedMediaHealth(

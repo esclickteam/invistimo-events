@@ -242,12 +242,14 @@ test("config composes seamless intro without extra ElevenLabs TTS", () => {
   assert.match(config, /COMPOSED_INTRO_NOT_READY/);
   assert.match(config, /composedIntroAudio/);
   assert.match(config, /inboundPlaylist/);
-  assert.match(config, /v2-outbound-segments|IVR_COMPOSE_VERSION/);
+  assert.match(config, /v3-outbound-concat|IVR_COMPOSE_VERSION/);
 
   const compose = readSrc("lib/calls/ivrComposeIntro.ts");
   assert.match(compose, /silenceremove/);
   assert.match(compose, /loudnorm/);
-  assert.match(compose, /acrossfade/);
+  assert.match(compose, /concat/);
+  assert.match(compose, /composedDurationCoversSegments/);
+  assert.equal(compose.includes("acrossfade="), false);
   assert.equal(compose.includes("synthesizeElevenLabsSpeech"), false);
 
   const eleven = readSrc("lib/calls/elevenlabs.ts");
