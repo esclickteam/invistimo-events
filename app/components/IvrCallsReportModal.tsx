@@ -63,7 +63,11 @@ type Row = {
   choiceDigit: string;
   rsvpLabel: string;
   callDurationLabel: string;
+  answerToPlaybackLabel: string;
+  digitToFollowupLabel: string;
   failureReason: string;
+  hangupCause: string;
+  telnyxCallControlId: string;
 };
 
 type Filters = {
@@ -108,6 +112,8 @@ const COLUMNS = [
   "הקשה",
   "תשובת הגעה",
   "משך",
+  "מענה עד קריינות",
+  "הקשה עד המשך",
   "סיבת כישלון",
 ] as const;
 
@@ -302,6 +308,8 @@ export default function IvrCallsReportModal({
       row.choiceDigit || "—",
       row.rsvpLabel,
       row.callDurationLabel,
+      row.answerToPlaybackLabel || "—",
+      row.digitToFollowupLabel || "—",
       row.failureReason || "—",
     ];
   }
@@ -650,8 +658,18 @@ export default function IvrCallsReportModal({
                           <div>הקשה: {row.choiceDigit || "—"}</div>
                           <div>תשובה: {row.rsvpLabel}</div>
                           <div>משך: {row.callDurationLabel}</div>
+                          <div>מענה עד קריינות: {row.answerToPlaybackLabel || "—"}</div>
+                          <div>הקשה עד המשך: {row.digitToFollowupLabel || "—"}</div>
                           {row.failureReason ? (
                             <div className="col-span-2">סיבה: {row.failureReason}</div>
+                          ) : null}
+                          {row.hangupCause || row.telnyxCallControlId ? (
+                            <div className="col-span-2 break-all text-[11px] text-[#8A7867]">
+                              {row.hangupCause ? `ניתוק: ${row.hangupCause}` : ""}
+                              {row.telnyxCallControlId
+                                ? ` · Telnyx: ${row.telnyxCallControlId}`
+                                : ""}
+                            </div>
                           ) : null}
                         </dl>
                       </article>
@@ -702,6 +720,13 @@ export default function IvrCallsReportModal({
                                 key={`${row.id}-${index}`}
                                 className="max-w-[220px] truncate px-3 py-3 font-bold text-[#3A2A1C]"
                                 dir={index === 3 ? "ltr" : undefined}
+                                title={
+                                  index === COLUMNS.length - 1
+                                    ? [row.hangupCause, row.telnyxCallControlId]
+                                        .filter(Boolean)
+                                        .join(" · ")
+                                    : undefined
+                                }
                               >
                                 {index === 6 ? (
                                   <span

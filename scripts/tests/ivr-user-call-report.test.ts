@@ -399,6 +399,8 @@ test("IVR report stays inside the edited user and active filters", async (t) => 
       "הקשה",
       "תשובת הגעה",
       "משך שיחה",
+      "מענה עד קריינות",
+      "הקשה עד המשך",
       "סיבת כישלון",
     ]);
     const body = sheet!

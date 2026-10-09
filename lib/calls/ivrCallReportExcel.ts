@@ -125,6 +125,8 @@ type UserReportRow = {
   choiceDigit: string;
   rsvpLabel: string;
   callDurationLabel: string;
+  answerToPlaybackLabel?: string;
+  digitToFollowupLabel?: string;
   failureReason: string;
 };
 
@@ -144,6 +146,8 @@ const USER_COLUMNS: Array<{
   { header: "הקשה", key: "choiceDigit", width: 12 },
   { header: "תשובת הגעה", key: "rsvpLabel", width: 20 },
   { header: "משך שיחה", key: "callDurationLabel", width: 16 },
+  { header: "מענה עד קריינות", key: "answerToPlaybackLabel", width: 18 },
+  { header: "הקשה עד המשך", key: "digitToFollowupLabel", width: 18 },
   { header: "סיבת כישלון", key: "failureReason", width: 28 },
 ];
 

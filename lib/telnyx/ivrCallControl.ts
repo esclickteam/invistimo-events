@@ -5,6 +5,8 @@
 
 import { notePlaybackCommand } from "@/lib/calls/ivrCallTimeline";
 
+export { explainIvrCallFailure } from "@/lib/calls/ivrDialFailure";
+
 type TelnyxActionResponse = {
   data?: Record<string, unknown>;
   errors?: unknown;
@@ -325,21 +327,21 @@ export function normalizePhoneForTelnyx(phone: unknown) {
     raw = `+${raw.slice(2)}`;
   }
 
-  if (raw.startsWith("+")) return raw;
-
-  if (raw.startsWith("972")) return `+${raw}`;
-
-  if (raw.startsWith("0")) {
-    // Israel local → E.164
-    return `+972${raw.slice(1)}`;
+  let normalized = raw;
+  if (!raw.startsWith("+")) {
+    if (raw.startsWith("972")) normalized = `+${raw}`;
+    else if (raw.startsWith("0")) normalized = `+972${raw.slice(1)}`;
+    else if (raw.length === 9 && raw.startsWith("5")) normalized = `+972${raw}`;
+    else if (raw.length === 8 && /^[23489]/.test(raw)) normalized = `+972${raw}`;
+    else if (raw.length >= 9) normalized = `+${raw}`;
   }
 
-  if (raw.length === 9 && raw.startsWith("5")) return `+972${raw}`;
-  if (raw.length === 8 && /^[23489]/.test(raw)) return `+972${raw}`;
+  // 972 + trunk 0 (972050… or +972050…) is not a valid Israeli number.
+  if (normalized.startsWith("+9720")) {
+    normalized = `+972${normalized.slice(5)}`;
+  }
 
-  if (raw.length >= 9) return `+${raw}`;
-
-  return raw;
+  return normalized;
 }
 
 function isIvrAllowlisted(phoneE164: string) {
@@ -372,46 +374,38 @@ export function isIvrDialAllowed(phoneE164: string) {
   return isIvrAllowlisted(phoneE164);
 }
 
-/** Customer-facing text for a stored attempt error. Keeps the provider detail. */
-export function explainIvrCallFailure(raw: unknown): string {
-  const text = String(raw || "").trim();
-  if (!text) return "החיוג נכשל";
+/**
+ * Read whether a call-control leg is still up. Never places a call.
+ * Unknown means the check failed; callers must keep the slot.
+ */
+export async function readIvrCallLiveness(
+  callControlId: string
+): Promise<"alive" | "ended" | "unknown"> {
+  const id = String(callControlId || "").trim();
+  const apiKey = getTelnyxApiKey();
+  if (!id || !apiKey) return "unknown";
 
-  if (
-    text.includes("DIAL_BLOCKED_TEST_MODE") ||
-    text.includes("אין אישור חיוג חי")
-  ) {
-    return "השיחה לא נשלחה ל-Telnyx. חיוג חי היה חסום בשרת, ולכן אין מזהה שיחה ואין תשובת ספק.";
-  }
-
-  if (
-    text.includes("TELNYX_API_KEY is missing") ||
-    text.includes("TELNYX_CONNECTION_ID is missing")
-  ) {
-    return "השיחה לא נשלחה: חסר מפתח או מזהה חיבור של Telnyx בשרת.";
-  }
-
-  const telnyx = text.match(/TELNYX_CREATE_IVR_CALL_FAILED \((\d+)\)/);
-  if (telnyx) {
-    let detail = "";
-    const jsonAt = text.search(/[\[{]/);
-    if (jsonAt >= 0) {
-      try {
-        const parsed = JSON.parse(text.slice(jsonAt));
-        const first = Array.isArray(parsed) ? parsed[0] : parsed;
-        detail = String(first?.detail || first?.title || first?.code || "").trim();
-      } catch {
-        detail = "";
+  try {
+    const res = await fetch(
+      `https://api.telnyx.com/v2/calls/${encodeURIComponent(id)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+        },
       }
-    }
-    return detail
-      ? `Telnyx דחה את החיוג (${telnyx[1]}): ${detail}`
-      : `Telnyx דחה את החיוג (סטטוס ${telnyx[1]}).`;
+    );
+    if (res.status === 404 || res.status === 410) return "ended";
+    if (!res.ok) return "unknown";
+    const data = (await res.json().catch(() => null)) as {
+      data?: { is_alive?: unknown };
+    } | null;
+    if (data?.data?.is_alive === true) return "alive";
+    if (data?.data?.is_alive === false) return "ended";
+    return "unknown";
+  } catch {
+    return "unknown";
   }
-
-  if (text === "החיוג נכשל") {
-    return "החיוג נכשל לפני חיבור לספק.";
-  }
-
-  return text;
 }
+

@@ -3,6 +3,7 @@
  * fields only. Unanswered calls are never labeled as answered-and-hung-up.
  */
 
+import { explainIvrCallFailure } from "@/lib/calls/ivrDialFailure";
 import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 
 export const IVR_REPORT_TIMEZONE = "Asia/Jerusalem";
@@ -147,11 +148,18 @@ export function ivrDialAttemptNumber(attempt: { retryCount?: number | null }) {
 }
 
 export function ivrFailureReason(attempt: IvrAttemptFacts) {
-  const error = redactIvrReportText(attempt.error);
-  if (error) return error;
-  if (clean(attempt.status) === "failed") {
-    return redactIvrReportText(attempt.hangupCause);
+  const error = String(attempt.error || "").trim();
+  const cause = String(attempt.hangupCause || "").trim();
+  const explained = error ? explainIvrCallFailure(error) : "";
+  if (explained && explained !== "החיוג נכשל") {
+    const withCause =
+      cause && !explained.includes(cause) ? `${explained} · ${cause}` : explained;
+    return redactIvrReportText(withCause);
   }
+  if (clean(attempt.status) === "failed" && cause) {
+    return redactIvrReportText(explainIvrCallFailure(cause));
+  }
+  if (error) return redactIvrReportText(explained || error);
   return "";
 }
 
