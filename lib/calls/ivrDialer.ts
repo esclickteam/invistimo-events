@@ -112,6 +112,80 @@ async function countOccupiedOutboundCalls() {
   return IvrCallAttempt.countDocuments(occupiedOutboundFilter());
 }
 
+/** Live legs for one invitation round only — never use the global cap here. */
+async function countOccupiedOutboundCallsForRound(
+  invitationId: string,
+  round: number
+) {
+  const id = cleanStr(invitationId);
+  const roundNumber = Number(round);
+  if (!id || (roundNumber !== 1 && roundNumber !== 2 && roundNumber !== 3)) {
+    return 0;
+  }
+  return IvrCallAttempt.countDocuments({
+    ...occupiedOutboundFilter(),
+    invitationId: id,
+    round: roundNumber,
+  });
+}
+
+/**
+ * Close rounds stuck on in_progress/opened after every attempt for that round
+ * has already left the live set. Does not delete history or touch RSVP.
+ */
+async function reconcileIdleRoundStatuses(input: {
+  userId: string;
+  invitationId: string;
+  rounds: any[];
+  now: Date;
+}) {
+  for (const raw of input.rounds) {
+    const roundNumber = Number(raw?.roundNumber || raw?.round || 0);
+    if (roundNumber !== 1 && roundNumber !== 2 && roundNumber !== 3) continue;
+    const status = String(raw?.status || "")
+      .trim()
+      .toLowerCase();
+    if (status !== "in_progress" && status !== "opened") continue;
+
+    const live = await countOccupiedOutboundCallsForRound(
+      input.invitationId,
+      roundNumber
+    );
+    if (live > 0) continue;
+
+    const attempts = await IvrCallAttempt.countDocuments({
+      invitationId: input.invitationId,
+      round: roundNumber,
+      channel: "outbound_ivr",
+    });
+
+    await setRoundExecution({
+      userId: input.userId,
+      round: roundNumber,
+      status: attempts > 0 ? "done" : "failed",
+      now: input.now,
+      failureReason:
+        attempts > 0
+          ? ""
+          : explainIvrCallFailure("הסבב נסגר — לא נמצאו ניסיונות חיוג"),
+      clearClaim: true,
+    });
+    raw.status = attempts > 0 ? "done" : "failed";
+  }
+}
+
+function earlierRoundStillRunning(rounds: any[], roundNumber: number) {
+  for (const raw of rounds) {
+    const n = Number(raw?.roundNumber || raw?.round || 0);
+    if (n < 1 || n >= roundNumber) continue;
+    const status = String(raw?.status || "")
+      .trim()
+      .toLowerCase();
+    if (status === "in_progress" || status === "opened") return true;
+  }
+  return false;
+}
+
 /**
  * Free a slot only after the stored state says the leg is stuck and, when a
  * Telnyx call id exists, the provider says that call is already over.
@@ -402,12 +476,22 @@ export async function listDueIvrRounds(input?: {
 
     if (!invitation?._id) continue;
 
+    // Close idle in_progress/opened rounds before deciding what is due.
+    await reconcileIdleRoundStatuses({
+      userId: String(user._id),
+      invitationId: String(invitation._id),
+      rounds,
+      now,
+    });
+
     for (const raw of rounds) {
       const roundNumber = Number(raw?.roundNumber || raw?.round || 0) as
         | IvrRoundNumber
         | number;
       if (roundNumber !== 1 && roundNumber !== 2 && roundNumber !== 3) continue;
       if (isRoundTerminal(raw)) continue;
+      // One round at a time per event — later rounds wait until earlier ones close.
+      if (earlierRoundStillRunning(rounds, roundNumber)) continue;
 
       const scheduledAt = parseCallRoundScheduledAt(raw?.scheduledAt);
       if (!scheduledAt) continue;
@@ -931,7 +1015,13 @@ export async function executeIvrRound(input: {
     .select("status error")
     .lean();
 
-  const live = (await countOccupiedOutboundCalls()) > 0;
+  // Round completion depends only on THIS round's live legs. A parallel
+  // event's ringing call must not keep another client's round "מתבצע".
+  const liveForRound =
+    (await countOccupiedOutboundCallsForRound(
+      input.due.invitationId,
+      input.due.round
+    )) > 0;
   const anyPlaced = attempts.some((a) =>
     ["initiated", "ringing", "answered", "completed", "no_answer", "busy", "voicemail", "hangup_before_response"].includes(
       String(a.status)
@@ -942,7 +1032,7 @@ export async function executeIvrRound(input: {
       ?.reason || "";
 
   let status = "in_progress";
-  if (!hitCap && !live) {
+  if (!hitCap && !liveForRound) {
     status = anyPlaced || attempts.length === 0 ? "done" : "failed";
   }
 
@@ -994,10 +1084,18 @@ export async function fillIvrRoundCapacity(input: {
   const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
     ? user.callRoundsSchedule.rounds
     : [];
+  await reconcileIdleRoundStatuses({
+    userId: String(user._id),
+    invitationId: String(input.invitationId),
+    rounds,
+    now,
+  });
+
   const raw = rounds.find(
     (item: any) => Number(item?.roundNumber || item?.round || 0) === round
   );
   if (!raw || isRoundTerminal(raw)) return null;
+  if (earlierRoundStillRunning(rounds, round)) return null;
 
   const scheduledAt = parseCallRoundScheduledAt(raw?.scheduledAt);
   if (!scheduledAt) return null;

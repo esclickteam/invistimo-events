@@ -132,6 +132,10 @@ export async function GET(_req: NextRequest, context: RouteContext) {
               "Content-Range": `bytes ${start}-${end}/${total}`,
               "Accept-Ranges": "bytes",
               "Cache-Control": "public, max-age=3600",
+              // www vs apex (and admin preview hosts) must read duration/metadata.
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Expose-Headers":
+                "Content-Length, Content-Range, Accept-Ranges, Content-Type",
             },
           });
         }
@@ -145,6 +149,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         "Cache-Control": "public, max-age=3600",
         "Content-Length": String(total),
         "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Expose-Headers":
+          "Content-Length, Content-Range, Accept-Ranges, Content-Type",
       },
     });
   } catch (error) {
