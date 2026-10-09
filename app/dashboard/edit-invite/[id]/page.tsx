@@ -835,7 +835,7 @@ export default function EditInvitePage() {
                   </p>
                 </div>
 
-                <div className="mx-auto w-full max-w-[330px]">
+                <div data-tour="invite-guest-view" className="mx-auto w-full max-w-[330px]">
                   <div className="rounded-[42px] bg-[#1f1f1f] p-[10px] shadow-[0_30px_90px_rgba(0,0,0,0.28)]">
                     <div className="relative overflow-hidden rounded-[34px] bg-black">
                       <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center justify-center">

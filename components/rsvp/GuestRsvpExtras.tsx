@@ -5,11 +5,13 @@ import type { GiftOptions, PublicEventNote } from "@/lib/rsvp/guestRsvpLogic";
 export function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
   const creditUrl = (giftOptions?.creditUrl ?? "").trim();
   const payboxUrl = (giftOptions?.payboxUrl ?? "").trim();
+  const bitPhone = (giftOptions?.bitPhone ?? "").trim();
 
   const showCredit = !!giftOptions?.creditEnabled && !!creditUrl;
   const showPaybox = !!giftOptions?.payboxEnabled && !!payboxUrl;
+  const showBit = !!giftOptions?.bitEnabled && !!bitPhone;
 
-  if (!showCredit && !showPaybox) return null;
+  if (!showCredit && !showPaybox && !showBit) return null;
 
   return (
     <div className="rounded-[28px] border border-[#eadfce] bg-[#fffaf2] p-4 shadow-sm">
@@ -42,6 +44,13 @@ export function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
           >
             מתנה ב־PayBox
           </a>
+        )}
+
+        {showBit && (
+          <div className="flex-1 rounded-2xl border border-[#d8c7ad] bg-white py-3 text-center text-sm font-bold text-[#5a4634] shadow-sm">
+            <span className="block">Bit</span>
+            <span className="mt-1 block text-xs">{bitPhone}</span>
+          </div>
         )}
       </div>
     </div>

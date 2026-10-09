@@ -128,15 +128,18 @@ export default function ProductTour({
     setSuccess("");
     setLiftDim(false);
     setMissing(false);
+    setFocusSelector(step.selector);
     document.documentElement.dataset.demoTour = step.id;
     window.dispatchEvent(
       new CustomEvent("invistimo:demo-tour-step", {
         detail: { id: step.id, selector: step.selector, topic: step.topic },
       })
     );
-    if (!step.stay && step.route && !tourRouteMatches(pathname, step.route)) {
-      router.push(step.route);
-    }
+  }, [step]);
+
+  useEffect(() => {
+    if (!step || step.stay || !step.route || tourRouteMatches(pathname, step.route)) return;
+    router.push(step.route);
   }, [step, pathname, router]);
 
   useEffect(() => {
@@ -166,7 +169,7 @@ export default function ProductTour({
         box.top >= 64 &&
         box.bottom <= window.innerHeight - 24 &&
         box.height < window.innerHeight * 0.85;
-      const key = `${step.id}:${nextFocus}`;
+      const key = `${step.id}:${nextFocus}:${Math.round(box.top / 48)}`;
       if (!centered && scrolledKey !== key && !liftDim) {
         scrolledKey = key;
         scrollTargetIntoCenter(node);
@@ -214,8 +217,12 @@ export default function ProductTour({
         node && (node === event.target || node.contains(event.target as Node))
       );
       if (!hit) return;
-      const openingMenu = focusSelector !== step.selector;
-      if (openingMenu) return;
+      const interim = Boolean(focusSelector) && focusSelector !== step.selector;
+      const real = findTourTarget(step.selector);
+      const hitReal = Boolean(
+        real && (real === event.target || real.contains(event.target as Node))
+      );
+      if (interim && !hitReal) return;
       setLiftDim(true);
       if (step.advance === "click") complete("מצוין");
     };

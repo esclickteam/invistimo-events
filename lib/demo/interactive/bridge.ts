@@ -96,14 +96,24 @@ function demoCustomer() {
 }
 
 function invitationPayload(session: DemoSession) {
+  const invitation = session.invitation as Record<string, any>;
+  const gifts = invitation.gifts || invitation.publicEventPage?.gifts || {};
   return {
-    ...session.invitation,
+    ...invitation,
+    giftOptions: {
+      creditEnabled: Boolean(gifts.creditEnabled) && Boolean(gifts.creditUrl),
+      creditUrl: String(gifts.creditUrl || ""),
+      payboxEnabled: Boolean(gifts.payboxEnabled) && Boolean(gifts.payboxUrl),
+      payboxUrl: String(gifts.payboxUrl || ""),
+      bitEnabled: Boolean(gifts.bitEnabled) && Boolean(gifts.bitPhone),
+      bitPhone: String(gifts.bitPhone || ""),
+    },
     event: {
       _id: session.event._id,
       title: session.event.title,
       date: session.event.date,
       time: session.event.time,
-      location: (session.invitation as any).location,
+      location: invitation.location,
     },
   };
 }
