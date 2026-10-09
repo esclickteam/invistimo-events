@@ -7,6 +7,7 @@
  * That same file is what the guest hears. Fixed pack clips are not rebuilt here.
  */
 
+import type { Types } from "mongoose";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -139,8 +140,8 @@ async function releaseStaleOutboundOccupancy(now: Date) {
     .limit(40)
     .lean();
 
-  const stuckDialIds: unknown[] = [];
-  const stuckHangupIds: unknown[] = [];
+  const stuckDialIds: Types.ObjectId[] = [];
+  const stuckHangupIds: Types.ObjectId[] = [];
 
   for (const attempt of candidates) {
     const action = staleOutboundReleaseAction(attempt, now);
@@ -157,8 +158,10 @@ async function releaseStaleOutboundOccupancy(now: Date) {
     ) {
       continue;
     }
-    if (action === "stuck_hangup") stuckHangupIds.push(attempt._id);
-    else stuckDialIds.push(attempt._id);
+    const attemptId = attempt._id;
+    if (!attemptId) continue;
+    if (action === "stuck_hangup") stuckHangupIds.push(attemptId);
+    else stuckDialIds.push(attemptId);
   }
 
   if (stuckDialIds.length) {
