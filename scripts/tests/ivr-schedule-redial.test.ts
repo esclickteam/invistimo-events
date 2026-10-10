@@ -7,13 +7,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildNextIvrRoundSchedule,
   createIvrRoundRunId,
 } from "../../lib/calls/ivrRoundSchedule";
 
 const root = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "../.."
 );
 
@@ -173,7 +174,7 @@ test("blocked dials mark failed not done", () => {
   const dialer = readSrc("lib/calls/ivrDialer.ts");
   assert.match(dialer, /החיוג נחסם או נכשל/);
   assert.match(dialer, /Never mark a round "done" when no real dial was placed/);
-  assert.match(dialer, /if \(anyPlaced\) \{\n\s*status = "done";/);
+  assert.match(dialer.replace(/\r\n/g, "\n"), /if \(anyPlaced\) \{\n\s*status = "done";/);
 });
 
 test("IVR report separates current run from history via runId", () => {

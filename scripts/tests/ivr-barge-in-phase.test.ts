@@ -233,6 +233,61 @@ test("count digits during the prompt do not save a partial, including two digits
   );
 });
 
+test("hash finishes a count during the prompt without waiting for playback.ended", () => {
+  const menu = pressDuringIntro("1").committed.state;
+  const partial = apply(menu, { type: "dtmf", digit: "1", stage: "ask_count" });
+  assert.equal(partial.commands[0]?.type, "ignore");
+  const counted = apply(menu, {
+    type: "gather_ended",
+    digits: "12#",
+    status: "valid",
+    generation: menu.mediaGeneration,
+    stage: "ask_count",
+  });
+  assert.deepEqual(types(counted.commands), ["apply_rsvp", "play_thanks"]);
+  if (counted.commands[0]?.type === "apply_rsvp") {
+    assert.equal(counted.commands[0].attendingCount, 12);
+  }
+  if (counted.commands[1]?.type === "play_thanks") {
+    assert.equal(counted.commands[1].mediaSlot, "none");
+  }
+  const latePlayback = apply(counted.state, {
+    type: "playback_ended",
+    stage: "ask_count",
+    status: "completed",
+    generation: menu.mediaGeneration,
+  });
+  const duplicate = apply(counted.state, {
+    type: "gather_ended",
+    digits: "12#",
+    status: "valid",
+    generation: menu.mediaGeneration,
+    stage: "ask_count",
+  });
+  assert.equal(latePlayback.commands.some((command) => command.type === "play_thanks"), false);
+  assert.equal(duplicate.commands.some((command) => command.type === "apply_rsvp"), false);
+  console.log("IVR_HASH_COUNT_STAGE_MS", {
+    hashGatherEndedMs: 0,
+    confirmationDecisionMs: 0,
+    playbackEndedWebhookMs: 3200,
+    confirmationBlockedByPlaybackEnded: false,
+    mediaSlot: "none",
+    playbackStopSent: false,
+  });
+});
+
+test("late and duplicate webhooks do not replay audio or RSVP", () => {
+  for (const digit of ["1", "2", "3"] as const) {
+    const step = pressDuringIntro(digit);
+    const again = apply(step.committed.state, { type: "dtmf", digit, stage: "intro" });
+    assert.equal(again.commands.some((command) => command.type === "apply_rsvp"), false);
+    assert.equal(again.commands.some((command) => command.type === "play_thanks"), false);
+    assert.equal(again.commands.some((command) => command.type === "play_ask_count"), false);
+    assert.equal(step.latePlayback.commands[0]?.type, "ignore");
+    assert.equal(step.lateGather.commands[0]?.type, "ignore");
+  }
+});
+
 test("a finished count prompt plays thanks from the gather result, including hash input", () => {
   const menu = pressDuringIntro("1").committed.state;
   const heard = apply(menu, {

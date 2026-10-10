@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   classifyUnansweredHangup,
   explainIvrCallFailure,
@@ -18,7 +19,7 @@ import { ivrFailureReason } from "../../lib/calls/ivrCallReport";
 import { normalizePhoneForTelnyx } from "../../lib/telnyx/ivrCallControl";
 
 const root = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "../.."
 );
 

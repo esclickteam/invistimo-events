@@ -6,13 +6,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   resolveAuthUserId,
   resolveOptionalTargetUserId,
 } from "../../lib/calls/ivrRequestAuth";
 
 const root = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "../.."
 );
 
@@ -84,7 +85,7 @@ test("all IVR API routes use ivrRequestAuth helpers (no raw findById on auth pay
 
   for (const file of files) {
     const src = readFileSync(file, "utf8");
-    const rel = path.relative(root, file);
+    const rel = path.relative(root, file).split(path.sep).join("/");
 
     // media/[token] is public and does not use session auth.
     if (rel.includes("media/")) continue;

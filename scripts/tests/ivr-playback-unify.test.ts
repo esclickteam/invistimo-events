@@ -272,6 +272,144 @@ test("playbackIvrAudio awaits clear before playback_start", () => {
   assert.match(body, /IVR_PLAYBACK_START/);
 });
 
+test("release_gather waits for gather_stop, then plays, including failure and delay", async () => {
+  const prevKey = process.env.TELNYX_API_KEY;
+  process.env.TELNYX_API_KEY = "test-key-not-real";
+  const originalFetch = globalThis.fetch;
+
+  async function withFetch(
+    impl: typeof fetch,
+    run: () => Promise<void>
+  ) {
+    globalThis.fetch = impl;
+    try {
+      await run();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  const { gatherIvrUsingAudio, playbackIvrAudio, clearIvrMediaSlot } = await import(
+    "../../lib/telnyx/ivrCallControl"
+  );
+
+  try {
+    await withFetch((async (input: RequestInfo | URL) => {
+      const action = String(input).match(/\/actions\/([^/?]+)/)?.[1] || "";
+      const started = Date.now();
+      if (action === "gather_stop") {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        return new Response(JSON.stringify({ data: { result: "ok", started } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ data: { result: "ok", afterStop: Date.now() - started } }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch, async () => {
+      const order: string[] = [];
+      const timed = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        order.push(String(input).match(/\/actions\/([^/?]+)/)?.[1] || "");
+        return timed(input, init);
+      }) as typeof fetch;
+      const began = Date.now();
+      await gatherIvrUsingAudio({
+        callControlId: "cc-release",
+        audioUrl: "https://example.com/ask-count.mp3",
+        mediaClear: "release_gather",
+        terminatingDigit: "",
+      });
+      const elapsed = Date.now() - began;
+      assert.deepEqual(order, ["gather_stop", "gather_using_audio"]);
+      assert.equal(order.includes("playback_stop"), false);
+      assert.ok(elapsed >= 80, `follow-up started before gather_stop settled (${elapsed}ms)`);
+      console.log("IVR_GATHER_RELEASE_STAGE_MS", {
+        gatherStopThenFollowUpMs: elapsed,
+        playbackStopSent: false,
+        followUp: "gather_using_audio",
+      });
+    });
+
+    await withFetch((async (input: RequestInfo | URL) => {
+      const action = String(input).match(/\/actions\/([^/?]+)/)?.[1] || "";
+      if (action === "gather_stop") {
+        return new Response(JSON.stringify({ errors: [{ code: "90018", title: "no active gather" }] }), {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ data: { result: "ok" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch, async () => {
+      const order: string[] = [];
+      const timed = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        order.push(String(input).match(/\/actions\/([^/?]+)/)?.[1] || "");
+        return timed(input, init);
+      }) as typeof fetch;
+      await playbackIvrAudio(
+        "cc-thanks",
+        "https://example.com/thanks.mp3",
+        { stage: "thanks", generation: 3 },
+        { mediaClear: "release_gather" }
+      );
+      assert.deepEqual(order, ["gather_stop", "playback_start"]);
+      assert.equal(order.filter((action) => action === "gather_stop").length, 1);
+    });
+
+    await withFetch((async (input: RequestInfo | URL, init?: RequestInit) => {
+      const action = String(input).match(/\/actions\/([^/?]+)/)?.[1] || "";
+      if (action === "gather_stop") {
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 10_000);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+          });
+        });
+      }
+      return new Response(JSON.stringify({ data: { result: "ok" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch, async () => {
+      const order: string[] = [];
+      const timed = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        order.push(String(input).match(/\/actions\/([^/?]+)/)?.[1] || "");
+        return timed(input, init);
+      }) as typeof fetch;
+      const began = Date.now();
+      await clearIvrMediaSlot("cc-hang", "release_gather", 40);
+      const elapsed = Date.now() - began;
+      await playbackIvrAudio(
+        "cc-hang",
+        "https://example.com/thanks.mp3",
+        { stage: "thanks", generation: 4 },
+        { mediaClear: "none" }
+      );
+      assert.ok(elapsed < 500, `gather_stop hang held the call for ${elapsed}ms`);
+      assert.deepEqual(order, ["gather_stop", "playback_start"]);
+      assert.equal(order.includes("playback_stop"), false);
+      console.log("IVR_GATHER_STOP_TIMEOUT_MS", {
+        boundMs: 40,
+        settledMs: elapsed,
+        followUpStarted: true,
+        secondGatherStop: false,
+      });
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (prevKey === undefined) delete process.env.TELNYX_API_KEY;
+    else process.env.TELNYX_API_KEY = prevKey;
+  }
+});
+
 test("intro playback_start does not send gather_stop or playback_stop", async () => {
   const prevKey = process.env.TELNYX_API_KEY;
   process.env.TELNYX_API_KEY = "test-key-not-real";
