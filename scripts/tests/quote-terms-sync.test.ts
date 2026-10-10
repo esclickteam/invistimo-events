@@ -76,7 +76,14 @@ test("a current quote, a valid quote, and an expired quote show the updated term
           key: "venueSeating",
           price: 1600,
           customerDetails: [
-            { title: "שירות הושבה באולם", items: ["תיאור שירות מקורי שנשמר."] },
+            {
+              title: "שירות הושבה באולם",
+              items: [
+                "תיאור שירות מקורי שנשמר.",
+                "שירות ההושבה נמשך עד המנה הראשונה. במקרים בהם המנה הראשונה מוגשת לפני החופה — עד 4 שעות או עד שחרורם מהאירוע, לפי המוקדם מביניהם.",
+                "השירות נמשך עד 4 שעות.",
+              ],
+            },
           ],
         },
         {
@@ -145,7 +152,19 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     assert.equal(JSON.stringify(chuppah).includes("אינו גורר חיוב אוטומטי"), true);
     assert.equal(JSON.stringify(chuppah).includes("15 דקות ומעלה"), true);
     assert.equal(JSON.stringify(chuppah).includes("30 דקות או יותר"), true);
-    assert.equal(JSON.stringify(chuppah).includes("אין לגבות פעמיים תוספת של 500 ₪"), true);
+    assert.equal(JSON.stringify(chuppah).includes("אין לגבות פעמיים תוספת של 500 ₪"), false);
+    assert.equal(seating[0].items[1].includes("עד 3 שעות"), true);
+    assert.equal(seating[0].items[1].includes("עד 4 שעות"), false);
+    assert.equal(
+      seating[0].items[1].split("המנה הראשונה מוגשת לפני החופה").length - 1,
+      1,
+    );
+    assert.equal(seating[0].items[2].includes("ההושבה היא עד המנה הראשונה"), true);
+    assert.equal(
+      seating[0].items[2].includes("למקרים חריגים, אם המנה הראשונה מוגשת לפני החופה"),
+      true,
+    );
+    assert.equal(seating[0].items[2].includes("עד 4 שעות"), false);
     assert.equal(JSON.stringify(chuppah).includes("12:35"), false);
     assert.equal(JSON.stringify(chuppah).includes("לדוגמה"), false);
     assert.equal(
