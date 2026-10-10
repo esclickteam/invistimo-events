@@ -266,7 +266,8 @@ test("customer-facing Wedding Challenges card is a 299 ILS checkout product with
   const adminSales = fs.readFileSync("app/api/admin/wedding-challenges/sales/route.ts", "utf8");
   const adminPage = fs.readFileSync("app/admin/users/page.tsx", "utf8");
   const employeeSales = fs.readFileSync("app/employee/sales/new/page.tsx", "utf8");
-  assert.match(pricing, /WeddingChallengesPurchaseCard/);
+  assert.doesNotMatch(pricing, /WeddingChallengesPurchaseCard/);
+  assert.match(card, /WeddingChallengesPurchaseCard/);
   assert.match(card, /WEDDING_CHALLENGES_PRICE_ILS/);
   assert.match(card, /₪ לאירוע/);
   assert.match(card, /WEDDING_CHALLENGES_MAX_GUESTS/);

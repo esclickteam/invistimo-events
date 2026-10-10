@@ -4,7 +4,7 @@
  * Messages keep the existing plan1 rate table (same brackets and
  * Math.round(records * rate) as the previous pricing page).
  * Call packages use the flat per-record prices defined for this page.
- * Digital seating is a one-time add-on, not a per-record price.
+ * Add-ons keep their original names and prices. Digital seating is 100 ₪ on every package.
  */
 
 import { calculateBase, getRate } from "@/lib/adminPackages";
@@ -25,11 +25,6 @@ const CALL_RATE_TENTHS: Record<Exclude<PackageId, "messages">, number> = {
   hybrid: 19,
 };
 
-export type PackageRound = {
-  title: string;
-  detail: string;
-};
-
 export type PackageDefinition = {
   id: PackageId;
   name: string;
@@ -41,66 +36,49 @@ export type PackageDefinition = {
   /** Detailed service line sent to WhatsApp. */
   serviceLabel: string;
   group: ServiceMode;
-  rounds: PackageRound[];
+  /** One short call line. Empty for the messages package. */
+  callLine: string;
   features: string[];
 };
 
-const SHARED_EVENT_FEATURES = [
-  "הזמנה דיגיטלית מלאה לפי הקובץ שאתם מעלים",
-  "דף הזמנה עם פרטי האירוע וקישור אישי לאישור הגעה",
-  "ניהול רשימת מוזמנים ורשומות לפי הכמות שנבחרה",
-  "דשבורד למעקב אחר אישורי ההגעה",
-  "2 סבבי הודעות אוטומטיים ב-WhatsApp או ב-SMS",
-  "אפשרות לפצל כל סבב בין WhatsApp ל-SMS",
-  "מעקב אחר פתיחת הקישור האישי",
-  "עדכון סטטוס ההגעה לפי תשובת האורח",
-  "תזכורת ב-SMS לקראת האירוע, כולל מספר שולחן אם הוגדר",
-  "הודעת תודה ב-SMS לאחר האירוע",
+/** Original shared lines from the previous pricing page. */
+const ORIGINAL_SHARED_FEATURES = [
+  "הזמנה דיגיטלית מלאה",
+  "שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה",
+  "תזכורת ב-SMS לקראת האירוע + מספר שולחן",
+  "הודעת תודה לאחר האירוע ב-SMS",
 ];
+
+/** Original call-package line that is not a call-type description. */
+const ORIGINAL_STATUS_FEATURE = "תיעוד ועדכון סטטוסים בזמן אמת";
 
 export const PACKAGES: Record<PackageId, PackageDefinition> = {
   messages: {
     id: "messages",
     name: "Invistimo Messages",
     hebrewName: "הודעות בלבד",
-    badge: "קל להזמין",
-    description:
-      "אישורי הגעה בהודעות: הזמנה דיגיטלית, שני סבבי WhatsApp או SMS, מעקב בדשבורד, תזכורת לקראת האירוע והודעת תודה.",
+    badge: "מתאים לאירוע פשוט",
+    description: "הבסיס המושלם להזמנה דיגיטלית ואישורי הגעה",
     summaryService: "הודעות בלבד",
     serviceLabel: "הודעות בלבד",
     group: "messages",
-    rounds: [],
-    features: [...SHARED_EVENT_FEATURES],
+    callLine: "",
+    features: [...ORIGINAL_SHARED_FEATURES],
   },
   voice: {
     id: "voice",
     name: "Invistimo Voice",
     hebrewName: "שיחות מוקלטות",
-    badge: "מענה אוטומטי",
-    description:
-      "מערכת אישורי הגעה אוטומטית באמצעות שיחות קוליות מוקלטות, המאפשרת לאורחים לאשר הגעה בקלות ובמהירות.",
+    badge: "שיחות מוקלטות",
+    description: "3 סבבי שיחות מוקלטות.",
     summaryService: "שיחות מוקלטות",
     serviceLabel: "3 סבבי שיחות מוקלטות",
     group: "calls",
-    rounds: [
-      {
-        title: "סבב ראשון: שיחות מוקלטות",
-        detail: "אורחים שעדיין לא השיבו להזמנה",
-      },
-      {
-        title: "סבב שני: שיחות מוקלטות",
-        detail: "מי שלא ענה בסבב המוקלט הראשון",
-      },
-      {
-        title: "סבב שלישי: שיחות מוקלטות",
-        detail: "מי שלא ענה בסבבים הקודמים, וגם מתלבטים",
-      },
-    ],
+    callLine: "3 סבבי שיחות מוקלטות.",
     features: [
-      "שלושה סבבי שיחות קוליות מוקלטות",
-      "האורח מאשר בלחיצת מקש: מגיע, לא מגיע או מתלבט",
-      "עדכון סטטוס ההגעה במערכת לפי התשובה בשיחה",
-      ...SHARED_EVENT_FEATURES,
+      ...ORIGINAL_SHARED_FEATURES,
+      "3 סבבי שיחות מוקלטות.",
+      ORIGINAL_STATUS_FEATURE,
     ],
   },
   personal: {
@@ -108,74 +86,80 @@ export const PACKAGES: Record<PackageId, PackageDefinition> = {
     name: "Invistimo Personal",
     hebrewName: "שיחות אנושיות",
     badge: "הבחירה הפופולרית",
-    description:
-      "שירות אישורי הגעה אישי באמצעות נציגים אנושיים, ליצירת קשר ישיר עם האורחים וקבלת תשובות מדויקות.",
+    description: "3 סבבי שיחות במוקד אנושי.",
     summaryService: "שיחות אנושיות",
-    serviceLabel: "3 סבבי שיחות אנושיות",
+    serviceLabel: "3 סבבי שיחות במוקד אנושי",
     group: "calls",
-    rounds: [
-      {
-        title: "סבב ראשון: שיחה אנושית",
-        detail: "ממתינים שעדיין לא נתנו תשובה",
-      },
-      {
-        title: "סבב שני: שיחה אנושית",
-        detail: "לא ענו בסבב הראשון או ביקשו חזרה",
-      },
-      {
-        title: "סבב שלישי: שיחה אנושית",
-        detail: "לא ענו בשני הסבבים, ביקשו חזרה, או מתלבטים",
-      },
-    ],
+    callLine: "3 סבבי שיחות במוקד אנושי.",
     features: [
-      "מוקד טלפוני עם נציגים אנושיים",
-      "שלושה סבבי שיחה למי שטרם התקבלה ממנו תשובה סופית",
-      "תיעוד השיחה, הערות ועדכון סטטוס בזמן אמת",
-      ...SHARED_EVENT_FEATURES,
+      ...ORIGINAL_SHARED_FEATURES,
+      "3 סבבי שיחות במוקד אנושי.",
+      ORIGINAL_STATUS_FEATURE,
     ],
   },
   hybrid: {
     id: "hybrid",
     name: "Invistimo Hybrid",
     hebrewName: "שיחות משולבות",
-    badge: "אוטומציה ושירות אישי",
-    description:
-      "השילוב בין אוטומציה לשירות אישי: שני סבבים של שיחות מוקלטות ולאחריהם סבב שיחות אנושיות להשלמת אישורי ההגעה.",
+    badge: "שיחות משולבות",
+    description: "2 סבבי שיחות מוקלטות + סבב אחד אנושי.",
     summaryService: "שיחות משולבות",
-    serviceLabel: "2 סבבי שיחות מוקלטות + סבב שיחות אנושיות",
+    serviceLabel: "2 סבבי שיחות מוקלטות + סבב אחד אנושי",
     group: "calls",
-    rounds: [
-      {
-        title: "סבב ראשון: שיחות מוקלטות",
-        detail: "אורחים שעדיין לא השיבו להזמנה",
-      },
-      {
-        title: "סבב שני: שיחות מוקלטות",
-        detail: "מי שלא ענה בסבב המוקלט הראשון",
-      },
-      {
-        title: "סבב שלישי: שיחות אנושיות",
-        detail: "נציג משלים את אישורי ההגעה ומתעד את התשובה",
-      },
-    ],
+    callLine: "2 סבבי שיחות מוקלטות + סבב אחד אנושי.",
     features: [
-      "שני סבבים של שיחות מוקלטות, ואחריהם סבב אחד של שיחות אנושיות",
-      "בשיחה המוקלטת האורח מאשר בלחיצת מקש",
-      "בסבב האנושי הנציג מתעד את השיחה ומעדכן סטטוס",
-      ...SHARED_EVENT_FEATURES,
+      ...ORIGINAL_SHARED_FEATURES,
+      "2 סבבי שיחות מוקלטות + סבב אחד אנושי.",
+      ORIGINAL_STATUS_FEATURE,
     ],
   },
 };
 
 export const CALL_PACKAGES: PackageId[] = ["voice", "personal", "hybrid"];
 
-export const SEATING_FEATURES = [
-  "ניהול שולחנות ומספרי כיסאות",
-  "שיוך אורחים לשולחנות",
-  "צפייה בכמות המקומות הפנויים",
-  "תרשים אולם לסידור ההושבה",
-  "חיבור בין אישורי ההגעה לבין סידור השולחנות",
-];
+export type AddonKey = "credit" | "seating" | "system" | "design";
+
+export type SelectedAddons = Record<AddonKey, boolean>;
+
+export const ADDON_ORDER: AddonKey[] = ["credit", "seating", "system", "design"];
+
+/** Original addon names from the previous pricing page. */
+export const ADDON_LABELS: Record<AddonKey, string> = {
+  credit: "מתנות באשראי דרך ספק חיצוני",
+  seating: "הושבה דיגיטלית",
+  system: "מערכת עצמאית לניהול ומעקב אירוע",
+  design: "עיצוב הזמנה בהתאמה אישית",
+};
+
+export const EMPTY_ADDONS: SelectedAddons = {
+  credit: false,
+  seating: false,
+  system: false,
+  design: false,
+};
+
+/**
+ * Original addon prices.
+ * Messages used plan1. Call packages used plan2.
+ * Digital seating is 100 ₪ on every package.
+ */
+const ADDON_PRICES: Record<"messages" | "calls", Record<Exclude<AddonKey, "seating">, number>> = {
+  messages: { credit: 150, system: 200, design: 200 },
+  calls: { credit: 100, system: 150, design: 150 },
+};
+
+export function addonPrice(packageId: PackageId, key: AddonKey): number {
+  if (key === "seating") return SEATING_ADDON_ILS;
+  const table = packageId === "messages" ? ADDON_PRICES.messages : ADDON_PRICES.calls;
+  return table[key];
+}
+
+export type AddonLine = {
+  key: AddonKey;
+  label: string;
+  selected: boolean;
+  price: number;
+};
 
 export type PackageQuote = {
   packageId: PackageId;
@@ -186,8 +170,10 @@ export type PackageQuote = {
   records: number;
   rate: number;
   servicePrice: number;
+  addons: AddonLine[];
   seating: boolean;
   seatingPrice: number;
+  addonTotal: number;
   total: number;
   canOrder: boolean;
 };
@@ -244,12 +230,23 @@ export function servicePrice(packageId: PackageId, records: number): number {
 export function calculateQuote(input: {
   packageId: PackageId;
   records: number;
-  seating: boolean;
+  addons: SelectedAddons;
 }): PackageQuote {
   const records = clampRecords(input.records);
   const pkg = PACKAGES[input.packageId];
   const price = servicePrice(input.packageId, records);
-  const seatingPrice = input.seating ? SEATING_ADDON_ILS : 0;
+  const addons = ADDON_ORDER.map((key) => {
+    const selected = Boolean(input.addons[key]);
+    const unit = addonPrice(pkg.id, key);
+    return {
+      key,
+      label: ADDON_LABELS[key],
+      selected,
+      price: selected ? unit : 0,
+    };
+  });
+  const addonTotal = addons.reduce((sum, addon) => sum + addon.price, 0);
+  const seating = addons.find((addon) => addon.key === "seating");
 
   return {
     packageId: pkg.id,
@@ -260,9 +257,11 @@ export function calculateQuote(input: {
     records,
     rate: packageRate(pkg.id, records),
     servicePrice: price,
-    seating: input.seating,
-    seatingPrice,
-    total: price + seatingPrice,
+    addons,
+    seating: Boolean(seating?.selected),
+    seatingPrice: seating?.price ?? 0,
+    addonTotal,
+    total: price + addonTotal,
     canOrder: records > 0,
   };
 }
@@ -283,12 +282,21 @@ export function buildWhatsappMessage(quote: PackageQuote): string {
     `חבילה: ${quote.packageName}`,
     `כמות רשומות: ${quote.records}`,
     `סוג שירות: ${quote.serviceLabel}`,
-    `הושבה דיגיטלית: ${quote.seating ? "כן" : "לא"}`,
-    `מחיר שירות: ${formatIls(quote.servicePrice)}`,
   ];
 
-  if (quote.seating) {
-    lines.push(`תוספת הושבה: ${formatIls(quote.seatingPrice)}`);
+  for (const addon of quote.addons) {
+    lines.push(`${addon.label}: ${addon.selected ? "כן" : "לא"}`);
+  }
+
+  lines.push(`מחיר שירות: ${formatIls(quote.servicePrice)}`);
+
+  for (const addon of quote.addons) {
+    if (!addon.selected) continue;
+    lines.push(
+      addon.key === "seating"
+        ? `תוספת הושבה: ${formatIls(addon.price)}`
+        : `${addon.label}: ${formatIls(addon.price)}`
+    );
   }
 
   lines.push(`סה"כ: ${formatIls(quote.total)}`, "", "אשמח לקבל פרטים ולהתקדם.");
