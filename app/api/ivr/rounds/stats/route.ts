@@ -49,8 +49,9 @@ export async function GET(req: NextRequest) {
 
     const attempts = await IvrCallAttempt.find({
       invitationId: invitation._id,
+      channel: "outbound_ivr",
     })
-      .select("round status answered rsvpResult attendingCount error")
+      .select("round runId status answered rsvpResult attendingCount error")
       .lean();
 
     const scheduleRounds = Array.isArray(target.callRoundsSchedule?.rounds)
@@ -82,7 +83,15 @@ export async function GET(req: NextRequest) {
               : executionStatus === "cancelled"
                 ? "בוטל"
                 : "מתוזמן";
-      const roundAttempts = attempts.filter((a) => Number(a.round) === round);
+      const runId = String(scheduleRound?.runId || "").trim();
+      // Prefer current run only. Legacy attempts (no runId) count only when
+      // the schedule itself has no runId — never mix another run's dials in.
+      const roundAttempts = attempts.filter((a) => {
+        if (Number(a.round) !== round) return false;
+        const attemptRunId = String((a as { runId?: string }).runId || "");
+        if (runId) return attemptRunId === runId;
+        return !attemptRunId;
+      });
       const eligibleNow = filterGuestsForIvrRound({
         guests,
         round: round as 1 | 2 | 3,

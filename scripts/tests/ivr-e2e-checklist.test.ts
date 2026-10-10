@@ -55,9 +55,11 @@ test("2) migration script never writes scheduledAt", () => {
 });
 
 test("3) IVR package uses exactly 3 rounds in schedule API", () => {
-  const src = readSrc("app/api/ivr/schedule/route.ts");
-  assert.match(src, /\[1,\s*2,\s*3\]\.map/);
-  assert.match(src, /callType:\s*"ivr"/);
+  const route = readSrc("app/api/ivr/schedule/route.ts");
+  const builder = readSrc("lib/calls/ivrRoundSchedule.ts");
+  assert.match(route, /buildNextIvrRoundSchedule/);
+  assert.match(builder, /\[1,\s*2,\s*3\]\.map/);
+  assert.match(builder, /callType:\s*"ivr"/);
 });
 
 test("4) audience is resolved only at execution (dialer filters live guests)", () => {

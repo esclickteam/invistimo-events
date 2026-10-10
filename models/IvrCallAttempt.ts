@@ -49,6 +49,11 @@ export interface IIvrCallAttempt {
 
   /** Outbound round 1–3; inbound callbacks omit round. */
   round?: 1 | 2 | 3;
+  /**
+   * Schedule-run id from callRoundsSchedule.rounds[].runId.
+   * Empty on legacy rows created before per-run identity.
+   */
+  runId?: string;
   phone: string;
 
   /** History channel — inbound callbacks are stored as inbound_ivr. */
@@ -174,6 +179,12 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       enum: [1, 2, 3],
       required: false,
       default: undefined,
+      index: true,
+    },
+    runId: {
+      type: String,
+      trim: true,
+      default: "",
       index: true,
     },
     phone: {
@@ -465,6 +476,13 @@ IvrCallAttemptSchema.index({
   invitationId: 1,
   round: 1,
   status: 1,
+});
+
+IvrCallAttemptSchema.index({
+  invitationId: 1,
+  round: 1,
+  runId: 1,
+  guestId: 1,
 });
 
 IvrCallAttemptSchema.index({

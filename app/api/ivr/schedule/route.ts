@@ -7,9 +7,9 @@ import {
 import {
   formatCallRoundDateTimeDmy,
   formatCallRoundDateTimeInput,
-  normalizeCallRoundScheduledAtForSave,
-  parseCallRoundScheduledAt,
 } from "@/lib/calls/callRoundScheduleTime";
+import { buildNextIvrRoundSchedule } from "@/lib/calls/ivrRoundSchedule";
+import { resolveIvrRoundAudio } from "@/lib/calls/ivrDialer";
 import { ivrPersistErrorPayload } from "@/lib/calls/ivrConfigPersist";
 
 export const runtime = "nodejs";
@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Save IVR round schedule dates only.
+ * Shared shape with admin schedule action — new runId on each schedule change.
  * Never locks audience. Does not mutate existing human schedules for other users.
- * Preserves openedAt/status/tasksCreated when scheduledAt unchanged.
  */
 export async function PUT(req: NextRequest) {
   try {
@@ -50,48 +50,9 @@ export async function PUT(req: NextRequest) {
       ? user.callRoundsSchedule.rounds
       : [];
 
-    const nextRounds = [1, 2, 3].map((roundNumber) => {
-      const incoming = incomingRounds.find(
-        (r: any) => Number(r?.roundNumber || r?.round) === roundNumber
-      );
-      const existing = existingRounds.find(
-        (r: any) => Number(r?.roundNumber || r?.round) === roundNumber
-      );
-
-      const scheduledAtIso = normalizeCallRoundScheduledAtForSave(
-        incoming?.scheduledAt ?? existing?.scheduledAt ?? null
-      );
-      const scheduledAt = scheduledAtIso
-        ? parseCallRoundScheduledAt(scheduledAtIso)
-        : null;
-
-      const previousScheduled = existing?.scheduledAt
-        ? new Date(existing.scheduledAt).getTime()
-        : null;
-      const nextScheduled = scheduledAt ? scheduledAt.getTime() : null;
-      const scheduleChanged = previousScheduled !== nextScheduled;
-
-      return {
-        roundNumber,
-        title:
-          String(incoming?.title || existing?.title || "").trim() ||
-          `סבב מוקלט ${roundNumber}`,
-        scheduledAt,
-        // Phase 1 marker for future mixed model — always ivr for this package.
-        callType: "ivr" as const,
-        status: scheduleChanged
-          ? scheduledAt
-            ? "scheduled"
-            : "cancelled"
-          : existing?.status || (scheduledAt ? "scheduled" : "draft"),
-        notes: String(incoming?.notes || existing?.notes || ""),
-        failureReason: scheduleChanged ? "" : existing?.failureReason || "",
-        dialClaimedAt: scheduleChanged ? null : existing?.dialClaimedAt || null,
-        openedAt: scheduleChanged ? null : existing?.openedAt || null,
-        tasksCreated: scheduleChanged ? null : existing?.tasksCreated ?? null,
-        updatedAt: new Date(),
-        createdAt: existing?.createdAt || new Date(),
-      };
+    const { rounds: nextRounds, changedRounds } = buildNextIvrRoundSchedule({
+      incomingRounds,
+      existingRounds,
     });
 
     user.callRoundsSchedule = {
@@ -100,6 +61,15 @@ export async function PUT(req: NextRequest) {
     };
 
     await user.save();
+
+    const audio = resolveIvrRoundAudio(user);
+    const scheduledCount = nextRounds.filter((r) => r.status === "scheduled")
+      .length;
+    const executable = scheduledCount === 0 || audio.audioReady === true;
+    const executeBlockReason = executable
+      ? ""
+      : audio.audioBlockReason ||
+        "אין קריינות מאושרת — התזמון נשמר אבל Cron לא יחייג עד לאישור";
 
     const schedule = user.callRoundsSchedule?.toObject?.()
       ? user.callRoundsSchedule.toObject()
@@ -113,6 +83,14 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       callRoundsSchedule: { ...schedule, rounds },
+      changedRounds,
+      executable,
+      executeBlockReason,
+      message: executable
+        ? changedRounds.length
+          ? "תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע."
+          : "תזמון הסבבים נשמר."
+        : `התזמון נשמר, אך לא יתבצע חיוג: ${executeBlockReason}`,
     });
   } catch (error) {
     console.error("[ivr/schedule]", error);

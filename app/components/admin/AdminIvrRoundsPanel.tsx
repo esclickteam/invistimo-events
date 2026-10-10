@@ -130,6 +130,13 @@ export default function AdminIvrRoundsPanel({
       } else {
         await load();
       }
+      if (data?.executable === false) {
+        setError(
+          data?.message ||
+            data?.executeBlockReason ||
+            "התזמון נשמר, אך לא יתבצע חיוג עד לאישור קריינות"
+        );
+      }
       onScheduleChanged?.();
       return true;
     } catch (err) {
@@ -162,6 +169,11 @@ export default function AdminIvrRoundsPanel({
     const roundsPayload = [1, 2, 3].map((n) => ({
       roundNumber: n,
       scheduledAt: n === roundNumber ? value : draftTimes[n] || "",
+      // Only the round being saved gets an explicit status so a done/cancelled
+      // plan with the same Israel wall-clock still opens a new runId.
+      ...(n === roundNumber
+        ? { status: value ? "scheduled" : "cancelled" }
+        : {}),
     }));
     await postAction(
       { action: "schedule", rounds: roundsPayload },
@@ -179,7 +191,8 @@ export default function AdminIvrRoundsPanel({
           <div className="font-black text-[#3A2A1C]">סבבי שיחות IVR</div>
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
             פתיחה מחדש וחסימה כמו בסבבי WhatsApp/SMS. פתיחה מחדש מאפשרת תזמון
-            מחדש בלי חיוג מיידי. בדיקת קריינות וזכאים מתבצעת רק לפני חיוג בפועל.
+            מחדש בלי חיוג מיידי (מזהה הרצה חדש). בדיקת קריינות וזכאים מתבצעת
+            רק לפני חיוג. Cron כל דקה לפי שעון ישראל — ייתכן עיכוב של עד כדקה.
           </p>
         </div>
         <button
