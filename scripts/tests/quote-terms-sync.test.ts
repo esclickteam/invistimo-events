@@ -132,7 +132,8 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     assert.equal(seatingText.includes("דחייה קצרה מ"), false);
     assert.equal(seatingText.includes("נמסרה והוסכמה מראש"), false);
     assert.equal(seatingText.includes("כאשר נקבע בהזמנה כי יתרת התשלום"), false);
-    assert.equal(seatingText.includes("15 דקות או יותר"), true);
+    assert.equal(seatingText.includes("30 דקות או יותר"), true);
+    assert.equal(seatingText.includes("נדחתה ב־15 דקות"), false);
     assert.equal(seatingText.includes("שיקול דעתה הבלעדי"), true);
     assert.equal(
       seating.some((section) => section.title === "שינויים ועיכובים בלוחות הזמנים ובשעת החופה"),
@@ -141,9 +142,10 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     const chuppah = seating.find(
       (section) => section.title === "שינויים ועיכובים בלוחות הזמנים ובשעת החופה",
     );
-    assert.equal(JSON.stringify(chuppah).includes("500"), false);
     assert.equal(JSON.stringify(chuppah).includes("אינו גורר חיוב אוטומטי"), true);
     assert.equal(JSON.stringify(chuppah).includes("15 דקות ומעלה"), true);
+    assert.equal(JSON.stringify(chuppah).includes("30 דקות או יותר"), true);
+    assert.equal(JSON.stringify(chuppah).includes("אין לגבות פעמיים תוספת של 500 ₪"), true);
     assert.equal(
       seating.some((section) => section.title === "תשלום יתרת שירות ההושבה"),
       true,
@@ -334,7 +336,9 @@ test("stored legacy seating wording is replaced on the same quote and archived o
   assert.equal(visibleText.includes("נמסרה והוסכמה מראש"), false);
   assert.equal(visibleText.includes("כאשר נקבע בהזמנה כי יתרת התשלום"), false);
   assert.equal(visibleText.includes("הצוות מגיע כחצי שעה לפני האירוע."), true);
-  assert.equal(visibleText.includes("15 דקות או יותר"), true);
+  assert.equal(visibleText.includes("30 דקות או יותר"), true);
+  assert.equal(visibleText.includes("נדחתה ב־15 דקות"), false);
+  assert.equal(visibleText.includes("15 דקות ומעלה בשעת תחילת החופה"), true);
   assert.equal(visibleText.includes("מיד עם סיום עבודת צוות Invistimo"), true);
 
   const first = buildQuoteTermsUpdate(original);
