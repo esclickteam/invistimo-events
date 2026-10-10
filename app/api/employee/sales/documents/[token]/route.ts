@@ -224,10 +224,11 @@ export async function PATCH(
       }
 
       const actor = await resolveSeatingScheduleActor(req);
+      const publishToCustomer = body.replaceCustomerSchedule === true;
       const applied = applySeatingScheduleUpdate({
         current: (doc as any).seatingSchedule,
         nextTimes: parsedSchedule.times,
-        status: doc.status,
+        status: publishToCustomer ? "draft" : doc.status,
         actor,
       });
       if (!applied.ok) {

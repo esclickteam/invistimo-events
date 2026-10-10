@@ -130,6 +130,12 @@ export default function EditQuotePage() {
           return;
         }
         const d: QuoteDoc = data.document;
+        if (d.type !== "agreement") {
+          router.replace(
+            `/sales-documents/${encodeURIComponent(token)}?edit=1`,
+          );
+          return;
+        }
         setDoc(d);
         setScheduleTimes(readScheduleTimes(d.seatingSchedule));
         setForm({

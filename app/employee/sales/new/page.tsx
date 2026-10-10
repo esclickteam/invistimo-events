@@ -2566,7 +2566,7 @@ export default function NewEmployeeSalePage() {
                       generatedDocument.token ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                           <a
-                            href={`/admin/sales/quotes/${encodeURIComponent(generatedDocument.token)}/edit`}
+                            href={`/sales-documents/${encodeURIComponent(generatedDocument.token)}?edit=1`}
                             className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d8b777] bg-white px-4 text-xs font-black text-[#3A271D] transition hover:bg-[#fff7ec]"
                           >
                             עריכת הצעה

@@ -14,8 +14,15 @@ import {
   quoteShowsExpiredNotice,
 } from "@/lib/quotePaymentStatus";
 import {
+  buildEditedQuoteTotals,
+  quotePricesDiffer,
+  storedQuoteDiscount,
+} from "@/lib/quoteEditDraft";
+import {
   SEATING_SCHEDULE_FIELDS,
+  orderIncludesVenueSeating,
   toCustomerSeatingSchedule,
+  type SeatingScheduleTimes,
 } from "@/lib/seatingSchedule";
 
 type DetailSection = {
@@ -179,6 +186,7 @@ type SelectedService = {
   price?: number;
   givenFree?: boolean;
   details?: DetailSection[];
+  sourceIndex?: number;
 };
 
 const CREDIT_GIFTS_TITLE = "מתנות באשראי באמצעות ספק חיצוני RSVP";
@@ -206,6 +214,15 @@ const CREDIT_GIFTS_DETAILS: DetailSection[] = [
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function idString(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof value === "object") {
+    const text = String(value).trim();
+    if (/^[a-f\d]{24}$/i.test(text)) return text;
+  }
+  return "";
 }
 
 function hasCreditGiftsText(value: unknown) {
@@ -467,10 +484,30 @@ function DetailSections({ sections }: { sections?: DetailSection[] }) {
 function Field({
   label,
   value,
+  edit,
 }: {
   label: string;
   value?: string | number | null;
+  edit?: {
+    value: string;
+    onChange: (value: string) => void;
+    type?: string;
+  };
 }) {
+  if (edit) {
+    return (
+      <label className="block rounded-2xl border border-[#d6b47c] bg-white px-4 py-3">
+        <span className="text-xs font-black text-[#9b805f]">{label}</span>
+        <input
+          type={edit.type || "text"}
+          value={edit.value}
+          onChange={(event) => edit.onChange(event.target.value)}
+          className="mt-1 w-full bg-transparent text-sm font-black text-[#3f3327] outline-none"
+        />
+      </label>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
       <p className="text-xs font-black text-[#9b805f]">{label}</p>
@@ -479,6 +516,54 @@ function Field({
       </p>
     </div>
   );
+}
+
+type QuoteDraft = {
+  fullName: string;
+  email: string;
+  phone: string;
+  eventName: string;
+  eventDate: string;
+  city: string;
+  venueName: string;
+  packageTitle: string;
+  records: string;
+  packagePrice: string;
+  discountAmount: string;
+  upsellPrices: string[];
+  seating: SeatingScheduleTimes;
+};
+
+function dateInputValue(value?: string) {
+  const text = cleanStr(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  return text;
+}
+
+function draftFromDocument(document: SalesDocument): QuoteDraft {
+  const schedule = document.seatingSchedule;
+  return {
+    fullName: cleanStr(document.client?.fullName),
+    email: cleanStr(document.client?.email),
+    phone: cleanStr(document.client?.phone),
+    eventName: cleanStr(document.event?.name),
+    eventDate: dateInputValue(document.event?.date),
+    city: cleanStr(document.event?.city),
+    venueName: cleanStr(document.event?.venueName),
+    packageTitle: cleanStr(document.selectedPackage?.title),
+    records: String(document.selectedPackage?.records ?? ""),
+    packagePrice: String(document.selectedPackage?.price ?? ""),
+    discountAmount: String(storedQuoteDiscount(document.totals)),
+    upsellPrices: (document.upsells || []).map((upsell) =>
+      String(upsell.price ?? 0),
+    ),
+    seating: {
+      receptionStartTime: cleanStr(schedule?.receptionStartTime),
+      plannedChuppahTime: cleanStr(schedule?.plannedChuppahTime),
+      plannedSeatingStartTime: cleanStr(schedule?.plannedSeatingStartTime),
+      teamArrivalTime: cleanStr(schedule?.teamArrivalTime),
+    },
+  };
 }
 
 function TextInput({
@@ -709,6 +794,21 @@ export default function SalesDocumentPage() {
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState("");
   const [signSuccess, setSignSuccess] = useState("");
+  const [editRequested, setEditRequested] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [convertedUserId, setConvertedUserId] = useState("");
+  const [draft, setDraft] = useState<QuoteDraft | null>(null);
+  const [editorSource, setEditorSource] = useState<SalesDocument | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMessage, setEditMessage] = useState("");
+  const [editError, setEditError] = useState("");
+  const [sendAgreementWithUser, setSendAgreementWithUser] = useState(true);
+  const [sendPasswordWithUser, setSendPasswordWithUser] = useState(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setEditRequested(params.get("edit") === "1");
+  }, []);
 
   const isAgreement = document?.type === "agreement";
   const isQuote = document?.type === "quote";
@@ -760,22 +860,31 @@ export default function SalesDocumentPage() {
     [document?.additionalTerms],
   );
 
-  const loadDocument = useCallback(async () => {
+  const loadDocument = useCallback(async (options?: { silent?: boolean }) => {
     if (!token) {
       setLoadError("קישור לא תקין");
       setLoading(false);
       return;
     }
 
-    try {
-      setLoading(true);
-      setLoadError("");
+    const editingView =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("edit") === "1";
 
-      const response = await fetch(`/api/sales-documents/${token}`, {
+    try {
+      if (!options?.silent) {
+        setLoading(true);
+        setLoadError("");
+      }
+
+      const response = await fetch(
+        `/api/sales-documents/${token}${editingView ? "?markViewed=false" : ""}`,
+        {
         method: "GET",
         credentials: "include",
         cache: "no-store",
-      });
+      },
+      );
 
       const data: ApiResponse = await response.json().catch(() => ({}));
 
@@ -833,17 +942,47 @@ export default function SalesDocumentPage() {
           Boolean(data.document.agreement?.acceptedTerms),
       );
     } catch (error) {
-      setLoadError(
-        error instanceof Error ? error.message : "שגיאה בטעינת המסמך",
-      );
+      if (!options?.silent) {
+        setLoadError(
+          error instanceof Error ? error.message : "שגיאה בטעינת המסמך",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }, [token]);
 
   useEffect(() => {
     loadDocument();
   }, [loadDocument]);
+
+  useEffect(() => {
+    if (!editRequested || !token) return;
+    let cancelled = false;
+
+    async function loadEditor() {
+      try {
+        const response = await fetch(
+          `/api/employee/sales/documents/${encodeURIComponent(token)}`,
+          { credentials: "include", cache: "no-store" },
+        );
+        const data = await response.json().catch(() => ({}));
+        if (cancelled || !response.ok || !data?.document) return;
+        if (data.document.type !== "quote") return;
+        setCanEdit(true);
+        setEditorSource(data.document);
+        setConvertedUserId(idString(data.document.convertedUserId));
+        setDraft(draftFromDocument(data.document));
+      } catch {
+        if (!cancelled) setCanEdit(false);
+      }
+    }
+
+    void loadEditor();
+    return () => {
+      cancelled = true;
+    };
+  }, [editRequested, token]);
 
   const selectedServices = useMemo<SelectedService[]>(() => {
     const services: SelectedService[] = [];
@@ -888,6 +1027,7 @@ export default function SalesDocumentPage() {
         description: packageDescription,
         price: document.selectedPackage.price,
         details: packageDetails,
+        sourceIndex: -1,
       });
     }
 
@@ -895,7 +1035,7 @@ export default function SalesDocumentPage() {
       isCreditGiftsUpsell(upsell),
     );
 
-    (document?.upsells || []).forEach((upsell) => {
+    (document?.upsells || []).forEach((upsell, upsellIndex) => {
       const isCreditGifts = isCreditGiftsUpsell(upsell);
       const upsellDetails = upsell.customerDetails || [];
       services.push({
@@ -912,6 +1052,7 @@ export default function SalesDocumentPage() {
             : upsell.price,
         givenFree: Boolean(upsell.givenFree),
         details: isCreditGifts ? CREDIT_GIFTS_DETAILS : upsellDetails,
+        sourceIndex: upsellIndex,
       });
     });
 
@@ -1031,6 +1172,313 @@ export default function SalesDocumentPage() {
     return typeof service.price === "number" && Number.isFinite(service.price) && service.price > 0;
   }
 
+  const editing = canEdit && document?.type === "quote" && Boolean(draft);
+  const priceSource = editorSource || document;
+  const pricesDirty = Boolean(
+    editing && draft && priceSource && quotePricesDiffer(draft, priceSource),
+  );
+  const editedTotals =
+    pricesDirty && draft && priceSource
+      ? buildEditedQuoteTotals({
+          packagePrice: asNumber(draft.packagePrice),
+          upsellPrices: draft.upsellPrices.map((price) => asNumber(price)),
+          discountAmount: asNumber(draft.discountAmount),
+          paymentMode: cleanStr(priceSource.totals?.paymentMode) || paymentMode,
+          previousGross:
+            asNumber(priceSource.totals?.grossAmountAfterDiscount) ||
+            asNumber(priceSource.totals?.grossAmount) ||
+            grossAmount,
+          previousBefore:
+            asNumber(priceSource.totals?.grossAmountBeforeDiscount) ||
+            asNumber(priceSource.totals?.grossAmountAfterDiscount) ||
+            grossAmount,
+          vatRate: asNumber(priceSource.totals?.vatRate) || 0.18,
+          fullPaymentDiscount: asNumber(priceSource.totals?.fullPaymentDiscount),
+          paymentSchedule: {
+            ...((priceSource.totals?.paymentSchedule || {}) as Record<
+              string,
+              unknown
+            >),
+          },
+        })
+      : null;
+  const shownGross = editedTotals ? editedTotals.grossAfter : grossAmount;
+  const shownDiscount = editedTotals ? editedTotals.discount : discountAmount;
+  const shownBeforeDiscount = editedTotals
+    ? editedTotals.grossBefore
+    : grossBeforeDiscount;
+  const shownPayNow = editedTotals ? editedTotals.stripeAmount : amountToPayNow;
+  const shownSchedule = editedTotals
+    ? editedTotals.paymentSchedule
+    : paymentSchedule;
+  const venueSeatingOnQuote = orderIncludesVenueSeating(
+    (editorSource || document)?.upsells,
+  );
+
+  function updateDraft(partial: Partial<QuoteDraft>) {
+    setDraft((current) => (current ? { ...current, ...partial } : current));
+  }
+
+  async function saveQuoteEdits() {
+    if (!editing || !draft || !token) return false;
+    const source = editorSource || document;
+    if (!source) return false;
+
+    if (venueSeatingOnQuote) {
+      const missing = SEATING_SCHEDULE_FIELDS.filter(
+        (field) => !cleanStr(draft.seating[field.key]),
+      ).map((field) => field.label);
+      const anyFilled = SEATING_SCHEDULE_FIELDS.some((field) =>
+        cleanStr(draft.seating[field.key]),
+      );
+      if (anyFilled && missing.length > 0) {
+        throw new Error(`כדי לשמור את שעות ההושבה חסר: ${missing.join(", ")}`);
+      }
+    }
+
+    const upsells = (source.upsells || []).map((upsell, index) => ({
+      ...upsell,
+      price: asNumber(draft.upsellPrices[index]),
+    }));
+    const seatingFilled = SEATING_SCHEDULE_FIELDS.every((field) =>
+      cleanStr(draft.seating[field.key]),
+    );
+    const nextTotals = pricesDirty
+      ? buildEditedQuoteTotals({
+          packagePrice: asNumber(draft.packagePrice),
+          upsellPrices: draft.upsellPrices.map((price) => asNumber(price)),
+          discountAmount: asNumber(draft.discountAmount),
+          paymentMode: cleanStr(source.totals?.paymentMode) || "split",
+          previousGross:
+            asNumber(source.totals?.grossAmountAfterDiscount) ||
+            asNumber(source.totals?.grossAmount) ||
+            shownGross,
+          previousBefore:
+            asNumber(source.totals?.grossAmountBeforeDiscount) ||
+            asNumber(source.totals?.grossAmountAfterDiscount) ||
+            shownGross,
+          vatRate: asNumber(source.totals?.vatRate) || 0.18,
+          fullPaymentDiscount: asNumber(source.totals?.fullPaymentDiscount),
+          paymentSchedule: {
+            ...((source.totals?.paymentSchedule || {}) as Record<
+              string,
+              unknown
+            >),
+          },
+        })
+      : null;
+
+    const response = await fetch(
+      `/api/employee/sales/documents/${encodeURIComponent(token)}`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client: {
+            fullName: draft.fullName,
+            email: draft.email,
+            phone: draft.phone,
+            idNumber: source.client?.idNumber || "",
+            address: source.client?.address || "",
+          },
+          event: {
+            name: draft.eventName,
+            date: draft.eventDate,
+            city: draft.city,
+            venueName: draft.venueName,
+          },
+          selectedPackage: {
+            key: source.selectedPackage?.key || "",
+            title: draft.packageTitle,
+            customerSummary: source.selectedPackage?.customerSummary || "",
+            includes: source.selectedPackage?.includes || [],
+            records: asNumber(draft.records),
+            price: asNumber(draft.packagePrice),
+          },
+          upsells,
+          ...(nextTotals
+            ? {
+                totals: {
+                  ...(source.totals || {}),
+                  grossAmount: nextTotals.grossAfter,
+                  grossAmountBeforeDiscount: nextTotals.grossBefore,
+                  grossAmountAfterDiscount: nextTotals.grossAfter,
+                  discountAmount: nextTotals.discount,
+                  fullPaymentDiscount: nextTotals.fullPaymentDiscount,
+                  netAmount: nextTotals.netAmount,
+                  stripeAmount: nextTotals.stripeAmount,
+                  paymentSchedule: nextTotals.paymentSchedule,
+                },
+              }
+            : {}),
+          ...(venueSeatingOnQuote && seatingFilled
+            ? {
+                seatingSchedule: draft.seating,
+                replaceCustomerSchedule: true,
+              }
+            : {}),
+        }),
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error || data?.message || "שמירת ההצעה נכשלה");
+    }
+    if (data?.document) {
+      setEditorSource(data.document);
+      setDraft(draftFromDocument(data.document));
+    }
+    await loadDocument({ silent: true });
+    return true;
+  }
+
+  async function sendDocumentSms(targetToken: string, phone: string) {
+    const response = await fetch(
+      `/api/employee/sales/documents/${encodeURIComponent(targetToken)}/send-sms`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error || data?.message || "שליחת ה-SMS נכשלה");
+    }
+  }
+
+  async function createAgreementFromQuote() {
+    if (!token) throw new Error("חסר קישור להצעה");
+    const response = await fetch(
+      `/api/employee/sales/documents/${encodeURIComponent(token)}/create-agreement`,
+      { method: "POST", credentials: "include" },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.success || !data?.token) {
+      throw new Error(data?.error || data?.message || "יצירת ההסכם נכשלה");
+    }
+    return { token: String(data.token), url: String(data.url || "") };
+  }
+
+  async function onSaveQuote() {
+    try {
+      setEditSaving(true);
+      setEditError("");
+      setEditMessage("");
+      const saved = await saveQuoteEdits();
+      if (!saved) throw new Error("שמירת ההצעה נכשלה");
+      setEditMessage("ההצעה נשמרה. זה הנוסח המעודכן שהלקוח רואה בקישור.");
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "שמירה נכשלה");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function onSendQuoteSms() {
+    try {
+      setEditSaving(true);
+      setEditError("");
+      setEditMessage("");
+      const saved = await saveQuoteEdits();
+      if (!saved) throw new Error("שמירת ההצעה נכשלה");
+      await sendDocumentSms(token, draft?.phone || "");
+      setEditMessage("ההצעה נשמרה והקישור נשלח שוב ב-SMS.");
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "שליחת SMS נכשלה");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function onSendAgreement() {
+    try {
+      setEditSaving(true);
+      setEditError("");
+      setEditMessage("");
+      const saved = await saveQuoteEdits();
+      if (!saved) throw new Error("שמירת ההצעה נכשלה");
+      const agreement = await createAgreementFromQuote();
+      await sendDocumentSms(agreement.token, draft?.phone || "");
+      setEditMessage("ההסכם נוצר מההצעה השמורה ונשלח לחתימה ב-SMS.");
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "שליחת ההסכם נכשלה");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function onCreateUser() {
+    try {
+      setEditSaving(true);
+      setEditError("");
+      setEditMessage("");
+      const saved = await saveQuoteEdits();
+      if (!saved) throw new Error("שמירת ההצעה נכשלה");
+      let agreementToken = "";
+      if (sendAgreementWithUser) {
+        const agreement = await createAgreementFromQuote();
+        agreementToken = agreement.token;
+        await sendDocumentSms(agreement.token, draft?.phone || "");
+      }
+      const response = await fetch(
+        `/api/employee/sales/documents/${encodeURIComponent(token)}/create-user`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: draft?.fullName,
+            email: draft?.email,
+            phone: draft?.phone,
+            eventName: draft?.eventName,
+            eventDate: draft?.eventDate,
+            city: draft?.city,
+            venueName: draft?.venueName,
+            guests: asNumber(draft?.records),
+            plan: document?.selectedPackage?.key,
+            packageName: draft?.packageTitle,
+            totalDealAmount: editedTotals
+              ? editedTotals.grossAfter
+              : asNumber(priceSource?.totals?.grossAmountAfterDiscount) ||
+                asNumber(priceSource?.totals?.grossAmount) ||
+                shownGross,
+            onboardingAgreementToken: agreementToken,
+            sendPasswordSms: sendPasswordWithUser,
+          }),
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success) {
+        const existingUserId = idString(data?.userId);
+        if (response.status === 409 && existingUserId) {
+          setConvertedUserId(existingUserId);
+        }
+        throw new Error(data?.message || data?.error || "פתיחת המשתמש נכשלה");
+      }
+      setConvertedUserId(idString(data.userId));
+      const passwordNote = data.passwordSetup
+        ? data.passwordSetup.smsSent
+          ? " SMS להגדרת סיסמה נשלח."
+          : " SMS להגדרת סיסמה לא נשלח."
+        : "";
+      const agreementNote = sendAgreementWithUser
+        ? " הסכם לחתימה נשלח."
+        : "";
+      setEditMessage(
+        `${data.message || "המשתמש נוצר מההצעה."}${agreementNote}${passwordNote}`,
+      );
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "פתיחת המשתמש נכשלה",
+      );
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <main
@@ -1089,6 +1537,94 @@ export default function SalesDocumentPage() {
       className="min-h-screen bg-[radial-gradient(circle_at_top,#fff2dc_0,#fff7ec_35%,#fffdf8_100%)] px-4 py-8 text-[#3f3327] sm:px-6"
     >
       <div className="mx-auto max-w-6xl">
+        {editing && draft ? (
+          <div className="mb-6 rounded-[34px] border border-[#d6b47c] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-lg font-black text-[#3f3327]">מצב עריכה</p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-[#7b6a58]">
+                  זה אותו עמוד שהלקוח רואה. אחרי שמירה הקישור מציג את הגרסה המעודכנת.
+                </p>
+              </div>
+              <a
+                href="/admin/sales/quotes"
+                className="inline-flex h-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-black text-[#3f3327]"
+              >
+                חזרה להצעות
+              </a>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => void onSaveQuote()}
+                className="h-11 rounded-2xl bg-[#3f3327] px-4 text-sm font-black text-white disabled:opacity-60"
+              >
+                {editSaving ? "שומר..." : "שמירה"}
+              </button>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => void onSendQuoteSms()}
+                className="h-11 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#3f3327] disabled:opacity-60"
+              >
+                שליחת SMS
+              </button>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => void onSendAgreement()}
+                className="h-11 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#3f3327] disabled:opacity-60"
+              >
+                שליחת הסכם לחתימה
+              </button>
+            </div>
+            <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4">
+              <p className="text-sm font-black text-[#3f3327]">פתיחת משתמש מההצעה</p>
+              <label className="mt-3 flex items-start gap-2 text-sm font-bold leading-6 text-[#6d5840]">
+                <input
+                  type="checkbox"
+                  checked={sendAgreementWithUser}
+                  onChange={(event) => setSendAgreementWithUser(event.target.checked)}
+                  className="mt-1 accent-[#9b7a3c]"
+                />
+                לשלוח ללקוח הסכם לחתימה ב-SMS
+              </label>
+              <label className="mt-2 flex items-start gap-2 text-sm font-bold leading-6 text-[#6d5840]">
+                <input
+                  type="checkbox"
+                  checked={sendPasswordWithUser}
+                  onChange={(event) => setSendPasswordWithUser(event.target.checked)}
+                  className="mt-1 accent-[#9b7a3c]"
+                />
+                לשלוח SMS להגדרת סיסמה
+              </label>
+              {convertedUserId ? (
+                <a
+                  href={`/admin/users?q=${encodeURIComponent(draft.email)}`}
+                  className="mt-3 inline-flex h-11 items-center rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#3f3327]"
+                >
+                  מעבר למשתמש
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled={editSaving}
+                  onClick={() => void onCreateUser()}
+                  className="mt-3 h-11 rounded-2xl bg-[#B87920] px-4 text-sm font-black text-white disabled:opacity-60"
+                >
+                  פתיחת משתמש מההצעה
+                </button>
+              )}
+            </div>
+            {editError ? (
+              <p className="mt-3 text-sm font-bold text-red-700">{editError}</p>
+            ) : null}
+            {editMessage ? (
+              <p className="mt-3 text-sm font-bold text-emerald-700">{editMessage}</p>
+            ) : null}
+          </div>
+        ) : null}
         <header className="rounded-[34px] border border-[#eadfce] bg-white/90 p-5 shadow-sm backdrop-blur sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="order-2 sm:order-1">
@@ -1115,7 +1651,7 @@ export default function SalesDocumentPage() {
 
                 {isQuote ? (
                   <span className="rounded-full border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#7b6a58]">
-                    צפייה בלבד
+                    {editing ? "מצב עריכה" : "צפייה בלבד"}
                   </span>
                 ) : null}
               </div>
@@ -1129,7 +1665,9 @@ export default function SalesDocumentPage() {
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-[#7b6a58]">
                 {isAgreement
                   ? "בעמוד זה מופיעים פרטי העסקה, השירותים שנבחרו, תנאי התשלום ותנאי הביטול. בסיום העמוד ניתן למלא פרטים ולחתום דיגיטלית."
-                  : "בעמוד זה מופיעים פרטי הצעת המחיר, השירותים שנבחרו, תנאי התשלום ותנאי הביטול. הצעה זו לצפייה בלבד."}
+                  : editing
+                    ? "אפשר לעדכן את הפרטים שמופיעים ללקוח. שמירה מעדכנת את אותו קישור."
+                    : "בעמוד זה מופיעים פרטי הצעת המחיר, השירותים שנבחרו, תנאי התשלום ותנאי הביטול. הצעה זו לצפייה בלבד."}
               </p>
             </div>
 
@@ -1160,23 +1698,100 @@ export default function SalesDocumentPage() {
           <div className="space-y-6">
             <SectionCard title="פרטי הלקוח והאירוע">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="שם לקוח" value={document.client?.fullName} />
-                <Field label="טלפון" value={document.client?.phone} />
-                <Field label="מייל" value={document.client?.email} />
+                <Field
+                  label="שם לקוח"
+                  value={document.client?.fullName}
+                  edit={
+                    editing && draft
+                      ? { value: draft.fullName, onChange: (value) => updateDraft({ fullName: value }) }
+                      : undefined
+                  }
+                />
+                <Field
+                  label="טלפון"
+                  value={document.client?.phone}
+                  edit={
+                    editing && draft
+                      ? { value: draft.phone, onChange: (value) => updateDraft({ phone: value }) }
+                      : undefined
+                  }
+                />
+                <Field
+                  label="מייל"
+                  value={document.client?.email}
+                  edit={
+                    editing && draft
+                      ? { value: draft.email, onChange: (value) => updateDraft({ email: value }) }
+                      : undefined
+                  }
+                />
                 <Field
                   label="שם האירוע"
                   value={document.event?.name || "אירוע"}
+                  edit={
+                    editing && draft
+                      ? { value: draft.eventName, onChange: (value) => updateDraft({ eventName: value }) }
+                      : undefined
+                  }
                 />
                 <Field
                   label="תאריך אירוע"
                   value={formatDate(document.event?.date)}
+                  edit={
+                    editing && draft
+                      ? {
+                          value: draft.eventDate,
+                          type: "date",
+                          onChange: (value) => updateDraft({ eventDate: value }),
+                        }
+                      : undefined
+                  }
                 />
-                <Field label="עיר" value={document.event?.city} />
-                <Field label="שם האולם" value={document.event?.venueName} />
+                <Field
+                  label="עיר"
+                  value={document.event?.city}
+                  edit={
+                    editing && draft
+                      ? { value: draft.city, onChange: (value) => updateDraft({ city: value }) }
+                      : undefined
+                  }
+                />
+                <Field
+                  label="שם האולם"
+                  value={document.event?.venueName}
+                  edit={
+                    editing && draft
+                      ? { value: draft.venueName, onChange: (value) => updateDraft({ venueName: value }) }
+                      : undefined
+                  }
+                />
               </div>
             </SectionCard>
 
-            {approvedSeatingSchedule ? (
+            {editing && draft && venueSeatingOnQuote ? (
+              <SectionCard title="לוחות זמנים שסוכמו להושבה">
+                <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
+                  השעות האלה מוצגות ללקוח. שעה שלא מולאה לא תופיע בהצעה.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {SEATING_SCHEDULE_FIELDS.map((field) => (
+                    <Field
+                      key={field.key}
+                      label={field.label}
+                      value={draft.seating[field.key]}
+                      edit={{
+                        value: draft.seating[field.key],
+                        type: "time",
+                        onChange: (value) =>
+                          updateDraft({
+                            seating: { ...draft.seating, [field.key]: value },
+                          }),
+                      }}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
+            ) : approvedSeatingSchedule ? (
               <SectionCard title="לוחות זמנים שסוכמו להושבה">
                 <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
                   מוצגות רק שעות שהוגדרו בפועל. שעת תחילת ההושבה מוצגת בנפרד משעות האירוע, ורק אם נקבעה במפורש.
@@ -1254,6 +1869,15 @@ export default function SalesDocumentPage() {
                 <Field
                   label="מספר רשומות"
                   value={document.selectedPackage?.records}
+                  edit={
+                    editing && draft
+                      ? {
+                          value: draft.records,
+                          type: "number",
+                          onChange: (value) => updateDraft({ records: value }),
+                        }
+                      : undefined
+                  }
                 />
               </div>
             </SectionCard>
@@ -1276,7 +1900,17 @@ export default function SalesDocumentPage() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <h3 className="text-lg font-black text-[#3f3327]">
-                            {service.title}
+                            {editing && draft && service.kind === "package" ? (
+                              <input
+                                value={draft.packageTitle}
+                                onChange={(event) =>
+                                  updateDraft({ packageTitle: event.target.value })
+                                }
+                                className="w-full bg-transparent text-lg font-black outline-none"
+                              />
+                            ) : (
+                              service.title
+                            )}
                           </h3>
 
                           {service.description ? (
@@ -1291,7 +1925,33 @@ export default function SalesDocumentPage() {
                             <p className="text-[11px] font-black text-[#9b805f]">
                               {getServicePriceLabel(service)}
                             </p>
-                            <p className="mt-1">{getServicePriceText(service)}</p>
+                            {editing && draft && service.kind === "package" ? (
+                              <input
+                                type="number"
+                                value={draft.packagePrice}
+                                onChange={(event) =>
+                                  updateDraft({ packagePrice: event.target.value })
+                                }
+                                className="mt-1 w-28 bg-transparent text-sm font-black outline-none"
+                              />
+                            ) : editing &&
+                              draft &&
+                              service.kind === "upsell" &&
+                              typeof service.sourceIndex === "number" &&
+                              service.sourceIndex >= 0 ? (
+                              <input
+                                type="number"
+                                value={draft.upsellPrices[service.sourceIndex] ?? ""}
+                                onChange={(event) => {
+                                  const next = [...draft.upsellPrices];
+                                  next[service.sourceIndex || 0] = event.target.value;
+                                  updateDraft({ upsellPrices: next });
+                                }}
+                                className="mt-1 w-28 bg-transparent text-sm font-black outline-none"
+                              />
+                            ) : (
+                              <p className="mt-1">{getServicePriceText(service)}</p>
+                            )}
                           </div>
                         ) : null}
                       </div>
@@ -1500,17 +2160,40 @@ export default function SalesDocumentPage() {
                     מחיר סופי כולל מע״מ
                   </p>
                   <p className="mt-2 text-4xl font-black">
-                    {money(grossAmount)}
+                    {money(shownGross)}
                   </p>
                 </div>
 
-                {discountAmount > 0 ? (
+                {shownDiscount > 0 ? (
                   <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800">
-                    ניתנה הנחת תשלום מלא בסך {money(discountAmount)}.
-                    {grossBeforeDiscount > 0
-                      ? ` מחיר לפני הנחה: ${money(grossBeforeDiscount)}.`
+                    ניתנה הנחת תשלום מלא בסך {money(shownDiscount)}.
+                    {shownBeforeDiscount > 0
+                      ? ` מחיר לפני הנחה: ${money(shownBeforeDiscount)}.`
                       : ""}
                   </div>
+                ) : null}
+
+                {editing && draft ? (
+                  <>
+                    <Field
+                      label="מחיר חבילה"
+                      value={draft.packagePrice}
+                      edit={{
+                        value: draft.packagePrice,
+                        type: "number",
+                        onChange: (value) => updateDraft({ packagePrice: value }),
+                      }}
+                    />
+                    <Field
+                      label="הנחה"
+                      value={draft.discountAmount}
+                      edit={{
+                        value: draft.discountAmount,
+                        type: "number",
+                        onChange: (value) => updateDraft({ discountAmount: value }),
+                      }}
+                    />
+                  </>
                 ) : null}
 
                 <div className="grid gap-3">
@@ -1520,7 +2203,11 @@ export default function SalesDocumentPage() {
                   document.selectedPackage.price > 0 ? (
                     <Field
                       label="מחיר חבילה"
-                      value={money(document.selectedPackage.price)}
+                      value={money(
+                        editing && draft
+                          ? asNumber(draft.packagePrice)
+                          : document.selectedPackage.price,
+                      )}
                     />
                   ) : null}
 
@@ -1529,35 +2216,35 @@ export default function SalesDocumentPage() {
                     value={getPaymentModeLabel(paymentMode)}
                   />
 
-                  <Field label="לתשלום עכשיו" value={money(amountToPayNow)} />
+                  <Field label="לתשלום עכשיו" value={money(shownPayNow)} />
 
                   <Field
                     label="תשלום במועד ביצוע העסקה"
-                    value={money(paymentSchedule.immediateTotal)}
+                    value={money(shownSchedule.immediateTotal)}
                   />
 
                   <Field
                     label="יתרה ליום האירוע"
-                    value={money(paymentSchedule.eventDayTotal)}
+                    value={money(shownSchedule.eventDayTotal)}
                   />
 
                   {showUpsellPrices ? (
                     <>
                       <Field
                         label="שירותים דיגיטליים / לפני האירוע"
-                        value={money(paymentSchedule.preEventServicesTotal)}
+                        value={money(shownSchedule.preEventServicesTotal)}
                       />
 
                       <Field
                         label="שירותי יום האירוע"
-                        value={money(paymentSchedule.eventServicesTotal)}
+                        value={money(shownSchedule.eventServicesTotal)}
                       />
                     </>
                   ) : null}
                 </div>
 
                 {paymentMode === "split" &&
-                asNumber(paymentSchedule.eventServicesTotal) > 0 ? (
+                asNumber(shownSchedule.eventServicesTotal) > 0 ? (
                   <div className="rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4 text-sm font-bold leading-7 text-[#6d5840]">
                     שירותי יום האירוע מחולקים ל־50% תשלום ראשוני לשריון
                     התאריך והצוות, ו־50% יתרה ביום האירוע.
