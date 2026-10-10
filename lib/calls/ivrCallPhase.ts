@@ -9,10 +9,11 @@
  * playback command is issued in the same turn.
  *
  * Input prompts are one Telnyx gather_using_audio: the approved file plays and
- * a valid digit interrupts it. The next clip starts only after that playback
- * has ended. call.gather.ended is not the fast path; a late one cannot replay
- * audio or RSVP. Digits 1, 2 and 3 are accepted once. Hangup never creates an
- * RSVP by itself.
+ * a valid digit interrupts it. Menu digits 1, 2 and 3 commit in that DTMF
+ * webhook. The follow-up command awaits gather release, then starts; it does
+ * not wait for playback.ended. A completed count commits on gather.ended.
+ * A late playback.ended or gather.ended cannot replay audio or RSVP. Hangup
+ * never creates an RSVP by itself.
  *
  * The invalid-choice prompt is reachable only after a real choice window: the
  * approved intro finished (or a gather result arrived) and a digit gather is
@@ -558,13 +559,16 @@ function onDigits(input: {
       if (input.source === "dtmf") {
         const choice = choiceDigitFrom(input.digits);
         if (!choice) return ignore(state, "barge_ignored_digit");
-        return holdBarge(state, { pendingChoice: choice });
+        // The digit webhook is the fast path. Telnyx has already cut the
+        // file. Release the gather, then play — do not wait for playback.ended.
+        return finishChoice(state, choice, "release_gather");
       }
       const digits = String(input.digits || "").trim();
       if (!digits) return ignore(state, "gather_during_audio");
       const choice = choiceDigitFrom(digits);
       if (!choice) return holdBarge(state, { pendingFault: "choice" });
-      return holdBarge(state, { pendingChoice: choice });
+      // The gather has already finished, so another stop would be late.
+      return finishChoice(state, choice, "none");
     }
     if (state.heldCount || state.pendingFault) {
       return ignore(state, "choice_already_taken");
@@ -574,7 +578,8 @@ function onDigits(input: {
     }
     const parsed = parseDtmfGuestCount(input.digits);
     if (!parsed.ok) return holdBarge(state, { pendingFault: "count" });
-    return holdBarge(state, { heldCount: parsed.count });
+    // Count is complete. The prompt audio was cut on the first digit.
+    return finishCount(state, parsed.count, "none");
   }
 
   if (state.phase !== "WAITING_FOR_INPUT" || !state.introCompleted || !state.gatherOpen) {
