@@ -24,7 +24,7 @@ import {
 
 const EXPORT_LIMIT = 20000;
 const LIST_FIELDS =
-  "userId invitationId guestId round phone channel direction eventName status flowStep answered dtmfDigits choiceDigit guestCountDigits rsvpResult attendingCount rsvpApplied rsvpAppliedAt startedAt answeredAt endedAt durationSeconds error hangupCause hangupSource retryCount audioMode eventNameAudioUrl introAudioUrl telnyxCallControlId telnyxCallLegId telnyxCallSessionId dialRequestedAt ringingAt playbackCommandAt playbackStartedAt firstDigitAt choiceDigitAt followupPlaybackStartedAt createdAt";
+  "userId invitationId guestId round runId phone channel direction eventName status flowStep answered dtmfDigits choiceDigit guestCountDigits rsvpResult attendingCount rsvpApplied rsvpAppliedAt startedAt answeredAt endedAt durationSeconds error hangupCause hangupSource retryCount audioMode eventNameAudioUrl introAudioUrl telnyxCallControlId telnyxCallLegId telnyxCallSessionId dialRequestedAt ringingAt playbackCommandAt playbackStartedAt firstDigitAt choiceDigitAt followupPlaybackStartedAt createdAt";
 
 export type IvrReportQuery = {
   invitationId?: string;
@@ -32,6 +32,13 @@ export type IvrReportQuery = {
   from?: string;
   to?: string;
   round?: string;
+  /** Exact schedule-run id, or "current" for the owner's active run per round. */
+  runId?: string;
+  /**
+   * current — only attempts for each round's active schedule runId
+   * all — every run (history + current); rows still expose runId
+   */
+  runScope?: "current" | "all";
   direction?: string;
   callStatus?: string;
   rsvp?: string;
@@ -41,6 +48,31 @@ export type IvrReportQuery = {
   page?: number;
   pageSize?: number;
 };
+
+/** Match attempts for one schedule run. Legacy rows (no runId) only when schedule has none. */
+export function ivrAttemptRunMatch(scheduleRunId?: string | null) {
+  const runId = String(scheduleRunId || "").trim();
+  if (runId) return { runId };
+  return {
+    $or: [
+      { runId: { $exists: false } },
+      { runId: null },
+      { runId: "" },
+    ],
+  };
+}
+
+export function currentIvrRunsFilter(
+  schedule: Array<Record<string, unknown>>
+): Record<string, unknown> {
+  const branches = [1, 2, 3].map((round) => {
+    const saved = schedule.find((item) => Number(item.roundNumber) === round);
+    return {
+      $and: [{ round }, ivrAttemptRunMatch(String(saved?.runId || ""))],
+    };
+  });
+  return { $or: branches };
+}
 
 function oid(value?: string | null) {
   const raw = String(value || "").trim();
@@ -287,6 +319,11 @@ export async function buildIvrReportFilter(
     and.push({ $or: or });
   }
 
+  const exactRunId = String(query.runId || "").trim();
+  if (exactRunId && exactRunId !== "current") {
+    and.push({ runId: exactRunId });
+  }
+
   return {
     empty: false as const,
     filter: and.length ? { $and: and } : {},
@@ -322,6 +359,7 @@ export function shapeIvrReportRow(
     direction: ivrDirectionLabel(facts) === "נכנסת" ? "inbound" : "outbound",
     directionLabel: ivrDirectionLabel(facts),
     round: row.round === 1 || row.round === 2 || row.round === 3 ? row.round : null,
+    runId: String(row.runId || ""),
     audioModeLabel: ivrAudioModeLabel(facts),
     callStatus: classified.callStatus,
     callStatusLabel: classified.label,
@@ -823,12 +861,13 @@ export async function summarizeIvrRounds(invitationId: string) {
   const rounds = Array.isArray((owner as any)?.callRoundsSchedule?.rounds)
     ? (owner as any).callRoundsSchedule.rounds
     : [];
+  // Current schedule run only — prior run history stays in the attempt table.
   const grouped = await IvrCallAttempt.aggregate([
     {
       $match: {
         invitationId: id,
         direction: { $ne: "inbound" },
-        round: { $in: [1, 2, 3] },
+        ...currentIvrRunsFilter(rounds),
       },
     },
     {
@@ -908,6 +947,7 @@ export async function summarizeIvrRounds(invitationId: string) {
       : [];
     return {
       round,
+      runId: String(saved?.runId || ""),
       eligibleCount:
         typeof saved?.eligibleCount === "number" ? saved.eligibleCount : null,
       queued: Number(agg?.attempts || 0),
@@ -999,15 +1039,23 @@ export async function buildUserIvrReportFilter(
       ? built.filter
       : { userId: owned.userId };
 
+  const and: Record<string, unknown>[] = [
+    base,
+    { userId: owned.userId },
+    { invitationId: { $in: owned.invitationIds } },
+  ];
+
+  const wantCurrent =
+    query.runScope === "current" ||
+    String(query.runId || "").trim() === "current";
+  if (wantCurrent) {
+    const schedule = await savedCallRounds(String(owned.userId));
+    and.push(currentIvrRunsFilter(schedule));
+  }
+
   return {
     empty: false as const,
-    filter: {
-      $and: [
-        base,
-        { userId: owned.userId },
-        { invitationId: { $in: owned.invitationIds } },
-      ],
-    },
+    filter: { $and: and },
     events: owned.events,
   };
 }
@@ -1021,6 +1069,7 @@ function userReportRow(row: any, names: ReturnType<typeof namesFor>) {
     guestName: shaped.guestName,
     phone: shaped.phone,
     round: shaped.round,
+    runId: shaped.runId,
     attemptNumber: shaped.attemptNumber,
     callStatus: shaped.callStatus,
     callStatusLabel: shaped.callStatusLabel,
@@ -1137,6 +1186,8 @@ async function savedCallRounds(userId: string) {
  */
 export async function listUserIvrRoundCards(userId: string, query: IvrReportQuery) {
   const schedule = await savedCallRounds(userId);
+  // Base filter = event/date scope (history + current). Numbered round cards
+  // further narrow to the active schedule runId; the table keeps runId on rows.
   const built = await buildUserIvrReportFilter(userId, {
     invitationId: query.invitationId,
     from: query.from,
@@ -1145,11 +1196,20 @@ export async function listUserIvrRoundCards(userId: string, query: IvrReportQuer
   if (built.empty) return emptyRoundCards(schedule);
 
   const unassigned = { round: { $nin: [1, 2, 3] } };
+  const run1 = ivrAttemptRunMatch(
+    String(schedule.find((s) => Number(s.roundNumber) === 1)?.runId || "")
+  );
+  const run2 = ivrAttemptRunMatch(
+    String(schedule.find((s) => Number(s.roundNumber) === 2)?.runId || "")
+  );
+  const run3 = ivrAttemptRunMatch(
+    String(schedule.find((s) => Number(s.roundNumber) === 3)?.runId || "")
+  );
   const [all, first, second, third, loose] = await Promise.all([
     summarizeIvrReport(built.filter),
-    summarizeIvrReport({ $and: [built.filter, { round: 1 }] }),
-    summarizeIvrReport({ $and: [built.filter, { round: 2 }] }),
-    summarizeIvrReport({ $and: [built.filter, { round: 3 }] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 1 }, run1] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 2 }, run2] }),
+    summarizeIvrReport({ $and: [built.filter, { round: 3 }, run3] }),
     summarizeIvrReport({ $and: [built.filter, unassigned] }),
   ]);
   const byRound = [first, second, third];

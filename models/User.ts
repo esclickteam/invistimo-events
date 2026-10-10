@@ -367,6 +367,12 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       dialClaimedAt?: Date | null;
       openedAt?: Date | null;
       tasksCreated?: number | null;
+      /**
+       * Unique id for the current schedule execution.
+       * New schedules mint a new runId so prior IvrCallAttempt rows do not
+       * block redial or falsely mark the round done.
+       */
+      runId?: string;
       createdAt?: Date;
       updatedAt?: Date;
     }[];
@@ -1576,6 +1582,14 @@ preRsvpMessages: {
             type: Number,
             default: null,
             min: 0,
+          },
+
+          /** Current schedule-run id — ties new dials to this schedule only. */
+          runId: {
+            type: String,
+            trim: true,
+            default: "",
+            index: true,
           },
 
           createdAt: {

@@ -38,6 +38,7 @@ import {
   STALE_UNANSWERED_MS,
 } from "@/lib/calls/ivrDialFailure";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
+import { createIvrRoundRunId } from "@/lib/calls/ivrRoundSchedule";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
   createIvrOutboundCall,
@@ -130,8 +131,9 @@ async function countOccupiedOutboundCallsForRound(
 }
 
 /**
- * Close rounds stuck on in_progress/opened after every attempt for that round
- * has already left the live set. Does not delete history or touch RSVP.
+ * Close rounds stuck on in_progress/opened after every attempt for the
+ * CURRENT runId has left the live set. Prior-run history is ignored.
+ * Does not delete history or touch RSVP.
  */
 async function reconcileIdleRoundStatuses(input: {
   userId: string;
@@ -153,11 +155,19 @@ async function reconcileIdleRoundStatuses(input: {
     );
     if (live > 0) continue;
 
-    const attempts = await IvrCallAttempt.countDocuments({
+    const runId = cleanStr(raw?.runId);
+    const attemptFilter: Record<string, unknown> = {
       invitationId: input.invitationId,
       round: roundNumber,
       channel: "outbound_ivr",
-    });
+    };
+    // Only the current schedule-run counts. Legacy rows without runId are
+    // ignored once a runId exists — otherwise old dials falsely close a reopen.
+    if (runId) {
+      attemptFilter.runId = runId;
+    }
+
+    const attempts = await IvrCallAttempt.countDocuments(attemptFilter);
 
     await setRoundExecution({
       userId: input.userId,
@@ -297,6 +307,8 @@ export type IvrDueRound = {
   invitationId: string;
   round: IvrRoundNumber;
   scheduledAt: Date;
+  /** Current schedule-run id — scopes attempts so history cannot block redial. */
+  runId: string;
   /** Self-recorded / legacy single intro URL (optional). */
   introAudioUrl: string;
   /** AI mode: spoken event-name clip URL. */
@@ -762,6 +774,22 @@ export async function openIvrRoundManually(input: {
 
   const scheduledAt =
     parseCallRoundScheduledAt(raw?.scheduledAt) || now;
+  let runId = cleanStr(raw?.runId);
+  if (!runId) {
+    runId = createIvrRoundRunId(round);
+    await User.updateOne(
+      {
+        _id: user._id,
+        "callRoundsSchedule.rounds.roundNumber": round,
+      },
+      {
+        $set: {
+          "callRoundsSchedule.rounds.$.runId": runId,
+          "callRoundsSchedule.rounds.$.updatedAt": now,
+        },
+      }
+    );
+  }
 
   const result = await executeIvrRound({
     due: {
@@ -769,6 +797,7 @@ export async function openIvrRoundManually(input: {
       invitationId: String(invitation._id),
       round: round as IvrRoundNumber,
       scheduledAt,
+      runId,
       introAudioUrl: audio.introAudioUrl,
       eventNameAudioUrl: audio.eventNameAudioUrl,
       composedIntroAudioUrl: audio.composedIntroAudioUrl,
@@ -932,13 +961,15 @@ export async function setIvrRoundAdminStatus(input: {
   if (action === "reopen" || action === "resume") {
     const hasSchedule = Boolean(parseCallRoundScheduledAt(current?.scheduledAt));
     const nextStatus = hasSchedule ? "scheduled" : "draft";
-    // Reset execution lock only. Attempts and guest RSVP stay intact.
+    // Reset execution lock + mint a new runId so prior attempts cannot block
+    // the next dial. Attempts and guest RSVP stay intact.
     // Allowed even when narration is not approved — dial gates run later.
     rounds[idx] = {
       ...current,
       status: nextStatus,
       dialClaimedAt: null,
       failureReason: "",
+      runId: hasSchedule ? createIvrRoundRunId(round) : "",
       // Keep openedAt/tasksCreated history markers; do not wipe dial history.
       updatedAt: now,
     };
@@ -1061,11 +1092,31 @@ export async function listDueIvrRounds(input?: {
         continue;
       }
 
+      // Ensure every due round has a runId (legacy schedules minted on first due).
+      let runId = cleanStr(raw?.runId);
+      if (!runId) {
+        runId = createIvrRoundRunId(roundNumber);
+        await User.updateOne(
+          {
+            _id: user._id,
+            "callRoundsSchedule.rounds.roundNumber": roundNumber,
+          },
+          {
+            $set: {
+              "callRoundsSchedule.rounds.$.runId": runId,
+              "callRoundsSchedule.rounds.$.updatedAt": now,
+            },
+          }
+        );
+        raw.runId = runId;
+      }
+
       due.push({
         userId: String(user._id),
         invitationId: String(invitation._id),
         round: roundNumber,
         scheduledAt,
+        runId,
         introAudioUrl: audio.introAudioUrl,
         eventNameAudioUrl: audio.eventNameAudioUrl,
         composedIntroAudioUrl: audio.composedIntroAudioUrl,
@@ -1283,12 +1334,23 @@ export async function executeIvrRound(input: {
 
     const phoneRaw = cleanStr(fresh.phone || fresh.mobile || fresh.phoneNumber);
     const phone = normalizePhoneForTelnyx(phoneRaw);
-    const existing = await IvrCallAttempt.findOne({
-      invitationId: input.due.invitationId,
-      guestId,
-      round: input.due.round,
-      channel: "outbound_ivr",
-    });
+    const runId = cleanStr(input.due.runId);
+    // Scope by runId so a rescheduled round can dial again. Legacy attempts
+    // without runId never match a new run and cannot block redial.
+    const existing = runId
+      ? await IvrCallAttempt.findOne({
+          invitationId: input.due.invitationId,
+          guestId,
+          round: input.due.round,
+          channel: "outbound_ivr",
+          runId,
+        })
+      : await IvrCallAttempt.findOne({
+          invitationId: input.due.invitationId,
+          guestId,
+          round: input.due.round,
+          channel: "outbound_ivr",
+        });
 
     if (!phone || !isDialableE164(phone)) {
       if (!existing) {
@@ -1297,6 +1359,7 @@ export async function executeIvrRound(input: {
           invitationId: input.due.invitationId,
           guestId,
           round: input.due.round,
+          runId,
           phone: phone || phoneRaw,
           channel: "outbound_ivr",
           direction: "outbound",
@@ -1357,6 +1420,7 @@ export async function executeIvrRound(input: {
       invitationId: input.due.invitationId,
       guestId,
       round: input.due.round,
+      runId,
       phone,
       channel: "outbound_ivr" as const,
       direction: "outbound" as const,
@@ -1561,11 +1625,15 @@ export async function executeIvrRound(input: {
     }
   }
 
-  const attempts = await IvrCallAttempt.find({
+  const runAttemptFilter: Record<string, unknown> = {
     invitationId: input.due.invitationId,
     round: input.due.round,
     channel: "outbound_ivr",
-  })
+  };
+  if (cleanStr(input.due.runId)) {
+    runAttemptFilter.runId = cleanStr(input.due.runId);
+  }
+  const attempts = await IvrCallAttempt.find(runAttemptFilter)
     .select("status error")
     .lean();
 
@@ -1583,12 +1651,16 @@ export async function executeIvrRound(input: {
   );
   let failureReason =
     results.find((r) => r.status === "failed" || r.status === "blocked_test_mode")
-      ?.reason || "";
+      ?.reason ||
+    attempts
+      .map((a) => cleanStr((a as { error?: string }).error))
+      .find(Boolean) ||
+    "";
 
   let status = "in_progress";
   if (!hitCap && !liveForRound) {
-    // Never mark a round "done" when no dial history exists — that falsely
-    // locked admin/client rounds as הושלם with zero attempts.
+    // Never mark a round "done" when no real dial was placed — blocked /
+    // canceled / empty runs stay failed with an explicit reason.
     if (anyPlaced) {
       status = "done";
     } else if (attempts.length === 0) {
@@ -1601,6 +1673,14 @@ export async function executeIvrRound(input: {
       }
     } else {
       status = "failed";
+      if (!failureReason) {
+        const allBlocked = attempts.every((a) =>
+          ["canceled", "failed"].includes(String(a.status))
+        );
+        failureReason = allBlocked
+          ? "החיוג נחסם או נכשל — לא יצאה שיחה"
+          : "לא בוצע חיוג תקין בסבב";
+      }
     }
   }
 
@@ -1687,12 +1767,30 @@ export async function fillIvrRoundCapacity(input: {
     (baseUrl ? `${baseUrl}/api/telnyx/ivr/webhook` : "");
   if (!webhookUrl) return null;
 
+  let runId = cleanStr(raw?.runId);
+  if (!runId) {
+    runId = createIvrRoundRunId(round);
+    await User.updateOne(
+      {
+        _id: user._id,
+        "callRoundsSchedule.rounds.roundNumber": round,
+      },
+      {
+        $set: {
+          "callRoundsSchedule.rounds.$.runId": runId,
+          "callRoundsSchedule.rounds.$.updatedAt": now,
+        },
+      }
+    );
+  }
+
   return executeIvrRound({
     due: {
       userId: String(user._id),
       invitationId: String(input.invitationId),
       round,
       scheduledAt,
+      runId,
       introAudioUrl: audio.introAudioUrl,
       eventNameAudioUrl: audio.eventNameAudioUrl,
       composedIntroAudioUrl: audio.composedIntroAudioUrl,

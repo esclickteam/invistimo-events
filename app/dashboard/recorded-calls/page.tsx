@@ -105,7 +105,17 @@ export default function RecordedCallsPage() {
       } else {
         setSchedule(next);
       }
-      setMessage("תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע.");
+      if (data?.executable === false) {
+        setMessage(
+          data?.message ||
+            data?.executeBlockReason ||
+            "התזמון נשמר, אך לא יתבצע חיוג עד שאישור הקריינות יהיה תקין."
+        );
+      } else {
+        setMessage(
+          data?.message || "תזמון הסבבים נשמר. הקהל יחושב רק במועד הביצוע."
+        );
+      }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "שמירת תזמון נכשלה");
     } finally {

@@ -21,7 +21,6 @@ import {
 import {
   formatCallRoundDateTimeDmy,
   formatCallRoundDateTimeInput,
-  normalizeCallRoundScheduledAtForSave,
   parseCallRoundScheduledAt,
 } from "@/lib/calls/callRoundScheduleTime";
 import {
@@ -34,6 +33,7 @@ import {
   resolveIvrRoundAudio,
   setIvrRoundAdminStatus,
 } from "@/lib/calls/ivrDialer";
+import { buildNextIvrRoundSchedule } from "@/lib/calls/ivrRoundSchedule";
 import { explainIvrCallFailure } from "@/lib/telnyx/ivrCallControl";
 
 export const dynamic = "force-dynamic";
@@ -520,56 +520,12 @@ export async function POST(
         ? user.callRoundsSchedule.rounds
         : [];
 
-      const nextRounds = [1, 2, 3].map((roundNumber) => {
-        const incoming = incomingRounds.find(
-          (r: any) => Number(r?.roundNumber || r?.round) === roundNumber
-        );
-        const existing = existingRounds.find(
-          (r: any) => Number(r?.roundNumber || r?.round) === roundNumber
-        );
-
-        const scheduledAtIso = normalizeCallRoundScheduledAtForSave(
-          incoming?.scheduledAt ?? existing?.scheduledAt ?? null
-        );
-        const scheduledAt = scheduledAtIso
-          ? parseCallRoundScheduledAt(scheduledAtIso)
-          : null;
-
-        const previousScheduled = existing?.scheduledAt
-          ? new Date(existing.scheduledAt).getTime()
-          : null;
-        const nextScheduled = scheduledAt ? scheduledAt.getTime() : null;
-        const scheduleChanged = previousScheduled !== nextScheduled;
-
-        const existingStatus = String(existing?.status || "").toLowerCase();
-        const preserveTerminal =
-          !scheduleChanged &&
-          ["done", "completed", "in_progress", "opened", "failed"].includes(
-            existingStatus
-          );
-
-        return {
-          roundNumber,
-          title:
-            String(incoming?.title || existing?.title || "").trim() ||
-            `סבב מוקלט ${roundNumber}`,
-          scheduledAt,
-          callType: "ivr" as const,
-          status: preserveTerminal
-            ? existingStatus
-            : scheduleChanged
-              ? scheduledAt
-                ? "scheduled"
-                : "cancelled"
-              : existing?.status || (scheduledAt ? "scheduled" : "draft"),
-          notes: String(incoming?.notes || existing?.notes || ""),
-          failureReason: scheduleChanged ? "" : existing?.failureReason || "",
-          dialClaimedAt: scheduleChanged ? null : existing?.dialClaimedAt || null,
-          openedAt: scheduleChanged ? null : existing?.openedAt || null,
-          tasksCreated: scheduleChanged ? null : existing?.tasksCreated ?? null,
-          updatedAt: new Date(),
-          createdAt: existing?.createdAt || new Date(),
-        };
+      // Same builder as client /api/ivr/schedule — new runId on schedule change.
+      // Admin UI sets status:"scheduled" on the round being saved so a terminal
+      // round with the same wall-clock still opens a new runId.
+      const { rounds: nextRounds, changedRounds } = buildNextIvrRoundSchedule({
+        incomingRounds,
+        existingRounds,
       });
 
       await User.updateOne(
@@ -597,11 +553,30 @@ export async function POST(
         summary: `עדכון תזמון סבבי IVR עבור ${user.name || user.email}`,
         before: user.callRoundsSchedule || null,
         after: { enabled: true, rounds: nextRounds },
+        meta: { changedRounds },
       });
 
       const refreshed = await loadIvrTarget(id);
       const payload = await buildRoundsPayload(refreshed, preferredInvitationId);
-      return NextResponse.json({ ok: true, ...payload });
+      const scheduledCount = nextRounds.filter(
+        (r) => r.status === "scheduled"
+      ).length;
+      const executable =
+        scheduledCount === 0 || payload.audioReady === true;
+      const executeBlockReason = executable
+        ? ""
+        : payload.audioBlockReason ||
+          "אין קריינות מאושרת — התזמון נשמר אבל לא יתבצע חיוג עד לאישור";
+      return NextResponse.json({
+        ok: true,
+        ...payload,
+        changedRounds,
+        executable,
+        executeBlockReason,
+        message: executable
+          ? undefined
+          : `התזמון נשמר, אך לא יתבצע חיוג: ${executeBlockReason}`,
+      });
     }
 
     if (![1, 2, 3].includes(round)) {
