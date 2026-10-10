@@ -6,26 +6,25 @@ import {
   AudioLines,
   Check,
   Crown,
+  Gift,
   Headset,
   MessageCircle,
+  MonitorCog,
+  Palette,
   Phone,
   Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
-import {
-  userHasWeddingChallengesEntitlement,
-  userHasWeddingChallengesGiveawayEntitlement,
-} from "@/lib/weddingChallenges/entitlement";
-import WeddingChallengesPurchaseCard from "@/components/wedding-challenges/PurchaseCard";
 import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
 import {
+  ADDON_LABELS,
+  ADDON_ORDER,
   CALL_PACKAGES,
+  EMPTY_ADDONS,
   PACKAGES,
-  SEATING_ADDON_ILS,
-  SEATING_FEATURES,
+  addonPrice,
   applyRecordDraft,
   buildWhatsappUrl,
   calculateQuote,
@@ -33,10 +32,19 @@ import {
   commitRecordDraft,
   formatIls,
   formatRate,
+  type AddonKey,
   type PackageDefinition,
   type PackageId,
+  type SelectedAddons,
   type ServiceMode,
 } from "@/lib/pricing/packageQuote";
+
+const ADDON_ICONS: Record<AddonKey, LucideIcon> = {
+  credit: Gift,
+  seating: Armchair,
+  system: MonitorCog,
+  design: Palette,
+};
 
 const PACKAGE_ICONS: Record<PackageId, LucideIcon> = {
   messages: MessageCircle,
@@ -82,7 +90,7 @@ function PackageCard({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const quote = calculateQuote({ packageId: pkg.id, records, seating: false });
+  const quote = calculateQuote({ packageId: pkg.id, records, addons: EMPTY_ADDONS });
   const Icon = PACKAGE_ICONS[pkg.id];
 
   return (
@@ -115,7 +123,7 @@ function PackageCard({
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-7 text-[#7B6754]">{pkg.description}</p>
+      <p className="mt-4 text-sm leading-6 text-[#7B6754] sm:leading-7">{pkg.description}</p>
 
       <div className="mt-5 rounded-[24px] border border-[#E8D9C7] bg-white/80 px-4 py-4 text-center">
         <p className="text-xs font-bold text-[#9C866D]">מחיר לרשומה</p>
@@ -150,27 +158,6 @@ function PackageCard({
         {selected ? "החבילה נבחרה" : "בחירת החבילה"}
       </button>
 
-      {pkg.rounds.length > 0 ? (
-        <ol className="mt-6 space-y-2.5">
-          {pkg.rounds.map((round, index) => (
-            <li
-              key={round.title}
-              className="rounded-2xl border border-[#F0E2D0] bg-[#FFF9F2] px-3 py-3"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-xs font-black text-white">
-                  {index + 1}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-black text-[#5A3E25]">{round.title}</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-[#7B6754]">{round.detail}</span>
-                </span>
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-
       <div className="mt-6 border-t border-[#E9D9C4] pt-5">
         <p className="mb-3 text-sm font-black text-[#3E2D20]">כלול בחבילה</p>
         <FeatureList items={pkg.features} />
@@ -180,19 +167,18 @@ function PackageCard({
 }
 
 export default function PricingPage() {
-  const { user } = useAuth();
   const [records, setRecords] = useState(200);
   const [recordText, setRecordText] = useState("200");
   const [service, setService] = useState<ServiceMode | null>(null);
   const [callPackage, setCallPackage] = useState<PackageId | null>(null);
-  const [seating, setSeating] = useState(false);
+  const [addons, setAddons] = useState<SelectedAddons>(EMPTY_ADDONS);
 
   const packageId: PackageId | null =
     service === "messages" ? "messages" : service === "calls" ? callPackage : null;
 
   const quote = useMemo(
-    () => (packageId ? calculateQuote({ packageId, records, seating }) : null),
-    [packageId, records, seating]
+    () => (packageId ? calculateQuote({ packageId, records, addons }) : null),
+    [packageId, records, addons]
   );
 
   const visiblePackages =
@@ -223,6 +209,10 @@ export default function PricingPage() {
   function chooseService(next: ServiceMode) {
     setService(next);
     if (next === "calls" && callPackage === "messages") setCallPackage(null);
+  }
+
+  function toggleAddon(key: AddonKey) {
+    setAddons((current) => ({ ...current, [key]: !current[key] }));
   }
 
   const orderHint = !packageId
@@ -259,7 +249,7 @@ export default function PricingPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#7B6754]">
-            בונים את החבילה לפי כמות הרשומות, סוג אישורי ההגעה והושבה דיגיטלית. המחיר מתעדכן מיד, וההזמנה נשלחת אלינו בוואטסאפ.
+            בונים את החבילה לפי כמות הרשומות, סוג אישורי ההגעה והתוספות. המחיר מתעדכן מיד, וההזמנה נשלחת אלינו בוואטסאפ.
           </p>
         </div>
       </section>
@@ -420,64 +410,66 @@ export default function PricingPage() {
         <AnimatePresence>
           {packageId ? (
             <motion.section
-              key="seating"
+              key="addons"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
               className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8"
             >
-              <div className="mb-6 flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
-                  3
+              <div className="mb-6 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+                    3
+                  </span>
+                  <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+                    תוספות אפשריות
+                  </h2>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#FFF4E2] px-3 py-1 text-xs font-bold text-[#A86F2B]">
+                  לפי בחירה
                 </span>
-                <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
-                  רוצים גם לנהל את סידורי ההושבה?
-                </h2>
               </div>
 
-              <button
-                type="button"
-                data-testid="seating-toggle"
-                aria-pressed={seating}
-                onClick={() => setSeating((current) => !current)}
-                className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
-                  seating
-                    ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
-                    : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
-                }`}
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                      seating ? "bg-[#C89545] text-white" : "bg-[#FFF8EE] text-[#A86F2B]"
-                    }`}
-                  >
-                    <Armchair size={22} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-base font-black leading-6 text-[#3E2D20] sm:text-lg">
-                      הוספת מערכת הושבה דיגיטלית – {SEATING_ADDON_ILS} ₪
-                    </span>
-                    <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
-                      תוספת חד־פעמית לחבילה, לא לכל רשומה
-                    </span>
-                  </span>
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
-                    seating ? "bg-[#C89545] text-white" : "bg-[#F7E9D3] text-[#8A5A25]"
-                  }`}
-                >
-                  {seating ? "נוסף" : "להוסיף"}
-                </span>
-              </button>
+              <div className="space-y-3">
+                {ADDON_ORDER.map((key) => {
+                  const selected = addons[key];
+                  const price = addonPrice(packageId, key);
+                  const Icon = ADDON_ICONS[key];
 
-              <div className="mt-5">
-                <FeatureList items={SEATING_FEATURES} />
-                <p className="mt-4 text-sm leading-6 text-[#7B6754]">
-                  המערכת דיגיטלית בלבד ואינה כוללת צוות הושבה באולם.
-                </p>
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      data-testid={`addon-${key}`}
+                      aria-pressed={selected}
+                      onClick={() => toggleAddon(key)}
+                      className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-right transition ${
+                        selected
+                          ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
+                          : "border-[#E8D9C7] bg-white/70 hover:border-[#D7B98D] hover:bg-[#FFF8EE]"
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                            selected
+                              ? "border-[#C89545] bg-[#C89545] text-white"
+                              : "border-[#E5D1B7] bg-[#FFFDF9] text-[#A86F2B]"
+                          }`}
+                        >
+                          <Icon size={17} />
+                        </span>
+                        <span className="text-sm font-semibold leading-5 text-[#5A3E25]">
+                          {ADDON_LABELS[key]}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-[#F7E9D3] px-3 py-1 text-xs font-black text-[#8A5A25]">
+                        + ₪{price}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </motion.section>
           ) : null}
@@ -520,12 +512,20 @@ export default function PricingPage() {
                     {formatIls(quote.servicePrice)}
                   </dd>
                 </div>
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-[#7B6754]">הושבה דיגיטלית</dt>
-                  <dd data-testid="summary-seating" className="font-black text-[#3E2D20]">
-                    {quote.seating ? formatIls(quote.seatingPrice) : "לא"}
-                  </dd>
-                </div>
+                {quote.addons.map((addon) => (
+                  <div
+                    key={addon.key}
+                    className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3 last:border-b-0 last:pb-0"
+                  >
+                    <dt className="min-w-0 text-[#7B6754]">{addon.label}</dt>
+                    <dd
+                      data-testid={`summary-addon-${addon.key}`}
+                      className="shrink-0 font-black text-[#3E2D20]"
+                    >
+                      {addon.selected ? formatIls(addon.price) : "לא"}
+                    </dd>
+                  </div>
+                ))}
               </dl>
 
               <div className="min-w-0 rounded-[28px] bg-[#FFF8EE] px-4 py-5 text-center">
@@ -551,13 +551,6 @@ export default function PricingPage() {
               </div>
             </div>
           )}
-        </section>
-
-        <section className="mx-auto w-full max-w-5xl">
-          <WeddingChallengesPurchaseCard
-            entitled={userHasWeddingChallengesEntitlement(user as never)}
-            giveawayPurchased={userHasWeddingChallengesGiveawayEntitlement(user as never)}
-          />
         </section>
       </div>
     </main>

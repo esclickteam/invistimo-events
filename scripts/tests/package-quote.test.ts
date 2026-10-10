@@ -5,12 +5,14 @@ import path from "path";
 
 import { calculateBase, getRate } from "../../lib/adminPackages";
 import {
+  ADDON_LABELS,
   CALL_PACKAGES,
+  EMPTY_ADDONS,
   INVISTIMO_WHATSAPP_PHONE,
   PACKAGES,
   RECORD_MAX,
   SEATING_ADDON_ILS,
-  SEATING_FEATURES,
+  addonPrice,
   applyRecordDraft,
   buildWhatsappMessage,
   buildWhatsappUrl,
@@ -19,6 +21,7 @@ import {
   commitRecordDraft,
   packageRate,
   servicePrice,
+  type SelectedAddons,
 } from "../../lib/pricing/packageQuote";
 
 const root = path.resolve(process.cwd());
@@ -48,15 +51,19 @@ test("call packages use the flat per-record prices", () => {
   }
 });
 
+function withAddons(selected: Partial<SelectedAddons>): SelectedAddons {
+  return { ...EMPTY_ADDONS, ...selected };
+}
+
 test("hybrid example matches the requested 350-record quote", () => {
   const quote = calculateQuote({
     packageId: "hybrid",
     records: 350,
-    seating: true,
+    addons: withAddons({ seating: true }),
   });
 
   assert.equal(quote.packageName, "Invistimo Hybrid");
-  assert.equal(quote.serviceLabel, "2 סבבי שיחות מוקלטות + סבב שיחות אנושיות");
+  assert.equal(quote.serviceLabel, "2 סבבי שיחות מוקלטות + סבב אחד אנושי");
   assert.equal(quote.summaryService, "שיחות משולבות");
   assert.equal(quote.servicePrice, 665);
   assert.equal(quote.seatingPrice, 100);
@@ -69,8 +76,11 @@ test("hybrid example matches the requested 350-record quote", () => {
       "",
       "חבילה: Invistimo Hybrid",
       "כמות רשומות: 350",
-      "סוג שירות: 2 סבבי שיחות מוקלטות + סבב שיחות אנושיות",
+      "סוג שירות: 2 סבבי שיחות מוקלטות + סבב אחד אנושי",
+      "מתנות באשראי דרך ספק חיצוני: לא",
       "הושבה דיגיטלית: כן",
+      "מערכת עצמאית לניהול ומעקב אירוע: לא",
+      "עיצוב הזמנה בהתאמה אישית: לא",
       "מחיר שירות: 665 ₪",
       "תוספת הושבה: 100 ₪",
       'סה"כ: 765 ₪',
@@ -80,29 +90,68 @@ test("hybrid example matches the requested 350-record quote", () => {
   );
 });
 
-test("seating is a one-time 100 shekel add-on and can be removed", () => {
-  const withSeating = calculateQuote({
-    packageId: "voice",
-    records: 150,
-    seating: true,
-  });
-  const withoutSeating = calculateQuote({
-    packageId: "voice",
-    records: 150,
-    seating: false,
+test("original add-ons keep their prices and seating stays 100 on every package", () => {
+  assert.equal(SEATING_ADDON_ILS, 100);
+  assert.equal(addonPrice("messages", "seating"), 100);
+  assert.equal(addonPrice("voice", "seating"), 100);
+  assert.equal(addonPrice("personal", "seating"), 100);
+  assert.equal(addonPrice("hybrid", "seating"), 100);
+
+  assert.equal(addonPrice("messages", "credit"), 150);
+  assert.equal(addonPrice("messages", "system"), 200);
+  assert.equal(addonPrice("messages", "design"), 200);
+
+  for (const packageId of ["voice", "personal", "hybrid"] as const) {
+    assert.equal(addonPrice(packageId, "credit"), 100);
+    assert.equal(addonPrice(packageId, "system"), 150);
+    assert.equal(addonPrice(packageId, "design"), 150);
+  }
+
+  const quote = calculateQuote({
+    packageId: "personal",
+    records: 100,
+    addons: withAddons({ credit: true, seating: true, system: true, design: true }),
   });
 
-  assert.equal(SEATING_ADDON_ILS, 100);
-  assert.equal(withSeating.servicePrice, 240);
-  assert.equal(withSeating.total, 340);
-  assert.equal(withoutSeating.seatingPrice, 0);
-  assert.equal(withoutSeating.total, 240);
-  assert.match(buildWhatsappMessage(withoutSeating), /הושבה דיגיטלית: לא/);
-  assert.doesNotMatch(buildWhatsappMessage(withoutSeating), /תוספת הושבה/);
+  assert.equal(quote.servicePrice, 220);
+  assert.equal(quote.addonTotal, 100 + 100 + 150 + 150);
+  assert.equal(quote.total, 720);
+  const message = buildWhatsappMessage(quote);
+  assert.match(message, /מתנות באשראי דרך ספק חיצוני: כן/);
+  assert.match(message, /הושבה דיגיטלית: כן/);
+  assert.match(message, /מערכת עצמאית לניהול ומעקב אירוע: כן/);
+  assert.match(message, /עיצוב הזמנה בהתאמה אישית: כן/);
+  assert.match(message, /תוספת הושבה: 100 ₪/);
+  assert.match(message, /מתנות באשראי דרך ספק חיצוני: 100 ₪/);
+  assert.match(message, /מערכת עצמאית לניהול ומעקב אירוע: 150 ₪/);
+  assert.match(message, /עיצוב הזמנה בהתאמה אישית: 150 ₪/);
+  assert.match(message, /סה"כ: 720 ₪/);
+});
+
+test("unselected add-ons stay out of the total", () => {
+  const without = calculateQuote({
+    packageId: "voice",
+    records: 150,
+    addons: EMPTY_ADDONS,
+  });
+
+  assert.equal(without.servicePrice, 240);
+  assert.equal(without.seatingPrice, 0);
+  assert.equal(without.addonTotal, 0);
+  assert.equal(without.total, 240);
+  assert.match(buildWhatsappMessage(without), /הושבה דיגיטלית: לא/);
+  assert.doesNotMatch(buildWhatsappMessage(without), /תוספת הושבה/);
 });
 
 test("zero records cannot be ordered and quantities stay inside 0–1000", () => {
-  assert.equal(calculateQuote({ packageId: "personal", records: 0, seating: true }).canOrder, false);
+  assert.equal(
+    calculateQuote({
+      packageId: "personal",
+      records: 0,
+      addons: withAddons({ seating: true }),
+    }).canOrder,
+    false
+  );
   assert.equal(clampRecords(-4), 0);
   assert.equal(clampRecords(1001), 1000);
   assert.equal(clampRecords(27.9), 27);
@@ -124,7 +173,7 @@ test("manual entry does not reset an in-progress draft", () => {
 });
 
 test("whatsapp link uses the business number and url encoding", () => {
-  const quote = calculateQuote({ packageId: "messages", records: 27, seating: false });
+  const quote = calculateQuote({ packageId: "messages", records: 27, addons: EMPTY_ADDONS });
   const url = buildWhatsappUrl(quote);
   const expectedText = encodeURIComponent(buildWhatsappMessage(quote));
 
@@ -137,72 +186,58 @@ test("whatsapp link uses the business number and url encoding", () => {
   assert.equal(quote.servicePrice, calculateBase("plan1", 27));
 });
 
-test("package copy stays on the right kind of service", () => {
-  const blob = (id: keyof typeof PACKAGES) =>
-    [
-      PACKAGES[id].description,
-      PACKAGES[id].serviceLabel,
-      ...PACKAGES[id].rounds.flatMap((round) => [round.title, round.detail]),
-      ...PACKAGES[id].features,
-    ].join("\n");
+test("package copy keeps the original included services and a single call line", () => {
+  const originalShared = [
+    "הזמנה דיגיטלית מלאה",
+    "שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה",
+    "תזכורת ב-SMS לקראת האירוע + מספר שולחן",
+    "הודעת תודה לאחר האירוע ב-SMS",
+  ];
 
-  const voice = blob("voice");
-  const personal = blob("personal");
-  const hybrid = blob("hybrid");
-  const messages = blob("messages");
+  assert.deepEqual(PACKAGES.messages.features, originalShared);
+  assert.equal(PACKAGES.messages.description, "הבסיס המושלם להזמנה דיגיטלית ואישורי הגעה");
+  assert.equal(PACKAGES.voice.callLine, "3 סבבי שיחות מוקלטות.");
+  assert.equal(PACKAGES.personal.callLine, "3 סבבי שיחות במוקד אנושי.");
+  assert.equal(PACKAGES.hybrid.callLine, "2 סבבי שיחות מוקלטות + סבב אחד אנושי.");
 
-  assert.doesNotMatch(voice, /אנושי|נציג|מוקד/);
-  assert.match(voice, /סבב ראשון: שיחות מוקלטות/);
-  assert.match(voice, /סבב שני: שיחות מוקלטות/);
-  assert.match(voice, /סבב שלישי: שיחות מוקלטות/);
-
-  assert.doesNotMatch(personal, /מוקלט/);
-  assert.match(personal, /סבב ראשון: שיחה אנושית/);
-  assert.match(personal, /סבב שלישי: שיחה אנושית/);
-  assert.match(personal, /נציגים אנושיים/);
-
-  assert.match(hybrid, /סבב ראשון: שיחות מוקלטות/);
-  assert.match(hybrid, /סבב שני: שיחות מוקלטות/);
-  assert.match(hybrid, /סבב שלישי: שיחות אנושיות/);
-  assert.doesNotMatch(hybrid, /סבב שלישי: שיחות מוקלטות/);
-  assert.doesNotMatch(hybrid, /שלושה סבבי שיחות קוליות/);
-
-  assert.match(messages, /2 סבבי הודעות/);
-  assert.match(messages, /דשבורד/);
-  assert.match(messages, /קישור אישי/);
-  assert.doesNotMatch(messages, /מוקלט|אנושי|נציג|מוקד/);
-
-  for (const id of ["messages", "voice", "personal", "hybrid"] as const) {
-    assert.match(blob(id), /ניהול רשימת מוזמנים/);
-    assert.match(blob(id), /תזכורת ב-SMS/);
+  for (const id of ["voice", "personal", "hybrid"] as const) {
+    assert.deepEqual(PACKAGES[id].features.slice(0, 4), originalShared);
+    assert.equal(PACKAGES[id].features[4], PACKAGES[id].callLine);
+    assert.equal(PACKAGES[id].features[5], "תיעוד ועדכון סטטוסים בזמן אמת");
+    assert.equal(PACKAGES[id].description, PACKAGES[id].callLine);
+    assert.equal(PACKAGES[id].features.length, 6);
   }
 
+  const voice = PACKAGES.voice.features.join("\n");
+  const personal = PACKAGES.personal.features.join("\n");
+  assert.doesNotMatch(voice, /אנושי|נציג|מוקד|סבב ראשון|סבב שני|סבב שלישי/);
+  assert.doesNotMatch(personal, /מוקלט|סבב ראשון|סבב שני|סבב שלישי/);
+  assert.doesNotMatch(PACKAGES.messages.features.join("\n"), /מוקלט|אנושי|נציג|מוקד/);
   assert.deepEqual(CALL_PACKAGES, ["voice", "personal", "hybrid"]);
 });
 
-test("digital seating copy is the real system and not a venue crew", () => {
-  const seating = SEATING_FEATURES.join("\n");
-  assert.match(seating, /ניהול שולחנות/);
-  assert.match(seating, /שיוך אורחים/);
-  assert.match(seating, /מקומות הפנויים/);
-  assert.match(seating, /תרשים אולם/);
-  assert.doesNotMatch(seating, /דייל|צוות|באולם ביום/);
-});
-
-test("pricing page sends guests to WhatsApp and keeps the existing heading words apart", () => {
+test("pricing page restores the original add-ons and drops Wedding Challenges", () => {
   const page = read("app/pricing/page.tsx");
 
   assert.match(page, /בחרו את החבילה שמתאימה לאירוע שלכם/);
   assert.doesNotMatch(page, /שמתאימה\s*<br/);
   assert.match(page, /כמה רשומות מוזמנים יש לכם\?/);
   assert.match(page, /איך תרצו לנהל את אישורי ההגעה\?/);
-  assert.match(page, /רוצים גם לנהל את סידורי ההושבה\?/);
-  assert.match(page, /הוספת מערכת הושבה דיגיטלית/);
+  assert.match(page, /תוספות אפשריות/);
   assert.match(page, /אני רוצה את החבילה/);
   assert.match(page, /החבילה שלכם/);
   assert.match(page, /GuestRecordSlider/);
   assert.match(page, /buildWhatsappUrl/);
-  assert.match(page, /WeddingChallengesPurchaseCard/);
+  assert.match(page, /ADDON_ORDER/);
+  assert.match(page, /ADDON_LABELS/);
+  assert.deepEqual(Object.values(ADDON_LABELS), [
+    "מתנות באשראי דרך ספק חיצוני",
+    "הושבה דיגיטלית",
+    "מערכת עצמאית לניהול ומעקב אירוע",
+    "עיצוב הזמנה בהתאמה אישית",
+  ]);
+  assert.doesNotMatch(page, /WeddingChallengesPurchaseCard/);
+  assert.doesNotMatch(page, /סבב ראשון/);
   assert.doesNotMatch(page, /המשך לתשלום/);
   assert.doesNotMatch(page, /\/register/);
   assert.doesNotMatch(page, /useRouter/);
