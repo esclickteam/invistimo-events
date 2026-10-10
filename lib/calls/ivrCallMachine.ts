@@ -44,7 +44,7 @@ import {
 const CHOICE_TIMEOUT_MS = 15000;
 const COUNT_TIMEOUT_MS = 20000;
 const COUNT_DIGIT_MAX = 3;
-const COUNT_INTER_DIGIT_MS = 2500;
+const COUNT_INTER_DIGIT_MS = 1000;
 
 const AUDIO_NOT_READY_TEXT =
   "שלום, לא ניתן כרגע להשמיע את קריינות האירוע. אנא נסו שוב מאוחר יותר.";
