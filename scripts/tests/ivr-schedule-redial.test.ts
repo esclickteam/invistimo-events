@@ -149,3 +149,50 @@ test("cron remains minute-level Asia/Jerusalem due check", () => {
   assert.match(vercel, /\/api\/cron\/ivr-dial/);
   assert.match(vercel, /\* \* \* \* \*/);
 });
+
+test("final RSVP guests stay ineligible across new runIds", () => {
+  const elig = readSrc("lib/calls/ivrRoundEligibility.ts");
+  assert.match(elig, /isFinalRsvp/);
+  assert.match(elig, /return false/);
+  assert.match(elig, /round === 1 \|\| round === 2/);
+  assert.match(elig, /pending/);
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(dialer, /isGuestEligibleForIvrRound/);
+  assert.match(dialer, /filterGuestsForIvrRound/);
+});
+
+test("claimRound and live legs block parallel reopen/execute", () => {
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(dialer, /async function claimRound/);
+  assert.match(dialer, /ROUND_ALREADY_RUNNING/);
+  assert.match(dialer, /dialClaimedAt/);
+  assert.match(dialer, /earlierRoundStillRunning/);
+});
+
+test("blocked dials mark failed not done", () => {
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(dialer, /החיוג נחסם או נכשל/);
+  assert.match(dialer, /Never mark a round "done" when no real dial was placed/);
+  assert.match(dialer, /if \(anyPlaced\) \{\n\s*status = "done";/);
+});
+
+test("IVR report separates current run from history via runId", () => {
+  const report = readSrc("lib/calls/ivrCallReportQuery.ts");
+  assert.match(report, /ivrAttemptRunMatch/);
+  assert.match(report, /currentIvrRunsFilter/);
+  assert.match(report, /runScope\?: "current" \| "all"/);
+  assert.match(report, /runId: String\(row\.runId/);
+  assert.match(report, /ivrAttemptRunMatch\(/);
+});
+
+test("schedule and reopen never delete attempts or RSVP", () => {
+  const schedule = readSrc("lib/calls/ivrRoundSchedule.ts");
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.equal(schedule.includes("deleteMany"), false);
+  assert.equal(schedule.includes("InvitationGuest"), false);
+  assert.match(dialer, /Attempts and guest RSVP stay intact/);
+  assert.equal(
+    dialer.includes("IvrCallAttempt.deleteMany"),
+    false
+  );
+});

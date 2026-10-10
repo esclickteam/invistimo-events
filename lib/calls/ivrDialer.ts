@@ -1651,12 +1651,16 @@ export async function executeIvrRound(input: {
   );
   let failureReason =
     results.find((r) => r.status === "failed" || r.status === "blocked_test_mode")
-      ?.reason || "";
+      ?.reason ||
+    attempts
+      .map((a) => cleanStr((a as { error?: string }).error))
+      .find(Boolean) ||
+    "";
 
   let status = "in_progress";
   if (!hitCap && !liveForRound) {
-    // Never mark a round "done" when no dial history exists — that falsely
-    // locked admin/client rounds as הושלם with zero attempts.
+    // Never mark a round "done" when no real dial was placed — blocked /
+    // canceled / empty runs stay failed with an explicit reason.
     if (anyPlaced) {
       status = "done";
     } else if (attempts.length === 0) {
@@ -1669,6 +1673,14 @@ export async function executeIvrRound(input: {
       }
     } else {
       status = "failed";
+      if (!failureReason) {
+        const allBlocked = attempts.every((a) =>
+          ["canceled", "failed"].includes(String(a.status))
+        );
+        failureReason = allBlocked
+          ? "החיוג נחסם או נכשל — לא יצאה שיחה"
+          : "לא בוצע חיוג תקין בסבב";
+      }
     }
   }
 
