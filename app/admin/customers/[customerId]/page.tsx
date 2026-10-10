@@ -1014,8 +1014,8 @@ function TableShell({
 }) {
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-[#E8D8C4] bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[950px] border-collapse text-right">
+      <div className="w-full min-w-0 max-w-full">
+        <table className="admin-fit-table w-full border-collapse text-right">
           <thead>
             <tr className="border-b border-[#EFE3D4] bg-[#FFFBF5] text-xs font-black text-[#8A6A43]">
               {headers.map((header) => (

@@ -1216,7 +1216,7 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      <div className="flex w-full min-w-0 flex-col gap-2 border-b border-[var(--admin-border)] pb-3 lg:flex-row lg:items-center">
+      <div className="admin-filter-bar flex w-full min-w-0 max-w-full flex-col gap-2 border-b border-[var(--admin-border)] pb-3 lg:flex-row lg:items-center">
         <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-3">
           <Search size={15} className="shrink-0 text-[var(--admin-subtle)]" />
           <input
@@ -1230,7 +1230,7 @@ export default function AdminUsersPage() {
         <select
           value={eventFilter}
           onChange={(e) => setEventFilter(e.target.value)}
-          className="admin-select h-10 w-full lg:w-[200px]"
+          className="admin-select admin-filter-select h-10 w-full min-w-0"
         >
           <option value="future">אירועים עתידיים</option>
           <option value="past">אירועים שעברו</option>
@@ -1241,7 +1241,7 @@ export default function AdminUsersPage() {
 
       <div className="admin-table-region w-full min-w-0">
         <div className="admin-table-scroll">
-          <table className="admin-table" style={{ minWidth: 1280 }}>
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>שם</th>

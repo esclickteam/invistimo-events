@@ -78,7 +78,13 @@
 .admin-content {
   width: 100%;
   min-width: 0;
-  max-width: none;
+  max-width: 100%;
+}
+
+.admin-filter-bar {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .admin-filter-bar .admin-input,
@@ -90,11 +96,35 @@
 .admin-filter-bar select {
   min-height: 40px;
   height: 40px;
+  max-width: 100%;
+  min-width: 0;
 }
 
-/* Full-width table region (no outer card cage, no clip) */
+.admin-filter-select {
+  width: 100%;
+  flex: 1 1 160px;
+}
+
+@media (min-width: 1024px) {
+  .admin-filter-select {
+    width: 200px;
+    max-width: 200px;
+    flex: 0 0 200px;
+  }
+}
+
+/* Full-width table region.
+   Chrome RTL overflow-x keeps scrollLeft at 0 and ignores positive
+   scroll, so a min-width wider than the page clips the left columns
+   and the scrollbar cannot bring them back — including after a search
+   field takes focus. Tables fit the content width instead. */
+.admin-app main {
+  overflow-x: clip;
+}
+
 .admin-table-region {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
@@ -104,19 +134,20 @@
 
 .admin-table-scroll {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  /* Keep menus usable; clip only horizontally when needed */
-  overflow-y: visible;
+  overflow: visible;
 }
 
-.admin-table {
-  width: 100%;
-  min-width: 100%;
+.admin-table,
+.admin-fit-table {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   border-collapse: separate;
   border-spacing: 0;
   text-align: right;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .admin-table thead th {
@@ -124,25 +155,51 @@
   color: var(--admin-muted);
   font-size: 11px;
   font-weight: 700;
-  height: 40px;
-  padding: 0 12px;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--admin-border);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
   position: sticky;
   top: 0;
   z-index: 1;
 }
 
 .admin-table tbody td {
-  height: 52px;
-  max-height: 56px;
-  padding: 0 12px;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 10px;
   border-bottom: 1px solid #f0f1f3;
   font-size: 13px;
   font-weight: 500;
   vertical-align: middle;
   color: var(--admin-text);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-table tbody td:not(:last-child):not(.admin-actions-cell) {
+  overflow: hidden;
+}
+
+.admin-fit-table :where(th, td) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-table audio,
+.admin-table video,
+.admin-table input,
+.admin-table select,
+.admin-fit-table audio,
+.admin-fit-table video,
+.admin-fit-table input,
+.admin-fit-table select {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .admin-table tbody tr:hover td {
@@ -163,40 +220,28 @@
   position: relative;
 }
 
-.admin-table .cell-clip {
-  display: block;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.admin-table .cell-clip-wide {
-  display: block;
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.admin-table .cell-clip,
+.admin-table .cell-clip-wide,
 .admin-table .cell-clip-sm {
   display: block;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .admin-table .admin-row-badge {
   display: inline-flex;
   align-items: center;
-  max-height: 22px;
-  padding: 0 8px;
+  max-width: 100%;
+  padding: 2px 8px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
-  line-height: 22px;
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .admin-table-footer {

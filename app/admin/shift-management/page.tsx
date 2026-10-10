@@ -1632,7 +1632,7 @@ export default function AdminShiftManagementPage() {
 
       <section className="admin-table-region w-full min-w-0">
         <div className="admin-table-scroll">
-          <table className="admin-table" style={{ minWidth: 1500 }}>
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>עובד</th>

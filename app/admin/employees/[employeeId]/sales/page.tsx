@@ -597,8 +597,8 @@ export default function AdminEmployeeSalesPage() {
           </section>
         ) : (
           <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-right">
+            <div className="w-full min-w-0 max-w-full">
+            <table className="admin-fit-table w-full border-collapse text-right">
               <thead className="bg-slate-50/80">
                 <tr className="text-sm text-slate-500">
                   <th className="px-5 py-4 font-black">תאריך</th>
