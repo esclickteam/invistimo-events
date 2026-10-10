@@ -1,363 +1,245 @@
 "use client";
 
-import Image from "next/image";
-import type { ElementType } from "react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
   Armchair,
+  AudioLines,
   Check,
   Crown,
-  Gift,
-  MonitorCog,
-  Palette,
+  Headset,
+  MessageCircle,
+  Phone,
   Sparkles,
   Users,
+  type LucideIcon,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { userHasWeddingChallengesEntitlement, userHasWeddingChallengesGiveawayEntitlement } from "@/lib/weddingChallenges/entitlement";
+import {
+  userHasWeddingChallengesEntitlement,
+  userHasWeddingChallengesGiveawayEntitlement,
+} from "@/lib/weddingChallenges/entitlement";
 import WeddingChallengesPurchaseCard from "@/components/wedding-challenges/PurchaseCard";
+import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
+import {
+  CALL_PACKAGES,
+  PACKAGES,
+  SEATING_ADDON_ILS,
+  SEATING_FEATURES,
+  applyRecordDraft,
+  buildWhatsappUrl,
+  calculateQuote,
+  clampRecords,
+  commitRecordDraft,
+  formatIls,
+  formatRate,
+  type PackageDefinition,
+  type PackageId,
+  type ServiceMode,
+} from "@/lib/pricing/packageQuote";
 
-type PlanKey = "plan1" | "plan2" | "plan3";
-type AddonKey = "credit" | "seating" | "system" | "design";
+const PACKAGE_ICONS: Record<PackageId, LucideIcon> = {
+  messages: MessageCircle,
+  voice: AudioLines,
+  personal: Headset,
+  hybrid: Sparkles,
+};
 
-/* ===================== מדרגות מחיר ===================== */
+const ctaClassName =
+  "inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-[22px] px-5 py-4 text-center text-base font-black leading-6 transition duration-200";
 
-const plan1Rates: [number, number][] = [
-  [50, 1.19],
-  [100, 1.16],
-  [150, 1.13],
-  [200, 1.1],
-  [250, 1.08],
-  [300, 1.06],
-  [350, 1.04],
-  [400, 1.02],
-  [450, 1.0],
-  [500, 0.98],
-  [550, 0.96],
-  [600, 0.94],
-  [650, 0.93],
-  [700, 0.92],
-  [750, 0.9],
-  [800, 0.88],
-];
-
-const plan2Rates: [number, number][] = [
-  [50, 2.85],
-  [100, 2.38],
-  [150, 2.35],
-  [200, 2.29],
-  [250, 2.26],
-  [300, 2.19],
-  [350, 2.15],
-  [400, 2.1],
-  [450, 2.05],
-  [500, 2.0],
-  [550, 1.96],
-  [600, 1.92],
-  [650, 1.92],
-  [700, 1.92],
-  [750, 1.92],
-  [800, 1.9],
-];
-
-const plan3Rates: [number, number][] = [
-  [50, 3.75],
-  [100, 3.22],
-  [150, 2.98],
-  [200, 2.76],
-  [250, 2.65],
-  [300, 2.52],
-  [350, 2.43],
-  [400, 2.35],
-  [450, 2.28],
-  [500, 2.21],
-  [550, 2.14],
-  [600, 2.07],
-  [650, 2.06],
-  [700, 2.05],
-  [750, 2.04],
-  [800, 2.03],
-];
-
-function getRate(plan: PlanKey, records: number) {
-  const table =
-    plan === "plan1" ? plan1Rates : plan === "plan2" ? plan2Rates : plan3Rates;
-
-  for (const [limit, rate] of table) {
-    if (records <= limit) return rate;
-  }
-
-  return table[table.length - 1][1];
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 shrink-0 fill-current">
+      <path d="M20.5 3.5A11 11 0 0 0 2.1 16.8L1 23l6.4-1.1A11 11 0 0 0 12 23a11 11 0 0 0 8.5-19.5ZM12 21a9 9 0 0 1-4.6-1.3l-.3-.2-3.8.6.6-3.7-.2-.3A9 9 0 1 1 12 21Zm5-6.7c-.3-.1-1.6-.8-1.8-.9s-.4-.1-.6.1-.7.9-.8 1-.3.2-.6.1a7.4 7.4 0 0 1-2.2-1.4 8.2 8.2 0 0 1-1.5-1.9c-.2-.3 0-.4.1-.6l.4-.5.2-.3a.5.5 0 0 0 0-.5c0-.1-.6-1.4-.8-1.9s-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.8 11.8 0 0 0 4.5 4 15 15 0 0 0 1.5.6 3.6 3.6 0 0 0 1.7.1 2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3Z" />
+    </svg>
+  );
 }
 
-function calculateBase(plan: PlanKey, records: number) {
-  return Math.round(records * getRate(plan, records));
-}
-
-/* ===================== COMPONENT ===================== */
-
-export default function PricingPage() {
-  const router = useRouter();
-  const { user } = useAuth();
-  const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
-
-  const [records, setRecords] = useState<number | null>(null);
-
-  const [addons, setAddons] = useState<
-    Record<PlanKey, Record<AddonKey, boolean>>
-  >({
-    plan1: { credit: false, seating: false, system: false, design: false },
-    plan2: { credit: false, seating: false, system: false, design: false },
-    plan3: { credit: false, seating: false, system: false, design: false },
-  });
-
-  const planMeta: Record<
-    PlanKey,
-    {
-      title: string;
-      subtitle: string;
-      badge: string;
-      icon: string;
-      alt: string;
-      highlight?: boolean;
-    }
-  > = {
-    plan1: {
-      title: "קל להזמין",
-      subtitle: "הבסיס המושלם להזמנה דיגיטלית ואישורי הגעה",
-      badge: "מתאים לאירוע פשוט",
-      icon: "/icons/1.png",
-      alt: "אייקון חבילה 1",
-    },
-    plan2: {
-      title: "מזמינים חכם",
-      subtitle: "כולל מוקד טלפוני וניהול אישורי הגעה מלא",
-      badge: "הבחירה הפופולרית",
-      icon: "/icons/2.png",
-      alt: "אייקון חבילה 2",
-      highlight: true,
-    },
-    plan3: {
-      title: "מזמינים ומושיבים",
-      subtitle: "הפתרון המלא כולל הושבה חכמה ושולחנות",
-      badge: "הכי מקיף",
-      icon: "/icons/3.png",
-      alt: "אייקון חבילה 3",
-    },
-  };
-
-  /* ===================== אפסיילים ===================== */
-
-  const getAddonPrices = (plan: PlanKey) => {
-    if (plan === "plan1") {
-      return { credit: 150, seating: 100, system: 200, design: 200 };
-    }
-
-    if (plan === "plan2") {
-      return { credit: 100, seating: 80, system: 150, design: 150 };
-    }
-
-    return { credit: 0, seating: 0, system: 100, design: 100 };
-  };
-
-  const toggleAddon = (plan: PlanKey, key: AddonKey) => {
-    setAddons((prev) => ({
-      ...prev,
-      [plan]: {
-        ...prev[plan],
-        [key]: !prev[plan][key],
-      },
-    }));
-  };
-
-  const calculateTotal = (plan: PlanKey) => {
-    if (records === null) return 0;
-
-    const base = calculateBase(plan, records);
-    const prices = getAddonPrices(plan);
-    const selected = addons[plan];
-
-    return (
-      base +
-      (selected.credit ? prices.credit : 0) +
-      (selected.seating ? prices.seating : 0) +
-      (selected.system ? prices.system : 0) +
-      (selected.design ? prices.design : 0)
-    );
-  };
-
-  const handleRegister = (plan: PlanKey) => {
-    if (records === null) {
-      alert("בחרי כמות רשומות לפני ההרשמה");
-      return;
-    }
-
-    const selected = addons[plan];
-
-    const params = new URLSearchParams({
-      plan,
-      guests: String(records),
-      seating: String(selected.seating),
-      credit: String(selected.credit),
-      system: String(selected.system),
-      design: String(selected.design),
-    });
-
-    router.push(`/register?${params.toString()}`);
-  };
-
-  /* ===================== פיצ'רים ===================== */
-
-  const getPlanFeatures = (plan: PlanKey) => {
-    const shared = [
-      "הזמנה דיגיטלית מלאה",
-      "שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה",
-      "תזכורת ב-SMS לקראת האירוע + מספר שולחן",
-      "הודעת תודה לאחר האירוע ב-SMS",
-    ];
-
-    const plan2Features = [
-      ...shared,
-      "מוקד טלפוני מקצועי",
-      "עד 3 ניסיונות חיוג לכל רשומה",
-      "תיעוד ועדכון סטטוסים בזמן אמת",
-    ];
-
-    if (plan === "plan2") {
-      return plan2Features;
-    }
-
-    if (plan === "plan3") {
-      return [...plan2Features, "מערכת הושבה חכמה"];
-    }
-
-    return shared;
-  };
-
-  /* ===================== תוספות ===================== */
-
-  const addonMeta: Record<AddonKey, { label: string; icon: ElementType }> = {
-    credit: {
-      label: "מתנות באשראי דרך ספק חיצוני",
-      icon: Gift,
-    },
-    seating: {
-      label: "הושבה דיגיטלית",
-      icon: Armchair,
-    },
-    system: {
-      label: "מערכת עצמאית לניהול ומעקב אירוע",
-      icon: MonitorCog,
-    },
-    design: {
-      label: "עיצוב הזמנה בהתאמה אישית",
-      icon: Palette,
-    },
-  };
-
-  const renderAddons = (plan: PlanKey) => {
-    const prices = getAddonPrices(plan);
-    const selected = addons[plan];
-
-    return (
-      <div className="mt-7 border-t border-[#E9D9C4] pt-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-base font-black text-[#3E2D20]">
-            תוספות אפשריות
-          </p>
-
-          <span className="rounded-full bg-[#FFF4E2] px-3 py-1 text-xs font-bold text-[#A86F2B]">
-            לפי בחירה
+function FeatureList({ items }: { items: string[] }) {
+  return (
+    <ul className="space-y-2.5">
+      {items.map((item) => (
+        <li key={item} className="flex gap-3 text-sm leading-6 text-[#5A3E25]">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF4E2] text-[#A86F2B]">
+            <Check size={13} />
           </span>
-        </div>
+          <span className="min-w-0">{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-        <div className="space-y-3">
-          {(Object.keys(addonMeta) as AddonKey[]).map((key) => {
-            const Icon = addonMeta[key].icon;
-            const isSelected = selected[key];
-            const price = prices[key];
-
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleAddon(plan, key)}
-                className={`
-                  group flex w-full items-center justify-between gap-3
-                  rounded-[18px] border px-4 py-3 text-right
-                  transition-all duration-200
-                  ${
-                    isSelected
-                      ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
-                      : "border-[#E8D9C7] bg-white/70 hover:border-[#D7B98D] hover:bg-[#FFF8EE]"
-                  }
-                `}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span
-                    className={`
-                      flex h-9 w-9 shrink-0 items-center justify-center
-                      rounded-full border
-                      ${
-                        isSelected
-                          ? "border-[#C89545] bg-[#C89545] text-white"
-                          : "border-[#E5D1B7] bg-[#FFFDF9] text-[#A86F2B]"
-                      }
-                    `}
-                  >
-                    <Icon size={17} />
-                  </span>
-
-                  <span className="text-sm font-semibold leading-5 text-[#5A3E25]">
-                    {addonMeta[key].label}
-                  </span>
-                </div>
-
-                <span
-                  className={`
-                    shrink-0 rounded-full px-3 py-1 text-xs font-black
-                    ${
-                      price === 0
-                        ? "bg-green-50 text-green-700"
-                        : "bg-[#F7E9D3] text-[#8A5A25]"
-                    }
-                  `}
-                >
-                  {price === 0 ? "כלול" : `+ ₪${price}`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  /* ===================== UI ===================== */
+function PackageCard({
+  pkg,
+  records,
+  selected,
+  onSelect,
+}: {
+  pkg: PackageDefinition;
+  records: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const quote = calculateQuote({ packageId: pkg.id, records, seating: false });
+  const Icon = PACKAGE_ICONS[pkg.id];
 
   return (
-    <main
-      dir="rtl"
-      className="relative min-h-screen overflow-hidden bg-[#F7EFE6] text-[#3E2D20]"
+    <article
+      data-testid={`package-${pkg.id}`}
+      className={`relative flex min-w-0 flex-col rounded-[32px] border bg-[#FFFDF9]/95 p-5 shadow-[0_22px_60px_rgba(91,64,35,0.1)] transition duration-300 sm:p-6 ${
+        selected
+          ? "border-[#C89545] ring-4 ring-[#D8B16A]/20"
+          : "border-[#E5D3B8] hover:border-[#D7B98D]"
+      }`}
     >
-      {/* רקע */}
+      {selected ? (
+        <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#C89545] text-white shadow">
+          <Check size={16} />
+        </span>
+      ) : null}
+
+      <div className="flex items-start gap-3 pl-10">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#E5D1B7] bg-[#FFF8EE] text-[#A86F2B]">
+          <Icon size={22} />
+        </span>
+        <div className="min-w-0">
+          <span className="inline-flex rounded-full bg-[#FFF4E2] px-3 py-1 text-[11px] font-black text-[#9A672B]">
+            {pkg.badge}
+          </span>
+          <h3 className="mt-2 text-2xl font-black leading-tight text-[#8A4E19] sm:text-[1.7rem]">
+            {pkg.name}
+          </h3>
+          <p className="mt-1 text-sm font-bold text-[#A07C52]">{pkg.hebrewName}</p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-7 text-[#7B6754]">{pkg.description}</p>
+
+      <div className="mt-5 rounded-[24px] border border-[#E8D9C7] bg-white/80 px-4 py-4 text-center">
+        <p className="text-xs font-bold text-[#9C866D]">מחיר לרשומה</p>
+        <p
+          data-testid={`package-rate-${pkg.id}`}
+          className="mt-1 text-3xl font-black tabular-nums text-[#3E2D20]"
+        >
+          {formatRate(quote.rate)}
+        </p>
+        <div className="mx-auto my-3 h-px w-16 bg-[#E8D9C7]" />
+        <p className="text-xs font-bold text-[#9C866D]">מחיר החבילה</p>
+        <p
+          data-testid={`package-total-${pkg.id}`}
+          className="mt-1 text-4xl font-black tabular-nums leading-none text-[#3E2D20]"
+        >
+          {formatIls(quote.servicePrice)}
+        </p>
+        <p className="mt-2 text-xs text-[#9C866D]">ל־{quote.records.toLocaleString("he-IL")} רשומות</p>
+      </div>
+
+      <button
+        type="button"
+        data-testid={`select-${pkg.id}`}
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={`${ctaClassName} mt-5 ${
+          selected
+            ? "bg-[#3E2D20] text-white"
+            : "bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] text-white shadow-[0_14px_28px_rgba(168,111,43,0.22)] hover:-translate-y-0.5"
+        }`}
+      >
+        {selected ? "החבילה נבחרה" : "בחירת החבילה"}
+      </button>
+
+      {pkg.rounds.length > 0 ? (
+        <ol className="mt-6 space-y-2.5">
+          {pkg.rounds.map((round, index) => (
+            <li
+              key={round.title}
+              className="rounded-2xl border border-[#F0E2D0] bg-[#FFF9F2] px-3 py-3"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-xs font-black text-white">
+                  {index + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-[#5A3E25]">{round.title}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-[#7B6754]">{round.detail}</span>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      <div className="mt-6 border-t border-[#E9D9C4] pt-5">
+        <p className="mb-3 text-sm font-black text-[#3E2D20]">כלול בחבילה</p>
+        <FeatureList items={pkg.features} />
+      </div>
+    </article>
+  );
+}
+
+export default function PricingPage() {
+  const { user } = useAuth();
+  const [records, setRecords] = useState(200);
+  const [recordText, setRecordText] = useState("200");
+  const [service, setService] = useState<ServiceMode | null>(null);
+  const [callPackage, setCallPackage] = useState<PackageId | null>(null);
+  const [seating, setSeating] = useState(false);
+
+  const packageId: PackageId | null =
+    service === "messages" ? "messages" : service === "calls" ? callPackage : null;
+
+  const quote = useMemo(
+    () => (packageId ? calculateQuote({ packageId, records, seating }) : null),
+    [packageId, records, seating]
+  );
+
+  const visiblePackages =
+    service === "messages"
+      ? [PACKAGES.messages]
+      : service === "calls"
+        ? CALL_PACKAGES.map((id) => PACKAGES[id])
+        : [];
+
+  function setRecordCount(next: number) {
+    const safe = clampRecords(next);
+    setRecords(safe);
+    setRecordText(String(safe));
+  }
+
+  function onRecordTextChange(raw: string) {
+    const draft = applyRecordDraft(raw);
+    setRecordText(draft.text);
+    if (draft.records !== null) setRecords(draft.records);
+  }
+
+  function onRecordBlur() {
+    const committed = commitRecordDraft(recordText);
+    setRecords(committed);
+    setRecordText(String(committed));
+  }
+
+  function chooseService(next: ServiceMode) {
+    setService(next);
+    if (next === "calls" && callPackage === "messages") setCallPackage(null);
+  }
+
+  const orderHint = !packageId
+    ? "בחרו חבילה כדי לשלוח בקשה"
+    : records <= 0
+      ? "בחרו לפחות רשומה אחת כדי לשלוח בקשה"
+      : "";
+
+  const whatsappUrl = quote?.canOrder ? buildWhatsappUrl(quote) : "";
+
+  return (
+    <main dir="rtl" className="relative min-h-screen overflow-x-clip bg-[#F7EFE6] text-[#3E2D20]">
       <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
-      <div className="absolute inset-0 -z-20 opacity-[0.08] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+      <div className="pointer-events-none absolute -top-24 right-[7%] -z-20 h-72 w-72 rounded-full bg-[#DAB273]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[8%] left-[5%] -z-20 h-80 w-80 rounded-full bg-[#CDA37D]/16 blur-3xl" />
 
-      {/* כתמי אור */}
-      <div className="pointer-events-none absolute -top-24 right-[7%] h-72 w-72 rounded-full bg-[#DAB273]/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[8%] left-[5%] h-80 w-80 rounded-full bg-[#CDA37D]/16 blur-3xl" />
-      <div className="pointer-events-none absolute top-[36%] left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-white/22 blur-3xl" />
-
-      {/* עיטורים */}
-      <div className="pointer-events-none absolute top-24 left-10 h-28 w-28 rounded-full border border-[#D8B98D]/25" />
-      <div className="pointer-events-none absolute bottom-16 right-10 h-24 w-24 rounded-full border border-[#D8B98D]/20" />
-
-      {/* HERO */}
-      <section className="relative z-10 px-5 pb-12 pt-24 text-center sm:px-8 lg:pt-28">
+      <section className="relative z-10 px-4 pb-6 pt-28 text-center sm:px-8 lg:pt-32">
         <div className="mx-auto max-w-4xl">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-[#D8B98D] bg-[#FFF8EE] shadow-[0_10px_30px_rgba(186,140,76,0.13)]">
             <Crown className="text-[#B88945]" size={26} />
@@ -366,213 +248,347 @@ export default function PricingPage() {
           <p className="font-serif text-[34px] tracking-[0.22em] text-[#8A6338] sm:text-[46px]">
             INVISTIMO
           </p>
-
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-l from-transparent via-[#C9A46A] to-transparent" />
+          <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[#A07C52]">Smart Event Packages</p>
 
-          <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[#A07C52]">
-            Smart Event Packages
-          </p>
-
-          <h1 className="mt-7 text-4xl font-black leading-tight text-[#3E2D20] sm:text-5xl lg:text-6xl">
-            בחרו את החבילה שמתאימה
-            <br className="hidden sm:block" />
-            לאירוע שלכם
+          <h1
+            data-testid="pricing-title"
+            className="mx-auto mt-7 max-w-3xl text-balance px-1 text-[1.7rem] font-black leading-[1.35] text-[#3E2D20] min-[380px]:text-4xl sm:text-5xl sm:leading-tight lg:text-6xl"
+          >
+            בחרו את החבילה שמתאימה לאירוע שלכם
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#7B6754]">
-            הזמנות דיגיטליות, אישורי הגעה, הודעות WhatsApp/SMS, הושבה חכמה
-            וניהול אירוע — הכל במקום אחד.
+            בונים את החבילה לפי כמות הרשומות, סוג אישורי ההגעה והושבה דיגיטלית. המחיר מתעדכן מיד, וההזמנה נשלחת אלינו בוואטסאפ.
+          </p>
+        </div>
+      </section>
+
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-20 sm:px-8">
+        <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+              1
+            </span>
+            <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+              כמה רשומות מוזמנים יש לכם?
+            </h2>
+          </div>
+
+          <div className="text-center">
+            <p
+              data-testid="record-display"
+              className="text-6xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-7xl"
+              aria-live="polite"
+            >
+              {records.toLocaleString("he-IL")}
+            </p>
+            <p className="mt-2 text-sm font-bold text-[#A07C52]">רשומות מוזמנים</p>
+          </div>
+
+          <label className="mx-auto mt-6 block max-w-xs">
+            <span className="mb-2 flex items-center justify-center gap-2 text-sm font-black text-[#5A3E25]">
+              <Users size={16} className="text-[#B88945]" />
+              הזנת מספר
+            </span>
+            <input
+              data-testid="record-input"
+              inputMode="numeric"
+              autoComplete="off"
+              enterKeyHint="done"
+              aria-label="מספר רשומות מוזמנים"
+              value={recordText}
+              onChange={(event) => onRecordTextChange(event.target.value)}
+              onBlur={onRecordBlur}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+              dir="ltr"
+              className="w-full rounded-[20px] border border-[#DDCBB3] bg-white px-4 py-4 text-center text-2xl font-black tabular-nums text-[#3E2D20] outline-none transition focus:border-[#C9A46A] focus:ring-4 focus:ring-[#D8B16A]/15"
+            />
+          </label>
+          <p className="mt-3 text-center text-xs leading-5 text-[#9C866D]">
+            כל מספר שלם בין 0 ל־1,000. אפשר גם לגרור את האורח על הציר.
           </p>
 
-          {/* בחירת רשומות */}
-          <div className="mx-auto mt-8 max-w-[520px] rounded-[30px] border border-[#D9C0A0] bg-[#FFFDF9]/90 p-4 shadow-[0_22px_55px_rgba(91,64,35,0.11)] backdrop-blur-xl">
-            <div className="mb-3 flex items-center justify-center gap-2 text-sm font-black text-[#5A3E25]">
-              <Users size={18} className="text-[#B88945]" />
-              בחרו כמות רשומות לאירוע
-            </div>
-
-            <select
-              value={records ?? ""}
-              onChange={(e) => setRecords(Number(e.target.value))}
-              className="
-                w-full rounded-[20px] border border-[#DDCBB3]
-                bg-white/90 px-4 py-4 text-center
-                text-base font-bold text-[#3E2D20]
-                shadow-sm outline-none transition
-                focus:border-[#C9A46A]
-                focus:ring-4 focus:ring-[#D8B16A]/15
-              "
-            >
-              <option value="" disabled>
-                בחרו כמות רשומות
-              </option>
-
-              {options.map((num) => (
-                <option key={num} value={num}>
-                  עד {num} רשומות
-                </option>
-              ))}
-            </select>
-
-            <p className="mt-3 text-xs leading-5 text-[#9C866D]">
-              המחיר מתעדכן אוטומטית לפי כמות הרשומות והתוספות שתבחרו.
-            </p>
+          <div className="mt-6">
+            <GuestRecordSlider value={records} onChange={setRecordCount} />
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CARDS */}
-      <section className="relative z-10 px-5 pb-28 pt-16 sm:px-8">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 lg:grid-cols-3 lg:items-stretch">
-          {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
-            const features = getPlanFeatures(plan);
-            const meta = planMeta[plan];
-            const maxFeatureRows = 8;
-            const fillers = Math.max(0, maxFeatureRows - features.length);
-            const total = calculateTotal(plan);
+        <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+              2
+            </span>
+            <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+              איך תרצו לנהל את אישורי ההגעה?
+            </h2>
+          </div>
 
-            return (
-              <Card
-                key={plan}
-                className={`
-                  group relative h-full overflow-visible rounded-[36px]
-                  border bg-[#FFFDF9]/94
-                  shadow-[0_24px_70px_rgba(91,64,35,0.12)]
-                  backdrop-blur-xl transition-all duration-300
-                  hover:-translate-y-2 hover:shadow-[0_32px_90px_rgba(91,64,35,0.18)]
-                  ${
-                    meta.highlight
-                      ? "border-[#C89545] ring-4 ring-[#D8B16A]/15 lg:scale-[1.025]"
-                      : "border-[#D9C0A0]"
-                  }
-                `}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="סוג השירות">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={service === "messages"}
+              data-testid="service-messages"
+              onClick={() => chooseService("messages")}
+              className={`flex min-w-0 items-center gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
+                service === "messages"
+                  ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
+                  : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
+              }`}
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF8EE] text-[#A86F2B]">
+                <MessageCircle size={22} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-lg font-black text-[#3E2D20]">הודעות בלבד</span>
+                <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
+                  הזמנה דיגיטלית ושני סבבי הודעות
+                </span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="radio"
+              aria-checked={service === "calls"}
+              data-testid="service-calls"
+              onClick={() => chooseService("calls")}
+              className={`flex min-w-0 items-center gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
+                service === "calls"
+                  ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
+                  : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
+              }`}
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF8EE] text-[#A86F2B]">
+                <Phone size={22} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-lg font-black text-[#3E2D20]">שיחות ואישורי הגעה</span>
+                <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
+                  שיחות מוקלטות, אנושיות או שילוב ביניהן
+                </span>
+              </span>
+            </button>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {service ? (
+              <motion.div
+                key={service}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.28, ease: "easeOut" }}
+                className="mt-6"
               >
-                
+                <div
+                  className={
+                    visiblePackages.length === 1
+                      ? "mx-auto grid max-w-xl grid-cols-1"
+                      : "grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+                  }
+                >
+                  {visiblePackages.map((pkg) => (
+                    <PackageCard
+                      key={pkg.id}
+                      pkg={pkg}
+                      records={records}
+                      selected={packageId === pkg.id}
+                      onSelect={() => {
+                        if (pkg.id === "messages") {
+                          setService("messages");
+                          return;
+                        }
+                        setService("calls");
+                        setCallPackage(pkg.id);
+                      }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              <p className="mt-5 text-center text-sm leading-6 text-[#9C866D]">
+                בחרו הודעות או שיחות כדי לראות את החבילות והמחיר.
+              </p>
+            )}
+          </AnimatePresence>
+        </section>
 
-                <CardContent className="relative flex h-full flex-col rounded-[36px] p-6 pt-32 sm:p-7 sm:pt-36">
-                  {/* רקעים פנימיים בלי overflow-hidden כדי שהאייקון לא ייחתך */}
-                  <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.24))]" />
-                  <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-[#F2DEC4]/36 blur-3xl" />
-                  <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-[#EED7BC]/28 blur-3xl" />
+        <AnimatePresence>
+          {packageId ? (
+            <motion.section
+              key="seating"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8"
+            >
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+                  3
+                </span>
+                <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+                  רוצים גם לנהל את סידורי ההושבה?
+                </h2>
+              </div>
 
-                  {/* אייקון — לא נחתך */}
-                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[46%]">
-    <div className="relative h-[210px] w-[210px] sm:h-[240px] sm:w-[240px]">
+              <button
+                type="button"
+                data-testid="seating-toggle"
+                aria-pressed={seating}
+                onClick={() => setSeating((current) => !current)}
+                className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
+                  seating
+                    ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
+                    : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                      seating ? "bg-[#C89545] text-white" : "bg-[#FFF8EE] text-[#A86F2B]"
+                    }`}
+                  >
+                    <Armchair size={22} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-base font-black leading-6 text-[#3E2D20] sm:text-lg">
+                      הוספת מערכת הושבה דיגיטלית – {SEATING_ADDON_ILS} ₪
+                    </span>
+                    <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
+                      תוספת חד־פעמית לחבילה, לא לכל רשומה
+                    </span>
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+                    seating ? "bg-[#C89545] text-white" : "bg-[#F7E9D3] text-[#8A5A25]"
+                  }`}
+                >
+                  {seating ? "נוסף" : "להוסיף"}
+                </span>
+              </button>
 
-    <Image
-      src={meta.icon}
-      alt={meta.alt}
-      fill
-      className="object-contain drop-shadow-[0_20px_28px_rgba(95,61,26,0.18)] transition duration-300 group-hover:scale-105"
-      sizes="220px"
-      priority={plan === "plan2"}
-    />
-  </div>
-</div>
+              <div className="mt-5">
+                <FeatureList items={SEATING_FEATURES} />
+                <p className="mt-4 text-sm leading-6 text-[#7B6754]">
+                  המערכת דיגיטלית בלבד ואינה כוללת צוות הושבה באולם.
+                </p>
+              </div>
+            </motion.section>
+          ) : null}
+        </AnimatePresence>
 
-                  <div className="relative z-10 flex h-full flex-col">
-                    {/* Header */}
-                    <div className="text-center">
-                      <span className="inline-flex rounded-full border border-[#E4D0B6] bg-[#FFF8EE] px-4 py-1.5 text-xs font-black text-[#9A672B]">
-                        {meta.badge}
-                      </span>
+        <section
+          data-testid="quote-summary"
+          className="rounded-[32px] border border-[#C89545] bg-[#FFFDF9] p-5 shadow-[0_24px_60px_rgba(168,111,43,0.14)] sm:p-8"
+        >
+          <h2 className="text-2xl font-black text-[#3E2D20] sm:text-3xl">החבילה שלכם</h2>
 
-                      <h3 className="mt-5 text-3xl font-black leading-tight text-[#8A4E19]">
-                        {meta.title}
-                      </h3>
+          {quote ? (
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+              <dl className="min-w-0 space-y-3 text-sm sm:text-base">
+                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
+                  <dt className="text-[#7B6754]">שם החבילה</dt>
+                  <dd className="text-left font-black text-[#3E2D20]">{quote.packageName}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
+                  <dt className="text-[#7B6754]">כמות רשומות</dt>
+                  <dd data-testid="summary-records" className="font-black tabular-nums text-[#3E2D20]">
+                    {quote.records.toLocaleString("he-IL")}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
+                  <dt className="text-[#7B6754]">סוג השירות</dt>
+                  <dd className="max-w-[14rem] text-left font-black leading-6 text-[#3E2D20] sm:max-w-none">
+                    {quote.summaryService}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
+                  <dt className="text-[#7B6754]">מחיר לרשומה</dt>
+                  <dd data-testid="summary-rate" className="font-black tabular-nums text-[#3E2D20]">
+                    {formatRate(quote.rate)}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
+                  <dt className="text-[#7B6754]">מחיר החבילה</dt>
+                  <dd data-testid="summary-service-price" className="font-black tabular-nums text-[#3E2D20]">
+                    {formatIls(quote.servicePrice)}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-[#7B6754]">הושבה דיגיטלית</dt>
+                  <dd data-testid="summary-seating" className="font-black text-[#3E2D20]">
+                    {quote.seating ? formatIls(quote.seatingPrice) : "לא"}
+                  </dd>
+                </div>
+              </dl>
 
-                      <p className="mx-auto mt-3 min-h-[48px] max-w-xs text-sm leading-6 text-[#7B6754]">
-                        {meta.subtitle}
-                      </p>
+              <div className="min-w-0 rounded-[28px] bg-[#FFF8EE] px-4 py-5 text-center">
+                <p className="text-sm font-bold text-[#9C866D]">סה״כ לתשלום</p>
+                <p
+                  data-testid="summary-total"
+                  className="mt-2 text-4xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-5xl"
+                >
+                  {formatIls(quote.total)}
+                </p>
+                <OrderButton href={whatsappUrl} disabled={!quote.canOrder} />
+                {orderHint ? <p className="mt-3 text-xs leading-5 text-[#9C866D]">{orderHint}</p> : null}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <p className="text-sm leading-7 text-[#7B6754]">
+                בחרו כמות רשומות וחבילה, והסיכום יתעדכן כאן בזמן אמת.
+              </p>
+              <div className="mt-5 max-w-md">
+                <OrderButton href="" disabled />
+                <p className="mt-3 text-xs leading-5 text-[#9C866D]">{orderHint}</p>
+              </div>
+            </div>
+          )}
+        </section>
 
-                      <div className="mt-5 rounded-[26px] border border-[#E8D9C7] bg-white/70 px-4 py-5 shadow-[0_12px_30px_rgba(91,64,35,0.07)]">
-                        {records ? (
-                          <>
-                            <p className="text-xs font-bold text-[#9C866D]">
-                              סה״כ לתשלום
-                            </p>
-
-                            <div className="mt-2 flex items-end justify-center gap-1">
-                              <span className="text-5xl font-black leading-none text-[#3E2D20]">
-                                ₪{total}
-                              </span>
-                            </div>
-
-                            <p className="mt-2 text-xs text-[#9C866D]">
-                              עד {records} רשומות
-                            </p>
-                          </>
-                        ) : (
-                          <div className="py-2">
-                            <p className="text-lg font-black text-[#B0A090]">
-                              בחרו כמות רשומות
-                            </p>
-                            <p className="mt-2 text-xs text-[#9C866D]">
-                              לאחר הבחירה יוצג המחיר המדויק
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Features */}
-                    <ul className="mt-7 space-y-3" style={{ minHeight: 285 }}>
-                      {features.map((item, idx) => (
-                        <li
-                          key={`${plan}-feature-${idx}`}
-                          className="flex gap-3 rounded-[16px] bg-white/48 px-3 py-2 text-sm leading-6 text-[#5A3E25]"
-                        >
-                          <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF4E2] text-[#A86F2B]">
-                            <Check size={14} />
-                          </span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-
-                      {Array.from({ length: fillers }).map((_, idx) => (
-                        <li
-                          key={`${plan}-filler-${idx}`}
-                          className="flex gap-3 rounded-[16px] px-3 py-2 text-sm leading-6 opacity-0"
-                          aria-hidden="true"
-                        >
-                          <Check size={14} />
-                          <span>placeholder</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* Addons */}
-                    {renderAddons(plan)}
-
-                    {/* Button */}
-                    <Button
-                      className="
-                        mt-7 h-auto w-full rounded-[22px]
-                        bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
-                        px-6 py-4 text-base font-black text-white
-                        shadow-[0_16px_32px_rgba(168,111,43,0.24)]
-                        transition duration-200
-                        hover:-translate-y-0.5
-                        hover:shadow-[0_20px_38px_rgba(168,111,43,0.3)]
-                      "
-                      onClick={() => handleRegister(plan)}
-                    >
-                      הרשמה והמשך לתשלום
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="relative z-10 mx-auto max-w-5xl px-5 pb-20 sm:px-8">
-        <WeddingChallengesPurchaseCard
-          entitled={userHasWeddingChallengesEntitlement(user as any)}
-          giveawayPurchased={userHasWeddingChallengesGiveawayEntitlement(user as any)}
-        />
-      </section>
+        <section className="mx-auto w-full max-w-5xl">
+          <WeddingChallengesPurchaseCard
+            entitled={userHasWeddingChallengesEntitlement(user as never)}
+            giveawayPurchased={userHasWeddingChallengesGiveawayEntitlement(user as never)}
+          />
+        </section>
+      </div>
     </main>
+  );
+}
+
+function OrderButton({ href, disabled }: { href: string; disabled: boolean }) {
+  if (!disabled && href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="whatsapp-cta"
+        className={`${ctaClassName} mt-5 bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] text-white shadow-[0_16px_32px_rgba(168,111,43,0.24)] hover:-translate-y-0.5`}
+      >
+        <WhatsAppIcon />
+        אני רוצה את החבילה
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled
+      data-testid="whatsapp-cta"
+      className={`${ctaClassName} mt-5 cursor-not-allowed bg-[#E7D8C4] text-[#8C7763]`}
+    >
+      <WhatsAppIcon />
+      אני רוצה את החבילה
+    </button>
   );
 }

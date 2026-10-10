@@ -201,7 +201,7 @@ export default function Header() {
               grid h-[78px] grid-cols-[auto_1fr_auto]
               items-center
               gap-4
-              px-4 md:grid-cols-[1fr_auto_1fr]
+              px-4 xl:grid-cols-[1fr_auto_1fr]
               md:px-8
             "
           >
@@ -210,7 +210,7 @@ export default function Header() {
                 className="
                   hidden items-center gap-6
                   whitespace-nowrap
-                  md:flex
+                  xl:flex
                 "
               >
                 <NavLinks />
@@ -226,7 +226,7 @@ export default function Header() {
                     bg-white
                     text-[#3F3328]
                     shadow-sm
-                    md:hidden
+                    xl:hidden
                   "
                   aria-label="פתח תפריט"
                 >
@@ -259,7 +259,7 @@ export default function Header() {
               </Link>
             </div>
 
-            <div className="hidden items-center justify-end gap-3 md:flex">
+            <div className="hidden items-center justify-end gap-3 xl:flex">
               <button
                 type="button"
                 onClick={openDemoChoice}
@@ -351,7 +351,7 @@ export default function Header() {
       </header>
 
       {!isDashboard && mobileOpen && (
-        <div className="fixed inset-0 z-[60] print:hidden md:hidden">
+        <div className="fixed inset-0 z-[60] print:hidden xl:hidden">
           <div
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={() => setMobileOpen(false)}
