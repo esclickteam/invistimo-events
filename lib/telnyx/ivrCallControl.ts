@@ -241,7 +241,8 @@ export type IvrMediaClearReason =
   | "open_silent_gather"
   | "start_followup_audio"
   | "replace_after_input"
-  | "legacy_next_clip";
+  | "legacy_next_clip"
+  | "release_gather";
 
 /** True only when a controlled stage replace may cancel lingering audio. */
 export function ivrClearStopsPlayback(reason: IvrMediaClearReason) {
@@ -329,11 +330,14 @@ export async function gatherIvrUsingAudio(input: {
   terminatingDigit?: string;
   validDigits?: string;
   clientState?: Record<string, unknown>;
+  /** `none` on the first intro. `release_gather` only stops an open gather. */
+  mediaClear?: IvrMediaClearReason;
 }) {
   const noted = notePlaybackCommand(input.clientState);
   try {
-    // Prior clip already ended (legacy chain) or gather is being replaced.
-    await clearIvrMediaSlot(input.callControlId, "legacy_next_clip");
+    // Await any requested stop before the new audio so a late stop cannot
+    // cancel it. The first intro passes `none` and sends no stop.
+    await clearIvrMediaSlot(input.callControlId, input.mediaClear ?? "legacy_next_clip");
     return await telnyxCallAction(input.callControlId, "gather_using_audio", {
     audio_url: input.audioUrl,
     minimum_digits: input.minimumDigits ?? 1,

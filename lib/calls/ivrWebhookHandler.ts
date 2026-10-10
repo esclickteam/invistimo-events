@@ -1,10 +1,11 @@
 /**
  * IVR Call Control webhook processing — idempotent RSVP updates.
  *
- * Inbound and outbound share one phase-machine player: the approved
- * composed file, then silent gather, then pack follow-ups. The legacy
- * three-clip chain is only finished for legs already mid-sequence
- * (isLegacyInFlight) — never entered from a fresh answer.
+ * Inbound and outbound share one phase-machine player. An input prompt is
+ * gather_using_audio on the approved file, so a valid digit stops narration
+ * and the next step starts after that playback ends. The legacy three-clip
+ * chain is only finished for legs already mid-sequence (isLegacyInFlight) —
+ * never entered from a fresh answer.
  */
 
 import IvrCallAttempt from "@/models/IvrCallAttempt";
@@ -34,6 +35,7 @@ import {
   hangupIvrCall,
   playbackIvrAudio,
 } from "@/lib/telnyx/ivrCallControl";
+import { ivrBargeLatency } from "@/lib/calls/ivrBargeTiming";
 import {
   describeIvrTelnyxEvent,
   ivrEventInstant,
@@ -72,6 +74,82 @@ async function claimChoiceDigit(attemptId: any, digit: string) {
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+async function noteBargeFromTelnyx(attempt: any, eventType: string, body: any, payload: any) {
+  const at = ivrEventInstant(body);
+  const stage = cleanStr(decodeIvrClientState(payload?.client_state).stage);
+  const digit = cleanStr(payload?.digit || payload?.digits).replace(/\D/g, "").slice(0, 1);
+  if (
+    eventType === "call.dtmf.received" &&
+    (digit === "1" || digit === "2" || digit === "3")
+  ) {
+    await IvrCallAttempt.updateOne(
+      {
+        _id: attempt._id,
+        $or: [{ bargeDigitAt: null }, { bargeDigitAt: { $exists: false } }],
+      },
+      { $set: { bargeDigitAt: at, bargeDigit: digit } }
+    );
+  }
+  if (
+    (eventType === "call.playback.ended" || eventType === "call.speak.ended") &&
+    (stage === "intro" || stage === "invalid_choice")
+  ) {
+    await IvrCallAttempt.updateOne(
+      {
+        _id: attempt._id,
+        bargeDigitAt: { $ne: null, $lte: at },
+        $or: [{ bargeStoppedAt: null }, { bargeStoppedAt: { $exists: false } }],
+      },
+      { $set: { bargeStoppedAt: at } }
+    );
+  }
+  if (
+    (eventType === "call.playback.started" || eventType === "call.speak.started") &&
+    (stage === "ask_count" || stage === "thanks")
+  ) {
+    await IvrCallAttempt.updateOne(
+      {
+        _id: attempt._id,
+        bargeDigitAt: { $ne: null },
+        $or: [
+          { bargeFollowUpStartedAt: null },
+          { bargeFollowUpStartedAt: { $exists: false } },
+        ],
+      },
+      { $set: { bargeFollowUpStartedAt: at } }
+    );
+  }
+  const fresh = await IvrCallAttempt.findById(attempt._id)
+    .select("bargeDigit bargeDigitAt bargeStoppedAt bargeFollowUpStartedAt")
+    .lean();
+  if (!fresh?.bargeDigitAt) return;
+  const latency = ivrBargeLatency({
+    digitAt: fresh.bargeDigitAt,
+    stoppedAt: fresh.bargeStoppedAt,
+    followUpAt: fresh.bargeFollowUpStartedAt,
+  });
+  if (latency.stopMs == null && latency.followUpMs == null) return;
+  await IvrCallAttempt.updateOne(
+    { _id: attempt._id },
+    {
+      $set: {
+        ...(latency.stopMs != null ? { bargeStopMs: latency.stopMs } : {}),
+        ...(latency.followUpMs != null ? { bargeFollowUpMs: latency.followUpMs } : {}),
+        bargeOverlap: latency.overlap,
+      },
+    }
+  );
+  if (fresh.bargeFollowUpStartedAt || fresh.bargeStoppedAt) {
+    console.log("IVR_BARGE_IN_TELNYX_MS", {
+      attemptId: String(attempt._id),
+      digit: fresh.bargeDigit || "",
+      stopMs: latency.stopMs,
+      followUpMs: latency.followUpMs,
+      overlap: latency.overlap,
+    });
+  }
 }
 
 function isInboundIvrAttempt(attempt: any) {
@@ -323,6 +401,10 @@ export async function handleIvrTelnyxWebhook(body: any) {
 
   const gender = attemptVoiceGender(attempt);
   const observedAt = ivrEventInstant(body);
+  const clientStage = cleanStr(decodeIvrClientState(payload?.client_state).stage);
+  await noteBargeFromTelnyx(attempt, eventType, body, payload).catch((error) => {
+    console.error("IVR_BARGE_IN_TELNYX_MS", error instanceof Error ? error.message : error);
+  });
   const described = describeIvrTelnyxEvent(eventType, payload);
   let timelineDetail = described.detail;
   if (
@@ -365,6 +447,7 @@ export async function handleIvrTelnyxWebhook(body: any) {
       detail: timelineDetail,
       eventType,
       digit: described.digit,
+      stage: clientStage,
     },
     {
       setIfEmpty,

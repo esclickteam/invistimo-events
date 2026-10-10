@@ -104,6 +104,11 @@ export interface IIvrCallAttempt {
   inputTarget?: "" | "none" | "choice" | "count";
   introCompleted?: boolean;
   gatherOpen?: boolean;
+  /** True while the current prompt file has not ended. */
+  audioRunning?: boolean;
+  pendingChoice?: "" | "1" | "2" | "3";
+  heldCount?: number;
+  pendingFault?: "" | "choice" | "count";
   mediaGeneration?: number;
   invalidReprompts?: number;
   countReprompts?: number;
@@ -136,6 +141,16 @@ export interface IIvrCallAttempt {
   playbackStartedAt?: Date | null;
   firstDigitAt?: Date | null;
   choiceDigitAt?: Date | null;
+  /** Telnyx occurred_at of the menu digit that interrupted narration. */
+  bargeDigitAt?: Date | null;
+  bargeDigit?: string;
+  /** Telnyx occurred_at of playback.ended for the interrupted narration. */
+  bargeStoppedAt?: Date | null;
+  /** Telnyx occurred_at of playback.started for the next step. */
+  bargeFollowUpStartedAt?: Date | null;
+  bargeStopMs?: number | null;
+  bargeFollowUpMs?: number | null;
+  bargeOverlap?: boolean;
   /** First provider playback start after a digit was stored. */
   followupPlaybackStartedAt?: Date | null;
 
@@ -279,6 +294,24 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
     gatherOpen: {
       type: Boolean,
       default: false,
+    },
+    audioRunning: {
+      type: Boolean,
+      default: false,
+    },
+    pendingChoice: {
+      type: String,
+      enum: ["", "1", "2", "3"],
+      default: "",
+    },
+    heldCount: {
+      type: Number,
+      default: 0,
+    },
+    pendingFault: {
+      type: String,
+      enum: ["", "choice", "count"],
+      default: "",
     },
     mediaGeneration: {
       type: Number,
@@ -435,6 +468,13 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
     playbackStartedAt: { type: Date, default: null },
     firstDigitAt: { type: Date, default: null },
     choiceDigitAt: { type: Date, default: null },
+    bargeDigitAt: { type: Date, default: null },
+    bargeDigit: { type: String, trim: true, default: "" },
+    bargeStoppedAt: { type: Date, default: null },
+    bargeFollowUpStartedAt: { type: Date, default: null },
+    bargeStopMs: { type: Number, default: null },
+    bargeFollowUpMs: { type: Number, default: null },
+    bargeOverlap: { type: Boolean, default: false },
     followupPlaybackStartedAt: { type: Date, default: null },
     timeline: {
       type: [

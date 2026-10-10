@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   initialIvrCallState,
   invalidChoiceAllowed,
@@ -16,10 +17,7 @@ import {
   type IvrMachineEvent,
 } from "../../lib/calls/ivrCallPhase";
 
-const root = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../.."
-);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function readSrc(rel: string) {
   return readFileSync(path.join(root, rel), "utf8");
@@ -212,7 +210,9 @@ test("intro clear sends no Telnyx stop (avoids late-stop silence race)", async (
   assert.equal(ivrClearStopsPlayback("start_followup_audio"), false);
   assert.equal(ivrClearStopsPlayback("legacy_next_clip"), false);
   assert.equal(ivrClearStopsPlayback("replace_after_input"), true);
+  assert.equal(ivrClearStopsPlayback("release_gather"), false);
   assert.equal(ivrClearStopsGather("none"), false);
+  assert.equal(ivrClearStopsGather("release_gather"), true);
   assert.equal(ivrClearStopsGather("open_silent_gather"), true);
 
   // First media after answer: never gather_stop/playback_stop before play.
@@ -256,7 +256,7 @@ test("machine recovers silent PLAYING_INTRO without playbackCommandAt", () => {
     machine.indexOf("function eventFromPlayback")
   );
   assert.match(answered, /!fresh\?\.playbackCommandAt/);
-  assert.match(answered, /playFile/);
+  assert.match(answered, /playIntroAudio/);
   assert.match(answered, /\$set: \{ playbackCommandAt: new Date\(\) \}/);
 });
 
