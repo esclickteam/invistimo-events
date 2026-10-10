@@ -527,7 +527,7 @@ export default function AdminCustomerFilePage() {
         </section>
 
         <section className="overflow-hidden rounded-[2rem] border border-[#E8D8C4] bg-white shadow-sm">
-          <div className="overflow-x-auto border-b border-[#EFE3D4] bg-[#FFFBF5] px-3 py-3">
+          <div className="admin-hscroll border-b border-[#EFE3D4] bg-[#FFFBF5] px-3 py-3">
             <div className="flex min-w-max gap-2">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -1013,8 +1013,8 @@ function TableShell({
   emptyText: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-[#E8D8C4] bg-white">
-      <div className="w-full min-w-0 max-w-full">
+    <div className="admin-table-region overflow-hidden rounded-[1.5rem] border border-[#E8D8C4] bg-white">
+      <div className="admin-table-scroll w-full min-w-0 max-w-full">
         <table className="admin-fit-table w-full border-collapse text-right">
           <thead>
             <tr className="border-b border-[#EFE3D4] bg-[#FFFBF5] text-xs font-black text-[#8A6A43]">

@@ -2590,7 +2590,7 @@ export default function Form101MapperPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[330px_1fr_410px]">
+        <section className="grid min-w-0 gap-4 xl:grid-cols-[330px_minmax(0,1fr)_410px]">
           <aside className="rounded-3xl bg-white p-4 shadow-sm">
             <h2 className="text-lg font-black">סעיפים</h2>
 
@@ -2689,7 +2689,7 @@ export default function Form101MapperPage() {
             </div>
           </aside>
 
-          <section className="overflow-auto rounded-3xl bg-white p-8 shadow-sm">
+          <section className="admin-canvas-scroll min-w-0 max-w-full overflow-auto rounded-3xl bg-white p-4 shadow-sm sm:p-8">
             <div
               ref={pageRef}
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"

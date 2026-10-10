@@ -418,7 +418,7 @@ export default function AdminDashboardPage() {
     <div dir="rtl" className="space-y-4">
       {/* Compact month controls — header title comes from layout */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs font-medium text-[var(--admin-muted)] md:hidden">
+        <p className="sr-only">
           נתוני פעילות וסקירה עסקית
         </p>
         <div className="flex flex-wrap items-center gap-2">

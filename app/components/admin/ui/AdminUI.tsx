@@ -1,6 +1,7 @@
 "use client";
 
-import React, { type ReactNode } from "react";
+import React, { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -83,7 +84,7 @@ export function AdminStatCard({
   hint?: string;
   onClick?: () => void;
 }) {
-  const className = `flex h-[112px] flex-col justify-between rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3.5 text-right shadow-[var(--admin-shadow)] transition ${
+  const className = `admin-stat-card flex h-[112px] min-w-0 flex-col justify-between rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3.5 text-right shadow-[var(--admin-shadow)] transition ${
     onClick ? "cursor-pointer hover:border-[var(--admin-brand)]" : ""
   }`;
 
@@ -98,7 +99,7 @@ export function AdminStatCard({
         ) : null}
       </div>
       <div>
-        <p className="text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+        <p className="admin-stat-value text-2xl font-bold tracking-tight text-[var(--admin-text)]">
           {value}
         </p>
         {hint ? (
@@ -306,7 +307,58 @@ export function AdminTableShell({
   );
 }
 
-/** Compact row actions menu — single trigger, opens above clipping */
+export function useAnchoredPopover(open: boolean, width = 220) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [box, setBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setBox(null);
+      return;
+    }
+
+    const update = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const panelWidth = Math.min(width, viewportWidth - 16);
+      let left = rect.left;
+      if (left + panelWidth > viewportWidth - 8) {
+        left = viewportWidth - panelWidth - 8;
+      }
+      if (left < 8) left = 8;
+
+      const spaceBelow = viewportHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(140, Math.min(360, openUp ? spaceAbove : spaceBelow));
+      const top = openUp
+        ? Math.max(8, rect.top - maxHeight - 4)
+        : rect.bottom + 4;
+
+      setBox({ top, left, width: panelWidth, maxHeight });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, width]);
+
+  return { anchorRef, box };
+}
+
+/** Compact row actions menu — fixed to the viewport so table scroll and cards cannot clip it */
 export function AdminActionsMenu({
   open,
   onToggle,
@@ -320,9 +372,12 @@ export function AdminActionsMenu({
   label?: string;
   children: ReactNode;
 }) {
+  const { anchorRef, box } = useAnchoredPopover(open, 220);
+
   return (
-    <div className="admin-actions-menu relative inline-block">
+    <div className="admin-actions-menu relative inline-block max-w-full">
       <button
+        ref={anchorRef}
         type="button"
         onClick={onToggle}
         className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
@@ -337,19 +392,30 @@ export function AdminActionsMenu({
           ▾
         </span>
       </button>
-      {open ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default bg-transparent"
-            aria-label="סגור תפריט"
-            onClick={onClose}
-          />
-          <div className="admin-actions-dropdown absolute left-0 top-[calc(100%+4px)] z-50 min-w-[180px] rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white py-1 shadow-md">
-            {children}
-          </div>
-        </>
-      ) : null}
+      {open && box
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-[70] cursor-default bg-transparent"
+                aria-label="סגור תפריט"
+                onClick={onClose}
+              />
+              <div
+                className="admin-actions-dropdown fixed z-[80] overflow-y-auto rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white py-1 shadow-md"
+                style={{
+                  top: box.top,
+                  left: box.left,
+                  width: box.width,
+                  maxHeight: box.maxHeight,
+                }}
+              >
+                {children}
+              </div>
+            </>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

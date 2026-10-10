@@ -1065,10 +1065,10 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         </div>
 
         {/* FOOTER */}
-        <div className="px-7 py-5 border-t border-[#efe4d6] bg-[#fffaf3] flex justify-end gap-3">
+        <div className="flex flex-col-reverse gap-2 border-t border-[#efe4d6] bg-[#fffaf3] px-4 py-4 sm:flex-row sm:justify-end sm:gap-3 sm:px-7 sm:py-5">
           <button
             onClick={onClose}
-            className="px-5 py-3 rounded-2xl border border-[#eadfce] bg-white text-[#5b4a3a] font-semibold hover:bg-[#fff7ec] transition"
+            className="min-h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-5 py-3 font-semibold text-[#5b4a3a] transition hover:bg-[#fff7ec] sm:w-auto"
           >
             ביטול
           </button>
@@ -1076,7 +1076,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
           <button
             onClick={handleSubmit}
             disabled={isSubmitDisabled}
-            className="px-6 py-3 rounded-2xl bg-[#3f3327] text-white font-bold shadow-lg shadow-black/10 hover:bg-[#2f251d] disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="min-h-11 w-full rounded-2xl bg-[#3f3327] px-6 py-3 font-bold text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
           >
             {saving ? "יוצר..." : "צור משתמש"}
           </button>

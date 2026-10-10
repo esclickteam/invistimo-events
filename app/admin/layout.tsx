@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { AdminResponsiveEnhancer } from "./admin-responsive";
 import "./admin-theme.css";
 
 type NavItem = {
@@ -259,7 +260,10 @@ export default function AdminLayout({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [isDesktopNav, setIsDesktopNav] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileSearch, setMobileSearch] = useState("");
+  const mobileHeaderRef = useRef<HTMLElement>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_GROUPS.map((g) => [g.id, true]))
   );
@@ -290,14 +294,50 @@ export default function AdminLayout({
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktopNav(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const header = mobileHeaderRef.current;
+    if (!header) return;
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        "--admin-mobile-header-h",
+        `${header.offsetHeight}px`
+      );
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     setMobileOpen(false);
   };
 
-  const sidebarWidth = collapsed
-    ? "var(--admin-sidebar-collapsed)"
-    : "var(--admin-sidebar-w)";
+  const navCollapsed = collapsed && isDesktopNav;
+
+  const submitQuickSearch = (value: string) => {
+    const q = value.trim();
+    if (!q) return;
+    window.location.href = `/admin/users?q=${encodeURIComponent(q)}`;
+  };
 
   return (
     <div className="admin-app flex min-h-screen overflow-x-hidden" dir="rtl">
@@ -306,48 +346,80 @@ export default function AdminLayout({
         href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap"
       />
 
-      {/* Mobile top bar */}
-      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--admin-border)] bg-white px-3 md:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-text)]"
-          aria-label="פתיחת תפריט"
-        >
-          <Menu className="h-4 w-4" />
-        </button>
+      <AdminResponsiveEnhancer pathname={pathname} />
+
+      {/* Mobile top bar — drawer navigation below the desktop breakpoint */}
+      <header ref={mobileHeaderRef} className="admin-mobile-header lg:hidden">
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-text)]"
+            aria-label="פתיחת תפריט"
+            aria-expanded={mobileOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-[var(--admin-text)]">
+              {pageMeta.title}
+            </p>
+            {pageMeta.description ? (
+              <p className="truncate text-[11px] font-medium text-[var(--admin-muted)]">
+                {pageMeta.description}
+              </p>
+            ) : (
+              <p className="truncate text-[11px] font-medium text-[var(--admin-muted)]">
+                Invistimo Admin
+              </p>
+            )}
+          </div>
           <Image
             src="/invistimo-logo.png"
             alt="Invistimo"
             width={24}
             height={24}
-            className="h-6 w-6 object-contain"
+            className="h-6 w-6 shrink-0 object-contain"
           />
-          <span className="text-sm font-bold">Invistimo Admin</span>
         </div>
-        <div className="h-9 w-9" />
+        <form
+          className="mt-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitQuickSearch(mobileSearch);
+          }}
+        >
+          <div className="relative">
+            <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--admin-subtle)]" />
+            <input
+              type="search"
+              value={mobileSearch}
+              onChange={(event) => setMobileSearch(event.target.value)}
+              placeholder="חיפוש משתמשים…"
+              enterKeyHint="search"
+              className="admin-input h-11 w-full pr-8 text-sm"
+            />
+          </div>
+        </form>
       </header>
 
       {mobileOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
       {/* Sidebar */}
       <aside
-        className={`
-          fixed inset-y-0 right-0 z-50 flex h-[100dvh] flex-col border-l border-[var(--admin-border)] bg-white transition-all duration-200
-          md:static md:z-auto md:h-screen md:translate-x-0
-          ${mobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
-        `}
-        style={{ width: mobileOpen ? 232 : undefined, minWidth: sidebarWidth, maxWidth: sidebarWidth }}
+        className={`admin-sidebar ${mobileOpen ? "is-open" : ""} ${
+          navCollapsed ? "is-collapsed" : ""
+        }`}
+        aria-hidden={!isDesktopNav && !mobileOpen}
       >
         <div
           className={`flex h-[var(--admin-header-h)] items-center border-b border-[var(--admin-border)] px-3 ${
-            collapsed ? "justify-center" : "justify-between"
+            navCollapsed ? "justify-center" : "justify-between"
           }`}
         >
           <Link href="/admin" className="flex min-w-0 items-center gap-2">
@@ -358,7 +430,7 @@ export default function AdminLayout({
               height={28}
               className="h-7 w-7 shrink-0 object-contain"
             />
-            {!collapsed ? (
+            {!navCollapsed ? (
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-[var(--admin-text)]">
                   Invistimo
@@ -372,7 +444,7 @@ export default function AdminLayout({
 
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--admin-muted)] hover:bg-gray-100 md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--admin-muted)] hover:bg-gray-100 lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-label="סגירת תפריט"
           >
@@ -385,7 +457,7 @@ export default function AdminLayout({
             const groupOpen = openGroups[group.id] !== false;
             return (
               <div key={group.id}>
-                {!collapsed ? (
+                {!navCollapsed ? (
                   <button
                     type="button"
                     onClick={() =>
@@ -405,7 +477,7 @@ export default function AdminLayout({
                   </button>
                 ) : null}
 
-                {(collapsed || groupOpen) && (
+                {(navCollapsed || groupOpen) && (
                   <div className="space-y-0.5">
                     {group.items.map((item) => {
                       const active = isActivePath(pathname, item.href);
@@ -415,11 +487,11 @@ export default function AdminLayout({
                           href={item.href}
                           title={item.label}
                           onClick={() => setMobileOpen(false)}
-                          className={`flex h-10 items-center gap-2.5 rounded-[var(--admin-radius-sm)] px-2.5 text-[13px] font-semibold transition ${
+                          className={`flex h-11 items-center gap-2.5 rounded-[var(--admin-radius-sm)] px-2.5 text-[13px] font-semibold transition lg:h-10 ${
                             active
                               ? "bg-[var(--admin-brand-soft)] text-[var(--admin-brand)]"
                               : "text-[var(--admin-muted)] hover:bg-gray-50 hover:text-[var(--admin-text)]"
-                          } ${collapsed ? "justify-center px-0" : ""}`}
+                          } ${navCollapsed ? "justify-center px-0" : ""}`}
                         >
                           <span
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
@@ -430,7 +502,7 @@ export default function AdminLayout({
                           >
                             {item.icon}
                           </span>
-                          {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                          {!navCollapsed ? <span className="truncate">{item.label}</span> : null}
                         </Link>
                       );
                     })}
@@ -445,10 +517,10 @@ export default function AdminLayout({
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
-            className="mb-2 hidden h-9 w-full items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] text-xs font-bold text-[var(--admin-muted)] hover:bg-gray-50 md:flex"
-            title={collapsed ? "הרחבת תפריט" : "צמצום תפריט"}
+            className="mb-2 hidden h-9 w-full items-center justify-center gap-2 rounded-[var(--admin-radius-sm)] text-xs font-bold text-[var(--admin-muted)] hover:bg-gray-50 lg:flex"
+            title={navCollapsed ? "הרחבת תפריט" : "צמצום תפריט"}
           >
-            {collapsed ? (
+            {navCollapsed ? (
               <PanelRightOpen className="h-4 w-4" />
             ) : (
               <>
@@ -460,13 +532,13 @@ export default function AdminLayout({
 
           <div
             className={`mb-2 flex items-center gap-2 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-gray-50 px-2 py-2 ${
-              collapsed ? "justify-center" : ""
+              navCollapsed ? "justify-center" : ""
             }`}
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--admin-brand-soft)] text-xs font-bold text-[var(--admin-brand)]">
               {String(adminName).slice(0, 2)}
             </div>
-            {!collapsed ? (
+            {!navCollapsed ? (
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-[var(--admin-text)]">
                   {adminName}
@@ -482,18 +554,18 @@ export default function AdminLayout({
             type="button"
             onClick={handleLogout}
             className={`flex h-9 w-full items-center gap-2 rounded-[var(--admin-radius-sm)] border border-red-100 bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100 ${
-              collapsed ? "justify-center px-0" : "px-3"
+              navCollapsed ? "justify-center px-0" : "px-3"
             }`}
           >
             <LogOut className="h-3.5 w-3.5" />
-            {!collapsed ? "התנתקות" : null}
+            {!navCollapsed ? "התנתקות" : null}
           </button>
         </div>
       </aside>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 hidden h-[var(--admin-header-h)] items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/95 px-5 backdrop-blur md:flex">
+        <header className="sticky top-0 z-30 hidden h-[var(--admin-header-h)] items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/95 px-5 backdrop-blur lg:flex">
           <div className="min-w-0">
             <h1 className="truncate text-[15px] font-bold text-[var(--admin-text)]">
               {pageMeta.title}
@@ -569,7 +641,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-[4.25rem] sm:px-5 md:px-5 md:pt-5">
+        <main className="admin-main min-w-0 flex-1 overflow-x-hidden">
           <div className="admin-content w-full min-w-0 max-w-none">{children}</div>
         </main>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import CreateUserModal from "./CreateUserModal";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
@@ -12,6 +13,7 @@ import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModa
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
 import AdminIvrRoundsPanel from "@/app/components/admin/AdminIvrRoundsPanel";
+import { useAnchoredPopover } from "@/app/components/admin/ui/AdminUI";
 import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
@@ -4369,12 +4371,15 @@ function UserActionsDropdown({
     action();
   }
 
+  const { anchorRef, box } = useAnchoredPopover(open, 240);
+
   return (
-    <div className={`relative ${fullWidth ? "w-full" : "inline-block"}`}>
+    <div className={`admin-actions-menu relative ${fullWidth ? "w-full" : "inline-block"}`}>
       <button
+        ref={anchorRef}
         type="button"
         onClick={onToggle}
-        className="inline-flex h-8 items-center justify-center gap-1 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50"
+        className="inline-flex h-8 min-h-11 items-center justify-center gap-1 rounded-[var(--admin-radius-sm)] border border-[var(--admin-border)] bg-white px-2.5 text-xs font-bold text-[var(--admin-text)] hover:bg-gray-50 lg:min-h-8"
       >
         פעולות
         <ChevronDown
@@ -4383,18 +4388,31 @@ function UserActionsDropdown({
         />
       </button>
 
-      {open && (
-        <div
-          className="
-            absolute left-0 top-[calc(100%+4px)] z-50
-            min-w-[200px]
-            overflow-visible
+      {open && box
+        ? createPortal(
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[70] cursor-default bg-transparent"
+            aria-label="סגור תפריט"
+            onClick={onClose}
+          />
+          <div
+            className="
+            fixed z-[80]
+            overflow-y-auto
             rounded-[var(--admin-radius-sm)]
             border border-[var(--admin-border)]
             bg-white
             shadow-md
           "
-        >
+            style={{
+              top: box.top,
+              left: box.left,
+              width: box.width,
+              maxHeight: box.maxHeight,
+            }}
+          >
           {user.role !== "admin" && onManageAsAdmin ? (
             <DropdownAction
               icon={
@@ -4459,8 +4477,11 @@ function UserActionsDropdown({
               onClick={() => runAction(onDelete)}
             />
           )}
-        </div>
-      )}
+          </div>
+        </>,
+        document.body
+        )
+        : null}
     </div>
   );
 }
