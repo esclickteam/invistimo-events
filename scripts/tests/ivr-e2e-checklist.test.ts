@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   getUserCallsType,
@@ -31,7 +32,7 @@ import {
   isIvrDialAllowed,
 } from "../../lib/telnyx/ivrCallControl";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function readSrc(rel: string) {
   return readFileSync(path.join(root, rel), "utf8");

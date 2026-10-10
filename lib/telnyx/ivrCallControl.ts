@@ -69,36 +69,52 @@ export function decodeIvrClientState(raw: unknown): Record<string, unknown> {
 async function telnyxCallAction(
   callControlId: string,
   action: string,
-  body: Record<string, unknown> = {}
+  body: Record<string, unknown> = {},
+  timeoutMs?: number
 ): Promise<TelnyxActionResponse> {
   const apiKey = getTelnyxApiKey();
   if (!apiKey) {
     return { data: { error: "TELNYX_API_KEY_MISSING" } };
   }
 
-  const res = await fetch(
-    `https://api.telnyx.com/v2/calls/${encodeURIComponent(callControlId)}/actions/${action}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(withIvrWebhook(body)),
-    }
-  );
+  const signal =
+    timeoutMs && timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined;
+  try {
+    const res = await fetch(
+      `https://api.telnyx.com/v2/calls/${encodeURIComponent(callControlId)}/actions/${action}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(withIvrWebhook(body)),
+        signal,
+      }
+    );
 
-  const data = (await res.json().catch(() => null)) as TelnyxActionResponse | null;
-  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as TelnyxActionResponse | null;
+    if (!res.ok) {
+      console.error("TELNYX_IVR_ACTION_FAILED", {
+        action,
+        callControlId,
+        status: res.status,
+        data,
+      });
+      return data?.errors ? data : { ...(data || {}), errors: data?.errors || [{ status: res.status }] };
+    }
+    return data || {};
+  } catch (error) {
+    const timedOut = signal?.aborted === true;
     console.error("TELNYX_IVR_ACTION_FAILED", {
       action,
       callControlId,
-      status: res.status,
-      data,
+      timedOut,
+      error: error instanceof Error ? error.message : "network",
     });
+    return { errors: [{ code: timedOut ? "timeout" : "network" }] };
   }
-  return data || {};
 }
 
 export async function createIvrOutboundCall(input: {
@@ -271,19 +287,32 @@ export function mediaClearReasonForPlaybackStage(stage: unknown): IvrMediaClearR
   return "none";
 }
 
+/** A hung gather_stop must not hold the call. The follow-up starts after this bound. */
+export const IVR_GATHER_STOP_BOUND_MS = 1500;
+
 /**
  * Clear gather and/or playback only for the given reason.
- * Stop commands always finish before the caller starts new media.
+ * Stop commands always finish (or hit the bound) before the caller starts new media.
+ * A failed or timed-out gather_stop is not retried after the next clip starts.
  */
 export async function clearIvrMediaSlot(
   callControlId: string,
-  reason: IvrMediaClearReason
+  reason: IvrMediaClearReason,
+  gatherStopBoundMs = IVR_GATHER_STOP_BOUND_MS
 ) {
   if (!callControlId || reason === "none") return;
+  const playbackStopSent = ivrClearStopsPlayback(reason);
   if (ivrClearStopsGather(reason)) {
-    await stopIvrGather(callControlId).catch(() => null);
+    const stopped = await stopIvrGather(callControlId, gatherStopBoundMs);
+    console.log("IVR_GATHER_RELEASE", {
+      callControlId,
+      reason,
+      settled: true,
+      failed: Boolean(stopped?.errors),
+      playbackStopSent,
+    });
   }
-  if (ivrClearStopsPlayback(reason)) {
+  if (playbackStopSent) {
     await stopIvrPlayback(callControlId).catch(() => null);
   }
 }
@@ -372,8 +401,11 @@ export async function stopIvrPlayback(callControlId: string) {
   return telnyxCallAction(callControlId, "playback_stop", { stop: "all" });
 }
 
-export async function stopIvrGather(callControlId: string) {
-  return telnyxCallAction(callControlId, "gather_stop", {});
+export async function stopIvrGather(
+  callControlId: string,
+  timeoutMs = IVR_GATHER_STOP_BOUND_MS
+) {
+  return telnyxCallAction(callControlId, "gather_stop", {}, timeoutMs);
 }
 
 /** Wait for DTMF without starting another audio file. */

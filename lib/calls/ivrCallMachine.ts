@@ -907,6 +907,7 @@ export async function handleIvrDigits(input: {
     fromPlayback: boolean;
     playbackGeneration: number;
   };
+  retried?: boolean;
 }): Promise<{ handled: boolean }> {
   const attempt = input.attempt;
   if (!cleanStr(attempt.phase)) return { handled: false };
@@ -949,6 +950,29 @@ export async function handleIvrDigits(input: {
   const gender = voiceGender(attempt);
   const fromPlayback = input.prepared?.fromPlayback === true;
   const playbackGeneration = Number(input.prepared?.playbackGeneration || 0);
+  const promptStillPlaying =
+    !fromPlayback &&
+    attempt.audioRunning === true &&
+    (attempt.phase === "PLAYING_INTRO" || attempt.phase === "PLAYING_RESPONSE") &&
+    !["1", "2", "3"].includes(cleanStr(attempt.choiceDigit));
+  const countStillPlaying =
+    !fromPlayback &&
+    attempt.audioRunning === true &&
+    attempt.phase === "PLAYING_RESPONSE" &&
+    cleanStr(attempt.choiceDigit) === "1" &&
+    ["ask_count", "invalid_count"].includes(cleanStr(attempt.promptKind));
+
+  async function retryAfterAudioSettled(kind: "menu" | "count") {
+    if (input.retried) return { handled: true as const };
+    const fresh = await IvrCallAttempt.findById(attempt._id);
+    if (!fresh || fresh.rsvpApplied === true || fresh.audioRunning === true) {
+      return { handled: true as const };
+    }
+    const digit = cleanStr(fresh.choiceDigit);
+    if (kind === "menu" && ["1", "2", "3"].includes(digit)) return { handled: true as const };
+    if (kind === "count" && digit !== "1") return { handled: true as const };
+    return handleIvrDigits({ ...input, attempt: fresh, retried: true });
+  }
 
   if (commands[0]?.type === "hold_barge") {
     const claimed = await claimFields(
@@ -1077,8 +1101,19 @@ export async function handleIvrDigits(input: {
   }
 
   if (commands.some((command) => command.type === "play_ask_count")) {
+    const askCountUrl = getIvrSystemAudioUrlForGender(gender, "askGuestCount");
     const claimed = await IvrCallAttempt.findOneAndUpdate(
-      fromPlayback
+      promptStillPlaying
+        ? {
+            _id: attempt._id,
+            rsvpApplied: { $ne: true },
+            phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+            audioRunning: true,
+            choiceDigit: { $nin: ["1", "2", "3"] },
+            promptKind: { $in: ["intro", "invalid_choice"] },
+            error: { $ne: "AMBIGUOUS_EVENT" },
+          }
+        : fromPlayback
         ? {
             _id: attempt._id,
             rsvpApplied: { $ne: true },
@@ -1103,9 +1138,19 @@ export async function handleIvrDigits(input: {
       },
       { new: true }
     );
-    if (!claimed || !callControlId) return { handled: true };
+    if (!claimed) return retryAfterAudioSettled("menu");
+    if (!callControlId) return { handled: true };
     copyClaim(attempt, claimed);
-    const url = await getIvrSystemAudioUrlForGender(gender, "askGuestCount");
+    const url = await askCountUrl;
+    console.log("IVR_FOLLOW_UP_GAP", {
+      attemptId: String(claimed._id),
+      digit: "1",
+      trigger: promptStillPlaying ? "dtmf" : fromPlayback ? "playback_ended" : "gather_settled",
+      mediaSlot: slotFor("play_ask_count"),
+      waitsForPlaybackEnded: false,
+      waitsForGatherEnded: false,
+      rsvpBeforeAudio: false,
+    });
     if (url) {
       await playGatherPrompt(
         claimed,
@@ -1145,7 +1190,23 @@ export async function handleIvrDigits(input: {
     const playbackClaim = playbackGeneration
       ? { mediaGeneration: playbackGeneration }
       : {};
-    const choiceClaim = fromPlayback
+    const thanksKey = apply.rsvp === "yes" ? "thanksAttending" : "thanksReceived";
+    const thanksUrlPromise = getIvrSystemAudioUrlForGender(gender, thanksKey);
+    const choiceClaim = countStillPlaying
+      ? {
+          phase: "PLAYING_RESPONSE",
+          audioRunning: true,
+          promptKind: { $in: ["ask_count", "invalid_count"] },
+          choiceDigit: "1",
+        }
+      : promptStillPlaying
+      ? {
+          phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+          audioRunning: true,
+          promptKind: { $in: ["intro", "invalid_choice"] },
+          choiceDigit: { $nin: ["1", "2", "3"] },
+        }
+      : fromPlayback
       ? apply.rsvp === "yes"
         ? {
             phase: "PLAYING_RESPONSE",
@@ -1198,15 +1259,29 @@ export async function handleIvrDigits(input: {
       },
       { new: true }
     );
-    if (!claimed) return { handled: true };
+    if (!claimed) return retryAfterAudioSettled(apply.rsvp === "yes" ? "count" : "menu");
     copyClaim(attempt, claimed);
     // The reducer marks rsvpApplied optimistically. The DB row is still false
     // until the atomic guest write below.
     claimed.rsvpApplied = false;
     attempt.rsvpApplied = false;
-    const thanksKey = apply.rsvp === "yes" ? "thanksAttending" : "thanksReceived";
-    const thanksUrl = await getIvrSystemAudioUrlForGender(gender, thanksKey);
+    const thanksUrl = await thanksUrlPromise;
     const slot = slotFor("play_thanks");
+    console.log("IVR_FOLLOW_UP_GAP", {
+      attemptId: String(claimed._id),
+      digit: digit || String(apply.attendingCount || ""),
+      trigger: countStillPlaying
+        ? "count_complete"
+        : promptStillPlaying
+          ? "dtmf"
+          : fromPlayback
+            ? "playback_ended"
+            : "gather_settled",
+      mediaSlot: slot,
+      waitsForPlaybackEnded: false,
+      waitsForGatherEnded: false,
+      rsvpBeforeAudio: false,
+    });
     const playPromise =
       callControlId && thanksUrl
         ? playFile(
