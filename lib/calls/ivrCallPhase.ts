@@ -506,7 +506,7 @@ function onDigits(input: {
   generation: number;
   stage: string;
   source: "gather" | "dtmf";
-}) {
+}): { state: IvrCallMachineState; commands: IvrMachineCommand[] } {
   const state = input.state;
   if (state.rsvpApplied || state.phase === "COMPLETED") {
     return ignore(state, "already_finished");
@@ -607,7 +607,7 @@ function onDigits(input: {
 function onPlaybackEnded(
   state: IvrCallMachineState,
   event: Extract<IvrMachineEvent, { type: "playback_ended" }>
-) {
+): { state: IvrCallMachineState; commands: IvrMachineCommand[] } {
   if (state.phase === "COMPLETED" || state.rsvpApplied && state.phase === "WAITING_FOR_INPUT") {
     return ignore(state, "playback_after_finish");
   }
@@ -710,20 +710,22 @@ function onPlaybackEnded(
     if (prompt === "intro" && state.introCompleted) {
       return ignore(state, "intro_already_completed");
     }
-    const inputTarget = prompt === "ask_count" || prompt === "invalid_count" ? "count" : "choice";
+    const inputTarget: IvrInputTarget =
+      prompt === "ask_count" || prompt === "invalid_count" ? "count" : "choice";
+    const next: IvrCallMachineState = {
+      ...state,
+      phase: "WAITING_FOR_INPUT",
+      inputTarget,
+      introCompleted: prompt === "intro" ? true : state.introCompleted,
+      gatherOpen: true,
+      audioRunning: false,
+      promptKind: "",
+      pendingChoice: "",
+      pendingFault: "",
+      heldCount: 0,
+    };
     return {
-      state: {
-        ...state,
-        phase: "WAITING_FOR_INPUT",
-        inputTarget,
-        introCompleted: prompt === "intro" ? true : state.introCompleted,
-        gatherOpen: true,
-        audioRunning: false,
-        promptKind: "",
-        pendingChoice: "",
-        pendingFault: "",
-        heldCount: 0,
-      },
+      state: next,
       commands: [{ type: "keep_gather" as const }],
     };
   }
