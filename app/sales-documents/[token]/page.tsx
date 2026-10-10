@@ -10,6 +10,10 @@ import React, {
 import { useParams } from "next/navigation";
 import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer, CUSTOMER_ENGAGEMENT_TERMS } from "@/lib/salesDocumentTerms";
 import {
+  quoteCustomerStatusLabel,
+  quoteShowsExpiredNotice,
+} from "@/lib/quotePaymentStatus";
+import {
   SEATING_SCHEDULE_FIELDS,
   toCustomerSeatingSchedule,
 } from "@/lib/seatingSchedule";
@@ -139,6 +143,7 @@ type SalesDocument = {
   paymentTerms?: DetailSection[];
   additionalTerms?: DetailSection[];
   engagementTerms?: DetailSection[];
+  adminPaymentConfirmed?: boolean;
 
   signature?: {
     fullName?: string;
@@ -1066,6 +1071,17 @@ export default function SalesDocumentPage() {
   const approvedSeatingSchedule = toCustomerSeatingSchedule(
     document.seatingSchedule,
   );
+  const paymentConfirmed =
+    document.type === "quote" && document.adminPaymentConfirmed === true;
+  const statusLabel =
+    document.type === "quote"
+      ? quoteCustomerStatusLabel(document.status, paymentConfirmed)
+      : getStatusLabel(document.status);
+  const showExpiredNotice = quoteShowsExpiredNotice({
+    status: document.status,
+    expired,
+    paymentConfirmed,
+  });
 
   return (
     <main
@@ -1083,14 +1099,14 @@ export default function SalesDocumentPage() {
 
                 <span
                   className={`rounded-full border px-4 py-2 text-xs font-black ${
-                    document.status === "signed"
+                    paymentConfirmed || document.status === "signed"
                       ? "border-green-200 bg-green-50 text-green-700"
-                      : document.status === "expired" || expired
+                      : showExpiredNotice
                         ? "border-red-200 bg-red-50 text-red-700"
                         : "border-[#eadfce] bg-white text-[#7b6a58]"
                   }`}
                 >
-                  סטטוס: {getStatusLabel(document.status)}
+                  סטטוס: {statusLabel}
                 </span>
 
                 <span className="rounded-full border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#7b6a58]">
@@ -1127,7 +1143,7 @@ export default function SalesDocumentPage() {
           </div>
         </header>
 
-        {expired || document.status === "expired" ? (
+        {showExpiredNotice ? (
           <div className="mt-6 rounded-[28px] border border-red-200 bg-red-50 p-5 text-sm font-bold leading-7 text-red-700">
             ההצעה אינה בתוקף. ניתן ליצור קשר עם Invistimo לקבלת הצעה עדכנית
             בהתאם לזמינות.
@@ -1563,12 +1579,15 @@ export default function SalesDocumentPage() {
                   label="סוג מסמך"
                   value={getDocumentTitle(document.type)}
                 />
-                <Field label="סטטוס" value={getStatusLabel(document.status)} />
+                <Field label="סטטוס" value={statusLabel} />
 
                 {isQuote ? (
                   <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4 text-sm font-bold leading-7 text-[#6d5840]">
                     ההצעה תקפה עד {formatDate(document.quote?.expiresAt)} בהתאם
-                    לזמינות. לאחר מועד זה יש לקבל הצעה חדשה.
+                    לזמינות.
+                    {paymentConfirmed
+                      ? ""
+                      : " לאחר מועד זה יש לקבל הצעה חדשה."}
                   </div>
                 ) : null}
 

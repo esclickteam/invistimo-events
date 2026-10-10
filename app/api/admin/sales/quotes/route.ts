@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import SalesDocument from "@/models/SalesDocument";
+import { syncOutdatedQuoteTerms } from "@/lib/quoteTermsSync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,11 @@ export async function GET(req: NextRequest) {
     }
 
     await connectDB();
+    try {
+      await syncOutdatedQuoteTerms();
+    } catch (error) {
+      console.error("QUOTE TERMS SYNC FAILED:", error);
+    }
 
     const limitRaw = Number(req.nextUrl.searchParams.get("limit") || 100);
     const limit = Math.min(Math.max(limitRaw || 100, 1), 300);
@@ -61,6 +67,7 @@ export async function GET(req: NextRequest) {
         : null,
       createdAt: doc.createdAt || null,
       expiresAt: doc.quote?.expiresAt || null,
+      adminPaymentConfirmed: doc.adminPaymentConfirmed === true,
     }));
 
     return NextResponse.json({ success: true, quotes });

@@ -12,6 +12,7 @@ import {
   AdminLoadingState,
   AdminTableShell,
 } from "@/app/components/admin/ui/AdminUI";
+import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
 
 type QuoteRow = {
   _id: string;
@@ -27,6 +28,7 @@ type QuoteRow = {
   convertedUserId?: string | null;
   createdAt?: string | null;
   expiresAt?: string | null;
+  adminPaymentConfirmed?: boolean;
 };
 
 function formatMoney(value?: number) {
@@ -40,7 +42,8 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("he-IL");
 }
 
-function statusLabel(status?: string) {
+function statusLabel(status?: string, paymentConfirmed?: boolean) {
+  if (paymentConfirmed) return QUOTE_PAYMENT_CONFIRMED_LABEL;
   const map: Record<string, string> = {
     draft: "טיוטה",
     sent: "נשלחה",
@@ -52,7 +55,8 @@ function statusLabel(status?: string) {
   return map[String(status || "").toLowerCase()] || status || "—";
 }
 
-function statusTone(status?: string) {
+function statusTone(status?: string, paymentConfirmed?: boolean) {
+  if (paymentConfirmed) return "bg-emerald-50 text-emerald-700";
   const key = String(status || "").toLowerCase();
   if (key === "converted" || key === "accepted") {
     return "bg-emerald-50 text-emerald-700";
@@ -67,6 +71,7 @@ export default function AdminQuotesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [confirmingFor, setConfirmingFor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
@@ -93,6 +98,37 @@ export default function AdminQuotesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function confirmPayment(token: string) {
+    const confirmed = confirm(
+      "לסמן את ההצעה כמאושר – תשלום בוצע? הפעולה לא מחייבת את הלקוח, לא משנה את תאריך התוקף ולא משנה מחירים או שירותים."
+    );
+    if (!confirmed) return;
+
+    try {
+      setConfirmingFor(token);
+      const res = await fetch(
+        `/api/admin/sales/quotes/${encodeURIComponent(token)}/confirm-payment`,
+        { method: "POST", credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        alert(data?.error || "שמירת הסטטוס נכשלה");
+        return;
+      }
+      setQuotes((current) =>
+        current.map((quote) =>
+          quote.token === token
+            ? { ...quote, adminPaymentConfirmed: true }
+            : quote
+        )
+      );
+    } catch {
+      alert("שמירת הסטטוס נכשלה");
+    } finally {
+      setConfirmingFor(null);
+    }
+  }
 
   async function createUserFromQuote(token: string) {
     const confirmed = confirm(
@@ -249,9 +285,9 @@ export default function AdminQuotesPage() {
                 <td className="font-bold">{formatMoney(quote.total)}</td>
                 <td>
                   <span
-                    className={`admin-row-badge ${statusTone(quote.status)}`}
+                    className={`admin-row-badge ${statusTone(quote.status, quote.adminPaymentConfirmed)}`}
                   >
-                    {statusLabel(quote.status)}
+                    {statusLabel(quote.status, quote.adminPaymentConfirmed)}
                   </span>
                 </td>
                 <td>{formatDate(quote.createdAt)}</td>
@@ -272,6 +308,19 @@ export default function AdminQuotesPage() {
                       >
                         צפייה
                       </Link>
+                      {quote.adminPaymentConfirmed ? null : (
+                        <AdminActionsItem
+                          disabled={confirmingFor === quote.token}
+                          onClick={() => {
+                            setOpenActionsId(null);
+                            void confirmPayment(quote.token);
+                          }}
+                        >
+                          {confirmingFor === quote.token
+                            ? "שומר..."
+                            : "סמן: מאושר – תשלום בוצע"}
+                        </AdminActionsItem>
+                      )}
                       <Link
                         href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                         onClick={() => setOpenActionsId(null)}

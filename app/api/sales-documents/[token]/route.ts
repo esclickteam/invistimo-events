@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
-import { withCurrentQuoteTerms } from "@/lib/quoteCustomerTerms";
+import {
+  QUOTE_TERMS_VERSION,
+  buildQuoteTermsUpdate,
+  withCurrentQuoteTerms,
+} from "@/lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 
 export const runtime = "nodejs";
@@ -212,6 +216,24 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     if (documentType !== "quote" && documentType !== "agreement") {
       return jsonError("סוג מסמך לא תקין", 400);
+    }
+
+    if (
+      documentType === "quote" &&
+      cleanStr((document as { quoteTermsVersion?: unknown }).quoteTermsVersion) !==
+        QUOTE_TERMS_VERSION
+    ) {
+      const termsUpdate = buildQuoteTermsUpdate(document as Record<string, unknown>);
+      if (termsUpdate) {
+        try {
+          await SalesDocument.updateOne(
+            { token, type: "quote" },
+            { $set: termsUpdate },
+          );
+        } catch (error) {
+          console.error("QUOTE TERMS SYNC FAILED:", error);
+        }
+      }
     }
 
     const quoteDates = getQuoteDates(document);

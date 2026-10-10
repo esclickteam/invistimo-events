@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUOTE_APPROVAL_SECTION, VENUE_SEATING_QUOTE_TERM_SECTIONS } from "@/lib/quoteCustomerTerms";
+import { quoteEngagementTerms, VENUE_SEATING_QUOTE_TERM_SECTIONS } from "@/lib/quoteCustomerTerms";
 import {
   CUSTOMER_ADDITIONAL_TERMS,
   CUSTOMER_CANCELLATION_TERMS,
@@ -1474,7 +1474,7 @@ export default function NewEmployeeSalePage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1604,7 +1604,7 @@ export default function NewEmployeeSalePage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const customerFilePayload = useMemo(() => ({
@@ -1651,7 +1651,7 @@ export default function NewEmployeeSalePage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
     paymentSchedule,
     paymentMode,
 
@@ -1956,7 +1956,7 @@ export default function NewEmployeeSalePage() {
           cancellationTerms: CANCELLATION_TERMS,
           paymentTerms: finalPaymentTerms,
           additionalTerms: ADDITIONAL_TERMS,
-          engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+          engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
           paymentSchedule,
           paymentMode,
 

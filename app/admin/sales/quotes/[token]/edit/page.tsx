@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
 import {
   SEATING_SCHEDULE_FIELDS,
   emptySeatingScheduleTimes,
@@ -50,6 +51,8 @@ type QuoteDoc = {
     paymentMode?: string;
   };
   notes?: string;
+  adminPaymentConfirmed?: boolean;
+  quote?: { expiresAt?: string };
 };
 
 function readScheduleTimes(
@@ -94,6 +97,7 @@ export default function EditQuotePage() {
     () => emptySeatingScheduleTimes(),
   );
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -306,6 +310,35 @@ export default function EditQuotePage() {
     }
   }
 
+  async function confirmPayment() {
+    const confirmed = confirm(
+      "לסמן את ההצעה כמאושר – תשלום בוצע? הפעולה לא מחייבת את הלקוח, לא משנה את תאריך התוקף ולא משנה מחירים או שירותים."
+    );
+    if (!confirmed) return;
+
+    try {
+      setConfirmingPayment(true);
+      setError("");
+      const res = await fetch(
+        `/api/admin/sales/quotes/${encodeURIComponent(token)}/confirm-payment`,
+        { method: "POST", credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data?.error || "שמירת הסטטוס נכשלה");
+        return;
+      }
+      setDoc((current) =>
+        current ? { ...current, adminPaymentConfirmed: true } : current
+      );
+      setSuccess(QUOTE_PAYMENT_CONFIRMED_LABEL);
+    } catch {
+      setError("שמירת הסטטוס נכשלה");
+    } finally {
+      setConfirmingPayment(false);
+    }
+  }
+
   if (loading) {
     return (
       <div dir="rtl" className="p-8 text-[#6B5A48]">
@@ -344,6 +377,45 @@ export default function EditQuotePage() {
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
           {success}
         </div>
+      )}
+
+      {doc?.type === "agreement" ? null : (
+      <section className="rounded-[28px] border border-[#E7D8C6] bg-white p-5 shadow-sm">
+        <p className="text-sm font-black text-[#352618]">סטטוס הצעת המחיר</p>
+        <p className="mt-2 text-sm font-bold text-[#3f3327]">
+          {doc?.adminPaymentConfirmed
+            ? QUOTE_PAYMENT_CONFIRMED_LABEL
+            : doc?.status === "expired"
+              ? "פג תוקף"
+              : doc?.status === "draft"
+                ? "טיוטה"
+                : doc?.status === "sent"
+                  ? "נשלחה"
+                  : doc?.status === "viewed"
+                    ? "נצפתה"
+                    : doc?.status === "signed"
+                      ? "נחתם"
+                      : "—"}
+        </p>
+        {doc?.quote?.expiresAt ? (
+          <p className="mt-1 text-xs font-semibold text-[#7B6754]">
+            תוקף מקורי: {doc.quote.expiresAt}
+          </p>
+        ) : null}
+        {doc?.adminPaymentConfirmed ? null : (
+          <button
+            type="button"
+            disabled={confirmingPayment}
+            onClick={() => void confirmPayment()}
+            className="mt-4 rounded-xl bg-[#3f3327] px-4 py-2 text-sm font-black text-white disabled:opacity-60"
+          >
+            {confirmingPayment ? "שומר..." : "סמן: מאושר – תשלום בוצע"}
+          </button>
+        )}
+        <p className="mt-3 text-xs font-semibold leading-6 text-[#7B6754]">
+          הסימון נשמר במערכת. הוא אינו מבצע חיוב ואינו משנה את תאריך התוקף, את המחירים או את השירותים.
+        </p>
+      </section>
       )}
 
       {doc?.type === "agreement" ? null : (

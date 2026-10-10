@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUOTE_APPROVAL_SECTION, VENUE_SEATING_QUOTE_TERM_SECTIONS } from "@/lib/quoteCustomerTerms";
+import { quoteEngagementTerms, VENUE_SEATING_QUOTE_TERM_SECTIONS } from "@/lib/quoteCustomerTerms";
 import {
   CUSTOMER_ADDITIONAL_TERMS,
   CUSTOMER_CANCELLATION_TERMS,
@@ -1648,7 +1648,7 @@ export default function AdminSalesNewPage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1800,7 +1800,7 @@ export default function AdminSalesNewPage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
     additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
@@ -2191,7 +2191,7 @@ export default function AdminSalesNewPage() {
           cancellationTerms: CANCELLATION_TERMS,
           paymentTerms: finalPaymentTerms,
           additionalTerms: ADDITIONAL_TERMS,
-          engagementTerms: documentType === "quote" ? [...ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION] : ENGAGEMENT_TERMS,
+          engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
           paymentSchedule,
           paymentMode,
           adminPaymentStatus,

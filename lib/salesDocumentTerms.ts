@@ -194,6 +194,8 @@ export function sanitizeSalesDocumentForCustomer(
     audit: _audit,
     sms: _sms,
     seatingSchedule: _seatingSchedule,
+    customerTermsArchive: _customerTermsArchive,
+    quoteTermsVersion: _quoteTermsVersion,
     ...rest
   } = document;
 
