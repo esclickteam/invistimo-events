@@ -6,7 +6,7 @@ import {
   type DetailSection,
 } from "@/lib/salesDocumentTerms";
 
-export const QUOTE_TERMS_VERSION = "2026-10-10-no-chuppah-example";
+export const QUOTE_TERMS_VERSION = "2026-10-10-seating-3-hours";
 
 export const QUOTE_APPROVAL_SECTION: DetailSection = {
   title: "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
@@ -85,7 +85,7 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
       "במקרה של עיכוב צפוי או בפועל של 15 דקות ומעלה בשעת תחילת החופה או בסיומה, על הלקוח או איש הקשר המורשה מטעמו לעדכן את צוות Invistimo באופן מיידי, כדי לאפשר היערכות והתאמת עבודת הצוות בהתאם לנסיבות.",
       "כל שינוי בלוחות הזמנים כפוף לזמינות הצוות ולשיקול דעתה הבלעדי של Invistimo, ואין בו כדי לחייב את החברה להאריך את שעות השירות מעבר למוסכם או להעמיד כוח אדם נוסף ללא הסכמה מראש.",
       "מובהר כי עיכוב בחופה כשלעצמו אינו גורר חיוב אוטומטי. ככל שהעיכוב גורם גם לדחייה של 30 דקות או יותר בתחילת שירות ההושבה, יחול סעיף העיכוב בהושבה בהתאם לתנאיו.",
-      "ככל שהשינוי גורם לדחייה של 30 דקות או יותר בתחילת שירות ההושבה, תהיה Invistimo רשאית לחייב בתוספת של 500 ₪ בהתאם לסעיף העיכוב בהושבה ולפי שיקול דעתה הבלעדי. אין לגבות פעמיים תוספת של 500 ₪ בגין אותו פרק עיכוב.",
+      "ככל שהשינוי גורם לדחייה של 30 דקות או יותר בתחילת שירות ההושבה, תהיה Invistimo רשאית לחייב בתוספת של 500 ₪ בהתאם לסעיף העיכוב בהושבה ולפי שיקול דעתה הבלעדי.",
     ],
   },
   {
@@ -212,11 +212,34 @@ function paymentTermsForQuote(existing: unknown): DetailSection[] {
   return [...CUSTOMER_PAYMENT_TERMS, ...preserved];
 }
 
+export function withSeatingDurationText(text: string) {
+  const next = text.replaceAll("עד 4 שעות", "עד 3 שעות");
+  if (!next.includes("עד 3 שעות")) return next;
+  if (next.includes("המנה הראשונה מוגשת לפני החופה")) return next;
+
+  const untilFirstCourse = next.includes("מנה הראשונה")
+    ? ""
+    : "ההושבה היא עד המנה הראשונה. ";
+  const exception =
+    "למקרים חריגים, אם המנה הראשונה מוגשת לפני החופה — עד 3 שעות או עד שחרורם מהאירוע, לפי המוקדם מביניהם.";
+  return `${next.replace(/[.\s]+$/, "")}. ${untilFirstCourse}${exception}`;
+}
+
+function withSeatingDurationSections(sections: DetailSection[]) {
+  return sections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => withSeatingDurationText(item)),
+  }));
+}
+
 function syncVenueSeatingDetails(existing: unknown): DetailSection[] {
   const serviceSections = withoutRetiredSeatingText(
     asSections(existing).filter((section) => !STANDARD_TERM_TITLES.has(section.title)),
   );
-  return [...serviceSections, ...VENUE_SEATING_QUOTE_TERM_SECTIONS];
+  return withSeatingDurationSections([
+    ...serviceSections,
+    ...VENUE_SEATING_QUOTE_TERM_SECTIONS,
+  ]);
 }
 
 function isVenueSeatingUpsell(record: Record<string, unknown>) {
@@ -232,6 +255,10 @@ function syncUpsell(upsell: unknown) {
 
   return {
     ...record,
+    description:
+      typeof record.description === "string"
+        ? withSeatingDurationText(record.description)
+        : record.description,
     customerDetails: syncVenueSeatingDetails(record.customerDetails),
   };
 }
