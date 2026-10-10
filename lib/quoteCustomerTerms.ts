@@ -6,6 +6,8 @@ import {
   type DetailSection,
 } from "@/lib/salesDocumentTerms";
 
+export const QUOTE_TERMS_VERSION = "2026-10-10-quote-terms";
+
 export const QUOTE_APPROVAL_SECTION: DetailSection = {
   title: "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
   items: [
@@ -14,6 +16,46 @@ export const QUOTE_APPROVAL_SECTION: DetailSection = {
     "מובהר כי לאחר ביצוע התשלום והקמת המשתמש במערכת, ייחשב הלקוח כמי שאישר את הצעת המחיר, את תנאי ההתקשרות המפורטים בה ואת תקנון האתר, בכפוף להוראות הדין.",
   ],
 };
+
+export const INCIDENT_REPORTING_SECTION: DetailSection = {
+  title: "דיווח על תקלות, בעיות וטענות",
+  items: [
+    "הלקוח מתחייב לפנות ל־Invistimo בהקדם האפשרי עם גילוי כל תקלה, בעיה, קושי, אי־התאמה, חוסר הבנה או טענה הנוגעים למערכת, להזמנות, לאישורי ההגעה, להודעות, לקישורים, לסידור ההושבה או לכל שירות אחר הניתן על ידי Invistimo.",
+    "באחריות הלקוח למסור פרטים רלוונטיים ולאפשר ל־Invistimo לבדוק את הנושא ולטפל בו בזמן אמת, ככל שניתן.",
+    "אי־דיווח במועד, או ביצוע פעולות עצמאיות מבלי לאפשר ל־Invistimo לבדוק את הנושא, עלולים למנוע אפשרות לאיתור מקור התקלה או למתן פתרון.",
+    "במקרים שבהם הלקוח לא דיווח על הבעיה בהקדם האפשרי, וכתוצאה מכך נמנעה מ־Invistimo אפשרות סבירה לבדוק, לתקן או לצמצם את הנזק, Invistimo לא תישא באחריות לנזק שנגרם או הוחמר עקב אי־הדיווח, בכפוף להוראות הדין.",
+    "אין בהעלאת טענה בדיעבד, כשלעצמה, כדי להוכיח שהתרחשה תקלה או שהאחריות לה מוטלת על Invistimo.",
+  ],
+};
+
+export function quoteEngagementTerms(): DetailSection[] {
+  return [
+    ...CUSTOMER_ENGAGEMENT_TERMS,
+    INCIDENT_REPORTING_SECTION,
+    QUOTE_APPROVAL_SECTION,
+  ];
+}
+
+const QUOTE_EVENT_DETAILS_ITEMS = [
+  "באחריות הלקוח להזין את פרטי האירוע ולהוסיף את תמונת ההזמנה בעמוד עריכת פרטי האירוע.",
+  "הקישור בהודעת התזכורת מבוסס על הפרטים והתמונה שהוזנו בעמוד עריכת פרטי האירוע.",
+  "באחריות הלקוח לבדוק את הקישור ואת תצוגתו לפני השליחה.",
+];
+
+export function quoteAdditionalTerms(): DetailSection[] {
+  return CUSTOMER_ADDITIONAL_TERMS.map((section) => {
+    if (section.title !== "תנאים נוספים") return section;
+
+    const items = [...section.items];
+    const anchorIndex = items.findIndex((item) =>
+      item.startsWith("באחריות הלקוח לבדוק את פרטי האירוע"),
+    );
+    const insertAt = anchorIndex >= 0 ? anchorIndex + 1 : items.length;
+    const missing = QUOTE_EVENT_DETAILS_ITEMS.filter((item) => !items.includes(item));
+    items.splice(insertAt, 0, ...missing);
+    return { ...section, items };
+  });
+}
 
 export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
   {
@@ -34,13 +76,22 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
     ],
   },
   {
-    title: "תשלום בגין דחייה מהותית של תחילת ההושבה",
+    title: "שינויים ועיכובים בלוחות הזמנים ובשעת החופה",
     items: [
-      "כאשר צוות Invistimo התייצב במועד שסוכם, אך תחילת ההושבה נדחתה ב־60 דקות או יותר ביחס לשעה שנקבעה מראש, בשל נסיבות שאינן באחריות Invistimo, תחול תוספת תשלום בסך 500 ₪.",
-      "החיוב יחול גם אם שעות העבודה הכוללות לא התארכו, שכן עצם הדחייה משנה את תנאי העבודה ואת אופן ביצוע השירות כפי שתוכננו והוסכמו מראש.",
-      "הוראה זו חלה, בין היתר, כאשר הושבה שהייתה אמורה להתחיל במהלך קבלת הפנים מתאפשרת בפועל רק לאחר החופה, או כאשר האולם אינו מאפשר את תחילת ההושבה במועד שסוכם.",
-      "דחייה קצרה מ־60 דקות לא תיצור חיוב מכוח הוראת דחייה זו בלבד.",
-      "החיוב יחול רק כאשר שעת תחילת ההושבה המתוכננת נמסרה והוסכמה מראש וניתן לקבוע את משך הדחייה בפועל.",
+      "באחריות הלקוח לעדכן את Invistimo ואת צוות ההושבה בהקדם האפשרי על כל שינוי בלוחות הזמנים של האירוע, לרבות שינוי בשעת קבלת הפנים, תחילת החופה, סיומה או מועד תחילת ההושבה.",
+      "על שינוי מתוכנן וידוע מראש יש למסור הודעה בכתב לפחות 48 שעות לפני האירוע. על שינוי שנודע מאוחר יותר יש להודיע מיד עם היוודעו.",
+      "במקרה של עיכוב צפוי או בפועל של 15 דקות ומעלה בשעת תחילת החופה או בסיומה, על הלקוח או איש הקשר המורשה מטעמו לעדכן את צוות Invistimo באופן מיידי, כדי לאפשר היערכות והתאמת עבודת הצוות בהתאם לנסיבות.",
+      "כל שינוי בלוחות הזמנים כפוף לזמינות הצוות ולשיקול דעתה הבלעדי של Invistimo, ואין בו כדי לחייב את החברה להאריך את שעות השירות מעבר למוסכם.",
+      "מובהר כי עיכוב בחופה כשלעצמו אינו גורר חיוב אוטומטי. ככל שהעיכוב גורם גם לדחייה של 15 דקות ומעלה בתחילת שירות ההושבה, יחול סעיף העיכוב בהושבה בהתאם לתנאיו.",
+    ],
+  },
+  {
+    title: "דחייה בתחילת שירות ההושבה",
+    items: [
+      "כאשר צוות Invistimo התייצב במועד שנקבע לצורך מתן שירותי ההושבה, אך תחילת ההושבה נדחתה ב־15 דקות או יותר, בשל נסיבות שאינן באחריות Invistimo, תהיה Invistimo רשאית, לפי שיקול דעתה הבלעדי, לחייב את הלקוח בתוספת תשלום בסך 500 ₪.",
+      "הוראה זו תחול, בין היתר, במקרה של שינוי בהנחיות האולם, דחיית תחילת ההושבה, שינוי בלוחות הזמנים או כל נסיבה אחרת שאינה באחריות Invistimo, אשר מונעת מהצוות להתחיל בעבודתו במועד.",
+      "בהיעדר שעת תחילת הושבה אחרת שנקבעה במפורש בהצעת המחיר או בהסכמה בכתב בין הצדדים, שעת תחילת ההושבה המוסכמת תהיה שעת תחילת קבלת הפנים של האירוע.",
+      "התוספת עשויה לחול גם אם העיכוב לא הביא להארכת משך העבודה הכולל של הצוות. אין באמור כדי לחייב את Invistimo להאריך את שעות עבודת הצוות או להבטיח את זמינותו מעבר למועד שסוכם.",
     ],
   },
   {
@@ -54,12 +105,12 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
   {
     title: "הארכת שעות השירות",
     items: [
-      "במקרה שבו נדרשת הארכת עבודת צוות ההושבה או המתנתו מעבר למסגרת השעות שסוכמה מראש, תחול תוספת תשלום בסך 500 ₪ לכל שעה נוספת או חלק ממנה, עבור צוות ההושבה שנקבע בהזמנה.",
-      "הארכת השירות תתאפשר אך ורק בהתאם לזמינות אנשי הצוות וליכולת התפעולית של Invistimo.",
+      "ככל שתידרש הארכת עבודת צוות ההושבה או המתנתו מעבר לשעות השירות שסוכמו, תהיה Invistimo רשאית, לפי שיקול דעתה הבלעדי ובכפוף לזמינות הצוות, לאשר את הארכת השירות בתוספת תשלום של 500 ₪ לכל שעה נוספת או חלק ממנה, עבור צוות ההושבה שנקבע בהזמנה.",
+      "הארכת השירות תתאפשר אך ורק בהתאם לזמינות אנשי הצוות, ליכולת התפעולית של Invistimo ולאישור החברה.",
       "מובהר כי Invistimo אינה מתחייבת להאריך את שעות השירות מעבר למסגרת שסוכמה, גם כאשר הלקוח מבקש זאת או מסכים לשלם את התוספת.",
       "עיכוב בתחילת ההושבה אינו מאריך באופן אוטומטי את שעות השירות שנרכשו.",
       "לא ייגבה תשלום נוסף עבור שעות או פעולות שכבר כלולות בחבילה, או עבור חריגה שנגרמה באחריות Invistimo.",
-      "ככל שקיים חיוב בגין דחיית תחילת ההושבה לצד חיוב בגין שעות נוספות, יש להפריד בפירוט החיוב בין שתי העילות, ולא לגבות פעמיים בגין אותו פרק זמן.",
+      "לא ייגבה חיוב כפול בגין אותו פרק זמן מכוח סעיף הדחייה וסעיף השעות הנוספות. ככל שקיים חיוב בגין דחיית תחילת ההושבה לצד חיוב בגין שעות נוספות, יש להפריד בפירוט החיוב בין שתי העילות.",
     ],
   },
   {
@@ -86,15 +137,27 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
     ],
   },
   {
-    title: "חובת תשלום בסיום עבודת הצוות",
+    title: "תשלום יתרת שירות ההושבה",
     items: [
-      "האחריות להסדרת מלוא יתרת התשלום עבור שירותי הדיילות וההושבה חלה על הלקוח שהזמין את השירות.",
-      "כאשר נקבע בהזמנה כי יתרת התשלום תשולם ביום האירוע, הלקוח מתחייב להסדירה מיד עם סיום עבודתם של אנשי הצוות, בהתאם לסכומים ולתנאי התשלום שסוכמו.",
-      "באחריות הלקוח לדאוג מראש לאמצעי תשלום זמין ולאיש קשר מוסמך מטעמו אשר יהיה אחראי להעברת התשלום במועד.",
-      "אי זמינותם של בני הזוג, איש הקשר או מי מטעמם, עומס במהלך האירוע או עיכוב מצד הלקוח אינם מהווים עילה לדחיית מועד התשלום.",
+      "יתרת התשלום בגין שירותי ההושבה באולם תשולם ביום האירוע, מיד עם סיום עבודת צוות Invistimo.",
+      "באחריותו הבלעדית של הלקוח להיערך מראש להסדרת התשלום במועד, לרבות דאגה לאמצעי תשלום זמין או להסמכת איש קשר מטעמו שיהיה נוכח באירוע ומורשה לבצע את התשלום בפועל.",
+      "היעדרות בני הזוג, עיסוקם במהלך האירוע, אי־זמינות איש הקשר או היעדר אמצעי תשלום אינם מהווים עילה לדחיית התשלום.",
+      "הלקוח מתחייב להסדיר את מלוא יתרת התשלום במועד, ללא עיכובים וללא צורך בפנייה חוזרת מצד Invistimo לצורך גבייתו, בכפוף לזכויותיו על פי דין.",
       "גם כאשר התשלום בפועל מתבצע באמצעות גורם אחר שמונה על ידי הלקוח, האחריות להסדרת התשלום נותרת על הלקוח שהזמין את השירות.",
     ],
-  }
+  },
+];
+
+const RETIRED_SEATING_SECTION_TITLES = new Set([
+  "תשלום בגין דחייה מהותית של תחילת ההושבה",
+  "חובת תשלום בסיום עבודת הצוות",
+]);
+
+const RETIRED_SEATING_ITEM_SNIPPETS = [
+  "60 דקות",
+  "דחייה קצרה מ",
+  "נמסרה והוסכמה מראש",
+  "כאשר נקבע בהזמנה כי יתרת התשלום",
 ];
 
 const STANDARD_TERM_TITLES = new Set([
@@ -103,7 +166,9 @@ const STANDARD_TERM_TITLES = new Set([
   "תנאי ביטול",
   "תנאים נוספים",
   QUOTE_APPROVAL_SECTION.title,
+  INCIDENT_REPORTING_SECTION.title,
   ...VENUE_SEATING_QUOTE_TERM_SECTIONS.map((section) => section.title),
+  ...RETIRED_SEATING_SECTION_TITLES,
 ]);
 
 function asSections(value: unknown): DetailSection[] {
@@ -121,16 +186,30 @@ function asSections(value: unknown): DetailSection[] {
   });
 }
 
+function isRetiredSeatingItem(item: string) {
+  return RETIRED_SEATING_ITEM_SNIPPETS.some((snippet) => item.includes(snippet));
+}
+
+function withoutRetiredSeatingText(sections: DetailSection[]) {
+  return sections
+    .filter((section) => !RETIRED_SEATING_SECTION_TITLES.has(section.title))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !isRetiredSeatingItem(item)),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
 function paymentTermsForQuote(existing: unknown): DetailSection[] {
-  const preserved = asSections(existing).filter(
-    (section) => !STANDARD_TERM_TITLES.has(section.title),
+  const preserved = withoutRetiredSeatingText(
+    asSections(existing).filter((section) => !STANDARD_TERM_TITLES.has(section.title)),
   );
   return [...CUSTOMER_PAYMENT_TERMS, ...preserved];
 }
 
 function syncVenueSeatingDetails(existing: unknown): DetailSection[] {
-  const serviceSections = asSections(existing).filter(
-    (section) => !STANDARD_TERM_TITLES.has(section.title),
+  const serviceSections = withoutRetiredSeatingText(
+    asSections(existing).filter((section) => !STANDARD_TERM_TITLES.has(section.title)),
   );
   return [...serviceSections, ...VENUE_SEATING_QUOTE_TERM_SECTIONS];
 }
@@ -164,10 +243,10 @@ function syncSummary(summary: unknown, paymentTerms: DetailSection[]) {
 
   return {
     ...record,
-    engagementTerms: [...CUSTOMER_ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION],
+    engagementTerms: quoteEngagementTerms(),
     paymentTerms: paymentTermsForQuote(record.paymentTerms ?? paymentTerms),
     cancellationTerms: CUSTOMER_CANCELLATION_TERMS,
-    additionalTerms: CUSTOMER_ADDITIONAL_TERMS,
+    additionalTerms: quoteAdditionalTerms(),
     upsells,
   };
 }
@@ -182,11 +261,53 @@ export function withCurrentQuoteTerms<T extends Record<string, unknown>>(documen
 
   return {
     ...document,
-    engagementTerms: [...CUSTOMER_ENGAGEMENT_TERMS, QUOTE_APPROVAL_SECTION],
+    engagementTerms: quoteEngagementTerms(),
     paymentTerms,
     cancellationTerms: CUSTOMER_CANCELLATION_TERMS,
-    additionalTerms: CUSTOMER_ADDITIONAL_TERMS,
+    additionalTerms: quoteAdditionalTerms(),
     upsells,
     customerDealSummary: syncSummary(document.customerDealSummary, paymentTerms),
   };
+}
+
+const TERM_FIELDS = [
+  "engagementTerms",
+  "paymentTerms",
+  "cancellationTerms",
+  "additionalTerms",
+  "upsells",
+  "customerDealSummary",
+] as const;
+
+export function buildQuoteTermsUpdate(document: Record<string, unknown>) {
+  if (String(document.type || "") !== "quote") return null;
+
+  const updated = withCurrentQuoteTerms(document);
+  const hasArchive =
+    document.customerTermsArchive &&
+    typeof document.customerTermsArchive === "object" &&
+    !Array.isArray(document.customerTermsArchive);
+
+  const set: Record<string, unknown> = {
+    quoteTermsVersion: QUOTE_TERMS_VERSION,
+  };
+
+  for (const field of TERM_FIELDS) {
+    if (updated[field] !== undefined) {
+      set[field] = updated[field];
+    }
+  }
+
+  if (!hasArchive) {
+    set.customerTermsArchive = {
+      engagementTerms: document.engagementTerms ?? null,
+      paymentTerms: document.paymentTerms ?? null,
+      cancellationTerms: document.cancellationTerms ?? null,
+      additionalTerms: document.additionalTerms ?? null,
+      upsells: document.upsells ?? null,
+      customerDealSummary: document.customerDealSummary ?? null,
+    };
+  }
+
+  return set;
 }

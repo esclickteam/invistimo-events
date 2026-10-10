@@ -2,7 +2,6 @@
 
 import {
   SEATING_SCHEDULE_FIELDS,
-  clockMinusMinutes,
   type SeatingScheduleFieldKey,
   type SeatingScheduleTimes,
 } from "@/lib/seatingSchedule";
@@ -14,21 +13,14 @@ type Props = {
 
 export default function SeatingScheduleFields({ value, onChange }: Props) {
   function update(key: SeatingScheduleFieldKey, nextValue: string) {
-    const next = { ...value, [key]: nextValue };
-
-    if (key === "receptionStartTime" && !value.teamArrivalTime) {
-      next.teamArrivalTime = clockMinusMinutes(nextValue, 30);
-    }
-
-    onChange(next);
+    onChange({ ...value, [key]: nextValue });
   }
 
   return (
     <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
       <p className="text-xs font-black text-[#3f3327]">לוחות זמנים להושבה באולם</p>
       <p className="mt-1 text-xs font-semibold leading-5 text-[#7b6a58]">
-        השעות נשמרות בהצעה או בהסכם כפי שאושרו, ומוצגות ללקוח לפני החתימה. שעת
-        הגעת הצוות מתמלאת כחצי שעה לפני קבלת הפנים, ואפשר לשנות אותה לפני השמירה.
+        יש למלא רק שעות שסוכמו בפועל. שעה שלא הוזנה לא תוצג בהצעת המחיר.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {SEATING_SCHEDULE_FIELDS.map((field) => (

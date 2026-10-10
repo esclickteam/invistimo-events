@@ -151,6 +151,13 @@ export type SalesDocumentModelType = {
   versionHistory?: unknown[];
   notes?: string;
 
+  /** Explicit admin confirmation that payment was received. Not a timestamp. */
+  adminPaymentConfirmed?: boolean;
+  /** Version of customer-facing quote terms last written to this document. */
+  quoteTermsVersion?: string;
+  /** Previous customer-facing terms, kept so older wording is not lost. */
+  customerTermsArchive?: Record<string, unknown> | null;
+
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -402,6 +409,22 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
       type: String,
       default: "",
       trim: true,
+    },
+
+    adminPaymentConfirmed: {
+      type: Boolean,
+      default: false,
+    },
+
+    quoteTermsVersion: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    customerTermsArchive: {
+      type: AnySchema,
+      default: undefined,
     },
   },
   {
