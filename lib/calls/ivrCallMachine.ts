@@ -1265,6 +1265,11 @@ export async function handleIvrDigits(input: {
     // until the atomic guest write below.
     claimed.rsvpApplied = false;
     attempt.rsvpApplied = false;
+    const savePromise = applyRsvpOnce({
+      attempt: claimed,
+      rsvp: apply.rsvp,
+      attendingCount: apply.attendingCount,
+    });
     const thanksUrl = await thanksUrlPromise;
     const slot = slotFor("play_thanks");
     console.log("IVR_FOLLOW_UP_GAP", {
@@ -1280,7 +1285,8 @@ export async function handleIvrDigits(input: {
       mediaSlot: slot,
       waitsForPlaybackEnded: false,
       waitsForGatherEnded: false,
-      rsvpBeforeAudio: false,
+      gatherStopBeforePlay: slot !== "none",
+      rsvpStartedBeforePlay: true,
     });
     const playPromise =
       callControlId && thanksUrl
@@ -1295,14 +1301,7 @@ export async function handleIvrDigits(input: {
         : callControlId
           ? hangupIvrCall(callControlId)
           : Promise.resolve(null);
-    const [saved] = await Promise.all([
-      applyRsvpOnce({
-        attempt: claimed,
-        rsvp: apply.rsvp,
-        attendingCount: apply.attendingCount,
-      }),
-      playPromise,
-    ]);
+    const [saved] = await Promise.all([savePromise, playPromise]);
     if (!saved.applied) return { handled: true };
     attempt.rsvpApplied = true;
     return { handled: true };
