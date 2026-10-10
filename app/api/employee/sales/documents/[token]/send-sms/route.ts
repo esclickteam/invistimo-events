@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerQuote from "@/models/CustomerQuote";
 import CustomerAgreement from "@/models/CustomerAgreement";
 import CustomerFile from "@/models/CustomerFile";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +35,24 @@ type Sms4FreeResult = {
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+async function requireEditor(req: NextRequest) {
+  const auth = await getUserIdFromRequest(req);
+  if (!auth?.userId) return null;
+
+  const user = await User.findById(auth.userId).select("role staffType").lean();
+  if (!user) return null;
+
+  const role = (user as { role?: string }).role;
+  const staffType = (user as { staffType?: string }).staffType;
+  const allowed =
+    role === "admin" ||
+    role === "producer" ||
+    (role === "staff" &&
+      (staffType === "general_staff" || staffType === "producer_staff"));
+
+  return allowed ? auth : null;
 }
 
 function jsonError(message: string, status = 400, details?: unknown) {
@@ -278,8 +298,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return jsonError("סוג מסמך לא תקין", 400);
     }
 
+    let allowExpiredResend = false;
     if (currentStatus === "expired") {
-      return jsonError("לא ניתן לשלוח מסמך שפג תוקף", 410);
+      const editor = await requireEditor(req);
+      if (!editor) {
+        return jsonError("לא ניתן לשלוח מסמך שפג תוקף", 410);
+      }
+      allowExpiredResend = true;
     }
 
     const baseUrl = getBaseUrl(req);
@@ -341,7 +366,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return jsonError(errorMessage, 500);
     }
 
-    if (currentStatus !== "signed") {
+    if (!allowExpiredResend && currentStatus !== "signed") {
       document.set("status", "sent");
     }
 
@@ -360,7 +385,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const documentId = cleanStr(document.get("_id"));
     const customerFileId = cleanStr(document.get("customerFileId"));
 
-    if (documentType === "quote") {
+    if (documentType === "quote" && !allowExpiredResend) {
       await CustomerQuote.findOneAndUpdate(
         {
           $or: [
@@ -378,7 +403,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    if (documentType === "agreement") {
+    if (documentType === "agreement" && !allowExpiredResend) {
       await CustomerAgreement.findOneAndUpdate(
         {
           $or: [

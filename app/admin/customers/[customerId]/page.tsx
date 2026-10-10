@@ -714,7 +714,7 @@ export default function AdminCustomerFilePage() {
                           ) : null}
                           {quote.publicToken ? (
                             <Link
-                              href={`/admin/sales/quotes/${encodeURIComponent(quote.publicToken)}/edit`}
+                              href={`/sales-documents/${encodeURIComponent(quote.publicToken)}?edit=1`}
                               className="rounded-xl border border-[#D9C3A8] bg-white px-3 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
                             >
                               עריכת הצעה

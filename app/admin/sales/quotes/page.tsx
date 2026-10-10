@@ -70,7 +70,6 @@ export default function AdminQuotesPage() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [creatingFor, setCreatingFor] = useState<string | null>(null);
   const [confirmingFor, setConfirmingFor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
@@ -127,37 +126,6 @@ export default function AdminQuotesPage() {
       alert("שמירת הסטטוס נכשלה");
     } finally {
       setConfirmingFor(null);
-    }
-  }
-
-  async function createUserFromQuote(token: string) {
-    const confirmed = confirm(
-      "לפתוח משתמש מההצעה? הפרטים, החבילה, השירותים והמחירים יועברו אוטומטית. לא יבוצע חיוב אוטומטי."
-    );
-    if (!confirmed) return;
-
-    try {
-      setCreatingFor(token);
-      const res = await fetch(
-        `/api/employee/sales/documents/${encodeURIComponent(token)}/create-user`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        alert(data?.message || data?.error || "יצירת משתמש נכשלה");
-        return;
-      }
-      alert(data.message || "המשתמש נוצר בהצלחה");
-      window.location.href = data.redirectTo || "/admin/users";
-    } catch {
-      alert("יצירת משתמש נכשלה");
-    } finally {
-      setCreatingFor(null);
     }
   }
 
@@ -321,7 +289,7 @@ export default function AdminQuotesPage() {
                         </AdminActionsItem>
                       )}
                       <Link
-                        href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
+                        href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
                         onClick={() => setOpenActionsId(null)}
                         className="text-[var(--admin-text)] hover:bg-gray-50"
                       >
@@ -336,17 +304,13 @@ export default function AdminQuotesPage() {
                           מעבר למשתמש
                         </Link>
                       ) : (
-                        <AdminActionsItem
-                          disabled={creatingFor === quote.token}
-                          onClick={() => {
-                            setOpenActionsId(null);
-                            void createUserFromQuote(quote.token);
-                          }}
+                        <Link
+                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          onClick={() => setOpenActionsId(null)}
+                          className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
-                          {creatingFor === quote.token
-                            ? "יוצר..."
-                            : "פתיחת משתמש מההצעה"}
-                        </AdminActionsItem>
+                          פתיחת משתמש מההצעה
+                        </Link>
                       )}
                     </AdminActionsMenu>
                   ) : (

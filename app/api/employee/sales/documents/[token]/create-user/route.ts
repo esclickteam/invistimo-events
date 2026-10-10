@@ -7,6 +7,7 @@ import CustomerFile from "@/models/CustomerFile";
 import User from "@/models/User";
 import Event from "@/models/Event";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
+import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 import {
   featuresForExperience,
   guestExperienceFromRsvpSiteMode,
@@ -192,6 +193,7 @@ export async function POST(
     const guestExperienceType = guestExperienceFromRsvpSiteMode(rsvpSiteMode);
     const customerFeatures = featuresForExperience(guestExperienceType);
 
+    const onboardingAgreementToken = cleanString(body?.onboardingAgreementToken);
     const createdUser = await User.create({
       name: clientName,
       email: clientEmail,
@@ -221,7 +223,31 @@ export async function POST(
       needsPasswordSetup: true,
       createdByAdmin: auth.role === "admin",
       billingSource: "admin",
+      ...(onboardingAgreementToken
+        ? { onboardingAgreementToken, onboardingAgreementSignedAt: null }
+        : {}),
     });
+
+    let passwordSetup: Awaited<ReturnType<typeof sendPasswordSetupMail>> | null =
+      null;
+    if (body?.sendPasswordSms === true) {
+      try {
+        passwordSetup = await sendPasswordSetupMail(String(createdUser._id));
+      } catch (passwordError) {
+        console.error("password setup sms failed:", passwordError);
+        passwordSetup = {
+          link: "",
+          email: clientEmail,
+          phone: clientPhone,
+          emailSent: false,
+          smsSent: false,
+          smsError:
+            passwordError instanceof Error
+              ? passwordError.message
+              : "שליחת SMS להגדרת סיסמה נכשלה",
+        };
+      }
+    }
 
     const eventTitle =
       cleanString(body?.eventName) ||
@@ -302,6 +328,15 @@ export async function POST(
       userId: String(createdUser._id),
       eventId: String(createdEvent._id),
       redirectTo: `/admin/users?q=${encodeURIComponent(clientEmail)}`,
+      passwordSetup: passwordSetup
+        ? {
+            link: passwordSetup.link,
+            email: passwordSetup.email,
+            phone: passwordSetup.phone,
+            smsSent: passwordSetup.smsSent,
+            smsError: passwordSetup.smsError || null,
+          }
+        : null,
     });
   } catch (err: any) {
     console.error("create-user from quote failed:", err);
