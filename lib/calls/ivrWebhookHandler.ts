@@ -43,7 +43,7 @@ import {
 } from "@/lib/calls/ivrCallTimeline";
 
 const COUNT_DIGIT_MAX = 3;
-const COUNT_INTER_DIGIT_MS = 2500;
+const COUNT_INTER_DIGIT_MS = 1000;
 const CHOICE_FLOW_STEPS = [
   "playing_intro",
   "playing_intro_before",
