@@ -146,6 +146,8 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     assert.equal(JSON.stringify(chuppah).includes("15 דקות ומעלה"), true);
     assert.equal(JSON.stringify(chuppah).includes("30 דקות או יותר"), true);
     assert.equal(JSON.stringify(chuppah).includes("אין לגבות פעמיים תוספת של 500 ₪"), true);
+    assert.equal(JSON.stringify(chuppah).includes("12:35"), false);
+    assert.equal(JSON.stringify(chuppah).includes("לדוגמה"), false);
     assert.equal(
       seating.some((section) => section.title === "תשלום יתרת שירות ההושבה"),
       true,
