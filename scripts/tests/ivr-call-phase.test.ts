@@ -275,6 +275,18 @@ test("approved intro is gathered with the file, and the first command sends no s
   assert.match(machine, /gatherIvrUsingAudio/);
   assert.match(machine, /"none"/);
   assert.match(machine, /release_gather/);
+  assert.ok(
+    machine.indexOf("const savePromise = applyRsvpOnce") <
+      machine.indexOf("const thanksUrl = await thanksUrlPromise")
+  );
+  const save = machine.slice(
+    machine.indexOf("export async function applyRsvpOnce"),
+    machine.indexOf("async function claimFields")
+  );
+  assert.ok(save.indexOf("await applyIvrRsvpToGuest") < save.indexOf("return { applied: true }"));
+  const failedThanks = save.slice(save.indexOf('promptKind: "thanks"'));
+  assert.match(failedThanks, /rsvpApplied: false/);
+  assert.match(failedThanks, /rsvpResult: null/);
   assert.match(machine, /gatherIvrDigits/);
   assert.match(machine, /terminatingDigit: ""/);
   assert.match(control, /release_gather/);

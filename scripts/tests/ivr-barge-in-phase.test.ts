@@ -65,7 +65,7 @@ function pressDuringIntro(digit: "1" | "2" | "3") {
 test("digits 1, 2 and 3 commit in the DTMF turn", () => {
   const one = pressDuringIntro("1");
   assert.deepEqual(types(one.committed.commands), ["play_ask_count"]);
-  assert.equal(one.committed.commands[0]?.type === "play_ask_count" && one.committed.commands[0].mediaSlot, "release_gather");
+  assert.equal(one.committed.commands[0]?.type === "play_ask_count" && one.committed.commands[0].mediaSlot, "none");
   assert.equal(one.committed.state.rsvpApplied, false);
 
   for (const digit of ["2", "3"] as const) {
@@ -79,7 +79,7 @@ test("digits 1, 2 and 3 commit in the DTMF turn", () => {
       if (digit === "2") assert.equal(applyRsvp.attendingCount, 0);
     }
     assert.equal(play?.type, "play_thanks");
-    if (play?.type === "play_thanks") assert.equal(play.mediaSlot, "release_gather");
+    if (play?.type === "play_thanks") assert.equal(play.mediaSlot, "none");
     assert.equal(step.lateGather.commands.some((command) => command.type === "apply_rsvp"), false);
     assert.equal(step.latePlayback.commands.some((command) => command.type === "play_thanks"), false);
   }
@@ -108,11 +108,13 @@ test("menu follow-up is not blocked by playback.ended or gather.ended", () => {
         rsvpBlocksAudio: false,
         mediaSlot: followUp && "mediaSlot" in followUp ? followUp.mediaSlot : "",
         playbackStopSent: false,
+        gatherStopBeforeFollowUp: false,
       };
       rows.push(row);
       assert.equal(row.followUpDecisionMs, 0);
       assert.equal(row.newExtraWebhookWaitMs, 0);
-      assert.equal(row.mediaSlot, "release_gather");
+      assert.equal(row.mediaSlot, "none");
+      assert.equal(row.gatherStopBeforeFollowUp, false);
       assert.ok(row.followUpDecisionMs !== null && row.followUpDecisionMs < 500);
     }
   }
@@ -310,6 +312,45 @@ test("a finished count prompt plays thanks from the gather result, including has
   }
   if (counted.commands[1]?.type === "play_thanks") {
     assert.equal(counted.commands[1].mediaSlot, "none");
+  }
+});
+
+test("a digit follow-up sends one clip and no stop before or after it", async () => {
+  const prevKey = process.env.TELNYX_API_KEY;
+  process.env.TELNYX_API_KEY = "test-key-not-real";
+  const originalFetch = globalThis.fetch;
+  const actions: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    actions.push(String(input).match(/\/actions\/([^/?]+)/)?.[1] || "");
+    return new Response(JSON.stringify({ data: { result: "ok" } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+  try {
+    const { gatherIvrUsingAudio, playbackIvrAudio, ivrClearStopsGather, ivrClearStopsPlayback } =
+      await import("../../lib/telnyx/ivrCallControl");
+    assert.equal(ivrClearStopsGather("none"), false);
+    assert.equal(ivrClearStopsPlayback("none"), false);
+    await playbackIvrAudio(
+      "cc-thanks",
+      "https://example.com/thanks.mp3",
+      { stage: "thanks", generation: 2 },
+      { mediaClear: "none" }
+    );
+    await gatherIvrUsingAudio({
+      callControlId: "cc-count",
+      audioUrl: "https://example.com/ask-count.mp3",
+      mediaClear: "none",
+      terminatingDigit: "#",
+    });
+    assert.deepEqual(actions, ["playback_start", "gather_using_audio"]);
+    assert.equal(actions.includes("gather_stop"), false);
+    assert.equal(actions.includes("playback_stop"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (prevKey === undefined) delete process.env.TELNYX_API_KEY;
+    else process.env.TELNYX_API_KEY = prevKey;
   }
 });
 

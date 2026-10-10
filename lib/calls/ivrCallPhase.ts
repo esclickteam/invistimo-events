@@ -10,8 +10,8 @@
  *
  * Input prompts are one Telnyx gather_using_audio: the approved file plays and
  * a valid digit interrupts it. Menu digits 1, 2 and 3 commit in that DTMF
- * webhook. The follow-up command awaits gather release, then starts; it does
- * not wait for playback.ended. A completed count commits on gather.ended.
+ * webhook. The follow-up does not wait for playback.ended, gather.ended, or
+ * gather_stop. A completed count commits on gather.ended.
  * A late playback.ended or gather.ended cannot replay audio or RSVP. Hangup
  * never creates an RSVP by itself.
  *
@@ -559,9 +559,10 @@ function onDigits(input: {
       if (input.source === "dtmf") {
         const choice = choiceDigitFrom(input.digits);
         if (!choice) return ignore(state, "barge_ignored_digit");
-        // The digit webhook is the fast path. Telnyx has already cut the
-        // file. Release the gather, then play — do not wait for playback.ended.
-        return finishChoice(state, choice, "release_gather");
+        // Telnyx already cut the file and ends this one-digit gather.
+        // Another gather_stop here is the multi-second gap, and a late one
+        // can cancel the follow-up. Play with no stop command.
+        return finishChoice(state, choice, "none");
       }
       const digits = String(input.digits || "").trim();
       if (!digits) return ignore(state, "gather_during_audio");
@@ -586,7 +587,7 @@ function onDigits(input: {
     return ignore(state, "input_before_choice_window");
   }
 
-  const mediaSlot: IvrFollowUpSlot = input.source === "gather" ? "none" : "release_gather";
+  const mediaSlot: IvrFollowUpSlot = "none";
 
   if (state.inputTarget === "choice") {
     if (state.choiceDigit) return ignore(state, "choice_already_taken");
