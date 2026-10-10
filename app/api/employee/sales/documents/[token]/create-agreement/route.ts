@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -86,6 +87,8 @@ export async function POST(
     );
     const token = await createUniqueToken();
     const url = `${baseUrl(req)}/sales-documents/${token}`;
+    const terms = (value: unknown, fallback: unknown[] | undefined) =>
+      Array.isArray(value) ? value : fallback;
 
     const agreement = await SalesDocument.create({
       type: "agreement",
@@ -93,11 +96,11 @@ export async function POST(
       url,
       status: "draft",
       customerFileId: quote.customerFileId,
-      createdByUserId: auth.userId,
-      client: source.client,
-      event: source.event,
-      seatingSchedule: source.seatingSchedule || undefined,
-      quote: source.quote,
+      createdByUserId: new mongoose.Types.ObjectId(auth.userId),
+      client: quote.client,
+      event: quote.event,
+      seatingSchedule: quote.seatingSchedule,
+      quote: quote.quote,
       agreement: {
         signatureFullName: "",
         signatureIdNumber: "",
@@ -108,19 +111,23 @@ export async function POST(
         acceptedTerms: false,
         signedAt: null,
       },
-      selectedPackage: source.selectedPackage,
-      upsells: source.upsells,
-      totals: source.totals,
-      pricingDisplay: source.pricingDisplay,
-      quoteDisplay: source.quoteDisplay,
-      priceDisplay: source.priceDisplay,
-      customerDealSummary: source.customerDealSummary,
-      engagementTerms: source.engagementTerms,
-      paymentTerms: source.paymentTerms,
-      cancellationTerms: source.cancellationTerms,
-      additionalTerms: source.additionalTerms,
-      quoteTermsVersion: source.quoteTermsVersion,
-      notes: source.notes || "",
+      selectedPackage: quote.selectedPackage,
+      upsells: terms(source.upsells, quote.upsells),
+      totals: quote.totals,
+      customerDealSummary:
+        source.customerDealSummary &&
+        typeof source.customerDealSummary === "object"
+          ? (source.customerDealSummary as Record<string, unknown>)
+          : quote.customerDealSummary,
+      engagementTerms: terms(source.engagementTerms, quote.engagementTerms),
+      paymentTerms: terms(source.paymentTerms, quote.paymentTerms),
+      cancellationTerms: terms(source.cancellationTerms, quote.cancellationTerms),
+      additionalTerms: terms(source.additionalTerms, quote.additionalTerms),
+      quoteTermsVersion:
+        typeof source.quoteTermsVersion === "string"
+          ? source.quoteTermsVersion
+          : quote.quoteTermsVersion,
+      notes: quote.notes || "",
     });
 
     if (quote.customerFileId) {
