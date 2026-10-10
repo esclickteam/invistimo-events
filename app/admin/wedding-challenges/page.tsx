@@ -439,7 +439,7 @@ export default function AdminWeddingChallengesSalesPage() {
         </h2>
         <div className="admin-table-region w-full min-w-0">
           <div className="admin-table-scroll">
-            <table className="admin-table" style={{ minWidth: 920 }}>
+            <table className="admin-table">
               <thead>
                 <tr>
                   <th>לקוח</th>

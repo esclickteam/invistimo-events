@@ -696,7 +696,7 @@ export default function AdminEmployeesPage() {
         ) : (
           <div className="admin-table-region w-full min-w-0">
             <div className="admin-table-scroll">
-              <table className="admin-table" style={{ minWidth: 1100 }}>
+              <table className="admin-table">
                 <thead>
                   <tr>
                     <th>עובד</th>

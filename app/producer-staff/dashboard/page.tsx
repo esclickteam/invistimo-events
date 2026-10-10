@@ -238,13 +238,15 @@ const isProducerStaff =
               לא הוקצו לך לקוחות עדיין
             </div>
           ) : (
-            <div style={{ width: "100%", overflowX: "auto" }}>
+            <div style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
               <table
                 style={{
                   width: "100%",
+                  maxWidth: "100%",
+                  minWidth: 0,
                   borderCollapse: "separate",
                   borderSpacing: 0,
-                  minWidth: 980,
+                  tableLayout: "fixed",
                   direction: "rtl",
                 }}
               >
@@ -359,7 +361,8 @@ function Th({ children }: { children: React.ReactNode }) {
         textAlign: "right",
         fontSize: 15,
         fontWeight: 600,
-        whiteSpace: "nowrap",
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
       }}
     >
       {children}
@@ -376,7 +379,8 @@ function Td({ children }: { children: React.ReactNode }) {
         fontSize: 15,
         lineHeight: "20px",
         color: "#4b321f",
-        whiteSpace: "nowrap",
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
         borderTop: "1px solid #dadada",
       }}
     >

@@ -486,7 +486,7 @@ export default function AdminCallRecordingsPage() {
           </div>
         ) : (
           <div className="admin-table-scroll">
-            <table className="admin-table" style={{ minWidth: 1120 }}>
+            <table className="admin-table">
               <thead>
                 <tr>
                   <th>תאריך</th>
@@ -561,7 +561,7 @@ export default function AdminCallRecordingsPage() {
                             controls
                             preload="none"
                             src={streamUrl}
-                            className="h-9 w-[220px]"
+                            className="h-9 w-full max-w-full"
                           />
                         ) : (
                           <span className="text-xs text-[var(--admin-subtle)]">

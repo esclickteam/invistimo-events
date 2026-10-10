@@ -1393,8 +1393,8 @@ export default function AdminEmployeeHoursPage() {
               </div>
             </div>
 
-            <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-              <table className="w-full min-w-[1350px] border-collapse text-right">
+            <div className="mt-5 w-full min-w-0 max-w-full overflow-x-clip rounded-[24px] border border-slate-200">
+              <table className="admin-fit-table w-full border-collapse text-right">
                 <thead className="bg-slate-50">
                   <tr className="text-xs text-slate-500">
                     <th className="px-4 py-3 font-black">תאריך</th>
@@ -1465,7 +1465,7 @@ export default function AdminEmployeeHoursPage() {
                                 ) => (
                                   <div
                                     key={`${row.date}-${session.id}`}
-                                    className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
+                                    className="grid grid-cols-1 items-center gap-2"
                                   >
                                     <input
                                       type="time"
@@ -1478,7 +1478,7 @@ export default function AdminEmployeeHoursPage() {
                                           event.target.value
                                         )
                                       }
-                                      className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                                      className="h-10 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
                                     />
 
                                     <input
@@ -1492,7 +1492,7 @@ export default function AdminEmployeeHoursPage() {
                                           event.target.value
                                         )
                                       }
-                                      className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                                      className="h-10 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
                                     />
 
                                     {sessions.length > 1 ||

@@ -276,27 +276,21 @@ export function AdminTableShell({
   empty,
   isEmpty,
   footer,
-  minWidth,
 }: {
   headers: string[];
   children: ReactNode;
   empty?: string;
   isEmpty?: boolean;
   footer?: ReactNode;
-  /** Minimum table width before horizontal scroll (px) */
-  minWidth?: number;
 }) {
   if (isEmpty) {
     return <AdminEmptyState text={empty || "אין נתונים להצגה."} />;
   }
 
   return (
-    <div className="admin-table-region w-full min-w-0">
+    <div className="admin-table-region w-full min-w-0 max-w-full">
       <div className="admin-table-scroll">
-        <table
-          className="admin-table"
-          style={minWidth ? { minWidth } : undefined}
-        >
+        <table className="admin-table">
           <thead>
             <tr>
               {headers.map((header) => (

@@ -234,7 +234,6 @@ export default function AdminQuotesPage() {
               ? "אין הצעות מחיר עדיין."
               : "לא נמצאו הצעות התואמות לחיפוש."
           }
-          minWidth={1100}
           footer={
             <>
               <span>

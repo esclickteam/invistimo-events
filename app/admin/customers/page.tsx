@@ -487,7 +487,6 @@ export default function AdminCustomersPage() {
           ]}
           isEmpty={customers.length === 0}
           empty="לא נמצאו לקוחות או לידים."
-          minWidth={1200}
           footer={
             <>
               <span>
