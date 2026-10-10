@@ -816,8 +816,8 @@ export default function AdminEmployeeShiftsPage() {
               </div>
             </div>
 
-            <div className="mt-5 overflow-x-auto pb-2">
-              <div className="grid min-w-[720px] grid-cols-7 gap-2">
+            <div className="admin-hscroll mt-5 pb-2">
+              <div className="admin-week-grid grid min-w-[560px] grid-cols-7 gap-1 sm:gap-2 md:min-w-[720px]">
               {WEEK_DAYS.map((day) => (
                 <div
                   key={day}

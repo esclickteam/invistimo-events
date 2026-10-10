@@ -270,6 +270,12 @@
 }
 
 /* Form controls */
+.admin-app input,
+.admin-app select,
+.admin-app textarea {
+  max-width: 100%;
+}
+
 .admin-input,
 .admin-select,
 .admin-textarea {
@@ -313,4 +319,381 @@
 .admin-sidebar-scroll::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 999px;
+}
+
+/* =====================================================
+   Responsive shell — phones, tablets, desktop
+   Desktop (>=1280) table fitting stays as-is.
+   <768: data tables become labeled cards.
+   768–1279: tables scroll inside their own region (RTL-safe).
+   ===================================================== */
+
+.admin-app {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  width: min(88vw, 320px);
+  max-width: min(88vw, 320px);
+  height: 100dvh;
+  flex-direction: column;
+  border-left: 1px solid var(--admin-border);
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+
+.admin-sidebar.is-open {
+  transform: translateX(0);
+}
+
+.admin-mobile-header {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--admin-border);
+  background: #fff;
+  padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+}
+
+.admin-main {
+  min-width: 0;
+  max-width: 100%;
+  padding: calc(var(--admin-mobile-header-h, 7.5rem) + 0.75rem) 12px
+    calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+.admin-app main .grid {
+  max-width: 100%;
+}
+
+.admin-app .admin-week-grid {
+  min-width: 560px;
+  max-width: none;
+}
+
+.admin-app main .grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-hscroll,
+.admin-canvas-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  direction: ltr;
+}
+
+.admin-hscroll > *,
+.admin-canvas-scroll > * {
+  direction: rtl;
+}
+
+@media (max-width: 767px) {
+  .admin-week-grid > button,
+  .admin-week-grid > div {
+    min-height: 72px;
+  }
+}
+
+@media (min-width: 768px) {
+  .admin-app .admin-week-grid {
+    min-width: 720px;
+  }
+}
+
+@media (min-width: 640px) {
+  .admin-main {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-sidebar {
+    position: static;
+    z-index: auto;
+    height: 100vh;
+    width: var(--admin-sidebar-w);
+    max-width: var(--admin-sidebar-w);
+    flex: 0 0 var(--admin-sidebar-w);
+    transform: none;
+  }
+
+  .admin-sidebar.is-collapsed {
+    width: var(--admin-sidebar-collapsed);
+    max-width: var(--admin-sidebar-collapsed);
+    flex-basis: var(--admin-sidebar-collapsed);
+  }
+
+  .admin-main {
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .admin-sidebar:not(.is-open) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .admin-sidebar nav a,
+  .admin-sidebar > div:first-child a {
+    min-height: 44px;
+  }
+
+  .admin-sidebar button {
+    min-height: 40px;
+  }
+}
+
+/* Tablet: readable columns, scroll stays inside the table */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .admin-app .admin-table-scroll,
+  .admin-app .overflow-x-auto {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    direction: ltr;
+  }
+
+  .admin-app .admin-table-scroll > *,
+  .admin-app .overflow-x-auto > * {
+    direction: rtl;
+  }
+
+  .admin-app .admin-table-scroll > table,
+  .admin-app .overflow-x-auto > table.admin-table,
+  .admin-app .overflow-x-auto > table.admin-fit-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    table-layout: auto !important;
+  }
+
+  .admin-app .admin-table-scroll :where(th, td) {
+    white-space: nowrap;
+  }
+}
+
+/* Phone: each row is a card. Every cell keeps its header label. */
+@media (max-width: 767px) {
+  .admin-app .admin-table-scroll {
+    overflow: visible;
+    direction: rtl;
+  }
+
+  .admin-app table.admin-table,
+  .admin-app table.admin-fit-table {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  .admin-app table.admin-table > thead,
+  .admin-app table.admin-fit-table > thead {
+    display: none;
+  }
+
+  .admin-app table.admin-table > tbody,
+  .admin-app table.admin-fit-table > tbody {
+    display: block;
+  }
+
+  .admin-app table.admin-table > tbody > tr,
+  .admin-app table.admin-fit-table > tbody > tr {
+    display: block;
+    margin: 0 0 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    background: #fff;
+    overflow: visible;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td,
+  .admin-app table.admin-fit-table > tbody > tr > td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: auto !important;
+    min-height: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    white-space: normal;
+    overflow: visible;
+    text-align: start;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td:last-child,
+  .admin-app table.admin-fit-table > tbody > tr > td:last-child {
+    border-bottom: none;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td::before,
+  .admin-app table.admin-fit-table > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    max-width: 46%;
+    color: var(--admin-muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td:not([data-label])::before,
+  .admin-app table.admin-fit-table > tbody > tr > td:not([data-label])::before,
+  .admin-app table.admin-table > tbody > tr > td[colspan]::before,
+  .admin-app table.admin-fit-table > tbody > tr > td[colspan]::before {
+    content: none;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td[colspan],
+  .admin-app table.admin-fit-table > tbody > tr > td[colspan] {
+    display: block;
+    text-align: center;
+  }
+
+  .admin-app table.admin-table td > *,
+  .admin-app table.admin-fit-table td > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-app table.admin-table td.admin-actions-cell,
+  .admin-app table.admin-fit-table td.admin-actions-cell,
+  .admin-app table.admin-table td:has(audio),
+  .admin-app table.admin-table td:has(video),
+  .admin-app table.admin-fit-table td:has(audio),
+  .admin-app table.admin-fit-table td:has(video) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-app table.admin-table td .absolute,
+  .admin-app table.admin-fit-table td .absolute {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 8px;
+  }
+
+  .admin-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .admin-app select,
+  .admin-app textarea {
+    font-size: 16px !important;
+    scroll-margin-top: 18vh;
+    scroll-margin-bottom: 42vh;
+  }
+
+  .admin-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .admin-app select {
+    min-height: 44px;
+  }
+
+  .admin-app div.fixed.inset-0 {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    overflow-y: auto;
+  }
+
+  .admin-app div.fixed.inset-0 > div,
+  .admin-app div.fixed.inset-0 > section {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 100dvh !important;
+    margin: 0;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .admin-app .p-8,
+  .admin-app .p-10,
+  .admin-app .p-7,
+  .admin-app .px-7 {
+    padding: 1rem !important;
+  }
+
+  .admin-app [class*="h-[calc(100vh"] {
+    height: min(70vh, 720px) !important;
+    max-height: 70vh;
+  }
+
+  .admin-stat-card {
+    height: auto !important;
+    min-height: 96px;
+  }
+
+  .admin-stat-value {
+    font-size: 1.2rem !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-actions-menu > button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 359px) {
+  .admin-app main .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media print {
+  .admin-app table.admin-table,
+  .admin-app table.admin-fit-table {
+    display: table !important;
+    width: 100% !important;
+  }
+
+  .admin-app table.admin-table > thead,
+  .admin-app table.admin-fit-table > thead {
+    display: table-header-group !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    clip: auto !important;
+  }
+
+  .admin-app table.admin-table > tbody,
+  .admin-app table.admin-fit-table > tbody {
+    display: table-row-group !important;
+  }
+
+  .admin-app table.admin-table > tbody > tr,
+  .admin-app table.admin-fit-table > tbody > tr {
+    display: table-row !important;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td,
+  .admin-app table.admin-fit-table > tbody > tr > td,
+  .admin-app table.admin-table > thead th,
+  .admin-app table.admin-fit-table > thead th {
+    display: table-cell !important;
+  }
+
+  .admin-app table.admin-table > tbody > tr > td::before,
+  .admin-app table.admin-fit-table > tbody > tr > td::before {
+    content: none !important;
+  }
 }

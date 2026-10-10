@@ -1393,7 +1393,8 @@ export default function AdminEmployeeHoursPage() {
               </div>
             </div>
 
-            <div className="mt-5 w-full min-w-0 max-w-full overflow-x-clip rounded-[24px] border border-slate-200">
+            <div className="admin-table-region mt-5 w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-slate-200">
+              <div className="admin-table-scroll">
               <table className="admin-fit-table w-full border-collapse text-right">
                 <thead className="bg-slate-50">
                   <tr className="text-xs text-slate-500">
@@ -1573,6 +1574,7 @@ export default function AdminEmployeeHoursPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-5">

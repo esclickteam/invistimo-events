@@ -1239,7 +1239,7 @@ function DetailsModal({ details, onClose }: { details: DetailsModalState; onClos
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
       <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[#eadfce] bg-[#fff7ec] p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3 border-b border-[#eadfce] bg-[#fff7ec] p-4 sm:gap-4 sm:p-6">
           <div className="min-w-0 flex-1">
             <p className="inline-flex rounded-full border border-[#d8b777] bg-white px-4 py-2 text-xs font-black text-[#8a5c20]">
               פירוט מלא

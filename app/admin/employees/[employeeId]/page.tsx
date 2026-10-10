@@ -1963,8 +1963,9 @@ export default function AdminEmployeeFilePage() {
               אין מכירות לעובד בחודש הזה.
             </div>
           ) : (
-            <div className="mt-6 overflow-hidden rounded-3xl border border-slate-100">
-              <table className="w-full border-collapse text-right">
+            <div className="admin-table-region mt-6 overflow-hidden rounded-3xl border border-slate-100">
+              <div className="admin-table-scroll">
+              <table className="admin-fit-table w-full border-collapse text-right">
                 <thead className="bg-slate-50">
                   <tr className="text-sm text-slate-500">
                     <th className="px-5 py-4 font-black">תאריך</th>
@@ -2032,6 +2033,7 @@ export default function AdminEmployeeFilePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </section>
