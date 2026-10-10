@@ -72,6 +72,26 @@ test("preview + approve require current seamless composed file", () => {
   assert.match(config, /segmentsComplete/);
 });
 
+test("preview and dialer lock the same approved checksum", () => {
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  const config = readSrc("app/api/ivr/config/route.ts");
+  const panel = readSrc("app/components/IvrRoundsPanel.jsx");
+  assert.match(dialer, /audioContentHash/);
+  assert.match(dialer, /IVR_COMPOSE_VERSION/);
+  assert.match(config, /audioContentHash: expectedComposeHash/);
+  assert.match(config, /recordingApproval/);
+  assert.match(panel, /preview\?\.seamless && composedUrl/);
+  assert.match(panel, /recompose_intro/);
+});
+
+test("v2 outbound compose version cannot dial", () => {
+  const dialer = readSrc("lib/calls/ivrDialer.ts");
+  assert.match(dialer, /composeVersion/);
+  assert.match(dialer, /IVR_COMPOSE_VERSION/);
+  assert.equal(IVR_COMPOSE_VERSION, "v3-outbound-concat");
+  assert.equal(dialer.includes("v2-outbound-segments"), false);
+});
+
 test("concat stitch keeps before, name, and after frequencies", async (t) => {
   const ffmpeg = selectFfmpegBinary(
     [
@@ -156,6 +176,80 @@ test("concat stitch keeps before, name, and after frequencies", async (t) => {
         nameSeconds: composed.segmentDurations.nameSeconds,
         afterSeconds: composed.segmentDurations.afterSeconds,
       })
+    );
+
+    // Frequency handoff: no overlap of before(300) with after(900) at junctions.
+    const wav = path.join(dir, "composed.wav");
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(ffmpeg, [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        out,
+        "-ar",
+        "44100",
+        "-ac",
+        "1",
+        wav,
+      ]);
+      child.on("error", reject);
+      child.on("close", (code) =>
+        code === 0 ? resolve() : reject(new Error(`wav ${code}`))
+      );
+    });
+    const { readFileSync: readBin } = await import("node:fs");
+    const buf = readBin(wav);
+    // Skip 44-byte WAV header; s16le mono samples.
+    const samples = new Int16Array(
+      buf.buffer,
+      buf.byteOffset + 44,
+      Math.floor((buf.length - 44) / 2)
+    );
+    const rate = 44100;
+    const goertzel = (start: number, freq: number, win = Math.floor(rate * 0.15)) => {
+      const w = (2 * Math.PI * freq) / rate;
+      const coeff = 2 * Math.cos(w);
+      let s0 = 0;
+      let s1 = 0;
+      let s2 = 0;
+      const end = Math.min(samples.length, start + win);
+      for (let i = start; i < end; i++) {
+        s0 = samples[i] + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+      }
+      return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+    };
+    const beforeEnd = Math.floor(
+      composed.segmentDurations.beforeSeconds * rate * 0.5
+    );
+    const nameMid = Math.floor(
+      (composed.segmentDurations.beforeSeconds +
+        composed.segmentDurations.pauseSeconds +
+        composed.segmentDurations.nameSeconds * 0.5) *
+        rate
+    );
+    const afterMid = Math.floor(
+      (composed.segmentDurations.beforeSeconds +
+        composed.segmentDurations.pauseSeconds +
+        composed.segmentDurations.nameSeconds +
+        composed.segmentDurations.pauseSeconds +
+        composed.segmentDurations.afterSeconds * 0.5) *
+        rate
+    );
+    const pBefore = goertzel(beforeEnd, 300);
+    const pName = goertzel(nameMid, 600);
+    const pAfter = goertzel(afterMid, 900);
+    assert.ok(pBefore > goertzel(beforeEnd, 900), "before region dominated by 300Hz");
+    assert.ok(pName > goertzel(nameMid, 300), "name region dominated by 600Hz");
+    assert.ok(pAfter > goertzel(afterMid, 300), "after region dominated by 900Hz");
+    // No simultaneous before+after dominance in the name window.
+    assert.ok(
+      goertzel(nameMid, 600) > goertzel(nameMid, 300) &&
+        goertzel(nameMid, 600) > goertzel(nameMid, 900),
+      "name window must not overlap before/after"
     );
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => null);

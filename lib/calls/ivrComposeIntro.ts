@@ -27,8 +27,9 @@ export const IVR_COMPOSE_VERSION = "v3-outbound-concat";
 /**
  * Inbound only: inboundBeforeEventName + event name + inboundAfterEventName.
  * Different wording from the outbound file, so it must not reuse that hash.
+ * v2 = same concat stitch as outbound (v1 acrossfade dropped the name).
  */
-export const IVR_INBOUND_COMPOSE_VERSION = "v1-inbound-segments";
+export const IVR_INBOUND_COMPOSE_VERSION = "v2-inbound-concat";
 
 /** Very short natural pause around the event name (seconds). */
 const NAME_PAUSE_SEC = 0.08;

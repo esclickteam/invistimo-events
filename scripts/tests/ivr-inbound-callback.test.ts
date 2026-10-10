@@ -264,6 +264,7 @@ test("inbound start only claims IVR guests; human path untouched on none", () =>
   assert.equal(start.includes("stage: \"choice\""), false);
   assert.equal(start.includes("ensureIvrInboundIntroAudio"), false);
   assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
+  assert.match(start, /composedInboundPlaybackUrl/);
   assert.equal(start.includes("synthesizeElevenLabsSpeech"), false);
   assert.match(readSrc("lib/calls/ivrWebhookHandler.ts"), /startOutboundFromBeginning/);
   assert.match(readSrc("lib/calls/ivrDialer.ts"), /introBeforeEventName|eventNameAudioUrl/);

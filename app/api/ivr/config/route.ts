@@ -46,8 +46,11 @@ import { hydrateApprovedPackVoiceIds } from "@/lib/calls/ivrAdminVoicePacks";
 import {
   composeIvrIntroAudio,
   contentHashForComposedIntro,
+  contentHashForComposedInbound,
   IVR_COMPOSE_VERSION,
+  IVR_INBOUND_COMPOSE_VERSION,
 } from "@/lib/calls/ivrComposeIntro";
+import { buildComposedInboundAudio } from "@/lib/calls/ivrComposedInbound";
 import {
   assignIvrConfig,
   ivrPersistErrorPayload,
@@ -304,6 +307,48 @@ async function buildAndStoreComposedIntro(input: {
     approved: false,
     approvedAt: null,
   };
+}
+
+/** Inbound: inboundBefore + event name + inboundAfter (different wording). */
+async function buildAndStoreComposedInbound(input: {
+  userId: string;
+  voiceId: string;
+  eventNameHash: string;
+  eventNameR2Key: string;
+  pack: Awaited<ReturnType<typeof ensureGlobalVoicePack>>;
+  existing?: any;
+  force?: boolean;
+}) {
+  const beforeSeg = input.pack.segments.inboundBeforeEventName;
+  const afterSeg = input.pack.segments.inboundAfterEventName;
+  if (!beforeSeg?.r2Key || !afterSeg?.r2Key || !input.eventNameR2Key) {
+    return null;
+  }
+  const expected = contentHashForComposedInbound({
+    beforeHash: String(beforeSeg.contentHash || ""),
+    eventNameHash: input.eventNameHash,
+    afterHash: String(afterSeg.contentHash || ""),
+    voiceId: input.voiceId,
+  });
+  if (
+    !input.force &&
+    input.existing?.status === "ready" &&
+    String(input.existing?.contentHash || "") === expected &&
+    String(input.existing?.composeVersion || "") === IVR_INBOUND_COMPOSE_VERSION &&
+    (input.existing?.audioUrl || input.existing?.publicToken)
+  ) {
+    return normalizeIvrAudioSubdoc(input.existing);
+  }
+  return buildComposedInboundAudio({
+    userId: input.userId,
+    voiceId: input.voiceId,
+    eventNameHash: input.eventNameHash,
+    eventNameR2Key: input.eventNameR2Key,
+    beforeR2Key: String(beforeSeg.r2Key),
+    beforeHash: String(beforeSeg.contentHash || ""),
+    afterR2Key: String(afterSeg.r2Key),
+    afterHash: String(afterSeg.contentHash || ""),
+  });
 }
 
 function serializeIvrConfig(
@@ -569,6 +614,23 @@ export async function PATCH(req: NextRequest) {
           eventNameR2Key: String(eventNameAudio.r2Key || ""),
           pack,
         });
+        let composedInboundAudio = normalizeIvrAudioSubdoc(
+          prev.composedInboundAudio
+        );
+        try {
+          const inboundBuilt = await buildAndStoreComposedInbound({
+            userId: String(user._id),
+            voiceId,
+            eventNameHash: String(eventNameAudio.contentHash || ""),
+            eventNameR2Key: String(eventNameAudio.r2Key || ""),
+            pack,
+            existing: prev.composedInboundAudio,
+            force: true,
+          });
+          if (inboundBuilt) composedInboundAudio = inboundBuilt;
+        } catch (inboundErr) {
+          console.error("[ivr/config PATCH recompose] inbound compose", inboundErr);
+        }
         assignIvrConfig(user, {
           audioMode: "ai",
           voiceGender,
@@ -580,6 +642,7 @@ export async function PATCH(req: NextRequest) {
             approvedAt: null,
           },
           composedIntroAudio,
+          composedInboundAudio,
           recordingApproval: {
             approved: false,
             approvedAt: null,
@@ -753,6 +816,61 @@ export async function PATCH(req: NextRequest) {
             { status: 400 }
           );
         }
+        if (
+          !pack.segments.inboundBeforeEventName?.r2Key ||
+          !pack.segments.inboundAfterEventName?.r2Key
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "INBOUND_SEGMENTS_MISSING",
+              message:
+                "חסרים מקטעי פתיח נכנס ב־Voice Pack. אין לאשר לפני שיש פתיח נכנס תקין.",
+            },
+            { status: 400 }
+          );
+        }
+        let composedInboundAudio = normalizeIvrAudioSubdoc(
+          prev.composedInboundAudio
+        );
+        try {
+          const inboundBuilt = await buildAndStoreComposedInbound({
+            userId: String(user._id),
+            voiceId,
+            eventNameHash: String(eventNameAudio.contentHash || ""),
+            eventNameR2Key: String(eventNameAudio.r2Key || ""),
+            pack,
+            existing: prev.composedInboundAudio,
+            force: false,
+          });
+          if (inboundBuilt) composedInboundAudio = inboundBuilt;
+        } catch (inboundErr) {
+          console.error("[ivr/config PATCH approve] inbound compose", inboundErr);
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "INBOUND_COMPOSE_FAILED",
+              message:
+                "לא ניתן לבנות את קובץ השיחה הנכנסת מהמקטעים הקיימים. נסו «יצירה מחדש של הקובץ המחובר».",
+            },
+            { status: 500 }
+          );
+        }
+        if (
+          composedInboundAudio?.status !== "ready" ||
+          String(composedInboundAudio?.composeVersion || "") !==
+            IVR_INBOUND_COMPOSE_VERSION
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "INBOUND_COMPOSE_NOT_READY",
+              message:
+                "קובץ השיחה הנכנסת אינו מוכן. לחצו על «יצירה מחדש של הקובץ המחובר» ואז אשרו.",
+            },
+            { status: 400 }
+          );
+        }
         const approvedAt = new Date();
         const lockedUrl = resolveIvrPublicAudioUrl({
           publicToken: composedIntroAudio.publicToken,
@@ -773,6 +891,7 @@ export async function PATCH(req: NextRequest) {
             contentHash: expectedComposeHash,
             composeVersion: IVR_COMPOSE_VERSION,
           },
+          composedInboundAudio,
           recordingApproval: {
             approved: true,
             approvedAt,
@@ -1155,9 +1274,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const composedInboundAudio = normalizeIvrAudioSubdoc(
+    let composedInboundAudio = normalizeIvrAudioSubdoc(
       user.ivrConfig?.composedInboundAudio || cfg.composedInboundAudio
     );
+    try {
+      const inboundBuilt = await buildAndStoreComposedInbound({
+        userId: String(user._id),
+        voiceId,
+        eventNameHash: hash,
+        eventNameR2Key: String(eventNameAudio.r2Key || ""),
+        pack,
+        existing: composedInboundAudio,
+        force: Boolean(body.force) || !reusedCompose,
+      });
+      if (inboundBuilt) composedInboundAudio = inboundBuilt;
+    } catch (inboundErr) {
+      console.error("[ivr/config POST] inbound compose", inboundErr);
+    }
 
     const keepApproval =
       reusedEventName &&
