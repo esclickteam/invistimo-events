@@ -8,10 +8,16 @@
  * event, and the stored phase moves straight to PLAYING_INTRO because the
  * playback command is issued in the same turn.
  *
- * The invalid-choice prompt is reachable only from WAITING_FOR_INPUT, after
- * intro playback has completed and a gather is actually open. An empty
- * gather result, a timeout, or a webhook that arrives early cannot play it.
- * Digits 1, 2 and 3 are accepted once. Hangup never creates an RSVP by itself.
+ * Input prompts are one Telnyx gather_using_audio: the approved file plays and
+ * a valid digit interrupts it. The next clip starts only after that playback
+ * has ended. call.gather.ended is not the fast path; a late one cannot replay
+ * audio or RSVP. Digits 1, 2 and 3 are accepted once. Hangup never creates an
+ * RSVP by itself.
+ *
+ * The invalid-choice prompt is reachable only after a real choice window: the
+ * approved intro finished (or a gather result arrived) and a digit gather is
+ * open. An empty gather, a timeout, or a webhook that arrives early cannot
+ * play it.
  */
 
 import { parseDtmfGuestCount } from "@/lib/calls/ivrRoundEligibility";
@@ -41,11 +47,27 @@ export type IvrPromptKind =
 
 export type IvrChoiceDigit = "" | "1" | "2" | "3";
 
+/** How to free the Telnyx media slot before the next clip. */
+export type IvrFollowUpSlot = "none" | "release_gather";
+
+export type IvrPendingFault = "" | "choice" | "count";
+
 export type IvrCallMachineState = {
   phase: IvrPhase;
   inputTarget: IvrInputTarget;
   introCompleted: boolean;
   gatherOpen: boolean;
+  /**
+   * True while the current prompt's audio has not ended.
+   * A valid key is remembered, and the follow-up starts on playback end.
+   */
+  audioRunning: boolean;
+  /** Menu digit captured during audio. Not an RSVP until playback has stopped. */
+  pendingChoice: IvrChoiceDigit;
+  /** Completed guest count captured before the prompt audio webhook arrived. */
+  heldCount: number;
+  /** Gather finished with an invalid result while audio was still marked running. */
+  pendingFault: IvrPendingFault;
   choiceDigit: IvrChoiceDigit;
   rsvpApplied: boolean;
   mediaGeneration: number;
@@ -59,16 +81,23 @@ export type IvrMachineCommand =
   | { type: "ignore"; reason: string }
   | { type: "play_intro"; generation: number }
   | { type: "open_choice_gather"; generation: number }
-  | { type: "play_invalid_choice"; generation: number }
-  | { type: "play_ask_count"; generation: number }
+  | { type: "play_invalid_choice"; generation: number; mediaSlot: IvrFollowUpSlot }
+  | { type: "play_ask_count"; generation: number; mediaSlot: IvrFollowUpSlot }
   | { type: "open_count_gather"; generation: number }
-  | { type: "play_invalid_count"; generation: number }
+  | { type: "play_invalid_count"; generation: number; mediaSlot: IvrFollowUpSlot }
+  | { type: "hold_barge" }
+  | { type: "keep_gather" }
   | {
       type: "apply_rsvp";
       rsvp: "yes" | "no" | "maybe";
       attendingCount: number | null;
     }
-  | { type: "play_thanks"; kind: "attending" | "received"; generation: number }
+  | {
+      type: "play_thanks";
+      kind: "attending" | "received";
+      generation: number;
+      mediaSlot: IvrFollowUpSlot;
+    }
   | { type: "hangup" }
   | { type: "hangup_no_choice" }
   | { type: "close_without_rsvp" }
@@ -109,6 +138,10 @@ export function initialIvrCallState(): IvrCallMachineState {
     inputTarget: "none",
     introCompleted: false,
     gatherOpen: false,
+    audioRunning: false,
+    pendingChoice: "",
+    heldCount: 0,
+    pendingFault: "",
     choiceDigit: "",
     rsvpApplied: false,
     mediaGeneration: 0,
@@ -138,6 +171,10 @@ export function readIvrMachineState(raw: {
   inputTarget?: unknown;
   introCompleted?: unknown;
   gatherOpen?: unknown;
+  audioRunning?: unknown;
+  pendingChoice?: unknown;
+  heldCount?: unknown;
+  pendingFault?: unknown;
   choiceDigit?: unknown;
   rsvpApplied?: unknown;
   mediaGeneration?: unknown;
@@ -155,6 +192,13 @@ export function readIvrMachineState(raw: {
       inputTarget === "choice" || inputTarget === "count" ? inputTarget : "none",
     introCompleted: raw?.introCompleted === true,
     gatherOpen: raw?.gatherOpen === true,
+    audioRunning: raw?.audioRunning === true,
+    pendingChoice: asChoice(raw?.pendingChoice),
+    heldCount: Number(raw?.heldCount || 0),
+    pendingFault:
+      raw?.pendingFault === "choice" || raw?.pendingFault === "count"
+        ? raw.pendingFault
+        : "",
     choiceDigit: asChoice(raw?.choiceDigit),
     rsvpApplied: raw?.rsvpApplied === true,
     mediaGeneration: Number(raw?.mediaGeneration || 0),
@@ -200,6 +244,10 @@ export function machinePersistFields(state: IvrCallMachineState) {
     inputTarget: state.inputTarget,
     introCompleted: state.introCompleted,
     gatherOpen: state.gatherOpen,
+    audioRunning: state.audioRunning,
+    pendingChoice: state.pendingChoice,
+    heldCount: state.heldCount,
+    pendingFault: state.pendingFault,
     mediaGeneration: state.mediaGeneration,
     invalidReprompts: state.invalidReprompts,
     countReprompts: state.countReprompts,
@@ -246,7 +294,7 @@ function choiceDigitFrom(digits: string): IvrChoiceDigit {
   return one === "1" || one === "2" || one === "3" ? one : "";
 }
 
-function repromptChoice(state: IvrCallMachineState) {
+function repromptChoice(state: IvrCallMachineState, mediaSlot: IvrFollowUpSlot) {
   if (!invalidChoiceAllowed(state)) {
     return ignore(state, "invalid_choice_before_window");
   }
@@ -262,17 +310,27 @@ function repromptChoice(state: IvrCallMachineState) {
   const next = bumped(state, {
     phase: "PLAYING_RESPONSE" as const,
     inputTarget: "none" as const,
-    gatherOpen: false,
+    gatherOpen: true,
+    audioRunning: true,
+    pendingChoice: "" as const,
+    pendingFault: "" as const,
+    heldCount: 0,
     promptKind: "invalid_choice" as const,
     invalidReprompts: state.invalidReprompts + 1,
   });
   return {
     state: next,
-    commands: [{ type: "play_invalid_choice" as const, generation: next.mediaGeneration }],
+    commands: [
+      {
+        type: "play_invalid_choice" as const,
+        generation: next.mediaGeneration,
+        mediaSlot,
+      },
+    ],
   };
 }
 
-function repromptCount(state: IvrCallMachineState) {
+function repromptCount(state: IvrCallMachineState, mediaSlot: IvrFollowUpSlot) {
   if (
     state.phase !== "WAITING_FOR_INPUT" ||
     state.inputTarget !== "count" ||
@@ -295,40 +353,71 @@ function repromptCount(state: IvrCallMachineState) {
   const next = bumped(state, {
     phase: "PLAYING_RESPONSE" as const,
     inputTarget: "none" as const,
-    gatherOpen: false,
+    gatherOpen: true,
+    audioRunning: true,
+    pendingChoice: "" as const,
+    pendingFault: "" as const,
+    heldCount: 0,
     promptKind: "invalid_count" as const,
     countReprompts: state.countReprompts + 1,
   });
   return {
     state: next,
-    commands: [{ type: "play_invalid_count" as const, generation: next.mediaGeneration }],
+    commands: [
+      {
+        type: "play_invalid_count" as const,
+        generation: next.mediaGeneration,
+        mediaSlot,
+      },
+    ],
   };
 }
 
-function acceptChoice(state: IvrCallMachineState, digit: "1" | "2" | "3") {
-  if (!invalidChoiceAllowed(state)) {
-    return ignore(state, "choice_outside_window");
-  }
+function clearedHold(state: IvrCallMachineState): Partial<IvrCallMachineState> {
+  return {
+    pendingChoice: "",
+    pendingFault: "",
+    heldCount: 0,
+  };
+}
+
+function finishChoice(
+  state: IvrCallMachineState,
+  digit: "1" | "2" | "3",
+  mediaSlot: IvrFollowUpSlot
+) {
   if (digit === "1") {
     const next = bumped(state, {
       phase: "PLAYING_RESPONSE",
       inputTarget: "none",
-      gatherOpen: false,
+      gatherOpen: true,
+      audioRunning: true,
       choiceDigit: "1",
       promptKind: "ask_count",
+      introCompleted: true,
+      ...clearedHold(state),
     });
     return {
       state: next,
-      commands: [{ type: "play_ask_count" as const, generation: next.mediaGeneration }],
+      commands: [
+        {
+          type: "play_ask_count" as const,
+          generation: next.mediaGeneration,
+          mediaSlot,
+        },
+      ],
     };
   }
   const next = bumped(state, {
     phase: "PLAYING_RESPONSE",
     inputTarget: "none",
     gatherOpen: false,
+    audioRunning: true,
     choiceDigit: digit,
     promptKind: "thanks",
+    introCompleted: true,
     rsvpApplied: true,
+    ...clearedHold(state),
   });
   return {
     state: next,
@@ -342,9 +431,72 @@ function acceptChoice(state: IvrCallMachineState, digit: "1" | "2" | "3") {
         type: "play_thanks" as const,
         kind: "received" as const,
         generation: next.mediaGeneration,
+        mediaSlot,
       },
     ],
   };
+}
+
+function acceptChoice(
+  state: IvrCallMachineState,
+  digit: "1" | "2" | "3",
+  mediaSlot: IvrFollowUpSlot
+) {
+  if (!invalidChoiceAllowed(state)) {
+    return ignore(state, "choice_outside_window");
+  }
+  return finishChoice(state, digit, mediaSlot);
+}
+
+function finishCount(
+  state: IvrCallMachineState,
+  count: number,
+  mediaSlot: IvrFollowUpSlot
+) {
+  const next = bumped(state, {
+    phase: "PLAYING_RESPONSE",
+    inputTarget: "none",
+    gatherOpen: false,
+    audioRunning: true,
+    promptKind: "thanks",
+    rsvpApplied: true,
+    ...clearedHold(state),
+  });
+  return {
+    state: next,
+    commands: [
+      {
+        type: "apply_rsvp" as const,
+        rsvp: "yes" as const,
+        attendingCount: count,
+      },
+      {
+        type: "play_thanks" as const,
+        kind: "attending" as const,
+        generation: next.mediaGeneration,
+        mediaSlot,
+      },
+    ],
+  };
+}
+
+function holdBarge(state: IvrCallMachineState, patch: Partial<IvrCallMachineState>) {
+  return {
+    state: { ...state, ...patch },
+    commands: [{ type: "hold_barge" as const }],
+  };
+}
+
+const CHOICE_GATHER_STAGES = new Set(["choice", "invalid_choice", "intro"]);
+const COUNT_GATHER_STAGES = new Set(["count", "invalid_count", "ask_count"]);
+
+function gatherOwnedPrompt(prompt: IvrPromptKind) {
+  return (
+    prompt === "intro" ||
+    prompt === "invalid_choice" ||
+    prompt === "ask_count" ||
+    prompt === "invalid_count"
+  );
 }
 
 function onDigits(input: {
@@ -381,31 +533,63 @@ function onDigits(input: {
   if (
     input.stage &&
     state.inputTarget === "choice" &&
-    input.stage !== "choice" &&
-    input.stage !== "invalid_choice"
+    !CHOICE_GATHER_STAGES.has(input.stage)
   ) {
     return ignore(state, "stage_mismatch");
   }
   if (
     input.stage &&
     state.inputTarget === "count" &&
-    input.stage !== "count" &&
-    input.stage !== "invalid_count"
+    !COUNT_GATHER_STAGES.has(input.stage)
   ) {
     return ignore(state, "stage_mismatch");
+  }
+
+  const duringAudio =
+    state.audioRunning &&
+    (state.phase === "PLAYING_INTRO" || state.phase === "PLAYING_RESPONSE") &&
+    gatherOwnedPrompt(state.promptKind);
+  if (duringAudio) {
+    const menuPrompt = state.promptKind === "intro" || state.promptKind === "invalid_choice";
+    if (menuPrompt) {
+      if (state.choiceDigit || state.pendingChoice || state.pendingFault) {
+        return ignore(state, "choice_already_taken");
+      }
+      if (input.source === "dtmf") {
+        const choice = choiceDigitFrom(input.digits);
+        if (!choice) return ignore(state, "barge_ignored_digit");
+        return holdBarge(state, { pendingChoice: choice });
+      }
+      const digits = String(input.digits || "").trim();
+      if (!digits) return ignore(state, "gather_during_audio");
+      const choice = choiceDigitFrom(digits);
+      if (!choice) return holdBarge(state, { pendingFault: "choice" });
+      return holdBarge(state, { pendingChoice: choice });
+    }
+    if (state.heldCount || state.pendingFault) {
+      return ignore(state, "choice_already_taken");
+    }
+    if (input.source === "dtmf") {
+      return ignore(state, "count_waits_for_gather_end");
+    }
+    const parsed = parseDtmfGuestCount(input.digits);
+    if (!parsed.ok) return holdBarge(state, { pendingFault: "count" });
+    return holdBarge(state, { heldCount: parsed.count });
   }
 
   if (state.phase !== "WAITING_FOR_INPUT" || !state.introCompleted || !state.gatherOpen) {
     return ignore(state, "input_before_choice_window");
   }
 
+  const mediaSlot: IvrFollowUpSlot = input.source === "gather" ? "none" : "release_gather";
+
   if (state.inputTarget === "choice") {
     if (state.choiceDigit) return ignore(state, "choice_already_taken");
     const digits = String(input.digits || "").trim();
-    if (!digits) return repromptChoice(state);
+    if (!digits) return repromptChoice(state, mediaSlot);
     const choice = choiceDigitFrom(digits);
-    if (!choice) return repromptChoice(state);
-    return acceptChoice(state, choice);
+    if (!choice) return repromptChoice(state, mediaSlot);
+    return acceptChoice(state, choice, mediaSlot);
   }
 
   if (state.inputTarget === "count") {
@@ -413,29 +597,8 @@ function onDigits(input: {
       return ignore(state, "count_waits_for_gather_end");
     }
     const parsed = parseDtmfGuestCount(input.digits);
-    if (!parsed.ok) return repromptCount(state);
-    const next = bumped(state, {
-      phase: "PLAYING_RESPONSE",
-      inputTarget: "none",
-      gatherOpen: false,
-      promptKind: "thanks",
-      rsvpApplied: true,
-    });
-    return {
-      state: next,
-      commands: [
-        {
-          type: "apply_rsvp" as const,
-          rsvp: "yes" as const,
-          attendingCount: parsed.count,
-        },
-        {
-          type: "play_thanks" as const,
-          kind: "attending" as const,
-          generation: next.mediaGeneration,
-        },
-      ],
-    };
+    if (!parsed.ok) return repromptCount(state, mediaSlot);
+    return finishCount(state, parsed.count, mediaSlot);
   }
 
   return ignore(state, "no_input_target");
@@ -459,7 +622,7 @@ function onPlaybackEnded(
     return ignore(state, "stale_playback");
   }
   const status = String(event.status || "").toLowerCase();
-  if (status === "cancelled" || status === "canceled" || status === "call_hangup") {
+  if (status === "call_hangup") {
     return ignore(state, "playback_not_completed");
   }
   if (state.phase !== "PLAYING_INTRO" && state.phase !== "PLAYING_RESPONSE") {
@@ -471,6 +634,13 @@ function onPlaybackEnded(
     return ignore(state, "stage_mismatch");
   }
 
+  const gatherOwned = gatherOwnedPrompt(prompt);
+  const usingGatherAudio = state.audioRunning || (state.gatherOpen && gatherOwned);
+  const cancelled = status === "cancelled" || status === "canceled";
+  if (cancelled && !usingGatherAudio) {
+    return ignore(state, "playback_not_completed");
+  }
+
   if (status === "failed") {
     if (
       prompt === "intro" &&
@@ -480,7 +650,11 @@ function onPlaybackEnded(
       const next = bumped(state, {
         playbackRetries: state.playbackRetries + 1,
         promptKind: "intro",
-        gatherOpen: false,
+        gatherOpen: true,
+        audioRunning: true,
+        pendingChoice: "",
+        pendingFault: "",
+        heldCount: 0,
       });
       return {
         state: next,
@@ -490,8 +664,12 @@ function onPlaybackEnded(
     const next = bumped(state, {
       phase: "COMPLETED",
       gatherOpen: false,
+      audioRunning: false,
       inputTarget: "none",
       promptKind: "",
+      pendingChoice: "",
+      pendingFault: "",
+      heldCount: 0,
     });
     return {
       state: next,
@@ -502,8 +680,52 @@ function onPlaybackEnded(
     };
   }
 
-  if (status && status !== "completed") {
+  if (status && status !== "completed" && !cancelled) {
     return ignore(state, `playback_status_${status}`);
+  }
+
+  if (usingGatherAudio && gatherOwned) {
+    if (state.pendingChoice) {
+      return finishChoice(state, state.pendingChoice, "release_gather");
+    }
+    if (state.heldCount > 0) {
+      return finishCount(state, state.heldCount, "release_gather");
+    }
+    if (state.pendingFault === "choice") {
+      return repromptChoice({ ...state, audioRunning: false, phase: "WAITING_FOR_INPUT", introCompleted: true, inputTarget: "choice", gatherOpen: true }, "release_gather");
+    }
+    if (state.pendingFault === "count" && state.choiceDigit === "1") {
+      return repromptCount(
+        {
+          ...state,
+          audioRunning: false,
+          phase: "WAITING_FOR_INPUT",
+          introCompleted: true,
+          inputTarget: "count",
+          gatherOpen: true,
+        },
+        "release_gather"
+      );
+    }
+    if (prompt === "intro" && state.introCompleted) {
+      return ignore(state, "intro_already_completed");
+    }
+    const inputTarget = prompt === "ask_count" || prompt === "invalid_count" ? "count" : "choice";
+    return {
+      state: {
+        ...state,
+        phase: "WAITING_FOR_INPUT",
+        inputTarget,
+        introCompleted: prompt === "intro" ? true : state.introCompleted,
+        gatherOpen: true,
+        audioRunning: false,
+        promptKind: "",
+        pendingChoice: "",
+        pendingFault: "",
+        heldCount: 0,
+      },
+      commands: [{ type: "keep_gather" as const }],
+    };
   }
 
   if (prompt === "intro" || (state.phase === "PLAYING_INTRO" && (!stage || stage === "intro"))) {
@@ -600,7 +822,11 @@ export function reduceIvrCall(
     const next = bumped(state, {
       phase: "PLAYING_INTRO",
       inputTarget: "none",
-      gatherOpen: false,
+      gatherOpen: true,
+      audioRunning: true,
+      pendingChoice: "",
+      pendingFault: "",
+      heldCount: 0,
       promptKind: "intro",
       introCompleted: false,
     });
@@ -640,6 +866,7 @@ export function reduceIvrCall(
     const next = bumped(state, {
       phase: "COMPLETED",
       gatherOpen: false,
+      audioRunning: false,
       inputTarget: "none",
     });
     if (state.rsvpApplied) {

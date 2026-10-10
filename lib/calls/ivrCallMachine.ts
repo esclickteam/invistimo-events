@@ -1,8 +1,10 @@
 /**
  * Drive the shared IVR phase machine on a live Telnyx leg.
  * Inbound and outbound both enter here after a real call.answered.
- * Playback of the approved file is the only media command until that
- * playback ends; only then does a digit gather open.
+ * An input prompt is gather_using_audio on the approved file: Telnyx stops
+ * that playback when a digit arrives. The follow-up starts after playback
+ * has ended, and only a gather release (never a late playback stop) runs
+ * first when a gather is still open.
  */
 
 import type { QueryFilter } from "mongoose";
@@ -16,6 +18,7 @@ import {
   readIvrMachineState,
   reduceIvrCall,
   type IvrCallMachineState,
+  type IvrFollowUpSlot,
   type IvrMachineCommand,
 } from "@/lib/calls/ivrCallPhase";
 import {
@@ -31,6 +34,7 @@ import { pushIvrTimeline } from "@/lib/calls/ivrCallTimeline";
 import {
   decodeIvrClientState,
   gatherIvrDigits,
+  gatherIvrUsingAudio,
   hangupIvrCall,
   mediaClearReasonForPlaybackStage,
   playbackIvrAudio,
@@ -194,7 +198,7 @@ export async function applyRsvpOnce(input: {
     });
   } catch (error) {
     await IvrCallAttempt.updateOne(
-      { _id: claimed._id },
+      { _id: claimed._id, promptKind: { $ne: "thanks" } },
       {
         $set: {
           rsvpApplied: false,
@@ -208,6 +212,17 @@ export async function applyRsvpOnce(input: {
           flowStep: claimed.choiceDigit === "1" ? "gather_count" : "gather_choice",
           choiceDigit: claimed.choiceDigit === "1" ? "1" : "",
           promptKind: "",
+        },
+      }
+    );
+    await IvrCallAttempt.updateOne(
+      { _id: claimed._id, promptKind: "thanks" },
+      {
+        $set: {
+          rsvpApplied: false,
+          rsvpAppliedAt: null,
+          rsvpResult: null,
+          status: "answered",
         },
       }
     );
@@ -238,6 +253,10 @@ function copyClaim(attempt: any, claimed: any) {
   attempt.inputTarget = claimed.inputTarget;
   attempt.introCompleted = claimed.introCompleted;
   attempt.gatherOpen = claimed.gatherOpen;
+  attempt.audioRunning = claimed.audioRunning;
+  attempt.pendingChoice = claimed.pendingChoice;
+  attempt.heldCount = claimed.heldCount;
+  attempt.pendingFault = claimed.pendingFault;
   attempt.mediaGeneration = claimed.mediaGeneration;
   attempt.invalidReprompts = claimed.invalidReprompts;
   attempt.countReprompts = claimed.countReprompts;
@@ -256,15 +275,61 @@ async function playFile(
   callControlId: string,
   audioUrl: string,
   stage: string,
-  generation: number
+  generation: number,
+  mediaSlot?: IvrFollowUpSlot
 ) {
   const result = await playbackIvrAudio(
     callControlId,
     audioUrl,
     clientState(attempt, { stage, generation }),
-    { mediaClear: mediaClearReasonForPlaybackStage(stage) }
+    {
+      mediaClear:
+        mediaSlot ?? mediaClearReasonForPlaybackStage(stage),
+    }
   );
   return !telnyxCommandFailed(result);
+}
+
+async function playGatherPrompt(
+  attempt: any,
+  callControlId: string,
+  audioUrl: string,
+  stage: string,
+  generation: number,
+  kind: "choice" | "count",
+  mediaSlot: IvrFollowUpSlot
+) {
+  const result = await gatherIvrUsingAudio({
+    callControlId,
+    audioUrl,
+    minimumDigits: 1,
+    maximumDigits: kind === "choice" ? 1 : COUNT_DIGIT_MAX,
+    // Telnyx waits this long after the file ends. It does not cut the file.
+    timeoutMillis: kind === "choice" ? CHOICE_TIMEOUT_MS : COUNT_TIMEOUT_MS,
+    ...(kind === "count" ? { interDigitTimeoutMillis: COUNT_INTER_DIGIT_MS } : {}),
+    terminatingDigit: kind === "choice" ? "" : "#",
+    validDigits: kind === "choice" ? "123" : "0123456789",
+    clientState: clientState(attempt, { stage, generation }),
+    mediaClear: mediaSlot,
+  });
+  return !telnyxCommandFailed(result);
+}
+
+function playIntroAudio(
+  attempt: any,
+  callControlId: string,
+  introUrl: string,
+  generation: number
+) {
+  return playGatherPrompt(
+    attempt,
+    callControlId,
+    introUrl,
+    "intro",
+    generation,
+    "choice",
+    "none"
+  );
 }
 
 async function reopenGatherAfterPrompt(input: {
@@ -274,12 +339,21 @@ async function reopenGatherAfterPrompt(input: {
   generation: number;
   kind: "choice" | "count";
 }) {
-  const opened = reduceIvrCall(readIvrMachineState(input.attempt), {
-    type: "playback_ended",
-    stage: input.stage,
-    status: "completed",
-    generation: input.generation,
-  });
+  const opened = reduceIvrCall(
+    {
+      ...readIvrMachineState(input.attempt),
+      // The gather command failed, so settle as a finished playback_start and
+      // open a silent gather. Do not keep a gather that never started.
+      audioRunning: false,
+      gatherOpen: false,
+    },
+    {
+      type: "playback_ended",
+      stage: input.stage,
+      status: "completed",
+      generation: input.generation,
+    }
+  );
   const reopen = opened.commands[0];
   if (!reopen || (reopen.type !== "open_choice_gather" && reopen.type !== "open_count_gather")) {
     return;
@@ -497,11 +571,10 @@ export async function handleIvrAnswered(input: {
       mediaGeneration: state.mediaGeneration,
     });
     void warmIvrChoiceFollowUps(voiceGender(attempt));
-    const played = await playFile(
+    const played = await playIntroAudio(
       attempt,
       callControlId,
       introUrl,
-      "intro",
       playIntro.generation
     );
     if (!played) {
@@ -561,11 +634,10 @@ export async function handleIvrAnswered(input: {
       !fresh?.playbackStartedAt &&
       cleanStr(fresh?.introAudioUrl)
     ) {
-      const played = await playFile(
+      const played = await playIntroAudio(
         { ...attempt, ...fresh, _id: attempt._id },
         callControlId,
         cleanStr(fresh?.introAudioUrl),
-        "intro",
         Number(fresh?.mediaGeneration || 1)
       );
       if (played) {
@@ -596,11 +668,10 @@ export async function handleIvrAnswered(input: {
   }
 
   void warmIvrChoiceFollowUps(voiceGender(claimed));
-  const played = await playFile(
+  const played = await playIntroAudio(
     claimed,
     callControlId,
     introUrl,
-    "intro",
     playIntro.generation
   );
   if (!played) {
@@ -642,7 +713,34 @@ export async function handleIvrPlaybackEnded(input: {
   });
   const commands = decision.commands.filter((command) => command.type !== "ignore");
   if (!commands.length) return { handled: true };
-  if (playsInvalidChoicePrompt(commands) && !invalidChoiceAllowed(state)) {
+  if (
+    playsInvalidChoicePrompt(commands) &&
+    !invalidChoiceAllowed(state) &&
+    state.pendingFault !== "choice"
+  ) {
+    return { handled: true };
+  }
+  const followUp = commands.some((command) =>
+    command.type === "play_ask_count" ||
+    command.type === "play_invalid_choice" ||
+    command.type === "play_invalid_count" ||
+    command.type === "apply_rsvp" ||
+    command.type === "play_thanks" ||
+    command.type === "hangup_no_choice"
+  );
+  if (followUp) {
+    await handleIvrDigits({
+      attempt,
+      callControlId,
+      body: input.body,
+      eventType: "call.playback.ended",
+      prepared: {
+        commands,
+        next: decision.state,
+        fromPlayback: true,
+        playbackGeneration: playback.generation,
+      },
+    });
     return { handled: true };
   }
   await runPlaybackCommands({
@@ -670,6 +768,57 @@ async function runPlaybackCommands(input: {
     : {};
   const endingIntro =
     input.playback.stage === "intro" || attempt.promptKind === "intro";
+
+  if (first.type === "keep_gather") {
+    const claimed = await claimFields(
+      attempt._id,
+      {
+        phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+        audioRunning: true,
+        pendingChoice: { $in: ["", null] },
+        pendingFault: { $in: ["", null] },
+        heldCount: { $in: [0, null] },
+        rsvpApplied: { $ne: true },
+        ...generationFilter,
+      },
+      input.next
+    );
+    if (!claimed) {
+      const fresh = await IvrCallAttempt.findById(attempt._id);
+      if (
+        fresh &&
+        (cleanStr(fresh.pendingChoice) ||
+          Number(fresh.heldCount || 0) > 0 ||
+          cleanStr(fresh.pendingFault))
+      ) {
+        const retry = reduceIvrCall(readIvrMachineState(fresh), {
+          type: "playback_ended",
+          stage: input.playback.stage,
+          status: "completed",
+          generation: input.playback.generation,
+        });
+        const retryCommands = retry.commands.filter((command) => command.type !== "ignore");
+        if (retryCommands.length && retryCommands[0]?.type !== "keep_gather") {
+          await handleIvrDigits({
+            attempt: fresh,
+            callControlId,
+            body: {},
+            eventType: "call.playback.ended",
+            prepared: {
+              commands: retryCommands,
+              next: retry.state,
+              fromPlayback: true,
+              playbackGeneration: input.playback.generation,
+            },
+          });
+        }
+      }
+      return;
+    }
+    copyClaim(attempt, claimed);
+    await note(claimed._id, "ההשמעה נעצרה והקליטה נשארת פתוחה", "");
+    return;
+  }
 
   if (first.type === "open_choice_gather" || first.type === "open_count_gather") {
     const fromPrompt =
@@ -720,7 +869,7 @@ async function runPlaybackCommands(input: {
     );
     if (!claimed || !introUrl || !callControlId) return;
     copyClaim(attempt, claimed);
-    const played = await playFile(claimed, callControlId, introUrl, "intro", first.generation);
+    const played = await playIntroAudio(claimed, callControlId, introUrl, first.generation);
     if (!played) await failClosed(claimed, callControlId, "AUDIO_PLAYBACK_FAILED");
     return;
   }
@@ -752,6 +901,12 @@ export async function handleIvrDigits(input: {
   callControlId: string;
   body: any;
   eventType: string;
+  prepared?: {
+    commands: IvrMachineCommand[];
+    next: IvrCallMachineState;
+    fromPlayback: boolean;
+    playbackGeneration: number;
+  };
 }): Promise<{ handled: boolean }> {
   const attempt = input.attempt;
   if (!cleanStr(attempt.phase)) return { handled: false };
@@ -767,8 +922,9 @@ export async function handleIvrDigits(input: {
   const stage = cleanStr(decoded.stage);
   const generation = Number(decoded.generation || 0);
   const state = readIvrMachineState(attempt);
-  const decision =
-    input.eventType === "call.dtmf.received"
+  const decision = input.prepared
+    ? { state: input.prepared.next, commands: input.prepared.commands }
+    : input.eventType === "call.dtmf.received"
       ? reduceIvrCall(state, { type: "dtmf", digit: digits, stage })
       : reduceIvrCall(state, {
           type: "gather_ended",
@@ -778,7 +934,11 @@ export async function handleIvrDigits(input: {
           stage,
         });
 
-  if (playsInvalidChoicePrompt(decision.commands) && !invalidChoiceAllowed(state)) {
+  if (
+    playsInvalidChoicePrompt(decision.commands) &&
+    !invalidChoiceAllowed(state) &&
+    state.pendingFault !== "choice"
+  ) {
     return { handled: true };
   }
 
@@ -787,19 +947,59 @@ export async function handleIvrDigits(input: {
 
   const callControlId = cleanStr(input.callControlId);
   const gender = voiceGender(attempt);
+  const fromPlayback = input.prepared?.fromPlayback === true;
+  const playbackGeneration = Number(input.prepared?.playbackGeneration || 0);
+
+  if (commands[0]?.type === "hold_barge") {
+    const claimed = await claimFields(
+      attempt._id,
+      {
+        phase: attempt.phase === "PLAYING_INTRO" ? "PLAYING_INTRO" : "PLAYING_RESPONSE",
+        audioRunning: true,
+        pendingChoice: { $in: ["", null] },
+        pendingFault: { $in: ["", null] },
+        heldCount: { $in: [0, null] },
+        rsvpApplied: { $ne: true },
+      },
+      decision.state
+    );
+    if (!claimed) {
+      const fresh = await IvrCallAttempt.findById(attempt._id);
+      if (fresh && fresh.audioRunning !== true && !input.prepared) {
+        return handleIvrDigits({ ...input, attempt: fresh });
+      }
+      return { handled: true };
+    }
+    copyClaim(attempt, claimed);
+    return { handled: true };
+  }
+
+  function slotFor(type: IvrMachineCommand["type"]): IvrFollowUpSlot {
+    for (const command of commands) {
+      if (command.type === type && "mediaSlot" in command) return command.mediaSlot;
+    }
+    return "release_gather";
+  }
 
   if (commands.some((command) => command.type === "play_invalid_choice")) {
     const claimed = await claimFields(
       attempt._id,
-      {
-        phase: "WAITING_FOR_INPUT",
-        inputTarget: "choice",
-        introCompleted: true,
-        gatherOpen: true,
-        choiceDigit: { $nin: ["1", "2", "3"] },
-        rsvpApplied: { $ne: true },
-        error: { $ne: "AMBIGUOUS_EVENT" },
-      },
+      fromPlayback
+        ? {
+            phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+            pendingFault: "choice",
+            rsvpApplied: { $ne: true },
+            ...(playbackGeneration ? { mediaGeneration: playbackGeneration } : {}),
+          }
+        : {
+            phase: "WAITING_FOR_INPUT",
+            inputTarget: "choice",
+            introCompleted: true,
+            gatherOpen: true,
+            choiceDigit: { $nin: ["1", "2", "3"] },
+            rsvpApplied: { $ne: true },
+            error: { $ne: "AMBIGUOUS_EVENT" },
+          },
       decision.state,
       { status: "invalid_input" }
     );
@@ -807,12 +1007,14 @@ export async function handleIvrDigits(input: {
     copyClaim(attempt, claimed);
     const url = await getIvrSystemAudioUrlForGender(gender, "invalidInput");
     const played = url
-      ? await playFile(
+      ? await playGatherPrompt(
           claimed,
           callControlId,
           url,
           "invalid_choice",
-          decision.state.mediaGeneration
+          decision.state.mediaGeneration,
+          "choice",
+          slotFor("play_invalid_choice")
         )
       : false;
     if (!played) {
@@ -830,13 +1032,21 @@ export async function handleIvrDigits(input: {
   if (commands.some((command) => command.type === "play_invalid_count")) {
     const claimed = await claimFields(
       attempt._id,
-      {
-        phase: "WAITING_FOR_INPUT",
-        inputTarget: "count",
-        gatherOpen: true,
-        choiceDigit: "1",
-        rsvpApplied: { $ne: true },
-      },
+      fromPlayback
+        ? {
+            phase: "PLAYING_RESPONSE",
+            pendingFault: "count",
+            choiceDigit: "1",
+            rsvpApplied: { $ne: true },
+            ...(playbackGeneration ? { mediaGeneration: playbackGeneration } : {}),
+          }
+        : {
+            phase: "WAITING_FOR_INPUT",
+            inputTarget: "count",
+            gatherOpen: true,
+            choiceDigit: "1",
+            rsvpApplied: { $ne: true },
+          },
       decision.state,
       { status: "invalid_input" }
     );
@@ -844,12 +1054,14 @@ export async function handleIvrDigits(input: {
     copyClaim(attempt, claimed);
     const url = await getIvrSystemAudioUrlForGender(gender, "invalidGuestCount");
     const played = url
-      ? await playFile(
+      ? await playGatherPrompt(
           claimed,
           callControlId,
           url,
           "invalid_count",
-          decision.state.mediaGeneration
+          decision.state.mediaGeneration,
+          "count",
+          slotFor("play_invalid_count")
         )
       : false;
     if (!played) {
@@ -866,16 +1078,25 @@ export async function handleIvrDigits(input: {
 
   if (commands.some((command) => command.type === "play_ask_count")) {
     const claimed = await IvrCallAttempt.findOneAndUpdate(
-      {
-        _id: attempt._id,
-        rsvpApplied: { $ne: true },
-        phase: "WAITING_FOR_INPUT",
-        inputTarget: "choice",
-        introCompleted: true,
-        gatherOpen: true,
-        choiceDigit: { $nin: ["1", "2", "3"] },
-        error: { $ne: "AMBIGUOUS_EVENT" },
-      },
+      fromPlayback
+        ? {
+            _id: attempt._id,
+            rsvpApplied: { $ne: true },
+            phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+            pendingChoice: "1",
+            error: { $ne: "AMBIGUOUS_EVENT" },
+            ...(playbackGeneration ? { mediaGeneration: playbackGeneration } : {}),
+          }
+        : {
+            _id: attempt._id,
+            rsvpApplied: { $ne: true },
+            phase: "WAITING_FOR_INPUT",
+            inputTarget: "choice",
+            introCompleted: true,
+            gatherOpen: true,
+            choiceDigit: { $nin: ["1", "2", "3"] },
+            error: { $ne: "AMBIGUOUS_EVENT" },
+          },
       {
         $set: { ...machinePersistFields(decision.state), status: "answered" },
         $push: { dtmfDigits: "1" },
@@ -886,14 +1107,25 @@ export async function handleIvrDigits(input: {
     copyClaim(attempt, claimed);
     const url = await getIvrSystemAudioUrlForGender(gender, "askGuestCount");
     if (url) {
-      await playFile(claimed, callControlId, url, "ask_count", decision.state.mediaGeneration);
+      await playGatherPrompt(
+        claimed,
+        callControlId,
+        url,
+        "ask_count",
+        decision.state.mediaGeneration,
+        "count",
+        slotFor("play_ask_count")
+      );
     } else {
-      const opened = reduceIvrCall(readIvrMachineState(claimed), {
-        type: "playback_ended",
-        stage: "ask_count",
-        status: "completed",
-        generation: decision.state.mediaGeneration,
-      });
+      const opened = reduceIvrCall(
+        { ...readIvrMachineState(claimed), audioRunning: false, gatherOpen: false },
+        {
+          type: "playback_ended",
+          stage: "ask_count",
+          status: "completed",
+          generation: decision.state.mediaGeneration,
+        }
+      );
       const saved = await claimFields(
         claimed._id,
         { phase: "PLAYING_RESPONSE", promptKind: "ask_count", choiceDigit: "1" },
@@ -910,8 +1142,24 @@ export async function handleIvrDigits(input: {
   const apply = commands.find((command) => command.type === "apply_rsvp");
   if (apply && apply.type === "apply_rsvp") {
     const digit = decision.state.choiceDigit;
-    const choiceClaim =
-      apply.rsvp === "yes"
+    const playbackClaim = playbackGeneration
+      ? { mediaGeneration: playbackGeneration }
+      : {};
+    const choiceClaim = fromPlayback
+      ? apply.rsvp === "yes"
+        ? {
+            phase: "PLAYING_RESPONSE",
+            promptKind: { $in: ["ask_count", "invalid_count"] },
+            choiceDigit: "1",
+            heldCount: { $gt: 0 },
+            ...playbackClaim,
+          }
+        : {
+            phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+            pendingChoice: apply.rsvp === "no" ? "2" : "3",
+            ...playbackClaim,
+          }
+      : apply.rsvp === "yes"
         ? {
             phase: "WAITING_FOR_INPUT",
             inputTarget: "count",
@@ -957,38 +1205,49 @@ export async function handleIvrDigits(input: {
     claimed.rsvpApplied = false;
     attempt.rsvpApplied = false;
     const thanksKey = apply.rsvp === "yes" ? "thanksAttending" : "thanksReceived";
-    const thanksPromise = getIvrSystemAudioUrlForGender(gender, thanksKey);
-    const saved = await applyRsvpOnce({
-      attempt: claimed,
-      rsvp: apply.rsvp,
-      attendingCount: apply.attendingCount,
-    });
+    const thanksUrl = await getIvrSystemAudioUrlForGender(gender, thanksKey);
+    const slot = slotFor("play_thanks");
+    const playPromise =
+      callControlId && thanksUrl
+        ? playFile(
+            claimed,
+            callControlId,
+            thanksUrl,
+            "thanks",
+            decision.state.mediaGeneration,
+            slot
+          )
+        : callControlId
+          ? hangupIvrCall(callControlId)
+          : Promise.resolve(null);
+    const [saved] = await Promise.all([
+      applyRsvpOnce({
+        attempt: claimed,
+        rsvp: apply.rsvp,
+        attendingCount: apply.attendingCount,
+      }),
+      playPromise,
+    ]);
     if (!saved.applied) return { handled: true };
     attempt.rsvpApplied = true;
-    const thanksUrl = await thanksPromise;
-    if (callControlId && thanksUrl) {
-      await playFile(
-        claimed,
-        callControlId,
-        thanksUrl,
-        "thanks",
-        decision.state.mediaGeneration
-      );
-    } else if (callControlId) {
-      await hangupIvrCall(callControlId);
-    }
     return { handled: true };
   }
 
   if (commands.some((command) => command.type === "hangup_no_choice")) {
     const claimed = await claimFields(
       attempt._id,
-      {
-        phase: "WAITING_FOR_INPUT",
-        gatherOpen: true,
-        rsvpApplied: { $ne: true },
-        choiceDigit: attempt.inputTarget === "count" ? "1" : { $nin: ["1", "2", "3"] },
-      },
+      fromPlayback
+        ? {
+            phase: { $in: ["PLAYING_INTRO", "PLAYING_RESPONSE"] },
+            pendingFault: { $in: ["choice", "count"] },
+            rsvpApplied: { $ne: true },
+          }
+        : {
+            phase: "WAITING_FOR_INPUT",
+            gatherOpen: true,
+            rsvpApplied: { $ne: true },
+            choiceDigit: attempt.inputTarget === "count" ? "1" : { $nin: ["1", "2", "3"] },
+          },
       decision.state,
       { status: "hangup_before_response" }
     );

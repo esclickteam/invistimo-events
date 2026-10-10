@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   initialIvrCallState,
   invalidChoiceAllowed,
@@ -17,10 +18,7 @@ import {
   type IvrMachineEvent,
 } from "../../lib/calls/ivrCallPhase";
 
-const root = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../.."
-);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function readSrc(rel: string) {
   return readFileSync(path.join(root, rel), "utf8");
@@ -48,10 +46,11 @@ function toChoiceWindow() {
     status: "completed",
     generation: state.mediaGeneration,
   });
-  assert.deepEqual(commandTypes(played.commands), ["open_choice_gather"]);
+  assert.deepEqual(commandTypes(played.commands), ["keep_gather"]);
   assert.equal(played.state.phase, "WAITING_FOR_INPUT");
   assert.equal(played.state.introCompleted, true);
   assert.equal(played.state.gatherOpen, true);
+  assert.equal(played.state.audioRunning, false);
   assert.equal(invalidChoiceAllowed(played.state), true);
   return played.state;
 }
@@ -156,7 +155,7 @@ test("digit 1 asks for the guest count once, then saves yes", () => {
     status: "completed",
     generation: first.state.mediaGeneration,
   });
-  assert.deepEqual(commandTypes(asked.commands), ["open_count_gather"]);
+  assert.deepEqual(commandTypes(asked.commands), ["keep_gather"]);
   const count = apply(asked.state, {
     type: "gather_ended",
     digits: "4",
@@ -221,7 +220,7 @@ test("no digit and a bad digit retry only after the menu was heard", () => {
     status: "completed",
     generation: silent.state.mediaGeneration,
   });
-  assert.deepEqual(commandTypes(afterPrompt.commands), ["open_choice_gather"]);
+  assert.deepEqual(commandTypes(afterPrompt.commands), ["keep_gather"]);
   const bad = apply(afterPrompt.state, {
     type: "gather_ended",
     digits: "9",
@@ -261,23 +260,31 @@ test("timeout during the intro is ignored and does not play the error", () => {
   });
   assertNoInvalid(timeout.commands);
   assert.equal(timeout.state.phase, "PLAYING_INTRO");
-  assert.equal(timeout.state.gatherOpen, false);
+  assert.equal(timeout.state.audioRunning, true);
+  assert.equal(timeout.state.gatherOpen, true);
 });
 
-test("source keeps one machine and does not gather the approved file up front", () => {
+test("approved intro is gathered with the file, and the first command sends no stop", () => {
   const start = readSrc("lib/calls/ivrInboundStart.ts");
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const machine = readSrc("lib/calls/ivrCallMachine.ts");
   const phase = readSrc("lib/calls/ivrCallPhase.ts");
+  const control = readSrc("lib/telnyx/ivrCallControl.ts");
   assert.equal(start.includes("gatherIvrUsingAudio"), false);
-  assert.match(machine, /playbackIvrAudio/);
+  assert.match(machine, /playIntroAudio/);
+  assert.match(machine, /gatherIvrUsingAudio/);
+  assert.match(machine, /"none"/);
+  assert.match(machine, /release_gather/);
   assert.match(machine, /gatherIvrDigits/);
   assert.match(machine, /terminatingDigit: ""/);
-  assert.equal(machine.includes("gatherIvrUsingAudio"), false);
+  assert.match(control, /release_gather/);
   assert.match(webhook, /handleIvrAnswered/);
   assert.match(webhook, /handleIvrDigits/);
   assert.match(webhook, /introCompleted/);
+  assert.match(webhook, /IVR_BARGE_IN_TELNYX_MS/);
   assert.match(phase, /invalidChoiceAllowed/);
   assert.match(phase, /input_before_choice_window/);
+  assert.match(phase, /hold_barge/);
   assert.match(readSrc("lib/calls/ivrDialer.ts"), /phase: allowed \? "RINGING"/);
+  assert.match(readSrc("app/components/IvrRoundsPanel.jsx"), /composedIntroAudioUrl/);
 });
