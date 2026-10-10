@@ -65,7 +65,7 @@ test("timeline entry builder keeps append-only facts", async () => {
 
 test("inbound start stamps AUDIO_NOT_READY before answer", () => {
   const start = readSrc("lib/calls/ivrInboundStart.ts");
-  const matchedCreateAt = start.indexOf("introAudioUrl: sharedNarrationUrl");
+  const matchedCreateAt = start.indexOf("introAudioUrl,");
   const matchedAnswerAt = start.indexOf(
     "await answerIvrCall",
     matchedCreateAt
@@ -76,6 +76,7 @@ test("inbound start stamps AUDIO_NOT_READY before answer", () => {
   assert.equal(start.includes('attempt.error = "AUDIO_NOT_READY"'), false);
   assert.match(start, /hasIntroAudio/);
   assert.match(start, /audioNotReady/);
+  assert.match(start, /composedInboundPlaybackUrl/);
 });
 
 test("answer claim does not require playbackStartedAt null", () => {
@@ -185,6 +186,7 @@ test("webhook still drives answer → playback → gather for new and existing u
   assert.match(machine, /playbackIvrAudio/);
   assert.match(machine, /gatherIvrDigits/);
   assert.match(start, /resolveApprovedNarrationUrl/);
+  assert.match(start, /composedInboundPlaybackUrl/);
   assert.match(start, /phase:\s*"RINGING"/);
   assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
   assert.equal(start.includes("gatherIvrUsingAudio"), false);

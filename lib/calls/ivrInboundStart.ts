@@ -11,6 +11,7 @@ import {
   resolveIvrPublicAudioUrl,
 } from "@/lib/calls/ivrAudioStorage";
 import { resolveApprovedNarrationUrl } from "@/lib/calls/ivrDialer";
+import { composedInboundPlaybackUrl } from "@/lib/calls/ivrComposedInbound";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
@@ -204,7 +205,17 @@ export async function tryStartInboundIvr(params: {
     .lean();
   const ownerCfg = (owner as { ivrConfig?: any } | null)?.ivrConfig || {};
   const voiceGender = normalizeIvrVoiceGender(ownerCfg.voiceGender) || "female";
-  const sharedNarrationUrl = resolveApprovedNarrationUrl(owner);
+  const approvedOutboundUrl = resolveApprovedNarrationUrl(owner);
+  const audioMode =
+    (ownerCfg.audioMode as "ai" | "self_recorded" | null) || "ai";
+  // AI inbound uses the prebuilt inbound file (inboundBefore+name+inboundAfter).
+  // Never stitch mid-call — generate/recompose/approve build it ahead of time.
+  const introAudioUrl =
+    audioMode === "self_recorded"
+      ? approvedOutboundUrl
+      : approvedOutboundUrl
+        ? composedInboundPlaybackUrl(ownerCfg)
+        : "";
   const eventNameAudioUrl =
     ownerCfg.eventNameAudio?.status === "ready"
       ? resolveIvrPublicAudioUrl({
@@ -215,7 +226,7 @@ export async function tryStartInboundIvr(params: {
 
   // Persist AUDIO_NOT_READY before answer so call.answered cannot race a
   // silent claim miss (empty intro URL + error set mid-webhook → no speak).
-  const audioNotReady = !sharedNarrationUrl;
+  const audioNotReady = !introAudioUrl;
   const attempt = await IvrCallAttempt.create({
     userId: candidate.userId,
     invitationId: candidate.invitationId,
@@ -226,7 +237,7 @@ export async function tryStartInboundIvr(params: {
     eventName: candidate.eventName,
     voiceGender,
     eventNameAudioUrl,
-    introAudioUrl: sharedNarrationUrl,
+    introAudioUrl,
     status: "initiated",
     phase: "RINGING",
     inputTarget: "none",
@@ -290,7 +301,7 @@ export async function tryStartInboundIvr(params: {
     disambiguation,
     fromPhone,
     to: params.to,
-    hasIntroAudio: Boolean(sharedNarrationUrl),
+    hasIntroAudio: Boolean(introAudioUrl),
     audioNotReady,
   });
 

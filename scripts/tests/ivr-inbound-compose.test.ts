@@ -41,7 +41,7 @@ test("inbound and outbound compositions do not share a file hash", () => {
     contentHashForComposedInbound(input),
     contentHashForComposedIntro(input)
   );
-  assert.equal(IVR_INBOUND_COMPOSE_VERSION, "v1-inbound-segments");
+  assert.equal(IVR_INBOUND_COMPOSE_VERSION, "v2-inbound-concat");
   assert.equal(IVR_COMPOSED_SEGMENT_PAUSE_MS, 80);
   assert.equal(IVR_INBOUND_CHAINED_MEDIA_COMMANDS, 3);
   assert.equal(IVR_INBOUND_CONTINUOUS_MEDIA_COMMANDS, 1);
@@ -144,12 +144,26 @@ test("stitching three clips yields one file with only the short internal pause",
     assert.ok(composed.buffer.length > afterMp3.length);
     assert.equal(IVR_COMPOSED_SEGMENT_PAUSE_MS < 200, true);
     assert.ok(stitchMs < 15000, `stitch took ${stitchMs}ms`);
+    // Concat must keep before + name + after (acrossfade previously dropped name).
+    const composedDur = Number(composed.durationSeconds || 0);
+    assert.ok(composedDur >= 1.1, `composed too short: ${composedDur}`);
+    assert.ok(
+      composed.segmentDurations.beforeSeconds > 0.2 &&
+        composed.segmentDurations.nameSeconds > 0.2 &&
+        composed.segmentDurations.afterSeconds > 0.3
+    );
+    assert.ok(
+      composedDur + 0.05 >=
+        composed.segmentDurations.beforeSeconds +
+          composed.segmentDurations.nameSeconds +
+          composed.segmentDurations.afterSeconds
+    );
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => null);
   }
 });
 
-test("inbound and outbound play the same approved file and do not stitch on the call", () => {
+test("inbound plays inboundBefore+name+inboundAfter file, not outbound wording", () => {
   const start = readSrc("lib/calls/ivrInboundStart.ts");
   const webhook = readSrc("lib/calls/ivrWebhookHandler.ts");
   const dialer = readSrc("lib/calls/ivrDialer.ts");
@@ -157,18 +171,18 @@ test("inbound and outbound play the same approved file and do not stitch on the 
   assert.equal(start.includes("gatherIvrUsingAudio"), false);
   assert.match(start, /phase:\s*"RINGING"/);
   assert.match(start, /resolveApprovedNarrationUrl/);
+  assert.match(start, /composedInboundPlaybackUrl/);
+  assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
   assert.match(start, /AUDIO_NOT_READY/);
   assert.equal(start.includes("synthesizeElevenLabsSpeech"), false);
-  assert.equal(start.includes("ensureComposedInboundAudioForUser"), false);
   assert.match(webhook, /startOutboundFromBeginning/);
   assert.match(webhook, /introAudioUrl/);
   assert.match(webhook, /gatherIvrUsingAudio/);
   assert.equal(webhook.includes("synthesizeElevenLabsSpeech"), false);
   assert.match(dialer, /audioReady/);
   assert.match(dialer, /releaseStaleOutboundOccupancy/);
-  assert.equal(dialer.includes("ensureComposedInboundAudioForUser"), false);
   assert.equal(dialer.includes("synthesizeElevenLabsSpeech"), false);
   assert.match(config, /buildAndStoreComposedIntro/);
-  assert.equal(config.includes("buildComposedInboundAudio"), false);
+  assert.match(config, /buildAndStoreComposedInbound|buildComposedInboundAudio/);
   assert.match(config, /reuseOnly:\s*true/);
 });

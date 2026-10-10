@@ -559,32 +559,31 @@ export default function IvrRoundsPanel({
 
   const previewPlaylist = useMemo(() => {
     const preview = config?.ivrConfig?.previewAudio;
-    const composedUrl = cleanText(
-      preview?.composedIntroAudioUrl ||
-        config?.ivrConfig?.composedIntroAudio?.audioUrl
-    );
-    // Same single file Telnyx plays after approval — never a 3-clip stitch in UI.
-    if (
-      (preview?.seamless ||
-        config?.ivrConfig?.composedIntroAudio?.status === "ready") &&
-      composedUrl
-    ) {
+    // Trust only the server-marked current composed URL — never a stale
+    // composedIntroAudio.audioUrl that can skip the open + event name.
+    const composedUrl = cleanText(preview?.composedIntroAudioUrl);
+    if (preview?.seamless && composedUrl) {
       return [composedUrl];
     }
     if (Array.isArray(preview?.playlist) && preview.playlist.length === 1) {
       return preview.playlist.filter(Boolean);
     }
-    if (Array.isArray(preview?.playlist) && preview.playlist.length) {
+    // Fallback stitch only when all three outbound segments are present.
+    if (Array.isArray(preview?.playlist) && preview.playlist.length >= 3) {
       return preview.playlist.filter(Boolean);
     }
+    const clips = [
+      preview?.introBeforeEventNameUrl,
+      preview?.eventNameAudioUrl || config?.ivrConfig?.eventNameAudio?.audioUrl,
+      preview?.introAfterEventNameUrl,
+    ].filter(Boolean);
+    if (clips.length === 3) return clips;
     return [];
   }, [config]);
 
   const composedReady = Boolean(
-    (config?.ivrConfig?.previewAudio?.seamless &&
-      config?.ivrConfig?.previewAudio?.composedIntroAudioUrl) ||
-      (config?.ivrConfig?.composedIntroAudio?.status === "ready" &&
-        config?.ivrConfig?.composedIntroAudio?.audioUrl)
+    config?.ivrConfig?.previewAudio?.seamless &&
+      config?.ivrConfig?.previewAudio?.composedIntroAudioUrl
   );
 
   async function loadAll() {
