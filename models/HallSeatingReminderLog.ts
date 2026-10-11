@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-export type VenueSeatingReminderLogDocument = {
+export type HallSeatingReminderLogDocument = {
   _id: Types.ObjectId;
   eventId: Types.ObjectId;
   userId: Types.ObjectId;
@@ -17,7 +17,7 @@ export type VenueSeatingReminderLogDocument = {
   updatedAt: Date;
 };
 
-const VenueSeatingReminderLogSchema = new Schema<VenueSeatingReminderLogDocument>(
+const HallSeatingReminderLogSchema = new Schema<HallSeatingReminderLogDocument>(
   {
     eventId: {
       type: Schema.Types.ObjectId,
@@ -56,13 +56,13 @@ const VenueSeatingReminderLogSchema = new Schema<VenueSeatingReminderLogDocument
   { timestamps: true }
 );
 
-VenueSeatingReminderLogSchema.index(
+HallSeatingReminderLogSchema.index(
   { eventId: 1, stage: 1, channel: 1, startKey: 1 },
   { unique: true }
 );
 
-export default mongoose.models.VenueSeatingReminderLog ||
-  mongoose.model<VenueSeatingReminderLogDocument>(
-    "VenueSeatingReminderLog",
-    VenueSeatingReminderLogSchema
+export default mongoose.models.HallSeatingReminderLog ||
+  mongoose.model<HallSeatingReminderLogDocument>(
+    "HallSeatingReminderLog",
+    HallSeatingReminderLogSchema
   );

@@ -14,7 +14,7 @@ import {
   reminderHistory,
   serializeContact,
 } from "@/lib/venueSeatingContacts/service";
-import VenueSeatingContact from "@/models/VenueSeatingContact";
+import HallSeatingContact from "@/models/HallSeatingContact";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export async function GET(
   for (const event of events) {
     const access = classifyEventAccess({ user, event, now });
     if (!access.showTab) continue;
-    const doc = await VenueSeatingContact.findOne({
+    const doc = await HallSeatingContact.findOne({
       eventId: event._id,
       userId: id,
     }).lean();

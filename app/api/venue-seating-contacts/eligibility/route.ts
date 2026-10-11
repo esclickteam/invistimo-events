@@ -3,7 +3,7 @@ import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
   customerBellEligibility,
-  getVenueSeatingContactState,
+  getHallSeatingContactState,
 } from "@/lib/venueSeatingContacts/service";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const state = await getVenueSeatingContactState({ userId, eventId });
+  const state = await getHallSeatingContactState({ userId, eventId });
   return NextResponse.json({
     success: true,
     showBell: bell.showBell,

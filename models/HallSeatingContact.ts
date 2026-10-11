@@ -23,7 +23,7 @@ const ChangeSchema = new Schema(
   { _id: false }
 );
 
-export type VenueSeatingContactDocument = {
+export type HallSeatingContactDocument = {
   _id: Types.ObjectId;
   eventId: Types.ObjectId;
   userId: Types.ObjectId;
@@ -61,7 +61,7 @@ export type VenueSeatingContactDocument = {
   updatedAt: Date;
 };
 
-const VenueSeatingContactSchema = new Schema<VenueSeatingContactDocument>(
+const HallSeatingContactSchema = new Schema<HallSeatingContactDocument>(
   {
     eventId: {
       type: Schema.Types.ObjectId,
@@ -95,8 +95,8 @@ const VenueSeatingContactSchema = new Schema<VenueSeatingContactDocument>(
   { timestamps: true }
 );
 
-export default mongoose.models.VenueSeatingContact ||
-  mongoose.model<VenueSeatingContactDocument>(
-    "VenueSeatingContact",
-    VenueSeatingContactSchema
+export default mongoose.models.HallSeatingContact ||
+  mongoose.model<HallSeatingContactDocument>(
+    "HallSeatingContact",
+    HallSeatingContactSchema
   );

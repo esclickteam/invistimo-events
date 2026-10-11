@@ -4,8 +4,8 @@ import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { VENUE_SEATING_RESPONSIBILITY_TEXT } from "@/lib/venueSeatingContacts/logic";
 import {
-  getVenueSeatingContactState,
-  saveVenueSeatingContacts,
+  getHallSeatingContactState,
+  saveHallSeatingContacts,
 } from "@/lib/venueSeatingContacts/service";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   }
 
   await dbConnect();
-  const state = await getVenueSeatingContactState({
+  const state = await getHallSeatingContactState({
     userId: customerId(auth),
     eventId,
   });
@@ -72,7 +72,7 @@ export async function PUT(request: Request) {
   await dbConnect();
   const userId = customerId(auth);
   const actor = await User.findById(auth.userId).select("name").lean<{ name?: string } | null>();
-  const saved = await saveVenueSeatingContacts({
+  const saved = await saveHallSeatingContacts({
     userId,
     eventId,
     actorUserId: auth.userId,

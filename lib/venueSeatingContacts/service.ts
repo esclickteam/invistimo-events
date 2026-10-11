@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import Event from "@/models/Event";
 import User from "@/models/User";
-import VenueSeatingContact from "@/models/VenueSeatingContact";
-import VenueSeatingReminderLog from "@/models/VenueSeatingReminderLog";
+import HallSeatingContact from "@/models/HallSeatingContact";
+import HallSeatingReminderLog from "@/models/HallSeatingReminderLog";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { sendSmsDetailed } from "@/lib/sendSMS";
 import { shortenUrl } from "@/lib/shortenUrl";
@@ -192,7 +192,7 @@ export function serializeContact(
   };
 }
 
-export async function getVenueSeatingContactState(input: {
+export async function getHallSeatingContactState(input: {
   userId: string;
   eventId: string;
   now?: Date;
@@ -216,7 +216,7 @@ export async function getVenueSeatingContactState(input: {
     };
   }
 
-  const doc = await VenueSeatingContact.findOne({
+  const doc = await HallSeatingContact.findOne({
     eventId: event._id,
     userId: user._id,
   }).lean();
@@ -235,7 +235,7 @@ export async function getVenueSeatingContactState(input: {
   };
 }
 
-export async function saveVenueSeatingContacts(input: {
+export async function saveHallSeatingContacts(input: {
   userId: string;
   eventId: string;
   actorUserId: string;
@@ -266,7 +266,7 @@ export async function saveVenueSeatingContacts(input: {
     };
   }
 
-  const existing = await VenueSeatingContact.findOne({
+  const existing = await HallSeatingContact.findOne({
     eventId: event._id,
     userId: user._id,
   });
@@ -302,7 +302,7 @@ export async function saveVenueSeatingContacts(input: {
   };
 
   if (!existing) {
-    await VenueSeatingContact.create({
+    await HallSeatingContact.create({
       eventId: event._id,
       userId: user._id,
       ...next,
@@ -320,7 +320,7 @@ export async function saveVenueSeatingContacts(input: {
     reason: "contacts_completed",
   });
 
-  const saved = await VenueSeatingContact.findOne({
+  const saved = await HallSeatingContact.findOne({
     eventId: event._id,
     userId: user._id,
   }).lean();
@@ -339,7 +339,7 @@ async function claimReminder(input: {
   startKey: string;
   now: Date;
 }) {
-  const existing = await VenueSeatingReminderLog.findOne({
+  const existing = await HallSeatingReminderLog.findOne({
     eventId: input.eventId,
     stage: input.stage,
     channel: input.channel,
@@ -362,7 +362,7 @@ async function claimReminder(input: {
     if (existing.status === "failed" && (!existing.retryable || existing.attempts >= 2)) {
       return null;
     }
-    const claimed = await VenueSeatingReminderLog.findOneAndUpdate(
+    const claimed = await HallSeatingReminderLog.findOneAndUpdate(
       { _id: existing._id, status: existing.status },
       { $set: { status: "sending", retryable: false }, $inc: { attempts: 1 } },
       { new: true }
@@ -371,7 +371,7 @@ async function claimReminder(input: {
   }
 
   try {
-    return await VenueSeatingReminderLog.create({
+    return await HallSeatingReminderLog.create({
       eventId: input.eventId,
       userId: input.userId,
       stage: input.stage,
@@ -397,7 +397,7 @@ async function finishReminder(
     sentAt?: Date | null;
   }
 ) {
-  await VenueSeatingReminderLog.updateOne(
+  await HallSeatingReminderLog.updateOne(
     { _id: id },
     {
       $set: {
@@ -578,14 +578,14 @@ export async function processVenueSeatingEvent(input: {
     return { eventId: String(input.event._id), actions: [] as string[] };
   }
 
-  const contact = await VenueSeatingContact.findOne({
+  const contact = await HallSeatingContact.findOne({
     eventId: input.event._id,
     userId: input.user._id,
   })
     .select("completedAt")
     .lean();
 
-  const logs = await VenueSeatingReminderLog.find({
+  const logs = await HallSeatingReminderLog.find({
     eventId: input.event._id,
     startKey,
     status: { $in: ["sent", "skipped"] },
@@ -715,7 +715,7 @@ export async function customerBellEligibility(userId: string, now = new Date()) 
 
 export async function reminderHistory(eventId: string) {
   if (!mongoose.Types.ObjectId.isValid(eventId)) return [];
-  const rows = await VenueSeatingReminderLog.find({ eventId })
+  const rows = await HallSeatingReminderLog.find({ eventId })
     .sort({ createdAt: -1 })
     .lean();
   return rows.map((row) => ({
@@ -761,7 +761,7 @@ export async function listStaffVisibleContacts(input: {
   });
   if (!visible.length) return [];
 
-  const contacts = await VenueSeatingContact.find({
+  const contacts = await HallSeatingContact.find({
     eventId: { $in: visible.map((event) => event._id) },
   }).lean();
 
