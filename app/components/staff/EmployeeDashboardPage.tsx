@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import EmployeeDocumentsModal from "../employee/EmployeeDocumentsModal";
+import SeatingTeamContactsPanel from "./SeatingTeamContactsPanel";
 
 type UserRole =
   | "client"
@@ -2943,6 +2944,8 @@ export default function EmployeeDashboardPage() {
                 )}
                 </section>
               )}
+
+              {isCurrentUserSeatingStaff ? <SeatingTeamContactsPanel /> : null}
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

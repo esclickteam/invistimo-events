@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import CreateUserModal from "./CreateUserModal";
+import VenueSeatingContactsPanel from "./VenueSeatingContactsPanel";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
@@ -2227,6 +2228,8 @@ function EditUserModal({
             </p>
           )}
         </section>
+
+        <VenueSeatingContactsPanel userId={user._id} />
 
         <section
           className="

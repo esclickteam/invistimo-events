@@ -18,6 +18,7 @@ import {
   Bus,
   WandSparkles,
   Eye,
+  Contact,
   ChevronLeft,
   ChevronRight,
   X,
@@ -172,6 +173,7 @@ export default function DashboardSidebar({
   ) as typeof authUser;
   const [hash, setHash] = useState("");
   const [unreadGuestMessages, setUnreadGuestMessages] = useState(0);
+  const [canVenueSeatingContacts, setCanVenueSeatingContacts] = useState(false);
 
   useEffect(() => {
     const sync = () => setHash(window.location.hash || "");
@@ -222,6 +224,28 @@ export default function DashboardSidebar({
       window.removeEventListener("invistimo:guest-activity", onActivity);
     };
   }, [canGuestMessages, isDemo]);
+
+  useEffect(() => {
+    if (isDemo || gameOnly || !eventId) {
+      setCanVenueSeatingContacts(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(
+      `/api/venue-seating-contacts/eligibility?eventId=${encodeURIComponent(eventId)}`,
+      { credentials: "include", cache: "no-store" }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setCanVenueSeatingContacts(Boolean(data?.showTab));
+      })
+      .catch(() => {
+        if (!cancelled) setCanVenueSeatingContacts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo, gameOnly, eventId]);
   const dashboardHome = isDemo ? "/try/dashboard" : "/dashboard";
 
   const { mainItems, serviceItems } = useMemo(() => {
@@ -360,6 +384,16 @@ export default function DashboardSidebar({
 
     const services: NavItem[] = [
       {
+        id: "venue-seating-contacts",
+        label: "הושבה באולם",
+        icon: Contact,
+        href: eventId
+          ? `/dashboard/venue-seating?eventId=${encodeURIComponent(eventId)}`
+          : "/dashboard",
+        hidden: gameOnly || !canVenueSeatingContacts,
+        match: (path) => path.startsWith("/dashboard/venue-seating"),
+      },
+      {
         id: "wedding-website",
         label: "אתר חתונה",
         icon: Sparkles,
@@ -433,6 +467,7 @@ export default function DashboardSidebar({
     canOpenEventManagement,
     canOpenTransportationManagement,
     canOpenWeddingChallenges,
+    canVenueSeatingContacts,
   ]);
 
   const go = (item: NavItem) => {
