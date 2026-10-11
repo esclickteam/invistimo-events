@@ -21,7 +21,7 @@ import {
   updateEventDetails,
   updateGuest,
 } from "@/lib/demo/interactive/store";
-import type { DemoSession } from "@/lib/demo/interactive/types";
+import type { DemoGuest, DemoSession } from "@/lib/demo/interactive/types";
 
 export type BridgeResult = {
   status: number;
@@ -289,7 +289,10 @@ export function bridgeDemoRequest(
     );
     const inserted = [];
     for (const row of plan.accepted) {
-      const created = addGuest(current.id, row);
+      const created = addGuest(current.id, {
+        ...(row as Partial<DemoGuest>),
+        phone: displayPhone(row.phone),
+      });
       if (created && "guest" in created && created.guest) inserted.push(created.guest);
     }
     return ok({
