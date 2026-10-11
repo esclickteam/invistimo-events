@@ -13,6 +13,7 @@ import ExportSeatingPdf from "./ExportSeatingPdf";
 import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
 import { useAuth } from "@/context/AuthContext";
+import CustomerNotificationBell from "@/app/dashboard/components/CustomerNotificationBell";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
@@ -1186,12 +1187,17 @@ function SeatingPageInner() {
       >
         <div
           className="
-            flex h-full items-center justify-between gap-3
+            relative flex h-full items-center justify-between gap-3
             px-3 md:gap-4 md:px-7
           "
         >
           {/* RIGHT TITLE */}
-          <div className="hidden shrink-0 items-center gap-4 md:flex">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
+            <CustomerNotificationBell
+              enabled={!isDemo && !isVenueTemplateMode}
+              panelAlign="right"
+            />
+            <div className="hidden shrink-0 items-center gap-4 md:flex">
             <div
               className="
                 hidden h-11 w-11 items-center justify-center rounded-2xl
@@ -1242,6 +1248,7 @@ function SeatingPageInner() {
                   ? "בני סקיצת שולחנות קבועה לאולם ושמרי אותה כתבנית"
                   : "תכנון שולחנות, אורחים, אזורים וסידור הושבה חכם"}
               </p>
+            </div>
             </div>
           </div>
 

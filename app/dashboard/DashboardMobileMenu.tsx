@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   X,
@@ -17,6 +17,7 @@ import {
   Bus,
   WandSparkles,
   Phone,
+  Contact,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
@@ -66,11 +67,34 @@ export default function DashboardMobileMenu({
       : authUser
   ) as typeof authUser;
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [canVenueSeatingContacts, setCanVenueSeatingContacts] = useState(false);
   const canOpenWeddingWebsite = hasWeddingWebsiteFeature(user);
   const canOpenGuestMessages = hasGuestMessagesFeature(user);
   const canOpenRecordedCalls = isIvrCallsUser(user);
 
   const hasInvitation = Boolean(invitationId);
+
+  useEffect(() => {
+    if (isDemo || gameOnly || !eventId) {
+      setCanVenueSeatingContacts(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(
+      `/api/venue-seating-contacts/eligibility?eventId=${encodeURIComponent(eventId)}`,
+      { credentials: "include", cache: "no-store" }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setCanVenueSeatingContacts(Boolean(data?.showTab));
+      })
+      .catch(() => {
+        if (!cancelled) setCanVenueSeatingContacts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo, gameOnly, eventId]);
 
   if (!open && !showDemoModal) return null;
 
@@ -199,6 +223,20 @@ export default function DashboardMobileMenu({
       badge: "Preview",
       hidden: gameOnly || !invitationShareId,
       onClick: openInvitationPreview,
+    },
+    {
+      title: "הושבה באולם",
+      subtitle: "אנשי קשר ואישור פתיחת שולחנות רזרבה",
+      icon: Contact,
+      badge: "צוות",
+      hidden: gameOnly || !canVenueSeatingContacts,
+      onClick: () => {
+        if (isDemo || !eventId) {
+          go("/dashboard");
+          return;
+        }
+        go(`/dashboard/venue-seating?eventId=${encodeURIComponent(eventId)}`);
+      },
     },
     {
       title: "סידורי הושבה",

@@ -4,6 +4,7 @@ import { Menu, Home, MessageCircle, LogOut, LogIn } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerDashboardHeader from "./ProducerDashboardHeader";
+import CustomerNotificationBell from "./components/CustomerNotificationBell";
 
 /* ============================================================
    Types
@@ -241,7 +242,8 @@ export default function DashboardHeader({
           {/* =========================
               שמאל – מצב אירוע + יציאה
           ========================= */}
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-2 md:gap-3">
+            <CustomerNotificationBell enabled={!isDemo} />
             <div
               className="
                 hidden
@@ -289,7 +291,9 @@ export default function DashboardHeader({
               title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
             >
               {isDemo ? <LogIn size={17} /> : <LogOut size={17} />}
-              {isDemo ? "התחברות" : "התנתקות"}
+              <span className="hidden sm:inline">
+                {isDemo ? "התחברות" : "התנתקות"}
+              </span>
             </button>
           </div>
         </div>
