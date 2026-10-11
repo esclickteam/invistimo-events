@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import User from "@/models/User";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { requireIvrSession } from "@/lib/calls/ivrRequestAuth";
-import {
-  IVR_SELF_RECORD_MAX_SECONDS,
-} from "@/lib/calls/ivrScript";
+import { IVR_SELF_RECORD_MAX_SECONDS } from "@/lib/calls/ivrScript";
+import { prepareSelfRecordingForStorage } from "@/lib/calls/ivrSelfRecording";
 import {
   buildIvrPublicAudioUrl,
   createIvrAudioPublicToken,
@@ -126,38 +125,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "FILE_TOO_LARGE" }, { status: 400 });
     }
 
-    const contentType = file.type || "audio/webm";
-    const ext = contentType.includes("mpeg") || contentType.includes("mp3")
-      ? "mp3"
-      : contentType.includes("wav")
-        ? "wav"
-        : contentType.includes("ogg")
-          ? "ogg"
-          : "webm";
+    const prepared = await prepareSelfRecordingForStorage({
+      buffer,
+      reportedSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 0,
+    });
+    if (!prepared.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: prepared.error,
+          maxSeconds: prepared.maxSeconds,
+        },
+        { status: prepared.error === "TRANSCODE_FAILED" ? 500 : 400 }
+      );
+    }
 
     const publicToken = createIvrAudioPublicToken();
-    const r2Key = ivrIntroR2Key(String(user._id), publicToken, ext);
+    const r2Key = ivrIntroR2Key(String(user._id), publicToken, "mp3");
 
     await uploadIvrAudioToR2({
       key: r2Key,
-      buffer,
-      contentType,
+      buffer: prepared.buffer,
+      contentType: prepared.contentType,
     });
 
     const audioUrl = buildIvrPublicAudioUrl(publicToken);
 
     const introAudio = definedAudioFields({
       status: "ready",
-      source:
-        contentType.includes("webm") || form.get("source") === "recording"
-          ? "recording"
-          : "upload",
+      source: form.get("source") === "recording" ? "recording" : "upload",
       publicToken,
       audioUrl,
       r2Key,
-      contentType,
+      contentType: prepared.contentType,
       contentHash: `self:${publicToken}`,
-      durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
+      durationSeconds: prepared.durationSeconds,
       generatedAt: new Date(),
       textSnapshot: "",
       approved: false,

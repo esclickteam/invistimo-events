@@ -38,6 +38,12 @@ import {
   STALE_UNANSWERED_MS,
 } from "@/lib/calls/ivrDialFailure";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
+import {
+  confirmSelfRecordingAvailableToTelnyx,
+  ivrIntroPlaybackPlan,
+  selfRecordingContentTypeBlocksPlayback,
+  storedSelfRecordingTooLong,
+} from "@/lib/calls/ivrSelfRecording";
 import { createIvrRoundRunId } from "@/lib/calls/ivrRoundSchedule";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
@@ -317,6 +323,8 @@ export type IvrDueRound = {
   composedIntroAudioUrl: string;
   voiceGender: "female" | "male" | null;
   audioMode: "ai" | "self_recorded" | null;
+  /** Personal-file object key. Empty on the AI path. */
+  introR2Key: string;
   clientName: string;
   audioReady: boolean;
   audioBlockReason: string;
@@ -410,6 +418,12 @@ function diagnoseSelfAudioBlock(user: any): string {
     }
     return "חסרה הקלטה עצמית או טוקן מדיה תקין";
   }
+  if (selfRecordingContentTypeBlocksPlayback(intro?.contentType)) {
+    return "ההקלטה האישית אינה בפורמט ש־Telnyx יכול להשמיע. יש להקליט מחדש.";
+  }
+  if (storedSelfRecordingTooLong(intro?.durationSeconds)) {
+    return "ההקלטה האישית ארוכה מ־45 שניות ולא תנוגן בשיחה";
+  }
   if (intro?.status !== "ready") {
     return `ההקלטה העצמית אינה במצב מוכן (status=${String(intro?.status || "חסר")})`;
   }
@@ -492,6 +506,7 @@ function resolveRoundAudio(user: any): {
   composedIntroAudioUrl: string;
   voiceGender: "female" | "male" | null;
   audioMode: "ai" | "self_recorded";
+  introR2Key: string;
   audioReady: boolean;
   audioBlockReason: string;
 } {
@@ -501,11 +516,13 @@ function resolveRoundAudio(user: any): {
   let eventNameAudioUrl = "";
   let composedIntroAudioUrl = "";
   let voiceGender: "female" | "male" | null = null;
+  let introR2Key = "";
   let audioReady = false;
   let audioBlockReason = "";
 
   if (audioMode === "self_recorded") {
     introAudioUrl = resolveReadySelfAudio(user);
+    introR2Key = cleanStr(user?.ivrConfig?.introAudio?.r2Key);
     audioReady = Boolean(introAudioUrl);
     if (!audioReady) {
       audioBlockReason = diagnoseSelfAudioBlock(user);
@@ -529,6 +546,7 @@ function resolveRoundAudio(user: any): {
     composedIntroAudioUrl,
     voiceGender,
     audioMode: audioMode === "self_recorded" ? "self_recorded" : "ai",
+    introR2Key,
     audioReady,
     audioBlockReason,
   };
@@ -803,6 +821,7 @@ export async function openIvrRoundManually(input: {
       composedIntroAudioUrl: audio.composedIntroAudioUrl,
       voiceGender: audio.voiceGender,
       audioMode: audio.audioMode,
+      introR2Key: audio.introR2Key,
       clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
       audioReady: audio.audioReady,
       audioBlockReason: audio.audioBlockReason,
@@ -1016,6 +1035,8 @@ function resolveReadySelfAudio(user: any): string {
   if (
     !introAudioUrl ||
     intro?.status !== "ready" ||
+    selfRecordingContentTypeBlocksPlayback(intro?.contentType) ||
+    storedSelfRecordingTooLong(intro?.durationSeconds) ||
     (intro?.approved !== true && approval?.approved !== true) ||
     (!legacyApproved && !explicitlyApproved)
   ) {
@@ -1122,6 +1143,7 @@ export async function listDueIvrRounds(input?: {
         composedIntroAudioUrl: audio.composedIntroAudioUrl,
         voiceGender: audio.voiceGender,
         audioMode: audio.audioMode,
+        introR2Key: audio.introR2Key,
         clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
         audioReady: audio.audioReady,
         audioBlockReason: audio.audioBlockReason,
@@ -1246,6 +1268,48 @@ export async function executeIvrRound(input: {
       results: [],
       appBaseUrl: getAppBaseUrl(),
     };
+  }
+
+  if (input.due.audioMode === "self_recorded") {
+    const telnyxReady = await confirmSelfRecordingAvailableToTelnyx(
+      input.due.introR2Key
+    );
+    if (!telnyxReady.ok) {
+      await User.updateOne(
+        {
+          _id: input.due.userId,
+          "callRoundsSchedule.rounds": {
+            $elemMatch: {
+              roundNumber: input.due.round,
+              status: {
+                $in: [
+                  "draft",
+                  "scheduled",
+                  "waiting_for_assignment",
+                  "waiting_for_previous_round",
+                ],
+              },
+            },
+          },
+        },
+        {
+          $set: {
+            "callRoundsSchedule.rounds.$.failureReason": telnyxReady.reason,
+            "callRoundsSchedule.rounds.$.updatedAt": now,
+          },
+        }
+      );
+      return {
+        invitationId: input.due.invitationId,
+        round: input.due.round,
+        eligibleCount: 0,
+        dialed: 0,
+        blocked: true,
+        reason: telnyxReady.reason,
+        results: [],
+        appBaseUrl: getAppBaseUrl(),
+      };
+    }
   }
 
   const claimed = await claimRound(input.due.userId, input.due.round, now);
@@ -1415,6 +1479,12 @@ export async function executeIvrRound(input: {
       }
     }
 
+    const playback = ivrIntroPlaybackPlan({
+      audioMode: input.due.audioMode,
+      personalIntroUrl: input.due.introAudioUrl,
+      eventNameAudioUrl: input.due.eventNameAudioUrl,
+      composedIntroAudioUrl: input.due.composedIntroAudioUrl,
+    });
     const attemptFields = {
       userId: input.due.userId,
       invitationId: input.due.invitationId,
@@ -1428,12 +1498,10 @@ export async function executeIvrRound(input: {
       dtmfDigits: [],
       rsvpApplied: false,
       startedAt: now,
-      introAudioUrl: input.due.introAudioUrl,
-      eventNameAudioUrl:
-        input.due.audioMode === "self_recorded" ? "" : input.due.eventNameAudioUrl,
+      introAudioUrl: playback.introAudioUrl,
+      eventNameAudioUrl: playback.eventNameAudioUrl,
       voiceGender: input.due.voiceGender,
-      audioMode:
-        input.due.audioMode === "self_recorded" ? "self_recorded" : "ai",
+      audioMode: playback.audioMode,
     };
 
     let attempt = existing;
@@ -1796,6 +1864,7 @@ export async function fillIvrRoundCapacity(input: {
       composedIntroAudioUrl: audio.composedIntroAudioUrl,
       voiceGender: audio.voiceGender,
       audioMode: audio.audioMode,
+      introR2Key: audio.introR2Key,
       clientName: cleanStr(user.name) || cleanStr(user.email) || "לקוח",
       audioReady: audio.audioReady,
       audioBlockReason: audio.audioBlockReason,
