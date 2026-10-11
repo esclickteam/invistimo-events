@@ -1,4 +1,12 @@
 import {
+  PHONE_DUPLICATE_MESSAGE,
+  classifyPhoneImportRows,
+  displayPhone,
+  isIsraeliMobileLengthInvalid,
+  normalizePhoneKey,
+  phoneNeedsReview,
+} from "@/lib/guestPhone";
+import {
   addGuest,
   assignGuestToTable,
   deleteGuest,
@@ -197,7 +205,16 @@ export function bridgeDemoRequest(
     const updated = updateGuest(current.id, decodeURIComponent(guestWrite[1]), body || {});
     if (!updated) return ok({ success: false, message: "האורח לא נמצא בדמו" }, 404);
     if ("error" in updated) {
-      return ok({ success: false, error: updated.error }, 409);
+      return ok(
+        {
+          success: false,
+          error: updated.error,
+          ...(updated.error === PHONE_DUPLICATE_MESSAGE
+            ? { code: "PHONE_DUPLICATE" }
+            : {}),
+        },
+        409
+      );
     }
     return ok({ success: true, simulated: true, guest: updated.guest });
   }
@@ -212,7 +229,81 @@ export function bridgeDemoRequest(
   if (invitationGuests && verb === "POST") {
     const created = addGuest(current.id, body || {});
     if (!created) return ok({ success: false, error: "יש למלא שם" }, 400);
+    if ("error" in created && created.error) {
+      return ok(
+        {
+          success: false,
+          code: "PHONE_DUPLICATE",
+          error: created.error || PHONE_DUPLICATE_MESSAGE,
+        },
+        409
+      );
+    }
     return ok({ success: true, simulated: true, guest: created.guest });
+  }
+
+  if (pathname === "/api/guests/phone-check" && verb === "POST") {
+    const key = normalizePhoneKey(body?.phone);
+    const exclude = String(body?.excludeGuestId || "");
+    const duplicate = Boolean(
+      key &&
+        current.guests.some(
+          (guest) =>
+            guest._id !== exclude &&
+            normalizePhoneKey(guest.phoneNormalized || guest.phone) === key
+        )
+    );
+    return ok({
+      success: true,
+      duplicate,
+      needsReview: isIsraeliMobileLengthInvalid(body?.phone),
+      normalized: key,
+    });
+  }
+
+  if (pathname === "/api/guests/import" && verb === "POST") {
+    const guests = Array.isArray(body?.guests) ? body.guests : [];
+    const rows = guests
+      .map((guest: any) => ({
+        name: String(guest?.name || guest?.["שם"] || "").trim(),
+        phone: displayPhone(guest?.phone || guest?.["טלפון"] || ""),
+        relation: guest?.relation || "",
+        rsvp: guest?.rsvp || "pending",
+        guestsCount: guest?.guestsCount,
+        notes: guest?.notes || "",
+      }))
+      .filter((row: { name: string }) => row.name);
+    if (!rows.length) {
+      return ok(
+        {
+          success: false,
+          error: "NO_VALID_GUESTS",
+          message: "לא נמצאו רשומות תקינות לייבוא.",
+        },
+        400
+      );
+    }
+    const plan = classifyPhoneImportRows(
+      rows,
+      current.guests.map((guest) => guest.phoneNormalized || guest.phone || "")
+    );
+    const inserted = [];
+    for (const row of plan.accepted) {
+      const created = addGuest(current.id, row);
+      if (created && "guest" in created && created.guest) inserted.push(created.guest);
+    }
+    return ok({
+      success: true,
+      count: inserted.length,
+      message: `✅ יובאו ${inserted.length} מוזמנים בהצלחה`,
+      summary: {
+        fileCount: plan.fileCount,
+        importedCount: inserted.length,
+        duplicateCount: plan.duplicates.length,
+        reviewCount: inserted.filter((guest) => phoneNeedsReview(guest)).length,
+        duplicates: plan.duplicates,
+      },
+    });
   }
 
   if (pathname === "/api/guests/assign-table" && verb === "POST") {

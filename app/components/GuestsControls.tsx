@@ -41,6 +41,8 @@ type Props = {
    * מגבלת רשומות מהחבילה.
    * מגיע מהשדה user.guests.
    */
+  phoneReviewCount?: number;
+
   recordsLimit?: number;
 
   /**
@@ -159,7 +161,8 @@ function isBaseFilter(filter: QuickFilter) {
     filter === "pending" ||
     filter === "noTable" ||
     filter === "opened" ||
-    filter === "notOpened"
+    filter === "notOpened" ||
+    filter === "phoneReview"
   );
 }
 
@@ -178,6 +181,7 @@ export default function GuestsControls({
   totalCount,
   displayCount,
   recordsLimit = 0,
+  phoneReviewCount = 0,
   usedRecordsCount,
   onExportExcel,
   onAddGuest,
@@ -195,6 +199,10 @@ export default function GuestsControls({
     { key: "maybe", label: "מתלבטים" },
     { key: "pending", label: "בהמתנה" },
     { key: "noTable", label: "בלי שולחן" },
+    {
+      key: "phoneReview",
+      label: `מספרי טלפון לבדיקה (${phoneReviewCount})`,
+    },
   ];
 
   const selectedRoundNumber =

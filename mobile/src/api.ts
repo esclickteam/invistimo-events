@@ -381,6 +381,13 @@ export async function importGuests(
     message?: string;
     error?: string;
     code?: string;
+    summary?: {
+      fileCount: number;
+      importedCount: number;
+      duplicateCount: number;
+      reviewCount: number;
+      duplicates: Array<{ name: string; phone: string; reason: string }>;
+    };
   }>("/api/guests/import", {
     method: "POST",
     body: JSON.stringify({ invitationId, guests }),

@@ -3,6 +3,11 @@ import {
   GUEST_PHONE_LOCKED_ERROR,
 } from "@/lib/guestRecordQuota";
 import {
+  PHONE_DUPLICATE_MESSAGE,
+  displayPhone,
+  normalizePhoneKey,
+} from "@/lib/guestPhone";
+import {
   createDemoSessionData,
   createDemoTour,
   DEMO_SESSION_TTL_MS,
@@ -177,18 +182,34 @@ function findGuest(session: DemoSession, guestId: string) {
 export function addGuest(
   id: string,
   input: Partial<DemoGuest>
-): { session: DemoSession; guest: DemoGuest } | null {
+):
+  | { session: DemoSession; guest: DemoGuest; error?: undefined }
+  | { error: string; session?: undefined; guest?: undefined }
+  | null {
   const session = mutate(id);
   if (!session) return null;
   const name = String(input.name || "").trim();
   if (!name) return null;
   const guestId = String(input._id || createSessionId());
   const guestsCount = Math.max(1, Number(input.guestsCount) || 1);
+  const phone = displayPhone(input.phone);
+  const phoneNormalized = normalizePhoneKey(phone);
+  if (
+    phoneNormalized &&
+    session.guests.some(
+      (item) =>
+        normalizePhoneKey(item.phoneNormalized || item.phone) === phoneNormalized
+    )
+  ) {
+    return { error: PHONE_DUPLICATE_MESSAGE };
+  }
   const guest: DemoGuest = {
     _id: guestId,
     id: guestId,
     name,
-    phone: String(input.phone || "").replace(/\D/g, ""),
+    phone,
+    phoneNormalized: phoneNormalized || null,
+    phoneLengthApproved: false,
     token: String(input.token || `dmo_${guestId.slice(-8)}`),
     relation: input.relation || "",
     groupId: input.groupId || null,
@@ -219,11 +240,35 @@ export function updateGuest(
   if (!guest) return null;
 
   if (patch.name != null) guest.name = String(patch.name).trim() || guest.name;
+  const beforePhoneKey = normalizePhoneKey(guest.phoneNormalized || guest.phone);
   if (patch.phone != null) {
     if (!canAssignPhoneToGuest(guest.phone, patch.phone)) {
       return { error: GUEST_PHONE_LOCKED_ERROR };
     }
-    guest.phone = String(patch.phone).replace(/\D/g, "");
+    const nextPhone = displayPhone(patch.phone);
+    const nextKey = normalizePhoneKey(nextPhone);
+    if (
+      nextKey &&
+      nextKey !== beforePhoneKey &&
+      session.guests.some(
+        (item) =>
+          item._id !== guest._id &&
+          normalizePhoneKey(item.phoneNormalized || item.phone) === nextKey
+      )
+    ) {
+      return { error: PHONE_DUPLICATE_MESSAGE };
+    }
+    guest.phone = nextPhone;
+    guest.phoneNormalized = nextKey || null;
+    guest.phoneLengthApproved =
+      nextKey === beforePhoneKey && guest.phoneLengthApproved === true;
+  }
+  if ((patch as { approvePhoneLength?: boolean }).approvePhoneLength === true) {
+    const afterKey = normalizePhoneKey(guest.phoneNormalized || guest.phone);
+    if (patch.phone == null || afterKey === beforePhoneKey) {
+      guest.phoneLengthApproved = true;
+      if (!guest.phoneNormalized && afterKey) guest.phoneNormalized = afterKey;
+    }
   }
   if (patch.relation != null) guest.relation = String(patch.relation);
   if (patch.notes != null) guest.notes = String(patch.notes);

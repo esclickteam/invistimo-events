@@ -12,7 +12,6 @@ import {
   parseGuestListText,
   parseGuestRecords,
   worksheetRowsToRecords,
-  normalizeGuestPhone,
   parseTableNumber,
   parseAdultFlag,
   type ImportedChallengeGuest,
@@ -22,6 +21,14 @@ import {
   wouldExceedWeddingChallengesGuestLimit,
   weddingChallengesGuestLimitPayload,
 } from "@/lib/weddingChallenges/guestLimit";
+import { normalizePhoneKey, PHONE_DUPLICATE_MESSAGE } from "@/lib/guestPhone";
+import {
+  isPhoneDuplicateError,
+  loadExistingPhoneKeys,
+  planPhoneChange,
+  releaseClaimForGuest,
+  reserveNewGuestPhone,
+} from "@/lib/guestPhonePolicy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -184,14 +191,11 @@ export async function POST(req: Request) {
     invitationId,
     ...attendingGuestMongoFilter(context.sourceType),
   });
-  const existing = await InvitationGuest.find({
-    invitationId,
-    phone: { $in: incoming.map((guest) => guest.phone) },
-  })
-    .select("phone")
-    .lean();
-  const existingPhones = new Set(existing.map((guest) => normalizeGuestPhone(guest.phone)));
-  const incomingNewCount = incoming.filter((guest) => !existingPhones.has(guest.phone)).length;
+  const existingKeys = await loadExistingPhoneKeys(invitationId);
+  const incomingNewCount = incoming.filter((guest) => {
+    const key = normalizePhoneKey(guest.phone);
+    return !key || !existingKeys.has(key);
+  }).length;
   if (wouldExceedWeddingChallengesGuestLimit(existingCount, incomingNewCount)) {
     return NextResponse.json(weddingChallengesGuestLimitPayload(), { status: 400 });
   }
@@ -201,27 +205,42 @@ export async function POST(req: Request) {
   const ids: string[] = [];
 
   for (const guest of incoming) {
-    if (existingPhones.has(guest.phone)) {
+    const key = normalizePhoneKey(guest.phone);
+    if (key && existingKeys.has(key)) {
       skipped += 1;
       continue;
     }
-    existingPhones.add(guest.phone);
-    const table = tableFields(guest.tableNumber);
-    const doc = await InvitationGuest.create({
-      invitationId,
-      name: guest.name,
-      phone: guest.phone,
-      rsvp: "yes",
-      status: "yes",
-      guestsCount: 1,
-      arrivedCount: 1,
-      amount: 1,
-      token: nanoid(12),
-      isAdult: guest.isAdult !== false,
-      ...table,
-    });
-    created.push(doc);
-    ids.push(String(doc._id));
+    let reserved: Awaited<ReturnType<typeof reserveNewGuestPhone>> | null = null;
+    try {
+      reserved = await reserveNewGuestPhone(invitationId, guest.phone);
+      const table = tableFields(guest.tableNumber);
+      const doc = await InvitationGuest.create({
+        _id: reserved.guestId,
+        invitationId,
+        name: guest.name,
+        phone: reserved.fields.phone,
+        phoneNormalized: reserved.fields.phoneNormalized,
+        phoneLengthApproved: false,
+        rsvp: "yes",
+        status: "yes",
+        guestsCount: 1,
+        arrivedCount: 1,
+        amount: 1,
+        token: nanoid(12),
+        isAdult: guest.isAdult !== false,
+        ...table,
+      });
+      if (key) existingKeys.add(key);
+      created.push(doc);
+      ids.push(String(doc._id));
+    } catch (error) {
+      if (reserved) await reserved.rollback();
+      if (isPhoneDuplicateError(error)) {
+        skipped += 1;
+        continue;
+      }
+      throw error;
+    }
   }
 
   if (ids.length) {
@@ -267,7 +286,37 @@ export async function PATCH(req: Request) {
   }
 
   if (body.name != null) guest.name = String(body.name).trim();
-  if (body.phone != null) guest.phone = normalizeGuestPhone(body.phone);
+  let phoneFinalize = async () => {};
+  let phoneRollback = async () => {};
+  if (body.phone != null) {
+    try {
+      const phonePlan = await planPhoneChange({
+        invitationId: guest.invitationId,
+        guestId: guest._id,
+        currentPhone: guest.phone,
+        currentPhoneNormalized: guest.phoneNormalized,
+        currentApproved: guest.phoneLengthApproved === true,
+        nextPhone: body.phone,
+      });
+      guest.phone = phonePlan.fields.phone;
+      guest.phoneNormalized = phonePlan.fields.phoneNormalized;
+      guest.phoneLengthApproved = phonePlan.fields.phoneLengthApproved;
+      phoneFinalize = phonePlan.finalize;
+      phoneRollback = phonePlan.rollback;
+    } catch (error) {
+      if (isPhoneDuplicateError(error)) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "PHONE_DUPLICATE",
+            error: PHONE_DUPLICATE_MESSAGE,
+          },
+          { status: 409 }
+        );
+      }
+      throw error;
+    }
+  }
   if (body.tableNumber !== undefined) {
     const table = tableFields(parseTableNumber(body.tableNumber));
     guest.tableNumber = table.tableNumber;
@@ -275,7 +324,13 @@ export async function PATCH(req: Request) {
     guest.tableId = table.tableId;
   }
   if (body.isAdult !== undefined) guest.isAdult = parseAdultFlag(body.isAdult, true);
-  await guest.save();
+  try {
+    await guest.save();
+    await phoneFinalize();
+  } catch (error) {
+    await phoneRollback();
+    throw error;
+  }
 
   await WeddingChallengeGuest.updateOne(
     { eventId, guestId },
@@ -329,6 +384,8 @@ export async function DELETE(req: Request) {
   if (!guest) {
     return NextResponse.json({ success: false, error: "GUEST_NOT_FOUND" }, { status: 404 });
   }
+
+  await releaseClaimForGuest(guest);
 
   await Promise.all([
     Invitation.updateOne({ _id: context.invitation._id }, { $pull: { guests: guest._id } }),

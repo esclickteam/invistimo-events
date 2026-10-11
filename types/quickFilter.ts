@@ -7,6 +7,7 @@ export type QuickFilter =
   | "noTable"
   | "opened"
   | "notOpened"
+  | "phoneReview"
 
   // 🔽 סבבי שיחות
   | "call_round_1" // סבב 1

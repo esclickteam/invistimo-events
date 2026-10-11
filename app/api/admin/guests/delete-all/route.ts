@@ -227,6 +227,9 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
+    const { deleteClaimsForInvitation } = await import("@/lib/guestPhonePolicy");
+    await deleteClaimsForInvitation(invitationObjectId);
+
     return NextResponse.json({
       success: true,
       deletedCount: result.deletedCount || 0,

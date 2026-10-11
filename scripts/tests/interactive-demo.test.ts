@@ -8,6 +8,7 @@ import {
   unpackDemoSession,
 } from "../../lib/demo/interactive/sessionPack";
 import { countGuestsTowardRecordQuota } from "../../lib/guestRecordQuota";
+import { phoneNeedsReview } from "../../lib/guestPhone";
 import {
   addGuest,
   assignGuestToTable,
@@ -195,16 +196,15 @@ test("a guest without a phone does not consume a paid record", () => {
   try {
     const before = countGuestsTowardRecordQuota(session.guests);
     const withPhone = addGuest(session.id, { name: "עם טלפון", phone: "0500000099" });
-    assert.equal(countGuestsTowardRecordQuota(withPhone?.session.guests || []), before + 1);
+    assert.ok(withPhone?.session && withPhone.guest);
+    assert.equal(countGuestsTowardRecordQuota(withPhone.session.guests), before + 1);
     const withoutPhone = addGuest(session.id, { name: "בלי טלפון", phone: "" });
-    assert.equal(
-      countGuestsTowardRecordQuota(withoutPhone?.session.guests || []),
-      before + 1
-    );
+    assert.ok(withoutPhone?.session && withoutPhone.guest);
+    assert.equal(countGuestsTowardRecordQuota(withoutPhone.session.guests), before + 1);
     const locked = bridgeDemoRequest(
       getSession(session.id)!,
       "PUT",
-      `/api/guests/${withoutPhone?.guest._id}`,
+      `/api/guests/${withoutPhone.guest._id}`,
       { phone: "0501111111" }
     );
     assert.equal(locked.status, 409);
@@ -377,4 +377,81 @@ test("a packed demo session survives a cleared server memory", () => {
   assert.equal(again?.guests.some((guest) => guest.name === "בדיקת עוגייה"), true);
   assert.equal(again?.guests.some((guest) => guest.name === "לקוח אמיתי"), false);
   dropSession(session.id);
+});
+
+test("demo add and edit share the event phone rules", () => {
+  const session = createSession();
+  const other = createSession();
+  try {
+    const first = addGuest(session.id, { name: "ראשון", phone: "050-0001111" });
+    assert.ok(first && first.guest);
+    const duplicate = addGuest(session.id, { name: "שני", phone: "+972500001111" });
+    assert.equal(duplicate && "error" in duplicate ? duplicate.error : "", "מספר הטלפון כבר קיים באירוע זה");
+    const elsewhere = addGuest(other.id, { name: "אירוע אחר", phone: "0500001111" });
+    assert.ok(elsewhere && elsewhere.guest);
+
+    const short = addGuest(session.id, { name: "קצר", phone: "050000222" });
+    assert.ok(short && short.guest);
+    assert.equal(phoneNeedsReview(short.guest), true);
+
+    const checked = bridgeDemoRequest(session, "POST", "/api/guests/phone-check", {
+      invitationId: "demo",
+      phone: "050-000-222",
+      excludeGuestId: short.guest._id,
+    });
+    assert.equal(checked.json.duplicate, false);
+    assert.equal(checked.json.needsReview, true);
+
+    const approved = bridgeDemoRequest(session, "PUT", `/api/guests/${short.guest._id}`, {
+      approvePhoneLength: true,
+    });
+    assert.equal(approved.status, 200);
+    const approvedGuest = approved.json.guest as { phoneLengthApproved?: boolean; phone?: string };
+    assert.equal(approvedGuest.phoneLengthApproved, true);
+    assert.equal(phoneNeedsReview(approvedGuest), false);
+
+    const changed = bridgeDemoRequest(session, "PUT", `/api/guests/${short.guest._id}`, {
+      phone: "05000022222",
+    });
+    assert.equal(changed.status, 200);
+    const changedGuest = changed.json.guest as { phoneLengthApproved?: boolean; phone?: string };
+    assert.equal(changedGuest.phoneLengthApproved, false);
+    assert.equal(phoneNeedsReview(changedGuest), true);
+
+    const blocked = bridgeDemoRequest(session, "PUT", `/api/guests/${short.guest._id}`, {
+      phone: "0500001111",
+    });
+    assert.equal(blocked.status, 409);
+    assert.equal(blocked.json.code, "PHONE_DUPLICATE");
+    assert.equal(blocked.json.error, "מספר הטלפון כבר קיים באירוע זה");
+
+    const imported = bridgeDemoRequest(getSession(session.id)!, "POST", "/api/guests/import", {
+      invitationId: "demo-invitation",
+      guests: [
+        { name: "חדש", phone: "050-0003333" },
+        { name: "כפול בקובץ", phone: "+972500003333" },
+        { name: "כבר באירוע", phone: "0500001111" },
+        { name: "קצרה", phone: "050000444" },
+      ],
+    });
+    assert.equal(imported.status, 200);
+    const summary = imported.json.summary as {
+      fileCount: number;
+      importedCount: number;
+      duplicateCount: number;
+      reviewCount: number;
+      duplicates: Array<{ name: string; reason: string }>;
+    };
+    assert.equal(summary.fileCount, 4);
+    assert.equal(summary.importedCount, 2);
+    assert.equal(summary.duplicateCount, 2);
+    assert.equal(summary.reviewCount, 1);
+    assert.deepEqual(
+      summary.duplicates.map((row) => row.reason),
+      ["מספר כפול בקובץ", "מספר טלפון כבר קיים באירוע"]
+    );
+  } finally {
+    dropSession(session.id);
+    dropSession(other.id);
+  }
 });

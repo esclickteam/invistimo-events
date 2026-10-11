@@ -155,6 +155,26 @@ const InvitationGuestSchema = new Schema(
       trim: true,
     },
 
+    /**
+     * Comparison key only. The phone field keeps the original display value.
+     * Not unique: an event may already contain the same number more than once.
+     * New writes are blocked by GuestPhoneClaim.
+     */
+    phoneNormalized: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    /**
+     * Manual confirmation that an Israeli 05 number with a non-10 length is acceptable.
+     * Cleared when the normalized phone changes.
+     */
+    phoneLengthApproved: {
+      type: Boolean,
+      default: false,
+    },
+
     relation: {
       type: String,
       default: "",
@@ -344,6 +364,11 @@ InvitationGuestSchema.index(
       checkInToken: { $type: "string", $gt: "" },
     },
   }
+);
+
+InvitationGuestSchema.index(
+  { invitationId: 1, phoneNormalized: 1 },
+  { name: "invitation_phone_normalized" }
 );
 
 /* ===========================================================

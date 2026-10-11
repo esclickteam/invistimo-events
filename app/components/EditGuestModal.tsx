@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   buildGuestLinkTimeline,
   formatGuestLinkOpenedAt,
   guestLinkWasOpened,
 } from "@/lib/guestLinkTracking";
+import GuestPhoneField from "@/app/components/GuestPhoneField";
+import { PHONE_DUPLICATE_MESSAGE } from "@/lib/guestPhone";
 
 interface EditGuestModalProps {
   guest: any;
+  invitationId?: string;
   userRole: "guest" | "admin";
   onClose: () => void;
   onSuccess: (updatedGuest: any) => void;
@@ -16,6 +19,7 @@ interface EditGuestModalProps {
 
 export default function EditGuestModal({
   guest,
+  invitationId,
   userRole,
   onClose,
   onSuccess,
@@ -28,6 +32,7 @@ export default function EditGuestModal({
   const [arrivedCount, setArrivedCount] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phoneDuplicate, setPhoneDuplicate] = useState(false);
 
   const tableName = guest?.tableName ?? "-";
   const phoneLocked = !String(guest?.phone || "").replace(/\D/g, "");
@@ -47,6 +52,10 @@ export default function EditGuestModal({
   }, [guest]);
 
   async function save() {
+    if (!phoneLocked && phoneDuplicate) {
+      alert(PHONE_DUPLICATE_MESSAGE);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -79,6 +88,12 @@ export default function EditGuestModal({
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 409 && data?.code === "PHONE_DUPLICATE") {
+        setPhoneDuplicate(true);
+        alert(data?.error || PHONE_DUPLICATE_MESSAGE);
+        return;
+      }
 
       if (!res.ok || data?.success === false) {
         console.error("❌ Update guest failed:", {
@@ -258,13 +273,15 @@ export default function EditGuestModal({
             </Field>
 
             <Field label="טלפון">
-              <input
-                className={`${inputClass}${phoneLocked ? " cursor-not-allowed bg-[#F4EEE6] opacity-80" : ""}`}
+              <GuestPhoneField
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={phoneLocked ? "ללא מספר טלפון" : "מספר טלפון"}
+                onChange={setPhone}
+                invitationId={invitationId || guest?.invitationId}
+                excludeGuestId={guest?._id}
                 disabled={phoneLocked}
-                readOnly={phoneLocked}
+                placeholder={phoneLocked ? "ללא מספר טלפון" : "מספר טלפון"}
+                onDuplicateChange={setPhoneDuplicate}
+                className={inputClass}
               />
               {phoneLocked ? (
                 <p className="mt-1 text-[11px] font-bold text-[#8A7B69]">
@@ -399,7 +416,7 @@ export default function EditGuestModal({
               type="button"
               data-tour="guest-edit-save"
               onClick={save}
-              disabled={loading}
+              disabled={loading || phoneDuplicate}
               className={`
                 h-11
                 rounded-[16px]

@@ -12,6 +12,11 @@ import {
   countGuestsTowardRecordQuota,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
+import { PHONE_DUPLICATE_MESSAGE } from "@/lib/guestPhone";
+import {
+  isPhoneDuplicateError,
+  reserveNewGuestPhone,
+} from "@/lib/guestPhonePolicy";
 import { normalizeGuestRsvp } from "@/lib/rsvpStatus";
 
 export const dynamic = "force-dynamic";
@@ -972,11 +977,17 @@ export async function POST(req: NextRequest) {
       "@/lib/checkIn/ensureEventTokens"
     );
     const checkInToken = await checkInTokenForInvitation(invitation);
+    const reservedPhone = await reserveNewGuestPhone(invitationId, phone);
 
-    const created = await InvitationGuest.create({
+    let created;
+    try {
+      created = await InvitationGuest.create({
+      _id: reservedPhone.guestId,
       invitationId,
       name: String(name).trim(),
-      phone: phone ? String(phone).trim() : "",
+      phone: reservedPhone.fields.phone,
+      phoneNormalized: reservedPhone.fields.phoneNormalized,
+      phoneLengthApproved: false,
       side,
       rsvpStatus,
       quantity: Number(quantity) || 1,
@@ -987,12 +998,26 @@ export async function POST(req: NextRequest) {
       actualArrivedCount: Number(actualArrivedCount) || 0,
       ...(checkInToken ? { checkInToken } : {}),
     });
+    } catch (createError) {
+      await reservedPhone.rollback();
+      throw createError;
+    }
 
     return NextResponse.json({
       success: true,
       guest: created,
     });
   } catch (err: any) {
+    if (isPhoneDuplicateError(err)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PHONE_DUPLICATE",
+          error: PHONE_DUPLICATE_MESSAGE,
+        },
+        { status: 409 }
+      );
+    }
     console.error("🔥 ERROR in /api/guests POST:", err);
 
     return NextResponse.json(

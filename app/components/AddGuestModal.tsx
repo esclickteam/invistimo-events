@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
+import GuestPhoneField from "@/app/components/GuestPhoneField";
+import {
+  PHONE_DUPLICATE_MESSAGE,
+  normalizePhoneKey,
+} from "@/lib/guestPhone";
 
 type Guest = {
   _id: string;
@@ -35,6 +40,11 @@ interface Props {
   onSuccess: (guest?: Guest) => Promise<void>;
   invitationId?: string;
   usage?: Usage | null;
+  existingGuests?: Array<{
+    _id?: string;
+    phone?: string | null;
+    phoneNormalized?: string | null;
+  }>;
 }
 
 function createRow(): GuestRow {
@@ -56,8 +66,12 @@ export default function AddGuestModal({
   onSuccess,
   invitationId,
   usage,
+  existingGuests = [],
 }: Props) {
   const [rows, setRows] = useState<GuestRow[]>([createRow()]);
+  const [duplicateRows, setDuplicateRows] = useState<Record<string, boolean>>(
+    {}
+  );
   const [loading, setLoading] = useState(false);
 
   const demoMode = useSeatingStore((s) => s.demoMode);
@@ -67,7 +81,7 @@ export default function AddGuestModal({
       .map((row) => ({
         ...row,
         name: row.name.trim(),
-        phone: cleanPhone(row.phone),
+        phone: row.phone.trim(),
         relation: row.relation.trim(),
         guestsCount: Math.max(1, Number(row.guestsCount) || 1),
       }))
@@ -75,9 +89,10 @@ export default function AddGuestModal({
   }, [rows]);
 
   const billableRows = useMemo(
-    () => validRows.filter((row) => Boolean(row.phone)),
+    () => validRows.filter((row) => Boolean(cleanPhone(row.phone))),
     [validRows]
   );
+  const hasDuplicatePhone = rows.some((row) => duplicateRows[row.id]);
 
   const limitReached = useMemo(() => {
     if (!usage) return false;
@@ -147,6 +162,22 @@ export default function AddGuestModal({
       return;
     }
 
+    const seenKeys = new Set<string>();
+    const existingKeys = new Set(
+      existingGuests
+        .map((guest) => normalizePhoneKey(guest.phoneNormalized || guest.phone))
+        .filter(Boolean)
+    );
+    for (const row of validRows) {
+      const key = normalizePhoneKey(row.phone);
+      if (!key) continue;
+      if (seenKeys.has(key) || existingKeys.has(key) || duplicateRows[row.id]) {
+        alert(PHONE_DUPLICATE_MESSAGE);
+        return;
+      }
+      seenKeys.add(key);
+    }
+
     if (!demoMode && notEnoughUsage) {
       alert(
         `נותרו לך ${usage?.remaining ?? 0} רשומות בלבד, וניסית להוסיף ${
@@ -177,6 +208,12 @@ export default function AddGuestModal({
         });
 
         const data = await res.json();
+
+        if (res.status === 409 && data?.code === "PHONE_DUPLICATE") {
+          setDuplicateRows((prev) => ({ ...prev, [row.id]: true }));
+          alert(data?.error || PHONE_DUPLICATE_MESSAGE);
+          return;
+        }
 
         if (res.status === 409 && data?.code === "GUEST_LIMIT_REACHED") {
           alert(
@@ -489,13 +526,28 @@ export default function AddGuestModal({
                   autoFocus={index === 0}
                 />
 
-                <input
+                <GuestPhoneField
                   value={row.phone}
-                  onChange={(e) => updateRow(row.id, "phone", e.target.value)}
+                  onChange={(value) => updateRow(row.id, "phone", value)}
+                  invitationId={invitationId}
+                  otherPhones={[
+                    ...rows
+                      .filter((item) => item.id !== row.id)
+                      .map((item) => item.phone),
+                    ...existingGuests.map(
+                      (guest) => guest.phoneNormalized || guest.phone || ""
+                    ),
+                  ]}
                   placeholder="טלפון (אופציונלי)"
-                  inputMode="numeric"
+                  onDuplicateChange={(duplicate) =>
+                    setDuplicateRows((prev) => {
+                      if (Boolean(prev[row.id]) === duplicate) return prev;
+                      return { ...prev, [row.id]: duplicate };
+                    })
+                  }
                   className="
                     h-[48px]
+                    w-full
                     rounded-2xl
                     border
                     border-[#E3D6C3]
@@ -660,6 +712,7 @@ export default function AddGuestModal({
               disabled={
                 loading ||
                 validRows.length === 0 ||
+                hasDuplicatePhone ||
                 (!demoMode && (limitReached || notEnoughUsage))
               }
               className="
