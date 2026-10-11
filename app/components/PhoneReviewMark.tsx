@@ -187,7 +187,7 @@ function PhoneReviewDialog({
             disabled={saving || status.duplicate}
             className="h-11 rounded-full bg-[#241A14] text-sm font-black text-white disabled:opacity-50"
           >
-            שמירת המספר
+            תיקון מספר
           </button>
           <button
             type="button"
