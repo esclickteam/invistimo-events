@@ -19,6 +19,7 @@ import {
 import CallsTypeField, {
   type CallsTypeValue,
 } from "@/app/components/admin/CallsTypeField";
+import { PACKAGES, packageRate, servicePrice } from "@/lib/pricing/packageQuote";
 import { RSVP_SITE_MODE_DEFAULT, type RsvpSiteMode } from "@/types/rsvpSite";
 import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 
@@ -26,7 +27,7 @@ const VAT_RATE = 0.18;
 const COMMISSION_RATE = 0.05;
 const QUOTE_VALIDITY_DAYS = 4;
 
-type PackageKey = "easy" | "smart" | "seating";
+type PackageKey = "messages" | "voice" | "personal" | "hybrid";
 type DocumentType = "quote" | "agreement";
 type PaymentMode = "full" | "split";
 type QuotePricingDisplay = "showUpsellPrices" | "packageTotalOnly";
@@ -103,185 +104,29 @@ type DetailsModalState = {
   defaultView?: "employee" | "customer";
 } | null;
 
-const PACKAGE_TIERS = {
-  easy: [
-    { maxRecords: 50, price: 99 },
-    { maxRecords: 100, price: 149 },
-    { maxRecords: 150, price: 199 },
-    { maxRecords: 200, price: 239 },
-    { maxRecords: 250, price: 269 },
-    { maxRecords: 300, price: 299 },
-    { maxRecords: 350, price: 339 },
-    { maxRecords: 400, price: 379 },
-    { maxRecords: 450, price: 409 },
-    { maxRecords: 500, price: 429 },
-    { maxRecords: 550, price: 459 },
-    { maxRecords: 600, price: 489 },
-    { maxRecords: 650, price: 519 },
-    { maxRecords: 700, price: 539 },
-    { maxRecords: 750, price: 569 },
-    { maxRecords: 800, price: 599 },
-    { maxRecords: 850, price: 619 },
-    { maxRecords: 900, price: 649 },
-    { maxRecords: 950, price: 679 },
-    { maxRecords: 1000, price: 699 },
-  ],
-  smart: [
-    { maxRecords: 50, price: 149 },
-    { maxRecords: 100, price: 249 },
-    { maxRecords: 150, price: 349 },
-    { maxRecords: 200, price: 449 },
-    { maxRecords: 250, price: 549 },
-    { maxRecords: 300, price: 649 },
-    { maxRecords: 350, price: 749 },
-    { maxRecords: 400, price: 849 },
-    { maxRecords: 450, price: 949 },
-    { maxRecords: 500, price: 1049 },
-    { maxRecords: 550, price: 1149 },
-    { maxRecords: 600, price: 1249 },
-    { maxRecords: 650, price: 1349 },
-    { maxRecords: 700, price: 1449 },
-    { maxRecords: 750, price: 1549 },
-    { maxRecords: 800, price: 1649 },
-    { maxRecords: 850, price: 1749 },
-    { maxRecords: 900, price: 1849 },
-    { maxRecords: 950, price: 1949 },
-    { maxRecords: 1000, price: 2049 },
-  ],
-  seating: [
-    { maxRecords: 50, price: 199 },
-    { maxRecords: 100, price: 299 },
-    { maxRecords: 150, price: 399 },
-    { maxRecords: 200, price: 499 },
-    { maxRecords: 250, price: 599 },
-    { maxRecords: 300, price: 699 },
-    { maxRecords: 350, price: 799 },
-    { maxRecords: 400, price: 899 },
-    { maxRecords: 450, price: 999 },
-    { maxRecords: 500, price: 1099 },
-    { maxRecords: 550, price: 1199 },
-    { maxRecords: 600, price: 1299 },
-    { maxRecords: 650, price: 1399 },
-    { maxRecords: 700, price: 1499 },
-    { maxRecords: 750, price: 1599 },
-    { maxRecords: 800, price: 1699 },
-    { maxRecords: 850, price: 1799 },
-    { maxRecords: 900, price: 1899 },
-    { maxRecords: 950, price: 1999 },
-    { maxRecords: 1000, price: 2099 },
-  ],
-} satisfies Record<PackageKey, PackageTier[]>;
-
-const EASY_INCLUDES = [
-  "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
-  "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
-  "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
-  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
-  "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
-  "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
-  "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
-  "מעקב פתיחת קישור בזמן אמת – ניתן לראות אילו אורחים פתחו את הקישור שנשלח אליהם, גם אם עדיין לא סימנו הגעה או מילאו אישור הגעה.",
-  "הודעת תזכורת לקראת האירוע, כולל פרטי האירוע ומספר שולחן אם הוגדר.",
-  "הודעת תודה לאחר האירוע ב־SMS.",
-];
-
-const SMART_INCLUDES = [
-  "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
-  "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
-  "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
-  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
-  "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
-  "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
-  "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
-  "מעקב פתיחת קישור בזמן אמת – ניתן לראות אילו אורחים פתחו את הקישור שנשלח אליהם, גם אם עדיין לא סימנו הגעה או מילאו אישור הגעה.",
-  "הודעת תזכורת לקראת האירוע, כולל פרטי האירוע ומספר שולחן אם הוגדר.",
-  "הודעת תודה לאחר האירוע ב־SMS.",
-  "מוקד טלפוני מקצועי לאורחים שלא ענו להודעות.",
-  "עד 3 סבבי שיחה של נציגים אנושיים למוזמנים שלא ענו או נדרשת אליהם חזרה.",
-  "תיעוד שיחות, הערות ועדכון סטטוסים בזמן אמת במערכת.",
-];
-
-const SEATING_INCLUDES = [
-  "הזמנה דיגיטלית מלאה על בסיס קובץ/תמונה שהלקוח מעלה למערכת — ללא עיצוב גרפי של Invistimo.",
-  "דף הזמנה דיגיטלי עם פרטי האירוע וקישור לאישור הגעה.",
-  "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
-  "באחריות הלקוח להעלות את רשימת המוזמנים למערכת במועד הנדרש, לעדכן את Invistimo לאחר השלמת העלאת הרשימה לצורך תזמון הסבבים, ולוודא כי רשימת המוזמנים וסידורי ההושבה מעודכנים ומושלמים לפני שליחת ההודעות.",
-  "2 סבבי הודעות אוטומטיים לאישורי הגעה ב־WhatsApp או SMS, לפי בחירת הערוץ לכל סבב.",
-  "אפשרות לפצל בין WhatsApp ו־SMS כדי לשפר את אחוזי המענה.",
-  "עדכון סטטוסי הגעה במערכת לפי תשובות האורחים.",
-  "מעקב פתיחת קישור בזמן אמת – ניתן לראות אילו אורחים פתחו את הקישור שנשלח אליהם, גם אם עדיין לא סימנו הגעה או מילאו אישור הגעה.",
-  "הודעת תזכורת לקראת האירוע, כולל פרטי האירוע ומספר שולחן אם הוגדר.",
-  "הודעת תודה לאחר האירוע ב־SMS.",
-  "מוקד טלפוני מקצועי לאורחים שלא ענו להודעות.",
-  "עד 3 סבבי שיחה של נציגים אנושיים למוזמנים שלא ענו או נדרשת אליהם חזרה.",
-  "תיעוד שיחות, הערות ועדכון סטטוסים בזמן אמת במערכת.",
-  "מערכת הושבה דיגיטלית באתר לניהול שולחנות וסידורי הושבה.",
-  "חיבור בין אישורי ההגעה לבין סידורי ההושבה, כדי לראות מי אישר וכמה מגיעים מכל רשומה.",
-  "אפשרות לעדכן שולחנות, מספרי כיסאות ושיוך אורחים עד מועד האירוע.",
-  "מתנות באשראי באמצעות ספק חיצוני RSVP, כחלק מהחבילה וללא תוספת תשלום.",
-];
-
-const PACKAGE_PLANS: PackagePlan[] = [
-  {
-    key: "easy",
-    title: "קל להזמין",
-    badge: "מתאים לאירוע פשוט",
-    shortDescription: "הזמנה דיגיטלית + 2 סבבי הודעות לאישורי הגעה",
-    includes: EASY_INCLUDES,
-    customerSummary:
-      "חבילת קל להזמין כוללת הזמנה דיגיטלית על בסיס קובץ שהלקוח מעלה, ניהול רשומות, 2 סבבי הודעות לאישורי הגעה ב־WhatsApp או SMS, הודעת תזכורת והודעת תודה לאחר האירוע.",
+const PACKAGE_PLANS: PackagePlan[] = (
+  ["messages", "voice", "personal", "hybrid"] as const
+).map((key) => {
+  const pkg = PACKAGES[key];
+  return {
+    key,
+    title: pkg.name,
+    badge: pkg.badge,
+    shortDescription: pkg.hebrewName,
+    includes: [...pkg.features],
+    customerSummary: pkg.description,
     employeeDetails: [
       {
         title: "דגשים לעובד",
         items: [
-          "להבהיר שההזמנה הדיגיטלית היא הזמנה שהלקוח מעלה, לא עיצוב אישי שלנו.",
-          "להסביר שיש 2 סבבי הודעות בלבד, וכל סבב יכול להיות ב־WhatsApp או SMS.",
-          "אם הלקוח רוצה הושבה דיגיטלית באתר בחבילה זו — לבחור תוספת הושבה דיגיטלית ב־100 ₪.",
+          "המחיר מחושב כמו בעמוד החבילות: הודעות לפי מדרגות המחיר הקיימות, ושיחות לפי 1.6 ₪, 2.2 ₪ או 1.9 ₪ לרשומה.",
+          "תוספות האפסייל נשארות כפי שהן, והמחיר שלהן מתווסף בנפרד.",
         ],
       },
     ],
-    tiers: PACKAGE_TIERS.easy,
-  },
-  {
-    key: "smart",
-    title: "מזמינים חכם",
-    badge: "הבחירה הפופולרית",
-    shortDescription: "הזמנה + הודעות + מוקד טלפוני למי שלא ענה",
-    includes: SMART_INCLUDES,
-    customerSummary:
-      "חבילת מזמינים חכם כוללת הזמנה דיגיטלית על בסיס קובץ שהלקוח מעלה, 2 סבבי הודעות ב־WhatsApp או SMS, הודעת תזכורת, הודעת תודה, מוקד טלפוני ועד 3 סבבי שיחה למוזמנים שלא ענו.",
-    employeeDetails: [
-      {
-        title: "דגשים לעובד",
-        items: [
-          "לא לומר 'כולל את חבילה 1' — לפרט ללקוח את כל השירותים בפועל.",
-          "השיחות מתבצעות למי שלא ענה או למי שנדרשת אליו חזרה, לא לכל מי שכבר אישר.",
-          "אם הלקוח רוצה הושבה דיגיטלית באתר בחבילה זו — לבחור תוספת הושבה דיגיטלית ב־100 ₪.",
-        ],
-      },
-    ],
-    tiers: PACKAGE_TIERS.smart,
-  },
-  {
-    key: "seating",
-    title: "מזמינים ומושיבים",
-    badge: "הכי מקיף",
-    shortDescription: "הזמנה + הודעות + מוקד + הושבה דיגיטלית באתר",
-    includes: SEATING_INCLUDES,
-    customerSummary:
-      "חבילת מזמינים ומושיבים כוללת הזמנה דיגיטלית על בסיס קובץ שהלקוח מעלה, 2 סבבי הודעות ב־WhatsApp או SMS, הודעת תזכורת, הודעת תודה, מוקד טלפוני ועד 3 סבבי שיחה, מערכת הושבה דיגיטלית באתר לניהול שולחנות וסידורי הושבה, ומתנות באשראי באמצעות ספק חיצוני RSVP ללא תוספת תשלום.",
-    employeeDetails: [
-      {
-        title: "דגשים לעובד",
-        items: [
-          "הושבה דיגיטלית באתר כלולה בחבילה זו ללא תוספת 100 ₪.",
-          "ההושבה הדיגיטלית היא מערכת באתר, ולא צוות פיזי באולם. צוות פיזי באולם נבחר כאפסייל נפרד.",
-        ],
-      },
-    ],
-    tiers: PACKAGE_TIERS.seating,
-  },
-];
+    tiers: [],
+  };
+});
 
 const DIGITAL_SEATING_DETAILS: DetailSection[] = [
   {
@@ -701,7 +546,7 @@ const UPSELLS: UpsellItem[] = [
     key: "digitalSeating",
     title: "הושבה דיגיטלית באתר",
     price: 100,
-    availableForPlans: ["easy", "smart"],
+    availableForPlans: ["messages", "voice", "personal", "hybrid"],
     description: "תוספת לחבילות קל להזמין / מזמינים חכם בלבד.",
     customerDetails: DIGITAL_SEATING_DETAILS,
     employeeDetails: [
@@ -718,7 +563,7 @@ const UPSELLS: UpsellItem[] = [
     key: "creditGifts",
     title: "מתנות באשראי באמצעות ספק חיצוני RSVP",
     price: 150,
-    availableForPlans: ["easy", "smart", "seating"],
+    availableForPlans: ["messages", "voice", "personal", "hybrid"],
     description: "קישור מתנות באשראי באמצעות ספק חיצוני RSVP. בחבילת מזמינים ומושיבים השירות כלול ללא תוספת תשלום.",
     customerDetails: CREDIT_GIFTS_DETAILS,
     employeeDetails: [
@@ -948,22 +793,16 @@ function getSelectedPlan(planKey: PackageKey) {
   return PACKAGE_PLANS.find((plan) => plan.key === planKey) || PACKAGE_PLANS[0];
 }
 
-function getTierForRecords(plan: PackagePlan, records: number) {
-  const safeRecords = clampRecords(records);
-  return plan.tiers.find((tier) => safeRecords <= tier.maxRecords) || plan.tiers[plan.tiers.length - 1];
-}
-
 function calculatePackagePrice(plan: PackagePlan, records: number) {
   const safeRecords = clampRecords(records);
-  const tier = getTierForRecords(plan, safeRecords);
-  const pricePerRecord = tier.price / tier.maxRecords;
-  const finalPrice = roundMoney(pricePerRecord * safeRecords);
+  const pricePerRecord = packageRate(plan.key, safeRecords);
+  const finalPrice = servicePrice(plan.key, safeRecords);
 
   return {
     records: safeRecords,
-    tierMaxRecords: tier.maxRecords,
-    tierPrice: tier.price,
-    pricePerRecord: roundMoney(pricePerRecord),
+    tierMaxRecords: safeRecords,
+    tierPrice: finalPrice,
+    pricePerRecord,
     finalPrice,
   };
 }
@@ -1004,14 +843,12 @@ function getUpsellPrice(
   upsell: UpsellItem,
   venueStaff: VenueSeatingStaffCount,
   alcoholStaff: AlcoholManagementStaffCount,
-  planKey: PackageKey = "easy",
+  planKey: PackageKey = "messages",
 ) {
   if (upsell.key === "venueSeating") return getVenueOption(venueStaff).price;
   if (upsell.key === "alcoholManagement") return getAlcoholOption(alcoholStaff).price;
   if (upsell.key === "creditGifts") {
-    if (planKey === "smart") return 100;
-    if (planKey === "easy") return 150;
-    return 0;
+    return planKey === "messages" ? 150 : 100;
   }
   return upsell.price;
 }
@@ -1051,10 +888,6 @@ function getCustomerDetailsForPlan(plan: PackagePlan): DetailSection[] {
     },
   ];
 
-  if (plan.key === "seating") {
-    sections.push(...CREDIT_GIFTS_DETAILS);
-  }
-
   return sections;
 }
 
@@ -1070,21 +903,6 @@ function getEmployeeDetailsForPlan(plan: PackagePlan): DetailSection[] {
       ],
     },
   ];
-
-  if (plan.key === "seating") {
-    sections.push({
-      title: "מתנות באשראי — דגשים לעובד",
-      items: [
-        "בחבילת מזמינים ומושיבים מתנות באשראי כלולות בחבילה ללא תוספת תשלום ומופיעות באפסיילים במחיר 0 ₪.",
-        "השירות מתבצע באמצעות ספק חיצוני בשם RSVP ואינו מופעל ישירות על ידי Invistimo.",
-        "הלקוח צריך להירשם ל־RSVP, למלא את כל הפרטים ולהעביר מסמכים אם יידרשו. פתיחת המשתמש מאושרת עד 2 ימי עסקים לאחר השלמת כל הדרישות.",
-        "לאחר קבלת הקישור מ־RSVP, חובה להוסיף אותו בפרטי האירוע ובהודעות הנשלחות לאורחים כדי שהאורחים יראו את אפשרות התשלום באשראי.",
-        "עמלת 2.5% נגבית מכל מתנה באשראי ומשולמת על ידי האורח במעמד התשלום.",
-        "העברת הכספים לחשבון שהוגדר ב־RSVP מתבצעת עד 5 ימי עסקים. העברת זהב מהירה אפשרית בעלות 100 ₪, עד יום עסקים אחד, בכפוף לזמינות ולאישור RSVP.",
-        "Invistimo מאפשרת את שילוב הקישור במערכת ובהודעות בלבד. הסליקה, העמלות והעברת הכספים הן באחריות RSVP ובהתאם לתנאי הספק.",
-      ],
-    });
-  }
 
   return sections;
 }
@@ -1237,7 +1055,7 @@ export default function NewEmployeeSalePage() {
     useState<SeatingScheduleTimes>(() => emptySeatingScheduleTimes());
   const [rsvpSiteMode, setRsvpSiteMode] = useState<RsvpSiteMode>(RSVP_SITE_MODE_DEFAULT);
 
-  const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
+  const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("personal");
   const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
   const [records, setRecords] = useState("300");
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() => createEmptyUpsells());
@@ -1279,13 +1097,13 @@ export default function NewEmployeeSalePage() {
   const packageCalculation = useMemo(() => calculatePackagePrice(selectedPlan, clampRecords(records)), [records, selectedPlan]);
 
   const packageTargetPriceWithCalls = useMemo(() => {
-    if (selectedPlanKey !== "easy") return packageCalculation.finalPrice;
+    if (selectedPlanKey !== "messages") return packageCalculation.finalPrice;
 
-    const smartPlan = getSelectedPlan("smart");
-    return calculatePackagePrice(smartPlan, packageCalculation.records).finalPrice;
+    const personalPlan = getSelectedPlan("personal");
+    return calculatePackagePrice(personalPlan, packageCalculation.records).finalPrice;
   }, [packageCalculation.finalPrice, packageCalculation.records, selectedPlanKey]);
 
-  const hasCallRounds = selectedPlanKey === "smart" || selectedPlanKey === "seating";
+  const hasCallRounds = selectedPlanKey !== "messages";
   const packageIncludesCalls = hasCallRounds;
   const allowedCallRounds = hasCallRounds ? 3 : 0;
 
@@ -1310,10 +1128,6 @@ export default function NewEmployeeSalePage() {
 
   const selectedUpsellsList = useMemo(() => {
     return availableUpsells.filter((upsell) => {
-      if (upsell.key === "creditGifts" && selectedPlanKey === "seating") {
-        return true;
-      }
-
       return selectedUpsells[upsell.key];
     });
   }, [availableUpsells, selectedPlanKey, selectedUpsells]);
@@ -1729,10 +1543,6 @@ export default function NewEmployeeSalePage() {
   }
 
   function toggleUpsell(key: UpsellKey) {
-    if (key === "creditGifts" && selectedPlanKey === "seating") {
-      return;
-    }
-
     setSelectedUpsells((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       if (key === "suppliersBudgetSystem" && !next[key]) setSuppliersBudgetFree(false);
@@ -1744,12 +1554,9 @@ export default function NewEmployeeSalePage() {
 
   function changePlan(nextPlan: PackageKey) {
     setSelectedPlanKey(nextPlan);
-    if (nextPlan === "seating") {
-      setSelectedUpsells((prev) => ({ ...prev, digitalSeating: false }));
-    }
-    if (nextPlan !== "smart" && nextPlan !== "seating") {
-      setCallsType("");
-    }
+    if (nextPlan === "voice") setCallsType("ivr");
+    else if (nextPlan === "personal" || nextPlan === "hybrid") setCallsType("human");
+    else setCallsType("");
   }
 
   async function createDocument(action: "preview" | "sms") {
@@ -2176,7 +1983,7 @@ export default function NewEmployeeSalePage() {
                 <label className="text-sm font-black text-[#3f3327]">כמות רשומות<input type="number" min={1} max={1000} value={records} onChange={(e) => setRecords(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 md:w-40" /></label>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 {PACKAGE_PLANS.map((plan) => {
                   const active = selectedPlanKey === plan.key;
                   const calc = calculatePackagePrice(plan, packageCalculation.records);
@@ -2192,7 +1999,7 @@ export default function NewEmployeeSalePage() {
                       <div className="mt-5 rounded-[24px] border border-[#eadfce] bg-white p-4 text-center">
                         <p className="text-xs font-black text-[#8b7b68]">מחיר לפי {packageCalculation.records} רשומות</p>
                         <p className="mt-2 text-3xl font-black text-[#3f3327]">{money(calc.finalPrice)}</p>
-                        <p className="mt-1 text-xs font-bold text-[#9a8976]">מדרגה עד {calc.tierMaxRecords} · ממוצע {money(calc.pricePerRecord)} לרשומה</p>
+                        <p className="mt-1 text-xs font-bold text-[#9a8976]">{money(calc.pricePerRecord)} לרשומה</p>
                       </div>
                       <button type="button" onClick={(event) => { event.stopPropagation(); setDetailsModal({
                           title: plan.title,
@@ -2222,11 +2029,11 @@ export default function NewEmployeeSalePage() {
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-2xl font-black text-slate-950">תוספות ושירותים</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">בחבילות 1 ו־2 ניתן להוסיף הושבה דיגיטלית באתר ב־100 ₪. בחבילה 3 זה כבר כלול.</p>
+              <p className="mt-1 text-sm font-semibold text-slate-500">הושבה דיגיטלית באתר היא תוספת של 100 ₪ בכל החבילות.</p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {availableUpsells.map((upsell) => {
-                  const includedInPackage = upsell.key === "creditGifts" && selectedPlanKey === "seating";
+                  const includedInPackage = false;
                   const selected = selectedUpsells[upsell.key] || includedInPackage;
                   const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
                   const freeApplied = upsell.key === "suppliersBudgetSystem" && selected && suppliersBudgetFree && canGiveSuppliersBudgetFree;
@@ -2378,7 +2185,7 @@ export default function NewEmployeeSalePage() {
                 <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4">
                   <p className="text-xs font-black text-[#8b7b68]">חבילה נבחרת</p>
                   <p className="mt-1 text-lg font-black text-[#3f3327]">{selectedPlan.title}</p>
-                  <p className="mt-1 text-xs font-bold text-[#9a8976]">{packageCalculation.records} רשומות · מדרגה עד {packageCalculation.tierMaxRecords}</p>
+                  <p className="mt-1 text-xs font-bold text-[#9a8976]">{packageCalculation.records} רשומות · {money(packageCalculation.pricePerRecord)} לרשומה</p>
                 </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4 space-y-3">

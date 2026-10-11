@@ -146,7 +146,16 @@ function getUpsellStaffCount(
 }
 
 function planHasCalls(plan: string) {
-  return plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
+  const key = String(plan || "").trim().toLowerCase();
+  return (
+    key === "voice" ||
+    key === "personal" ||
+    key === "hybrid" ||
+    key === "smart" ||
+    key === "seating" ||
+    key === "plan2" ||
+    key === "plan3"
+  );
 }
 
 function resolveCallsType(value: unknown): "human" | "ivr" {
@@ -175,8 +184,16 @@ function planHasCreditGifts(plan: string) {
 function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
   const normalized = cleanString(plan).toLowerCase();
 
-  if (normalized === "easy" || normalized === "plan1") return "plan1";
-  if (normalized === "smart" || normalized === "plan2") return "plan2";
+  if (normalized === "messages" || normalized === "easy" || normalized === "plan1") return "plan1";
+  if (
+    normalized === "voice" ||
+    normalized === "personal" ||
+    normalized === "hybrid" ||
+    normalized === "smart" ||
+    normalized === "plan2"
+  ) {
+    return "plan2";
+  }
   if (normalized === "seating" || normalized === "plan3") return "plan3";
   if (normalized === "basic") return "basic";
 

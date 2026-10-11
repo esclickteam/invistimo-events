@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { servicePrice } from "@/lib/pricing/packageQuote";
 import { useRouter } from "next/navigation";
 import CallsTypeField, {
   type CallsTypeValue,
@@ -9,7 +10,7 @@ import CallsTypeField, {
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
 type StaffCreateType = "system" | "seating" | "usher" | "producer";
 type PaymentStatus = "paid" | "stripe";
-type PlanKey = "plan1" | "plan2" | "plan3";
+type PlanKey = "messages" | "voice" | "personal" | "hybrid";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
 
 type Props = {
@@ -47,9 +48,10 @@ type CallRoundScheduleState = {
 
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
-  plan1: [],
-  plan2: ["calls"],
-  plan3: ["calls", "credit", "seating"],
+  messages: [],
+  voice: ["calls"],
+  personal: ["calls"],
+  hybrid: ["calls"],
 };
 
 const addonLabels: Record<AddonKey, string> = {
@@ -99,12 +101,19 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
 
 
   /* ===== PLAN ===== */
-  const [plan, setPlan] = useState<PlanKey>("plan2");
-  const [callsType, setCallsType] = useState<CallsTypeValue | "">("");
+  const [plan, setPlan] = useState<PlanKey>("personal");
+  const [callsType, setCallsType] = useState<CallsTypeValue | "">("human");
   const [saving, setSaving] = useState(false);
 
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
+
+  useEffect(() => {
+    setPrice(servicePrice(plan, Math.max(1, records)));
+    if (plan === "voice") setCallsType("ivr");
+    else if (plan === "personal" || plan === "hybrid") setCallsType("human");
+    else setCallsType("");
+  }, [plan, records]);
   const [allowedMessageRounds, setAllowedMessageRounds] =
     useState<AllowedMessageRounds>(2);
 
@@ -868,9 +877,10 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                   }}
                   className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                 >
-                  <option value="plan1">קל להזמין (בלי שיחות)</option>
-                  <option value="plan2">מזמינים חכם (כולל שיחות)</option>
-                  <option value="plan3">מזמינים ומושיבים (כולל שיחות)</option>
+                  <option value="messages">Invistimo Messages · הודעות בלבד</option>
+                  <option value="voice">Invistimo Voice · שיחות מוקלטות</option>
+                  <option value="personal">Invistimo Personal · שיחות אנושיות</option>
+                  <option value="hybrid">Invistimo Hybrid · שיחות משולבות</option>
                 </select>
               </label>
 

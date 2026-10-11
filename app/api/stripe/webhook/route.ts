@@ -125,8 +125,16 @@ function normalizeAllowedMessageRounds(value: unknown): 2 | 3 {
 function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
   const normalized = String(plan || "").trim().toLowerCase();
 
-  if (normalized === "easy" || normalized === "plan1") return "plan1";
-  if (normalized === "smart" || normalized === "plan2") return "plan2";
+  if (normalized === "messages" || normalized === "easy" || normalized === "plan1") return "plan1";
+  if (
+    normalized === "voice" ||
+    normalized === "personal" ||
+    normalized === "hybrid" ||
+    normalized === "smart" ||
+    normalized === "plan2"
+  ) {
+    return "plan2";
+  }
   if (normalized === "seating" || normalized === "plan3") return "plan3";
   if (normalized === "basic") return "basic";
 
@@ -522,7 +530,13 @@ function buildEmployeeSaleUpsells(sale: any) {
 function getEmployeeSalePackageFlags(sale: any, user: any) {
   const plan = getSalePlan(sale, user);
   const isSmartOrSeating =
-    plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
+    plan === "voice" ||
+    plan === "personal" ||
+    plan === "hybrid" ||
+    plan === "smart" ||
+    plan === "seating" ||
+    plan === "plan2" ||
+    plan === "plan3";
   const isSeatingPackage = plan === "seating" || plan === "plan3";
   const salesUpsells = buildEmployeeSaleUpsells(sale);
 

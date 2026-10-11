@@ -71,6 +71,50 @@ const PLAN_CONFIG: Record<
     includeDigitalSeating: true,
     includeEventManagement: true,
   },
+
+  messages: {
+    label: "Invistimo Messages",
+    guests: 100,
+    price: 0,
+    allowedMessageRounds: 2,
+    includeCalls: false,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
+
+  voice: {
+    label: "Invistimo Voice",
+    guests: 100,
+    price: 0,
+    allowedMessageRounds: 2,
+    includeCalls: true,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
+
+  personal: {
+    label: "Invistimo Personal",
+    guests: 100,
+    price: 0,
+    allowedMessageRounds: 2,
+    includeCalls: true,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
+
+  hybrid: {
+    label: "Invistimo Hybrid",
+    guests: 100,
+    price: 0,
+    allowedMessageRounds: 2,
+    includeCalls: true,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
 };
 
 /* =========================================================
