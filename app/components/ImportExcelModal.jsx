@@ -433,6 +433,12 @@ export default function ImportExcelModal({
             <SummaryStat label="יובאו ודורשות בדיקה" value={importReport.reviewCount} />
           </div>
 
+          {Number(importReport.legacyDuplicateCount) > 0 ? (
+            <p className="mt-3 text-sm font-bold text-[#7A4B4B]">
+              באירוע כבר שמורים {importReport.legacyDuplicateCount} מספרי טלפון יותר מפעם אחת. הרשומות הקיימות לא נמחקו ולא מוזגו.
+            </p>
+          ) : null}
+
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"

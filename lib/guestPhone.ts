@@ -65,12 +65,34 @@ export function phoneNeedsReview(guest: {
   phone?: unknown;
   phoneNormalized?: unknown;
   phoneLengthApproved?: unknown;
+  requiresPhoneReview?: unknown;
 } | null | undefined): boolean {
   if (!guest) return false;
+  if (guest.requiresPhoneReview === true) return true;
+  if (guest.requiresPhoneReview === false) return false;
   const key =
     normalizePhoneKey(guest.phoneNormalized) || normalizePhoneKey(guest.phone);
   if (!isIsraeliMobileLengthInvalid(key)) return false;
   return guest.phoneLengthApproved !== true;
+}
+
+/**
+ * Excel stores 05 numbers as numeric cells and drops the leading 0.
+ * 501234567, 50123456 and 5012345678 are the 10, 9 and 11 digit forms.
+ * Typed numbers that already include 0, 972 or another country code stay as entered.
+ */
+export function restoreIsraeliTrunkZero(value: unknown): string {
+  const phone = displayPhone(value);
+  const digits = phoneDigits(phone);
+  if (!digits || digits.startsWith("0") || digits.startsWith("972")) return phone;
+  if (digits.startsWith("00")) return phone;
+  if (
+    digits.startsWith("5") &&
+    (digits.length === 8 || digits.length === 9 || digits.length === 10)
+  ) {
+    return `0${digits}`;
+  }
+  return phone;
 }
 
 export function phoneFieldsForStorage(
@@ -79,10 +101,13 @@ export function phoneFieldsForStorage(
 ) {
   const phone = displayPhone(value);
   const phoneNormalized = normalizePhoneKey(phone);
+  const invalid = isIsraeliMobileLengthInvalid(phone);
+  const approved = options?.keepApproval === true;
   return {
     phone,
     phoneNormalized: phoneNormalized || null,
-    phoneLengthApproved: options?.keepApproval === true,
+    phoneLengthApproved: approved,
+    requiresPhoneReview: invalid && !approved,
   };
 }
 

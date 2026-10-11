@@ -98,7 +98,13 @@ function PhoneReviewDialog({
         setError(data?.error || data?.message || "שגיאה בעדכון מספר הטלפון");
         return;
       }
-      await onUpdated(data.guest || { ...guest, phone });
+      await onUpdated(
+        data.guest || {
+          ...guest,
+          phone,
+          requiresPhoneReview: phoneNeedsReview({ phone }),
+        }
+      );
       onClose();
     } catch {
       setError("שגיאה בעדכון מספר הטלפון");
@@ -123,7 +129,11 @@ function PhoneReviewDialog({
         return;
       }
       await onUpdated(
-        data.guest || { ...guest, phoneLengthApproved: true }
+        data.guest || {
+          ...guest,
+          phoneLengthApproved: true,
+          requiresPhoneReview: false,
+        }
       );
       onClose();
     } catch {

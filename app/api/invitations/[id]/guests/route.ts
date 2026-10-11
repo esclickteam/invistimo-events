@@ -276,7 +276,8 @@ try {
   name: safeName,
   phone: reservedPhone.fields.phone,
   phoneNormalized: reservedPhone.fields.phoneNormalized,
-  phoneLengthApproved: false,
+  phoneLengthApproved: reservedPhone.fields.phoneLengthApproved,
+  requiresPhoneReview: reservedPhone.fields.requiresPhoneReview,
   relation: normalizedRelation,
   rsvp: ["yes", "no", "maybe", "pending"].includes(String(rsvp)) ? rsvp : "pending",
   guestsCount: incomingGuests,
@@ -578,6 +579,8 @@ export async function PUT(
       normalizedUpdates.phoneNormalized = phonePlan.fields.phoneNormalized;
       normalizedUpdates.phoneLengthApproved =
         phonePlan.fields.phoneLengthApproved;
+      normalizedUpdates.requiresPhoneReview =
+        phonePlan.fields.requiresPhoneReview;
       phoneFinalize = phonePlan.finalize;
       phoneRollback = phonePlan.rollback;
     }
@@ -593,6 +596,7 @@ export async function PUT(
       );
       if (!("phone" in updates) || afterKey === beforeKey) {
         normalizedUpdates.phoneLengthApproved = true;
+        normalizedUpdates.requiresPhoneReview = false;
         if (!normalizedUpdates.phoneNormalized && beforeKey) {
           normalizedUpdates.phoneNormalized = beforeKey;
         }

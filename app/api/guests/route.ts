@@ -650,7 +650,7 @@ export async function GET(req: NextRequest) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json({
@@ -710,6 +710,11 @@ export async function GET(req: NextRequest) {
           message: "אין הרשאה לצפייה במוזמנים",
         });
       }
+
+      const { ensureInvitationPhoneClaims } = await import(
+        "@/lib/guestPhonePolicy"
+      );
+      await ensureInvitationPhoneClaims(invitationId);
 
       let guests = (await InvitationGuest.find({
         invitationId,
@@ -786,6 +791,12 @@ export async function GET(req: NextRequest) {
     }
 
     const invitationIds = invitations.map((i) => i._id);
+    const { ensureInvitationPhoneClaims } = await import(
+      "@/lib/guestPhonePolicy"
+    );
+    await Promise.all(
+      invitationIds.map((id) => ensureInvitationPhoneClaims(id))
+    );
     const eventIds = invitations
       .map((i) => i.eventId)
       .filter(Boolean) as Types.ObjectId[];
@@ -884,7 +895,7 @@ export async function POST(req: NextRequest) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -987,7 +998,8 @@ export async function POST(req: NextRequest) {
       name: String(name).trim(),
       phone: reservedPhone.fields.phone,
       phoneNormalized: reservedPhone.fields.phoneNormalized,
-      phoneLengthApproved: false,
+      phoneLengthApproved: reservedPhone.fields.phoneLengthApproved,
+      requiresPhoneReview: reservedPhone.fields.requiresPhoneReview,
       side,
       rsvpStatus,
       quantity: Number(quantity) || 1,
