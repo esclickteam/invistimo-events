@@ -11,12 +11,10 @@ import {
   MessageCircle,
   MonitorCog,
   Palette,
-  Phone,
   Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
 import {
   ADDON_LABELS,
@@ -36,7 +34,6 @@ import {
   type PackageDefinition,
   type PackageId,
   type SelectedAddons,
-  type ServiceMode,
 } from "@/lib/pricing/packageQuote";
 
 const ADDON_ICONS: Record<AddonKey, LucideIcon> = {
@@ -82,33 +79,23 @@ function FeatureList({ items }: { items: string[] }) {
 function PackageCard({
   pkg,
   records,
-  selected,
-  onSelect,
+  addons,
 }: {
   pkg: PackageDefinition;
   records: number;
-  selected: boolean;
-  onSelect: () => void;
+  addons: SelectedAddons;
 }) {
-  const quote = calculateQuote({ packageId: pkg.id, records, addons: EMPTY_ADDONS });
+  const quote = calculateQuote({ packageId: pkg.id, records, addons });
   const Icon = PACKAGE_ICONS[pkg.id];
+  const href = quote.canOrder ? buildWhatsappUrl(quote) : "";
+  const selectedAddons = quote.addons.filter((addon) => addon.selected);
 
   return (
     <article
       data-testid={`package-${pkg.id}`}
-      className={`relative flex min-w-0 flex-col rounded-[32px] border bg-[#FFFDF9]/95 p-5 shadow-[0_22px_60px_rgba(91,64,35,0.1)] transition duration-300 sm:p-6 ${
-        selected
-          ? "border-[#C89545] ring-4 ring-[#D8B16A]/20"
-          : "border-[#E5D3B8] hover:border-[#D7B98D]"
-      }`}
+      className="relative flex min-w-0 flex-col rounded-[32px] border border-[#E5D3B8] bg-[#FFFDF9]/95 p-5 shadow-[0_22px_60px_rgba(91,64,35,0.1)] transition duration-300 hover:border-[#D7B98D] sm:p-6"
     >
-      {selected ? (
-        <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#C89545] text-white shadow">
-          <Check size={16} />
-        </span>
-      ) : null}
-
-      <div className="flex items-start gap-3 pl-10">
+      <div className="flex items-start gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#E5D1B7] bg-[#FFF8EE] text-[#A86F2B]">
           <Icon size={22} />
         </span>
@@ -136,27 +123,33 @@ function PackageCard({
         <div className="mx-auto my-3 h-px w-16 bg-[#E8D9C7]" />
         <p className="text-xs font-bold text-[#9C866D]">מחיר החבילה</p>
         <p
+          data-testid={`package-service-${pkg.id}`}
+          className="mt-1 text-2xl font-black tabular-nums leading-none text-[#3E2D20]"
+        >
+          {formatIls(quote.servicePrice)}
+        </p>
+        {selectedAddons.length > 0 ? (
+          <ul className="mt-3 space-y-1 text-xs font-bold leading-5 text-[#7B6754]">
+            {selectedAddons.map((addon) => (
+              <li key={addon.key} className="flex items-start justify-between gap-3">
+                <span className="min-w-0 text-right">{addon.label}</span>
+                <span className="shrink-0 tabular-nums">{formatIls(addon.price)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mx-auto my-3 h-px w-16 bg-[#E8D9C7]" />
+        <p className="text-xs font-bold text-[#9C866D]">סה״כ לתשלום</p>
+        <p
           data-testid={`package-total-${pkg.id}`}
           className="mt-1 text-4xl font-black tabular-nums leading-none text-[#3E2D20]"
         >
-          {formatIls(quote.servicePrice)}
+          {formatIls(quote.total)}
         </p>
         <p className="mt-2 text-xs text-[#9C866D]">ל־{quote.records.toLocaleString("he-IL")} רשומות</p>
       </div>
 
-      <button
-        type="button"
-        data-testid={`select-${pkg.id}`}
-        aria-pressed={selected}
-        onClick={onSelect}
-        className={`${ctaClassName} mt-5 ${
-          selected
-            ? "bg-[#3E2D20] text-white"
-            : "bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] text-white shadow-[0_14px_28px_rgba(168,111,43,0.22)] hover:-translate-y-0.5"
-        }`}
-      >
-        {selected ? "החבילה נבחרה" : "בחירת החבילה"}
-      </button>
+      <OrderButton href={href} disabled={!quote.canOrder} />
 
       <div className="mt-6 border-t border-[#E9D9C4] pt-5">
         <p className="mb-3 text-sm font-black text-[#3E2D20]">כלול בחבילה</p>
@@ -169,24 +162,12 @@ function PackageCard({
 export default function PricingPage() {
   const [records, setRecords] = useState(200);
   const [recordText, setRecordText] = useState("200");
-  const [service, setService] = useState<ServiceMode | null>(null);
-  const [callPackage, setCallPackage] = useState<PackageId | null>(null);
   const [addons, setAddons] = useState<SelectedAddons>(EMPTY_ADDONS);
 
-  const packageId: PackageId | null =
-    service === "messages" ? "messages" : service === "calls" ? callPackage : null;
-
-  const quote = useMemo(
-    () => (packageId ? calculateQuote({ packageId, records, addons }) : null),
-    [packageId, records, addons]
+  const packages = useMemo(
+    () => [PACKAGES.messages, ...CALL_PACKAGES.map((id) => PACKAGES[id])],
+    []
   );
-
-  const visiblePackages =
-    service === "messages"
-      ? [PACKAGES.messages]
-      : service === "calls"
-        ? CALL_PACKAGES.map((id) => PACKAGES[id])
-        : [];
 
   function setRecordCount(next: number) {
     const safe = clampRecords(next);
@@ -206,22 +187,9 @@ export default function PricingPage() {
     setRecordText(String(committed));
   }
 
-  function chooseService(next: ServiceMode) {
-    setService(next);
-    if (next === "calls" && callPackage === "messages") setCallPackage(null);
-  }
-
   function toggleAddon(key: AddonKey) {
     setAddons((current) => ({ ...current, [key]: !current[key] }));
   }
-
-  const orderHint = !packageId
-    ? "בחרו חבילה כדי לשלוח בקשה"
-    : records <= 0
-      ? "בחרו לפחות רשומה אחת כדי לשלוח בקשה"
-      : "";
-
-  const whatsappUrl = quote?.canOrder ? buildWhatsappUrl(quote) : "";
 
   return (
     <main dir="rtl" className="relative min-h-screen overflow-x-clip bg-[#F7EFE6] text-[#3E2D20]">
@@ -249,7 +217,7 @@ export default function PricingPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#7B6754]">
-            בונים את החבילה לפי כמות הרשומות, סוג אישורי ההגעה והתוספות. המחיר מתעדכן מיד, וההזמנה נשלחת אלינו בוואטסאפ.
+            קודם בוחרים כמות רשומות ותוספות. המחיר מתעדכן בכל חבילה, ולחיצה על «אני רוצה את החבילה» פותחת וואטסאפ עם כל הפרטים.
           </p>
         </div>
       </section>
@@ -307,250 +275,93 @@ export default function PricingPage() {
         </section>
 
         <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
-          <div className="mb-6 flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
-              2
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+                2
+              </span>
+              <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+                תוספות אפשריות
+              </h2>
+            </div>
+            <span className="shrink-0 rounded-full bg-[#FFF4E2] px-3 py-1 text-xs font-bold text-[#A86F2B]">
+              לפי בחירה
             </span>
-            <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
-              איך תרצו לנהל את אישורי ההגעה?
-            </h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="סוג השירות">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={service === "messages"}
-              data-testid="service-messages"
-              onClick={() => chooseService("messages")}
-              className={`flex min-w-0 items-center gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
-                service === "messages"
-                  ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
-                  : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
-              }`}
-            >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF8EE] text-[#A86F2B]">
-                <MessageCircle size={22} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-lg font-black text-[#3E2D20]">הודעות בלבד</span>
-                <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
-                  הזמנה דיגיטלית ושני סבבי הודעות
-                </span>
-              </span>
-            </button>
+          <div className="space-y-3">
+            {ADDON_ORDER.map((key) => {
+              const selected = addons[key];
+              const Icon = ADDON_ICONS[key];
+              const messagesPrice = addonPrice("messages", key);
+              const callsPrice = addonPrice("voice", key);
 
-            <button
-              type="button"
-              role="radio"
-              aria-checked={service === "calls"}
-              data-testid="service-calls"
-              onClick={() => chooseService("calls")}
-              className={`flex min-w-0 items-center gap-3 rounded-[24px] border px-4 py-4 text-right transition ${
-                service === "calls"
-                  ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
-                  : "border-[#E8D9C7] bg-white hover:border-[#D7B98D]"
-              }`}
-            >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF8EE] text-[#A86F2B]">
-                <Phone size={22} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-lg font-black text-[#3E2D20]">שיחות ואישורי הגעה</span>
-                <span className="mt-1 block text-sm leading-6 text-[#7B6754]">
-                  שיחות מוקלטות, אנושיות או שילוב ביניהן
-                </span>
-              </span>
-            </button>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {service ? (
-              <motion.div
-                key={service}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.28, ease: "easeOut" }}
-                className="mt-6"
-              >
-                <div
-                  className={
-                    visiblePackages.length === 1
-                      ? "mx-auto grid max-w-xl grid-cols-1"
-                      : "grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
-                  }
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  data-testid={`addon-${key}`}
+                  aria-pressed={selected}
+                  onClick={() => toggleAddon(key)}
+                  className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-right transition ${
+                    selected
+                      ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
+                      : "border-[#E8D9C7] bg-white/70 hover:border-[#D7B98D] hover:bg-[#FFF8EE]"
+                  }`}
                 >
-                  {visiblePackages.map((pkg) => (
-                    <PackageCard
-                      key={pkg.id}
-                      pkg={pkg}
-                      records={records}
-                      selected={packageId === pkg.id}
-                      onSelect={() => {
-                        if (pkg.id === "messages") {
-                          setService("messages");
-                          return;
-                        }
-                        setService("calls");
-                        setCallPackage(pkg.id);
-                      }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <p className="mt-5 text-center text-sm leading-6 text-[#9C866D]">
-                בחרו הודעות או שיחות כדי לראות את החבילות והמחיר.
-              </p>
-            )}
-          </AnimatePresence>
-        </section>
-
-        <AnimatePresence>
-          {packageId ? (
-            <motion.section
-              key="addons"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8"
-            >
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
-                    3
-                  </span>
-                  <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
-                    תוספות אפשריות
-                  </h2>
-                </div>
-                <span className="shrink-0 rounded-full bg-[#FFF4E2] px-3 py-1 text-xs font-bold text-[#A86F2B]">
-                  לפי בחירה
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {ADDON_ORDER.map((key) => {
-                  const selected = addons[key];
-                  const price = addonPrice(packageId, key);
-                  const Icon = ADDON_ICONS[key];
-
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      data-testid={`addon-${key}`}
-                      aria-pressed={selected}
-                      onClick={() => toggleAddon(key)}
-                      className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-right transition ${
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
                         selected
-                          ? "border-[#C89545] bg-[#FFF3DF] shadow-[0_12px_26px_rgba(168,111,43,0.12)]"
-                          : "border-[#E8D9C7] bg-white/70 hover:border-[#D7B98D] hover:bg-[#FFF8EE]"
+                          ? "border-[#C89545] bg-[#C89545] text-white"
+                          : "border-[#E5D1B7] bg-[#FFFDF9] text-[#A86F2B]"
                       }`}
                     >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
-                            selected
-                              ? "border-[#C89545] bg-[#C89545] text-white"
-                              : "border-[#E5D1B7] bg-[#FFFDF9] text-[#A86F2B]"
-                          }`}
-                        >
-                          <Icon size={17} />
-                        </span>
-                        <span className="text-sm font-semibold leading-5 text-[#5A3E25]">
-                          {ADDON_LABELS[key]}
-                        </span>
+                      <Icon size={17} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold leading-5 text-[#5A3E25]">
+                        {ADDON_LABELS[key]}
                       </span>
-                      <span className="shrink-0 rounded-full bg-[#F7E9D3] px-3 py-1 text-xs font-black text-[#8A5A25]">
-                        + ₪{price}
+                      <span className="mt-1 block text-xs font-black leading-5 text-[#8A5A25] [overflow-wrap:anywhere]">
+                        {messagesPrice === callsPrice
+                          ? `+ ₪${messagesPrice}`
+                          : `הודעות ₪${messagesPrice} · שיחות ₪${callsPrice}`}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.section>
-          ) : null}
-        </AnimatePresence>
-
-        <section
-          data-testid="quote-summary"
-          className="rounded-[32px] border border-[#C89545] bg-[#FFFDF9] p-5 shadow-[0_24px_60px_rgba(168,111,43,0.14)] sm:p-8"
-        >
-          <h2 className="text-2xl font-black text-[#3E2D20] sm:text-3xl">החבילה שלכם</h2>
-
-          {quote ? (
-            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
-              <dl className="min-w-0 space-y-3 text-sm sm:text-base">
-                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
-                  <dt className="text-[#7B6754]">שם החבילה</dt>
-                  <dd className="text-left font-black text-[#3E2D20]">{quote.packageName}</dd>
-                </div>
-                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
-                  <dt className="text-[#7B6754]">כמות רשומות</dt>
-                  <dd data-testid="summary-records" className="font-black tabular-nums text-[#3E2D20]">
-                    {quote.records.toLocaleString("he-IL")}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
-                  <dt className="text-[#7B6754]">סוג השירות</dt>
-                  <dd className="max-w-[14rem] text-left font-black leading-6 text-[#3E2D20] sm:max-w-none">
-                    {quote.summaryService}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
-                  <dt className="text-[#7B6754]">מחיר לרשומה</dt>
-                  <dd data-testid="summary-rate" className="font-black tabular-nums text-[#3E2D20]">
-                    {formatRate(quote.rate)}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3">
-                  <dt className="text-[#7B6754]">מחיר החבילה</dt>
-                  <dd data-testid="summary-service-price" className="font-black tabular-nums text-[#3E2D20]">
-                    {formatIls(quote.servicePrice)}
-                  </dd>
-                </div>
-                {quote.addons.map((addon) => (
-                  <div
-                    key={addon.key}
-                    className="flex items-start justify-between gap-4 border-b border-[#F0E2D0] pb-3 last:border-b-0 last:pb-0"
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+                      selected ? "bg-[#C89545] text-white" : "bg-[#F7E9D3] text-[#8A5A25]"
+                    }`}
                   >
-                    <dt className="min-w-0 text-[#7B6754]">{addon.label}</dt>
-                    <dd
-                      data-testid={`summary-addon-${addon.key}`}
-                      className="shrink-0 font-black text-[#3E2D20]"
-                    >
-                      {addon.selected ? formatIls(addon.price) : "לא"}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+                    {selected ? "נוסף" : "להוסיף"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-              <div className="min-w-0 rounded-[28px] bg-[#FFF8EE] px-4 py-5 text-center">
-                <p className="text-sm font-bold text-[#9C866D]">סה״כ לתשלום</p>
-                <p
-                  data-testid="summary-total"
-                  className="mt-2 text-4xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-5xl"
-                >
-                  {formatIls(quote.total)}
-                </p>
-                <OrderButton href={whatsappUrl} disabled={!quote.canOrder} />
-                {orderHint ? <p className="mt-3 text-xs leading-5 text-[#9C866D]">{orderHint}</p> : null}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-6">
-              <p className="text-sm leading-7 text-[#7B6754]">
-                בחרו כמות רשומות וחבילה, והסיכום יתעדכן כאן בזמן אמת.
-              </p>
-              <div className="mt-5 max-w-md">
-                <OrderButton href="" disabled />
-                <p className="mt-3 text-xs leading-5 text-[#9C866D]">{orderHint}</p>
-              </div>
-            </div>
-          )}
+        <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+              3
+            </span>
+            <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+              בחרו חבילה
+            </h2>
+          </div>
+          {records <= 0 ? (
+            <p className="mb-4 text-sm leading-6 text-[#9C866D]">
+              בחרו לפחות רשומה אחת כדי לשלוח בקשה.
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {packages.map((pkg) => (
+              <PackageCard key={pkg.id} pkg={pkg} records={records} addons={addons} />
+            ))}
+          </div>
         </section>
       </div>
     </main>
