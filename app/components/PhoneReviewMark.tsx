@@ -158,7 +158,7 @@ function PhoneReviewDialog({
           <input
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
-            className="mt-1 h-11 w-full rounded-2xl border border-[#E3D6C3] px-3 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F]"
+            className="mt-1 h-11 w-full rounded-2xl border border-[#E3D6C3] px-3 text-left text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F]"
             dir="ltr"
           />
         </label>
