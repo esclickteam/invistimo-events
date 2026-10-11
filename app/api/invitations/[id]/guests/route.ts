@@ -22,6 +22,13 @@ import {
   GUEST_PHONE_LOCKED_ERROR,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
+import { PHONE_DUPLICATE_MESSAGE, normalizePhoneKey } from "@/lib/guestPhone";
+import {
+  isPhoneDuplicateError,
+  planPhoneChange,
+  releaseClaimForGuest,
+  reserveNewGuestPhone,
+} from "@/lib/guestPhonePolicy";
 
 const HARD_GUEST_CAP = 10000;
 
@@ -216,24 +223,8 @@ export async function POST(
       );
     }
 
-    /* ================= בדיקת כפילות (רק אם יש טלפון) ================= */
-    if (normalizedPhone) {
-      const existing = await InvitationGuest.findOne({
-        invitationId: (invitation as any)._id,
-        phone: normalizedPhone,
-      });
-
-      if (existing) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "מוזמן עם מספר הטלפון הזה כבר קיים ברשימה",
-            guest: existing,
-          },
-          { status: 409 }
-        );
-      }
-    }
+    let reservedPhone: Awaited<ReturnType<typeof reserveNewGuestPhone>> | null =
+      null;
 
     const incomingGuests =
       typeof guestsCount === "number" && guestsCount > 0 ? guestsCount : 1;
@@ -272,10 +263,20 @@ const { checkInTokenForInvitation } = await import(
 );
 const checkInToken = await checkInTokenForInvitation(invitation as any);
 
-const guest = await InvitationGuest.create({
+reservedPhone = await reserveNewGuestPhone(
+  (invitation as any)._id,
+  phone
+);
+
+let guest;
+try {
+  guest = await InvitationGuest.create({
+  _id: reservedPhone.guestId,
   invitationId: (invitation as any)._id,
   name: safeName,
-  phone: normalizedPhone || "",
+  phone: reservedPhone.fields.phone,
+  phoneNormalized: reservedPhone.fields.phoneNormalized,
+  phoneLengthApproved: false,
   relation: normalizedRelation,
   rsvp: ["yes", "no", "maybe", "pending"].includes(String(rsvp)) ? rsvp : "pending",
   guestsCount: incomingGuests,
@@ -298,6 +299,10 @@ const guest = await InvitationGuest.create({
   token: nanoid(12),
   ...(checkInToken ? { checkInToken } : {}),
 });
+} catch (createError) {
+  await reservedPhone.rollback();
+  throw createError;
+}
 
     // ✅ עדכון expectedCount לקבוצה (אם האורח שייך לקבוצה)
     if ((guest as any).groupId) {
@@ -333,6 +338,16 @@ const guest = await InvitationGuest.create({
       { status: 201 }
     );
   } catch (err) {
+    if (isPhoneDuplicateError(err)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PHONE_DUPLICATE",
+          error: PHONE_DUPLICATE_MESSAGE,
+        },
+        { status: 409 }
+      );
+    }
     console.error("❌ POST error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
@@ -529,9 +544,8 @@ export async function PUT(
       }
     }
 
-    if ("phone" in normalizedUpdates) {
-      normalizedUpdates.phone = normalizePhone(normalizedUpdates.phone);
-    }
+    let phoneFinalize = async () => {};
+    let phoneRollback = async () => {};
 
     if ("name" in normalizedUpdates) {
       normalizedUpdates.name = String(normalizedUpdates.name || "").trim();
@@ -539,17 +553,50 @@ export async function PUT(
 
     const before = await InvitationGuest.findById(guestId).lean();
 
-    if (
-      "phone" in normalizedUpdates &&
-      !canAssignPhoneToGuest((before as any)?.phone, normalizedUpdates.phone)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: GUEST_PHONE_LOCKED_ERROR,
-        },
-        { status: 409 }
+    if ("phone" in normalizedUpdates) {
+      if (
+        !canAssignPhoneToGuest((before as any)?.phone, normalizedUpdates.phone)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: GUEST_PHONE_LOCKED_ERROR,
+          },
+          { status: 409 }
+        );
+      }
+
+      const phonePlan = await planPhoneChange({
+        invitationId,
+        guestId,
+        currentPhone: (before as any)?.phone,
+        currentPhoneNormalized: (before as any)?.phoneNormalized,
+        currentApproved: (before as any)?.phoneLengthApproved === true,
+        nextPhone: normalizedUpdates.phone,
+      });
+      normalizedUpdates.phone = phonePlan.fields.phone;
+      normalizedUpdates.phoneNormalized = phonePlan.fields.phoneNormalized;
+      normalizedUpdates.phoneLengthApproved =
+        phonePlan.fields.phoneLengthApproved;
+      phoneFinalize = phonePlan.finalize;
+      phoneRollback = phonePlan.rollback;
+    }
+
+    delete normalizedUpdates.approvePhoneLength;
+
+    if (updates?.approvePhoneLength === true) {
+      const beforeKey = normalizePhoneKey(
+        (before as any)?.phoneNormalized || (before as any)?.phone
       );
+      const afterKey = normalizePhoneKey(
+        normalizedUpdates.phoneNormalized ?? beforeKey
+      );
+      if (!("phone" in updates) || afterKey === beforeKey) {
+        normalizedUpdates.phoneLengthApproved = true;
+        if (!normalizedUpdates.phoneNormalized && beforeKey) {
+          normalizedUpdates.phoneNormalized = beforeKey;
+        }
+      }
     }
 
     const nextPayload: Record<string, unknown> = {
@@ -574,6 +621,7 @@ export async function PUT(
     );
 
     if (!changedFields.length) {
+      await phoneRollback();
       return NextResponse.json({
         success: true,
         guest: before,
@@ -581,14 +629,21 @@ export async function PUT(
       });
     }
 
-    const updated = await InvitationGuest.findByIdAndUpdate(
-      guestId,
-      {
-        ...normalizedUpdates,
-        ...(typeof guestsCount === "number" ? { guestsCount } : {}),
-      },
-      { new: true }
-    ).lean();
+    let updated;
+    try {
+      updated = await InvitationGuest.findByIdAndUpdate(
+        guestId,
+        {
+          ...normalizedUpdates,
+          ...(typeof guestsCount === "number" ? { guestsCount } : {}),
+        },
+        { new: true }
+      ).lean();
+      await phoneFinalize();
+    } catch (updateError) {
+      await phoneRollback();
+      throw updateError;
+    }
 
     // ✅ אם השתנתה קבוצה / RSVP / guestsCount → מחשבים מחדש לקבוצה הישנה והחדשה
     const affected = new Set<string>();
@@ -602,6 +657,16 @@ export async function PUT(
 
     return NextResponse.json({ success: true, guest: updated });
   } catch (err) {
+    if (isPhoneDuplicateError(err)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PHONE_DUPLICATE",
+          error: PHONE_DUPLICATE_MESSAGE,
+        },
+        { status: 409 }
+      );
+    }
     console.error("❌ PUT error:", err);
     return NextResponse.json(
       { success: false, error: "Update failed" },
@@ -665,6 +730,8 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    await releaseClaimForGuest(deleted);
 
     // ✅ עדכון expectedCount לקבוצה אחרי מחיקה
     if ((deleted as any).groupId) {

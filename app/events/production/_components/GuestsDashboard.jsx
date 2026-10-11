@@ -538,7 +538,7 @@ setOpenAddModal(false);
               setEditGuest(null);
             } catch (e) {
               console.error("❌ updateGuest error:", e);
-              alert("❌ שגיאה בעריכת מוזמן");
+              alert(e?.message || "❌ שגיאה בעריכת מוזמן");
             }
           }}
         />

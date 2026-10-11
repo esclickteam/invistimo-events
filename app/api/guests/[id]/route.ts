@@ -15,6 +15,12 @@ import {
   canAssignPhoneToGuest,
   GUEST_PHONE_LOCKED_ERROR,
 } from "@/lib/guestRecordQuota";
+import { PHONE_DUPLICATE_MESSAGE, normalizePhoneKey } from "@/lib/guestPhone";
+import {
+  isPhoneDuplicateError,
+  planPhoneChange,
+  releaseClaimForGuest,
+} from "@/lib/guestPhonePolicy";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
   appendGuestSeats,
@@ -1259,6 +1265,11 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 ============================================ */
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   const { id } = await params;
+  const phoneHooks = {
+    finalize: async () => {},
+    rollback: async () => {},
+    saved: false,
+  };
 
   try {
     await db();
@@ -1433,11 +1444,40 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (typeof data.phone === "string") {
       if (!canAssignPhoneToGuest(guest.phone, data.phone)) {
         return NextResponse.json(
-          { success: false, error: GUEST_PHONE_LOCKED_ERROR },
+          { success: false,          error: GUEST_PHONE_LOCKED_ERROR },
           { status: 409 }
         );
       }
-      guest.phone = data.phone;
+      const beforeKey = normalizePhoneKey(
+        guest.phoneNormalized || guest.phone
+      );
+      const phonePlan = await planPhoneChange({
+        invitationId: guest.invitationId,
+        guestId: guest._id,
+        currentPhone: guest.phone,
+        currentPhoneNormalized: guest.phoneNormalized,
+        currentApproved: guest.phoneLengthApproved === true,
+        nextPhone: data.phone,
+      });
+      guest.phone = phonePlan.fields.phone;
+      guest.phoneNormalized = phonePlan.fields.phoneNormalized;
+      guest.phoneLengthApproved = phonePlan.fields.phoneLengthApproved;
+      phoneHooks.finalize = phonePlan.finalize;
+      phoneHooks.rollback = phonePlan.rollback;
+      (guest as any).__phoneBeforeKey = beforeKey;
+    }
+
+    if (data.approvePhoneLength === true) {
+      const beforeKey =
+        (guest as any).__phoneBeforeKey ??
+        normalizePhoneKey(guest.phoneNormalized || guest.phone);
+      const afterKey = normalizePhoneKey(guest.phone);
+      if (typeof data.phone !== "string" || afterKey === beforeKey) {
+        guest.phoneLengthApproved = true;
+        if (!guest.phoneNormalized && afterKey) {
+          guest.phoneNormalized = afterKey;
+        }
+      }
     }
     if (typeof data.notes === "string") guest.notes = data.notes;
 
@@ -1750,6 +1790,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     await guest.save();
+    phoneHooks.saved = true;
+    try {
+      await phoneHooks.finalize();
+    } catch (finalizeError) {
+      console.error("phone claim finalize failed", finalizeError);
+    }
 
     /*
       סנכרון לצד העובדים:
@@ -1791,6 +1837,17 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       releaseAudit,
     });
   } catch (error: any) {
+    if (!phoneHooks.saved) await phoneHooks.rollback();
+    if (isPhoneDuplicateError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PHONE_DUPLICATE",
+          error: PHONE_DUPLICATE_MESSAGE,
+        },
+        { status: 409 }
+      );
+    }
     console.error("❌ PUT /guests/[id] error:", error);
 
     return NextResponse.json(
@@ -1912,6 +1969,7 @@ if (seatingScopeQuery.length) {
 
 const cancelledCallTasks = await cancelCallTasksForDeletedGuest(guest);
 
+await releaseClaimForGuest(guest);
 await guest.deleteOne();
 
     if (groupId) {

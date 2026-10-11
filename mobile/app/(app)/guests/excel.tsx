@@ -7,7 +7,6 @@ import { router } from "expo-router";
 import { importGuests } from "@/src/api";
 import { useEventData } from "@/src/event";
 import { messageFromApi } from "@/src/format";
-import { phonesMatch } from "@/src/phones";
 import { ErrorText, Page, PrimaryButton } from "@/src/ui";
 import { colors } from "@/src/theme";
 
@@ -25,7 +24,7 @@ const RSVP_MAP: Record<string, string> = {
 };
 
 export default function ExcelImportScreen() {
-  const { invitation, guests, refresh } = useEventData();
+  const { invitation, refresh } = useEventData();
   const [summary, setSummary] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,7 +61,7 @@ export default function ExcelImportScreen() {
         .map((row) => {
           const name = clean(row["שם"] || row["שם מלא"] || row.name);
           if (!name) return null;
-          const phone = clean(row["טלפון"] || row.phone).replace(/\D/g, "");
+          const phone = clean(row["טלפון"] || row.phone);
           const status = clean(row["סטטוס"] || row.rsvp);
           const tableRaw = row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? "";
           const tableDigits = String(tableRaw).replace(/[^\d]/g, "");
@@ -82,31 +81,38 @@ export default function ExcelImportScreen() {
         })
         .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
-      const fresh = parsed.filter(
-        (row) => !row.phone || !guests.some((guest) => phonesMatch(guest.phone || "", row.phone || ""))
-      );
-      const skipped = parsed.length - fresh.length;
-      if (!fresh.length) {
-        setError(
-          skipped
-            ? "כל הרשומות כבר קיימות לפי מספר טלפון, ולא נוצרו כפילויות."
-            : "לא נמצאו שורות תקינות לייבוא"
-        );
+      if (!parsed.length) {
+        setError("לא נמצאו שורות תקינות לייבוא");
         return;
       }
 
-      const result = await importGuests(invitation._id, fresh);
+      const result = await importGuests(invitation._id, parsed);
       if (!result.ok || result.data.success === false) {
         setError(messageFromApi(result.data, "שגיאה בייבוא הקובץ"));
         return;
       }
       await refresh();
+      const report = result.data.summary;
+      const importedCount = report?.importedCount ?? result.data.count ?? 0;
+      const duplicateCount = report?.duplicateCount ?? 0;
+      const reviewCount = report?.reviewCount ?? 0;
+      const duplicateLines = (report?.duplicates || [])
+        .map((row) => `${row.name} · ${row.phone} · ${row.reason}`)
+        .join("\n");
       setSummary(
-        `${result.data.message || `יובאו ${result.data.count || fresh.length} מוזמנים`}${
-          skipped ? `. דולגו ${skipped} כפילויות.` : ""
-        }`
+        [
+          `רשומות בקובץ: ${report?.fileCount ?? parsed.length}`,
+          `יובאו בהצלחה: ${importedCount}`,
+          `כפולות שלא יובאו: ${duplicateCount}`,
+          `יובאו ודורשות בדיקה: ${reviewCount}`,
+          duplicateLines,
+        ]
+          .filter(Boolean)
+          .join("\n")
       );
-      setTimeout(() => router.replace("/(app)/guests"), 900);
+      if (!duplicateCount) {
+        setTimeout(() => router.replace("/(app)/guests"), 900);
+      }
     } catch {
       setError("לא הצלחנו לקרוא את הקובץ");
     } finally {

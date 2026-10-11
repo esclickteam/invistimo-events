@@ -42,6 +42,8 @@ import {
 } from "@/lib/guestLinkTracking";
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
+import { phoneNeedsReview } from "@/lib/guestPhone";
+import PhoneReviewMark from "@/app/components/PhoneReviewMark";
 import { summarizeCheckIn } from "@/lib/checkIn/status";
 import {
   filterGuestsForCallRound,
@@ -69,6 +71,9 @@ type Guest = {
   _id: string;
   name: string;
   phone: string;
+  phoneNormalized?: string | null;
+  phoneLengthApproved?: boolean;
+  invitationId?: string;
   token: string;
 
   relation?: string;
@@ -136,7 +141,10 @@ type SortDir = "asc" | "desc";
 function formatPhone(phone?: string) {
   if (!phone) return "";
 
-  const digits = String(phone).replace(/\D/g, "");
+  const raw = String(phone).trim();
+  if (/[^\d]/.test(raw)) return raw;
+
+  const digits = raw.replace(/\D/g, "");
 
   if (digits.startsWith("0")) return digits;
 
@@ -536,6 +544,12 @@ const canViewActualArrived =
           notes: normalizedUpdatedGuest.notes,
           groupId: normalizedUpdatedGuest.groupId,
           tableName: normalizedUpdatedGuest.tableName,
+          phoneNormalized:
+            normalizedUpdatedGuest.phoneNormalized ?? g.phoneNormalized,
+          phoneLengthApproved:
+            typeof normalizedUpdatedGuest.phoneLengthApproved === "boolean"
+              ? normalizedUpdatedGuest.phoneLengthApproved
+              : g.phoneLengthApproved,
         });
       })
     );
@@ -2075,6 +2089,10 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
     () => countGuestsTowardRecordQuota(guests),
     [guests]
   );
+  const phoneReviewCount = useMemo(
+    () => guests.filter((guest) => phoneNeedsReview(guest)).length,
+    [guests]
+  );
   const recordsLimit = Number(user?.guests || 0);
   const remainingRecords = Math.max(0, recordsLimit - usedRecordsCount);
 
@@ -2125,6 +2143,10 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
 
     if (quickFilterValue === "opened" || quickFilterValue === "notOpened") {
       list = list.filter((g) => matchesGuestLinkOpenFilter(g, quickFilterValue));
+    }
+
+    if (quickFilterValue === "phoneReview") {
+      list = list.filter((g) => phoneNeedsReview(g));
     }
 
     if (isCallFilter(quickFilter)) {
@@ -2804,6 +2826,7 @@ const eventLocation = resolveEventLocation(invitation, event);
   totalCount={guests.length}
   displayCount={displayGuests.length}
   recordsLimit={recordsLimit}
+  phoneReviewCount={phoneReviewCount}
   usedRecordsCount={usedRecordsCount}
   onExportExcel={handleExportExcel}
   onAddGuest={() => setAddGuestChooserOpen(true)}
@@ -2953,7 +2976,14 @@ const eventLocation = resolveEventLocation(invitation, event);
                 </td>
 
                 <td className="p-4 text-sm text-[#5F564D]">
-                  {formatPhone(g.phone)}
+                  <span className="inline-flex items-center gap-2">
+                    <span dir="ltr">{formatPhone(g.phone)}</span>
+                    <PhoneReviewMark
+                      guest={g}
+                      invitationId={invitationId}
+                      onUpdated={handleGuestUpdated}
+                    />
+                  </span>
                 </td>
 
                 <td className="p-4 text-sm text-[#5F564D] min-w-[180px] whitespace-normal break-words leading-6">
@@ -3340,6 +3370,8 @@ const eventLocation = resolveEventLocation(invitation, event);
     onWhatsApp={(g) => sendWhatsApp(g)}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
+    onGuestUpdated={handleGuestUpdated}
+    invitationId={invitationId}
   />
 </div>
 
@@ -3754,6 +3786,7 @@ const eventLocation = resolveEventLocation(invitation, event);
       {selectedGuest && (
         <EditGuestModal
           guest={selectedGuest}
+          invitationId={invitationId}
           userRole={user?.role}
           onClose={() => setSelectedGuest(null)}
           onSuccess={handleGuestUpdated}
@@ -3809,6 +3842,7 @@ const eventLocation = resolveEventLocation(invitation, event);
       {openAddModal && (
         <AddGuestModal
           invitationId={invitationId}
+          existingGuests={guests}
           usage={{
             current: usedRecordsCount,
             limit: recordsLimit,

@@ -381,6 +381,9 @@ export async function DELETE(req: NextRequest) {
       Group.deleteMany(finalRelatedFilter),
     ]);
 
+    const { deleteClaimsForGuestIds } = await import("@/lib/guestPhonePolicy");
+    await deleteClaimsForGuestIds(guestIds);
+
     const extraDeletes = await Promise.all([
       deleteFromCollectionIfExists("guests", finalRelatedFilter),
       deleteFromCollectionIfExists("invitationguests", finalRelatedFilter),

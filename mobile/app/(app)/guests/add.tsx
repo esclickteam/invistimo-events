@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import { createGuest } from "@/src/api";
 import { useEventData } from "@/src/event";
 import { messageFromApi, RSVP_LABELS } from "@/src/format";
-import { digitsOnly } from "@/src/phones";
 import { ErrorText, Field, Page, PrimaryButton } from "@/src/ui";
 import { colors } from "@/src/theme";
 
@@ -35,7 +34,7 @@ export default function AddGuestScreen() {
     try {
       const result = await createGuest(invitation._id, {
         name: name.trim(),
-        phone: digitsOnly(phone),
+        phone: phone.trim(),
         relation: relation.trim(),
         rsvp,
         guestsCount: Math.max(1, Number(guestsCount) || 1),

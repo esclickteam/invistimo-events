@@ -70,6 +70,41 @@ function normalizeRowKeys(row) {
 /* ============================================================
    עזר: מספר תקין
 ============================================================ */
+function duplicateListText(rows) {
+  const header = ["שם מלא", "מספר טלפון", "סיבת הדילוג"].join("\t");
+  const lines = (rows || []).map((row) =>
+    [row?.name || "", row?.phone || "", row?.reason || ""].join("\t")
+  );
+  return [header, ...lines].join("\n");
+}
+
+function downloadDuplicateList(rows) {
+  const header = ["שם מלא", "מספר טלפון", "סיבת הדילוג"];
+  const escapeCell = (value) => `"${String(value || "").replace(/"/g, '""')}"`;
+  const csv = [
+    header.map(escapeCell).join(","),
+    ...(rows || []).map((row) =>
+      [row?.name, row?.phone, row?.reason].map(escapeCell).join(",")
+    ),
+  ].join("\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "כפילויות-טלפון.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function SummaryStat({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-[#EFE2CF] bg-white px-3 py-3">
+      <div className="text-[11px] font-bold text-[#8A7B69]">{label}</div>
+      <div className="mt-1 text-2xl font-black text-[#241A14]">{Number(value || 0)}</div>
+    </div>
+  );
+}
+
 function normalizeNumber(value) {
   const num = Number(value || 0);
   return Number.isFinite(num) ? num : 0;
@@ -93,6 +128,8 @@ export default function ImportExcelModal({
 
   // לשיפור UX - הודעה אחרונה מהייבוא
   const [summary, setSummary] = useState(null);
+  const [importReport, setImportReport] = useState(null);
+  const [copiedDuplicates, setCopiedDuplicates] = useState(false);
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
 
@@ -189,10 +226,10 @@ export default function ImportExcelModal({
           console.log("➡️ RELATION CLEAN:", relationRaw);
 
           const phoneRaw = normalizedRow["טלפון"];
-          const phoneClean = normalizeText(phoneRaw).replace(/\D/g, "");
+          const phoneDisplay = normalizeText(phoneRaw);
 
           console.log("➡️ PHONE RAW:", phoneRaw);
-          console.log("➡️ PHONE CLEAN:", phoneClean);
+          console.log("➡️ PHONE DISPLAY:", phoneDisplay);
 
           const tableNumber = normalizeTableNumber(
             normalizedRow["מס' שולחן"] ??
@@ -207,7 +244,7 @@ export default function ImportExcelModal({
             name,
 
             // טלפון אופציונלי
-            phone: phoneClean || null,
+            phone: phoneDisplay || null,
 
             relation: relationRaw || null,
             group: groupRaw || null,
@@ -256,14 +293,6 @@ export default function ImportExcelModal({
         recordsLimit,
         incomingRecordsCount,
       });
-
-      if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
-        showLimitError({
-          limit: recordsLimit,
-          incomingCount: incomingRecordsCount,
-        });
-        return;
-      }
 
       const res = await fetch("/api/guests/import", {
         method: "POST",
@@ -334,39 +363,18 @@ export default function ImportExcelModal({
         return;
       }
 
-      /* ============================================================
-         הצלחה
-      ============================================================ */
-      const count = Number(result?.count || 0);
-      const skippedByLimit = Number(result?.skippedByLimit || 0);
-      const usage = result?.usage || null;
+      const count = Number(result?.count || result?.summary?.importedCount || 0);
+      const report = result?.summary || {
+        fileCount: guests.length,
+        importedCount: count,
+        duplicateCount: 0,
+        reviewCount: 0,
+        duplicates: [],
+      };
 
-      if (skippedByLimit > 0) {
-        const msg =
-          result?.message ||
-          `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
-
-        alert(`⚠️ ${msg}`);
-
-        setSummary({
-          type: "partial",
-          text: msg,
-          usage,
-        });
-      } else {
-        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
-
-        alert(msg);
-
-        setSummary({
-          type: "success",
-          text: msg,
-          usage,
-        });
-      }
-
+      setImportReport(report);
+      setCopiedDuplicates(false);
       await onSuccess?.();
-      onClose?.();
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
@@ -380,6 +388,110 @@ export default function ImportExcelModal({
       setLoading(false);
     }
   };
+
+  if (importReport) {
+    const duplicates = Array.isArray(importReport.duplicates)
+      ? importReport.duplicates
+      : [];
+
+    const copyDuplicates = async () => {
+      try {
+        await navigator.clipboard.writeText(duplicateListText(duplicates));
+        setCopiedDuplicates(true);
+      } catch {
+        alert("לא הצלחנו להעתיק את הרשימה");
+      }
+    };
+
+    return (
+      <div
+        className="fixed inset-0 z-[9999] overflow-y-auto bg-black/50 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-6"
+        dir="rtl"
+      >
+        <div className="mx-auto w-full max-w-[760px] rounded-[28px] border border-[#EFE2CF] bg-[#FFFCF7] p-5 shadow-[0_30px_100px_rgba(25,18,10,0.28)] sm:p-8">
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-black text-[#2F241A]">סיכום ייבוא</h2>
+              <p className="mt-1 text-sm font-bold text-[#7A6A59]">
+                הרשומות הכפולות לא יובאו. רשומות עם מספר לבדיקה נשמרו.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-bold text-[#6B5138]"
+              aria-label="סגירה"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <SummaryStat label="רשומות בקובץ" value={importReport.fileCount} />
+            <SummaryStat label="יובאו בהצלחה" value={importReport.importedCount} />
+            <SummaryStat label="כפולות שלא יובאו" value={importReport.duplicateCount} />
+            <SummaryStat label="יובאו ודורשות בדיקה" value={importReport.reviewCount} />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copyDuplicates()}
+              className="h-10 rounded-full border border-[#D8C4A5] bg-white px-4 text-xs font-black text-[#6B5437]"
+            >
+              {copiedDuplicates ? "הרשימה הועתקה" : "העתקת רשימת הכפילויות"}
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadDuplicateList(duplicates)}
+              className="h-10 rounded-full border border-[#D8C4A5] bg-white px-4 text-xs font-black text-[#6B5437]"
+            >
+              הורדת רשימת הכפילויות
+            </button>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#EFE2CF] bg-white">
+            <table className="min-w-full text-right text-sm">
+              <thead className="bg-[#F8F1E6] text-xs font-black text-[#6B5437]">
+                <tr>
+                  <th className="px-3 py-3">שם מלא</th>
+                  <th className="px-3 py-3">מספר טלפון</th>
+                  <th className="px-3 py-3">סיבת הדילוג</th>
+                </tr>
+              </thead>
+              <tbody>
+                {duplicates.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-3 py-6 text-center text-[#8A7B69]">
+                      אין רשומות כפולות
+                    </td>
+                  </tr>
+                ) : (
+                  duplicates.map((row, index) => (
+                    <tr key={`${row.phone}-${index}`} className="border-t border-[#F3EADF]">
+                      <td className="px-3 py-3 font-bold text-[#241A14]">{row.name || "—"}</td>
+                      <td className="px-3 py-3 font-bold text-[#241A14]" dir="ltr">
+                        {row.phone || "—"}
+                      </td>
+                      <td className="px-3 py-3 text-[#7A4B4B]">{row.reason}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 h-12 w-full rounded-2xl bg-[#241A14] text-sm font-black text-white"
+          >
+            סגירה
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

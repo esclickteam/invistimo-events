@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
+import PhoneReviewMark from "@/app/components/PhoneReviewMark";
 
 /* ============================================================
    Types
@@ -13,6 +14,9 @@ export type Guest = {
 
   name: string;
   phone: string;
+  phoneNormalized?: string | null;
+  phoneLengthApproved?: boolean;
+  invitationId?: string;
   token: string;
 
   relation?: string;
@@ -84,6 +88,8 @@ type Props = {
   onWhatsApp?: GuestAction;
   onEdit: GuestAction;
   onDelete: GuestAction;
+  onGuestUpdated?: (guest: Guest) => void | Promise<void>;
+  invitationId?: string;
 
   /*
     תמיכה ישנה כדי לא לשבור קריאות קיימות.
@@ -124,7 +130,10 @@ function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
 function formatPhone(phone?: string) {
   if (!phone) return "";
 
-  const digits = String(phone).replace(/\D/g, "");
+  const raw = String(phone).trim();
+  if (/[^\d]/.test(raw)) return raw;
+
+  const digits = raw.replace(/\D/g, "");
 
   if (digits.startsWith("0")) return digits;
 
@@ -251,6 +260,8 @@ export default function GuestsMobileList({
   onWhatsApp,
   onEdit,
   onDelete,
+  onGuestUpdated,
+  invitationId,
 
   // תמיכה ישנה
   onMessage,
@@ -306,8 +317,15 @@ export default function GuestsMobileList({
                   {g.name || "ללא שם"}
                 </div>
 
-                <div className="mt-1 text-base text-gray-500">
-                  {formatPhone(g.phone) || "ללא טלפון"}
+                <div className="mt-1 flex items-center gap-2 text-base text-gray-500">
+                  <span dir="ltr">{formatPhone(g.phone) || "ללא טלפון"}</span>
+                  {onGuestUpdated ? (
+                    <PhoneReviewMark
+                      guest={g}
+                      invitationId={invitationId}
+                      onUpdated={onGuestUpdated}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="mt-2 text-sm text-[#6B5A4A]">

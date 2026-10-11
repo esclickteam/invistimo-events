@@ -10,6 +10,12 @@ import {
   billableGuestMatch,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
+import { displayPhone } from "@/lib/guestPhone";
+import {
+  commitGuestPhoneImport,
+  countImportedPhoneReviews,
+  planGuestPhoneImport,
+} from "@/lib/guestPhonePolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +30,6 @@ function cleanText(value: any) {
     .replace(/\u00A0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function cleanPhone(value: any) {
-  const phone = cleanText(value).replace(/\D/g, "");
-  return phone || null;
 }
 
 function normalizeTableNumber(value: any) {
@@ -147,63 +148,6 @@ export async function POST(req: NextRequest) {
       billableGuestMatch(invitationId)
     );
 
-    const incomingRecordsCount = guests.filter((g: any) => {
-      const name = cleanText(g?.name || g?.["שם"] || g?.["שם מלא"]);
-      const phone = cleanPhone(g.phone || g["טלפון"]);
-      return Boolean(name) && guestCountsTowardRecordQuota(phone);
-    }).length;
-
-    const remaining = Math.max(0, limit - current);
-    const totalAfterImport = current + incomingRecordsCount;
-
-    console.log("📌 IMPORT LIMIT CHECK:", {
-      userId,
-      invitationId,
-      limit,
-      current,
-      incomingRecordsCount,
-      remaining,
-      totalAfterImport,
-    });
-
-    if (limit > 0 && incomingRecordsCount > 0 && current >= limit) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "GUEST_RECORD_LIMIT_EXCEEDED",
-          error: "GUEST_RECORD_LIMIT_EXCEEDED",
-          message: `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, וכבר קיימות ${current} רשומות במערכת.`,
-          usage: {
-            limit,
-            existing: current,
-            incomingCount: incomingRecordsCount,
-            remaining: 0,
-            totalAfterImport,
-          },
-        },
-        { status: 403 }
-      );
-    }
-
-    if (limit > 0 && incomingRecordsCount > 0 && totalAfterImport > limit) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "GUEST_RECORD_LIMIT_EXCEEDED",
-          error: "GUEST_RECORD_LIMIT_EXCEEDED",
-          message: `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד. כרגע קיימות ${current} רשומות, ובקובץ נמצאו ${incomingRecordsCount} רשומות.`,
-          usage: {
-            limit,
-            existing: current,
-            incomingCount: incomingRecordsCount,
-            remaining,
-            totalAfterImport,
-          },
-        },
-        { status: 403 }
-      );
-    }
-
     /* =======================================================
        שלב 1: חילוץ קבוצות
     ======================================================= */
@@ -281,7 +225,11 @@ export async function POST(req: NextRequest) {
       ? () => generateCheckInToken()
       : null;
 
-    const validPayloads: any[] = [];
+    const importRows: Array<{
+      name: string;
+      phone: string;
+      payload: Record<string, unknown>;
+    }> = [];
 
     for (const [index, g] of guests.entries()) {
       console.log("====================================");
@@ -302,7 +250,7 @@ export async function POST(req: NextRequest) {
 
       console.log("➡️ GROUP ID:", groupId);
 
-      const phone = cleanPhone(g.phone || g["טלפון"]);
+      const phone = displayPhone(g.phone || g["טלפון"] || "");
 
       const tableNumber = normalizeTableNumber(
         g.tableNumber ??
@@ -313,24 +261,29 @@ export async function POST(req: NextRequest) {
           ""
       );
 
-      validPayloads.push({
-        invitationId,
+      importRows.push({
         name,
         phone,
-        relation: relationRaw || null,
-        groupId,
-        rsvp: normalizeRsvp(g.rsvp),
-        guestsCount: normalizeGuestsCount(g.guestsCount),
-        arrivedCount: 0,
-        notes: cleanText(g.notes || g["הערות"] || "") || null,
-        tableNumber,
-        tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
-        token: crypto.randomUUID(),
-        ...(checkInTokenFactory ? { checkInToken: checkInTokenFactory() } : {}),
+        payload: {
+          invitationId,
+          name,
+          relation: relationRaw || null,
+          groupId,
+          rsvp: normalizeRsvp(g.rsvp),
+          guestsCount: normalizeGuestsCount(g.guestsCount),
+          arrivedCount: 0,
+          notes: cleanText(g.notes || g["הערות"] || "") || null,
+          tableNumber,
+          tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
+          token: crypto.randomUUID(),
+          ...(checkInTokenFactory
+            ? { checkInToken: checkInTokenFactory() }
+            : {}),
+        },
       });
     }
 
-    if (validPayloads.length === 0) {
+    if (importRows.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -341,31 +294,90 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /*
-      חשוב:
-      לא עושים slice.
-      אם הקובץ עבר את המגבלה — חסמנו למעלה.
-      אם הוא לא עבר — מייבאים את כולו.
-    */
-    console.log("📦 FINAL INSERT:", validPayloads);
+    const phonePlan = await planGuestPhoneImport(invitationId, importRows);
+    const incomingRecordsCount = phonePlan.accepted.filter((row) =>
+      guestCountsTowardRecordQuota(row.phone)
+    ).length;
+    const remaining = Math.max(0, limit - current);
+    const totalAfterImport = current + incomingRecordsCount;
 
-    await InvitationGuest.insertMany(validPayloads, {
-      ordered: true,
+    console.log("📌 IMPORT LIMIT CHECK:", {
+      userId,
+      invitationId,
+      limit,
+      current,
+      incomingRecordsCount,
+      remaining,
+      totalAfterImport,
+      fileCount: phonePlan.fileCount,
+      duplicateCount: phonePlan.duplicates.length,
     });
 
-    const importedBillableCount = validPayloads.filter((payload) =>
+    if (limit > 0 && incomingRecordsCount > 0 && current >= limit) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "GUEST_RECORD_LIMIT_EXCEEDED",
+          error: "GUEST_RECORD_LIMIT_EXCEEDED",
+          message: `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, וכבר קיימות ${current} רשומות במערכת.`,
+          usage: {
+            limit,
+            existing: current,
+            incomingCount: incomingRecordsCount,
+            remaining: 0,
+            totalAfterImport,
+          },
+        },
+        { status: 403 }
+      );
+    }
+
+    if (limit > 0 && incomingRecordsCount > 0 && totalAfterImport > limit) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "GUEST_RECORD_LIMIT_EXCEEDED",
+          error: "GUEST_RECORD_LIMIT_EXCEEDED",
+          message: `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד. כרגע קיימות ${current} רשומות, ובקובץ נמצאו ${incomingRecordsCount} רשומות.`,
+          usage: {
+            limit,
+            existing: current,
+            incomingCount: incomingRecordsCount,
+            remaining,
+            totalAfterImport,
+          },
+        },
+        { status: 403 }
+      );
+    }
+
+    const committed = await commitGuestPhoneImport(
+      invitationId,
+      phonePlan.accepted
+    );
+    const duplicates = [...phonePlan.duplicates, ...committed.racedDuplicates];
+    const importedCount = committed.inserted.length;
+    const reviewCount = countImportedPhoneReviews(committed.inserted);
+    const importedBillableCount = committed.inserted.filter((payload) =>
       guestCountsTowardRecordQuota(payload.phone)
     ).length;
     const billableTotalAfterImport = current + importedBillableCount;
 
     return NextResponse.json({
       success: true,
-      count: validPayloads.length,
-      message: `✅ יובאו ${validPayloads.length} מוזמנים בהצלחה`,
+      count: importedCount,
+      message: `✅ יובאו ${importedCount} מוזמנים בהצלחה`,
+      summary: {
+        fileCount: phonePlan.fileCount,
+        importedCount,
+        duplicateCount: duplicates.length,
+        reviewCount,
+        duplicates,
+      },
       usage: {
         limit,
         existingBeforeImport: current,
-        imported: validPayloads.length,
+        imported: importedCount,
         totalAfterImport: billableTotalAfterImport,
         remainingAfterImport:
           limit > 0 ? Math.max(0, limit - billableTotalAfterImport) : null,

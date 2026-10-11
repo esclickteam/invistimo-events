@@ -24,6 +24,8 @@ export type DemoGuest = {
   id: string;
   name: string;
   phone: string;
+  phoneNormalized?: string | null;
+  phoneLengthApproved?: boolean;
   token: string;
   relation?: string;
   groupId?: string | null;
