@@ -73,6 +73,7 @@ type Guest = {
   phone: string;
   phoneNormalized?: string | null;
   phoneLengthApproved?: boolean;
+  requiresPhoneReview?: boolean;
   invitationId?: string;
   token: string;
 
@@ -550,6 +551,10 @@ const canViewActualArrived =
             typeof normalizedUpdatedGuest.phoneLengthApproved === "boolean"
               ? normalizedUpdatedGuest.phoneLengthApproved
               : g.phoneLengthApproved,
+          requiresPhoneReview:
+            typeof normalizedUpdatedGuest.requiresPhoneReview === "boolean"
+              ? normalizedUpdatedGuest.requiresPhoneReview
+              : g.requiresPhoneReview,
         });
       })
     );
@@ -867,6 +872,8 @@ const canViewActualArrived =
             String(guest.tableId || "") === String(next.tableId || "") &&
             String(guest.name || "") === String(next.name || "") &&
             String(guest.phone || "") === String(next.phone || "") &&
+            guest.requiresPhoneReview === next.requiresPhoneReview &&
+            guest.phoneLengthApproved === next.phoneLengthApproved &&
             String(guest.groupId || "") === String(next.groupId || "") &&
             String(guest.firstOpenedAt || "") === String(next.firstOpenedAt || "") &&
             String(guest.lastOpenedAt || "") === String(next.lastOpenedAt || "") &&

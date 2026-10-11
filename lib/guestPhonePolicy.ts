@@ -6,6 +6,7 @@ import {
   PHONE_SKIP_EXISTING,
   classifyPhoneImportRows,
   displayPhone,
+  isIsraeliMobileLengthInvalid,
   normalizePhoneKey,
   phoneFieldsForStorage,
   phoneNeedsReview,
@@ -31,10 +32,12 @@ export function isPhoneDuplicateError(error: unknown) {
 }
 
 const ensuredInvitations = new Set<string>();
+const legacyDuplicateCounts = new Map<string, number>();
 let claimIndexReady: Promise<void> | null = null;
 
 export function resetPhoneClaimCache() {
   ensuredInvitations.clear();
+  legacyDuplicateCounts.clear();
   claimIndexReady = null;
 }
 
@@ -101,28 +104,41 @@ export async function ensureInvitationPhoneClaims(invitationId: unknown) {
     invitationId: { $in: variants },
     phone: { $regex: "\\d" },
   })
-    .select("_id phone phoneNormalized createdAt")
+    .select("_id phone phoneNormalized phoneLengthApproved requiresPhoneReview createdAt")
     .sort({ createdAt: 1, _id: 1 })
     .lean();
 
   const normalizeOps: Array<Record<string, unknown>> = [];
   const firstByKey = new Map<string, { _id: unknown }>();
+  const duplicateKeys = new Set<string>();
 
   for (const guest of guests) {
-    const key = normalizePhoneKey(
-      (guest as { phoneNormalized?: unknown }).phoneNormalized ||
-        (guest as { phone?: unknown }).phone
-    );
+    const row = guest as {
+      _id: unknown;
+      phone?: unknown;
+      phoneNormalized?: unknown;
+      phoneLengthApproved?: unknown;
+      requiresPhoneReview?: unknown;
+    };
+    const key = normalizePhoneKey(row.phoneNormalized || row.phone);
     if (!key) continue;
-    if ((guest as { phoneNormalized?: unknown }).phoneNormalized !== key) {
+    const approved = row.phoneLengthApproved === true;
+    const requiresPhoneReview = isIsraeliMobileLengthInvalid(key) && !approved;
+    const patch: Record<string, unknown> = {};
+    if (row.phoneNormalized !== key) patch.phoneNormalized = key;
+    if (row.requiresPhoneReview !== requiresPhoneReview) {
+      patch.requiresPhoneReview = requiresPhoneReview;
+    }
+    if (Object.keys(patch).length) {
       normalizeOps.push({
         updateOne: {
-          filter: { _id: (guest as { _id: unknown })._id },
-          update: { $set: { phoneNormalized: key } },
+          filter: { _id: row._id },
+          update: { $set: patch },
         },
       });
     }
-    if (!firstByKey.has(key)) firstByKey.set(key, guest as { _id: unknown });
+    if (firstByKey.has(key)) duplicateKeys.add(key);
+    else firstByKey.set(key, guest as { _id: unknown });
   }
 
   if (normalizeOps.length) {
@@ -159,6 +175,11 @@ export async function ensureInvitationPhoneClaims(invitationId: unknown) {
   }
 
   ensuredInvitations.add(cacheKey);
+  legacyDuplicateCounts.set(cacheKey, duplicateKeys.size);
+}
+
+export function legacyPhoneDuplicateCount(invitationId: unknown) {
+  return legacyDuplicateCounts.get(invitationKey(invitationId)) || 0;
 }
 
 async function findClaim(invitationId: unknown, phoneNormalized: string) {
@@ -507,7 +528,8 @@ export async function commitGuestPhoneImport(
           name: row.name,
           phone: reserved.fields.phone,
           phoneNormalized: reserved.fields.phoneNormalized,
-          phoneLengthApproved: false,
+          phoneLengthApproved: reserved.fields.phoneLengthApproved,
+          requiresPhoneReview: reserved.fields.requiresPhoneReview,
         },
         rollback: reserved.rollback,
       });

@@ -10,10 +10,11 @@ import {
   billableGuestMatch,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
-import { displayPhone } from "@/lib/guestPhone";
+import { restoreIsraeliTrunkZero } from "@/lib/guestPhone";
 import {
   commitGuestPhoneImport,
   countImportedPhoneReviews,
+  legacyPhoneDuplicateCount,
   planGuestPhoneImport,
 } from "@/lib/guestPhonePolicy";
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -250,7 +251,7 @@ export async function POST(req: NextRequest) {
 
       console.log("➡️ GROUP ID:", groupId);
 
-      const phone = displayPhone(g.phone || g["טלפון"] || "");
+      const phone = restoreIsraeliTrunkZero(g.phone || g["טלפון"] || "");
 
       const tableNumber = normalizeTableNumber(
         g.tableNumber ??
@@ -373,6 +374,7 @@ export async function POST(req: NextRequest) {
         duplicateCount: duplicates.length,
         reviewCount,
         duplicates,
+        legacyDuplicateCount: legacyPhoneDuplicateCount(invitationId),
       },
       usage: {
         limit,

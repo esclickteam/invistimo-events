@@ -175,6 +175,15 @@ const InvitationGuestSchema = new Schema(
       default: false,
     },
 
+    /**
+     * Persisted review mark for an Israeli 05 number whose length is not 10.
+     * False after a manual approval or after the number is corrected.
+     */
+    requiresPhoneReview: {
+      type: Boolean,
+      default: false,
+    },
+
     relation: {
       type: String,
       default: "",

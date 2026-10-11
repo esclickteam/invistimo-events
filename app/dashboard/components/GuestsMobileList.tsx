@@ -16,6 +16,7 @@ export type Guest = {
   phone: string;
   phoneNormalized?: string | null;
   phoneLengthApproved?: boolean;
+  requiresPhoneReview?: boolean;
   invitationId?: string;
   token: string;
 

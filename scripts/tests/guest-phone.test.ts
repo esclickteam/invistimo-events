@@ -8,6 +8,7 @@ import {
   PHONE_SKIP_EXISTING,
   PHONE_SKIP_IN_FILE,
   classifyPhoneImportRows,
+  restoreIsraeliTrunkZero,
   isIsraeliMobileLengthInvalid,
   normalizePhoneKey,
   phoneNeedsReview,
@@ -43,6 +44,10 @@ test("only Israeli 05 numbers are reviewed for exact length 10", () => {
   assert.equal(isIsraeliMobileLengthInvalid("+14155552671"), false);
   assert.equal(isIsraeliMobileLengthInvalid("031234567"), false);
   assert.equal(isIsraeliMobileLengthInvalid("501234567"), false);
+  assert.equal(restoreIsraeliTrunkZero("501234567"), "0501234567");
+  assert.equal(restoreIsraeliTrunkZero("50123456"), "050123456");
+  assert.equal(restoreIsraeliTrunkZero("5012345678"), "05012345678");
+  assert.equal(restoreIsraeliTrunkZero("+14155552671"), "+14155552671");
   assert.equal(
     PHONE_LENGTH_REVIEW_MESSAGE,
     "מספר הטלפון אינו כולל 10 ספרות. יש לבדוק את תקינות המספר."
@@ -212,6 +217,7 @@ test("phone claims, import, approval and event isolation against MongoDB", async
     assert.ok(short);
     assert.equal(phoneNeedsReview(short), true);
     short.phoneLengthApproved = true;
+    short.requiresPhoneReview = false;
     await short.save();
     const reloaded = await InvitationGuest.findById(short._id);
     assert.equal(phoneNeedsReview(reloaded), false);
@@ -227,6 +233,7 @@ test("phone claims, import, approval and event isolation against MongoDB", async
     short.phone = changed.fields.phone;
     short.phoneNormalized = changed.fields.phoneNormalized;
     short.phoneLengthApproved = changed.fields.phoneLengthApproved;
+    short.requiresPhoneReview = changed.fields.requiresPhoneReview;
     await short.save();
     await changed.finalize();
     assert.equal(short.phoneLengthApproved, false);

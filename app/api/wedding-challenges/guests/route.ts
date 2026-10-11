@@ -220,7 +220,8 @@ export async function POST(req: Request) {
         name: guest.name,
         phone: reserved.fields.phone,
         phoneNormalized: reserved.fields.phoneNormalized,
-        phoneLengthApproved: false,
+        phoneLengthApproved: reserved.fields.phoneLengthApproved,
+        requiresPhoneReview: reserved.fields.requiresPhoneReview,
         rsvp: "yes",
         status: "yes",
         guestsCount: 1,
@@ -301,6 +302,7 @@ export async function PATCH(req: Request) {
       guest.phone = phonePlan.fields.phone;
       guest.phoneNormalized = phonePlan.fields.phoneNormalized;
       guest.phoneLengthApproved = phonePlan.fields.phoneLengthApproved;
+      guest.requiresPhoneReview = phonePlan.fields.requiresPhoneReview;
       phoneFinalize = phonePlan.finalize;
       phoneRollback = phonePlan.rollback;
     } catch (error) {

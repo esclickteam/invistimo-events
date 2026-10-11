@@ -5,6 +5,7 @@ import {
 import {
   PHONE_DUPLICATE_MESSAGE,
   displayPhone,
+  isIsraeliMobileLengthInvalid,
   normalizePhoneKey,
 } from "@/lib/guestPhone";
 import {
@@ -210,6 +211,7 @@ export function addGuest(
     phone,
     phoneNormalized: phoneNormalized || null,
     phoneLengthApproved: false,
+    requiresPhoneReview: isIsraeliMobileLengthInvalid(phoneNormalized),
     token: String(input.token || `dmo_${guestId.slice(-8)}`),
     relation: input.relation || "",
     groupId: input.groupId || null,
@@ -262,11 +264,14 @@ export function updateGuest(
     guest.phoneNormalized = nextKey || null;
     guest.phoneLengthApproved =
       nextKey === beforePhoneKey && guest.phoneLengthApproved === true;
+    guest.requiresPhoneReview =
+      isIsraeliMobileLengthInvalid(nextKey) && guest.phoneLengthApproved !== true;
   }
   if ((patch as { approvePhoneLength?: boolean }).approvePhoneLength === true) {
     const afterKey = normalizePhoneKey(guest.phoneNormalized || guest.phone);
     if (patch.phone == null || afterKey === beforePhoneKey) {
       guest.phoneLengthApproved = true;
+      guest.requiresPhoneReview = false;
       if (!guest.phoneNormalized && afterKey) guest.phoneNormalized = afterKey;
     }
   }

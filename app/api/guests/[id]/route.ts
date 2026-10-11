@@ -1462,6 +1462,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       guest.phone = phonePlan.fields.phone;
       guest.phoneNormalized = phonePlan.fields.phoneNormalized;
       guest.phoneLengthApproved = phonePlan.fields.phoneLengthApproved;
+      guest.requiresPhoneReview = phonePlan.fields.requiresPhoneReview;
       phoneHooks.finalize = phonePlan.finalize;
       phoneHooks.rollback = phonePlan.rollback;
       (guest as any).__phoneBeforeKey = beforeKey;
@@ -1474,6 +1475,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       const afterKey = normalizePhoneKey(guest.phone);
       if (typeof data.phone !== "string" || afterKey === beforeKey) {
         guest.phoneLengthApproved = true;
+        guest.requiresPhoneReview = false;
         if (!guest.phoneNormalized && afterKey) {
           guest.phoneNormalized = afterKey;
         }
