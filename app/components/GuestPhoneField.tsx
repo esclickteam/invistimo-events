@@ -51,8 +51,9 @@ export default function GuestPhoneField({
         readOnly={disabled}
         placeholder={placeholder}
         inputMode="tel"
+        dir="ltr"
         onChange={(event) => onChange(event.target.value)}
-        className={`${className}${
+        className={`${className} text-left${
           status.duplicate
             ? " border-red-500 focus:border-red-500"
             : status.needsReview
