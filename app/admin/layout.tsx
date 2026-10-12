@@ -103,6 +103,11 @@ const NAV_GROUPS: NavGroup[] = [
     label: "אירועים",
     items: [
       {
+        href: "/admin/today",
+        label: "אירועי היום",
+        icon: <CalendarDays className="h-4 w-4" />,
+      },
+      {
         href: "/admin/invitations",
         label: "ניהול אירועים",
         icon: <CalendarDays className="h-4 w-4" />,
@@ -177,6 +182,11 @@ const PAGE_META: Array<{
     match: (p) => p.startsWith("/admin/notification-settings"),
     title: "העדפות התראות",
     description: "Push ומכשירים של מנהל המערכת",
+  },
+  {
+    match: (p) => p.startsWith("/admin/today"),
+    title: "סיכום אירועים להיום",
+    description: "אירועים פעילים שמתקיימים היום והבעיות הפתוחות",
   },
   {
     match: (p) => p.startsWith("/admin/customers/"),

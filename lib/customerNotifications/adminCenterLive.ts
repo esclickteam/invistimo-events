@@ -5,7 +5,10 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
-import { isPlaceholderEventTime } from "@/lib/eventDetails/centralEventDetails";
+import {
+  isPlaceholderEventTime,
+  normalizeEventDateValue,
+} from "@/lib/eventDetails/centralEventDetails";
 import { normalizeClockTime } from "@/lib/seatingSchedule";
 import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 import {
@@ -15,8 +18,13 @@ import {
   resolveEventStart,
 } from "@/lib/venueSeatingContacts/logic";
 import {
+  adminCustomerHref,
   classifyEventDetailChanges,
+  isActiveUnstartedCallStatus,
+  isDailySummaryDue,
+  isLateUnstarted,
   planBalanceDue,
+  planDailyEventsSummary,
   planCallNotStarted,
   planCriticalMissing,
   planDetailsCompleted,
@@ -32,6 +40,7 @@ import {
   planTeamAssigned,
   planVenueSeatingBriefingNotice,
   seatingTeamGap,
+  todayEventAttention,
   type AdminIncident,
 } from "@/lib/customerNotifications/adminCenter";
 import {
@@ -563,6 +572,242 @@ async function scanEvents(now: Date, adminIds: string[]) {
     }
   }
   return events.length;
+}
+
+export type TodayEventRow = {
+  eventId: string;
+  title: string;
+  timeLabel: string;
+  customerId: string | null;
+  href: string;
+  problems: string[];
+  needsAttention: boolean;
+  missingTeam: boolean;
+  missingCritical: boolean;
+  roundsNeedAttention: boolean;
+};
+
+function eventHasLocation(event: {
+  venueHallName?: string;
+  location?: {
+    name?: string;
+    address?: string;
+    formattedAddress?: string;
+    placeName?: string;
+    wazeUrl?: string;
+    lat?: number;
+    lng?: number;
+  } | null;
+}) {
+  return [
+    event.venueHallName,
+    event.location?.name,
+    event.location?.address,
+    event.location?.formattedAddress,
+    event.location?.placeName,
+    event.location?.wazeUrl,
+    Number.isFinite(Number(event.location?.lat)) && Number.isFinite(Number(event.location?.lng))
+      ? "1"
+      : "",
+  ].some((value) => String(value || "").trim());
+}
+
+function visibleClock(event: { time?: string; receptionTime?: string }) {
+  if (!isPlaceholderEventTime(event.time)) return normalizeClockTime(event.time) || "";
+  if (!isPlaceholderEventTime(event.receptionTime)) return normalizeClockTime(event.receptionTime) || "";
+  return "";
+}
+
+export async function loadTodayEventBoard(now = new Date()): Promise<{
+  dateKey: string;
+  events: TodayEventRow[];
+}> {
+  const dateKey = israelCalendarDate(now);
+  const events = await Event.find({
+    date: { $gte: dateKey, $lte: `${dateKey}T23:59:59.999` },
+    status: { $nin: ["archived", "cancelled"] },
+    paymentStatus: { $ne: "refunded" },
+  })
+    .select(
+      "userId title date time receptionTime location venueHallName status paymentStatus assignedStaffIds"
+    )
+    .limit(200)
+    .lean<
+      Array<{
+        _id: mongoose.Types.ObjectId;
+        userId?: mongoose.Types.ObjectId;
+        title?: string;
+        date?: string;
+        time?: string;
+        receptionTime?: string;
+        venueHallName?: string;
+        location?: {
+          name?: string;
+          address?: string;
+          formattedAddress?: string;
+          placeName?: string;
+          wazeUrl?: string;
+          lat?: number;
+          lng?: number;
+        } | null;
+        status?: string;
+        paymentStatus?: string;
+        assignedStaffIds?: mongoose.Types.ObjectId[];
+      }>
+    >();
+  const todays = events.filter(
+    (event) => normalizeEventDateValue(event.date) === dateKey && !isVenueSeatingEventCancelled(event)
+  );
+  const userIds = todays
+    .map((event) => event.userId)
+    .filter((id): id is mongoose.Types.ObjectId => Boolean(id));
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } })
+        .select("salesUpsells.venueSeating venueSeatingService callRoundsSchedule")
+        .lean<
+          Array<{
+            _id: mongoose.Types.ObjectId;
+            salesUpsells?: { venueSeating?: { enabled?: boolean; staffCount?: number } };
+            venueSeatingService?: { enabled?: boolean };
+            callRoundsSchedule?: {
+              rounds?: Array<{ roundNumber?: number; scheduledAt?: Date | string | null; status?: string }>;
+            };
+          }>
+        >()
+    : [];
+  const userById = new Map(users.map((user) => [String(user._id), user]));
+  const eventIds = todays.map((event) => event._id);
+  const invitations = eventIds.length
+    ? await Invitation.find({ eventId: { $in: eventIds } })
+        .select("_id eventId")
+        .lean<Array<{ _id: mongoose.Types.ObjectId; eventId?: mongoose.Types.ObjectId }>>()
+    : [];
+  const invitationIds = invitations.map((invitation) => invitation._id);
+  const messages = invitationIds.length
+    ? await ScheduledMessage.find({
+        invitationId: { $in: invitationIds },
+        status: { $in: ["scheduled", "failed"] },
+      })
+        .select("invitationId status scheduledAt round roundNumber")
+        .limit(400)
+        .lean<
+          Array<{
+            invitationId?: mongoose.Types.ObjectId;
+            status?: string;
+            scheduledAt?: Date;
+            round?: number;
+            roundNumber?: number;
+          }>
+        >()
+    : [];
+  const eventByInvitation = new Map(
+    invitations.map((invitation) => [String(invitation._id), String(invitation.eventId || "")])
+  );
+  const notesByEvent = new Map<string, string[]>();
+  const pushNote = (eventId: string, note: string) => {
+    if (!eventId || !note) return;
+    const list = notesByEvent.get(eventId) || [];
+    if (!list.includes(note)) list.push(note);
+    notesByEvent.set(eventId, list);
+  };
+  for (const message of messages) {
+    const eventId = eventByInvitation.get(String(message.invitationId || ""));
+    if (!eventId) continue;
+    const round = Number(message.round || message.roundNumber || 0);
+    const label = round ? String(round) : "";
+    if (message.status === "failed") {
+      pushNote(eventId, label ? `סבב הודעות ${label} נכשל` : "סבב הודעות נכשל");
+      continue;
+    }
+    if (
+      message.status === "scheduled" &&
+      isLateUnstarted({ scheduledAt: asDate(message.scheduledAt), now })
+    ) {
+      pushNote(eventId, label ? `סבב הודעות ${label} לא התחיל` : "סבב הודעות לא התחיל");
+    }
+  }
+  for (const event of todays) {
+    const user = userById.get(String(event.userId || ""));
+    for (const round of user?.callRoundsSchedule?.rounds || []) {
+      const scheduledAt = asDate(round.scheduledAt);
+      if (!scheduledAt || israelCalendarDate(scheduledAt) !== dateKey) continue;
+      const roundNumber = Number(round.roundNumber || 0);
+      const label = roundNumber ? String(roundNumber) : "";
+      const status = String(round.status || "");
+      if (status === "failed") {
+        pushNote(String(event._id), label ? `סבב שיחות ${label} נכשל` : "סבב שיחות נכשל");
+        continue;
+      }
+      if (
+        isActiveUnstartedCallStatus(status) &&
+        isLateUnstarted({ scheduledAt, now })
+      ) {
+        pushNote(String(event._id), label ? `סבב שיחות ${label} לא התחיל` : "סבב שיחות לא התחיל");
+      }
+    }
+  }
+  const shifts = collection("employeeshifts");
+  const shiftRows = shifts
+    ? await shifts.find({ date: dateKey, locationType: "hall" }).limit(400).toArray()
+    : [];
+  const rows: TodayEventRow[] = todays.map((event) => {
+    const userId = event.userId ? String(event.userId) : "";
+    const user = userById.get(userId);
+    const venueSeating = hasActiveVenueSeatingUpsell(user || null);
+    const required = venueSeating
+      ? Math.max(1, Number(user?.salesUpsells?.venueSeating?.staffCount || 0))
+      : 0;
+    const hallIds = shiftRows
+      .filter((shift) => hallMatches(shift, event))
+      .map((shift) => String(shift.employeeIdString || shift.employeeId || "").trim())
+      .filter(Boolean);
+    const gap = seatingTeamGap({
+      requiredStaff: required,
+      assignedStaffIds: idList(event.assignedStaffIds),
+      hallShiftEmployeeIds: hallIds,
+    });
+    const attention = todayEventAttention({
+      missingTeam: venueSeating && gap.short,
+      missingTime: isPlaceholderEventTime(event.time) && isPlaceholderEventTime(event.receptionTime),
+      missingLocation: !eventHasLocation(event),
+      roundNotes: notesByEvent.get(String(event._id)) || [],
+    });
+    return {
+      eventId: String(event._id),
+      title: String(event.title || "").trim() || "האירוע",
+      timeLabel: visibleClock(event),
+      customerId: userId || null,
+      href: adminCustomerHref(userId),
+      problems: attention.problems,
+      needsAttention: attention.needsAttention,
+      missingTeam: attention.missingTeam,
+      missingCritical: attention.missingCritical,
+      roundsNeedAttention: attention.roundsNeedAttention,
+    };
+  });
+  rows.sort((left, right) => {
+    if (left.needsAttention !== right.needsAttention) return left.needsAttention ? -1 : 1;
+    return left.timeLabel.localeCompare(right.timeLabel);
+  });
+  return { dateKey, events: rows };
+}
+
+export async function processDailyEventsSummary(now = new Date()) {
+  if (!isDailySummaryDue(now)) return { created: 0, skipped: "before-hour" as const };
+  const dateKey = israelCalendarDate(now);
+  const existing = await CustomerNotification.findOne({
+    audience: "admin",
+    type: "admin.daily.summary",
+    "meta.incidentKey": `daily-events:${dateKey}`,
+  })
+    .select("_id")
+    .lean();
+  if (existing) return { created: 0, skipped: "already" as const };
+  const board = await loadTodayEventBoard(now);
+  const notice = planDailyEventsSummary({ dateKey: board.dateKey, events: board.events });
+  if (!notice) return { created: 0, skipped: "no-events" as const };
+  const result = await publishAdminIncident(notice);
+  return { created: result.created, skipped: null };
 }
 
 export async function processAdminOperationalNotifications(now = new Date()) {
