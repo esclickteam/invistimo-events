@@ -6,6 +6,7 @@ import SeatingTable from "@/models/SeatingTable";
 import User from "@/models/User";
 import CallTask from "@/models/CallTask";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { annotateGuestsWithKosher } from "@/lib/kosherPhones/annotate";
 import mongoose, { Types } from "mongoose";
 import {
   billableGuestMatch,
@@ -751,7 +752,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        guests: guestsWithCallRounds,
+        guests: await annotateGuestsWithKosher(guestsWithCallRounds),
         usage: null,
         invitation: {
           ...invitation,
@@ -869,7 +870,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      guests: guestsWithCallRounds,
+      guests: await annotateGuestsWithKosher(guestsWithCallRounds),
       usage: {
         current,
         limit,
@@ -1015,9 +1016,13 @@ export async function POST(req: NextRequest) {
       throw createError;
     }
 
+    const [annotatedGuest] = await annotateGuestsWithKosher([
+      typeof created.toObject === "function" ? created.toObject() : created,
+    ]);
+
     return NextResponse.json({
       success: true,
-      guest: created,
+      guest: annotatedGuest,
     });
   } catch (err: any) {
     if (isPhoneDuplicateError(err)) {

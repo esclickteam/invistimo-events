@@ -4,6 +4,7 @@ import {
   executeIvrRound,
   listDueIvrRounds,
 } from "@/lib/calls/ivrDialer";
+import { continueKosherMessageDials } from "@/lib/kosherPhones/dispatch";
 import { getAppBaseUrl } from "@/lib/calls/ivrAudioStorage";
 import { getCallRoundDateKeyInIsrael } from "@/lib/calls/callRoundScheduleTime";
 
@@ -75,11 +76,19 @@ export async function POST(req: NextRequest) {
       runs.push(result);
     }
 
+    const kosherContinuation = await continueKosherMessageDials({
+      maxCalls,
+    }).catch((error) => {
+      console.error("[ivr-dial] kosher continuation failed", error);
+      return { dialed: 0, failed: 0, error: "KOSHER_CONTINUATION_FAILED" };
+    });
+
     return NextResponse.json({
       ok: true,
       dateKey,
       force,
       dueCount: due.length,
+      kosherContinuation,
       liveDialEnabled: process.env.IVR_ALLOW_LIVE_DIAL === "true",
       testAllowlistConfigured: Boolean(
         cleanStr(process.env.IVR_TEST_PHONE_ALLOWLIST)

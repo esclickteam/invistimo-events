@@ -31,6 +31,7 @@
     "migrate:central-event-gifts:write": "npx tsx scripts/migrate-central-event-gifts.ts --write",
     "test:invitation-only-details": "npx tsx --test scripts/tests/invitation-only-details.test.ts",
     "test:resolve-scheduled-audience": "npx tsx --test scripts/tests/resolve-scheduled-audience.test.ts",
+    "test:kosher-phones": "npx tsx --test scripts/tests/kosher-phone-rounds.test.ts",
     "test:staging-safety": "node --test --import tsx scripts/tests/staging-env-safety.test.mjs",
     "staging:seed": "npx tsx scripts/staging/seed-staging-fixtures.ts",
     "staging:isolation": "node -e \"fetch(process.env.STAGING_URL+'/api/system/env-isolation',{headers:process.env.VERCEL_AUTOMATION_BYPASS_SECRET?{'x-vercel-protection-bypass':process.env.VERCEL_AUTOMATION_BYPASS_SECRET}:{}}).then(r=>r.json()).then(j=>{console.log(JSON.stringify(j,null,2)); if(!j.ok) process.exit(1)})\"",

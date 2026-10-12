@@ -227,6 +227,12 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   callsEnabledAt?: Date | null;
 
   /**
+   * Recorded IVR calls for kosher numbers during message rounds.
+   * Off for every existing and new customer until an admin enables it.
+   */
+  kosherRecordedCallsEnabled?: boolean;
+
+  /**
    * IVR audio + script settings (only when callsType === "ivr").
    * AI mode: only event-name audio is stored per user/event.
    * Fixed script segments come from the global female/male voice packs.
@@ -1184,6 +1190,11 @@ preRsvpMessages: {
     callsEnabledAt: {
       type: Date,
       default: null,
+    },
+
+    kosherRecordedCallsEnabled: {
+      type: Boolean,
+      default: false,
     },
 
     ivrConfig: {

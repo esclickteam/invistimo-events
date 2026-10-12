@@ -10,6 +10,7 @@ import SeatingTable from "@/models/SeatingTable";
 import CallTask from "@/models/CallTask";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { annotateGuestsWithKosher } from "@/lib/kosherPhones/annotate";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 import {
   canAssignPhoneToGuest,
@@ -1767,9 +1768,15 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         valuesChanged: false,
       });
 
+      const [kosherGuest] = await annotateGuestsWithKosher([
+        typeof (guest as any).toObject === "function"
+          ? (guest as any).toObject()
+          : guest,
+      ]);
+
       return NextResponse.json({
         success: true,
-        guest,
+        guest: kosherGuest,
         skippedWrite: true,
         tables: syncedTables,
         seatStatus,
@@ -1829,9 +1836,15 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     delete (guest as any).__currentTable;
     delete (guest as any).__releaseAudit;
 
+    const [kosherGuest] = await annotateGuestsWithKosher([
+      typeof (guest as any).toObject === "function"
+        ? (guest as any).toObject()
+        : guest,
+    ]);
+
     return NextResponse.json({
       success: true,
-      guest,
+      guest: kosherGuest,
       tables: syncedTables,
       seatStatus,
       suggestedTables,

@@ -689,6 +689,9 @@ export async function PATCH(
       maxMessages: nextSmsLimit,
 
       includeCalls: nextIncludeCalls,
+      kosherRecordedCallsEnabled: hasField(body, "kosherRecordedCallsEnabled")
+        ? Boolean(body.kosherRecordedCallsEnabled)
+        : undefined,
       callsType:
         nextCallsType !== undefined
           ? nextCallsType

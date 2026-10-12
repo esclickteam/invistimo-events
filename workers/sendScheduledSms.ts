@@ -27,6 +27,7 @@ import {
   resolveLiveEventMessageDetails,
 } from "@/lib/messages/liveEventDetails";
 import { filterGuestsByInvitationAudience } from "@/lib/messages/invitationOnlyDetails";
+import { partitionMessageRoundGuests } from "@/lib/kosherPhones/routeAudience";
 import {
   findGuestIdsWithInvitationDeliveryStatus,
   findGuestIdsWithInvitationSendAttempt,
@@ -721,12 +722,41 @@ export async function sendScheduledSms() {
         liveGuest below may refresh table fields for copy, not who is included.
       */
       const guests = await InvitationGuest.find(guestsQuery).lean();
+      const kosherSplit = await partitionMessageRoundGuests({
+        user,
+        schedule: msg,
+        guests,
+      });
+      const messageGuests = kosherSplit.messageGuests;
+      const kosherDispatch = kosherSplit.kosherGuests.length
+        ? import("@/lib/kosherPhones/dispatch")
+            .then(({ dispatchKosherMessageRound }) =>
+              dispatchKosherMessageRound({
+                user,
+                invitation,
+                schedule: msg,
+                guests: kosherSplit.kosherGuests,
+              })
+            )
+            .catch((error) => {
+            console.error("kosher call dispatch failed", error);
+            return {
+              enabled: true,
+              routed: kosherSplit.kosherGuests.length,
+              dialed: 0,
+              failed: kosherSplit.kosherGuests.length,
+              queued: 0,
+              skipped: 0,
+              error: error instanceof Error ? error.message : "KOSHER_DISPATCH_FAILED",
+            };
+          })
+        : null;
 
       let sent = 0;
       let charged = 0;
       const sentGuestIds: any[] = [];
 
-      for (const guest of guests) {
+      for (const guest of messageGuests) {
         const freshMid = await ScheduledMessage.findById(msg._id).lean();
 
         if (!freshMid || freshMid.status === "cancelled") {
@@ -800,11 +830,13 @@ export async function sendScheduledSms() {
         }
       );
 
+      const kosherResult = kosherDispatch ? await kosherDispatch : null;
+
       await markInvitationAfterSend({
         schedule: msg,
         invitation,
         channel: "sms",
-        sent,
+        sent: sent > 0 ? sent : Number(kosherResult?.routed || 0),
       });
 
       sentTotal += sent;
@@ -1060,12 +1092,40 @@ export async function sendScheduledWhatsapp() {
         }
       }
 
-      roundGuests = guests;
+      const kosherSplit = await partitionMessageRoundGuests({
+        user,
+        schedule: msg,
+        guests,
+      });
+      roundGuests = kosherSplit.messageGuests;
+      const kosherDispatch = kosherSplit.kosherGuests.length
+        ? import("@/lib/kosherPhones/dispatch")
+            .then(({ dispatchKosherMessageRound }) =>
+              dispatchKosherMessageRound({
+                user,
+                invitation,
+                schedule: msg,
+                guests: kosherSplit.kosherGuests,
+              })
+            )
+            .catch((error) => {
+            console.error("kosher call dispatch failed", error);
+            return {
+              enabled: true,
+              routed: kosherSplit.kosherGuests.length,
+              dialed: 0,
+              failed: kosherSplit.kosherGuests.length,
+              queued: 0,
+              skipped: 0,
+              error: error instanceof Error ? error.message : "KOSHER_DISPATCH_FAILED",
+            };
+          })
+        : null;
 
       let sent = 0;
       const sentGuestIds: any[] = [];
 
-      for (const guest of guests) {
+      for (const guest of roundGuests) {
         const freshMid = await ScheduledMessage.findById(msg._id).lean();
 
         if (!freshMid || freshMid.status === "cancelled") {
@@ -1295,11 +1355,13 @@ const queueDoc = await WhatsappQueue.create({
         }
       );
 
+      const kosherResult = kosherDispatch ? await kosherDispatch : null;
+
       await markInvitationAfterSend({
         schedule: msg,
         invitation,
         channel: "whatsapp",
-        sent,
+        sent: sent > 0 ? sent : Number(kosherResult?.routed || 0),
       });
 
       sentTotal += sent;

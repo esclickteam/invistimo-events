@@ -18,6 +18,14 @@ const SystemSettingsSchema = new Schema(
       type: String,
       default: "",
     },
+
+    /**
+     * Set after the one-time kosher prefix seed. Later admin edits are not overwritten.
+     */
+    kosherPrefixesInitialized: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

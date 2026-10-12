@@ -1058,6 +1058,16 @@ export async function handleIvrTelnyxWebhook(body: any) {
         }).catch((error) => {
           console.error("IVR_FILL_AFTER_HANGUP", error);
         });
+        if (cleanStr(attempt.origin) === "kosher_message_round") {
+          const { continueKosherMessageDials } = await import(
+            "@/lib/kosherPhones/dispatch"
+          );
+          await continueKosherMessageDials({
+            maxCalls: 1,
+          }).catch((error) => {
+            console.error("KOSHER_FILL_AFTER_HANGUP", error);
+          });
+        }
       }
       break;
     }
