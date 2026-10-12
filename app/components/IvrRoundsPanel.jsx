@@ -5,6 +5,7 @@ import {
   formatCallRoundDateTimeDmy,
   formatCallRoundDateTimeInput,
 } from "@/lib/calls/callRoundScheduleTime";
+import IvrCallPreview from "@/app/components/IvrCallPreview";
 
 function roundStatusLabel(status) {
   const raw = String(status || "").toLowerCase();
@@ -366,6 +367,7 @@ export default function IvrRoundsPanel({
           בהקלטה, בהזנת שם נפרד או באישור. אם מעדכנים את שם האירוע, שיחות שטרם
           בוצעו ישתמשו בשם המעודכן.
         </p>
+        <IvrCallPreview userId={userId} />
 
         <div className="mt-4 space-y-3">
           {[1, 2, 3].map((roundNumber) => {
