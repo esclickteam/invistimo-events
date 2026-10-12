@@ -835,6 +835,9 @@ function SeatingPageInner() {
         editGuard.reportSaveFailure("אין נעילת עריכה פעילה, ולכן השמירה לא נשלחה.");
         return false;
       }
+      const writeCredentials = credentials.collaborative
+        ? { baseMapVersion: credentials.baseMapVersion }
+        : credentials;
 
       try {
         const response = await trackSeatingSave(
@@ -854,7 +857,7 @@ function SeatingPageInner() {
               zones,
               canvasView: snapshot.canvasView,
               saveScope,
-              ...credentials,
+              ...writeCredentials,
             }),
           })
         );

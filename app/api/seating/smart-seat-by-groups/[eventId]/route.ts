@@ -8,8 +8,11 @@ import SeatingTable from "@/models/SeatingTable";
 import { requireSeating } from "@/lib/guards/requireSeating";
 import { planInvitationGuestSeatingWrites } from "@/lib/invitationGuestWrites";
 import { diffSeatingTables } from "@/lib/seating/editLock";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
   commitGuardedSeatingUpdate,
+  customerExclusiveLockRequired,
+  readBaseMapVersion,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
 
@@ -883,12 +886,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
       };
     });
 
+    const auth = await getUserIdFromRequest(req);
+    const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
     const guardedWrite = await commitGuardedSeatingUpdate({
       eventId,
       userId: String(guard.userId || ""),
       credentials: readSeatingWriteCredentials(body),
       set: { tables: updatedTables },
       changes: diffSeatingTables(seatingDoc.tables || [], updatedTables),
+      exclusiveLock,
+      baseMapVersion: readBaseMapVersion(body),
     });
 
     if (!guardedWrite.ok) {

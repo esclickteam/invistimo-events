@@ -16,11 +16,6 @@ import { useRouter } from "next/navigation";
 /* 🧠 Zustand – מקור אמת */
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
-import {
-  ensureScreenInstanceId,
-  setSeatingEditSession,
-  storeLock,
-} from "@/app/dashboard/seating/seatingEditSession";
 
 type Props = {
   invitationId: string;
@@ -156,36 +151,6 @@ useEffect(() => {
   setLoading(true);
 
   try {
-    const screenInstanceId = await ensureScreenInstanceId();
-    const lockResponse = await fetch(`/api/seating/edit-lock/${eventId}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "acquire",
-        screenInstanceId,
-        invitationId,
-        recordActivity: true,
-        baseMapVersion: mapVersion,
-      }),
-    });
-    const lockData = await lockResponse.json().catch(() => ({}));
-    if (lockData.mode !== "edit" || !lockData.lockId) {
-      alert(lockData.message || "העריכה פתוחה במסך אחר. השמירה לא נשלחה.");
-      return;
-    }
-
-    const session = {
-      eventId,
-      screenInstanceId,
-      editLockId: String(lockData.lockId),
-      lockGeneration: Number(lockData.generation),
-      baseMapVersion: Number(lockData.mapVersion ?? mapVersion),
-      mode: "edit" as const,
-    };
-    setSeatingEditSession(session);
-    storeLock(session);
-
     const tables = useSeatingStore.getState().tables;
     const guests = useSeatingStore.getState().guests;
     const background = useSeatingStore.getState().background;
@@ -204,31 +169,20 @@ useEffect(() => {
         canvasView,
         invitationId,
         saveScope: "full",
-        editLockId: session.editLockId,
-        lockGeneration: session.lockGeneration,
-        screenInstanceId,
-        baseMapVersion: session.baseMapVersion,
+        baseMapVersion: mapVersion,
       }),
     });
 
     const data = await res.json();
     if (data.success && Number.isFinite(Number(data.mapVersion))) {
       setMapVersion(Number(data.mapVersion));
+      alert("🎉 הושבה נשמרה");
+      return;
     }
-    alert(data.success ? "🎉 הושבה נשמרה" : data.message || "❌ שגיאה בשמירה");
-    await fetch(`/api/seating/edit-lock/${eventId}`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "release",
-        screenInstanceId,
-        invitationId,
-        editLockId: session.editLockId,
-        lockGeneration: session.lockGeneration,
-        baseMapVersion: Number(data.mapVersion ?? session.baseMapVersion),
-      }),
-    }).catch(() => undefined);
+    alert(data.message || "❌ שגיאה בשמירה");
+    if (res.status === 409) {
+      setHasImported(false);
+    }
   } finally {
     setLoading(false);
   }

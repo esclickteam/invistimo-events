@@ -4,7 +4,9 @@ import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  customerExclusiveLockRequired,
   guardSeatingEditWrite,
+  readBaseMapVersion,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
 import {
@@ -94,9 +96,12 @@ export async function POST(req: Request) {
       );
     }
 
+    const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
     const gate = await guardSeatingEditWrite({
       eventId,
       credentials: readSeatingWriteCredentials(body),
+      exclusiveLock,
+      baseMapVersion: readBaseMapVersion(body),
     });
     if (!gate.ok) {
       return NextResponse.json(gate.body, { status: gate.status });

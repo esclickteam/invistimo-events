@@ -15,6 +15,7 @@ export type SeatingEditSession = {
   lockGeneration: number;
   baseMapVersion: number;
   mode: SeatingEditMode;
+  collaborative?: boolean;
 };
 
 export type SeatingSnapshot = {
@@ -41,12 +42,27 @@ export function setSeatingEditSession(next: SeatingEditSession | null) {
 
 export function seatingWriteCredentials() {
   if (!session || session.mode !== "edit") return null;
+  if (session.collaborative) {
+    return {
+      baseMapVersion: session.baseMapVersion,
+      collaborative: true as const,
+    };
+  }
   return {
     editLockId: session.editLockId,
     lockGeneration: session.lockGeneration,
     screenInstanceId: session.screenInstanceId,
     baseMapVersion: session.baseMapVersion,
   };
+}
+
+export function adoptSeatingMapVersion(mapVersion: number) {
+  const version = Number(mapVersion);
+  if (!Number.isFinite(version)) return;
+  observedMapVersion = version;
+  if (!session) return;
+  session = { ...session, baseMapVersion: version };
+  if (!session.collaborative && session.editLockId) storeLock(session);
 }
 
 export function observeSeatingMapVersion(mapVersion: number) {

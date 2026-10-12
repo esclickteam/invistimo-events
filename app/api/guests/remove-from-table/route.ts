@@ -4,6 +4,8 @@ import InvitationGuest from "@/models/InvitationGuest";
 import { seatingAssignmentFromGuest, emptySeatingAssignment, seatingAssignmentsEqual, instrumentGuestWrite } from "@/lib/invitationGuestWrites";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  bumpSeatingMapVersion,
+  customerExclusiveLockRequired,
   guardSeatingEditWrite,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
@@ -68,12 +70,19 @@ export async function POST(req: Request) {
         invitationId: String(guest.invitationId),
       })
     : null;
-  const gate = await guardSeatingEditWrite({
-    eventId: invitation?.eventId ? String(invitation.eventId) : "",
-    credentials: readSeatingWriteCredentials(body),
-  });
-  if (!gate.ok) {
-    return NextResponse.json(gate.body, { status: gate.status });
+  const eventId = invitation?.eventId ? String(invitation.eventId) : "";
+  const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
+  let mapVersion: number | null = null;
+  if (exclusiveLock) {
+    const gate = await guardSeatingEditWrite({
+      eventId,
+      credentials: readSeatingWriteCredentials(body),
+    });
+    if (!gate.ok) {
+      return NextResponse.json(gate.body, { status: gate.status });
+    }
+  } else if (eventId) {
+    mapVersion = await bumpSeatingMapVersion(eventId);
   }
 
   await InvitationGuest.updateOne(
@@ -87,5 +96,8 @@ export async function POST(req: Request) {
     }
   );
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    ...(mapVersion != null ? { mapVersion } : {}),
+  });
 }

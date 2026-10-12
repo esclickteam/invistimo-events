@@ -343,6 +343,105 @@ export function transferLock(
   };
 }
 
+export type SeatingAuthActor = {
+  role?: string | null;
+  employeeScope?: string | null;
+  staffType?: string | null;
+  impersonated?: boolean;
+  impersonatedByAdmin?: boolean;
+  impersonationRole?: string | null;
+  impersonationSourceRole?: string | null;
+};
+
+const COLLABORATOR_ROLES = new Set([
+  "admin",
+  "producer",
+  "venue_owner",
+  "staff",
+  "worker",
+]);
+
+const COLLABORATOR_SOURCES = new Set(["admin", "producer"]);
+
+const COLLABORATOR_SCOPES = new Set(["producer", "system", "venue"]);
+
+const COLLABORATOR_IMPERSONATION = new Set([
+  "admin",
+  "producer",
+  "producer_staff",
+  "staff_producer",
+  "staff",
+  "worker",
+  "venue_owner",
+]);
+
+/**
+ * Regular customers are the only actors who get the single-screen lock.
+ * Admins and producers are recognized even when they are viewing a customer screen.
+ */
+export function isRegularCustomerActor(
+  auth: SeatingAuthActor | null | undefined
+) {
+  if (!auth) return true;
+  const role = String(auth.role || "").trim().toLowerCase();
+  const source = String(auth.impersonationSourceRole || "").trim().toLowerCase();
+  const scope = String(auth.employeeScope || "").trim().toLowerCase();
+  const impersonationRole = String(auth.impersonationRole || "")
+    .trim()
+    .toLowerCase();
+  const staffType = String(auth.staffType || "").trim().toLowerCase();
+
+  if (auth.impersonatedByAdmin) return false;
+  if (COLLABORATOR_SOURCES.has(source)) return false;
+  if (auth.impersonated && COLLABORATOR_IMPERSONATION.has(impersonationRole)) {
+    return false;
+  }
+  if (COLLABORATOR_ROLES.has(role)) return false;
+  if (COLLABORATOR_SCOPES.has(scope)) return false;
+  if (
+    staffType &&
+    staffType !== "client" &&
+    staffType !== "customer"
+  ) {
+    return false;
+  }
+  return role === "user" || role === "client" || role === "customer" || role === "";
+}
+
+/** Exclusive lock is for a regular customer planning the map, not for live event-day editing. */
+export function exclusiveLockApplies(input: {
+  actor: SeatingAuthActor | null | undefined;
+  eventIsLive: boolean;
+}) {
+  if (input.eventIsLive) return false;
+  return isRegularCustomerActor(input.actor);
+}
+
+export function authorizeCollaborativeSave(
+  doc: LockDocument,
+  baseMapVersion: number | null | undefined
+): { ok: true; doc: LockDocument } | LockFailure & { doc: LockDocument } {
+  if (!Number.isFinite(Number(baseMapVersion))) {
+    return {
+      ...failure(
+        "STALE_VERSION",
+        "חסרה גרסת המפה. השמירה נדחתה כדי לא לדרוס שיבוצים חדשים."
+      ),
+      doc: cloneDoc(doc),
+    };
+  }
+  if (normalizeMapVersion(baseMapVersion) !== normalizeMapVersion(doc.mapVersion)) {
+    return {
+      ...failure(
+        "STALE_VERSION",
+        "המפה השתנתה מאז הטעינה. השמירה נדחתה כדי לא לדרוס שיבוצים."
+      ),
+      doc: cloneDoc(doc),
+    };
+  }
+  return { ok: true, doc: cloneDoc(doc) };
+}
+
 export function authorizeWrite(
   doc: LockDocument,
   credentials: WriteCredentials | null | undefined,

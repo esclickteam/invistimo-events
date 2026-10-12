@@ -8,10 +8,12 @@ import {
   SEATING_INACTIVITY_WARNING_MS,
   acquireLock,
   applyAuthorizedSave,
+  authorizeCollaborativeSave,
   authorizeWrite,
   decideReconnectSave,
   diffSeatingTables,
   emptyLockDocument,
+  exclusiveLockApplies,
   mergeLayoutPreservingAssignments,
   planIdleExpiry,
   resolvePersistedTables,
@@ -500,6 +502,107 @@ test("assignment diff records previous and next tables", () => {
   );
 });
 
+test("exclusive lock applies only to a regular customer outside live mode", () => {
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "user" }, eventIsLive: false }),
+    true
+  );
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "client" }, eventIsLive: false }),
+    true
+  );
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "user" }, eventIsLive: true }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "producer" }, eventIsLive: false }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "admin" }, eventIsLive: false }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({
+      actor: { role: "staff", staffType: "usher_staff" },
+      eventIsLive: false,
+    }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({ actor: { role: "venue_owner" }, eventIsLive: false }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({
+      actor: {
+        role: "user",
+        impersonated: true,
+        impersonatedByAdmin: true,
+        impersonationSourceRole: "admin",
+      },
+      eventIsLive: false,
+    }),
+    false
+  );
+  assert.equal(
+    exclusiveLockApplies({
+      actor: {
+        role: "client",
+        impersonated: true,
+        impersonationSourceRole: "producer",
+        impersonationRole: "client",
+      },
+      eventIsLive: false,
+    }),
+    false
+  );
+});
+
+test("producers and live workers can save in parallel, but a stale map cannot restore old assignments", () => {
+  const doc = emptyLockDocument();
+  doc.mapVersion = 4;
+  const current = authorizeCollaborativeSave(doc, 4);
+  assert.equal(current.ok, true);
+
+  const stale = authorizeCollaborativeSave(doc, 3);
+  assert.equal(stale.ok, false);
+  if (!stale.ok) assert.equal(stale.code, "STALE_VERSION");
+  assert.equal(stale.doc.mapVersion, 4);
+
+  const missing = authorizeCollaborativeSave(doc, null);
+  assert.equal(missing.ok, false);
+
+  const afterMoveA = [
+    { ...serverTables[0], seatedGuests: [{ guestId: "g1", seatIndex: 0 }] },
+    {
+      ...serverTables[1],
+      seatedGuests: [
+        { guestId: "g2", seatIndex: 0 },
+        { guestId: "g3", seatIndex: 1 },
+      ],
+    },
+  ];
+  const afterMoveB = afterMoveA.map((table) =>
+    table.id === "t1"
+      ? { ...table, seatedGuests: [{ guestId: "g1", seatIndex: 0 }, { guestId: "g4", seatIndex: 1 }] }
+      : table
+  );
+  assert.equal(afterMoveB[1].seatedGuests.length, 2);
+  assert.equal(afterMoveB[0].seatedGuests.some((seat) => seat.guestId === "g1"), true);
+  const oldSnapshot = serverTables;
+  const preserved = mergeLayoutPreservingAssignments(afterMoveB, oldSnapshot);
+  assert.equal(
+    preserved.find((table) => table.id === "t1")?.seatedGuests.some((seat: { guestId: string }) => seat.guestId === "g1"),
+    true
+  );
+  assert.equal(
+    preserved.find((table) => table.id === "t2")?.seatedGuests.some((seat: { guestId: string }) => seat.guestId === "g3"),
+    true
+  );
+});
+
 test("every seating write route requires the edit lock", () => {
   const files = [
     "app/api/seating/save/[eventId]/route.ts",
@@ -539,6 +642,14 @@ test("every seating write route requires the edit lock", () => {
   assert.match(page, /חזרה לעריכת ההושבה/);
   const dashboard = readFileSync("app/dashboard/seating/page.tsx", "utf8");
   assert.match(dashboard, /SeatingEditOverlays/);
+  const saveRoute = readFileSync("app/api/seating/save/[eventId]/route.ts", "utf8");
+  assert.match(saveRoute, /customerExclusiveLockRequired/);
+  const producer = readFileSync(
+    "app/events/production/_components/LiveSeating/LiveSeatingTab.tsx",
+    "utf8"
+  );
+  assert.doesNotMatch(producer, /edit-lock/);
+  assert.match(producer, /baseMapVersion/);
 
   const mobile = readFileSync("mobile/app/(app)/seating.tsx", "utf8");
   assert.match(mobile, /העריכה נסגרה אוטומטית כדי להגן על סידורי ההושבה שלך/);

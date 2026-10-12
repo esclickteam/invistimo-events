@@ -63,8 +63,10 @@ export default function SeatingScreen() {
   const lastActivitySentRef = useRef(0);
   const persistInFlight = useRef<Promise<boolean> | null>(null);
   const closingRef = useRef(false);
+  const collaborativeRef = useRef(false);
   const noteActivityRef = useRef<() => void>(() => undefined);
   const [idleWarning, setIdleWarning] = useState(false);
+  const [collaborative, setCollaborative] = useState(false);
   editModeRef.current = editMode;
   const [actionsOpen, setActionsOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
@@ -131,6 +133,7 @@ export default function SeatingScreen() {
     const current = lockRef.current;
     const result = await api<{
       mode?: "edit" | "view" | "closed" | "stale";
+      collaborative?: boolean;
       lockId?: string;
       generation?: number;
       mapVersion?: number;
@@ -149,6 +152,19 @@ export default function SeatingScreen() {
       }),
     });
     const data = result.data;
+    if (data.mode === "edit" && data.collaborative) {
+      collaborativeRef.current = true;
+      lockRef.current = {
+        editLockId: "",
+        lockGeneration: 0,
+        baseMapVersion: Number(data.mapVersion ?? current?.baseMapVersion ?? 0),
+      };
+      closingRef.current = false;
+      setCollaborative(true);
+      setEditMode("edit");
+      setIdleWarning(false);
+      return data;
+    }
     if (data.mode === "edit" && data.lockId) {
       lockRef.current = {
         editLockId: String(data.lockId),
@@ -159,6 +175,8 @@ export default function SeatingScreen() {
         closingRef.current = false;
         lastActivityRef.current = Date.now();
       }
+      collaborativeRef.current = false;
+      setCollaborative(false);
       setEditMode("edit");
       setIdleWarning(Boolean(data.warning));
       return data;
@@ -211,7 +229,7 @@ export default function SeatingScreen() {
     void syncLock("acquire");
     const timer = setInterval(() => {
       if (AppState.currentState !== "active") return;
-      if (lockRef.current && editModeRef.current === "edit") void syncLock("heartbeat");
+      if (lockRef.current?.editLockId && editModeRef.current === "edit" && !collaborativeRef.current) void syncLock("heartbeat");
     }, 20000);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") void syncLock(lockRef.current ? "revalidate" : "acquire");
@@ -223,7 +241,7 @@ export default function SeatingScreen() {
   }, [eventId, syncLock]);
 
   useEffect(() => {
-    if (editMode !== "edit") return;
+    if (editMode !== "edit" || collaborative) return;
     const timer = setInterval(() => {
       const idleMs = Date.now() - lastActivityRef.current;
       setIdleWarning(idleMs >= IDLE_WARNING_MS && idleMs < IDLE_CLOSE_MS);
@@ -242,7 +260,7 @@ export default function SeatingScreen() {
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [editMode, syncLock]);
+  }, [editMode, collaborative, syncLock]);
 
   useEffect(() => {
     if (!invitationId) return;
@@ -253,7 +271,10 @@ export default function SeatingScreen() {
 
   async function persist(nextTables: SeatingTable[], toast = false) {
     if (!eventId || !invitationId) return false;
-    if (editModeRef.current !== "edit" || !lockRef.current) {
+    if (
+      !collaborativeRef.current &&
+      (editModeRef.current !== "edit" || !lockRef.current?.editLockId)
+    ) {
       setError("העריכה לא פעילה במסך הזה, ולכן השמירה לא נשלחה.");
       return false;
     }
@@ -271,10 +292,14 @@ export default function SeatingScreen() {
           background,
           canvasView: view.current,
           saveScope: "full",
-          editLockId: credentials.editLockId,
-          lockGeneration: credentials.lockGeneration,
-          screenInstanceId,
-          baseMapVersion: credentials.baseMapVersion,
+          ...(collaborativeRef.current
+            ? { baseMapVersion: credentials?.baseMapVersion ?? 0 }
+            : {
+                editLockId: credentials?.editLockId,
+                lockGeneration: credentials?.lockGeneration,
+                screenInstanceId,
+                baseMapVersion: credentials?.baseMapVersion,
+              }),
         }),
       });
       if (!result.ok) {

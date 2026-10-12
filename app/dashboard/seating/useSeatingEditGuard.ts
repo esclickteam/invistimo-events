@@ -28,6 +28,7 @@ import {
 type LockPayload = {
   success?: boolean;
   mode?: "edit" | "view" | "closed" | "stale";
+  collaborative?: boolean;
   code?: string;
   message?: string;
   lockId?: string;
@@ -87,6 +88,7 @@ export function useSeatingEditGuard({
   );
   const [transferBusy, setTransferBusy] = useState(false);
   const [resumeBusy, setResumeBusy] = useState(false);
+  const [collaborative, setCollaborative] = useState(false);
   const lastActivityRef = useRef(Date.now());
   const lastActivitySentRef = useRef(0);
   const suppressSaveRef = useRef(false);
@@ -263,6 +265,35 @@ export function useSeatingEditGuard({
       });
       if (cancelled) return;
 
+      if (result.data.collaborative) {
+        setCollaborative(true);
+        setSeatingEditSession({
+          eventId: eventId!,
+          screenInstanceId,
+          editLockId: "",
+          lockGeneration: 0,
+          baseMapVersion: Number(result.data.mapVersion || 0),
+          mode: "edit",
+          collaborative: true,
+        });
+        storeLock(null);
+        if (Number(result.data.mapVersion || 0) !== getObservedMapVersion()) {
+          const loaded = await reloadFresh();
+          if (!loaded) {
+            setSaveError("לא הצלחנו לטעון את המפה העדכנית. השמירה חסומה עד לטעינה מחדש.");
+            suppressSaveRef.current = true;
+            return;
+          }
+        } else {
+          setSeatingBaseline(currentSnapshot());
+        }
+        noteSeatingMapVersion(Number(result.data.mapVersion || 0));
+        applyMode("edit");
+        lastActivityRef.current = Date.now();
+        suppressSaveRef.current = false;
+        return;
+      }
+
       if (result.data.mode === "edit" && result.data.lockId) {
         const serverVersion = Number(result.data.mapVersion || 0);
         const loadedVersion = getObservedMapVersion();
@@ -315,7 +346,7 @@ export function useSeatingEditGuard({
   }, [enabled, eventId, invitationId]);
 
   useEffect(() => {
-    if (!enabled || !eventId || phase !== "edit") return;
+    if (!enabled || !eventId || phase !== "edit" || collaborative) return;
     const tick = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       const current = getSeatingEditSession();
@@ -362,10 +393,10 @@ export function useSeatingEditGuard({
       });
     }, 20_000);
     return () => window.clearInterval(tick);
-  }, [applyMode, closeEditing, enabled, eventId, invitationId, phase, reloadFresh]);
+  }, [applyMode, closeEditing, collaborative, enabled, eventId, invitationId, phase, reloadFresh]);
 
   useEffect(() => {
-    if (!enabled || phase !== "edit") return;
+    if (!enabled || phase !== "edit" || collaborative) return;
     const tick = window.setInterval(() => {
       const idleMs = Date.now() - lastActivityRef.current;
       const plan = planIdleExpiry({
@@ -380,7 +411,7 @@ export function useSeatingEditGuard({
       }
     }, 1000);
     return () => window.clearInterval(tick);
-  }, [closeEditing, enabled, phase]);
+  }, [closeEditing, collaborative, enabled, phase]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -535,8 +566,13 @@ export function useSeatingEditGuard({
   }, [applyMode, eventId, invitationId, reloadFresh, rememberEdit]);
 
   const allowsSave = useCallback(() => {
-    if (!enabled || phaseRef.current !== "edit") return false;
-    if (getSeatingEditSession()?.mode !== "edit") return false;
+    if (!enabled) return false;
+    const current = getSeatingEditSession();
+    if (current?.collaborative && phaseRef.current === "edit") {
+      return !suppressSaveRef.current || allowFlushRef.current;
+    }
+    if (phaseRef.current !== "edit") return false;
+    if (current?.mode !== "edit") return false;
     if (suppressSaveRef.current && !allowFlushRef.current) return false;
     return true;
   }, [enabled]);

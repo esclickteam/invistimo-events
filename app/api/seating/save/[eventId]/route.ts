@@ -13,6 +13,8 @@ import {
 import { pruneHiddenTableIdsForEvent } from "@/lib/messages/reminderSmsSettings";
 import {
   commitSeatingSnapshot,
+  customerExclusiveLockRequired,
+  readBaseMapVersion,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
 import {
@@ -365,6 +367,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         ? body.saveScope
         : null;
 
+    const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
     const saved = await commitSeatingSnapshot({
       eventId,
       userId: String(invitation.userId || invitation.ownerId || userId),
@@ -375,6 +378,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       background,
       canvasView,
       layoutChanged,
+      exclusiveLock,
+      baseMapVersion: readBaseMapVersion(body),
     });
 
     if (!saved.ok) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
-import { seatingWriteCredentials } from "./seatingEditSession";
+import { adoptSeatingMapVersion, seatingWriteCredentials } from "./seatingEditSession";
 import { useSeatingStats } from "../../hooks/useSeatingStats";
 import { useGroupStore } from "@/store/groupStore";
 
@@ -252,6 +252,9 @@ export default function SeatingSidebar({
       });
 
       const data = await res.json().catch(() => ({}));
+      if (Number.isFinite(Number(data?.mapVersion))) {
+        adoptSeatingMapVersion(Number(data.mapVersion));
+      }
       return res.ok && data?.success !== false;
     } catch {
       return false;
@@ -273,6 +276,9 @@ export default function SeatingSidebar({
       });
 
       const data = await res.json().catch(() => ({}));
+      if (Number.isFinite(Number(data?.mapVersion))) {
+        adoptSeatingMapVersion(Number(data.mapVersion));
+      }
       return res.ok && data?.success !== false;
     } catch {
       return false;

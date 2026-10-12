@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { runSeatingLockAction } from "@/lib/seating/editLockServer";
+import {
+  customerExclusiveLockRequired,
+  readSeatingMapVersion,
+  runSeatingLockAction,
+} from "@/lib/seating/editLockServer";
 import {
   canSaveSeating,
   cleanString,
@@ -73,6 +77,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
         { success: false, error: "FORBIDDEN", message: "אין הרשאה לעריכת הושבה" },
         { status: 403 }
       );
+    }
+
+    const exclusive = await customerExclusiveLockRequired(auth, eventId);
+    if (!exclusive) {
+      const mapVersion = await readSeatingMapVersion(eventId);
+      return NextResponse.json({
+        success: true,
+        mode: "edit",
+        collaborative: true,
+        mapVersion,
+      });
     }
 
     const result = await runSeatingLockAction({

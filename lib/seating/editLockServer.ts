@@ -8,7 +8,9 @@ import {
   SEATING_INACTIVITY_MS,
   acquireLock,
   applyAuthorizedSave,
+  authorizeCollaborativeSave,
   authorizeWrite,
+  exclusiveLockApplies,
   capAuditChanges,
   emptyLockDocument,
   expireLock,
@@ -22,9 +24,11 @@ import {
   type LockDocument,
   type LockFailure,
   type SaveScope,
+  type SeatingAuthActor,
   type SeatingChange,
   type WriteCredentials,
 } from "@/lib/seating/editLock";
+import { loadEventCheckInGate } from "@/lib/checkIn/eventGate";
 import { eventIdQuery, toObjectId } from "@/lib/seating/seatingAccess";
 
 export type SeatingLockMode = "edit" | "view" | "closed" | "stale";
@@ -146,6 +150,11 @@ async function loadSeating(eventId: string): Promise<LoadedSeating> {
   };
 }
 
+export async function readSeatingMapVersion(eventId: string) {
+  const loaded = await loadSeating(eventId);
+  return loaded.state.mapVersion;
+}
+
 async function writeAudit(entry: {
   eventId: string;
   userId?: string;
@@ -250,6 +259,35 @@ async function ensureDocument(eventId: string) {
     if (error?.code !== 11000) throw error;
   }
   return loadSeating(eventId);
+}
+
+export async function customerExclusiveLockRequired(
+  auth: SeatingAuthActor | null | undefined,
+  eventId: string
+) {
+  const gate = eventId ? await loadEventCheckInGate(eventId) : null;
+  return exclusiveLockApplies({
+    actor: auth,
+    eventIsLive: Boolean(gate?.live),
+  });
+}
+
+export function readBaseMapVersion(body: any): number | null {
+  const value = Number(body?.baseMapVersion ?? body?.mapVersion);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
+}
+
+export async function bumpSeatingMapVersion(eventId: string) {
+  if (!eventId) return null;
+  const updated = await SeatingTable.findOneAndUpdate(
+    eventIdQuery(eventId),
+    { $inc: { mapVersion: 1 }, $set: { updatedAt: new Date() } },
+    { new: true }
+  )
+    .select("mapVersion")
+    .lean<{ mapVersion?: number }>();
+  return updated ? normalizeMapVersion(updated.mapVersion) : null;
 }
 
 export function readSeatingWriteCredentials(body: any): WriteCredentials | null {
@@ -471,12 +509,44 @@ export async function guardSeatingEditWrite(input: {
   eventId: string;
   credentials: WriteCredentials | null;
   now?: number;
+  exclusiveLock?: boolean;
+  baseMapVersion?: number | null;
 }): Promise<
   | { ok: true; state: LockDocument; tables: any[] }
   | { ok: false; status: number; body: Record<string, unknown> }
 > {
   const now = input.now ?? Date.now();
   const loaded = await loadSeating(input.eventId);
+  if (input.exclusiveLock === false) {
+    const collaborative = authorizeCollaborativeSave(
+      loaded.state,
+      input.baseMapVersion ?? input.credentials?.baseMapVersion
+    );
+    if (!collaborative.ok) {
+      await writeAudit({
+        eventId: input.eventId,
+        userId: "",
+        screenInstanceId: input.credentials?.screenInstanceId,
+        action: "save_rejected",
+        lockId: input.credentials?.lockId,
+        generation: input.credentials?.generation ?? null,
+        mapVersion: loaded.state.mapVersion,
+        rejectReason: collaborative.code,
+      });
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          success: false,
+          error: collaborative.code,
+          message: collaborative.message,
+          mode: "stale",
+          mapVersion: loaded.state.mapVersion,
+        },
+      };
+    }
+    return { ok: true, state: collaborative.doc, tables: loaded.tables };
+  }
   const auth = authorizeWrite(loaded.state, input.credentials, now);
   if (!auth.ok) {
     await writeAudit({
@@ -514,29 +584,40 @@ export async function commitGuardedSeatingUpdate(input: {
   set: Record<string, unknown>;
   changes?: SeatingChange[];
   now?: number;
+  exclusiveLock?: boolean;
+  baseMapVersion?: number | null;
 }) {
   const now = input.now ?? Date.now();
+  const exclusiveLock = input.exclusiveLock !== false;
   const gate = await guardSeatingEditWrite({
     eventId: input.eventId,
     credentials: input.credentials,
     now,
+    exclusiveLock,
+    baseMapVersion: input.baseMapVersion,
   });
   if (!gate.ok) return gate;
-  if (!input.credentials) {
+  if (exclusiveLock && !input.credentials) {
     return gate;
   }
 
+  const credentials = input.credentials;
+  const lockFilter = exclusiveLock && credentials
+    ? [
+        {
+          "editLock.lockId": credentials.lockId,
+          "editLock.generation": credentials.generation,
+          "editLock.screenInstanceId": credentials.screenInstanceId,
+        },
+        livenessFilter(now),
+      ]
+    : [];
   const updated = await SeatingTable.findOneAndUpdate(
     {
       $and: [
         eventIdQuery(input.eventId),
         versionClause("mapVersion", gate.state.mapVersion),
-        {
-          "editLock.lockId": input.credentials.lockId,
-          "editLock.generation": input.credentials.generation,
-          "editLock.screenInstanceId": input.credentials.screenInstanceId,
-        },
-        livenessFilter(now),
+        ...lockFilter,
       ],
     },
     {
@@ -553,20 +634,22 @@ export async function commitGuardedSeatingUpdate(input: {
     await writeAudit({
       eventId: input.eventId,
       userId: input.userId,
-      screenInstanceId: input.credentials.screenInstanceId,
+      screenInstanceId: input.credentials?.screenInstanceId,
       action: "save_rejected",
-      lockId: input.credentials.lockId,
-      generation: input.credentials.generation,
+      lockId: input.credentials?.lockId,
+      generation: input.credentials?.generation ?? null,
       mapVersion: gate.state.mapVersion,
-      rejectReason: "LOCK_EXPIRED",
+      rejectReason: exclusiveLock ? "LOCK_EXPIRED" : "STALE_VERSION",
     });
     return {
       ok: false as const,
       status: 409,
       body: {
         success: false,
-        error: "LOCK_EXPIRED",
-        message: seatingEditClosedMessage(),
+        error: exclusiveLock ? "LOCK_EXPIRED" : "STALE_VERSION",
+        message: exclusiveLock
+          ? seatingEditClosedMessage()
+          : "המפה השתנתה. השמירה נדחתה בלי לשנות נתונים.",
         mapVersion: gate.state.mapVersion,
       },
     };
@@ -576,12 +659,12 @@ export async function commitGuardedSeatingUpdate(input: {
   await writeAudit({
     eventId: input.eventId,
     userId: input.userId,
-    screenInstanceId: input.credentials.screenInstanceId,
+    screenInstanceId: input.credentials?.screenInstanceId,
     action: "save",
     editOpenedAt: state.editLock?.acquiredAt,
     lastActivityAt: state.editLock?.lastUserActivityAt,
-    lockId: input.credentials.lockId,
-    generation: input.credentials.generation,
+    lockId: input.credentials?.lockId,
+    generation: input.credentials?.generation ?? null,
     mapVersion: state.mapVersion,
     changes: input.changes,
   });
@@ -599,9 +682,141 @@ export async function commitSeatingSnapshot(input: {
   background: unknown;
   canvasView: unknown;
   layoutChanged: boolean;
+  exclusiveLock?: boolean;
+  baseMapVersion?: number | null;
 }) {
   const now = Date.now();
+  const exclusiveLock = input.exclusiveLock !== false;
   const loaded = await loadSeating(input.eventId);
+
+  if (!exclusiveLock) {
+    const collaborative = authorizeCollaborativeSave(
+      loaded.state,
+      input.baseMapVersion ?? input.credentials?.baseMapVersion
+    );
+    if (!collaborative.ok) {
+      await writeAudit({
+        eventId: input.eventId,
+        userId: input.userId,
+        screenInstanceId: input.credentials?.screenInstanceId,
+        action: "save_rejected",
+        mapVersion: loaded.state.mapVersion,
+        rejectReason: collaborative.code,
+      });
+      return {
+        ok: false as const,
+        status: 409,
+        body: {
+          success: false,
+          error: collaborative.code,
+          message: collaborative.message,
+          mapVersion: loaded.state.mapVersion,
+        },
+      };
+    }
+
+    const resolved = applyAuthorizedSave(
+      {
+        ...collaborative.doc,
+        editLock: {
+          lockId: "collaborative",
+          generation: collaborative.doc.lockGeneration,
+          screenInstanceId: "collaborative",
+          userId: input.userId,
+          acquiredAt: now,
+          lastHeartbeatAt: now,
+          lastUserActivityAt: now,
+        },
+      },
+      {
+        now,
+        credentials: {
+          lockId: "collaborative",
+          generation: collaborative.doc.lockGeneration,
+          screenInstanceId: "collaborative",
+          baseMapVersion: collaborative.doc.mapVersion,
+        },
+        previousTables: loaded.tables,
+        nextTables: input.nextTables,
+        requestedScope: input.requestedScope,
+      }
+    );
+    if (!resolved.ok) {
+      return {
+        ok: false as const,
+        status: 409,
+        body: {
+          success: false,
+          error: resolved.code,
+          message: resolved.message,
+          mapVersion: loaded.state.mapVersion,
+        },
+      };
+    }
+
+    const updated = await SeatingTable.findOneAndUpdate(
+      {
+        $and: [
+          eventIdQuery(input.eventId),
+          versionClause("mapVersion", loaded.state.mapVersion),
+        ],
+      },
+      {
+        $set: {
+          userId: input.userId,
+          tables: resolved.tables,
+          zones: input.zones,
+          background: input.background,
+          canvasView: input.canvasView,
+          ...(input.layoutChanged ? { layoutCustomizedAt: new Date() } : {}),
+          updatedAt: new Date(),
+        },
+        $inc: { mapVersion: 1 },
+      },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      await writeAudit({
+        eventId: input.eventId,
+        userId: input.userId,
+        action: "save_rejected",
+        mapVersion: loaded.state.mapVersion,
+        rejectReason: "STALE_VERSION",
+        changes: resolved.changes,
+      });
+      return {
+        ok: false as const,
+        status: 409,
+        body: {
+          success: false,
+          error: "STALE_VERSION",
+          message: "המפה השתנתה. השמירה נדחתה בלי לשנות נתונים.",
+          mapVersion: loaded.state.mapVersion,
+        },
+      };
+    }
+
+    await writeAudit({
+      eventId: input.eventId,
+      userId: input.userId,
+      screenInstanceId: input.credentials?.screenInstanceId,
+      action: "save",
+      mapVersion: normalizeMapVersion((updated as any).mapVersion),
+      changes: resolved.changes,
+    });
+
+    return {
+      ok: true as const,
+      mapVersion: normalizeMapVersion((updated as any).mapVersion),
+      tables: resolved.tables,
+      syncGuestAssignments: resolved.syncGuestAssignments,
+      scope: resolved.scope,
+      changes: resolved.changes,
+      seatingId: String((updated as any)._id),
+    };
+  }
+
   const decided = applyAuthorizedSave(loaded.state, {
     now,
     credentials: input.credentials,

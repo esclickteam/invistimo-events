@@ -3,6 +3,8 @@ import { connectDB } from "@/lib/db";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  bumpSeatingMapVersion,
+  customerExclusiveLockRequired,
   guardSeatingEditWrite,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
@@ -23,7 +25,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
@@ -37,12 +39,18 @@ export async function PATCH(
       const existing = await Group.findById(id).select("eventId").lean<{
         eventId?: unknown;
       } | null>();
-      const gate = await guardSeatingEditWrite({
-        eventId: existing?.eventId ? String(existing.eventId) : "",
-        credentials: readSeatingWriteCredentials(data),
-      });
-      if (!gate.ok) {
-        return NextResponse.json(gate.body, { status: gate.status });
+      const eventId = existing?.eventId ? String(existing.eventId) : "";
+      const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
+      if (exclusiveLock) {
+        const gate = await guardSeatingEditWrite({
+          eventId,
+          credentials: readSeatingWriteCredentials(data),
+        });
+        if (!gate.ok) {
+          return NextResponse.json(gate.body, { status: gate.status });
+        }
+      } else if (eventId) {
+        await bumpSeatingMapVersion(eventId);
       }
     }
 

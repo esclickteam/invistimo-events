@@ -6,6 +6,8 @@ import SeatingTable from "@/models/SeatingTable";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
+  bumpSeatingMapVersion,
+  customerExclusiveLockRequired,
   guardSeatingEditWrite,
   readSeatingWriteCredentials,
 } from "@/lib/seating/editLockServer";
@@ -241,12 +243,18 @@ export async function POST(req: Request) {
     }
 
     const seatingEventId = seatingDoc?.eventId ? String(seatingDoc.eventId) : "";
-    const gate = await guardSeatingEditWrite({
-      eventId: seatingEventId,
-      credentials: readSeatingWriteCredentials(body),
-    });
-    if (!gate.ok) {
-      return NextResponse.json(gate.body, { status: gate.status });
+    const exclusiveLock = await customerExclusiveLockRequired(auth, seatingEventId);
+    let mapVersion: number | null = null;
+    if (exclusiveLock) {
+      const gate = await guardSeatingEditWrite({
+        eventId: seatingEventId,
+        credentials: readSeatingWriteCredentials(body),
+      });
+      if (!gate.ok) {
+        return NextResponse.json(gate.body, { status: gate.status });
+      }
+    } else if (seatingEventId) {
+      mapVersion = await bumpSeatingMapVersion(seatingEventId);
     }
 
     const result = await InvitationGuest.updateOne(
@@ -265,6 +273,7 @@ export async function POST(req: Request) {
       ...(typeof finalTableNumber === "number" ? { tableNumber: finalTableNumber } : {}),
       ...(typeof seatIndex === "number" ? { seatIndex } : {}),
       ...(seatIndex === null ? { seatIndexCleared: true } : {}),
+      ...(mapVersion != null ? { mapVersion } : {}),
     });
   } catch (err: any) {
     console.error("assign guest to table error:", err);
