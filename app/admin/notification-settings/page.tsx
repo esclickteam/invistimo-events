@@ -3,5 +3,5 @@
 import NotificationPreferencesPanel from "@/components/notifications/NotificationPreferencesPanel";
 
 export default function AdminNotificationSettingsPage() {
-  return <NotificationPreferencesPanel />;
+  return <NotificationPreferencesPanel audience="admin" />;
 }

@@ -24,6 +24,9 @@ export type PushPreferenceToggles = {
   failures: boolean;
   eventManagement: boolean;
   reminders: boolean;
+  adminUrgent: boolean;
+  adminImportant: boolean;
+  adminInfo: boolean;
 };
 
 export const DEFAULT_PUSH_PREFERENCES: PushPreferenceToggles = {
@@ -31,6 +34,9 @@ export const DEFAULT_PUSH_PREFERENCES: PushPreferenceToggles = {
   failures: true,
   eventManagement: true,
   reminders: true,
+  adminUrgent: true,
+  adminImportant: true,
+  adminInfo: false,
 };
 
 const MESSAGE_HREF = "/dashboard/messages/new";
@@ -63,6 +69,12 @@ export function pushToggleForCategory(
     case "event_reminders":
     case "venue_seating_contacts":
       return "reminders";
+    case "admin_urgent":
+      return "adminUrgent";
+    case "admin_important":
+      return "adminImportant";
+    case "admin_info":
+      return "adminInfo";
     default:
       return null;
   }
@@ -207,6 +219,15 @@ export function planMessageRoundNotifications(input: {
           : `${roundText} ב${channel} הסתיים. לא היו נמענים בסבב.`,
       actionHref: MESSAGE_HREF,
       audience: "customer",
+      notifyAdmins: true,
+      adminTitle: "סבב הודעות הסתיים",
+      adminBody:
+        audience > 0
+          ? `${roundText} ב${channel} הסתיים.`
+          : `${roundText} ב${channel} הסתיים.`,
+      adminCategory: "admin_important",
+      adminSeverity: "important",
+      adminActionHref: "/admin",
     });
   }
 
@@ -220,6 +241,11 @@ export function planMessageRoundNotifications(input: {
       body: `יש ${input.phonesNeedingReview} מספרי טלפון שכדאי לבדוק לפני המשך השליחה.`,
       actionHref: GUESTS_HREF,
       audience: "customer",
+      notifyAdmins: true,
+      adminTitle: "מספרי טלפון דורשים בדיקה",
+      adminBody: "יש מספרי טלפון שדורשים בדיקה לפני המשך השליחה.",
+      adminCategory: "admin_important",
+      adminSeverity: "important",
     });
   }
 
@@ -270,6 +296,12 @@ export function planCallRoundNotifications(input: {
           : `סבב השיחות ${round} הסתיים.`,
       actionHref: CALLS_HREF,
       audience: "customer",
+      notifyAdmins: true,
+      adminTitle: `סבב IVR ${round} הסתיים`,
+      adminBody: `סבב IVR ${round} הסתיים.`,
+      adminCategory: "admin_important",
+      adminSeverity: "important",
+      adminActionHref: "/admin",
     },
   ];
 }

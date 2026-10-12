@@ -80,6 +80,7 @@ const CustomerNotificationSchema = new Schema<CustomerNotificationDocument>(
 
 CustomerNotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
 CustomerNotificationSchema.index({ userId: 1, audience: 1, status: 1, createdAt: -1 });
+CustomerNotificationSchema.index({ "meta.incidentKey": 1, audience: 1, status: 1 });
 
 export default mongoose.models.CustomerNotification ||
   mongoose.model<CustomerNotificationDocument>(

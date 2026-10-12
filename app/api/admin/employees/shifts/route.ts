@@ -361,6 +361,17 @@ export async function POST(request: NextRequest) {
 
       // Open/refresh call work orders for this shift date (non-blocking).
       void triggerCallWorkOrdersAutoOpen(date);
+      void import("@/lib/customerNotifications/adminCenterLive")
+        .then(({ recordHallShiftAssigned }) =>
+          recordHallShiftAssigned({
+            date,
+            locationType,
+            locationName,
+            locationAddress,
+            employeeId,
+          })
+        )
+        .catch((error) => console.error("seating team notice failed", error));
 
       return NextResponse.json({
         success: true,
@@ -379,6 +390,17 @@ export async function POST(request: NextRequest) {
       .findOne({ _id: inserted.insertedId });
 
     void triggerCallWorkOrdersAutoOpen(date);
+    void import("@/lib/customerNotifications/adminCenterLive")
+      .then(({ recordHallShiftAssigned }) =>
+        recordHallShiftAssigned({
+          date,
+          locationType,
+          locationName,
+          locationAddress,
+          employeeId,
+        })
+      )
+      .catch((error) => console.error("seating team notice failed", error));
 
     return NextResponse.json({
       success: true,

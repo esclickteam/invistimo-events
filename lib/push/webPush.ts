@@ -117,3 +117,52 @@ export async function deliverWebPushForNotification(notificationId: string) {
 
   return { sent, reason: "SENT" as const };
 }
+
+export async function deliverWebPushTest(userId: string) {
+  const id = toObjectId(userId);
+  const config = getVapidConfig();
+  if (!id || !config) {
+    return { sent: 0, attempted: 0, reason: "NOT_CONFIGURED" as const };
+  }
+  const subscriptions = await WebPushSubscription.find({
+    userId: id,
+    disabledAt: null,
+  }).lean();
+  if (!subscriptions.length) {
+    return { sent: 0, attempted: 0, reason: "NO_DEVICE" as const };
+  }
+  const webpush = await loadWebPush();
+  if (!webpush) return { sent: 0, attempted: subscriptions.length, reason: "NOT_CONFIGURED" as const };
+  webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
+  const payload = JSON.stringify({
+    title: "בדיקת התראות",
+    body: "התראת בדיקה למכשיר הזה.",
+    url: "/admin/notification-settings",
+    tag: `admin-test:${userId}`,
+    severity: "info",
+  });
+  let sent = 0;
+  for (const subscription of subscriptions) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: subscription.endpoint,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+        },
+        payload,
+        { TTL: 60 * 10, urgency: "normal" }
+      );
+      sent += 1;
+    } catch (error) {
+      const statusCode = Number((error as { statusCode?: number })?.statusCode || 0);
+      if (statusCode === 404 || statusCode === 410) {
+        await WebPushSubscription.deleteOne({ _id: subscription._id });
+      }
+    }
+  }
+  return {
+    sent,
+    attempted: subscriptions.length,
+    reason: sent > 0 ? ("SENT" as const) : ("FAILED" as const),
+  };
+}

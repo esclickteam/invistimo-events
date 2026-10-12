@@ -933,6 +933,18 @@ export async function POST(request: NextRequest) {
       referenceDate: result.startedAt || now,
     });
 
+    try {
+      const { recordEmployeeShiftEnded } = await import(
+        "@/lib/customerNotifications/adminCenterLive"
+      );
+      await recordEmployeeShiftEnded({
+        employeeId: identity.employeeId,
+        endedAt: result.endedAt,
+      });
+    } catch (notifyError) {
+      console.error("shift end notice failed", notifyError);
+    }
+
     return NextResponse.json({
       success: true,
       message: "SHIFT_ENDED",

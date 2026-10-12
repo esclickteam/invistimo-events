@@ -189,6 +189,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         resetPasswordToken,
         resetPasswordExpires,
       });
+      try {
+        const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+        await recordNewCustomer({
+          customerId: String(clientUser._id),
+          name,
+          role: "client",
+        });
+      } catch (notifyError) {
+        console.error("new customer notice failed", notifyError);
+      }
     }
 
     console.log("🟢 Client saved:", String(clientUser._id));

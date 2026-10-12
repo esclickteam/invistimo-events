@@ -1317,6 +1317,17 @@ export async function POST(req: NextRequest) {
       billingSource: isManualPaid ? "admin" : "pricing",
     });
 
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({
+        customerId: String(createdUser._id),
+        name: clientName,
+        role: "user",
+      });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
+
     const sale = await EmployeeSale.create({
       employeeId: required.employeeObjectId,
       employeeName: cleanString((required.currentUser as any).name),

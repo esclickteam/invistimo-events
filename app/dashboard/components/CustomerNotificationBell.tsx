@@ -5,6 +5,11 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CheckCheck, X } from "lucide-react";
 import { placeNotificationPanel, type PanelPlacement } from "@/lib/customerNotifications/planners";
+import {
+  ADMIN_TYPE_LABELS,
+  adminNoticeStatusLabels,
+  filterAdminNotifications,
+} from "@/lib/customerNotifications/adminCenter";
 
 type CustomerNotification = {
   id: string;
@@ -14,6 +19,10 @@ type CustomerNotification = {
   actionHref: string;
   read: boolean;
   createdAt: string;
+  type?: string;
+  eventId?: string | null;
+  eventTitle?: string;
+  status?: "active" | "resolved";
 };
 
 type Payload = {
@@ -62,6 +71,10 @@ export default function CustomerNotificationBell({
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [placement, setPlacement] = useState<PanelPlacement | null>(null);
+  const [severityFilter, setSeverityFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [eventFilter, setEventFilter] = useState("");
   const listEndpoint = source === "admin" ? "/api/admin/notifications" : "/api/customer-notifications";
   const readEndpoint = source === "admin" ? "/api/admin/notifications/read" : "/api/customer-notifications/read";
   const settingsHref = source === "admin" ? "/admin/notification-settings" : "/dashboard/notifications";
@@ -202,12 +215,46 @@ export default function CustomerNotificationBell({
 
   const unread = notifications.filter((item) => !item.read);
   const read = notifications.filter((item) => item.read);
+  const adminItems = source === "admin"
+    ? filterAdminNotifications(
+        notifications.map((item) => ({
+          ...item,
+          eventId: item.eventId || null,
+          eventTitle: item.eventTitle || "",
+          status: item.status === "resolved" ? "resolved" as const : "active" as const,
+          type: item.type || "",
+        })),
+        {
+          severity: severityFilter,
+          status: statusFilter,
+          type: typeFilter,
+          eventId: eventFilter,
+        }
+      )
+    : [];
+  const typeOptions = [...new Set(notifications.map((item) => item.type).filter(Boolean))] as string[];
+  const eventOptions = [
+    ...new Map(
+      notifications
+        .filter((item) => item.eventId)
+        .map((item) => [item.eventId, item.eventTitle || "אירוע"])
+    ).entries(),
+  ];
 
-  const renderItem = (item: CustomerNotification) => (
+  const renderItem = (item: CustomerNotification) => {
+    const labels = adminNoticeStatusLabels({
+      status: item.status === "resolved" ? "resolved" : "active",
+      read: item.read,
+    });
+    return (
     <div
       key={item.id}
       className={`border-b border-[#F0E4D4] px-4 py-3 ${
-        item.read ? "bg-white" : item.severity === "urgent" ? "bg-[#FFF6F3]" : "bg-[#FFF8EF]"
+        item.status !== "resolved" && item.severity === "urgent"
+          ? "bg-[#FFF6F3]"
+          : item.read
+            ? "bg-white"
+            : "bg-[#FFF8EF]"
       }`}
     >
       <button
@@ -240,12 +287,24 @@ export default function CustomerNotificationBell({
         </p>
         <p className="mt-2 text-[11px] font-bold text-[#9A8773]">
           {formatWhen(item.createdAt)}
-          {" · "}
-          {item.read ? "נקראה" : "לא נקראה"}
+          {source === "admin" ? (
+            <>
+              {" · "}
+              {labels.handled}
+              {" · "}
+              {labels.read}
+            </>
+          ) : (
+            <>
+              {" · "}
+              {item.read ? "נקראה" : "לא נקראה"}
+            </>
+          )}
         </p>
       </button>
     </div>
-  );
+    );
+  };
 
   const panel =
     open && placement && typeof document !== "undefined"
@@ -296,8 +355,45 @@ export default function CustomerNotificationBell({
                 </button>
               </div>
             </div>
+            {source === "admin" ? (
+              <div className="grid grid-cols-2 gap-2 border-b border-[#F0E4D4] px-3 py-2">
+                <select aria-label="סינון לפי חשיבות" value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)} className="min-w-0 rounded-xl border border-[#E7D3B4] bg-white px-2 py-1 text-[11px] font-bold">
+                  <option value="">כל החשיבויות</option>
+                  <option value="urgent">דחופות</option>
+                  <option value="important">חשובות</option>
+                  <option value="info">רגילות</option>
+                </select>
+                <select aria-label="סינון לפי סטטוס" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-w-0 rounded-xl border border-[#E7D3B4] bg-white px-2 py-1 text-[11px] font-bold">
+                  <option value="">כל הסטטוסים</option>
+                  <option value="open">פתוח</option>
+                  <option value="unread">לא נקרא</option>
+                  <option value="read">נקרא</option>
+                  <option value="resolved">טופל</option>
+                </select>
+                <select aria-label="סינון לפי סוג" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-w-0 rounded-xl border border-[#E7D3B4] bg-white px-2 py-1 text-[11px] font-bold">
+                  <option value="">כל הסוגים</option>
+                  {typeOptions.map((type) => (
+                    <option key={type} value={type}>{ADMIN_TYPE_LABELS[type] || type}</option>
+                  ))}
+                </select>
+                <select aria-label="סינון לפי אירוע" value={eventFilter} onChange={(event) => setEventFilter(event.target.value)} className="min-w-0 rounded-xl border border-[#E7D3B4] bg-white px-2 py-1 text-[11px] font-bold">
+                  <option value="">כל האירועים</option>
+                  {eventOptions.map(([id, title]) => (
+                    <option key={id} value={id || ""}>{title}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {notifications.length === 0 ? (
+              {source === "admin" ? (
+                adminItems.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm font-bold text-[#8A7867]">
+                    אין התראות להצגה
+                  </p>
+                ) : (
+                  adminItems.map((item) => renderItem(item))
+                )
+              ) : notifications.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm font-bold text-[#8A7867]">
                   אין התראות פעילות
                 </p>
@@ -377,7 +473,7 @@ export default function CustomerNotificationBell({
           />
         </svg>
         {unreadLabel ? (
-          <span dir="ltr" className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#D32F2F] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
+          <span dir="ltr" className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E53935] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
             {unreadLabel}
           </span>
         ) : null}

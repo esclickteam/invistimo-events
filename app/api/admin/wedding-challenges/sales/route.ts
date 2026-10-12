@@ -155,6 +155,16 @@ export async function POST(req: NextRequest) {
       },
     });
     createdUser = true;
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({
+        customerId: String(user._id),
+        name,
+        role: "user",
+      });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
   } else {
     await User.updateOne(
       { _id: user._id },

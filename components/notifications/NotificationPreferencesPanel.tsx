@@ -54,7 +54,17 @@ const TOGGLES: Array<{ key: keyof PushPreferenceToggles; label: string; hint: st
   { key: "reminders", label: "תזכורות", hint: "תזכורות לפני האירוע והושבה באולם" },
 ];
 
-export default function NotificationPreferencesPanel() {
+const ADMIN_TOGGLES: Array<{ key: keyof PushPreferenceToggles; label: string; hint: string }> = [
+  { key: "adminUrgent", label: "דחופות", hint: "ברירת מחדל פעילה במכשיר שאישר Push" },
+  { key: "adminImportant", label: "חשובות", hint: "סיום סבבים, לקוח חדש, יתרה ושינויים" },
+  { key: "adminInfo", label: "רגילות", hint: "כברירת מחדל מופיעות רק בפעמון" },
+];
+
+export default function NotificationPreferencesPanel({
+  audience = "customer",
+}: {
+  audience?: "customer" | "admin";
+}) {
   const [support, setSupport] = useState<Support | null>(null);
   const [configured, setConfigured] = useState(false);
   const [managingCustomer, setManagingCustomer] = useState(false);
@@ -63,6 +73,9 @@ export default function NotificationPreferencesPanel() {
     failures: true,
     eventManagement: true,
     reminders: true,
+    adminUrgent: true,
+    adminImportant: true,
+    adminInfo: false,
   });
   const [devices, setDevices] = useState<Device[]>([]);
   const [currentEndpoint, setCurrentEndpoint] = useState("");
@@ -304,6 +317,52 @@ export default function NotificationPreferencesPanel() {
             </label>
           ))}
         </div>
+        {audience === "admin" ? (
+          <div className="mt-4 space-y-3 border-t border-[#F0E4D4] pt-4">
+            {ADMIN_TOGGLES.map((item) => (
+              <label key={item.key} className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="block text-sm font-black text-[#3F3328]">{item.label}</span>
+                  <span className="mt-1 block text-xs font-semibold text-[#8A7867]">{item.hint}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-5 w-5"
+                  checked={push[item.key]}
+                  onChange={(event) => saveToggles({ ...push, [item.key]: event.target.checked })}
+                />
+              </label>
+            ))}
+            <button
+              type="button"
+              disabled={busy || !configured}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                setMessage("");
+                try {
+                  const res = await fetch("/api/admin/notifications/test", {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  const data = await res.json().catch(() => null);
+                  if (!res.ok || !data?.success) {
+                    setError("שליחת התראת הבדיקה נכשלה.");
+                    return;
+                  }
+                  setMessage(String(data.message || "התראת הבדיקה לא אומתה על מכשיר."));
+                } catch {
+                  setError("שליחת התראת הבדיקה נכשלה.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded-full border border-[#E7D3B4] px-4 py-2 text-sm font-black text-[#3F3328] disabled:opacity-40"
+            >
+              שליחת התראת בדיקה למכשיר הזה
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-4 rounded-[24px] border border-[#E7D3B4] bg-white p-5">

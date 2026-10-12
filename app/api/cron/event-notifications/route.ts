@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { processUpcomingEventNotifications } from "@/lib/customerNotifications/liveEvents";
+import { processAdminOperationalNotifications } from "@/lib/customerNotifications/adminCenterLive";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -24,8 +25,14 @@ export async function GET(request: Request) {
   try {
     await dbConnect();
     const result = await processUpcomingEventNotifications();
+    let adminOps: { messages: number; calls: number; shifts: number; events: number } | null = null;
+    try {
+      adminOps = await processAdminOperationalNotifications();
+    } catch (error) {
+      console.error("admin operational notifications failed", error);
+    }
     return NextResponse.json(
-      { success: true, ...result },
+      { success: true, ...result, adminOps },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
