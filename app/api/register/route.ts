@@ -380,6 +380,12 @@ export async function POST(req: Request) {
     });
 
     const userId = String(user._id);
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({ customerId: userId, name, role: "user" });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
 
     /* ============================================================
        Update event after venue registration

@@ -5,6 +5,9 @@ export type PushPreferenceToggles = {
   failures: boolean;
   eventManagement: boolean;
   reminders: boolean;
+  adminUrgent: boolean;
+  adminImportant: boolean;
+  adminInfo: boolean;
 };
 
 export type NotificationPreferenceDocument = {
@@ -29,6 +32,9 @@ const NotificationPreferenceSchema = new Schema<NotificationPreferenceDocument>(
       failures: { type: Boolean, default: true },
       eventManagement: { type: Boolean, default: true },
       reminders: { type: Boolean, default: true },
+      adminUrgent: { type: Boolean, default: true },
+      adminImportant: { type: Boolean, default: true },
+      adminInfo: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

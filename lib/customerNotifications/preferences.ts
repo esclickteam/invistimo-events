@@ -16,6 +16,9 @@ function normalizeToggles(value: Partial<PushPreferenceToggles> | null | undefin
     failures: value?.failures !== false,
     eventManagement: value?.eventManagement !== false,
     reminders: value?.reminders !== false,
+    adminUrgent: value?.adminUrgent !== false,
+    adminImportant: value?.adminImportant !== false,
+    adminInfo: value?.adminInfo === true,
   };
 }
 
@@ -33,11 +36,17 @@ export async function savePushPreferences(
 ) {
   const id = toObjectId(userId);
   if (!id) return { ...DEFAULT_PUSH_PREFERENCES };
+  const current = id ? await getPushPreferences(userId) : { ...DEFAULT_PUSH_PREFERENCES };
   const push = {
-    rsvp: Boolean(value.rsvp),
-    failures: Boolean(value.failures),
-    eventManagement: Boolean(value.eventManagement),
-    reminders: Boolean(value.reminders),
+    rsvp: value.rsvp === undefined ? current.rsvp : Boolean(value.rsvp),
+    failures: value.failures === undefined ? current.failures : Boolean(value.failures),
+    eventManagement:
+      value.eventManagement === undefined ? current.eventManagement : Boolean(value.eventManagement),
+    reminders: value.reminders === undefined ? current.reminders : Boolean(value.reminders),
+    adminUrgent: value.adminUrgent === undefined ? current.adminUrgent : Boolean(value.adminUrgent),
+    adminImportant:
+      value.adminImportant === undefined ? current.adminImportant : Boolean(value.adminImportant),
+    adminInfo: value.adminInfo === undefined ? current.adminInfo : Boolean(value.adminInfo),
   };
   await NotificationPreference.findOneAndUpdate(
     { userId: id },

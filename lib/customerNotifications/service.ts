@@ -3,6 +3,7 @@ import CustomerNotification from "@/models/CustomerNotification";
 import { VENUE_SEATING_NOTIFICATION_CATEGORY } from "@/lib/venueSeatingContacts/logic";
 import { deliverWebPushForNotification } from "@/lib/push/webPush";
 import { safeActionPath } from "@/lib/customerNotifications/planners";
+import { dedupeDecision } from "@/lib/customerNotifications/adminCenter";
 
 export type CreateCustomerNotificationInput = {
   userId: string;
@@ -17,6 +18,8 @@ export type CreateCustomerNotificationInput = {
   dedupeKey: string;
   audience?: "customer" | "admin";
   meta?: Record<string, unknown>;
+  reopenResolved?: boolean;
+  skipPush?: boolean;
 };
 
 function toObjectId(value: string) {
@@ -39,7 +42,18 @@ export async function createCustomerNotification(
     })
       .select("_id status")
       .lean();
-    if (existing) return { created: false as const, reason: "DUPLICATE" };
+    const decision = dedupeDecision(
+      existing?.status === "resolved" ? "resolved" : existing ? "active" : null,
+      Boolean(input.reopenResolved)
+    );
+    if (decision === "skip") return { created: false as const, reason: "DUPLICATE" };
+    if (decision === "reopen" && existing) {
+      const renamed = await CustomerNotification.updateOne(
+        { _id: existing._id, status: "resolved", dedupeKey: input.dedupeKey },
+        { $set: { dedupeKey: `${input.dedupeKey}:closed:${existing._id}` } }
+      );
+      if (!renamed.modifiedCount) return { created: false as const, reason: "DUPLICATE" };
+    }
 
     const doc = await CustomerNotification.create({
       userId,
@@ -59,10 +73,12 @@ export async function createCustomerNotification(
       dedupeKey: input.dedupeKey,
       meta: input.meta,
     });
-    try {
-      await deliverWebPushForNotification(String(doc._id));
-    } catch (error) {
-      console.error("web push delivery failed", error);
+    if (!input.skipPush) {
+      try {
+        await deliverWebPushForNotification(String(doc._id));
+      } catch (error) {
+        console.error("web push delivery failed", error);
+      }
     }
     return { created: true as const, id: String(doc._id) };
   } catch (error: unknown) {
@@ -110,6 +126,61 @@ export async function countUnreadCustomerNotifications(userId: string) {
   });
 }
 
+export async function resolveAdminIncident(incidentKey: string, reason: string) {
+  const key = String(incidentKey || "").trim();
+  if (!key) return { updated: 0 };
+  const result = await CustomerNotification.updateMany(
+    {
+      audience: "admin",
+      status: "active",
+      "meta.incidentKey": key,
+    },
+    {
+      $set: {
+        status: "resolved",
+        resolvedAt: new Date(),
+        resolveReason: String(reason || "").slice(0, 120),
+      },
+    }
+  );
+  return { updated: result.modifiedCount || 0 };
+}
+
+export async function listAdminCenterNotifications(userId: string) {
+  const id = toObjectId(userId);
+  if (!id) return [];
+  const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const rows = await CustomerNotification.find({
+    userId: id,
+    audience: "admin",
+    $or: [{ status: "active" }, { status: "resolved", resolvedAt: { $gte: since } }],
+  })
+    .sort({ status: 1, createdAt: -1 })
+    .limit(120)
+    .lean();
+
+  return rows.map((row) => {
+    const meta = (row.meta || {}) as { eventTitle?: unknown };
+    return {
+      id: String(row._id),
+      eventId: row.eventId ? String(row.eventId) : null,
+      eventTitle: String(meta.eventTitle || "").trim(),
+      customerId: row.customerId ? String(row.customerId) : null,
+      type: row.type,
+      category: row.category,
+      severity: row.severity,
+      title: row.title,
+      body: row.body,
+      actionHref: row.actionHref || "",
+      status: row.status === "resolved" ? ("resolved" as const) : ("active" as const),
+      read: Boolean(row.readAt),
+      readAt: row.readAt ? new Date(row.readAt).toISOString() : null,
+      resolvedAt: row.resolvedAt ? new Date(row.resolvedAt).toISOString() : null,
+      createdAt: new Date(row.createdAt).toISOString(),
+    };
+  });
+}
+
 export async function listActiveAdminNotifications(userId: string) {
   const id = toObjectId(userId);
   if (!id) return [];
@@ -143,7 +214,6 @@ export async function countUnreadAdminNotifications(userId: string) {
   if (!id) return 0;
   return CustomerNotification.countDocuments({
     userId: id,
-    status: "active",
     audience: "admin",
     readAt: null,
   });
@@ -164,7 +234,7 @@ export async function markCustomerNotificationRead(input: {
       : { audience: { $ne: "admin" as const } };
   if (input.all) {
     const result = await CustomerNotification.updateMany(
-      { userId, status: "active", readAt: null, ...audienceFilter },
+      { userId, readAt: null, ...audienceFilter },
       { $set: { readAt: now } }
     );
     return { updated: result.modifiedCount || 0 };
@@ -174,7 +244,7 @@ export async function markCustomerNotificationRead(input: {
     : null;
   if (!notificationId) return { updated: 0 };
   const result = await CustomerNotification.updateOne(
-    { _id: notificationId, userId, status: "active", readAt: null, ...audienceFilter },
+    { _id: notificationId, userId, readAt: null, ...audienceFilter },
     { $set: { readAt: now } }
   );
   return { updated: result.modifiedCount || 0 };

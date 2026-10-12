@@ -3,7 +3,7 @@ import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import {
   countUnreadAdminNotifications,
-  listActiveAdminNotifications,
+  listAdminCenterNotifications,
 } from "@/lib/customerNotifications/service";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
   await dbConnect();
   const [notifications, unreadCount] = await Promise.all([
-    listActiveAdminNotifications(auth.userId),
+    listAdminCenterNotifications(auth.userId),
     countUnreadAdminNotifications(auth.userId),
   ]);
   return NextResponse.json({

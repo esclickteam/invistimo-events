@@ -27,11 +27,15 @@ export async function PUT(request: Request) {
   if (!auth) return NextResponse.json({ success: false }, { status: 401 });
   const body = await request.json().catch(() => null);
   await dbConnect();
+  const raw = body?.push || {};
   const push = await savePushPreferences(auth.userId, {
-    rsvp: Boolean(body?.push?.rsvp),
-    failures: Boolean(body?.push?.failures),
-    eventManagement: Boolean(body?.push?.eventManagement),
-    reminders: Boolean(body?.push?.reminders),
+    rsvp: Boolean(raw.rsvp),
+    failures: Boolean(raw.failures),
+    eventManagement: Boolean(raw.eventManagement),
+    reminders: Boolean(raw.reminders),
+    ...("adminUrgent" in raw ? { adminUrgent: Boolean(raw.adminUrgent) } : {}),
+    ...("adminImportant" in raw ? { adminImportant: Boolean(raw.adminImportant) } : {}),
+    ...("adminInfo" in raw ? { adminInfo: Boolean(raw.adminInfo) } : {}),
   });
   return NextResponse.json({ success: true, push });
 }

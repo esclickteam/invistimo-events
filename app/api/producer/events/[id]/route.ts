@@ -208,6 +208,43 @@ export async function PATCH(
     ).lean();
 
     if (updated) {
+      try {
+        const { recordEventDetailDiff, recordSeatingTeamIfCovered } = await import(
+          "@/lib/customerNotifications/adminCenterLive"
+        );
+        await recordEventDetailDiff({
+          before: {
+            title: existingEvent.title,
+            date: existingEvent.date,
+            time: existingEvent.time,
+            receptionTime: existingEvent.receptionTime,
+            location: existingEvent.location,
+          },
+          after: {
+            title: (updated as { title?: string }).title,
+            date: (updated as { date?: string }).date,
+            time: (updated as { time?: string }).time,
+            receptionTime: (updated as { receptionTime?: string }).receptionTime,
+            location: (updated as { location?: unknown }).location,
+          },
+          eventId: String((updated as { _id?: unknown })._id || id),
+          customerId: String((updated as { userId?: unknown }).userId || ""),
+        });
+        const beforeStaff = Array.isArray(existingEvent.assignedStaffIds)
+          ? existingEvent.assignedStaffIds.map(String)
+          : [];
+        const afterStaff = Array.isArray((updated as { assignedStaffIds?: unknown[] }).assignedStaffIds)
+          ? (updated as { assignedStaffIds: unknown[] }).assignedStaffIds.map(String)
+          : [];
+        if (afterStaff.length > beforeStaff.length) {
+          await recordSeatingTeamIfCovered({
+            eventId: String((updated as { _id?: unknown })._id || id),
+            assignedStaffIds: afterStaff,
+          });
+        }
+      } catch (notifyError) {
+        console.error("event detail notice failed", notifyError);
+      }
       await persistSharedIdentityMirror({
         source: "event",
         eventId: String((updated as any)._id),

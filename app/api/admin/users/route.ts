@@ -1922,6 +1922,17 @@ export async function POST(req: Request) {
       });
     }
 
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({
+        customerId: String(user._id),
+        name: safeName,
+        role: "user",
+      });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
+
     const passwordSetup = await deliverPasswordSetup(String(user._id));
 
     return NextResponse.json(

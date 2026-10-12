@@ -1219,6 +1219,26 @@ export async function PUT(
       }
     }
 
+    try {
+      const { recordEventDetailDiff } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordEventDetailDiff({
+        before: invitationBeforeUpdate as Record<string, unknown>,
+        after: (updated || invitationAfterBasicUpdate) as Record<string, unknown>,
+        eventId: String(
+          (updated as { eventId?: unknown } | null)?.eventId ||
+            (invitationBeforeUpdate as { eventId?: unknown }).eventId ||
+            ""
+        ),
+        customerId: String(
+          (invitationBeforeUpdate as { ownerId?: unknown; userId?: unknown }).ownerId ||
+            (invitationBeforeUpdate as { userId?: unknown }).userId ||
+            ""
+        ),
+      });
+    } catch (notifyError) {
+      console.error("event detail notice failed", notifyError);
+    }
+
     return NextResponse.json({
       success: true,
       invitation: updated,
@@ -1370,6 +1390,9 @@ export async function PATCH(
       );
     }
 
+    const invitationBeforePatch =
+      ((await Invitation.findById(id).lean()) as Record<string, unknown> | null) || {};
+
     const updatedRaw = await Invitation.findByIdAndUpdate(
       id,
       { $set: updatePayload },
@@ -1427,6 +1450,19 @@ export async function PATCH(
     const finalUpdated = await Invitation.findById((updatedRaw as any)._id)
       .populate("guests")
       .lean();
+
+    try {
+      const { recordEventDetailDiff } = await import("@/lib/customerNotifications/adminCenterLive");
+      const current = (finalUpdated || updatedRaw) as Record<string, unknown>;
+      await recordEventDetailDiff({
+        before: invitationBeforePatch as Record<string, unknown>,
+        after: current,
+        eventId: String(current.eventId || invitationBeforePatch.eventId || ""),
+        customerId: String(invitationBeforePatch.ownerId || invitationBeforePatch.userId || ""),
+      });
+    } catch (notifyError) {
+      console.error("event detail notice failed", notifyError);
+    }
 
     return NextResponse.json({
       success: true,

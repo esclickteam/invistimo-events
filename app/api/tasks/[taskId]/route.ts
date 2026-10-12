@@ -104,8 +104,24 @@ export async function PATCH(
     /* =========================
        Apply Update
     ========================= */
+    const previousStatus = String(task.status || "");
     Object.assign(task, safeUpdates);
     await task.save();
+    if (previousStatus !== "done" && String(task.status || "") === "done") {
+      try {
+        const { recordOperationalTaskCompleted } = await import(
+          "@/lib/customerNotifications/adminCenterLive"
+        );
+        await recordOperationalTaskCompleted({
+          taskId: String(task._id),
+          title: String(task.title || ""),
+          eventId: task.eventId ? String(task.eventId) : null,
+          customerId: task.userId ? String(task.userId) : null,
+        });
+      } catch (notifyError) {
+        console.error("task notice failed", notifyError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

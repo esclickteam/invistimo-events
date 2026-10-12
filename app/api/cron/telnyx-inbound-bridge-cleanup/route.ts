@@ -48,6 +48,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("TELNYX INBOUND BRIDGE CLEANUP CRON FAILED:", error);
+    try {
+      const { recordSystemError } = await import("@/lib/customerNotifications/liveEvents");
+      await recordSystemError("telnyx");
+    } catch (notifyError) {
+      console.error("system notification failed", notifyError);
+    }
     return NextResponse.json(
       {
         success: false,

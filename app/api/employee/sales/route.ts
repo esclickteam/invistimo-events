@@ -1385,6 +1385,17 @@ export async function POST(req: NextRequest) {
         : [],
     });
 
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({
+        customerId: String(createdUser._id),
+        name: clientName,
+        role: "user",
+      });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
+
     if (isManualPaid && hasWeddingChallenges) {
       await applyWeddingChallengesPurchase({
         userId: String(createdUser._id),

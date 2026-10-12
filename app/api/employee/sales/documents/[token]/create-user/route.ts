@@ -228,6 +228,17 @@ export async function POST(
         : {}),
     });
 
+    try {
+      const { recordNewCustomer } = await import("@/lib/customerNotifications/adminCenterLive");
+      await recordNewCustomer({
+        customerId: String(createdUser._id),
+        name: clientName,
+        role: "user",
+      });
+    } catch (notifyError) {
+      console.error("new customer notice failed", notifyError);
+    }
+
     let passwordSetup: Awaited<ReturnType<typeof sendPasswordSetupMail>> | null =
       null;
     if (body?.sendPasswordSms === true) {

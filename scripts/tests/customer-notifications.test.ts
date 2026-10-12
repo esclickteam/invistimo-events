@@ -102,7 +102,10 @@ test("message rounds collapse to one notice and never fan out per guest", () => 
   });
   assert.equal(done.length, 1);
   assert.equal(done[0].title, "סבב הודעות הסתיים");
-  assert.equal(done[0].notifyAdmins, undefined);
+  assert.equal(done[0].audience, "customer");
+  assert.equal(done[0].notifyAdmins, true);
+  assert.equal(done[0].adminCategory, "admin_important");
+  assert.equal(done[0].adminSeverity, "important");
 
   const again = planMessageRoundNotifications({
     scheduleId: "sched-1",
@@ -315,6 +318,9 @@ test("push stays off without permission, support, or a selected category", () =>
         failures: false,
         eventManagement: true,
         reminders: true,
+        adminUrgent: true,
+        adminImportant: true,
+        adminInfo: false,
       },
       configured: true,
       subscriptionCount: 2,
@@ -329,6 +335,9 @@ test("push stays off without permission, support, or a selected category", () =>
         failures: false,
         eventManagement: false,
         reminders: true,
+        adminUrgent: true,
+        adminImportant: true,
+        adminInfo: false,
       },
       configured: true,
       subscriptionCount: 1,
@@ -365,7 +374,10 @@ test("push worker does not intercept traffic and permission is opt-in", () => {
   assert.match(header, /CustomerNotificationBell/);
   assert.ok(header.indexOf("תמיכה") < header.indexOf("<CustomerNotificationBell"));
   assert.ok(header.indexOf("<CustomerNotificationBell") < header.lastIndexOf("התנתקות"));
-  assert.match(bell, /bg-\[#D32F2F\]/);
+  assert.match(bell, /bg-\[#E53935\]/);
+  assert.match(bell, /סינון לפי חשיבות/);
+  assert.match(bell, /פתוח/);
+  assert.match(read("app/admin/layout.tsx"), /CustomerNotificationBell source="admin"/);
   assert.match(bell, /#F4B400/);
   assert.match(bell, /M10\.268 21a2 2 0 0 0 3\.464 0/);
   assert.match(bell, /99\+/);

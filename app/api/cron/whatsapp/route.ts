@@ -346,6 +346,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("❌ WHATSAPP CRON ERROR:", err);
+    try {
+      const { recordSystemError } = await import("@/lib/customerNotifications/liveEvents");
+      await recordSystemError("whatsapp");
+    } catch (notifyError) {
+      console.error("system notification failed", notifyError);
+    }
 
     return NextResponse.json(
       {
