@@ -13,10 +13,12 @@ import {
   describeTestPushResult,
   filterAdminNotifications,
   isActiveScheduledShift,
+  isDailySummaryDue,
   isLateUnstarted,
   planBalanceDue,
   planCallNotStarted,
   planCriticalMissing,
+  planDailyEventsSummary,
   planEventSummary,
   planMessageNotStarted,
   planSeatingIncomplete,
@@ -24,7 +26,11 @@ import {
   planShiftNotStarted,
   planVenueSeatingBriefingNotice,
   seatingTeamGap,
+  todayEventAttention,
 } from "../../lib/customerNotifications/adminCenter";
+import { processDailyEventsSummary } from "../../lib/customerNotifications/adminCenterLive";
+import Event from "../../models/Event";
+import User from "../../models/User";
 import {
   createCustomerNotification,
   listActiveCustomerNotifications,
@@ -412,6 +418,121 @@ test("detail changes, filters, and push defaults keep read separate from handled
   assert.match(panel, /endpoint: currentEndpoint/);
 });
 
+test("daily event summary is one important notice and leaves urgent faults alone", () => {
+  assert.equal(isDailySummaryDue(new Date("2026-10-12T05:59:00.000Z")), false);
+  assert.equal(isDailySummaryDue(new Date("2026-10-12T06:00:00.000Z")), true);
+  assert.equal(isDailySummaryDue(new Date("2026-01-12T06:59:00.000Z")), false);
+  assert.equal(isDailySummaryDue(new Date("2026-01-12T07:00:00.000Z")), true);
+  assert.equal(planDailyEventsSummary({ dateKey: "2026-10-12", events: [] }), null);
+
+  const quiet = planDailyEventsSummary({
+    dateKey: "2026-10-12",
+    events: [{ missingTeam: false, missingCritical: false, roundsNeedAttention: false }],
+  });
+  assert.equal(quiet?.type, "admin.daily.summary");
+  assert.equal(quiet?.category, "admin_important");
+  assert.equal(quiet?.severity, "important");
+  assert.equal(quiet?.actionHref, "/admin/today");
+  assert.equal(quiet?.reopen, false);
+  assert.equal(quiet?.incidentKey, "daily-events:2026-10-12");
+  assert.match(quiet?.body || "", /היום מתקיים אירוע אחד/);
+  assert.match(quiet?.body || "", /אין אירועים שדורשים טיפול/);
+  assert.doesNotMatch(quiet?.body || "", /צוותי הושבה חסרים|נתונים קריטיים חסרים|סבבים שדורשים טיפול/);
+
+  const busy = planDailyEventsSummary({
+    dateKey: "2026-10-12",
+    events: [
+      { missingTeam: true, missingCritical: false, roundsNeedAttention: false },
+      { missingTeam: false, missingCritical: true, roundsNeedAttention: true },
+      { missingTeam: false, missingCritical: false, roundsNeedAttention: false },
+    ],
+  });
+  assert.match(busy?.body || "", /היום מתקיימים 3 אירועים/);
+  assert.match(busy?.body || "", /2 אירועים דורשים טיפול/);
+  assert.match(busy?.body || "", /צוותי הושבה חסרים, נתונים קריטיים חסרים, סבבים שדורשים טיפול/);
+  assert.equal(busy?.severity, "important");
+  assert.notEqual(busy?.type, "admin.critical.missing");
+  assert.notEqual(busy?.incidentKey, "critical-missing:e1");
+
+  const urgent = planCriticalMissing({
+    eventId: "e1",
+    title: "חתונת דנה",
+    start: new Date(now.getTime() + 5 * 60 * 60 * 1000),
+    now,
+    cancelled: false,
+    missingLocation: true,
+    missingTime: false,
+    customerId: "a".repeat(24),
+  });
+  assert.equal(urgent?.severity, "urgent");
+  assert.equal(urgent?.category, "admin_urgent");
+  assert.notEqual(urgent?.incidentKey, busy?.incidentKey);
+
+  const attention = todayEventAttention({
+    missingTeam: true,
+    missingTime: true,
+    missingLocation: false,
+    roundNotes: ["סבב הודעות 1 נכשל", "  "],
+  });
+  assert.deepEqual(attention.problems, ["צוות הושבה חסר", "חסרה שעה", "סבב הודעות 1 נכשל"]);
+  assert.equal(attention.missingCritical, true);
+  assert.equal(attention.roundsNeedAttention, true);
+
+  assert.equal(
+    shouldDeliverPush({
+      category: "admin_important",
+      preferences: DEFAULT_PUSH_PREFERENCES,
+      configured: true,
+      subscriptionCount: 1,
+    }),
+    true
+  );
+  assert.equal(
+    shouldDeliverPush({
+      category: "admin_important",
+      preferences: { ...DEFAULT_PUSH_PREFERENCES, adminImportant: false },
+      configured: true,
+      subscriptionCount: 1,
+    }),
+    false
+  );
+  assert.equal(
+    shouldDeliverPush({
+      category: "admin_important",
+      preferences: DEFAULT_PUSH_PREFERENCES,
+      configured: true,
+      subscriptionCount: 0,
+    }),
+    false
+  );
+
+  const readOpen = {
+    type: "admin.critical.missing",
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    severity: "urgent" as const,
+    status: "active" as const,
+    read: true,
+  };
+  assert.equal(filterAdminNotifications([readOpen], { status: "open" }).length, 1);
+  assert.equal(filterAdminNotifications([readOpen], {}).length, 1);
+  assert.equal(filterAdminNotifications([readOpen], { status: "unread" }).length, 0);
+  assert.equal(filterAdminNotifications([readOpen], { status: "read" }).length, 1);
+
+  const live = fs.readFileSync(path.join(root, "lib/customerNotifications/adminCenterLive.ts"), "utf8");
+  const daily = live.slice(live.indexOf("export async function processDailyEventsSummary"));
+  const dailyFn = daily.slice(0, daily.indexOf("export async function processAdminOperationalNotifications"));
+  assert.match(dailyFn, /planDailyEventsSummary/);
+  assert.doesNotMatch(dailyFn, /scanLate|resolveAdminIncident|planCriticalMissing|planMessageNotStarted/);
+  assert.match(live, /סבב הודעות \$\{label\} נכשל|סבב הודעות \$\{label\}/);
+  assert.equal(live.includes("סבב הודעות סבב"), false);
+  const cron = fs.readFileSync(path.join(root, "app/api/cron/admin-daily-summary/route.ts"), "utf8");
+  assert.match(cron, /processDailyEventsSummary/);
+  assert.doesNotMatch(cron, /processAdminOperationalNotifications|sendSms|sendWhatsapp/);
+  const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+  assert.match(vercel, /\/api\/cron\/admin-daily-summary/);
+});
+
 test("venue seating briefing notices report success or failure without sensitive details", () => {
   const sent = planVenueSeatingBriefingNotice({
     eventId: "e1",
@@ -521,6 +642,67 @@ test("admin notices are not written for customers and a resolved fault can reope
       status: "active",
     });
     assert.equal(active.length, 1);
+
+    const admin = await User.create({
+      name: "אדמין",
+      email: "daily-summary-admin@test.local",
+      password: "hashed",
+      role: "admin",
+      isActive: true,
+    });
+    const customer = await User.create({
+      name: "לקוח",
+      email: "daily-summary-customer@test.local",
+      password: "hashed",
+      role: "user",
+      isActive: true,
+    });
+    await Event.create({
+      userId: customer._id,
+      email: customer.email,
+      date: "2026-10-12",
+      time: "19:00",
+      title: "חתונת היום",
+      maxGuests: 80,
+      status: "active",
+      location: { name: "אולם דנה", address: "תל אביב" },
+    });
+    await Event.create({
+      userId: customer._id,
+      email: customer.email,
+      date: "2026-10-12",
+      time: "20:00",
+      title: "אירוע מבוטל",
+      maxGuests: 20,
+      status: "archived",
+      location: { name: "אולם אחר" },
+    });
+    const before = await processDailyEventsSummary(new Date("2026-10-12T05:59:00.000Z"));
+    assert.equal(before.skipped, "before-hour");
+    assert.equal(before.created, 0);
+    const morning = new Date("2026-10-12T06:00:00.000Z");
+    const morningSummary = await processDailyEventsSummary(morning);
+    assert.equal(morningSummary.created, 1);
+    assert.equal(morningSummary.skipped, null);
+    const again = await processDailyEventsSummary(morning);
+    assert.equal(again.skipped, "already");
+    assert.equal(again.created, 0);
+    const summaries = await CustomerNotification.find({
+      audience: "admin",
+      type: "admin.daily.summary",
+      userId: admin._id,
+    }).lean();
+    assert.equal(summaries.length, 1);
+    assert.equal(summaries[0]?.category, "admin_important");
+    assert.equal(summaries[0]?.severity, "important");
+    assert.equal(summaries[0]?.actionHref, "/admin/today");
+    assert.match(String(summaries[0]?.body || ""), /היום מתקיים אירוע אחד/);
+    const stillUrgent = await CustomerNotification.findOne({
+      dedupeKey: "critical-missing:e1:admin:" + adminId,
+      status: "active",
+    });
+    assert.ok(stillUrgent);
+    assert.equal(stillUrgent?.type, "admin.critical.missing");
   } finally {
     await mongoose.disconnect();
     await mongod.stop();

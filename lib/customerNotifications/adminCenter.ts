@@ -12,6 +12,7 @@ export const ADMIN_LATE_LOOKBACK_MS = 36 * 60 * 60 * 1000;
 export const ADMIN_SUMMARY_WINDOW_MS = 6 * 60 * 60 * 1000;
 export const ADMIN_PRE_EVENT_HOURS = 24;
 export const ADMIN_BALANCE_HOURS = 24 * 7;
+export const DAILY_SUMMARY_START_MINUTES = 9 * 60;
 
 export type AdminIncident = {
   incidentKey: string;
@@ -417,6 +418,85 @@ export function planEventSummary(input: {
   });
 }
 
+export function israelMinutesOfDay(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const read = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value || 0);
+  const hour = read("hour") === 24 ? 0 : read("hour");
+  return hour * 60 + read("minute");
+}
+
+export function isDailySummaryDue(now: Date) {
+  return israelMinutesOfDay(now) >= DAILY_SUMMARY_START_MINUTES;
+}
+
+export function todayEventAttention(input: {
+  missingTeam: boolean;
+  missingTime: boolean;
+  missingLocation: boolean;
+  roundNotes: string[];
+}) {
+  const problems = [
+    input.missingTeam ? "צוות הושבה חסר" : "",
+    input.missingTime ? "חסרה שעה" : "",
+    input.missingLocation ? "חסר מיקום" : "",
+    ...input.roundNotes.map((note) => String(note || "").trim()),
+  ].filter(Boolean);
+  return {
+    missingTeam: input.missingTeam,
+    missingCritical: input.missingTime || input.missingLocation,
+    roundsNeedAttention: input.roundNotes.some((note) => String(note || "").trim()),
+    needsAttention: problems.length > 0,
+    problems,
+  };
+}
+
+export function planDailyEventsSummary(input: {
+  dateKey: string;
+  events: Array<{
+    missingTeam: boolean;
+    missingCritical: boolean;
+    roundsNeedAttention: boolean;
+  }>;
+}): AdminIncident | null {
+  if (!input.events.length) return null;
+  const attention = input.events.filter(
+    (event) => event.missingTeam || event.missingCritical || event.roundsNeedAttention
+  ).length;
+  const flags = [
+    input.events.some((event) => event.missingTeam) ? "צוותי הושבה חסרים" : "",
+    input.events.some((event) => event.missingCritical) ? "נתונים קריטיים חסרים" : "",
+    input.events.some((event) => event.roundsNeedAttention) ? "סבבים שדורשים טיפול" : "",
+  ].filter(Boolean);
+  const countText =
+    input.events.length === 1
+      ? "היום מתקיים אירוע אחד."
+      : `היום מתקיימים ${input.events.length} אירועים.`;
+  const attentionText =
+    attention === 0
+      ? "אין אירועים שדורשים טיפול."
+      : attention === 1
+        ? "אירוע אחד דורש טיפול."
+        : `${attention} אירועים דורשים טיפול.`;
+  const flagText = flags.length ? `קיימים ${flags.join(", ")}.` : "";
+  return incident({
+    incidentKey: `daily-events:${input.dateKey}`,
+    type: "admin.daily.summary",
+    category: "admin_important",
+    severity: "important",
+    title: "סיכום אירועים להיום",
+    body: [countText, attentionText, flagText].filter(Boolean).join(" "),
+    actionHref: "/admin/today",
+    eventTitle: "היום",
+    reopen: false,
+  });
+}
+
 export function planNewCustomer(input: { customerId: string; name: string }): AdminIncident {
   const name = String(input.name || "").trim() || "לקוח חדש";
   return incident({
@@ -768,6 +848,7 @@ export const ADMIN_TYPE_LABELS: Record<string, string> = {
   "admin.seating.teamAssigned": "צוות הושבה שובץ",
   "admin.task.done": "משימה הושלמה",
   "admin.push.test": "התראת בדיקה",
+  "admin.daily.summary": "סיכום אירועים להיום",
   "admin.eventDetails.sent": "פרטי אירוע נשלחו לעובדים",
   "admin.eventDetails.failed": "שליחת פרטי אירוע לעובדים נכשלה",
 };
