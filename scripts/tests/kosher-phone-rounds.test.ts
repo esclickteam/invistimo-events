@@ -140,6 +140,11 @@ test("kosher narration uses the event name and ignores a separate narration name
   assert.equal(panel.includes("שמירת שם לקריינות"), false);
   assert.equal(panel.includes("הכנת הקלטה"), false);
   assert.equal(panel.includes("שם אירוע לקריינות"), false);
+
+  const matchSrc = fs.readFileSync("lib/kosherPhones/match.ts", "utf8");
+  assert.match(matchSrc, /ivrSpokenEventNameCore/);
+  assert.equal(matchSrc.includes("ivrComposeIntro"), false);
+  assert.equal(matchSrc.includes("ivrSpokenEventName\""), false);
 });
 
 test("call results separate answered, missed and failed without a successful mark on failure", () => {

@@ -1,6 +1,6 @@
 import { normalizePhoneKey, phoneNeedsReview } from "@/lib/guestPhone";
 import { buildIvrIntroText } from "@/lib/calls/ivrScript";
-import { resolveSpokenIvrEventName } from "@/lib/calls/ivrSpokenEventName";
+import { resolveSpokenIvrEventName } from "@/lib/calls/ivrSpokenEventNameCore";
 
 export type KosherPrefixRule = {
   prefix: string;
