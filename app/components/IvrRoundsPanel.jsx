@@ -22,6 +22,24 @@ function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function measureAudioDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = document.createElement("audio");
+    const finish = (seconds) => {
+      URL.revokeObjectURL(url);
+      resolve(seconds);
+    };
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const seconds = Number(audio.duration);
+      finish(Number.isFinite(seconds) && seconds > 0 ? seconds : null);
+    };
+    audio.onerror = () => finish(null);
+    audio.src = url;
+  });
+}
+
 function customerIvrError(raw, fallback) {
   const text = String(raw || "");
   if (
@@ -954,13 +972,15 @@ export default function IvrRoundsPanel({
 
     recorder.onstop = async () => {
       stream.getTracks().forEach((track) => track.stop());
-      const durationSeconds = Math.round(
-        (Date.now() - startedAtRef.current) / 1000
-      );
-      if (durationSeconds > SELF_MAX_SECONDS) {
+      const elapsedSeconds = (Date.now() - startedAtRef.current) / 1000;
+      if (elapsedSeconds > SELF_MAX_SECONDS + 0.5) {
         setError(`ההקלטה ארוכה מדי. מקסימום ${SELF_MAX_SECONDS} שניות.`);
         return;
       }
+      const durationSeconds = Math.min(
+        SELF_MAX_SECONDS,
+        Math.max(1, Math.round(elapsedSeconds))
+      );
       const blob = new Blob(chunksRef.current, {
         type: recorder.mimeType || "audio/webm",
       });
@@ -1311,8 +1331,12 @@ export default function IvrRoundsPanel({
               />
             </label>
             <p className="text-xs font-bold text-[#8A7867]">
-              מומלץ לשמור על הודעה קצרה של 20–30 שניות. ניתן להקליט עד 45 שניות.
+              הקלטה אחת עד 45 שניות. היא מחליפה את הפתיח, את שם האירוע ואת הוראות
+              ההקשה. מומלץ 20–30 שניות, ולומר בה גם את אפשרויות 1, 2 ו־3.
             </p>
+            <div className="text-xs font-black text-[#B97821]">
+              תסריט מומלץ להקלטה (לא מושמע לאורח)
+            </div>
             <pre className="whitespace-pre-wrap rounded-xl bg-[#FFFDF8] p-3 text-xs font-bold text-[#6B5A48]">
               {previewText}
             </pre>
@@ -1344,9 +1368,20 @@ export default function IvrRoundsPanel({
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
+                    e.target.value = "";
                     if (!file) return;
                     try {
-                      await uploadBlob(file, 0, "upload");
+                      const seconds = await measureAudioDuration(file);
+                      if (
+                        seconds != null &&
+                        seconds > SELF_MAX_SECONDS
+                      ) {
+                        setError(
+                          `ההקלטה ארוכה מדי. מקסימום ${SELF_MAX_SECONDS} שניות.`
+                        );
+                        return;
+                      }
+                      await uploadBlob(file, seconds || 0, "upload");
                     } catch (err) {
                       setError(
                         customerIvrError(
@@ -1468,9 +1503,18 @@ export default function IvrRoundsPanel({
                 : "ממתין לאישור הקלטה"}
             </div>
             <p className="text-[11px] font-bold text-emerald-800">
-              זו ההקלטה המלאה שתושמע לאורחים, בלי קריינות AI.
+              תצוגה מקדימה זהה לקובץ שיושמע לאורח: רק ההקלטה האישית, בלי פתיח,
+              בלי שם אירוע ובלי הוראות הקשה אוטומטיות.
+              {intro?.durationSeconds
+                ? ` · ${intro.durationSeconds} שניות`
+                : ""}
             </p>
-            <audio controls src={intro.audioUrl} className="w-full" />
+            <audio
+              controls
+              src={intro.audioUrl}
+              className="w-full"
+              data-testid="ivr-self-preview"
+            />
             <div className="flex flex-wrap gap-2">
               {!approved ? (
                 <button

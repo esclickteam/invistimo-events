@@ -12,6 +12,7 @@ import {
 } from "@/lib/calls/ivrAudioStorage";
 import { resolveApprovedNarrationUrl } from "@/lib/calls/ivrDialer";
 import { composedInboundPlaybackUrl } from "@/lib/calls/ivrComposedInbound";
+import { ivrIntroPlaybackPlan } from "@/lib/calls/ivrSelfRecording";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
@@ -210,19 +211,27 @@ export async function tryStartInboundIvr(params: {
     (ownerCfg.audioMode as "ai" | "self_recorded" | null) || "ai";
   // AI inbound uses the prebuilt inbound file (inboundBefore+name+inboundAfter).
   // Never stitch mid-call — generate/recompose/approve build it ahead of time.
-  const introAudioUrl =
-    audioMode === "self_recorded"
-      ? approvedOutboundUrl
-      : approvedOutboundUrl
-        ? composedInboundPlaybackUrl(ownerCfg)
-        : "";
-  const eventNameAudioUrl =
+  // Personal mode plays only the approved couple file.
+  const eventNameReady =
     ownerCfg.eventNameAudio?.status === "ready"
       ? resolveIvrPublicAudioUrl({
           publicToken: ownerCfg.eventNameAudio?.publicToken,
           storedUrl: ownerCfg.eventNameAudio?.audioUrl,
         })
       : "";
+  const playback = ivrIntroPlaybackPlan({
+    audioMode,
+    personalIntroUrl: approvedOutboundUrl,
+    eventNameAudioUrl: eventNameReady,
+    composedIntroAudioUrl:
+      audioMode === "self_recorded"
+        ? ""
+        : approvedOutboundUrl
+          ? composedInboundPlaybackUrl(ownerCfg)
+          : "",
+  });
+  const introAudioUrl = playback.introAudioUrl;
+  const eventNameAudioUrl = playback.eventNameAudioUrl;
 
   // Persist AUDIO_NOT_READY before answer so call.answered cannot race a
   // silent claim miss (empty intro URL + error set mid-webhook → no speak).
@@ -253,7 +262,7 @@ export async function tryStartInboundIvr(params: {
     telnyxCallLegId: cleanStr(params.callLegId),
     telnyxCallSessionId: cleanStr(params.callSessionId),
     telnyxConnectionId: cleanStr(params.connectionId),
-    audioMode: "ai",
+    audioMode: playback.audioMode,
     ...(audioNotReady ? { error: "AUDIO_NOT_READY" } : {}),
     timeline: [
       {

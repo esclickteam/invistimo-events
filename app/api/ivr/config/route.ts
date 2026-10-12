@@ -43,6 +43,7 @@ import {
   getIvrSystemVoiceChoices,
 } from "@/lib/calls/ivrSystemVoices";
 import { hydrateApprovedPackVoiceIds } from "@/lib/calls/ivrAdminVoicePacks";
+import { personalIntroMediaUrl } from "@/lib/calls/ivrSelfRecording";
 import {
   composeIvrIntroAudio,
   contentHashForComposedIntro,
@@ -397,13 +398,28 @@ function serializeIvrConfig(
     composedIntroAudio,
     expectedComposeHash
   );
-  const previewAudio = serializePreviewUrls({
+  const personalIntroUrl = personalIntroMediaUrl(cfg?.introAudio);
+  let previewAudio = serializePreviewUrls({
     gender: voiceGender,
     eventNameAudioUrl,
     composedIntroAudioUrl: composedIsCurrent ? composedIntroAudioUrl : "",
     composedIsCurrent,
     pack: pack || null,
   });
+  // Personal mode preview is the couple's file alone — never the AI stitch.
+  if (cfg?.audioMode === "self_recorded") {
+    previewAudio = {
+      ...previewAudio,
+      introBeforeEventNameUrl: "",
+      eventNameAudioUrl: "",
+      introAfterEventNameUrl: "",
+      composedIntroAudioUrl: "",
+      playlist: personalIntroUrl ? [personalIntroUrl] : [],
+      inboundPlaylist: personalIntroUrl ? [personalIntroUrl] : [],
+      seamless: Boolean(personalIntroUrl),
+      segmentsComplete: false,
+    };
+  }
 
   const followUpAudio = pack
     ? {
@@ -435,8 +451,13 @@ function serializeIvrConfig(
       ...normalizeIvrAudioSubdoc(composedIntroAudio),
       audioUrl: composedIntroAudioUrl || composedIntroAudio?.audioUrl || "",
     },
-    /** Self-recorded path only */
-    introAudio: cfg?.introAudio || { status: "missing", approved: false },
+    /** Self-recorded path only. audioUrl is the same public file Telnyx plays. */
+    introAudio: {
+      ...normalizeIvrAudioSubdoc(cfg?.introAudio),
+      audioUrl:
+        personalIntroUrl ||
+        String(cfg?.introAudio?.audioUrl || ""),
+    },
     recordingApproval: cfg?.recordingApproval || {
       approved: false,
       approvedAt: null,

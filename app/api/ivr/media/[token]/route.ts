@@ -96,29 +96,28 @@ async function resolveR2KeyForToken(token: string): Promise<{
     .lean();
   if (byApproval?.ivrConfig?.recordingApproval?.audioPublicToken === token) {
     const mode = String(byApproval.ivrConfig.recordingApproval.audioMode || "");
-    const composedKey = String(
-      byApproval.ivrConfig.composedIntroAudio?.r2Key || ""
-    );
-    const introKey = String(byApproval.ivrConfig.introAudio?.r2Key || "");
-    const r2Key =
-      mode === "self_recorded" ? introKey || composedKey : composedKey || introKey;
+    const composed = byApproval.ivrConfig.composedIntroAudio;
+    const intro = byApproval.ivrConfig.introAudio;
+    const composedKey = String(composed?.r2Key || "");
+    const introKey = String(intro?.r2Key || "");
+    const self = mode === "self_recorded";
+    // Personal calls must never fall back to the AI composed intro.
+    const r2Key = self ? introKey : composedKey || introKey;
+    const contentType = self
+      ? String(intro?.contentType || "") || "audio/mpeg"
+      : String(composed?.contentType || intro?.contentType || "") || "audio/mpeg";
     if (!r2Key) {
       return {
         r2Key: "",
-        contentType: "audio/mpeg",
+        contentType,
         source: "recordingApproval",
-        error: "APPROVAL_R2_KEY_MISSING",
+        error: self ? "PERSONAL_R2_KEY_MISSING" : "APPROVAL_R2_KEY_MISSING",
       };
     }
     return {
       r2Key,
-      contentType:
-        String(
-          byApproval.ivrConfig.composedIntroAudio?.contentType ||
-            byApproval.ivrConfig.introAudio?.contentType ||
-            ""
-        ) || "audio/mpeg",
-      source: "recordingApproval",
+      contentType,
+      source: self ? "introAudio" : "recordingApproval",
     };
   }
 
