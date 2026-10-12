@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { CheckCheck, X } from "lucide-react";
 import { placeNotificationPanel, type PanelPlacement } from "@/lib/customerNotifications/planners";
 
 type CustomerNotification = {
@@ -35,6 +35,36 @@ function formatWhen(value: string) {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(date);
+}
+
+function GoldBellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[26px] w-[26px]" aria-hidden="true">
+      <defs>
+        <linearGradient id="invistimo-bell-gold" x1="12" y1="2" x2="12" y2="18" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#F8E08A" />
+          <stop offset="48%" stopColor="#E2B23A" />
+          <stop offset="100%" stopColor="#C48A16" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2.25a1.15 1.15 0 0 1 1.15 1.15v.42c2.72.5 4.75 2.82 4.75 5.58v2.05c0 .58.22 1.14.62 1.56l.52.5c.28.27.09.74-.28.74H5.24c-.37 0-.56-.47-.28-.74l.52-.5a2.2 2.2 0 0 0 .62-1.56V9.4c0-2.76 2.03-5.08 4.75-5.58v-.42A1.15 1.15 0 0 1 12 2.25Z"
+        fill="url(#invistimo-bell-gold)"
+        stroke="#8A6214"
+        strokeWidth="0.9"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.15 7.7c.55-1.15 1.7-1.85 2.95-1.85"
+        fill="none"
+        stroke="#FFF6D2"
+        strokeWidth="1.05"
+        strokeLinecap="round"
+      />
+      <path d="M12 15.15v1.05" stroke="#8A6214" strokeWidth="1.15" strokeLinecap="round" />
+      <circle cx="12" cy="18.15" r="1.7" fill="#D61F2C" stroke="#8C1520" strokeWidth="0.45" />
+    </svg>
+  );
 }
 
 function severityLabel(severity: CustomerNotification["severity"]) {
@@ -351,11 +381,13 @@ export default function CustomerNotificationBell({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="relative inline-flex h-11 w-11 items-center justify-center overflow-visible rounded-full border border-[#D6D3D1] bg-[#FAFAF9] text-[#1C1917] shadow-sm transition hover:border-[#1C1917] hover:bg-[#F3F1EE] active:scale-95 active:bg-[#E7E4DF]"
+        className="group relative inline-flex h-11 w-11 items-center justify-center overflow-visible rounded-full border border-[#E4C56B] bg-[#FFF9EE] shadow-[0_1px_2px_rgba(140,98,20,0.16)] transition hover:border-[#C9962A] hover:bg-[#FFF3D4] active:scale-95 active:bg-[#F8E7B4]"
       >
-        <Bell size={22} strokeWidth={2.25} />
+        <span className="transition group-hover:brightness-105 group-active:brightness-95">
+          <GoldBellIcon />
+        </span>
         {unreadLabel ? (
-          <span dir="ltr" className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E11D2E] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
+          <span dir="ltr" className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E11D2E] px-1 text-[11px] font-black leading-none text-white ring-2 ring-[#FFF9EE] shadow-[0_1px_2px_rgba(180,20,32,0.45)]">
             {unreadLabel}
           </span>
         ) : null}

@@ -366,6 +366,8 @@ test("push worker does not intercept traffic and permission is opt-in", () => {
   assert.ok(header.indexOf("תמיכה") < header.indexOf("<CustomerNotificationBell"));
   assert.ok(header.indexOf("<CustomerNotificationBell") < header.lastIndexOf("התנתקות"));
   assert.match(bell, /bg-\[#E11D2E\]/);
+  assert.match(bell, /#E2B23A/);
+  assert.match(bell, /#D61F2C/);
   assert.match(bell, /99\+/);
   assert.doesNotMatch(bell, /border-\[#D7BE88\]/);
   assert.match(read("workers/sendScheduledSms.ts"), /notifyRoundQuietly/);
