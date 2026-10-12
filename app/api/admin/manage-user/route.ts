@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
-import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 import { getAuthCookieDomain } from "@/lib/env/appEnv";
-import { pickPrimaryInvitation } from "@/lib/pickPrimaryInvitation";
+import { beginAdminCustomerSession } from "@/lib/admin/customerAccountSession";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +27,41 @@ function cookieOptions(maxAge: number) {
   };
 }
 
+function readRequestCookie(req: Request, name: string) {
+  const header = req.headers.get("cookie") || "";
+  for (const part of header.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(`${name}=`)) continue;
+    const raw = trimmed.slice(name.length + 1);
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return "";
+}
+
+function verifyToken(token: string) {
+  try {
+    if (!token || !process.env.JWT_SECRET) return null;
+    return jwt.verify(token, process.env.JWT_SECRET) as {
+      userId?: string;
+      id?: string;
+      _id?: string;
+      role?: string;
+      impersonated?: boolean;
+      impersonatedBy?: string;
+      impersonatedByAdmin?: boolean;
+      impersonationSourceRole?: string;
+      adminId?: string;
+      authVersion?: number;
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function requireAdmin(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
   if (!auth?.userId || auth.role !== "admin" || auth.impersonated) {
@@ -36,18 +70,92 @@ async function requireAdmin(req: NextRequest) {
   return auth;
 }
 
-/** POST — start admin manage mode for a customer user */
+/**
+ * Real admin session, including while already inside a customer account.
+ * Switching customers must not keep the previous customer's identity.
+ */
+async function resolveAdminActor(req: NextRequest) {
+  await connectDB();
+
+  const names = [
+    "adminAuthToken",
+    "adminToken",
+    "authToken",
+    "token",
+    "impersonationToken",
+  ];
+  const tokens: string[] = [];
+  for (const name of names) {
+    const value = readRequestCookie(req, name);
+    if (value && !tokens.includes(value)) tokens.push(value);
+  }
+
+  let impersonationAdminId = "";
+
+  for (const token of tokens) {
+    const decoded = verifyToken(token);
+    if (!decoded) continue;
+    const tokenUserId = cleanString(
+      decoded.userId || decoded.id || decoded._id
+    );
+    if (
+      decoded.impersonatedByAdmin === true ||
+      decoded.impersonationSourceRole === "admin"
+    ) {
+      impersonationAdminId = cleanString(
+        decoded.impersonatedBy || decoded.adminId || impersonationAdminId
+      );
+    }
+
+    if (!tokenUserId || decoded.impersonated === true) continue;
+    if (cleanString(decoded.role) !== "admin") continue;
+
+    const admin = await User.findById(tokenUserId).select("role authVersion").lean();
+    if (!admin || (admin as any).role !== "admin") continue;
+
+    return { adminUserId: tokenUserId, adminToken: token };
+  }
+
+  if (!impersonationAdminId || !mongoose.Types.ObjectId.isValid(impersonationAdminId)) {
+    return null;
+  }
+
+  const admin = await User.findById(impersonationAdminId)
+    .select("role authVersion")
+    .lean();
+  if (!admin || (admin as any).role !== "admin" || !process.env.JWT_SECRET) {
+    return null;
+  }
+
+  const adminToken = jwt.sign(
+    {
+      userId: impersonationAdminId,
+      role: "admin",
+      hasPaid: true,
+      isTrial: false,
+      authVersion: Number((admin as any).authVersion ?? 0),
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  return { adminUserId: impersonationAdminId, adminToken };
+}
+
+/**
+ * POST — enter the selected customer account with that customer's own session.
+ * Same screens and queries as the customer. The actor stays recorded as admin.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAdmin(req);
-    if (!auth) {
+    const actor = await resolveAdminActor(req);
+    if (!actor) {
       return NextResponse.json(
         { success: false, error: "אין הרשאה" },
         { status: 403 }
       );
     }
 
-    await connectDB();
     const body = await req.json().catch(() => ({}));
     const userId = cleanString(body?.userId);
 
@@ -58,75 +166,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const target = await User.findById(userId)
-      .select("name email role")
-      .lean();
-
-    if (!target) {
+    if (userId === actor.adminUserId) {
       return NextResponse.json(
-        { success: false, error: "המשתמש לא נמצא" },
-        { status: 404 }
+        { success: false, error: "לא ניתן להיכנס לחשבון האדמין עצמו" },
+        { status: 400 }
       );
     }
 
-    const admin = await User.findById(auth.userId)
-      .select("name email")
-      .lean();
-
-    const event = await Event.findOne({ userId: target._id, status: "active" })
-      .sort({ date: -1 })
-      .select("_id title")
-      .lean();
-
-    const invitations = await Invitation.find({
-      $or: [{ userId: target._id }, { ownerId: String(target._id) }],
-    })
-      .select("_id shareId title eventId")
-      .lean();
-
-    const invitation =
-      pickPrimaryInvitation(invitations as any[]) || invitations[0] || null;
-
-    await writeAdminAuditLog({
-      adminUserId: String(auth.userId),
-      adminName: cleanString((admin as any)?.name),
-      adminEmail: cleanString((admin as any)?.email),
-      managedUserId: String(target._id),
-      managedUserName: cleanString((target as any).name),
-      managedUserEmail: cleanString((target as any).email),
-      eventId: event ? String((event as any)._id) : null,
-      invitationId: invitation ? String((invitation as any)._id) : null,
-      action: "admin_manage_start",
-      summary: `אדמין נכנס למצב ניהול עבור ${(target as any).name || (target as any).email}`,
+    return beginAdminCustomerSession({
+      adminUserId: actor.adminUserId,
+      adminToken: actor.adminToken,
+      targetUserId: userId,
     });
-
-    const res = NextResponse.json({
-      success: true,
-      managedUser: {
-        _id: String(target._id),
-        name: (target as any).name || "",
-        email: (target as any).email || "",
-      },
-      eventId: event ? String((event as any)._id) : null,
-      invitationId: invitation ? String((invitation as any)._id) : null,
-      redirectTo: "/dashboard",
-    });
-
-    res.cookies.set(
-      "adminManageUserId",
-      String(target._id),
-      cookieOptions(60 * 60 * 8)
-    );
-    res.cookies.set(
-      "adminManageUserName",
-      encodeURIComponent(cleanString((target as any).name) || "משתמש"),
-      {
-        ...cookieOptions(60 * 60 * 8),
-        httpOnly: false,
-      }
-    );
-
-    return res;
   } catch (err: any) {
     console.error("admin manage-user POST:", err);
     return NextResponse.json(

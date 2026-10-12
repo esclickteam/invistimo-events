@@ -22,6 +22,8 @@ export const AUTH_COOKIES_TO_DELETE = [
   "originalTargetRole",
   "impersonationSourceRole",
   "impersonatedByAdmin",
+  "adminManageUserId",
+  "adminManageUserName",
   "staffType",
   "staffImpersonationActive",
   "staffOriginalUserId",
@@ -37,6 +39,7 @@ const HTTP_ONLY_COOKIES = new Set<string>([
   "token",
   "adminToken",
   "impersonationToken",
+  "adminManageUserId",
 ]);
 
 export const CLIENT_READABLE_AUTH_COOKIES = AUTH_COOKIES_TO_DELETE.filter(
@@ -142,6 +145,8 @@ export const LOGIN_COOKIES_TO_CLEAR = [
   "originalTargetRole",
   "impersonationSourceRole",
   "impersonatedByAdmin",
+  "adminManageUserId",
+  "adminManageUserName",
 ] as const;
 
 export function appendAuthCookieDeletes(res: NextResponse) {

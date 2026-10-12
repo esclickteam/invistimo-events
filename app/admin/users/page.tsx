@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import CreateUserModal from "./CreateUserModal";
 import VenueSeatingContactsPanel from "./VenueSeatingContactsPanel";
@@ -961,6 +961,7 @@ export default function AdminUsersPage() {
   async function manageUserAsAdmin(userId: string) {
     try {
       setManaging(userId);
+      sessionStorage.removeItem("auth_user");
       const res = await fetch("/api/admin/manage-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -972,7 +973,7 @@ export default function AdminUsersPage() {
         alert(data?.error || "כניסה לניהול אדמין נכשלה");
         return;
       }
-      window.location.href = data.redirectTo || "/dashboard";
+      window.location.href = data.redirectTo || data.redirectUrl || "/dashboard";
     } catch (err) {
       console.error("Admin manage failed:", err);
       alert("שגיאה בכניסה לניהול אדמין");
@@ -985,6 +986,7 @@ export default function AdminUsersPage() {
     setImpersonating(userId);
 
     try {
+      sessionStorage.removeItem("auth_user");
       const res = await fetch("/api/admin/impersonate", {
         method: "POST",
         credentials: "include",
@@ -1038,6 +1040,20 @@ export default function AdminUsersPage() {
     setEventScheduleUser(user);
   }
 
+
+  const impersonateFromQuery = useRef(false);
+
+  useEffect(() => {
+    if (impersonateFromQuery.current) return;
+    const targetId = new URLSearchParams(window.location.search).get(
+      "impersonate"
+    );
+    if (!targetId) return;
+    impersonateFromQuery.current = true;
+    void manageUserAsAdmin(targetId);
+    // One-shot entry from /admin/customers "כניסה ללקוח".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("adminHiddenUsers");

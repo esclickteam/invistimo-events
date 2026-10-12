@@ -1137,14 +1137,19 @@ export async function PUT(
 
       try {
         const auth = await getUserIdFromRequest(request);
-        if (
-          auth?.role === "admin" &&
-          auth.adminManagingUserId &&
-          !auth.impersonated
-        ) {
+        const actingAdminId = auth?.impersonatedByAdmin
+          ? auth.impersonatedBy
+          : auth?.role === "admin" && auth.adminManagingUserId && !auth.impersonated
+            ? auth.userId
+            : null;
+        const managedUserId = auth?.impersonatedByAdmin
+          ? auth.userId
+          : auth?.adminManagingUserId;
+
+        if (actingAdminId && managedUserId) {
           await writeAdminAuditLog({
-            adminUserId: String(auth.userId),
-            managedUserId: String(auth.adminManagingUserId),
+            adminUserId: String(actingAdminId),
+            managedUserId: String(managedUserId),
             eventId: eventIdToSync,
             invitationId: String(invitationBeforeUpdate._id),
             action: "event_details_update",
