@@ -49,6 +49,41 @@ const NOT_STARTED_CALL_STATUSES = new Set([
   "waiting_for_previous_round",
 ]);
 
+const INACTIVE_SHIFT_STATES = new Set([
+  "cancelled",
+  "canceled",
+  "postponed",
+  "deferred",
+  "completed",
+  "complete",
+  "done",
+  "deleted",
+  "inactive",
+  "closed",
+]);
+
+export function isActiveUnstartedCallStatus(status: string) {
+  return NOT_STARTED_CALL_STATUSES.has(String(status || ""));
+}
+
+export function isActiveScheduledMessageStatus(status: string) {
+  return String(status || "") === "scheduled";
+}
+
+export function isActiveScheduledShift(input: {
+  status?: string | null;
+  cancelled?: boolean;
+  postponed?: boolean;
+  completed?: boolean;
+}) {
+  if (input.cancelled || input.postponed || input.completed) return false;
+  const status = String(input.status || "").trim().toLowerCase();
+  if (!status || status === "scheduled" || status === "active" || status === "planned") {
+    return true;
+  }
+  return !INACTIVE_SHIFT_STATES.has(status);
+}
+
 export function dedupeDecision(
   existing: "active" | "resolved" | null,
   reopenResolved: boolean
@@ -113,7 +148,7 @@ export function planMessageNotStarted(input: {
   eventId?: string | null;
   customerId?: string | null;
 }): AdminIncident | null {
-  if (String(input.status || "") !== "scheduled") return null;
+  if (!isActiveScheduledMessageStatus(input.status)) return null;
   if (!isLateUnstarted({ scheduledAt: input.scheduledAt, now: input.now })) return null;
   const name = eventName(input.eventTitle);
   const channel = input.channel === "sms" ? "SMS" : "WhatsApp";
@@ -143,7 +178,7 @@ export function planCallNotStarted(input: {
   now: Date;
   eventId?: string | null;
 }): AdminIncident | null {
-  if (!NOT_STARTED_CALL_STATUSES.has(String(input.status || ""))) return null;
+  if (!isActiveUnstartedCallStatus(input.status)) return null;
   if (!isLateUnstarted({ scheduledAt: input.scheduledAt, now: input.now })) return null;
   if (!input.scheduledAt) return null;
   const name = eventName(input.eventTitle);
@@ -171,9 +206,23 @@ export function planShiftNotStarted(input: {
   shiftStart: Date | null;
   hasStartedSession: boolean;
   now: Date;
+  status?: string | null;
+  cancelled?: boolean;
+  postponed?: boolean;
+  completed?: boolean;
 }): AdminIncident | null {
   if (input.dateKey !== input.todayKey) return null;
   if (input.hasStartedSession) return null;
+  if (
+    !isActiveScheduledShift({
+      status: input.status,
+      cancelled: input.cancelled,
+      postponed: input.postponed,
+      completed: input.completed,
+    })
+  ) {
+    return null;
+  }
   if (!isLateUnstarted({ scheduledAt: input.shiftStart, now: input.now })) return null;
   const name = String(input.employeeName || "").trim() || "עובד";
   return incident({
@@ -561,10 +610,71 @@ export function planEventDetailChange(input: {
   });
 }
 
+export function planVenueSeatingBriefingNotice(input: {
+  eventId: string;
+  eventTitle: string;
+  customerId?: string | null;
+  recipientId: string;
+  recipientRole?: string | null;
+  kind: "automatic" | "manual" | string;
+  ok: boolean;
+  attemptAt: string;
+}): AdminIncident | null {
+  const eventId = String(input.eventId || "").trim();
+  const recipientId = String(input.recipientId || "").trim();
+  const attemptAt = String(input.attemptAt || "").trim();
+  if (!eventId || !recipientId || !attemptAt) return null;
+  const role =
+    input.recipientRole === "producer"
+      ? "מפיק"
+      : input.recipientRole === "both"
+        ? "מפיק ועובד הושבה"
+        : "עובד הושבה";
+  const name = eventName(input.eventTitle);
+  const how = input.kind === "manual" ? "הידנית" : "האוטומטית";
+  const shared = {
+    eventId,
+    customerId: input.customerId,
+    eventTitle: name,
+    actionHref: adminCustomerHref(input.customerId),
+    reopen: false,
+  };
+  if (input.ok) {
+    return incident({
+      ...shared,
+      incidentKey: `event-details-sent:${eventId}:${recipientId}:${input.kind}:${attemptAt}`,
+      type: "admin.eventDetails.sent",
+      category: "admin_info",
+      severity: "info",
+      title: `פרטי אירוע נשלחו לעובדים – ${name}`,
+      body: `השליחה ${how} ל${role} המשובץ הצליחה.`,
+    });
+  }
+  return incident({
+    ...shared,
+    incidentKey: `event-details-failed:${eventId}:${recipientId}:${input.kind}:${attemptAt}`,
+    type: "admin.eventDetails.failed",
+    category: "admin_important",
+    severity: "important",
+    title: `שליחת פרטי אירוע לעובדים נכשלה – ${name}`,
+    body: `השליחה ${how} ל${role} המשובץ נכשלה.`,
+  });
+}
+
+export function currentDeviceTestEndpoint(input: {
+  endpoint?: string | null;
+  knownEndpoints: string[];
+}) {
+  const endpoint = String(input.endpoint || "").trim();
+  if (!endpoint) return "";
+  return input.knownEndpoints.includes(endpoint) ? endpoint : "";
+}
+
 export function describeTestPushResult(input: {
   configured: boolean;
   attempted: number;
   sent: number;
+  currentDevice?: boolean;
 }) {
   if (!input.configured) {
     return {
@@ -573,11 +683,18 @@ export function describeTestPushResult(input: {
       message: "שרת ה-Push לא מוגדר, ולכן לא נשלחה התראת בדיקה.",
     };
   }
+  if (input.currentDevice === false) {
+    return {
+      acceptedByPushService: false,
+      displayed: false,
+      message: "לא נבחר המכשיר הנוכחי לבדיקה, ולכן לא נשלחה התראה.",
+    };
+  }
   if (input.attempted <= 0) {
     return {
       acceptedByPushService: false,
       displayed: false,
-      message: "אין מכשיר שאישר Push לחשבון הזה, ולכן לא אומתה מסירה.",
+      message: "המכשיר הנוכחי לא רשום ל-Push, ולכן לא נשלחה התראה ולא אומתה מסירה.",
     };
   }
   if (input.sent <= 0) {
@@ -651,4 +768,6 @@ export const ADMIN_TYPE_LABELS: Record<string, string> = {
   "admin.seating.teamAssigned": "צוות הושבה שובץ",
   "admin.task.done": "משימה הושלמה",
   "admin.push.test": "התראת בדיקה",
+  "admin.eventDetails.sent": "פרטי אירוע נשלחו לעובדים",
+  "admin.eventDetails.failed": "שליחת פרטי אירוע לעובדים נכשלה",
 };

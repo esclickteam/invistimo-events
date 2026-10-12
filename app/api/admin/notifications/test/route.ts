@@ -13,6 +13,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false }, { status: 401 });
   }
   await dbConnect();
+  const body = await request.json().catch(() => null);
+  const endpoint = String(
+    body && typeof body === "object" && "endpoint" in body ? body.endpoint : ""
+  ).trim();
   const stamp = new Date().toISOString();
   await createCustomerNotification({
     userId: auth.userId,
@@ -29,12 +33,13 @@ export async function POST(request: Request) {
   });
   const configured = isWebPushConfigured();
   const result = configured
-    ? await deliverWebPushTest(auth.userId)
-    : { sent: 0, attempted: 0 };
+    ? await deliverWebPushTest(auth.userId, endpoint)
+    : { sent: 0, attempted: 0, reason: "NOT_CONFIGURED" as const };
   const described = describeTestPushResult({
     configured,
     attempted: result.attempted,
     sent: result.sent,
+    currentDevice: Boolean(endpoint),
   });
   return NextResponse.json({
     success: true,

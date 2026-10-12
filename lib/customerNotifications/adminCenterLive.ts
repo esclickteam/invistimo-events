@@ -30,6 +30,7 @@ import {
   planShiftNotStarted,
   planTaskCompleted,
   planTeamAssigned,
+  planVenueSeatingBriefingNotice,
   seatingTeamGap,
   type AdminIncident,
 } from "@/lib/customerNotifications/adminCenter";
@@ -95,6 +96,21 @@ export async function publishAdminIncident(notice: AdminIncident, adminIds?: str
     if (result.created) created += 1;
   }
   return { created };
+}
+
+export async function recordVenueSeatingBriefingDelivery(input: {
+  eventId: string;
+  eventTitle: string;
+  customerId?: string | null;
+  recipientId: string;
+  recipientRole?: string | null;
+  kind: "automatic" | "manual" | string;
+  ok: boolean;
+  attemptAt: string;
+}) {
+  const notice = planVenueSeatingBriefingNotice(input);
+  if (!notice) return { created: 0 };
+  return publishAdminIncident(notice);
 }
 
 async function publishQuiet(notice: AdminIncident | null, adminIds: string[]) {
@@ -281,6 +297,7 @@ async function scanLateShifts(now: Date, adminIds: string[]) {
       if (id) startedIds.add(id);
     }
   }
+  const keep = new Set<string>();
   for (const shift of rows) {
     const employeeId = String(shift.employeeIdString || shift.employeeId || "").trim();
     if (!employeeId) continue;
@@ -292,13 +309,33 @@ async function scanLateShifts(now: Date, adminIds: string[]) {
       shiftStart: shiftStartInstant(today, String(shift.scheduledStart || shift.startTime || "")),
       hasStartedSession: startedIds.has(employeeId),
       now,
+      status: String(shift.status || shift.shiftStatus || ""),
+      cancelled: shift.cancelled === true || shift.isCancelled === true,
+      postponed: shift.postponed === true || shift.isPostponed === true,
+      completed: shift.completed === true || shift.isCompleted === true || Boolean(shift.completedAt),
     });
-    if (notice) await publishQuiet(notice, adminIds);
-    else {
-      await resolveAdminIncident(`shift-not-started:${employeeId}:${today}`, "shift-started");
-    }
+    if (!notice) continue;
+    keep.add(notice.incidentKey);
+    await publishQuiet(notice, adminIds);
   }
+  await resolveStaleTodayShiftIncidents(today, keep);
   return rows.length;
+}
+
+async function resolveStaleTodayShiftIncidents(today: string, keep: Set<string>) {
+  const rows = await CustomerNotification.find({
+    audience: "admin",
+    status: "active",
+    type: "admin.shift.notStarted",
+  })
+    .select("meta")
+    .limit(300)
+    .lean<Array<{ meta?: { incidentKey?: string } }>>();
+  for (const row of rows) {
+    const key = String(row.meta?.incidentKey || "");
+    if (!key.endsWith(`:${today}`) || keep.has(key)) continue;
+    await resolveAdminIncident(key, "shift-not-active");
+  }
 }
 
 function countSeated(tables: unknown) {

@@ -8,9 +8,11 @@ import { shouldDeliverPush, DEFAULT_PUSH_PREFERENCES } from "../../lib/customerN
 import {
   ADMIN_START_GRACE_MS,
   classifyEventDetailChanges,
+  currentDeviceTestEndpoint,
   dedupeDecision,
   describeTestPushResult,
   filterAdminNotifications,
+  isActiveScheduledShift,
   isLateUnstarted,
   planBalanceDue,
   planCallNotStarted,
@@ -20,6 +22,7 @@ import {
   planSeatingIncomplete,
   planSeatingTeamMissing,
   planShiftNotStarted,
+  planVenueSeatingBriefingNotice,
   seatingTeamGap,
 } from "../../lib/customerNotifications/adminCenter";
 import {
@@ -67,14 +70,28 @@ test("late notices wait for the existing worker grace and ignore old rounds", ()
   assert.equal(notice?.reopen, true);
   assert.match(notice?.title || "", /חתונת דנה/);
   assert.doesNotMatch(`${notice?.title} ${notice?.body}`, /05\d{8}/);
+  for (const status of ["sent", "sending", "failed", "cancelled"]) {
+    assert.equal(
+      planMessageNotStarted({
+        scheduleId: "job-1",
+        channel: "sms",
+        round: 1,
+        eventTitle: "חתונת דנה",
+        status,
+        scheduledAt: late,
+        now,
+      }),
+      null
+    );
+  }
   assert.equal(
     planMessageNotStarted({
       scheduleId: "job-1",
       channel: "sms",
       round: 1,
       eventTitle: "חתונת דנה",
-      status: "sent",
-      scheduledAt: late,
+      status: "scheduled",
+      scheduledAt: new Date(now.getTime() + 60 * 60 * 1000),
       now,
     }),
     null
@@ -103,12 +120,26 @@ test("call and shift lateness stay separate from shift-start duration", () => {
   });
   assert.match(human?.title || "", /שיחות אנושיות/);
   assert.match(ivr?.title || "", /IVR/);
+  for (const status of ["cancelled", "done", "failed", "draft", "opened", "in_progress"]) {
+    assert.equal(
+      planCallNotStarted({
+        userId: "u1",
+        round: 2,
+        scheduledAt: late,
+        status,
+        ivr: false,
+        eventTitle: "אירוע א",
+        now,
+      }),
+      null
+    );
+  }
   assert.equal(
     planCallNotStarted({
       userId: "u1",
       round: 2,
-      scheduledAt: late,
-      status: "in_progress",
+      scheduledAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+      status: "scheduled",
       ivr: false,
       eventTitle: "אירוע א",
       now,
@@ -139,6 +170,37 @@ test("call and shift lateness stay separate from shift-start duration", () => {
     }),
     null
   );
+  for (const status of ["cancelled", "postponed", "completed", "done"]) {
+    assert.equal(isActiveScheduledShift({ status }), false);
+    assert.equal(
+      planShiftNotStarted({
+        employeeId: "e1",
+        employeeName: "נועה",
+        dateKey: "2026-10-12",
+        todayKey: "2026-10-12",
+        shiftStart: late,
+        hasStartedSession: false,
+        status,
+        now,
+      }),
+      null
+    );
+  }
+  assert.equal(isActiveScheduledShift({ cancelled: true }), false);
+  assert.equal(isActiveScheduledShift({ postponed: true }), false);
+  assert.equal(isActiveScheduledShift({ completed: true }), false);
+  assert.equal(isActiveScheduledShift({}), true);
+  const activeShift = planShiftNotStarted({
+    employeeId: "e1",
+    employeeName: "נועה",
+    dateKey: "2026-10-12",
+    todayKey: "2026-10-12",
+    shiftStart: late,
+    hasStartedSession: false,
+    status: "scheduled",
+    now,
+  });
+  assert.equal(activeShift?.type, "admin.shift.notStarted");
 });
 
 test("pre-event notices apply only to upcoming events and hide payment amounts", () => {
@@ -315,10 +377,82 @@ test("detail changes, filters, and push defaults keep read separate from handled
     }),
     true
   );
-  const unverified = describeTestPushResult({ configured: true, attempted: 1, sent: 1 });
+  const unverified = describeTestPushResult({ configured: true, attempted: 1, sent: 1, currentDevice: true });
   assert.equal(unverified.displayed, false);
   assert.match(unverified.message, /לא אומתה/);
-  assert.equal(describeTestPushResult({ configured: true, attempted: 0, sent: 0 }).acceptedByPushService, false);
+  assert.equal(
+    describeTestPushResult({ configured: true, attempted: 0, sent: 0, currentDevice: true }).acceptedByPushService,
+    false
+  );
+  const missingDevice = describeTestPushResult({
+    configured: true,
+    attempted: 0,
+    sent: 0,
+    currentDevice: false,
+  });
+  assert.equal(missingDevice.acceptedByPushService, false);
+  assert.match(missingDevice.message, /המכשיר הנוכחי/);
+  assert.equal(currentDeviceTestEndpoint({ endpoint: "", knownEndpoints: ["a", "b"] }), "");
+  assert.equal(currentDeviceTestEndpoint({ endpoint: "b", knownEndpoints: ["a", "b"] }), "b");
+  assert.equal(currentDeviceTestEndpoint({ endpoint: "other", knownEndpoints: ["a", "b"] }), "");
+  const push = fs.readFileSync(path.join(root, "lib/push/webPush.ts"), "utf8");
+  const testPush = push.slice(push.indexOf("export async function deliverWebPushTest"));
+  assert.match(testPush, /if \(!target\)/);
+  assert.match(testPush, /endpoint: target/);
+  assert.equal(testPush.includes("find({"), false);
+  const testRoute = fs.readFileSync(
+    path.join(root, "app/api/admin/notifications/test/route.ts"),
+    "utf8"
+  );
+  assert.match(testRoute, /deliverWebPushTest\(auth\.userId, endpoint\)/);
+  const panel = fs.readFileSync(
+    path.join(root, "components/notifications/NotificationPreferencesPanel.tsx"),
+    "utf8"
+  );
+  assert.match(panel, /endpoint: currentEndpoint/);
+});
+
+test("venue seating briefing notices report success or failure without sensitive details", () => {
+  const sent = planVenueSeatingBriefingNotice({
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    customerId: "a".repeat(24),
+    recipientId: "staff-1",
+    recipientRole: "seating_staff",
+    kind: "automatic",
+    ok: true,
+    attemptAt: "2026-10-12T06:00:00.000Z",
+  });
+  assert.equal(sent?.type, "admin.eventDetails.sent");
+  assert.equal(sent?.category, "admin_info");
+  assert.equal(sent?.severity, "info");
+  assert.match(sent?.title || "", /חתונת דנה/);
+  const failed = planVenueSeatingBriefingNotice({
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    customerId: "a".repeat(24),
+    recipientId: "staff-1",
+    recipientRole: "producer",
+    kind: "manual",
+    ok: false,
+    attemptAt: "2026-10-12T06:05:00.000Z",
+  });
+  assert.equal(failed?.category, "admin_important");
+  assert.match(failed?.body || "", /מפיק/);
+  const text = `${sent?.title} ${sent?.body} ${failed?.title} ${failed?.body}`;
+  assert.doesNotMatch(text, /05\d{8}/);
+  assert.doesNotMatch(text, /₪|\d+\s*ש"ח/);
+  assert.equal(
+    planVenueSeatingBriefingNotice({
+      eventId: "",
+      eventTitle: "חתונת דנה",
+      recipientId: "staff-1",
+      kind: "automatic",
+      ok: true,
+      attemptAt: "2026-10-12T06:00:00.000Z",
+    }),
+    null
+  );
 });
 
 test("admin notices are not written for customers and a resolved fault can reopen", async (t) => {

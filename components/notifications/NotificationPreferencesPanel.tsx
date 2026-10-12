@@ -335,7 +335,7 @@ export default function NotificationPreferencesPanel({
             ))}
             <button
               type="button"
-              disabled={busy || !configured}
+              disabled={busy || !configured || !currentEndpoint}
               onClick={async () => {
                 setBusy(true);
                 setError("");
@@ -344,6 +344,8 @@ export default function NotificationPreferencesPanel({
                   const res = await fetch("/api/admin/notifications/test", {
                     method: "POST",
                     credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ endpoint: currentEndpoint }),
                   });
                   const data = await res.json().catch(() => null);
                   if (!res.ok || !data?.success) {
