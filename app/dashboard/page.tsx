@@ -2859,10 +2859,14 @@ const eventLocation = resolveEventLocation(invitation, event);
     shadow-[0_18px_50px_rgba(30,27,46,0.07)]
   "
 >
-        <table className="w-full min-w-[1270px] table-fixed">
+        <table
+          className={`w-full table-fixed ${
+            canShowActualArrived ? "min-w-[1885px]" : "min-w-[1590px]"
+          }`}
+        >
   <colgroup>
     <col className="w-[210px]" /> {/* שם מלא */}
-    <col className="w-[115px]" /> {/* טלפון */}
+    <col className="w-[240px]" /> {/* טלפון */}
     <col className="w-[130px]" /> {/* קרבה */}
     <col className="w-[180px]" /> {/* קבוצה */}
     <col className="w-[105px]" /> {/* סטטוס */}
@@ -2983,16 +2987,18 @@ const eventLocation = resolveEventLocation(invitation, event);
                   </div>
                 </td>
 
-                <td className="p-4 text-sm text-[#5F564D]">
-                  <span className="inline-flex items-center gap-2">
-                    <span dir="ltr">{formatPhone(g.phone)}</span>
+                <td className="relative z-[1] overflow-visible p-4 align-top text-sm text-[#5F564D]">
+                  <div className="flex min-w-[200px] flex-wrap items-center gap-1.5">
+                    <span dir="ltr" className="basis-full whitespace-nowrap text-right">
+                      {formatPhone(g.phone)}
+                    </span>
                     <KosherPhoneBadge active={Boolean((g as { isKosherPhone?: boolean }).isKosherPhone)} />
                     <PhoneReviewMark
                       guest={g}
                       invitationId={invitationId}
                       onUpdated={handleGuestUpdated}
                     />
-                  </span>
+                  </div>
                 </td>
 
                 <td className="p-4 text-sm text-[#5F564D] min-w-[180px] whitespace-normal break-words leading-6">
