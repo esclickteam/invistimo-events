@@ -355,7 +355,7 @@ export default function CustomerNotificationBell({
       >
         <Bell size={22} strokeWidth={2.25} />
         {unreadLabel ? (
-          <span className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E11D2E] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
+          <span dir="ltr" className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E11D2E] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
             {unreadLabel}
           </span>
         ) : null}
