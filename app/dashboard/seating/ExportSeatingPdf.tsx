@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { useSeatingStore } from "@/store/seatingStore";
 import {
@@ -34,6 +35,18 @@ function waitForPaint() {
 export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [working, setWorking] = useState<ExportKind | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => setIsMounted(true), []);
+
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !working) setIsExportMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isExportMenuOpen, working]);
 
   const fileBase = `seating-map-${eventId || "event"}`;
 
@@ -156,17 +169,20 @@ export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
         📤 ייצוא PDF
       </Button>
 
-      {isExportMenuOpen && (
+      {isExportMenuOpen && isMounted && createPortal(
         <div
-          className="fixed inset-0 z-[100001] flex items-center justify-center bg-black/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="ייצוא מפת שולחנות"
+          className="fixed inset-0 z-[2147483000] flex items-center justify-center bg-black/45 p-3 sm:p-6"
           onClick={() => !working && setIsExportMenuOpen(false)}
         >
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[32px] bg-white p-5 shadow-2xl"
+            className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px]"
           >
-            <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#EFE3D4] pb-4">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#EFE3D4] px-4 py-4 sm:px-5">
               <div>
                 <h3 className="text-xl font-black text-[#2F241C]">
                   ייצוא מפת שולחנות
@@ -187,7 +203,7 @@ export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid min-h-0 grid-cols-1 gap-4 overflow-y-auto overscroll-contain p-4 sm:p-5 md:grid-cols-2">
               <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
@@ -237,7 +253,8 @@ export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
               </section>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
