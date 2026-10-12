@@ -58,6 +58,13 @@ export interface IIvrCallAttempt {
 
   /** History channel — inbound callbacks are stored as inbound_ivr. */
   channel: IvrCallChannel;
+  /**
+   * Empty on regular IVR. kosher_message_round marks calls created from a
+   * message round so they stay separate from the call-package dialer.
+   */
+  origin?: string;
+  /** Scheduled message that routed this kosher call. */
+  scheduleId?: Types.ObjectId | null;
   direction: IvrCallDirection;
   /** Snapshot of spoken/display event name for inbound greeting + history. */
   eventName?: string;
@@ -226,6 +233,18 @@ const IvrCallAttemptSchema = new Schema<IIvrCallAttempt>(
       type: String,
       trim: true,
       default: "",
+    },
+    origin: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    scheduleId: {
+      type: Schema.Types.ObjectId,
+      ref: "ScheduledMessage",
+      default: null,
+      index: true,
     },
     status: {
       type: String,
@@ -547,6 +566,14 @@ IvrCallAttemptSchema.index({
   phone: 1,
   startedAt: -1,
 });
+
+IvrCallAttemptSchema.index(
+  { scheduleId: 1, guestId: 1, origin: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { origin: "kosher_message_round" },
+  }
+);
 
 IvrCallAttemptSchema.index({
   direction: 1,

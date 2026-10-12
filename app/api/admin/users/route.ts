@@ -1281,6 +1281,7 @@ packageName
           allowedMessageRounds,
 
           includeCalls: Boolean(u.includeCalls),
+          kosherRecordedCallsEnabled: u.kosherRecordedCallsEnabled === true,
           callsType:
             String(u.callsType || "").trim().toLowerCase() === "ivr"
               ? "ivr"

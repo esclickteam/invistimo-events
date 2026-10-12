@@ -79,6 +79,7 @@ type AdminUser = {
   maxMessages?: number;
 
   includeCalls?: boolean;
+  kosherRecordedCallsEnabled?: boolean;
   callsType?: "human" | "ivr";
   callsRounds?: number;
   callsAddonPrice?: number;
@@ -1866,6 +1867,9 @@ function EditUserModal({
   const [callsType, setCallsType] = useState<"human" | "ivr">(
     user.callsType === "ivr" ? "ivr" : "human"
   );
+  const [kosherRecordedCallsEnabled, setKosherRecordedCallsEnabled] = useState(
+    user.kosherRecordedCallsEnabled === true
+  );
 
   const [includeTransportationManagement, setIncludeTransportationManagement] =
     useState(Boolean(user.includeTransportationManagement));
@@ -1929,6 +1933,7 @@ function EditUserModal({
         weddingChallenges: includeWeddingChallenges,
       },
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      kosherRecordedCallsEnabled,
       ...(user.includeCalls
         ? {
             callsType,
@@ -2170,6 +2175,29 @@ function EditUserModal({
             description="מוקד אנושי שומר על הלוגיקה הקיימת. שיחות מוקלטות (IVR) מפעילות 3 סבבים מוקלטים, הגדרת הקלטה/AI ו־callback אוטומטי."
           />
         ) : null}
+
+        <section className="rounded-[26px] border border-[#E7D8C6] bg-[#FFFDF8] p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-black text-[#3A2A1C]">
+                שיחות מוקלטות למספרים כשרים במקביל לסבבי הודעות
+              </h3>
+              <p className="mt-1 text-sm font-bold leading-6 text-[#7B6754]">
+                ברירת מחדל: כבוי. כשפעיל, סבב הודעות קיים מנתב מספרים כשרים לשיחת IVR מוקלטת במקום הודעה. לקוחות שהשירות כבוי אצלם ממשיכים בלי שינוי.
+              </p>
+            </div>
+            <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-[#E7D8C6] bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={kosherRecordedCallsEnabled}
+                onChange={(event) => setKosherRecordedCallsEnabled(event.target.checked)}
+              />
+              <span className="text-sm font-black">
+                {kosherRecordedCallsEnabled ? "פעיל" : "כבוי"}
+              </span>
+            </label>
+          </div>
+        </section>
 
         <section
           className="

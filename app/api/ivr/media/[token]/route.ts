@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import User from "@/models/User";
+import Invitation from "@/models/Invitation";
 import IvrSystemAudio from "@/models/IvrSystemAudio";
 import {
   getIvrAudioObjectFromR2,
@@ -171,9 +172,7 @@ async function resolveR2KeyForToken(token: string): Promise<{
   })
     .select("ivrConfig.retainedAudioClips")
     .lean();
-  const retained = Array.isArray(
-    byRetained?.ivrConfig?.retainedAudioClips
-  )
+  const retained = Array.isArray(byRetained?.ivrConfig?.retainedAudioClips)
     ? byRetained.ivrConfig.retainedAudioClips.find(
         (clip: { publicToken?: string; r2Key?: string; contentType?: string }) =>
           String(clip?.publicToken || "") === token && String(clip?.r2Key || "")
@@ -184,6 +183,37 @@ async function resolveR2KeyForToken(token: string): Promise<{
       r2Key: String(retained.r2Key),
       contentType: String(retained.contentType || "") || "audio/mpeg",
       source: "retainedAudioClips",
+    };
+  }
+
+  const byKosher = await Invitation.findOne({
+    $or: [
+      { "kosherCallAudio.composedIntroAudio.publicToken": token },
+      { "kosherCallAudio.eventNameAudio.publicToken": token },
+    ],
+  })
+    .select("kosherCallAudio")
+    .lean();
+  const kosherAudio = byKosher?.kosherCallAudio;
+  if (
+    kosherAudio?.composedIntroAudio?.publicToken === token &&
+    kosherAudio.composedIntroAudio.r2Key
+  ) {
+    return {
+      r2Key: String(kosherAudio.composedIntroAudio.r2Key),
+      contentType:
+        String(kosherAudio.composedIntroAudio.contentType || "audio/mpeg"),
+      source: "kosherComposedIntro",
+    };
+  }
+  if (
+    kosherAudio?.eventNameAudio?.publicToken === token &&
+    kosherAudio.eventNameAudio.r2Key
+  ) {
+    return {
+      r2Key: String(kosherAudio.eventNameAudio.r2Key),
+      contentType: String(kosherAudio.eventNameAudio.contentType || "audio/mpeg"),
+      source: "kosherEventName",
     };
   }
 

@@ -1235,6 +1235,7 @@ export async function GET(req: Request) {
           },
 
           includeCalls: !!currentUser.includeCalls,
+          kosherRecordedCallsEnabled: currentUser.kosherRecordedCallsEnabled === true,
           callsType:
             String(currentUser.callsType || "").trim().toLowerCase() === "ivr"
               ? "ivr"

@@ -42,6 +42,10 @@ import {
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
 import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { createIvrRoundRunId } from "@/lib/calls/ivrRoundSchedule";
+import {
+  KOSHER_MESSAGE_ROUND_ORIGIN,
+  kosherAttemptCoversGuest,
+} from "@/lib/kosherPhones/match";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
   createIvrOutboundCall,
@@ -1258,6 +1262,34 @@ export async function executeIvrRound(input: {
     round: input.due.round,
   });
 
+  const kosherCovered = await IvrCallAttempt.find({
+    invitationId: input.due.invitationId,
+    round: input.due.round,
+    origin: KOSHER_MESSAGE_ROUND_ORIGIN,
+    status: {
+      $in: [
+        "queued",
+        "initiated",
+        "ringing",
+        "answered",
+        "completed",
+        "no_answer",
+        "busy",
+        "voicemail",
+        "hangup_before_response",
+        "invalid_input",
+        "unresolved",
+      ],
+    },
+  })
+    .select("guestId origin status")
+    .lean();
+  const kosherCoveredGuestIds = new Set(
+    kosherCovered
+      .filter((row) => kosherAttemptCoversGuest(row))
+      .map((row) => String(row.guestId))
+  );
+
   const results: Array<{
     guestId: string;
     phone: string;
@@ -1276,6 +1308,15 @@ export async function executeIvrRound(input: {
     }
 
     const guestId = String(guest._id);
+    if (kosherCoveredGuestIds.has(guestId)) {
+      results.push({
+        guestId,
+        phone: cleanStr(guest.phone),
+        status: "skipped",
+        reason: "kosher_message_round",
+      });
+      continue;
+    }
     const fresh = await InvitationGuest.findById(guestId).lean();
     if (
       !fresh ||

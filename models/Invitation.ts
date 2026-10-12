@@ -577,6 +577,21 @@ preRsvpMedia: {
       index: true,
     },
 
+    /**
+     * Spoken event name for kosher recorded calls only.
+     * Empty means the existing event name is used. Never replaces title.
+     */
+    kosherCallEventName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    kosherCallAudio: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
     /* ================= REMINDER / THANK YOU STATE ================= */
 
     reminderSentAt: {

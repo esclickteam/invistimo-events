@@ -44,6 +44,7 @@ import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { phoneNeedsReview } from "@/lib/guestPhone";
 import PhoneReviewMark from "@/app/components/PhoneReviewMark";
+import KosherPhoneBadge from "@/app/components/KosherPhoneBadge";
 import { summarizeCheckIn } from "@/lib/checkIn/status";
 import {
   filterGuestsForCallRound,
@@ -2985,6 +2986,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                 <td className="p-4 text-sm text-[#5F564D]">
                   <span className="inline-flex items-center gap-2">
                     <span dir="ltr">{formatPhone(g.phone)}</span>
+                    <KosherPhoneBadge active={Boolean((g as { isKosherPhone?: boolean }).isKosherPhone)} />
                     <PhoneReviewMark
                       guest={g}
                       invitationId={invitationId}
