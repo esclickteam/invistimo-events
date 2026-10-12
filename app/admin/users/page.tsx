@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "rea
 import { createPortal } from "react-dom";
 import CreateUserModal from "./CreateUserModal";
 import VenueSeatingContactsPanel from "./VenueSeatingContactsPanel";
+import VenueSeatingBriefingPanel from "./VenueSeatingBriefingPanel";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
 import AdminInvitationOnlyPanel from "./AdminInvitationOnlyPanel";
@@ -2274,6 +2275,7 @@ function EditUserModal({
         </section>
 
         <VenueSeatingContactsPanel userId={user._id} />
+        <VenueSeatingBriefingPanel userId={user._id} />
 
         <section
           className="
