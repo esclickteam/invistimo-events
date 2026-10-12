@@ -819,12 +819,14 @@ export default function SeatingSidebar({
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          style={{ top: "var(--admin-manage-banner-h, 0px)" }}
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
         className={`
+          admin-banner-mobile-fixed
           fixed top-0 right-0 z-50
           h-full w-[410px] max-w-[92vw]
           flex flex-col

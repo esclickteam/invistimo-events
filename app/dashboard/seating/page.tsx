@@ -1184,6 +1184,7 @@ function SeatingPageInner() {
           bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
           backdrop-blur-2xl
         "
+        style={{ top: "var(--admin-manage-banner-h, 0px)" }}
       >
         <div
           className="
@@ -1423,6 +1424,9 @@ function SeatingPageInner() {
                   shadow-[0_22px_70px_rgba(80,50,20,0.22)]
                   backdrop-blur-2xl
                 "
+                style={{
+                  top: "calc(84px + var(--admin-manage-banner-h, 0px))",
+                }}
               >
                 <div className="grid gap-2">
                   <button
@@ -1668,6 +1672,7 @@ function SeatingPageInner() {
             shadow-[0_14px_34px_rgba(80,50,20,0.13)]
             backdrop-blur-xl md:hidden
           "
+          style={{ top: "calc(92px + var(--admin-manage-banner-h, 0px))" }}
         >
           👥 רשימת אורחים
         </button>
@@ -1689,6 +1694,7 @@ function SeatingPageInner() {
           flex min-w-0 flex-row-reverse
           overflow-hidden
         "
+        style={{ top: "calc(76px + var(--admin-manage-banner-h, 0px))" }}
       >
         {/* CANVAS AREA */}
         <section

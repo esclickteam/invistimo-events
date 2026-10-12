@@ -323,7 +323,11 @@ export default function DashboardMobileMenu({
     <>
       {/* Drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
+        <div
+          className="fixed inset-0 z-50 md:hidden"
+          style={{ top: "var(--admin-manage-banner-h, 0px)" }}
+          dir="rtl"
+        >
           {/* Overlay */}
           <button
             type="button"

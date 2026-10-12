@@ -279,7 +279,11 @@ function DashboardLayoutInner({
 
   if (showSidebar) {
     return (
-      <div className="h-[100vh] overflow-hidden bg-[#faf7f3]" dir="rtl">
+      <div
+        className="flex h-[100vh] max-h-[100vh] w-full flex-col overflow-hidden bg-[#faf7f3]"
+        style={{ paddingTop: "var(--admin-manage-banner-h, 0px)" }}
+        dir="rtl"
+      >
         {!isDemo && <AdminManageBanner />}
         <DashboardSidebar
           open={menuOpen}
@@ -309,17 +313,23 @@ function DashboardLayoutInner({
         />
 
         <div
-          className={`flex h-full min-h-0 flex-col transition-[padding] duration-200 ${contentInset}`}
+          className={`flex min-h-0 min-w-0 w-full flex-1 flex-col transition-[padding] duration-200 ${contentInset}`}
         >
           {header}
-          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          <main className="min-h-0 min-w-0 w-full flex-1 overflow-y-auto">
+            {children}
+          </main>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
+    <div
+      className="admin-session-scroll-shell min-h-screen w-full bg-[#faf7f3]"
+      style={{ paddingTop: "var(--admin-manage-banner-h, 0px)" }}
+      dir="rtl"
+    >
       {!isDemo && <AdminManageBanner />}
       {header}
 
