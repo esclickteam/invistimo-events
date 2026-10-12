@@ -3,6 +3,7 @@
 import html2canvas from "html2canvas";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { loadSeatingMapForPrint } from "../seatingExport";
 
 type Guest = {
   id?: string;
@@ -138,20 +139,43 @@ function SeatingPrintPageInner() {
   const [exportingImage, setExportingImage] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedImage = sessionStorage.getItem("seatingMapImage");
+    let active = true;
+    let objectUrl = "";
 
-      if (savedImage) {
-        setMapImage(savedImage);
-        return;
+    async function loadMapImage() {
+      try {
+        const blob = await loadSeatingMapForPrint(eventId);
+
+        if (!active) return;
+
+        if (blob) {
+          objectUrl = URL.createObjectURL(blob);
+          setMapImage(objectUrl);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed reading seating map image:", error);
       }
 
-      setMapImageReady(true);
-    } catch (error) {
-      console.error("Failed reading seating map image:", error);
-      setMapImageReady(true);
+      try {
+        const savedImage = sessionStorage.getItem("seatingMapImage");
+
+        if (active && savedImage) {
+          setMapImage(savedImage);
+          return;
+        }
+      } catch {}
+
+      if (active) setMapImageReady(true);
     }
-  }, []);
+
+    void loadMapImage();
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [eventId]);
 
   useEffect(() => {
     if (!eventId) {
@@ -421,11 +445,23 @@ function SeatingPrintPageInner() {
               alt="מפת שולחנות"
               onLoad={() => setMapImageReady(true)}
               onError={() => setMapImageReady(true)}
-              className="w-full rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] shadow-sm"
+              className="w-full rounded-[28px] border border-[#E6D7C4] bg-white object-contain shadow-sm print:mx-auto print:max-h-[150mm]"
             />
+          ) : !mapImageReady ? (
+            <div className="rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] p-10 text-center text-base font-black text-[#8A7A68]">
+              טוען מפה…
+            </div>
           ) : (
             <div className="rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] p-10 text-center text-base font-black text-[#8A7A68]">
               לא נמצאה תמונת מפה. צריך לפתוח ייצוא מתוך עמוד ההושבה.
+              <div className="mt-4">
+                <a
+                  href="/dashboard/seating"
+                  className="inline-block rounded-2xl bg-[#2F241C] px-4 py-2 text-sm font-black text-white"
+                >
+                  מעבר לעמוד ההושבה
+                </a>
+              </div>
             </div>
           )}
         </section>

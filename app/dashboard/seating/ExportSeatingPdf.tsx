@@ -2,170 +2,147 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSeatingStore } from "@/store/seatingStore";
+import {
+  buildSeatingPdf,
+  buildSeatingSummary,
+  canvasToBlob,
+  downloadBlob,
+  saveSeatingMapForPrint,
+} from "./seatingExport";
 
-type ExportContentType = "map-only" | "with-guests";
+type ExportKind = "map-pdf" | "map-png" | "map-jpg" | "guests-pdf" | "print";
 
 type ExportSeatingPdfProps = {
   eventId: string | null;
-  getMapImageDataUrl?: () => string | null;
 };
 
 declare global {
   interface Window {
-    __getInvistimoSeatingMapImage?: () => string | null;
-    __saveInvistimoSeatingMapImage?: () => string | null;
+    __captureInvistimoSeatingMap?: () => HTMLCanvasElement | null;
   }
 }
 
-export default function ExportSeatingPdf({
-  eventId,
-  getMapImageDataUrl,
-}: ExportSeatingPdfProps) {
+const MAP_MISSING_MESSAGE =
+  "לא הצלחתי ליצור תמונה של המפה. ודאי שהמפה מוצגת במסך ונסי שוב.";
+
+/** setTimeout rather than rAF: rAF never fires once the print tab takes focus. */
+function waitForPaint() {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, 60));
+}
+
+export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const [isWorking, setIsWorking] = useState(false);
+  const [working, setWorking] = useState<ExportKind | null>(null);
 
-  const getRealMapImage = () => {
-    try {
-      if (getMapImageDataUrl) {
-        const image = getMapImageDataUrl();
-        if (image) return image;
-      }
+  const fileBase = `seating-map-${eventId || "event"}`;
 
-      if (
-        typeof window !== "undefined" &&
-        typeof window.__saveInvistimoSeatingMapImage === "function"
-      ) {
-        const image = window.__saveInvistimoSeatingMapImage();
-        if (image) return image;
-      }
-
-      if (
-        typeof window !== "undefined" &&
-        typeof window.__getInvistimoSeatingMapImage === "function"
-      ) {
-        const image = window.__getInvistimoSeatingMapImage();
-        if (image) return image;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Failed getting seating map image:", error);
-      return null;
-    }
+  const captureMap = () => {
+    if (typeof window === "undefined") return null;
+    return window.__captureInvistimoSeatingMap?.() ?? null;
   };
 
-  const saveRealMapImage = () => {
+  const getSummary = () => {
+    const { tables, guests } = useSeatingStore.getState() as {
+      tables: any[];
+      guests: any[];
+    };
+    return buildSeatingSummary(tables || [], guests || []);
+  };
+
+  const handleExport = async (kind: ExportKind) => {
+    if (working) return;
+
+    const printWindow =
+      kind === "print" ? window.open("about:blank", "_blank") : null;
+
+    setWorking(kind);
+
     try {
-      sessionStorage.removeItem("seatingMapImage");
+      await waitForPaint();
 
-      const image = getRealMapImage();
-
-      if (image) {
-        sessionStorage.setItem("seatingMapImage", image);
-        return image;
+      const mapCanvas = captureMap();
+      if (!mapCanvas) {
+        printWindow?.close();
+        alert(MAP_MISSING_MESSAGE);
+        return;
       }
 
-      return null;
-    } catch (error) {
-      console.error("Failed saving seating map image:", error);
-      return null;
-    }
-  };
+      if (kind === "map-png") {
+        downloadBlob(await canvasToBlob(mapCanvas, "image/png"), `${fileBase}.png`);
+      } else if (kind === "map-jpg") {
+        downloadBlob(
+          await canvasToBlob(mapCanvas, "image/jpeg", 0.95),
+          `${fileBase}.jpg`
+        );
+      } else if (kind === "map-pdf" || kind === "guests-pdf") {
+        const includeGuests = kind === "guests-pdf";
+        const pdf = await buildSeatingPdf({
+          mapCanvas,
+          tables: getSummary(),
+          includeGuests,
+        });
+        downloadBlob(
+          pdf,
+          includeGuests ? `${fileBase}-with-guests.pdf` : `${fileBase}.pdf`
+        );
+      } else if (kind === "print") {
+        await saveSeatingMapForPrint(
+          await canvasToBlob(mapCanvas, "image/png"),
+          eventId
+        );
 
-  const openPrintExport = (contentType: ExportContentType) => {
-    if (!eventId) return;
+        const params = new URLSearchParams();
+        if (eventId) params.set("eventId", eventId);
+        params.set("includeGuests", "1");
+        params.set("format", "pdf");
+        params.set("mode", "print");
+        const url = `/dashboard/seating/print?${params.toString()}`;
 
-    const params = new URLSearchParams();
+        if (printWindow && !printWindow.closed) {
+          printWindow.location.href = url;
+        } else {
+          window.location.href = url;
+        }
+      }
 
-    params.set("eventId", eventId);
-    params.set("includeGuests", contentType === "with-guests" ? "1" : "0");
-    params.set("format", "pdf");
-    params.set("mode", "print");
-
-    window.open(`/dashboard/seating/print?${params.toString()}`, "_blank");
-  };
-
-  const handleExport = async (contentType: ExportContentType) => {
-    if (!eventId || isWorking) return;
-
-    try {
-      setIsWorking(true);
-
-      saveRealMapImage();
-      openPrintExport(contentType);
+      mapCanvas.width = 0;
+      mapCanvas.height = 0;
       setIsExportMenuOpen(false);
     } catch (error) {
-      console.error("Export failed:", error);
+      console.error("Seating export failed:", error);
+      printWindow?.close();
       alert("הייצוא נכשל. נסי שוב.");
     } finally {
-      setIsWorking(false);
+      setWorking(null);
     }
   };
 
-  const PdfExportButton = ({
-    title,
-    onClick,
-  }: {
-    title: string;
-    onClick: () => void;
-  }) => {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={isWorking}
-        className="flex min-h-[78px] w-full items-center justify-between gap-3 rounded-2xl border border-[#EFE3D4] bg-white px-4 py-3 text-right transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <div className="flex min-w-0 flex-col">
-          <span className="text-base font-black text-[#2F241C]">{title}</span>
-          <span className="mt-1 text-xs font-bold text-[#8A7A68]">
-            ייצוא לקובץ PDF
-          </span>
-        </div>
+  const renderOption = (
+    kind: ExportKind,
+    title: string,
+    subtitle: string,
+    icon: string
+  ) => (
+    <button
+      key={kind}
+      type="button"
+      onClick={() => void handleExport(kind)}
+      disabled={!!working}
+      className="flex min-h-[64px] w-full items-center justify-between gap-3 rounded-2xl border border-[#EFE3D4] bg-white px-4 py-3 text-right transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <div className="flex min-w-0 flex-col">
+        <span className="text-base font-black text-[#2F241C]">
+          {working === kind ? "מייצא…" : title}
+        </span>
+        <span className="mt-1 text-xs font-bold text-[#8A7A68]">{subtitle}</span>
+      </div>
 
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-xl">
-          📄
-        </div>
-      </button>
-    );
-  };
-
-  const ExportCard = ({
-    title,
-    description,
-    contentType,
-    isRecommended,
-  }: {
-    title: string;
-    description: string;
-    contentType: ExportContentType;
-    isRecommended?: boolean;
-  }) => {
-    return (
-      <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
-        <div className="mb-4">
-          <div className="flex items-center gap-2">
-            <h4 className="text-lg font-black text-[#2F241C]">{title}</h4>
-
-            {isRecommended ? (
-              <span className="rounded-full bg-[#18213D] px-2.5 py-1 text-xs font-black text-white">
-                מומלץ
-              </span>
-            ) : null}
-          </div>
-
-          <p className="mt-1 text-xs font-bold leading-5 text-[#8A7A68]">
-            {description}
-          </p>
-        </div>
-
-        <PdfExportButton
-          title="ייצוא PDF"
-          onClick={() => void handleExport(contentType)}
-        />
-      </section>
-    );
-  };
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-lg">
+        {icon}
+      </div>
+    </button>
+  );
 
   return (
     <>
@@ -173,7 +150,7 @@ export default function ExportSeatingPdf({
         variant="outline"
         type="button"
         onClick={() => setIsExportMenuOpen(true)}
-        disabled={!eventId || isWorking}
+        disabled={!!working}
         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#E4D4BE] bg-white px-5 py-3 text-sm font-black text-[#3B2A1D] shadow-sm transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
       >
         📤 ייצוא PDF
@@ -181,13 +158,13 @@ export default function ExportSeatingPdf({
 
       {isExportMenuOpen && (
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/45 p-4"
-          onClick={() => setIsExportMenuOpen(false)}
+          className="fixed inset-0 z-[100001] flex items-center justify-center bg-black/45 p-4"
+          onClick={() => !working && setIsExportMenuOpen(false)}
         >
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl rounded-[32px] bg-white p-5 shadow-2xl"
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[32px] bg-white p-5 shadow-2xl"
           >
             <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#EFE3D4] pb-4">
               <div>
@@ -196,32 +173,68 @@ export default function ExportSeatingPdf({
                 </h3>
 
                 <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
-                  בחרי איזה PDF לייצא
+                  הקובץ יורד ישירות למכשיר
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setIsExportMenuOpen(false)}
-                className="shrink-0 rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
+                disabled={!!working}
+                className="shrink-0 rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4] disabled:opacity-50"
               >
                 סגור
               </button>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <ExportCard
-                title="רק מפת שולחנות"
-                description="ייצוא PDF של מפת השולחנות בלבד."
-                contentType="map-only"
-                isRecommended
-              />
+              <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-lg font-black text-[#2F241C]">
+                      רק מפת שולחנות
+                    </h4>
+                    <span className="rounded-full bg-[#18213D] px-2.5 py-1 text-xs font-black text-white">
+                      מומלץ
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold leading-5 text-[#8A7A68]">
+                    כל המפה כולל תמונת האולם, השולחנות, הכיסאות והשמות.
+                  </p>
+                </div>
 
-              <ExportCard
-                title="מפה + רשימת אורחים"
-                description="ייצוא PDF עם תמונת מפה אמיתית ופירוט אורחים לפי שולחנות."
-                contentType="with-guests"
-              />
+                <div className="grid gap-2">
+                  {renderOption("map-pdf", "ייצוא PDF", "קובץ PDF להדפסה", "📄")}
+                  {renderOption("map-png", "ייצוא PNG", "תמונה באיכות גבוהה", "🖼️")}
+                  {renderOption("map-jpg", "ייצוא JPG", "תמונה קלה לשליחה", "🖼️")}
+                </div>
+              </section>
+
+              <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
+                <div className="mb-4">
+                  <h4 className="text-lg font-black text-[#2F241C]">
+                    מפה + רשימת אורחים
+                  </h4>
+                  <p className="mt-1 text-xs font-bold leading-5 text-[#8A7A68]">
+                    עמוד מפה ואחריו פירוט אורחים לפי שולחנות.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  {renderOption(
+                    "guests-pdf",
+                    "ייצוא PDF",
+                    "מפה + רשימת אורחים לפי שולחנות",
+                    "📄"
+                  )}
+                  {renderOption(
+                    "print",
+                    "תצוגת הדפסה",
+                    "פתיחה בלשונית חדשה להדפסה",
+                    "🖨️"
+                  )}
+                </div>
+              </section>
             </div>
           </div>
         </div>
