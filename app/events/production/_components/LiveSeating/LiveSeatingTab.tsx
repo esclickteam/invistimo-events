@@ -26,6 +26,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [hasImported, setHasImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
+  const [mapVersion, setMapVersion] = useState(0);
   const searchParams = useSearchParams();
 const focusGuestId = searchParams.get("focusGuestId");
 const router = useRouter();
@@ -45,41 +46,12 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
   const setZones = useZoneStore((s) => s.setZones);
 
-  const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
-
   /* ===============================
      ✅ LIVE MODE
   =============================== */
   useEffect(() => {
   setLiveMode(true);
 }, [setLiveMode]);
-
-  /* ===============================
-     ✅ LOAD FROM LOCAL STORAGE
-  =============================== */
-  useEffect(() => {
-    if (!cacheKey) return;
-
-    const cached = localStorage.getItem(cacheKey);
-    if (!cached) return;
-
-    try {
-      const data = JSON.parse(cached);
-
-      importSnapshot({
-        tables: data.tables ?? [],
-        guests: data.guests ?? [],
-        canvasView: data.canvasView ?? null,
-        background: data.background ?? null,
-      });
-
-      setZones(data.zones ?? []);
-      setEventId(data.eventId ?? null);
-      setHasImported(true);
-    } catch (e) {
-      console.warn("⚠️ Failed to load live seating cache", e);
-    }
-  }, [cacheKey, importSnapshot, setZones]);
 
   /* ===============================
      📥 IMPORT – פעם אחת בלבד
@@ -112,28 +84,15 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
       setZones(json.zones ?? []);
       setEventId(json.eventId ?? null);
+      setMapVersion(Number(json.mapVersion || 0));
       setHasImported(true);
-
-      if (cacheKey) {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            eventId: json.eventId ?? null,
-            tables: json.tables ?? [],
-            guests: json.guests ?? [],
-            zones: json.zones ?? [],
-            canvasView: json.canvasView ?? null,
-            background: json.background ?? null,
-          })
-        );
-      }
     } catch (e) {
       console.error("❌ Import error", e);
       setError("לא נמצאה מפת הושבה");
     } finally {
       setLoading(false);
     }
-  }, [invitationId, importSnapshot, setZones, cacheKey]);
+  }, [invitationId, importSnapshot, setZones]);
 
   /* ===============================
      ✅ AUTO IMPORT – רק אם ריק
@@ -189,7 +148,7 @@ useEffect(() => {
  async function saveSeating() {
   if (!eventId || loading) return;
 
-  setLoading(true); // ✅ הוספה
+  setLoading(true);
 
   try {
     const tables = useSeatingStore.getState().tables;
@@ -200,6 +159,7 @@ useEffect(() => {
 
     const res = await fetch(`/api/seating/save/${eventId}`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tables,
@@ -207,27 +167,24 @@ useEffect(() => {
         background,
         zones,
         canvasView,
+        invitationId,
+        saveScope: "full",
+        baseMapVersion: mapVersion,
       }),
     });
 
     const data = await res.json();
-    alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
-
-    if (cacheKey) {
-      localStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          eventId,
-          tables,
-          guests,
-          zones,
-          canvasView,
-          background,
-        })
-      );
+    if (data.success && Number.isFinite(Number(data.mapVersion))) {
+      setMapVersion(Number(data.mapVersion));
+      alert("🎉 הושבה נשמרה");
+      return;
+    }
+    alert(data.message || "❌ שגיאה בשמירה");
+    if (res.status === 409) {
+      setHasImported(false);
     }
   } finally {
-    setLoading(false); // ✅ הוספה
+    setLoading(false);
   }
 }
 

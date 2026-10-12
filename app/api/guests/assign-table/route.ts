@@ -4,6 +4,13 @@ import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
 import Invitation from "@/models/Invitation";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  bumpSeatingMapVersion,
+  customerExclusiveLockRequired,
+  guardSeatingEditWrite,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
 import {
   seatingAssignmentFromGuest,
   seatingAssignmentsEqual,
@@ -227,6 +234,29 @@ export async function POST(req: Request) {
       updateQuery.$unset = updateUnset;
     }
 
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const seatingEventId = seatingDoc?.eventId ? String(seatingDoc.eventId) : "";
+    const exclusiveLock = await customerExclusiveLockRequired(auth, seatingEventId);
+    let mapVersion: number | null = null;
+    if (exclusiveLock) {
+      const gate = await guardSeatingEditWrite({
+        eventId: seatingEventId,
+        credentials: readSeatingWriteCredentials(body),
+      });
+      if (!gate.ok) {
+        return NextResponse.json(gate.body, { status: gate.status });
+      }
+    } else if (seatingEventId) {
+      mapVersion = await bumpSeatingMapVersion(seatingEventId);
+    }
+
     const result = await InvitationGuest.updateOne(
       { _id: new mongoose.Types.ObjectId(guestId) },
       updateQuery
@@ -243,6 +273,7 @@ export async function POST(req: Request) {
       ...(typeof finalTableNumber === "number" ? { tableNumber: finalTableNumber } : {}),
       ...(typeof seatIndex === "number" ? { seatIndex } : {}),
       ...(seatIndex === null ? { seatIndexCleared: true } : {}),
+      ...(mapVersion != null ? { mapVersion } : {}),
     });
   } catch (err: any) {
     console.error("assign guest to table error:", err);

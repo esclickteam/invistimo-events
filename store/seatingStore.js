@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
+import { seatingWriteCredentials } from "../app/dashboard/seating/seatingEditSession";
 
 function extractNumberFromName(name) {
   const m = String(name || "").match(/(\d+)/);
@@ -12,6 +13,10 @@ function getTableId(table) {
 
 function getGuestId(guest) {
   return String(guest?.id ?? guest?._id ?? "").trim();
+}
+
+function seatingViewOnly(get) {
+  return get().interactionMode === "view";
 }
 
 function getTableSeatCount(table) {
@@ -56,13 +61,11 @@ function normalizeSeatIndexList(seatedGuests, seatsTotal) {
 
       const normalizedIndex = looksOneBased ? rawIndex - 1 : rawIndex;
 
-      if (
-        effectiveTotal > 0 &&
-        (normalizedIndex < 0 || normalizedIndex >= effectiveTotal)
-      ) {
-        return null;
-      }
-
+      /*
+        Capacity and position edits must not drop guest assignments.
+        A seat past the current capacity stays on the table until someone
+        actually moves that guest.
+      */
       if (normalizedIndex < 0) return null;
 
       const guestId = String(
@@ -173,6 +176,10 @@ export const useSeatingStore = create((set, get) => ({
 
   demoMode: false,
 
+  interactionMode: "edit",
+  setInteractionMode: (mode) =>
+    set({ interactionMode: mode === "view" ? "view" : "edit" }),
+
   seatingMode: "regular",
 
   setSeatingMode: (mode) =>
@@ -233,7 +240,10 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-  setBackground: (background) => set({ background }),
+  setBackground: (background) => {
+    if (seatingViewOnly(get)) return;
+    set({ background });
+  },
 
   setCanvasView: (view) =>
     set({
@@ -486,6 +496,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ================= ⭐ GROUP SEATING ================= */
 
   seatGroup: (groupId, tableId) => {
+    if (seatingViewOnly(get)) return { ok: false, reason: "view-only" };
     const {
       groups,
       guests,
@@ -645,6 +656,7 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   moveGuestsToTable: ({ guestIds, tableId }) => {
+    if (seatingViewOnly(get)) return { ok: false, reason: "view-only" };
     const { tables, guests, seatingMode, getPlannedSeatCount } = get();
 
     if (!Array.isArray(guestIds) || !guestIds.length) {
@@ -748,6 +760,7 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   unseatGroup: (groupId) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests, groups } = get();
 
     set({
@@ -776,6 +789,7 @@ export const useSeatingStore = create((set, get) => ({
       body: JSON.stringify({
         tableId: null,
         isSeated: false,
+        ...seatingWriteCredentials(),
       }),
     }).catch((err) => {
       console.error("unseatGroup PATCH failed:", err);
@@ -972,6 +986,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- ADD TABLE ---------------- */
 
   addTable: (type, seats, position) => {
+    if (seatingViewOnly(get)) return null;
     const { tables, canvasView } = get();
 
     const fallbackX =
@@ -1003,7 +1018,8 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ---------------- UPDATE TABLE DISPLAY NAME ---------------- */
 
-  updateTableNumber: (tableId, nextNumber) =>
+  updateTableNumber: (tableId, nextNumber) => {
+    if (seatingViewOnly(get)) return;
     set((state) => {
       const n = Number(nextNumber);
       const targetTableId = String(tableId || "").trim();
@@ -1024,11 +1040,13 @@ export const useSeatingStore = create((set, get) => ({
       });
 
       return { tables };
-    }),
+    });
+  },
 
   /* ---------------- DELETE TABLE ---------------- */
 
-  deleteTable: (tableId) =>
+  deleteTable: (tableId) => {
+    if (seatingViewOnly(get)) return;
     set((state) => {
       const targetTableId = String(tableId || "").trim();
 
@@ -1042,11 +1060,13 @@ export const useSeatingStore = create((set, get) => ({
         highlightedTable: null,
         highlightedSeats: [],
       };
-    }),
+    });
+  },
 
   /* ---------------- DRAG START / END ---------------- */
 
-  startDragGuest: (guest) =>
+  startDragGuest: (guest) => {
+    if (seatingViewOnly(get)) return;
     set({
       draggingGuest: {
         ...guest,
@@ -1055,7 +1075,8 @@ export const useSeatingStore = create((set, get) => ({
       },
       highlightedSeats: [],
       highlightedTable: null,
-    }),
+    });
+  },
 
   endDragGuest: () =>
     set({
@@ -1108,6 +1129,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- DROP SIDEBAR → TABLE ---------------- */
 
   dropGuest: () => {
+    if (seatingViewOnly(get)) return;
     const {
       draggingGuest,
       highlightedTable,
@@ -1217,6 +1239,7 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   assignGuestBlock: ({ guestId, tableId }) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests } = get();
 
     const guest = guests.find(
@@ -1317,6 +1340,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- DROP ישיר על מושב ---------------- */
 
   assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests } = get();
 
     const guest = guests.find(
@@ -1416,6 +1440,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- REMOVE FROM SEAT ---------------- */
 
   removeFromSeat: (guestId) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests } = get();
     const gid = String(guestId);
 
@@ -1456,6 +1481,7 @@ export const useSeatingStore = create((set, get) => ({
     }),
 
   assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests, seatingMode, getPlannedSeatCount } = get();
 
     const targetTableId = String(tableId || "").trim();
@@ -1551,6 +1577,7 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   removeGuestFromTable: (tableId, guestId) => {
+    if (seatingViewOnly(get)) return;
     const { tables, guests } = get();
 
     const gid = String(guestId);

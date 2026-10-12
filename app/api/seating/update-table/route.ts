@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  customerExclusiveLockRequired,
+  guardSeatingEditWrite,
+  readBaseMapVersion,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
+import {
+  canSaveSeating,
+  findInvitationForSeating,
+} from "@/lib/seating/seatingAccess";
 
 type Body = {
   invitationId?: string;
@@ -49,8 +60,52 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
 
-    const { invitationId, tableId, oldTableName, newNumber } =
-      (await req.json()) as Body;
+    const body = (await req.json()) as Body;
+    const { invitationId, tableId, oldTableName, newNumber } = body;
+
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const invitation = invitationId
+      ? await findInvitationForSeating({
+          eventId: "",
+          invitationId,
+        })
+      : null;
+    const eventId = invitation?.eventId ? String(invitation.eventId) : "";
+    const allowed =
+      invitation &&
+      eventId &&
+      (await canSaveSeating({
+        userId: String(auth.userId),
+        eventId,
+        invitationId,
+        invitation,
+        auth,
+      }));
+
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    const exclusiveLock = await customerExclusiveLockRequired(auth, eventId);
+    const gate = await guardSeatingEditWrite({
+      eventId,
+      credentials: readSeatingWriteCredentials(body),
+      exclusiveLock,
+      baseMapVersion: readBaseMapVersion(body),
+    });
+    if (!gate.ok) {
+      return NextResponse.json(gate.body, { status: gate.status });
+    }
 
     // ===== Validation =====
     if (!invitationId || !isValidObjectId(invitationId) || typeof newNumber !== "number") {

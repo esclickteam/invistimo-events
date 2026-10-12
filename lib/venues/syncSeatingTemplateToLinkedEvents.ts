@@ -398,6 +398,7 @@ export async function syncSeatingTemplateToLinkedEvents(input: {
           venueHallId: hallId,
           updatedAt: now,
         },
+        $inc: { mapVersion: 1 },
       }
     );
     seatingDocsUpdated += 1;
@@ -421,6 +422,7 @@ export async function syncSeatingTemplateToLinkedEvents(input: {
             venueHallName: clean(event.venueHallName),
             updatedAt: now,
           },
+          $inc: { mapVersion: 1 },
         }
       );
       seatingDocsUpdated += 1;

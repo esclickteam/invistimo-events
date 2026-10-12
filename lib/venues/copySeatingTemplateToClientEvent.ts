@@ -76,6 +76,7 @@ export async function copySeatingTemplateToClientEvent({
 
         updatedAt: now,
       },
+      $inc: { mapVersion: 1 },
       $setOnInsert: {
         createdAt: now,
       },

@@ -7,6 +7,7 @@ import Invitation from "@/models/Invitation";
 import Group from "@/models/Group";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
+import { markMapVersionBump } from "@/lib/seating/editLock";
 import CallTask from "@/models/CallTask";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -1095,6 +1096,7 @@ async function syncOrCheckActualArrivedToAllSeating({
       ownerDoc.markModified("tables");
     }
 
+    markMapVersionBump(ownerDoc);
     await ownerDoc.save();
 
     const allocatedAfter = countAllocatedSeats(tables, guestId);
@@ -1966,6 +1968,7 @@ if (seatingScopeQuery.length) {
             guestId,
           },
         },
+        $inc: { mapVersion: 1 },
       }
     ),
 
@@ -1977,6 +1980,7 @@ if (seatingScopeQuery.length) {
             guestId,
           },
         },
+        $inc: { mapVersion: 1 },
       }
     ),
   ]);
