@@ -320,16 +320,22 @@ export default function GuestsMobileList({
                   {g.name || "ללא שם"}
                 </div>
 
-                <div className="mt-1 flex items-center gap-2 text-base text-gray-500">
-                  <span dir="ltr">{formatPhone(g.phone) || "ללא טלפון"}</span>
-                  <KosherPhoneBadge active={g.isKosherPhone} />
-                  {onGuestUpdated ? (
-                    <PhoneReviewMark
-                      guest={g}
-                      invitationId={invitationId}
-                      onUpdated={onGuestUpdated}
-                    />
-                  ) : null}
+                <div className="mt-1 min-w-0 text-base text-gray-500">
+                  <div className="max-w-full overflow-x-auto">
+                    <span dir="ltr" className="inline-block whitespace-nowrap">
+                      {formatPhone(g.phone) || "ללא טלפון"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 empty:mt-0">
+                    <KosherPhoneBadge active={g.isKosherPhone} />
+                    {onGuestUpdated ? (
+                      <PhoneReviewMark
+                        guest={g}
+                        invitationId={invitationId}
+                        onUpdated={onGuestUpdated}
+                      />
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="mt-2 text-sm text-[#6B5A4A]">

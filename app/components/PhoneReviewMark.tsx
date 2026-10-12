@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   PHONE_DUPLICATE_MESSAGE,
   PHONE_LENGTH_REVIEW_MESSAGE,
@@ -36,20 +37,23 @@ export default function PhoneReviewMark<T extends ReviewGuest>({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[11px] font-black leading-none text-white"
+        className="pointer-events-auto relative z-20 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[11px] font-black leading-none text-white"
         aria-label="מספר טלפון לבדיקה"
         title="מספר טלפון לבדיקה"
       >
         !
       </button>
-      {open ? (
-        <PhoneReviewDialog
-          guest={guest}
-          invitationId={invitationId || guest.invitationId}
-          onClose={() => setOpen(false)}
-          onUpdated={(next) => onUpdated({ ...guest, ...next } as T)}
-        />
-      ) : null}
+      {open
+        ? createPortal(
+            <PhoneReviewDialog
+              guest={guest}
+              invitationId={invitationId || guest.invitationId}
+              onClose={() => setOpen(false)}
+              onUpdated={(next) => onUpdated({ ...guest, ...next } as T)}
+            />,
+            document.body
+          )
+        : null}
     </>
   );
 }
