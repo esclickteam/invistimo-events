@@ -6,6 +6,7 @@ import {
   collectAuthTokenCandidates,
   readBearerToken,
 } from "@/lib/auth/bearerToken";
+import { recordAdminCustomerMutation } from "@/lib/admin/auditLog";
 
 /* =========================
    Types
@@ -369,34 +370,59 @@ export async function getUserIdFromRequest(
     const producerUserId = getDecodedUserId(producerDecoded);
     const adminUserId = getDecodedUserId(adminDecoded);
 
-    const impersonatedBy =
-      activeDecoded.impersonatedBy ||
-      impersonationDecoded?.impersonatedBy ||
-      staffOriginalUserId ||
-      authUserId ||
-      producerUserId ||
-      adminUserId ||
-      null;
+    /*
+      A stored admin cookie must NOT turn a normal customer (or the admin's
+      own restored session) into an impersonation. That split the account:
+      /api/me stayed the admin while only a few routes followed another id.
+      Impersonation is only the active token that says so.
+    */
+    const activeTokenIsImpersonation = isImpersonationJwt(activeDecoded);
+    const impersonationTokenIsActive =
+      Boolean(impersonationDecoded) &&
+      isImpersonationJwt(impersonationDecoded) &&
+      String(getDecodedUserId(impersonationDecoded) || "") === String(userId);
+    const sessionIsImpersonation =
+      activeTokenIsImpersonation ||
+      impersonationTokenIsActive ||
+      Boolean(staffOriginalUserId);
+
+    const impersonatedBy = sessionIsImpersonation
+      ? activeDecoded.impersonatedBy ||
+        impersonationDecoded?.impersonatedBy ||
+        staffOriginalUserId ||
+        (authUserId && authUserId !== String(userId) ? authUserId : null) ||
+        (adminUserId && String(adminUserId) !== String(userId)
+          ? adminUserId
+          : null) ||
+        producerUserId ||
+        null
+      : null;
 
     const impersonationRole =
       normalizeImpersonationRole(activeDecoded.impersonationRole) ||
       normalizeImpersonationRole(impersonationDecoded?.impersonationRole) ||
-      (isImpersonationJwt(activeDecoded)
+      (activeTokenIsImpersonation
         ? normalizeImpersonationRole(activeDecoded.role)
         : null);
 
     /*
       אל תשנה impersonationRole ל-"admin" בזמן התחזות ללקוח —
       אחרת /api/me וה־UI חושבים שהמשתמש עצמו הוא אדמין.
-      במקום זה מסמנים impersonatedByAdmin כדי לתת לאדמין הרשאות מלאות.
+      impersonatedByAdmin רק מסמן מי ביצע את הפעולה.
     */
-    let impersonatedByAdmin =
-      activeDecoded.impersonatedByAdmin === true ||
-      impersonationDecoded?.impersonatedByAdmin === true ||
-      activeDecoded.impersonationSourceRole === "admin" ||
-      impersonationDecoded?.impersonationSourceRole === "admin";
+    let impersonatedByAdmin = sessionIsImpersonation
+      ? activeDecoded.impersonatedByAdmin === true ||
+        impersonationDecoded?.impersonatedByAdmin === true ||
+        activeDecoded.impersonationSourceRole === "admin" ||
+        impersonationDecoded?.impersonationSourceRole === "admin"
+      : false;
 
-    if (authUserId && authUserId !== String(userId)) {
+    if (
+      sessionIsImpersonation &&
+      !impersonatedByAdmin &&
+      authUserId &&
+      authUserId !== String(userId)
+    ) {
       const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId), {
         allowInactive: true,
       });
@@ -406,7 +432,12 @@ export async function getUserIdFromRequest(
       }
     }
 
-    if (!impersonatedByAdmin && adminUserId) {
+    if (
+      sessionIsImpersonation &&
+      !impersonatedByAdmin &&
+      adminUserId &&
+      String(adminUserId) !== String(userId)
+    ) {
       const freshAdminAuth = await getFreshUserAuthFields(String(adminUserId), {
         allowInactive: true,
       });
@@ -438,18 +469,20 @@ export async function getUserIdFromRequest(
       impersonateUserId &&
       impersonateUserId !== String(userId)
     ) {
-      return {
+      const headerAuth = {
         userId: String(impersonateUserId),
-        role: "user",
+        role: "user" as const,
         staffType: null,
         employeeScope: null,
         impersonated: true,
         impersonatedBy: String(userId),
-        impersonationRole: "admin",
+        impersonationRole: "admin" as const,
         impersonatedByAdmin: true,
         impersonationSourceRole: "admin",
         adminManagingUserId: null,
       };
+      await recordAdminCustomerMutation(req, headerAuth);
+      return headerAuth;
     }
 
     /* ---------------------------------
@@ -462,15 +495,10 @@ export async function getUserIdFromRequest(
           ""
       ).trim() || (impersonatedByAdmin ? "admin" : null);
 
-    const isImpersonated =
-      Boolean(impersonationDecoded) ||
-      Boolean(activeDecoded.impersonated) ||
-      Boolean(activeDecoded.impersonatedBy) ||
-      Boolean(staffOriginalUserId) ||
-      Boolean(adminAuthToken && impersonatedByAdmin);
+    const isImpersonated = sessionIsImpersonation;
 
     if (isImpersonated) {
-      return {
+      const impersonatedAuth = {
         userId: String(userId),
         role,
         staffType,
@@ -480,37 +508,22 @@ export async function getUserIdFromRequest(
         impersonationRole,
         impersonatedByAdmin,
         impersonationSourceRole,
+        /*
+          Do not keep a second "managed user" id.
+          The active userId is already the customer, so every existing
+          customer query stays on the customer's own data.
+        */
         adminManagingUserId: null,
       };
-    }
-
-    /* ---------------------------------
-       5b) Admin manage mode (not impersonation)
-       Cookie scopes dashboard data to a customer while JWT stays admin.
-    ---------------------------------- */
-    let adminManagingUserId: string | null = null;
-    if (role === "admin") {
-      const manageCookie =
-        getCookieFromReq(req, "adminManageUserId") ||
-        (await getCookieFromHeadersStore("adminManageUserId"));
-      const manageHeader = req?.headers?.get("x-admin-manage-user") || null;
-      const candidate = String(manageHeader || manageCookie || "").trim();
-      if (
-        candidate &&
-        candidate !== String(userId) &&
-        /^[a-f\d]{24}$/i.test(candidate)
-      ) {
-        const managed = await getFreshUserAuthFields(candidate, {
-          allowInactive: true,
-        });
-        if (managed) {
-          adminManagingUserId = candidate;
-        }
-      }
+      await recordAdminCustomerMutation(req, impersonatedAuth);
+      return impersonatedAuth;
     }
 
     /* ---------------------------------
        6) Normal auth
+       adminManageUserId is intentionally unused. A cookie that only some
+       routes honored showed a partial account. Entry now switches the
+       session itself to the customer.
     ---------------------------------- */
     return {
       userId: String(userId),
@@ -522,7 +535,7 @@ export async function getUserIdFromRequest(
       impersonationRole: null,
       impersonatedByAdmin: false,
       impersonationSourceRole: null,
-      adminManagingUserId,
+      adminManagingUserId: null,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);

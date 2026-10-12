@@ -2,67 +2,87 @@
 
 import { useEffect, useState } from "react";
 import { ShieldCheck, Users, RefreshCw } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-type ManagedUser = {
-  _id: string;
-  name?: string;
-  email?: string;
-};
+function readManageCookieName() {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(/(?:^|; )adminManageUserName=([^;]*)/);
+  if (!match?.[1]) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 export default function AdminManageBanner() {
-  const [managedUser, setManagedUser] = useState<ManagedUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
+  const [legacyName, setLegacyName] = useState("");
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    setLegacyName(readManageCookieName());
+  }, [user?._id, user?.role]);
 
-    async function load() {
-      try {
-        const res = await fetch("/api/admin/manage-user", {
+  const sourceRole = String(user?.impersonationSourceRole || "");
+  const actingAsCustomer = Boolean(
+    user &&
+      user.role !== "admin" &&
+      (user.impersonatedByAdmin === true || sourceRole === "admin")
+  );
+  const legacyManage =
+    !actingAsCustomer && user?.role === "admin" && Boolean(legacyName);
+
+  if (loading || (!actingAsCustomer && !legacyManage)) return null;
+
+  const displayName = actingAsCustomer
+    ? user?.name || user?.email || "לקוח"
+    : legacyName;
+
+  async function exitToAdmin(path: string) {
+    try {
+      setExiting(true);
+      sessionStorage.removeItem("auth_user");
+
+      const role = String(user?.role || "");
+      const impersonationRole = String(user?.impersonationRole || "");
+      const nestedProducer =
+        (role === "client" || role === "user") &&
+        (impersonationRole === "producer" ||
+          impersonationRole === "producer_staff" ||
+          impersonationRole === "staff_producer");
+
+      if (nestedProducer) {
+        await fetch("/api/producer/stop-impersonation", {
+          method: "POST",
           credentials: "include",
           cache: "no-store",
         });
-        if (res.status === 403) {
-          if (!cancelled) setManagedUser(null);
-          return;
-        }
-        const data = await res.json();
-        if (!cancelled) {
-          setManagedUser(
-            data?.isManaging && data?.managedUser ? data.managedUser : null
-          );
-        }
-      } catch {
-        if (!cancelled) setManagedUser(null);
-      } finally {
-        if (!cancelled) setLoading(false);
+        window.location.href = "/producer/dashboard";
+        return;
       }
-    }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      if (actingAsCustomer) {
+        await fetch("/api/admin/stop-impersonation", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      }
 
-  async function exitManage() {
-    try {
-      setExiting(true);
-      await fetch("/api/admin/manage-user", {
-        method: "DELETE",
-        credentials: "include",
-      });
-      window.location.href = "/admin/users";
+      if (legacyManage) {
+        await fetch("/api/admin/manage-user", {
+          method: "DELETE",
+          credentials: "include",
+        });
+      }
+
+      window.location.href = path;
     } catch {
       alert("שגיאה בחזרה לניהול משתמשים");
       setExiting(false);
     }
   }
-
-  if (loading || !managedUser) return null;
-
-  const displayName = managedUser.name || managedUser.email || "משתמש";
 
   return (
     <div
@@ -85,16 +105,18 @@ export default function AdminManageBanner() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <a
-            href="/admin/users"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-black text-white transition hover:bg-white/20"
+          <button
+            type="button"
+            onClick={() => exitToAdmin("/admin/users")}
+            disabled={exiting}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-black text-white transition hover:bg-white/20 disabled:opacity-60"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             החלפת משתמש
-          </a>
+          </button>
           <button
             type="button"
-            onClick={exitManage}
+            onClick={() => exitToAdmin("/admin/users")}
             disabled={exiting}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#E8C98A] px-4 text-xs font-black text-[#2F2418] transition hover:bg-[#f0d6a8] disabled:opacity-60"
           >

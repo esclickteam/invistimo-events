@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { writeAdminAuditLog } from "@/lib/admin/auditLog";
+import { getAuthCookieDomain } from "@/lib/env/appEnv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,12 +45,20 @@ type DecodedToken = {
 ========================= */
 
 async function getCookieStore() {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
+  try {
+    const store = cookies();
+    return store instanceof Promise ? await store : store;
+  } catch {
+    return {
+      get() {
+        return undefined;
+      },
+    };
+  }
 }
 
 function getCookieDomain() {
-  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+  return getAuthCookieDomain();
 }
 
 function setExpiredCookie(
@@ -124,7 +134,22 @@ function verifyFirstValidToken(
    POST /api/admin/stop-impersonation
 ========================= */
 
-export async function POST() {
+function readRequestCookie(req: Request, name: string) {
+  const header = req.headers.get("cookie") || "";
+  for (const part of header.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(`${name}=`)) continue;
+    const raw = trimmed.slice(name.length + 1);
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return null;
+}
+
+export async function POST(req: Request) {
   try {
     await connectDB();
 
@@ -149,12 +174,14 @@ export async function POST() {
        Read all relevant cookies
     ========================= */
 
-    const authToken = cookieStore.get("authToken")?.value || null;
-    const adminAuthToken = cookieStore.get("adminAuthToken")?.value || null;
-    const adminToken = cookieStore.get("adminToken")?.value || null;
-    const impersonationToken =
-      cookieStore.get("impersonationToken")?.value || null;
-    const legacyToken = cookieStore.get("token")?.value || null;
+    const readCookie = (name: string) =>
+      readRequestCookie(req, name) || cookieStore.get(name)?.value || null;
+
+    const authToken = readCookie("authToken");
+    const adminAuthToken = readCookie("adminAuthToken");
+    const adminToken = readCookie("adminToken");
+    const impersonationToken = readCookie("impersonationToken");
+    const legacyToken = readCookie("token");
 
     const hasAnyToken =
       !!authToken ||
@@ -214,10 +241,21 @@ export async function POST() {
     const legacyImpersonation =
       !!decoded.impersonatedByAdmin && !!decoded.adminId;
 
+    const sourceRole = String(
+      (decoded as { impersonationSourceRole?: string }).impersonationSourceRole ||
+        ""
+    ).toLowerCase();
+
+    /*
+      Customer entry stores impersonationRole as the customer's role
+      (user/client/...), not "admin". Exit must still recognize it.
+    */
     const modernImpersonation =
       decoded.impersonated === true &&
-      String(decoded.impersonationRole || "").toLowerCase() === "admin" &&
-      !!decoded.impersonatedBy;
+      !!decoded.impersonatedBy &&
+      (String(decoded.impersonationRole || "").toLowerCase() === "admin" ||
+        decoded.impersonatedByAdmin === true ||
+        sourceRole === "admin");
 
     const hasStoredAdminToken = !!adminAuthToken || !!adminToken;
 
@@ -328,6 +366,35 @@ export async function POST() {
        Clear impersonation / old cookies
     ========================= */
 
+    const managedUserId = String(
+      (decoded as { userId?: string }).userId ||
+        (decoded as { id?: string }).id ||
+        ""
+    );
+
+    if (
+      (legacyImpersonation || modernImpersonation) &&
+      managedUserId &&
+      managedUserId !== String(admin._id)
+    ) {
+      const managed = await User.findById(managedUserId)
+        .select("name email")
+        .lean();
+
+      await writeAdminAuditLog({
+        adminUserId: String(admin._id),
+        adminName: String(admin.name || ""),
+        adminEmail: String(admin.email || ""),
+        managedUserId,
+        managedUserName: String((managed as { name?: string } | null)?.name || ""),
+        managedUserEmail: String(
+          (managed as { email?: string } | null)?.email || ""
+        ),
+        action: "admin_manage_stop",
+        summary: `אדמין יצא מחשבון ${(managed as { name?: string } | null)?.name || managedUserId}`,
+      });
+    }
+
     const cookiesToClear = [
       "authToken",
       "token",
@@ -343,6 +410,13 @@ export async function POST() {
       "trialExpiresAt",
       "smsUsed",
       "smsLimit",
+      "staffType",
+      "impersonationRole",
+      "originalTargetRole",
+      "impersonationSourceRole",
+      "impersonatedByAdmin",
+      "adminManageUserId",
+      "adminManageUserName",
     ];
 
     for (const name of cookiesToClear) {
@@ -352,7 +426,8 @@ export async function POST() {
         name === "impersonationToken" ||
         name === "adminToken" ||
         name === "adminAuthToken" ||
-        name === "producerAuthToken";
+        name === "producerAuthToken" ||
+        name === "adminManageUserId";
 
       setExpiredCookie(res, name, {
         domain,

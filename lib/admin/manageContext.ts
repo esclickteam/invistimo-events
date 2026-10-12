@@ -28,8 +28,10 @@ export function getAdminManageFromAuth(
 }
 
 /**
- * Owner id for data scoping: managed user when admin is managing, else auth user.
- * Never grants manage context to non-admins.
+ * Owner id for data scoping.
+ * Admin entry into a customer account now switches the session user id itself,
+ * so this stays the authenticated user. The old manage-cookie overlay is not
+ * a second data source.
  */
 export function resolveDataOwnerUserId(
   auth: (AuthPayload & { adminManagingUserId?: string | null }) | null

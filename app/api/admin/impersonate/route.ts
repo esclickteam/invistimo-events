@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { beginAdminCustomerSession } from "@/lib/admin/customerAccountSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,56 +12,13 @@ export const runtime = "nodejs";
    Constants
 ========================= */
 
-const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 ימים
-const SESSION_EXPIRES_IN = "7d";
-
-/* =========================
-   Cookie helpers
-========================= */
-
 async function getCookieStore() {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
-}
-
-function getCookieDomain() {
-  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
-}
-
-function cookieOptions(httpOnly = true) {
-  const domain = getCookieDomain();
-
-  return {
-    path: "/",
-    httpOnly,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    ...(domain ? { domain } : {}),
-    maxAge: SESSION_MAX_AGE,
-  };
-}
-
-function expireCookie(res: NextResponse, name: string, httpOnly = true) {
-  const domain = getCookieDomain();
-
-  const base = {
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-  };
-
-  res.cookies.set(name, "", {
-    ...base,
-    ...(domain ? { domain } : {}),
-    httpOnly,
-  });
-
-  res.cookies.set(name, "", {
-    ...base,
-    httpOnly,
-  });
+  try {
+    const store = cookies();
+    return store instanceof Promise ? await store : store;
+  } catch {
+    return null;
+  }
 }
 
 /* =========================
@@ -101,51 +59,6 @@ function normalizeRole(value: unknown) {
   return cleanStr(value).toLowerCase();
 }
 
-function normalizeStaffType(value: unknown) {
-  return cleanStr(value).toLowerCase();
-}
-
-function resolveTargetEffectiveRole(user: any) {
-  const role = normalizeRole(user?.role);
-  const staffType = normalizeStaffType(user?.staffType);
-
-  if (role === "admin") return "admin";
-  if (role === "producer") return "producer";
-  if (role === "venue_owner") return "venue_owner";
-
-  if (role === "staff" && staffType === "producer_staff") {
-    return "producer_staff";
-  }
-
-  if (role === "staff") {
-    return "staff";
-  }
-
-  return role || "user";
-}
-
-function resolveRedirectUrl(targetEffectiveRole: string) {
-  switch (targetEffectiveRole) {
-    case "admin":
-      return "/admin";
-
-    case "producer":
-      return "/producer/dashboard";
-
-    case "producer_staff":
-      return "/producer-staff/dashboard";
-
-    case "staff":
-      return "/staff/dashboard";
-
-    case "venue_owner":
-      return "/venues/dashboard";
-
-    default:
-      return "/dashboard";
-  }
-}
-
 /* =========================
    POST /api/admin/impersonate
 ========================= */
@@ -171,11 +84,30 @@ export async function POST(req: Request) {
 
     const cookieStore = await getCookieStore();
 
+    const fromRequest = (name: string) => {
+      const header = req.headers.get("cookie") || "";
+      for (const part of header.split(";")) {
+        const trimmed = part.trim();
+        if (!trimmed.startsWith(`${name}=`)) continue;
+        const raw = trimmed.slice(name.length + 1);
+        try {
+          return decodeURIComponent(raw);
+        } catch {
+          return raw;
+        }
+      }
+      return "";
+    };
+
     const adminToken =
-      cookieStore.get("adminAuthToken")?.value ||
-      cookieStore.get("adminToken")?.value ||
-      cookieStore.get("authToken")?.value ||
-      cookieStore.get("token")?.value ||
+      fromRequest("adminAuthToken") ||
+      fromRequest("adminToken") ||
+      fromRequest("authToken") ||
+      fromRequest("token") ||
+      cookieStore?.get("adminAuthToken")?.value ||
+      cookieStore?.get("adminToken")?.value ||
+      cookieStore?.get("authToken")?.value ||
+      cookieStore?.get("token")?.value ||
       null;
 
     if (!adminToken) {
@@ -286,212 +218,15 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =========================
-       Target user
-    ========================= */
-
-    const user: any = await User.findById(userId)
-      .select(
-        "_id role staffType producerId assignedProducerId createdByProducer email name hasPaid isTrial trialExpiresAt authVersion isActive"
-      )
-      .lean();
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "USER_NOT_FOUND",
-        },
-        {
-          status: 404,
-          headers: { "Cache-Control": "no-store" },
-        }
-      );
-    }
-
-    const targetEffectiveRole = resolveTargetEffectiveRole(user);
-    const redirectUrl = resolveRedirectUrl(targetEffectiveRole);
-
-    const role = normalizeRole(user.role) || "user";
-    const staffType = user.staffType ? String(user.staffType) : null;
-
-    const hasPaid = user.hasPaid ?? true;
-    const isTrial = Boolean(user.isTrial);
-
-    /* =========================
-       Impersonation Token
-    ========================= */
-
-    const targetAuthVersion = Number((user as any)?.authVersion ?? 0);
-
-    const impersonationToken = jwt.sign(
-      {
-        userId: String(user._id),
-
-        // התפקיד האמיתי של המשתמש שאליו מתחזים
-        role,
-        staffType,
-
-        producerId: user.producerId ? String(user.producerId) : null,
-        assignedProducerId: user.assignedProducerId
-          ? String(user.assignedProducerId)
-          : null,
-        createdByProducer: user.createdByProducer ?? null,
-
-        hasPaid,
-        isTrial,
-        trialExpiresAt: user.trialExpiresAt
-          ? new Date(user.trialExpiresAt).getTime()
-          : null,
-
-        // Must match User.authVersion for getUserIdFromRequest
-        authVersion: Number.isFinite(targetAuthVersion) ? targetAuthVersion : 0,
-
-        // מצב התחזות
-        impersonated: true,
-        impersonatedBy: adminUserId,
-        impersonatedByAdmin: true,
-        adminId: adminUserId,
-
-        /*
-          חשוב:
-          לא לשים כאן "admin".
-          כאן צריך להיות התפקיד שאליו מתחזים,
-          אחרת /api/me וה־guards עלולים לחשוב שהמשתמש הוא אדמין.
-        */
-        impersonationRole: targetEffectiveRole,
-        originalTargetRole: targetEffectiveRole,
-
-        // מזהה שמקור ההתחזות הוא אדמין
-        impersonationSourceRole: "admin",
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: SESSION_EXPIRES_IN,
-      }
-    );
-
-    const res = NextResponse.json(
-      {
-        success: true,
-
-        role,
-        staffType,
-
-        impersonated: true,
-        impersonatedByAdmin: true,
-        impersonationRole: targetEffectiveRole,
-        originalTargetRole: targetEffectiveRole,
-        impersonationSourceRole: "admin",
-
-        redirectUrl,
-        impersonatedBy: adminUserId,
-      },
-      {
-        headers: { "Cache-Control": "no-store" },
-      }
-    );
-
-    /* =========================
-       Clear previous active state
-    ========================= */
-
-    const cookiesToClear = [
-      "authToken",
-      "token",
-      "impersonationToken",
-
-      // client-readable UX cookies
-      "hasPaid",
-      "isTrial",
-      "trialExpiresAt",
-      "role",
-      "staffType",
-      "impersonationRole",
-      "originalTargetRole",
-      "impersonationSourceRole",
-      "impersonatedByAdmin",
-    ];
-
-    for (const name of cookiesToClear) {
-      const isHttpOnly =
-        name === "authToken" ||
-        name === "token" ||
-        name === "impersonationToken";
-
-      expireCookie(res, name, isHttpOnly);
-    }
-
-    /* =========================
-       Save original admin token
-    ========================= */
-
-    res.cookies.set("adminAuthToken", adminToken, cookieOptions(true));
-    res.cookies.set("adminToken", adminToken, cookieOptions(true));
-
-    /* =========================
-       Set impersonation as active session
-    ========================= */
-
-    res.cookies.set("authToken", impersonationToken, cookieOptions(true));
-    res.cookies.set("token", impersonationToken, cookieOptions(true));
-    res.cookies.set(
-      "impersonationToken",
-      impersonationToken,
-      cookieOptions(true)
-    );
-
-    /* =========================
-       Client-readable UX cookies
-       לא אבטחה — רק תצוגה/ניווט
-    ========================= */
-
-    res.cookies.set("role", role, cookieOptions(false));
-
-    if (staffType) {
-      res.cookies.set("staffType", staffType, cookieOptions(false));
-    } else {
-      expireCookie(res, "staffType", false);
-    }
-
-    res.cookies.set(
-      "impersonationRole",
-      targetEffectiveRole,
-      cookieOptions(false)
-    );
-
-    res.cookies.set(
-      "originalTargetRole",
-      targetEffectiveRole,
-      cookieOptions(false)
-    );
-
-    res.cookies.set(
-      "impersonationSourceRole",
-      "admin",
-      cookieOptions(false)
-    );
-
-    res.cookies.set(
-      "impersonatedByAdmin",
-      "true",
-      cookieOptions(false)
-    );
-
-    res.cookies.set("hasPaid", String(hasPaid), cookieOptions(false));
-    res.cookies.set("isTrial", String(isTrial), cookieOptions(false));
-
-    if (isTrial && user.trialExpiresAt) {
-      res.cookies.set(
-        "trialExpiresAt",
-        String(new Date(user.trialExpiresAt).getTime()),
-        cookieOptions(false)
-      );
-    } else {
-      expireCookie(res, "trialExpiresAt", false);
-    }
-
-    return res;
+    /*
+      אותה כניסה כמו "ניהול משתמש כאדמין":
+      הסשן הפעיל הוא הלקוח עצמו, והאדמין נשמר רק כדי לחזור לניהול.
+    */
+    return beginAdminCustomerSession({
+      adminUserId,
+      adminToken,
+      targetUserId: userId,
+    });
   } catch (err) {
     console.error("❌ Admin impersonation error:", err);
 
