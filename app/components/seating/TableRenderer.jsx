@@ -186,7 +186,6 @@ function TableRenderer({ table, hideSeats = false }) {
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
-  const readOnly = useSeatingStore((s) => s.interactionMode) === "view";
 
   const groups = useGroupStore((s) => s.groups);
 
@@ -754,7 +753,6 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
-    if (readOnly) return;
 
     if (draggingGuest) {
       assignGuestBlock({
@@ -799,7 +797,6 @@ function TableRenderer({ table, hideSeats = false }) {
   /* ====== סיבוב ====== */
   const startRotate = (e) => {
     e.cancelBubble = true;
-    if (readOnly) return;
     if (!tableRef.current) return;
 
     const stage = e.target.getStage();
@@ -850,8 +847,8 @@ function TableRenderer({ table, hideSeats = false }) {
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable={!readOnly && !rotating}
-      onDragEnd={readOnly ? undefined : updatePositionInStore}
+      draggable={!rotating}
+      onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
       onTap={handleClick}

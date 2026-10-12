@@ -4,14 +4,6 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
-import SeatingEditOverlays from "./SeatingEditOverlays";
-import { useSeatingEditGuard } from "./useSeatingEditGuard";
-import {
-  classifySeatingSnapshot,
-  observeSeatingMapVersion,
-  seatingWriteCredentials,
-  trackSeatingSave,
-} from "./seatingEditSession";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
@@ -208,7 +200,6 @@ function SeatingPageInner() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveInFlightRef = useRef(false);
   const autoSaveQueuedRef = useRef(false);
-  const flushSaveRef = useRef<() => Promise<boolean>>(async () => false);
   const liveRefreshInFlightRef = useRef(false);
 
   /* ===============================
@@ -429,7 +420,6 @@ function SeatingPageInner() {
       }
 
       const tData = await tRes.json();
-      observeSeatingMapVersion(Number(tData?.mapVersion || 0));
 
       const currentCanvasView = useSeatingStore.getState().canvasView;
 
@@ -473,17 +463,6 @@ function SeatingPageInner() {
       isLiveSeatingView,
     ]
   );
-
-  const editGuard = useSeatingEditGuard({
-    enabled: !isDemo && !isVenueTemplateMode && initialLoadDone && Boolean(eventId),
-    eventId,
-    invitationId,
-    reloadFromServer: async () => {
-      if (!eventId || !invitationId) return false;
-      return Boolean(await loadSeatingData(eventId, invitationId));
-    },
-    flushPendingSave: () => flushSaveRef.current(),
-  });
 
   /* ===============================
      LOAD INITIAL DATA
@@ -817,72 +796,37 @@ function SeatingPageInner() {
         return false;
       }
 
-      if (!editGuard.allowsSave()) return false;
-
-      const zones = useZoneStore.getState().zones;
-      const seatingState = useSeatingStore.getState();
-      const snapshot = {
-        tables: seatingState.tables,
-        background: seatingState.background,
-        zones,
-        canvasView: seatingState.canvasView,
-      };
-      const saveScope = classifySeatingSnapshot(snapshot);
-      if (saveScope === "none") return true;
-
-      const credentials = seatingWriteCredentials();
-      if (!credentials) {
-        editGuard.reportSaveFailure("אין נעילת עריכה פעילה, ולכן השמירה לא נשלחה.");
-        return false;
-      }
-      const writeCredentials = credentials.collaborative
-        ? { baseMapVersion: credentials.baseMapVersion }
-        : credentials;
-
       try {
-        const response = await trackSeatingSave(
-          fetch(`/api/seating/save/${eventId}`, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              eventId,
-              invitationId,
-              tables: snapshot.tables,
-              guests: seatingState.guests,
-              groups: seatingState.groups,
-              background: snapshot.background,
-              zones,
-              canvasView: snapshot.canvasView,
-              saveScope,
-              ...writeCredentials,
-            }),
-          })
-        );
+        const zones = useZoneStore.getState().zones;
+        const cv = useSeatingStore.getState().canvasView;
 
-        const data = await response.json().catch(() => ({}));
-        const ok = response.ok && data?.success;
+        const res = await fetch(`/api/seating/save/${eventId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventId,
+            invitationId,
+            tables: useSeatingStore.getState().tables,
+            guests: useSeatingStore.getState().guests,
+            groups: useSeatingStore.getState().groups,
+            background: useSeatingStore.getState().background,
+            zones,
+            canvasView: cv,
+          }),
+        });
 
-        if (ok) {
-          editGuard.reportSaveSuccess(Number(data.mapVersion ?? credentials.baseMapVersion));
-        } else {
-          editGuard.reportSaveFailure(
-            data?.message || "השמירה נכשלה. השינויים עדיין לא נשמרו בשרת."
-          );
-        }
+        const data = await res.json().catch(() => ({}));
+        const ok = res.ok && data?.success;
 
         if (showToast) {
-          alert(ok ? "🎉 נשמר בהצלחה" : data?.message || "❌ שגיאה בשמירה");
+          alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
         }
 
         return !!ok;
       } catch (e) {
         console.error("❌ Seating save network error:", e);
-        editGuard.reportSaveFailure(
-          "החיבור נקטע. השינויים לא סומנו כשמורים ולא נשלחו מחדש אוטומטית."
-        );
 
         if (showToast) {
           alert("❌ שגיאת רשת בשמירה");
@@ -891,10 +835,8 @@ function SeatingPageInner() {
         return false;
       }
     },
-    [editGuard.allowsSave, editGuard.reportSaveFailure, editGuard.reportSaveSuccess, eventId, invitationId]
+    [eventId, invitationId]
   );
-
-  flushSaveRef.current = () => saveSeating(false);
 
   /* ===============================
      SAVE VENUE TEMPLATE
@@ -998,8 +940,6 @@ function SeatingPageInner() {
         },
         body: JSON.stringify({
           invitationId,
-          saveScope: "full",
-          ...seatingWriteCredentials(),
         }),
       });
 
@@ -1062,10 +1002,6 @@ function SeatingPageInner() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          saveScope: "full",
-          ...seatingWriteCredentials(),
-        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -1098,7 +1034,6 @@ function SeatingPageInner() {
      AUTO SAVE EVENT SEATING
   =============================== */
   const runAutoSave = useCallback(async () => {
-    if (!editGuard.allowsSave()) return;
     if (autoSaveInFlightRef.current) {
       autoSaveQueuedRef.current = true;
       return;
@@ -1124,7 +1059,7 @@ function SeatingPageInner() {
         }, 1500);
       }
     }
-  }, [editGuard.allowsSave, saveSeating]);
+  }, [saveSeating]);
 
   useEffect(() => {
     if (isVenueTemplateMode) return;
@@ -1134,7 +1069,6 @@ function SeatingPageInner() {
 
     if (!eventId || !invitationId) return;
     if (!didFinishInitialLoadRef.current) return;
-    if (!editGuard.allowsSave()) return;
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -1242,25 +1176,6 @@ function SeatingPageInner() {
         text-[#2a2119]
       "
     >
-      {!isDemo && !isVenueTemplateMode && (
-        <SeatingEditOverlays
-          phase={
-            editGuard.phase === "edit"
-              ? "editing"
-              : editGuard.phase === "view" || editGuard.phase === "closed"
-                ? editGuard.phase
-                : "hidden"
-          }
-          showIdleWarning={editGuard.showIdleWarning}
-          saveError={editGuard.saveError}
-          unsavedNote={editGuard.unsavedNote}
-          viewMessage={editGuard.viewMessage}
-          onTransfer={() => void editGuard.transferEdit()}
-          onResume={() => void editGuard.resumeEditing()}
-          transferBusy={editGuard.transferBusy}
-          resumeBusy={editGuard.resumeBusy}
-        />
-      )}
       {/* HEADER */}
       <header
         className="

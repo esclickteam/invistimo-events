@@ -131,7 +131,6 @@ export async function POST(req: Request) {
       background,
       canvasView,
       eventId: invitation.eventId,
-      mapVersion: Number(seating?.mapVersion || 0),
     });
   } catch (err) {
     console.error("❌ LIVE SEATING SNAPSHOT ERROR:", err);

@@ -310,34 +310,6 @@ const SeatingTableSchema = new Schema(
       type: Date,
       default: null,
     },
-
-    /* גרסת המפה. שמירה חייבת להציג את הגרסה שעליה התבססה. */
-    mapVersion: {
-      type: Number,
-      default: 0,
-    },
-
-    /* fencing token. עולה בכל נעילה חדשה או העברת עריכה. */
-    lockGeneration: {
-      type: Number,
-      default: 0,
-    },
-
-    editLock: {
-      type: new Schema(
-        {
-          lockId: { type: String, required: true },
-          generation: { type: Number, required: true },
-          screenInstanceId: { type: String, required: true },
-          userId: { type: String, required: true },
-          acquiredAt: { type: Date, required: true },
-          lastHeartbeatAt: { type: Date, required: true },
-          lastUserActivityAt: { type: Date, required: true },
-        },
-        { _id: false }
-      ),
-      default: null,
-    },
   },
   {
     timestamps: true,

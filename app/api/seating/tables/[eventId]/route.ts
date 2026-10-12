@@ -356,7 +356,6 @@ export async function GET(req: NextRequest, context: RouteContext) {
       venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
 
       tables: Array.isArray(record?.tables) ? record.tables : [],
-      mapVersion: Number(record?.mapVersion || 0),
       background: record?.background ?? null,
       zones: Array.isArray(record?.zones) ? record.zones : [],
       canvasView: record?.canvasView ?? null,

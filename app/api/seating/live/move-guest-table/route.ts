@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
-import { markMapVersionBump, normalizeMapVersion } from "@/lib/seating/editLock";
 import InvitationGuest from "@/models/InvitationGuest";
 import {
   seatingAssignmentFromGuest,
@@ -592,7 +591,6 @@ async function applyMoveToTablesArray({
   toTableId,
   seatsCount,
   source,
-  attempt = 0,
 }: {
   ownerDoc: any;
   tables: any[];
@@ -601,7 +599,6 @@ async function applyMoveToTablesArray({
   toTableId: string;
   seatsCount: number;
   source: string;
-  attempt?: number;
 }) {
   let selectedTable: any = null;
 
@@ -643,34 +640,13 @@ async function applyMoveToTablesArray({
     }
   }
 
-  const persisted = await persistMovedTables(ownerDoc, tables);
-  if (!persisted) {
-    if (attempt < 2 && ownerDoc?._id) {
-      const fresh = await SeatingTable.findById(ownerDoc._id);
-      if (fresh?.tables) {
-        return applyMoveToTablesArray({
-          ownerDoc: fresh,
-          tables: fresh.tables,
-          guest,
-          guestId,
-          toTableId,
-          seatsCount,
-          source,
-          attempt: attempt + 1,
-        });
-      }
-    }
-    return NextResponse.json(
-      {
-        success: false,
-        code: "STALE_VERSION",
-        message: "המפה עודכנה במקביל. השינוי לא נשמר כדי לא לדרוס שיבוץ אחר.",
-      },
-      { status: 409 }
-    );
+  await updateGuestFields(guest, selectedTable);
+
+  if (typeof ownerDoc.markModified === "function") {
+    ownerDoc.markModified("tables");
   }
 
-  await updateGuestFields(guest, selectedTable);
+  await ownerDoc.save();
 
   const seatStatus = getGuestSeatStatus(guest);
 
@@ -681,32 +657,7 @@ async function applyMoveToTablesArray({
     table: selectedTable || null,
     seatStatus,
     source,
-    mapVersion: normalizeMapVersion((persisted as { mapVersion?: number }).mapVersion),
   });
-}
-
-async function persistMovedTables(ownerDoc: any, tables: any[]) {
-  const baseVersion = normalizeMapVersion(ownerDoc?.mapVersion);
-  const versionMatch =
-    baseVersion === 0
-      ? {
-          $or: [
-            { mapVersion: 0 },
-            { mapVersion: { $exists: false } },
-            { mapVersion: null },
-          ],
-        }
-      : { mapVersion: baseVersion };
-  const plainTables = JSON.parse(JSON.stringify(tables || []));
-  const saved = await SeatingTable.findOneAndUpdate(
-    { $and: [{ _id: ownerDoc._id }, versionMatch] },
-    {
-      $set: { tables: plainTables, updatedAt: new Date() },
-      $inc: { mapVersion: 1 },
-    },
-    { new: true }
-  ).lean();
-  return saved;
 }
 
 async function findSeatingTableDocByScopeOrDirect({
@@ -819,7 +770,6 @@ async function applyMoveToLegacyStandaloneTables({
 
   for (const table of tables) {
     cleanGuestFromTable(table, guestId);
-    markMapVersionBump(table);
     await table.save();
   }
 
@@ -847,7 +797,6 @@ async function applyMoveToLegacyStandaloneTables({
       );
     }
 
-    markMapVersionBump(selectedTable);
     await selectedTable.save();
   }
 
