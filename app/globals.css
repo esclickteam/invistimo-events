@@ -266,6 +266,37 @@ body {
   z-index: 99999 !important;
 }
 
+/* Admin customer-session bar. The variable is 0 when the bar is absent, so a regular customer keeps the same offsets. */
+@media (max-width: 767px) {
+  .admin-banner-mobile-fixed {
+    top: var(--admin-manage-banner-h, 0px) !important;
+    height: calc(100% - var(--admin-manage-banner-h, 0px)) !important;
+  }
+}
+
+@media print {
+  :root {
+    --admin-manage-banner-h: 0px !important;
+  }
+}
+
+/* Only while the admin customer-session bar is mounted. A regular customer never gets this attribute. */
+html[data-admin-manage="1"] .admin-session-scroll-shell {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+html[data-admin-manage="1"] .admin-session-scroll-shell > main {
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 /* Native schedule time inputs: keep original look, hide AM/PM */
 input.schedule-time-24h::-webkit-datetime-edit-ampm-field {
   display: none !important;

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ShieldCheck, Users, RefreshCw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+
+const BANNER_HEIGHT_VAR = "--admin-manage-banner-h";
 
 function readManageCookieName() {
   if (typeof document === "undefined") return "";
@@ -19,6 +21,7 @@ export default function AdminManageBanner() {
   const { user, loading } = useAuth();
   const [legacyName, setLegacyName] = useState("");
   const [exiting, setExiting] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setLegacyName(readManageCookieName());
@@ -32,8 +35,37 @@ export default function AdminManageBanner() {
   );
   const legacyManage =
     !actingAsCustomer && user?.role === "admin" && Boolean(legacyName);
+  const visible = !loading && (actingAsCustomer || legacyManage);
 
-  if (loading || (!actingAsCustomer && !legacyManage)) return null;
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = bannerRef.current;
+    if (!visible || !el) {
+      root.style.removeProperty(BANNER_HEIGHT_VAR);
+      delete root.dataset.adminManage;
+      return;
+    }
+
+    const apply = () => {
+      const height = Math.ceil(el.getBoundingClientRect().height);
+      root.style.setProperty(BANNER_HEIGHT_VAR, `${Math.max(height, 0)}px`);
+    };
+
+    apply();
+    document.documentElement.dataset.adminManage = "1";
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    window.addEventListener("resize", apply);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", apply);
+      root.style.removeProperty(BANNER_HEIGHT_VAR);
+      delete root.dataset.adminManage;
+    };
+  }, [visible, legacyName, user?.name, user?.email]);
+
+  if (!visible) return null;
 
   const displayName = actingAsCustomer
     ? user?.name || user?.email || "לקוח"
@@ -86,8 +118,9 @@ export default function AdminManageBanner() {
 
   return (
     <div
+      ref={bannerRef}
       dir="rtl"
-      className="sticky top-0 z-[80] border-b border-[#D4B48A] bg-gradient-to-l from-[#2F2418] via-[#3D2E1F] to-[#2F2418] text-white shadow-lg"
+      className="fixed inset-x-0 top-0 z-[10050] w-full border-b border-[#D4B48A] bg-gradient-to-l from-[#2F2418] via-[#3D2E1F] to-[#2F2418] text-white shadow-lg print:hidden"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
