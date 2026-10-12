@@ -48,6 +48,14 @@ import {
 } from "@/lib/kosherPhones/match";
 import { warmIvrChoiceFollowUps } from "@/lib/calls/ivrSystemAudio";
 import {
+  countActiveOutboundCalls,
+  ivrMaxParallelCalls,
+  ivrPaceWaitMs,
+  reserveOutboundChannel,
+} from "@/lib/calls/ivrCapacity";
+
+export { ivrMaxParallelCalls };
+import {
   createIvrOutboundCall,
   isIvrDialAllowed,
   normalizePhoneForTelnyx,
@@ -92,16 +100,7 @@ const LIVE_ATTEMPT_STATUSES = new Set([
   "invalid_input",
 ]);
 
-/** In-flight Telnyx calls across every event. A stuck leg must not hold a slot. */
-const IVR_DEFAULT_PARALLEL_CALLS = 8;
-const IVR_PARALLEL_CALL_HARD_CAP = 20;
-
-export function ivrMaxParallelCalls() {
-  const raw = Number(process.env.IVR_MAX_PARALLEL_CALLS || IVR_DEFAULT_PARALLEL_CALLS);
-  if (!Number.isFinite(raw) || raw < 1) return IVR_DEFAULT_PARALLEL_CALLS;
-  return Math.min(IVR_PARALLEL_CALL_HARD_CAP, Math.floor(raw));
-}
-
+/** Round liveness includes queued work. The 500-call account cap does not. */
 function occupiedOutboundFilter() {
   return {
     channel: "outbound_ivr" as const,
@@ -114,10 +113,6 @@ function occupiedOutboundFilter() {
       },
     ],
   };
-}
-
-async function countOccupiedOutboundCalls() {
-  return IvrCallAttempt.countDocuments(occupiedOutboundFilter());
 }
 
 /** Live legs for one invitation round only — never use the global cap here. */
@@ -233,6 +228,7 @@ async function releaseStaleOutboundOccupancy(now: Date) {
 
   const stuckDialIds: Types.ObjectId[] = [];
   const stuckHangupIds: Types.ObjectId[] = [];
+  const requeueIds: Types.ObjectId[] = [];
 
   for (const attempt of candidates) {
     const action = staleOutboundReleaseAction(attempt, now);
@@ -252,7 +248,34 @@ async function releaseStaleOutboundOccupancy(now: Date) {
     const attemptId = attempt._id;
     if (!attemptId) continue;
     if (action === "stuck_hangup") stuckHangupIds.push(attemptId);
+    else if (!callControlId) requeueIds.push(attemptId);
     else stuckDialIds.push(attemptId);
+  }
+
+  if (requeueIds.length) {
+    await IvrCallAttempt.updateMany(
+      {
+        _id: { $in: requeueIds },
+        channel: "outbound_ivr",
+        answered: { $ne: true },
+        rsvpApplied: { $ne: true },
+        $or: [
+          { telnyxCallControlId: { $exists: false } },
+          { telnyxCallControlId: null },
+          { telnyxCallControlId: "" },
+        ],
+      },
+      {
+        $set: {
+          status: "queued",
+          flowStep: "dialing",
+          phase: "RINGING",
+          endedAt: null,
+          error: "",
+          dialLockedAt: null,
+        },
+      }
+    );
   }
 
   if (stuckDialIds.length) {
@@ -1229,7 +1252,7 @@ export async function executeIvrRound(input: {
   }
 
   await releaseStaleOutboundOccupancy(now);
-  const occupied = await countOccupiedOutboundCalls();
+  const occupied = await countActiveOutboundCalls();
   const room = Math.max(0, ivrMaxParallelCalls() - occupied);
   const maxCalls = Math.min(requested, room);
   if (maxCalls < 1) {
@@ -1398,12 +1421,15 @@ export async function executeIvrRound(input: {
     }
 
     if (existing) {
+      const waitingInQueue =
+        String(existing.status) === "queued" &&
+        !cleanStr(existing.telnyxCallControlId);
       const retryable =
         ["failed"].includes(String(existing.status)) &&
         !cleanStr(existing.telnyxCallControlId) &&
         Number(existing.retryCount || 0) < 2 &&
         isIvrDialRetryable(existing.error);
-      if (!retryable) {
+      if (!waitingInQueue && !retryable) {
         results.push({
           guestId,
           phone,
@@ -1472,6 +1498,12 @@ export async function executeIvrRound(input: {
           },
         }
       );
+    } else if (
+      attempt &&
+      String(attempt.status) === "queued" &&
+      !cleanStr(attempt.telnyxCallControlId)
+    ) {
+      // A previous worker reserved this guest and stopped before Telnyx.
     } else {
       const allowed = isIvrDialAllowed(phone);
       attempt = await IvrCallAttempt.create({
@@ -1525,6 +1557,29 @@ export async function executeIvrRound(input: {
     }
 
     try {
+      let slot = await reserveOutboundChannel(() =>
+        claimQueuedAttempt(attempt._id as Types.ObjectId)
+      );
+      if (slot === "paced") {
+        await new Promise((resolve) => setTimeout(resolve, ivrPaceWaitMs()));
+        slot = await reserveOutboundChannel(() =>
+          claimQueuedAttempt(attempt._id as Types.ObjectId)
+        );
+      }
+      if (slot === "full" || slot === "paced") {
+        hitCap = true;
+        break;
+      }
+      if (slot === "lost") {
+        results.push({
+          guestId,
+          phone,
+          status: "already_attempted",
+          attemptId: String(attempt._id),
+        });
+        continue;
+      }
+
       const clientState = {
         source: "invistimo-ivr",
         ivr: true,
@@ -1734,6 +1789,7 @@ export async function fillIvrRoundCapacity(input: {
   userId: string;
   invitationId: string;
   round: number;
+  maxCalls?: number;
 }) {
   const round = Number(input.round);
   if (round !== 1 && round !== 2 && round !== 3) return null;
@@ -1819,7 +1875,31 @@ export async function fillIvrRoundCapacity(input: {
       audioBlockReason: audio.audioBlockReason,
     },
     webhookUrl,
-    maxCalls: ivrMaxParallelCalls(),
+    maxCalls: Math.max(1, Number(input.maxCalls) || 1),
     now,
   });
+}
+
+async function claimQueuedAttempt(attemptId: Types.ObjectId) {
+  const claimed = await IvrCallAttempt.findOneAndUpdate(
+    {
+      _id: attemptId,
+      status: "queued",
+      $or: [
+        { telnyxCallControlId: { $exists: false } },
+        { telnyxCallControlId: null },
+        { telnyxCallControlId: "" },
+      ],
+    },
+    {
+      $set: {
+        status: "initiated",
+        flowStep: "dialing",
+        dialLockedAt: new Date(),
+        error: "",
+      },
+    },
+    { new: true }
+  );
+  return Boolean(claimed);
 }

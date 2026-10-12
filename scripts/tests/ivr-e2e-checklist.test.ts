@@ -155,12 +155,15 @@ test("11) attending count is not capped by the invited size", () => {
   assert.match(webhook, /claimChoiceDigit/);
   assert.match(webhook, /CHOICE_FLOW_STEPS/);
   assert.match(webhook, /hangup_after_thanks/);
-  assert.match(webhook, /fillIvrRoundCapacity/);
+  assert.match(webhook, /fillOneSharedOutboundSlot/);
   assert.match(webhook, /terminatingDigit: "#"/);
   assert.equal(webhook.includes("getGuestMaxAttendingCount"), false);
 
   const dialer = readSrc("lib/calls/ivrDialer.ts");
-  assert.match(dialer, /IVR_MAX_PARALLEL_CALLS/);
+  const capacity = readSrc("lib/calls/ivrCapacity.ts");
+  assert.match(capacity, /IVR_MAX_PARALLEL_CALLS/);
+  assert.match(capacity, /IVR_ACCOUNT_PARALLEL_LIMIT = 500/);
+  assert.match(dialer, /reserveOutboundChannel/);
   assert.match(dialer, /fillIvrRoundCapacity/);
   assert.match(dialer, /20 \* 1000/);
 });

@@ -9,7 +9,6 @@
  */
 
 import IvrCallAttempt from "@/models/IvrCallAttempt";
-import { fillIvrRoundCapacity } from "@/lib/calls/ivrDialer";
 import { parseDtmfGuestCount } from "@/lib/calls/ivrApplyRsvp";
 import {
   applyRsvpOnce,
@@ -1051,23 +1050,16 @@ export async function handleIvrTelnyxWebhook(body: any) {
         attempt.invitationId &&
         [1, 2, 3].includes(Number(attempt.round))
       ) {
-        await fillIvrRoundCapacity({
+        const { fillOneSharedOutboundSlot } = await import(
+          "@/lib/calls/ivrOutboundQueue"
+        );
+        await fillOneSharedOutboundSlot({
           userId: String(attempt.userId),
           invitationId: String(attempt.invitationId),
           round: Number(attempt.round),
         }).catch((error) => {
           console.error("IVR_FILL_AFTER_HANGUP", error);
         });
-        if (cleanStr(attempt.origin) === "kosher_message_round") {
-          const { continueKosherMessageDials } = await import(
-            "@/lib/kosherPhones/dispatch"
-          );
-          await continueKosherMessageDials({
-            maxCalls: 1,
-          }).catch((error) => {
-            console.error("KOSHER_FILL_AFTER_HANGUP", error);
-          });
-        }
       }
       break;
     }

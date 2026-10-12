@@ -5,7 +5,13 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import User from "@/models/User";
 import CallTask from "@/models/CallTask";
 import { getAppBaseUrl } from "@/lib/calls/ivrAudioStorage";
-import { ivrMaxParallelCalls } from "@/lib/calls/ivrDialer";
+import {
+  countActiveOutboundByUser,
+  ivrInlineDialBurst,
+  ivrPaceWaitMs,
+  orderQueueFairly,
+  reserveOutboundChannel,
+} from "@/lib/calls/ivrCapacity";
 import {
   isDialableE164,
 } from "@/lib/calls/ivrDialFailure";
@@ -96,27 +102,33 @@ async function coveredByOtherCallService(input: {
 }
 
 async function placeQueuedKosherCall(attempt: any, url: string) {
-  const claimed = await IvrCallAttempt.findOneAndUpdate(
-    {
-      _id: attempt._id,
-      status: "queued",
-      $or: [
-        { telnyxCallControlId: { $exists: false } },
-        { telnyxCallControlId: null },
-        { telnyxCallControlId: "" },
-      ],
-    },
-    {
-      $set: {
-        status: "initiated",
-        flowStep: "dialing",
-        dialLockedAt: new Date(),
-        error: "",
+  let claimed: any = null;
+  const slot = await reserveOutboundChannel(async () => {
+    claimed = await IvrCallAttempt.findOneAndUpdate(
+      {
+        _id: attempt._id,
+        status: "queued",
+        $or: [
+          { telnyxCallControlId: { $exists: false } },
+          { telnyxCallControlId: null },
+          { telnyxCallControlId: "" },
+        ],
       },
-    },
-    { new: true }
-  );
-  if (!claimed) return "skipped" as const;
+      {
+        $set: {
+          status: "initiated",
+          flowStep: "dialing",
+          dialLockedAt: new Date(),
+          error: "",
+        },
+      },
+      { new: true }
+    );
+    return Boolean(claimed);
+  });
+  if (slot === "full") return "full" as const;
+  if (slot === "paced") return "paced" as const;
+  if (slot !== "reserved" || !claimed) return "skipped" as const;
 
   const phone = clean(claimed.phone);
   if (!isIvrDialAllowed(phone)) {
@@ -341,14 +353,19 @@ export async function dispatchKosherMessageRound(input: {
     if (status === "queued") queuedIds.push(created._id);
   }
 
-  const room = Math.max(1, ivrMaxParallelCalls());
+  const room = ivrInlineDialBurst();
   let dialed = 0;
   const batch = queuedIds.slice(0, room);
   if (url && narration.ready) {
     for (const id of batch) {
       const attempt = await IvrCallAttempt.findById(id).lean();
       if (!attempt) continue;
-      const result = await placeQueuedKosherCall(attempt, url);
+      let result = await placeQueuedKosherCall(attempt, url);
+      if (result === "paced") {
+        await new Promise((resolve) => setTimeout(resolve, ivrPaceWaitMs()));
+        result = await placeQueuedKosherCall(attempt, url);
+      }
+      if (result === "full" || result === "paced") break;
       if (result === "dialed") dialed += 1;
       if (result === "failed") failed += 1;
     }
@@ -369,19 +386,30 @@ export async function continueKosherMessageDials(input?: { maxCalls?: number }) 
   const url = webhookUrl();
   if (!url) return { dialed: 0, failed: 0 };
 
-  const maxCalls = Math.max(1, Number(input?.maxCalls) || ivrMaxParallelCalls());
+  const requested = Number(input?.maxCalls);
+  const maxCalls =
+    Number.isFinite(requested) && requested >= 0
+      ? Math.floor(requested)
+      : ivrInlineDialBurst();
+  if (maxCalls < 1) return { dialed: 0, failed: 0 };
   const waiting = await IvrCallAttempt.find({
     origin: KOSHER_MESSAGE_ROUND_ORIGIN,
     status: "queued",
   })
     .sort({ createdAt: 1 })
-    .limit(maxCalls * 3)
+    .limit(Math.max(maxCalls * 4, maxCalls))
     .lean();
+  const activeByUser = await countActiveOutboundByUser();
+  const ordered = orderQueueFairly(
+    waiting,
+    (attempt) => String(attempt.userId || ""),
+    activeByUser
+  );
 
   let dialed = 0;
   let failed = 0;
 
-  for (const attempt of waiting) {
+  for (const attempt of ordered) {
     if (dialed >= maxCalls) break;
     const schedule = attempt.scheduleId
       ? await ScheduledMessage.findById(attempt.scheduleId)
@@ -427,7 +455,12 @@ export async function continueKosherMessageDials(input?: { maxCalls?: number }) 
       continue;
     }
 
-    const result = await placeQueuedKosherCall(attempt, url);
+    let result = await placeQueuedKosherCall(attempt, url);
+    if (result === "paced") {
+      await new Promise((resolve) => setTimeout(resolve, ivrPaceWaitMs()));
+      result = await placeQueuedKosherCall(attempt, url);
+    }
+    if (result === "full" || result === "paced") break;
     if (result === "dialed") dialed += 1;
     if (result === "failed") failed += 1;
   }
