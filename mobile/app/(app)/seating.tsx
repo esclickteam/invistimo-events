@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import {
   Alert,
   Dimensions,
@@ -30,6 +31,12 @@ import { colors } from "@/src/theme";
 type CanvasView = { x: number; y: number; scale: number };
 type GuestGroup = { _id: string; name: string };
 
+const screenInstanceId = `mobile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const CLOSED_MESSAGE =
+  "העריכה נסגרה אוטומטית כדי להגן על סידורי ההושבה שלך. כדי להמשיך, יש לטעון מחדש את מפת ההושבה המעודכנת.";
+const IDLE_WARNING_MS = 4 * 60 * 1000;
+const IDLE_CLOSE_MS = 5 * 60 * 1000;
+
 const TABLE_TYPES = [
   { id: "banquet", name: "אבירים", subtitle: "שולחן מלבני ארוך" },
   { id: "square", name: "מרובע", subtitle: "שולחן סטנדרטי" },
@@ -45,6 +52,20 @@ export default function SeatingScreen() {
   const [groups, setGroups] = useState<GuestGroup[]>([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("שמירה אוטומטית פעילה");
+  const [editMode, setEditMode] = useState<"loading" | "edit" | "view" | "closed">("loading");
+  const lockRef = useRef<{
+    editLockId: string;
+    lockGeneration: number;
+    baseMapVersion: number;
+  } | null>(null);
+  const editModeRef = useRef<"loading" | "edit" | "view" | "closed">("loading");
+  const lastActivityRef = useRef(Date.now());
+  const lastActivitySentRef = useRef(0);
+  const persistInFlight = useRef<Promise<boolean> | null>(null);
+  const closingRef = useRef(false);
+  const noteActivityRef = useRef<() => void>(() => undefined);
+  const [idleWarning, setIdleWarning] = useState(false);
+  editModeRef.current = editMode;
   const [actionsOpen, setActionsOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -76,30 +97,152 @@ export default function SeatingScreen() {
   }, [guests, seatedIds]);
 
   const load = useCallback(async () => {
-    if (!eventId) return;
+    if (!eventId) return false;
     setError("");
     const result = await api<{
       success?: boolean;
       tables?: Record<string, unknown>[];
       background?: { url?: string } | string | null;
       canvasView?: CanvasView;
+      mapVersion?: number;
       error?: string;
       message?: string;
     }>(`/api/seating/tables/${eventId}${invitationId ? `?invitationId=${invitationId}` : ""}`);
     if (!result.ok) {
       setError(messageFromApi(result.data, "אין הרשאה להושבה או שאין סידור שמור"));
-      return;
+      return false;
     }
     setTables((result.data.tables || []).map((table, index) => parseSeatingTable(table, index)));
     const bg = result.data.background;
     setBackground(typeof bg === "string" ? bg : bg?.url || null);
     if (result.data.canvasView) view.current = result.data.canvasView;
+    if (lockRef.current && Number.isFinite(Number(result.data.mapVersion))) {
+      lockRef.current = {
+        ...lockRef.current,
+        baseMapVersion: Number(result.data.mapVersion || 0),
+      };
+    }
     setTick((n) => n + 1);
+    return true;
   }, [eventId, invitationId]);
+
+  const syncLock = useCallback(async (action: "acquire" | "heartbeat" | "revalidate" | "activity" | "release") => {
+    if (!eventId) return null;
+    const current = lockRef.current;
+    const result = await api<{
+      mode?: "edit" | "view" | "closed" | "stale";
+      lockId?: string;
+      generation?: number;
+      mapVersion?: number;
+      warning?: boolean;
+      message?: string;
+    }>(`/api/seating/edit-lock/${eventId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        action,
+        invitationId,
+        screenInstanceId,
+        editLockId: current?.editLockId,
+        lockGeneration: current?.lockGeneration,
+        baseMapVersion: current?.baseMapVersion,
+        recordActivity: action === "acquire" || action === "activity",
+      }),
+    });
+    const data = result.data;
+    if (data.mode === "edit" && data.lockId) {
+      lockRef.current = {
+        editLockId: String(data.lockId),
+        lockGeneration: Number(data.generation),
+        baseMapVersion: Number(data.mapVersion ?? current?.baseMapVersion ?? 0),
+      };
+      if (action === "acquire" || action === "activity") {
+        closingRef.current = false;
+        lastActivityRef.current = Date.now();
+      }
+      setEditMode("edit");
+      setIdleWarning(Boolean(data.warning));
+      return data;
+    }
+    if (data.mode === "stale" && current) {
+      lockRef.current = {
+        ...current,
+        baseMapVersion: Number(data.mapVersion || current.baseMapVersion),
+      };
+      const loaded = await load();
+      if (!loaded) {
+        setError("המפה השתנתה, ולא הצלחנו לטעון אותה. השינויים לא נשלחו מחדש.");
+        return data;
+      }
+      if (lockRef.current && Number.isFinite(Number(data.mapVersion))) {
+        lockRef.current = {
+          ...lockRef.current,
+          baseMapVersion: Number(data.mapVersion),
+        };
+      }
+      setEditMode("edit");
+      setError("המפה עודכנה. נטענה הגרסה מהשרת, בלי לשלוח מחדש נתונים ישנים.");
+      return data;
+    }
+    lockRef.current = null;
+    setIdleWarning(false);
+    setEditMode(data.mode === "closed" || action === "release" ? "closed" : "view");
+    if (data.mode === "closed") setError("");
+    else if (data.message) setError(data.message);
+    return data;
+  }, [eventId, invitationId, load]);
+
+  const noteActivity = useCallback(() => {
+    if (editModeRef.current !== "edit") return;
+    lastActivityRef.current = Date.now();
+    setIdleWarning(false);
+    const now = Date.now();
+    if (now - lastActivitySentRef.current < 10_000) return;
+    lastActivitySentRef.current = now;
+    void syncLock("activity");
+  }, [syncLock]);
+  noteActivityRef.current = noteActivity;
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    void syncLock("acquire");
+    const timer = setInterval(() => {
+      if (AppState.currentState !== "active") return;
+      if (lockRef.current && editModeRef.current === "edit") void syncLock("heartbeat");
+    }, 20000);
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void syncLock(lockRef.current ? "revalidate" : "acquire");
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [eventId, syncLock]);
+
+  useEffect(() => {
+    if (editMode !== "edit") return;
+    const timer = setInterval(() => {
+      const idleMs = Date.now() - lastActivityRef.current;
+      setIdleWarning(idleMs >= IDLE_WARNING_MS && idleMs < IDLE_CLOSE_MS);
+      if (idleMs >= IDLE_CLOSE_MS && !closingRef.current) {
+        closingRef.current = true;
+        void (async () => {
+          try {
+            if (persistInFlight.current) await persistInFlight.current.catch(() => false);
+            await syncLock("release");
+          } finally {
+            lockRef.current = null;
+            setEditMode("closed");
+            setIdleWarning(false);
+          }
+        })();
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [editMode, syncLock]);
 
   useEffect(() => {
     if (!invitationId) return;
@@ -110,31 +253,60 @@ export default function SeatingScreen() {
 
   async function persist(nextTables: SeatingTable[], toast = false) {
     if (!eventId || !invitationId) return false;
-    setStatus("שומר אוטומטית...");
-    const result = await api(`/api/seating/save/${eventId}`, {
-      method: "POST",
-      body: JSON.stringify({
-        eventId,
-        invitationId,
-        tables: nextTables,
-        guests,
-        groups,
-        background,
-        canvasView: view.current,
-      }),
-    });
-    if (!result.ok) {
-      setError(messageFromApi(result.data, "שגיאה בשמירה"));
-      setStatus("שמירה אוטומטית פעילה");
+    if (editModeRef.current !== "edit" || !lockRef.current) {
+      setError("העריכה לא פעילה במסך הזה, ולכן השמירה לא נשלחה.");
       return false;
     }
-    const now = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-    setStatus(`נשמר ב־${now}`);
-    if (toast) Alert.alert("נשמר", "🎉 נשמר בהצלחה");
-    return true;
+    const credentials = lockRef.current;
+    const flight = (async () => {
+      setStatus("שומר אוטומטית...");
+      const result = await api<{ mapVersion?: number; message?: string }>(`/api/seating/save/${eventId}`, {
+        method: "POST",
+        body: JSON.stringify({
+          eventId,
+          invitationId,
+          tables: nextTables,
+          guests,
+          groups,
+          background,
+          canvasView: view.current,
+          saveScope: "full",
+          editLockId: credentials.editLockId,
+          lockGeneration: credentials.lockGeneration,
+          screenInstanceId,
+          baseMapVersion: credentials.baseMapVersion,
+        }),
+      });
+      if (!result.ok) {
+        setError(messageFromApi(result.data, "שגיאה בשמירה"));
+        setStatus("שמירה אוטומטית פעילה");
+        return false;
+      }
+      if (lockRef.current && Number.isFinite(Number(result.data.mapVersion))) {
+        lockRef.current = {
+          ...lockRef.current,
+          baseMapVersion: Number(result.data.mapVersion),
+        };
+      }
+      const now = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+      setStatus(`נשמר ב־${now}`);
+      if (toast) Alert.alert("נשמר", "🎉 נשמר בהצלחה");
+      return true;
+    })();
+    persistInFlight.current = flight;
+    try {
+      return await flight;
+    } finally {
+      if (persistInFlight.current === flight) persistInFlight.current = null;
+    }
   }
 
   async function assignGuest(guestId: string, toTableId: string) {
+    if (editModeRef.current !== "edit") {
+      setError("המסך הזה פתוח לצפייה בלבד.");
+      return;
+    }
+    noteActivity();
     setError("");
     const result = await api("/api/seating/live/move-guest-table", {
       method: "PATCH",
@@ -149,6 +321,11 @@ export default function SeatingScreen() {
   }
 
   function addTable() {
+    if (editModeRef.current !== "edit") {
+      setError("המסך הזה פתוח לצפייה בלבד.");
+      return;
+    }
+    noteActivity();
     const seats = Math.max(1, Number(seatsInput || 12));
     const next: SeatingTable = {
       id: `table-${Date.now()}`,
@@ -169,6 +346,11 @@ export default function SeatingScreen() {
   }
 
   async function smartSeat() {
+    if (editModeRef.current !== "edit" || !lockRef.current) {
+      setError("המסך הזה פתוח לצפייה בלבד.");
+      return;
+    }
+    noteActivity();
     Alert.alert(
       "הושבה חכמה",
       "המערכת תושיב מחדש רק את האורחים שאישרו הגעה, לפי קבוצות ומקומות פנויים בשולחנות.\n\nשימי לב: פעולה זו עשויה להחליף את ההושבה הקיימת.\nלאחר מכן עדיין אפשר להסיר אורחים משולחנות ולשנות הכל ידנית.\n\nלהמשיך?",
@@ -179,7 +361,14 @@ export default function SeatingScreen() {
           onPress: async () => {
             const result = await api(`/api/seating/smart-seat-by-groups/${eventId}`, {
               method: "POST",
-              body: JSON.stringify({ invitationId }),
+              body: JSON.stringify({
+                invitationId,
+                saveScope: "full",
+                editLockId: lockRef.current?.editLockId,
+                lockGeneration: lockRef.current?.lockGeneration,
+                screenInstanceId,
+                baseMapVersion: lockRef.current?.baseMapVersion,
+              }),
             });
             if (!result.ok) {
               Alert.alert("שגיאה", messageFromApi(result.data, "שגיאה בהושבה חכמה"));
@@ -202,6 +391,7 @@ export default function SeatingScreen() {
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2,
       onPanResponderGrant: () => {
+        noteActivityRef.current();
         panStart.current = { ...view.current };
       },
       onPanResponderMove: (e, g) => {
@@ -301,7 +491,91 @@ export default function SeatingScreen() {
         </View>
       ) : null}
 
+      {idleWarning && editMode === "edit" ? (
+        <Text style={styles.error}>העריכה תיסגר בעוד דקה בגלל חוסר פעילות.</Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {editMode === "closed" ? (
+        <View style={styles.saveHint}>
+          <Text style={styles.saveHintText}>{CLOSED_MESSAGE}</Text>
+          <Pressable
+            onPress={() => {
+              setError("");
+              setTables([]);
+              void (async () => {
+                const loaded = await load();
+                if (!loaded) {
+                  setEditMode("closed");
+                  setError("לא הצלחנו לטעון את המפה מהשרת. נסו שוב.");
+                  return;
+                }
+                await syncLock("acquire");
+              })();
+            }}
+            style={styles.actionsBtn}
+          >
+            <Text style={styles.actionsBtnText}>חזרה לעריכת ההושבה</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {editMode === "view" ? (
+        <Pressable
+          onPress={() => {
+            Alert.alert(
+              "העברת עריכה",
+              "העברת העריכה תסגור את העריכה במסך האחר ותטען לכאן את המפה העדכנית מהשרת. להמשיך?",
+              [
+                { text: "ביטול", style: "cancel" },
+                {
+                  text: "העבר את העריכה לכאן",
+                  onPress: () => {
+                    void (async () => {
+                      const result = await api<{
+                        mode?: string;
+                        message?: string;
+                        lockId?: string;
+                        generation?: number;
+                        mapVersion?: number;
+                      }>(`/api/seating/edit-lock/${eventId}`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                          action: "transfer",
+                          invitationId,
+                          screenInstanceId,
+                          confirmed: true,
+                        }),
+                      });
+                      const data = result.data;
+                      if (data.mode !== "edit" || !data.lockId) {
+                        setError(data.message || "העריכה עדיין פתוחה במסך אחר.");
+                        return;
+                      }
+                      lockRef.current = {
+                        editLockId: String(data.lockId),
+                        lockGeneration: Number(data.generation),
+                        baseMapVersion: Number(data.mapVersion || 0),
+                      };
+                      setTables([]);
+                      const loaded = await load();
+                      if (!loaded) {
+                        setError("העריכה הועברה, אבל לא הצלחנו לטעון את המפה. נסו שוב בלי לשמור.");
+                        return;
+                      }
+                      closingRef.current = false;
+                      lastActivityRef.current = Date.now();
+                      setEditMode("edit");
+                      setError("");
+                    })();
+                  },
+                },
+              ]
+            );
+          }}
+          style={styles.actionsBtn}
+        >
+          <Text style={styles.actionsBtnText}>העבר את העריכה לכאן</Text>
+        </Pressable>
+      ) : null}
 
       <View
         style={styles.canvas}

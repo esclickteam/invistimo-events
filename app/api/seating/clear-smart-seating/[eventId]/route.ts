@@ -6,6 +6,11 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
 import { requireSeating } from "@/lib/guards/requireSeating";
+import { diffSeatingTables } from "@/lib/seating/editLock";
+import {
+  commitGuardedSeatingUpdate,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,6 +26,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const guard = await requireSeating();
     if (!guard.ok) return guard.response!;
 
+    const body = await req.json().catch(() => ({}));
     const { eventId } = await context.params;
 
     if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
@@ -61,15 +67,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
       seatedGuests: [],
     }));
 
-    const tablesResult = await SeatingTable.updateOne(
-      { eventId },
-      {
-        $set: {
-          tables: updatedTables,
-          updatedAt: new Date(),
-        },
-      }
-    );
+    const guardedWrite = await commitGuardedSeatingUpdate({
+      eventId,
+      userId: String(guard.userId || ""),
+      credentials: readSeatingWriteCredentials(body),
+      set: { tables: updatedTables },
+      changes: diffSeatingTables(rawTables, updatedTables),
+    });
+
+    if (!guardedWrite.ok) {
+      return NextResponse.json(guardedWrite.body, { status: guardedWrite.status });
+    }
+
+    const tablesResult = { modifiedCount: 1 };
 
     const guestsResult = await InvitationGuest.updateMany(
       {

@@ -16,6 +16,11 @@ import { useRouter } from "next/navigation";
 /* 🧠 Zustand – מקור אמת */
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
+import {
+  ensureScreenInstanceId,
+  setSeatingEditSession,
+  storeLock,
+} from "@/app/dashboard/seating/seatingEditSession";
 
 type Props = {
   invitationId: string;
@@ -26,6 +31,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [hasImported, setHasImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
+  const [mapVersion, setMapVersion] = useState(0);
   const searchParams = useSearchParams();
 const focusGuestId = searchParams.get("focusGuestId");
 const router = useRouter();
@@ -45,41 +51,12 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
   const setZones = useZoneStore((s) => s.setZones);
 
-  const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
-
   /* ===============================
      ✅ LIVE MODE
   =============================== */
   useEffect(() => {
   setLiveMode(true);
 }, [setLiveMode]);
-
-  /* ===============================
-     ✅ LOAD FROM LOCAL STORAGE
-  =============================== */
-  useEffect(() => {
-    if (!cacheKey) return;
-
-    const cached = localStorage.getItem(cacheKey);
-    if (!cached) return;
-
-    try {
-      const data = JSON.parse(cached);
-
-      importSnapshot({
-        tables: data.tables ?? [],
-        guests: data.guests ?? [],
-        canvasView: data.canvasView ?? null,
-        background: data.background ?? null,
-      });
-
-      setZones(data.zones ?? []);
-      setEventId(data.eventId ?? null);
-      setHasImported(true);
-    } catch (e) {
-      console.warn("⚠️ Failed to load live seating cache", e);
-    }
-  }, [cacheKey, importSnapshot, setZones]);
 
   /* ===============================
      📥 IMPORT – פעם אחת בלבד
@@ -112,28 +89,15 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
       setZones(json.zones ?? []);
       setEventId(json.eventId ?? null);
+      setMapVersion(Number(json.mapVersion || 0));
       setHasImported(true);
-
-      if (cacheKey) {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            eventId: json.eventId ?? null,
-            tables: json.tables ?? [],
-            guests: json.guests ?? [],
-            zones: json.zones ?? [],
-            canvasView: json.canvasView ?? null,
-            background: json.background ?? null,
-          })
-        );
-      }
     } catch (e) {
       console.error("❌ Import error", e);
       setError("לא נמצאה מפת הושבה");
     } finally {
       setLoading(false);
     }
-  }, [invitationId, importSnapshot, setZones, cacheKey]);
+  }, [invitationId, importSnapshot, setZones]);
 
   /* ===============================
      ✅ AUTO IMPORT – רק אם ריק
@@ -189,9 +153,39 @@ useEffect(() => {
  async function saveSeating() {
   if (!eventId || loading) return;
 
-  setLoading(true); // ✅ הוספה
+  setLoading(true);
 
   try {
+    const screenInstanceId = await ensureScreenInstanceId();
+    const lockResponse = await fetch(`/api/seating/edit-lock/${eventId}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "acquire",
+        screenInstanceId,
+        invitationId,
+        recordActivity: true,
+        baseMapVersion: mapVersion,
+      }),
+    });
+    const lockData = await lockResponse.json().catch(() => ({}));
+    if (lockData.mode !== "edit" || !lockData.lockId) {
+      alert(lockData.message || "העריכה פתוחה במסך אחר. השמירה לא נשלחה.");
+      return;
+    }
+
+    const session = {
+      eventId,
+      screenInstanceId,
+      editLockId: String(lockData.lockId),
+      lockGeneration: Number(lockData.generation),
+      baseMapVersion: Number(lockData.mapVersion ?? mapVersion),
+      mode: "edit" as const,
+    };
+    setSeatingEditSession(session);
+    storeLock(session);
+
     const tables = useSeatingStore.getState().tables;
     const guests = useSeatingStore.getState().guests;
     const background = useSeatingStore.getState().background;
@@ -200,6 +194,7 @@ useEffect(() => {
 
     const res = await fetch(`/api/seating/save/${eventId}`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tables,
@@ -207,27 +202,35 @@ useEffect(() => {
         background,
         zones,
         canvasView,
+        invitationId,
+        saveScope: "full",
+        editLockId: session.editLockId,
+        lockGeneration: session.lockGeneration,
+        screenInstanceId,
+        baseMapVersion: session.baseMapVersion,
       }),
     });
 
     const data = await res.json();
-    alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
-
-    if (cacheKey) {
-      localStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          eventId,
-          tables,
-          guests,
-          zones,
-          canvasView,
-          background,
-        })
-      );
+    if (data.success && Number.isFinite(Number(data.mapVersion))) {
+      setMapVersion(Number(data.mapVersion));
     }
+    alert(data.success ? "🎉 הושבה נשמרה" : data.message || "❌ שגיאה בשמירה");
+    await fetch(`/api/seating/edit-lock/${eventId}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "release",
+        screenInstanceId,
+        invitationId,
+        editLockId: session.editLockId,
+        lockGeneration: session.lockGeneration,
+        baseMapVersion: Number(data.mapVersion ?? session.baseMapVersion),
+      }),
+    }).catch(() => undefined);
   } finally {
-    setLoading(false); // ✅ הוספה
+    setLoading(false);
   }
 }
 

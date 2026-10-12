@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
+import { seatingWriteCredentials } from "./seatingEditSession";
 import { useSeatingStats } from "../../hooks/useSeatingStats";
 import { useGroupStore } from "@/store/groupStore";
 
@@ -246,6 +247,7 @@ export default function SeatingSidebar({
           guestId,
           invitationId,
           tableId,
+          ...seatingWriteCredentials(),
         }),
       });
 
@@ -266,6 +268,7 @@ export default function SeatingSidebar({
         body: JSON.stringify({
           guestId,
           invitationId,
+          ...seatingWriteCredentials(),
         }),
       });
 

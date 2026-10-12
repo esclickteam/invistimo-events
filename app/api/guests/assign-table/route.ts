@@ -4,6 +4,11 @@ import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
 import Invitation from "@/models/Invitation";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  guardSeatingEditWrite,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
 import {
   seatingAssignmentFromGuest,
   seatingAssignmentsEqual,
@@ -225,6 +230,23 @@ export async function POST(req: Request) {
     const updateQuery: Record<string, unknown> = { $set: updateSet };
     if (Object.keys(updateUnset).length > 0) {
       updateQuery.$unset = updateUnset;
+    }
+
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const seatingEventId = seatingDoc?.eventId ? String(seatingDoc.eventId) : "";
+    const gate = await guardSeatingEditWrite({
+      eventId: seatingEventId,
+      credentials: readSeatingWriteCredentials(body),
+    });
+    if (!gate.ok) {
+      return NextResponse.json(gate.body, { status: gate.status });
     }
 
     const result = await InvitationGuest.updateOne(

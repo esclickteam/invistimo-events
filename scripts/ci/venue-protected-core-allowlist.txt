@@ -14,3 +14,25 @@ app/api/invitations/[id]/guests/route.ts
 app/api/invitations/[id]/route.ts
 app/api/invitations/route.ts
 app/api/invitations/update-location/route.ts
+
+# Approved 2026-10-12: seating edit lock. Venue template sync and copy must
+# bump the seating map version so an open editor cannot save over them.
+# The seating, guest-assignment, and dashboard editor files below are the
+# lock itself, requested so no second screen or stale save can overwrite
+# guest assignments.
+app/api/guests/[id]/route.ts
+app/api/guests/assign-table/route.ts
+app/api/guests/remove-from-table/route.ts
+app/api/seating/clear-smart-seating/[eventId]/route.ts
+app/api/seating/edit-lock/[eventId]/route.ts
+app/api/seating/live/move-guest-table/route.ts
+app/api/seating/save/[eventId]/route.ts
+app/api/seating/smart-seat-by-groups/[eventId]/route.ts
+app/api/seating/tables/[eventId]/route.ts
+app/api/seating/update-table/route.ts
+app/dashboard/seating/SeatingEditOverlays.tsx
+app/dashboard/seating/SeatingSidebar.tsx
+app/dashboard/seating/page.tsx
+app/dashboard/seating/seatingEditSession.ts
+app/dashboard/seating/useSeatingEditGuard.ts
+

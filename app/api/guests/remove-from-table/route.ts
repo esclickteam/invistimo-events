@@ -2,11 +2,26 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import { seatingAssignmentFromGuest, emptySeatingAssignment, seatingAssignmentsEqual, instrumentGuestWrite } from "@/lib/invitationGuestWrites";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  guardSeatingEditWrite,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
+import { findInvitationForSeating } from "@/lib/seating/seatingAccess";
 
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { guestId } = await req.json();
+  const body = await req.json();
+  const { guestId } = body;
+
+  const auth = await getUserIdFromRequest(req);
+  if (!auth?.userId) {
+    return NextResponse.json(
+      { success: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
+  }
 
   if (!guestId) {
     return NextResponse.json(
@@ -45,6 +60,20 @@ export async function POST(req: Request) {
 
   if (unchanged) {
     return NextResponse.json({ success: true, skippedWrite: true });
+  }
+
+  const invitation = guest.invitationId
+    ? await findInvitationForSeating({
+        eventId: "",
+        invitationId: String(guest.invitationId),
+      })
+    : null;
+  const gate = await guardSeatingEditWrite({
+    eventId: invitation?.eventId ? String(invitation.eventId) : "",
+    credentials: readSeatingWriteCredentials(body),
+  });
+  if (!gate.ok) {
+    return NextResponse.json(gate.body, { status: gate.status });
   }
 
   await InvitationGuest.updateOne(

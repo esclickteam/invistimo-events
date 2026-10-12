@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import {
+  guardSeatingEditWrite,
+  readSeatingWriteCredentials,
+} from "@/lib/seating/editLockServer";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -25,10 +29,36 @@ export async function PATCH(
     }
 
     const data = await req.json();
+    const touchesSeating =
+      Object.prototype.hasOwnProperty.call(data || {}, "tableId") ||
+      Object.prototype.hasOwnProperty.call(data || {}, "isSeated");
+
+    if (touchesSeating) {
+      const existing = await Group.findById(id).select("eventId").lean<{
+        eventId?: unknown;
+      } | null>();
+      const gate = await guardSeatingEditWrite({
+        eventId: existing?.eventId ? String(existing.eventId) : "",
+        credentials: readSeatingWriteCredentials(data),
+      });
+      if (!gate.ok) {
+        return NextResponse.json(gate.body, { status: gate.status });
+      }
+    }
+
+    const groupPatch = { ...(data || {}) };
+    delete groupPatch.editLockId;
+    delete groupPatch.lockId;
+    delete groupPatch.lockGeneration;
+    delete groupPatch.generation;
+    delete groupPatch.screenInstanceId;
+    delete groupPatch.baseMapVersion;
+    delete groupPatch.mapVersion;
+    delete groupPatch.saveScope;
 
     const group = await Group.findByIdAndUpdate(
       id,
-      data,
+      groupPatch,
       { new: true }
     );
 

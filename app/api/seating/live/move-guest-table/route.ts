@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
+import { markMapVersionBump } from "@/lib/seating/editLock";
 import InvitationGuest from "@/models/InvitationGuest";
 import {
   seatingAssignmentFromGuest,
@@ -646,6 +647,7 @@ async function applyMoveToTablesArray({
     ownerDoc.markModified("tables");
   }
 
+  markMapVersionBump(ownerDoc);
   await ownerDoc.save();
 
   const seatStatus = getGuestSeatStatus(guest);
@@ -770,6 +772,7 @@ async function applyMoveToLegacyStandaloneTables({
 
   for (const table of tables) {
     cleanGuestFromTable(table, guestId);
+    markMapVersionBump(table);
     await table.save();
   }
 
@@ -797,6 +800,7 @@ async function applyMoveToLegacyStandaloneTables({
       );
     }
 
+    markMapVersionBump(selectedTable);
     await selectedTable.save();
   }
 
