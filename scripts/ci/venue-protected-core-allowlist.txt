@@ -14,3 +14,22 @@ app/api/invitations/[id]/guests/route.ts
 app/api/invitations/[id]/route.ts
 app/api/invitations/route.ts
 app/api/invitations/update-location/route.ts
+
+# Approved 2026-10-12: revert PR 355. These paths change only to remove the
+# seating edit lock and restore the pre-lock seating save behavior. No new
+# lock, timeout, or version check remains.
+app/api/guests/[id]/route.ts
+app/api/guests/assign-table/route.ts
+app/api/guests/remove-from-table/route.ts
+app/api/seating/clear-smart-seating/[eventId]/route.ts
+app/api/seating/edit-lock/[eventId]/route.ts
+app/api/seating/live/move-guest-table/route.ts
+app/api/seating/save/[eventId]/route.ts
+app/api/seating/smart-seat-by-groups/[eventId]/route.ts
+app/api/seating/tables/[eventId]/route.ts
+app/api/seating/update-table/route.ts
+app/dashboard/seating/SeatingEditOverlays.tsx
+app/dashboard/seating/SeatingSidebar.tsx
+app/dashboard/seating/page.tsx
+app/dashboard/seating/seatingEditSession.ts
+app/dashboard/seating/useSeatingEditGuard.ts
