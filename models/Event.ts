@@ -441,6 +441,22 @@ const EventSchema = new mongoose.Schema(
       default: "active",
       index: true,
     },
+
+    /*
+      שעת התייצבות לצוות ההושבה.
+      כשהערך ידני — הוא גובר על החישוב (30 דקות לפני קבלת הפנים)
+      ולא נדרס כששעת קבלת הפנים משתנה.
+    */
+    venueSeatingArrivalTime: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    venueSeatingArrivalManual: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

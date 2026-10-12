@@ -38,6 +38,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import CreateClientModal from "@/app/components/producer/CreateClientModal";
 import ProducerClientBillingButton from "@/app/components/producer/ProducerClientBillingButton";
+import EventDayBriefingPanel from "@/app/components/staff/EventDayBriefingPanel";
 
 /* =========================
    Animations
@@ -1120,6 +1121,7 @@ export default function ProducerDashboard() {
         space-y-8
       "
     >
+      <EventDayBriefingPanel />
       {/* Header */}
       <section
         className="
