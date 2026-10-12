@@ -279,40 +279,45 @@ function DashboardLayoutInner({
 
   if (showSidebar) {
     return (
-      <div className="h-[100vh] overflow-hidden bg-[#faf7f3]" dir="rtl">
+      <div
+        className="flex h-[100vh] max-h-[100vh] flex-col overflow-hidden bg-[#faf7f3]"
+        dir="rtl"
+      >
         {!isDemo && <AdminManageBanner />}
-        <DashboardSidebar
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleCollapsed}
-          invitationId={invitation?._id || resolvedInvitationId}
-          invitationShareId={invitation?.shareId}
-          rsvpSiteMode={
-            invitation?.invitationSettings?.rsvpSiteMode ??
-            invitation?.rsvpSiteMode
-          }
-          guestExperienceType={
-            invitation?.invitationSettings?.guestExperienceType ??
-            invitation?.guestExperienceType
-          }
-          eventId={eventIdForMenu}
-          eventLive={eventLive}
-          checkInEnabled={checkInEnabled}
-          canOpenEventManagement={isDemo ? false : canOpenEventManagement}
-          canOpenTransportationManagement={
-            isDemo ? false : canOpenTransportationManagement
-          }
-          canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
-          gameOnly={gameOnly}
-          isDemo={isDemo}
-        />
+        <div className="relative min-h-0 flex-1">
+          <DashboardSidebar
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={toggleCollapsed}
+            invitationId={invitation?._id || resolvedInvitationId}
+            invitationShareId={invitation?.shareId}
+            rsvpSiteMode={
+              invitation?.invitationSettings?.rsvpSiteMode ??
+              invitation?.rsvpSiteMode
+            }
+            guestExperienceType={
+              invitation?.invitationSettings?.guestExperienceType ??
+              invitation?.guestExperienceType
+            }
+            eventId={eventIdForMenu}
+            eventLive={eventLive}
+            checkInEnabled={checkInEnabled}
+            canOpenEventManagement={isDemo ? false : canOpenEventManagement}
+            canOpenTransportationManagement={
+              isDemo ? false : canOpenTransportationManagement
+            }
+            canOpenWeddingChallenges={isDemo ? false : canOpenWeddingChallenges}
+            gameOnly={gameOnly}
+            isDemo={isDemo}
+          />
 
-        <div
-          className={`flex h-full min-h-0 flex-col transition-[padding] duration-200 ${contentInset}`}
-        >
-          {header}
-          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          <div
+            className={`flex h-full min-h-0 flex-col transition-[padding] duration-200 ${contentInset}`}
+          >
+            <div className="shrink-0">{header}</div>
+            <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          </div>
         </div>
       </div>
     );

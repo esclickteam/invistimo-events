@@ -569,7 +569,7 @@ export default function DashboardSidebar({
     <>
       <aside
         className={`
-          fixed top-0 right-0 z-30 hidden h-[100vh] flex-col overflow-hidden rounded-none
+          absolute inset-y-0 right-0 z-30 hidden flex-col overflow-hidden rounded-none
           border-l border-[#EADBC4] bg-[#FFFDF8]
           transition-[width] duration-200 lg:flex
           ${collapsed ? "w-[72px]" : "w-[240px]"}
@@ -580,7 +580,7 @@ export default function DashboardSidebar({
       </aside>
 
       {open && (
-        <div className="fixed inset-0 z-40 lg:hidden" dir="rtl">
+        <div className="absolute inset-0 z-40 lg:hidden" dir="rtl">
           <button
             type="button"
             className="absolute inset-0 bg-black/30"
@@ -588,7 +588,7 @@ export default function DashboardSidebar({
             onClick={onClose}
           />
           <aside
-            className="absolute inset-y-0 right-0 h-[100vh] w-[min(86vw,300px)] overflow-hidden rounded-none border-l border-[#EADBC4] bg-[#FFFDF8] shadow-2xl"
+            className="absolute inset-y-0 right-0 h-full w-[min(86vw,300px)] overflow-hidden rounded-none border-l border-[#EADBC4] bg-[#FFFDF8] shadow-2xl"
           >
             {nav}
           </aside>

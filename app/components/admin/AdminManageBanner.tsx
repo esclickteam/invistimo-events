@@ -87,7 +87,7 @@ export default function AdminManageBanner() {
   return (
     <div
       dir="rtl"
-      className="sticky top-0 z-[80] border-b border-[#D4B48A] bg-gradient-to-l from-[#2F2418] via-[#3D2E1F] to-[#2F2418] text-white shadow-lg"
+      className="sticky top-0 z-[80] shrink-0 border-b border-[#D4B48A] bg-gradient-to-l from-[#2F2418] via-[#3D2E1F] to-[#2F2418] text-white shadow-lg"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
