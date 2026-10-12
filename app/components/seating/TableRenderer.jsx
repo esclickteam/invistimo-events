@@ -6,6 +6,7 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 import { useGroupStore } from "@/store/groupStore";
+import { SEATING_EXPORT_HIDE_NAME } from "@/app/dashboard/seating/seatingExport";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
@@ -1022,6 +1023,7 @@ function TableRenderer({ table, hideSeats = false }) {
       {/* כפתור סיבוב */}
       {!hideSeats && (
         <Group
+          name={SEATING_EXPORT_HIDE_NAME}
           y={
             layout.type === "round"
               ? -radius - 42

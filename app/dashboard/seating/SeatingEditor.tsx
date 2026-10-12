@@ -21,14 +21,14 @@ import AddTableDrawer from "./AddTableDrawer";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import MobileGuests from "./MobileGuests";
+import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 
 /* ============================================================
    GLOBAL WINDOW TYPE
 ============================================================ */
 declare global {
   interface Window {
-    __getInvistimoSeatingMapImage?: () => string | null;
-    __saveInvistimoSeatingMapImage?: () => string | null;
+    __captureInvistimoSeatingMap?: () => HTMLCanvasElement | null;
   }
 }
 
@@ -159,53 +159,22 @@ function SeatingEditorInner({
   const [isMobile, setIsMobile] = useState(false);
 
   /* ================= EXPORT REAL MAP IMAGE ================= */
-  const getSeatingMapImageDataUrl = useCallback(() => {
-    if (!stageRef.current) return null;
-
-    try {
-      return stageRef.current.toDataURL({
-        pixelRatio: 6,
-        mimeType: "image/png",
-      });
-    } catch (error) {
-      console.error("Failed creating seating map image:", error);
-      return null;
-    }
-  }, []);
-
-  const saveSeatingMapImageToSession = useCallback(() => {
-    try {
-      const image = getSeatingMapImageDataUrl();
-
-      if (!image) {
-        sessionStorage.removeItem("seatingMapImage");
-        return null;
-      }
-
-      sessionStorage.setItem("seatingMapImage", image);
-      return image;
-    } catch (error) {
-      console.error("Failed saving seating map image:", error);
-      return null;
-    }
-  }, [getSeatingMapImageDataUrl]);
+  const captureSeatingMapCanvas = useCallback(
+    () => captureSeatingStage(stageRef.current),
+    []
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    window.__getInvistimoSeatingMapImage = getSeatingMapImageDataUrl;
-    window.__saveInvistimoSeatingMapImage = saveSeatingMapImageToSession;
+    window.__captureInvistimoSeatingMap = captureSeatingMapCanvas;
 
     return () => {
-      if (window.__getInvistimoSeatingMapImage === getSeatingMapImageDataUrl) {
-        delete window.__getInvistimoSeatingMapImage;
-      }
-
-      if (window.__saveInvistimoSeatingMapImage === saveSeatingMapImageToSession) {
-        delete window.__saveInvistimoSeatingMapImage;
+      if (window.__captureInvistimoSeatingMap === captureSeatingMapCanvas) {
+        delete window.__captureInvistimoSeatingMap;
       }
     };
-  }, [getSeatingMapImageDataUrl, saveSeatingMapImageToSession]);
+  }, [captureSeatingMapCanvas]);
 
   useEffect(() => {
     const updateMobile = () => {
@@ -831,13 +800,13 @@ function SeatingEditorInner({
           </Layer>
 
           {!readOnly && (
-            <Layer listening={false}>
+            <Layer listening={false} name={SEATING_EXPORT_HIDE_NAME}>
               <GhostPreview />
             </Layer>
           )}
 
           {!readOnly && (
-            <Layer>
+            <Layer name={SEATING_EXPORT_HIDE_NAME}>
               {tables.map((table) => (
                 <DeleteTableButton key={table.id} table={table} />
               ))}
