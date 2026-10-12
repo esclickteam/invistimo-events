@@ -124,6 +124,11 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <PhoneCall className="h-4 w-4" />,
       },
       {
+        href: "/admin/kosher-prefixes",
+        label: "מספרים כשרים",
+        icon: <PhoneCall className="h-4 w-4" />,
+      },
+      {
         href: "/admin/reminder-sms",
         label: "הודעת תזכורת",
         icon: <MessageSquareText className="h-4 w-4" />,
@@ -222,6 +227,11 @@ const PAGE_META: Array<{
   {
     match: (p) => p.startsWith("/admin/recorded-calls"),
     title: "שיחות מוקלטות",
+  },
+  {
+    match: (p) => p.startsWith("/admin/kosher-prefixes"),
+    title: "מספרים כשרים",
+    description: "קידומות לזיהוי מספרים כשרים ופעילות השיחות",
   },
   {
     match: (p) => p.startsWith("/admin/reminder-sms"),

@@ -205,6 +205,8 @@ export async function buildIvrReportFilter(
   if (query.userId && !userId) return { empty: true as const, filter: {} };
   if (invitationId) and.push({ invitationId });
   if (userId) and.push({ userId });
+  // Kosher message-round calls are reported on their own. Missing origin still matches.
+  and.push({ origin: { $ne: "kosher_message_round" } });
 
   if (query.round === "unassigned") {
     and.push({ round: { $nin: [1, 2, 3] } });

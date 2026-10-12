@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import GuestLinkOpenBadge from "@/app/components/GuestLinkOpenBadge";
 import PhoneReviewMark from "@/app/components/PhoneReviewMark";
+import KosherPhoneBadge from "@/app/components/KosherPhoneBadge";
 
 /* ============================================================
    Types
@@ -17,6 +18,7 @@ export type Guest = {
   phoneNormalized?: string | null;
   phoneLengthApproved?: boolean;
   requiresPhoneReview?: boolean;
+  isKosherPhone?: boolean;
   invitationId?: string;
   token: string;
 
@@ -320,6 +322,7 @@ export default function GuestsMobileList({
 
                 <div className="mt-1 flex items-center gap-2 text-base text-gray-500">
                   <span dir="ltr">{formatPhone(g.phone) || "ללא טלפון"}</span>
+                  <KosherPhoneBadge active={g.isKosherPhone} />
                   {onGuestUpdated ? (
                     <PhoneReviewMark
                       guest={g}

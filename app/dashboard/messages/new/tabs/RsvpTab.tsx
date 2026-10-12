@@ -18,6 +18,7 @@ import {
 } from "@/lib/formatScheduleDateTime";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
+import KosherMessageRoundPanel from "./KosherMessageRoundPanel";
 
 
 /* ================= TYPES ================= */
@@ -870,6 +871,13 @@ export default function RsvpTab({
             ))}
           </div>
         </section>
+
+        <KosherMessageRoundPanel
+          invitationId={invitationId}
+          invitationTitle={invitationTitle}
+          guests={guests}
+          round={round}
+        />
 
         <section className="grid grid-cols-1 xl:grid-cols-[0.94fr_1.06fr] gap-7 items-start">
           {/* PREVIEW */}
