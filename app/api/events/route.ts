@@ -5,6 +5,7 @@ import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { prepareEventLocation } from "@/lib/eventLocation";
 import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,10 @@ export async function POST(req: NextRequest) {
         time: payload.time,
         location: preparedLocation.location,
       },
+    });
+
+    void ensureAutoIvrNarration(String(auth.userId)).catch((error) => {
+      console.error("[ivr] event-name narration refresh", error);
     });
 
     return NextResponse.json({

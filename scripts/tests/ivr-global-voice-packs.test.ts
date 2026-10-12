@@ -2,7 +2,7 @@
  * Global female/male IVR voice packs:
  * - Fixed texts exist once per gender
  * - Creating a new event synthesizes ONLY the event name
- * - Client UI exposes קריינות AI / הקלטה אישית, not a voice catalog
+ * - Client UI schedules AI narration and does not offer a voice catalog
  */
 
 import assert from "node:assert/strict";
@@ -204,25 +204,21 @@ test("creating two events reuses global pack segments (no re-TTS of fixed texts)
   assert.notEqual(h1, h2);
 });
 
-test("UI offers קריינות AI / הקלטה אישית — not a voice catalog", () => {
+test("UI schedules AI narration from event details — not a voice catalog", () => {
   const ui = readSrc("app/components/IvrRoundsPanel.jsx");
-  assert.match(ui, /קריינות AI/);
-  assert.match(ui, /הקלטה אישית/);
+  assert.match(ui, /קריינות היא AI/);
+  assert.equal(ui.includes("הקלטה אישית"), false);
   assert.equal(ui.includes("קול נשי"), false);
   assert.equal(ui.includes("קול גברי"), false);
   assert.equal(ui.includes('type="radio"'), false);
-  assert.match(ui, /ConcatPreviewPlayer|previewPlaylist/);
-  assert.match(ui, /יצירת שם האירוע \+ תצוגה מקדימה/);
-  assert.match(ui, /packsReady|ivr-packs-not-ready/);
-  assert.match(ui, /composedIntroAudio|ivr-composed-preview/);
-  assert.match(ui, /שיחה יוצאת/);
+  assert.equal(ui.includes("יצירת שם האירוע + תצוגה מקדימה"), false);
+  assert.equal(ui.includes("אני מאשר"), false);
   assert.equal(ui.includes("תצוגה מקדימה — שיחה נכנסת"), false);
   assert.equal(ui.includes("autoPlay"), false);
   assert.match(ui, /type="date"/);
   assert.match(ui, /data-testid="ivr-round-time"/);
   assert.match(ui, /top-full/);
   assert.match(ui, /max-h-32/);
-  assert.match(ui, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
   assert.equal(ui.includes("listElevenLabsVoices"), false);
   assert.equal(ui.includes("<select"), false);
   assert.equal(ui.includes("טוען קולות"), false);
@@ -234,6 +230,7 @@ test("UI offers קריינות AI / הקלטה אישית — not a voice catalo
   const config = readSrc("app/api/ivr/config/route.ts");
   assert.match(config, /const voiceGender = "female"/);
   assert.match(config, /IVR_LOCKED_FEMALE_VOICE_ID/);
+  assert.match(config, /ELEVENLABS_INSUFFICIENT_CREDITS|חסרים קרדיטים/);
 });
 
 test("config composes seamless intro without extra ElevenLabs TTS", () => {

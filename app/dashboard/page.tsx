@@ -4872,7 +4872,7 @@ function UserRsvpScheduleModal({
                 ניהול השיחות המוקלטות נמצא במסך ייעודי
               </div>
               <p className="mt-1 text-xs font-bold text-[#8A7867]">
-                תזמון סבבים, קריינות AI / הקלטה אישית, אישור הודעה ותצוגה מקדימה.
+                תזמון סבבים. הקריינות היא AI לפי שם האירוע, בלי הקלטה ובלי אישור נוסף.
               </p>
               <a
                 href="/dashboard/recorded-calls"

@@ -24,7 +24,6 @@ import {
 import {
   buildIvrIntroText,
   contentHashForIvrIntro,
-  IVR_SELF_RECORD_MAX_SECONDS,
   resolveIvrEventName,
 } from "../../lib/calls/ivrScript";
 import {
@@ -188,11 +187,12 @@ test("12) ElevenLabs audio reused when hash matches; dialer never calls TTS", ()
   assert.equal(h1, h2);
 });
 
-test("13) self-record max is 45 seconds", () => {
-  assert.equal(IVR_SELF_RECORD_MAX_SECONDS, 45);
+test("13) personal recording upload is rejected and stored files stay", () => {
   const upload = readSrc("app/api/ivr/audio/upload/route.ts");
-  assert.match(upload, /IVR_SELF_RECORD_MAX_SECONDS/);
-  assert.match(upload, /DURATION_TOO_LONG/);
+  assert.match(upload, /SELF_RECORDING_REMOVED/);
+  assert.match(upload, /status: 410/);
+  assert.equal(upload.includes("deleteObject"), false);
+  assert.equal(upload.includes("User.updateOne"), false);
 });
 
 test("14) AI template uses event name exactly", () => {
@@ -279,11 +279,11 @@ test("extra) audio approval required before dial", () => {
   assert.match(config, /approve_audio/);
 });
 
-test("extra) browser simulator exists and does not call Telnyx", () => {
+test("extra) client schedules narration without calling Telnyx", () => {
   const ui = readSrc("app/components/IvrRoundsPanel.jsx");
-  assert.match(ui, /IvrCallSimulator|תצוגה מקדימה של השיחה/);
-  assert.match(ui, /ללא שיחת Telnyx/);
+  assert.match(ui, /ivr-auto-narration-note/);
   assert.equal(ui.includes("api/telnyx"), false);
+  assert.equal(ui.includes("הקלטה אישית"), false);
 });
 
 test("extra) inbound callback IVR is gated to callsType=ivr only", () => {

@@ -166,6 +166,27 @@ async function resolveR2KeyForToken(token: string): Promise<{
     };
   }
 
+  const byRetained = await User.findOne({
+    "ivrConfig.retainedAudioClips.publicToken": token,
+  })
+    .select("ivrConfig.retainedAudioClips")
+    .lean();
+  const retained = Array.isArray(
+    byRetained?.ivrConfig?.retainedAudioClips
+  )
+    ? byRetained.ivrConfig.retainedAudioClips.find(
+        (clip: { publicToken?: string; r2Key?: string; contentType?: string }) =>
+          String(clip?.publicToken || "") === token && String(clip?.r2Key || "")
+      )
+    : null;
+  if (retained?.r2Key) {
+    return {
+      r2Key: String(retained.r2Key),
+      contentType: String(retained.contentType || "") || "audio/mpeg",
+      source: "retainedAudioClips",
+    };
+  }
+
   const system = await IvrSystemAudio.findOne({ publicToken: token })
     .select("r2Key contentType")
     .lean();

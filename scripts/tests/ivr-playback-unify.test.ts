@@ -39,23 +39,15 @@ function toChoiceWindow() {
 }
 
 test("preview prefers the single composed file Telnyx plays", () => {
-  const panel = readSrc("app/components/IvrRoundsPanel.jsx");
-  assert.match(panel, /composedIntroAudioUrl/);
-  assert.match(panel, /אותו קובץ מחובר/);
-  assert.match(panel, /seamless/);
-  // Must not prefer the 3-clip stitch when composed exists.
-  const playlistFn = panel.slice(
-    panel.indexOf("const previewPlaylist = useMemo"),
-    panel.indexOf("const composedReady")
+  const config = readSrc("app/api/ivr/config/route.ts");
+  assert.match(config, /composedIntroAudioUrl/);
+  assert.match(config, /seamless/);
+  const playlistFn = config.slice(
+    config.indexOf("function serializePreviewUrls"),
+    config.indexOf("async function buildAndStoreComposedIntro")
   );
-  assert.match(playlistFn, /composedUrl/);
-  assert.match(playlistFn, /return \[composedUrl\]/);
-  // Never fall back to a stale composedIntroAudio.audioUrl when not current.
-  assert.match(playlistFn, /preview\?\.seamless && composedUrl/);
-  assert.equal(
-    playlistFn.includes("composedIntroAudio?.status === \"ready\""),
-    false
-  );
+  assert.match(playlistFn, /\? \[composed\]/);
+  assert.match(playlistFn, /Never emit a partial/);
 });
 
 test("inbound and outbound answers share the phase machine", () => {

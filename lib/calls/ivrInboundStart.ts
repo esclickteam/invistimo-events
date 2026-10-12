@@ -11,6 +11,7 @@ import {
   resolveIvrPublicAudioUrl,
 } from "@/lib/calls/ivrAudioStorage";
 import { resolveApprovedNarrationUrl } from "@/lib/calls/ivrDialer";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { composedInboundPlaybackUrl } from "@/lib/calls/ivrComposedInbound";
 import { resolveInboundIvrGuest } from "@/lib/calls/ivrInboundResolve";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
@@ -200,22 +201,20 @@ export async function tryStartInboundIvr(params: {
   }
 
   const { candidate, disambiguation } = resolved;
+  await ensureAutoIvrNarration(String(candidate.userId)).catch((error) => {
+    console.error("[ivr] inbound narration", error);
+  });
   const owner = await User.findById(candidate.userId)
     .select("ivrConfig callsType includeCalls")
     .lean();
   const ownerCfg = (owner as { ivrConfig?: any } | null)?.ivrConfig || {};
   const voiceGender = normalizeIvrVoiceGender(ownerCfg.voiceGender) || "female";
   const approvedOutboundUrl = resolveApprovedNarrationUrl(owner);
-  const audioMode =
-    (ownerCfg.audioMode as "ai" | "self_recorded" | null) || "ai";
-  // AI inbound uses the prebuilt inbound file (inboundBefore+name+inboundAfter).
-  // Never stitch mid-call — generate/recompose/approve build it ahead of time.
-  const introAudioUrl =
-    audioMode === "self_recorded"
-      ? approvedOutboundUrl
-      : approvedOutboundUrl
-        ? composedInboundPlaybackUrl(ownerCfg)
-        : "";
+  // Callback uses the same AI narration. A stored personal recording is not
+  // played for a call that has not started.
+  const introAudioUrl = approvedOutboundUrl
+    ? composedInboundPlaybackUrl(ownerCfg)
+    : "";
   const eventNameAudioUrl =
     ownerCfg.eventNameAudio?.status === "ready"
       ? resolveIvrPublicAudioUrl({

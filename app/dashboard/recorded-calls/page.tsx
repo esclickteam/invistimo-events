@@ -109,7 +109,7 @@ export default function RecordedCallsPage() {
         setMessage(
           data?.message ||
             data?.executeBlockReason ||
-            "התזמון נשמר, אך לא יתבצע חיוג עד שאישור הקריינות יהיה תקין."
+            "התזמון נשמר. הקריינות תוכן אוטומטית לפני החיוג."
         );
       } else {
         setMessage(
@@ -144,8 +144,8 @@ export default function RecordedCallsPage() {
           </div>
           <h1 className="text-3xl font-black text-[#241A14]">שיחות מוקלטות</h1>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#8A7A68]">
-            תזמון שלושת הסבבים, יצירת ההודעה הקולית (קריינות AI או הקלטה אישית), אישור
-            ההודעה, תצוגה מקדימה וסטטיסטיקות אחרי הביצוע.
+            תזמון שלושת הסבבים. הקריינות היא AI ומשתמשת אוטומטית בשם האירוע מפרטי
+            האירוע, בלי הקלטה ובלי אישור נוסף.
           </p>
         </div>
         <Link

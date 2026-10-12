@@ -61,12 +61,10 @@ test("compose/recompose verify public media after save", () => {
   assert.match(config, /attachComposedMediaHealthLight/);
 });
 
-test("preview player does not force CORS crossOrigin on same-origin media", () => {
+test("client schedule screen does not upload or preview a personal recording", () => {
   const panel = readSrc("app/components/IvrRoundsPanel.jsx");
-  const player = panel.slice(
-    panel.indexOf("function ConcatPreviewPlayer"),
-    panel.indexOf("function SingleClipPlayer")
-  );
-  assert.equal(player.includes("crossOrigin"), false);
-  assert.match(player, /x-ivr-media-error/);
+  assert.equal(panel.includes("crossOrigin"), false);
+  assert.equal(panel.includes("/api/ivr/audio/upload"), false);
+  assert.equal(panel.includes("הקלטה אישית"), false);
+  assert.match(panel, /ivr-auto-narration-note/);
 });

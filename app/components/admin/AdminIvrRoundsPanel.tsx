@@ -134,7 +134,7 @@ export default function AdminIvrRoundsPanel({
         setError(
           data?.message ||
             data?.executeBlockReason ||
-            "התזמון נשמר, אך לא יתבצע חיוג עד לאישור קריינות"
+            "התזמון נשמר. הקריינות תוכן אוטומטית לפני החיוג."
         );
       }
       onScheduleChanged?.();
@@ -207,8 +207,8 @@ export default function AdminIvrRoundsPanel({
 
       {!audioReady && (
         <div className="mb-3 rounded-xl border border-[#F0D7B0] bg-[#FFF8E6] px-3 py-2 text-xs font-bold text-[#9A651B]">
-          {audioBlockReason || "הקריינות עדיין לא מאושרת."} פתיחה מחדש ותזמון
-          אפשריים גם כך — החיוג עצמו ייחסם עד לאישור קריינות תקינה.
+          {audioBlockReason || "הקריינות עדיין לא מוכנה."} פתיחה מחדש ותזמון
+          אפשריים גם כך. לפני החיוג המערכת מכינה קריינות AI לפי שם האירוע.
         </div>
       )}
 
