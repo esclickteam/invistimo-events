@@ -936,6 +936,7 @@ if (inv.shareId) {
 
     let totalPartsSent = 0;
     let sent = 0;
+    let notifySalt = "immediate";
 
     const BATCH_SIZE = 150;
 
@@ -1079,6 +1080,7 @@ if (inv.shareId) {
           source: "immediate",
           now,
         });
+        notifySalt = String(markState.executionId || notifySalt);
 
         const markResult = await Invitation.collection.updateOne(
           { _id: inv._id },
@@ -1130,6 +1132,27 @@ if (inv.shareId) {
           }
         );
       }
+    }
+
+    try {
+      const { recordMessageRoundOutcome } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await recordMessageRoundOutcome({
+        userId: String(user._id),
+        invitationId: String(inv._id),
+        eventId: inv.eventId ? String(inv.eventId) : null,
+        channel: "sms",
+        messageType: String(templateKey || ""),
+        round: Number(round) || null,
+        audienceCount: guests.length,
+        sentCount: sent,
+        outcome: "sent",
+        salt: notifySalt,
+        guests,
+      });
+    } catch (notifyError) {
+      console.error("sms notification failed", notifyError);
     }
 
     return NextResponse.json({

@@ -975,6 +975,27 @@ guestPayload.urlSuffix = urlSuffix;
       }
     }
 
+    try {
+      const { recordMessageRoundOutcome } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await recordMessageRoundOutcome({
+        userId: String(invitation.ownerId || ""),
+        invitationId: String(invitation._id),
+        eventId: invitation.eventId ? String(invitation.eventId) : null,
+        channel: "whatsapp",
+        messageType: String(type || ""),
+        round: Number(round) || null,
+        audienceCount: guests.length,
+        sentCount: queueDocs.length,
+        outcome: "sent",
+        salt: String(activeExecutionId || "immediate"),
+        guests,
+      });
+    } catch (notifyError) {
+      console.error("whatsapp notification failed", notifyError);
+    }
+
     return NextResponse.json({
       success: true,
       queued: queueDocs.length,

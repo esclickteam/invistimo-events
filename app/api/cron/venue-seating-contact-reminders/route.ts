@@ -31,6 +31,12 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error("venue seating contact reminders failed", error);
+    try {
+      const { recordSystemError } = await import("@/lib/customerNotifications/liveEvents");
+      await recordSystemError("venue-seating-reminders");
+    } catch (notifyError) {
+      console.error("system notification failed", notifyError);
+    }
     return NextResponse.json(
       { success: false, error: "CRON_FAILED" },
       { status: 500, headers: { "Cache-Control": "no-store" } }

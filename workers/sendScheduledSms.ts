@@ -28,6 +28,30 @@ import {
 } from "@/lib/messages/liveEventDetails";
 import { filterGuestsByInvitationAudience } from "@/lib/messages/invitationOnlyDetails";
 import { partitionMessageRoundGuests } from "@/lib/kosherPhones/routeAudience";
+
+async function notifyRoundQuietly(input: {
+  scheduleId: string;
+  userId: string;
+  invitationId: string;
+  eventId?: string | null;
+  channel: "sms" | "whatsapp";
+  messageType: string;
+  round: number | null;
+  audienceCount: number;
+  sentCount: number;
+  outcome: "sent" | "failed";
+  salt: string;
+  guests?: any[] | null;
+}) {
+  try {
+    const { recordMessageRoundOutcome } = await import(
+      "@/lib/customerNotifications/liveEvents"
+    );
+    await recordMessageRoundOutcome(input);
+  } catch (error) {
+    console.error("message notification failed", error);
+  }
+}
 import {
   findGuestIdsWithInvitationDeliveryStatus,
   findGuestIdsWithInvitationSendAttempt,
@@ -839,6 +863,21 @@ export async function sendScheduledSms() {
         sent: sent > 0 ? sent : Number(kosherResult?.routed || 0),
       });
 
+      await notifyRoundQuietly({
+        scheduleId: String(msg._id),
+        userId: String(user._id),
+        invitationId: String(invitation._id),
+        eventId: linkedEventId || null,
+        channel: "sms",
+        messageType: type,
+        round,
+        audienceCount: messageGuests.length,
+        sentCount: sent,
+        outcome: "sent",
+        salt: String(msg._id),
+        guests,
+      });
+
       sentTotal += sent;
     } catch (err: any) {
       console.error("💥 SMS worker error:", err);
@@ -857,6 +896,19 @@ export async function sendScheduledSms() {
           },
         }
       );
+
+      await notifyRoundQuietly({
+        scheduleId: String(msg._id),
+        userId: String(msg.userId || ""),
+        invitationId: String(msg.invitationId || ""),
+        channel: "sms",
+        messageType: String(msg.type || msg.templateKey || ""),
+        round: Number(msg.round ?? msg.roundNumber) || null,
+        audienceCount: 0,
+        sentCount: 0,
+        outcome: "failed",
+        salt: String(msg._id),
+      });
 
       failed++;
     }
@@ -1364,6 +1416,21 @@ const queueDoc = await WhatsappQueue.create({
         sent: sent > 0 ? sent : Number(kosherResult?.routed || 0),
       });
 
+      await notifyRoundQuietly({
+        scheduleId: String(msg._id),
+        userId: String(user._id),
+        invitationId: String(invitation._id),
+        eventId: whatsappEventId || null,
+        channel: "whatsapp",
+        messageType: type,
+        round,
+        audienceCount: roundGuests.length,
+        sentCount: sent,
+        outcome: "sent",
+        salt: String(msg._id),
+        guests,
+      });
+
       sentTotal += sent;
     } catch (err: any) {
       console.error("💥 WhatsApp worker error:", err);
@@ -1388,6 +1455,19 @@ const queueDoc = await WhatsappQueue.create({
           },
         }
       );
+
+      await notifyRoundQuietly({
+        scheduleId: String(msg._id),
+        userId: String(msg.userId || ""),
+        invitationId: String(msg.invitationId || ""),
+        channel: "whatsapp",
+        messageType: String(msg.type || msg.templateKey || ""),
+        round: Number(msg.round ?? msg.roundNumber) || null,
+        audienceCount: roundGuests.length,
+        sentCount: 0,
+        outcome: "failed",
+        salt: String(msg._id),
+      });
 
       failed++;
     }

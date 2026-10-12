@@ -1700,6 +1700,24 @@ export async function executeIvrRound(input: {
     eligibleCount: eligible.length,
   });
 
+  if (status === "done" || status === "failed") {
+    try {
+      const { recordCallRoundOutcome } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await recordCallRoundOutcome({
+        userId: String(input.due.userId),
+        invitationId: String(input.due.invitationId),
+        round: input.due.round,
+        runId: cleanStr(input.due.runId),
+        status,
+        dialed,
+      });
+    } catch (error) {
+      console.error("call round notification failed", error);
+    }
+  }
+
   return {
     invitationId: input.due.invitationId,
     round: input.due.round,

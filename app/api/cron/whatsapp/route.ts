@@ -261,6 +261,19 @@ async function processPendingWhatsappQueue() {
       if (shouldFail) {
         await recordWhatsappSendFailure({ queueId: job._id, error: err });
         failed++;
+        if (!job.scheduleId) {
+          try {
+            const { recordQueuedWhatsappFailure } = await import(
+              "@/lib/customerNotifications/liveEvents"
+            );
+            await recordQueuedWhatsappFailure({
+              invitationId: String(job.invitationId || ""),
+              round: Number(job.round || job.roundNumber) || null,
+            });
+          } catch (notifyError) {
+            console.error("whatsapp failure notification failed", notifyError);
+          }
+        }
       }
 
       if (isRateLimitError(msg)) {

@@ -8,7 +8,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
-  Bell,
   Briefcase,
   CalendarDays,
   ChevronDown,
@@ -29,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import CustomerNotificationBell from "@/app/dashboard/components/CustomerNotificationBell";
 import { AdminResponsiveEnhancer } from "./admin-responsive";
 import "./admin-theme.css";
 
@@ -53,6 +53,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin",
         label: "סקירת מערכת",
         icon: <LayoutDashboard className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/notification-settings",
+        label: "העדפות התראות",
+        icon: <MessageSquareText className="h-4 w-4" />,
       },
     ],
   },
@@ -167,6 +172,11 @@ const PAGE_META: Array<{
     match: (p) => p === "/admin",
     title: "סקירת מערכת",
     description: "נתוני פעילות וסקירה עסקית",
+  },
+  {
+    match: (p) => p.startsWith("/admin/notification-settings"),
+    title: "העדפות התראות",
+    description: "Push ומכשירים של מנהל המערכת",
   },
   {
     match: (p) => p.startsWith("/admin/customers/"),
@@ -384,6 +394,7 @@ export default function AdminLayout({
               </p>
             )}
           </div>
+          <CustomerNotificationBell source="admin" />
           <Image
             src="/invistimo-logo.png"
             alt="Invistimo"
@@ -603,13 +614,7 @@ export default function AdminLayout({
               />
             </div>
 
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--admin-border)] text-[var(--admin-muted)] hover:bg-gray-50"
-              title="התראות"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
+            <CustomerNotificationBell source="admin" />
 
             <div className="relative">
               <button

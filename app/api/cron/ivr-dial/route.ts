@@ -97,6 +97,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ivr-dial] fatal", error);
+    try {
+      const { recordSystemError } = await import("@/lib/customerNotifications/liveEvents");
+      await recordSystemError("ivr-dial");
+    } catch (notifyError) {
+      console.error("system notification failed", notifyError);
+    }
     return NextResponse.json(
       {
         ok: false,

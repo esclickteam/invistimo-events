@@ -5,7 +5,6 @@ import {
   countUnreadCustomerNotifications,
   listActiveCustomerNotifications,
 } from "@/lib/customerNotifications/service";
-import { customerBellEligibility } from "@/lib/venueSeatingContacts/service";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +20,14 @@ export async function GET(request: Request) {
 
   await dbConnect();
   const userId = customerId(auth);
-  const [notifications, unreadCount, bell] = await Promise.all([
+  const [notifications, unreadCount] = await Promise.all([
     listActiveCustomerNotifications(userId),
     countUnreadCustomerNotifications(userId),
-    customerBellEligibility(userId),
   ]);
 
   return NextResponse.json({
     success: true,
-    showBell: bell.showBell,
+    showBell: true,
     unreadCount,
     notifications,
   });
