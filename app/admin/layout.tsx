@@ -380,6 +380,7 @@ export default function AdminLayout({
           >
             <Menu className="h-5 w-5" />
           </button>
+          <CustomerNotificationBell source="admin" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-[var(--admin-text)]">
               {pageMeta.title}
@@ -394,7 +395,6 @@ export default function AdminLayout({
               </p>
             )}
           </div>
-          <CustomerNotificationBell source="admin" />
           <Image
             src="/invistimo-logo.png"
             alt="Invistimo"
@@ -587,15 +587,18 @@ export default function AdminLayout({
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 hidden h-[var(--admin-header-h)] items-center justify-between gap-3 border-b border-[var(--admin-border)] bg-white/95 px-5 backdrop-blur lg:flex">
-          <div className="min-w-0">
-            <h1 className="truncate text-[15px] font-bold text-[var(--admin-text)]">
-              {pageMeta.title}
-            </h1>
-            {pageMeta.description ? (
-              <p className="truncate text-[11px] font-medium text-[var(--admin-muted)]">
-                {pageMeta.description}
-              </p>
-            ) : null}
+          <div className="flex min-w-0 items-center gap-3">
+            <CustomerNotificationBell source="admin" />
+            <div className="min-w-0">
+              <h1 className="truncate text-[15px] font-bold text-[var(--admin-text)]">
+                {pageMeta.title}
+              </h1>
+              {pageMeta.description ? (
+                <p className="truncate text-[11px] font-medium text-[var(--admin-muted)]">
+                  {pageMeta.description}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -613,8 +616,6 @@ export default function AdminLayout({
                 }}
               />
             </div>
-
-            <CustomerNotificationBell source="admin" />
 
             <div className="relative">
               <button

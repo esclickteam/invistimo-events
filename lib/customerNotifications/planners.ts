@@ -16,6 +16,7 @@ export type PlannedNotice = {
   adminBody?: string;
   adminCategory?: string;
   adminSeverity?: NoticeSeverity;
+  adminActionHref?: string;
 };
 
 export type PushPreferenceToggles = {

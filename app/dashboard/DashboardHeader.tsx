@@ -118,12 +118,12 @@ export default function DashboardHeader({
           {/* =========================
               ימין – תפריט / ניווט
           ========================= */}
-          <div className="flex items-center justify-start gap-4">
+          <div className="flex min-w-0 items-center justify-start gap-2 lg:gap-3">
             <button
               onClick={onOpenMenu}
               data-tour="open-menu"
               className="
-                flex h-11 w-11 items-center justify-center
+                flex h-11 w-11 shrink-0 items-center justify-center
                 rounded-full
                 border border-[#D7BE88]
                 bg-white
@@ -180,42 +180,44 @@ export default function DashboardHeader({
                 <MessageCircle size={17} className="text-[#B88A2D]" />
                 תמיכה
               </button>
-              {gameOnly ? (
-                <button
-                  onClick={() =>
-                    router.push(
-                      eventId
-                        ? `/dashboard/wedding-challenges?eventId=${eventId}`
-                        : "/dashboard/wedding-challenges"
-                    )
-                  }
-                  className="
-                    inline-flex items-center gap-2
-                    whitespace-nowrap
-                    rounded-[13px]
-                    bg-[#3F3328]
-                    px-4 py-2.5
-                    text-[15px] font-bold
-                    text-white
-                    transition
-                    hover:bg-[#5A4636]
-                  "
-                >
-                  ניהול Wedding Challenges
-                </button>
-              ) : null}
             </div>
+            <CustomerNotificationBell enabled={!isDemo} />
+            {gameOnly ? (
+              <button
+                onClick={() =>
+                  router.push(
+                    eventId
+                      ? `/dashboard/wedding-challenges?eventId=${eventId}`
+                      : "/dashboard/wedding-challenges"
+                  )
+                }
+                className="
+                  hidden items-center gap-2
+                  whitespace-nowrap
+                  rounded-[13px]
+                  bg-[#3F3328]
+                  px-4 py-2.5
+                  text-[15px] font-bold
+                  text-white
+                  transition
+                  hover:bg-[#5A4636]
+                  lg:inline-flex
+                "
+              >
+                ניהול Wedding Challenges
+              </button>
+            ) : null}
           </div>
 
           {/* =========================
               מרכז – לוגו
           ========================= */}
-          <div className="flex justify-center" dir="ltr">
+          <div className="flex min-w-0 justify-center" dir="ltr">
             <button
               onClick={() => router.push(homeHref)}
               aria-label="מעבר לדשבורד הראשי"
               className="
-                flex items-center justify-center
+                flex min-w-0 max-w-full items-center justify-center
                 cursor-pointer
                 transition
                 hover:scale-[1.03]
@@ -227,7 +229,7 @@ export default function DashboardHeader({
                 className="
                   h-[42px]
                   w-auto
-                  max-w-[210px]
+                  max-w-full
                   select-none
                   object-contain
                   drop-shadow-[0_6px_14px_rgba(158,116,42,0.12)]
@@ -243,7 +245,6 @@ export default function DashboardHeader({
               שמאל – מצב אירוע + יציאה
           ========================= */}
           <div className="flex items-center justify-end gap-2 md:gap-3">
-            <CustomerNotificationBell enabled={!isDemo} />
             <div
               className="
                 hidden
