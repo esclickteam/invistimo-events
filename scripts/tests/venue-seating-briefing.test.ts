@@ -10,6 +10,7 @@ import {
   collectibleBalance,
   dedupeRecipients,
   manualClaimDecision,
+  planVenueSeatingBriefingAdminNotice,
   resolveArrivalTime,
 } from "../../lib/venueSeatingBriefing/logic";
 
@@ -254,6 +255,8 @@ test("server, cron, and both assignee screens are wired without a second sender"
   assert.match(service, /staffType: "seating_staff"/);
   assert.match(service, /role: "producer"/);
   assert.match(service, /sendSmsDetailed/);
+  assert.match(service, /recordVenueSeatingBriefingAdminNotice/);
+  assert.equal(service.includes("sendWhatsapp"), false);
   assert.equal(service.includes("eventDayBalance"), false);
   assert.match(adminRoute, /kind: "manual"/);
   assert.match(cron, /processAutomaticBriefings/);
@@ -264,4 +267,44 @@ test("server, cron, and both assignee screens are wired without a second sender"
   assert.match(employee, /EventDayBriefingPanel/);
   assert.match(producer, /EventDayBriefingPanel/);
   assert.equal(assignees.includes("venueSeatingBriefing"), false);
+});
+
+test("admin notices follow a real briefing send without phone numbers or amounts", () => {
+  const sent = planVenueSeatingBriefingAdminNotice({
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    customerId: "a".repeat(24),
+    recipientId: "staff-1",
+    recipientRole: "seating_staff",
+    kind: "automatic",
+    ok: true,
+    attemptAt: "2026-10-12T06:00:00.000Z",
+  });
+  assert.equal(sent?.category, "admin_info");
+  assert.match(sent?.body || "", /עובד הושבה/);
+  const failed = planVenueSeatingBriefingAdminNotice({
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    customerId: "a".repeat(24),
+    recipientId: "prod-1",
+    recipientRole: "producer",
+    kind: "manual",
+    ok: false,
+    attemptAt: "2026-10-12T06:05:00.000Z",
+  });
+  assert.equal(failed?.category, "admin_important");
+  const text = `${sent?.title} ${sent?.body} ${failed?.title} ${failed?.body}`;
+  assert.doesNotMatch(text, /05\d{8}/);
+  assert.doesNotMatch(text, /₪/);
+  assert.equal(
+    planVenueSeatingBriefingAdminNotice({
+      eventId: "",
+      eventTitle: "חתונת דנה",
+      recipientId: "staff-1",
+      kind: "automatic",
+      ok: true,
+      attemptAt: "2026-10-12T06:00:00.000Z",
+    }),
+    null
+  );
 });
