@@ -407,3 +407,57 @@ export function publicStatus(
   if (status === "failed") return "failed";
   return "pending";
 }
+
+export function planVenueSeatingBriefingAdminNotice(input: {
+  eventId: string;
+  eventTitle: string;
+  customerId?: string | null;
+  recipientId: string;
+  recipientRole?: string | null;
+  kind: BriefingSendKind | string;
+  ok: boolean;
+  attemptAt: string;
+}) {
+  const eventId = String(input.eventId || "").trim();
+  const recipientId = String(input.recipientId || "").trim();
+  const attemptAt = String(input.attemptAt || "").trim();
+  if (!eventId || !recipientId || !attemptAt) return null;
+  const role = roleLabel(
+    input.recipientRole === "producer" || input.recipientRole === "both"
+      ? input.recipientRole
+      : "seating_staff"
+  );
+  const titleName = String(input.eventTitle || "").trim() || "האירוע";
+  const how = input.kind === "manual" ? "הידנית" : "האוטומטית";
+  const customerId = String(input.customerId || "").trim();
+  const actionHref = /^[a-f0-9]{24}$/i.test(customerId)
+    ? `/admin/users?impersonate=${encodeURIComponent(customerId)}`
+    : "/admin/users";
+  const shared = {
+    eventId,
+    customerId,
+    eventTitle: titleName,
+    actionHref,
+    reopen: false as const,
+  };
+  if (input.ok) {
+    return {
+      ...shared,
+      incidentKey: `event-details-sent:${eventId}:${recipientId}:${input.kind}:${attemptAt}`,
+      type: "admin.eventDetails.sent",
+      category: "admin_info" as const,
+      severity: "info" as const,
+      title: `פרטי אירוע נשלחו לעובדים – ${titleName}`.slice(0, 140),
+      body: `השליחה ${how} ל${role} המשובץ הצליחה.`.slice(0, 220),
+    };
+  }
+  return {
+    ...shared,
+    incidentKey: `event-details-failed:${eventId}:${recipientId}:${input.kind}:${attemptAt}`,
+    type: "admin.eventDetails.failed",
+    category: "admin_important" as const,
+    severity: "important" as const,
+    title: `שליחת פרטי אירוע לעובדים נכשלה – ${titleName}`.slice(0, 140),
+    body: `השליחה ${how} ל${role} המשובץ נכשלה.`.slice(0, 220),
+  };
+}

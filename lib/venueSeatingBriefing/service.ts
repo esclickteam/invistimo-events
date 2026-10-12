@@ -7,6 +7,7 @@ import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { sendSmsDetailed } from "@/lib/sendSMS";
 import { normalizeEventDateValue } from "@/lib/eventDetails/centralEventDetails";
 import { israelCalendarDate } from "@/lib/venueSeatingContacts/logic";
+import { recordVenueSeatingBriefingAdminNotice } from "@/lib/venueSeatingBriefing/adminNotice";
 import {
   automaticClaimDecision,
   briefingAccess,
@@ -530,6 +531,18 @@ export async function sendBriefing(input: {
   }
 
   const message = described.briefing.text;
+  async function noteBriefingDelivery(recipient: BriefingRecipient, ok: boolean) {
+    await recordVenueSeatingBriefingAdminNotice({
+      eventId: String(event._id),
+      eventTitle: clean(event.title) || clean(event.hostsNames),
+      customerId: String(customer._id),
+      recipientId: recipient.userId,
+      recipientRole: recipient.role,
+      kind: input.kind,
+      ok,
+      attemptAt: now.toISOString(),
+    });
+  }
   const results: Array<{
     userId: string;
     status: "sent" | "failed" | "skipped";
@@ -557,6 +570,7 @@ export async function sendBriefing(input: {
         ok: false,
         error: "חסר מספר טלפון לנמען",
       });
+      await noteBriefingDelivery(recipient, false);
       results.push({
         userId: recipient.userId,
         status: "failed",
@@ -577,6 +591,7 @@ export async function sendBriefing(input: {
         ok: false,
         error: "השליחה נחסמה על ידי הגדרות הסביבה",
       });
+      await noteBriefingDelivery(recipient, false);
       results.push({
         userId: recipient.userId,
         status: "failed",
@@ -596,6 +611,7 @@ export async function sendBriefing(input: {
         ok: false,
         error: "השליחה נכשלה",
       });
+      await noteBriefingDelivery(recipient, false);
       results.push({
         userId: recipient.userId,
         status: "failed",
@@ -613,6 +629,7 @@ export async function sendBriefing(input: {
         ok: true,
         error: "",
       });
+      await noteBriefingDelivery(recipient, true);
       results.push({ userId: recipient.userId, status: "sent", error: "" });
       continue;
     }
@@ -624,6 +641,7 @@ export async function sendBriefing(input: {
       ok: false,
       error: delivered.errorMessage || "השליחה נכשלה",
     });
+    await noteBriefingDelivery(recipient, false);
     results.push({
       userId: recipient.userId,
       status: "failed",
