@@ -55,7 +55,7 @@ test("admin IVR reset/block never dial and never wipe attempts", () => {
   const statusFn = dialer.slice(
     dialer.indexOf("export async function setIvrRoundAdminStatus")
   );
-  const body = statusFn.slice(0, statusFn.indexOf("function resolveReadySelfAudio"));
+  const body = statusFn.slice(0, statusFn.indexOf("export async function listDueIvrRounds"));
   assert.equal(body.includes("executeIvrRound"), false);
   assert.equal(body.includes("IvrCallAttempt.delete"), false);
 });

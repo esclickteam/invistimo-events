@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       enabled: true,
-      customName: String(invitation.kosherCallEventName || ""),
+      customName: "",
       spokenName: narration.spokenName,
       speechSource: narration.source,
       script: narration.script,
@@ -108,23 +108,17 @@ export async function PATCH(req: NextRequest) {
       .lean();
     if (user?.kosherRecordedCallsEnabled !== true) return disabled();
 
-    const customName = String(body.kosherCallEventName ?? "").trim().slice(0, 120);
-    await Invitation.updateOne(
-      { _id: invitation._id },
-      { $set: { kosherCallEventName: customName } }
-    );
-    const fresh = await Invitation.findById(invitation._id).lean();
-    const narration = describeKosherNarration({ invitation: fresh, user });
+    const narration = describeKosherNarration({ invitation, user });
 
     return NextResponse.json({
       success: true,
       enabled: true,
-      customName,
+      customName: "",
       spokenName: narration.spokenName,
       script: narration.script,
       audioUrl: narration.introAudioUrl,
       audioReady: narration.ready,
-      invitationTitle: String(fresh?.title || ""),
+      invitationTitle: String(invitation?.title || ""),
     });
   } catch (error) {
     console.error("kosher event name update failed", error);

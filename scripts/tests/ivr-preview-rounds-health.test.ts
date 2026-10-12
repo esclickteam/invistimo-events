@@ -18,21 +18,16 @@ function readSrc(rel: string) {
   return readFileSync(path.join(root, rel), "utf8");
 }
 
-test("preview player binds src and surfaces load errors", () => {
+test("client screen no longer asks the customer to approve a recording", () => {
   const panel = readSrc("app/components/IvrRoundsPanel.jsx");
-  const player = panel.slice(
-    panel.indexOf("function ConcatPreviewPlayer"),
-    panel.indexOf("function SingleClipPlayer")
-  );
-  assert.match(player, /src=\{currentUrl\}/);
-  assert.match(player, /onError/);
-  assert.match(player, /ivr-preview-load-error/);
-  assert.match(player, /onLoadedMetadata/);
-  assert.match(panel, /ivr-approved-unplayable-banner/);
-  assert.match(panel, /approvedButUnplayable/);
-  assert.match(panel, /recompose_intro/);
-  assert.match(panel, /ivr-recompose-intro/);
-  assert.match(panel, /mediaPlayable/);
+  assert.match(panel, /ivr-auto-narration-note/);
+  assert.equal(panel.includes("ivr-approved-unplayable-banner"), false);
+  assert.equal(panel.includes("ivr-approve-audio"), false);
+  assert.equal(panel.includes("recompose_intro"), false);
+  assert.equal(panel.includes("הקלטה אישית"), false);
+  const config = readSrc("app/api/ivr/config/route.ts");
+  assert.match(config, /recompose_intro/);
+  assert.match(config, /mediaPlayable/);
 });
 
 test("config exposes media health and recompose without TTS", () => {

@@ -57,16 +57,13 @@ test("duration guard rejects after-only / name-dropped files", () => {
   );
 });
 
-test("preview + approve require current seamless composed file", () => {
-  const panel = readSrc("app/components/IvrRoundsPanel.jsx");
-  const playlistFn = panel.slice(
-    panel.indexOf("const previewPlaylist = useMemo"),
-    panel.indexOf("const composedReady")
-  );
-  assert.match(playlistFn, /preview\?\.seamless && composedUrl/);
-  assert.equal(playlistFn.includes('status === "ready"'), false);
-
+test("compose still requires the current seamless file before it is approved", () => {
   const config = readSrc("app/api/ivr/config/route.ts");
+  const playlistFn = config.slice(
+    config.indexOf("function serializePreviewUrls"),
+    config.indexOf("async function buildAndStoreComposedIntro")
+  );
+  assert.match(playlistFn, /composedIsCurrent === true/);
   assert.match(config, /OUTBOUND_SEGMENTS_MISSING/);
   assert.match(config, /COMPOSED_INTRO_STALE/);
   assert.match(config, /expectedComposeHash/);
@@ -76,13 +73,12 @@ test("preview + approve require current seamless composed file", () => {
 test("preview and dialer lock the same approved checksum", () => {
   const dialer = readSrc("lib/calls/ivrDialer.ts");
   const config = readSrc("app/api/ivr/config/route.ts");
-  const panel = readSrc("app/components/IvrRoundsPanel.jsx");
   assert.match(dialer, /audioContentHash/);
   assert.match(dialer, /IVR_COMPOSE_VERSION/);
   assert.match(config, /audioContentHash: expectedComposeHash/);
   assert.match(config, /recordingApproval/);
-  assert.match(panel, /preview\?\.seamless && composedUrl/);
-  assert.match(panel, /recompose_intro/);
+  assert.match(config, /recompose_intro/);
+  assert.match(readSrc("lib/calls/ivrAutoNarration.ts"), /ensureAutoIvrNarration/);
 });
 
 test("v2 outbound compose version cannot dial", () => {

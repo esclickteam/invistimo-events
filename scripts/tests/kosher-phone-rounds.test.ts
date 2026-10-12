@@ -104,30 +104,42 @@ test("audience split sends each record to one channel and keeps round eligibilit
   );
 });
 
-test("custom narration name does not replace the invitation title", () => {
-  const invitationTitle = "חתונת דניאל ונועה – 25.11.2026";
-  const custom = resolveKosherSpokenEventName({
-    customName: "דניאל ונועה",
+test("kosher narration uses the event name and ignores a separate narration name", () => {
+  const invitationTitle = "החתונה של דניאל ונועה";
+  const spoken = resolveKosherSpokenEventName({
+    customName: "שם לקריינות",
     invitationTitle,
-    ivrConfig: { eventName: "החתונה של דניאל ונועה" },
+    ivrConfig: {
+      eventName: "שם אחר",
+      eventNamePronunciation: "הגייה אחרת",
+    },
   });
-  assert.equal(custom.speechText, "דניאל ונועה");
-  assert.equal(custom.source, "custom");
-  assert.equal(invitationTitle, "חתונת דניאל ונועה – 25.11.2026");
+  assert.equal(spoken.speechText, invitationTitle);
+  assert.equal(spoken.displayName, invitationTitle);
+  assert.equal(spoken.source, "invitation");
 
-  const fallback = resolveKosherSpokenEventName({
-    customName: "",
-    invitationTitle,
-    ivrConfig: { eventName: "החתונה של דניאל ונועה", eventNamePronunciation: "דניאל ונועה" },
+  const fromDetails = resolveKosherSpokenEventName({
+    invitation: {
+      title: "הזמנה חדשה",
+      eventType: "wedding",
+      hostsNames: "דניאל ונועה",
+    },
   });
-  assert.equal(fallback.displayName, "החתונה של דניאל ונועה");
-  assert.equal(fallback.speechText, "דניאל ונועה");
+  assert.equal(fromDetails.speechText, "החתונה של דניאל ונועה");
 
-  const script = buildKosherCallScript("דניאל ונועה");
-  assert.match(script, /דניאל ונועה/);
+  const script = buildKosherCallScript(spoken.speechText);
+  assert.match(script, /החתונה של דניאל ונועה/);
   assert.match(script, /הקישו 1/);
   assert.match(script, /הקישו 2/);
   assert.match(script, /הקישו 3/);
+
+  const panel = fs.readFileSync(
+    "app/dashboard/messages/new/tabs/KosherMessageRoundPanel.tsx",
+    "utf8"
+  );
+  assert.equal(panel.includes("שמירת שם לקריינות"), false);
+  assert.equal(panel.includes("הכנת הקלטה"), false);
+  assert.equal(panel.includes("שם אירוע לקריינות"), false);
 });
 
 test("call results separate answered, missed and failed without a successful mark on failure", () => {

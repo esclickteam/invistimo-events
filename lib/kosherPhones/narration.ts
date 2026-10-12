@@ -1,5 +1,9 @@
 import { createHash } from "crypto";
 import Invitation from "@/models/Invitation";
+import User from "@/models/User";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
+import { mergeRetainedAudioClips } from "@/lib/calls/ivrSpokenEventName";
 import {
   composeIvrIntroAudio,
   contentHashForComposedIntro,
@@ -78,9 +82,8 @@ export function describeKosherNarration(input: {
   user: any;
 }): KosherNarration {
   const spoken = resolveKosherSpokenEventName({
-    customName: input.invitation?.kosherCallEventName,
+    invitation: input.invitation,
     invitationTitle: input.invitation?.title,
-    ivrConfig: input.user?.ivrConfig,
   });
   const reused =
     reuseStoredKosherAudio(input.invitation, spoken.speechText) ||
@@ -103,10 +106,45 @@ export function describeKosherNarration(input: {
   };
 }
 
+async function retainReplacedKosherClips(user: any, invitation: any) {
+  const stored = invitation?.kosherCallAudio || {};
+  const incoming = [stored.eventNameAudio, stored.composedIntroAudio]
+    .map((clip) => {
+      const publicToken = clean(clip?.publicToken);
+      const r2Key = clean(clip?.r2Key);
+      if (!publicToken || !r2Key) return null;
+      return {
+        publicToken,
+        r2Key,
+        contentType: clean(clip?.contentType) || "audio/mpeg",
+        retainedAt: new Date(),
+      };
+    })
+    .filter(Boolean);
+  if (!incoming.length || !user?._id) return;
+  const retainedAudioClips = mergeRetainedAudioClips(
+    user?.ivrConfig?.retainedAudioClips,
+    incoming
+  );
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { "ivrConfig.retainedAudioClips": retainedAudioClips } }
+  );
+}
+
 export async function ensureKosherNarration(input: {
   invitation: any;
   user: any;
 }): Promise<KosherNarration> {
+  if (input.user?._id && isIvrCallsUser(input.user)) {
+    const prepared = await ensureAutoIvrNarration(String(input.user._id)).catch(
+      () => null
+    );
+    if (prepared?.ivrConfig) {
+      input.user.ivrConfig = prepared.ivrConfig;
+    }
+  }
+
   const current = describeKosherNarration(input);
   if (current.ready) return current;
 
@@ -173,6 +211,8 @@ export async function ensureKosherNarration(input: {
 
     const nameUrl = buildIvrPublicAudioUrl(nameToken);
     const composedUrl = buildIvrPublicAudioUrl(composedToken);
+
+    await retainReplacedKosherClips(input.user, input.invitation);
 
     await Invitation.updateOne(
       { _id: input.invitation._id },

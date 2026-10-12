@@ -342,6 +342,13 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       approved?: boolean;
       approvedAt?: Date | null;
     };
+    /** Earlier clips kept so calls already placed can still be played. */
+    retainedAudioClips?: Array<{
+      publicToken?: string;
+      r2Key?: string;
+      contentType?: string;
+      retainedAt?: Date | null;
+    }>;
     updatedAt?: Date | null;
   };
 
@@ -1502,6 +1509,22 @@ preRsvpMessages: {
           default: null,
         },
       },
+      /**
+       * Previous narration tokens. Kept so calls that already started can
+       * still play their original file after the event name changes.
+       * Personal recordings are retained here too and are not deleted.
+       */
+      retainedAudioClips: {
+        type: [
+          {
+            publicToken: { type: String, trim: true, default: "" },
+            r2Key: { type: String, trim: true, default: "" },
+            contentType: { type: String, trim: true, default: "audio/mpeg" },
+            retainedAt: { type: Date, default: null },
+          },
+        ],
+        default: [],
+      },
       updatedAt: {
         type: Date,
         default: null,
@@ -2514,6 +2537,7 @@ UserSchema.index({ "ivrConfig.eventNameAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.composedIntroAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.composedInboundAudio.publicToken": 1 });
 UserSchema.index({ "ivrConfig.recordingApproval.audioPublicToken": 1 });
+UserSchema.index({ "ivrConfig.retainedAudioClips.publicToken": 1 });
 
 UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });

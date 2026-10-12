@@ -61,13 +61,14 @@ test("AuthContext exposes callsType on client user", () => {
   assert.match(src, /callsType\?: "human" \| "ivr"/);
 });
 
-test("rounds panel warns before dial when approved audio is missing", () => {
+test("rounds panel schedules calls without a recording or approval step", () => {
   const panel = readSrc("app/components/IvrRoundsPanel.jsx");
-  assert.match(panel, /ivr-audio-not-ready-banner/);
-  assert.match(panel, /אין עדיין קובץ שמע מאושר לשיחות/);
-  assert.match(panel, /לא\s+יתחיל לחייג/);
-  assert.match(panel, /ivr-approve-audio/);
-  assert.match(panel, /ConcatPreviewPlayer/);
-  assert.match(panel, /composedIntroAudioUrl/);
-  assert.match(panel, /return \[composedUrl\]/);
+  assert.match(panel, /ivr-auto-narration-note/);
+  assert.match(panel, /קריינות היא AI/);
+  assert.match(panel, /שם האירוע מפרטי האירוע/);
+  assert.equal(panel.includes("הקלטה אישית"), false);
+  assert.equal(panel.includes("ivr-approve-audio"), false);
+  assert.equal(panel.includes("ivr-event-name"), false);
+  assert.equal(panel.includes("ivr-audio-not-ready-banner"), false);
+  assert.match(panel, /data-testid="ivr-round-date"/);
 });

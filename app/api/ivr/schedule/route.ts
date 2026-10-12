@@ -10,6 +10,7 @@ import {
 } from "@/lib/calls/callRoundScheduleTime";
 import { buildNextIvrRoundSchedule } from "@/lib/calls/ivrRoundSchedule";
 import { resolveIvrRoundAudio } from "@/lib/calls/ivrDialer";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { ivrPersistErrorPayload } from "@/lib/calls/ivrConfigPersist";
 
 export const runtime = "nodejs";
@@ -62,14 +63,19 @@ export async function PUT(req: NextRequest) {
 
     await user.save();
 
+    const prepared = await ensureAutoIvrNarration(String(user._id));
+    if (prepared.ivrConfig) {
+      user.ivrConfig = prepared.ivrConfig;
+    }
     const audio = resolveIvrRoundAudio(user);
     const scheduledCount = nextRounds.filter((r) => r.status === "scheduled")
       .length;
     const executable = scheduledCount === 0 || audio.audioReady === true;
     const executeBlockReason = executable
       ? ""
-      : audio.audioBlockReason ||
-        "אין קריינות מאושרת — התזמון נשמר אבל Cron לא יחייג עד לאישור";
+      : prepared.message ||
+        audio.audioBlockReason ||
+        "הקריינות עדיין לא מוכנה — התזמון נשמר והמערכת תנסה שוב לפני החיוג";
 
     const schedule = user.callRoundsSchedule?.toObject?.()
       ? user.callRoundsSchedule.toObject()

@@ -123,7 +123,7 @@ export async function ensureComposedInboundAudioForUser(
 
   const user = await User.findById(userId).select("ivrConfig").lean();
   const cfg = (user as { ivrConfig?: any } | null)?.ivrConfig;
-  if (!cfg || cfg.audioMode === "self_recorded") return "";
+  if (!cfg) return "";
 
   const ready = composedInboundPlaybackUrl(cfg);
   const eventName = cfg.eventNameAudio;

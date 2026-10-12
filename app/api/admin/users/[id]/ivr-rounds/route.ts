@@ -34,6 +34,7 @@ import {
   setIvrRoundAdminStatus,
 } from "@/lib/calls/ivrDialer";
 import { buildNextIvrRoundSchedule } from "@/lib/calls/ivrRoundSchedule";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { explainIvrCallFailure } from "@/lib/telnyx/ivrCallControl";
 
 export const dynamic = "force-dynamic";
@@ -556,6 +557,7 @@ export async function POST(
         meta: { changedRounds },
       });
 
+      await ensureAutoIvrNarration(String(user._id));
       const refreshed = await loadIvrTarget(id);
       const payload = await buildRoundsPayload(refreshed, preferredInvitationId);
       const scheduledCount = nextRounds.filter(
@@ -566,7 +568,7 @@ export async function POST(
       const executeBlockReason = executable
         ? ""
         : payload.audioBlockReason ||
-          "אין קריינות מאושרת — התזמון נשמר אבל לא יתבצע חיוג עד לאישור";
+          "הקריינות עדיין לא מוכנה — התזמון נשמר והמערכת תנסה שוב לפני החיוג";
       return NextResponse.json({
         ok: true,
         ...payload,

@@ -298,5 +298,5 @@ test("approved intro is gathered with the file, and the first command sends no s
   assert.match(phase, /input_before_choice_window/);
   assert.match(phase, /hold_barge/);
   assert.match(readSrc("lib/calls/ivrDialer.ts"), /phase: allowed \? "RINGING"/);
-  assert.match(readSrc("app/components/IvrRoundsPanel.jsx"), /composedIntroAudioUrl/);
+  assert.match(readSrc("lib/calls/ivrDialer.ts"), /composedIntroAudioUrl/);
 });

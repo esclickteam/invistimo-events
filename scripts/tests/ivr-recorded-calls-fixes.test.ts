@@ -86,7 +86,8 @@ test("customer schedule fields are DD/MM/YYYY and HH:mm", () => {
     path.join(root, "app/api/ivr/audio/upload/route.ts"),
     "utf8"
   );
-  assert.match(upload, /User\.updateOne/);
+  assert.match(upload, /SELF_RECORDING_REMOVED/);
+  assert.equal(upload.includes("User.updateOne"), false);
   assert.equal(upload.includes("eventNameAudio"), false);
   assert.equal(upload.includes("composedIntroAudio"), false);
 });

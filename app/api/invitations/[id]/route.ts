@@ -18,6 +18,7 @@ import {
   validateCentralGifts,
 } from "@/lib/eventDetails/centralEventDetails";
 import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIdentity";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 
@@ -1204,6 +1205,19 @@ export async function PUT(
     const updated = await Invitation.findById(invitationBeforeUpdate._id)
       .populate("guests")
       .lean();
+
+    if (
+      updatePayload.title !== undefined ||
+      updatePayload.eventType !== undefined ||
+      updatePayload.hostsNames !== undefined
+    ) {
+      const ownerId = String((invitationBeforeUpdate as any).ownerId || "");
+      if (ownerId) {
+        void ensureAutoIvrNarration(ownerId).catch((error) => {
+          console.error("[ivr] event-name narration refresh", error);
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

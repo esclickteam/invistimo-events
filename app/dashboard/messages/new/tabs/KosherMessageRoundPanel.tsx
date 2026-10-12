@@ -63,9 +63,7 @@ export default function KosherMessageRoundPanel({
   round: KosherRoundNumber;
 }) {
   const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [customName, setCustomName] = useState("");
   const [script, setScript] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -80,9 +78,7 @@ export default function KosherMessageRoundPanel({
       return;
     }
     setStatus(data);
-    setCustomName(data.customName || "");
     setScript(data.script || "");
-    setAudioUrl(data.audioUrl || "");
   }
 
   useEffect(() => {
@@ -110,60 +106,6 @@ export default function KosherMessageRoundPanel({
   if (!status?.enabled) return null;
 
   const stats = status.rounds?.[String(round)] || EMPTY_STATS;
-
-  async function saveName() {
-    setBusy(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/kosher-calls", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invitationId,
-          kosherCallEventName: customName,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        setMessage("שמירת השם נכשלה");
-        return;
-      }
-      setScript(data.script || "");
-      setAudioUrl(data.audioUrl || "");
-      setMessage(
-        data.invitationTitle && data.invitationTitle !== invitationTitle
-          ? "השם לקריינות נשמר"
-          : "השם לקריינות נשמר. שם האירוע במערכת לא השתנה."
-      );
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function prepareAudio() {
-    setBusy(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/kosher-calls", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invitationId, action: "preview" }),
-      });
-      const data = await res.json();
-      setScript(data.script || script);
-      if (data.audioReady && data.audioUrl) {
-        setAudioUrl(data.audioUrl);
-        setMessage("ההקלטה מוכנה להאזנה");
-      } else {
-        setMessage(data.audioError || "הקריינות לא זמינה כרגע. השיחות לא יסומנו כהצלחה עד שתהיה הקלטה.");
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function retry() {
     setBusy(true);
@@ -208,47 +150,14 @@ export default function KosherMessageRoundPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="block text-sm font-bold text-[#3A2417]">
-          שם אירוע לקריינות מוקלטת
-          <input
-            value={customName}
-            onChange={(event) => setCustomName(event.target.value)}
-            placeholder={invitationTitle || "שם האירוע"}
-            className="mt-2 w-full rounded-2xl border border-[#E6D6BC] px-3 py-2 font-medium"
-          />
-        </label>
-        <div className="flex items-end gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={saveName}
-            className="rounded-full bg-[#3A2417] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
-          >
-            שמירת שם לקריינות
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={prepareAudio}
-            className="rounded-full border border-[#E6D6BC] px-4 py-2 text-sm font-black disabled:opacity-50"
-          >
-            הכנת הקלטה
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-2xl bg-[#FBF7F1] p-4 text-sm leading-7 text-[#3A2417]">
-        <div className="mb-2 font-black">תצוגה מקדימה של ההודעה</div>
-        <p className="whitespace-pre-line">{script}</p>
-        {audioUrl ? (
-          <audio className="mt-3 w-full" controls src={audioUrl} />
-        ) : (
-          <p className="mt-2 text-xs text-[#8A735C]">
-            עדיין אין קובץ שמע מוכן. אפשר להאזין אחרי הכנת ההקלטה, לפני הפעלת הסבב.
-          </p>
-        )}
-      </div>
+      <p className="mt-4 rounded-2xl bg-[#FBF7F1] px-4 py-3 text-sm leading-7 text-[#3A2417]">
+        הקריינות היא AI ומשתמשת אוטומטית בשם האירוע מפרטי האירוע
+        {status.spokenName || invitationTitle
+          ? ` (${status.spokenName || invitationTitle})`
+          : ""}
+        . אין צורך בהקלטה, בשם נפרד או באישור לפני הסבב.
+        {script ? <span className="mt-2 block whitespace-pre-line">{script}</span> : null}
+      </p>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs font-bold md:grid-cols-4">
         <Stat label="שיחות שבוצעו" value={stats.dialed} />

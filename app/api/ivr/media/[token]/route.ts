@@ -167,6 +167,25 @@ async function resolveR2KeyForToken(token: string): Promise<{
     };
   }
 
+  const byRetained = await User.findOne({
+    "ivrConfig.retainedAudioClips.publicToken": token,
+  })
+    .select("ivrConfig.retainedAudioClips")
+    .lean();
+  const retained = Array.isArray(byRetained?.ivrConfig?.retainedAudioClips)
+    ? byRetained.ivrConfig.retainedAudioClips.find(
+        (clip: { publicToken?: string; r2Key?: string; contentType?: string }) =>
+          String(clip?.publicToken || "") === token && String(clip?.r2Key || "")
+      )
+    : null;
+  if (retained?.r2Key) {
+    return {
+      r2Key: String(retained.r2Key),
+      contentType: String(retained.contentType || "") || "audio/mpeg",
+      source: "retainedAudioClips",
+    };
+  }
+
   const byKosher = await Invitation.findOne({
     $or: [
       { "kosherCallAudio.composedIntroAudio.publicToken": token },
@@ -176,14 +195,21 @@ async function resolveR2KeyForToken(token: string): Promise<{
     .select("kosherCallAudio")
     .lean();
   const kosherAudio = byKosher?.kosherCallAudio;
-  if (kosherAudio?.composedIntroAudio?.publicToken === token && kosherAudio.composedIntroAudio.r2Key) {
+  if (
+    kosherAudio?.composedIntroAudio?.publicToken === token &&
+    kosherAudio.composedIntroAudio.r2Key
+  ) {
     return {
       r2Key: String(kosherAudio.composedIntroAudio.r2Key),
-      contentType: String(kosherAudio.composedIntroAudio.contentType || "audio/mpeg"),
+      contentType:
+        String(kosherAudio.composedIntroAudio.contentType || "audio/mpeg"),
       source: "kosherComposedIntro",
     };
   }
-  if (kosherAudio?.eventNameAudio?.publicToken === token && kosherAudio.eventNameAudio.r2Key) {
+  if (
+    kosherAudio?.eventNameAudio?.publicToken === token &&
+    kosherAudio.eventNameAudio.r2Key
+  ) {
     return {
       r2Key: String(kosherAudio.eventNameAudio.r2Key),
       contentType: String(kosherAudio.eventNameAudio.contentType || "audio/mpeg"),

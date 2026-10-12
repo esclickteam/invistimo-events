@@ -1,5 +1,6 @@
 import { normalizePhoneKey, phoneNeedsReview } from "@/lib/guestPhone";
-import { buildIvrIntroText, resolveIvrEventName } from "@/lib/calls/ivrScript";
+import { buildIvrIntroText } from "@/lib/calls/ivrScript";
+import { resolveSpokenIvrEventName } from "@/lib/calls/ivrSpokenEventName";
 
 export type KosherPrefixRule = {
   prefix: string;
@@ -123,38 +124,30 @@ export function splitEligibleAudience<
 }
 
 /**
- * Spoken name for kosher IVR only.
- * A custom value never replaces the invitation title or the regular IVR event name.
+ * Spoken name for kosher IVR.
+ * Taken from event details, same as every other recorded call.
+ * A separate narration name and a pronunciation override are ignored.
  */
 export function resolveKosherSpokenEventName(input: {
   customName?: unknown;
   invitationTitle?: unknown;
+  invitation?: any;
+  event?: any;
   ivrConfig?: {
     eventName?: unknown;
     eventTypeLabel?: unknown;
     hostsNames?: unknown;
     eventNamePronunciation?: unknown;
   } | null;
-}): { displayName: string; speechText: string; source: "custom" | "ivr" | "invitation" } {
-  const custom = String(input.customName || "").trim();
-  if (custom) {
-    return { displayName: custom, speechText: custom, source: "custom" };
-  }
-
-  const fromIvr = resolveIvrEventName(input.ivrConfig || undefined);
-  const pronunciation = String(
-    input.ivrConfig?.eventNamePronunciation || ""
-  ).trim();
-  if (fromIvr) {
-    return {
-      displayName: fromIvr,
-      speechText: pronunciation || fromIvr,
-      source: "ivr",
-    };
-  }
-
-  const title = String(input.invitationTitle || "").trim() || "האירוע";
-  return { displayName: title, speechText: title, source: "invitation" };
+}): { displayName: string; speechText: string; source: "invitation" } {
+  const invitation = input.invitation || {
+    title: input.invitationTitle,
+  };
+  const spoken = resolveSpokenIvrEventName({
+    invitation,
+    event: input.event,
+  });
+  return { displayName: spoken, speechText: spoken, source: "invitation" };
 }
 
 export function buildKosherCallScript(speechText: string): string {

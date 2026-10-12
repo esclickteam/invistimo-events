@@ -5,6 +5,8 @@
  *
  * AI mode dials only after the approved continuous file is stored.
  * That same file is what the guest hears. Fixed pack clips are not rebuilt here.
+ * Pending calls use the event name from event details. Personal recordings
+ * stay stored for calls that already happened and are not dialed again.
  */
 
 import type { Types } from "mongoose";
@@ -38,6 +40,7 @@ import {
   STALE_UNANSWERED_MS,
 } from "@/lib/calls/ivrDialFailure";
 import { normalizeIvrVoiceGender } from "@/lib/calls/ivrScript";
+import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { createIvrRoundRunId } from "@/lib/calls/ivrRoundSchedule";
 import {
   KOSHER_MESSAGE_ROUND_ORIGIN,
@@ -398,38 +401,6 @@ function diagnoseAiAudioBlock(user: any): string {
   return "אין הקלטת AI מאושרת לשיחות";
 }
 
-function diagnoseSelfAudioBlock(user: any): string {
-  const intro = user?.ivrConfig?.introAudio;
-  const approval = user?.ivrConfig?.recordingApproval;
-  const token = cleanStr(intro?.publicToken);
-  let introAudioUrl = resolveIvrPublicAudioUrl({
-    publicToken: token,
-    storedUrl: intro?.audioUrl,
-  });
-  introAudioUrl = approvedPlaybackUrl(user?.ivrConfig, introAudioUrl);
-
-  if (!introAudioUrl) {
-    if (approval?.approved === true) {
-      return "אישור הקלטה עצמית קיים אבל טוקן/כתובת השמע אינם תקינים";
-    }
-    return "חסרה הקלטה עצמית או טוקן מדיה תקין";
-  }
-  if (intro?.status !== "ready") {
-    return `ההקלטה העצמית אינה במצב מוכן (status=${String(intro?.status || "חסר")})`;
-  }
-  if (intro?.approved !== true && approval?.approved !== true) {
-    return "ההקלטה העצמית לא אושרה להשמעה";
-  }
-  if (
-    approval &&
-    !(approval.approved === true && approval.audioMode === "self_recorded") &&
-    intro?.approved !== true
-  ) {
-    return "אין אישור תקף להקלטה עצמית (recordingApproval)";
-  }
-  return "אין הקלטה עצמית מאושרת לשיחות";
-}
-
 function resolveReadyAiAudio(user: any): {
   eventNameAudioUrl: string;
   composedIntroAudioUrl: string;
@@ -490,6 +461,19 @@ function resolveReadyAiAudio(user: any): {
   return { eventNameAudioUrl, composedIntroAudioUrl, voiceGender: gender };
 }
 
+async function withCurrentIvrNarration(user: any) {
+  if (!user?._id) return user;
+  try {
+    const prepared = await ensureAutoIvrNarration(String(user._id));
+    if (prepared?.ivrConfig) {
+      user.ivrConfig = prepared.ivrConfig;
+    }
+  } catch (error) {
+    console.error("[ivr] auto narration", error);
+  }
+  return user;
+}
+
 function resolveRoundAudio(user: any): {
   introAudioUrl: string;
   eventNameAudioUrl: string;
@@ -499,8 +483,8 @@ function resolveRoundAudio(user: any): {
   audioReady: boolean;
   audioBlockReason: string;
 } {
-  const audioMode =
-    (user?.ivrConfig?.audioMode as "ai" | "self_recorded" | null) || "ai";
+  // Calls that have not started always use AI narration.
+  // A stored personal recording is kept for historical playback only.
   let introAudioUrl = "";
   let eventNameAudioUrl = "";
   let composedIntroAudioUrl = "";
@@ -508,23 +492,15 @@ function resolveRoundAudio(user: any): {
   let audioReady = false;
   let audioBlockReason = "";
 
-  if (audioMode === "self_recorded") {
-    introAudioUrl = resolveReadySelfAudio(user);
-    audioReady = Boolean(introAudioUrl);
-    if (!audioReady) {
-      audioBlockReason = diagnoseSelfAudioBlock(user);
-    }
+  const ai = resolveReadyAiAudio(user);
+  if (ai) {
+    eventNameAudioUrl = ai.eventNameAudioUrl;
+    composedIntroAudioUrl = ai.composedIntroAudioUrl;
+    introAudioUrl = ai.composedIntroAudioUrl;
+    voiceGender = ai.voiceGender;
+    audioReady = true;
   } else {
-    const ai = resolveReadyAiAudio(user);
-    if (ai) {
-      eventNameAudioUrl = ai.eventNameAudioUrl;
-      composedIntroAudioUrl = ai.composedIntroAudioUrl;
-      introAudioUrl = ai.composedIntroAudioUrl;
-      voiceGender = ai.voiceGender;
-      audioReady = true;
-    } else {
-      audioBlockReason = diagnoseAiAudioBlock(user);
-    }
+    audioBlockReason = diagnoseAiAudioBlock(user);
   }
 
   return {
@@ -532,7 +508,7 @@ function resolveRoundAudio(user: any): {
     eventNameAudioUrl,
     composedIntroAudioUrl,
     voiceGender,
-    audioMode: audioMode === "self_recorded" ? "self_recorded" : "ai",
+    audioMode: "ai",
     audioReady,
     audioBlockReason,
   };
@@ -749,6 +725,7 @@ export async function openIvrRoundManually(input: {
     };
   }
 
+  await withCurrentIvrNarration(user);
   const audio = resolveRoundAudio(user);
   if (!audio.audioReady) {
     return {
@@ -1003,31 +980,6 @@ export async function setIvrRoundAdminStatus(input: {
   };
 }
 
-function resolveReadySelfAudio(user: any): string {
-  const intro = user?.ivrConfig?.introAudio;
-  const token = cleanStr(intro?.publicToken);
-  let introAudioUrl = resolveIvrPublicAudioUrl({
-    publicToken: token,
-    storedUrl: intro?.audioUrl,
-  });
-  introAudioUrl = approvedPlaybackUrl(user?.ivrConfig, introAudioUrl);
-
-  const approval = user?.ivrConfig?.recordingApproval;
-  const legacyApproved = !approval && intro?.approved === true;
-  const explicitlyApproved =
-    approval?.approved === true && approval?.audioMode === "self_recorded";
-
-  if (
-    !introAudioUrl ||
-    intro?.status !== "ready" ||
-    (intro?.approved !== true && approval?.approved !== true) ||
-    (!legacyApproved && !explicitlyApproved)
-  ) {
-    return "";
-  }
-  return introAudioUrl;
-}
-
 export async function listDueIvrRounds(input?: {
   now?: Date;
   dateKey?: string;
@@ -1052,7 +1004,7 @@ export async function listDueIvrRounds(input?: {
   for (const user of users) {
     if (!isIvrCallsUser(user)) continue;
 
-    const audio = resolveRoundAudio(user);
+    let audio: ReturnType<typeof resolveRoundAudio> | null = null;
 
     const rounds = Array.isArray(user?.callRoundsSchedule?.rounds)
       ? user.callRoundsSchedule.rounds
@@ -1114,6 +1066,12 @@ export async function listDueIvrRounds(input?: {
         );
         raw.runId = runId;
       }
+
+      if (!audio) {
+        await withCurrentIvrNarration(user);
+        audio = resolveRoundAudio(user);
+      }
+      if (!audio) continue;
 
       due.push({
         userId: String(user._id),
@@ -1799,6 +1757,7 @@ export async function fillIvrRoundCapacity(input: {
     return null;
   }
 
+  await withCurrentIvrNarration(user);
   const audio = resolveRoundAudio(user);
   if (!audio.audioReady) return null;
 
