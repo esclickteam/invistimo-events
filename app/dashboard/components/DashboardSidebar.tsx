@@ -19,6 +19,7 @@ import {
   WandSparkles,
   Eye,
   Contact,
+  Bell,
   ChevronLeft,
   ChevronRight,
   X,
@@ -364,6 +365,14 @@ export default function DashboardSidebar({
         href: `${dashboardHome}?action=calls`,
         query: "calls",
         hidden: !canCallRounds,
+      },
+      {
+        id: "notification-settings",
+        label: "העדפות התראות",
+        icon: Bell,
+        href: "/dashboard/notifications",
+        hidden: isDemo,
+        match: (path) => path.startsWith("/dashboard/notifications"),
       },
       {
         id: "checkin",

@@ -18,6 +18,9 @@ export type CustomerNotificationDocument = {
   resolvedAt?: Date | null;
   resolveReason?: string;
   dedupeKey: string;
+  audience: "customer" | "admin";
+  customerId?: Types.ObjectId | null;
+  pushClaimedAt?: Date | null;
   meta?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -57,12 +60,26 @@ const CustomerNotificationSchema = new Schema<CustomerNotificationDocument>(
     resolvedAt: { type: Date, default: null },
     resolveReason: { type: String, default: "", trim: true },
     dedupeKey: { type: String, required: true, trim: true, unique: true },
+    audience: {
+      type: String,
+      enum: ["customer", "admin"],
+      default: "customer",
+      index: true,
+    },
+    customerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    pushClaimedAt: { type: Date, default: null },
     meta: { type: Schema.Types.Mixed, default: undefined },
   },
   { timestamps: true }
 );
 
 CustomerNotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
+CustomerNotificationSchema.index({ userId: 1, audience: 1, status: 1, createdAt: -1 });
 
 export default mongoose.models.CustomerNotification ||
   mongoose.model<CustomerNotificationDocument>(

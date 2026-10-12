@@ -55,6 +55,12 @@ export async function GET(request: Request) {
     );
   } catch (err) {
     console.error("❌ Cron Worker Error:", err);
+    try {
+      const { recordSystemError } = await import("@/lib/customerNotifications/liveEvents");
+      await recordSystemError("scheduled-messages");
+    } catch (notifyError) {
+      console.error("system notification failed", notifyError);
+    }
 
     return NextResponse.json(
       { success: false, error: "CRON_FAILED" },

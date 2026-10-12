@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     userId,
     notificationId: body?.id ? String(body.id) : null,
     all: Boolean(body?.all),
+    audience: "customer",
   });
   const unreadCount = await countUnreadCustomerNotifications(userId);
 

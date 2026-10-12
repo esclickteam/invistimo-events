@@ -123,6 +123,9 @@ Boot safety (`lib/env/safetyGuards.ts` + `lib/db.ts`):
 | `EXTERNAL_SENDS_PHONE_ALLOWLIST` | if allowlist mode |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | for E2E |
 | `CRON_SECRET` | staging-specific |
+| `VAPID_PUBLIC_KEY` | Web Push public key. Push stays off when empty |
+| `VAPID_PRIVATE_KEY` | Web Push private key. Server only, never commit |
+| `VAPID_SUBJECT` | `mailto:` contact for the push provider |
 
 ### Safe to omit / leave empty on Staging
 
