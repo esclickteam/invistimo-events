@@ -942,6 +942,11 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
     nextStatus = "in_progress";
   }
 
+  const existingOrder = await CallWorkOrder.findById(workOrderId)
+    .select("status")
+    .lean<{ status?: string } | null>();
+  const previousStatus = String(existingOrder?.status || "");
+
   const update: any = {
     status: nextStatus,
 
@@ -980,6 +985,19 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
       new: true,
     }
   ).lean();
+
+  if (nextStatus === "completed" && previousStatus !== "completed" && workOrder) {
+    try {
+      const { recordHumanCallRoundCompleted } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await recordHumanCallRoundCompleted({
+        workOrderId: String((workOrder as { _id?: unknown })._id || workOrderId),
+      });
+    } catch (error) {
+      console.warn("[call-tasks/status] human call round notice failed", error);
+    }
+  }
 
   // When a round is fully completed, try opening the next due round immediately.
   if (nextStatus === "completed" && workOrder) {

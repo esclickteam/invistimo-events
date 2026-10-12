@@ -2,7 +2,15 @@ import mongoose from "mongoose";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import CallTask from "@/models/CallTask";
+import CallWorkOrder from "@/models/CallWorkOrder";
+import CallRecording from "@/models/CallRecording";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { createCustomerNotification } from "@/lib/customerNotifications/service";
+import {
+  isOpenHumanCallStatus,
+  planHumanCallRoundNotification,
+} from "@/lib/customerNotifications/humanCallRound";
 import {
   countPhonesNeedingReview,
   planCallRoundNotifications,
@@ -20,6 +28,14 @@ import {
 
 function adminHref(customerId: string) {
   return `/admin/users?impersonate=${encodeURIComponent(customerId)}`;
+}
+
+function safeAdminHref(value: string | undefined, customerId: string | null) {
+  const explicit = String(value || "").trim();
+  if (explicit.startsWith("/") && !explicit.startsWith("//") && !explicit.includes("://")) {
+    return explicit.slice(0, 300);
+  }
+  return customerId ? adminHref(customerId) : "/admin";
 }
 
 async function publishNotice(input: {
@@ -44,8 +60,8 @@ async function publishNotice(input: {
     title: input.notice.title,
     body: input.notice.body,
     actionHref:
-      audience === "admin" && customerId
-        ? adminHref(customerId)
+      audience === "admin"
+        ? safeAdminHref(input.notice.adminActionHref, customerId)
         : input.notice.actionHref,
     dedupeKey: input.notice.dedupeKey,
   });
@@ -169,6 +185,101 @@ export async function recordCallRoundOutcome(input: {
     });
   }
   return { created: notices.length };
+}
+
+export async function recordHumanCallRoundCompleted(input: { workOrderId: string }) {
+  if (!mongoose.Types.ObjectId.isValid(input.workOrderId)) return { created: 0 };
+  const workOrder = await CallWorkOrder.findById(input.workOrderId)
+    .select("status type invitationId round userId clientUserId eventName")
+    .lean<{
+      status?: string;
+      type?: string;
+      invitationId?: mongoose.Types.ObjectId | null;
+      round?: number;
+      userId?: mongoose.Types.ObjectId | null;
+      clientUserId?: mongoose.Types.ObjectId | null;
+      eventName?: string;
+    }>();
+  if (!workOrder || workOrder.status !== "completed") return { created: 0 };
+  if (workOrder.type && workOrder.type !== "rsvp_calls") return { created: 0 };
+  const invitationId = workOrder.invitationId ? String(workOrder.invitationId) : "";
+  const round = Number(workOrder.round || 0);
+  if (!mongoose.Types.ObjectId.isValid(invitationId) || round < 1 || round > 3) return { created: 0 };
+
+  const invitation = await Invitation.findById(invitationId)
+    .select("eventId ownerId userId title")
+    .lean<{
+      eventId?: mongoose.Types.ObjectId | null;
+      ownerId?: mongoose.Types.ObjectId | null;
+      userId?: mongoose.Types.ObjectId | null;
+      title?: string;
+    }>();
+  const userId = String(
+    workOrder.clientUserId || workOrder.userId || invitation?.ownerId || invitation?.userId || ""
+  );
+  if (!mongoose.Types.ObjectId.isValid(userId)) return { created: 0 };
+  const customer = await User.findById(userId)
+    .select("includeCalls callsType")
+    .lean<{ includeCalls?: boolean; callsType?: string }>();
+  if (isIvrCallsUser(customer)) return { created: 0 };
+
+  const tasks = await CallTask.find({
+    invitationId: workOrder.invitationId,
+    round: round as 1 | 2 | 3,
+  })
+    .select("status startedAt completedAt lastAttemptAt")
+    .lean<
+      Array<{
+        _id: mongoose.Types.ObjectId;
+        status?: string;
+        startedAt?: Date | null;
+        completedAt?: Date | null;
+        lastAttemptAt?: Date | null;
+      }>
+    >();
+  const openTaskCount = tasks.filter((task) => isOpenHumanCallStatus(String(task.status || ""))).length;
+  const taskIds = tasks.map((task) => String(task._id));
+  const recordings = taskIds.length
+    ? await CallRecording.find({ "clientState.taskId": { $in: taskIds } })
+        .select("clientState startedAt answeredAt endedAt")
+        .lean<
+          Array<{
+            clientState?: { taskId?: string };
+            startedAt?: Date | null;
+            answeredAt?: Date | null;
+            endedAt?: Date | null;
+          }>
+        >()
+    : [];
+  const notice = planHumanCallRoundNotification({
+    invitationId,
+    round,
+    eventName: String(workOrder.eventName || invitation?.title || "").trim(),
+    completed: true,
+    openTaskCount,
+    calls: tasks.map((task) => ({
+      taskId: String(task._id),
+      invitationId,
+      round,
+      status: String(task.status || ""),
+      startedAt: task.startedAt,
+      completedAt: task.completedAt,
+      lastAttemptAt: task.lastAttemptAt,
+    })),
+    recordings: recordings.map((recording) => ({
+      taskId: String(recording.clientState?.taskId || ""),
+      startedAt: recording.startedAt,
+      answeredAt: recording.answeredAt,
+      endedAt: recording.endedAt,
+    })),
+  });
+  if (!notice) return { created: 0 };
+  await publishCustomerAndAdmins({
+    notice,
+    userId,
+    eventId: invitation?.eventId ? String(invitation.eventId) : null,
+  });
+  return { created: 1 };
 }
 
 export async function recordQueuedWhatsappFailure(input: {

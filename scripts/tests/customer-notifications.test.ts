@@ -15,6 +15,10 @@ import {
   shouldDeliverPush,
 } from "../../lib/customerNotifications/planners";
 import {
+  formatHumanCallDuration,
+  planHumanCallRoundNotification,
+} from "../../lib/customerNotifications/humanCallRound";
+import {
   createCustomerNotification,
   listActiveAdminNotifications,
   listActiveCustomerNotifications,
@@ -113,6 +117,112 @@ test("message rounds collapse to one notice and never fan out per guest", () => 
     salt: "sched-1",
   });
   assert.equal(again[0].dedupeKey, partial[0].dedupeKey);
+});
+
+test("human call rounds notify once from original call times when the round is complete", () => {
+  const start = new Date("2026-10-12T06:12:00.000Z");
+  const end = new Date("2026-10-12T12:48:00.000Z");
+  assert.equal(formatHumanCallDuration(end.getTime() - start.getTime()), "6 שעות ו־36 דקות");
+
+  const open = planHumanCallRoundNotification({
+    invitationId: "inv-1",
+    round: 1,
+    eventName: "החתונה של הדר ובן",
+    completed: true,
+    openTaskCount: 2,
+    calls: [
+      {
+        taskId: "task-1",
+        invitationId: "inv-1",
+        round: 1,
+        status: "confirmed",
+        completedAt: new Date("2026-10-12T18:00:00.000Z"),
+      },
+    ],
+  });
+  assert.equal(open, null);
+
+  const notice = planHumanCallRoundNotification({
+    invitationId: "inv-1",
+    round: 1,
+    eventName: "החתונה של הדר ובן",
+    completed: true,
+    openTaskCount: 0,
+    now: new Date("2026-10-12T16:00:00.000Z"),
+    calls: [
+      {
+        taskId: "task-1",
+        invitationId: "inv-1",
+        round: 1,
+        status: "confirmed",
+        startedAt: new Date("2026-10-12T07:00:00.000Z"),
+        completedAt: new Date("2026-10-12T16:30:00.000Z"),
+      },
+      {
+        taskId: "task-2",
+        invitationId: "inv-1",
+        round: 1,
+        status: "no_answer",
+        completedAt: new Date("2026-10-12T16:40:00.000Z"),
+      },
+      {
+        taskId: "other-event",
+        invitationId: "inv-2",
+        round: 1,
+        status: "confirmed",
+        startedAt: new Date("2026-10-12T04:00:00.000Z"),
+        completedAt: new Date("2026-10-12T14:00:00.000Z"),
+      },
+      {
+        taskId: "other-round",
+        invitationId: "inv-1",
+        round: 2,
+        status: "confirmed",
+        startedAt: new Date("2026-10-12T05:00:00.000Z"),
+        completedAt: new Date("2026-10-12T15:00:00.000Z"),
+      },
+    ],
+    recordings: [
+      {
+        taskId: "task-1",
+        startedAt: start,
+        endedAt: new Date("2026-10-12T06:20:00.000Z"),
+      },
+      {
+        taskId: "task-2",
+        startedAt: new Date("2026-10-12T12:40:00.000Z"),
+        endedAt: end,
+      },
+    ],
+  });
+  assert.ok(notice);
+  assert.equal(notice?.title, "סבב שיחות אנושיות 1 הסתיים – החתונה של הדר ובן.");
+  assert.match(notice?.body || "", /תחילת שיחות: 09:12/);
+  assert.match(notice?.body || "", /סיום שיחות: 15:48/);
+  assert.match(notice?.body || "", /משך כולל: 6 שעות ו־36 דקות/);
+  assert.match(notice?.body || "", /סה״כ שיחות שתועדו: 2\./);
+  assert.equal(notice?.dedupeKey, "human-call-round:inv-1:1");
+  assert.equal(notice?.category, "rsvp_rounds");
+  assert.equal(notice?.adminActionHref, "/admin/shift-management");
+  assert.equal(notice?.notifyAdmins, true);
+
+  const again = planHumanCallRoundNotification({
+    invitationId: "inv-1",
+    round: 1,
+    eventName: "החתונה של הדר ובן",
+    completed: true,
+    openTaskCount: 0,
+    calls: [
+      {
+        taskId: "task-1",
+        invitationId: "inv-1",
+        round: 1,
+        status: "confirmed",
+        completedAt: end,
+      },
+    ],
+  });
+  assert.equal(again?.dedupeKey, notice?.dedupeKey);
 });
 
 test("call rounds notify once per run and skip in-progress", () => {
@@ -251,7 +361,13 @@ test("push worker does not intercept traffic and permission is opt-in", () => {
   assert.match(bell, /סמן הכול כנקרא/);
   assert.match(bell, /סגירת התראות/);
   assert.match(bell, /dir="rtl"/);
-  assert.match(read("app/dashboard/DashboardHeader.tsx"), /CustomerNotificationBell/);
+  const header = read("app/dashboard/DashboardHeader.tsx");
+  assert.match(header, /CustomerNotificationBell/);
+  assert.ok(header.indexOf("תמיכה") < header.indexOf("<CustomerNotificationBell"));
+  assert.ok(header.indexOf("<CustomerNotificationBell") < header.lastIndexOf("התנתקות"));
+  assert.match(bell, /bg-\[#E11D2E\]/);
+  assert.match(bell, /99\+/);
+  assert.doesNotMatch(bell, /border-\[#D7BE88\]/);
   assert.match(read("workers/sendScheduledSms.ts"), /notifyRoundQuietly/);
   assert.match(read("lib/calls/ivrDialer.ts"), /recordCallRoundOutcome/);
   assert.match(read("lib/venueSeatingContacts/service.ts"), /createCustomerNotification/);

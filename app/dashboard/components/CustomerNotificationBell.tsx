@@ -235,7 +235,7 @@ export default function CustomerNotificationBell({
             {severityLabel(item.severity)}
           </span>
         </div>
-        <p className="mt-1 break-words text-xs font-semibold leading-5 text-[#6F5C49]">
+        <p className="mt-1 whitespace-pre-line break-words text-xs font-semibold leading-5 text-[#6F5C49]">
           {item.body}
         </p>
         <p className="mt-2 text-[11px] font-bold text-[#9A8773]">
@@ -339,21 +339,24 @@ export default function CustomerNotificationBell({
         )
       : null;
 
+  const unreadLabel =
+    unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
+
   return (
-    <div ref={rootRef} className="relative" dir="rtl">
+    <div ref={rootRef} className="relative shrink-0 overflow-visible" dir="rtl">
       <button
         ref={buttonRef}
         type="button"
-        aria-label="התראות"
+        aria-label={unreadLabel ? `התראות, ${unreadLabel} שלא נקראו` : "התראות"}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#D7BE88] bg-white text-[#3F3328] shadow-sm transition hover:bg-[#F8EEDB]"
+        className="relative inline-flex h-11 w-11 items-center justify-center overflow-visible rounded-full border border-[#D6D3D1] bg-[#FAFAF9] text-[#1C1917] shadow-sm transition hover:border-[#1C1917] hover:bg-[#F3F1EE] active:scale-95 active:bg-[#E7E4DF]"
       >
-        <Bell size={18} />
-        {unreadCount > 0 ? (
-          <span className="absolute -left-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#9C3B2E] px-1 text-[10px] font-black text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
+        <Bell size={22} strokeWidth={2.25} />
+        {unreadLabel ? (
+          <span className="absolute left-0 top-0 z-10 inline-flex h-[18px] min-w-[18px] -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#E11D2E] px-1 text-[11px] font-black leading-none text-white ring-2 ring-white">
+            {unreadLabel}
           </span>
         ) : null}
       </button>
