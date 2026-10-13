@@ -519,6 +519,12 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   sourceQuoteId?: mongoose.Types.ObjectId | null;
   sourceAgreementToken?: string;
   termsAcceptedAt?: Date | null;
+  termsAcceptedVersion?: string;
+  eventDeletionPolicyAcceptedAt?: Date | null;
+  autoDeletionExempt?: boolean;
+  autoDeletionDisputeOpen?: boolean;
+  autoDeletionAdminHold?: boolean;
+  autoDeletionOpenTreatment?: boolean;
 
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -2072,6 +2078,38 @@ preRsvpMessages: {
       type: Date,
       default: null,
       index: true,
+    },
+
+    termsAcceptedVersion: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    eventDeletionPolicyAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+
+    autoDeletionExempt: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    autoDeletionDisputeOpen: {
+      type: Boolean,
+      default: false,
+    },
+
+    autoDeletionAdminHold: {
+      type: Boolean,
+      default: false,
+    },
+
+    autoDeletionOpenTreatment: {
+      type: Boolean,
+      default: false,
     },
 
     /**

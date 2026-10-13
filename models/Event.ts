@@ -441,6 +441,41 @@ const EventSchema = new mongoose.Schema(
       default: "active",
       index: true,
     },
+
+    autoDeletionExempt: {
+      type: Boolean,
+      default: false,
+    },
+
+    autoDeletionDisputeOpen: {
+      type: Boolean,
+      default: false,
+    },
+
+    autoDeletionAdminHold: {
+      type: Boolean,
+      default: false,
+    },
+
+    autoDeletionOpenTreatment: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletionFailureWaivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    deletionLeaseToken: {
+      type: String,
+      default: null,
+    },
+
+    deletionLeaseUntil: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

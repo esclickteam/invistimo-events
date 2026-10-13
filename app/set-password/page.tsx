@@ -396,6 +396,12 @@ export default function SetPasswordPage() {
                   />
                 </div>
 
+                <p className="rounded-[18px] border border-[#E8D7C2] bg-[#FFF8EE]/80 px-4 py-3 text-sm leading-6 text-[#5D4C3B]">
+                  לתשומת לבך: בתום 7 ימים מלאים מסיום יום האירוע, לפי התאריך האחרון והמעודכן שנשמר במערכת, החשבון והמידע התפעולי מיועדים למחיקה אוטומטית. המחיקה כפופה להשלמת הודעות תודה ושליחות מתוזמנות, ולהחרגה אם נקבעה. הצעות מחיר, הסכמים חתומים ומסמכי תשלום עשויים להישמר לפי דין.{" "}
+                  <a href="/terms#event-deletion" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#6B4E2E] underline">
+                    לנוסח המלא בתקנון
+                  </a>
+                </p>
                 <div className="flex items-start gap-3 rounded-[18px] border border-[#E8D7C2] bg-[#FFF8EE]/80 px-4 py-3.5">
                   <input
                     id="accept-terms"
@@ -420,7 +426,7 @@ export default function SetPasswordPage() {
                       rel="noopener noreferrer"
                       className="font-semibold text-[#6B4E2E] underline underline-offset-4 decoration-[#C9A46A] hover:text-[#3E2D20]"
                     >
-                      התקנון ותנאי השימוש
+                      התקנון ותנאי השימוש, לרבות מחיקה אוטומטית 7 ימים מלאים לאחר יום האירוע
                     </a>
                   </label>
                 </div>

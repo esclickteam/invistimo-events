@@ -5,8 +5,9 @@ import {
   CUSTOMER_PAYMENT_TERMS,
   type DetailSection,
 } from "@/lib/salesDocumentTerms";
+import { EVENT_DELETION_TERMS_PARAGRAPHS, EVENT_DELETION_GUARD_PARAGRAPHS } from "@/lib/legal/eventDeletionTerms";
 
-export const QUOTE_TERMS_VERSION = "2026-10-10-seating-3-hours";
+export const QUOTE_TERMS_VERSION = "2026-10-13-event-deletion-7d";
 
 export const QUOTE_APPROVAL_SECTION: DetailSection = {
   title: "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
@@ -42,19 +43,31 @@ const QUOTE_EVENT_DETAILS_ITEMS = [
   "באחריות הלקוח לבדוק את הקישור ואת תצוגתו לפני השליחה.",
 ];
 
-export function quoteAdditionalTerms(): DetailSection[] {
-  return CUSTOMER_ADDITIONAL_TERMS.map((section) => {
-    if (section.title !== "תנאים נוספים") return section;
+export const EVENT_DELETION_QUOTE_SECTION: DetailSection = {
+  title: "מחיקה אוטומטית לאחר סיום האירוע",
+  items: [
+    ...EVENT_DELETION_TERMS_PARAGRAPHS,
+    ...EVENT_DELETION_GUARD_PARAGRAPHS,
+    "הנוסח המלא מופיע בתקנון האתר, וההפניה לתקנון היא לנוסח המעודכן שפורסם באתר. אין בסעיף זה כדי לשנות הסכם שכבר נחתם.",
+  ],
+};
 
-    const items = [...section.items];
-    const anchorIndex = items.findIndex((item) =>
-      item.startsWith("באחריות הלקוח לבדוק את פרטי האירוע"),
-    );
-    const insertAt = anchorIndex >= 0 ? anchorIndex + 1 : items.length;
-    const missing = QUOTE_EVENT_DETAILS_ITEMS.filter((item) => !items.includes(item));
-    items.splice(insertAt, 0, ...missing);
-    return { ...section, items };
-  });
+export function quoteAdditionalTerms(): DetailSection[] {
+  return [
+    ...CUSTOMER_ADDITIONAL_TERMS.map((section) => {
+      if (section.title !== "תנאים נוספים") return section;
+
+      const items = [...section.items];
+      const anchorIndex = items.findIndex((item) =>
+        item.startsWith("באחריות הלקוח לבדוק את פרטי האירוע"),
+      );
+      const insertAt = anchorIndex >= 0 ? anchorIndex + 1 : items.length;
+      const missing = QUOTE_EVENT_DETAILS_ITEMS.filter((item) => !items.includes(item));
+      items.splice(insertAt, 0, ...missing);
+      return { ...section, items };
+    }),
+    EVENT_DELETION_QUOTE_SECTION,
+  ];
 }
 
 export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
@@ -313,6 +326,7 @@ const TERM_FIELDS = [
 
 export function buildQuoteTermsUpdate(document: Record<string, unknown>) {
   if (String(document.type || "") !== "quote") return null;
+  if (String(document.status || "") === "signed" || document.immutableSignedCopy) return null;
 
   const updated = withCurrentQuoteTerms(document);
   const hasArchive =

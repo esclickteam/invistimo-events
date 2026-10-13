@@ -353,14 +353,35 @@ async function clearDeletionMarks(userId: mongoose.Types.ObjectId) {
   ]);
 }
 
+async function assertFinancialArchiveVerified(
+  user: AnyRecord,
+  paymentsBefore: number,
+  session: ClientSession | null
+) {
+  const email = clean(user.email).toLowerCase();
+  const retained = await RetainedCustomerFinancial.findOne({ originalUserId: user._id })
+    .session(session)
+    .lean();
+  const copiedLedger = Array.isArray((retained as AnyRecord | null)?.ledgerPayments)
+    ? (retained as AnyRecord).ledgerPayments.length
+    : 0;
+  const paymentsAfter = email ? await Payment.countDocuments({ email }).session(session) : 0;
+  if (!retained || copiedLedger < paymentsBefore || paymentsAfter !== paymentsBefore) {
+    throw new Error("ARCHIVE_NOT_VERIFIED");
+  }
+}
+
 async function runDeletion(
   user: AnyRecord,
   session: ClientSession | null,
   media: { plan: OperationalMediaPlan | null }
 ) {
   const userId = user._id as mongoose.Types.ObjectId;
+  const email = clean(user.email).toLowerCase();
+  const paymentsBefore = email ? await Payment.countDocuments({ email }).session(session) : 0;
   const idNumber = await markFinancialDocuments(user, session);
   await archiveFinancials(user, idNumber, session);
+  await assertFinancialArchiveVerified(user, paymentsBefore, session);
   media.plan = await purgeOperationalCustomerData(user, session);
   const deleted = await User.findByIdAndDelete(userId, withSession(session));
   if (!deleted) throw new Error("USER_NOT_FOUND");
