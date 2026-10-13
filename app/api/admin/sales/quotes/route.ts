@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       for (const agreement of agreements) {
         const row = toAdminCustomerAgreementRow(agreement, liveUserIds);
         if (row.token && seen.has(row.token)) continue;
-        quotes.push(row);
+        quotes.push({ ...row, userLinkStatus: "none" });
       }
     }
 

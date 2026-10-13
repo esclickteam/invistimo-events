@@ -343,11 +343,10 @@ export function hydrateAdminQuoteForm(source: Record<string, unknown>): AdminQuo
       selectedUpsells: { ...emptyUpsells(), ...(state.selectedUpsells || {}) },
       adminUpsellPriceOverrides: { ...(state.adminUpsellPriceOverrides || {}) },
       seatingScheduleTimes: {
-        receptionStartTime: "",
-        plannedChuppahTime: "",
-        plannedSeatingStartTime: "",
-        teamArrivalTime: "",
-        ...(state.seatingScheduleTimes || {}),
+        receptionStartTime: state.seatingScheduleTimes?.receptionStartTime || "",
+        plannedChuppahTime: state.seatingScheduleTimes?.plannedChuppahTime || "",
+        plannedSeatingStartTime: state.seatingScheduleTimes?.plannedSeatingStartTime || "",
+        teamArrivalTime: state.seatingScheduleTimes?.teamArrivalTime || "",
       },
     };
   }

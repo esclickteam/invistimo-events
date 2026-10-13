@@ -1,3 +1,4 @@
+import type { PipelineStage } from "mongoose";
 import User from "@/models/User";
 import RetainedCustomerFinancial from "@/models/RetainedCustomerFinancial";
 
@@ -273,10 +274,10 @@ export async function loadRevenuePaymentRows(startDate: Date, endDate: Date) {
     User.aggregate(paymentsArrayPipeline(startDate, endDate)),
     User.aggregate(legacyPaymentsPipeline(startDate, endDate)),
     RetainedCustomerFinancial.aggregate(
-      retainedOnlyPipeline(paymentsArrayPipeline(startDate, endDate))
+      retainedOnlyPipeline(paymentsArrayPipeline(startDate, endDate)) as PipelineStage[]
     ),
     RetainedCustomerFinancial.aggregate(
-      retainedOnlyPipeline(legacyPaymentsPipeline(startDate, endDate))
+      retainedOnlyPipeline(legacyPaymentsPipeline(startDate, endDate)) as PipelineStage[]
     ),
   ]);
 

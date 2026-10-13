@@ -551,8 +551,10 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
 
 SalesDocumentSchema.pre("save", async function () {
   if (this.type === "agreement") {
-    freezeSignedSnapshot(this, buildSalesDocumentSignedCopy);
-    restoreFrozenSignedContent(this);
+    const locked = this as unknown as Parameters<typeof freezeSignedSnapshot>[0] &
+      Parameters<typeof restoreFrozenSignedContent>[0];
+    freezeSignedSnapshot(locked, buildSalesDocumentSignedCopy);
+    restoreFrozenSignedContent(locked);
   }
 });
 
