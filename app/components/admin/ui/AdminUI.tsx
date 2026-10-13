@@ -364,15 +364,17 @@ export function AdminActionsMenu({
   onToggle,
   onClose,
   label = "פעולות",
+  width = 220,
   children,
 }: {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   label?: string;
+  width?: number;
   children: ReactNode;
 }) {
-  const { anchorRef, box } = useAnchoredPopover(open, 220);
+  const { anchorRef, box } = useAnchoredPopover(open, width);
 
   return (
     <div className="admin-actions-menu relative inline-block max-w-full">

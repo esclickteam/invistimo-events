@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AdminActionsItem, AdminActionsMenu } from "@/app/components/admin/ui/AdminUI";
 
 type PaymentMethod = "cash" | "bank_transfer" | "bit" | "paybox" | "check" | "other";
 
@@ -40,6 +41,8 @@ type BillingPayload = {
   };
   rows: BillingRow[];
 };
+
+type EditorKind = "price" | "quantity" | "note" | "date";
 
 const METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "מזומן" },
@@ -80,6 +83,10 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" });
 }
 
+function hasOpenBalance(row: BillingRow) {
+  return row.balance != null && row.balance > 0;
+}
+
 export default function ProducerBillingPage() {
   const params = useParams<{ producerId: string }>();
   const producerId = String(params?.producerId || "");
@@ -87,9 +94,11 @@ export default function ProducerBillingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [paymentFor, setPaymentFor] = useState<BillingRow | null>(null);
+  const [editor, setEditor] = useState<{ kind: EditorKind; row: BillingRow } | null>(null);
   const [assignEmail, setAssignEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [focusClient, setFocusClient] = useState("");
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
   async function load(background = false) {
     if (!background) {
@@ -171,8 +180,36 @@ export default function ProducerBillingPage() {
     }
   }
 
+  function openEditor(kind: EditorKind, row: BillingRow) {
+    setOpenActionsId(null);
+    setEditor({ kind, row });
+  }
+
+  async function runFollowUp(row: BillingRow, mode: "handled" | "tomorrow" | "in_3_days") {
+    setOpenActionsId(null);
+    await post({
+      action: "follow-up",
+      clientId: row.clientId,
+      mode,
+      note: row.followUp?.note || "",
+    });
+  }
+
   return (
     <div dir="rtl" className="mx-auto w-full max-w-[1400px] px-4 py-6 text-right">
+      <style>{`
+        tr.billing-row-focus > td { background: #fff6e8; }
+        @media (min-width: 768px) {
+          .admin-table.billing-table tbody td.billing-nowrap { white-space: nowrap; }
+          .admin-table.billing-table .billing-clip {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      `}</style>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link href="/admin/users" className="text-sm font-bold text-[var(--admin-brand)]">
@@ -201,107 +238,163 @@ export default function ProducerBillingPage() {
             <Summary label="אירועים שטרם שולמו" value={String(payload.summary.unpaidCount)} />
           </div>
 
-          <div className="admin-table-region overflow-x-auto rounded-[var(--admin-radius)] border border-[var(--admin-border)] bg-white">
-            <table className="admin-table min-w-[1100px]">
-              <thead>
-                <tr>
-                  <th>לקוח</th>
-                  <th>אירוע</th>
-                  <th>תאריך</th>
-                  <th>ראשונית</th>
-                  <th>בפועל</th>
-                  <th>סופית לחיוב</th>
-                  <th>מחיר לרשומה</th>
-                  <th>סכום לתשלום</th>
-                  <th>שולם</th>
-                  <th>יתרה</th>
-                  <th>סטטוס</th>
-                  <th>פעולות</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payload.rows.map((row) => (
-                  <tr
-                    key={row.clientId}
-                    id={`collection-client-${row.clientId}`}
-                    className={focusClient === row.clientId ? "bg-[#FFF6E8]" : ""}
-                  >
-                    <td>
-                      <div className="font-bold">{row.clientName}</div>
-                      <div className="text-xs text-[var(--admin-muted)]">{row.clientEmail}</div>
-                    </td>
-                    <td>{row.eventName}</td>
-                    <td>{formatDate(row.eventDate)}</td>
-                    <td>{row.initialRecords}</td>
-                    <td>{row.actualRecords}</td>
-                    <td>{row.finalRecords ?? "—"}</td>
-                    <td>{money(row.pricePerRecord)}</td>
-                    <td>{money(row.amountDue)}</td>
-                    <td>{money(row.amountPaid)}</td>
-                    <td>{money(row.balance)}</td>
-                    <td className="font-bold">{row.statusLabel}</td>
-                    <td>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          type="button"
-                          className="rounded-lg bg-[var(--admin-brand)] px-3 py-2 text-xs font-bold text-white"
-                          onClick={() => setPaymentFor(row)}
-                        >
-                          רישום תשלום
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-[var(--admin-border)] px-3 py-2 text-xs font-bold"
-                          onClick={() => {
-                            const next = window.prompt("מחיר לרשומה", String(row.pricePerRecord));
-                            if (next == null) return;
-                            void post({
-                              action: "price",
-                              clientId: row.clientId,
-                              pricePerRecord: Number(next),
-                            });
-                          }}
-                        >
-                          עדכון מחיר
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-[var(--admin-border)] px-3 py-2 text-xs font-bold"
-                          onClick={() => {
-                            const next = window.prompt(
-                              "כמות סופית לחיוב",
-                              row.finalRecords == null ? "" : String(row.finalRecords),
-                            );
-                            if (next == null) return;
-                            void post({
-                              action: "final-records",
-                              clientId: row.clientId,
-                              finalRecords: Number(next),
-                            });
-                          }}
-                        >
-                          תיקון כמות
-                        </button>
-                        {row.balance != null && row.balance > 0 && (
-                          <FollowUpControls
-                            row={row}
-                            busy={busy}
-                            onSubmit={(body) => post(body)}
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {payload.rows.length === 0 && (
+          <div className="admin-table-region w-full min-w-0">
+            <div className="admin-table-scroll">
+              <table className="admin-table billing-table">
+                <colgroup>
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "7%" }} />
+                </colgroup>
+                <thead>
                   <tr>
-                    <td colSpan={12} className="py-8 text-center text-[var(--admin-muted)]">
-                      אין אירועים במעקב של המפיק הזה
-                    </td>
+                    <th>לקוח</th>
+                    <th>אירוע</th>
+                    <th>תאריך</th>
+                    <th>ראשונית</th>
+                    <th>בפועל</th>
+                    <th>סופית לחיוב</th>
+                    <th>מחיר לרשומה</th>
+                    <th>סכום לתשלום</th>
+                    <th>שולם</th>
+                    <th>יתרה</th>
+                    <th>סטטוס</th>
+                    <th>פעולות</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payload.rows.map((row) => {
+                    const open = openActionsId === row.clientId;
+                    const openBalance = hasOpenBalance(row);
+                    return (
+                      <tr
+                        key={row.clientId}
+                        id={`collection-client-${row.clientId}`}
+                        className={
+                          focusClient === row.clientId
+                            ? `billing-row-focus${open ? " actions-open" : ""}`
+                            : open
+                              ? "actions-open"
+                              : undefined
+                        }
+                      >
+                        <td data-label="לקוח">
+                          <div className="min-w-0">
+                            <div className="billing-clip font-bold" title={row.clientName}>
+                              {row.clientName}
+                            </div>
+                            <div className="billing-clip text-xs text-[var(--admin-muted)]" title={row.clientEmail}>
+                              {row.clientEmail}
+                            </div>
+                          </div>
+                        </td>
+                        <td data-label="אירוע">
+                          <span className="billing-clip" title={row.eventName}>
+                            {row.eventName}
+                          </span>
+                        </td>
+                        <td className="billing-nowrap" data-label="תאריך">
+                          {formatDate(row.eventDate)}
+                        </td>
+                        <td className="billing-nowrap" data-label="ראשונית">
+                          {row.initialRecords}
+                        </td>
+                        <td className="billing-nowrap" data-label="בפועל">
+                          {row.actualRecords}
+                        </td>
+                        <td className="billing-nowrap" data-label="סופית לחיוב">
+                          {row.finalRecords ?? "—"}
+                        </td>
+                        <td className="billing-nowrap" data-label="מחיר לרשומה">
+                          {money(row.pricePerRecord)}
+                        </td>
+                        <td className="billing-nowrap" data-label="סכום לתשלום">
+                          {money(row.amountDue)}
+                        </td>
+                        <td className="billing-nowrap" data-label="שולם">
+                          {money(row.amountPaid)}
+                        </td>
+                        <td className="billing-nowrap" data-label="יתרה">
+                          {money(row.balance)}
+                        </td>
+                        <td data-label="סטטוס" className="font-bold">
+                          <span className="billing-clip" title={row.statusLabel}>
+                            {row.statusLabel}
+                          </span>
+                        </td>
+                        <td className="admin-actions-cell" data-label="פעולות">
+                          <AdminActionsMenu
+                            open={open}
+                            width={248}
+                            onToggle={() => setOpenActionsId(open ? null : row.clientId)}
+                            onClose={() => setOpenActionsId(null)}
+                          >
+                            {(row.followUp?.handled || row.followUp?.snoozeUntil) && (
+                              <div className="border-b border-[var(--admin-border)] px-3 py-2 text-[11px] font-bold leading-5 text-[var(--admin-muted)]">
+                                {row.followUp?.handled ? <div>טופל לעת עתה</div> : null}
+                                {row.followUp?.snoozeUntil ? (
+                                  <div>תזכורת הבאה: {formatDate(row.followUp.snoozeUntil)}</div>
+                                ) : null}
+                              </div>
+                            )}
+                            <AdminActionsItem
+                              disabled={busy}
+                              onClick={() => {
+                                setOpenActionsId(null);
+                                setPaymentFor(row);
+                              }}
+                            >
+                              רישום תשלום
+                            </AdminActionsItem>
+                            <AdminActionsItem disabled={busy} onClick={() => openEditor("price", row)}>
+                              עדכון מחיר
+                            </AdminActionsItem>
+                            <AdminActionsItem disabled={busy} onClick={() => openEditor("quantity", row)}>
+                              תיקון כמות
+                            </AdminActionsItem>
+                            {openBalance && (
+                              <>
+                                <AdminActionsItem disabled={busy} onClick={() => openEditor("note", row)}>
+                                  שמירת הערה פנימית
+                                </AdminActionsItem>
+                                <AdminActionsItem disabled={busy} onClick={() => void runFollowUp(row, "handled")}>
+                                  סימון ״טופל לעת עתה״
+                                </AdminActionsItem>
+                                <AdminActionsItem disabled={busy} onClick={() => void runFollowUp(row, "tomorrow")}>
+                                  להזכיר לי מחר
+                                </AdminActionsItem>
+                                <AdminActionsItem disabled={busy} onClick={() => void runFollowUp(row, "in_3_days")}>
+                                  להזכיר לי בעוד 3 ימים
+                                </AdminActionsItem>
+                                <AdminActionsItem disabled={busy} onClick={() => openEditor("date", row)}>
+                                  בחירת תאריך לתזכורת
+                                </AdminActionsItem>
+                              </>
+                            )}
+                          </AdminActionsMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {payload.rows.length === 0 && (
+                    <tr>
+                      <td colSpan={12} className="py-8 text-center text-[var(--admin-muted)]">
+                        אין אירועים במעקב של המפיק הזה
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <form
@@ -352,6 +445,77 @@ export default function ProducerBillingPage() {
           }}
         />
       )}
+
+      {editor?.kind === "price" && (
+        <PriceDialog
+          key={editor.row.clientId}
+          row={editor.row}
+          busy={busy}
+          onClose={() => setEditor(null)}
+          onSubmit={async (pricePerRecord) => {
+            const ok = await post({
+              action: "price",
+              clientId: editor.row.clientId,
+              pricePerRecord,
+            });
+            if (ok) setEditor(null);
+          }}
+        />
+      )}
+
+      {editor?.kind === "quantity" && (
+        <QuantityDialog
+          key={editor.row.clientId}
+          row={editor.row}
+          busy={busy}
+          onClose={() => setEditor(null)}
+          onSubmit={async (finalRecords) => {
+            const ok = await post({
+              action: "final-records",
+              clientId: editor.row.clientId,
+              finalRecords,
+            });
+            if (ok) setEditor(null);
+          }}
+        />
+      )}
+
+      {editor?.kind === "note" && (
+        <NoteDialog
+          key={editor.row.clientId}
+          row={editor.row}
+          busy={busy}
+          onClose={() => setEditor(null)}
+          onSubmit={async (note) => {
+            const ok = await post({
+              action: "follow-up",
+              clientId: editor.row.clientId,
+              mode: "note",
+              note,
+            });
+            if (ok) setEditor(null);
+          }}
+        />
+      )}
+
+      {editor?.kind === "date" && (
+        <DateDialog
+          key={editor.row.clientId}
+          row={editor.row}
+          busy={busy}
+          onClose={() => setEditor(null)}
+          onSubmit={async (remindOn) => {
+            const ok = await post({
+              action: "follow-up",
+              clientId: editor.row.clientId,
+              mode: "date",
+              remindOn,
+              note: editor.row.followUp?.note || "",
+            });
+            if (ok) setEditor(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -365,81 +529,237 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FollowUpControls({
+function DialogShell({
+  title,
+  subtitle,
+  busy,
+  onClose,
+  onSubmit,
+  submitLabel,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" dir="rtl">
+      <button type="button" className="absolute inset-0 bg-black/40" onClick={onClose} aria-label="סגירה" />
+      <form
+        className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 text-right shadow-xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <h2 className="text-xl font-black">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm text-[var(--admin-muted)]">{subtitle}</p> : null}
+        <div className="mt-4">{children}</div>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="submit"
+            disabled={busy}
+            className="h-11 flex-1 rounded-xl bg-black text-sm font-bold text-white disabled:opacity-50"
+          >
+            {busy ? "שומר…" : submitLabel}
+          </button>
+          <button type="button" onClick={onClose} className="h-11 rounded-xl bg-[#ECE7E1] px-4 text-sm font-bold">
+            ביטול
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const fieldClass = "mt-2 h-11 w-full rounded-xl border border-[var(--admin-border)] px-3 text-sm";
+
+function PriceDialog({
   row,
   busy,
+  onClose,
   onSubmit,
 }: {
   row: BillingRow;
   busy: boolean;
-  onSubmit: (body: Record<string, unknown>) => Promise<boolean | undefined>;
+  onClose: () => void;
+  onSubmit: (pricePerRecord: number) => void;
 }) {
-  const [note, setNote] = useState(row.followUp?.note || "");
-  const [remindOn, setRemindOn] = useState("");
-
-  useEffect(() => {
-    setNote(row.followUp?.note || "");
-  }, [row.followUp?.note, row.clientId]);
-
-  function send(mode: string) {
-    void onSubmit({
-      action: "follow-up",
-      clientId: row.clientId,
-      mode,
-      note,
-      remindOn,
-    });
-  }
+  const [value, setValue] = useState(String(row.pricePerRecord));
+  const [localError, setLocalError] = useState("");
 
   return (
-    <div className="mt-2 space-y-2 border-t border-[var(--admin-border)] pt-2">
-      <label className="block text-[11px] font-bold text-[var(--admin-muted)]">
+    <DialogShell
+      title="עדכון מחיר"
+      subtitle={row.clientName}
+      busy={busy}
+      onClose={onClose}
+      submitLabel="שמירת מחיר"
+      onSubmit={() => {
+        const next = Number(value);
+        if (!Number.isFinite(next) || next < 0) {
+          setLocalError("מחיר לא תקין");
+          return;
+        }
+        setLocalError("");
+        onSubmit(next);
+      }}
+    >
+      <label className="block text-sm font-bold">
+        מחיר לרשומה
+        <input
+          required
+          type="number"
+          min="0"
+          step="0.01"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          className={fieldClass}
+        />
+      </label>
+      {localError ? <p className="mt-2 text-sm font-bold text-red-600">{localError}</p> : null}
+    </DialogShell>
+  );
+}
+
+function QuantityDialog({
+  row,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  row: BillingRow;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (finalRecords: number) => void;
+}) {
+  const [value, setValue] = useState(row.finalRecords == null ? "" : String(row.finalRecords));
+  const [localError, setLocalError] = useState("");
+
+  return (
+    <DialogShell
+      title="תיקון כמות"
+      subtitle={row.eventName}
+      busy={busy}
+      onClose={onClose}
+      submitLabel="שמירת כמות"
+      onSubmit={() => {
+        const next = Number(value);
+        if (!Number.isInteger(next) || next < 0) {
+          setLocalError("כמות רשומות לא תקינה");
+          return;
+        }
+        setLocalError("");
+        onSubmit(next);
+      }}
+    >
+      <label className="block text-sm font-bold">
+        כמות סופית לחיוב
+        <input
+          required
+          type="number"
+          min="0"
+          step="1"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          className={fieldClass}
+        />
+      </label>
+      {localError ? <p className="mt-2 text-sm font-bold text-red-600">{localError}</p> : null}
+    </DialogShell>
+  );
+}
+
+function NoteDialog({
+  row,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  row: BillingRow;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (note: string) => void;
+}) {
+  const [note, setNote] = useState(row.followUp?.note || "");
+
+  return (
+    <DialogShell
+      title="שמירת הערה פנימית"
+      subtitle={row.eventName}
+      busy={busy}
+      onClose={onClose}
+      submitLabel="שמירת הערה"
+      onSubmit={() => onSubmit(note)}
+    >
+      <label className="block text-sm font-bold">
         הערה פנימית
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
           placeholder="דיברתי עם המפיקה, התחייבה להעביר תשלום ביום חמישי."
-          rows={2}
-          className="mt-1 w-full rounded-lg border border-[var(--admin-border)] px-2 py-1 text-xs font-semibold"
+          rows={4}
+          className="mt-2 w-full rounded-xl border border-[var(--admin-border)] px-3 py-2 text-sm"
         />
       </label>
-      {row.followUp?.handled && (
-        <p className="text-[11px] font-bold text-[var(--admin-muted)]">טופל לעת עתה</p>
-      )}
-      {row.followUp?.snoozeUntil && (
-        <p className="text-[11px] font-bold text-[var(--admin-muted)]">
-          תזכורת הבאה: {formatDate(row.followUp.snoozeUntil)}
-        </p>
-      )}
-      <div className="flex flex-col gap-1">
-        <button type="button" disabled={busy} onClick={() => send("note")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
-          שמירת הערה
-        </button>
-        <button type="button" disabled={busy} onClick={() => send("handled")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
-          טופל לעת עתה
-        </button>
-        <button type="button" disabled={busy} onClick={() => send("tomorrow")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
-          להזכיר לי מחר
-        </button>
-        <button type="button" disabled={busy} onClick={() => send("in_3_days")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
-          להזכיר לי בעוד 3 ימים
-        </button>
+    </DialogShell>
+  );
+}
+
+function DateDialog({
+  row,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  row: BillingRow;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (remindOn: string) => void;
+}) {
+  const [remindOn, setRemindOn] = useState("");
+  const [localError, setLocalError] = useState("");
+
+  return (
+    <DialogShell
+      title="בחירת תאריך לתזכורת"
+      subtitle={row.eventName}
+      busy={busy}
+      onClose={onClose}
+      submitLabel="שמירת תזכורת"
+      onSubmit={() => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(remindOn)) {
+          setLocalError("יש לבחור תאריך");
+          return;
+        }
+        setLocalError("");
+        onSubmit(remindOn);
+      }}
+    >
+      <label className="block text-sm font-bold">
+        תאריך לתזכורת
         <input
+          required
           type="date"
           value={remindOn}
           onChange={(event) => setRemindOn(event.target.value)}
-          className="h-8 rounded-lg border border-[var(--admin-border)] px-2 text-[11px]"
+          className={fieldClass}
         />
-        <button
-          type="button"
-          disabled={busy || !remindOn}
-          onClick={() => send("date")}
-          className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold disabled:opacity-50"
-        >
-          בחירת תאריך לתזכורת
-        </button>
-      </div>
-    </div>
+      </label>
+      {localError ? <p className="mt-2 text-sm font-bold text-red-600">{localError}</p> : null}
+    </DialogShell>
   );
 }
 
@@ -460,77 +780,59 @@ function PaymentDialog({
   const [note, setNote] = useState("");
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" dir="rtl">
-      <button type="button" className="absolute inset-0 bg-black/40" onClick={onClose} aria-label="סגירה" />
-      <form
-        className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 text-right shadow-xl"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit({ amount: Number(amount), paidAt, method, note });
-        }}
-      >
-        <h2 className="text-xl font-black">רישום תשלום</h2>
-        <p className="mt-1 text-sm text-[var(--admin-muted)]">
-          {row.clientName} · יתרה {money(row.balance)}
-        </p>
-        <label className="mt-4 block text-sm font-bold">
-          סכום ששולם
-          <input
-            required
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--admin-border)] px-3"
-          />
-        </label>
-        <label className="mt-3 block text-sm font-bold">
-          תאריך
-          <input
-            required
-            type="date"
-            value={paidAt}
-            onChange={(event) => setPaidAt(event.target.value)}
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--admin-border)] px-3"
-          />
-        </label>
-        <label className="mt-3 block text-sm font-bold">
-          אמצעי תשלום
-          <select
-            value={method}
-            onChange={(event) => setMethod(event.target.value as PaymentMethod)}
-            className="mt-2 h-11 w-full rounded-xl border border-[var(--admin-border)] px-3"
-          >
-            {METHODS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="mt-3 block text-sm font-bold">
-          הערה פנימית
-          <textarea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-[var(--admin-border)] px-3 py-2"
-            rows={3}
-          />
-        </label>
-        <div className="mt-5 flex gap-2">
-          <button
-            type="submit"
-            disabled={busy}
-            className="h-11 flex-1 rounded-xl bg-black text-sm font-bold text-white disabled:opacity-50"
-          >
-            {busy ? "שומר…" : "שמירת תשלום"}
-          </button>
-          <button type="button" onClick={onClose} className="h-11 rounded-xl bg-[#ECE7E1] px-4 text-sm font-bold">
-            ביטול
-          </button>
-        </div>
-      </form>
-    </div>
+    <DialogShell
+      title="רישום תשלום"
+      subtitle={`${row.clientName} · יתרה ${money(row.balance)}`}
+      busy={busy}
+      onClose={onClose}
+      submitLabel="שמירת תשלום"
+      onSubmit={() => onSubmit({ amount: Number(amount), paidAt, method, note })}
+    >
+      <label className="block text-sm font-bold">
+        סכום ששולם
+        <input
+          required
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
+          className={fieldClass}
+        />
+      </label>
+      <label className="mt-3 block text-sm font-bold">
+        תאריך
+        <input
+          required
+          type="date"
+          value={paidAt}
+          onChange={(event) => setPaidAt(event.target.value)}
+          className={fieldClass}
+        />
+      </label>
+      <label className="mt-3 block text-sm font-bold">
+        אמצעי תשלום
+        <select
+          value={method}
+          onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+          className={fieldClass}
+        >
+          {METHODS.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mt-3 block text-sm font-bold">
+        הערה פנימית
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          className="mt-2 w-full rounded-xl border border-[var(--admin-border)] px-3 py-2 text-sm"
+          rows={3}
+        />
+      </label>
+    </DialogShell>
   );
 }
