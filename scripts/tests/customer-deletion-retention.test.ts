@@ -58,8 +58,13 @@ import DeletedCustomerTombstone from "../../models/DeletedCustomerTombstone";
 import { deleteInvistimoCustomerAccount } from "../../lib/customers/deleteCustomerAccount";
 import { cloudinaryPublicIdFromUrl } from "../../lib/customers/operationalPurge";
 import { sumRevenueBetween } from "../../lib/admin/revenuePayments";
+import { loadAdminSalesQuotes } from "../../lib/customers/adminSalesList";
+import { loadCustomerPaymentHistory } from "../../lib/customers/paymentHistory";
 import {
   adminSalesListKind,
+  documentKindOf,
+  filterAdminSalesRows,
+  toAdminCustomerQuoteRow,
   toAdminSalesDocumentRow,
 } from "../../lib/customers/adminSalesDocumentRow";
 import { buildRetainedDocumentHtml } from "../../lib/customers/retainedDocumentHtml";
@@ -78,6 +83,77 @@ test("signed agreements use their own admin tab", () => {
       "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v123/events/dana/photo.jpg"
     ),
     "events/dana/photo"
+  );
+});
+
+test("admin filters keep deleted-customer documents visible", () => {
+  const deletedQuote = toAdminSalesDocumentRow(
+    {
+      _id: "q1",
+      type: "quote",
+      token: "quote-historical",
+      status: "sent",
+      client: { fullName: "יוסי ישן", email: "yossi@example.com" },
+      convertedUserId: "b".repeat(24),
+    },
+    new Set()
+  );
+  const activeQuote = toAdminSalesDocumentRow(
+    {
+      _id: "q2",
+      type: "quote",
+      token: "quote-active",
+      status: "sent",
+      client: { fullName: "לקוח פעיל" },
+      convertedUserId: "c".repeat(24),
+    },
+    new Set(["c".repeat(24)])
+  );
+  const signed = toAdminSalesDocumentRow(
+    {
+      _id: "a1",
+      type: "agreement",
+      token: "agreement-signed",
+      status: "signed",
+      signedAt: paidAt,
+      client: { fullName: "יוסי ישן" },
+      convertedUserId: "b".repeat(24),
+    },
+    new Set()
+  );
+  const unsignedAgreement = toAdminCustomerQuoteRow(
+    { _id: "orphan", quoteNumber: "Q-1", status: "sent", total: 80, customerDeleted: true },
+    { fullName: "יוסי ישן", email: "yossi@example.com", customerDeleted: true },
+    new Set()
+  );
+
+  assert.equal(deletedQuote.customerDeleted, true);
+  assert.equal(deletedQuote.fullName, "יוסי ישן");
+  assert.equal(activeQuote.customerDeleted, false);
+  assert.equal(documentKindOf(signed), "signed");
+  assert.equal(unsignedAgreement.customerDeleted, true);
+  assert.equal(unsignedAgreement.fullName, "יוסי ישן");
+
+  const rows = [deletedQuote, activeQuote, signed, unsignedAgreement];
+  assert.deepEqual(
+    filterAdminSalesRows(rows, { customer: "all", document: "all" }).map((row) => row._id),
+    ["q1", "q2", "a1", "orphan"]
+  );
+  assert.deepEqual(
+    filterAdminSalesRows(rows, { customer: "deleted" }).map((row) => row.fullName),
+    ["יוסי ישן", "יוסי ישן", "יוסי ישן"]
+  );
+  assert.deepEqual(
+    filterAdminSalesRows(rows, { customer: "active" }).map((row) => row._id),
+    ["q2"]
+  );
+  assert.deepEqual(
+    filterAdminSalesRows(rows, { document: "quote" }).map((row) => row._id),
+    ["q1", "q2", "orphan"]
+  );
+  assert.deepEqual(
+    filterAdminSalesRows(rows, { document: "signed" }).map((row) => row._id),
+    ["a1"]
   );
 });
 
@@ -701,6 +777,32 @@ test("deleting a customer keeps quotes, signed agreements, payments, and revenue
       ],
     });
 
+    await SalesDocument.create({
+      type: "quote",
+      token: "quote-token-survivor",
+      status: "sent",
+      url: "https://www.invistimo.com/sales-documents/quote-token-survivor",
+      convertedUserId: survivor._id,
+      client: {
+        fullName: survivor.name,
+        email: survivor.email,
+      },
+      totals: { grossAmountAfterDiscount: 50 },
+    });
+    const orphanFile = await CustomerFile.create({
+      fullName: "מסמך בלי משתמש",
+      email: "orphan.quote@example.com",
+      customerDeleted: true,
+      userId: null,
+    });
+    await CustomerQuote.create({
+      customerFileId: orphanFile._id,
+      quoteNumber: "Q-ORPHAN",
+      total: 80,
+      status: "sent",
+      customerDeleted: true,
+    });
+
     const beforeRevenue = await sumRevenueBetween(rangeStart, rangeEnd);
     assert.equal(beforeRevenue, 330);
 
@@ -879,6 +981,102 @@ test("deleting a customer keeps quotes, signed agreements, payments, and revenue
     assert.equal(row.fullName, "דנה לוי");
     assert.match(buildRetainedDocumentHtml(keptAgreement), /דנה לוי/);
     assert.match(buildRetainedDocumentHtml(keptAgreement), /203\.0\.113\.8/);
+
+    await SalesDocument.create({
+      type: "quote",
+      token: "quote-token-historical-missing-user",
+      status: "sent",
+      url: "https://www.invistimo.com/sales-documents/quote-token-historical-missing-user",
+      convertedUserId: new mongoose.Types.ObjectId(),
+      customerDeleted: false,
+      client: {
+        fullName: "היסטורי בלי משתמש",
+        email: "historical.missing@example.com",
+      },
+      totals: { grossAmountAfterDiscount: 10 },
+    });
+
+    const listed = await loadAdminSalesQuotes();
+    const byToken = new Map(listed.quotes.map((item) => [item.token, item]));
+    const listedQuote = byToken.get("quote-token-dana");
+    const listedAgreement = byToken.get("agreement-token-dana");
+    const listedSurvivor = byToken.get("quote-token-survivor");
+    const listedHistorical = byToken.get("quote-token-historical-missing-user");
+    const listedOrphan = listed.quotes.find((item) => item.quoteNumber === "Q-ORPHAN");
+    assert.equal(listedQuote?.customerDeleted, true);
+    assert.equal(listedQuote?.fullName, "דנה לוי");
+    assert.equal(listedAgreement?.customerDeleted, true);
+    assert.equal(listedAgreement?.fullName, "דנה לוי");
+    assert.equal(documentKindOf(listedAgreement!), "signed");
+    assert.equal(listedSurvivor?.customerDeleted, false);
+    assert.equal(listedSurvivor?.fullName, "נשאר במערכת");
+    assert.equal(listedHistorical?.customerDeleted, true);
+    assert.equal(listedHistorical?.fullName, "היסטורי בלי משתמש");
+    assert.equal(listedOrphan?.customerDeleted, true);
+    assert.equal(listedOrphan?.fullName, "מסמך בלי משתמש");
+
+    const deletedOnly = filterAdminSalesRows(listed.quotes, { customer: "deleted" });
+    assert.ok(deletedOnly.some((item) => item.token === "quote-token-dana"));
+    assert.ok(deletedOnly.some((item) => item.token === "agreement-token-dana"));
+    assert.equal(
+      deletedOnly.some((item) => item.token === "quote-token-survivor"),
+      false
+    );
+    const activeOnly = filterAdminSalesRows(listed.quotes, { customer: "active" });
+    assert.ok(activeOnly.some((item) => item.token === "quote-token-survivor"));
+    assert.equal(
+      activeOnly.some((item) => item.token === "quote-token-dana"),
+      false
+    );
+    const signedOnly = filterAdminSalesRows(listed.quotes, {
+      document: "signed",
+    });
+    assert.ok(signedOnly.some((item) => item.token === "agreement-token-dana"));
+    assert.equal(
+      signedOnly.some((item) => item.token === "quote-token-dana"),
+      false
+    );
+
+    const history = await loadCustomerPaymentHistory({
+      originalUserId: String(customer._id),
+      email: "dana.retention@example.com",
+      fullName: "דנה לוי",
+    });
+    assert.equal(history.customer.deleted, true);
+    assert.equal(history.customer.name, "דנה לוי");
+    assert.equal(history.payments[0]?.amount, 200);
+    assert.equal(history.payments[0]?.invoiceUrl, "https://files.invistimo.com/invoices/dana.pdf");
+    assert.equal(history.source, "retained");
+
+    const activeHistory = await loadCustomerPaymentHistory({
+      originalUserId: String(survivor._id),
+      email: survivor.email,
+      fullName: survivor.name,
+    });
+    assert.equal(activeHistory.customer.deleted, false);
+    assert.equal(activeHistory.source, "user");
+    assert.equal(activeHistory.payments[0]?.amount, 50);
+
+    await Payment.collection.insertOne({
+      email: "gone.forever@example.com",
+      amount: 40,
+      currency: "ils",
+      status: "paid",
+      type: "package",
+      maxGuests: 10,
+      isTest: false,
+      createdAt: paidAt,
+      updatedAt: paidAt,
+    });
+    const withOrphanLedger = await sumRevenueBetween(rangeStart, rangeEnd);
+    assert.equal(withOrphanLedger, beforeRevenue + 40);
+    const orphanHistory = await loadCustomerPaymentHistory({
+      email: "gone.forever@example.com",
+      fullName: "לקוח ישן",
+    });
+    assert.equal(orphanHistory.source, "ledger");
+    assert.equal(orphanHistory.customer.deleted, true);
+    assert.equal(orphanHistory.payments[0]?.amount, 40);
   } finally {
     await mongoose.disconnect();
     await mongod.stop();
