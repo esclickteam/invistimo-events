@@ -155,6 +155,23 @@ export type SalesDocumentModelType = {
   convertingLockAt?: Date | null;
   /** Snapshots before edits of sent/viewed quotes */
   versionHistory?: unknown[];
+  /** Unpublished edit of a quote/agreement that was already sent. */
+  draftRevision?: Record<string, unknown> | null;
+  /** Exact admin quote-builder state, so edit does not fall back to the price list. */
+  builderState?: Record<string, unknown> | null;
+  /** Agreement created from a quote. */
+  sourceQuoteToken?: string;
+  sourceQuoteId?: mongoose.Types.ObjectId | null;
+  linkedAgreementToken?: string;
+  /** Per-document SMS log. Quote and agreement histories stay separate. */
+  sendHistory?: unknown[];
+  signedSnapshot?: Record<string, unknown> | null;
+  signedPdf?: {
+    fileName?: string;
+    contentType?: string;
+    data?: Buffer;
+    generatedAt?: Date | null;
+  } | null;
   notes?: string;
 
   /** Explicit admin confirmation that payment was received. Not a timestamp. */
@@ -419,6 +436,57 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
     versionHistory: {
       type: [AnySchema],
       default: [],
+    },
+
+    draftRevision: {
+      type: AnySchema,
+      default: null,
+    },
+
+    builderState: {
+      type: AnySchema,
+      default: null,
+    },
+
+    sourceQuoteToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    sourceQuoteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    linkedAgreementToken: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    sendHistory: {
+      type: [AnySchema],
+      default: [],
+    },
+
+    signedSnapshot: {
+      type: AnySchema,
+      default: null,
+    },
+
+    signedPdf: {
+      fileName: { type: String, default: "" },
+      contentType: { type: String, default: "application/pdf" },
+      data: { type: Buffer, default: undefined },
+      generatedAt: { type: Date, default: null },
+    },
+
+    convertingLockAt: {
+      type: Date,
+      default: null,
     },
 
     notes: {

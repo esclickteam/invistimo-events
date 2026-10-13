@@ -742,6 +742,11 @@ export async function POST(req: NextRequest) {
       },
 
       customerDealSummary: normalizeObject(payload.customerDealSummary),
+      builderState:
+        payload.builderState && typeof payload.builderState === "object"
+          ? payload.builderState
+          : null,
+      sourceQuoteToken: cleanStr(payload.sourceQuoteToken),
 
       cancellationTerms: normalizeArray(payload.cancellationTerms),
 
@@ -808,6 +813,13 @@ export async function POST(req: NextRequest) {
     });
 
     const documentId = String((document as any)._id);
+    const sourceQuoteToken = cleanStr(payload.sourceQuoteToken);
+    if (type === "agreement" && sourceQuoteToken) {
+      await SalesDocument.updateOne(
+        { token: sourceQuoteToken, type: "quote" },
+        { $set: { linkedAgreementToken: token } },
+      );
+    }
 
     let customerQuoteId = "";
     let customerAgreementId = "";
