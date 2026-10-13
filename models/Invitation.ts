@@ -1,4 +1,5 @@
 import mongoose, { Schema, models, model } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 import { nanoid } from "nanoid";
 
 /* ================= LOCATION SUB-SCHEMA ================= */
@@ -712,5 +713,7 @@ InvitationSchema.pre("save", function () {
 InvitationSchema.index({ eventId: 1 }, { unique: true });
 
 /* ================= MODEL ================= */
+
+guardPurgedCustomerWrites(InvitationSchema);
 
 export default models.Invitation || model("Invitation", InvitationSchema);

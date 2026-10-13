@@ -1,4 +1,5 @@
 import mongoose, { Schema, Types, type Model } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /**
  * One IVR call attempt (outbound dial or inbound callback) for a guest/record.
@@ -591,6 +592,8 @@ IvrCallAttemptSchema.index({
   userId: 1,
   createdAt: -1,
 });
+
+guardPurgedCustomerWrites(IvrCallAttemptSchema);
 
 const IvrCallAttemptModel =
   (mongoose.models.IvrCallAttempt as Model<IIvrCallAttempt> | undefined) ||

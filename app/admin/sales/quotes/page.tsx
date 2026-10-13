@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import {
@@ -13,6 +14,7 @@ import {
   AdminTableShell,
 } from "@/app/components/admin/ui/AdminUI";
 import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
+import { adminSalesListKind } from "@/lib/customers/adminSalesDocumentRow";
 
 type QuoteRow = {
   _id: string;
@@ -117,6 +119,9 @@ function statusTone(status?: string, paymentConfirmed?: boolean) {
 }
 
 export default function AdminQuotesPage() {
+  const pathname = usePathname();
+  const kind = adminSalesListKind(pathname || "");
+  const agreementsView = kind === "agreements";
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -132,7 +137,7 @@ export default function AdminQuotesPage() {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/admin/sales/quotes?limit=150", {
+      const res = await fetch(`/api/admin/sales/quotes?limit=150&kind=${kind}`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -146,7 +151,7 @@ export default function AdminQuotesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [kind]);
 
   useEffect(() => {
     load();
@@ -217,7 +222,12 @@ export default function AdminQuotesPage() {
     }
   }
 
-  const filtered = quotes.filter((quote) => {
+  const visibleQuotes = quotes.filter((quote) =>
+    agreementsView
+      ? quote.documentType === "agreement"
+      : quote.documentType !== "agreement"
+  );
+  const filtered = visibleQuotes.filter((quote) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return [
@@ -237,9 +247,34 @@ export default function AdminQuotesPage() {
 
   return (
     <AdminListPage>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/admin/sales/quotes"
+          className={`inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] px-3 text-xs font-bold ${
+            agreementsView
+              ? "border border-[var(--admin-border)] bg-white text-[var(--admin-text)]"
+              : "bg-[var(--admin-brand)] text-white"
+          }`}
+        >
+          הצעות מחיר
+        </Link>
+        <Link
+          href="/admin/sales/agreements"
+          className={`inline-flex h-9 items-center rounded-[var(--admin-radius-sm)] px-3 text-xs font-bold ${
+            agreementsView
+              ? "bg-[var(--admin-brand)] text-white"
+              : "border border-[var(--admin-border)] bg-white text-[var(--admin-text)]"
+          }`}
+        >
+          הסכמים חתומים
+        </Link>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-[var(--admin-muted)]">
-          הצעות והסכמים נשארים גם אחרי מחיקת לקוח, כולל צפייה והורדה
+          {agreementsView
+            ? "הסכמים חתומים נשארים גם אחרי מחיקת לקוח, כולל עותק החתימה וקובץ ה-PDF"
+            : "הצעות מחיר נשארות גם אחרי מחיקת לקוח, כולל צפייה והורדה"}
         </p>
         <div className="flex flex-wrap gap-2">
           <AdminButton variant="secondary" size="sm" onClick={load}>
@@ -260,7 +295,11 @@ export default function AdminQuotesPage() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="חיפוש לפי לקוח, אימייל, מספר הצעה…"
+          placeholder={
+            agreementsView
+              ? "חיפוש לפי לקוח, אימייל, מספר הסכם…"
+              : "חיפוש לפי לקוח, אימייל, מספר הצעה…"
+          }
           className="admin-input h-10 min-w-0 flex-1"
         />
       </AdminFilterBar>
@@ -272,7 +311,9 @@ export default function AdminQuotesPage() {
       ) : null}
 
       {loading ? (
-        <AdminLoadingState text="טוען הצעות…" />
+        <AdminLoadingState
+          text={agreementsView ? "טוען הסכמים…" : "טוען הצעות…"}
+        />
       ) : (
         <AdminTableShell
           headers={[
@@ -288,14 +329,18 @@ export default function AdminQuotesPage() {
           ]}
           isEmpty={filtered.length === 0}
           empty={
-            quotes.length === 0
-              ? "אין הצעות מחיר עדיין."
-              : "לא נמצאו הצעות התואמות לחיפוש."
+            visibleQuotes.length === 0
+              ? agreementsView
+                ? "אין הסכמים חתומים עדיין."
+                : "אין הצעות מחיר עדיין."
+              : agreementsView
+                ? "לא נמצאו הסכמים התואמים לחיפוש."
+                : "לא נמצאו הצעות התואמות לחיפוש."
           }
           footer={
             <>
               <span>
-                מוצגות {filtered.length} מתוך {quotes.length}
+                מוצגות {filtered.length} מתוך {visibleQuotes.length}
               </span>
               <span>
                 <Loader2 className="hidden" size={12} />

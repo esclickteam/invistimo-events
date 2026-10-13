@@ -1,4 +1,5 @@
 import mongoose, { Schema, Types, type Model } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /* ============================================================
    CallTask
@@ -626,6 +627,8 @@ CallTaskSchema.virtual("canReassign").get(function () {
 /* ============================================================
    Export
 ============================================================ */
+
+guardPurgedCustomerWrites(CallTaskSchema);
 
 const CallTaskModel =
   (mongoose.models.CallTask as Model<ICallTask> | undefined) ||

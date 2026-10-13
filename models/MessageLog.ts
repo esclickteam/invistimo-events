@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 const MessageLogSchema = new mongoose.Schema({
   invitationId: { type: mongoose.Schema.Types.ObjectId, required: true },
@@ -9,6 +10,8 @@ const MessageLogSchema = new mongoose.Schema({
   status: { type: String, enum: ["sent", "failed"], default: "sent" },
   sentAt: { type: Date, default: Date.now },
 });
+
+guardPurgedCustomerWrites(MessageLogSchema);
 
 export default mongoose.models.MessageLog ||
   mongoose.model("MessageLog", MessageLogSchema);
