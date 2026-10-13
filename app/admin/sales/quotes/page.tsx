@@ -37,6 +37,7 @@ type QuoteRow = {
   convertedUserId?: string | null;
   originalUserId?: string | null;
   customerDeleted?: boolean;
+  userLinkStatus?: "none" | "created" | "broken";
   createdAt?: string | null;
   sentAt?: string | null;
   signedAt?: string | null;
@@ -538,28 +539,36 @@ export default function AdminQuotesPage() {
                       )}
                       {quote.documentType === "agreement" ? null : (
                         <Link
-                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
                           עריכת הצעה
                         </Link>
                       )}
-                      {quote.customerDeleted ? null : quote.convertedUserId ? (
+                      {quote.customerDeleted ? null : quote.userLinkStatus === "broken" ? (
                         <Link
-                          href={`/admin/users?q=${encodeURIComponent(quote.convertedUserId)}`}
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
-                          מעבר למשתמש
+                          קישור שבור — תיקון קישור
+                        </Link>
+                      ) : quote.convertedUserId || quote.userLinkStatus === "created" ? (
+                        <Link
+                          href={`/admin/users?q=${encodeURIComponent(quote.email || quote.convertedUserId || "")}`}
+                          onClick={() => setOpenActionsId(null)}
+                          className="text-[var(--admin-text)] hover:bg-gray-50"
+                        >
+                          משתמש הוקם — כניסה לכרטיס לקוח
                         </Link>
                       ) : quote.documentType === "agreement" ? null : (
                         <Link
-                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
-                          פתיחת משתמש מההצעה
+                          הקמת משתמש
                         </Link>
                       )}
                     </AdminActionsMenu>

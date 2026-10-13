@@ -4,6 +4,7 @@ import CustomerQuote from "@/models/CustomerQuote";
 import DeletedCustomerTombstone from "@/models/DeletedCustomerTombstone";
 import SalesDocument from "@/models/SalesDocument";
 import User from "@/models/User";
+import { userLinkStatus } from "@/lib/adminQuoteWorkflow";
 import {
   markRowsDeletedByTombstone,
   toAdminCustomerAgreementRow,
@@ -127,7 +128,15 @@ export async function loadAdminSalesQuotes(limit = ADMIN_SALES_LIST_LIMIT) {
     rows,
     tombstoneUserIds,
     tombstoneEmails
-  );
+  ).map((row) => ({
+    ...row,
+    userLinkStatus: row.customerDeleted
+      ? ("none" as const)
+      : userLinkStatus({
+          convertedUserId: row.convertedUserId,
+          userExists: Boolean(row.convertedUserId),
+        }),
+  }));
   labeled.sort((left, right) =>
     String(right.createdAt || "").localeCompare(String(left.createdAt || ""))
   );
