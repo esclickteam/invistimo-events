@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import SalesDocument from "@/models/SalesDocument";
+import User from "@/models/User";
 import { syncOutdatedQuoteTerms } from "@/lib/quoteTermsSync";
+import { toAdminSalesDocumentRow } from "@/lib/customers/adminSalesDocumentRow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,35 +42,27 @@ export async function GET(req: NextRequest) {
     const limitRaw = Number(req.nextUrl.searchParams.get("limit") || 100);
     const limit = Math.min(Math.max(limitRaw || 100, 1), 300);
 
-    const docs = await SalesDocument.find({ type: "quote" })
+    const docs = await SalesDocument.find({
+      type: { $in: ["quote", "agreement"] },
+    })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
 
-    const quotes = docs.map((doc: any) => ({
-      _id: String(doc._id),
-      token: String(doc.token || ""),
-      quoteNumber: String(doc.token || "").slice(-8).toUpperCase(),
-      fullName: doc.client?.fullName || "",
-      email: doc.client?.email || "",
-      phone: doc.client?.phone || "",
-      eventName: doc.event?.name || "",
-      packageTitle: doc.selectedPackage?.title || "",
-      status: doc.status || "draft",
-      total:
-        Number(
-          doc.totals?.grossAmountAfterDiscount ??
-            doc.totals?.grossAmount ??
-            doc.selectedPackage?.price ??
-            0
-        ) || 0,
-      convertedUserId: doc.convertedUserId
-        ? String(doc.convertedUserId)
-        : null,
-      createdAt: doc.createdAt || null,
-      expiresAt: doc.quote?.expiresAt || null,
-      adminPaymentConfirmed: doc.adminPaymentConfirmed === true,
-    }));
+    const userIds = Array.from(
+      new Set(
+        docs.flatMap((doc: any) =>
+          [doc.convertedUserId, doc.originalUserId]
+            .filter(Boolean)
+            .map((id) => String(id))
+        )
+      )
+    );
+    const liveUsers = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select("_id").lean()
+      : [];
+    const liveUserIds = new Set(liveUsers.map((user) => String(user._id)));
+    const quotes = docs.map((doc) => toAdminSalesDocumentRow(doc, liveUserIds));
 
     return NextResponse.json({ success: true, quotes });
   } catch (err: any) {

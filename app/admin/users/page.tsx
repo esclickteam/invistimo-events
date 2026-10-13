@@ -1061,7 +1061,9 @@ export default function AdminUsersPage() {
   }
 
   async function removeUser(userId: string) {
-    const confirmed = confirm("האם למחוק את המשתמש לצמיתות?");
+    const confirmed = confirm(
+      "למחוק את המשתמש לצמיתות? החשבון, ההתחברות והנתונים התפעוליים יימחקו. הצעות מחיר, הסכמים חתומים ותשלומים יישמרו."
+    );
 
     if (!confirmed) return;
 

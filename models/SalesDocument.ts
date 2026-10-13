@@ -1,5 +1,11 @@
 import mongoose, { Schema, model, models, type Model } from "mongoose";
 import type { SeatingScheduleRecord } from "@/lib/seatingSchedule";
+import {
+  buildSalesDocumentSignedCopy,
+  freezeSignedSnapshot,
+  rejectProtectedSignedUpdate,
+  restoreFrozenSignedContent,
+} from "@/lib/customers/signedAgreementLock";
 
 export type SalesDocumentType = "quote" | "agreement";
 
@@ -157,6 +163,16 @@ export type SalesDocumentModelType = {
   quoteTermsVersion?: string;
   /** Previous customer-facing terms, kept so older wording is not lost. */
   customerTermsArchive?: Record<string, unknown> | null;
+
+  /** Set when the customer account is deleted. The document itself stays. */
+  customerDeleted?: boolean;
+  customerDeletedAt?: Date | null;
+  /** Historical user id. Not a live account dependency. */
+  originalUserId?: mongoose.Types.ObjectId | null;
+  pdfUrl?: string;
+  /** Frozen signed agreement, including signature evidence. */
+  immutableSignedCopy?: Record<string, unknown> | null;
+  immutableSignedCopyFrozenAt?: Date | null;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -426,12 +442,60 @@ const SalesDocumentSchema = new Schema<SalesDocumentModelType>(
       type: AnySchema,
       default: undefined,
     },
+
+    customerDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    customerDeletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    originalUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    pdfUrl: {
+      type: String,
+      default: "",
+    },
+
+    immutableSignedCopy: {
+      type: AnySchema,
+      default: undefined,
+    },
+
+    immutableSignedCopyFrozenAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
     minimize: false,
   },
 );
+
+SalesDocumentSchema.pre("save", async function () {
+  if (this.type === "agreement") {
+    freezeSignedSnapshot(this, buildSalesDocumentSignedCopy);
+    restoreFrozenSignedContent(this);
+  }
+});
+
+async function guardSignedSalesDocument(this: any) {
+  await rejectProtectedSignedUpdate(this);
+}
+
+SalesDocumentSchema.pre("updateOne", guardSignedSalesDocument);
+SalesDocumentSchema.pre("updateMany", guardSignedSalesDocument);
+SalesDocumentSchema.pre("findOneAndUpdate", guardSignedSalesDocument);
+SalesDocumentSchema.pre("replaceOne", guardSignedSalesDocument);
 
 SalesDocumentSchema.index({ type: 1, status: 1, createdAt: -1 });
 SalesDocumentSchema.index({ token: 1, type: 1 });

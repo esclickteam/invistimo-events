@@ -17,6 +17,7 @@ import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
 type QuoteRow = {
   _id: string;
   token: string;
+  documentType?: "quote" | "agreement";
   quoteNumber?: string;
   fullName?: string;
   email?: string;
@@ -26,9 +27,26 @@ type QuoteRow = {
   status?: string;
   total?: number;
   convertedUserId?: string | null;
+  originalUserId?: string | null;
+  customerDeleted?: boolean;
   createdAt?: string | null;
+  sentAt?: string | null;
+  signedAt?: string | null;
   expiresAt?: string | null;
   adminPaymentConfirmed?: boolean;
+  pdfUrl?: string;
+  signerName?: string;
+};
+
+type HistoricalPayment = {
+  amount: number;
+  paidAt?: string | null;
+  method?: string;
+  status?: string;
+  type?: string;
+  reference?: string;
+  invoiceUrl?: string;
+  receiptUrl?: string;
 };
 
 function formatMoney(value?: number) {
@@ -42,15 +60,47 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("he-IL");
 }
 
-function statusLabel(status?: string, paymentConfirmed?: boolean) {
+function statusLabel(
+  status?: string,
+  paymentConfirmed?: boolean,
+  documentType?: string
+) {
+  const key = String(status || "").toLowerCase();
+  if (documentType === "agreement" && key === "signed") return "נחתם";
+  if (documentType === "agreement" && key === "sent") return "נשלח לחתימה";
   if (paymentConfirmed) return QUOTE_PAYMENT_CONFIRMED_LABEL;
   const map: Record<string, string> = {
     draft: "טיוטה",
     sent: "נשלחה",
     viewed: "נצפתה",
+    signed: "נחתם",
     accepted: "אושרה",
     converted: "הומרה למשתמש",
     expired: "פגה",
+  };
+  return map[key] || status || "—";
+}
+
+function methodLabel(method?: string) {
+  const map: Record<string, string> = {
+    stripe: "אשראי",
+    cash: "מזומן",
+    bank_transfer: "העברה בנקאית",
+    bit: "ביט",
+    paybox: "פייבוקס",
+    manual: "ידני",
+    other: "אחר",
+  };
+  return map[String(method || "").toLowerCase()] || method || "—";
+}
+
+function paymentStatusLabel(status?: string) {
+  const map: Record<string, string> = {
+    paid: "שולם",
+    pending: "ממתין",
+    failed: "נכשל",
+    refunded: "זוכה",
+    cancelled: "בוטל",
   };
   return map[String(status || "").toLowerCase()] || status || "—";
 }
@@ -73,6 +123,10 @@ export default function AdminQuotesPage() {
   const [confirmingFor, setConfirmingFor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [paymentsFor, setPaymentsFor] = useState<QuoteRow | null>(null);
+  const [payments, setPayments] = useState<HistoricalPayment[]>([]);
+  const [paymentsMeta, setPaymentsMeta] = useState("");
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -97,6 +151,40 @@ export default function AdminQuotesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function openPayments(quote: QuoteRow) {
+    const originalUserId = quote.originalUserId || quote.convertedUserId;
+    if (!originalUserId) return;
+    setPaymentsFor(quote);
+    setPayments([]);
+    setPaymentsMeta("");
+    setPaymentsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/sales/retained-payments?originalUserId=${encodeURIComponent(originalUserId)}`,
+        { credentials: "include", cache: "no-store" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setPaymentsMeta(data?.error || "לא נמצאו תשלומים היסטוריים");
+        return;
+      }
+      const rows = [
+        ...(Array.isArray(data.payments) ? data.payments : []),
+        ...(Array.isArray(data.ledgerPayments) ? data.ledgerPayments : []),
+      ];
+      setPayments(rows);
+      const deal = Number(data.totalDealAmount || 0);
+      const paid = Number(data.paidAmount || 0);
+      setPaymentsMeta(
+        `${data.customer?.name || quote.fullName || "לקוח שנמחק"} · עסקה ${formatMoney(deal)} · נגבה ${formatMoney(paid)}`
+      );
+    } catch {
+      setPaymentsMeta("טעינת התשלומים נכשלה");
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
 
   async function confirmPayment(token: string) {
     const confirmed = confirm(
@@ -140,6 +228,8 @@ export default function AdminQuotesPage() {
       quote.eventName,
       quote.packageTitle,
       quote.status,
+      quote.customerDeleted ? "לקוח שנמחק" : "",
+      quote.documentType === "agreement" ? "הסכם" : "הצעה",
     ]
       .map((v) => String(v || "").toLowerCase())
       .some((v) => v.includes(q));
@@ -149,7 +239,7 @@ export default function AdminQuotesPage() {
     <AdminListPage>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-[var(--admin-muted)]">
-          עריכת הצעה ופתיחת משתמש מההצעה — בלי למלא הכול פעמיים
+          הצעות והסכמים נשארים גם אחרי מחיקת לקוח, כולל צפייה והורדה
         </p>
         <div className="flex flex-wrap gap-2">
           <AdminButton variant="secondary" size="sm" onClick={load}>
@@ -193,7 +283,7 @@ export default function AdminQuotesPage() {
             "חבילה",
             "סכום",
             "סטטוס",
-            "נוצר",
+            "תאריכים",
             "פעולות",
           ]}
           isEmpty={filtered.length === 0}
@@ -221,7 +311,10 @@ export default function AdminQuotesPage() {
                 className={open ? "actions-open" : undefined}
               >
                 <td className="font-bold">
-                  {quote.quoteNumber || quote._id.slice(-6)}
+                  <div>{quote.quoteNumber || quote._id.slice(-6)}</div>
+                  <div className="text-[11px] font-medium text-[var(--admin-muted)]">
+                    {quote.documentType === "agreement" ? "הסכם" : "הצעה"}
+                  </div>
                 </td>
                 <td>
                   <span
@@ -230,6 +323,11 @@ export default function AdminQuotesPage() {
                   >
                     {quote.fullName || "—"}
                   </span>
+                  {quote.customerDeleted ? (
+                    <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                      לקוח שנמחק
+                    </span>
+                  ) : null}
                 </td>
                 <td>
                   <span
@@ -254,10 +352,24 @@ export default function AdminQuotesPage() {
                   <span
                     className={`admin-row-badge ${statusTone(quote.status, quote.adminPaymentConfirmed)}`}
                   >
-                    {statusLabel(quote.status, quote.adminPaymentConfirmed)}
+                    {statusLabel(
+                      quote.status,
+                      quote.adminPaymentConfirmed,
+                      quote.documentType
+                    )}
                   </span>
                 </td>
-                <td>{formatDate(quote.createdAt)}</td>
+                <td>
+                  <div>נוצר {formatDate(quote.createdAt)}</div>
+                  <div className="text-[11px] text-[var(--admin-muted)]">
+                    נשלח {formatDate(quote.sentAt)}
+                  </div>
+                  {quote.signedAt ? (
+                    <div className="text-[11px] text-[var(--admin-muted)]">
+                      נחתם {formatDate(quote.signedAt)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="admin-actions-cell">
                   {quote.token ? (
                     <AdminActionsMenu
@@ -275,7 +387,15 @@ export default function AdminQuotesPage() {
                       >
                         צפייה
                       </Link>
-                      {quote.adminPaymentConfirmed ? null : (
+                      <a
+                        href={`/api/admin/sales/documents/${encodeURIComponent(quote.token)}/download`}
+                        onClick={() => setOpenActionsId(null)}
+                        className="text-[var(--admin-text)] hover:bg-gray-50"
+                      >
+                        הורדה
+                      </a>
+                      {quote.documentType === "agreement" ||
+                      quote.adminPaymentConfirmed ? null : (
                         <AdminActionsItem
                           disabled={confirmingFor === quote.token}
                           onClick={() => {
@@ -288,14 +408,25 @@ export default function AdminQuotesPage() {
                             : "סמן: מאושר – תשלום בוצע"}
                         </AdminActionsItem>
                       )}
-                      <Link
-                        href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
-                        onClick={() => setOpenActionsId(null)}
-                        className="text-[var(--admin-text)] hover:bg-gray-50"
-                      >
-                        עריכת הצעה
-                      </Link>
-                      {quote.convertedUserId ? (
+                      {quote.documentType === "agreement" ? null : (
+                        <Link
+                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          onClick={() => setOpenActionsId(null)}
+                          className="text-[var(--admin-text)] hover:bg-gray-50"
+                        >
+                          עריכת הצעה
+                        </Link>
+                      )}
+                      {quote.customerDeleted ? (
+                        <AdminActionsItem
+                          onClick={() => {
+                            setOpenActionsId(null);
+                            void openPayments(quote);
+                          }}
+                        >
+                          תשלומים היסטוריים
+                        </AdminActionsItem>
+                      ) : quote.convertedUserId ? (
                         <Link
                           href={`/admin/users?q=${encodeURIComponent(quote.convertedUserId)}`}
                           onClick={() => setOpenActionsId(null)}
@@ -303,7 +434,7 @@ export default function AdminQuotesPage() {
                         >
                           מעבר למשתמש
                         </Link>
-                      ) : (
+                      ) : quote.documentType === "agreement" ? null : (
                         <Link
                           href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
                           onClick={() => setOpenActionsId(null)}
@@ -324,6 +455,69 @@ export default function AdminQuotesPage() {
           })}
         </AdminTableShell>
       )}
+      {paymentsFor ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black">תשלומים היסטוריים</h2>
+                <p className="text-sm text-[var(--admin-muted)]">
+                  {paymentsMeta || paymentsFor.fullName || "לקוח שנמחק"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentsFor(null)}
+                className="rounded-lg px-3 py-1 text-sm font-bold text-[var(--admin-muted)] hover:bg-gray-100"
+              >
+                סגירה
+              </button>
+            </div>
+            {paymentsLoading ? (
+              <p className="text-sm">טוען תשלומים…</p>
+            ) : payments.length === 0 ? (
+              <p className="text-sm">{paymentsMeta || "אין תשלומים שמורים."}</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-right text-[var(--admin-muted)]">
+                    <th className="py-2">סכום</th>
+                    <th>תאריך</th>
+                    <th>אמצעי</th>
+                    <th>סטטוס</th>
+                    <th>אסמכתה</th>
+                    <th>מסמך</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment, index) => (
+                    <tr key={`${payment.reference || "payment"}-${index}`} className="border-t">
+                      <td className="py-2 font-bold">{formatMoney(payment.amount)}</td>
+                      <td>{formatDate(payment.paidAt)}</td>
+                      <td>{methodLabel(payment.method)}</td>
+                      <td>{paymentStatusLabel(payment.status)}</td>
+                      <td>{payment.reference || "—"}</td>
+                      <td>
+                        {payment.invoiceUrl ? (
+                          <a href={payment.invoiceUrl} target="_blank" rel="noreferrer">
+                            חשבונית
+                          </a>
+                        ) : null}{" "}
+                        {payment.receiptUrl ? (
+                          <a href={payment.receiptUrl} target="_blank" rel="noreferrer">
+                            קבלה
+                          </a>
+                        ) : null}
+                        {!payment.invoiceUrl && !payment.receiptUrl ? "—" : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      ) : null}
     </AdminListPage>
   );
 }

@@ -1,4 +1,10 @@
 import mongoose, { Schema, model, models } from "mongoose";
+import {
+  buildCustomerAgreementSignedCopy,
+  freezeSignedSnapshot,
+  rejectProtectedSignedUpdate,
+  restoreFrozenSignedContent,
+} from "@/lib/customers/signedAgreementLock";
 
 const CustomerAgreementSchema = new Schema(
   {
@@ -104,9 +110,50 @@ const CustomerAgreementSchema = new Schema(
       default: null,
       index: true,
     },
+
+    customerDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    customerDeletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    originalUserId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    immutableSignedCopy: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
+
+    immutableSignedCopyFrozenAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
+
+CustomerAgreementSchema.pre("save", async function () {
+  freezeSignedSnapshot(this, buildCustomerAgreementSignedCopy);
+  restoreFrozenSignedContent(this);
+});
+
+async function guardSignedCustomerAgreement(this: any) {
+  await rejectProtectedSignedUpdate(this);
+}
+
+CustomerAgreementSchema.pre("updateOne", guardSignedCustomerAgreement);
+CustomerAgreementSchema.pre("updateMany", guardSignedCustomerAgreement);
+CustomerAgreementSchema.pre("findOneAndUpdate", guardSignedCustomerAgreement);
+CustomerAgreementSchema.pre("replaceOne", guardSignedCustomerAgreement);
 
 export default models.CustomerAgreement ||
   model("CustomerAgreement", CustomerAgreementSchema);
