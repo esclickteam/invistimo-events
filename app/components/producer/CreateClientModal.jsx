@@ -79,7 +79,6 @@ export default function CreateClientModal({ open, onClose, onSuccess }) {
               <CreateClientByProducer
                 onSuccess={() => {
                   onSuccess?.();
-                  onClose?.();
                 }}
               />
             ) : (

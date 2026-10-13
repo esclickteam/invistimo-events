@@ -185,6 +185,45 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     billingSource?: "site" | "admin" | "producer" | "pricing" | "venue";
   producerPricePerRecord?: number;
 
+  /**
+   * Producer collection ledger. Separate from hasPaid / payments / paidAmount.
+   * Account access is not derived from this ledger.
+   */
+  producerBilling?: {
+    grantAccessBeforePayment?: boolean;
+    payerProducerId?: mongoose.Types.ObjectId | null;
+    pricePerRecord?: number;
+    initialRecords?: number;
+    finalRecords?: number | null;
+    finalRecordsConfirmed?: boolean;
+    finalRecordsUpdatedAt?: Date | null;
+    finalRecordsUpdatedBy?: mongoose.Types.ObjectId | null;
+    payments?: {
+      amount: number;
+      paidAt: Date;
+      method: string;
+      note?: string;
+      recordedBy?: mongoose.Types.ObjectId | null;
+      createdAt?: Date;
+    }[];
+    history?: {
+      at: Date;
+      by?: mongoose.Types.ObjectId | null;
+      kind: "final_records" | "price" | "payer";
+      previousFinalRecords?: number | null;
+      nextFinalRecords?: number | null;
+      previousPricePerRecord?: number | null;
+      nextPricePerRecord?: number | null;
+    }[];
+    passwordSms?: {
+      status?: string | null;
+      error?: string | null;
+      sentAt?: Date | null;
+      lastAttemptAt?: Date | null;
+      attempts?: Date[];
+    };
+  };
+
   // לקוח שנוצר דרך אולם
   venueClientSource?: boolean;
   venueOwnerId?: mongoose.Types.ObjectId | null;
@@ -1164,6 +1203,84 @@ preRsvpMessages: {
     producerPricePerRecord: {
       type: Number,
       default: 0,
+    },
+
+    producerBilling: {
+      grantAccessBeforePayment: {
+        type: Boolean,
+        default: false,
+      },
+      payerProducerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+        index: true,
+      },
+      pricePerRecord: {
+        type: Number,
+        default: 0,
+      },
+      initialRecords: {
+        type: Number,
+        default: 0,
+      },
+      finalRecords: {
+        type: Number,
+        default: null,
+      },
+      finalRecordsConfirmed: {
+        type: Boolean,
+        default: false,
+      },
+      finalRecordsUpdatedAt: {
+        type: Date,
+        default: null,
+      },
+      finalRecordsUpdatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+      payments: [
+        {
+          amount: { type: Number, required: true },
+          paidAt: { type: Date, required: true },
+          method: { type: String, required: true },
+          note: { type: String, default: "" },
+          recordedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      history: [
+        {
+          at: { type: Date, required: true },
+          by: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          kind: {
+            type: String,
+            enum: ["final_records", "price", "payer"],
+            required: true,
+          },
+          previousFinalRecords: { type: Number, default: null },
+          nextFinalRecords: { type: Number, default: null },
+          previousPricePerRecord: { type: Number, default: null },
+          nextPricePerRecord: { type: Number, default: null },
+        },
+      ],
+      passwordSms: {
+        status: { type: String, default: null },
+        error: { type: String, default: null },
+        sentAt: { type: Date, default: null },
+        lastAttemptAt: { type: Date, default: null },
+        attempts: [{ type: Date }],
+      },
     },
 
     includeCalls: {
@@ -2408,6 +2525,20 @@ UserSchema.pre("validate", function () {
     doc.paymentMode = "deposit";
   } else if (!doc.paymentMode || doc.paymentMode === "none") {
     doc.paymentMode = "manual";
+  }
+
+  /*
+    Producer-opened clients are usable before collection.
+    Money received lives on producerBilling, not paidAmount / user.payments.
+    This override runs after the paymentMode block so it does not set paidAt
+    or paymentMode, and it does not run for any other billing source.
+  */
+  if (
+    doc.billingSource === "producer" &&
+    doc.producerBilling?.grantAccessBeforePayment === true &&
+    Number(doc.paidAmount || 0) <= 0
+  ) {
+    doc.hasPaid = true;
   }
 
  if (doc.role === "admin") {

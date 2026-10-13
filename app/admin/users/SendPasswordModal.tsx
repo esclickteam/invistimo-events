@@ -20,6 +20,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   MISSING_PHONE: "יש להזין מספר טלפון",
   MISSING_LINK: "חסר קישור לשליחה",
   EXTERNAL_SENDS_BLOCKED: "שליחה חיצונית חסומה בסביבה הזו",
+  PASSWORD_SMS_COOLDOWN: "אפשר לשלוח שוב בעוד דקה",
+  PASSWORD_SMS_DAILY_LIMIT: "הגעת למכסת השליחות ליממה",
   SERVER_ERROR: "שגיאת שרת",
 };
 

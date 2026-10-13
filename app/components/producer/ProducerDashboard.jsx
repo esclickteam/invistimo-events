@@ -37,6 +37,7 @@ import { motion } from "framer-motion";
 
 import { useAuth } from "@/context/AuthContext";
 import CreateClientModal from "@/app/components/producer/CreateClientModal";
+import ProducerClientBillingButton from "@/app/components/producer/ProducerClientBillingButton";
 
 /* =========================
    Animations
@@ -1922,28 +1923,34 @@ const rsvpTotalCount = getRsvpTotalCount(client);
                       </td>
 
                       <td className="p-4">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleManageClient(client)
-                          }
-                          className="
-                            rounded-2xl
-                            bg-[#1E1B2E]
-                            text-white
-                            font-black
-                            px-4
-                            py-3
-                            text-sm
-                            flex
-                            items-center
-                            gap-2
-                            hover:opacity-95
-                          "
-                        >
-                          ניהול
-                          <ArrowUpRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex flex-col items-stretch gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleManageClient(client)
+                            }
+                            className="
+                              rounded-2xl
+                              bg-[#1E1B2E]
+                              text-white
+                              font-black
+                              px-4
+                              py-3
+                              text-sm
+                              flex
+                              items-center
+                              gap-2
+                              hover:opacity-95
+                            "
+                          >
+                            ניהול
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+                          <ProducerClientBillingButton
+                            client={client}
+                            producerId={user?._id}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );

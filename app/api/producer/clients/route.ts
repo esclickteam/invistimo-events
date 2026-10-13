@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
       ],
     })
       .select(
-        "name email phone createdAt assignedProducerId assignedProducerIds billingSource"
+        "name email phone createdAt assignedProducerId assignedProducerIds billingSource producerBilling.payerProducerId"
       )
       .sort({
         createdAt: -1,

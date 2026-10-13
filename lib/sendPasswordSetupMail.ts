@@ -17,7 +17,7 @@ export type PasswordSetupDelivery = {
 ========================================================= */
 export async function sendPasswordSetupMail(
   userId: string,
-  _options?: { alsoSms?: boolean },
+  options?: { alsoSms?: boolean; message?: string | ((link: string) => string) },
 ): Promise<PasswordSetupDelivery> {
   /* ===== TOKEN ===== */
   const token = crypto.randomBytes(32).toString("hex");
@@ -71,9 +71,15 @@ export async function sendPasswordSetupMail(
   }
 
   try {
+    const customMessage =
+      typeof options?.message === "function"
+        ? options.message(link)
+        : options?.message;
     await sendSMS({
       to: phone,
-      message: `Invistimo: להגדרת סיסמה לחשבון לחצו כאן: ${link}`,
+      message:
+        String(customMessage || "").trim() ||
+        `Invistimo: להגדרת סיסמה לחשבון לחצו כאן: ${link}`,
     });
     result.smsSent = true;
   } catch (smsError) {

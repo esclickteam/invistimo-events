@@ -10,6 +10,12 @@ import { connectDB } from "@/lib/db";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { sendSMS } from "@/lib/sendSMS";
+import User from "@/models/User";
+import {
+  evaluatePasswordSmsRateLimit,
+  passwordSmsStatusPatch,
+  shouldRateLimitProducerPasswordSms,
+} from "@/lib/producerBilling/passwordSms";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -97,10 +103,32 @@ export async function POST(
         );
       }
 
+      const target = await User.findById(userId).select(
+        "billingSource producerBilling",
+      );
+      if (target && shouldRateLimitProducerPasswordSms(target)) {
+        const decision = evaluatePasswordSmsRateLimit(
+          target.producerBilling?.passwordSms,
+        );
+        if (!decision.ok) {
+          return NextResponse.json(
+            { success: false, error: decision.code },
+            { status: 429 },
+          );
+        }
+      }
+
       await sendSMS({
         to: phone,
         message: buildPasswordSmsMessage(smsPurpose, shortLink),
       });
+
+      if (target && shouldRateLimitProducerPasswordSms(target)) {
+        await User.updateOne(
+          { _id: target._id },
+          passwordSmsStatusPatch({ status: "sent", countAttempt: true }),
+        );
+      }
 
       return NextResponse.json({
         success: true,

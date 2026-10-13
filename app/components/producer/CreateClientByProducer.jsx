@@ -46,6 +46,7 @@ export default function CreateClientByProducer({ onSuccess }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [created, setCreated] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -98,11 +99,6 @@ export default function CreateClientByProducer({ onSuccess }) {
       return;
     }
 
-    if (pricePerRecord <= 0) {
-      setError("לא הוגדר מחיר לרשומה עבור המפיק");
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -123,16 +119,18 @@ export default function CreateClientByProducer({ onSuccess }) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || data?.message || "יצירת לקוח נכשלה");
+        throw new Error(
+          data?.error === "EMAIL_ALREADY_EXISTS"
+            ? "האימייל כבר קיים במערכת"
+            : data?.error || data?.message || "יצירת לקוח נכשלה",
+        );
       }
 
-      if (data.checkoutUrl) {
-        onSuccess?.();
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-
-      setError("לא התקבל קישור לתשלום");
+      onSuccess?.();
+      setCreated({
+        passwordSms: data?.passwordSms || null,
+      });
+      return;
     } catch (err) {
       console.error(err);
       setError(err?.message || "שגיאה כללית");
@@ -166,7 +164,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               </div>
 
               <p className="mt-1 max-w-[430px] text-sm leading-6 text-[#7A6758]">
-                יצירת לקוח חדש למערכת, הגדרת כמות רשומות והמשך לתשלום מאובטח.
+                הלקוח נפתח פעיל מיד. אין סליקה ואין תשלום מראש. קישור להגדרת סיסמה נשלח ב־SMS.
               </p>
             </div>
           </div>
@@ -296,30 +294,27 @@ export default function CreateClientByProducer({ onSuccess }) {
               <div>
                 <div className="flex items-center gap-2 text-[#8A6338]">
                   <CreditCard className="h-4 w-4" />
-                  <h3 className="text-sm font-black">סיכום תשלום</h3>
+                  <h3 className="text-sm font-black">סיכום חיוב</h3>
                 </div>
 
-                {pricePerRecord > 0 ? (
-                  <div className="mt-4">
-                    <div className="text-sm font-medium text-[#7A6758]">
-                      {form.guests} רשומות × ₪{pricePerRecord} לרשומה
-                    </div>
+                <div className="mt-4">
+                  <div className="text-sm font-medium text-[#7A6758]">
+                    {pricePerRecord > 0
+                      ? `${form.guests} רשומות × ₪${pricePerRecord} לרשומה`
+                      : "טרם הוגדר מחיר לרשומה. אפשר לפתוח את הלקוח, והאדמין יעדכן מחיר."}
+                  </div>
 
+                  {pricePerRecord > 0 && (
                     <div className="mt-2 flex items-end gap-2">
                       <span className="text-4xl font-black text-[#3A2B23]">
                         ₪{totalPrice}
                       </span>
                       <span className="pb-1 text-xs font-bold text-[#8B7B70]">
-                        לתשלום
+                        לחיוב עתידי, בלי סליקה עכשיו
                       </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="mt-4 flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                    <AlertCircle className="h-4 w-4" />
-                    לא הוגדר מחיר לרשומה עבור המפיק
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {pricePerRecord > 0 && (
@@ -345,9 +340,22 @@ export default function CreateClientByProducer({ onSuccess }) {
         )}
 
         {/* Submit */}
+        {created && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div className="font-black">הלקוח נפתח ופעיל.</div>
+            <div className="mt-1">
+              {created.passwordSms?.status === "sent"
+                ? "נשלח SMS עם קישור להגדרת סיסמה."
+                : created.passwordSms?.status === "missing_phone"
+                  ? "לא נשלח SMS כי אין טלפון. אפשר לשלוח שוב אחרי עדכון הטלפון."
+                  : "הלקוח נפתח, אבל שליחת ה־SMS נכשלה. אפשר לשלוח את הקישור שוב מהרשימה."}
+            </div>
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading || pricePerRecord === 0}
+          disabled={loading || !!created}
           className="
             group relative h-13 w-full overflow-hidden rounded-2xl
             border border-[#B99563]
@@ -364,11 +372,11 @@ export default function CreateClientByProducer({ onSuccess }) {
 
           <span className="relative flex items-center justify-center gap-2">
             {loading ? (
-              "מעביר לתשלום…"
+              "פותח לקוח…"
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                המשך לתשלום
+                פתיחת לקוח
               </>
             )}
           </span>

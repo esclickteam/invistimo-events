@@ -49,6 +49,7 @@ import {
   ExternalLink,
   Loader2,
   KeyRound,
+  Receipt,
 } from "lucide-react";
 import { WEDDING_CHALLENGES_GIVEAWAY_AVAILABLE } from "@/lib/weddingChallenges/constants";
 
@@ -4517,6 +4518,18 @@ function UserActionsDropdown({
             label='לו"ז אירוע'
             onClick={() => runAction(onEventSchedule)}
           />
+
+          {user.role === "producer" && (
+            <DropdownAction
+              icon={<Receipt size={16} />}
+              label="מעקב תשלומים"
+              onClick={() =>
+                runAction(() => {
+                  window.location.href = `/admin/users/producers/${user._id}/billing`;
+                })
+              }
+            />
+          )}
 
           {user.role !== "admin" && (
             <DropdownAction
