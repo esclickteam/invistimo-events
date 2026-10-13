@@ -3,6 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import SalesDocument from "@/models/SalesDocument";
+import {
+  appendSendHistory,
+  publishPendingRevision,
+  shouldSkipDuplicateSms,
+} from "@/lib/adminQuoteWorkflow";
+import {
+  applySeatingScheduleUpdate,
+  parseSeatingScheduleTimes,
+} from "@/lib/seatingSchedule";
 import CustomerQuote from "@/models/CustomerQuote";
 import CustomerAgreement from "@/models/CustomerAgreement";
 import CustomerFile from "@/models/CustomerFile";
@@ -293,6 +302,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const documentType = cleanStr(document.get("type"));
     const currentStatus = cleanStr(document.get("status"));
+    const pendingRevision = document.get("draftRevision");
+    const hasPendingRevision =
+      pendingRevision &&
+      typeof pendingRevision === "object" &&
+      Object.keys(pendingRevision as object).length > 0;
 
     if (documentType !== "quote" && documentType !== "agreement") {
       return jsonError("סוג מסמך לא תקין", 400);
@@ -341,6 +355,79 @@ export async function POST(req: NextRequest, context: RouteContext) {
         clientName: cleanStr(document.get("client.fullName")),
       });
 
+    const idempotencyKey =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? cleanStr((body as { idempotencyKey?: unknown }).idempotencyKey)
+        : "";
+
+    if (!hasPendingRevision) {
+      const duplicate = shouldSkipDuplicateSms({
+        sms: document.get("sms"),
+        sendHistory: document.get("sendHistory"),
+        nextMessage: smsText,
+        nextPhone: phone,
+        idempotencyKey,
+      });
+      if (duplicate.skip) {
+        return NextResponse.json({
+          success: true,
+          deduped: true,
+          message:
+            documentType === "agreement"
+              ? "ההסכם כבר נשלח. לא נשלחה הודעה נוספת."
+              : "הצעת המחיר כבר נשלחה. לא נשלחה הודעה נוספת.",
+          type: documentType,
+          status: document.get("status"),
+          url: documentUrl,
+        });
+      }
+    }
+
+    if (hasPendingRevision) {
+      const published = publishPendingRevision(
+        document.toObject(),
+        "",
+      );
+      if (published.changed) {
+        const next = published.doc;
+        const parsedSchedule = parseSeatingScheduleTimes(next.seatingSchedule);
+        if (parsedSchedule.ok) {
+          const applied = applySeatingScheduleUpdate({
+            current: document.get("seatingSchedule"),
+            nextTimes: parsedSchedule.times,
+            status: "draft",
+            actor: { userId: "", name: "admin" },
+          });
+          if (applied.ok) next.seatingSchedule = applied.schedule;
+        }
+        for (const key of [
+          "client",
+          "event",
+          "quote",
+          "selectedPackage",
+          "upsells",
+          "totals",
+          "customerDealSummary",
+          "cancellationTerms",
+          "paymentTerms",
+          "additionalTerms",
+          "engagementTerms",
+          "notes",
+          "builderState",
+          "seatingSchedule",
+        ]) {
+          if (next[key] !== undefined) {
+            document.set(key, next[key]);
+            document.markModified(key);
+          }
+        }
+        document.set("versionHistory", next.versionHistory || []);
+        document.set("draftRevision", null);
+        document.markModified("versionHistory");
+        document.markModified("draftRevision");
+      }
+    }
+
     let smsResult: Sms4FreeResult;
 
     try {
@@ -379,6 +466,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("sms.message", smsText);
     document.set("sms.response", smsResult.responseText);
     document.set("sms.lastError", "");
+    document.set(
+      "sendHistory",
+      appendSendHistory(document.toObject(), {
+        sentAt: new Date().toISOString(),
+        documentType,
+        token,
+        phone,
+        message: smsText,
+        idempotencyKey,
+      }),
+    );
+    document.markModified("sendHistory");
 
     await document.save();
 

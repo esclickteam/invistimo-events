@@ -31,6 +31,7 @@ type QuoteRow = {
   convertedUserId?: string | null;
   originalUserId?: string | null;
   customerDeleted?: boolean;
+  userLinkStatus?: "none" | "created" | "broken";
   createdAt?: string | null;
   sentAt?: string | null;
   signedAt?: string | null;
@@ -455,14 +456,22 @@ export default function AdminQuotesPage() {
                       )}
                       {quote.documentType === "agreement" ? null : (
                         <Link
-                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
                           עריכת הצעה
                         </Link>
                       )}
-                      {quote.customerDeleted ? (
+                      {quote.userLinkStatus === "broken" ? (
+                        <Link
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
+                          onClick={() => setOpenActionsId(null)}
+                          className="text-[var(--admin-text)] hover:bg-gray-50"
+                        >
+                          קישור שבור — תיקון קישור
+                        </Link>
+                      ) : quote.customerDeleted ? (
                         <AdminActionsItem
                           onClick={() => {
                             setOpenActionsId(null);
@@ -471,21 +480,21 @@ export default function AdminQuotesPage() {
                         >
                           תשלומים היסטוריים
                         </AdminActionsItem>
-                      ) : quote.convertedUserId ? (
+                      ) : quote.convertedUserId || quote.userLinkStatus === "created" ? (
                         <Link
-                          href={`/admin/users?q=${encodeURIComponent(quote.convertedUserId)}`}
+                          href={`/admin/users?q=${encodeURIComponent(quote.email || quote.convertedUserId || "")}`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
-                          מעבר למשתמש
+                          משתמש הוקם — כניסה לכרטיס לקוח
                         </Link>
                       ) : quote.documentType === "agreement" ? null : (
                         <Link
-                          href={`/sales-documents/${encodeURIComponent(quote.token)}?edit=1`}
+                          href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
                           className="text-[var(--admin-text)] hover:bg-gray-50"
                         >
-                          פתיחת משתמש מההצעה
+                          הקמת משתמש
                         </Link>
                       )}
                     </AdminActionsMenu>

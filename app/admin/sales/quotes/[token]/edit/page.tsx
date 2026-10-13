@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
+import AdminSalesQuoteForm from "@/app/components/sales/AdminSalesQuoteForm";
 import {
   SEATING_SCHEDULE_FIELDS,
   emptySeatingScheduleTimes,
@@ -98,6 +99,7 @@ export default function EditQuotePage() {
   );
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [openQuoteForm, setOpenQuoteForm] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -131,9 +133,7 @@ export default function EditQuotePage() {
         }
         const d: QuoteDoc = data.document;
         if (d.type !== "agreement") {
-          router.replace(
-            `/sales-documents/${encodeURIComponent(token)}?edit=1`,
-          );
+          setOpenQuoteForm(true);
           return;
         }
         setDoc(d);
@@ -351,6 +351,10 @@ export default function EditQuotePage() {
         טוען הצעת מחיר…
       </div>
     );
+  }
+
+  if (openQuoteForm) {
+    return <AdminSalesQuoteForm mode="edit" quoteToken={token} />;
   }
 
   return (
