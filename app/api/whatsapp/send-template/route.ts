@@ -23,6 +23,7 @@ import {
   recordRoundDecisions,
   type RoundDecision,
 } from "@/lib/whatsapp/roundDeliveryTracking";
+import { classifyGuestPhoneForSend } from "@/lib/messages/sendPhoneEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -765,20 +766,14 @@ export async function POST(req: NextRequest) {
       });
 
     for (const guest of guests) {
-      if (!guest.phone || !String(guest.phone).trim()) {
-        notSent(guest, "MISSING_PHONE");
-        continue;
-      }
+      if (classifyGuestPhoneForSend(guest) !== "sendable") continue;
       if (!guest.token) {
         notSent(guest, "MISSING_GUEST_TOKEN");
         continue;
       }
 
       const phone = normalizePhone(guest.phone);
-      if (!phone) {
-        notSent(guest, "INVALID_PHONE");
-        continue;
-      }
+      if (!phone) continue;
 
       const tableName =
         typeof guest.tableNumber === "number"

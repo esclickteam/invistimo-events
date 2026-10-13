@@ -479,6 +479,11 @@ export async function processWhatsappSmsFallbacks(
   const recovered = await recoverStaleClaims(deps.now());
   stats.released = recovered.released;
   stats.unknown = recovered.unknown;
+  const touchedRounds: Array<{
+    invitationId: string;
+    round: number | null;
+    messageType: string;
+  }> = [];
 
   for (let i = 0; i < limit; i++) {
     const now = deps.now();
@@ -503,6 +508,11 @@ export async function processWhatsappSmsFallbacks(
 
     if (!record) break;
     stats.claimed++;
+    touchedRounds.push({
+      invitationId: String(record.invitationId || ""),
+      round: Number(record.round) || null,
+      messageType: String(record.type || ""),
+    });
 
     const own = { _id: record._id, "sms.lockId": lockId, "sms.status": "PENDING" };
     const attemptNo = Number(record.attempt || 1);
@@ -752,6 +762,17 @@ export async function processWhatsappSmsFallbacks(
           { ...SUPERSEDED_SMS, "sms.skippedAt": now }
         ).catch(() => null);
       }
+    }
+  }
+
+  if (touchedRounds.length) {
+    try {
+      const { publishTouchedRoundSummaries } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await publishTouchedRoundSummaries(touchedRounds);
+    } catch (error) {
+      console.error("round summary notification failed", error);
     }
   }
 

@@ -1,4 +1,8 @@
 import { phoneNeedsReview } from "@/lib/guestPhone";
+import {
+  formatRoundSendSummaryBody,
+  type RoundSendSummary,
+} from "@/lib/messages/roundSendSummary";
 
 export type NoticeSeverity = "info" | "important" | "urgent";
 
@@ -338,10 +342,39 @@ export function planSystemErrorNotification(input: {
     type: "system.error",
     category: "system_errors",
     severity: "urgent",
-    title: "שגיאת מערכת",
-    body: "תהליך רקע נכשל ודורש בדיקה של מנהל המערכת.",
+    title: "תקלה כללית במערכת",
+    body: "תהליך רקע נכשל ודורש בדיקה. זו תקלה כללית ולא משויכת לאירוע אחד.",
     actionHref: "/admin",
     audience: "admin",
+  };
+}
+
+export function planRoundSendSummaryNotice(input: {
+  invitationId: string;
+  round: number | null;
+  eventTitle: string;
+  eventDate?: string | null;
+  summary: RoundSendSummary;
+}): PlannedNotice {
+  const round = input.round && input.round > 0 ? input.round : 1;
+  const eventTitle = String(input.eventTitle || "").trim() || "האירוע";
+  const eventDate = String(input.eventDate || "").trim();
+  const counts = formatRoundSendSummaryBody(input.summary);
+  const dateLine = eventDate ? `תאריך האירוע: ${eventDate}\n` : "";
+  return {
+    dedupeKey: `round-summary:${input.invitationId}:rsvp:${round}`,
+    type: "rsvp.round.done",
+    category: "rsvp_rounds",
+    severity: "info",
+    title: `סבב אישורי הגעה ${round} הסתיים – ${eventTitle}`,
+    body: counts,
+    actionHref: MESSAGE_HREF,
+    audience: "customer",
+    notifyAdmins: true,
+    adminTitle: `סבב אישורי הגעה ${round} הסתיים – ${eventTitle}`,
+    adminBody: `${dateLine}סבב ${round}.\n${counts}`,
+    adminCategory: "admin_important",
+    adminSeverity: "important",
   };
 }
 
