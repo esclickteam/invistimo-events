@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /* =========================
    ZONE SUB-SCHEMA
@@ -460,5 +461,7 @@ EventSchema.index({ venueOwnerId: 1, venueAccessStatus: 1, date: 1 });
 
 /* סינון רגיל של אירועי לקוח */
 EventSchema.index({ userId: 1, status: 1, date: 1 });
+
+guardPurgedCustomerWrites(EventSchema);
 
 export default mongoose.models.Event || mongoose.model("Event", EventSchema);

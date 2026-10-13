@@ -1195,6 +1195,27 @@ export async function executeIvrRound(input: {
   const now = input.now || new Date();
   const requested = Math.max(1, Number(input.maxCalls) || 50);
 
+  const { isPurgedOperationalTarget } = await import(
+    "@/lib/customers/purgedCustomerGuard"
+  );
+  if (
+    await isPurgedOperationalTarget({
+      userId: input.due.userId,
+      invitationId: input.due.invitationId,
+    })
+  ) {
+    return {
+      invitationId: input.due.invitationId,
+      round: input.due.round,
+      eligibleCount: 0,
+      dialed: 0,
+      skipped: true,
+      reason: "CUSTOMER_PURGED",
+      results: [],
+      appBaseUrl: getAppBaseUrl(),
+    };
+  }
+
   if (!input.due.audioReady) {
     await User.updateOne(
       {

@@ -1,3 +1,46 @@
+export function adminSalesListKind(pathname: string): "quotes" | "agreements" {
+  return pathname.includes("/admin/sales/agreements") ? "agreements" : "quotes";
+}
+
+export function toAdminCustomerAgreementRow(
+  agreement: any,
+  liveUserIds: Set<string>
+): AdminSalesDocumentRow {
+  const userId = agreement?.userId ? String(agreement.userId) : "";
+  const originalUserId = agreement?.originalUserId
+    ? String(agreement.originalUserId)
+    : userId;
+  const userMissing =
+    (Boolean(userId) && !liveUserIds.has(userId)) ||
+    (Boolean(agreement?.originalUserId) &&
+      !liveUserIds.has(String(agreement.originalUserId)));
+  const signedAt = agreement?.signedAt || agreement?.immutableSignedCopy?.signedAt || null;
+
+  return {
+    _id: String(agreement?._id || ""),
+    token: clean(agreement?.publicToken),
+    documentType: "agreement",
+    quoteNumber: clean(agreement?.publicToken).slice(-8).toUpperCase(),
+    fullName: clean(agreement?.signerName || agreement?.immutableSignedCopy?.signerName),
+    email: clean(agreement?.signerEmail),
+    phone: clean(agreement?.signerPhone),
+    eventName: "",
+    packageTitle: clean(agreement?.title) || "הסכם שירותים",
+    status: clean(agreement?.status) || "draft",
+    total: Number(agreement?.amount || 0) || 0,
+    convertedUserId: userId || null,
+    originalUserId: originalUserId || null,
+    customerDeleted: agreement?.customerDeleted === true || userMissing,
+    createdAt: agreement?.createdAt ? new Date(agreement.createdAt).toISOString() : null,
+    sentAt: null,
+    signedAt: signedAt ? new Date(signedAt).toISOString() : null,
+    expiresAt: null,
+    adminPaymentConfirmed: false,
+    pdfUrl: clean(agreement?.pdfUrl || agreement?.immutableSignedCopy?.pdfUrl),
+    signerName: clean(agreement?.signerName || agreement?.immutableSignedCopy?.signerName),
+  };
+}
+
 export type AdminSalesDocumentRow = {
   _id: string;
   token: string;

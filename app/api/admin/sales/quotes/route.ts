@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import SalesDocument from "@/models/SalesDocument";
+import CustomerAgreement from "@/models/CustomerAgreement";
 import User from "@/models/User";
 import { syncOutdatedQuoteTerms } from "@/lib/quoteTermsSync";
-import { toAdminSalesDocumentRow } from "@/lib/customers/adminSalesDocumentRow";
+import {
+  toAdminCustomerAgreementRow,
+  toAdminSalesDocumentRow,
+} from "@/lib/customers/adminSalesDocumentRow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +45,16 @@ export async function GET(req: NextRequest) {
 
     const limitRaw = Number(req.nextUrl.searchParams.get("limit") || 100);
     const limit = Math.min(Math.max(limitRaw || 100, 1), 300);
+    const kind = req.nextUrl.searchParams.get("kind");
+    const typeFilter =
+      kind === "agreements"
+        ? "agreement"
+        : kind === "quotes"
+          ? "quote"
+          : { $in: ["quote", "agreement"] };
 
     const docs = await SalesDocument.find({
-      type: { $in: ["quote", "agreement"] },
+      type: typeFilter,
     })
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -63,6 +74,30 @@ export async function GET(req: NextRequest) {
       : [];
     const liveUserIds = new Set(liveUsers.map((user) => String(user._id)));
     const quotes = docs.map((doc) => toAdminSalesDocumentRow(doc, liveUserIds));
+
+    if (kind === "agreements") {
+      const seen = new Set(quotes.map((row) => row.token).filter(Boolean));
+      const agreements = await CustomerAgreement.find({})
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+      const extraUserIds = agreements
+        .flatMap((agreement: any) => [agreement.userId, agreement.originalUserId])
+        .filter(Boolean)
+        .map((id) => String(id))
+        .filter((id) => !liveUserIds.has(id) && !userIds.includes(id));
+      if (extraUserIds.length) {
+        const extraUsers = await User.find({ _id: { $in: extraUserIds } })
+          .select("_id")
+          .lean();
+        for (const user of extraUsers) liveUserIds.add(String(user._id));
+      }
+      for (const agreement of agreements) {
+        const row = toAdminCustomerAgreementRow(agreement, liveUserIds);
+        if (row.token && seen.has(row.token)) continue;
+        quotes.push(row);
+      }
+    }
 
     return NextResponse.json({ success: true, quotes });
   } catch (err: any) {

@@ -1,37 +1,7 @@
-import mongoose from "mongoose";
+import mongoose, { type ClientSession } from "mongoose";
 
 import User from "@/models/User";
 import Payment from "@/models/Payment";
-import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
-import InvitationGuest from "@/models/InvitationGuest";
-import Guest from "@/models/Guest";
-import Group from "@/models/Group";
-import Seating from "@/models/Seating";
-import SeatingTable from "@/models/SeatingTable";
-import ScheduledMessage from "@/models/ScheduledMessage";
-import MessageLog from "@/models/MessageLog";
-import CallLog from "@/models/CallLog";
-import CallTask from "@/models/CallTask";
-import CallWorkOrder from "@/models/CallWorkOrder";
-import IvrCallAttempt from "@/models/IvrCallAttempt";
-import MobileRefreshToken from "@/models/MobileRefreshToken";
-import WebPushSubscription from "@/models/WebPushSubscription";
-import CustomerNotification from "@/models/CustomerNotification";
-import CheckInLog from "@/models/CheckInLog";
-import LiveArrival from "@/models/LiveArrival";
-import GuestPhoneClaim from "@/models/GuestPhoneClaim";
-import WhatsappQueue from "@/models/WhatsappQueue";
-import RoundGuestDelivery from "@/models/RoundGuestDelivery";
-import WeddingChallengeGuest from "@/models/WeddingChallengeGuest";
-import WeddingChallengeAssignment from "@/models/WeddingChallengeAssignment";
-import WeddingChallengeConfig from "@/models/WeddingChallengeConfig";
-import WeddingChallengeEntitlement from "@/models/WeddingChallengeEntitlement";
-import EventGift from "@/models/EventGift";
-import EventTask from "@/models/EventTask";
-import EventTimelineStep from "@/models/EventTimelineStep";
-import EventConversation from "@/models/EventConversation";
-import VenueEvent from "@/models/VenueEvent";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerQuote from "@/models/CustomerQuote";
@@ -41,6 +11,11 @@ import {
   buildCustomerAgreementSignedCopy,
   buildSalesDocumentSignedCopy,
 } from "@/lib/customers/signedAgreementLock";
+import {
+  destroyOperationalMedia,
+  purgeOperationalCustomerData,
+  type OperationalMediaPlan,
+} from "@/lib/customers/operationalPurge";
 
 type AnyRecord = Record<string, any>;
 
@@ -163,10 +138,18 @@ function copyField(user: AnyRecord, key: string) {
   return user?.[key] === undefined ? undefined : user[key];
 }
 
-async function archiveFinancials(user: AnyRecord, idNumber: string) {
+function withSession(session: ClientSession | null) {
+  return session ? { session } : {};
+}
+
+async function archiveFinancials(
+  user: AnyRecord,
+  idNumber: string,
+  session: ClientSession | null
+) {
   const email = clean(user.email).toLowerCase();
   const ledger = email
-    ? await Payment.find({ email }).lean()
+    ? await Payment.find({ email }).session(session).lean()
     : [];
   const payments = attachLedgerReferences(
     cloneUserPayments(user),
@@ -241,7 +224,7 @@ async function archiveFinancials(user: AnyRecord, idNumber: string) {
   await RetainedCustomerFinancial.findOneAndUpdate(
     { originalUserId: user._id },
     { $set: snapshot },
-    { upsert: true, new: true, timestamps: false }
+    { upsert: true, new: true, timestamps: false, ...withSession(session) }
   );
 
   return snapshot;
@@ -257,7 +240,10 @@ function documentFilter(user: AnyRecord, fileIds: mongoose.Types.ObjectId[]) {
   return { $or: or };
 }
 
-async function markFinancialDocuments(user: AnyRecord) {
+async function markFinancialDocuments(
+  user: AnyRecord,
+  session: ClientSession | null
+) {
   const files = await CustomerFile.find({
     $or: [
       { userId: user._id },
@@ -266,12 +252,12 @@ async function markFinancialDocuments(user: AnyRecord) {
         ? [{ email: clean(user.email).toLowerCase() }]
         : []),
     ],
-  });
+  }).session(session);
   const fileIds = files.map((file) => file._id as mongoose.Types.ObjectId);
   const deletedAt = new Date();
   const filter = documentFilter(user, fileIds);
 
-  const salesDocuments = await SalesDocument.find(filter);
+  const salesDocuments = await SalesDocument.find(filter).session(session);
   let idNumber = "";
   for (const document of salesDocuments) {
     document.customerDeleted = true;
@@ -290,7 +276,7 @@ async function markFinancialDocuments(user: AnyRecord) {
         (document as AnyRecord).immutableSignedCopy?.signature?.idNumber
     );
     if (!idNumber && signerId) idNumber = signerId;
-    await document.save();
+    await document.save(withSession(session));
   }
 
   await CustomerQuote.updateMany(
@@ -307,7 +293,8 @@ async function markFinancialDocuments(user: AnyRecord) {
         customerDeletedAt: deletedAt,
         originalUserId: user._id,
       },
-    }
+    },
+    withSession(session)
   );
 
   const agreements = await CustomerAgreement.find({
@@ -319,7 +306,7 @@ async function markFinancialDocuments(user: AnyRecord) {
         ? [{ publicToken: clean(user.onboardingAgreementToken) }]
         : []),
     ],
-  });
+  }).session(session);
 
   for (const agreement of agreements) {
     agreement.customerDeleted = true;
@@ -332,7 +319,7 @@ async function markFinancialDocuments(user: AnyRecord) {
     if (!idNumber && clean(agreement.signerIdNumber)) {
       idNumber = clean(agreement.signerIdNumber);
     }
-    await agreement.save();
+    await agreement.save(withSession(session));
   }
 
   for (const file of files) {
@@ -340,13 +327,15 @@ async function markFinancialDocuments(user: AnyRecord) {
     file.customerDeletedAt = deletedAt;
     file.originalUserId = user._id;
     file.userId = null;
+    file.invitationId = null;
+    file.assignedStaffIds = [];
     file.rawLeadData = null;
     file.facebookLeadId = "";
     file.campaignName = "";
     file.adName = "";
     file.formName = "";
     file.notes = "";
-    await file.save();
+    await file.save(withSession(session));
   }
 
   return idNumber;
@@ -364,95 +353,24 @@ async function clearDeletionMarks(userId: mongoose.Types.ObjectId) {
   ]);
 }
 
-async function purgeOperationalData(user: AnyRecord) {
+async function runDeletion(
+  user: AnyRecord,
+  session: ClientSession | null,
+  media: { plan: OperationalMediaPlan | null }
+) {
   const userId = user._id as mongoose.Types.ObjectId;
-  const events = await Event.find({ userId })
-    .select("_id venueOwnerId venueHallId")
-    .lean();
-  const eventIds = events.map((event) => event._id);
-  const venueLinks = eventIds.length
-    ? await VenueEvent.find({ linkedEventId: { $in: eventIds } })
-        .select("linkedEventId")
-        .lean()
-    : [];
-  const linkedIds = new Set(
-    venueLinks.map((row) => String((row as AnyRecord).linkedEventId))
-  );
-  const deletableEventIds = events
-    .filter(
-      (event) =>
-        !event.venueOwnerId &&
-        !event.venueHallId &&
-        !linkedIds.has(String(event._id))
-    )
-    .map((event) => event._id);
-
-  const invitations = await Invitation.find({ ownerId: userId })
-    .select("_id eventId")
-    .lean();
-  const deletableEventSet = new Set(deletableEventIds.map((id) => String(id)));
-  const deletableInvitationIds = invitations
-    .filter((invitation) => deletableEventSet.has(String(invitation.eventId)))
-    .map((invitation) => invitation._id);
-
-  const eventFilter = { eventId: { $in: deletableEventIds } };
-  const invitationFilter = { invitationId: { $in: deletableInvitationIds } };
-
-  if (deletableInvitationIds.length) {
-    await Promise.all([
-      InvitationGuest.deleteMany(invitationFilter),
-      Guest.deleteMany(invitationFilter),
-      Seating.deleteMany(invitationFilter),
-      ScheduledMessage.deleteMany(invitationFilter),
-      MessageLog.deleteMany(invitationFilter),
-      CallLog.deleteMany(invitationFilter),
-      CallTask.deleteMany(invitationFilter),
-      CallWorkOrder.deleteMany(invitationFilter),
-      IvrCallAttempt.deleteMany(invitationFilter),
-      CheckInLog.deleteMany(invitationFilter),
-      LiveArrival.deleteMany(invitationFilter),
-      GuestPhoneClaim.deleteMany(invitationFilter),
-      WhatsappQueue.deleteMany(invitationFilter),
-      RoundGuestDelivery.deleteMany(invitationFilter),
-      WeddingChallengeGuest.deleteMany(invitationFilter),
-      WeddingChallengeAssignment.deleteMany(invitationFilter),
-      WeddingChallengeConfig.deleteMany(invitationFilter),
-    ]);
-  }
-
-  if (deletableEventIds.length) {
-    await Promise.all([
-      Group.deleteMany(eventFilter),
-      SeatingTable.deleteMany(eventFilter),
-      EventGift.deleteMany(eventFilter),
-      EventTask.deleteMany(eventFilter),
-      EventTimelineStep.deleteMany(eventFilter),
-      EventConversation.deleteMany(eventFilter),
-      CheckInLog.deleteMany(eventFilter),
-    ]);
-    await Invitation.deleteMany({ _id: { $in: deletableInvitationIds } });
-    await Event.deleteMany({ _id: { $in: deletableEventIds } });
-  }
-
-  await Promise.all([
-    ScheduledMessage.deleteMany({ userId }),
-    CallLog.deleteMany({ userId }),
-    IvrCallAttempt.deleteMany({ userId }),
-    MobileRefreshToken.deleteMany({ userId }),
-    WebPushSubscription.deleteMany({ userId }),
-    WeddingChallengeEntitlement.deleteMany({ userId }),
-    CustomerNotification.deleteMany({
-      $or: [{ customerId: userId }, { userId, audience: "customer" }],
-    }),
-  ]);
-
-  return { keptCollections: KEPT_COLLECTIONS, deletableEventIds };
+  const idNumber = await markFinancialDocuments(user, session);
+  await archiveFinancials(user, idNumber, session);
+  media.plan = await purgeOperationalCustomerData(user, session);
+  const deleted = await User.findByIdAndDelete(userId, withSession(session));
+  if (!deleted) throw new Error("USER_NOT_FOUND");
 }
 
 /**
  * Deletes an Invistimo customer account and its operational event data.
- * Quotes, signed agreements, payment history, and stored files stay.
+ * Quotes, signed agreements, payment history, and their files stay.
  * Venue / Evently360 records are not modified.
+ * The database delete is one transaction when the server supports it.
  */
 export async function deleteInvistimoCustomerAccount(user: AnyRecord) {
   if (!isInvistimoCustomerAccount(user)) {
@@ -460,23 +378,39 @@ export async function deleteInvistimoCustomerAccount(user: AnyRecord) {
   }
 
   const userId = user._id as mongoose.Types.ObjectId;
-  let removed = false;
+  const media: { plan: OperationalMediaPlan | null } = { plan: null };
+  let committed = false;
 
   try {
-    const idNumber = await markFinancialDocuments(user);
-    await archiveFinancials(user, idNumber);
-    await purgeOperationalData(user);
-    const deleted = await User.findByIdAndDelete(userId);
-    removed = Boolean(deleted);
-    if (!deleted) {
-      throw new Error("USER_NOT_FOUND");
+    const session = await mongoose.startSession();
+    try {
+      try {
+        await session.withTransaction(async () => {
+          await runDeletion(user, session, media);
+        });
+        committed = true;
+      } catch (error) {
+        const message = String((error as Error)?.message || error);
+        const unsupported =
+          /replica set|Transaction numbers are only allowed/i.test(message);
+        if (!unsupported) throw error;
+        media.plan = null;
+        await runDeletion(user, null, media);
+        committed = true;
+      }
+    } finally {
+      await session.endSession();
     }
   } catch (error) {
-    if (!removed) {
+    if (!committed) {
       const stillThere = await User.exists({ _id: userId });
       if (stillThere) await clearDeletionMarks(userId);
     }
     throw error;
+  }
+
+  if (media.plan) {
+    await destroyOperationalMedia(media.plan);
   }
 
   return {

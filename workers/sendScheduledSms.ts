@@ -666,6 +666,29 @@ export async function sendScheduledSms() {
       const type = normalizeType(msg.type || msg.templateKey);
       const round = normalizeRound(msg.round ?? msg.roundNumber);
 
+      const { isPurgedOperationalTarget } = await import(
+        "@/lib/customers/purgedCustomerGuard"
+      );
+      if (
+        await isPurgedOperationalTarget({
+          userId: msg.userId,
+          invitationId: msg.invitationId,
+        })
+      ) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              error: "CUSTOMER_PURGED",
+              lockedAt: null,
+              lockedBy: null,
+            },
+          }
+        );
+        continue;
+      }
+
       const invitation: any = await Invitation.findById(msg.invitationId).lean();
       const user: any = await User.findById(msg.userId).lean();
 
@@ -1031,6 +1054,29 @@ export async function sendScheduledWhatsapp() {
 
       const type = normalizeType(msg.type || msg.templateKey);
       const round = normalizeRound(msg.round ?? msg.roundNumber);
+
+      const { isPurgedOperationalTarget } = await import(
+        "@/lib/customers/purgedCustomerGuard"
+      );
+      if (
+        await isPurgedOperationalTarget({
+          userId: msg.userId,
+          invitationId: msg.invitationId,
+        })
+      ) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              error: "CUSTOMER_PURGED",
+              lockedAt: null,
+              lockedBy: null,
+            },
+          }
+        );
+        continue;
+      }
 
       const invitation: any = await Invitation.findById(msg.invitationId).lean();
       const user: any = await User.findById(msg.userId).lean();

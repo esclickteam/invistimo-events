@@ -1,4 +1,5 @@
 import mongoose, { Schema, models, model } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /**
  * WhatsappQueue
@@ -471,6 +472,8 @@ WhatsappQueueSchema.statics.cancelByScheduleId = async function (
 };
 
 /* ================= EXPORT ================= */
+
+guardPurgedCustomerWrites(WhatsappQueueSchema);
 
 export default models.WhatsappQueue ||
   model("WhatsappQueue", WhatsappQueueSchema);

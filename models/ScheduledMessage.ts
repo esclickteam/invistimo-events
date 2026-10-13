@@ -1,4 +1,5 @@
 import mongoose, { Schema, Types } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /* ======================================================
    TYPES
@@ -564,6 +565,8 @@ ScheduledMessageSchema.index({
 /* ======================================================
    EXPORT
 ====================================================== */
+
+guardPurgedCustomerWrites(ScheduledMessageSchema);
 
 const ScheduledMessage =
   mongoose.models.ScheduledMessage ||

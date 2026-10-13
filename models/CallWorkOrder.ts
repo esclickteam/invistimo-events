@@ -1,4 +1,5 @@
 import mongoose, { Schema, Types, type Model } from "mongoose";
+import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 /* ============================================================
    CallWorkOrder
@@ -577,6 +578,8 @@ CallWorkOrderSchema.virtual("progressPercent").get(function () {
 /* ============================================================
    Export
 ============================================================ */
+
+guardPurgedCustomerWrites(CallWorkOrderSchema);
 
 const CallWorkOrderModel =
   (mongoose.models.CallWorkOrder as Model<ICallWorkOrder> | undefined) ||

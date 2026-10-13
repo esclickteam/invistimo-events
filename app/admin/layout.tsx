@@ -92,6 +92,11 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <FileText className="h-4 w-4" />,
       },
       {
+        href: "/admin/sales/agreements",
+        label: "הסכמים חתומים",
+        icon: <FileText className="h-4 w-4" />,
+      },
+      {
         href: "/admin/sales/new",
         label: "יצירת מכירה",
         icon: <FileText className="h-4 w-4" />,
@@ -191,6 +196,11 @@ const PAGE_META: Array<{
   {
     match: (p) => p.startsWith("/admin/sales/quotes/") && p.includes("/edit"),
     title: "עריכת הצעה",
+  },
+  {
+    match: (p) => p.startsWith("/admin/sales/agreements"),
+    title: "הסכמים חתומים",
+    description: "הסכמים חתומים נשארים זמינים גם אחרי מחיקת לקוח",
   },
   {
     match: (p) => p.startsWith("/admin/sales/quotes"),
