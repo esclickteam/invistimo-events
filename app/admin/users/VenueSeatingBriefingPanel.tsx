@@ -171,7 +171,7 @@ export default function VenueSeatingBriefingPanel({ userId }: { userId: string }
       <p className="text-[11px] font-black tracking-[0.14em] text-[#B97821]">הושבה באולם</p>
       <h3 className="mt-1 text-lg font-black text-[#3A2A1C]">פרטי אירוע לעובדים ולמפיק</h3>
       <p className="mt-1 text-sm font-bold text-[#7B6754]">
-        ביום האירוע בשעה 09:00 נשלחת הודעה אחת לכל עובד הושבה ומפיק משובצים. שליחה ידנית אפשרית גם לפני כן.
+        ביום שלפני האירוע בשעה 14:00 נשלחת הודעה אחת לכל עובד הושבה ומפיק משובצים. אם היום שבת או חג, השליחה מוקדמת ליום המותר הקרוב, עדיין בשעה 14:00. שליחה ידנית אפשרית גם לפני כן.
       </p>
       {notice ? (
         <p className="mt-3 rounded-2xl bg-[#FFF2D8] px-3 py-2 text-sm font-black text-[#7B5A1E]">

@@ -153,14 +153,18 @@ test("debt notices follow 24h, 3 days, and the approaching window once per stage
   const tooSoon = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 23 * 60 * 60 * 1000) });
   assert.equal(tooSoon.notices.length, 0);
 
-  const afterDay = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 24 * 60 * 60 * 1000) });
+  const heldMorning = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 24 * 60 * 60 * 1000) });
+  assert.equal(heldMorning.notices.some((item) => item.type.endsWith("due24h")), false);
+  assert.equal(heldMorning.retainKeys.some((key) => key.includes("due24h")), true);
+
+  const afterDay = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 25 * 60 * 60 * 1000) });
   assert.equal(afterDay.notices.length, 1);
   assert.match(afterDay.notices[0].body, /ממתין לתשלום: דנה, אירוע החתונה, יתרה 672 ₪/);
   assert.equal(afterDay.notices[0].severity, "important");
   const again = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 30 * 60 * 60 * 1000) });
   assert.equal(again.notices[0].incidentKey, afterDay.notices[0].incidentKey);
 
-  const afterThree = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 3 * 24 * 60 * 60 * 1000) });
+  const afterThree = planDebtSchedule({ ...base, now: new Date(anchor.getTime() + 73 * 60 * 60 * 1000) });
   assert.equal(afterThree.notices.filter((item) => item.type.endsWith("due3d")).length, 1);
   assert.match(afterThree.notices.find((item) => item.type.endsWith("due3d"))!.body, /חוב פתוח למפיק\/ה דנה/);
 

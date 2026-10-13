@@ -7,6 +7,10 @@ import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { sendSmsDetailed } from "@/lib/sendSMS";
 import { normalizeEventDateValue } from "@/lib/eventDetails/centralEventDetails";
 import { israelCalendarDate } from "@/lib/venueSeatingContacts/logic";
+import {
+  addCalendarDays,
+  ensureVenueSeatingHolidayCalendar,
+} from "@/lib/venueSeatingContacts/smsSchedule";
 import { recordVenueSeatingBriefingAdminNotice } from "@/lib/venueSeatingBriefing/adminNotice";
 import {
   automaticClaimDecision,
@@ -107,10 +111,19 @@ type LeanEvent = {
   venueSeatingArrivalManual?: boolean;
 };
 
-function dateQuery(day: string) {
+function upcomingDateQuery(from: string, through: string) {
   return {
-    $or: [{ date: day }, { date: { $regex: `^${day}` } }],
+    $or: [
+      { date: { $gte: from, $lte: through } },
+      { date: { $gte: `${from}T`, $lte: `${through}T23:59:59.999Z` } },
+    ],
   };
+}
+
+function briefingSearchQuery(now: Date) {
+  const today = israelCalendarDate(now);
+  const until = addCalendarDays(today, 14) || today;
+  return upcomingDateQuery(today, until);
 }
 
 function venueNameOf(event: LeanEvent) {
@@ -278,6 +291,7 @@ export async function describeEventBriefing(input: {
   now?: Date;
 }) {
   const now = input.now || new Date();
+  await ensureVenueSeatingHolidayCalendar();
   const access = briefingAccess({
     user: input.customer,
     event: input.event,
@@ -654,11 +668,11 @@ export async function sendBriefing(input: {
 }
 
 export async function processAutomaticBriefings(now = new Date()) {
-  const today = israelCalendarDate(now);
+  await ensureVenueSeatingHolidayCalendar();
   const events = await Event.find({
     status: { $ne: "archived" },
     paymentStatus: { $ne: "refunded" },
-    ...dateQuery(today),
+    ...briefingSearchQuery(now),
   })
     .select(EVENT_SELECT)
     .lean<LeanEvent[]>();
@@ -703,9 +717,9 @@ function visibleContact(contact: BriefingFacts["primary"]) {
 }
 
 export async function listMyBriefings(viewerId: string, now = new Date()) {
+  await ensureVenueSeatingHolidayCalendar();
   const viewer = await loadCustomer(viewerId);
   if (!viewer) return [];
-  const today = israelCalendarDate(now);
   const viewerObjectId = asObjectId(viewerId);
   if (!viewerObjectId) return [];
 
@@ -722,7 +736,7 @@ export async function listMyBriefings(viewerId: string, now = new Date()) {
     const customerIds = customers.map((customer) => customer._id);
     events = await Event.find({
       $and: [
-        dateQuery(today),
+        briefingSearchQuery(now),
         {
           $or: [
             { producerId: viewerObjectId },
@@ -743,7 +757,7 @@ export async function listMyBriefings(viewerId: string, now = new Date()) {
     ];
     events = await Event.find({
       $and: [
-        dateQuery(today),
+        briefingSearchQuery(now),
         {
           $or: [
             { userId: { $in: customerIds } },

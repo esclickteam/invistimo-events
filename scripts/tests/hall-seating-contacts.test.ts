@@ -224,8 +224,19 @@ test("reminder plan sends only the stages that are still relevant", () => {
   });
   assert.deepEqual(inside72.actions, [{ stage: "initial", channels: ["in_app"] }]);
 
-  const due72 = planVenueSeatingReminders({
+  const due72Night = planVenueSeatingReminders({
     now: new Date(start.getTime() - 70 * 60 * 60 * 1000),
+    eventStart: start,
+    cancelled: false,
+    upsellActive: true,
+    contactsComplete: false,
+    alreadySent: [{ stage: "initial", channel: "in_app" }],
+    initialSentAt: new Date(start.getTime() - 100 * 60 * 60 * 1000),
+  });
+  assert.deepEqual(due72Night.actions, []);
+
+  const due72 = planVenueSeatingReminders({
+    now: new Date(start.getTime() - 50 * 60 * 60 * 1000),
     eventStart: start,
     cancelled: false,
     upsellActive: true,
@@ -245,10 +256,7 @@ test("reminder plan sends only the stages that are still relevant", () => {
     alreadySent: [],
     initialSentAt: null,
   });
-  assert.deepEqual(urgent.actions, [
-    { stage: "initial", channels: ["in_app"] },
-    { stage: "h24", channels: ["in_app"] },
-  ]);
+  assert.deepEqual(urgent.actions, [{ stage: "initial", channels: ["in_app"] }]);
   assert.equal(
     urgent.actions.some((action) => action.channels.includes("sms")),
     false

@@ -16,9 +16,16 @@ import {
   type EventTimingInput,
   type VenueSeatingUpsellSource,
 } from "@/lib/venueSeatingContacts/logic";
+import {
+  israelClock as israelDateTime,
+  scheduledDayBeforeObservance,
+} from "@/lib/venueSeatingContacts/smsSchedule";
 import { DEFAULT_EVENT_TIMEZONE } from "@/lib/weddingChallenges/timezone";
 
-export const BRIEFING_SEND_HOUR = "09:00";
+/** Automatic SMS goes out at 14:00 Asia/Jerusalem on the permitted day before the event. */
+export const BRIEFING_SEND_HOUR = 14;
+/** Same-day catch-up stays out of the late night. */
+export const BRIEFING_LATEST_HOUR = 22;
 export const BRIEFING_ARRIVAL_LEAD_MINUTES = 30;
 export const BRIEFING_SEND_STALE_MS = 2 * 60 * 1000;
 
@@ -295,8 +302,26 @@ export function isBriefingEventDay(
   return date === israelCalendarDate(now);
 }
 
-export function isAtOrAfterBriefingHour(now: Date) {
-  return israelClock(now) >= BRIEFING_SEND_HOUR;
+/** Permitted civil day before the event, at 14:00. Shabbat and Yom Tov walk backward. */
+export function briefingSendDate(eventDate: string | null | undefined) {
+  const date = normalizeEventDateValue(eventDate);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  try {
+    return scheduledDayBeforeObservance(date, BRIEFING_SEND_HOUR);
+  } catch {
+    return null;
+  }
+}
+
+export function isBriefingAutomaticDue(
+  eventDate: string | null | undefined,
+  now: Date
+) {
+  const sendDate = briefingSendDate(eventDate);
+  if (!sendDate) return false;
+  const clock = israelDateTime(now);
+  if (clock.date !== sendDate) return false;
+  return clock.hour >= BRIEFING_SEND_HOUR && clock.hour < BRIEFING_LATEST_HOUR;
 }
 
 export function briefingAccess(input: {
@@ -309,16 +334,19 @@ export function briefingAccess(input: {
   const past = isPastEventDate(input.event, input.now);
   const eventDay = isBriefingEventDay(input.event, input.now);
   const open = upsell && !cancelled && !past;
+  const sendDate = briefingSendDate(input.event?.date);
+  const today = israelCalendarDate(input.now);
+  const onOrAfterSendDay = Boolean(sendDate && today >= sendDate);
   return {
     upsell,
     cancelled,
     past,
     eventDay,
+    sendDate,
     showInAdmin: open,
     allowManualSend: open,
-    allowAutomaticSend:
-      open && eventDay && isAtOrAfterBriefingHour(input.now),
-    showToAssignee: open && eventDay,
+    allowAutomaticSend: open && isBriefingAutomaticDue(input.event?.date, input.now),
+    showToAssignee: open && (sendDate ? onOrAfterSendDay : eventDay),
   };
 }
 

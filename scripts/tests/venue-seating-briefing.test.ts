@@ -1,7 +1,8 @@
-import test from "node:test";
+import test, { before } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "path";
+import { ensureVenueSeatingHolidayCalendar } from "../../lib/venueSeatingContacts/smsSchedule";
 import { wallTimeInZoneToUtc } from "../../lib/weddingChallenges/timezone";
 import {
   automaticClaimDecision,
@@ -13,6 +14,10 @@ import {
   planVenueSeatingBriefingAdminNotice,
   resolveArrivalTime,
 } from "../../lib/venueSeatingBriefing/logic";
+
+before(async () => {
+  await ensureVenueSeatingHolidayCalendar();
+});
 
 const root = path.resolve(process.cwd());
 
@@ -163,61 +168,109 @@ test("the same person is one recipient, and unassigned roles are not invented", 
   assert.equal(merged[0]?.userId, "a");
 });
 
-test("automatic send runs on the event day from 09:00 Israel time and only with the hall seating service", () => {
-  const event = { date: "2026-10-12", receptionTime: "19:30", status: "active" };
-  const before = briefingAccess({
+test("automatic briefing is 14:00 the permitted day before, and manual send stays available", () => {
+  const wednesday = { date: "2026-10-14", receptionTime: "19:30", status: "active" };
+  const beforeHour = briefingAccess({
     user: upsellUser,
-    event,
-    now: atIsrael("2026-10-12T08:59"),
+    event: wednesday,
+    now: atIsrael("2026-10-13T13:59"),
   });
-  const atNine = briefingAccess({
+  const atTwo = briefingAccess({
     user: serviceUser,
-    event,
-    now: atIsrael("2026-10-12T09:00"),
+    event: wednesday,
+    now: atIsrael("2026-10-13T14:00"),
   });
-  const late = briefingAccess({
+  const sameEvening = briefingAccess({
     user: upsellUser,
-    event,
-    now: atIsrael("2026-10-12T22:10"),
+    event: wednesday,
+    now: atIsrael("2026-10-13T21:30"),
   });
-  const tomorrow = briefingAccess({
+  const tooLate = briefingAccess({
     user: upsellUser,
-    event,
-    now: atIsrael("2026-10-11T12:00"),
+    event: wednesday,
+    now: atIsrael("2026-10-13T22:00"),
   });
-  const after = briefingAccess({
+  const eventMorning = briefingAccess({
     user: upsellUser,
-    event,
-    now: atIsrael("2026-10-13T09:30"),
+    event: wednesday,
+    now: atIsrael("2026-10-14T09:30"),
   });
   const withoutService = briefingAccess({
     user: digitalOnly,
-    event,
-    now: atIsrael("2026-10-12T10:00"),
+    event: wednesday,
+    now: atIsrael("2026-10-13T14:00"),
   });
   const archived = briefingAccess({
     user: upsellUser,
-    event: { ...event, status: "archived" },
-    now: atIsrael("2026-10-12T10:00"),
+    event: { ...wednesday, status: "archived" },
+    now: atIsrael("2026-10-13T14:00"),
   });
 
-  assert.equal(before.allowAutomaticSend, false);
-  assert.equal(before.allowManualSend, true);
-  assert.equal(before.showToAssignee, true);
-
-  assert.equal(atNine.allowAutomaticSend, true);
-  assert.equal(late.allowAutomaticSend, true);
-  assert.equal(tomorrow.allowAutomaticSend, false);
-  assert.equal(tomorrow.allowManualSend, true);
-  assert.equal(tomorrow.showToAssignee, false);
-  assert.equal(after.allowAutomaticSend, false);
-  assert.equal(after.allowManualSend, false);
-  assert.equal(after.showInAdmin, false);
-
+  assert.equal(beforeHour.allowAutomaticSend, false);
+  assert.equal(beforeHour.allowManualSend, true);
+  assert.equal(beforeHour.sendDate, "2026-10-13");
+  assert.equal(atTwo.allowAutomaticSend, true);
+  assert.equal(sameEvening.allowAutomaticSend, true);
+  assert.equal(tooLate.allowAutomaticSend, false);
+  assert.equal(eventMorning.allowAutomaticSend, false);
+  assert.equal(eventMorning.allowManualSend, true);
+  assert.equal(eventMorning.showToAssignee, true);
   assert.equal(withoutService.allowAutomaticSend, false);
   assert.equal(withoutService.allowManualSend, false);
-  assert.equal(withoutService.showInAdmin, false);
   assert.equal(archived.allowAutomaticSend, false);
+
+  const sunday = { date: "2026-10-18", status: "active" };
+  const friday = briefingAccess({
+    user: upsellUser,
+    event: sunday,
+    now: atIsrael("2026-10-16T14:00"),
+  });
+  const shabbat = briefingAccess({
+    user: upsellUser,
+    event: sunday,
+    now: atIsrael("2026-10-17T14:00"),
+  });
+  assert.equal(friday.sendDate, "2026-10-16");
+  assert.equal(friday.allowAutomaticSend, true);
+  assert.equal(shabbat.allowAutomaticSend, false);
+  assert.equal(shabbat.allowManualSend, true);
+
+  const afterHoliday = { date: "2026-05-24", status: "active" };
+  const beforeStreak = briefingAccess({
+    user: upsellUser,
+    event: afterHoliday,
+    now: atIsrael("2026-05-21T14:00"),
+  });
+  const onHoliday = briefingAccess({
+    user: upsellUser,
+    event: afterHoliday,
+    now: atIsrael("2026-05-22T14:00"),
+  });
+  assert.equal(beforeStreak.sendDate, "2026-05-21");
+  assert.equal(beforeStreak.allowAutomaticSend, true);
+  assert.equal(onHoliday.allowAutomaticSend, false);
+
+  const moved = briefingAccess({
+    user: upsellUser,
+    event: { date: "2026-10-18", status: "active" },
+    now: atIsrael("2026-10-13T14:00"),
+  });
+  assert.equal(moved.sendDate, "2026-10-16");
+  assert.equal(moved.allowAutomaticSend, false);
+});
+
+test("an employee removed before the briefing send is not a recipient", () => {
+  const assigned = dedupeRecipients([
+    { userId: "staff-1", name: "נועה", phone: "0501234567", role: "seating_staff" },
+    { userId: "producer-1", name: "דנה", phone: "0507654321", role: "producer" },
+  ]);
+  const afterChange = dedupeRecipients([
+    { userId: "staff-2", name: "יוסי", phone: "0521111111", role: "seating_staff" },
+    { userId: "producer-1", name: "דנה", phone: "0507654321", role: "producer" },
+  ]);
+  assert.deepEqual(assigned.map((person) => person.userId).sort(), ["producer-1", "staff-1"]);
+  assert.equal(afterChange.some((person) => person.userId === "staff-1"), false);
+  assert.equal(afterChange.some((person) => person.userId === "staff-2"), true);
 });
 
 test("a successful send blocks the automatic copy, and only an explicit retry claims a failure", () => {

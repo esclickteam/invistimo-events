@@ -277,7 +277,19 @@ test("event digest ignores past events and keeps one reminder per window", () =>
     missingTime: false,
     actionHref: "https://evil.example",
   });
-  assert.ok(upcoming.some((item) => item.type === "event.reminder.h24"));
+  assert.equal(upcoming.some((item) => item.type === "event.reminder.h24"), false);
+  const daytime = planEventDigestNotifications({
+    now: new Date("2026-10-20T07:00:00.000Z"),
+    eventId: "event-1",
+    title: "החתונה",
+    start,
+    dateKey: "2026-10-20",
+    cancelled: false,
+    missingLocation: false,
+    missingTime: false,
+    actionHref: "/dashboard",
+  });
+  assert.ok(daytime.some((item) => item.type === "event.reminder.h24"));
   assert.ok(upcoming.some((item) => item.type === "event.missing.location"));
   assert.equal(
     upcoming.find((item) => item.audience === "customer")?.actionHref,

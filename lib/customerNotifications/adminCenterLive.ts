@@ -7,6 +7,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import { isPlaceholderEventTime } from "@/lib/eventDetails/centralEventDetails";
 import { normalizeClockTime } from "@/lib/seatingSchedule";
+import { isOperationalNoticeDue } from "@/lib/notifications/israelQuietHours";
 import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 import {
   hasActiveVenueSeatingUpsell,
@@ -116,6 +117,18 @@ export async function recordVenueSeatingBriefingDelivery(input: {
   const notice = planVenueSeatingBriefingNotice(input);
   if (!notice) return { created: 0 };
   return publishAdminIncident(notice);
+}
+
+const LEAD_MS = 60 * 60 * 1000;
+
+/** 24-hour pre-event notices wait for 10:00–19:00 Asia/Jerusalem. */
+function preEventLeadOpen(start: Date | null, leadHours: number, now: Date) {
+  if (!start || start.getTime() <= now.getTime()) return false;
+  return isOperationalNoticeDue(
+    new Date(start.getTime() - leadHours * LEAD_MS),
+    now,
+    start
+  );
 }
 
 async function publishQuiet(notice: AdminIncident | null, adminIds: string[]) {
@@ -458,8 +471,10 @@ async function scanEvents(now: Date, adminIds: string[]) {
       missingTime,
       customerId: userId,
     });
-    if (critical) {
+    if (critical && preEventLeadOpen(start, 24, now)) {
       await publishQuiet(critical, adminIds);
+    } else if (critical) {
+      void critical;
     } else if (start && start.getTime() > now.getTime() && !missingLocation && !missingTime) {
       const resolved = await resolveAdminIncident(`critical-missing:${event._id}`, "details-completed");
       if (resolved.updated > 0) {
@@ -494,8 +509,10 @@ async function scanEvents(now: Date, adminIds: string[]) {
       hallShiftEmployeeIds: hallIds,
       customerId: userId,
     });
-    if (team) {
+    if (team && preEventLeadOpen(start, 24, now)) {
       await publishQuiet(team, adminIds);
+    } else if (team) {
+      void team;
     } else if (venueSeating && hours != null && hours > 0 && hours <= 24) {
       const resolved = await resolveAdminIncident(`seating-team:${event._id}`, "team-assigned");
       if (resolved.updated > 0) {
@@ -529,8 +546,11 @@ async function scanEvents(now: Date, adminIds: string[]) {
         confirmedGuests,
         customerId: userId,
       });
-      if (incomplete) await publishQuiet(incomplete, adminIds);
-      else await resolveAdminIncident(`seating-incomplete:${event._id}`, "seating-completed");
+      if (incomplete && preEventLeadOpen(start, 24, now)) {
+        await publishQuiet(incomplete, adminIds);
+      } else if (!incomplete) {
+        await resolveAdminIncident(`seating-incomplete:${event._id}`, "seating-completed");
+      }
     } else if (hours != null && hours <= 0) {
       await resolveAdminIncident(`seating-incomplete:${event._id}`, "event-passed");
     }

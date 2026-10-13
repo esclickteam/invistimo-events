@@ -13,6 +13,10 @@ import {
   wallTimeInZoneToUtc,
 } from "@/lib/weddingChallenges/timezone";
 import {
+  isOperationalNoticeDue,
+  planOperationalDelivery,
+} from "@/lib/notifications/israelQuietHours";
+import {
   isVenueSeatingSmsDue,
   venueSeatingSmsWhenPhrase,
 } from "@/lib/venueSeatingContacts/smsSchedule";
@@ -330,7 +334,15 @@ export function planVenueSeatingReminders(input: {
     input.initialSentAt != null &&
     input.initialSentAt.getTime() <= input.eventStart.getTime() - 72 * HOUR_MS;
 
-  if (remaining <= 72 && remaining > 24 && initialPredatesWindow) {
+  const h72At = new Date(input.eventStart.getTime() - 72 * HOUR_MS);
+  const h72Delivery = planOperationalDelivery(h72At, input.eventStart);
+  const h72Relevant =
+    remaining > 24 && (remaining <= 72 || h72Delivery.pulledEarlier);
+  if (
+    h72Relevant &&
+    initialPredatesWindow &&
+    isOperationalNoticeDue(h72At, input.now, input.eventStart)
+  ) {
     const channels = missing("h72", ["in_app"]);
     if (channels.length) actions.push({ stage: "h72", channels });
   }
@@ -338,7 +350,15 @@ export function planVenueSeatingReminders(input: {
   const smsDue =
     !sent.has("h24:sms") && isVenueSeatingSmsDue(input.eventDate, input.now);
 
-  if (remaining <= 24) {
+  const h24At = new Date(input.eventStart.getTime() - 24 * HOUR_MS);
+  const h24Delivery = planOperationalDelivery(h24At, input.eventStart);
+  const h24Relevant =
+    remaining > 0 && (remaining <= 24 || h24Delivery.pulledEarlier);
+  const h24InApp =
+    h24Relevant &&
+    isOperationalNoticeDue(h24At, input.now, input.eventStart);
+
+  if (h24InApp) {
     const channels = missing("h24", ["in_app"]);
     if (smsDue) channels.push("sms");
     if (channels.length) actions.push({ stage: "h24", channels });

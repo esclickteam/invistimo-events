@@ -101,27 +101,44 @@ export function israelClock(value: Date, timeZone = DEFAULT_EVENT_TIMEZONE) {
 }
 
 /**
- * True when 10:00 on this civil date falls on Shabbat or an Israeli Yom Tov.
- * Friday morning, Erev, Chol HaMoed, fasts, and modern days are not blocked.
+ * True when this civil date is Shabbat or an Israeli Yom Tov at the given hour.
+ * Friday, Erev, Chol HaMoed, fasts, and modern days are not blocked.
+ * The hour matters only for the Jerusalem instant passed to the calendar.
  */
-export function isBlockedVenueSeatingSmsMorning(isoDate: string) {
-  const at = wallTimeInZoneToUtc(`${isoDate}T${String(SEND_HOUR).padStart(2, "0")}:00`, DEFAULT_EVENT_TIMEZONE);
+export function isBlockedIsraelSendSlot(isoDate: string, hour: number) {
+  const at = wallTimeInZoneToUtc(
+    `${isoDate}T${String(hour).padStart(2, "0")}:00`,
+    DEFAULT_EVENT_TIMEZONE
+  );
   if (!at) return true;
   const calendar = holidayCalendar();
   return calendar.isAssurBemlacha(at, calendar.jerusalem, false);
 }
 
-export function scheduledVenueSeatingSmsDate(eventDate: string) {
+/** Day before the event, walked back while that send hour is Shabbat or Yom Tov. */
+export function scheduledDayBeforeObservance(eventDate: string, hour: number) {
   const previous = addCalendarDays(eventDate, -1);
   if (!previous) return null;
   let cursor = previous;
   for (let i = 0; i < MAX_LOOKBACK_DAYS; i += 1) {
-    if (!isBlockedVenueSeatingSmsMorning(cursor)) return cursor;
+    if (!isBlockedIsraelSendSlot(cursor, hour)) return cursor;
     const earlier = addCalendarDays(cursor, -1);
     if (!earlier) return null;
     cursor = earlier;
   }
   return null;
+}
+
+/**
+ * True when 10:00 on this civil date falls on Shabbat or an Israeli Yom Tov.
+ * Friday morning, Erev, Chol HaMoed, fasts, and modern days are not blocked.
+ */
+export function isBlockedVenueSeatingSmsMorning(isoDate: string) {
+  return isBlockedIsraelSendSlot(isoDate, SEND_HOUR);
+}
+
+export function scheduledVenueSeatingSmsDate(eventDate: string) {
+  return scheduledDayBeforeObservance(eventDate, SEND_HOUR);
 }
 
 export type VenueSeatingSmsTiming = {
