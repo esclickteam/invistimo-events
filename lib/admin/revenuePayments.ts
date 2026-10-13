@@ -1,5 +1,6 @@
 import type { PipelineStage } from "mongoose";
 import User from "@/models/User";
+import Payment from "@/models/Payment";
 import RetainedCustomerFinancial from "@/models/RetainedCustomerFinancial";
 
 /**
@@ -269,19 +270,102 @@ function retainedOnlyPipeline(stages: object[]) {
   ];
 }
 
-export async function loadRevenuePaymentRows(startDate: Date, endDate: Date) {
-  const [fromArray, legacy, retainedArray, retainedLegacy] = await Promise.all([
-    User.aggregate(paymentsArrayPipeline(startDate, endDate)),
-    User.aggregate(legacyPaymentsPipeline(startDate, endDate)),
-    RetainedCustomerFinancial.aggregate(
-      retainedOnlyPipeline(paymentsArrayPipeline(startDate, endDate)) as PipelineStage[]
-    ),
-    RetainedCustomerFinancial.aggregate(
-      retainedOnlyPipeline(legacyPaymentsPipeline(startDate, endDate)) as PipelineStage[]
-    ),
-  ]);
+/**
+ * Payment rows whose customer user is already gone and that were not copied
+ * into a retained snapshot. Live customers and snapshotted deletions stay on
+ * their existing pipelines so they are not counted twice.
+ */
+function orphanLedgerPipeline(startDate: Date, endDate: Date) {
+  return [
+    {
+      $match: {
+        isTest: { $ne: true },
+        status: "paid",
+        amount: { $gt: 0 },
+        createdAt: { $gte: startDate, $lt: endDate },
+      },
+    },
+    {
+      $addFields: {
+        emailKey: { $toLower: { $ifNull: ["$email", ""] } },
+      },
+    },
+    { $match: { emailKey: { $ne: "" } } },
+    {
+      $lookup: {
+        from: "users",
+        let: { emailKey: "$emailKey" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: [{ $toLower: { $ifNull: ["$email", ""] } }, "$$emailKey"],
+              },
+            },
+          },
+          { $project: { _id: 1 } },
+          { $limit: 1 },
+        ],
+        as: "liveUser",
+      },
+    },
+    {
+      $lookup: {
+        from: "retainedcustomerfinancials",
+        let: { emailKey: "$emailKey" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: [{ $toLower: { $ifNull: ["$email", ""] } }, "$$emailKey"],
+              },
+            },
+          },
+          { $project: { _id: 1 } },
+          { $limit: 1 },
+        ],
+        as: "retained",
+      },
+    },
+    {
+      $match: {
+        liveUser: { $size: 0 },
+        retained: { $size: 0 },
+      },
+    },
+    {
+      $project: {
+        email: "$emailKey",
+        paymentAmount: "$amount",
+        paymentDate: "$createdAt",
+        paymentType: { $toLower: { $ifNull: ["$type", "package"] } },
+        paymentStatus: "paid",
+      },
+    },
+  ];
+}
 
-  return [...fromArray, ...legacy, ...retainedArray, ...retainedLegacy];
+export async function loadRevenuePaymentRows(startDate: Date, endDate: Date) {
+  const [fromArray, legacy, retainedArray, retainedLegacy, orphanLedger] =
+    await Promise.all([
+      User.aggregate(paymentsArrayPipeline(startDate, endDate)),
+      User.aggregate(legacyPaymentsPipeline(startDate, endDate)),
+      RetainedCustomerFinancial.aggregate(
+        retainedOnlyPipeline(paymentsArrayPipeline(startDate, endDate)) as PipelineStage[]
+      ),
+      RetainedCustomerFinancial.aggregate(
+        retainedOnlyPipeline(legacyPaymentsPipeline(startDate, endDate)) as PipelineStage[]
+      ),
+      Payment.aggregate(orphanLedgerPipeline(startDate, endDate) as PipelineStage[]),
+    ]);
+
+  return [
+    ...fromArray,
+    ...legacy,
+    ...retainedArray,
+    ...retainedLegacy,
+    ...orphanLedger,
+  ];
 }
 
 export async function sumRevenueBetween(startDate: Date, endDate: Date) {

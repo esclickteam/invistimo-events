@@ -14,7 +14,13 @@ import {
   AdminTableShell,
 } from "@/app/components/admin/ui/AdminUI";
 import { QUOTE_PAYMENT_CONFIRMED_LABEL } from "@/lib/quotePaymentStatus";
-import { adminSalesListKind } from "@/lib/customers/adminSalesDocumentRow";
+import {
+  adminSalesListKind,
+  documentKindOf,
+  filterAdminSalesRows,
+  type CustomerVisibilityFilter,
+  type DocumentKindFilter,
+} from "@/lib/customers/adminSalesDocumentRow";
 
 type QuoteRow = {
   _id: string;
@@ -108,6 +114,17 @@ function paymentStatusLabel(status?: string) {
   return map[String(status || "").toLowerCase()] || status || "—";
 }
 
+function documentLabel(quote: QuoteRow) {
+  const kind = documentKindOf({
+    documentType: quote.documentType || "quote",
+    status: quote.status,
+    signedAt: quote.signedAt,
+  });
+  if (kind === "signed") return "הסכם חתום";
+  if (kind === "agreement") return "הסכם";
+  return "הצעת מחיר";
+}
+
 function statusTone(status?: string, paymentConfirmed?: boolean) {
   if (paymentConfirmed) return "bg-emerald-50 text-emerald-700";
   const key = String(status || "").toLowerCase();
@@ -133,12 +150,18 @@ export default function AdminQuotesPage() {
   const [payments, setPayments] = useState<HistoricalPayment[]>([]);
   const [paymentsMeta, setPaymentsMeta] = useState("");
   const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [customerFilter, setCustomerFilter] =
+    useState<CustomerVisibilityFilter>("all");
+  const [documentFilter, setDocumentFilter] = useState<DocumentKindFilter>(
+    agreementsView ? "signed" : "all"
+  );
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/admin/sales/quotes?limit=150&kind=${kind}`, {
+      const res = await fetch(`/api/admin/sales/quotes`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -147,27 +170,36 @@ export default function AdminQuotesPage() {
         throw new Error(data?.error || "טעינת הצעות נכשלה");
       }
       setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
+      setPage(1);
     } catch (err: any) {
       setError(err?.message || "טעינת הצעות נכשלה");
     } finally {
       setLoading(false);
     }
-  }, [kind]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    setDocumentFilter(agreementsView ? "signed" : "all");
+    setPage(1);
+  }, [agreementsView]);
+
   async function openPayments(quote: QuoteRow) {
-    const originalUserId = quote.originalUserId || quote.convertedUserId;
-    if (!originalUserId) return;
+    const originalUserId = quote.originalUserId || quote.convertedUserId || "";
+    const params = new URLSearchParams();
+    if (originalUserId) params.set("originalUserId", originalUserId);
+    if (quote.email) params.set("email", quote.email);
+    if (quote.fullName) params.set("fullName", quote.fullName);
     setPaymentsFor(quote);
     setPayments([]);
     setPaymentsMeta("");
     setPaymentsLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/sales/retained-payments?originalUserId=${encodeURIComponent(originalUserId)}`,
+        `/api/admin/sales/retained-payments?${params.toString()}`,
         { credentials: "include", cache: "no-store" }
       );
       const data = await res.json().catch(() => ({}));
@@ -223,11 +255,11 @@ export default function AdminQuotesPage() {
     }
   }
 
-  const visibleQuotes = quotes.filter((quote) =>
-    agreementsView
-      ? quote.documentType === "agreement"
-      : quote.documentType !== "agreement"
-  );
+  const visibleQuotes = filterAdminSalesRows(quotes, {
+    customer: customerFilter,
+    document: documentFilter,
+  });
+  const deletedCount = quotes.filter((quote) => quote.customerDeleted).length;
   const filtered = visibleQuotes.filter((quote) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
@@ -245,6 +277,11 @@ export default function AdminQuotesPage() {
       .map((v) => String(v || "").toLowerCase())
       .some((v) => v.includes(q));
   });
+  const pageSize = 50;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize;
+  const paged = filtered.slice(pageStart, pageStart + pageSize);
 
   return (
     <AdminListPage>
@@ -273,9 +310,10 @@ export default function AdminQuotesPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-[var(--admin-muted)]">
-          {agreementsView
-            ? "הסכמים חתומים נשארים גם אחרי מחיקת לקוח, כולל עותק החתימה וקובץ ה-PDF"
-            : "הצעות מחיר נשארות גם אחרי מחיקת לקוח, כולל צפייה והורדה"}
+          כל ההצעות וההסכמים נשארים גם אחרי מחיקת לקוח, כולל חתימה, PDF ותשלומים.
+          {deletedCount > 0
+            ? ` ${deletedCount} רשומות של לקוחות שנמחקו.`
+            : ""}
         </p>
         <div className="flex flex-wrap gap-2">
           <AdminButton variant="secondary" size="sm" onClick={load}>
@@ -295,14 +333,42 @@ export default function AdminQuotesPage() {
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={
-            agreementsView
-              ? "חיפוש לפי לקוח, אימייל, מספר הסכם…"
-              : "חיפוש לפי לקוח, אימייל, מספר הצעה…"
-          }
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="חיפוש לפי לקוח, אימייל, מספר מסמך…"
           className="admin-input h-10 min-w-0 flex-1"
         />
+        <select
+          aria-label="סינון לקוחות"
+          data-testid="customer-filter"
+          value={customerFilter}
+          onChange={(event) => {
+            setCustomerFilter(event.target.value as CustomerVisibilityFilter);
+            setPage(1);
+          }}
+          className="admin-input h-10"
+        >
+          <option value="all">הכל</option>
+          <option value="active">לקוחות פעילים</option>
+          <option value="deleted">לקוחות שנמחקו</option>
+        </select>
+        <select
+          aria-label="סינון סוג מסמך"
+          data-testid="document-filter"
+          value={documentFilter}
+          onChange={(event) => {
+            setDocumentFilter(event.target.value as DocumentKindFilter);
+            setPage(1);
+          }}
+          className="admin-input h-10"
+        >
+          <option value="all">כל המסמכים</option>
+          <option value="quote">הצעת מחיר</option>
+          <option value="agreement">הסכם</option>
+          <option value="signed">הסכם חתום</option>
+        </select>
       </AdminFilterBar>
 
       {error ? (
@@ -330,36 +396,59 @@ export default function AdminQuotesPage() {
           ]}
           isEmpty={filtered.length === 0}
           empty={
-            visibleQuotes.length === 0
-              ? agreementsView
-                ? "אין הסכמים חתומים עדיין."
-                : "אין הצעות מחיר עדיין."
-              : agreementsView
-                ? "לא נמצאו הסכמים התואמים לחיפוש."
-                : "לא נמצאו הצעות התואמות לחיפוש."
+            quotes.length === 0
+              ? "אין הצעות מחיר או הסכמים עדיין."
+              : "לא נמצאו מסמכים התואמים לסינון."
           }
           footer={
             <>
-              <span>
-                מוצגות {filtered.length} מתוך {visibleQuotes.length}
+              <span data-testid="sales-page-status">
+                {filtered.length === 0
+                  ? "0 רשומות"
+                  : `מציג ${pageStart + 1}–${pageStart + paged.length} מתוך ${filtered.length}`}
+                {` · נטענו ${quotes.length} רשומות היסטוריות`}
               </span>
-              <span>
+              <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="sales-page-prev"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage(currentPage - 1)}
+                  className="rounded-md border border-[var(--admin-border)] bg-white px-2 py-1 text-[11px] font-bold disabled:opacity-40"
+                >
+                  הקודם
+                </button>
+                <span>
+                  עמוד {currentPage} מתוך {pageCount}
+                </span>
+                <button
+                  type="button"
+                  data-testid="sales-page-next"
+                  disabled={currentPage >= pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                  className="rounded-md border border-[var(--admin-border)] bg-white px-2 py-1 text-[11px] font-bold disabled:opacity-40"
+                >
+                  הבא
+                </button>
                 <Loader2 className="hidden" size={12} />
               </span>
             </>
           }
         >
-          {filtered.map((quote) => {
+          {paged.map((quote) => {
             const open = openActionsId === quote._id;
             return (
               <tr
                 key={quote._id}
+                data-testid={
+                  quote.customerDeleted ? "deleted-customer-row" : "customer-row"
+                }
                 className={open ? "actions-open" : undefined}
               >
                 <td className="font-bold">
                   <div>{quote.quoteNumber || quote._id.slice(-6)}</div>
                   <div className="text-[11px] font-medium text-[var(--admin-muted)]">
-                    {quote.documentType === "agreement" ? "הסכם" : "הצעה"}
+                    {documentLabel(quote)}
                   </div>
                 </td>
                 <td>
@@ -370,7 +459,10 @@ export default function AdminQuotesPage() {
                     {quote.fullName || "—"}
                   </span>
                   {quote.customerDeleted ? (
-                    <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                    <span
+                      data-testid="deleted-customer-badge"
+                      className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
+                    >
                       לקוח שנמחק
                     </span>
                   ) : null}
@@ -417,6 +509,26 @@ export default function AdminQuotesPage() {
                   ) : null}
                 </td>
                 <td className="admin-actions-cell">
+                  <div className="mb-1 flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      data-testid="open-payments"
+                      onClick={() => void openPayments(quote)}
+                      className="inline-flex h-7 items-center rounded-md border border-[var(--admin-border)] bg-white px-2 text-[11px] font-bold text-[var(--admin-text)] hover:bg-gray-50"
+                    >
+                      תשלומים
+                    </button>
+                    {quote.pdfUrl ? (
+                      <a
+                        href={quote.pdfUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-7 items-center rounded-md border border-[var(--admin-border)] bg-white px-2 text-[11px] font-bold text-[var(--admin-text)] hover:bg-gray-50"
+                      >
+                        PDF
+                      </a>
+                    ) : null}
+                  </div>
                   {quote.token ? (
                     <AdminActionsMenu
                       open={open}
@@ -463,7 +575,7 @@ export default function AdminQuotesPage() {
                           עריכת הצעה
                         </Link>
                       )}
-                      {quote.userLinkStatus === "broken" ? (
+                      {quote.customerDeleted ? null : quote.userLinkStatus === "broken" ? (
                         <Link
                           href={`/admin/sales/quotes/${encodeURIComponent(quote.token)}/edit`}
                           onClick={() => setOpenActionsId(null)}
@@ -471,15 +583,6 @@ export default function AdminQuotesPage() {
                         >
                           קישור שבור — תיקון קישור
                         </Link>
-                      ) : quote.customerDeleted ? (
-                        <AdminActionsItem
-                          onClick={() => {
-                            setOpenActionsId(null);
-                            void openPayments(quote);
-                          }}
-                        >
-                          תשלומים היסטוריים
-                        </AdminActionsItem>
                       ) : quote.convertedUserId || quote.userLinkStatus === "created" ? (
                         <Link
                           href={`/admin/users?q=${encodeURIComponent(quote.email || quote.convertedUserId || "")}`}
