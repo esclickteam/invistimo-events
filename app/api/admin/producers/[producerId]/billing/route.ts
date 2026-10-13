@@ -73,7 +73,7 @@ async function loadCollectionClients(producerId: mongoose.Types.ObjectId) {
     )
     .lean();
 
-  return candidates.filter((client) => isInProducerCollection(client, producerId));
+  return candidates.filter((client) => isInProducerCollection(client as any, producerId));
 }
 
 async function decorateClients(
@@ -131,7 +131,7 @@ async function decorateClients(
       }
     }
 
-    const bill = resolveProducerBill(client);
+    const bill = resolveProducerBill(client as any);
     const extraEvents = Math.max(0, userEvents.length - 1);
     const name = eventTitle(primary);
     return {
@@ -196,10 +196,7 @@ async function billingPayload(producerId: string) {
   };
 }
 
-function assertCollectionClient(
-  client: { role?: string } | null,
-  producerId: mongoose.Types.ObjectId,
-) {
+function assertCollectionClient(client: any, producerId: mongoose.Types.ObjectId) {
   if (!client || (client.role !== "user" && client.role !== "client")) return false;
   return isInProducerCollection(client, producerId);
 }
@@ -255,7 +252,7 @@ export async function POST(
       if (!client) {
         return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
       }
-      const decision = canAssignCollectionPayer(client, producer._id);
+      const decision = canAssignCollectionPayer(client as any, producer._id);
       if (!decision.ok) {
         return NextResponse.json(
           { success: false, error: decision.code },
@@ -335,7 +332,7 @@ export async function POST(
           note: String(body?.note || "").trim(),
           recordedBy: auth?.userId || null,
           createdAt: now,
-        }),
+        }) as any,
       );
       const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
@@ -354,7 +351,7 @@ export async function POST(
           nextPrice,
           at: new Date(),
           by: auth?.userId || null,
-        }),
+        }) as any,
       );
       const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
@@ -368,7 +365,7 @@ export async function POST(
           { status: 400 },
         );
       }
-      const current: ProducerBillView = resolveProducerBill(client);
+      const current: ProducerBillView = resolveProducerBill(client as any);
       const update = buildFinalRecordsUpdate({
         previousFinalRecords: current.confirmed ? current.finalRecords : null,
         nextFinalRecords: nextFinal,
@@ -379,7 +376,7 @@ export async function POST(
             ? current.initialRecords
             : null,
       });
-      await User.updateOne({ _id: client._id }, update);
+      await User.updateOne({ _id: client._id }, update as any);
       const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
     }

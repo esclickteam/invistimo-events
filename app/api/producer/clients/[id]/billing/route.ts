@@ -58,11 +58,11 @@ export async function GET(
 
     const { id } = await context.params;
     const client = await loadManagedClient(auth.userId, id);
-    if (!client || !isInProducerCollection(client, auth.userId)) {
+    if (!client || !isInProducerCollection(client as any, auth.userId)) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
-    const bill = resolveProducerBill(client);
+    const bill = resolveProducerBill(client as any);
     const actualRecords = await countActualRecords(String(client._id));
 
     return NextResponse.json({
@@ -120,11 +120,11 @@ export async function POST(
 
     const { id } = await context.params;
     const client = await loadManagedClient(auth.userId, id);
-    if (!client || !isInProducerCollection(client, auth.userId)) {
+    if (!client || !isInProducerCollection(client as any, auth.userId)) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
-    const current = resolveProducerBill(client);
+    const current = resolveProducerBill(client as any);
     const previous = current.confirmed ? current.finalRecords : null;
     const at = new Date();
     const update = buildFinalRecordsUpdate({
@@ -138,10 +138,10 @@ export async function POST(
           : null,
     });
 
-    await User.updateOne({ _id: client._id }, update);
+    await User.updateOne({ _id: client._id }, update as any);
 
     const fresh = await User.findById(client._id);
-    const bill = resolveProducerBill(fresh || client);
+    const bill = resolveProducerBill((fresh || client) as any);
     const actualRecords = await countActualRecords(String(client._id));
 
     return NextResponse.json({

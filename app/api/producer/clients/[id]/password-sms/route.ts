@@ -43,7 +43,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
     }
 
-    const decision = evaluatePasswordSmsRateLimit(client.producerBilling?.passwordSms);
+    const decision = evaluatePasswordSmsRateLimit(client.producerBilling?.passwordSms as any);
     if (!decision.ok) {
       return NextResponse.json(
         { success: false, error: decision.code },
@@ -66,7 +66,7 @@ export async function POST(
     if (delivery.smsSent) {
       await User.updateOne(
         { _id: client._id },
-        passwordSmsStatusPatch({ status: "sent", now, countAttempt: true }),
+        passwordSmsStatusPatch({ status: "sent", now, countAttempt: true }) as any,
       );
       return NextResponse.json({ success: true, passwordSms: { status: "sent" } });
     }
@@ -80,7 +80,7 @@ export async function POST(
         error: delivery.smsError || "SMS_FAILED",
         now,
         countAttempt: false,
-      }),
+      }) as any,
     );
 
     return NextResponse.json({

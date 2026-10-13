@@ -162,7 +162,7 @@ async function deliverProducerPasswordSms(userId: string) {
     if (delivery.smsSent) {
       await User.updateOne(
         { _id: userId },
-        passwordSmsStatusPatch({ status: "sent", now, countAttempt: true }),
+        passwordSmsStatusPatch({ status: "sent", now, countAttempt: true }) as any,
       );
       return { status: "sent" as const, error: null };
     }
@@ -176,7 +176,7 @@ async function deliverProducerPasswordSms(userId: string) {
         error: delivery.smsError || "SMS_FAILED",
         now,
         countAttempt: false,
-      }),
+      }) as any,
     );
     return { status, error: delivery.smsError || "SMS_FAILED" };
   } catch (err) {
@@ -189,7 +189,7 @@ async function deliverProducerPasswordSms(userId: string) {
           error: message,
           now,
           countAttempt: false,
-        }),
+        }) as any,
       );
     } catch (updateError) {
       console.error("password sms status save failed", updateError);

@@ -108,7 +108,7 @@ export async function POST(
       );
       if (target && shouldRateLimitProducerPasswordSms(target)) {
         const decision = evaluatePasswordSmsRateLimit(
-          target.producerBilling?.passwordSms,
+          target.producerBilling?.passwordSms as any,
         );
         if (!decision.ok) {
           return NextResponse.json(
@@ -126,7 +126,7 @@ export async function POST(
       if (target && shouldRateLimitProducerPasswordSms(target)) {
         await User.updateOne(
           { _id: target._id },
-          passwordSmsStatusPatch({ status: "sent", countAttempt: true }),
+          passwordSmsStatusPatch({ status: "sent", countAttempt: true }) as any,
         );
       }
 
