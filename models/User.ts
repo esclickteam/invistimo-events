@@ -222,6 +222,15 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       lastAttemptAt?: Date | null;
       attempts?: Date[];
     };
+    collectionFollowUp?: {
+      snoozeUntil?: Date | null;
+      handledCycleKey?: string;
+      firedSnoozeAt?: Date | null;
+      noticeBalance?: number | null;
+      note?: string;
+      noteUpdatedAt?: Date | null;
+      noteUpdatedBy?: mongoose.Types.ObjectId | null;
+    };
   };
 
   // לקוח שנוצר דרך אולם
@@ -1280,6 +1289,19 @@ preRsvpMessages: {
         sentAt: { type: Date, default: null },
         lastAttemptAt: { type: Date, default: null },
         attempts: [{ type: Date }],
+      },
+      collectionFollowUp: {
+        snoozeUntil: { type: Date, default: null },
+        handledCycleKey: { type: String, default: "" },
+        firedSnoozeAt: { type: Date, default: null },
+        noticeBalance: { type: Number, default: null },
+        note: { type: String, default: "" },
+        noteUpdatedAt: { type: Date, default: null },
+        noteUpdatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
       },
     },
 

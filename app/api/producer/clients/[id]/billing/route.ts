@@ -3,14 +3,16 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
-import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
-import InvitationGuest from "@/models/InvitationGuest";
 import {
   buildFinalRecordsUpdate,
   isInProducerCollection,
   resolveProducerBill,
 } from "@/lib/producerBilling/calc";
+import { describeClientEvent } from "@/lib/producerBilling/snapshot";
+import {
+  notifyProducerFinalRecords,
+  syncProducerCollectionClient,
+} from "@/lib/producerBilling/noticesLive";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,16 +35,22 @@ async function loadManagedClient(producerId: string, clientId: string) {
   });
 }
 
-async function countActualRecords(userId: string) {
-  const events = await Event.find({ userId }).select("_id").lean();
-  const eventIds = events.map((event) => event._id);
-  if (eventIds.length === 0) return 0;
-  const invitations = await Invitation.find({ eventId: { $in: eventIds } })
-    .select("_id")
-    .lean();
-  const invitationIds = invitations.map((invitation) => invitation._id);
-  if (invitationIds.length === 0) return 0;
-  return InvitationGuest.countDocuments({ invitationId: { $in: invitationIds } });
+function producerBillingView(
+  client: { _id: unknown; name?: string },
+  bill: { initialRecords: number; finalRecords: number | null },
+  context: { eventName: string; eventDate: Date | string | null; actualRecords: number },
+  updatedAt: Date | null,
+) {
+  return {
+    clientId: String(client._id),
+    clientName: client.name || "",
+    eventName: context.eventName,
+    eventDate: context.eventDate,
+    initialRecords: bill.initialRecords,
+    actualRecords: context.actualRecords,
+    finalRecords: bill.finalRecords,
+    finalRecordsUpdatedAt: updatedAt,
+  };
 }
 
 export async function GET(
@@ -63,21 +71,16 @@ export async function GET(
     }
 
     const bill = resolveProducerBill(client as any);
-    const actualRecords = await countActualRecords(String(client._id));
+    const eventContext = await describeClientEvent(String(client._id), client.eventDate || null);
 
     return NextResponse.json({
       success: true,
-      billing: {
-        clientId: String(client._id),
-        initialRecords: bill.initialRecords,
-        actualRecords,
-        finalRecords: bill.finalRecords,
-        finalRecordsUpdatedAt: client.producerBilling?.finalRecordsUpdatedAt || null,
-        pricePerRecord: bill.pricePerRecord,
-        amountDue: bill.amountDue,
-        status: bill.status,
-        statusLabel: bill.statusLabel,
-      },
+      billing: producerBillingView(
+        client,
+        bill,
+        eventContext,
+        client.producerBilling?.finalRecordsUpdatedAt || null,
+      ),
     });
   } catch (err) {
     console.error("producer billing read failed", err);
@@ -126,6 +129,20 @@ export async function POST(
 
     const current = resolveProducerBill(client as any);
     const previous = current.confirmed ? current.finalRecords : null;
+    const eventContext = await describeClientEvent(String(client._id), client.eventDate || null);
+    if (previous === nextFinal) {
+      return NextResponse.json({
+        success: true,
+        unchanged: true,
+        billing: producerBillingView(
+          client,
+          current,
+          eventContext,
+          client.producerBilling?.finalRecordsUpdatedAt || null,
+        ),
+      });
+    }
+
     const at = new Date();
     const update = buildFinalRecordsUpdate({
       previousFinalRecords: previous,
@@ -142,21 +159,27 @@ export async function POST(
 
     const fresh = await User.findById(client._id);
     const bill = resolveProducerBill((fresh || client) as any);
-    const actualRecords = await countActualRecords(String(client._id));
+    const producer = await User.findById(auth.userId).select("name").lean();
+    try {
+      await notifyProducerFinalRecords({
+        clientId: String(client._id),
+        producerId: auth.userId,
+        producerName: producer?.name || "מפיק",
+        eventName: eventContext.eventName,
+        eventId: eventContext.eventId,
+        previous,
+        next: nextFinal,
+        amountDue: bill.amountDue,
+        updatedAt: at,
+      });
+      await syncProducerCollectionClient(String(client._id), at);
+    } catch (notifyError) {
+      console.error("producer final records notice failed", notifyError);
+    }
 
     return NextResponse.json({
       success: true,
-      billing: {
-        clientId: String(client._id),
-        initialRecords: bill.initialRecords,
-        actualRecords,
-        finalRecords: bill.finalRecords,
-        finalRecordsUpdatedAt: at,
-        pricePerRecord: bill.pricePerRecord,
-        amountDue: bill.amountDue,
-        status: bill.status,
-        statusLabel: bill.statusLabel,
-      },
+      billing: producerBillingView(client, bill, eventContext, at),
     });
   } catch (err) {
     console.error("producer final records update failed", err);

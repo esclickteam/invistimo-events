@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { processUpcomingEventNotifications } from "@/lib/customerNotifications/liveEvents";
 import { processAdminOperationalNotifications } from "@/lib/customerNotifications/adminCenterLive";
+import { processProducerCollectionNotices } from "@/lib/producerBilling/noticesLive";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,8 +32,14 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error("admin operational notifications failed", error);
     }
+    let producerBilling: { created: number; resolved: number; daily: boolean } | null = null;
+    try {
+      producerBilling = await processProducerCollectionNotices();
+    } catch (error) {
+      console.error("producer billing notices failed", error);
+    }
     return NextResponse.json(
-      { success: true, ...result, adminOps },
+      { success: true, ...result, adminOps, producerBilling },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {

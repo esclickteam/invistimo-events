@@ -284,6 +284,14 @@ function formatDate(value?: string) {
   }
 }
 
+function formatOpenBalance(value: number) {
+  const amount = Math.round((Number(value) || 0) * 100) / 100;
+  const [whole, fraction] = Math.abs(amount).toFixed(2).split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const text = fraction === "00" ? grouped : `${grouped}.${fraction}`;
+  return `${text} ₪`;
+}
+
 function formatDateInput(value?: string) {
   if (!value) return "";
 
@@ -853,6 +861,7 @@ export default function AdminUsersPage() {
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [collectionBalances, setCollectionBalances] = useState<Record<string, number>>({});
   const [eventFilter, setEventFilter] = useState("future");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
@@ -879,6 +888,17 @@ export default function AdminUsersPage() {
         const loadedUsers = data.users || [];
 
         setUsers(loadedUsers);
+        void fetch("/api/admin/producers/balances", {
+          credentials: "include",
+          cache: "no-store",
+        })
+          .then((balanceRes) => balanceRes.json())
+          .then((balanceData) => {
+            if (balanceData?.success && balanceData.balances) {
+              setCollectionBalances(balanceData.balances);
+            }
+          })
+          .catch(() => {});
 
         // חשוב: רענון סבבי הודעות לא סוגר את מודל העריכה.
         // אם המודל פתוח, מעדכנים את המשתמש הפתוח עם הנתונים החדשים מהשרת.
@@ -1268,6 +1288,7 @@ export default function AdminUsersPage() {
                 <th>שם</th>
                 <th>אימייל</th>
                 <th>תפקיד</th>
+                {roleFilter === "producer" && <th>יתרה לגבייה</th>}
                 <th>חבילה</th>
                 <th>רשומות</th>
                 <th>תאריך אירוע</th>
@@ -1300,6 +1321,24 @@ export default function AdminUsersPage() {
                   <td>
                     <RoleBadge role={u.role} />
                   </td>
+                  {roleFilter === "producer" && (
+                    <td>
+                      {u.role === "producer" ? (
+                        collectionBalances[u._id] == null ? (
+                          "…"
+                        ) : (
+                          <a
+                            href={`/admin/users/producers/${u._id}/billing`}
+                            className="font-black text-[var(--admin-brand)] underline"
+                          >
+                            {formatOpenBalance(collectionBalances[u._id])}
+                          </a>
+                        )
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  )}
                   <td>
                     <span className="cell-clip" title={getPlanLabel(u, pricingPlans)}>
                       {getPlanLabel(u, pricingPlans)}
@@ -1371,6 +1410,9 @@ export default function AdminUsersPage() {
                       onDelete={() => removeUser(u._id)}
                       isImpersonating={impersonating === u._id}
                       isManaging={managing === u._id}
+                      collectionBalance={
+                        u.role === "producer" ? collectionBalances[u._id] : undefined
+                      }
                     />
                   </td>
                 </tr>
@@ -1379,7 +1421,7 @@ export default function AdminUsersPage() {
               {filteredUsers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={roleFilter === "producer" ? 13 : 12}
                     className="!h-24 text-center text-[var(--admin-muted)]"
                   >
                     לא נמצאו משתמשים
@@ -4399,6 +4441,7 @@ function UserActionsDropdown({
   onDelete,
   isImpersonating,
   isManaging,
+  collectionBalance,
   fullWidth = false,
 }: {
   user: AdminUser;
@@ -4414,6 +4457,7 @@ function UserActionsDropdown({
   onDelete: () => void;
   isImpersonating?: boolean;
   isManaging?: boolean;
+  collectionBalance?: number;
   fullWidth?: boolean;
 }) {
   function runAction(action: () => void) {
@@ -4522,7 +4566,11 @@ function UserActionsDropdown({
           {user.role === "producer" && (
             <DropdownAction
               icon={<Receipt size={16} />}
-              label="מעקב תשלומים"
+              label={
+                collectionBalance == null
+                  ? "מעקב תשלומים"
+                  : `מעקב תשלומים · ${formatOpenBalance(collectionBalance)}`
+              }
               onClick={() =>
                 runAction(() => {
                   window.location.href = `/admin/users/producers/${user._id}/billing`;

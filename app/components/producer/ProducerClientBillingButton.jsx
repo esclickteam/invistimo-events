@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 
-function formatDate(value) {
-  if (!value) return "טרם עודכן";
+function formatDay(value) {
+  if (!value) return "טרם נקבע";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${Number(day)}.${Number(month)}.${year}`;
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "טרם עודכן";
-  return date.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
+  if (Number.isNaN(date.getTime())) return "טרם נקבע";
+  return date.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" });
 }
 
 export default function ProducerClientBillingButton({ client, producerId }) {
@@ -26,6 +30,13 @@ export default function ProducerClientBillingButton({ client, producerId }) {
   const [finalRecords, setFinalRecords] = useState("");
 
   if (!visible) return null;
+
+  const eventName =
+    billing?.eventName ||
+    client?.event?.eventName ||
+    client?.eventName ||
+    "טרם נפתח אירוע";
+  const eventDate = billing?.eventDate || client?.event?.eventDate || client?.eventDate || null;
 
   async function openModal() {
     setOpen(true);
@@ -75,7 +86,7 @@ export default function ProducerClientBillingButton({ client, producerId }) {
         return;
       }
       setBilling(data.billing);
-      setNotice("הכמות הסופית לחיוב עודכנה. רשומות האורחים לא נמחקו.");
+      setNotice(`הכמות הסופית נשמרה: ${data.billing?.finalRecords ?? next}`);
     } catch {
       setError("עדכון הכמות נכשל");
     } finally {
@@ -124,9 +135,9 @@ export default function ProducerClientBillingButton({ client, producerId }) {
       <button
         type="button"
         onClick={openModal}
-        className="rounded-2xl border border-[#E8DDD3] bg-white px-4 py-3 text-sm font-black text-[#1E1B2E] hover:bg-[#FCFBFA]"
+        className="rounded-2xl bg-[#8B5CF6] px-4 py-3 text-sm font-black text-white shadow-sm hover:opacity-95"
       >
-        עדכון כמות רשומות סופית
+        עדכון כמות סופית
       </button>
 
       {open && (
@@ -140,8 +151,8 @@ export default function ProducerClientBillingButton({ client, producerId }) {
           <div className="relative z-10 w-full max-w-lg rounded-3xl bg-white p-6 text-right shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-black text-[#1E1B2E]">עדכון כמות רשומות סופית</h3>
-                <p className="mt-1 text-sm text-[#7B7285]">{client?.name || "לקוח"}</p>
+                <h3 className="text-lg font-black text-[#1E1B2E]">עדכון כמות סופית</h3>
+                <p className="mt-1 text-sm text-[#7B7285]">{billing?.clientName || client?.name || "לקוח"}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="font-black text-[#7B7285]">
                 סגירה
@@ -152,20 +163,16 @@ export default function ProducerClientBillingButton({ client, producerId }) {
               <p className="mt-6 text-sm text-[#7B7285]">טוען…</p>
             ) : (
               <div className="mt-6 space-y-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Stat label="שם הלקוח" value={billing?.clientName || client?.name || "לקוח"} />
+                  <Stat label="שם האירוע" value={eventName} />
+                  <Stat label="תאריך האירוע" value={formatDay(eventDate)} />
                   <Stat label="כמות ראשונית" value={billing?.initialRecords ?? "—"} />
                   <Stat label="רשומות בפועל" value={billing?.actualRecords ?? "—"} />
-                  <Stat label="סופית לחיוב" value={billing?.finalRecords ?? "טרם נקבעה"} />
+                  <Stat label="כמות סופית אחרונה" value={billing?.finalRecords ?? "טרם נשמרה"} />
                 </div>
-                <p className="text-xs text-[#7B7285]">
-                  עדכון אחרון: {formatDate(billing?.finalRecordsUpdatedAt)}
-                </p>
-                <p className="text-xs text-[#7B7285]">
-                  מחיר לרשומה: ₪{billing?.pricePerRecord ?? 0}. לא ניתן לשינוי מכאן.
-                  {billing?.amountDue != null ? ` סכום לחיוב נוכחי: ₪${billing.amountDue}.` : ""}
-                </p>
                 <label className="block text-sm font-black text-[#1E1B2E]">
-                  כמות סופית לחיוב
+                  כמות סופית חדשה
                   <input
                     type="number"
                     min={0}
@@ -176,7 +183,7 @@ export default function ProducerClientBillingButton({ client, producerId }) {
                   />
                 </label>
                 <p className="text-xs leading-5 text-[#7B7285]">
-                  השינוי משפיע רק על החיוב. הוא לא מוחק אורחים ולא מאפס אישורי הגעה או הודעות.
+                  אפשר להגדיל או להקטין. השינוי לא מוחק אורחים ולא משנה אישורי הגעה, הודעות, שיחות או הושבה.
                 </p>
                 {error && <p className="text-sm font-bold text-red-600">{error}</p>}
                 {notice && <p className="text-sm font-bold text-emerald-700">{notice}</p>}
@@ -211,7 +218,7 @@ function Stat({ label, value }) {
   return (
     <div className="rounded-2xl bg-[#FCFBFA] px-3 py-3">
       <div className="text-xs font-bold text-[#7B7285]">{label}</div>
-      <div className="mt-1 text-lg font-black text-[#1E1B2E]">{value}</div>
+      <div className="mt-1 text-base font-black text-[#1E1B2E]">{value}</div>
     </div>
   );
 }

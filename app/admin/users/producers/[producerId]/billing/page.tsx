@@ -22,6 +22,11 @@ type BillingRow = {
   balance: number | null;
   status: string;
   statusLabel: string;
+  followUp?: {
+    snoozeUntil?: string | null;
+    handled?: boolean;
+    note?: string;
+  };
 };
 
 type BillingPayload = {
@@ -53,6 +58,9 @@ const ERRORS: Record<string, string> = {
   INVALID_DATE: "תאריך לא תקין",
   INVALID_PRICE: "מחיר לא תקין",
   INVALID_FINAL_RECORDS: "כמות רשומות לא תקינה",
+  NO_OPEN_BALANCE: "אין יתרה פתוחה לתזכורת",
+  INVALID_REMINDER: "תאריך התזכורת לא תקין",
+  PAST_DATE: "אי אפשר לבחור תאריך שעבר",
   ALREADY_BILLED_BY_ANOTHER_PRODUCER: "הלקוח כבר משויך לגבייה של מפיק אחר",
   ALREADY_TRACKED: "הלקוח כבר נמצא במעקב של המפיק הזה",
   NOT_A_CLIENT: "אפשר לשייך רק לקוח",
@@ -81,10 +89,13 @@ export default function ProducerBillingPage() {
   const [paymentFor, setPaymentFor] = useState<BillingRow | null>(null);
   const [assignEmail, setAssignEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [focusClient, setFocusClient] = useState("");
 
-  async function load() {
-    setLoading(true);
-    setError("");
+  async function load(background = false) {
+    if (!background) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const res = await fetch(`/api/admin/producers/${producerId}/billing`, {
         credentials: "include",
@@ -92,21 +103,48 @@ export default function ProducerBillingPage() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.success) {
-        setError(ERRORS[data?.error] || "טעינת המעקב נכשלה");
-        setPayload(null);
+        if (!background) {
+          setError(ERRORS[data?.error] || "טעינת המעקב נכשלה");
+          setPayload(null);
+        }
         return;
       }
       setPayload(data);
+      if (background) setError("");
     } catch {
-      setError("טעינת המעקב נכשלה");
+      if (!background) setError("טעינת המעקב נכשלה");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (producerId) void load();
+    if (!producerId) return;
+    const params = new URLSearchParams(window.location.search);
+    setFocusClient(params.get("client") || "");
+    void load(false);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      void load(true);
+    }, 15000);
+    const onFocus = () => {
+      void load(true);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, [producerId]);
+
+  useEffect(() => {
+    if (!focusClient || !payload) return;
+    document.getElementById(`collection-client-${focusClient}`)?.scrollIntoView({
+      block: "center",
+    });
+  }, [focusClient, payload]);
 
   async function post(body: Record<string, unknown>) {
     setBusy(true);
@@ -183,7 +221,11 @@ export default function ProducerBillingPage() {
               </thead>
               <tbody>
                 {payload.rows.map((row) => (
-                  <tr key={row.clientId}>
+                  <tr
+                    key={row.clientId}
+                    id={`collection-client-${row.clientId}`}
+                    className={focusClient === row.clientId ? "bg-[#FFF6E8]" : ""}
+                  >
                     <td>
                       <div className="font-bold">{row.clientName}</div>
                       <div className="text-xs text-[var(--admin-muted)]">{row.clientEmail}</div>
@@ -240,6 +282,13 @@ export default function ProducerBillingPage() {
                         >
                           תיקון כמות
                         </button>
+                        {row.balance != null && row.balance > 0 && (
+                          <FollowUpControls
+                            row={row}
+                            busy={busy}
+                            onSubmit={(body) => post(body)}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -312,6 +361,84 @@ function Summary({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-[var(--admin-border)] bg-white px-4 py-3">
       <div className="text-xs font-bold text-[var(--admin-muted)]">{label}</div>
       <div className="mt-1 text-xl font-black text-[var(--admin-text)]">{value}</div>
+    </div>
+  );
+}
+
+function FollowUpControls({
+  row,
+  busy,
+  onSubmit,
+}: {
+  row: BillingRow;
+  busy: boolean;
+  onSubmit: (body: Record<string, unknown>) => Promise<boolean | undefined>;
+}) {
+  const [note, setNote] = useState(row.followUp?.note || "");
+  const [remindOn, setRemindOn] = useState("");
+
+  useEffect(() => {
+    setNote(row.followUp?.note || "");
+  }, [row.followUp?.note, row.clientId]);
+
+  function send(mode: string) {
+    void onSubmit({
+      action: "follow-up",
+      clientId: row.clientId,
+      mode,
+      note,
+      remindOn,
+    });
+  }
+
+  return (
+    <div className="mt-2 space-y-2 border-t border-[var(--admin-border)] pt-2">
+      <label className="block text-[11px] font-bold text-[var(--admin-muted)]">
+        הערה פנימית
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="דיברתי עם המפיקה, התחייבה להעביר תשלום ביום חמישי."
+          rows={2}
+          className="mt-1 w-full rounded-lg border border-[var(--admin-border)] px-2 py-1 text-xs font-semibold"
+        />
+      </label>
+      {row.followUp?.handled && (
+        <p className="text-[11px] font-bold text-[var(--admin-muted)]">טופל לעת עתה</p>
+      )}
+      {row.followUp?.snoozeUntil && (
+        <p className="text-[11px] font-bold text-[var(--admin-muted)]">
+          תזכורת הבאה: {formatDate(row.followUp.snoozeUntil)}
+        </p>
+      )}
+      <div className="flex flex-col gap-1">
+        <button type="button" disabled={busy} onClick={() => send("note")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
+          שמירת הערה
+        </button>
+        <button type="button" disabled={busy} onClick={() => send("handled")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
+          טופל לעת עתה
+        </button>
+        <button type="button" disabled={busy} onClick={() => send("tomorrow")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
+          להזכיר לי מחר
+        </button>
+        <button type="button" disabled={busy} onClick={() => send("in_3_days")} className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold">
+          להזכיר לי בעוד 3 ימים
+        </button>
+        <input
+          type="date"
+          value={remindOn}
+          onChange={(event) => setRemindOn(event.target.value)}
+          className="h-8 rounded-lg border border-[var(--admin-border)] px-2 text-[11px]"
+        />
+        <button
+          type="button"
+          disabled={busy || !remindOn}
+          onClick={() => send("date")}
+          className="rounded-lg border border-[var(--admin-border)] px-2 py-1.5 text-[11px] font-bold disabled:opacity-50"
+        >
+          בחירת תאריך לתזכורת
+        </button>
+      </div>
     </div>
   );
 }

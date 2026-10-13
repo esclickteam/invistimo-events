@@ -16,6 +16,16 @@ import {
   resolveProducerBill,
   type ProducerBillView,
 } from "@/lib/producerBilling/calc";
+import {
+  buildFollowUpUpdate,
+  collectionCycleKey,
+  openDebtAmount,
+  planFollowUp,
+} from "@/lib/producerBilling/notices";
+import {
+  notifyProducerPayment,
+  syncProducerCollectionClient,
+} from "@/lib/producerBilling/noticesLive";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,7 +79,7 @@ async function loadCollectionClients(producerId: mongoose.Types.ObjectId) {
     ],
   })
     .select(
-      "name email phone role billingSource guests maxGuests eventDate assignedProducerId producerBilling",
+      "name email phone role billingSource guests maxGuests eventDate createdAt assignedProducerId producerBilling",
     )
     .lean();
 
@@ -134,6 +144,12 @@ async function decorateClients(
     const bill = resolveProducerBill(client as any);
     const extraEvents = Math.max(0, userEvents.length - 1);
     const name = eventTitle(primary);
+    const follow = client.producerBilling?.collectionFollowUp || {};
+    const cycle = collectionCycleKey({
+      finalRecordsUpdatedAt: client.producerBilling?.finalRecordsUpdatedAt || null,
+      createdAt: client.createdAt || null,
+      finalRecords: bill.finalRecords,
+    });
     return {
       clientId: String(client._id),
       clientName: client.name || "לקוח ללא שם",
@@ -158,6 +174,11 @@ async function decorateClients(
         note: payment.note || "",
       })),
       history: client.producerBilling?.history || [],
+      followUp: {
+        snoozeUntil: follow.snoozeUntil || null,
+        handled: Boolean(follow.handledCycleKey) && follow.handledCycleKey === cycle,
+        note: follow.note || "",
+      },
     };
   });
 }
@@ -335,6 +356,83 @@ export async function POST(
         }) as any,
       );
       const payload = await billingPayload(String(producer._id));
+      const row = payload?.rows.find((item) => item.clientId === String(client._id));
+      try {
+        await notifyProducerPayment({
+          clientId: String(client._id),
+          producerId: String(producer._id),
+          eventName: row?.eventName || "האירוע",
+          amount,
+          balance: row?.balance ?? null,
+          recordedAt: now,
+        });
+        await syncProducerCollectionClient(String(client._id), now);
+      } catch (notifyError) {
+        console.error("producer payment notice failed", notifyError);
+      }
+      return NextResponse.json({ success: true, ...payload });
+    }
+
+    if (action === "follow-up") {
+      const bill = resolveProducerBill(client as any);
+      const debt = openDebtAmount({
+        confirmed: bill.confirmed,
+        amountDue: bill.amountDue,
+        balance: bill.balance,
+      });
+      const mode = String(body?.mode || "note");
+      const note = body?.note == null ? null : String(body.note);
+      const now = new Date();
+      if (mode === "note") {
+        await User.updateOne(
+          { _id: client._id },
+          buildFollowUpUpdate({
+            noteOnly: true,
+            note: note || "",
+            at: now,
+            by: auth?.userId || null,
+            snoozeUntil: null,
+            handledCycleKey: "",
+            firedSnoozeAt: null,
+            noticeBalance: null,
+          }) as any,
+        );
+      } else {
+        if (debt <= 0) {
+          return NextResponse.json({ success: false, error: "NO_OPEN_BALANCE" }, { status: 400 });
+        }
+        const planned = planFollowUp({
+          mode,
+          now,
+          remindOn: body?.remindOn,
+          cycleKey: collectionCycleKey({
+            finalRecordsUpdatedAt: client.producerBilling?.finalRecordsUpdatedAt || null,
+            createdAt: client.createdAt || null,
+            finalRecords: bill.finalRecords,
+          }),
+        });
+        if (!planned.ok) {
+          return NextResponse.json({ success: false, error: planned.error }, { status: 400 });
+        }
+        await User.updateOne(
+          { _id: client._id },
+          buildFollowUpUpdate({
+            snoozeUntil: planned.snoozeUntil,
+            handledCycleKey: planned.handledCycleKey,
+            firedSnoozeAt: planned.firedSnoozeAt,
+            noticeBalance: planned.noticeBalance,
+            note,
+            at: now,
+            by: auth?.userId || null,
+          }) as any,
+        );
+        try {
+          await syncProducerCollectionClient(String(client._id), now);
+        } catch (notifyError) {
+          console.error("producer follow-up sync failed", notifyError);
+        }
+      }
+      const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
     }
 
@@ -344,15 +442,21 @@ export async function POST(
         return NextResponse.json({ success: false, error: "INVALID_PRICE" }, { status: 400 });
       }
       const previous = Number(client.producerBilling?.pricePerRecord || 0);
+      const now = new Date();
       await User.updateOne(
         { _id: client._id },
         buildPriceUpdate({
           previousPrice: previous,
           nextPrice,
-          at: new Date(),
+          at: now,
           by: auth?.userId || null,
         }) as any,
       );
+      try {
+        await syncProducerCollectionClient(String(client._id), now);
+      } catch (notifyError) {
+        console.error("producer price sync failed", notifyError);
+      }
       const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
     }
@@ -366,17 +470,26 @@ export async function POST(
         );
       }
       const current: ProducerBillView = resolveProducerBill(client as any);
-      const update = buildFinalRecordsUpdate({
-        previousFinalRecords: current.confirmed ? current.finalRecords : null,
-        nextFinalRecords: nextFinal,
-        at: new Date(),
-        by: auth?.userId || null,
-        initialRecords:
-          client.producerBilling?.initialRecords == null
-            ? current.initialRecords
-            : null,
-      });
-      await User.updateOne({ _id: client._id }, update as any);
+      const previousFinal = current.confirmed ? current.finalRecords : null;
+      if (previousFinal !== nextFinal) {
+        const now = new Date();
+        const update = buildFinalRecordsUpdate({
+          previousFinalRecords: previousFinal,
+          nextFinalRecords: nextFinal,
+          at: now,
+          by: auth?.userId || null,
+          initialRecords:
+            client.producerBilling?.initialRecords == null
+              ? current.initialRecords
+              : null,
+        });
+        await User.updateOne({ _id: client._id }, update as any);
+        try {
+          await syncProducerCollectionClient(String(client._id), now);
+        } catch (notifyError) {
+          console.error("producer final-records sync failed", notifyError);
+        }
+      }
       const payload = await billingPayload(String(producer._id));
       return NextResponse.json({ success: true, ...payload });
     }

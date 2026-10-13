@@ -71,7 +71,11 @@ async function loadAdminIds() {
   return admins.map((admin) => String(admin._id));
 }
 
-export async function publishAdminIncident(notice: AdminIncident, adminIds?: string[]) {
+export async function publishAdminIncident(
+  notice: AdminIncident,
+  adminIds?: string[],
+  extraMeta?: Record<string, unknown>,
+) {
   const admins = adminIds || (await loadAdminIds());
   let created = 0;
   for (const adminId of admins) {
@@ -91,6 +95,7 @@ export async function publishAdminIncident(notice: AdminIncident, adminIds?: str
       meta: {
         incidentKey: notice.incidentKey,
         eventTitle: notice.eventTitle || "",
+        ...(extraMeta || {}),
       },
     });
     if (result.created) created += 1;

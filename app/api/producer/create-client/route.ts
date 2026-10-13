@@ -7,6 +7,7 @@ import {
   buildProducerClientPasswordSms,
   passwordSmsStatusPatch,
 } from "@/lib/producerBilling/passwordSms";
+import { notifyProducerOpenedClient } from "@/lib/producerBilling/noticesLive";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +119,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         initialRecords: records,
         finalRecords: records,
         finalRecordsConfirmed: true,
+        finalRecordsUpdatedAt: new Date(),
+        finalRecordsUpdatedBy: producer._id,
         payments: [],
         history: [],
       },
@@ -135,6 +138,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } catch (notifyError) {
       console.error("new customer notice failed", notifyError);
     }
+
+    await notifyProducerOpenedClient({
+      clientId: String(clientUser._id),
+      producerId: String(producer._id),
+      producerName: producer.name || "מפיק",
+      clientName: name,
+      eventDate: null,
+    });
 
     const passwordSms = await deliverProducerPasswordSms(String(clientUser._id));
 
