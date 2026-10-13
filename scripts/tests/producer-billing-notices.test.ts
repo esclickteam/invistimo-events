@@ -319,7 +319,7 @@ test("producer billing stays hidden from producers and creation stays active", (
   const producerRoute = read("app/api/producer/clients/[id]/billing/route.ts");
   const adminRoute = read("app/api/admin/producers/[producerId]/billing/route.ts");
   const button = read("app/components/producer/ProducerClientBillingButton.jsx");
-  const users = read("app/admin/users/page.tsx");
+  const users = `${read("app/admin/users/page.tsx")}\n${read("app/admin/users/UserDirectoryTables.tsx")}`;
   const cron = read("app/api/cron/event-notifications/route.ts");
 
   assert.doesNotMatch(createRoute, /stripe|checkout/i);
