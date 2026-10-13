@@ -179,7 +179,7 @@ export function ProducersDirectoryTable({
           <th>שם מלא</th>
           <th>אימייל</th>
           <th>טלפון</th>
-          <th>לקוחות משויכים</th>
+          <th>מספר לקוחות משויכים</th>
           <th>יתרה לגבייה</th>
           <th>סטטוס חשבון</th>
           <th className="admin-actions-head">פעולות</th>
@@ -194,7 +194,7 @@ export function ProducersDirectoryTable({
               <NameCell user={user} />
               <EmailCell user={user} />
               <PhoneCell user={user} />
-              <td data-label="לקוחות משויכים">
+              <td data-label="מספר לקוחות משויכים">
                 <button
                   type="button"
                   onClick={() => onShowClients(user)}
@@ -242,7 +242,7 @@ export function StaffDirectoryTable({
           <th>שם מלא</th>
           <th>אימייל</th>
           <th>טלפון</th>
-          <th>סוג עובד</th>
+          <th>סוג עובד / תפקיד</th>
           <th>סטטוס חשבון</th>
           <th className="admin-actions-head">פעולות</th>
         </tr>
@@ -255,7 +255,7 @@ export function StaffDirectoryTable({
               <NameCell user={user} />
               <EmailCell user={user} />
               <PhoneCell user={user} />
-              <td data-label="סוג עובד">
+              <td data-label="סוג עובד / תפקיד">
                 <span className="admin-row-badge bg-[#F6F1EA] text-[#6B5A48]" title={role}>
                   {role}
                 </span>

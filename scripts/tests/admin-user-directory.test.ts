@@ -93,7 +93,7 @@ test("staff role and account status are display labels only", () => {
   assert.equal(employeeRoleLabel({}), "עובד");
   assert.equal(accountStatusLabel(true), "פעיל");
   assert.equal(accountStatusLabel(false), "לא פעיל");
-  assert.equal(accountStatusLabel(undefined), "—");
+  assert.equal(accountStatusLabel(undefined), "פעיל");
   assert.equal(formatOpenBalance(3450), "3,450 ₪");
 });
 
@@ -131,9 +131,23 @@ test("admin users page separates directory tables from the client event table", 
   assert.doesNotMatch(allUsers, /תאריך אירוע/);
   assert.doesNotMatch(allUsers, /חבילה/);
 
-  assert.match(page, /צפייה ועריכת פרטי מפיק/);
+  assert.match(page, /צפייה ועריכת פרטי המפיק/);
   assert.match(page, /הצגת לקוחות משויכים/);
   assert.match(page, /מעקב תשלומים/);
+  assert.match(page, /ניהול חשבון/);
   assert.match(page, /variant === "staff"/);
+  assert.match(page, /ניהול הרשאות/);
+  assert.match(page, /סטטוס חשבון/);
   assert.match(page, /eventFilterApplies\(roleFilter\)/);
+  assert.match(page, /useState\("all"\)/);
+  assert.match(page, /openDirectoryProfile/);
+
+  const profile = read("app/admin/users/DirectoryProfileModal.tsx");
+  assert.match(profile, /producerPricePerRecord/);
+  assert.match(profile, /staffType/);
+  assert.match(profile, /isActive/);
+  for (const forbidden of ["תאריך אירוע", "תקנון", "חבילה", "רשומות", "מכסות"]) {
+    assert.doesNotMatch(profile, new RegExp(forbidden));
+  }
+  assert.match(page, /user\.role === "producer" \|\| user\.role === "staff"/);
 });

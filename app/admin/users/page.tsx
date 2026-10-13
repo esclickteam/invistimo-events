@@ -9,6 +9,10 @@ import {
   ProducersDirectoryTable,
   StaffDirectoryTable,
 } from "./UserDirectoryTables";
+import {
+  DirectoryProfileModal,
+  type DirectoryProfileMode,
+} from "./DirectoryProfileModal";
 import VenueSeatingContactsPanel from "./VenueSeatingContactsPanel";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
@@ -86,6 +90,7 @@ type AdminUser = {
   staffType?: string | null;
   employeeScope?: string | null;
   isActive?: boolean;
+  producerPricePerRecord?: number | null;
 
   plan?: string;
   packageName?: string;
@@ -864,9 +869,13 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [collectionBalances, setCollectionBalances] = useState<Record<string, number>>({});
-  const [eventFilter, setEventFilter] = useState("future");
+  const [eventFilter, setEventFilter] = useState("all");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [clientsProducer, setClientsProducer] = useState<AdminUser | null>(null);
+  const [profileEditor, setProfileEditor] = useState<{
+    user: AdminUser;
+    mode: DirectoryProfileMode;
+  } | null>(null);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("q");
@@ -939,6 +948,12 @@ export default function AdminUsersPage() {
             loadedUsers.find((item: AdminUser) => item._id === current._id) ||
             current
           );
+        });
+
+        setProfileEditor((current) => {
+          if (!current) return current;
+          const next = loadedUsers.find((item: AdminUser) => item._id === current.user._id);
+          return next ? { ...current, user: next } : current;
         });
       }
     } catch (err) {
@@ -1221,6 +1236,24 @@ export default function AdminUsersPage() {
     };
   }, [filteredUsers, users, hiddenUserIds]);
 
+  function openDirectoryProfile(user: AdminUser, mode: DirectoryProfileMode) {
+    setEditingUser(null);
+    setProfileEditor({ user, mode });
+  }
+
+  function openPersonEditor(user: AdminUser) {
+    if (user.role === "producer") {
+      openDirectoryProfile(user, "producer-details");
+      return;
+    }
+    if (user.role === "staff") {
+      openDirectoryProfile(user, "staff-details");
+      return;
+    }
+    setProfileEditor(null);
+    setEditingUser(user);
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#6B5A48]">
@@ -1338,28 +1371,28 @@ export default function AdminUsersPage() {
                     openActionsId === u._id ? "z-20" : "z-0"
                   }`}
                 >
-                  <td>
+                  <td data-label="שם">
                     <span className="cell-clip font-bold" title={u.name || ""}>
                       {u.name || "—"}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="אימייל">
                     <span className="cell-clip-wide text-[var(--admin-muted)]" title={u.email}>
                       {u.email}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="תפקיד">
                     <RoleBadge role={u.role} />
                   </td>
-                  <td>
+                  <td data-label="חבילה">
                     <span className="cell-clip" title={getPlanLabel(u, pricingPlans)}>
                       {getPlanLabel(u, pricingPlans)}
                     </span>
                   </td>
-                  <td className="font-bold">{getUserRecords(u)}</td>
-                  <td>{formatDate(u.eventDate)}</td>
-                  <td>{formatTermsAcceptedAt(u.termsAcceptedAt)}</td>
-                  <td>
+                  <td data-label="רשומות" className="font-bold">{getUserRecords(u)}</td>
+                  <td data-label="תאריך אירוע">{formatDate(u.eventDate)}</td>
+                  <td data-label="תקנון">{formatTermsAcceptedAt(u.termsAcceptedAt)}</td>
+                  <td data-label="הסכם">
                     {u.onboardingAgreementToken ? (
                       <a
                         href={`/sales-documents/${u.onboardingAgreementToken}`}
@@ -1378,7 +1411,7 @@ export default function AdminUsersPage() {
                       "—"
                     )}
                   </td>
-                  <td>
+                  <td data-label="מפיקים">
                     <span
                       className="cell-clip"
                       title={formatAssigneeNames(
@@ -1392,7 +1425,7 @@ export default function AdminUsersPage() {
                       )}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="עובדים">
                     <span
                       className="cell-clip"
                       title={formatAssigneeNames(u.assignedStaffIds, staff)}
@@ -1400,12 +1433,12 @@ export default function AdminUsersPage() {
                       {formatAssigneeNames(u.assignedStaffIds, staff)}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="שיחות">
                     <StatusBadge active={Boolean(u.includeCalls)}>
                       {getCallsStatus(u)}
                     </StatusBadge>
                   </td>
-                  <td className="relative overflow-visible">
+                  <td data-label="פעולות" className="admin-actions-cell relative overflow-visible">
                     <UserActionsDropdown
                       user={u}
                       open={openActionsId === u._id}
@@ -1467,11 +1500,12 @@ export default function AdminUsersPage() {
               }
               onClose={() => setOpenActionsId(null)}
               onEventSchedule={() => openEventSchedule(user as AdminUser)}
-              onEdit={() => setEditingUser(user as AdminUser)}
+              onEdit={() => openPersonEditor(user as AdminUser)}
               onUpgrade={() => setUpgradingUser(user as AdminUser)}
               onSendPassword={() => setPasswordUser(user as AdminUser)}
               onImpersonate={() => impersonateUser(user._id)}
               onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onManageAccount={() => openDirectoryProfile(user as AdminUser, "account")}
               onDelete={() => removeUser(user._id)}
               onShowClients={() => setClientsProducer(user as AdminUser)}
               isImpersonating={impersonating === user._id}
@@ -1494,11 +1528,15 @@ export default function AdminUsersPage() {
               }
               onClose={() => setOpenActionsId(null)}
               onEventSchedule={() => openEventSchedule(user as AdminUser)}
-              onEdit={() => setEditingUser(user as AdminUser)}
+              onEdit={() => openPersonEditor(user as AdminUser)}
               onUpgrade={() => setUpgradingUser(user as AdminUser)}
               onSendPassword={() => setPasswordUser(user as AdminUser)}
               onImpersonate={() => impersonateUser(user._id)}
               onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onManageAccount={() => openDirectoryProfile(user as AdminUser, "account")}
+              onManagePermissions={() =>
+                openDirectoryProfile(user as AdminUser, "staff-permissions")
+              }
               onDelete={() => removeUser(user._id)}
               isImpersonating={impersonating === user._id}
               isManaging={managing === user._id}
@@ -1526,11 +1564,15 @@ export default function AdminUsersPage() {
               }
               onClose={() => setOpenActionsId(null)}
               onEventSchedule={() => openEventSchedule(user as AdminUser)}
-              onEdit={() => setEditingUser(user as AdminUser)}
+              onEdit={() => openPersonEditor(user as AdminUser)}
               onUpgrade={() => setUpgradingUser(user as AdminUser)}
               onSendPassword={() => setPasswordUser(user as AdminUser)}
               onImpersonate={() => impersonateUser(user._id)}
               onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onManageAccount={() => openDirectoryProfile(user as AdminUser, "account")}
+              onManagePermissions={() =>
+                openDirectoryProfile(user as AdminUser, "staff-permissions")
+              }
               onDelete={() => removeUser(user._id)}
               onShowClients={() => setClientsProducer(user as AdminUser)}
               isImpersonating={impersonating === user._id}
@@ -1596,6 +1638,19 @@ export default function AdminUsersPage() {
         <SendPasswordModal
           user={passwordUser}
           onClose={() => setPasswordUser(null)}
+        />
+      )}
+
+      {profileEditor && (
+        <DirectoryProfileModal
+          key={`${profileEditor.user._id}-${profileEditor.mode}`}
+          user={profileEditor.user}
+          mode={profileEditor.mode}
+          onClose={() => setProfileEditor(null)}
+          onSaved={() => {
+            setProfileEditor(null);
+            loadUsers(false);
+          }}
         />
       )}
 
@@ -2257,6 +2312,17 @@ function EditUserModal({
     } finally {
       setDeletingAllGuests(false);
     }
+  }
+
+  if (user.role === "producer" || user.role === "staff") {
+    return (
+      <DirectoryProfileModal
+        user={user}
+        mode={user.role === "producer" ? "producer-details" : "staff-details"}
+        onClose={onClose}
+        onSaved={onSaved}
+      />
+    );
   }
 
   return (
@@ -4555,6 +4621,8 @@ function UserActionsDropdown({
   onManageAsAdmin,
   onDelete,
   onShowClients,
+  onManageAccount,
+  onManagePermissions,
   isImpersonating,
   isManaging,
   collectionBalance,
@@ -4573,6 +4641,8 @@ function UserActionsDropdown({
   onManageAsAdmin?: () => void;
   onDelete: () => void;
   onShowClients?: () => void;
+  onManageAccount?: () => void;
+  onManagePermissions?: () => void;
   isImpersonating?: boolean;
   isManaging?: boolean;
   collectionBalance?: number;
@@ -4630,7 +4700,7 @@ function UserActionsDropdown({
             <>
               <DropdownAction
                 icon={<Pencil size={16} />}
-                label="צפייה ועריכת פרטי מפיק"
+                label="צפייה ועריכת פרטי המפיק"
                 onClick={() => runAction(onEdit)}
               />
               <DropdownAction
@@ -4651,6 +4721,11 @@ function UserActionsDropdown({
                     window.location.href = `/admin/users/producers/${user._id}/billing`;
                   })
                 }
+              />
+              <DropdownAction
+                icon={<ShieldCheck size={16} />}
+                label="ניהול חשבון"
+                onClick={() => runAction(() => onManageAccount?.())}
               />
               {user.role !== "admin" && onManageAsAdmin ? (
                 <DropdownAction
@@ -4733,8 +4808,18 @@ function UserActionsDropdown({
               />
               <DropdownAction
                 icon={<Pencil size={16} />}
-                label="עריכה"
+                label="עריכת פרטים"
                 onClick={() => runAction(onEdit)}
+              />
+              <DropdownAction
+                icon={<ShieldCheck size={16} />}
+                label="ניהול הרשאות"
+                onClick={() => runAction(() => onManagePermissions?.())}
+              />
+              <DropdownAction
+                icon={<ShieldCheck size={16} />}
+                label="סטטוס חשבון"
+                onClick={() => runAction(() => onManageAccount?.())}
               />
               {user.role !== "admin" && (
                 <DropdownAction

@@ -35,13 +35,11 @@ export function employeeRoleLabel(user: {
 }
 
 export function accountStatusLabel(isActive?: boolean | null) {
-  if (isActive === true) return "פעיל";
-  if (isActive === false) return "לא פעיל";
-  return "—";
+  return isActive === false ? "לא פעיל" : "פעיל";
 }
 
 export function accountStatusActive(isActive?: boolean | null) {
-  return isActive === true;
+  return isActive !== false;
 }
 
 /** Display formatting for an open collection balance already computed by producer billing. */
