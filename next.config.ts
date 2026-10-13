@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   // Keep ffmpeg-static external so its path is not rewritten to /ROOT/... at build time.
-  serverExternalPackages: ["ffmpeg-static", "web-push"],
+  serverExternalPackages: ["ffmpeg-static", "web-push", "@hebcal/core"],
   async headers() {
     return [
       {

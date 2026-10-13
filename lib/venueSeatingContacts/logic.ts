@@ -12,6 +12,10 @@ import {
   DEFAULT_EVENT_TIMEZONE,
   wallTimeInZoneToUtc,
 } from "@/lib/weddingChallenges/timezone";
+import {
+  isVenueSeatingSmsDue,
+  venueSeatingSmsWhenPhrase,
+} from "@/lib/venueSeatingContacts/smsSchedule";
 
 export const VENUE_SEATING_UPSELL_KEY = "venueSeating";
 
@@ -278,11 +282,16 @@ export function hoursUntil(start: Date, now: Date) {
  * Decide which reminders may be created on this run.
  * Already-sent stages are for the current event date only.
  * A purchase inside the 72h window does not backfill the 72h reminder.
- * Inside 24h, the urgent in-app alert and one customer SMS are included.
+ * The in-app 24h alert still opens inside that window.
+ * The customer SMS is separate: 10:00 Asia/Jerusalem on the permitted day
+ * before the event, once per event date. A prior send for that date,
+ * including one that went out at the wrong hour, is not repeated.
  */
 export function planVenueSeatingReminders(input: {
   now: Date;
   eventStart: Date | null;
+  /** Civil event date, YYYY-MM-DD. SMS is not scheduled without it. */
+  eventDate?: string | null;
   cancelled: boolean;
   upsellActive: boolean;
   contactsComplete: boolean;
@@ -326,17 +335,35 @@ export function planVenueSeatingReminders(input: {
     if (channels.length) actions.push({ stage: "h72", channels });
   }
 
+  const smsDue =
+    !sent.has("h24:sms") && isVenueSeatingSmsDue(input.eventDate, input.now);
+
   if (remaining <= 24) {
-    const channels = missing("h24", ["in_app", "sms"]);
+    const channels = missing("h24", ["in_app"]);
+    if (smsDue) channels.push("sms");
     if (channels.length) actions.push({ stage: "h24", channels });
+  } else if (smsDue) {
+    actions.push({ stage: "h24", channels: ["sms"] });
   }
 
   return { actions, resolveActive: false, automation: "run" };
 }
 
-export function buildVenueSeatingUrgentSms(link: string) {
+export function buildVenueSeatingUrgentSms(
+  link: string,
+  options?: { eventDate?: string | null }
+) {
   const safeLink = String(link || "").trim();
-  return `שלום, לקראת האירוע שלכם מחר, טרם הושלמו פרטי אנשי הקשר המוסמכים לאישור רזרבות. יש להשלים את הפרטים בדחיפות באזור האישי: ${safeLink}. צוות אינויסטימו`;
+  const when = venueSeatingSmsWhenPhrase(options?.eventDate);
+  return [
+    "שלום,",
+    `לקראת האירוע שלכם ${when}, טרם הושלמו פרטי אנשי הקשר המוסמכים לאישור רזרבות.`,
+    "",
+    "יש להשלים את הפרטים בהקדם באזור האישי:",
+    safeLink,
+    "",
+    "צוות Invistimo",
+  ].join("\n");
 }
 
 export function notificationCopy(stage: ReminderStage) {
