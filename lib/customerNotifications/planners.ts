@@ -1,4 +1,5 @@
 import { phoneNeedsReview } from "@/lib/guestPhone";
+import { isOperationalNoticeDue } from "@/lib/notifications/israelQuietHours";
 
 export type NoticeSeverity = "info" | "important" | "urgent";
 
@@ -365,16 +366,19 @@ export function planEventDigestNotifications(input: {
   const notices: PlannedNotice[] = [];
 
   if (hours <= 24) {
-    notices.push({
-      dedupeKey: `event-reminder:${input.eventId}:h24:${input.dateKey}`,
-      type: "event.reminder.h24",
-      category: "event_reminders",
-      severity: "urgent",
-      title: "האירוע מתחיל בקרוב",
-      body: `${title} מתחיל בעוד פחות מיממה. כדאי לעבור על הפרטים שעדיין פתוחים.`,
-      actionHref: href,
-      audience: "customer",
-    });
+    const calculated = new Date(input.start.getTime() - 24 * 60 * 60 * 1000);
+    if (isOperationalNoticeDue(calculated, input.now, input.start)) {
+      notices.push({
+        dedupeKey: `event-reminder:${input.eventId}:h24:${input.dateKey}`,
+        type: "event.reminder.h24",
+        category: "event_reminders",
+        severity: "urgent",
+        title: "האירוע מתחיל בקרוב",
+        body: `${title} מתחיל בעוד פחות מיממה. כדאי לעבור על הפרטים שעדיין פתוחים.`,
+        actionHref: href,
+        audience: "customer",
+      });
+    }
   } else if (hours <= 24 * 7) {
     notices.push({
       dedupeKey: `event-reminder:${input.eventId}:d7:${input.dateKey}`,

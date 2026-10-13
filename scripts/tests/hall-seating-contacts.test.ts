@@ -1,7 +1,8 @@
-import test from "node:test";
+import test, { before } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "path";
+import { ensureVenueSeatingHolidayCalendar } from "../../lib/venueSeatingContacts/smsSchedule";
 import {
   VENUE_SEATING_RESPONSIBILITY_TEXT,
   VENUE_SEATING_RESPONSIBILITY_VERSION,
@@ -18,6 +19,10 @@ import {
 } from "../../lib/venueSeatingContacts/logic";
 
 const root = path.resolve(process.cwd());
+
+before(async () => {
+  await ensureVenueSeatingHolidayCalendar();
+});
 
 function read(rel: string) {
   return fs.readFileSync(path.join(root, rel), "utf8");
@@ -219,8 +224,19 @@ test("reminder plan sends only the stages that are still relevant", () => {
   });
   assert.deepEqual(inside72.actions, [{ stage: "initial", channels: ["in_app"] }]);
 
-  const due72 = planVenueSeatingReminders({
+  const due72Night = planVenueSeatingReminders({
     now: new Date(start.getTime() - 70 * 60 * 60 * 1000),
+    eventStart: start,
+    cancelled: false,
+    upsellActive: true,
+    contactsComplete: false,
+    alreadySent: [{ stage: "initial", channel: "in_app" }],
+    initialSentAt: new Date(start.getTime() - 100 * 60 * 60 * 1000),
+  });
+  assert.deepEqual(due72Night.actions, []);
+
+  const due72 = planVenueSeatingReminders({
+    now: new Date(start.getTime() - 50 * 60 * 60 * 1000),
     eventStart: start,
     cancelled: false,
     upsellActive: true,
@@ -233,18 +249,16 @@ test("reminder plan sends only the stages that are still relevant", () => {
   const urgent = planVenueSeatingReminders({
     now: new Date(start.getTime() - 10 * 60 * 60 * 1000),
     eventStart: start,
+    eventDate: "2026-10-20",
     cancelled: false,
     upsellActive: true,
     contactsComplete: false,
     alreadySent: [],
     initialSentAt: null,
   });
-  assert.deepEqual(urgent.actions, [
-    { stage: "initial", channels: ["in_app"] },
-    { stage: "h24", channels: ["in_app", "sms"] },
-  ]);
+  assert.deepEqual(urgent.actions, [{ stage: "initial", channels: ["in_app"] }]);
   assert.equal(
-    urgent.actions.some((action) => action.channels.includes("sms") && action.stage !== "h24"),
+    urgent.actions.some((action) => action.channels.includes("sms")),
     false
   );
 
@@ -288,21 +302,22 @@ test("reminder plan sends only the stages that are still relevant", () => {
   assert.deepEqual(passed.actions, []);
 });
 
-test("a new event date can schedule its own 24h reminder without repeating the old one", () => {
+test("a new event date can schedule its own SMS without repeating the old one", () => {
   const start = resolveEventStart({ date: "2026-11-02", time: "19:00" });
   assert.ok(start);
   const plan = planVenueSeatingReminders({
-    now: new Date(start.getTime() - 5 * 60 * 60 * 1000),
+    now: new Date("2026-11-01T08:00:00.000Z"),
     eventStart: start,
+    eventDate: "2026-11-02",
     cancelled: false,
     upsellActive: true,
     contactsComplete: false,
     alreadySent: [],
-    initialSentAt: new Date(start.getTime() - 200 * 60 * 60 * 1000),
+    initialSentAt: null,
   });
   assert.deepEqual(plan.actions, [
     { stage: "initial", channels: ["in_app"] },
-    { stage: "h24", channels: ["in_app", "sms"] },
+    { stage: "h24", channels: ["sms"] },
   ]);
 });
 
@@ -339,10 +354,13 @@ test("completion is late only inside the last 24 hours, and the admin alert matc
 });
 
 test("urgent SMS is customer-facing Hebrew and does not use WhatsApp", () => {
-  const text = buildVenueSeatingUrgentSms("https://www.invistimo.com/go");
+  const text = buildVenueSeatingUrgentSms("https://www.invistimo.com/go", {
+    eventDate: "2026-10-14",
+  });
   assert.match(text, /טרם הושלמו פרטי אנשי הקשר/);
   assert.match(text, /https:\/\/www\.invistimo\.com\/go/);
-  assert.match(text, /צוות אינויסטימו/);
+  assert.match(text, /צוות Invistimo/);
+  assert.doesNotMatch(text, /אינויסטימו/);
   assert.doesNotMatch(text, /whatsapp/i);
 
   const service = read("lib/venueSeatingContacts/service.ts");

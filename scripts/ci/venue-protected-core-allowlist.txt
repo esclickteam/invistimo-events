@@ -33,3 +33,8 @@ app/dashboard/seating/SeatingSidebar.tsx
 app/dashboard/seating/page.tsx
 app/dashboard/seating/seatingEditSession.ts
 app/dashboard/seating/useSeatingEditGuard.ts
+
+# Approved 2026-10-13 with PR 370: two additive Event fields for the
+# hall-seating arrival clock (venueSeatingArrivalTime, venueSeatingArrivalManual).
+# No RSVP, guest, payment, invitation, or round-schedule changes.
+models/Event.ts

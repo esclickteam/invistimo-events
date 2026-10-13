@@ -10,6 +10,7 @@ import {
   createCustomerNotification,
   resolveVenueSeatingNotifications,
 } from "@/lib/customerNotifications/service";
+import { ensureVenueSeatingHolidayCalendar } from "@/lib/venueSeatingContacts/smsSchedule";
 import {
   VENUE_SEATING_NOTIFICATION_CATEGORY,
   buildVenueSeatingUrgentSms,
@@ -490,7 +491,9 @@ async function deliverCustomerSms(input: {
   }
 
   const link = await customerLink(String(input.event._id));
-  const message = buildVenueSeatingUrgentSms(link);
+  const message = buildVenueSeatingUrgentSms(link, {
+    eventDate: eventStartKey(input.event),
+  });
   const result = await sendSmsDetailed({ to: phone, message });
 
   if (result.ok) {
@@ -542,6 +545,7 @@ export async function processVenueSeatingEvent(input: {
   event: LeanEvent;
   now?: Date;
 }) {
+  await ensureVenueSeatingHolidayCalendar();
   const now = input.now || new Date();
   const access = classifyEventAccess({
     user: input.user,
@@ -607,6 +611,7 @@ export async function processVenueSeatingEvent(input: {
   const plan = planVenueSeatingReminders({
     now,
     eventStart: start,
+    eventDate: startKey,
     cancelled: access.cancelled,
     upsellActive: access.upsellActive,
     contactsComplete: Boolean(contact?.completedAt),

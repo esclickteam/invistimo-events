@@ -1,3 +1,4 @@
+import { isOperationalNoticeDue } from "@/lib/notifications/israelQuietHours";
 import { israelCalendarDate } from "@/lib/venueSeatingContacts/logic";
 import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 import { roundMoney } from "@/lib/producerBilling/calc";
@@ -392,11 +393,19 @@ export function planDebtSchedule(input: DebtScheduleInput): DebtSchedulePlan {
   const anchor = asDate(input.finalRecordsUpdatedAt) || asDate(input.createdAt);
   const age = anchor ? input.now.getTime() - anchor.getTime() : null;
   const notices: CollectionNotice[] = [];
-  if (age != null && age >= DAY_MS) {
-    const key = `producer-billing:due24h:${input.clientId}:${cycleKey}:${openDebt}`;
-    notices.push(
+  const retainKeys: string[] = [];
+  const stageDebt = (ready: boolean, due: boolean, item: CollectionNotice) => {
+    if (!ready) return;
+    retainKeys.push(item.incidentKey);
+    if (due) notices.push(item);
+  };
+  if (anchor && age != null) {
+    const due24At = new Date(anchor.getTime() + DAY_MS);
+    stageDebt(
+      age >= DAY_MS,
+      isOperationalNoticeDue(due24At, input.now),
       notice({
-        incidentKey: key,
+        incidentKey: `producer-billing:due24h:${input.clientId}:${cycleKey}:${openDebt}`,
         type: "admin.producerBilling.due24h",
         category: "admin_important",
         severity: "important",
@@ -410,12 +419,12 @@ export function planDebtSchedule(input: DebtScheduleInput): DebtSchedulePlan {
         reopen: false,
       }),
     );
-  }
-  if (age != null && age >= 3 * DAY_MS) {
-    const key = `producer-billing:due3d:${input.clientId}:${cycleKey}:${openDebt}`;
-    notices.push(
+    const due72At = new Date(anchor.getTime() + 3 * DAY_MS);
+    stageDebt(
+      age >= 3 * DAY_MS,
+      isOperationalNoticeDue(due72At, input.now),
       notice({
-        incidentKey: key,
+        incidentKey: `producer-billing:due3d:${input.clientId}:${cycleKey}:${openDebt}`,
         type: "admin.producerBilling.due3d",
         category: "admin_important",
         severity: "important",
@@ -459,9 +468,13 @@ export function planDebtSchedule(input: DebtScheduleInput): DebtSchedulePlan {
     }
   }
 
+  for (const item of notices) {
+    if (!retainKeys.includes(item.incidentKey)) retainKeys.push(item.incidentKey);
+  }
+
   return emptyPlan(cycleKey, openDebt, {
     notices,
-    retainKeys: notices.map((item) => item.incidentKey),
+    retainKeys,
   });
 }
 
