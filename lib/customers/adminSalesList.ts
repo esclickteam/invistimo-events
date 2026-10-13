@@ -91,17 +91,7 @@ function unique(values: unknown[]) {
 }
 
 async function readEvery(
-  model: {
-    find: (filter: object) => {
-      select: (fields: string) => {
-        sort: (order: object) => {
-          skip: (count: number) => {
-            limit: (count: number) => { lean: () => Promise<any[]> };
-          };
-        };
-      };
-    };
-  },
+  model: { find: (filter: object) => any },
   filter: object,
   fields: string
 ) {
