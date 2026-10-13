@@ -378,6 +378,24 @@ export function hasReachedSameDayWorkOrderOpenTime(input: {
 }
 
 /**
+ * When a human call round's work order opens to employees:
+ * 09:00 Israel on the round's Israel date, or scheduledAt if that is earlier.
+ */
+export function getHumanCallRoundOpenAt(scheduledAt: Date) {
+  const dateKey = getCallRoundDateKeyInIsrael(scheduledAt);
+  const openAt = wallTimeInZoneToUtc(
+    `${dateKey}T${pad2(SAME_DAY_WORK_ORDER_OPEN_HOUR)}:${pad2(
+      SAME_DAY_WORK_ORDER_OPEN_MINUTE
+    )}`,
+    CALL_ROUND_TIMEZONE
+  );
+
+  if (!openAt || Number.isNaN(openAt.getTime())) return scheduledAt;
+
+  return openAt.getTime() < scheduledAt.getTime() ? openAt : scheduledAt;
+}
+
+/**
  * Should this round be opened as a work order now?
  *
  * 1) Same Israel day, after 09:00 Israel — all of today's rounds, including
