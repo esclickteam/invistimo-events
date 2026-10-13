@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { EVENT_DELETION_TERMS_VERSION } from "@/lib/legal/eventDeletionTerms";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -301,13 +302,20 @@ export async function POST(req: Request) {
       if (!existing) {
         await User.updateOne(
           { _id: user._id },
-          { $set: { termsAcceptedAt: acceptedAt } }
+          {
+            $set: {
+              termsAcceptedAt: acceptedAt,
+              termsAcceptedVersion: EVENT_DELETION_TERMS_VERSION,
+              eventDeletionPolicyAcceptedAt: acceptedAt,
+            },
+          }
         );
       }
 
       return NextResponse.json({
         success: true,
         termsAcceptedAt: acceptedAt.toISOString(),
+        termsAcceptedVersion: existing ? (user as any).termsAcceptedVersion || "" : EVENT_DELETION_TERMS_VERSION,
       });
     }
 
@@ -397,6 +405,7 @@ export async function POST(req: Request) {
     const termsAcceptedAt = (user as any).termsAcceptedAt
       ? new Date((user as any).termsAcceptedAt)
       : new Date();
+    const acceptingDeletionPolicyNow = !(user as any).termsAcceptedAt;
 
     /*
       חשוב מאוד:
@@ -414,6 +423,12 @@ export async function POST(req: Request) {
           password: hashedPassword,
           needsPasswordSetup: false,
           termsAcceptedAt,
+          ...(acceptingDeletionPolicyNow
+            ? {
+                termsAcceptedVersion: EVENT_DELETION_TERMS_VERSION,
+                eventDeletionPolicyAcceptedAt: termsAcceptedAt,
+              }
+            : {}),
 
           allowedMessageRounds,
           "planLimits.allowedMessageRounds": allowedMessageRounds,

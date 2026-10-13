@@ -7,7 +7,9 @@ import {
 export async function syncOutdatedQuoteTerms() {
   const docs = await SalesDocument.find({
     type: "quote",
+    status: { $ne: "signed" },
     quoteTermsVersion: { $ne: QUOTE_TERMS_VERSION },
+    $or: [{ immutableSignedCopy: { $exists: false } }, { immutableSignedCopy: null }],
   }).lean();
 
   if (docs.length === 0) {
@@ -25,6 +27,7 @@ export async function syncOutdatedQuoteTerms() {
           filter: {
             _id: (doc as { _id: unknown })._id,
             type: "quote",
+            status: { $ne: "signed" },
             quoteTermsVersion: { $ne: QUOTE_TERMS_VERSION },
           },
           update: { $set: set },

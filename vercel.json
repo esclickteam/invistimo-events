@@ -40,6 +40,10 @@
     {
       "path": "/api/cron/producer-billing",
       "schedule": "0 6,7 * * *"
+    },
+    {
+      "path": "/api/cron/event-auto-deletion",
+      "schedule": "15 4 * * *"
     }
   ]
 }

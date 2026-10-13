@@ -10,6 +10,7 @@ import {
   BarChart3,
   Briefcase,
   CalendarDays,
+  Trash2,
   ChevronDown,
   ChevronLeft,
   FileText,
@@ -111,6 +112,11 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/invitations",
         label: "ניהול אירועים",
         icon: <CalendarDays className="h-4 w-4" />,
+      },
+      {
+        href: "/admin/event-deletions",
+        label: "מחיקות אוטומטיות",
+        icon: <Trash2 className="h-4 w-4" />,
       },
       {
         href: "/admin/calls",
