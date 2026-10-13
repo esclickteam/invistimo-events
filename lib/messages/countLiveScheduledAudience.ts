@@ -15,6 +15,20 @@ import {
   needsNeverInvitedPostFilter,
   scheduleUsesExplicitGuestIds,
 } from "@/lib/messages/resolveScheduledAudience";
+import { splitGuestsBySendPhone } from "@/lib/messages/sendPhoneEligibility";
+
+const PHONE_FIELDS = "phone phoneNormalized phoneLengthApproved requiresPhoneReview";
+
+function countSendable(
+  guests: Array<{
+    phone?: unknown;
+    phoneNormalized?: unknown;
+    phoneLengthApproved?: unknown;
+    requiresPhoneReview?: unknown;
+  }>
+) {
+  return splitGuestsBySendPhone(guests).sendable.length;
+}
 
 export async function countLiveScheduledAudience(schedule: {
   invitationId?: unknown;
@@ -32,21 +46,30 @@ export async function countLiveScheduledAudience(schedule: {
     const ids = (Array.isArray(schedule.guestIds) ? schedule.guestIds : [])
       .map((id) => String(id || ""))
       .filter(Boolean);
-    return ids.length;
+    if (!ids.length) return 0;
+    const guests = await InvitationGuest.find({
+      invitationId,
+      _id: { $in: ids },
+    })
+      .select(PHONE_FIELDS)
+      .lean();
+    return countSendable(guests);
   }
 
   const query = buildScheduledGuestsQuery({ schedule, invitationId });
-  const guests = await InvitationGuest.find(query).select("_id").lean();
+  const guests = await InvitationGuest.find(query).select(`_id ${PHONE_FIELDS}`).lean();
 
   if (needsNeverInvitedPostFilter(schedule)) {
     const alreadyInvited = await findGuestIdsWithInvitationSendAttempt(
       String(invitationId)
     );
-    return filterGuestsByInvitationAudience({
-      guests,
-      filter: "never_invited",
-      alreadyInvitedGuestIds: alreadyInvited,
-    }).length;
+    return countSendable(
+      filterGuestsByInvitationAudience({
+        guests,
+        filter: "never_invited",
+        alreadyInvitedGuestIds: alreadyInvited,
+      })
+    );
   }
 
   const deliveryFilter = needsInvitationDeliveryStatusPostFilter(schedule);
@@ -59,14 +82,16 @@ export async function countLiveScheduledAudience(schedule: {
       String(invitationId),
       [...status]
     );
-    return filterGuestsByInvitationAudience({
-      guests,
-      filter: deliveryFilter,
-      deliveryStatusGuestIds: deliveryIds,
-    }).length;
+    return countSendable(
+      filterGuestsByInvitationAudience({
+        guests,
+        filter: deliveryFilter,
+        deliveryStatusGuestIds: deliveryIds,
+      })
+    );
   }
 
-  return guests.length;
+  return countSendable(guests);
 }
 
 export async function attachLiveGuestsCountToSchedules<

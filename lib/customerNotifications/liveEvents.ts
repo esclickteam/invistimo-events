@@ -17,9 +17,12 @@ import {
   planEventDigestNotifications,
   planMessageRoundNotifications,
   planQueuedFailureNotification,
+  planRoundSendSummaryNotice,
   planSystemErrorNotification,
   type PlannedNotice,
 } from "@/lib/customerNotifications/planners";
+import RoundGuestDelivery from "@/models/RoundGuestDelivery";
+import { summarizeRoundDeliveries } from "@/lib/messages/roundSendSummary";
 import { isPlaceholderEventTime } from "@/lib/eventDetails/centralEventDetails";
 import {
   israelCalendarDate,
@@ -32,10 +35,41 @@ function adminHref(customerId: string) {
 
 function safeAdminHref(value: string | undefined, customerId: string | null) {
   const explicit = String(value || "").trim();
-  if (explicit.startsWith("/") && !explicit.startsWith("//") && !explicit.includes("://")) {
+  if (
+    explicit.startsWith("/") &&
+    explicit !== "/admin" &&
+    !explicit.startsWith("//") &&
+    !explicit.includes("://")
+  ) {
     return explicit.slice(0, 300);
   }
   return customerId ? adminHref(customerId) : "/admin";
+}
+
+async function eventContext(eventId?: string | null) {
+  if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) return null;
+  const event = await Event.findById(eventId)
+    .select("title date")
+    .lean<{ title?: string; date?: string | Date | null }>();
+  if (!event) return null;
+  const title = String(event.title || "").trim();
+  const rawDate = event.date instanceof Date ? event.date.toISOString().slice(0, 10) : String(event.date || "");
+  const date = /^\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate.slice(0, 10) : "";
+  if (!title && !date) return null;
+  return { title: title || "האירוע", date };
+}
+
+function withEventContext(
+  notice: PlannedNotice,
+  event: { title: string; date: string } | null
+): PlannedNotice {
+  if (!event) return notice;
+  const title = notice.title.includes(event.title)
+    ? notice.title
+    : `${notice.title} – ${event.title}`;
+  const dateLine =
+    event.date && !notice.body.includes(event.date) ? `\nתאריך האירוע: ${event.date}` : "";
+  return { ...notice, title, body: `${notice.body}${dateLine}`.trim() };
 }
 
 async function publishNotice(input: {
@@ -87,7 +121,8 @@ async function publishCustomerAndAdmins(input: {
       .select("_id")
       .limit(25)
       .lean<Array<{ _id: mongoose.Types.ObjectId }>>();
-    const adminNotice: PlannedNotice =
+    const event = await eventContext(input.eventId);
+    const baseAdminNotice: PlannedNotice =
       input.notice.audience === "admin"
         ? input.notice
         : {
@@ -99,6 +134,7 @@ async function publishCustomerAndAdmins(input: {
             title: input.notice.adminTitle || input.notice.title,
             body: input.notice.adminBody || input.notice.body,
           };
+    const adminNotice = withEventContext(baseAdminNotice, event);
     for (const admin of admins) {
       if (String(admin._id) === input.userId && input.notice.audience !== "admin") {
         continue;
@@ -129,6 +165,8 @@ export async function recordMessageRoundOutcome(input: {
   sentCount: number;
   outcome: "sent" | "failed";
   salt: string;
+  /** False keeps the phone-review notice and waits for the real round summary. */
+  completion?: boolean;
   guests?: Array<{
     phone?: unknown;
     phoneNormalized?: unknown;
@@ -148,7 +186,7 @@ export async function recordMessageRoundOutcome(input: {
     outcome: input.outcome,
     phonesNeedingReview: countPhonesNeedingReview(input.guests),
     salt: input.salt || "once",
-  });
+  }).filter((notice) => input.completion !== false || notice.type === "rsvp.phones.review");
   for (const notice of notices) {
     await publishCustomerAndAdmins({
       notice,
@@ -157,6 +195,76 @@ export async function recordMessageRoundOutcome(input: {
     });
   }
   return { created: notices.length };
+}
+
+export async function publishRoundSendSummary(input: {
+  invitationId: string;
+  round: number | null;
+  messageType: string;
+}) {
+  if (input.messageType !== "rsvp") return { created: 0 };
+  if (!mongoose.Types.ObjectId.isValid(input.invitationId)) return { created: 0 };
+  const round = input.round && input.round > 0 ? input.round : 1;
+  const rows = await RoundGuestDelivery.find({
+    invitationId: input.invitationId,
+    roundKey: `rsvp:${round}`,
+    type: "rsvp",
+  })
+    .select("whatsapp.status whatsapp.reasonCode sms.status")
+    .lean<
+      Array<{
+        whatsapp?: { status?: string; reasonCode?: string | null };
+        sms?: { status?: string | null };
+      }>
+    >();
+  const summary = summarizeRoundDeliveries(
+    rows.map((row) => ({
+      whatsappStatus: String(row.whatsapp?.status || ""),
+      whatsappReasonCode: row.whatsapp?.reasonCode || null,
+      smsStatus: row.sms?.status || null,
+    })),
+    {
+      fallbackEnabled: String(process.env.WHATSAPP_SMS_FALLBACK_DISABLED || "").trim() !== "1",
+    }
+  );
+  if (!summary) return { created: 0 };
+
+  const invitation = await Invitation.findById(input.invitationId)
+    .select("eventId ownerId userId title")
+    .lean<{
+      eventId?: mongoose.Types.ObjectId | null;
+      ownerId?: mongoose.Types.ObjectId | null;
+      userId?: mongoose.Types.ObjectId | null;
+      title?: string;
+    }>();
+  const userId = String(invitation?.ownerId || invitation?.userId || "");
+  if (!mongoose.Types.ObjectId.isValid(userId)) return { created: 0 };
+  const eventId = invitation?.eventId ? String(invitation.eventId) : null;
+  const event = await eventContext(eventId);
+  const notice = planRoundSendSummaryNotice({
+    invitationId: input.invitationId,
+    round,
+    eventTitle: event?.title || String(invitation?.title || "").trim() || "האירוע",
+    eventDate: event?.date || null,
+    summary,
+  });
+  await publishCustomerAndAdmins({ notice, userId, eventId });
+  return { created: 1 };
+}
+
+export async function publishTouchedRoundSummaries(
+  rounds: Array<{ invitationId: string; round: number | null; messageType: string }>
+) {
+  const seen = new Set<string>();
+  let created = 0;
+  for (const round of rounds) {
+    const key = `${round.invitationId}:${round.messageType}:${round.round || 1}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const result = await publishRoundSendSummary(round);
+    created += result.created;
+  }
+  return { created };
 }
 
 export async function recordCallRoundOutcome(input: {

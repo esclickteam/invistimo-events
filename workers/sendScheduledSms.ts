@@ -28,6 +28,7 @@ import {
 } from "@/lib/messages/liveEventDetails";
 import { filterGuestsByInvitationAudience } from "@/lib/messages/invitationOnlyDetails";
 import { partitionMessageRoundGuests } from "@/lib/kosherPhones/routeAudience";
+import { splitGuestsBySendPhone } from "@/lib/messages/sendPhoneEligibility";
 
 async function notifyRoundQuietly(input: {
   scheduleId: string;
@@ -41,6 +42,7 @@ async function notifyRoundQuietly(input: {
   sentCount: number;
   outcome: "sent" | "failed";
   salt: string;
+  completion?: boolean;
   guests?: any[] | null;
 }) {
   try {
@@ -746,10 +748,11 @@ export async function sendScheduledSms() {
         liveGuest below may refresh table fields for copy, not who is included.
       */
       const guests = await InvitationGuest.find(guestsQuery).lean();
+      const phoneSplit = splitGuestsBySendPhone(guests);
       const kosherSplit = await partitionMessageRoundGuests({
         user,
         schedule: msg,
-        guests,
+        guests: phoneSplit.sendable,
       });
       const messageGuests = kosherSplit.messageGuests;
       const kosherDispatch = kosherSplit.kosherGuests.length
@@ -1144,10 +1147,11 @@ export async function sendScheduledWhatsapp() {
         }
       }
 
+      const phoneSplit = splitGuestsBySendPhone(guests);
       const kosherSplit = await partitionMessageRoundGuests({
         user,
         schedule: msg,
-        guests,
+        guests: phoneSplit.sendable,
       });
       roundGuests = kosherSplit.messageGuests;
       const kosherDispatch = kosherSplit.kosherGuests.length
@@ -1186,10 +1190,7 @@ export async function sendScheduledWhatsapp() {
         }
 
         const phone = normalizePhone(guest.phone);
-        if (!phone) {
-          await decide(guest, { kind: "not_sent", reasonCode: "MISSING_PHONE" });
-          continue;
-        }
+        if (!phone) continue;
 
         const tableName = getTableName(guest);
 
@@ -1428,8 +1429,23 @@ const queueDoc = await WhatsappQueue.create({
         sentCount: sent,
         outcome: "sent",
         salt: String(msg._id),
+        completion: type !== "rsvp",
         guests,
       });
+      if (type === "rsvp") {
+        try {
+          const { publishRoundSendSummary } = await import(
+            "@/lib/customerNotifications/liveEvents"
+          );
+          await publishRoundSendSummary({
+            invitationId: String(invitation._id),
+            round,
+            messageType: type,
+          });
+        } catch (error) {
+          console.error("round summary notification failed", error);
+        }
+      }
 
       sentTotal += sent;
     } catch (err: any) {

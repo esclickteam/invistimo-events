@@ -1269,28 +1269,8 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const validGuestIds = new Set(
-      validGuests.map(({ guest }) => String(guest._id))
-    );
     const decisionAt = new Date();
-    const decisions: RoundDecision[] = audienceGuests
-      .filter((guest: any) => !validGuestIds.has(String(guest._id)))
-      .map((guest: any) => {
-        const phone = getGuestPhone(guest);
-        return {
-          invitationId,
-          guest: { ...guest, phone },
-          type: messageType,
-          round: 1,
-          source: "pre_rsvp" as const,
-          templateName,
-          at: decisionAt,
-          outcome: {
-            kind: "not_sent" as const,
-            reasonCode: phone ? "INVALID_PHONE" : "MISSING_PHONE",
-          },
-        };
-      });
+    const decisions: RoundDecision[] = [];
 
     const guestById = new Map(
       validGuests.map(({ guest, phone }) => [String(guest._id), { guest, phone }])

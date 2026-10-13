@@ -117,6 +117,11 @@ async function processPendingWhatsappQueue() {
   let processed = 0;
   let sent = 0;
   let failed = 0;
+  const touchedRounds: Array<{
+    invitationId: string;
+    round: number | null;
+    messageType: string;
+  }> = [];
 
   /* ================= RECOVERY ================= */
 
@@ -172,6 +177,11 @@ async function processPendingWhatsappQueue() {
     if (!job) break;
 
     processed++;
+    touchedRounds.push({
+      invitationId: String(job.invitationId || ""),
+      round: Number(job.round || job.roundNumber) || null,
+      messageType: String(job.type || ""),
+    });
 
     try {
       const result = await sendWhatsappTemplateFromQueue(job);
@@ -261,19 +271,6 @@ async function processPendingWhatsappQueue() {
       if (shouldFail) {
         await recordWhatsappSendFailure({ queueId: job._id, error: err });
         failed++;
-        if (!job.scheduleId) {
-          try {
-            const { recordQueuedWhatsappFailure } = await import(
-              "@/lib/customerNotifications/liveEvents"
-            );
-            await recordQueuedWhatsappFailure({
-              invitationId: String(job.invitationId || ""),
-              round: Number(job.round || job.roundNumber) || null,
-            });
-          } catch (notifyError) {
-            console.error("whatsapp failure notification failed", notifyError);
-          }
-        }
       }
 
       if (isRateLimitError(msg)) {
@@ -281,6 +278,17 @@ async function processPendingWhatsappQueue() {
       }
 
       await sleep(400);
+    }
+  }
+
+  if (touchedRounds.length) {
+    try {
+      const { publishTouchedRoundSummaries } = await import(
+        "@/lib/customerNotifications/liveEvents"
+      );
+      await publishTouchedRoundSummaries(touchedRounds);
+    } catch (error) {
+      console.error("round summary notification failed", error);
     }
   }
 
