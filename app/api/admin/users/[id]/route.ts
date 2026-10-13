@@ -17,6 +17,10 @@ import {
 } from "@/lib/preRsvp/entitlement";
 import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 import { parseCallRoundScheduledAt } from "@/lib/calls/callRoundScheduleTime";
+import {
+  deleteInvistimoCustomerAccount,
+  isInvistimoCustomerAccount,
+} from "@/lib/customers/deleteCustomerAccount";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -1320,7 +1324,11 @@ export async function DELETE(
       console.error("TELNYX WEBRTC REVOKE ON DELETE FAILED");
     }
 
-    await User.findByIdAndDelete(id);
+    if (isInvistimoCustomerAccount(deletedUser)) {
+      await deleteInvistimoCustomerAccount(deletedUser);
+    } else {
+      await User.findByIdAndDelete(id);
+    }
 
     return NextResponse.json(
       {

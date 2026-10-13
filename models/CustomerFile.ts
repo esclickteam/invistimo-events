@@ -222,6 +222,23 @@ const CustomerFileSchema = new Schema(
       trim: true,
       index: true,
     },
+
+    customerDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    customerDeletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    originalUserId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
