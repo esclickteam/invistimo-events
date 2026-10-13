@@ -6,6 +6,8 @@ import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { getHumanCallRoundOpenAt } from "@/lib/calls/callRoundScheduleTime";
+import { isIvrCallsUser } from "@/lib/calls/callsType";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ type LeanUser = {
   email?: string;
   role?: string;
   includeCalls?: boolean;
+  callsType?: string;
   callRoundsSchedule?: {
     rounds?: {
       roundNumber?: number;
@@ -253,7 +256,7 @@ export async function GET(req: NextRequest) {
       ],
     })
       .select(
-        "_id name email includeCalls callRoundsSchedule role packageName eventDate"
+        "_id name email includeCalls callsType callRoundsSchedule role packageName eventDate"
       )
       .lean()) as LeanUser[];
 
@@ -341,6 +344,7 @@ export async function GET(req: NextRequest) {
         : [];
 
       const userRounds = user?.callRoundsSchedule?.rounds || [];
+      const isIvr = isIvrCallsUser(user);
 
       for (const round of userRounds) {
         const scheduledAt = toDate(round?.scheduledAt);
@@ -361,6 +365,11 @@ export async function GET(req: NextRequest) {
           eventDate: getEventDate(invitation),
           roundNumber,
           scheduledAt: scheduledAt.toISOString(),
+          opensAt: (isIvr
+            ? scheduledAt
+            : getHumanCallRoundOpenAt(scheduledAt)
+          ).toISOString(),
+          callsType: isIvr ? "ivr" : "human",
           status: normalizeStatus(round?.status) || "scheduled",
           guestsWaiting: stats.guestsWaiting,
           guestsDone: stats.guestsDone,

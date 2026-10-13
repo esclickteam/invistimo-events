@@ -363,10 +363,10 @@ const CallTaskSchema = new Schema<ICallTask>(
       index: true,
     },
 
+    // Callback carry-forward tasks use -1 so they sort before regular tasks.
     sortOrder: {
       type: Number,
       default: 0,
-      min: 0,
       index: true,
     },
 

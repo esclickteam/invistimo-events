@@ -81,6 +81,8 @@ interface UpcomingCallRound {
   eventDate?: string | null;
   roundNumber: number;
   scheduledAt: string;
+  opensAt?: string;
+  callsType?: "human" | "ivr";
   status: string;
   guestsWaiting: number;
   guestsDone: number;
@@ -163,6 +165,7 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -223,6 +226,7 @@ function getHourLabel(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleTimeString("he-IL", {
+    timeZone: "Asia/Jerusalem",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -514,7 +518,9 @@ export default function AdminDashboardPage() {
             nearestCallRound.eventName || "אירוע"
           } · סבב ${nearestCallRound.roundNumber} · ${getRelativeDayLabel(
             nearestCallRound.scheduledAt
-          )} ${getHourLabel(nearestCallRound.scheduledAt)} · היום ${
+          )} ${getHourLabel(
+            nearestCallRound.opensAt || nearestCallRound.scheduledAt
+          )} · היום ${
             upcomingCalls.today
           } · מחר ${upcomingCalls.tomorrow} · השבוע ${upcomingCalls.week}`}
           actionLabel="טיפול"
@@ -970,7 +976,7 @@ function UpcomingCallRoundsModal({
                     "לקוח",
                     "אירוע",
                     "סבב",
-                    "מועד",
+                    "שעת פתיחה",
                     "ממתינים",
                     "בוצעו",
                   ]}
@@ -987,7 +993,9 @@ function UpcomingCallRoundsModal({
                       </td>
                       <td>{round.eventName || "—"}</td>
                       <td>{round.roundNumber}</td>
-                      <td>{formatDateTime(round.scheduledAt)}</td>
+                      <td>
+                        {formatDateTime(round.opensAt || round.scheduledAt)}
+                      </td>
                       <td>{round.guestsWaiting}</td>
                       <td>{round.guestsDone}</td>
                     </tr>

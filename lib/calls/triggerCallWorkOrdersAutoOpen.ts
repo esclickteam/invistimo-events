@@ -38,6 +38,8 @@ export async function triggerCallWorkOrdersAutoOpen(dateKey: string) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${secret}`,
+        // Survives apex→www redirects, which strip Authorization.
+        "x-cron-secret": secret,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ date: key }),
