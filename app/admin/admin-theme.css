@@ -244,6 +244,17 @@
   overflow-wrap: anywhere;
 }
 
+.admin-users-directory th.admin-actions-head,
+.admin-users-directory td.admin-actions-cell {
+  width: 7.5rem;
+}
+
+.admin-table td.admin-phone-cell > span {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
 .admin-table-footer {
   display: flex;
   flex-wrap: wrap;

@@ -3,6 +3,12 @@
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import CreateUserModal from "./CreateUserModal";
+import {
+  AllUsersDirectoryTable,
+  AssociatedClientsModal,
+  ProducersDirectoryTable,
+  StaffDirectoryTable,
+} from "./UserDirectoryTables";
 import VenueSeatingContactsPanel from "./VenueSeatingContactsPanel";
 import SendPasswordModal from "./SendPasswordModal";
 import AdminManualSmsPanel from "./AdminManualSmsPanel";
@@ -15,6 +21,14 @@ import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
 import AdminIvrRoundsPanel from "@/app/components/admin/AdminIvrRoundsPanel";
 import { useAnchoredPopover } from "@/app/components/admin/ui/AdminUI";
+import {
+  assignedProducerIdsOf,
+  associatedClientsForProducer,
+  countAssociatedClients,
+  eventFilterApplies,
+  formatOpenBalance,
+  matchesDirectoryRole,
+} from "@/lib/admin/userDirectory";
 import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
@@ -69,6 +83,9 @@ type AdminUser = {
   email: string;
   phone?: string;
   role: AdminRole;
+  staffType?: string | null;
+  employeeScope?: string | null;
+  isActive?: boolean;
 
   plan?: string;
   packageName?: string;
@@ -284,14 +301,6 @@ function formatDate(value?: string) {
   }
 }
 
-function formatOpenBalance(value: number) {
-  const amount = Math.round((Number(value) || 0) * 100) / 100;
-  const [whole, fraction] = Math.abs(amount).toFixed(2).split(".");
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const text = fraction === "00" ? grouped : `${grouped}.${fraction}`;
-  return `${text} ₪`;
-}
-
 function formatDateInput(value?: string) {
   if (!value) return "";
 
@@ -310,15 +319,7 @@ function resolveAssignedProducerIds(user: {
   assignedProducerId?: string | null;
   assignedProducerIds?: string[];
 }): string[] {
-  if (Array.isArray(user.assignedProducerIds) && user.assignedProducerIds.length > 0) {
-    return Array.from(new Set(user.assignedProducerIds.map(String).filter(Boolean)));
-  }
-
-  if (user.assignedProducerId) {
-    return [String(user.assignedProducerId)];
-  }
-
-  return [];
+  return assignedProducerIdsOf(user);
 }
 
 function formatAssigneeNames(
@@ -521,6 +522,7 @@ function getRoleLabel(role: AdminRole) {
     producer: "מפיק",
     staff: "עובד",
     client: "לקוח",
+    venue_owner: "בעל אולם",
   };
 
   return labels[role] || role || "—";
@@ -864,6 +866,7 @@ export default function AdminUsersPage() {
   const [collectionBalances, setCollectionBalances] = useState<Record<string, number>>({});
   const [eventFilter, setEventFilter] = useState("future");
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [clientsProducer, setClientsProducer] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("q");
@@ -921,6 +924,15 @@ export default function AdminUsersPage() {
         });
 
         setEventScheduleUser((current) => {
+          if (!current) return current;
+
+          return (
+            loadedUsers.find((item: AdminUser) => item._id === current._id) ||
+            current
+          );
+        });
+
+        setClientsProducer((current) => {
           if (!current) return current;
 
           return (
@@ -1119,24 +1131,22 @@ export default function AdminUsersPage() {
           normalizeText(u._id).includes(q) ||
           normalizeText(getPlanLabel(u, pricingPlans)).includes(q);
 
-        const matchesRole =
-          roleFilter === "all" ||
-          (roleFilter === "clients" &&
-            (u.role === "user" || u.role === "client")) ||
-          u.role === roleFilter;
+        const matchesRole = matchesDirectoryRole(u.role, roleFilter);
 
         let matchesEvent = true;
 
-        if (eventFilter === "future") {
-          matchesEvent = !!u.eventDate && new Date(u.eventDate) >= today;
-        }
+        if (eventFilterApplies(roleFilter)) {
+          if (eventFilter === "future") {
+            matchesEvent = !!u.eventDate && new Date(u.eventDate) >= today;
+          }
 
-        if (eventFilter === "past") {
-          matchesEvent = !!u.eventDate && new Date(u.eventDate) < today;
-        }
+          if (eventFilter === "past") {
+            matchesEvent = !!u.eventDate && new Date(u.eventDate) < today;
+          }
 
-        if (eventFilter === "noDate") {
-          matchesEvent = !u.eventDate;
+          if (eventFilter === "noDate") {
+            matchesEvent = !u.eventDate;
+          }
         }
 
         return matchesSearch && matchesRole && matchesEvent;
@@ -1183,6 +1193,16 @@ export default function AdminUsersPage() {
     );
   }, [producers, users]);
 
+  const associatedClientCounts = useMemo(
+    () => countAssociatedClients(users, hiddenUserIds),
+    [users, hiddenUserIds]
+  );
+
+  const producerClients = useMemo(() => {
+    if (!clientsProducer) return [];
+    return associatedClientsForProducer(users, clientsProducer._id, hiddenUserIds);
+  }, [clientsProducer, users, hiddenUserIds]);
+
   const stats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1227,7 +1247,11 @@ export default function AdminUsersPage() {
               <button
                 key={chip.key}
                 type="button"
-                onClick={() => setRoleFilter(chip.key)}
+                onClick={() => {
+                  setRoleFilter(chip.key);
+                  setOpenActionsId(null);
+                }}
+                data-users-filter={chip.key}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-[var(--admin-radius-sm)] px-2.5 text-xs font-bold transition ${
                   active
                     ? "bg-[var(--admin-brand)] text-white"
@@ -1262,25 +1286,32 @@ export default function AdminUsersPage() {
           <Search size={15} className="shrink-0 text-[var(--admin-subtle)]" />
           <input
             type="text"
-            placeholder="חיפוש לפי שם, אימייל או חבילה..."
+            placeholder={
+              roleFilter === "clients"
+                ? "חיפוש לפי שם, אימייל או חבילה..."
+                : "חיפוש לפי שם, אימייל או טלפון..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full min-w-0 bg-transparent text-sm font-semibold outline-none placeholder:text-[var(--admin-subtle)]"
           />
         </div>
-        <select
-          value={eventFilter}
-          onChange={(e) => setEventFilter(e.target.value)}
-          className="admin-select admin-filter-select h-10 w-full min-w-0"
-        >
-          <option value="future">אירועים עתידיים</option>
-          <option value="past">אירועים שעברו</option>
-          <option value="noDate">ללא תאריך</option>
-          <option value="all">הכל</option>
-        </select>
+        {roleFilter === "clients" && (
+          <select
+            value={eventFilter}
+            onChange={(e) => setEventFilter(e.target.value)}
+            className="admin-select admin-filter-select h-10 w-full min-w-0 lg:w-auto lg:min-w-[180px]"
+          >
+            <option value="future">אירועים עתידיים</option>
+            <option value="past">אירועים שעברו</option>
+            <option value="noDate">ללא תאריך</option>
+            <option value="all">הכל</option>
+          </select>
+        )}
       </div>
 
-      <div className="admin-table-region w-full min-w-0">
+      {roleFilter === "clients" ? (
+      <div className="admin-table-region w-full min-w-0" data-users-view="clients">
         <div className="admin-table-scroll">
           <table className="admin-table">
             <thead>
@@ -1288,7 +1319,6 @@ export default function AdminUsersPage() {
                 <th>שם</th>
                 <th>אימייל</th>
                 <th>תפקיד</th>
-                {roleFilter === "producer" && <th>יתרה לגבייה</th>}
                 <th>חבילה</th>
                 <th>רשומות</th>
                 <th>תאריך אירוע</th>
@@ -1321,24 +1351,6 @@ export default function AdminUsersPage() {
                   <td>
                     <RoleBadge role={u.role} />
                   </td>
-                  {roleFilter === "producer" && (
-                    <td>
-                      {u.role === "producer" ? (
-                        collectionBalances[u._id] == null ? (
-                          "…"
-                        ) : (
-                          <a
-                            href={`/admin/users/producers/${u._id}/billing`}
-                            className="font-black text-[var(--admin-brand)] underline"
-                          >
-                            {formatOpenBalance(collectionBalances[u._id])}
-                          </a>
-                        )
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  )}
                   <td>
                     <span className="cell-clip" title={getPlanLabel(u, pricingPlans)}>
                       {getPlanLabel(u, pricingPlans)}
@@ -1410,9 +1422,6 @@ export default function AdminUsersPage() {
                       onDelete={() => removeUser(u._id)}
                       isImpersonating={impersonating === u._id}
                       isManaging={managing === u._id}
-                      collectionBalance={
-                        u.role === "producer" ? collectionBalances[u._id] : undefined
-                      }
                     />
                   </td>
                 </tr>
@@ -1421,7 +1430,7 @@ export default function AdminUsersPage() {
               {filteredUsers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={roleFilter === "producer" ? 13 : 12}
+                    colSpan={12}
                     className="!h-24 text-center text-[var(--admin-muted)]"
                   >
                     לא נמצאו משתמשים
@@ -1441,6 +1450,98 @@ export default function AdminUsersPage() {
           </span>
         </div>
       </div>
+      ) : roleFilter === "producer" ? (
+        <ProducersDirectoryTable
+          users={filteredUsers}
+          total={stats.producers}
+          balances={collectionBalances}
+          clientCounts={associatedClientCounts}
+          onShowClients={setClientsProducer}
+          renderActions={(user) => (
+            <UserActionsDropdown
+              user={user as AdminUser}
+              variant="producer"
+              open={openActionsId === user._id}
+              onToggle={() =>
+                setOpenActionsId(openActionsId === user._id ? null : user._id)
+              }
+              onClose={() => setOpenActionsId(null)}
+              onEventSchedule={() => openEventSchedule(user as AdminUser)}
+              onEdit={() => setEditingUser(user as AdminUser)}
+              onUpgrade={() => setUpgradingUser(user as AdminUser)}
+              onSendPassword={() => setPasswordUser(user as AdminUser)}
+              onImpersonate={() => impersonateUser(user._id)}
+              onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onDelete={() => removeUser(user._id)}
+              onShowClients={() => setClientsProducer(user as AdminUser)}
+              isImpersonating={impersonating === user._id}
+              isManaging={managing === user._id}
+              collectionBalance={collectionBalances[user._id]}
+            />
+          )}
+        />
+      ) : roleFilter === "staff" ? (
+        <StaffDirectoryTable
+          users={filteredUsers}
+          total={stats.staff}
+          renderActions={(user) => (
+            <UserActionsDropdown
+              user={user as AdminUser}
+              variant="staff"
+              open={openActionsId === user._id}
+              onToggle={() =>
+                setOpenActionsId(openActionsId === user._id ? null : user._id)
+              }
+              onClose={() => setOpenActionsId(null)}
+              onEventSchedule={() => openEventSchedule(user as AdminUser)}
+              onEdit={() => setEditingUser(user as AdminUser)}
+              onUpgrade={() => setUpgradingUser(user as AdminUser)}
+              onSendPassword={() => setPasswordUser(user as AdminUser)}
+              onImpersonate={() => impersonateUser(user._id)}
+              onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onDelete={() => removeUser(user._id)}
+              isImpersonating={impersonating === user._id}
+              isManaging={managing === user._id}
+            />
+          )}
+        />
+      ) : (
+        <AllUsersDirectoryTable
+          users={filteredUsers}
+          total={stats.total}
+          roleLabel={getRoleLabel}
+          renderActions={(user) => (
+            <UserActionsDropdown
+              user={user as AdminUser}
+              variant={
+                user.role === "producer"
+                  ? "producer"
+                  : user.role === "staff"
+                    ? "staff"
+                    : "default"
+              }
+              open={openActionsId === user._id}
+              onToggle={() =>
+                setOpenActionsId(openActionsId === user._id ? null : user._id)
+              }
+              onClose={() => setOpenActionsId(null)}
+              onEventSchedule={() => openEventSchedule(user as AdminUser)}
+              onEdit={() => setEditingUser(user as AdminUser)}
+              onUpgrade={() => setUpgradingUser(user as AdminUser)}
+              onSendPassword={() => setPasswordUser(user as AdminUser)}
+              onImpersonate={() => impersonateUser(user._id)}
+              onManageAsAdmin={() => manageUserAsAdmin(user._id)}
+              onDelete={() => removeUser(user._id)}
+              onShowClients={() => setClientsProducer(user as AdminUser)}
+              isImpersonating={impersonating === user._id}
+              isManaging={managing === user._id}
+              collectionBalance={
+                user.role === "producer" ? collectionBalances[user._id] : undefined
+              }
+            />
+          )}
+        />
+      )}
 
       {openCreate && (
         <CreateUserModal
@@ -1495,6 +1596,20 @@ export default function AdminUsersPage() {
         <SendPasswordModal
           user={passwordUser}
           onClose={() => setPasswordUser(null)}
+        />
+      )}
+
+      {clientsProducer && (
+        <AssociatedClientsModal
+          producer={clientsProducer}
+          clients={producerClients}
+          onClose={() => setClientsProducer(null)}
+          onEdit={(client) => {
+            const full =
+              users.find((item) => item._id === client._id) || (client as AdminUser);
+            setClientsProducer(null);
+            setEditingUser(full);
+          }}
         />
       )}
     </div>
@@ -4439,9 +4554,11 @@ function UserActionsDropdown({
   onImpersonate,
   onManageAsAdmin,
   onDelete,
+  onShowClients,
   isImpersonating,
   isManaging,
   collectionBalance,
+  variant = "default",
   fullWidth = false,
 }: {
   user: AdminUser;
@@ -4455,9 +4572,11 @@ function UserActionsDropdown({
   onImpersonate: () => void;
   onManageAsAdmin?: () => void;
   onDelete: () => void;
+  onShowClients?: () => void;
   isImpersonating?: boolean;
   isManaging?: boolean;
   collectionBalance?: number;
+  variant?: "default" | "producer" | "staff";
   fullWidth?: boolean;
 }) {
   function runAction(action: () => void) {
@@ -4507,6 +4626,127 @@ function UserActionsDropdown({
               maxHeight: box.maxHeight,
             }}
           >
+          {variant === "producer" ? (
+            <>
+              <DropdownAction
+                icon={<Pencil size={16} />}
+                label="צפייה ועריכת פרטי מפיק"
+                onClick={() => runAction(onEdit)}
+              />
+              <DropdownAction
+                icon={<Users size={16} />}
+                label="הצגת לקוחות משויכים"
+                onClick={() => runAction(() => onShowClients?.())}
+              />
+              <DropdownAction
+                icon={<Receipt size={16} />}
+                label={
+                  collectionBalance == null
+                    ? "מעקב תשלומים"
+                    : `מעקב תשלומים · ${formatOpenBalance(collectionBalance)}`
+                }
+                testId="producer-payment-tracking"
+                onClick={() =>
+                  runAction(() => {
+                    window.location.href = `/admin/users/producers/${user._id}/billing`;
+                  })
+                }
+              />
+              {user.role !== "admin" && onManageAsAdmin ? (
+                <DropdownAction
+                  icon={
+                    isManaging ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <ShieldCheck size={16} />
+                    )
+                  }
+                  label="ניהול משתמש כאדמין"
+                  tone="gold"
+                  onClick={() => runAction(onManageAsAdmin)}
+                />
+              ) : null}
+              {user.role !== "admin" && (
+                <DropdownAction
+                  icon={
+                    isImpersonating ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <LogIn size={16} />
+                    )
+                  }
+                  label="התחזות (legacy)"
+                  tone="blue"
+                  onClick={() => runAction(onImpersonate)}
+                />
+              )}
+              <DropdownAction
+                icon={<KeyRound size={16} />}
+                label="שליחת סיסמה"
+                tone="gold"
+                onClick={() => runAction(onSendPassword)}
+              />
+              {user.role !== "admin" && (
+                <DropdownAction
+                  icon={<Trash2 size={16} />}
+                  label="מחק"
+                  tone="red"
+                  onClick={() => runAction(onDelete)}
+                />
+              )}
+            </>
+          ) : variant === "staff" ? (
+            <>
+              {user.role !== "admin" && onManageAsAdmin ? (
+                <DropdownAction
+                  icon={
+                    isManaging ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <ShieldCheck size={16} />
+                    )
+                  }
+                  label="ניהול משתמש כאדמין"
+                  tone="gold"
+                  onClick={() => runAction(onManageAsAdmin)}
+                />
+              ) : null}
+              {user.role !== "admin" && (
+                <DropdownAction
+                  icon={
+                    isImpersonating ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <LogIn size={16} />
+                    )
+                  }
+                  label="התחזות (legacy)"
+                  tone="blue"
+                  onClick={() => runAction(onImpersonate)}
+                />
+              )}
+              <DropdownAction
+                icon={<KeyRound size={16} />}
+                label="שליחת סיסמה"
+                tone="gold"
+                onClick={() => runAction(onSendPassword)}
+              />
+              <DropdownAction
+                icon={<Pencil size={16} />}
+                label="עריכה"
+                onClick={() => runAction(onEdit)}
+              />
+              {user.role !== "admin" && (
+                <DropdownAction
+                  icon={<Trash2 size={16} />}
+                  label="מחק"
+                  tone="red"
+                  onClick={() => runAction(onDelete)}
+                />
+              )}
+            </>
+          ) : (
+            <>
           {user.role !== "admin" && onManageAsAdmin ? (
             <DropdownAction
               icon={
@@ -4571,6 +4811,7 @@ function UserActionsDropdown({
                   ? "מעקב תשלומים"
                   : `מעקב תשלומים · ${formatOpenBalance(collectionBalance)}`
               }
+              testId="producer-payment-tracking"
               onClick={() =>
                 runAction(() => {
                   window.location.href = `/admin/users/producers/${user._id}/billing`;
@@ -4587,6 +4828,8 @@ function UserActionsDropdown({
               onClick={() => runAction(onDelete)}
             />
           )}
+            </>
+          )}
           </div>
         </>,
         document.body
@@ -4601,11 +4844,13 @@ function DropdownAction({
   label,
   onClick,
   tone = "dark",
+  testId,
 }: {
   icon: ReactNode;
   label: string;
   onClick: () => void;
   tone?: "dark" | "blue" | "red" | "gold";
+  testId?: string;
 }) {
   const tones = {
     dark: "text-[#2F3742] hover:bg-[#FFF9EF]",
@@ -4617,6 +4862,7 @@ function DropdownAction({
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       className={`
         flex w-full items-center justify-between gap-3
