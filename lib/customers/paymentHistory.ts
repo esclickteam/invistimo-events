@@ -222,25 +222,21 @@ export async function loadCustomerPaymentHistory(input: {
   const email = clean(input.email).toLowerCase();
   const fullName = clean(input.fullName);
 
-  let user: AnyRecord | null = null;
   if (validId(originalUserId)) {
-    user = await User.findById(originalUserId).lean();
-  }
-  if (!user && email) {
-    user = await User.findOne({ email }).lean();
-  }
-  if (user) return fromUser(user, fullName);
-
-  let retained: AnyRecord | null = null;
-  if (validId(originalUserId)) {
-    retained = await RetainedCustomerFinancial.findOne({
+    const user = await User.findById(originalUserId).lean();
+    if (user) return fromUser(user, fullName);
+    const retained = await RetainedCustomerFinancial.findOne({
       originalUserId: new mongoose.Types.ObjectId(originalUserId),
     }).lean();
+    if (retained) return fromRetained(retained, fullName);
   }
-  if (!retained && email) {
-    retained = await RetainedCustomerFinancial.findOne({ email }).lean();
+
+  if (email) {
+    const user = await User.findOne({ email }).lean();
+    if (user) return fromUser(user, fullName);
+    const retained = await RetainedCustomerFinancial.findOne({ email }).lean();
+    if (retained) return fromRetained(retained, fullName);
   }
-  if (retained) return fromRetained(retained, fullName);
 
   if (email) {
     const ledger = await Payment.find({ email }).sort({ createdAt: -1 }).lean();

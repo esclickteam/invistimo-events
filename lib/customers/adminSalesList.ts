@@ -13,7 +13,74 @@ import {
   type AdminSalesDocumentRow,
 } from "@/lib/customers/adminSalesDocumentRow";
 
-export const ADMIN_SALES_LIST_LIMIT = 2000;
+/** Rows rendered on one admin page. The query itself is not capped. */
+export const ADMIN_SALES_PAGE_SIZE = 50;
+
+const READ_BATCH = 500;
+
+const SALES_FIELDS = [
+  "token",
+  "type",
+  "status",
+  "client.fullName",
+  "client.email",
+  "client.phone",
+  "event.name",
+  "selectedPackage.title",
+  "selectedPackage.price",
+  "totals.grossAmount",
+  "totals.grossAmountAfterDiscount",
+  "convertedUserId",
+  "originalUserId",
+  "customerDeleted",
+  "createdAt",
+  "sms.sentAt",
+  "signedAt",
+  "signature.signedAt",
+  "signature.fullName",
+  "agreement.signedAt",
+  "agreement.signatureFullName",
+  "immutableSignedCopy.signedAt",
+  "immutableSignedCopy.pdfUrl",
+  "immutableSignedCopy.signature.fullName",
+  "quote.expiresAt",
+  "adminPaymentConfirmed",
+  "pdfUrl",
+].join(" ");
+
+const AGREEMENT_FIELDS = [
+  "publicToken",
+  "userId",
+  "originalUserId",
+  "salesDocumentId",
+  "signedAt",
+  "signerName",
+  "signerEmail",
+  "signerPhone",
+  "status",
+  "title",
+  "amount",
+  "customerDeleted",
+  "createdAt",
+  "pdfUrl",
+  "immutableSignedCopy.signedAt",
+  "immutableSignedCopy.signerName",
+  "immutableSignedCopy.pdfUrl",
+].join(" ");
+
+const QUOTE_FIELDS = [
+  "publicToken",
+  "userId",
+  "originalUserId",
+  "customerFileId",
+  "salesDocumentId",
+  "quoteNumber",
+  "status",
+  "total",
+  "customerDeleted",
+  "createdAt",
+  "validUntil",
+].join(" ");
 
 function clean(value: unknown) {
   return String(value ?? "").trim();
@@ -23,29 +90,51 @@ function unique(values: unknown[]) {
   return Array.from(new Set(values.filter(Boolean).map((value) => String(value))));
 }
 
-/**
- * Historical quotes and agreements are listed even when the customer user
- * record no longer exists. Nothing here deletes or rewrites documents.
- */
-export async function loadAdminSalesQuotes(limit = ADMIN_SALES_LIST_LIMIT) {
-  const capped = Math.min(
-    Math.max(Number(limit) || ADMIN_SALES_LIST_LIMIT, 1),
-    ADMIN_SALES_LIST_LIMIT
-  );
-  const typeFilter = { $in: ["quote", "agreement"] };
+async function readEvery(
+  model: {
+    find: (filter: object) => {
+      select: (fields: string) => {
+        sort: (order: object) => {
+          skip: (count: number) => {
+            limit: (count: number) => { lean: () => Promise<any[]> };
+          };
+        };
+      };
+    };
+  },
+  filter: object,
+  fields: string
+) {
+  const rows: any[] = [];
+  let skip = 0;
+  for (;;) {
+    const chunk = await model
+      .find(filter)
+      .select(fields)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(READ_BATCH)
+      .lean();
+    rows.push(...chunk);
+    if (chunk.length < READ_BATCH) break;
+    skip += chunk.length;
+  }
+  return rows;
+}
 
-  const [salesCount, agreementCount, quoteCount, docs, agreements, quotes] =
-    await Promise.all([
-      SalesDocument.countDocuments({ type: typeFilter }),
-      CustomerAgreement.countDocuments({}),
-      CustomerQuote.countDocuments({}),
-      SalesDocument.find({ type: typeFilter })
-        .sort({ createdAt: -1 })
-        .limit(capped)
-        .lean(),
-      CustomerAgreement.find({}).sort({ createdAt: -1 }).limit(capped).lean(),
-      CustomerQuote.find({}).sort({ createdAt: -1 }).limit(capped).lean(),
-    ]);
+/**
+ * Every historical quote and agreement, including customers whose user
+ * record no longer exists. Reads until the collections are exhausted.
+ * Nothing here deletes or rewrites documents.
+ */
+export async function loadAdminSalesQuotes() {
+  const typeFilter = { type: { $in: ["quote", "agreement"] } };
+
+  const [docs, agreements, quotes] = await Promise.all([
+    readEvery(SalesDocument, typeFilter, SALES_FIELDS),
+    readEvery(CustomerAgreement, {}, AGREEMENT_FIELDS),
+    readEvery(CustomerQuote, {}, QUOTE_FIELDS),
+  ]);
 
   const fileIds = unique(
     quotes.map((quote: { customerFileId?: unknown }) => quote.customerFileId)
@@ -122,7 +211,9 @@ export async function loadAdminSalesQuotes(limit = ADMIN_SALES_LIST_LIMIT) {
     tombstones.map((tombstone) => String(tombstone.originalUserId))
   );
   const tombstoneEmails = new Set(
-    tombstones.map((tombstone) => clean(tombstone.email).toLowerCase()).filter(Boolean)
+    tombstones
+      .map((tombstone) => clean(tombstone.email).toLowerCase())
+      .filter(Boolean)
   );
   const labeled = markRowsDeletedByTombstone(
     rows,
@@ -134,7 +225,9 @@ export async function loadAdminSalesQuotes(limit = ADMIN_SALES_LIST_LIMIT) {
       ? ("none" as const)
       : userLinkStatus({
           convertedUserId: row.convertedUserId,
-          userExists: Boolean(row.convertedUserId),
+          userExists: row.convertedUserId
+            ? liveUserIds.has(String(row.convertedUserId))
+            : false,
         }),
   }));
   labeled.sort((left, right) =>
@@ -144,10 +237,7 @@ export async function loadAdminSalesQuotes(limit = ADMIN_SALES_LIST_LIMIT) {
   return {
     quotes: labeled,
     total: labeled.length,
-    salesTotal: salesCount,
-    truncated:
-      salesCount > docs.length ||
-      agreementCount > agreements.length ||
-      quoteCount > quotes.length,
+    salesTotal: docs.length,
+    truncated: false,
   };
 }

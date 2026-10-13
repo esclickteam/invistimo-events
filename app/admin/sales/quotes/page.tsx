@@ -150,7 +150,7 @@ export default function AdminQuotesPage() {
   const [payments, setPayments] = useState<HistoricalPayment[]>([]);
   const [paymentsMeta, setPaymentsMeta] = useState("");
   const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [truncated, setTruncated] = useState(false);
+  const [page, setPage] = useState(1);
   const [customerFilter, setCustomerFilter] =
     useState<CustomerVisibilityFilter>("all");
   const [documentFilter, setDocumentFilter] = useState<DocumentKindFilter>(
@@ -161,7 +161,7 @@ export default function AdminQuotesPage() {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/admin/sales/quotes?limit=2000`, {
+      const res = await fetch(`/api/admin/sales/quotes`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -170,7 +170,7 @@ export default function AdminQuotesPage() {
         throw new Error(data?.error || "טעינת הצעות נכשלה");
       }
       setQuotes(Array.isArray(data.quotes) ? data.quotes : []);
-      setTruncated(data.truncated === true);
+      setPage(1);
     } catch (err: any) {
       setError(err?.message || "טעינת הצעות נכשלה");
     } finally {
@@ -184,6 +184,7 @@ export default function AdminQuotesPage() {
 
   useEffect(() => {
     setDocumentFilter(agreementsView ? "signed" : "all");
+    setPage(1);
   }, [agreementsView]);
 
   async function openPayments(quote: QuoteRow) {
@@ -276,6 +277,11 @@ export default function AdminQuotesPage() {
       .map((v) => String(v || "").toLowerCase())
       .some((v) => v.includes(q));
   });
+  const pageSize = 50;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize;
+  const paged = filtered.slice(pageStart, pageStart + pageSize);
 
   return (
     <AdminListPage>
@@ -327,7 +333,10 @@ export default function AdminQuotesPage() {
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="חיפוש לפי לקוח, אימייל, מספר מסמך…"
           className="admin-input h-10 min-w-0 flex-1"
         />
@@ -335,9 +344,10 @@ export default function AdminQuotesPage() {
           aria-label="סינון לקוחות"
           data-testid="customer-filter"
           value={customerFilter}
-          onChange={(event) =>
-            setCustomerFilter(event.target.value as CustomerVisibilityFilter)
-          }
+          onChange={(event) => {
+            setCustomerFilter(event.target.value as CustomerVisibilityFilter);
+            setPage(1);
+          }}
           className="admin-input h-10"
         >
           <option value="all">הכל</option>
@@ -348,9 +358,10 @@ export default function AdminQuotesPage() {
           aria-label="סינון סוג מסמך"
           data-testid="document-filter"
           value={documentFilter}
-          onChange={(event) =>
-            setDocumentFilter(event.target.value as DocumentKindFilter)
-          }
+          onChange={(event) => {
+            setDocumentFilter(event.target.value as DocumentKindFilter);
+            setPage(1);
+          }}
           className="admin-input h-10"
         >
           <option value="all">כל המסמכים</option>
@@ -359,12 +370,6 @@ export default function AdminQuotesPage() {
           <option value="signed">הסכם חתום</option>
         </select>
       </AdminFilterBar>
-
-      {truncated ? (
-        <div className="rounded-[var(--admin-radius)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-          מוצגות 2,000 הרשומות האחרונות. יש מסמכים ישנים יותר שלא נטענו.
-        </div>
-      ) : null}
 
       {error ? (
         <div className="rounded-[var(--admin-radius)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
@@ -397,16 +402,40 @@ export default function AdminQuotesPage() {
           }
           footer={
             <>
-              <span>
-                מוצגות {filtered.length} מתוך {visibleQuotes.length}
+              <span data-testid="sales-page-status">
+                {filtered.length === 0
+                  ? "0 רשומות"
+                  : `מציג ${pageStart + 1}–${pageStart + paged.length} מתוך ${filtered.length}`}
+                {` · נטענו ${quotes.length} רשומות היסטוריות`}
               </span>
-              <span>
+              <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="sales-page-prev"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage(currentPage - 1)}
+                  className="rounded-md border border-[var(--admin-border)] bg-white px-2 py-1 text-[11px] font-bold disabled:opacity-40"
+                >
+                  הקודם
+                </button>
+                <span>
+                  עמוד {currentPage} מתוך {pageCount}
+                </span>
+                <button
+                  type="button"
+                  data-testid="sales-page-next"
+                  disabled={currentPage >= pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                  className="rounded-md border border-[var(--admin-border)] bg-white px-2 py-1 text-[11px] font-bold disabled:opacity-40"
+                >
+                  הבא
+                </button>
                 <Loader2 className="hidden" size={12} />
               </span>
             </>
           }
         >
-          {filtered.map((quote) => {
+          {paged.map((quote) => {
             const open = openActionsId === quote._id;
             return (
               <tr

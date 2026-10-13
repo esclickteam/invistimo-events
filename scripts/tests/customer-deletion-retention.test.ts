@@ -996,6 +996,20 @@ test("deleting a customer keeps quotes, signed agreements, payments, and revenue
       totals: { grossAmountAfterDiscount: 10 },
     });
 
+    await SalesDocument.insertMany(
+      Array.from({ length: 160 }, (_, index) => ({
+        type: "quote",
+        token: `quote-token-bulk-${index}`,
+        status: "sent",
+        url: `https://www.invistimo.com/sales-documents/quote-token-bulk-${index}`,
+        client: {
+          fullName: "היסטורי גורף",
+          email: `bulk${index}@example.com`,
+        },
+        totals: { grossAmountAfterDiscount: 1 },
+      }))
+    );
+
     const listed = await loadAdminSalesQuotes();
     const byToken = new Map(listed.quotes.map((item) => [item.token, item]));
     const listedQuote = byToken.get("quote-token-dana");
@@ -1014,6 +1028,13 @@ test("deleting a customer keeps quotes, signed agreements, payments, and revenue
     assert.equal(listedHistorical?.fullName, "היסטורי בלי משתמש");
     assert.equal(listedOrphan?.customerDeleted, true);
     assert.equal(listedOrphan?.fullName, "מסמך בלי משתמש");
+    assert.equal(listed.truncated, false);
+    assert.equal(
+      listed.quotes.filter((item) => item.token.startsWith("quote-token-bulk-"))
+        .length,
+      160
+    );
+    assert.ok(listed.total >= 160);
 
     const deletedOnly = filterAdminSalesRows(listed.quotes, { customer: "deleted" });
     assert.ok(deletedOnly.some((item) => item.token === "quote-token-dana"));
@@ -1047,6 +1068,24 @@ test("deleting a customer keeps quotes, signed agreements, payments, and revenue
     assert.equal(history.payments[0]?.amount, 200);
     assert.equal(history.payments[0]?.invoiceUrl, "https://files.invistimo.com/invoices/dana.pdf");
     assert.equal(history.source, "retained");
+
+    await User.create({
+      name: "משתמש חדש באותו אימייל",
+      email: "dana.retention@example.com",
+      password: "reused-email-password",
+      needsPasswordSetup: false,
+      role: "user",
+      paidAmount: 999,
+      payments: [{ amount: 999, status: "paid", method: "manual" }],
+    });
+    const historyAfterEmailReuse = await loadCustomerPaymentHistory({
+      originalUserId: String(customer._id),
+      email: "dana.retention@example.com",
+      fullName: "דנה לוי",
+    });
+    assert.equal(historyAfterEmailReuse.source, "retained");
+    assert.equal(historyAfterEmailReuse.customer.deleted, true);
+    assert.equal(historyAfterEmailReuse.payments[0]?.amount, 200);
 
     const activeHistory = await loadCustomerPaymentHistory({
       originalUserId: String(survivor._id),
