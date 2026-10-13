@@ -7,6 +7,7 @@ import EmployeeSale from "@/models/EmployeeSale";
 import User from "@/models/User";
 import { withCurrentQuoteTerms } from "@/lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
+import { buildSignedAgreementPdf } from "@/lib/salesAgreementPdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -273,6 +274,37 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("audit.signedAt", signedAt);
     document.set("audit.signedIp", signedIp);
     document.set("audit.signedUserAgent", signedUserAgent);
+
+    const frozen = document.toObject() as Record<string, unknown>;
+    document.set("signedSnapshot", {
+      savedAt: signedAt.toISOString(),
+      client: frozen.client,
+      event: frozen.event,
+      selectedPackage: frozen.selectedPackage,
+      upsells: frozen.upsells,
+      totals: frozen.totals,
+      quote: frozen.quote,
+      signature: frozen.signature,
+      agreement: frozen.agreement,
+      paymentTerms: frozen.paymentTerms,
+      engagementTerms: frozen.engagementTerms,
+      cancellationTerms: frozen.cancellationTerms,
+      additionalTerms: frozen.additionalTerms,
+    });
+    document.markModified("signedSnapshot");
+
+    try {
+      const pdf = await buildSignedAgreementPdf(frozen);
+      document.set("signedPdf", {
+        fileName: `agreement-${token}.pdf`,
+        contentType: "application/pdf",
+        data: pdf,
+        generatedAt: signedAt,
+      });
+      document.markModified("signedPdf");
+    } catch (pdfError) {
+      console.error("SIGNED AGREEMENT PDF FAILED:", pdfError);
+    }
 
     await document.save();
 

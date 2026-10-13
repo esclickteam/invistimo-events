@@ -11,6 +11,13 @@ import { resolveSeatingScheduleActor } from "@/lib/seatingScheduleActor";
 import SalesDocument from "@/models/SalesDocument";
 import CustomerQuote from "@/models/CustomerQuote";
 import User from "@/models/User";
+import {
+  describeDealGap,
+  editorView,
+  isSignedAgreement,
+  saveDocumentEdit,
+  userLinkStatus,
+} from "@/lib/adminQuoteWorkflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -87,36 +94,40 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "הסכם אינו נערך מכאן. ניתן לשמור רק שינוי מאוחר בלוחות הזמנים של ההושבה, בלי לדרוס את השעות המקוריות.",
+          error: isSignedAgreement(doc.toObject())
+            ? "SIGNED_IMMUTABLE"
+            : "הסכם אינו נערך מכאן. ניתן לשמור רק שינוי מאוחר בלוחות הזמנים של ההושבה, בלי לדרוס את השעות המקוריות.",
+          message: isSignedAgreement(doc.toObject())
+            ? "הסכם חתום הוא מסמך קבוע. שינוי עתידי דורש מסמך חדש."
+            : "הסכם אינו נערך מכאן. ניתן לשמור רק שינוי מאוחר בלוחות הזמנים של ההושבה, בלי לדרוס את השעות המקוריות.",
         },
         { status: 400 }
       );
     }
 
-    // Preserve original version for sent/viewed/signed quotes.
-    // A seating-schedule amendment is recorded on the schedule itself.
-    const shouldSnapshot =
-      doc.type === "quote" &&
-      !scheduleOnly &&
-      ["sent", "viewed", "signed"].includes(String(doc.status));
-    if (shouldSnapshot) {
-      const history = Array.isArray((doc as any).versionHistory)
-        ? [...(doc as any).versionHistory]
-        : [];
-      history.push({
-        savedAt: new Date().toISOString(),
-        savedByUserId: String(auth.userId),
-        status: doc.status,
-        client: doc.client,
-        event: doc.event,
-        seatingSchedule: (doc as any).seatingSchedule || null,
-        selectedPackage: doc.selectedPackage,
-        upsells: doc.upsells,
-        totals: doc.totals,
-        notes: (doc as any).notes || "",
-      });
-      (doc as any).versionHistory = history.slice(-20);
+    if (!scheduleOnly && doc.type === "quote") {
+      const decision = saveDocumentEdit(
+        doc.toObject() as Record<string, unknown>,
+        body,
+        String(auth.userId),
+      );
+      if (!decision.ok) {
+        return NextResponse.json(
+          { success: false, error: decision.error, message: decision.message },
+          { status: 400 },
+        );
+      }
+      if (decision.mode === "revision") {
+        (doc as any).draftRevision = decision.draftRevision;
+        doc.markModified("draftRevision");
+        await doc.save();
+        return NextResponse.json({
+          success: true,
+          hasUnpublishedRevision: true,
+          document: editorView(doc.toObject() as Record<string, unknown>),
+          message: "הגרסה המעודכנת נשמרה. העותק שנשלח ללקוח לא נדרס ולא נשלח SMS.",
+        });
+      }
     }
 
     if (body.client && typeof body.client === "object") {
@@ -155,7 +166,10 @@ export async function PATCH(
         ),
         price: Math.max(
           0,
-          toNumber(pkg.price ?? doc.selectedPackage?.price, 0)
+          toNumber(
+            pkg.actualPrice ?? pkg.price ?? doc.selectedPackage?.price,
+            0,
+          )
         ),
       };
     }
@@ -197,6 +211,42 @@ export async function PATCH(
 
     if (typeof body.notes === "string" && doc.type === "quote" && !scheduleOnly) {
       (doc as any).notes = cleanString(body.notes);
+    }
+
+    if (!scheduleOnly && body.builderState && typeof body.builderState === "object") {
+      (doc as any).builderState = body.builderState;
+      doc.markModified("builderState");
+    }
+
+    if (!scheduleOnly && body.quote && typeof body.quote === "object") {
+      doc.quote = {
+        ...(doc.quote || {}),
+        createdAt: cleanString(body.quote.createdAt ?? doc.quote?.createdAt),
+        expiresAt: cleanString(body.quote.expiresAt ?? doc.quote?.expiresAt),
+        validityDays: toNumber(body.quote.validityDays ?? doc.quote?.validityDays, 4),
+      };
+    }
+
+    if (!scheduleOnly && body.customerDealSummary && typeof body.customerDealSummary === "object") {
+      (doc as any).customerDealSummary = body.customerDealSummary;
+      doc.markModified("customerDealSummary");
+    }
+
+    if (!scheduleOnly && Array.isArray(body.paymentTerms)) {
+      (doc as any).paymentTerms = body.paymentTerms;
+      doc.markModified("paymentTerms");
+    }
+    if (!scheduleOnly && Array.isArray(body.cancellationTerms)) {
+      (doc as any).cancellationTerms = body.cancellationTerms;
+      doc.markModified("cancellationTerms");
+    }
+    if (!scheduleOnly && Array.isArray(body.additionalTerms)) {
+      (doc as any).additionalTerms = body.additionalTerms;
+      doc.markModified("additionalTerms");
+    }
+    if (!scheduleOnly && Array.isArray(body.engagementTerms)) {
+      (doc as any).engagementTerms = body.engagementTerms;
+      doc.markModified("engagementTerms");
     }
 
     let seatingScheduleChanged = false;
@@ -286,6 +336,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
+      hasUnpublishedRevision: false,
       document: doc.toObject(),
       seatingScheduleChanged,
       message,
@@ -327,7 +378,58 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, document: doc });
+    const plain = doc as Record<string, unknown>;
+    const convertedUserId = plain.convertedUserId
+      ? String(plain.convertedUserId)
+      : "";
+    const linkedUser = convertedUserId
+      ? await User.findById(convertedUserId)
+          .select("_id email totalDealAmount paidAmount")
+          .lean()
+      : null;
+    const linkedAgreement = await SalesDocument.findOne({
+      type: "agreement",
+      sourceQuoteToken: cleanString(plain.token),
+    })
+      .sort({ createdAt: -1 })
+      .select("token status signedAt url")
+      .lean();
+    const view = editorView(plain);
+    const totals = (view.totals || {}) as {
+      grossAmountAfterDiscount?: number;
+      grossAmount?: number;
+    };
+    const quoteGross = Number(
+      totals.grossAmountAfterDiscount ?? totals.grossAmount ?? 0,
+    );
+    const activeDeal = Number((linkedUser as { totalDealAmount?: number } | null)?.totalDealAmount || 0);
+
+    return NextResponse.json({
+      success: true,
+      document: view,
+      meta: {
+        hasUnpublishedRevision: Boolean(
+          plain.draftRevision &&
+            typeof plain.draftRevision === "object" &&
+            Object.keys(plain.draftRevision as object).length > 0,
+        ),
+        publishedStatus: plain.status || "draft",
+        userLinkStatus: userLinkStatus({
+          convertedUserId,
+          userExists: Boolean(linkedUser),
+        }),
+        convertedUserId,
+        userEmail: (linkedUser as { email?: string } | null)?.email || "",
+        linkedAgreement: linkedAgreement
+          ? {
+              token: (linkedAgreement as { token?: string }).token || "",
+              status: (linkedAgreement as { status?: string }).status || "",
+              url: (linkedAgreement as { url?: string }).url || "",
+            }
+          : null,
+        dealGap: linkedUser ? describeDealGap(quoteGross, activeDeal) : null,
+      },
+    });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err?.message || "שגיאה" },

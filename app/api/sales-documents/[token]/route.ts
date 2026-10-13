@@ -8,6 +8,9 @@ import {
   withCurrentQuoteTerms,
 } from "@/lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
+import { editorView } from "@/lib/adminQuoteWorkflow";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -156,7 +159,15 @@ function normalizeDocumentForClient(document: any) {
         ? String(document.createdByUserId)
         : null,
     }),
-  );
+  ) as Record<string, unknown> | null;
+
+  if (normalized) {
+    delete normalized.draftRevision;
+    delete normalized.signedPdf;
+    delete normalized.builderState;
+    delete normalized.sendHistory;
+    delete normalized.signedSnapshot;
+  }
 
   return normalized;
 }
@@ -326,7 +337,26 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const normalizedDocument = normalizeDocumentForClient(document);
+    const draftRequested = cleanStr(req.nextUrl.searchParams.get("draft")) === "1";
+    let responseDocument: Record<string, unknown> = document as Record<string, unknown>;
+    if (draftRequested && (document as { draftRevision?: unknown }).draftRevision) {
+      const auth = await getUserIdFromRequest(req);
+      const editor = auth?.userId
+        ? await User.findById(auth.userId).select("role staffType").lean()
+        : null;
+      const role = (editor as { role?: string } | null)?.role;
+      const staffType = (editor as { staffType?: string } | null)?.staffType;
+      const allowed =
+        role === "admin" ||
+        role === "producer" ||
+        (role === "staff" &&
+          (staffType === "general_staff" || staffType === "producer_staff"));
+      if (allowed) {
+        responseDocument = editorView(responseDocument);
+      }
+    }
+
+    const normalizedDocument = normalizeDocumentForClient(responseDocument);
 
     const normalizedStatus = cleanStr(normalizedDocument?.status);
 

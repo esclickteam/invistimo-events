@@ -515,6 +515,9 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   requireAgreementBeforePassword?: boolean;
   onboardingAgreementToken?: string;
   onboardingAgreementSignedAt?: Date | null;
+  sourceQuoteToken?: string;
+  sourceQuoteId?: mongoose.Types.ObjectId | null;
+  sourceAgreementToken?: string;
   termsAcceptedAt?: Date | null;
 
   resetPasswordToken?: string;
@@ -2044,6 +2047,25 @@ preRsvpMessages: {
     onboardingAgreementSignedAt: {
       type: Date,
       default: null,
+    },
+
+    sourceQuoteToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    sourceQuoteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    sourceAgreementToken: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
     termsAcceptedAt: {

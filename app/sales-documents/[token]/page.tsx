@@ -867,9 +867,12 @@ export default function SalesDocumentPage() {
       return;
     }
 
-    const editingView =
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("edit") === "1";
+    const search =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+    const editingView = search.get("edit") === "1";
+    const draftView = search.get("draft") === "1";
 
     try {
       if (!options?.silent) {
@@ -877,8 +880,13 @@ export default function SalesDocumentPage() {
         setLoadError("");
       }
 
+      const query = new URLSearchParams();
+      if (editingView || draftView) query.set("markViewed", "false");
+      if (draftView) query.set("draft", "1");
+      const suffix = query.toString() ? `?${query.toString()}` : "";
+
       const response = await fetch(
-        `/api/sales-documents/${token}${editingView ? "?markViewed=false" : ""}`,
+        `/api/sales-documents/${token}${suffix}`,
         {
         method: "GET",
         credentials: "include",

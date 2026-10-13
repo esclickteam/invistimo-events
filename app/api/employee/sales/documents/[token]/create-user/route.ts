@@ -13,6 +13,11 @@ import {
   guestExperienceFromRsvpSiteMode,
   normalizeRsvpSiteMode,
 } from "@/types/rsvpSite";
+import {
+  buildQuoteUserCommercials,
+  planQuoteUserAction,
+  toUserPlan,
+} from "@/lib/adminQuoteWorkflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,10 +36,7 @@ function toNumber(value: unknown, fallback = 0) {
 }
 
 function mapPackageKey(key: string) {
-  const k = cleanString(key).toLowerCase();
-  if (k.includes("smart") || k === "smart") return "smart";
-  if (k.includes("seat") || k === "seating") return "seating";
-  return "easy";
+  return toUserPlan(key);
 }
 
 /**
@@ -63,6 +65,17 @@ export async function POST(
     const { token } = await context.params;
     const safeToken = cleanString(token);
     const body = await req.json().catch(() => ({}));
+
+    const preview = await SalesDocument.findOne({ token: safeToken, type: "quote" });
+    if (preview?.convertedUserId && body?.repairBrokenLink === true) {
+      const linked = await User.findById(preview.convertedUserId).select("_id");
+      if (!linked) {
+        await SalesDocument.updateOne(
+          { _id: preview._id },
+          { $unset: { convertedUserId: 1, convertedAt: 1, convertingLockAt: 1 } },
+        );
+      }
+    }
 
     // Atomic claim: only one converter wins on concurrent clicks.
     const claimed = await SalesDocument.findOneAndUpdate(
@@ -96,11 +109,25 @@ export async function POST(
     }
 
     if ((doc as any).convertedUserId) {
+      const linked = await User.findById((doc as any).convertedUserId)
+        .select("_id email")
+        .lean();
+      if (linked) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "USER_ALREADY_CREATED",
+            message: "כבר נוצר משתמש מההצעה הזו",
+            userId: String((doc as any).convertedUserId),
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         {
           success: false,
-          error: "USER_ALREADY_CREATED",
-          message: "כבר נוצר משתמש מההצעה הזו",
+          error: "BROKEN_LINK",
+          message: "הקישור למשתמש שבור. לא נוצר משתמש חדש. אפשר לתקן את הקישור באופן מבוקר.",
           userId: String((doc as any).convertedUserId),
         },
         { status: 409 }
@@ -139,23 +166,112 @@ export async function POST(
     }
 
     const existing = await User.findOne({ email: clientEmail })
-      .select("_id name email")
+      .select("_id name email phone totalDealAmount paidAmount payments")
       .lean();
 
-    if (existing) {
+    const quoteGross = Math.max(
+      0,
+      toNumber(
+        body?.totalDealAmount ??
+          doc.totals?.grossAmountAfterDiscount ??
+          doc.totals?.grossAmount,
+        0,
+      ),
+    );
+    const decision = planQuoteUserAction({
+      quoteEmail: clientEmail,
+      quotePhone: clientPhone,
+      quoteGross,
+      packageKey: body?.plan || doc.selectedPackage?.key,
+      packageTitle:
+        cleanString(body?.packageName) || cleanString(doc.selectedPackage?.title),
+      records: toNumber(body?.guests ?? doc.selectedPackage?.records, 1),
+      callsType: body?.callsType,
+      rsvpSiteMode: body?.rsvpSiteMode,
+      convertedUserId: null,
+      convertedUserExists: false,
+      existingByEmail: existing
+        ? {
+            id: String((existing as { _id: unknown })._id),
+            email: String((existing as { email?: string }).email || ""),
+            name: String((existing as { name?: string }).name || ""),
+            phone: String((existing as { phone?: string }).phone || ""),
+            totalDealAmount: toNumber(
+              (existing as { totalDealAmount?: number }).totalDealAmount,
+            ),
+            paidAmount: toNumber((existing as { paidAmount?: number }).paidAmount),
+            paymentsCount: Array.isArray((existing as { payments?: unknown[] }).payments)
+              ? (existing as { payments: unknown[] }).payments.length
+              : 0,
+          }
+        : null,
+      linkExistingUser: body?.linkExistingUser === true,
+      expectedUserId: cleanString(body?.expectedUserId),
+      confirmIdentity: body?.confirmIdentity === true,
+      acknowledgeDealGap: body?.acknowledgeDealGap === true,
+      repairBrokenLink: body?.repairBrokenLink === true,
+    });
+
+    if (decision.action === "reject") {
       await SalesDocument.updateOne(
         { _id: doc._id },
-        { $unset: { convertingLockAt: 1, convertedAt: 1 } }
+        { $unset: { convertingLockAt: 1, convertedAt: 1 } },
       );
       return NextResponse.json(
         {
           success: false,
-          error: "EMAIL_ALREADY_EXISTS",
-          message: "כבר קיים משתמש עם האימייל הזה",
-          userId: String((existing as any)._id),
+          error: decision.code,
+          message: decision.message,
+          userId: "userId" in decision ? decision.userId : undefined,
+          email: "email" in decision ? decision.email : undefined,
+          dealGap: "dealGap" in decision ? decision.dealGap : undefined,
         },
-        { status: 409 }
+        { status: decision.status },
       );
+    }
+
+    if (decision.action === "link") {
+      await SalesDocument.updateOne(
+        { _id: doc._id },
+        {
+          $set: {
+            convertedUserId: decision.userId,
+            convertedAt: new Date(),
+          },
+          $unset: { convertingLockAt: 1 },
+        },
+      );
+      await SalesDocument.updateMany(
+        { type: "agreement", sourceQuoteToken: doc.token },
+        { $set: { convertedUserId: decision.userId } },
+      );
+      const userUpdate: Record<string, unknown> = {
+        sourceQuoteToken: doc.token,
+        sourceQuoteId: doc._id,
+      };
+      if (doc.linkedAgreementToken || body?.onboardingAgreementToken) {
+        userUpdate.sourceAgreementToken = cleanString(
+          body?.onboardingAgreementToken || (doc as { linkedAgreementToken?: string }).linkedAgreementToken,
+        );
+      }
+      if (decision.updateDeal) {
+        userUpdate.totalDealAmount = quoteGross;
+      }
+      await User.updateOne({ _id: decision.userId }, { $set: userUpdate });
+      await CustomerQuote.updateOne(
+        { salesDocumentId: doc._id },
+        { $set: { userId: decision.userId, status: "converted" } },
+      );
+      return NextResponse.json({
+        success: true,
+        linkedExisting: true,
+        message: decision.dealGap
+          ? "ההצעה קושרה למשתמש הקיים בלי לדרוס את סכום העסקה הפעילה"
+          : "ההצעה קושרה למשתמש הקיים בלי ליצור חשבון כפול",
+        userId: decision.userId,
+        dealGap: decision.dealGap,
+        redirectTo: `/admin/users?q=${encodeURIComponent(clientEmail)}`,
+      });
     }
 
     const guests = Math.max(
@@ -193,21 +309,33 @@ export async function POST(
     const guestExperienceType = guestExperienceFromRsvpSiteMode(rsvpSiteMode);
     const customerFeatures = featuresForExperience(guestExperienceType);
 
-    const onboardingAgreementToken = cleanString(body?.onboardingAgreementToken);
+    const onboardingAgreementToken = cleanString(
+      body?.onboardingAgreementToken ||
+        (doc as { linkedAgreementToken?: string }).linkedAgreementToken,
+    );
+    const commercials = buildQuoteUserCommercials({
+      packageKey: body?.plan || doc.selectedPackage?.key,
+      packageTitle: packageName,
+      records: guests,
+      gross,
+      callsType: body?.callsType,
+      rsvpSiteMode,
+    });
     const createdUser = await User.create({
       name: clientName,
       email: clientEmail,
       phone: clientPhone,
       role: "user",
-      plan,
-      priceKey: plan,
-      packageName,
-      guests,
-      maxGuests: guests,
-      totalDealAmount: gross,
+      plan: commercials.plan,
+      priceKey: commercials.priceKey,
+      packageName: commercials.packageName,
+      guests: commercials.guests,
+      maxGuests: commercials.guests,
+      totalDealAmount: commercials.totalDealAmount,
       paidAmount: 0,
-      remainingAmount: gross,
-      paymentMode: doc.totals?.paymentMode || "split",
+      remainingAmount: commercials.remainingAmount,
+      payments: [],
+      paymentMode: "none",
       paymentActualMode: "none",
       hasPaid: false,
       isActive: false,
@@ -220,6 +348,11 @@ export async function POST(
       smsBalance: 0,
       whatsappBalance: 0,
       allowedMessageRounds: 2,
+      callsType: commercials.callsType,
+      includeCalls: false,
+      sourceQuoteToken: doc.token,
+      sourceQuoteId: doc._id,
+      sourceAgreementToken: onboardingAgreementToken,
       needsPasswordSetup: true,
       createdByAdmin: auth.role === "admin",
       billingSource: "admin",
@@ -293,6 +426,15 @@ export async function POST(
         },
         $unset: { convertingLockAt: 1 },
       }
+    );
+
+    await SalesDocument.updateMany(
+      {
+        type: "agreement",
+        sourceQuoteToken: doc.token,
+        $or: [{ convertedUserId: null }, { convertedUserId: { $exists: false } }],
+      },
+      { $set: { convertedUserId: createdUser._id } },
     );
 
     await CustomerQuote.updateOne(

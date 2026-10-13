@@ -10,6 +10,7 @@ import {
   toAdminCustomerAgreementRow,
   toAdminSalesDocumentRow,
 } from "@/lib/customers/adminSalesDocumentRow";
+import { userLinkStatus } from "@/lib/adminQuoteWorkflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,7 +74,21 @@ export async function GET(req: NextRequest) {
       ? await User.find({ _id: { $in: userIds } }).select("_id").lean()
       : [];
     const liveUserIds = new Set(liveUsers.map((user) => String(user._id)));
-    const quotes = docs.map((doc) => toAdminSalesDocumentRow(doc, liveUserIds));
+    const quotes = docs.map((doc) => {
+      const row = toAdminSalesDocumentRow(doc, liveUserIds);
+      const archived = (doc as { customerDeleted?: boolean }).customerDeleted === true;
+      return {
+        ...row,
+        userLinkStatus: archived
+          ? "none"
+          : userLinkStatus({
+              convertedUserId: row.convertedUserId,
+              userExists: row.convertedUserId
+                ? liveUserIds.has(String(row.convertedUserId))
+                : false,
+            }),
+      };
+    });
 
     if (kind === "agreements") {
       const seen = new Set(quotes.map((row) => row.token).filter(Boolean));
