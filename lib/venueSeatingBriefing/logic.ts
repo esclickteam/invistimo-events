@@ -303,7 +303,7 @@ export function isBriefingEventDay(
 }
 
 /** Permitted civil day before the event, at 14:00. Shabbat and Yom Tov walk backward. */
-export function briefingSendDate(eventDate: string | null | undefined) {
+export function briefingSendDate(eventDate: unknown) {
   const date = normalizeEventDateValue(eventDate);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   try {
@@ -313,10 +313,7 @@ export function briefingSendDate(eventDate: string | null | undefined) {
   }
 }
 
-export function isBriefingAutomaticDue(
-  eventDate: string | null | undefined,
-  now: Date
-) {
+export function isBriefingAutomaticDue(eventDate: unknown, now: Date) {
   const sendDate = briefingSendDate(eventDate);
   if (!sendDate) return false;
   const clock = israelDateTime(now);

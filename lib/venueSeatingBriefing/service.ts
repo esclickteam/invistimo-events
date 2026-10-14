@@ -515,6 +515,8 @@ export async function sendBriefing(input: {
   if (!customer || !event || String(event.userId || "") !== String(customer._id)) {
     return { ok: false as const, status: 404, error: "האירוע לא נמצא" };
   }
+  const briefingCustomer = customer;
+  const briefingEvent = event;
 
   const described = await describeEventBriefing({ customer, event, now });
   const allowed =
@@ -547,9 +549,9 @@ export async function sendBriefing(input: {
   const message = described.briefing.text;
   async function noteBriefingDelivery(recipient: BriefingRecipient, ok: boolean) {
     await recordVenueSeatingBriefingAdminNotice({
-      eventId: String(event._id),
-      eventTitle: clean(event.title) || clean(event.hostsNames),
-      customerId: String(customer._id),
+      eventId: String(briefingEvent._id),
+      eventTitle: clean(briefingEvent.title) || clean(briefingEvent.hostsNames),
+      customerId: String(briefingCustomer._id),
       recipientId: recipient.userId,
       recipientRole: recipient.role,
       kind: input.kind,
@@ -634,8 +636,25 @@ export async function sendBriefing(input: {
       continue;
     }
 
-    const accepted = delivered.ok || (!delivered.ok && delivered.outcomeUnknown);
-    if (accepted) {
+    if (!delivered.ok && !delivered.outcomeUnknown) {
+      const error = delivered.errorMessage || "השליחה נכשלה";
+      await finishSend({
+        id: claimed._id,
+        kind: input.kind,
+        now,
+        ok: false,
+        error,
+      });
+      await noteBriefingDelivery(recipient, false);
+      results.push({
+        userId: recipient.userId,
+        status: "failed",
+        error,
+      });
+      continue;
+    }
+
+    if (delivered.ok || delivered.outcomeUnknown) {
       await finishSend({
         id: claimed._id,
         kind: input.kind,
@@ -645,22 +664,7 @@ export async function sendBriefing(input: {
       });
       await noteBriefingDelivery(recipient, true);
       results.push({ userId: recipient.userId, status: "sent", error: "" });
-      continue;
     }
-
-    await finishSend({
-      id: claimed._id,
-      kind: input.kind,
-      now,
-      ok: false,
-      error: delivered.errorMessage || "השליחה נכשלה",
-    });
-    await noteBriefingDelivery(recipient, false);
-    results.push({
-      userId: recipient.userId,
-      status: "failed",
-      error: delivered.errorMessage || "השליחה נכשלה",
-    });
   }
 
   const fresh = await describeEventBriefing({ customer, event, now });
