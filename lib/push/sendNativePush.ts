@@ -4,6 +4,7 @@ import {
   type NativePushType,
 } from "@/lib/push/nativePush";
 import MobilePushDevice from "@/models/MobilePushDevice";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -61,6 +62,6 @@ export function notifyNativeUser(
   userId: string | null | undefined,
   type: NativePushType
 ) {
-  if (!userId) return;
+  if (!userId || !customerNotificationsEnabled()) return;
   void sendNativePushToUser(String(userId), { type }).catch(() => undefined);
 }

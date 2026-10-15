@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 import {
   countUnreadCustomerNotifications,
   markCustomerNotificationRead,
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
   const auth = await getUserIdFromRequest(request);
   if (!auth) {
     return NextResponse.json({ success: false }, { status: 401 });
+  }
+
+  if (!customerNotificationsEnabled()) {
+    return NextResponse.json({ success: true, updated: 0, unreadCount: 0 });
   }
 
   const body = await request.json().catch(() => null);

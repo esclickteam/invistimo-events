@@ -9,6 +9,7 @@ import {
 } from "@/src/push";
 import { Card, ErrorText, OutlineButton, Page, PrimaryButton, ScreenTitle } from "@/src/ui";
 import { colors } from "@/src/theme";
+import { customerNotificationsEnabled } from "@/src/customerNotificationsFlag";
 
 export default function SecurityScreen() {
   const {
@@ -71,11 +72,13 @@ export default function SecurityScreen() {
             : "במכשיר הזה אין Face ID, Touch ID או ביומטריה זמינה."}
         </Text>
       </Card>
+      {customerNotificationsEnabled() ? (
       <Card>
         <Text style={styles.body}>
           התראות האפליקציה נשלחות רק למכשיר הזה, בנפרד מהתראות האתר. הן לא כוללות פרטי אורחים או פרטי התחברות.
         </Text>
       </Card>
+      ) : null}
       <ErrorText text={error} />
       {biometric.available ? (
         biometricsEnabled ? (
@@ -91,6 +94,8 @@ export default function SecurityScreen() {
           />
         )
       ) : null}
+      {customerNotificationsEnabled() ? (
+        <>
       {pushEnabled ? (
         <OutlineButton label="כיבוי התראות באפליקציה" onPress={() => void togglePush(false)} />
       ) : (
@@ -102,6 +107,8 @@ export default function SecurityScreen() {
       )}
       {pushPermission === "denied" ? (
         <OutlineButton label="פתיחת הגדרות ההתראות" onPress={() => void Linking.openSettings()} />
+      ) : null}
+        </>
       ) : null}
       <Text style={styles.spacer} />
       <PrimaryButton label="התנתקות" onPress={() => void logout()} />
