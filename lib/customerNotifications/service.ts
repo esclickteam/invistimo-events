@@ -4,6 +4,7 @@ import { VENUE_SEATING_NOTIFICATION_CATEGORY } from "@/lib/venueSeatingContacts/
 import { deliverWebPushForNotification } from "@/lib/push/webPush";
 import { safeActionPath } from "@/lib/customerNotifications/planners";
 import { dedupeDecision } from "@/lib/customerNotifications/adminCenter";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 
 export type CreateCustomerNotificationInput = {
   userId: string;
@@ -35,6 +36,9 @@ export async function createCustomerNotification(
   const eventId = input.eventId ? toObjectId(input.eventId) : null;
   const customerId = input.customerId ? toObjectId(input.customerId) : null;
   const audience = input.audience === "admin" ? "admin" : "customer";
+  if (audience === "customer" && !customerNotificationsEnabled()) {
+    return { created: false as const, reason: "DISABLED" as const };
+  }
 
   try {
     const existing = await CustomerNotification.findOne({
@@ -89,6 +93,7 @@ export async function createCustomerNotification(
 }
 
 export async function listActiveCustomerNotifications(userId: string) {
+  if (!customerNotificationsEnabled()) return [];
   const id = toObjectId(userId);
   if (!id) return [];
   const rows = await CustomerNotification.find({
@@ -116,6 +121,7 @@ export async function listActiveCustomerNotifications(userId: string) {
 }
 
 export async function countUnreadCustomerNotifications(userId: string) {
+  if (!customerNotificationsEnabled()) return 0;
   const id = toObjectId(userId);
   if (!id) return 0;
   return CustomerNotification.countDocuments({
