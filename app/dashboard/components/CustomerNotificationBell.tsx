@@ -88,11 +88,11 @@ export default function CustomerNotificationBell({
       });
       const data = (await res.json().catch(() => null)) as Payload | null;
       if (res.status === 401) {
-        setShowBell(false);
+        if (source !== "admin") setShowBell(false);
         return;
       }
       if (!res.ok || !data?.success) return;
-      setShowBell(data.showBell !== false);
+      setShowBell(source === "admin" || data.showBell !== false);
       setUnreadCount(Number(data.unreadCount || 0));
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
     } catch {
@@ -211,7 +211,7 @@ export default function CustomerNotificationBell({
     }
   };
 
-  if (!enabled || !showBell) return null;
+  if (!enabled || (source !== "admin" && !showBell)) return null;
 
   const unread = notifications.filter((item) => !item.read);
   const read = notifications.filter((item) => item.read);
@@ -391,7 +391,24 @@ export default function CustomerNotificationBell({
                     אין התראות להצגה
                   </p>
                 ) : (
-                  adminItems.map((item) => renderItem(item))
+                  <>
+                    {adminItems.some((item) => !item.read) ? (
+                      <div>
+                        <p className="bg-[#F8EEDB] px-4 py-2 text-[11px] font-black text-[#8B5E34]">
+                          חדשות
+                        </p>
+                        {adminItems.filter((item) => !item.read).map((item) => renderItem(item))}
+                      </div>
+                    ) : null}
+                    {adminItems.some((item) => item.read) ? (
+                      <div>
+                        <p className="bg-[#F7F1E8] px-4 py-2 text-[11px] font-black text-[#8A7867]">
+                          שנקראו
+                        </p>
+                        {adminItems.filter((item) => item.read).map((item) => renderItem(item))}
+                      </div>
+                    ) : null}
+                  </>
                 )
               ) : notifications.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm font-bold text-[#8A7867]">

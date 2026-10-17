@@ -122,6 +122,21 @@ export function adminCustomerHref(customerId: string | null | undefined) {
   return "/admin/users";
 }
 
+export function adminNotificationOwnerId(auth: {
+  userId?: string | null;
+  role?: string | null;
+  impersonated?: boolean;
+  impersonatedBy?: string | null;
+  impersonatedByAdmin?: boolean;
+} | null | undefined) {
+  const current = String(auth?.userId || "").trim();
+  if (!auth || !current) return null;
+  if (!auth.impersonated && auth.role === "admin") return current;
+  const owner = String(auth.impersonatedBy || "").trim();
+  if (auth.impersonated && auth.impersonatedByAdmin && owner) return owner;
+  return null;
+}
+
 function eventName(value: string | null | undefined) {
   const title = String(value || "").trim();
   return title || "האירוע";

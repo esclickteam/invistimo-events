@@ -11,6 +11,7 @@ import {
   currentDeviceTestEndpoint,
   dedupeDecision,
   describeTestPushResult,
+  adminNotificationOwnerId,
   filterAdminNotifications,
   isActiveScheduledShift,
   isLateUnstarted,
@@ -28,6 +29,7 @@ import {
 import {
   createCustomerNotification,
   listActiveCustomerNotifications,
+  listAdminCenterNotifications,
   resolveAdminIncident,
 } from "../../lib/customerNotifications/service";
 import CustomerNotification from "../../models/CustomerNotification";
@@ -455,6 +457,58 @@ test("venue seating briefing notices report success or failure without sensitive
   );
 });
 
+test("the admin bell stays available after notices are read", () => {
+  const adminId = "a".repeat(24);
+  const customerId = "b".repeat(24);
+  assert.equal(
+    adminNotificationOwnerId({ userId: adminId, role: "admin", impersonated: false }),
+    adminId
+  );
+  assert.equal(
+    adminNotificationOwnerId({
+      userId: customerId,
+      role: "user",
+      impersonated: true,
+      impersonatedByAdmin: true,
+      impersonatedBy: adminId,
+    }),
+    adminId
+  );
+  assert.equal(
+    adminNotificationOwnerId({
+      userId: customerId,
+      role: "user",
+      impersonated: true,
+      impersonatedByAdmin: false,
+      impersonatedBy: adminId,
+    }),
+    null
+  );
+  const readOpen = {
+    type: "admin.critical.missing",
+    eventId: "e1",
+    eventTitle: "חתונת דנה",
+    severity: "urgent" as const,
+    status: "active" as const,
+    read: true,
+  };
+  assert.equal(filterAdminNotifications([readOpen], {}).length, 1);
+  assert.equal(filterAdminNotifications([readOpen], { status: "open" }).length, 1);
+  assert.equal(filterAdminNotifications([readOpen], { status: "read" }).length, 1);
+  const bell = fs.readFileSync(
+    path.join(root, "app/dashboard/components/CustomerNotificationBell.tsx"),
+    "utf8"
+  );
+  assert.match(bell, /source !== "admin" && !showBell/);
+  assert.match(bell, /שנקראו/);
+  const listRoute = fs.readFileSync(
+    path.join(root, "app/api/admin/notifications/route.ts"),
+    "utf8"
+  );
+  assert.match(listRoute, /adminNotificationOwnerId/);
+  assert.doesNotMatch(listRoute, /auth\.impersonated/);
+});
+
 test("admin notices are not written for customers and a resolved fault can reopen", async (t) => {
   const live = fs.readFileSync(
     path.join(root, "lib/customerNotifications/adminCenterLive.ts"),
@@ -494,6 +548,10 @@ test("admin notices are not written for customers and a resolved fault can reope
       { _id: first.id },
       { $set: { readAt: new Date() } }
     );
+    const afterRead = await listAdminCenterNotifications(adminId);
+    assert.equal(afterRead.length, 1);
+    assert.equal(afterRead[0]?.read, true);
+    assert.equal(afterRead[0]?.status, "active");
     const resolved = await resolveAdminIncident("critical-missing:e1", "details-completed");
     assert.equal(resolved.updated, 1);
     const stored = await CustomerNotification.findById(first.id).lean();
