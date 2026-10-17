@@ -28,6 +28,7 @@ import type { QuickFilter } from "@/types/quickFilter";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 import { formatCallRoundDateTimeDisplay } from "@/lib/calls/callRoundScheduleTime";
+import { composeGuestLocationLabel } from "@/lib/messages/locationText";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
 import {
   callRoundChannelLabel,
@@ -2617,11 +2618,9 @@ const approveSuggestedTableMove = async (
     cleanText(invitation?.eventLocationAddress) ||
     cleanText(event?.eventLocationAddress);
 
-  if (name && address && name !== address) {
-    return `${name}, ${address}`;
-  }
-
-  return name || address || "טרם הוגדר מיקום";
+  return (
+    composeGuestLocationLabel(name, address) || "טרם הוגדר מיקום"
+  );
 };
 
 const eventLocation = resolveEventLocation(invitation, event);

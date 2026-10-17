@@ -2,8 +2,8 @@
  * Invitation-only (pre-RSVP) helpers — safe for Client Components (no DB models).
  *
  * Intentionally separate from RSVP round send paths.
- * Location reuses buildEventLocationLabel / cleanEventAddress from liveEventDetails
- * so invitation copy matches RSVP — without modifying RSVP send logic.
+ * Location reuses buildEventLocationLabel from liveEventDetails so invitation
+ * copy matches RSVP rounds and reminders — one hall name, no repeated address.
  *
  * Date/time for WhatsApp stay on the existing approved template variable:
  * a single eventDate string, unchanged from the current Meta template.
@@ -11,10 +11,7 @@
  * Send-history queries live in a separate server-only module.
  */
 
-import {
-  buildEventLocationLabel,
-  cleanEventAddress,
-} from "@/lib/messages/liveEventDetails";
+import { buildEventLocationLabel } from "@/lib/messages/liveEventDetails";
 
 export type InvitationOnlyAudienceFilter =
   | "all"
@@ -26,12 +23,9 @@ function cleanString(value: unknown) {
   return String(value ?? "").trim();
 }
 
-/** Same location label RSVP live-details uses (includes() guard, strip ישראל). */
+/** Same location label RSVP live-details sends to Meta. */
 export function buildInvitationLocationLabel(invitation?: any, event?: any) {
-  return (
-    cleanEventAddress(buildEventLocationLabel(invitation, event)) ||
-    buildEventLocationLabel(invitation, event)
-  );
+  return buildEventLocationLabel(invitation, event);
 }
 
 export function resolveInvitationImageUrl(invitation?: any, event?: any) {

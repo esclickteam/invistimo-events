@@ -8,6 +8,7 @@ import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { buildInvitationLocationLabel } from "@/lib/messages/invitationOnlyDetails";
 
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
@@ -153,17 +154,6 @@ function normalizePhone(phoneRaw: unknown) {
   return phone;
 }
 
-function cleanAddress(address?: string) {
-  if (!address) return "";
-  return address
-    .replace(/,?\s*ישראל/gi, "")
-    .replace(/\b\d{5,7}\b/g, "")
-    .replace(/,+/g, ",")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .replace(/,$/, "");
-}
-
 function formatEventDateTime(dateString?: string, timeString?: string) {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -187,17 +177,7 @@ function countBusinessSms(text: string) {
 }
 
 function getInvitationLocation(invitation: any) {
-  if (typeof invitation?.location === "string") {
-    return cleanAddress(invitation.location);
-  }
-
-  return cleanAddress(
-    invitation?.location?.address ||
-      invitation?.location?.name ||
-      invitation?.address ||
-      invitation?.eventLocation ||
-      ""
-  );
+  return buildInvitationLocationLabel(invitation);
 }
 
 function buildEmployeeAssignmentMatch(employeeId: Types.ObjectId) {

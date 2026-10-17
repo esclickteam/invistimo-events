@@ -9,6 +9,7 @@ import { sendSMS } from "@/lib/sendSMS";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { buildInvitationLocationLabel } from "@/lib/messages/invitationOnlyDetails";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
@@ -76,18 +77,6 @@ function phoneSuffix(value: unknown) {
   return local.slice(-9);
 }
 
-function cleanAddress(address?: string) {
-  if (!address) return "";
-
-  return address
-    .replace(/,?\s*ישראל/gi, "")
-    .replace(/\b\d{5,7}\b/g, "")
-    .replace(/,+/g, ",")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .replace(/,$/, "");
-}
-
 function formatEventDateTime(dateString?: string, timeString?: string) {
   if (!dateString) return "";
 
@@ -106,17 +95,7 @@ function formatEventDateTime(dateString?: string, timeString?: string) {
 }
 
 function getInvitationLocation(invitation: any) {
-  if (typeof invitation?.location === "string") {
-    return cleanAddress(invitation.location);
-  }
-
-  return cleanAddress(
-    invitation?.location?.address ||
-      invitation?.location?.name ||
-      invitation?.address ||
-      invitation?.eventLocation ||
-      ""
-  );
+  return buildInvitationLocationLabel(invitation);
 }
 
 async function shortenLinksInMessage(message: string) {

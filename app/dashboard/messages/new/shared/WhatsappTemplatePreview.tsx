@@ -1,6 +1,7 @@
 "use client";
 
 import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
+import { dedupeGuestLocationText } from "@/lib/messages/locationText";
 
 type Props = {
   templateKey:
@@ -35,12 +36,7 @@ function formatDate(value?: string | Date) {
 }
 
 function cleanLocation(value?: string) {
-  if (!value) return "";
-
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/,\s*,/g, ",")
-    .trim();
+  return dedupeGuestLocationText(value || "");
 }
 
 function buildRsvpPreviewText({

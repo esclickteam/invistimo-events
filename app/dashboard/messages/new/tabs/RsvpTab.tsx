@@ -19,6 +19,7 @@ import {
 import { getGuestInvitationUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { getRsvpRoundSentSnapshot } from "@/lib/rsvpRoundState";
 import KosherMessageRoundPanel from "./KosherMessageRoundPanel";
+import { buildInvitationLocationLabel } from "@/lib/messages/invitationOnlyDetails";
 
 
 /* ================= TYPES ================= */
@@ -84,19 +85,7 @@ const RSVP_SMS_TEMPLATES: Record<RoundNumber, string> = {
 
 function getInvitationLocation(inv: any, fallback = "") {
   if (!inv) return fallback || "";
-
-  if (typeof inv.location === "string") {
-    return inv.location;
-  }
-
-  return (
-    inv.location?.address ||
-    inv.location?.name ||
-    inv.address ||
-    inv.eventLocation ||
-    fallback ||
-    ""
-  );
+  return buildInvitationLocationLabel(inv) || fallback || "";
 }
 
 function getInvitationHeaderImage(inv: any, fallback = "") {

@@ -28,6 +28,7 @@ import {
 } from "@/lib/messages/reminderSmsSettings";
 import { buildReminderNavigationUrl } from "@/lib/messages/reminderNavigationLink";
 import { ROUND_SMS_TEMPLATES } from "@/lib/sms/roundSmsTemplates";
+import { buildEventLocationLabel } from "@/lib/messages/liveEventDetails";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -597,14 +598,7 @@ if (isDirectSmsRequest) {
         ? new Date(inv.eventDate || inv.date).toLocaleDateString("he-IL")
         : "";
 
-    const eventLocationText =
-      typeof inv.location === "string"
-        ? inv.location
-        : inv.location?.address ||
-          inv.location?.name ||
-          inv.address ||
-          inv.eventLocation ||
-          "";
+    const eventLocationText = buildEventLocationLabel(inv);
 
     /* ======================================================
        BLOCKS — RSVP לפי סבב כללי בלבד

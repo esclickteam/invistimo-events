@@ -12,6 +12,10 @@ import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 import LocationPinPreview from "@/app/components/LocationPinPreview";
 import WazePlacePicker from "@/app/components/WazePlacePicker";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
+import {
+  composeGuestLocationLabel,
+  sanitizeStoredLocationText,
+} from "@/lib/messages/locationText";
 
 function hasManualWazeDest(location?: {
   wazeLat?: number | null;
@@ -926,11 +930,12 @@ export default function EventDetailsForm({
               "
             >
               <LocationAutocomplete
-                value={
-                  form.location.name && form.location.address
-                    ? `${form.location.name}, ${form.location.address}`
-                    : form.location.name || form.location.address
-                }
+                value={composeGuestLocationLabel(
+                  form.location.name,
+                  form.location.placeName,
+                  form.location.address,
+                  form.location.formattedAddress
+                )}
                 onSelect={({
                   name,
                   address,
@@ -940,18 +945,24 @@ export default function EventDetailsForm({
                   placeName,
                   formattedAddress,
                 }) => {
+                  const text = sanitizeStoredLocationText({
+                    name: name || address,
+                    address,
+                    placeName: placeName || name || "",
+                    formattedAddress: formattedAddress || address || "",
+                  });
                   setWazeOverrideEnabled(false);
                   setWazeInputMode("search");
                   setForm((f) => ({
                     ...f,
                     location: {
-                      name: name || address,
-                      address,
+                      name: text.name,
+                      address: text.address,
                       lat,
                       lng,
                       placeId: placeId || "",
-                      placeName: placeName || name || "",
-                      formattedAddress: formattedAddress || address || "",
+                      placeName: text.placeName,
+                      formattedAddress: text.formattedAddress,
                       ...EMPTY_WAZE_DEST,
                     },
                   }));
