@@ -22,6 +22,7 @@ import {
 } from "@/lib/messages/invitationOnlyDetails";
 import { resolveInvitationOnlyAudienceGuests } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
+import { dedupeGuestLocationText } from "@/lib/messages/locationText";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -411,8 +412,8 @@ function buildTemplateVariables({
       rawVariables.invitationTitle || fallbackInvitationTitle
     ),
     eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
-    eventLocation: cleanString(
-      rawVariables.eventLocation || fallbackEventLocation
+    eventLocation: dedupeGuestLocationText(
+      cleanString(rawVariables.eventLocation || fallbackEventLocation)
     ),
   };
 }
@@ -899,8 +900,9 @@ export async function POST(req: NextRequest) {
 
     const fallbackEventDate = eventDateFromForm || eventDateFromEvent;
 
-    const fallbackEventLocation =
-      eventLocationFromForm || eventLocationFromEvent;
+    const fallbackEventLocation = dedupeGuestLocationText(
+      eventLocationFromForm || eventLocationFromEvent
+    );
 
     const templateVariables = buildTemplateVariables({
       messageType,

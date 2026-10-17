@@ -13,6 +13,7 @@ import {
   formatScheduleTime,
 } from "@/lib/formatScheduleDateTime";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { composeGuestLocationLabel } from "@/lib/messages/locationText";
 
 /* ================= TYPES ================= */
 
@@ -482,7 +483,16 @@ export default function MessagesPage() {
     const rawDate = event?.date || "";
     const time = event?.time || "";
 
-    const location = event?.location?.address || event?.location?.name || "";
+    const location = composeGuestLocationLabel(
+      event?.location?.name,
+      event?.location?.placeName,
+      invitation?.location?.name,
+      invitation?.location?.placeName,
+      event?.location?.address,
+      event?.location?.formattedAddress,
+      invitation?.location?.address,
+      invitation?.location?.formattedAddress
+    );
 
     const imageUrl =
       typeof invitation?.previewImage === "string" &&

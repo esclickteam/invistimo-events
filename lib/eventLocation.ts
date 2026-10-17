@@ -1,4 +1,5 @@
 import { parseCoord, type NavLocation } from "@/lib/navigationLinks";
+import { sanitizeStoredLocationText } from "@/lib/messages/locationText";
 import {
   enrichPlaceMetaNearPin,
   resolveMapPinDetailed,
@@ -138,8 +139,28 @@ export async function prepareEventLocation(options: {
   previous?: unknown;
   geocode?: boolean;
 }): Promise<PreparedEventLocation> {
-  let location = toEventLocation(options.input);
-  const previous = options.previous ? toEventLocation(options.previous) : null;
+  const rawLocation = toEventLocation(options.input);
+  const cleanedText = sanitizeStoredLocationText(rawLocation);
+  let location = {
+    ...rawLocation,
+    name: cleanedText.name,
+    address: cleanedText.address,
+    placeName: cleanedText.placeName,
+    formattedAddress: cleanedText.formattedAddress,
+  };
+  const previousRaw = options.previous ? toEventLocation(options.previous) : null;
+  const previousClean = previousRaw
+    ? sanitizeStoredLocationText(previousRaw)
+    : null;
+  const previous = previousRaw
+    ? {
+        ...previousRaw,
+        name: previousClean?.name || "",
+        address: previousClean?.address || "",
+        placeName: previousClean?.placeName || "",
+        formattedAddress: previousClean?.formattedAddress || "",
+      }
+    : null;
   const textChanged = locationTextChanged(location, previous);
 
   if (!hasLocationText(location)) {

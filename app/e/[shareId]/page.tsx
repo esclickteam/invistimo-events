@@ -38,6 +38,10 @@ import {
   resolveAndPersistEventLocation,
 } from "@/lib/persistEventMapPin";
 import { withResolvedMapPin } from "@/lib/resolveMapPin";
+import {
+  addressRemainder,
+  dedupeLocationField,
+} from "@/lib/messages/locationText";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,6 +59,8 @@ type PageProps = {
 type SafeLocation = {
   name?: string;
   address?: string;
+  placeName?: string;
+  formattedAddress?: string;
   lat?: number | string | null;
   lng?: number | string | null;
 };
@@ -495,6 +501,13 @@ export default async function PublicEventInfoPage({
   if (!location.address && navigationSettings.address) {
     location.address = navigationSettings.address;
   }
+  const shownLocationName =
+    dedupeLocationField(location.name) || dedupeLocationField(location.placeName);
+  const shownLocationAddress = addressRemainder(
+    [location.name, location.placeName],
+    location.address,
+    location.formattedAddress
+  );
 
   const navCustom = eventNavCustom(navigationSettings);
   const navTarget = resolveNavTarget(location, navCustom);
@@ -649,16 +662,16 @@ export default async function PublicEventInfoPage({
                   </div>
                 }
               >
-                {location.name && (
+                {shownLocationName && (
                   <p className="mt-3 text-base font-black text-[#3C332B]">
-                    {location.name}
+                    {shownLocationName}
                   </p>
                 )}
 
-                {location.address &&
-                  !isSameText(location.address, location.name) && (
+                {shownLocationAddress &&
+                  !isSameText(shownLocationAddress, shownLocationName) && (
                     <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                      {location.address}
+                      {shownLocationAddress}
                     </p>
                   )}
 

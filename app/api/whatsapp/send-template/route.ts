@@ -23,6 +23,7 @@ import {
   recordRoundDecisions,
   type RoundDecision,
 } from "@/lib/whatsapp/roundDeliveryTracking";
+import { buildEventLocationLabel } from "@/lib/messages/liveEventDetails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -163,18 +164,6 @@ function getRsvpScheduledField(round: RoundNumber) {
   return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
-function cleanAddress(address?: string): string {
-  if (!address) return "";
-
-  return address
-    .replace(/,?\s*ישראל/gi, "")
-    .replace(/\b\d{5,7}\b/g, "")
-    .replace(/,+/g, ",")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .replace(/,$/, "");
-}
-
 function formatEventDateTime(dateString?: string, timeString?: string): string {
   if (!dateString) return "";
 
@@ -278,7 +267,7 @@ function buildPayloadTemplate({
     invitation.eventTime
   );
 
-  const eventLocation = cleanAddress(invitation.location?.address);
+  const eventLocation = buildEventLocationLabel(invitation, invitation?.eventId);
 
   const finalImageUrl = getHighQualityCloudinaryImageUrl(
     invitation.headerImageUrl ||

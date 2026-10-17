@@ -1,3 +1,5 @@
+import { dedupeGuestLocationText } from "@/lib/messages/locationText";
+
 export type SendRsvpTemplateMediaInput = {
   to: string;
 
@@ -89,6 +91,11 @@ function normalizeTemplateText(text: string): string {
 function safeTemplateText(value: unknown, fallback = "—"): string {
   const s = normalizeTemplateText(String(value ?? ""));
   return s.length ? s : fallback;
+}
+
+/** Location body param exactly as it is placed on the Meta template payload. */
+export function whatsappLocationParameter(value: unknown, fallback = "מיקום יישלח בהמשך") {
+  return safeTemplateText(dedupeGuestLocationText(value), fallback);
 }
 
 function isValidHttpsUrl(url: string): boolean {
@@ -222,7 +229,14 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
     if (templateName === EVENT_INVITATION_TEMPLATE) {
       requireBody(input.templateVariables?.invitationTitle || input.eventTitle, 1, "invitationTitle / invitation.title");
       requireBody(input.templateVariables?.eventDate || input.eventDate, 2, "event.date");
-      requireBody(input.templateVariables?.eventLocation || input.eventLocation, 3, "event.location");
+      requireBody(
+        whatsappLocationParameter(
+          input.templateVariables?.eventLocation || input.eventLocation,
+          ""
+        ),
+        3,
+        "event.location"
+      );
       return;
     }
   }
@@ -334,7 +348,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
           },
           {
             type: "text",
-            text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך"),
+            text: whatsappLocationParameter(input.eventLocation),
           },
         ],
       },
@@ -384,8 +398,10 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     const title =
       input.templateVariables?.invitationTitle || input.eventTitle;
     const date = input.templateVariables?.eventDate || input.eventDate;
-    const location =
-      input.templateVariables?.eventLocation || input.eventLocation;
+    const location = whatsappLocationParameter(
+      input.templateVariables?.eventLocation || input.eventLocation,
+      ""
+    );
 
     components = [
       buildHeaderComponent(headerImageUrl),
@@ -402,7 +418,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
           },
           {
             type: "text",
-            text: safeTemplateText(location, "מיקום יישלח בהמשך"),
+            text: whatsappLocationParameter(location),
           },
         ],
       },

@@ -14,6 +14,10 @@ import {
   pickGuestFacingTime,
   pickGuestFacingTitle,
 } from "@/lib/eventDetails/centralEventDetails";
+import {
+  addressRemainder,
+  composeGuestLocationLabel,
+} from "@/lib/messages/locationText";
 
 export const MESSAGE_ROUNDS = [
   { key: "save_the_date", channel: "whatsapp", label: "Save the Date" },
@@ -87,15 +91,24 @@ export function formatEventDateTime(
 
 function pickLocation(source: any) {
   const loc = source?.location;
-  if (!loc) return { name: "", address: "" };
+  if (!loc) {
+    return { name: "", placeName: "", address: "", formattedAddress: "" };
+  }
   if (typeof loc === "string") {
-    return { name: "", address: loc };
+    return {
+      name: "",
+      placeName: "",
+      address: loc,
+      formattedAddress: "",
+    };
   }
   return {
-    name: cleanString(loc.name || loc.placeName || source?.venueHallName),
+    name: cleanString(loc.name),
+    placeName: cleanString(loc.placeName),
     address: cleanString(
-      loc.address || loc.formattedAddress || source?.address || source?.eventLocation
+      loc.address || source?.address || (typeof source?.eventLocation === "string" ? source.eventLocation : "")
     ),
+    formattedAddress: cleanString(loc.formattedAddress),
   };
 }
 
@@ -111,7 +124,7 @@ function pickTime(invitation: any, event: any) {
   return pickGuestFacingTime(event, invitation);
 }
 
-export function buildEventLocationLabel(invitation?: any, event?: any) {
+function locationPieces(invitation?: any, event?: any) {
   const fromInvitation = pickLocation(invitation);
   const fromEvent = pickLocation(event);
   const venueName =
@@ -119,16 +132,19 @@ export function buildEventLocationLabel(invitation?: any, event?: any) {
     cleanString(invitation?.venueHallName) ||
     fromEvent.name ||
     cleanString(event?.venueHallName);
-  const venueAddress = cleanEventAddress(
-    fromInvitation.address || fromEvent.address
-  );
+  const placeNames = [fromInvitation.placeName, fromEvent.placeName];
+  const addresses = [
+    fromInvitation.address,
+    fromEvent.address,
+    fromInvitation.formattedAddress,
+    fromEvent.formattedAddress,
+  ];
+  return { venueName, placeNames, addresses };
+}
 
-  if (venueName && venueAddress) {
-    if (venueAddress.includes(venueName)) return venueAddress;
-    return `${venueName}, ${venueAddress}`;
-  }
-
-  return venueAddress || venueName;
+export function buildEventLocationLabel(invitation?: any, event?: any) {
+  const { venueName, placeNames, addresses } = locationPieces(invitation, event);
+  return composeGuestLocationLabel(venueName, ...placeNames, ...addresses);
 }
 
 export function resolveLiveEventMessageDetails(
@@ -142,15 +158,9 @@ export function resolveLiveEventMessageDetails(
     pickDate(invitation, event),
     eventTime
   );
-  const fromInvitation = pickLocation(invitation);
-  const fromEvent = pickLocation(event);
-  const venueName =
-    fromInvitation.name ||
-    cleanString(invitation?.venueHallName) ||
-    fromEvent.name ||
-    cleanString(event?.venueHallName);
+  const { venueName, placeNames, addresses } = locationPieces(invitation, event);
   const venueAddress = cleanEventAddress(
-    fromInvitation.address || fromEvent.address
+    addressRemainder([venueName, ...placeNames], ...addresses)
   );
   const eventLocation = buildEventLocationLabel(invitation, event);
 
