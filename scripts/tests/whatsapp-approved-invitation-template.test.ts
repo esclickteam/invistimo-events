@@ -11,6 +11,7 @@ import {
   formatWhatsappLocationVariable,
   renderEventInvitationPreview,
   resolveEventInvitationVariables,
+  resolveWhatsappSendTemplateName,
 } from "../../lib/whatsapp/approvedTemplates";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
 
@@ -137,4 +138,80 @@ test("dashboard preview no longer hardcodes a different invitation body", () => 
     assert.doesNotMatch(source, /ההזמנה שלנו כבר כאן/);
     assert.doesNotMatch(source, /פרטים נוספים יישלחו בהמשך/);
   }
+});
+
+test("invitation_only always remaps to event_invitation_image_he", () => {
+  assert.equal(
+    resolveWhatsappSendTemplateName({
+      type: "invitation_only",
+      templateName: "rsvp_invitation_media",
+    }),
+    "event_invitation_image_he"
+  );
+  assert.equal(
+    resolveWhatsappSendTemplateName({
+      type: "rsvp",
+      templateName: "rsvp_invitation_media",
+    }),
+    "rsvp_invitation_media"
+  );
+  assert.equal(
+    resolveWhatsappSendTemplateName({
+      type: "rsvp",
+      templateName: "rsvp_reminder_invistimo",
+    }),
+    "rsvp_reminder_invistimo"
+  );
+});
+
+test("invitation_only payload never keeps an RSVP template name or button", async () => {
+  process.env.WHATSAPP_API_KEY = "test-key";
+  const captured: any[] = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (_url: any, init: any) => {
+    captured.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ messages: [{ id: "wamid.test" }] }), {
+      status: 200,
+    });
+  }) as typeof fetch;
+
+  try {
+    await sendRsvpTemplateMedia({
+      to: "0526850711",
+      messageType: "invitation_only",
+      templateName: "rsvp_invitation_media",
+      headerImageUrl: "https://cdn.example.com/invite.png",
+      eventTitle: "דור ועומר החתונה",
+      eventDate: "11.11.2026",
+      eventLocation: "קאי ריזורט אירועים",
+      templateVariables: {
+        invitationTitle: "דור ועומר החתונה",
+        eventDate: "11.11.2026",
+        eventLocation: "קאי ריזורט אירועים",
+      },
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(captured[0].template.name, "event_invitation_image_he");
+  assert.equal(
+    captured[0].template.components.some((c: any) => c.type === "button"),
+    false
+  );
+});
+
+test("invitation send routes and workers lock the approved template", () => {
+  const files = [
+    "app/api/messages/pre-rsvp/whatsapp/route.ts",
+    "app/api/admin/users/[id]/send-invitation-only/route.ts",
+    "app/api/cron/whatsapp/route.ts",
+    "workers/sendScheduledSms.ts",
+  ].map((file) => readFileSync(join(process.cwd(), file), "utf8"));
+
+  assert.match(files[0], /EVENT_INVITATION_TEMPLATE_NAME/);
+  assert.match(files[1], /EVENT_INVITATION_TEMPLATE_NAME/);
+  assert.match(files[2], /resolveWhatsappSendTemplateName/);
+  assert.match(files[3], /resolveWhatsappSendTemplateName/);
 });

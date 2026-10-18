@@ -140,3 +140,21 @@ export function saveTheDateBodyParameters(vars: SaveTheDateVariables) {
     { type: "text" as const, text: vars.eventDate },
   ];
 }
+
+/**
+ * Invitation-only WhatsApp must always use the approved Meta template.
+ * RSVP rounds, reminders, and thank-you keep their own template names.
+ */
+export function resolveWhatsappSendTemplateName(input: {
+  type?: unknown;
+  templateName?: unknown;
+}) {
+  const type = String(input.type ?? "").trim();
+  const templateName = String(input.templateName ?? "").trim();
+
+  if (type === "invitation_only") {
+    return EVENT_INVITATION_TEMPLATE_NAME;
+  }
+
+  return templateName;
+}
