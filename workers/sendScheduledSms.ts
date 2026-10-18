@@ -68,6 +68,7 @@ import {
   sendRsvpTemplateMedia,
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { resolveWhatsappSendTemplateName } from "@/lib/whatsapp/approvedTemplates";
 import {
   getWhatsappReasonLabel,
   recordRoundDecisions,
@@ -366,10 +367,12 @@ async function sendWhatsappTemplate({
   phone,
   templateName,
   payload,
+  messageType,
 }: {
   phone: string;
   templateName: string;
   payload: any;
+  messageType?: string;
 }) {
   try {
     const { assertExternalSendAllowed } = await import(
@@ -394,6 +397,7 @@ async function sendWhatsappTemplate({
       to: phone,
       ...(payload as Omit<SendRsvpTemplateMediaInput, "to" | "templateName">),
       templateName,
+      messageType,
     });
 
     return {
@@ -1271,7 +1275,10 @@ const personalUrl = buildGuestInviteUrl({
           live
         );
 
-        const templateName = String(msg.templateName || "").trim();
+        const templateName = resolveWhatsappSendTemplateName({
+          type,
+          templateName: msg.templateName,
+        });
 
         if (!templateName) {
           throw new Error("MISSING_WHATSAPP_TEMPLATE_NAME");
@@ -1380,6 +1387,7 @@ const queueDoc = await WhatsappQueue.create({
           phone,
           templateName,
           payload,
+          messageType: type,
         });
 
         await WhatsappQueue.updateOne(

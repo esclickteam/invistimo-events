@@ -18,6 +18,7 @@ import {
   sendRsvpTemplateMedia,
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { resolveWhatsappSendTemplateName } from "@/lib/whatsapp/approvedTemplates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,7 +70,10 @@ function normalizeMaxAttempts(value: any) {
 ====================================================== */
 
 async function sendWhatsappTemplateFromQueue(job: any) {
-  const templateName = String(job.templateName || "").trim();
+  const templateName = resolveWhatsappSendTemplateName({
+    type: job.type,
+    templateName: job.templateName,
+  });
   const phone = String(job.phone || "").replace(/\D/g, "");
   let payload = job.payload || {};
 
@@ -99,6 +103,7 @@ async function sendWhatsappTemplateFromQueue(job: any) {
     to: phone,
     ...(payload as Omit<SendRsvpTemplateMediaInput, "to" | "templateName">),
     templateName,
+    messageType: job.type,
   });
 
   return {

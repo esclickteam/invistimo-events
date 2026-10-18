@@ -5,6 +5,7 @@ import {
   eventInvitationBodyParameters,
   resolveEventInvitationVariables,
   resolveSaveTheDateVariables,
+  resolveWhatsappSendTemplateName,
   saveTheDateBodyParameters,
 } from "@/lib/whatsapp/approvedTemplates";
 
@@ -35,6 +36,8 @@ export type SendRsvpTemplateMediaInput = {
   headerImageUrl: string;
 
   templateName?: string;
+  /** Queue / schedule type. invitation_only is always remapped to the approved invitation template. */
+  messageType?: string;
   languageCode?: "he" | "he_IL" | string;
 
   /**
@@ -204,6 +207,15 @@ function resolveButtonSuffix(input: SendRsvpTemplateMediaInput, templateName: st
   });
 }
 
+function resolveSendTemplateName(input: SendRsvpTemplateMediaInput) {
+  return (
+    resolveWhatsappSendTemplateName({
+      type: input.messageType,
+      templateName: input.templateName,
+    }) || DEFAULT_TEMPLATE_NAME
+  );
+}
+
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) {
     throw new Error("Missing field: to");
@@ -213,7 +225,7 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
     throw new Error("Missing field: headerImageUrl");
   }
 
-  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
+  const templateName = resolveSendTemplateName(input);
 
   const requireBody = (value: unknown, index: number, source: string) => {
     if (isNonEmptyString(value)) return;
@@ -321,7 +333,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error("Invalid headerImageUrl (must be https)");
   }
 
-  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
+  const templateName = resolveSendTemplateName(input);
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
   const customComponents = Array.isArray(input.components)
