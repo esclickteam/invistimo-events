@@ -270,7 +270,7 @@ test("scheduled WhatsApp jobs for every template send live details after the eve
     });
     await sendRsvpTemplateMedia({
       to: "0526850711",
-      templateName: "event_invitation_image_he",
+      templateName: "event_invitation",
       ...(payload as any),
     });
 
@@ -289,6 +289,7 @@ test("scheduled WhatsApp jobs for every template send live details after the eve
     assert.doesNotMatch(String(std[1]), /21:30/);
     assert.match(String(std[1]), /\d{2}\.\d{2}\.2026/);
 
+    assert.equal(calls[3].body.template.name, "event_invitation");
     const invite = bodyParams(calls[3]);
     assert.equal(invite[0], "חתונת חדש");
     assert.doesNotMatch(String(invite[1]), /21:30/);

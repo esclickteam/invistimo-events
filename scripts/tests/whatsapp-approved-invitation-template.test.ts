@@ -15,28 +15,22 @@ import {
 } from "../../lib/whatsapp/approvedTemplates";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
 
-const APPROVED_BODY = `ההזמנה שלנו כבר כאן 🤍
+const APPROVED_BODY = `משפחה וחברים יקרים,
+שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}} 🤍
 
-נשמח להזמין אתכם לאירוע:
-{{1}}
+📅 בתאריך: {{2}}
+📍 במיקום: {{3}}
 
-בתאריך:
-{{2}}
-
-מיקום האירוע:
-{{3}}
-
-פרטים נוספים יישלחו בקרוב 🤍`;
+נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂`;
 
 test("approved invitation body matches the live Meta template exactly", () => {
   assert.equal(EVENT_INVITATION_BODY, APPROVED_BODY);
-  assert.equal(EVENT_INVITATION_TEMPLATE_NAME, "event_invitation_image_he");
+  assert.equal(EVENT_INVITATION_TEMPLATE_NAME, "event_invitation");
   assert.match(EVENT_INVITATION_BODY, /\{\{1\}\}/);
   assert.match(EVENT_INVITATION_BODY, /\{\{2\}\}/);
   assert.match(EVENT_INVITATION_BODY, /\{\{3\}\}/);
-  assert.match(EVENT_INVITATION_BODY, /ההזמנה שלנו כבר כאן/);
-  assert.match(EVENT_INVITATION_BODY, /פרטים נוספים יישלחו בקרוב/);
-  assert.doesNotMatch(EVENT_INVITATION_BODY, /שמחים ונרגשים להזמינכם לחגוג/);
+  assert.match(EVENT_INVITATION_BODY, /משפחה וחברים יקרים/);
+  assert.doesNotMatch(EVENT_INVITATION_BODY, /ההזמנה שלנו כבר כאן/);
 });
 
 test("preview substitutes Meta variables without adding extra sentences", () => {
@@ -55,18 +49,13 @@ test("preview substitutes Meta variables without adding extra sentences", () => 
   const preview = renderEventInvitationPreview(vars);
   assert.equal(
     preview,
-    `ההזמנה שלנו כבר כאן 🤍
+    `משפחה וחברים יקרים,
+שמחים ונרגשים להזמינכם לחגוג איתנו את החתונה של בן והדר 🤍
 
-נשמח להזמין אתכם לאירוע:
-החתונה של בן והדר
+📅 בתאריך: 25.11.2026
+📍 במיקום: קאי ריזורט אירועים
 
-בתאריך:
-25.11.2026
-
-מיקום האירוע:
-קאי ריזורט אירועים
-
-פרטים נוספים יישלחו בקרוב 🤍`
+נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂`
   );
 });
 
@@ -78,7 +67,7 @@ test("location variable drops bilingual duplicates", () => {
   assert.equal(formatWhatsappDateVariable("11.11.2026 19:30"), "11.11.2026");
 });
 
-test("send payload for event_invitation_image_he matches preview variables", async () => {
+test("send payload for event_invitation matches preview variables", async () => {
   process.env.WHATSAPP_API_KEY = "test-key";
 
   const vars = resolveEventInvitationVariables({
@@ -119,8 +108,13 @@ test("send payload for event_invitation_image_he matches preview variables", asy
   assert.equal(captured.length, 1);
   const payload = captured[0];
   assert.equal(payload.type, "template");
-  assert.equal(payload.template.name, "event_invitation_image_he");
+  assert.equal(payload.template.name, "event_invitation");
+  assert.doesNotMatch(JSON.stringify(payload), /\{\{1\}\}|\{\{2\}\}|\{\{3\}\}/);
   assert.equal(payload.template.language.code, "he");
+
+  const header = payload.template.components.find((c: any) => c.type === "header");
+  assert.equal(header?.parameters?.[0]?.type, "image");
+  assert.equal(header?.parameters?.[0]?.image?.link, "https://cdn.example.com/invite.png");
 
   const body = payload.template.components.find((c: any) => c.type === "body");
   const texts = (body?.parameters || []).map((p: any) => p.text);
@@ -155,13 +149,26 @@ test("dashboard preview no longer hardcodes a different invitation body", () => 
   }
 });
 
-test("invitation_only always remaps to event_invitation_image_he", () => {
+test("invitation_only always remaps to event_invitation", () => {
   assert.equal(
     resolveWhatsappSendTemplateName({
       type: "invitation_only",
       templateName: "rsvp_invitation_media",
     }),
-    "event_invitation_image_he"
+    "event_invitation"
+  );
+  assert.equal(
+    resolveWhatsappSendTemplateName({
+      type: "invitation_only",
+      templateName: "event_invitation_image_he",
+    }),
+    "event_invitation"
+  );
+  assert.equal(
+    resolveWhatsappSendTemplateName({
+      templateName: "event_invitation_image_he",
+    }),
+    "event_invitation"
   );
   assert.equal(
     resolveWhatsappSendTemplateName({
@@ -210,7 +217,7 @@ test("invitation_only payload never keeps an RSVP template name or button", asyn
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(captured[0].template.name, "event_invitation_image_he");
+  assert.equal(captured[0].template.name, "event_invitation");
   assert.equal(
     captured[0].template.components.some((c: any) => c.type === "button"),
     false
@@ -229,4 +236,5 @@ test("invitation send routes and workers lock the approved template", () => {
   assert.match(files[1], /EVENT_INVITATION_TEMPLATE_NAME/);
   assert.match(files[2], /resolveWhatsappSendTemplateName/);
   assert.match(files[3], /resolveWhatsappSendTemplateName/);
+  assert.doesNotMatch(files[0], /return "event_invitation_image_he"/);
 });
