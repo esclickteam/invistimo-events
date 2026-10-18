@@ -44,7 +44,7 @@ export type SendRsvpTemplateMediaInput = {
    * תמיכה בתבניות WhatsApp כלליות.
    * לדוגמה:
    * save_the_date_image_he
-   * event_invitation_image_he
+   * event_invitation
    */
   templateVariables?: {
     saveTheDateTitle?: string;
@@ -131,7 +131,8 @@ function normalizePhoneIL(phone: string): string {
 function isPreRsvpTemplate(templateName: string) {
   return (
     templateName === SAVE_THE_DATE_TEMPLATE ||
-    templateName === EVENT_INVITATION_TEMPLATE
+    templateName === EVENT_INVITATION_TEMPLATE ||
+    templateName === "event_invitation_image_he"
   );
 }
 

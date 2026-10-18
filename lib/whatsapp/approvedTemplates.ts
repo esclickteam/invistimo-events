@@ -9,28 +9,25 @@
 import { locationNameVariants } from "@/lib/messages/locationText";
 
 export const SAVE_THE_DATE_TEMPLATE_NAME = "save_the_date_image_he";
-export const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation_image_he";
+export const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation";
+export const LEGACY_EVENT_INVITATION_TEMPLATE_NAME =
+  "event_invitation_image_he";
 
 /**
- * Live approved body of `event_invitation_image_he` (language: he),
+ * Live approved body of `event_invitation` (language: he),
  * fetched from the production 360dialog WABA on 2026-10-18.
  * WhatsApp renders THIS text. Local preview must not invent a newer body.
  *
  * {{1}} event title, {{2}} date DD.MM.YYYY, {{3}} hall display name.
  */
 export const EVENT_INVITATION_BODY = [
-  "ההזמנה שלנו כבר כאן 🤍",
+  "משפחה וחברים יקרים,",
+  "שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}} 🤍",
   "",
-  "נשמח להזמין אתכם לאירוע:",
-  "{{1}}",
+  "📅 בתאריך: {{2}}",
+  "📍 במיקום: {{3}}",
   "",
-  "בתאריך:",
-  "{{2}}",
-  "",
-  "מיקום האירוע:",
-  "{{3}}",
-  "",
-  "פרטים נוספים יישלחו בקרוב 🤍",
+  "נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂",
 ].join("\n");
 
 export type EventInvitationVariables = {
@@ -161,6 +158,13 @@ export function resolveWhatsappSendTemplateName(input: {
   const templateName = String(input.templateName ?? "").trim();
 
   if (type === "invitation_only") {
+    return EVENT_INVITATION_TEMPLATE_NAME;
+  }
+
+  if (
+    templateName === EVENT_INVITATION_TEMPLATE_NAME ||
+    templateName === LEGACY_EVENT_INVITATION_TEMPLATE_NAME
+  ) {
     return EVENT_INVITATION_TEMPLATE_NAME;
   }
 

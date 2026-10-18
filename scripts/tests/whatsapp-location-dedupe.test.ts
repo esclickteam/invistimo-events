@@ -14,6 +14,7 @@ import {
   sendRsvpTemplateMedia,
   whatsappLocationParameter,
 } from "../../lib/whatsapp/sendRsvpTemplateMedia";
+import { resolveEventInvitationVariables } from "../../lib/whatsapp/approvedTemplates";
 
 const KAHI = "קאי ריזורט | Kahi Events Resort";
 const DIRTY =
@@ -204,11 +205,13 @@ test("Meta payload for invitation, RSVP rounds and a dirty form value sends the 
   const rsvpButton = rsvp.template.components.find((c: any) => c.type === "button");
   assert.equal(rsvpButton.parameters[0].text, "SHARE1?token=tok");
 
-  assert.equal(calls[1].body.template.name, "event_invitation_image_he");
+  assert.equal(calls[1].body.template.name, "event_invitation");
   assert.deepEqual(bodyTexts(calls[1]), [
     "החתונה של נועה ודני",
     "17.10.2026",
-    `${KAHI}, אירועים`,
+    whatsappLocationParameter(
+      resolveEventInvitationVariables({ eventLocation: DIRTY }).eventLocation
+    ),
   ]);
 
   assert.equal(calls[2].body.template.name, "rsvp_reminder_invistimo");
