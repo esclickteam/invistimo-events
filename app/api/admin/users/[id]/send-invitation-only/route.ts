@@ -15,7 +15,7 @@ import {
 import {
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
-  buildInvitationLocationLabel,
+  buildInvitationHallDisplayName,
 } from "@/lib/messages/invitationOnlyDetails";
 import {
   findGuestIdsWithInvitationDeliveryStatus,
@@ -24,11 +24,16 @@ import {
 } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
+import {
+  EVENT_INVITATION_TEMPLATE_NAME,
+  eventInvitationBodyParameters,
+  renderEventInvitationPreview,
+  resolveEventInvitationVariables,
+} from "@/lib/whatsapp/approvedTemplates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation_image_he";
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -128,7 +133,7 @@ export async function POST(
 
     const invitation: any = await Invitation.findOne(invitationQuery)
       .select(
-        "_id ownerId title eventDate eventTime location preRsvpMedia headerImageUrl previewImageUrl imageUrl canvasImageUrl previewImage"
+        "_id ownerId title eventDate eventTime location venueHallName preRsvpMedia headerImageUrl previewImageUrl imageUrl canvasImageUrl previewImage"
       )
       .sort({ updatedAt: -1 })
       .lean();
@@ -152,23 +157,20 @@ export async function POST(
       );
     }
 
-    const eventDate = formatEventDate(invitation.eventDate);
-    const eventLocation = buildInvitationLocationLabel(invitation);
-    const invitationTitle =
-      cleanString(invitation.title) || "האירוע שלנו";
+    const templateVariables = resolveEventInvitationVariables({
+      invitationTitle: cleanString(invitation.title) || "האירוע שלנו",
+      eventDate: formatEventDate(invitation.eventDate),
+      eventLocation: buildInvitationHallDisplayName(invitation),
+    });
 
-    if (!eventDate || !eventLocation) {
+    if (!templateVariables.eventDate || !templateVariables.eventLocation) {
       return NextResponse.json(
         { success: false, error: "MISSING_EVENT_DETAILS" },
         { status: 400 }
       );
     }
 
-    const templateVariables = {
-      invitationTitle,
-      eventDate,
-      eventLocation,
-    };
+    const { invitationTitle, eventDate, eventLocation } = templateVariables;
 
     const whatsappPayload = {
       languageCode: "he",
@@ -178,6 +180,7 @@ export async function POST(
       eventDate,
       eventLocation,
       templateVariables,
+      previewMessage: renderEventInvitationPreview(templateVariables),
       components: [
         {
           type: "header",
@@ -190,11 +193,7 @@ export async function POST(
         },
         {
           type: "body",
-          parameters: [
-            { type: "text", text: invitationTitle },
-            { type: "text", text: eventDate },
-            { type: "text", text: eventLocation },
-          ],
+          parameters: eventInvitationBodyParameters(templateVariables),
         },
       ],
     };

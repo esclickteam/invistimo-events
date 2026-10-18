@@ -15,14 +15,22 @@ import {
   type RoundDecision,
 } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
-  buildInvitationLocationLabel,
+  buildInvitationHallDisplayName,
   invitationOnlyFilterAllowsResend,
   parseInvitationOnlyAudienceFilter,
   resolveInvitationImageUrl,
 } from "@/lib/messages/invitationOnlyDetails";
 import { resolveInvitationOnlyAudienceGuests } from "@/lib/messages/invitationOnlySendHistory";
 import { formatEventDate } from "@/lib/messages/liveEventDetails";
-import { dedupeGuestLocationText } from "@/lib/messages/locationText";
+import {
+  EVENT_INVITATION_TEMPLATE_NAME,
+  SAVE_THE_DATE_TEMPLATE_NAME,
+  eventInvitationBodyParameters,
+  renderEventInvitationPreview,
+  resolveEventInvitationVariables,
+  resolveSaveTheDateVariables,
+  saveTheDateBodyParameters,
+} from "@/lib/whatsapp/approvedTemplates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,9 +48,6 @@ type TemplateVariables = {
 };
 
 /* ================= CONFIG ================= */
-
-const SAVE_THE_DATE_TEMPLATE_NAME = "save_the_date_image_he";
-const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation_image_he";
 
 const BLOCKED_RSVP_TEMPLATE_NAMES = new Set([
   "rsvp_invitation_media",
@@ -165,8 +170,7 @@ function parseJsonObject(value: unknown): Record<string, any> {
 }
 
 function buildEventLocationFromInvitation(invitation: any) {
-  // Match RSVP live-details location label (no duplicated venue name).
-  return buildInvitationLocationLabel(invitation);
+  return buildInvitationHallDisplayName(invitation);
 }
 
 function getGuestPhone(guest: any) {
@@ -399,23 +403,19 @@ function buildTemplateVariables({
   fallbackEventLocation: string;
 }): TemplateVariables {
   if (messageType === "save_the_date") {
-    return {
-      saveTheDateTitle: cleanString(
-        rawVariables.saveTheDateTitle || fallbackSaveTheDateTitle
-      ),
-      eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
-    };
+    return resolveSaveTheDateVariables({
+      saveTheDateTitle:
+        rawVariables.saveTheDateTitle || fallbackSaveTheDateTitle,
+      eventDate: rawVariables.eventDate || fallbackEventDate,
+    });
   }
 
-  return {
-    invitationTitle: cleanString(
-      rawVariables.invitationTitle || fallbackInvitationTitle
-    ),
-    eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
-    eventLocation: dedupeGuestLocationText(
-      cleanString(rawVariables.eventLocation || fallbackEventLocation)
-    ),
-  };
+  return resolveEventInvitationVariables({
+    invitationTitle:
+      rawVariables.invitationTitle || fallbackInvitationTitle,
+    eventDate: rawVariables.eventDate || fallbackEventDate,
+    eventLocation: rawVariables.eventLocation || fallbackEventLocation,
+  });
 }
 
 function validateTemplateVariables({
@@ -469,30 +469,24 @@ function buildWhatsappTemplatePayload({
 }) {
   const bodyParameters =
     messageType === "save_the_date"
-      ? [
-          {
-            type: "text",
-            text: cleanString(templateVariables.saveTheDateTitle),
-          },
-          {
-            type: "text",
-            text: cleanString(templateVariables.eventDate),
-          },
-        ]
-      : [
-          {
-            type: "text",
-            text: cleanString(templateVariables.invitationTitle),
-          },
-          {
-            type: "text",
-            text: cleanString(templateVariables.eventDate),
-          },
-          {
-            type: "text",
-            text: cleanString(templateVariables.eventLocation),
-          },
-        ];
+      ? saveTheDateBodyParameters({
+          saveTheDateTitle: cleanString(templateVariables.saveTheDateTitle),
+          eventDate: cleanString(templateVariables.eventDate),
+        })
+      : eventInvitationBodyParameters({
+          invitationTitle: cleanString(templateVariables.invitationTitle),
+          eventDate: cleanString(templateVariables.eventDate),
+          eventLocation: cleanString(templateVariables.eventLocation),
+        });
+
+  const approvedPreview =
+    messageType === "invitation_only"
+      ? renderEventInvitationPreview({
+          invitationTitle: cleanString(templateVariables.invitationTitle),
+          eventDate: cleanString(templateVariables.eventDate),
+          eventLocation: cleanString(templateVariables.eventLocation),
+        })
+      : previewMessage;
 
   return {
     languageCode: "he",
@@ -505,7 +499,7 @@ function buildWhatsappTemplatePayload({
       templateVariables.invitationTitle || templateVariables.saveTheDateTitle
     ),
     templateVariables,
-    previewMessage,
+    previewMessage: approvedPreview,
     templateMessage,
     components: [
       {
@@ -823,7 +817,7 @@ export async function POST(req: NextRequest) {
       _id: toObjectId(invitationId),
     })
       .select(
-        "_id ownerId title eventDate eventTime location preRsvpMedia headerImageUrl previewImageUrl imageUrl canvasImageUrl previewImage"
+        "_id ownerId title eventDate eventTime location venueHallName preRsvpMedia headerImageUrl previewImageUrl imageUrl canvasImageUrl previewImage"
       )
       .lean();
 
@@ -900,9 +894,8 @@ export async function POST(req: NextRequest) {
 
     const fallbackEventDate = eventDateFromForm || eventDateFromEvent;
 
-    const fallbackEventLocation = dedupeGuestLocationText(
-      eventLocationFromForm || eventLocationFromEvent
-    );
+    const fallbackEventLocation =
+      eventLocationFromForm || eventLocationFromEvent;
 
     const templateVariables = buildTemplateVariables({
       messageType,

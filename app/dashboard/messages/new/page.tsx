@@ -9,9 +9,17 @@ import {
   ScheduleTimeField,
 } from "./shared/ScheduleDateTimeFields";
 import {
+  buildInvitationHallDisplayName,
   buildInvitationLocationLabel,
   type InvitationOnlyAudienceFilter,
 } from "@/lib/messages/invitationOnlyDetails";
+import {
+  EVENT_INVITATION_TEMPLATE_NAME,
+  SAVE_THE_DATE_TEMPLATE_NAME,
+  renderEventInvitationPreview,
+  resolveEventInvitationVariables,
+  resolveSaveTheDateVariables,
+} from "@/lib/whatsapp/approvedTemplates";
 
 /* ================= TYPES ================= */
 
@@ -51,6 +59,7 @@ type MessageMeta = {
   invitationTitle: string;
   eventDate: string;
   eventLocation: string;
+  eventHallName: string;
   eventType?: string;
   giftCreditUrl?: string;
   headerImageUrl?: string;
@@ -65,6 +74,7 @@ const EMPTY_META: MessageMeta = {
   invitationTitle: "",
   eventDate: "",
   eventLocation: "",
+  eventHallName: "",
   eventType: "",
   giftCreditUrl: "",
   headerImageUrl: "",
@@ -88,19 +98,6 @@ const DEFAULT_SAVE_THE_DATE_MESSAGE = `Save The Date
 
 פרטים נוספים יישלחו בקרוב 🤍`;
 
-const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן 🤍
-
-אנחנו מתרגשים להזמין אתכם לקחת חלק באירוע שלנו:
-{שם האירוע}
-
-נשמח לראותכם בתאריך:
-{תאריך אירוע}
-
-במיקום:
-{מיקום האירוע}
-
-פרטים נוספים יישלחו בהמשך.
-מחכים לחגוג איתכם ✨`;
 
 /* ================= HELPERS ================= */
 
@@ -176,10 +173,12 @@ function buildEventLocationText(invitation: any, event: any): string {
   return buildInvitationLocationLabel(invitation, event);
 }
 
+function buildEventHallText(invitation: any, event: any): string {
+  return buildInvitationHallDisplayName(invitation, event);
+}
+
 function getCurrentTemplate(type: PreRsvpType) {
-  return type === "save_the_date"
-    ? DEFAULT_SAVE_THE_DATE_MESSAGE
-    : DEFAULT_INVITATION_ONLY_MESSAGE;
+  return type === "save_the_date" ? DEFAULT_SAVE_THE_DATE_MESSAGE : "";
 }
 
 function replaceMessageVariables({
@@ -370,6 +369,7 @@ setPreRsvpMessages(loadedPreRsvpMessages);
             invitationTitle: invitation.title || "",
             eventDate: formatEventDate(invitation.eventDate || event?.date),
             eventLocation: buildEventLocationText(invitation, event),
+            eventHallName: buildEventHallText(invitation, event),
             eventType: invitation.eventType || event?.eventType || "",
             giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
             headerImageUrl,
@@ -785,12 +785,22 @@ function PreRsvpTab({
   const displayImage = currentImage || currentSavedImageUrl;
 
   const previewMessage = useMemo(() => {
+    if (activePreTab === "invitation_only") {
+      return renderEventInvitationPreview(
+        resolveEventInvitationVariables({
+          invitationTitle: meta.invitationTitle,
+          eventDate: meta.eventDate,
+          eventLocation: meta.eventHallName || meta.eventLocation,
+        })
+      );
+    }
+
     return replaceMessageVariables({
       message: currentMessage,
       saveTheDateTitle,
       meta,
     });
-  }, [currentMessage, saveTheDateTitle, meta]);
+  }, [activePreTab, currentMessage, saveTheDateTitle, meta]);
 
   useEffect(() => {
     setSavedSaveTheDateImageUrl(
@@ -987,7 +997,9 @@ function PreRsvpTab({
       const cleanSaveTheDateTitle = cleanString(saveTheDateTitle);
       const cleanEventTitle = cleanString(meta.invitationTitle);
       const cleanEventDate = cleanString(meta.eventDate);
-      const cleanEventLocation = cleanString(meta.eventLocation);
+      const cleanEventLocation = cleanString(
+        meta.eventHallName || meta.eventLocation
+      );
       const audienceFilter: InvitationOnlyAudienceFilter = isSaveTheDate
         ? "all"
         : invitationAudience;
@@ -1034,19 +1046,19 @@ function PreRsvpTab({
       }
 
       const templateName = isSaveTheDate
-        ? "save_the_date_image_he"
-        : "event_invitation_image_he";
+        ? SAVE_THE_DATE_TEMPLATE_NAME
+        : EVENT_INVITATION_TEMPLATE_NAME;
 
       const templateVariables = isSaveTheDate
-        ? {
+        ? resolveSaveTheDateVariables({
             saveTheDateTitle: cleanSaveTheDateTitle,
             eventDate: cleanEventDate,
-          }
-        : {
+          })
+        : resolveEventInvitationVariables({
             invitationTitle: cleanEventTitle,
             eventDate: cleanEventDate,
             eventLocation: cleanEventLocation,
-          };
+          });
 
       if (!currentImageFile && !currentSavedImageUrl) {
         alert(

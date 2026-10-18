@@ -1,4 +1,12 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
+import {
+  EVENT_INVITATION_TEMPLATE_NAME,
+  SAVE_THE_DATE_TEMPLATE_NAME,
+  eventInvitationBodyParameters,
+  resolveEventInvitationVariables,
+  resolveSaveTheDateVariables,
+  saveTheDateBodyParameters,
+} from "@/lib/whatsapp/approvedTemplates";
 
 export type SendRsvpTemplateMediaInput = {
   to: string;
@@ -64,8 +72,8 @@ const ROUND2_TEMPLATE = "rsvp_reminder_invistimo";
  */
 const ROUND3_TEMPLATE = "rsvp_reminder_invistimo";
 
-const SAVE_THE_DATE_TEMPLATE = "save_the_date_image_he";
-const EVENT_INVITATION_TEMPLATE = "event_invitation_image_he";
+const SAVE_THE_DATE_TEMPLATE = SAVE_THE_DATE_TEMPLATE_NAME;
+const EVENT_INVITATION_TEMPLATE = EVENT_INVITATION_TEMPLATE_NAME;
 
 const DEFAULT_TEMPLATE_NAME = ROUND1_TEMPLATE;
 const DEFAULT_LANGUAGE_CODE = "he";
@@ -374,53 +382,43 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
       buildUrlButtonComponent(buttonUrlParam),
     ];
   } else if (templateName === SAVE_THE_DATE_TEMPLATE) {
-    const title =
-      input.templateVariables?.saveTheDateTitle || input.eventTitle;
-    const date = input.templateVariables?.eventDate || input.eventDate;
+    const vars = resolveSaveTheDateVariables({
+      saveTheDateTitle:
+        input.templateVariables?.saveTheDateTitle || input.eventTitle,
+      eventDate: input.templateVariables?.eventDate || input.eventDate,
+    });
 
     components = [
       buildHeaderComponent(headerImageUrl),
       {
         type: "body",
-        parameters: [
-          {
-            type: "text",
-            text: safeTemplateText(title, "—"),
-          },
-          {
-            type: "text",
-            text: safeTemplateText(date, "תאריך יעודכן בהמשך"),
-          },
-        ],
+        parameters: saveTheDateBodyParameters({
+          saveTheDateTitle: safeTemplateText(vars.saveTheDateTitle, "—"),
+          eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
+        }),
       },
     ];
   } else if (templateName === EVENT_INVITATION_TEMPLATE) {
-    const title =
-      input.templateVariables?.invitationTitle || input.eventTitle;
-    const date = input.templateVariables?.eventDate || input.eventDate;
-    const location = whatsappLocationParameter(
-      input.templateVariables?.eventLocation || input.eventLocation,
-      ""
-    );
+    const vars = resolveEventInvitationVariables({
+      invitationTitle:
+        input.templateVariables?.invitationTitle || input.eventTitle,
+      eventDate: input.templateVariables?.eventDate || input.eventDate,
+      eventLocation:
+        input.templateVariables?.eventLocation || input.eventLocation,
+    });
 
     components = [
       buildHeaderComponent(headerImageUrl),
       {
         type: "body",
-        parameters: [
-          {
-            type: "text",
-            text: safeTemplateText(title, "—"),
-          },
-          {
-            type: "text",
-            text: safeTemplateText(date, "תאריך יעודכן בהמשך"),
-          },
-          {
-            type: "text",
-            text: whatsappLocationParameter(location),
-          },
-        ],
+        parameters: eventInvitationBodyParameters({
+          invitationTitle: safeTemplateText(vars.invitationTitle, "—"),
+          eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
+          eventLocation: whatsappLocationParameter(
+            vars.eventLocation,
+            "מיקום יישלח בהמשך"
+          ),
+        }),
       },
     ];
   } else if (customComponents && customComponents.length > 0) {

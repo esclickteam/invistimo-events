@@ -286,12 +286,14 @@ test("scheduled WhatsApp jobs for every template send live details after the eve
 
     const std = bodyParams(calls[2]);
     assert.equal(std[0], "חתונת חדש");
-    assert.match(String(std[1]), /21:30/);
+    assert.doesNotMatch(String(std[1]), /21:30/);
+    assert.match(String(std[1]), /\d{2}\.\d{2}\.2026/);
 
     const invite = bodyParams(calls[3]);
     assert.equal(invite[0], "חתונת חדש");
-    assert.match(String(invite[1]), /21:30/);
-    assert.match(String(invite[2]), /אולם חדש/);
+    assert.doesNotMatch(String(invite[1]), /21:30/);
+    assert.match(String(invite[1]), /\d{2}\.\d{2}\.2026/);
+    assert.equal(invite[2], "אולם חדש");
   });
 });
 

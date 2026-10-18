@@ -142,6 +142,11 @@ function locationPieces(invitation?: any, event?: any) {
   return { venueName, placeNames, addresses };
 }
 
+/** Hall / venue name as shown on the invitation — no street address. */
+export function buildEventHallDisplayName(invitation?: any, event?: any) {
+  return locationPieces(invitation, event).venueName;
+}
+
 export function buildEventLocationLabel(invitation?: any, event?: any) {
   const { venueName, placeNames, addresses } = locationPieces(invitation, event);
   return composeGuestLocationLabel(venueName, ...placeNames, ...addresses);
@@ -315,8 +320,8 @@ export function overlayLiveEventDetailsOnWhatsappPayload(
     ...(current.templateVariables || {}),
   };
   templateVariables.invitationTitle = live.eventTitle;
-  templateVariables.eventDate = live.eventDateTime || live.eventDate;
-  templateVariables.eventLocation = live.eventLocation;
+  templateVariables.eventDate = live.eventDate;
+  templateVariables.eventLocation = live.venueName || live.eventLocation;
   if (
     !prevSaveTheDate ||
     prevSaveTheDate === prevTitle ||

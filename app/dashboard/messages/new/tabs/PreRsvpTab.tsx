@@ -5,6 +5,13 @@ import {
   ScheduleDateField,
   ScheduleTimeField,
 } from "../shared/ScheduleDateTimeFields";
+import {
+  EVENT_INVITATION_TEMPLATE_NAME,
+  SAVE_THE_DATE_TEMPLATE_NAME,
+  renderEventInvitationPreview,
+  resolveEventInvitationVariables,
+  resolveSaveTheDateVariables,
+} from "@/lib/whatsapp/approvedTemplates";
 
 /* ================= TYPES ================= */
 
@@ -62,19 +69,6 @@ const DEFAULT_SAVE_THE_DATE_MESSAGE = `Save The Date
 
 פרטים נוספים יישלחו בקרוב 🤍`;
 
-const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן 🤍
-
-אנחנו מתרגשים להזמין אתכם לקחת חלק באירוע שלנו:
-{שם האירוע}
-
-נשמח לראותכם בתאריך:
-{תאריך אירוע}
-
-במיקום:
-{מיקום האירוע}
-
-פרטים נוספים יישלחו בהמשך.
-מחכים לחגוג איתכם ✨`;
 
 /* ================= HELPERS ================= */
 
@@ -165,9 +159,7 @@ function createImagePreview(file: File | null) {
 }
 
 function getCurrentTemplate(mode: PreRsvpType) {
-  return mode === "save_the_date"
-    ? DEFAULT_SAVE_THE_DATE_MESSAGE
-    : DEFAULT_INVITATION_ONLY_MESSAGE;
+  return mode === "save_the_date" ? DEFAULT_SAVE_THE_DATE_MESSAGE : "";
 }
 
 function getModeTitle(mode: PreRsvpType) {
@@ -401,6 +393,16 @@ export default function PreRsvpTab({
   const displayImage = currentImage || currentSavedImageUrl;
 
   const previewMessage = useMemo(() => {
+    if (activeMode === "invitation_only") {
+      return renderEventInvitationPreview(
+        resolveEventInvitationVariables({
+          invitationTitle,
+          eventDate,
+          eventLocation,
+        })
+      );
+    }
+
     return replaceMessageVariables({
       message: currentTemplate,
       saveTheDateTitle,
@@ -409,6 +411,7 @@ export default function PreRsvpTab({
       eventLocation,
     });
   }, [
+    activeMode,
     currentTemplate,
     saveTheDateTitle,
     invitationTitle,
@@ -651,19 +654,19 @@ export default function PreRsvpTab({
       }
 
       const templateName = isSaveTheDate
-        ? "save_the_date_image_he"
-        : "event_invitation_image_he";
+        ? SAVE_THE_DATE_TEMPLATE_NAME
+        : EVENT_INVITATION_TEMPLATE_NAME;
 
       const templateVariables = isSaveTheDate
-        ? {
+        ? resolveSaveTheDateVariables({
             saveTheDateTitle: cleanSaveTheDateTitle,
             eventDate: cleanEventDate,
-          }
-        : {
+          })
+        : resolveEventInvitationVariables({
             invitationTitle: cleanInvitationTitle,
             eventDate: cleanEventDate,
             eventLocation: cleanEventLocation,
-          };
+          });
 
       const formData = new FormData();
 
