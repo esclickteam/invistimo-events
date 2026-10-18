@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  buildInvitationHallDisplayName,
   buildInvitationLocationLabel,
   filterGuestsByInvitationAudience,
   parseInvitationOnlyAudienceFilter,
@@ -25,6 +26,22 @@ test("invitation location matches RSVP live-details (no duplicated venue name)",
   assert.equal(inviteLabel, rsvpLabel);
   assert.equal(inviteLabel, "קאלה אירועים, דרך יוליוס סימון, חיפה");
   assert.doesNotMatch(inviteLabel, /קאלה אירועים, קאלה אירועים/);
+});
+
+test("invitation WhatsApp {{3}} uses hall display name without street address", () => {
+  const invitation = {
+    venueHallName: "קאי ריזורט אירועים",
+    location: {
+      name: "Kahi Events Resort | קאי ריזורט אירועים",
+      address: "קאי ריזורט אירועים, אילת, ישראל",
+    },
+  };
+
+  assert.equal(
+    buildInvitationHallDisplayName(invitation),
+    "Kahi Events Resort | קאי ריזורט אירועים"
+  );
+  assert.doesNotMatch(buildInvitationHallDisplayName(invitation), /אילת/);
 });
 
 test("never_invited audience excludes guests with prior invitation attempts", () => {

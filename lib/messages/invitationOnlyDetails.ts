@@ -11,7 +11,10 @@
  * Send-history queries live in a separate server-only module.
  */
 
-import { buildEventLocationLabel } from "@/lib/messages/liveEventDetails";
+import {
+  buildEventHallDisplayName,
+  buildEventLocationLabel,
+} from "@/lib/messages/liveEventDetails";
 
 export type InvitationOnlyAudienceFilter =
   | "all"
@@ -26,6 +29,14 @@ function cleanString(value: unknown) {
 /** Same location label RSVP live-details sends to Meta. */
 export function buildInvitationLocationLabel(invitation?: any, event?: any) {
   return buildEventLocationLabel(invitation, event);
+}
+
+/** Hall name for WhatsApp invitation {{3}} — not the street address. */
+export function buildInvitationHallDisplayName(invitation?: any, event?: any) {
+  return (
+    buildEventHallDisplayName(invitation, event) ||
+    buildInvitationLocationLabel(invitation, event)
+  );
 }
 
 export function resolveInvitationImageUrl(invitation?: any, event?: any) {
