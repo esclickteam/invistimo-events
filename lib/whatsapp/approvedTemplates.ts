@@ -12,17 +12,25 @@ export const SAVE_THE_DATE_TEMPLATE_NAME = "save_the_date_image_he";
 export const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation_image_he";
 
 /**
- * Approved body of `event_invitation_image_he` (language: he),
- * copied from the Meta template editor Body field.
+ * Live approved body of `event_invitation_image_he` (language: he),
+ * fetched from the production 360dialog WABA on 2026-10-18.
+ * WhatsApp renders THIS text. Local preview must not invent a newer body.
  *
  * {{1}} event title, {{2}} date DD.MM.YYYY, {{3}} hall display name.
  */
 export const EVENT_INVITATION_BODY = [
-  "משפחה וחברים יקרים,",
-  "שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}}",
-  "בתאריך: {{2}}",
-  "📍 במיקום: {{3}}",
-  "נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂",
+  "ההזמנה שלנו כבר כאן 🤍",
+  "",
+  "נשמח להזמין אתכם לאירוע:",
+  "{{1}}",
+  "",
+  "בתאריך:",
+  "{{2}}",
+  "",
+  "מיקום האירוע:",
+  "{{3}}",
+  "",
+  "פרטים נוספים יישלחו בקרוב 🤍",
 ].join("\n");
 
 export type EventInvitationVariables = {

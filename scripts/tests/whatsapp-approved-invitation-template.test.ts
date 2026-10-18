@@ -15,20 +15,28 @@ import {
 } from "../../lib/whatsapp/approvedTemplates";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
 
-const APPROVED_BODY = `משפחה וחברים יקרים,
-שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}}
-בתאריך: {{2}}
-📍 במיקום: {{3}}
-נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂`;
+const APPROVED_BODY = `ההזמנה שלנו כבר כאן 🤍
 
-test("approved invitation body matches the Meta template exactly", () => {
+נשמח להזמין אתכם לאירוע:
+{{1}}
+
+בתאריך:
+{{2}}
+
+מיקום האירוע:
+{{3}}
+
+פרטים נוספים יישלחו בקרוב 🤍`;
+
+test("approved invitation body matches the live Meta template exactly", () => {
   assert.equal(EVENT_INVITATION_BODY, APPROVED_BODY);
   assert.equal(EVENT_INVITATION_TEMPLATE_NAME, "event_invitation_image_he");
   assert.match(EVENT_INVITATION_BODY, /\{\{1\}\}/);
   assert.match(EVENT_INVITATION_BODY, /\{\{2\}\}/);
   assert.match(EVENT_INVITATION_BODY, /\{\{3\}\}/);
-  assert.doesNotMatch(EVENT_INVITATION_BODY, /ההזמנה שלנו כבר כאן/);
-  assert.doesNotMatch(EVENT_INVITATION_BODY, /פרטים נוספים יישלחו בהמשך/);
+  assert.match(EVENT_INVITATION_BODY, /ההזמנה שלנו כבר כאן/);
+  assert.match(EVENT_INVITATION_BODY, /פרטים נוספים יישלחו בקרוב/);
+  assert.doesNotMatch(EVENT_INVITATION_BODY, /שמחים ונרגשים להזמינכם לחגוג/);
 });
 
 test("preview substitutes Meta variables without adding extra sentences", () => {
@@ -47,11 +55,18 @@ test("preview substitutes Meta variables without adding extra sentences", () => 
   const preview = renderEventInvitationPreview(vars);
   assert.equal(
     preview,
-    `משפחה וחברים יקרים,
-שמחים ונרגשים להזמינכם לחגוג איתנו את החתונה של בן והדר
-בתאריך: 25.11.2026
-📍 במיקום: קאי ריזורט אירועים
-נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂`
+    `ההזמנה שלנו כבר כאן 🤍
+
+נשמח להזמין אתכם לאירוע:
+החתונה של בן והדר
+
+בתאריך:
+25.11.2026
+
+מיקום האירוע:
+קאי ריזורט אירועים
+
+פרטים נוספים יישלחו בקרוב 🤍`
   );
 });
 
