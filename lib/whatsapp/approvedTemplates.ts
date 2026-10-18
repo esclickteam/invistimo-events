@@ -110,11 +110,13 @@ export function resolveSaveTheDateVariables(input: {
 
 export function renderApprovedTemplateBody(
   body: string,
-  values: Array<string | number>
-) {
-  return values.reduce((text, value, index) => {
-    return text.replaceAll(`{{${index + 1}}}`, String(value ?? ""));
-  }, body);
+  values: readonly string[]
+): string {
+  let text = body;
+  values.forEach((value, index) => {
+    text = text.replaceAll(`{{${index + 1}}}`, value ?? "");
+  });
+  return text;
 }
 
 export function renderEventInvitationPreview(vars: EventInvitationVariables) {
