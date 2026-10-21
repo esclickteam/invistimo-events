@@ -26,12 +26,20 @@ function normalizeGiftOptions(raw: any) {
 
   const creditUrl = creditEnabled ? cleanStr(raw?.creditUrl) : "";
   const payboxUrl = payboxEnabled ? cleanStr(raw?.payboxUrl) : "";
+  const bitPhone = cleanStr(raw?.bitPhone);
+  const bitEnabled =
+    (raw?.bitEnabled === true ||
+      raw?.bitEnabled === "true" ||
+      (raw?.bitEnabled == null && Boolean(bitPhone))) &&
+    Boolean(bitPhone);
 
   return {
     creditEnabled,
     creditUrl,
     payboxEnabled,
     payboxUrl,
+    bitEnabled,
+    bitPhone: bitEnabled ? bitPhone : "",
   };
 }
 
@@ -174,12 +182,26 @@ export async function GET(
     /* ============================================================
        3) נרמול ההזמנה לעמוד הציבורי
     ============================================================ */
+    const invitationGifts = (invitation as any)?.giftOptions || {};
+    const eventGifts = (event as any)?.gifts || {};
+    const publicGifts = (invitation as any)?.publicEventPage?.gifts || {};
+
     const safeInvitation = {
       ...invitation,
 
       location: await resolveAndPersistEventLocation(invitation, event),
 
-      giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
+      giftOptions: normalizeGiftOptions({
+        ...invitationGifts,
+        bitEnabled:
+          eventGifts.bitEnabled ??
+          invitationGifts.bitEnabled ??
+          Boolean(cleanStr(eventGifts.bitPhone || publicGifts.bitPhone)),
+        bitPhone:
+          eventGifts.bitPhone ||
+          publicGifts.bitPhone ||
+          invitationGifts.bitPhone,
+      }),
 
       publicEventPage: normalizePublicEventPage(
         (invitation as any)?.publicEventPage

@@ -188,7 +188,25 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
     [invite]
   );
 
-  const giftOptions = useMemo(() => invite?.giftOptions as GiftOptions | undefined, [invite]);
+  const giftOptions = useMemo(() => {
+    const base = invite?.giftOptions as GiftOptions | undefined;
+    const eventGifts = event?.gifts || {};
+    const publicGifts = invite?.publicEventPage?.gifts || {};
+    const bitPhone = cleanStr(
+      eventGifts.bitPhone || publicGifts.bitPhone || base?.bitPhone
+    );
+    const bitEnabled =
+      eventGifts.bitEnabled === true ||
+      (typeof eventGifts.bitEnabled !== "boolean" && Boolean(bitPhone));
+
+    if (!base && !bitPhone) return undefined;
+
+    return {
+      ...base,
+      bitEnabled: bitEnabled && Boolean(bitPhone),
+      bitPhone: bitEnabled ? bitPhone : "",
+    };
+  }, [invite, event]);
   const publicEventNote = useMemo(
     () => resolvePublicEventNote(invite, event),
     [invite, event]
