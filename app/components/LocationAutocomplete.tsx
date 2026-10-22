@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { resolveMapPinInBrowser } from "@/lib/resolveMapPin.client";
+import GoogleMapsPlacesScript from "@/components/seo/GoogleMapsPlacesScript";
 
 type PlaceSelection = {
   name?: string;
@@ -43,25 +44,28 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
   const selectedPlaceRef = useRef<SelectedPlace | null>(null);
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !window.google ||
-      !window.google.maps ||
-      !window.google.maps.places ||
-      !inputRef.current
-    ) {
-      return;
-    }
+    let stopped = false;
+    let interval = 0;
 
-    autocompleteRef.current = new window.google.maps.places.Autocomplete(
-      inputRef.current,
-      {
-        types: ["establishment", "geocode"],
-        componentRestrictions: { country: "il" },
+    function attach() {
+      if (stopped || autocompleteRef.current) return Boolean(autocompleteRef.current);
+      if (
+        typeof window === "undefined" ||
+        !window.google?.maps?.places ||
+        !inputRef.current
+      ) {
+        return false;
       }
-    );
 
-    autocompleteRef.current.addListener("place_changed", () => {
+      autocompleteRef.current = new window.google.maps.places.Autocomplete(
+        inputRef.current,
+        {
+          types: ["establishment", "geocode"],
+          componentRestrictions: { country: "il" },
+        }
+      );
+
+      autocompleteRef.current.addListener("place_changed", () => {
       const place = autocompleteRef.current.getPlace();
 
       if (!place) return;
@@ -95,9 +99,26 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         formattedAddress: selected.formattedAddress,
       });
     });
+      return true;
+    }
+
+    if (!attach()) {
+      interval = window.setInterval(() => {
+        if (attach()) window.clearInterval(interval);
+      }, 200);
+    }
+    const timeout = window.setTimeout(() => window.clearInterval(interval), 12000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
   }, [onSelect]);
 
   return (
+    <>
+    <GoogleMapsPlacesScript />
     <input
       ref={inputRef}
       defaultValue={value}
@@ -158,5 +179,6 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         });
       }}
     />
+    </>
   );
 }

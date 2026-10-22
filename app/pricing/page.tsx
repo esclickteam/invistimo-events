@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
+import ServiceLinks from "@/components/marketing/ServiceLinks";
 import {
   ADDON_LABELS,
   ADDON_ORDER,
@@ -364,6 +365,7 @@ export default function PricingPage() {
           </div>
         </section>
       </div>
+      <ServiceLinks current="/pricing" />
     </main>
   );
 }

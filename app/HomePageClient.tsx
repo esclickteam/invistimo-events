@@ -919,7 +919,7 @@ export default function HomePageClient() {
         <div
           className="
             absolute inset-0 z-0
-            bg-[url('/homep1.png')]
+            bg-[url('/homep1.webp')]
             bg-cover bg-center bg-no-repeat
           "
         />

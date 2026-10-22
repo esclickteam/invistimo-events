@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackPublicEvent } from "@/lib/seo/analytics";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -45,6 +46,7 @@ export default function ContactPage() {
       }
 
       setSuccess("הפנייה נשלחה בהצלחה! ניצור עמכם קשר בהקדם.");
+      trackPublicEvent("generate_lead", { method: "contact" });
       setName("");
       setEmail("");
       setSubject("");

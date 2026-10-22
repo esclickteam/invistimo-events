@@ -213,6 +213,15 @@ export default function Footer() {
           "
         >
           <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-bold text-[#6B5A49]">
+            <Link href="/info/about" className="transition hover:text-[#B8862D]">
+              אודות
+            </Link>
+            <Link href="/info/guides" className="transition hover:text-[#B8862D]">
+              מדריכים
+            </Link>
+            <Link href="/rsvp/chatuna" className="transition hover:text-[#B8862D]">
+              אישורי הגעה לחתונה
+            </Link>
             <Link href="/faq" className="transition hover:text-[#B8862D]">
               שאלות ותשובות
             </Link>

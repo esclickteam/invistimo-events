@@ -1,13 +1,23 @@
 import FAQAccordion from "../components/FAQAccordion";
+import ServiceLinks from "@/components/marketing/ServiceLinks";
+import JsonLd from "@/components/seo/JsonLd";
+import { faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
+import { allFaqItems } from "@/lib/seo/publicFaq";
+import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
 
-export const metadata = {
-  title: "שאלות ותשובות | Invistimo",
-  description:
-    "שאלות ותשובות נפוצות על מערכת Invistimo – הזמנות דיגיטליות, אישורי הגעה, ניהול אורחים והפקת אירועים.",
-};
+const route = findCoreRoute("/faq");
+if (!route) throw new Error("Missing SEO route /faq");
+
+export const metadata = pageMetadata({
+  title: route.title,
+  description: route.description,
+  path: route.path,
+});
 
 export default function FAQPage() {
   return (
+    <>
+    <JsonLd data={graph([organizationNode(), faqNode(allFaqItems())])} />
     <div className="max-w-4xl mx-auto px-6 py-24">
       {/* כותרת ראשית */}
       <h1 className="text-4xl font-bold text-center mb-12">
@@ -37,5 +47,7 @@ export default function FAQPage() {
       {/* אקורדיון שאלות */}
       <FAQAccordion />
     </div>
+    <ServiceLinks current="/faq" />
+    </>
   );
 }

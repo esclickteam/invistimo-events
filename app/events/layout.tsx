@@ -1,4 +1,7 @@
 import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
+import { NOINDEX } from "@/lib/seo/site";
+
+export const metadata = NOINDEX;
 
 export default function EventsLayout({
   children,
