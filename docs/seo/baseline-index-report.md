@@ -5,7 +5,7 @@
 
 | שדה | ערך |
 | --- | --- |
-| תאריך Deploy לפרודקשן | ____-__-__ (Asia/Jerusalem) |
+| תאריך Deploy לפרודקשן | 2026-10-23 (Asia/Jerusalem) — dpl_62koyWZn7tYuTDu7xT8d4xkyr73R / f189a80 |
 | תאריך מילוי הבסיס |  |
 | GSC property | https://www.invistimo.com |
 | Bing property |  |
@@ -15,12 +15,12 @@
 
 | בדיקה | תוצאה | הערות |
 | --- | --- | --- |
-| https://www.invistimo.com/robots.txt |  | |
-| https://www.invistimo.com/sitemap.xml |  | צפוי ~28 URL שיווקיים |
-| https://www.invistimo.com/answers.json |  | |
-| https://www.invistimo.com/llms.txt |  | |
-| View-Source `/rsvp` — `התשובה הקצרה` |  | |
-| View-Source `/pricing` — canonical |  | |
+| https://www.invistimo.com/robots.txt | PASS | Googlebot/Bingbot/OAI rules; sitemap listed |
+| https://www.invistimo.com/sitemap.xml | PASS | 28 marketing URLs; no private leaks |
+| https://www.invistimo.com/answers.json | PASS | 200 |
+| https://www.invistimo.com/llms.txt | PASS | 200 |
+| View-Source `/rsvp` — `התשובה הקצרה` | PASS | answer-first + JSON-LD |
+| View-Source `/pricing` — canonical | PASS | `https://www.invistimo.com/pricing` |
 
 ## 2) אינדוקס (GSC URL Inspection) — hubs
 
@@ -93,9 +93,9 @@
 
 | Check | Result |
 | --- | --- |
-| robots.txt does not sitewide-block GPTBot / ClaudeBot / PerplexityBot / Google-Extended |  |
-| `llms.txt` + `answers.json` live on production |  |
-| Manual AI question sample (optional, qualitative) | See `AI_MONITOR_QUESTIONS` in keyword map |
+| robots.txt does not sitewide-block GPTBot / ClaudeBot / PerplexityBot / Google-Extended | PASS (rules allow AI crawlers; no sitewide block) |
+| `llms.txt` + `answers.json` live on production | PASS |
+| Manual AI question sample (optional, qualitative) | See `AI_MONITOR_QUESTIONS` in keyword map — pending after GSC connect |
 
 ## 8) Off-page directories (registered)
 
