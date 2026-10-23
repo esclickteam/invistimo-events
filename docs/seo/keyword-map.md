@@ -53,7 +53,8 @@ Invistimo pages must describe Invistimo capabilities factually. Do not republish
 
 ## After GSC / Planner access
 
-1. Export queries for the primary URLs above.
-2. Fill `volume` / `competition` only from those exports.
-3. Re-run `npm run test:seo`.
-4. Split or merge rows only when intent differs.
+1. Follow `measurement-connect-owner-steps.md` (reuse existing GSC verification; find GA4 before creating).
+2. Export queries for the primary URLs above into `baseline-index-report.md` (§4א / §4ב — includes all event-type variants).
+3. Fill `volume` / `competition` only from those exports (or Keyword Planner if later approved).
+4. Re-run `npm run test:seo`.
+5. Split or merge rows only when intent differs.

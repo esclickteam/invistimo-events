@@ -36,15 +36,14 @@
 
 | שירות | מצב |
 | --- | --- |
-| Google Search Console | **לא מחובר** — חסר `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` ב־Vercel |
-| Google Analytics 4 | **לא מחובר** — חסר `NEXT_PUBLIC_GA_MEASUREMENT_ID` |
-| Bing Webmaster Tools | **לא מחובר** — חסר `NEXT_PUBLIC_BING_SITE_VERIFICATION` |
-| הגשת sitemap | **ממתינה** לאימות חשבונות |
+| Google Search Console | **אימות טכני כבר באתר** — קובץ `google0523bb34ab51dcb6.html` + DNS TXT. **אין צורך** ב־`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`. נותר: כניסה ל־GSC → אישור נכס קיים → Submit sitemap + Request indexing |
+| Google Analytics 4 | **לא מחובר** — אין `NEXT_PUBLIC_GA_MEASUREMENT_ID` ב־Vercel ואין gtag ב־HTML. לבדוק נכס GA4 קיים לפני יצירה |
+| Bing Webmaster Tools | **לא מחובר** — אין meta/DNS. מומלץ **ייבוא מ־GSC** (בלי Redeploy) |
+| הגשת sitemap | **ממתינה** ללחיצה בחשבון GSC/Bing של הבעלים |
 | בקשות אינדוקס | **ממתינות** ל־GSC |
 
-נדרש מהבעלים: טוקני אימות + Measurement ID → הגדרה ב־Vercel Production → Redeploy קל → אז הגשת sitemap + URL Inspection.
-
-ראו: `post-publish-owner-runbook.md`, `connect-search-analytics.md`, `baseline-index-report.md`.
+צעדים מדויקים ללחיצות: `measurement-connect-owner-steps.md`.  
+גם: `post-publish-owner-runbook.md`, `connect-search-analytics.md`, `baseline-index-report.md`.
 
 ## מה נותר למדידת דירוגים ו־AI
 
