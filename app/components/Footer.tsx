@@ -213,6 +213,33 @@ export default function Footer() {
           "
         >
           <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-bold text-[#6B5A49]">
+            <Link href="/info/about" className="transition hover:text-[#B8862D]">
+              אודות
+            </Link>
+            <Link href="/info/guides" className="transition hover:text-[#B8862D]">
+              מדריכים
+            </Link>
+            <Link href="/rsvp" className="transition hover:text-[#B8862D]">
+              אישורי הגעה
+            </Link>
+            <Link href="/pricing" className="transition hover:text-[#B8862D]">
+              חבילות ומחירים
+            </Link>
+            <Link href="/rsvp/chatuna" className="transition hover:text-[#B8862D]">
+              אישורי הגעה לחתונה
+            </Link>
+            <Link href="/rsvp/whatsapp" className="transition hover:text-[#B8862D]">
+              אישורי הגעה בוואטסאפ
+            </Link>
+            <Link href="/invitations/chatuna" className="transition hover:text-[#B8862D]">
+              הזמנות דיגיטליות
+            </Link>
+            <Link href="/seating-explained" className="transition hover:text-[#B8862D]">
+              סידורי הושבה
+            </Link>
+            <Link href="/event-management" className="transition hover:text-[#B8862D]">
+              ניהול אירוע
+            </Link>
             <Link href="/faq" className="transition hover:text-[#B8862D]">
               שאלות ותשובות
             </Link>

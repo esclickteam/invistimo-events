@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import ServiceLinks from "@/components/marketing/ServiceLinks";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -137,7 +138,7 @@ function ClickableVideo({ src, className, onOpen }) {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
         className={className}
       />
 
@@ -517,6 +518,7 @@ export default function SeatingExplainedPage() {
           onClose={() => setFullscreenVideo(null)}
         />
       )}
+      <ServiceLinks current="/seating-explained" />
     </div>
   );
 }

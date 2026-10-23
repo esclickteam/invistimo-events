@@ -1,3 +1,13 @@
+import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
+
+const route = findCoreRoute("/accessibility")!;
+
+export const metadata = pageMetadata({
+  title: route.title,
+  description: route.description,
+  path: route.path,
+});
+
 export default function AccessibilityPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-20">

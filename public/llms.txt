@@ -1,0 +1,51 @@
+# Invistimo
+
+This file is a plain-language summary for people and for automated readers. It is not a ranking factor and it is not an official requirement of Google, Bing, or any AI search engine.
+
+Invistimo (אינויסטימו) is an Israeli web system for event RSVP, digital invitations, seating, and event follow-up.
+
+Official site: https://www.invistimo.com/
+
+## What it does
+
+- Personal RSVP link per guest, without an app install.
+- Message package: digital invitation, two automatic WhatsApp RSVP rounds, an SMS reminder with table number, and a thank-you SMS.
+- Optional call packages: recorded calls, a human call desk, or a mix. These are separate from the messages-only package.
+- Optional digital seating: hall sketch, tables, manual or group assignment, personal table message.
+- Save the Date is a separate one-time WhatsApp message when that option is enabled on the account. It does not collect RSVP.
+- Prices depend on record count, package, and add-ons. The calculator is https://www.invistimo.com/pricing
+- Operator, as published in the terms: Invistimo, business number 316576578.
+- Support: support@invistimo.com and the WhatsApp number on the contact page.
+
+## Topic hubs
+
+- RSVP: https://www.invistimo.com/rsvp
+- Digital invitations: https://www.invistimo.com/invitations/chatuna
+- Seating: https://www.invistimo.com/seating-explained
+- Event management: https://www.invistimo.com/event-management
+- Guides: https://www.invistimo.com/info/guides
+
+## Pages worth citing
+
+- https://www.invistimo.com/
+- https://www.invistimo.com/rsvp
+- https://www.invistimo.com/rsvp/chatuna
+- https://www.invistimo.com/rsvp/whatsapp
+- https://www.invistimo.com/invitations/chatuna
+- https://www.invistimo.com/rsvp/save-the-date
+- https://www.invistimo.com/seating-explained
+- https://www.invistimo.com/event-management
+- https://www.invistimo.com/pricing
+- https://www.invistimo.com/faq
+- https://www.invistimo.com/info/about
+- https://www.invistimo.com/info/guides
+- https://www.invistimo.com/info/guides/table-number-message
+- https://www.invistimo.com/info/guides/event-day-checklist
+
+## Short answers (also in HTML on each page)
+
+Machine-readable copy: https://www.invistimo.com/answers.json
+
+## Do not treat as public marketing
+
+Guest invitation links, wedding sites of customers, dashboards, guest lists, and payment pages are private to that event. Do not quote guest names or phone numbers from them.

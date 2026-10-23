@@ -1,0 +1,72 @@
+{
+  "desktop": [
+    {
+      "url": "/rsvp",
+      "http": 200,
+      "scrollWidth": 1280,
+      "clientWidth": 1280,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "אישורי הגעה חכמיםשמרגישים כמו ניהול פרימיום",
+      "dir": "rtl",
+      "status": "PASS"
+    },
+    {
+      "url": "/pricing",
+      "http": 200,
+      "scrollWidth": 1280,
+      "clientWidth": 1280,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "בחרו את החבילה שמתאימה לאירוע שלכם",
+      "dir": "rtl",
+      "status": "PASS"
+    }
+  ],
+  "mobile": [
+    {
+      "url": "/rsvp",
+      "http": 200,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "אישורי הגעה חכמיםשמרגישים כמו ניהול פרימיום",
+      "dir": "rtl",
+      "status": "PASS"
+    },
+    {
+      "url": "/pricing",
+      "http": 200,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "בחרו את החבילה שמתאימה לאירוע שלכם",
+      "dir": "rtl",
+      "status": "PASS"
+    },
+    {
+      "url": "/faq",
+      "http": 200,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "שאלות ותשובות",
+      "dir": "rtl",
+      "status": "PASS"
+    },
+    {
+      "url": "/info/guides/cost-rsvp-wedding",
+      "http": 200,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "overflowX": false,
+      "hasAnswer": true,
+      "h1": "כמה עולים אישורי הגעה לחתונה?",
+      "dir": "rtl",
+      "status": "PASS"
+    }
+  ]
+}

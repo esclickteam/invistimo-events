@@ -1,6 +1,12 @@
-export const metadata = {
-  title: "תקנון שימוש | Invistimo",
-};
+import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
+
+const route = findCoreRoute("/terms")!;
+
+export const metadata = pageMetadata({
+  title: route.title,
+  description: route.description,
+  path: route.path,
+});
 
 export default function TermsPage() {
   return (

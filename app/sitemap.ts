@@ -1,82 +1,21 @@
-import { MetadataRoute } from "next";
-
-const BASE_URL = "https://www.invistimo.com";
+import type { MetadataRoute } from "next";
+import { guidePath, GUIDES } from "@/lib/seo/guides";
+import { absoluteUrl, CONTENT_UPDATED, CORE_PUBLIC_ROUTES } from "@/lib/seo/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
+  const core = CORE_PUBLIC_ROUTES.map((route) => ({
+    url: absoluteUrl(route.path),
+    lastModified: CONTENT_UPDATED,
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
+  }));
 
-  return [
-    {
-      url: `${BASE_URL}/`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
+  const guides = GUIDES.map((guide) => ({
+    url: absoluteUrl(guidePath(guide.slug)),
+    lastModified: CONTENT_UPDATED,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
 
-    /* עמודים שיווקיים ראשיים */
-    {
-      url: `${BASE_URL}/rsvp`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.95,
-    },
-    {
-      url: `${BASE_URL}/seating-explained`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.95,
-    },
-    {
-      url: `${BASE_URL}/pricing`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/faq`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.75,
-    },
-    {
-      url: `${BASE_URL}/contact`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-
-    /* עמודי מערכת / מידע ציבוריים */
-    {
-      url: `${BASE_URL}/login`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.35,
-    },
-    {
-      url: `${BASE_URL}/register`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.35,
-    },
-
-    /* עמודים משפטיים */
-    {
-      url: `${BASE_URL}/terms`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.4,
-    },
-    {
-      url: `${BASE_URL}/privacy`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.4,
-    },
-    {
-      url: `${BASE_URL}/accessibility`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.35,
-    },
-  ];
+  return [...core, ...guides];
 }

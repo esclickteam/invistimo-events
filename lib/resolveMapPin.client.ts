@@ -52,7 +52,7 @@ function toCandidate(
   };
 }
 
-function waitForGoogleMaps(timeoutMs = 4000): Promise<boolean> {
+function waitForGoogleMaps(timeoutMs = 12000): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (window.google?.maps?.places && window.google?.maps?.Geocoder) {
     return Promise.resolve(true);

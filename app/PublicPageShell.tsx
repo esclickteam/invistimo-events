@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import ClientShell from "./ClientShell";
 import SupportBotButton from "./components/SupportBotButton";
+import MarketingAnalytics from "@/components/seo/MarketingAnalytics";
 
 type PublicPageShellProps = {
   children: ReactNode;
@@ -176,6 +177,7 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
   if (shouldHidePublicShell) {
     return (
       <>
+        <MarketingAnalytics />
         <style>{`
           a[href*="wa.me"],
           a[href*="whatsapp"],
@@ -228,6 +230,7 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
 
   return (
     <>
+      <MarketingAnalytics />
       <ClientShell>{children}</ClientShell>
 
       {/* כפתור וואטסאפ / תמיכה — מופיע רק באתר הציבורי */}

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { pageMetadata } from "@/lib/seo/site";
 import WeddingTemplateSiteRenderer from "@/components/wedding-website/WeddingTemplateSiteRenderer";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 
@@ -30,12 +31,19 @@ export async function generateMetadata({ params }: Props) {
     return { title: "תבנית לא נמצאה" };
   }
 
+  const path = `/wedding-website/${templateId}`;
+  // Demo templates are thin previews: keep usable, but do not index or sitemap.
   return {
-    title: `${template.name} | אתר חתונה — Invistimo`,
-    description: template.description,
+    ...pageMetadata({
+      title: `${template.name} | אתר חתונה — Invistimo`,
+      description: template.description,
+      path,
+      index: false,
+    }),
     openGraph: {
       title: `${template.name} — ${template.tagline}`,
       description: template.description,
+      url: `https://www.invistimo.com${path}`,
       images: [template.previewImage],
     },
   };
