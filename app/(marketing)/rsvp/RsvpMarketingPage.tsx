@@ -10,7 +10,7 @@ import FactTableView from "@/components/seo/FactTableView";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { answerFor, tableFor } from "@/lib/seo/answers";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
-import { PRODUCT_SHOTS, showcaseForPath } from "@/lib/seo/productVisuals";
+import { PRODUCT_SHOTS, PRODUCT_VIDEOS, showcaseForPath } from "@/lib/seo/productVisuals";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -314,13 +314,13 @@ export default function RSVPPage() {
           className="mx-auto mt-12 max-w-4xl"
         >
           <DeviceFrame
-            src={PRODUCT_SHOTS.dashboard}
-            alt="דשבורד דמו של Invistimo עם מעקב אישורי הגעה"
-            variant="laptop"
+            src={PRODUCT_SHOTS.guestRsvp}
+            alt="מסך אישור הגעה של אורח בדמו — בחירת מגיע או לא מגיע"
+            variant="phone"
             priority
           />
           <p className="mt-4 text-sm font-semibold text-[#7A6042]">
-            צילום ממסך הדמו — חתונה פיקטיבית. בלי נתוני לקוחות אמיתיים.
+            צילום ממסך האורח בדמו — חתונה פיקטיבית של מאיה ואיתי. בלי נתוני לקוחות אמיתיים.
           </p>
         </motion.div>
       </section>
@@ -420,7 +420,7 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          <VideoFrame src="/videos/rsvp1.mp4" variant="phone" />
+          <VideoFrame src={PRODUCT_VIDEOS.guestRsvpCaptions} variant="phone" />
         </div>
       </section>
 

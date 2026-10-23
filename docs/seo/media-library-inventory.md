@@ -1,7 +1,7 @@
 # ספריית מדיה — ממערכת הדמו (נתונים פיקטיביים)
 
 **עודכן:** 2026-10-23 (Asia/Jerusalem)  
-**מקור:** מסכי `/try` ותבניות `/wedding-website/*` — לא סטוק גנרי.
+**מקור:** מסכי `/try`, `/invite/demo-share`, ותבניות `/wedding-website/*` — לא סטוק גנרי.
 
 ## צילומי מסך (WebP)
 
@@ -14,21 +14,27 @@
 | `/marketing/product/webp/desktop-try-event-mgmt.webp` | ניהול אירוע | event-management, corporate |
 | `/marketing/product/webp/desktop-wedding-*.webp` | תבניות אתר חתונה | wedding-website, guides |
 | `/marketing/product/webp/mobile-wedding-*.webp` | תבניות בנייד | הזמנות / אתר |
+| `/marketing/product/webp/desktop-guest-rsvp.webp` | **חדש** — מסך אורח מאשר בקישור | `/rsvp`, מדריכי RSVP |
+| `/marketing/product/webp/desktop-guest-rsvp-confirm.webp` | **חדש** — בחירת מגיע | RSVP |
+| `/marketing/product/webp/mobile-guest-rsvp.webp` | **חדש** — אורח בנייד | הזמנות / RSVP |
+| `/marketing/product/webp/desktop-messages-sms.webp` | **חדש** — סבב SMS + תצוגה מקדימה | `/rsvp/sms`, reminders |
+| `/marketing/product/webp/desktop-messages-sms-reminder.webp` | **חדש** — תזכורת SMS | תזכורות |
+| `/marketing/product/webp/desktop-messages-save-the-date.webp` | **חדש** — Save the Date + preview | `/rsvp/save-the-date` |
+| `/marketing/product/webp/mobile-messages-sms.webp` | **חדש** — SMS בנייד | SMS |
+| `/marketing/product/webp/mobile-messages-save-the-date.webp` | **חדש** — STD בנייד | Save the Date |
 
 ## סרטונים
 
 | קובץ | תוכן | שימוש |
 | --- | --- | --- |
-| `/marketing/videos/demo-try-dashboard.webm` | הקלטת דשבורד דמו | RSVP, מדריכי RSVP, `/for/*` |
-| `/marketing/videos/demo-try-seating.webm` | הקלטת הושבה | seating, seating-plan |
-| `/marketing/videos/demo-wedding-eternal-gold.webm` | תבנית אתר חתונה | wedding-website, build-wedding-website |
-| `/videos/rsvp1.mp4` | תהליך אורח / RSVP | עמודי RSVP קיימים |
-| `/videos/rsvp2.mp4` | RSVP נוסף | RSVP |
-| `/videos/tablesit.mp4` | שיבוץ לשולחנות | seating-plan, table-number |
-| `/videos/smartsit.mp4` | חלוקה לפי קבוצות | seating-plan |
-| `/videos/eventsit.mp4` | מפת אולם | seating-explained |
-| `/videos/sit4.mp4` | הושבה | seating |
-| `/videos/home1.mp4` | בית | דף הבית |
+| `/marketing/videos/demo-guest-rsvp.webm` | **חדש** — הקלטת מסך אורח | מקור |
+| `/marketing/videos/demo-guest-rsvp-captions.webm` | **חדש** — אורח עם כתוביות עברית | `/rsvp`, chatuna, מדריך when-to-send-rsvp |
+| `/marketing/videos/demo-seating-unified-captions.webm` | **חדש** — ריל הושבה מאוחד 24ש׳ + 6 כתוביות | `/seating-explained`, seating-plan |
+| `/marketing/videos/demo-try-dashboard.webm` | הקלטת דשבורד דמו | RSVP, מדריכים |
+| `/marketing/videos/demo-try-seating.webm` | הקלטת הושבה קצרה | גיבוי |
+| `/marketing/videos/demo-try-seating-raw.webm` | הקלטה חדשה מהדמו | מקור לריל |
+| `/marketing/videos/demo-wedding-eternal-gold.webm` | תבנית אתר חתונה | wedding-website |
+| `/videos/rsvp1.mp4` … `/videos/eventsit.mp4` | קליפי מוצר ישנים | משולבים בריל / גלריות |
 
 ## דמו פעיל (noindex: `/try`)
 
@@ -36,6 +42,8 @@
 | --- | --- |
 | `/try` → `/try/dashboard` | דשבורד |
 | `/try/dashboard/seating` | מפת הושבה |
+| `/try/dashboard/messages/new` | SMS / תזכורת / Save the Date |
+| `/invite/demo-share?token=dmo_noa` | מסך אורח (אורח פיקטיבי פתוח) |
 | `/info/demo` | עמוד שיווקי שמקשר לדמו |
 
 ## דוגמאות אתר חתונה חיות
@@ -45,12 +53,16 @@
 | `/wedding-website/eternal-gold` | Eternal Gold |
 | `/wedding-website/midnight-velvet` | Midnight Velvet |
 | `/wedding-website/garden-bloom` | Garden Bloom |
-| (+ נוספות בגלריה) | coastal-breeze, desert-rose, … |
 
-## חסר / מוגבל
+## גלריית QA מלאה
+
+`/opt/cursor/artifacts/screenshots/gallery/` — דסקטופ + מובייל (+ mid-scroll) לכל עמודי השיווק, 17 המדריכים, `/for/*`, דגלים.
+
+## סטטוס פערים קודמים
 
 | פריט | סטטוס |
 | --- | --- |
-| סרטון ייעודי «תצוגת אורח מאשר בקישור» חדש מהדמו | משתמשים ב־`rsvp1.mp4` / הדגמת דשבורד; הקלטה חדשה של מסך אורח דורשת סשן דמו אורח יציב |
-| סרטוני עריכה עם כתוביות מקצועיות לכל 6 שלבי הושבה | קיימים קליפים נפרדים (tablesit/smartsit/eventsit); עריכת ריל אחד מאוחד — אופציונלי בהמשך |
-| צילומי Save the Date / SMS אמיתיים מממשק שליחה | לא צולמו כקובץ נפרד; מתוארים בטקסט + דשבורד |
+| סרטון אורח חדש מהדמו | ✅ `demo-guest-rsvp-captions.webm` |
+| ריל הושבה מאוחד עם כתוביות | ✅ `demo-seating-unified-captions.webm` |
+| צילומי SMS / Save the Date מממשק אמיתי | ✅ desktop + mobile |
+| Vercel Preview | ❌ טוקן CLI לא תקף; Cloudflare Preview פעיל |

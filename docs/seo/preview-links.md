@@ -1,58 +1,44 @@
 # קישורי Preview ציבוריים — PR #382
 
-**עודכן:** 2026-10-23 ~22:15 (Asia/Jerusalem)  
+**עודכן:** 2026-10-23 22:45 (Asia/Jerusalem)  
 **אין Deploy / Merge בלי אישור.**
 
-## בסיס Preview יציב (חדש)
+## Preview פעיל (Cloudflare Tunnel)
 
-**https://brake-latino-edt-von.trycloudflare.com**
+**https://refurbished-recommend-jail-super.trycloudflare.com**
 
-נבדק עם HTTP 200 מדפדפן חיצוני (כולל User-Agent מובייל). לא דורש התחברות.  
-Tunnel זמני ל־`localhost:3010` — אם נפל, יעודכן כאן מחדש.
+נבדק עם HTTP 200 מהסביבה (User-Agent דפדפן). לא דורש התחברות.  
+Tunnel ל־`localhost:3010` על הענף `cursor/premium-marketing-upgrade-3a61`.
 
-> קישור ישן (`booking-around-circulation-welding…`) עלול להחזיר 403 אחרי סיום tunnel — השתמשו בקישור למעלה.
+> קישורי trycloudflare ישנים (כולל `brake-latino-edt-von…`) מחזירים 530/403 אחרי סיום ה־tunnel — השתמשו רק בקישור למעלה.
+
+## Vercel Preview
+
+| פריט | סטטוס |
+| --- | --- |
+| `VERCEL_TOKEN` ב־CLI | ❌ `User not found` — לא ניתן לפרוס Preview מ־CLI עם הטוקן הנוכחי |
+| `vercel.json` → `git.deploymentEnabled: true` | עודכן ב־PR כדי לאפשר Preview לכל ענף אחרי שהפרויקט ב־Vercel מקבל את ההגדרה (פרודקשן נשאר מ־`main` בהגדרות הפרויקט) |
+| Deploy לפרודקשן | **לא בוצע ולא יבוצע בלי אישור** |
+
+אם יש לכם טוקן Vercel תקף / הרשאת פרויקט — אפשר ליצור Preview ידני בלי לגעת ב־Production.
 
 ## דגלים
 
 | עמוד | קישור |
 | --- | --- |
-| בית | https://brake-latino-edt-von.trycloudflare.com/ |
-| אישורי הגעה | https://brake-latino-edt-von.trycloudflare.com/rsvp |
-| סידורי הושבה | https://brake-latino-edt-von.trycloudflare.com/seating-explained |
-| אתר חתונה | https://brake-latino-edt-von.trycloudflare.com/wedding-website |
-| דמו הסבר | https://brake-latino-edt-von.trycloudflare.com/info/demo |
-| דמו אינטראקטיבי | https://brake-latino-edt-von.trycloudflare.com/try/dashboard |
-| דמו הושבה | https://brake-latino-edt-von.trycloudflare.com/try/dashboard/seating |
+| בית | https://refurbished-recommend-jail-super.trycloudflare.com/ |
+| אישורי הגעה | https://refurbished-recommend-jail-super.trycloudflare.com/rsvp |
+| סידורי הושבה | https://refurbished-recommend-jail-super.trycloudflare.com/seating-explained |
+| אתר חתונה | https://refurbished-recommend-jail-super.trycloudflare.com/wedding-website |
+| SMS | https://refurbished-recommend-jail-super.trycloudflare.com/rsvp/sms |
+| Save the Date | https://refurbished-recommend-jail-super.trycloudflare.com/rsvp/save-the-date |
+| דמו | https://refurbished-recommend-jail-super.trycloudflare.com/try/dashboard |
+| דמו הושבה | https://refurbished-recommend-jail-super.trycloudflare.com/try/dashboard/seating |
+| דמו אורח | https://refurbished-recommend-jail-super.trycloudflare.com/invite/demo-share?token=dmo_noa |
+| דמו הודעות | https://refurbished-recommend-jail-super.trycloudflare.com/try/dashboard/messages/new |
 
-## מדריכים מרכזיים (שודרגו)
+## גלריית צילומים (גיבוי אם Preview לא נפתח)
 
-| מדריך | קישור |
-| --- | --- |
-| מתי אישורי הגעה | https://brake-latino-edt-von.trycloudflare.com/info/guides/when-to-send-rsvp |
-| סידורי הושבה | https://brake-latino-edt-von.trycloudflare.com/info/guides/seating-plan |
-| STD מול הזמנה | https://brake-latino-edt-von.trycloudflare.com/info/guides/save-the-date-vs-invitation |
-| אורחים שלא עונים | https://brake-latino-edt-von.trycloudflare.com/info/guides/guests-who-dont-reply |
-| בניית אתר חתונה | https://brake-latino-edt-von.trycloudflare.com/info/guides/build-wedding-website |
-| כל המדריכים | https://brake-latino-edt-von.trycloudflare.com/info/guides |
-
-## סוגי אירוע
-
-| עמוד | קישור |
-| --- | --- |
-| בר מצווה | https://brake-latino-edt-von.trycloudflare.com/for/bar-mitzvah |
-| בת מצווה | https://brake-latino-edt-von.trycloudflare.com/for/bat-mitzvah |
-| ברית | https://brake-latino-edt-von.trycloudflare.com/for/brit |
-| חינה | https://brake-latino-edt-von.trycloudflare.com/for/henna |
-| יום הולדת | https://brake-latino-edt-von.trycloudflare.com/for/birthday |
-| מסיבה | https://brake-latino-edt-von.trycloudflare.com/for/private-party |
-| חברה | https://brake-latino-edt-von.trycloudflare.com/for/corporate |
-
-## דוגמאות אתר חתונה חיות
-
-| תבנית | קישור |
-| --- | --- |
-| Eternal Gold | https://brake-latino-edt-von.trycloudflare.com/wedding-website/eternal-gold |
-| Midnight Velvet | https://brake-latino-edt-von.trycloudflare.com/wedding-website/midnight-velvet |
-| Garden Bloom | https://brake-latino-edt-von.trycloudflare.com/wedding-website/garden-bloom |
+`/opt/cursor/artifacts/screenshots/gallery/` — דסקטופ + מובייל לכל עמודי השיווק והמדריכים.
 
 PR: https://github.com/esclickteam/invistimo-events/pull/382

@@ -1,64 +1,44 @@
-# דוח מסירת איכות — שדרוג תוכן ועיצוב (PR #382)
+# דוח מסירת איכות — שדרוג תוכן ומדיה (PR #382)
 
-**תאריך:** 2026-10-23 (Asia/Jerusalem)  
-**Preview:** https://brake-latino-edt-von.trycloudflare.com  
+**תאריך:** 2026-10-23 ~22:40 (Asia/Jerusalem)  
+**Preview:** https://refurbished-recommend-jail-super.trycloudflare.com  
 **אין Merge / Deploy.**
 
-## טבלת מסירה — מה נוצר בפועל
+## טבלת מסירה
 
-| אזור | סטטוס | קישורים / נכסים |
+| אזור | סטטוס | נכסים |
 | --- | --- | --- |
-| Preview ציבורי ללא התחברות | ✅ חדש, HTTP 200 | https://brake-latino-edt-von.trycloudflare.com |
-| 17 מדריכים — מבנה RichGuide (ציר זמן, טיפים, טעויות, גלריה, סרטון, TOC) | ✅ | `/info/guides/*` |
-| מדריך «מתי אישורי הגעה» עם לוח זמנים ויזואלי | ✅ | `/info/guides/when-to-send-rsvp` |
-| מדריך הושבה עם מפה + סרטונים + דמו | ✅ | `/info/guides/seating-plan` + `/try/dashboard/seating` |
-| עמודי `/for/*` עם problem/timeline/gallery/video ייחודיים | ✅ | `/for/bar-mitzvah` … `/for/corporate` |
-| RSVP — דמו CTA, צילומים, סרטון דשבורד | ✅ | `/rsvp` + `demo-try-dashboard.webm` + `rsvp1.mp4` |
-| הושבה — מפה, סרטונים, דמו פעיל | ✅ | `/seating-explained` + `demo-try-seating.webm` + `/videos/*sit*` |
-| אתר חתונה — ≥3 דוגמאות חיות | ✅ | eternal-gold, midnight-velvet, garden-bloom |
-| ספריית מדיה מתועדת | ✅ | `docs/seo/media-library-inventory.md` |
+| Preview ציבורי ללא התחברות | ✅ HTTP 200 | Cloudflare Tunnel (ראו `preview-links.md`) |
+| Vercel Preview | ❌ חסום | `VERCEL_TOKEN` → User not found; `vercel.json` עודכן ל־`deploymentEnabled: true` בלי Deploy |
+| סרטון אורח חדש + כתוביות | ✅ | `demo-guest-rsvp-captions.webm` על `/rsvp` |
+| ריל הושבה מאוחד + כתוביות | ✅ | `demo-seating-unified-captions.webm` על `/seating-explained` + seating-plan |
+| צילומי SMS אמיתיים | ✅ | `desktop-messages-sms.webp` על `/rsvp/sms` |
+| צילומי Save the Date אמיתיים | ✅ | `desktop-messages-save-the-date.webp` על `/rsvp/save-the-date` |
+| 17 מדריכים — תוכן מעמיק | ✅ | כל המדריכים ≥ ~1550 תווי עברית (לא רק כרטיסיות) |
+| עמודי `/for/*` + שירותים | ✅ | מדיה אמיתית + תוכן ייעודי |
+| גלריית דסקטופ+מובייל | ✅ | `/opt/cursor/artifacts/screenshots/gallery/` (90 עמודים × 2 + mid) |
 | SEO tests | ✅ 16/16 | `seo-public.test.ts` |
 
-## מה עדיין חסר / מוגבל
+## דגלים לפתיחה ידנית
+
+1. `/rsvp` — מסך אורח ב־hero + סרטון אורח עם כתוביות  
+2. `/seating-explained` — ריל מאוחד עם כתוביות + מפת דמו  
+3. `/wedding-website` + eternal-gold / midnight-velvet / garden-bloom  
+4. `/rsvp/sms` + `/rsvp/save-the-date` — ממשק שליחה אמיתי  
+5. `/info/guides/when-to-send-rsvp` + `/info/guides/seating-plan`  
+6. `/for/bar-mitzvah`  
+
+## מה עדיין מוגבל
 
 | פריט | סיבה |
 | --- | --- |
-| הקלטת מסך אורח חדשה «מאשר בקישור» ייעודית לכל עמוד | משתמשים ב־`rsvp1.mp4` הקיים; סשן אורח דמו מלא דורש זמן הקלטה נוסף |
-| ריל הושבה אחד מאוחד עם כתוביות לכל 6 השלבים | קיימים קליפים נפרדים; איחוד עריכה אופציונלי |
-| צילומי ממשק שליחת SMS / Save the Date נפרדים | לא נחשפו כמסכי דמו ציבוריים יציבים — מתוארים בטקסט + דשבורד |
-| אימות פרופיל Mit4Mit/MazalDay ציבורי | ממתין ל־URL מהבעלים |
-| נתוני GSC/GA4 בדשבורד | ממתין לחיבור חשבון |
-
-## פירוט מדריכים — המחשות
-
-| מדריך | ציר זמן | גלריה/צילום | סרטון | דוגמאות הודעה |
-| --- | --- | --- | --- | --- |
-| when-to-send-rsvp | ✅ | ✅ | ✅ webm | ✅ |
-| seating-plan | ✅ | ✅ | ✅ webm+mp4 | — |
-| save-the-date-vs-invitation | ✅ | ✅ | — | ✅ |
-| guests-who-dont-reply | — | ✅ | ✅ | — |
-| how-many-rsvp-rounds | ✅ | ✅ | — | — |
-| guest-list | — | ✅ | — | — |
-| send-digital-invitation | — | ✅ | — | — |
-| when-to-send-save-the-date | ✅ | — | — | ✅ |
-| when-to-send-invitation | — | ✅ | — | — |
-| build-wedding-website | — | ✅ 3 תבניות | ✅ webm | — |
-| table-number-message | — | ✅ | ✅ mp4 | — |
-| send-reminder-messages | — | ✅ | — | — |
-| event-day-checklist | ✅ | ✅ | — | — |
-| bar-mitzvah-rsvp-plan | ✅ | ✅ | — | — |
-| manage-corporate-event | — | ✅ | — | — |
-| cost-rsvp-wedding | — | — | — | — |
-| reduce-meal-waste | — | ✅ | — | — |
+| Vercel Preview URL | טוקן CLI לא מאומת; נדרש טוקן/הרשאה מבעל הפרויקט |
+| Mit4Mit / MazalDay | ממתין ל־URL מהבעלים |
+| GSC/GA4 | ממתין לחיבור חשבון |
 
 ## בדיקות
 
-- SEO unit: 16/16 עברו  
-- Preview HTTP 200 על דגלים (מאומת מהסביבה)  
-- אין Merge/Deploy
-
-## מה נדרש מכם לאישור איכות
-
-1. לפתוח את Preview החדש מהטלפון ומהמחשב.  
-2. לעבור במיוחד על: `/rsvp`, `/seating-explained`, `/wedding-website`, `/info/guides/when-to-send-rsvp`, `/info/guides/seating-plan`, `/for/bar-mitzvah`.  
-3. לאשר או לבקש סבב תיקונים ממוקד — **לפני** Merge.
+- SEO unit: 16/16  
+- Preview HTTP 200 על `/`, `/rsvp`, `/rsvp/sms`  
+- גלריה מלאה נשמרה כגיבוי אם ה־tunnel נופל  
+- **אין Merge/Deploy**

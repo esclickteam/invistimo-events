@@ -19,6 +19,26 @@ export const PRODUCT_SHOTS = {
   weddingCoastal: `${P}/webp/desktop-wedding-coastal-breeze.webp`,
   weddingCoastalMobile: `${P}/webp/mobile-wedding-coastal-breeze.webp`,
   weddingGallery: `${P}/webp/desktop-wedding-gallery.webp`,
+  /** Guest RSVP on /invite/demo-share — fictional guest */
+  guestRsvp: `${P}/webp/desktop-guest-rsvp.webp`,
+  guestRsvpConfirm: `${P}/webp/desktop-guest-rsvp-confirm.webp`,
+  guestRsvpMobile: `${P}/webp/mobile-guest-rsvp.webp`,
+  /** Real message composer UI from /try/dashboard/messages/new */
+  messagesSms: `${P}/webp/desktop-messages-sms.webp`,
+  messagesSmsReminder: `${P}/webp/desktop-messages-sms-reminder.webp`,
+  messagesSaveTheDate: `${P}/webp/desktop-messages-save-the-date.webp`,
+  messagesSmsMobile: `${P}/webp/mobile-messages-sms.webp`,
+  messagesSaveTheDateMobile: `${P}/webp/mobile-messages-save-the-date.webp`,
+} as const;
+
+/** Demo recordings from /try and /invite — fictional data only. */
+export const PRODUCT_VIDEOS = {
+  dashboard: "/marketing/videos/demo-try-dashboard.webm",
+  seating: "/marketing/videos/demo-try-seating.webm",
+  seatingUnifiedCaptions: "/marketing/videos/demo-seating-unified-captions.webm",
+  guestRsvp: "/marketing/videos/demo-guest-rsvp.webm",
+  guestRsvpCaptions: "/marketing/videos/demo-guest-rsvp-captions.webm",
+  weddingEternal: "/marketing/videos/demo-wedding-eternal-gold.webm",
 } as const;
 
 /** Prefer webp; fall back to png if a variant is missing on disk. */
@@ -32,10 +52,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/rsvp":
     case "/rsvp/chatuna":
     case "/rsvp/whatsapp":
-    case "/rsvp/sms":
     case "/rsvp/calls":
-    case "/rsvp/reminders":
-    case "/rsvp/thank-you-messages":
     case "/rsvp/guest-list":
     case "/info/demo":
     case "/for/bar-mitzvah":
@@ -45,12 +62,24 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/for/private-party":
     case "/for/corporate":
       return {
-        heading: "ככה נראית ניהול הרשימה במערכת",
-        lede: "צילום ממסך הדמו — חתונה פיקטיבית של מאיה ואיתי. אין כאן נתוני לקוחות אמיתיים.",
+        heading: "ככה נראים האישור והדשבורד במערכת",
+        lede: "צילום ממסך האורח ומסך הדמו — חתונה פיקטיבית של מאיה ואיתי. אין כאן נתוני לקוחות אמיתיים.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו של Invistimo עם סטטיסטיקות אישורי הגעה", caption: "דשבורד האירוע — סטטוסים, פעילות אחרונה ומעקב צפיות", device: "laptop" },
-          { src: PRODUCT_SHOTS.dashboardMobile, alt: "תצוגת מובייל של דשבורד הדמו", caption: "אותו מסך בנייד", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvp, alt: "מסך אישור הגעה של אורח בדמו — בחירת מגיע או לא מגיע", caption: "מה האורח רואה בקישור האישי", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו של Invistimo עם סטטיסטיקות אישורי הגעה", caption: "אותה תשובה נכנסת לדשבורד", device: "laptop" },
+        ],
+      };
+    case "/rsvp/sms":
+    case "/rsvp/reminders":
+    case "/rsvp/thank-you-messages":
+      return {
+        heading: "ממשק שליחת SMS אמיתי מהדמו",
+        lede: "צילום ממסך «שליחת הודעות» בדמו — סבב SMS עם תצוגה מקדימה בטלפון. בלי שליחה אמיתית.",
+        layout: "hero-side",
+        items: [
+          { src: PRODUCT_SHOTS.messagesSms, alt: "ממשק שליחת SMS לסבב אישור הגעה עם תצוגה מקדימה", caption: "סבב 1 בערוץ SMS — תצוגה מקדימה בטלפון", device: "laptop" },
+          { src: PRODUCT_SHOTS.messagesSmsReminder, alt: "ממשק תזכורת SMS לפני האירוע בדמו", caption: "תזכורת SMS למי שכבר אישר", device: "laptop" },
         ],
       };
     case "/for/henna":
@@ -64,14 +93,23 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         ],
       };
     case "/rsvp/save-the-date":
+      return {
+        heading: "ממשק Save the Date מהמערכת",
+        lede: "צילום ממסך «טרום אישורי הגעה» בדמו — בחירת Save the Date ותצוגה מקדימה בוואטסאפ. נתונים פיקטיביים.",
+        layout: "hero-side",
+        items: [
+          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date בדמו עם תצוגה מקדימה בוואטסאפ", caption: "Save the Date — תצוגה מקדימה מהמערכת", device: "laptop" },
+          { src: PRODUCT_SHOTS.messagesSaveTheDateMobile, alt: "Save the Date בנייד בדמו", caption: "אותו מסך בנייד", device: "phone" },
+        ],
+      };
     case "/invitations/chatuna":
       return {
         heading: "מה האורח רואה בהזמנה ובאתר",
-        lede: "תבניות אתר חתונה אמיתיות מהמערכת (נתוני דמו: נעמית ובן).",
+        lede: "קישור אישי לאישור + תבניות אתר חתונה מהמערכת (נתוני דמו).",
         layout: "phone-pair",
         items: [
+          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח בדמו", caption: "קישור אישי לאישור", device: "phone" },
           { src: PRODUCT_SHOTS.weddingEternalMobile, alt: "אתר חתונה Eternal Gold בנייד", caption: "Eternal Gold", device: "phone" },
-          { src: PRODUCT_SHOTS.weddingMidnightMobile, alt: "אתר חתונה Midnight Velvet בנייד", caption: "Midnight Velvet", device: "phone" },
         ],
       };
     case "/seating-explained":

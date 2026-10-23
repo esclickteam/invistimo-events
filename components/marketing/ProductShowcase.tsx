@@ -59,7 +59,7 @@ export default function ProductShowcase({ heading, lede, items, layout = "duo" }
           </div>
         ) : null}
 
-        {(layout === "duo" || layout === "trio") && layout !== "hero-side" ? (
+        {layout === "duo" || layout === "trio" ? (
           <div
             className={`mt-10 grid gap-8 ${
               layout === "trio" ? "md:grid-cols-3" : "md:grid-cols-2"

@@ -8,7 +8,7 @@ import DeviceFrame from "@/components/marketing/DeviceFrame";
 import EventJourney from "@/components/marketing/EventJourney";
 import ProductShowcase from "@/components/marketing/ProductShowcase";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
-import { PRODUCT_SHOTS, showcaseForPath } from "@/lib/seo/productVisuals";
+import { PRODUCT_SHOTS, PRODUCT_VIDEOS, showcaseForPath } from "@/lib/seo/productVisuals";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -381,15 +381,16 @@ export default function SeatingExplainedPage() {
 
       <section className="px-5 py-10 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">סרטון קצר ממסך ההושבה</h2>
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">ריל הושבה מאוחד עם כתוביות</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            הקלטה מדמו ההושבה. בלי שינוי נתוני לקוחות ובלי שליחת הודעות.
+            שישה שלבים במסך אחד: מפה, שולחנות, שיבוץ, קבוצות, תפוסה ומספר שולחן —
+            מקליפים ומסך הדמו. בלי נתוני לקוחות ובלי שליחת הודעות.
           </p>
           <div className="mt-8">
             <DemoVideo
-              src="/marketing/videos/demo-try-seating.webm"
+              src={PRODUCT_VIDEOS.seatingUnifiedCaptions}
               poster={PRODUCT_SHOTS.seating}
-              caption="דמו סידורי הושבה"
+              caption="ריל הושבה מאוחד עם כתוביות בעברית"
             />
           </div>
         </div>

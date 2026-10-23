@@ -46,9 +46,9 @@ export const SERVICE_PAGES: ServicePage[] = [
       "בחתונה הרשימה גדולה, יש שני צדדים, והאולם לוחץ למספר. Invistimo מרכזת את אישורי ההגעה בקישור אישי לכל אורח, עם סבבי וואטסאפ ותשובות במערכת — לא בצ'אטים מפוזרים.",
     media: {
       type: "video",
-      src: "/videos/rsvp1.mp4",
+      src: "/marketing/videos/demo-guest-rsvp-captions.webm",
       variant: "phone",
-      caption: "המחשה: קישור אישי ואישור הגעה במערכת",
+      caption: "הקלטה ממסך אורח בדמו — קישור אישי ואישור הגעה (נתונים פיקטיביים)",
     },
     showEventTypes: false,
     benefits: [
@@ -339,10 +339,10 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Save the Date ב־Invistimo הוא עדכון מוקדם שהתאריך תפוס. זו הודעת וואטסאפ נפרדת, חד־פעמית, שלא פותחת את סבבי אישור ההגעה ולא אוספת מגיע או לא מגיע.",
     media: {
       type: "image",
-      src: "/home3.png",
-      alt: "המחשת הודעות אירוע ב־Invistimo",
+      src: "/marketing/product/webp/desktop-messages-save-the-date.webp",
+      alt: "ממשק שליחת Save the Date בדמו עם תצוגה מקדימה בוואטסאפ",
       variant: "wide",
-      caption: "המחשה ויזואלית ממסכי המותג — לא צילום מסך של הודעת Save the Date ספציפית",
+      caption: "צילום ממסך «טרום אישורי הגעה» בדמו — Save the Date עם תצוגה מקדימה",
     },
     showEventTypes: true,
     benefits: [
@@ -511,10 +511,10 @@ export const SERVICE_PAGES: ServicePage[] = [
       "ב־Invistimo סבבי אישור ההגעה בחבילת ההודעות יוצאים בוואטסאפ. ה־SMS נכנס בתזכורת לפני האירוע (כולל מספר שולחן כשיש הושבה) ובהודעת תודה אחריו — לא כערוץ ראשי לאיסוף «מגיע / לא מגיע».",
     media: {
       type: "image",
-      src: "/marketing/product/webp/mobile-try-dashboard.webp",
-      alt: "מעקב סטטוסים בדמו בנייד",
-      variant: "phone",
-      caption: "הסטטוס נשמר במערכת — גם כשהתזכורת יצאה ב־SMS",
+      src: "/marketing/product/webp/desktop-messages-sms.webp",
+      alt: "ממשק שליחת SMS לסבב אישור עם תצוגה מקדימה בטלפון",
+      variant: "wide",
+      caption: "צילום ממסך שליחת הודעות בדמו — סבב SMS עם תצוגה מקדימה",
     },
     benefits: [
       {
