@@ -5,7 +5,9 @@ export const SITE_NAME = "Invistimo";
 export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
 
 export function absoluteUrl(path: string) {
-  if (path === "/") return `${SITE_URL}/`;
+  // Home canonical/sitemap use the apex without a trailing slash so they match
+  // what Next.js emits in <link rel="canonical">.
+  if (path === "/") return SITE_URL;
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

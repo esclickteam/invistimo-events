@@ -106,7 +106,7 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
     description: "אישורי הגעה",
     path: "/rsvp",
   });
-  assert.equal(home.alternates && "canonical" in home.alternates && home.alternates.canonical, "https://www.invistimo.com/");
+  assert.equal(home.alternates && "canonical" in home.alternates && home.alternates.canonical, "https://www.invistimo.com");
   assert.equal(rsvp.alternates && "canonical" in rsvp.alternates && rsvp.alternates.canonical, "https://www.invistimo.com/rsvp");
   assert.notEqual(
     home.alternates && "canonical" in home.alternates && home.alternates.canonical,
@@ -123,7 +123,7 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
 
 test("sitemap lists public guides and omits private or auth URLs", () => {
   const urls = sitemap().map((item) => item.url);
-  assert.ok(urls.includes("https://www.invistimo.com/"));
+  assert.ok(urls.includes("https://www.invistimo.com") || urls.includes("https://www.invistimo.com/"));
   assert.ok(urls.includes("https://www.invistimo.com/rsvp/chatuna"));
   assert.ok(urls.includes("https://www.invistimo.com/info/guides"));
   for (const guide of GUIDES) {
@@ -366,6 +366,14 @@ test("seo documentation deliverables exist", () => {
     "docs/seo/qa-report.md",
     "docs/seo/plan-30-60-90.md",
     "docs/seo/actions-requiring-approval.md",
+    "docs/seo/launch-readiness.md",
+    "docs/seo/connect-search-analytics.md",
+    "docs/seo/post-publish-index-checklist.md",
+    "docs/seo/keyword-research-live.md",
+    "docs/seo/competitor-research.md",
+    "docs/seo/outreach-targets.md",
+    "docs/seo/promotion-plan-google-ai.md",
+    "docs/seo/monthly-report-template.md",
   ]) {
     assert.ok(fs.existsSync(path.join(root, rel)), rel);
   }
