@@ -63,52 +63,52 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/for/corporate":
       return {
         heading: "ככה נראים האישור והדשבורד במערכת",
-        lede: "צילום ממסך האורח ומסך הדמו — חתונה פיקטיבית של מאיה ואיתי. אין כאן נתוני לקוחות אמיתיים.",
+        lede: "כך האורח מאשר הגעה בקישור האישי — ואותה תשובה נכנסת מיד לדשבורד שלכם.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.guestRsvp, alt: "מסך אישור הגעה של אורח בדמו — בחירת מגיע או לא מגיע", caption: "מה האורח רואה בקישור האישי", device: "phone" },
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו של Invistimo עם סטטיסטיקות אישורי הגעה", caption: "אותה תשובה נכנסת לדשבורד", device: "laptop" },
+          { src: PRODUCT_SHOTS.guestRsvp, alt: "מסך אישור הגעה של אורח — בחירת מגיע או לא מגיע", caption: "מה האורח רואה בקישור האישי", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד Invistimo עם סטטיסטיקות אישורי הגעה", caption: "אותה תשובה נכנסת לדשבורד", device: "laptop" },
         ],
       };
     case "/rsvp/sms":
     case "/rsvp/reminders":
     case "/rsvp/thank-you-messages":
       return {
-        heading: "ממשק שליחת SMS אמיתי מהדמו",
-        lede: "צילום ממסך «שליחת הודעות» בדמו — סבב SMS עם תצוגה מקדימה בטלפון. בלי שליחה אמיתית.",
+        heading: "ממשק שליחת SMS מהמערכת",
+        lede: "תצוגה מקדימה של הודעת SMS לאורחים — סבב, נמענים ותצוגה בטלפון לפני השליחה.",
         layout: "hero-side",
         items: [
           { src: PRODUCT_SHOTS.messagesSms, alt: "ממשק שליחת SMS לסבב אישור הגעה עם תצוגה מקדימה", caption: "סבב 1 בערוץ SMS — תצוגה מקדימה בטלפון", device: "laptop" },
-          { src: PRODUCT_SHOTS.messagesSmsReminder, alt: "ממשק תזכורת SMS לפני האירוע בדמו", caption: "תזכורת SMS למי שכבר אישר", device: "laptop" },
+          { src: PRODUCT_SHOTS.messagesSmsReminder, alt: "ממשק תזכורת SMS לפני האירוע", caption: "תזכורת SMS למי שכבר אישר", device: "laptop" },
         ],
       };
     case "/for/henna":
       return {
         heading: "אישורים והושבה כשיש שולחנות",
-        lede: "לחינה עם שולחנות — אותם מסכי דמו של רשימה והושבה.",
+        lede: "לחינה עם שולחנות — רשימת אורחים ומפת הושבה באותה מערכת.",
         layout: "duo",
         items: [
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו", device: "laptop" },
-          { src: PRODUCT_SHOTS.seating, alt: "מפת הושבה בדמו", device: "laptop" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אישורי הגעה", device: "laptop" },
+          { src: PRODUCT_SHOTS.seating, alt: "מפת הושבה עם שולחנות", device: "laptop" },
         ],
       };
     case "/rsvp/save-the-date":
       return {
         heading: "ממשק Save the Date מהמערכת",
-        lede: "צילום ממסך «טרום אישורי הגעה» בדמו — בחירת Save the Date ותצוגה מקדימה בוואטסאפ. נתונים פיקטיביים.",
+        lede: "בחירת Save the Date ותצוגה מקדימה בוואטסאפ — לפני שההודעה יוצאת לאורחים.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date בדמו עם תצוגה מקדימה בוואטסאפ", caption: "Save the Date — תצוגה מקדימה מהמערכת", device: "laptop" },
-          { src: PRODUCT_SHOTS.messagesSaveTheDateMobile, alt: "Save the Date בנייד בדמו", caption: "אותו מסך בנייד", device: "phone" },
+          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date עם תצוגה מקדימה בוואטסאפ", caption: "Save the Date — תצוגה מקדימה מהמערכת", device: "laptop" },
+          { src: PRODUCT_SHOTS.messagesSaveTheDateMobile, alt: "Save the Date בנייד", caption: "אותו מסך בנייד", device: "phone" },
         ],
       };
     case "/invitations/chatuna":
       return {
         heading: "מה האורח רואה בהזמנה ובאתר",
-        lede: "קישור אישי לאישור + תבניות אתר חתונה מהמערכת (נתוני דמו).",
+        lede: "קישור אישי לאישור הגעה לצד תבניות אתר חתונה מהמערכת.",
         layout: "phone-pair",
         items: [
-          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח בדמו", caption: "קישור אישי לאישור", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח", caption: "קישור אישי לאישור", device: "phone" },
           { src: PRODUCT_SHOTS.weddingEternalMobile, alt: "אתר חתונה Eternal Gold בנייד", caption: "Eternal Gold", device: "phone" },
         ],
       };
@@ -117,10 +117,10 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/guides/table-number-message":
       return {
         heading: "מפת שולחנות ושיבוץ אורחים",
-        lede: "צילום ממסך ההושבה בדמו — סקיצה, שולחנות ושיבוץ.",
+        lede: "תכננו את מפת השולחנות, שבצו את המוזמנים וראו בזמן אמת איפה נשאר מקום.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.seating, alt: "מסך סידורי הושבה בדמו של Invistimo", device: "laptop" },
+          { src: PRODUCT_SHOTS.seating, alt: "מסך סידורי הושבה של Invistimo", device: "laptop" },
           { src: PRODUCT_SHOTS.seatingMobile, alt: "הושבה בנייד", device: "phone" },
         ],
       };
@@ -128,11 +128,11 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/guides/event-day-checklist":
       return {
         heading: "ניהול האירוע במקום אחד",
-        lede: "מסך ניהול אירוע בדמו — משימות ותפעול לצד הרשימה.",
+        lede: "משימות ותפעול לצד הרשימה — הכל במסך אחד לפני יום האירוע ובמהלכו.",
         layout: "duo",
         items: [
-          { src: PRODUCT_SHOTS.eventMgmt, alt: "מסך ניהול אירוע בדמו", device: "laptop" },
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד האירוע בדמו", device: "laptop" },
+          { src: PRODUCT_SHOTS.eventMgmt, alt: "מסך ניהול אירוע", device: "laptop" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד האירוע", device: "laptop" },
         ],
       };
     case "/wedding-website":
@@ -169,7 +169,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/guides/build-wedding-website":
       return {
         heading: "תבניות אתר חתונה מהמוצר",
-        lede: "צילומים מתבניות חיות — נתוני דמו בלבד.",
+        lede: "תבניות חיות מהמערכת — כך האורחים רואים את האתר בנייד.",
         layout: "phone-pair",
         items: [
           { src: PRODUCT_SHOTS.weddingEternalMobile, alt: "Eternal Gold בנייד", device: "phone" },
@@ -179,10 +179,10 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/guides/manage-corporate-event":
       return {
         heading: "ניהול אירוע לצד הרשימה",
-        lede: "מסכי דמו — משימות ודשבורד.",
+        lede: "משימות ודשבורד — ניהול האירוע במקום אחד.",
         layout: "duo",
         items: [
-          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע בדמו", device: "laptop" },
+          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע", device: "laptop" },
           { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אירוע", device: "laptop" },
         ],
       };

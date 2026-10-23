@@ -170,10 +170,9 @@ export default function PublicContentPage({
         </div>
 
         {answer ? (
-          <div className="border-y border-[#E6D2AA]/70 bg-[#FFFDF8]/85 px-5 py-6 md:px-8">
-            <div className="mx-auto max-w-6xl">
-              <h2 className="text-base font-black text-[#A67C3D]">התשובה הקצרה</h2>
-              <p className="mt-2 max-w-4xl text-base leading-8 text-[#3F3025] md:text-lg">{answer}</p>
+          <div className="border-y border-[#E8DFD2]/80 bg-white/60 px-5 py-8 md:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-lg leading-9 text-[#3F3025] md:text-xl">{answer}</p>
             </div>
           </div>
         ) : null}

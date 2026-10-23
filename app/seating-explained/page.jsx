@@ -356,12 +356,12 @@ export default function SeatingExplainedPage() {
           >
             <DeviceFrame
               src={PRODUCT_SHOTS.seating}
-              alt="מפת סידורי הושבה במסך הדמו של Invistimo"
+              alt="מפת סידורי הושבה של Invistimo"
               variant="laptop"
               priority
             />
             <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
-              צילום ממסך הדמו — נתונים פיקטיביים בלבד
+              כל אורח במקום שלו. כל שולחן בשליטה.
             </p>
           </motion.div>
         </div>
@@ -381,16 +381,16 @@ export default function SeatingExplainedPage() {
 
       <section className="px-5 py-10 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">ריל הושבה מאוחד עם כתוביות</h2>
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">כל אורח במקום שלו. כל שולחן בשליטה.</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            שישה שלבים במסך אחד: מפה, שולחנות, שיבוץ, קבוצות, תפוסה ומספר שולחן —
-            מקליפים ומסך הדמו. בלי נתוני לקוחות ובלי שליחת הודעות.
+            תכננו את מפת השולחנות, שבצו את המוזמנים וראו בזמן אמת איפה נשאר מקום —
+            מהסקיצה ועד מספר השולחן לאורח.
           </p>
           <div className="mt-8">
             <DemoVideo
               src={PRODUCT_VIDEOS.seatingUnifiedCaptions}
               poster={PRODUCT_SHOTS.seating}
-              caption="ריל הושבה מאוחד עם כתוביות בעברית"
+              caption="סידורי הושבה במערכת — מהמפה עד מספר שולחן"
             />
           </div>
         </div>
@@ -429,11 +429,11 @@ export default function SeatingExplainedPage() {
           <div>
             <DeviceFrame
               src={PRODUCT_SHOTS.seating}
-              alt="מפת הושבה בדמו עם שולחנות ותפוסה"
+              alt="מפת הושבה עם שולחנות ותפוסה"
               variant="laptop"
             />
             <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
-              צילום דמו — שולחנות, תפוסה ורשימת אורחים
+              שולחנות, תפוסה ורשימת אורחים — הכל במפה אחת
             </p>
           </div>
         </div>

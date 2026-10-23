@@ -60,34 +60,34 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.dashboard,
-      alt: "דשבורד דמו עם מעקב סטטוסי הגעה",
+      alt: "דשבורד עם מעקב סטטוסי הגעה",
       variant: "wide",
       caption: "בדשבורד רואים מי ענה ומי עדיין פתוח — בסיס לסבב השני",
     },
     video: {
       src: "/marketing/videos/demo-guest-rsvp-captions.webm",
       poster: SHOT.guestRsvp,
-      caption: "הקלטה ממסך אורח בדמו: בחירה ושליחת אישור (נתונים פיקטיביים)",
+      caption: "כך האורח מאשר הגעה בקישור האישי",
     },
     gallery: [
       {
         type: "image",
         src: SHOT.guestRsvp,
-        alt: "מסך אישור הגעה של אורח בדמו",
+        alt: "מסך אישור הגעה של אורח",
         device: "phone",
         caption: "מה האורח רואה בקישור — לפני שמסתכלים על לוח הזמנים",
       },
       {
         type: "image",
         src: SHOT.dashboard,
-        alt: "דשבורד אישורי הגעה בדמו",
+        alt: "דשבורד אישורי הגעה",
         device: "laptop",
-        caption: "סטטוסים ומספר מגיעים — דמו",
+        caption: "סטטוסים ומספר מגיעים",
       },
       {
         type: "image",
         src: SHOT.messagesSms,
-        alt: "ממשק SMS בדמו",
+        alt: "ממשק SMS",
         device: "laptop",
         caption: "תזכורת/סבב SMS — אחרי שיש תשובות, לא במקומן",
       },
@@ -170,7 +170,7 @@ export const GUIDES: Guide[] = [
           "בבר מצווה ובאירוע חברה אותו עיקרון: הדד־ליין של הספק קובע, לא מספר ימים קבוע מהמערכת.",
         ],
         imageSrc: SHOT.dashboard,
-        imageAlt: "דשבורד דמו למעקב פתוחים",
+        imageAlt: "דשבורד למעקב פתוחים",
         imageDevice: "laptop",
       },
       {
@@ -204,7 +204,7 @@ export const GUIDES: Guide[] = [
     primaryCta: { href: "/try", label: "לצפייה בדמו" },
     secondaryCta: { href: "/rsvp", label: "לעמוד אישורי הגעה" },
     ctaTitle: "רוצים לראות איך נראים הפתוחים בדשבורד?",
-    ctaLede: "בדמו תעברו על אירוע פיקטיבי בלי לשלוח הודעות אמיתיות.",
+    ctaLede: "התנסו בדמו כדי לראות איך נראים האישורים והדשבורד — ואז עברו למחשבון לפי מספר רשומות.",
   },
   {
     slug: "seating-plan",
@@ -220,14 +220,14 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.seating,
-      alt: "מפת הושבה בדמו",
+      alt: "מפת הושבה",
       variant: "wide",
-      caption: "מפת שולחנות בדמו — נתונים פיקטיביים",
+      caption: "כל אורח במקום שלו. כל שולחן בשליטה.",
     },
     video: {
       src: "/marketing/videos/demo-seating-unified-captions.webm",
       poster: SHOT.seating,
-      caption: "ריל הושבה מאוחד עם כתוביות — מהמפה ועד מספר שולחן",
+      caption: "מהמפה ועד מספר שולחן — שיבוץ אורחים במערכת",
     },
     gallery: [
       {
@@ -248,7 +248,7 @@ export const GUIDES: Guide[] = [
         type: "video",
         src: "/videos/tablesit.mp4",
         poster: SHOT.seating,
-        caption: "שיבוץ לשולחנות — קליפ מוצר",
+        caption: "שיבוץ אורחים לשולחנות",
       },
       {
         type: "video",
@@ -298,7 +298,7 @@ export const GUIDES: Guide[] = [
     tips: [
       {
         tone: "example",
-        title: "דוגמה פיקטיבית",
+        title: "תרחיש לדוגמה",
         text: "אירוע דמו עם כ־10 שולחנות: רואים תפוסה כמו 8/10, רשימת לא־משובצים בצד, והעברה משולחן לשולחן בלי לבנות גיליון חדש.",
       },
       {
@@ -394,15 +394,15 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.messagesSaveTheDate,
-      alt: "ממשק Save the Date בדמו עם תצוגה מקדימה בוואטסאפ",
+      alt: "ממשק Save the Date עם תצוגה מקדימה בוואטסאפ",
       variant: "wide",
-      caption: "Save the Date — תצוגה מקדימה מהמערכת (דמו)",
+      caption: "Save the Date — תצוגה מקדימה מהמערכת",
     },
     gallery: [
       {
         type: "image",
         src: SHOT.messagesSaveTheDate,
-        alt: "שליחת Save the Date בדמו",
+        alt: "שליחת Save the Date",
         device: "laptop",
         caption: "הודעת וואטסאפ חד־פעמית — בלי טופס אישור",
       },
@@ -442,7 +442,7 @@ export const GUIDES: Guide[] = [
           "אישורי ההגעה עצמם: שני סבבי וואטסאפ בחבילת ההודעות, תשובה בקישור אישי, ותזכורת/תודה ב־SMS בהמשך. אתר חתונה (אם פתוח) משלים מידע — לא מחליף את הסבבים.",
         ],
         imageSrc: SHOT.messagesSaveTheDate,
-        imageAlt: "ממשק Save the Date בדמו",
+        imageAlt: "ממשק Save the Date",
         imageDevice: "laptop",
       },
       {
@@ -531,7 +531,7 @@ export const GUIDES: Guide[] = [
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: SHOT.dashboard,
-      caption: "איך נראה מעקב התשובות בדמו",
+      caption: "איך נראה מעקב התשובות במערכת",
     },
     steps: [
       { title: "נותנים זמן לסבב ראשון", text: "לא שולחים סבב שני אחרי שעתיים — יום–יומיים לפחות." },
@@ -649,14 +649,14 @@ export const GUIDES: Guide[] = [
         type: "image",
         src: SHOT.messagesSms,
         device: "laptop",
-        alt: "ממשק סבבים בדמו",
-        caption: "בדמו רואים סבב 1 / 2 / 3 וערוץ WhatsApp או SMS",
+        alt: "ממשק סבבים",
+        caption: "סבב 1 / 2 / 3 וערוץ WhatsApp או SMS",
       },
     ],
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: SHOT.dashboard,
-      caption: "מעקב אחרי מי ענה אחרי כל סבב — דמו",
+      caption: "מעקב אחרי מי ענה אחרי כל סבב",
     },
     steps: [
       { title: "סבב ראשון", text: "לכל הרשימה עם קישור אישי." },
@@ -672,7 +672,7 @@ export const GUIDES: Guide[] = [
       },
       {
         tone: "example",
-        title: "דוגמה פיקטיבית",
+        title: "תרחיש לדוגמה",
         text: "שלחתם סבב ראשון ביום ראשון ל־280 רשומות. עד רביעי נשארו 60 פתוחים — חלקם עם קידומת שגויה. מתקנים, שולחים סבב שני רק אליהם, ורק אז מחליטים אם צריך שיחות.",
       },
     ],
@@ -701,7 +701,7 @@ export const GUIDES: Guide[] = [
         heading: "מה כלול במחשבון",
         paragraphs: [
           "הודעות בלבד: שני סבבי וואטסאפ + תזכורת ותודה ב־SMS. חבילות השיחה מוסיפות סבבי שיחה על אותו בסיס — לא מחליפות את שני סבבי הוואטסאפ.",
-          "במסך שליחת ההודעות בדמו רואים בדיוק את הסבבים, מספר הנמענים בכל סבב, ובחירת ערוץ WhatsApp או SMS. זה המקום לבדוק לפני ששולחים באמת.",
+          "במסך שליחת ההודעות רואים בדיוק את הסבבים, מספר הנמענים בכל סבב, ובחירת ערוץ WhatsApp או SMS — לפני שההודעה יוצאת.",
         ],
       },
       {
@@ -750,7 +750,7 @@ export const GUIDES: Guide[] = [
       src: SHOT.dashboard,
       alt: "רשימה בדשבורד",
       variant: "wide",
-      caption: "סטטוס ומספר מגיעים על אותה רשומה — דמו",
+      caption: "סטטוס ומספר מגיעים על אותה רשומה",
     },
     gallery: [
       {
@@ -860,7 +860,7 @@ export const GUIDES: Guide[] = [
       src: SHOT.weddingGardenMobile,
       alt: "המחשת הזמנה/אתר",
       variant: "phone",
-      caption: "חוויית אורח בנייד — דמו תבנית",
+      caption: "חוויית אורח בנייד — תבנית לדוגמה",
     },
     gallery: [
       {
@@ -868,7 +868,7 @@ export const GUIDES: Guide[] = [
         src: SHOT.weddingEternalMobile,
         device: "phone",
         alt: "תבנית חתונה",
-        caption: "חוויית אורח (דמו תבנית)",
+        caption: "חוויית אורח — תבנית לדוגמה",
       },
       {
         type: "image",
@@ -978,9 +978,9 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.messagesSaveTheDate,
-      alt: "ממשק Save the Date בדמו",
+      alt: "ממשק Save the Date",
       variant: "wide",
-      caption: "Save the Date — תצוגה מקדימה בוואטסאפ (דמו)",
+      caption: "Save the Date — תצוגה מקדימה בוואטסאפ",
     },
     gallery: [
       {
@@ -1068,7 +1068,7 @@ export const GUIDES: Guide[] = [
           "אורחים מחו״ל נהנים מהתראה מוקדמת לתכנון טיסות. אורחים מקומיים — שומרים יומן. אף אחד מהם לא צריך למלא מספר מגיעים בשלב הזה.",
         ],
         imageSrc: SHOT.messagesSaveTheDate,
-        imageAlt: "ממשק Save the Date בדמו",
+        imageAlt: "ממשק Save the Date",
         imageDevice: "laptop",
       },
       {
@@ -1115,7 +1115,7 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.weddingMidnightMobile,
-      alt: "תצוגת אורח — תבנית דמו",
+      alt: "תצוגת אורח — תבנית לדוגמה",
       variant: "phone",
       caption: "בודקים תצוגת אורח לפני שליחה",
     },
@@ -1131,7 +1131,7 @@ export const GUIDES: Guide[] = [
         src: SHOT.weddingMidnightMobile,
         device: "phone",
         alt: "תבנית",
-        caption: "דוגמת תצוגת אורח (דמו תבנית)",
+        caption: "דוגמת תצוגת אורח",
       },
       {
         type: "image",
@@ -1239,7 +1239,7 @@ export const GUIDES: Guide[] = [
       type: "video",
       src: "/marketing/videos/demo-wedding-eternal-gold.webm",
       poster: SHOT.weddingEternal,
-      caption: "תבנית Eternal Gold — דמו",
+      caption: "תבנית Eternal Gold",
       variant: "wide",
     },
     gallery: [
@@ -1300,7 +1300,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "דוגמאות פעילות",
         paragraphs: [
-          "בעמוד אתר החתונה ובנתיבי /wedding-website/[תבנית] אפשר לפתוח תבניות חיות עם נתוני דמו לפני שעורכים את שלכם.",
+          "בעמוד אתר החתונה ובנתיבי /wedding-website/[תבנית] אפשר לפתוח תבניות חיות לפני שעורכים את שלכם.",
           "Eternal Gold, Midnight Velvet ו־Garden Bloom מראות סגנונות שונים — אותו רעיון: האורח גולל בנייד בלי להוריד אפליקציה.",
         ],
       },
@@ -1367,7 +1367,7 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.seating,
-      alt: "מפת הושבה בדמו",
+      alt: "מפת הושבה",
       variant: "wide",
       caption: "קודם שיבוץ יציב במפה — אחר כך הודעת מספר",
     },
@@ -1390,7 +1390,7 @@ export const GUIDES: Guide[] = [
         type: "video",
         src: "/marketing/videos/demo-seating-unified-captions.webm",
         poster: SHOT.seating,
-        caption: "ריל הושבה מאוחד — מהמפה עד מספר שולחן",
+        caption: "מהמפה עד מספר שולחן — שיבוץ במערכת",
       },
     ],
     video: {
@@ -1447,7 +1447,7 @@ export const GUIDES: Guide[] = [
           "קרוב ליום האירוע: תזכורת SMS יכולה לחזור על המספר כשיש הושבה — כדי לצמצם «מה השולחן שלי?» בכניסה.",
         ],
         imageSrc: SHOT.seating,
-        imageAlt: "מפת הושבה בדמו",
+        imageAlt: "מפת הושבה",
         imageDevice: "laptop",
       },
       {
@@ -1494,9 +1494,9 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.messagesSmsReminder,
-      alt: "ממשק תזכורת SMS בדמו",
+      alt: "ממשק תזכורת SMS",
       variant: "wide",
-      caption: "תזכורת SMS למי שכבר אישר — דמו",
+      caption: "תזכורת SMS למי שכבר אישר",
     },
     steps: [
       { title: "סוגרים פתוחים", text: "סבב וואטסאפ שני / שיחות לפי חבילה." },
@@ -1537,7 +1537,7 @@ export const GUIDES: Guide[] = [
         type: "image",
         src: SHOT.messagesSmsReminder,
         device: "laptop",
-        alt: "תזכורת SMS בדמו",
+        alt: "תזכורת SMS",
         caption: "ממשק תזכורת SMS — לפני היום",
       },
       {
@@ -1570,7 +1570,7 @@ export const GUIDES: Guide[] = [
           "רק אז בודקים את מועד התזכורת והניסוח. שליחת תזכורת עם עשרות פתוחים לא סוגרת אותם — היא רק מזכירה למי שכבר יודע שהוא מגיע.",
         ],
         imageSrc: SHOT.messagesSmsReminder,
-        imageAlt: "תזכורת SMS בדמו",
+        imageAlt: "תזכורת SMS",
         imageDevice: "laptop",
       },
       {
@@ -1618,9 +1618,9 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.eventMgmt,
-      alt: "מסך ניהול אירוע בדמו",
+      alt: "מסך ניהול אירוע",
       variant: "wide",
-      caption: "ניהול אירוע בדמו — לפני יום האירוע",
+      caption: "ניהול האירוע במקום אחד — לפני היום הגדול",
     },
     timeline: [
       {
@@ -1650,7 +1650,7 @@ export const GUIDES: Guide[] = [
         src: SHOT.eventMgmt,
         device: "laptop",
         alt: "ניהול אירוע",
-        caption: "מסך ניהול אירוע בדמו",
+        caption: "מסך ניהול אירוע",
       },
       {
         type: "image",
@@ -1761,7 +1761,7 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.dashboard,
-      alt: "דשבורד אישורי הגעה בדמו",
+      alt: "דשבורד אישורי הגעה",
       variant: "wide",
       caption: "מעקב תשובות — אותו דשבורד, תרחיש בר מצווה",
     },
@@ -1891,9 +1891,9 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.dashboard,
-      alt: "דשבורד סטטוסים בדמו",
+      alt: "דשבורד סטטוסים",
       variant: "wide",
-      caption: "סטטוסי הגעה בזמן אמת — דמו",
+      caption: "סטטוסי הגעה בזמן אמת",
     },
     gallery: [
       {
@@ -1956,7 +1956,7 @@ export const GUIDES: Guide[] = [
           "פחות מתאים: כנס גדול עם מסלולים מקבילים, הרשמה פתוחה לקהל רחב, או צורך במערכת באדג׳ים וסשנים. במקרים כאלה — ליצור קשר ולבדוק התאמה, או לשלב כלים ייעודיים.",
         ],
         imageSrc: SHOT.eventMgmt,
-        imageAlt: "ניהול אירוע בדמו",
+        imageAlt: "ניהול אירוע",
         imageDevice: "laptop",
       },
       {
@@ -2004,7 +2004,7 @@ export const GUIDES: Guide[] = [
     media: {
       type: "image",
       src: SHOT.dashboard,
-      alt: "דשבורד אירוע בדמו",
+      alt: "דשבורד אירוע",
       variant: "wide",
       caption: "גודל הרשימה והסטטוסים — הבסיס לבחירה במחשבון",
     },
@@ -2100,7 +2100,7 @@ export const GUIDES: Guide[] = [
       src: SHOT.dashboard,
       alt: "דשבורד עם סכום מגיעים",
       variant: "wide",
-      caption: "סכום מגיעים ופתוחים במקום אחד — דמו",
+      caption: "סכום מגיעים ופתוחים במקום אחד",
     },
     gallery: [
       {

@@ -48,7 +48,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       type: "video",
       src: "/marketing/videos/demo-guest-rsvp-captions.webm",
       variant: "phone",
-      caption: "הקלטה ממסך אורח בדמו — קישור אישי ואישור הגעה (נתונים פיקטיביים)",
+      caption: "כך האורח מאשר הגעה בקישור האישי",
     },
     showEventTypes: false,
     benefits: [
@@ -340,9 +340,9 @@ export const SERVICE_PAGES: ServicePage[] = [
     media: {
       type: "image",
       src: "/marketing/product/webp/desktop-messages-save-the-date.webp",
-      alt: "ממשק שליחת Save the Date בדמו עם תצוגה מקדימה בוואטסאפ",
+      alt: "ממשק שליחת Save the Date עם תצוגה מקדימה בוואטסאפ",
       variant: "wide",
-      caption: "צילום ממסך «טרום אישורי הגעה» בדמו — Save the Date עם תצוגה מקדימה",
+      caption: "Save the Date עם תצוגה מקדימה בוואטסאפ — לפני השליחה",
     },
     showEventTypes: true,
     benefits: [
@@ -514,7 +514,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       src: "/marketing/product/webp/desktop-messages-sms.webp",
       alt: "ממשק שליחת SMS לסבב אישור עם תצוגה מקדימה בטלפון",
       variant: "wide",
-      caption: "צילום ממסך שליחת הודעות בדמו — סבב SMS עם תצוגה מקדימה",
+      caption: "תצוגה מקדימה של הודעת SMS לאורחים",
     },
     benefits: [
       {
@@ -597,7 +597,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     media: {
       type: "image",
       src: "/marketing/product/webp/desktop-try-dashboard.webp",
-      alt: "דשבורד דמו — מעקב אחרי מי עדיין פתוח",
+      alt: "דשבורד — מעקב אחרי מי עדיין פתוח",
       variant: "wide",
       caption: "מתחילים ממי שעדיין מסומן בלי תשובה",
     },
@@ -801,9 +801,9 @@ export const SERVICE_PAGES: ServicePage[] = [
     media: {
       type: "image",
       src: "/marketing/product/webp/desktop-try-dashboard.webp",
-      alt: "דשבורד דמו עם רשימת מוזמנים וסטטוסים",
+      alt: "דשבורד עם רשימת מוזמנים וסטטוסים",
       variant: "wide",
-      caption: "צילום ממסך הדמו — חתונה פיקטיבית",
+      caption: "רשימת מוזמנים וסטטוסי הגעה במקום אחד",
     },
     benefits: [
       {
@@ -865,7 +865,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       { name: "רשימת מוזמנים", path: "/rsvp/guest-list" },
     ],
     ctaTitle: "רוצים לראות רשימה חיה?",
-    ctaLede: "בדמו האינטראקטיבי אפשר לעבור על דשבורד עם נתונים פיקטיביים.",
+    ctaLede: "התנסו בדמו כדי לראות איך נראים הדשבורד, הרשימה וההושבה.",
     primaryCta: { href: "/try", label: "לצפייה בדמו" },
     secondaryCta: { href: "/pricing", label: "לחבילות" },
   },
@@ -873,28 +873,28 @@ export const SERVICE_PAGES: ServicePage[] = [
     path: "/info/demo",
     title: "דמו אינטראקטיבי | Invistimo",
     description:
-      "התנסו בדמו של Invistimo: דשבורד אישורי הגעה, הושבה וניהול אירוע עם נתונים פיקטיביים בלבד. בלי לשלוח הודעות אמיתיות.",
+      "התנסו בדמו של Invistimo: דשבורד אישורי הגעה, הושבה וניהול אירוע — מסכי המערכת האמיתיים, בלי חשבון פעיל.",
     eyebrow: "דמו",
     h1: "דמו אינטראקטיבי",
     titleAccent: "רואים את המערכת — לא רק קוראים עליה",
     serviceType: "הדגמת מוצר",
     lede:
-      "הדמו נפתח במסכי המערכת האמיתיים עם אירוע פיקטיבי. אפשר לראות דשבורד, סטטוסים, הושבה ומסכי ניהול — בלי לגעת בנתוני לקוחות ובלי לשלוח וואטסאפ אמיתי.",
+      "הדמו נפתח במסכי המערכת האמיתיים. אפשר לראות דשבורד, סטטוסים, הושבה ומסכי ניהול — ולחוש איך העבודה נראית לפני שפותחים אירוע.",
     media: {
       type: "image",
       src: "/marketing/product/webp/desktop-try-dashboard.webp",
-      alt: "מסך דמו — דשבורד אירוע",
+      alt: "דשבורד אירוע בדמו",
       variant: "wide",
-      caption: "כניסה לדמו: /try — לא מיועד לאינדוקס כעמוד מוצר",
+      caption: "כניסה לדמו ב־/try — מסכי המערכת בלי חשבון",
     },
     benefits: [
       {
         title: "מסכים אמיתיים",
-        text: "אותו ממשק שמארגנים רואים בחשבון — עם נתוני דמו.",
+        text: "אותו ממשק שמארגנים רואים בחשבון — עם אירוע לדוגמה.",
       },
       {
         title: "בלי סיכון לנתונים",
-        text: "אין שליחת הודעות אמיתיות ואין גישה לאירועי לקוחות.",
+        text: "סביבת הדגמה מבודדת — בלי חשבון ובלי שליחה לאירוע חי.",
       },
       {
         title: "מקשרים לשיווק",
@@ -911,7 +911,7 @@ export const SERVICE_PAGES: ServicePage[] = [
         heading: "למה הדמו עצמו לא באינדקס",
         paragraphs: [
           "מסלול `/try` מסומן noindex כדי שלא ייסרקו מסכי מוצר פנימיים כעמודי שיווק. העמוד הזה (`/info/demo`) מסביר מה תראו ומקשר פנימה.",
-          "צילומי המסך בעמודי השיווק צולמו מאותו דמו — תמיד עם נתונים פיקטיביים.",
+          "בעמודי השיווק תראו את אותם מסכי מערכת שזמינים בדמו ואחרי הרשמה.",
         ],
       },
     ],
@@ -934,7 +934,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     breadcrumbs: [home, { name: "דמו", path: "/info/demo" }],
     ctaTitle: "מוכנים להיכנס לדמו?",
-    ctaLede: "תתחילו מהדשבורד הפיקטיבי, ואז חזרו לחבילות כשתרצו מחיר.",
+    ctaLede: "התנסו בדמו מהדשבורד, ואז חזרו לחבילות כשתרצו מחיר.",
     primaryCta: { href: "/try", label: "פתיחת הדמו" },
     secondaryCta: { href: "/pricing", label: "לחבילות" },
   },

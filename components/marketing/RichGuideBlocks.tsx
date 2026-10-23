@@ -154,7 +154,7 @@ export function GuideGallery({ items }: { items: GuideGalleryItem[] }) {
       <div className="mx-auto max-w-5xl">
         <h2 className="text-3xl font-black text-[#2A211A]">איך זה נראה במערכת</h2>
         <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
-          צילומים וסרטונים ממסכי הדמו — נתונים פיקטיביים בלבד.
+          תצוגות אמיתיות של הממשק — כדי שתראו בדיוק איך העבודה נראית לפני שמתחילים.
         </p>
         <ul className="mt-10 grid gap-10 md:grid-cols-2">
           {items.map((item) => (

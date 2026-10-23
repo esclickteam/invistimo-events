@@ -55,11 +55,11 @@ const FAQS = [
   },
   {
     q: "אפשר לראות דוגמאות חיות?",
-    a: "כן. בעמוד הזה יש תצוגות חיות של התבניות, וניתן לפתוח כל תבנית במסך מלא. אלו דמואים עם נתונים פיקטיביים — לא אתרי לקוחות אמיתיים.",
+    a: "כן. בעמוד הזה יש תצוגות חיות של התבניות, וניתן לפתוח כל תבנית במסך מלא. אלו אתרי דוגמה מהמוצר — לא אתרי לקוחות.",
   },
   {
     q: "מה האורח יכול לעשות באתר?",
-    a: "לפי מה שמופעל: לצפות בתוכן, לנווט למיקום, לאשר הגעה בקישור האישי, לשלוח הודעה לזוג, להעלות מדיה, ולפתוח קישורי מתנות אם הוגדרו באירוע. הצעות פלייליסט בספרי האורחים בדמו הן תצוגה מקומית ולא נשמרות בשרת.",
+    a: "לפי מה שמופעל: לצפות בתוכן, לנווט למיקום, לאשר הגעה בקישור האישי, לשלוח הודעה לזוג, להעלות מדיה, ולפתוח קישורי מתנות אם הוגדרו באירוע. בספרי הדוגמה הצעות פלייליסט הן תצוגה מקומית ולא נשמרות בשרת.",
   },
 ];
 
@@ -139,11 +139,10 @@ export default function WeddingWebsiteMarketingPage() {
         </div>
       </section>
 
-      {/* Answer-first strip for AEO */}
+      {/* Soft answer strip for AEO — no developer heading */}
       <section className="border-y border-white/10 bg-[#12100E] px-5 py-8 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="text-sm font-black tracking-wide text-[#C9A962]">התשובה הקצרה</h2>
-          <p className="mt-2 max-w-4xl text-base leading-8 text-white/80 md:text-lg">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-lg leading-9 text-white/80 md:text-xl">
             אתר חתונה ב־Invistimo הוא אתר מעוצב לאירוע עם תבניות אמיתיות מהמוצר, עורך ויזואלי וקישור אורח.
             הוא משלים את ההזמנה הדיגיטלית ואת אישורי ההגעה — ואינו מחליף את סבבי הוואטסאפ. הזמינות תלויה בהרשאה
             בחשבון, לא בכל חבילה אוטומטית.
@@ -157,7 +156,7 @@ export default function WeddingWebsiteMarketingPage() {
           <div>
             <h2 className="font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">מחשב וטלפון — אותו אתר</h2>
             <p className="mt-4 leading-8 text-white/65">
-              הצילומים למטה הם מהתבניות החיות במערכת (נתוני דמו פיקטיביים). האורח מקבל חוויה מלאה בלי להתקין אפליקציה.
+              התצוגות למטה הן מהתבניות החיות במערכת. האורח מקבל חוויה מלאה בלי להתקין אפליקציה.
             </p>
             <ul className="mt-8 space-y-4 text-white/80">
               {CAPABILITIES.map((c) => (
@@ -184,8 +183,7 @@ export default function WeddingWebsiteMarketingPage() {
         <div className="mx-auto max-w-6xl">
           <h2 className="font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">3 דוגמאות חיות לפחות</h2>
           <p className="mt-4 max-w-2xl leading-8 text-white/65">
-            כל כרטיס מציג תצוגה חיה של התבנית. «לצפייה באתר לדוגמה» פותח דמו מלא עם נתונים פיקטיביים — בלי שליחת הודעות
-            אמיתיות.
+            כל כרטיס מציג תצוגה חיה של התבנית. «לצפייה באתר לדוגמה» פותח אתר מלא לדוגמה — אותה חוויה שהאורחים מקבלים.
           </p>
           <div className="mt-12 grid gap-10 lg:grid-cols-3">
             {featured.map((template, index) => (
@@ -224,13 +222,13 @@ export default function WeddingWebsiteMarketingPage() {
       <section className="mx-auto max-w-4xl px-5 py-12 md:px-8">
         <h2 className="font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">סרטון הדגמה קצר</h2>
         <p className="mt-3 leading-8 text-white/65">
-          הקלטה מתוך תבנית הדמו Eternal Gold — גלילה באתר האמיתי. ללא אודיו אוטומטי. נתונים פיקטיביים בלבד.
+          גלילה קצרה בתבנית Eternal Gold — כך נראה אתר החתונה לאורחים. בלי אודיו אוטומטי.
         </p>
         <div className="mt-8">
           <DemoVideo
             src="/marketing/videos/demo-wedding-eternal-gold.webm"
             poster={PRODUCT_SHOTS.weddingEternal}
-            caption="הקלטת מסך מתבנית חיה במערכת (דמו)"
+            caption="תבנית Eternal Gold — חוויית אורח"
             className="[&_figcaption]:text-white/55"
           />
         </div>
@@ -250,8 +248,8 @@ export default function WeddingWebsiteMarketingPage() {
             ))}
           </ol>
           <p className="mt-8 text-sm text-white/50">
-            הערה: ספרי ברכות ציבורי והצעות פלייליסט בדמו הם תצוגה מקומית. באתר החי ההודעות לזוג הן שרשור פרטי עם
-            token אורח.
+            הערה: בספרי הדוגמה, ברכות והצעות פלייליסט הן תצוגה מקומית. באתר החי ההודעות לזוג הן שרשור פרטי עם
+            קישור אורח אישי.
           </p>
         </div>
       </section>

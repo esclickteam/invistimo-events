@@ -315,21 +315,20 @@ export default function RSVPPage() {
         >
           <DeviceFrame
             src={PRODUCT_SHOTS.guestRsvp}
-            alt="מסך אישור הגעה של אורח בדמו — בחירת מגיע או לא מגיע"
+            alt="מסך אישור הגעה של אורח — בחירת מגיע או לא מגיע"
             variant="phone"
             priority
           />
           <p className="mt-4 text-sm font-semibold text-[#7A6042]">
-            צילום ממסך האורח בדמו — חתונה פיקטיבית של מאיה ואיתי. בלי נתוני לקוחות אמיתיים.
+            כך האורח מאשר הגעה בקישור האישי — בחירה ושליחה בכמה לחיצות.
           </p>
         </motion.div>
       </section>
 
       {answerFor("/rsvp") ? (
-        <section className="border-y border-[#E6D2AA]/70 bg-[#FFFDF8]/90 px-5 py-6 md:px-8">
-          <div className="mx-auto max-w-6xl text-right">
-            <h2 className="text-base font-black text-[#A67C3D]">התשובה הקצרה</h2>
-            <p className="mt-2 max-w-4xl text-base leading-8 text-[#3F3025] md:text-lg">
+        <section className="border-y border-[#E8DFD2]/80 bg-white/55 px-5 py-8 md:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-lg leading-9 text-[#3F3025] md:text-xl">
               {answerFor("/rsvp")}
             </p>
           </div>
@@ -362,13 +361,13 @@ export default function RSVPPage() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">הדגמה קצרה מהדשבורד</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            הקלטת מסך ממסך הדמו — בלי שליחת הודעות אמיתיות ובלי נתוני לקוחות.
+            רואים בזמן אמת מי אישר, מי עדיין פתוח, וכמה מגיעים — במקום אחד.
           </p>
           <div className="mt-8">
             <DemoVideo
               src="/marketing/videos/demo-try-dashboard.webm"
               poster={PRODUCT_SHOTS.dashboard}
-              caption="דשבורד דמו של Invistimo"
+              caption="דשבורד אישורי הגעה של Invistimo"
             />
           </div>
         </div>

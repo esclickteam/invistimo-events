@@ -121,7 +121,7 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
               <div className="rounded-[2rem] border border-[#E6D2AA] bg-white/50 p-8 backdrop-blur">
                 <p className="text-sm font-black text-[#A67C3D]">Invistimo</p>
                 <p className="mt-3 text-xl font-black leading-8 text-[#2A211A]">
-                  מדריך מהשטח — עם צילומים מהדמו, לא רק תיאוריה.
+                  מדריך מעשי לאירוע — עם דוגמאות מהמערכת עצמה.
                 </p>
               </div>
             )}
@@ -129,10 +129,9 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
         </div>
 
         {answer ? (
-          <div className="border-y border-[#E6D2AA]/70 bg-[#FFFDF8]/90 px-5 py-6 md:px-8">
-            <div className="mx-auto max-w-6xl">
-              <h2 className="text-base font-black text-[#A67C3D]">התשובה הקצרה</h2>
-              <p className="mt-2 max-w-4xl text-base leading-8 text-[#3F3025] md:text-lg">{answer}</p>
+          <div className="border-y border-[#E8DFD2]/80 bg-white/50 px-5 py-8 md:px-8">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-lg leading-9 text-[#3F3025] md:text-xl">{answer}</p>
             </div>
           </div>
         ) : null}
@@ -252,7 +251,7 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
               <h2 className="mt-2 text-3xl font-black">{guide.ctaTitle || "רוצים לראות את זה במערכת?"}</h2>
               <p className="mt-3 max-w-2xl leading-8 text-[#E8D9C4]">
                 {guide.ctaLede ||
-                  "בדמו תעברו על דשבורד עם נתונים פיקטיביים. המחיר עצמו נשאר במחשבון לפי רשומות וחבילה."}
+                  "התנסו בדמו כדי לראות את הדשבורד במערכת. המחיר עצמו נשאר במחשבון לפי רשומות וחבילה."}
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <TrackedCtaLink

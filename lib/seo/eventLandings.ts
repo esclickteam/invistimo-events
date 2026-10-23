@@ -51,11 +51,11 @@ export const EVENT_LANDINGS: EventLanding[] = [
     serviceType: "אישורי הגעה לבר מצווה",
     journeyActiveId: "rsvp",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
-    showcaseAlt: "דשבורד דמו למעקב אישורי הגעה",
+    showcaseAlt: "דשבורד למעקב אישורי הגעה",
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "מעקב תשובות בדמו — נתונים פיקטיביים",
+      caption: "מעקב תשובות בזמן אמת — מי ענה ומי עדיין פתוח",
     },
     gallery: [
       {
@@ -170,7 +170,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       "שני הורים אוספים תשובות בשני צ׳אטים שונים — ואף אחד לא יודע אם המספר לאולם הוא 120 או 145.",
     serviceType: "אישורי הגעה לבת מצווה",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
-    showcaseAlt: "מעקב סטטוסי הגעה בדמו",
+    showcaseAlt: "מעקב סטטוסי הגעה",
     gallery: [
       {
         type: "image",
@@ -190,7 +190,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דשבורד דמו",
+      caption: "דשבורד אישורי הגעה",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוס לכל רשומה" },
@@ -280,7 +280,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דמו — מעקב תשובות",
+      caption: "מעקב תשובות בדשבורד",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "ליבת התהליך" },
@@ -347,7 +347,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       "יש חינה וחתונה קרובות — ואם מערבבים אישורים, לא יודעים מי בא לאיזה ערב.",
     serviceType: "אישורי הגעה לחינה",
     showcaseSrc: PRODUCT_SHOTS.seating,
-    showcaseAlt: "מפת הושבה בדמו — רלוונטי לחינה עם שולחנות",
+    showcaseAlt: "מפת הושבה — רלוונטי לחינה עם שולחנות",
     gallery: [
       {
         type: "image",
@@ -367,7 +367,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/demo-try-seating.webm",
       poster: PRODUCT_SHOTS.seating,
-      caption: "מפת הושבה בדמו",
+      caption: "מפת הושבה עם שולחנות",
     },
     timeline: [
       {
@@ -448,14 +448,14 @@ export const EVENT_LANDINGS: EventLanding[] = [
       "בקבוצת הוואטסאפ יש 40 «אני באה» ואין דרך לדעת מי באמת סימן ומי רק לייק.",
     serviceType: "אישורי הגעה ליום הולדת",
     showcaseSrc: PRODUCT_SHOTS.weddingGardenMobile,
-    showcaseAlt: "דוגמה ויזואלית להזמנה/אתר דמו",
+    showcaseAlt: "דוגמה ויזואלית להזמנה ואתר",
     gallery: [
       {
         type: "image",
         src: PRODUCT_SHOTS.weddingGardenMobile,
         device: "phone",
         alt: "הזמנה",
-        caption: "הזמנה דיגיטלית — תצוגת אורח (דמו)",
+        caption: "הזמנה דיגיטלית — תצוגת אורח",
       },
       {
         type: "image",
@@ -536,7 +536,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       "המסיבה לא חתונה — אבל עדיין צריך מספר ברור לפני שמזמינים אוכל ומקום.",
     serviceType: "אישורי הגעה לאירוע פרטי",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
-    showcaseAlt: "דשבורד אישורי הגעה בדמו",
+    showcaseAlt: "דשבורד אישורי הגעה",
     gallery: [
       {
         type: "image",
@@ -549,7 +549,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דמו — מעקב אישורים",
+      caption: "מעקב אישורים בדשבורד",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "הבסיס" },
@@ -638,7 +638,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/demo-try-dashboard.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דמו — דשבורד משתתפים",
+      caption: "דשבורד משתתפים וסטטוסים",
     },
     timeline: [
       {
@@ -658,7 +658,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     showcaseSrc: PRODUCT_SHOTS.eventMgmt,
-    showcaseAlt: "מסך ניהול אירוע בדמו",
+    showcaseAlt: "מסך ניהול אירוע",
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוסים בזמן אמת" },
       { href: "/event-management", label: "ניהול אירוע", note: "משימות ותקציב — תוספת/מוצר נפרד" },
