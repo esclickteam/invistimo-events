@@ -46,9 +46,9 @@ export const SERVICE_PAGES: ServicePage[] = [
       "בחתונה הרשימה גדולה, יש שני צדדים, והאולם לוחץ למספר. Invistimo מרכזת את אישורי ההגעה בקישור אישי לכל אורח, עם סבבי וואטסאפ ותשובות במערכת — לא בצ'אטים מפוזרים.",
     media: {
       type: "video",
-      src: "/marketing/videos/demo-guest-rsvp-captions.webm",
+      src: "/marketing/videos/reel-rsvp-guest.webm",
       variant: "phone",
-      caption: "כך האורח מאשר הגעה בקישור האישי",
+      caption: "מההזמנה ועד האישור — והעדכון בדשבורד",
     },
     showEventTypes: false,
     benefits: [

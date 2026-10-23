@@ -65,7 +65,7 @@ export const GUIDES: Guide[] = [
       caption: "בדשבורד רואים מי ענה ומי עדיין פתוח — בסיס לסבב השני",
     },
     video: {
-      src: "/marketing/videos/demo-guest-rsvp-captions.webm",
+      src: "/marketing/videos/reel-rsvp-guest.webm",
       poster: SHOT.guestRsvp,
       caption: "כך האורח מאשר הגעה בקישור האישי",
     },
@@ -225,7 +225,7 @@ export const GUIDES: Guide[] = [
       caption: "כל אורח במקום שלו. כל שולחן בשליטה.",
     },
     video: {
-      src: "/marketing/videos/demo-seating-unified-captions.webm",
+      src: "/marketing/videos/reel-seating-cinematic.webm",
       poster: SHOT.seating,
       caption: "מהמפה ועד מספר שולחן — שיבוץ אורחים במערכת",
     },
@@ -1388,13 +1388,13 @@ export const GUIDES: Guide[] = [
       },
       {
         type: "video",
-        src: "/marketing/videos/demo-seating-unified-captions.webm",
+        src: "/marketing/videos/reel-seating-cinematic.webm",
         poster: SHOT.seating,
         caption: "מהמפה עד מספר שולחן — שיבוץ במערכת",
       },
     ],
     video: {
-      src: "/marketing/videos/demo-seating-unified-captions.webm",
+      src: "/marketing/videos/reel-seating-cinematic.webm",
       poster: SHOT.seating,
       caption: "שיבוץ במערכת — לפני שליחת מספר",
     },

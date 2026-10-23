@@ -359,15 +359,15 @@ export default function RSVPPage() {
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">הדגמה קצרה מהדשבורד</h2>
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מההזמנה לאישור — ואז לדשבורד</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            רואים בזמן אמת מי אישר, מי עדיין פתוח, וכמה מגיעים — במקום אחד.
+            האורח מאשר בקישור האישי, והתשובה מתעדכנת אצלכם מיד — מי בא, מי פתוח, וכמה מגיעים.
           </p>
           <div className="mt-8">
             <DemoVideo
-              src="/marketing/videos/demo-try-dashboard.webm"
-              poster={PRODUCT_SHOTS.dashboard}
-              caption="דשבורד אישורי הגעה של Invistimo"
+              src="/marketing/videos/reel-rsvp-guest.webm"
+              poster={PRODUCT_SHOTS.guestRsvp}
+              caption="אישור הגעה מהקישור האישי"
             />
           </div>
         </div>

@@ -1,6 +1,19 @@
 import type { ShowcaseItem } from "@/components/marketing/ProductShowcase";
 
 const P = "/marketing/product";
+const I = "/marketing/invites";
+
+/** Designed invitation / Save the Date studio assets (marketing graphics). */
+export const INVITE_DESIGNS = {
+  wedding: `${I}/invite-wedding-maya-itai.webp`,
+  saveTheDate: `${I}/invite-save-the-date-maya-itai.webp`,
+  barMitzvah: `${I}/invite-bar-mitzvah.webp`,
+  batMitzvah: `${I}/invite-bat-mitzvah.webp`,
+  brit: `${I}/invite-brit.webp`,
+  henna: `${I}/invite-henna.webp`,
+  birthday: `${I}/invite-birthday.webp`,
+  corporate: `${I}/invite-corporate.webp`,
+} as const;
 
 /** Real demo/try/template screenshots — fictional data only. */
 export const PRODUCT_SHOTS = {
@@ -35,10 +48,14 @@ export const PRODUCT_SHOTS = {
 export const PRODUCT_VIDEOS = {
   dashboard: "/marketing/videos/demo-try-dashboard.webm",
   seating: "/marketing/videos/demo-try-seating.webm",
-  seatingUnifiedCaptions: "/marketing/videos/demo-seating-unified-captions.webm",
+  /** Prefer cinematic seating reel with scene captions */
+  seatingUnifiedCaptions: "/marketing/videos/reel-seating-cinematic.webm",
+  seatingCinematic: "/marketing/videos/reel-seating-cinematic.webm",
   guestRsvp: "/marketing/videos/demo-guest-rsvp.webm",
-  guestRsvpCaptions: "/marketing/videos/demo-guest-rsvp-captions.webm",
+  guestRsvpCaptions: "/marketing/videos/reel-rsvp-guest.webm",
   weddingEternal: "/marketing/videos/demo-wedding-eternal-gold.webm",
+  weddingReel: "/marketing/videos/reel-wedding-website.webm",
+  homeJourney: "/marketing/videos/reel-home-journey.webm",
 } as const;
 
 /** Prefer webp; fall back to png if a variant is missing on disk. */
@@ -94,22 +111,22 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
       };
     case "/rsvp/save-the-date":
       return {
-        heading: "ממשק Save the Date מהמערכת",
-        lede: "בחירת Save the Date ותצוגה מקדימה בוואטסאפ — לפני שההודעה יוצאת לאורחים.",
+        heading: "Save the Date מעוצב — ושליחה מהמערכת",
+        lede: "עיצוב לדוגמה לצד ממשק השליחה האמיתי עם תצוגה מקדימה בוואטסאפ.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date עם תצוגה מקדימה בוואטסאפ", caption: "Save the Date — תצוגה מקדימה מהמערכת", device: "laptop" },
-          { src: PRODUCT_SHOTS.messagesSaveTheDateMobile, alt: "Save the Date בנייד", caption: "אותו מסך בנייד", device: "phone" },
+          { src: INVITE_DESIGNS.saveTheDate, alt: "עיצוב Save the Date לחתונה של מאיה ואיתי", caption: "עיצוב Save the Date", device: "phone" },
+          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date עם תצוגה מקדימה בוואטסאפ", caption: "שליחה מהמערכת", device: "laptop" },
         ],
       };
     case "/invitations/chatuna":
       return {
-        heading: "מה האורח רואה בהזמנה ובאתר",
-        lede: "קישור אישי לאישור הגעה לצד תבניות אתר חתונה מהמערכת.",
+        heading: "הזמנה מעוצבת — ואישור בקישור אישי",
+        lede: "עיצוב הזמנה לדוגמה לצד מסך האישור שהאורח מקבל בקישור.",
         layout: "phone-pair",
         items: [
-          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח", caption: "קישור אישי לאישור", device: "phone" },
-          { src: PRODUCT_SHOTS.weddingEternalMobile, alt: "אתר חתונה Eternal Gold בנייד", caption: "Eternal Gold", device: "phone" },
+          { src: INVITE_DESIGNS.wedding, alt: "הזמנה מעוצבת לחתונה של מאיה ואיתי", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח", caption: "אישור בקישור האישי", device: "phone" },
         ],
       };
     case "/seating-explained":

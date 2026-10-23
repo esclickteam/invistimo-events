@@ -220,15 +220,15 @@ export default function WeddingWebsiteMarketingPage() {
 
       {/* Demo video */}
       <section className="mx-auto max-w-4xl px-5 py-12 md:px-8">
-        <h2 className="font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">סרטון הדגמה קצר</h2>
+        <h2 className="font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">כך נראה אתר החתונה</h2>
         <p className="mt-3 leading-8 text-white/65">
-          גלילה קצרה בתבנית Eternal Gold — כך נראה אתר החתונה לאורחים. בלי אודיו אוטומטי.
+          גלילה באתר אישי מעוצב — פרטי האירוע, ניווט, וחיבור לאישורי הגעה.
         </p>
         <div className="mt-8">
           <DemoVideo
-            src="/marketing/videos/demo-wedding-eternal-gold.webm"
+            src="/marketing/videos/reel-wedding-website.webm"
             poster={PRODUCT_SHOTS.weddingEternal}
-            caption="תבנית Eternal Gold — חוויית אורח"
+            caption="אתר חתונה אישי — חוויית אורח"
             className="[&_figcaption]:text-white/55"
           />
         </div>
