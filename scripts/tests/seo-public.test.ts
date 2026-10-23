@@ -374,6 +374,9 @@ test("seo documentation deliverables exist", () => {
     "docs/seo/outreach-targets.md",
     "docs/seo/promotion-plan-google-ai.md",
     "docs/seo/monthly-report-template.md",
+    "docs/seo/promotion-map-all-services.md",
+    "docs/seo/premium-design-report.md",
+    "docs/seo/premium-design-inventory.json",
   ]) {
     assert.ok(fs.existsSync(path.join(root, rel)), rel);
   }

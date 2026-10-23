@@ -32,21 +32,32 @@ export default async function GuidePage({ params }: Props) {
     <PublicContentPage
       eyebrow="מדריך"
       title={guide.h1}
+      titleAccent={guide.titleAccent}
       lede={guide.lede}
       sections={guide.sections}
       faqs={guide.faqs}
+      benefits={guide.benefits}
+      steps={guide.steps}
+      media={guide.media}
+      showEventTypes={guide.showEventTypes}
+      ctaTitle={guide.ctaTitle}
+      ctaLede={guide.ctaLede}
       breadcrumbs={[
         { name: "ראשי", path: "/" },
         { name: "מדריכים", path: "/info/guides" },
         { name: guide.h1, path },
       ]}
       path={path}
-      related={[
-        { href: "/info/guides", label: "כל המדריכים" },
-        { href: "/pricing", label: "חבילות ומחירים" },
-        { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
-        { href: "/faq", label: "שאלות נפוצות" },
-      ]}
+      related={
+        guide.related?.length
+          ? guide.related
+          : [
+              { href: "/info/guides", label: "כל המדריכים" },
+              { href: "/pricing", label: "חבילות ומחירים" },
+              { href: "/rsvp", label: "אישורי הגעה" },
+              { href: "/faq", label: "שאלות נפוצות" },
+            ]
+      }
       extraJsonLd={[articleNode({ title: guide.h1, description: guide.description, path })]}
     />
   );

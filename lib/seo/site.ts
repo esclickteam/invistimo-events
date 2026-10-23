@@ -83,7 +83,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/rsvp",
     title: "אישורי הגעה לאירועים | Invistimo",
     description:
-      "אישורי הגעה לאירועים עם קישור אישי לכל אורח, סבבי וואטסאפ, תזכורת SMS ומעקב בזמן אמת. מתאים לחתונה ולאירועים נוספים.",
+      "אישורי הגעה לאירועים עם קישור אישי לכל אורח, סבבי וואטסאפ, תזכורת SMS ומעקב בזמן אמת. לחתונה, בר מצווה, ברית, חינה, ימי הולדת ואירועי חברה.",
     changeFrequency: "monthly",
     priority: 0.95,
   },
@@ -105,17 +105,17 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/rsvp/save-the-date",
-    title: "Save the Date לחתונה | Invistimo",
+    title: "Save the Date לחתונה ולאירועים | Invistimo",
     description:
-      "Save the Date ב־Invistimo הוא הודעת וואטסאפ נפרדת, חד־פעמית, שלא פותחת את סבבי אישור ההגעה. מופעל כשהאפשרות פתוחה בחשבון.",
+      "Save the Date ב־Invistimo הוא הודעת וואטסאפ מוקדמת וחד־פעמית שמודיעה שהתאריך נשמר. לא אוסף אישורי הגעה. זמין כשהאפשרות פתוחה בחשבון.",
     changeFrequency: "monthly",
-    priority: 0.8,
+    priority: 0.85,
   },
   {
     path: "/invitations/chatuna",
-    title: "הזמנות דיגיטליות לחתונה | Invistimo",
+    title: "הזמנות דיגיטליות לחתונה ולאירועים | Invistimo",
     description:
-      "הזמנה דיגיטלית לחתונה עם קישור אישי לאורח. מעלים הזמנה קיימת או עובדים עם ההזמנה במערכת, ואפשר לעדכן כל עוד האירוע פעיל.",
+      "הזמנה דיגיטלית עם קישור אישי לאורח — לחתונה ולאירועים נוספים. מעלים הזמנה קיימת או עובדים עם ההזמנה במערכת, ומעדכנים כל עוד האירוע פעיל.",
     changeFrequency: "monthly",
     priority: 0.85,
   },

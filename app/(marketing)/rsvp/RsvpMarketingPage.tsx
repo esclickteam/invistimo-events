@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -200,7 +201,7 @@ export default function RSVPPage() {
             md:text-7xl
           "
         >
-          אישורי הגעה חכמים
+          אישורי הגעה לאירועים{" "}
           <span
             className="
               mt-4 block
@@ -472,6 +473,100 @@ export default function RSVPPage() {
 
         <div className="mx-auto w-full max-w-7xl">
           <VideoFrame src="/videos/rsvp2.mp4" variant="full" />
+        </div>
+      </section>
+
+      {/* ================= EVENT TYPES ================= */}
+      <section className="relative px-6 py-24 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            transition={{ duration: 0.7 }}
+            className="text-center"
+          >
+            <PremiumBadge>לא רק חתונות</PremiumBadge>
+            <h2 className="mt-8 text-4xl font-black text-[#35281F] md:text-5xl">
+              {EVENT_TYPE_SECTION.heading}
+            </h2>
+            <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-[#6D5B4A]">
+              {EVENT_TYPE_SECTION.lede}
+            </p>
+          </motion.div>
+
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {EVENT_TYPES.map((item, index) => (
+              <motion.li
+                key={item.label}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.5 }}
+                viewport={{ once: true }}
+                className="rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 text-right shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
+              >
+                <h3 className="text-xl font-black text-[#35281F]">{item.label}</h3>
+                <p className="mt-3 leading-7 text-[#5C4A3A]">{item.blurb}</p>
+              </motion.li>
+            ))}
+          </ul>
+
+          <p className="mt-8 text-center text-base font-semibold text-[#7A6042]">
+            לחתונה יש גם עמוד ייעודי:{" "}
+            <Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה לחתונה
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      {/* ================= FAQ ================= */}
+      <section className="relative isolate px-6 py-20 md:py-28">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
+        <div className="mx-auto max-w-3xl text-right">
+          <PremiumBadge>שאלות נפוצות</PremiumBadge>
+          <h2 className="mt-6 text-3xl font-black text-[#35281F] md:text-5xl">
+            מה חשוב לדעת לפני שמתחילים
+          </h2>
+          <p className="mt-4 text-lg leading-8 text-[#6D5B4A]">
+            תשובות קצרות ומדויקות על אישורי הגעה לאירועים — בלי הבטחות שלא מופיעות במערכת.
+          </p>
+          <div className="mt-10 space-y-4">
+            {[
+              {
+                q: "האם האורח צריך להירשם?",
+                a: "לא. הוא פותח קישור אישי ומאשר הגעה, מספר מגיעים והערה.",
+              },
+              {
+                q: "מה נשלח בחבילת ההודעות?",
+                a: "הזמנה דיגיטלית, שני סבבי וואטסאפ לאישור הגעה, תזכורת SMS עם מספר שולחן, והודעת תודה ב־SMS.",
+              },
+              {
+                q: "האם זה רק לחתונות?",
+                a: "לא. אותו מודל מתאים לבר/בת מצווה, ברית, חינה, ימי הולדת ואירועי חברה. לחתונה יש גם עמוד ייעודי.",
+              },
+              {
+                q: "מה ההבדל מעמוד אישורי הגעה לחתונה?",
+                a: "העמוד הזה הוא ה־hub לביטוי «אישורי הגעה» ולכל סוגי האירוע. עמוד החתונה מעמיק בכאב של זוגות מול האולם וההושבה.",
+              },
+              {
+                q: "איך נקבע המחיר?",
+                a: "במחשבון לפי מספר רשומות, חבילה ותוספות. אין מחיר אחיד לכל אירוע.",
+              },
+            ].map((faq) => (
+              <details
+                key={faq.q}
+                open
+                className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4 text-right shadow-[0_12px_30px_rgba(151,108,49,0.06)]"
+              >
+                <summary className="cursor-pointer list-none">
+                  <h3 className="text-lg font-black text-[#35281F]">{faq.q}</h3>
+                </summary>
+                <p className="mt-3 leading-8 text-[#5C4A3A]">{faq.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
