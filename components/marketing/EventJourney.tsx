@@ -64,7 +64,7 @@ export const DEFAULT_EVENT_JOURNEY: JourneyStage[] = [
     label: "שלב ז׳",
     title: "הודעת תודה",
     text: "אחרי האירוע נשלחת הודעת תודה ב־SMS כחלק מחבילת ההודעות — לא כשירות נפרד שצריך להמציא.",
-    href: "/pricing",
+    href: "/rsvp/thank-you-messages",
     availability: "כלול בחבילת ההודעות",
   },
 ];

@@ -32,6 +32,18 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/rsvp":
     case "/rsvp/chatuna":
     case "/rsvp/whatsapp":
+    case "/rsvp/sms":
+    case "/rsvp/calls":
+    case "/rsvp/reminders":
+    case "/rsvp/thank-you-messages":
+    case "/rsvp/guest-list":
+    case "/info/demo":
+    case "/for/bar-mitzvah":
+    case "/for/bat-mitzvah":
+    case "/for/brit":
+    case "/for/birthday":
+    case "/for/private-party":
+    case "/for/corporate":
       return {
         heading: "ככה נראית ניהול הרשימה במערכת",
         lede: "צילום ממסך הדמו — חתונה פיקטיבית של מאיה ואיתי. אין כאן נתוני לקוחות אמיתיים.",
@@ -39,6 +51,16 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         items: [
           { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו של Invistimo עם סטטיסטיקות אישורי הגעה", caption: "דשבורד האירוע — סטטוסים, פעילות אחרונה ומעקב צפיות", device: "laptop" },
           { src: PRODUCT_SHOTS.dashboardMobile, alt: "תצוגת מובייל של דשבורד הדמו", caption: "אותו מסך בנייד", device: "phone" },
+        ],
+      };
+    case "/for/henna":
+      return {
+        heading: "אישורים והושבה כשיש שולחנות",
+        lede: "לחינה עם שולחנות — אותם מסכי דמו של רשימה והושבה.",
+        layout: "duo",
+        items: [
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד דמו", device: "laptop" },
+          { src: PRODUCT_SHOTS.seating, alt: "מפת הושבה בדמו", device: "laptop" },
         ],
       };
     case "/rsvp/save-the-date":
@@ -106,9 +128,11 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
 export function journeyActiveIdForPath(path: string): string | undefined {
   if (path.startsWith("/rsvp/save-the-date")) return "save-the-date";
   if (path.startsWith("/invitations")) return "invitation";
-  if (path.startsWith("/wedding-website")) return "wedding-website";
+  if (path.startsWith("/wedding-website") || path.includes("build-wedding-website")) return "wedding-website";
   if (path.startsWith("/seating") || path.includes("seating") || path.includes("table-number")) return "guests-seating";
-  if (path.startsWith("/event-management") || path.includes("event-day")) return "event-day";
-  if (path.startsWith("/rsvp")) return "rsvp";
+  if (path.startsWith("/event-management") || path.includes("event-day") || path.includes("corporate") || path.includes("manage-corporate"))
+    return "event-day";
+  if (path.includes("thank-you")) return "thanks";
+  if (path.startsWith("/rsvp") || path.startsWith("/for/") || path.startsWith("/info/demo")) return "rsvp";
   return undefined;
 }

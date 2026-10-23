@@ -65,6 +65,7 @@ export default function PublicContentPage({
   ctaLede = "המחיר נקבע לפי מספר הרשומות והחבילה במחשבון. אין כאן מחיר כללי לאירוע.",
   primaryCta = { href: "/pricing", label: "לצפייה בחבילות" },
   secondaryCta = { href: "/contact", label: "יצירת קשר" },
+  serviceFits = [],
 }: {
   eyebrow: string;
   title: string;
@@ -85,6 +86,7 @@ export default function PublicContentPage({
   ctaLede?: string;
   primaryCta?: { href: string; label: string };
   secondaryCta?: { href: string; label: string };
+  serviceFits?: { href: string; label: string; note: string }[];
 }) {
   const answer = answerFor(path);
   const table = tableFor(path);
@@ -188,6 +190,30 @@ export default function PublicContentPage({
 
       {showJourney ? <EventJourney activeId={journeyActive} compact /> : null}
 
+      {serviceFits.length ? (
+        <section className="px-5 py-12 md:px-8 md:py-14">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מה מתאים לסוג האירוע הזה</h2>
+            <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
+              לא כל אירוע צריך את כל השלבים. אלה השירותים שמתאימים באמת לתרחיש הזה — לפי מה שקיים במערכת.
+            </p>
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {serviceFits.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="block border-b border-[#E6D2AA] pb-4 transition hover:border-[#C7A56B]"
+                  >
+                    <span className="font-black text-[#2A211A]">{item.label}</span>
+                    <span className="mt-1 block text-sm leading-6 text-[#5C4A3A]">{item.note}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+
       {benefits.length ? (
         <section className="px-5 py-12 md:px-8 md:py-14">
           <div className="mx-auto max-w-6xl">
@@ -241,7 +267,15 @@ export default function PublicContentPage({
                   key={item.label}
                   className="max-w-sm border-b border-[#E6D2AA] pb-3 pl-1 pr-4 pt-1"
                 >
-                  <h3 className="font-black text-[#2A211A]">{item.label}</h3>
+                  <h3 className="font-black text-[#2A211A]">
+                    {item.href ? (
+                      <Link href={item.href} className="hover:text-[#A67C3D]">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      item.label
+                    )}
+                  </h3>
                   <p className="mt-1 text-sm leading-6 text-[#5C4A3A]">{item.blurb}</p>
                 </li>
               ))}

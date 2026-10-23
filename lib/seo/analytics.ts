@@ -37,7 +37,8 @@ const PRIVATE_PREFIXES = [
 export function contentGroup(pathname: string) {
   if (pathname === "/") return "home";
   if (pathname.startsWith("/info/guides")) return "guides";
-  if (pathname.startsWith("/rsvp") || pathname.startsWith("/invitations")) return "rsvp_invitations";
+  if (pathname.startsWith("/rsvp") || pathname.startsWith("/invitations") || pathname.startsWith("/for/"))
+    return "rsvp_invitations";
   if (pathname.startsWith("/seating-explained")) return "seating";
   if (pathname.startsWith("/event-management")) return "event_management";
   if (pathname === "/pricing") return "pricing";

@@ -23,6 +23,7 @@ import {
   softwareNode,
   websiteNode,
 } from "../../lib/seo/jsonld";
+import { EVENT_LANDINGS } from "../../lib/seo/eventLandings";
 import { CORE_PUBLIC_ROUTES, OG_IMAGE, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
@@ -261,8 +262,9 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 10);
-  assert.equal(SERVICE_PAGES.length, 5);
+  assert.equal(GUIDES.length, 17);
+  assert.equal(SERVICE_PAGES.length, 11);
+  assert.equal(EVENT_LANDINGS.length, 7);
   assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
 });
@@ -273,6 +275,9 @@ test("each search query has one primary page and no invented volume", () => {
   const known = new Set([
     ...CORE_PUBLIC_ROUTES.map((route) => route.path),
     ...GUIDES.map((guide) => guidePath(guide.slug)),
+    ...SERVICE_PAGES.map((service) => service.path),
+    ...EVENT_LANDINGS.map((landing) => landing.path),
+    "/try",
   ]);
   for (const row of KEYWORD_MAP) {
     assert.equal(row.volume, null);
