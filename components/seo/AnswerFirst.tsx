@@ -4,6 +4,7 @@ import FactTableView from "@/components/seo/FactTableView";
 /**
  * Server-rendered short answer (and optional fact table) for crawlers and AI.
  * Must stay above client-only marketing chrome so the HTML includes the text.
+ * Compact full-bleed strip — avoids a floating empty-looking card in the first viewport.
  */
 export default function AnswerFirst({ path }: { path: string }) {
   const answer = answerFor(path);
@@ -14,16 +15,20 @@ export default function AnswerFirst({ path }: { path: string }) {
     <section
       dir="rtl"
       aria-label="תשובה קצרה"
-      className="bg-[#FBF6EE] px-5 pb-2 pt-10 text-[#3F3025] md:pt-14"
+      className="border-b border-[#E6D2AA]/70 bg-[#FFFDF8] px-5 py-5 text-[#3F3025] md:px-8"
     >
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-6xl">
         {answer ? (
-          <div className="rounded-3xl border border-[#E6D2AA] bg-white px-5 py-5">
-            <h2 className="text-xl font-black text-[#35281F]">התשובה הקצרה</h2>
-            <p className="mt-3 text-lg leading-8 text-[#3F3025]">{answer}</p>
+          <>
+            <h2 className="text-sm font-black tracking-wide text-[#A67C3D]">התשובה הקצרה</h2>
+            <p className="mt-2 max-w-4xl text-base leading-8 text-[#3F3025] md:text-lg">{answer}</p>
+          </>
+        ) : null}
+        {table ? (
+          <div className="mt-5">
+            <FactTableView table={table} />
           </div>
         ) : null}
-        {table ? <FactTableView table={table} /> : null}
       </div>
     </section>
   );
