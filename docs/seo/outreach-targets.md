@@ -4,11 +4,12 @@ Research-only list. **Do not email, register, buy links, or post as Invistimo wi
 
 ## A. Wedding directories & review hubs
 
-| Site | URL | Opportunity | Priority |
-| --- | --- | --- | --- |
-| mit4mit | https://www.mit4mit.co.il/ | Supplier profile + real reviews; categories under https://www.mit4mit.co.il/cats/ | High |
-| Engaged / מאורסים | https://engaged.co.il/ | Supplier listing / deals ecosystem | High |
-| mit4mit blog | https://www.mit4mit.co.il/blog/ | Educational articles mentioning RSVP vendors | Medium |
+| Site | URL | Opportunity | Priority | Status (2026-10-23) |
+| --- | --- | --- | --- | --- |
+| **Mit4Mit** | https://www.mit4mit.co.il/ | Supplier profile + real reviews; categories under https://www.mit4mit.co.il/cats/ | High | **Registered by owner** — track publish, site link, brand mentions (see `directory-profiles-mit4mit-mazalday.md`) |
+| **MazalDay** | https://www.mazalday.co.il/ | Wedding / event directory profile + site link + brand mention | High | **Registered by owner** — same tracking checklist |
+| Engaged / מאורסים | https://engaged.co.il/ | Supplier listing / deals ecosystem | High | Not started |
+| mit4mit blog | https://www.mit4mit.co.il/blog/ | Educational articles mentioning RSVP vendors | Medium | Optional after profile live |
 
 ## B. Venue & producer co-marketing
 
@@ -42,7 +43,16 @@ Research-only list. **Do not email, register, buy links, or post as Invistimo wi
 
 ## Owner decision checklist
 
-- [ ] Approve mit4mit / Engaged profile creation  
+- [x] Mit4Mit registration (owner) — follow-up: profile live + link to www.invistimo.com  
+- [x] MazalDay registration (owner) — follow-up: profile live + link to www.invistimo.com  
+- [ ] Approve Engaged profile creation (if desired)  
 - [ ] Approve Google Business  
 - [ ] Approve first 5 venue/producer ask emails  
-- [ ] Approve any budget for sponsored placements (default: none)
+- [ ] Approve any budget for sponsored placements (default: none)  
+- [ ] After stable profile URLs: approve optional `sameAs` in schema  
+
+## Monthly off-page tracker (directories)
+
+| Month | Mit4Mit live + link | MazalDay live + link | New brand mentions | Notes |
+| --- | --- | --- | --- | --- |
+| 2026-10 | Registered | Registered | — | Fill profile URLs when public |

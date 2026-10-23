@@ -6,7 +6,8 @@ No outreach, no profile creation, and no paid placements without explicit owner 
 
 | Opportunity | URL | Notes |
 | --- | --- | --- |
-| mit4mit supplier categories | https://www.mit4mit.co.il/cats/ | Directory with reviews; relevant category for RSVP / invitations if Invistimo is listed honestly. |
+| **Mit4Mit** (registered) | https://www.mit4mit.co.il/ · cats: https://www.mit4mit.co.il/cats/ | Owner registered. Track profile publish, dofollow/site link, NAP consistency, real reviews only. Detail: `directory-profiles-mit4mit-mazalday.md`. |
+| **MazalDay** (registered) | https://www.mazalday.co.il/ | Owner registered. Track profile publish, site link, brand mention. Same checklist file. |
 | Engaged / מאורסים | https://www.engaged.co.il/ | Deals / wedding content hub — editorial, not a free link dump. |
 | Venue / producer partnerships | (private CRM) | Ask halls and producers who already use Invistimo for a factual mention on their vendor pages. |
 | Google Business Profile | — | Needed for local entity consistency; create only with owner approval. SameAs in schema waits for verified profiles. |

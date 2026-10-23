@@ -2,6 +2,8 @@
 
 Run only after production deploy of PR #380. Do not invent coverage numbers.
 
+Full owner sequence: `post-publish-owner-runbook.md`. Baseline numbers: `baseline-index-report.md`.
+
 ## Day 0 (same day as deploy)
 
 1. Open production:
@@ -10,19 +12,22 @@ Run only after production deploy of PR #380. Do not invent coverage numbers.
    - https://www.invistimo.com/answers.json
    - https://www.invistimo.com/llms.txt
 2. Spot-check HTML View-Source on `/`, `/rsvp`, `/rsvp/chatuna`, `/pricing`, one guide: title, canonical, `התשובה הקצרה`, JSON-LD.
-3. Submit sitemap in GSC + Bing.
-4. In GSC **URL Inspection**, request indexing for hubs (one by one, stay within quota):
+3. Connect + verify GSC, GA4, Bing (`connect-search-analytics.md`) then submit sitemap in GSC + Bing.
+4. Confirm AI crawlers are not sitewide-blocked in robots (GPTBot / ClaudeBot / PerplexityBot / Google-Extended) unless intentionally restricted.
+5. In GSC **URL Inspection**, request indexing for hubs (one by one, stay within quota):
    - `/`
    - `/rsvp`
    - `/rsvp/chatuna`
    - `/rsvp/whatsapp`
+   - `/rsvp/save-the-date`
    - `/invitations/chatuna`
    - `/seating-explained`
    - `/event-management`
    - `/pricing`
    - `/faq`
    - `/info/guides`
-5. Save a spreadsheet tab “Index log” with date, URL, inspection result, last crawl.
+6. Save a spreadsheet tab “Index log” with date, URL, inspection result, last crawl — and copy into `baseline-index-report.md`.
+7. Confirm Mit4Mit / MazalDay profiles link to production (`directory-profiles-mit4mit-mazalday.md`).
 
 ## Day 3–7
 

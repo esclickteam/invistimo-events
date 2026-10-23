@@ -1,28 +1,31 @@
 # קישורי Preview — לפני פרסום (PR #380)
 
-**נוצר:** 2026-10-23 (Asia/Jerusalem)  
-**חשוב:** זהו Tunnel זמני לסביבת הפיתוח של הסוכן (`localhost:3010`), לא פרודקשן.  
-**אין Deploy.** ה־URL עלול להשתנות אם ה־tunnel יתחדש.
+**עודכן:** 2026-10-23 17:05 (Asia/Jerusalem)  
+**חשוב:** Tunnel זמני ל־`localhost:3010` של הסוכן — **לא** פרודקשן. עלול להשתנות אם ה־tunnel מתחדש.  
+**אין Deploy.**
 
-## בסיס Preview
+## בסיס Preview נוכחי
 
-`https://sum-louisville-lucas-asthma.trycloudflare.com`
+`https://distinguished-character-trademarks-neighbors.trycloudflare.com`
 
 ## עמודים מרכזיים
 
 | עמוד | קישור |
 | --- | --- |
-| בית | https://sum-louisville-lucas-asthma.trycloudflare.com/ |
-| אישורי הגעה | https://sum-louisville-lucas-asthma.trycloudflare.com/rsvp |
-| אישורי הגעה לחתונה | https://sum-louisville-lucas-asthma.trycloudflare.com/rsvp/chatuna |
-| אישורי הגעה בוואטסאפ | https://sum-louisville-lucas-asthma.trycloudflare.com/rsvp/whatsapp |
-| Save the Date | https://sum-louisville-lucas-asthma.trycloudflare.com/rsvp/save-the-date |
-| הזמנות דיגיטליות | https://sum-louisville-lucas-asthma.trycloudflare.com/invitations/chatuna |
-| סידורי הושבה | https://sum-louisville-lucas-asthma.trycloudflare.com/seating-explained |
-| ניהול אירועים | https://sum-louisville-lucas-asthma.trycloudflare.com/event-management |
-| **חבילות ומחירים** | https://sum-louisville-lucas-asthma.trycloudflare.com/pricing |
-| שאלות ותשובות | https://sum-louisville-lucas-asthma.trycloudflare.com/faq |
-| מדריכים | https://sum-louisville-lucas-asthma.trycloudflare.com/info/guides |
-| אודות | https://sum-louisville-lucas-asthma.trycloudflare.com/info/about |
+| בית | https://distinguished-character-trademarks-neighbors.trycloudflare.com/ |
+| אישורי הגעה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp |
+| אישורי הגעה לחתונה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/chatuna |
+| אישורי הגעה בוואטסאפ | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/whatsapp |
+| Save the Date | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/save-the-date |
+| הזמנות דיגיטליות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/invitations/chatuna |
+| סידורי הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/seating-explained |
+| ניהול אירועים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/event-management |
+| חבילות ומחירים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/pricing |
+| שאלות ותשובות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/faq |
+| מדריכים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/info/guides |
+| יצירת קשר | https://distinguished-character-trademarks-neighbors.trycloudflare.com/contact |
+| הרשמה (UI בלבד) | https://distinguished-character-trademarks-neighbors.trycloudflare.com/register |
+| דמו דשבורד | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard |
+| דמו הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard/seating |
 
 PR: https://github.com/esclickteam/invistimo-events/pull/380

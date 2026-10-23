@@ -3,7 +3,8 @@
 **Branch:** `cursor/seo-geo-aeo-0a2e`  
 **PR:** https://github.com/esclickteam/invistimo-events/pull/380  
 **Acceptance run:** 2026-10-23 (Asia/Jerusalem) against local `http://127.0.0.1:3010`  
-**Merge / Deploy:** not performed — waiting for explicit owner approval.
+**Merge / Deploy:** not performed — waiting for explicit owner approval.  
+**Final Preview acceptance:** 2026-10-23 afternoon — see `final-acceptance-summary.md` (PASS).
 
 ## Verdict
 

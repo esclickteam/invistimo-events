@@ -9,14 +9,15 @@
 | 5 | Submit sitemap in GSC / Bing + URL Inspection requests | Account access |
 | 6 | Google Keyword Planner / Ads account for volumes | Paid / account access |
 | 7 | Create Google Business Profile or social profiles | Brand ownership; required before `sameAs` |
-| 8 | Outreach to mit4mit / Engaged / editors / venues | Must be in Invistimo’s name with approval |
+| 8 | Outreach to Engaged / editors / venues | Must be in Invistimo’s name with approval |
 | 9 | Purchase any SEO SaaS, IndexNow paid tier, or link placements | Cost approval |
 | 10 | Publish third-party guest posts or press | Brand voice approval |
 | 11 | Add AggregateRating / Review schema | Needs real review corpus |
 | 12 | Add VideoObject | Needs verified posters + upload dates for public clips |
 | 13 | Change prices, packages, or product capabilities | Business decision — out of SEO scope |
-| 14 | Design redesign of marketing pages | Out of SEO scope |
-| 15 | Register directory profiles (mit4mit, Engaged, etc.) | Brand ownership |
+| 14 | Add `sameAs` for Mit4Mit / MazalDay / social | Needs stable public profile URLs |
+| 15 | Complete Mit4Mit / MazalDay profile publish + production links | Owner registered; follow `directory-profiles-mit4mit-mazalday.md` |
+| 16 | Post-deploy GSC/GA4/Bing connect + sitemap + index requests | Account access — `post-publish-owner-runbook.md` |
 
 ## Already implemented without those approvals
 
