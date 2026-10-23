@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import DemoVideo from "@/components/marketing/DemoVideo";
+import DeviceFrame from "@/components/marketing/DeviceFrame";
+import EventJourney from "@/components/marketing/EventJourney";
+import ProductShowcase from "@/components/marketing/ProductShowcase";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
+import { PRODUCT_SHOTS, showcaseForPath } from "@/lib/seo/productVisuals";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -285,107 +290,112 @@ export default function SeatingExplainedPage() {
   return (
     <div dir="rtl" className="overflow-hidden bg-[#fbf7ef] text-[#3f342b]">
       {/* ================= HERO ================= */}
-      <section className="relative min-h-[92vh] overflow-hidden px-5 py-24 text-center md:px-8 md:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(225,199,154,0.55),transparent_38%),linear-gradient(180deg,#fffaf1_0%,#fbf7ef_55%,#ffffff_100%)]" />
+      <section className="relative overflow-hidden px-5 pb-12 pt-16 md:px-8 md:pb-16 md:pt-20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(225,199,154,0.45),transparent_38%),linear-gradient(180deg,#fffaf1_0%,#fbf7ef_55%,#ffffff_100%)]" />
 
-        <div className="pointer-events-none absolute left-1/2 top-12 h-[540px] w-[540px] -translate-x-1/2 rounded-full border border-[#d9bd8d]/40" />
-        <div className="pointer-events-none absolute left-1/2 top-24 h-[410px] w-[410px] -translate-x-1/2 rounded-full border border-[#ead9bd]/70" />
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={fadeUp}
+            transition={{ duration: 0.75, ease: "easeOut" }}
+          >
+            <GoldBadge>סידורי הושבה לאירועים</GoldBadge>
 
-        <div className="pointer-events-none absolute -right-24 top-20 h-72 w-72 rounded-full bg-[#c49a5c]/25 blur-3xl" />
-        <div className="pointer-events-none absolute -left-24 bottom-20 h-80 w-80 rounded-full bg-[#efe0c5]/70 blur-3xl" />
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ duration: 0.75, ease: "easeOut" }}
-          className="relative z-10 mx-auto max-w-6xl"
-        >
-          <GoldBadge>Invistimo Seating Experience</GoldBadge>
-
-          <h1 className="mx-auto mt-8 max-w-5xl text-5xl font-black leading-[1.05] tracking-[-0.055em] text-[#2f251d] md:text-7xl">
-            סידורי הושבה חכמים
-            <span className="block bg-gradient-to-l from-[#b98b45] via-[#d8b878] to-[#8f6632] bg-clip-text pt-4 text-transparent">
-              שמסדרים את האירוע מהר יותר, יפה יותר ומדויק יותר
-            </span>
-          </h1>
-
-          <p className="mx-auto mt-8 max-w-3xl text-lg leading-9 text-[#685b4f] md:text-2xl md:leading-10">
-            מעלים סקיצה של האולם, מסדרים שולחנות, משבצים אורחים ידנית או חכם לפי קבוצות —
-            ובסוף שולחים לכל אורח הודעה אישית עם מספר השולחן שלו.
-          </p>
-
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              href="/pricing"
-              className="
-                group inline-flex items-center justify-center rounded-full
-                bg-gradient-to-l from-[#2f251d] via-[#4b3a2d] to-[#8a672e]
-                px-10 py-5 text-lg font-black text-white
-                shadow-[0_24px_65px_rgba(66,45,22,0.35)]
-                transition
-                hover:-translate-y-1
-                hover:shadow-[0_34px_85px_rgba(66,45,22,0.45)]
-              "
-            >
-              התחילו לבנות הושבה
-              <span className="mr-3 transition group-hover:-translate-x-1">
-                ←
+            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.08] tracking-[-0.04em] text-[#2f251d] md:text-6xl">
+              במקום לנהל הושבה באקסל
+              <span className="mt-3 block bg-gradient-to-l from-[#b98b45] via-[#d8b878] to-[#8f6632] bg-clip-text text-transparent">
+                רואים את כל המפה מולכם
               </span>
-            </Link>
+            </h1>
 
-            <a
-              href="#how-it-works"
-              className="
-                inline-flex items-center justify-center rounded-full
-                border border-[#d8c29d]
-                bg-white/70 px-10 py-5 text-lg font-black text-[#5b4735]
-                shadow-[0_18px_45px_rgba(84,61,37,0.08)]
-                backdrop-blur-xl transition
-                hover:-translate-y-1 hover:bg-white
-              "
-            >
-              לראות איך זה עובד
-            </a>
-          </div>
-        </motion.div>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[#685b4f] md:text-xl md:leading-9">
+              מעלים סקיצת אולם, ממקמים שולחנות, משבצים ידנית או לפי קבוצות, ורואים מי שובץ ואיפה נשאר מקום.
+              בסוף אפשר לשלוח לכל אורח את מספר השולחן — כשתוספת ההושבה נרכשה במחשבון.
+            </p>
 
-        {/* Floating stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 36 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.75 }}
-          className="
-            relative z-10 mx-auto mt-16 grid max-w-6xl gap-4
-            rounded-[34px] border border-white/80 bg-white/65 p-4
-            shadow-[0_28px_90px_rgba(84,61,37,0.12)]
-            backdrop-blur-2xl
-            md:grid-cols-4
-          "
-        >
-          {[
-            ["01", "סקיצת אולם", "מסדרים שולחנות לפי האולם"],
-            ["02", "הושבה ידנית", "דרך שולחן או רשימת אורחים"],
-            ["03", "הושבה חכמה", "סידור לפי קבוצות בלחיצה"],
-            ["04", "הודעה לאורח", "מספר שולחן אישי לכל אורח"],
-          ].map(([num, title, text]) => (
-            <div
-              key={num}
-              className="rounded-[26px] border border-[#eadcc5] bg-[#fffaf2]/80 p-6 text-right"
-            >
-              <div className="text-sm font-black text-[#b98b45]">{num}</div>
-              <div className="mt-3 text-2xl font-black text-[#35291f]">
-                {title}
-              </div>
-              <div className="mt-2 text-sm leading-6 text-[#766759]">
-                {text}
-              </div>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/try/dashboard/seating"
+                className="
+                  group inline-flex items-center justify-center rounded-full
+                  bg-gradient-to-l from-[#2f251d] via-[#4b3a2d] to-[#8a672e]
+                  px-8 py-4 text-base font-black text-white
+                  shadow-[0_20px_50px_rgba(66,45,22,0.3)]
+                  transition hover:-translate-y-0.5
+                "
+              >
+                לפתיחת דמו ההושבה
+                <span className="mr-2 transition group-hover:-translate-x-1">←</span>
+              </Link>
+
+              <Link
+                href="/pricing"
+                className="
+                  inline-flex items-center justify-center rounded-full
+                  border border-[#d8c29d] bg-white/80 px-8 py-4 text-base font-black text-[#5b4735]
+                  transition hover:bg-white
+                "
+              >
+                לבדוק תוספת במחשבון
+              </Link>
+
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center justify-center rounded-full px-4 py-4 text-base font-bold text-[#8a672e] underline-offset-4 hover:underline"
+              >
+                איך זה עובד
+              </a>
             </div>
-          ))}
-        </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <DeviceFrame
+              src={PRODUCT_SHOTS.seating}
+              alt="מפת סידורי הושבה במסך הדמו של Invistimo"
+              variant="laptop"
+              priority
+            />
+            <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
+              צילום ממסך הדמו — נתונים פיקטיביים בלבד
+            </p>
+          </motion.div>
+        </div>
       </section>
 
-      
+      {(() => {
+        const showcase = showcaseForPath("/seating-explained");
+        return showcase ? (
+          <ProductShowcase
+            heading={showcase.heading}
+            lede={showcase.lede}
+            items={showcase.items}
+            layout={showcase.layout}
+          />
+        ) : null;
+      })()}
+
+      <section className="px-5 py-10 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">סרטון קצר ממסך ההושבה</h2>
+          <p className="mt-3 leading-8 text-[#5C4A3A]">
+            הקלטה מדמו ההושבה. בלי שינוי נתוני לקוחות ובלי שליחת הודעות.
+          </p>
+          <div className="mt-8">
+            <DemoVideo
+              src="/marketing/videos/demo-try-seating.webm"
+              poster={PRODUCT_SHOTS.seating}
+              caption="דמו סידורי הושבה"
+            />
+          </div>
+        </div>
+      </section>
+
+      <EventJourney activeId="guests-seating" compact />
 
       {/* ================= SECTION 1 ================= */}
       <SectionBlock
