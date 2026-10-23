@@ -4,26 +4,29 @@
 
 ## 1) Google Search Console
 
-1. הוסיפו property ל־`https://www.invistimo.com` (או Domain).
-2. אימות: DNS TXT **או** תג HTML → הגדירו `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` ב־Vercel → Redeploy.
-3. Sitemaps → שלחו `https://www.invistimo.com/sitemap.xml`.
-4. URL Inspection → Request indexing ל־hubs (ראו `post-publish-index-checklist.md`).
-5. מלאו את טבלת האינדוקס ב־`baseline-index-report.md`.
+**לפני יצירת נכס חדש:** בדקו אם כבר קיים נכס ל־`invistimo.com` / `www.invistimo.com`.  
+אימות טכני כבר קיים (קובץ HTML + DNS TXT) — **אין צורך** ב־`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` אם הנכס מאומת.
 
-פירוט: `connect-search-analytics.md`.
+1. פתחו GSC → בחרו נכס קיים (או Domain עם ה־TXT הקיים).
+2. Sitemaps → שלחו `https://www.invistimo.com/sitemap.xml`.
+3. URL Inspection → Request indexing ל־hubs (ראו `post-publish-index-checklist.md`).
+4. מלאו את טבלת האינדוקס ב־`baseline-index-report.md`.
+
+פירוט לחיצות: `measurement-connect-owner-steps.md` · גם `connect-search-analytics.md`.
 
 ## 2) Google Analytics 4
 
-1. צרו Web stream → Measurement ID `G-XXXXXXXX`.
-2. הגדירו `NEXT_PUBLIC_GA_MEASUREMENT_ID` בפרודקשן → Redeploy.
-3. בדקו Realtime על `/pricing` ו־`/rsvp` (לא על `/invite/...`).
-4. אירועים מוכנים בקוד: `select_cta`, `ai_referral`, `web_vital`, `content_group`.
-5. המרות מומלצות לסמן ב־GA4: `generate_lead` / contact success, `sign_up`, CTA ל־`/pricing`.
+1. **חפשו נכס GA4 קיים** ל־Invistimo לפני יצירה.
+2. העתיקו Measurement ID מה־Web stream של `www.invistimo.com` (`G-XXXXXXXX`).
+3. הגדירו `NEXT_PUBLIC_GA_MEASUREMENT_ID` בפרודקשן → Redeploy אחד.
+4. בדקו Realtime על `/pricing` ו־`/rsvp` (לא על `/invite/...`).
+5. אירועים מוכנים בקוד: `select_cta`, `ai_referral`, `web_vital`, `content_group`.
+6. המרות מומלצות לסמן ב־GA4: `generate_lead` / contact success, `sign_up`, CTA ל־`/pricing`.
 
 ## 3) Bing Webmaster Tools
 
-1. ייבוא מ־GSC או הוספה ידנית.
-2. אימות → `NEXT_PUBLIC_BING_SITE_VERIFICATION` → Redeploy.
+1. **ייבוא מ־GSC** (מועדף — בלי meta ובלי Redeploy).
+2. רק אם הייבוא נכשל: אימות meta → `NEXT_PUBLIC_BING_SITE_VERIFICATION` → Redeploy.
 3. שלחו את אותו sitemap.
 
 ## 4) מפת אתר + בקשות אינדוקס

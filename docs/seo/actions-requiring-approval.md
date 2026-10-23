@@ -3,10 +3,10 @@
 | # | Action | Why blocked here |
 | --- | --- | --- |
 | 1 | Merge PR #380 / deploy to production | Explicitly forbidden until you approve |
-| 2 | Set `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Secret / property ownership |
-| 3 | Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | GSC ownership |
-| 4 | Set `NEXT_PUBLIC_BING_SITE_VERIFICATION` | Bing ownership |
-| 5 | Submit sitemap in GSC / Bing + URL Inspection requests | Account access |
+| 2 | Set `NEXT_PUBLIC_GA_MEASUREMENT_ID` (only after confirming no duplicate GA4 property) | Property ownership; one Production redeploy |
+| 3 | Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | **Usually unnecessary** — HTML file + DNS TXT already live; only if GSC property somehow unverified |
+| 4 | Set `NEXT_PUBLIC_BING_SITE_VERIFICATION` | Prefer Bing **Import from GSC** first (no env / redeploy) |
+| 5 | Submit sitemap in GSC / Bing + URL Inspection requests | Account access — see `measurement-connect-owner-steps.md` |
 | 6 | Google Keyword Planner / Ads account for volumes | Paid / account access |
 | 7 | Create Google Business Profile or social profiles | Brand ownership; required before `sameAs` |
 | 8 | Outreach to Engaged / editors / venues | Must be in Invistimo’s name with approval |

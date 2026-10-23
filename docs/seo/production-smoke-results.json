@@ -1,0 +1,584 @@
+{
+  "generatedAt": "2026-10-23T14:20:54.541Z",
+  "base": "https://www.invistimo.com",
+  "policy": "No form submits, no payments, no real guest messages, no registration completes.",
+  "marketingPass": 23,
+  "marketingTotal": 23,
+  "smoke": [
+    {
+      "group": "smoke",
+      "path": "/register",
+      "status": 200,
+      "note": "registration UI",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": false
+        },
+        {
+          "pat": "password|סיסמה|הרשמה|email|אימייל",
+          "ok": false
+        }
+      ],
+      "result": "WARN",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/login",
+      "status": 200,
+      "note": "login UI",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": true
+        },
+        {
+          "pat": "password|סיסמה|התחברות",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/contact",
+      "status": 200,
+      "note": "contact form present — not submitted",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": true
+        },
+        {
+          "pat": "submit|שלח|פנה",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/pricing",
+      "status": 200,
+      "note": "calculator UI — no WhatsApp order",
+      "checks": [
+        {
+          "pat": "pricing-title|בחרו את החבילה",
+          "ok": true
+        },
+        {
+          "pat": "whatsapp-cta|אני רוצה את החבילה",
+          "ok": true
+        },
+        {
+          "pat": "record-input|רשומות",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/plans",
+      "status": 200,
+      "note": "legacy plans redirect/links",
+      "checks": [
+        {
+          "pat": "register|הירשם|חבילה|/pricing",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard",
+      "status": 200,
+      "note": "demo dashboard",
+      "checks": [
+        {
+          "pat": "dashboard|אירוע|מוזמנים|demo|דמו",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard/seating",
+      "status": 200,
+      "note": "demo seating",
+      "checks": [
+        {
+          "pat": "הושבה|שולחן|seating|סקיצה",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/event-management",
+      "status": 200,
+      "note": "demo event management",
+      "checks": [
+        {
+          "pat": "ניהול|משימות|תקציב|event",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard/messages/new",
+      "status": 200,
+      "note": "demo messages",
+      "checks": [
+        {
+          "pat": "הודע|וואטסאפ|הזמנ|message",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    }
+  ],
+  "guest": [
+    {
+      "group": "guest",
+      "path": "/invite/rsvp/preview-smoke-nonexistent-share-id",
+      "status": 200,
+      "result": "PASS",
+      "note": "fake guest RSVP URL loaded without submitting confirmation",
+      "actionTaken": "none"
+    }
+  ],
+  "infra": {
+    "/robots.txt": {
+      "status": 200,
+      "bytes": 2069,
+      "result": "PASS"
+    },
+    "aiCrawlers": {
+      "GPTBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "ChatGPT-User": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "Google-Extended": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "anthropic-ai": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "ClaudeBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "PerplexityBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "Bytespider": "NOT_SITEWIDE_BLOCK (check specific rules)"
+    },
+    "/sitemap.xml": {
+      "status": 200,
+      "bytes": 4880,
+      "result": "PASS"
+    },
+    "sitemapUrlCount": 28,
+    "/answers.json": {
+      "status": 200,
+      "bytes": 16582,
+      "result": "PASS"
+    },
+    "/llms.txt": {
+      "status": 200,
+      "bytes": 2406,
+      "result": "PASS"
+    }
+  },
+  "failCount": 1,
+  "rows": [
+    {
+      "group": "marketing",
+      "path": "/",
+      "status": 200,
+      "title": "Invistimo אישורי הגעה | ניהול אירועים, הזמנות דיגיטליות והושבה",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/rsvp",
+      "status": 200,
+      "title": "אישורי הגעה לאירועים | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/rsvp",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/rsvp/chatuna",
+      "status": 200,
+      "title": "אישורי הגעה לחתונה | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/rsvp/chatuna",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/rsvp/whatsapp",
+      "status": 200,
+      "title": "אישורי הגעה בוואטסאפ | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/rsvp/whatsapp",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/rsvp/save-the-date",
+      "status": 200,
+      "title": "Save the Date לחתונה ולאירועים | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/rsvp/save-the-date",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/invitations/chatuna",
+      "status": 200,
+      "title": "הזמנות דיגיטליות לחתונה ולאירועים | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/invitations/chatuna",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/seating-explained",
+      "status": 200,
+      "title": "סידורי הושבה לחתונה ולאירועים | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/seating-explained",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/event-management",
+      "status": 200,
+      "title": "מערכת ניהול אירועים | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/event-management",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/pricing",
+      "status": 200,
+      "title": "חבילות ומחירים לאישורי הגעה | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/pricing",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/faq",
+      "status": 200,
+      "title": "שאלות ותשובות על אישורי הגעה | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/faq",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/about",
+      "status": 200,
+      "title": "אודות Invistimo | אישורי הגעה וניהול אירועים",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/about",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides",
+      "status": 200,
+      "title": "מדריכים לאישורי הגעה, הזמנות והושבה | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides",
+      "answerFirst": false,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/cost-rsvp-wedding",
+      "status": 200,
+      "title": "כמה עולים אישורי הגעה לחתונה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/cost-rsvp-wedding",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/when-to-send-rsvp",
+      "status": 200,
+      "title": "מתי כדאי להתחיל לשלוח אישורי הגעה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/when-to-send-rsvp",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/send-digital-invitation",
+      "status": 200,
+      "title": "איך שולחים הזמנה דיגיטלית לחתונה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/send-digital-invitation",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/seating-plan",
+      "status": 200,
+      "title": "איך מכינים סידורי הושבה לחתונה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/seating-plan",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/save-the-date-vs-invitation",
+      "status": 200,
+      "title": "מה ההבדל בין Save the Date להזמנה לחתונה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/save-the-date-vs-invitation",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/guests-who-dont-reply",
+      "status": 200,
+      "title": "איך מתמודדים עם אורחים שלא עונים לאישורי הגעה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/guests-who-dont-reply",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/table-number-message",
+      "status": 200,
+      "title": "איך שולחים לאורחים את מספר השולחן? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/table-number-message",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/event-day-checklist",
+      "status": 200,
+      "title": "מה בודקים לפני יום האירוע במערכת? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/event-day-checklist",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/guest-list",
+      "status": 200,
+      "title": "איך מנהלים רשימת מוזמנים לחתונה? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/guest-list",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/info/guides/reduce-meal-waste",
+      "status": 200,
+      "title": "איך מצמצמים הוצאות מיותרות על מנות באירוע? | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/info/guides/reduce-meal-waste",
+      "answerFirst": true,
+      "result": "PASS"
+    },
+    {
+      "group": "marketing",
+      "path": "/contact",
+      "status": 200,
+      "title": "יצירת קשר | Invistimo",
+      "hasH1": true,
+      "canonical": "https://www.invistimo.com/contact",
+      "answerFirst": false,
+      "result": "PASS"
+    },
+    {
+      "group": "smoke",
+      "path": "/register",
+      "status": 200,
+      "note": "registration UI",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": false
+        },
+        {
+          "pat": "password|סיסמה|הרשמה|email|אימייל",
+          "ok": false
+        }
+      ],
+      "result": "WARN",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/login",
+      "status": 200,
+      "note": "login UI",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": true
+        },
+        {
+          "pat": "password|סיסמה|התחברות",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/contact",
+      "status": 200,
+      "note": "contact form present — not submitted",
+      "checks": [
+        {
+          "pat": "form",
+          "ok": true
+        },
+        {
+          "pat": "submit|שלח|פנה",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/pricing",
+      "status": 200,
+      "note": "calculator UI — no WhatsApp order",
+      "checks": [
+        {
+          "pat": "pricing-title|בחרו את החבילה",
+          "ok": true
+        },
+        {
+          "pat": "whatsapp-cta|אני רוצה את החבילה",
+          "ok": true
+        },
+        {
+          "pat": "record-input|רשומות",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/plans",
+      "status": 200,
+      "note": "legacy plans redirect/links",
+      "checks": [
+        {
+          "pat": "register|הירשם|חבילה|/pricing",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard",
+      "status": 200,
+      "note": "demo dashboard",
+      "checks": [
+        {
+          "pat": "dashboard|אירוע|מוזמנים|demo|דמו",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard/seating",
+      "status": 200,
+      "note": "demo seating",
+      "checks": [
+        {
+          "pat": "הושבה|שולחן|seating|סקיצה",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/event-management",
+      "status": 200,
+      "note": "demo event management",
+      "checks": [
+        {
+          "pat": "ניהול|משימות|תקציב|event",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "smoke",
+      "path": "/try/dashboard/messages/new",
+      "status": 200,
+      "note": "demo messages",
+      "checks": [
+        {
+          "pat": "הודע|וואטסאפ|הזמנ|message",
+          "ok": true
+        }
+      ],
+      "result": "PASS",
+      "actionTaken": "none — view only"
+    },
+    {
+      "group": "guest",
+      "path": "/invite/rsvp/preview-smoke-nonexistent-share-id",
+      "status": 200,
+      "result": "PASS",
+      "note": "fake guest RSVP URL loaded without submitting confirmation",
+      "actionTaken": "none"
+    }
+  ]
+}

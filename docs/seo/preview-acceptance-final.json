@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-23T14:04:10.993Z",
-  "base": "https://distinguished-character-trademarks-neighbors.trycloudflare.com",
+  "generatedAt": "2026-10-23T14:20:54.541Z",
+  "base": "https://www.invistimo.com",
   "policy": "No form submits, no payments, no real guest messages, no registration completes.",
   "marketingPass": 23,
   "marketingTotal": 23,
@@ -13,14 +13,14 @@
       "checks": [
         {
           "pat": "form",
-          "ok": true
+          "ok": false
         },
         {
           "pat": "password|סיסמה|הרשמה|email|אימייל",
-          "ok": true
+          "ok": false
         }
       ],
-      "result": "PASS",
+      "result": "WARN",
       "actionTaken": "none — view only"
     },
     {
@@ -165,17 +165,17 @@
   "infra": {
     "/robots.txt": {
       "status": 200,
-      "bytes": 5834,
+      "bytes": 2069,
       "result": "PASS"
     },
     "aiCrawlers": {
-      "GPTBot": "BLOCKED_SITEWIDE",
-      "ChatGPT-User": "BLOCKED_SITEWIDE",
-      "Google-Extended": "BLOCKED_SITEWIDE",
-      "anthropic-ai": "BLOCKED_SITEWIDE",
-      "ClaudeBot": "BLOCKED_SITEWIDE",
-      "PerplexityBot": "BLOCKED_SITEWIDE",
-      "Bytespider": "BLOCKED_SITEWIDE"
+      "GPTBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "ChatGPT-User": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "Google-Extended": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "anthropic-ai": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "ClaudeBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "PerplexityBot": "NOT_SITEWIDE_BLOCK (check specific rules)",
+      "Bytespider": "NOT_SITEWIDE_BLOCK (check specific rules)"
     },
     "/sitemap.xml": {
       "status": 200,
@@ -194,7 +194,7 @@
       "result": "PASS"
     }
   },
-  "failCount": 0,
+  "failCount": 1,
   "rows": [
     {
       "group": "marketing",
@@ -434,14 +434,14 @@
       "checks": [
         {
           "pat": "form",
-          "ok": true
+          "ok": false
         },
         {
           "pat": "password|סיסמה|הרשמה|email|אימייל",
-          "ok": true
+          "ok": false
         }
       ],
-      "result": "PASS",
+      "result": "WARN",
       "actionTaken": "none — view only"
     },
     {
