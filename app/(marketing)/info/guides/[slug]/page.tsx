@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import PublicContentPage from "@/components/marketing/PublicContentPage";
-import { articleNode } from "@/lib/seo/jsonld";
+import RichGuidePage from "@/components/marketing/RichGuidePage";
 import { getGuide, GUIDES, guidePath } from "@/lib/seo/guides";
 import { pageMetadata } from "@/lib/seo/site";
 
@@ -27,38 +26,5 @@ export default async function GuidePage({ params }: Props) {
   const guide = getGuide(slug);
   if (!guide) notFound();
   const path = guidePath(guide.slug);
-
-  return (
-    <PublicContentPage
-      eyebrow="מדריך"
-      title={guide.h1}
-      titleAccent={guide.titleAccent}
-      lede={guide.lede}
-      sections={guide.sections}
-      faqs={guide.faqs}
-      benefits={guide.benefits}
-      steps={guide.steps}
-      media={guide.media}
-      showEventTypes={guide.showEventTypes}
-      ctaTitle={guide.ctaTitle}
-      ctaLede={guide.ctaLede}
-      breadcrumbs={[
-        { name: "ראשי", path: "/" },
-        { name: "מדריכים", path: "/info/guides" },
-        { name: guide.h1, path },
-      ]}
-      path={path}
-      related={
-        guide.related?.length
-          ? guide.related
-          : [
-              { href: "/info/guides", label: "כל המדריכים" },
-              { href: "/pricing", label: "חבילות ומחירים" },
-              { href: "/rsvp", label: "אישורי הגעה" },
-              { href: "/faq", label: "שאלות נפוצות" },
-            ]
-      }
-      extraJsonLd={[articleNode({ title: guide.h1, description: guide.description, path })]}
-    />
-  );
+  return <RichGuidePage guide={guide} path={path} />;
 }

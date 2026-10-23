@@ -1,4 +1,5 @@
 import type { ContentBenefit, ContentFaq, ContentSection, ContentStep } from "@/components/marketing/PublicContentPage";
+import type { GuideGalleryItem, TimelineItem } from "@/components/marketing/RichGuideBlocks";
 import { PRODUCT_SHOTS } from "@/lib/seo/productVisuals";
 
 export type EventLanding = {
@@ -10,6 +11,8 @@ export type EventLanding = {
   h1: string;
   titleAccent: string;
   lede: string;
+  /** Human problem — unique per event type. */
+  problem?: string;
   serviceType: string;
   journeyActiveId?: string;
   servicesThatFit: { href: string; label: string; note: string }[];
@@ -20,6 +23,9 @@ export type EventLanding = {
   related: { href: string; label: string }[];
   showcaseSrc: string;
   showcaseAlt: string;
+  timeline?: TimelineItem[];
+  gallery?: GuideGalleryItem[];
+  video?: { src: string; poster?: string; caption?: string };
 };
 
 const home = { href: "/", label: "ראשי" };
@@ -40,10 +46,50 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "בלי לרדוף אחרי כל דוד וחבר מהכיתה",
     lede:
       "בבר מצווה הרשימה מתפצלת בין משפחה, חברים מהכיתה והורים. צריך לדעת מי מגיע לפני שסוגרים מנות — בלי עשרות הודעות פרטיות בלי מעקב.",
+    problem:
+      "החברים מהכיתה לא עונים בקבוצה, הסבים צריכים קישור ברור, והאולם שואל כמה מנות — בלי שיהיה לכם מספר אחד אמין.",
     serviceType: "אישורי הגעה לבר מצווה",
     journeyActiveId: "rsvp",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
     showcaseAlt: "דשבורד דמו למעקב אישורי הגעה",
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "מעקב תשובות בדמו — נתונים פיקטיביים",
+    },
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "דשבורד",
+        caption: "סטטוסים ומספר מגיעים",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboardMobile,
+        device: "phone",
+        alt: "מובייל",
+        caption: "אותו מעקב בנייד",
+      },
+    ],
+    timeline: [
+      {
+        when: "אחרי הזמנה מדויקת",
+        title: "סבב אישור ראשון",
+        text: "משפחה וחברים באותה רשימה — קישור אישי לכל רשומה.",
+      },
+      {
+        when: "אחרי יומיים",
+        title: "בדיקה + סבב שני",
+        text: "מתקנים מספרים ופונים למי שעדיין פתוח.",
+      },
+      {
+        when: "לפני האולם",
+        title: "סגירת מספר",
+        text: "מעבירים מגיעים לאולם; הושבה רק אם נרכשה.",
+      },
+    ],
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "קישור אישי + סטטוסים" },
       { href: "/rsvp/whatsapp", label: "וואטסאפ / SMS", note: "שני סבבים בחבילת ההודעות" },
@@ -120,9 +166,32 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "תשובות מסודרות לפני שסוגרים את האולם",
     lede:
       "בבת מצווה הרשימה משלבת משפחה קרובה, חברות מהכיתה והורים. צריך תמונה ברורה של מי מגיע — בלי לאבד תשובות בין וואטסאפ של אמא לוואטסאפ של אבא.",
+    problem:
+      "שני הורים אוספים תשובות בשני צ׳אטים שונים — ואף אחד לא יודע אם המספר לאולם הוא 120 או 145.",
     serviceType: "אישורי הגעה לבת מצווה",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
     showcaseAlt: "מעקב סטטוסי הגעה בדמו",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "דשבורד",
+        caption: "רשימה אחת לשני הורים",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.weddingGardenMobile,
+        device: "phone",
+        alt: "הזמנה",
+        caption: "הזמנה דיגיטלית לפני האישורים",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "דשבורד דמו",
+    },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוס לכל רשומה" },
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית", note: "עיצוב + קישור אישי" },
@@ -187,9 +256,32 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "רשימה קצרה, תשובות מהירות",
     lede:
       "בברית ובבריתה הזמן קצר והרשימה קטנה יותר מחתונה. צריך לאשר הגעה מהר — בלי לבנות מסע של שבעה שלבים אם אתם לא צריכים אותו.",
+    problem:
+      "האירוע בעוד ימים ספורים. אין זמן למסע חתונה מלא — רק לדעת מי מגיע וכמה.",
     serviceType: "אישורי הגעה לברית",
     showcaseSrc: PRODUCT_SHOTS.dashboardMobile,
     showcaseAlt: "מעקב אישורים בנייד",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboardMobile,
+        device: "phone",
+        alt: "מובייל",
+        caption: "מעקב מהיר בנייד",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "דשבורד",
+        caption: "רשימה קצרה — סטטוסים ברורים",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "דמו — מעקב תשובות",
+    },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "ליבת התהליך" },
       { href: "/rsvp/whatsapp", label: "וואטסאפ", note: "שני סבבים" },
@@ -251,9 +343,44 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "גם כשהרשימה מתערבבת בין משפחות",
     lede:
       "בחינה מגיעים אורחים משני צדדים, לפעמים עם ילדים, ולעיתים יש גם הושבה. צריך רשימה אחת ותשובות ברורות לפני הערב.",
+    problem:
+      "יש חינה וחתונה קרובות — ואם מערבבים אישורים, לא יודעים מי בא לאיזה ערב.",
     serviceType: "אישורי הגעה לחינה",
     showcaseSrc: PRODUCT_SHOTS.seating,
     showcaseAlt: "מפת הושבה בדמו — רלוונטי לחינה עם שולחנות",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "אישורים",
+        caption: "אישורי חינה — רשימה נפרדת מהחתונה",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.seating,
+        device: "laptop",
+        alt: "הושבה",
+        caption: "הושבה כשיש שולחנות — תוספת",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-seating.webm",
+      poster: PRODUCT_SHOTS.seating,
+      caption: "מפת הושבה בדמו",
+    },
+    timeline: [
+      {
+        when: "לפני החינה",
+        title: "הזמנה + אישורים לערב החינה",
+        text: "קישור נפרד — לא אותו סטטוס של החתונה.",
+      },
+      {
+        when: "אם יש שולחנות",
+        title: "הושבה",
+        text: "רק אחרי מספיק תשובות, ורק אם נרכשה התוספת.",
+      },
+    ],
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוסים ומספר מגיעים" },
       { href: "/invitations/chatuna", label: "הזמנה", note: "עיצוב לערב" },
@@ -317,9 +444,32 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "יודעים מי מגיע — בלי לנחש מהקבוצה",
     lede:
       "בין אם זה יום הולדת 30, 50 או מסיבה פרטית — רוצים לדעת כמה אנשים באים בלי לאסוף תשובות משלושה צ'אטים.",
+    problem:
+      "בקבוצת הוואטסאפ יש 40 «אני באה» ואין דרך לדעת מי באמת סימן ומי רק לייק.",
     serviceType: "אישורי הגעה ליום הולדת",
     showcaseSrc: PRODUCT_SHOTS.weddingGardenMobile,
     showcaseAlt: "דוגמה ויזואלית להזמנה/אתר דמו",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.weddingGardenMobile,
+        device: "phone",
+        alt: "הזמנה",
+        caption: "הזמנה דיגיטלית — תצוגת אורח (דמו)",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboardMobile,
+        device: "phone",
+        alt: "אישור",
+        caption: "תשובה משויכת לרשומה",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "מעקב אחרי מי ענה",
+    },
     servicesThatFit: [
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית", note: "עיצוב + קישור" },
       { href: "/rsvp", label: "אישורי הגעה", note: "כן/לא + מספר מגיעים" },
@@ -382,9 +532,25 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "רשימה קצרה, תשובות ברורות",
     lede:
       "אירוע פרטי לא צריך מערכת «חתונה מלאה». צריך לדעת מי מגיע, כמה מגיעים, ולפעמים לשלוח תזכורת לפני הערב.",
+    problem:
+      "המסיבה לא חתונה — אבל עדיין צריך מספר ברור לפני שמזמינים אוכל ומקום.",
     serviceType: "אישורי הגעה לאירוע פרטי",
     showcaseSrc: PRODUCT_SHOTS.dashboard,
     showcaseAlt: "דשבורד אישורי הגעה בדמו",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "דשבורד",
+        caption: "רשימה ותשובות בלי מסע מלא",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "דמו — מעקב אישורים",
+    },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "הבסיס" },
       { href: "/invitations/chatuna", label: "הזמנה", note: "אופציונלי" },
@@ -449,8 +615,48 @@ export const EVENT_LANDINGS: EventLanding[] = [
     titleAccent: "תמונת מצב להנהלה — לא גיליון שמתעדכן באיחור",
     lede:
       "באירוע עסקי צריך לדעת כמה נרשמו, מי אישר, ומי עדיין פתוח — כדי לסגור קייטרינג, תגי שם והושבה באולם הכנסים.",
+    problem:
+      "ה־HR שולח הזמנה במייל, המפיק סופר באקסל, ואתם צריכים מספר לקייטרינג עד מחר בבוקר.",
     serviceType: "אישורי הגעה לאירוע חברה",
     journeyActiveId: "event-day",
+    gallery: [
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.dashboard,
+        device: "laptop",
+        alt: "סטטוסים",
+        caption: "סטטוסי הגעה בזמן אמת",
+      },
+      {
+        type: "image",
+        src: PRODUCT_SHOTS.eventMgmt,
+        device: "laptop",
+        alt: "ניהול",
+        caption: "ניהול אירוע כתוספת — משימות ותקציב",
+      },
+    ],
+    video: {
+      src: "/marketing/videos/demo-try-dashboard.webm",
+      poster: PRODUCT_SHOTS.dashboard,
+      caption: "דמו — דשבורד משתתפים",
+    },
+    timeline: [
+      {
+        when: "לפני האירוע",
+        title: "רשימה + הזמנה/קישור",
+        text: "מוזמנים ארגוניים עם סטטוס לכל רשומה.",
+      },
+      {
+        when: "סגירה מול ספקים",
+        title: "מספר מגיעים",
+        text: "מייצאים מהדשבורד — לא מהזיכרון.",
+      },
+      {
+        when: "אם רלוונטי",
+        title: "הושבה / ניהול אירוע",
+        text: "תוספות במחשבון — לא חובה לכל כנס.",
+      },
+    ],
     showcaseSrc: PRODUCT_SHOTS.eventMgmt,
     showcaseAlt: "מסך ניהול אירוע בדמו",
     servicesThatFit: [
