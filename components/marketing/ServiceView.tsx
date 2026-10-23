@@ -12,6 +12,7 @@ export default function ServiceView({ service }: { service: ServicePage }) {
       faqs={service.faqs}
       related={service.related}
       breadcrumbs={service.breadcrumbs}
+      path={service.path}
       extraJsonLd={[
         serviceNode({
           name: service.h1,

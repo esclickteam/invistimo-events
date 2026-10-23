@@ -1,5 +1,7 @@
 import Link from "next/link";
 import JsonLd from "@/components/seo/JsonLd";
+import { answerFor, tableFor, type FactTable } from "@/lib/seo/answers";
+import { clusterSiblings } from "@/lib/seo/clusters";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
 
 export type ContentSection = {
@@ -11,6 +13,8 @@ export type ContentSection = {
 export type ContentFaq = { q: string; a: string };
 
 export type ContentLink = { href: string; label: string };
+
+export type { FactTable };
 
 const ctaClass =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white";
@@ -26,6 +30,7 @@ export default function PublicContentPage({
   faqs,
   related,
   breadcrumbs,
+  path,
   extraJsonLd = [],
 }: {
   eyebrow: string;
@@ -35,8 +40,12 @@ export default function PublicContentPage({
   faqs: ContentFaq[];
   related: ContentLink[];
   breadcrumbs: { name: string; path: string }[];
+  path: string;
   extraJsonLd?: Record<string, unknown>[];
 }) {
+  const answer = answerFor(path);
+  const table = tableFor(path);
+  const siblings = clusterSiblings(path);
   const data = graph([
     organizationNode(),
     breadcrumbNode(breadcrumbs),
@@ -65,7 +74,14 @@ export default function PublicContentPage({
 
         <p className="text-sm font-black tracking-wide text-[#A67C3D]">{eyebrow}</p>
         <h1 className="mt-3 text-4xl font-black leading-tight text-[#35281F] md:text-5xl">{title}</h1>
+        {answer ? (
+          <section className="mt-6 rounded-3xl border border-[#E6D2AA] bg-white px-5 py-5">
+            <h2 className="text-xl font-black text-[#35281F]">התשובה הקצרה</h2>
+            <p className="mt-3 text-lg leading-8 text-[#3F3025]">{answer}</p>
+          </section>
+        ) : null}
         <p className="mt-6 text-lg leading-8 text-[#5C4A3A]">{lede}</p>
+        {table ? <FactTableView table={table} /> : null}
 
         {sections.map((section) => (
           <section key={section.heading} className="mt-12">
@@ -93,7 +109,9 @@ export default function PublicContentPage({
             <div className="mt-5 space-y-4">
               {faqs.map((faq) => (
                 <details key={faq.q} className="rounded-2xl border border-[#E6D2AA] bg-white px-5 py-4" open>
-                  <summary className="cursor-pointer text-lg font-black text-[#35281F]">{faq.q}</summary>
+                  <summary className="cursor-pointer">
+                    <h3 className="inline text-lg font-black text-[#35281F]">{faq.q}</h3>
+                  </summary>
                   <p className="mt-3 leading-8 text-[#5C4A3A]">{faq.a}</p>
                 </details>
               ))}
@@ -116,6 +134,21 @@ export default function PublicContentPage({
           </div>
         </section>
 
+        {siblings.length ? (
+          <section className="mt-12">
+            <h2 className="text-xl font-black text-[#35281F]">באותו נושא</h2>
+            <ul className="mt-4 flex flex-wrap gap-3">
+              {siblings.map((link) => (
+                <li key={link.path}>
+                  <Link href={link.path} className="inline-flex min-h-11 items-center rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="mt-12">
           <h2 className="text-xl font-black text-[#35281F]">עמודים קשורים</h2>
           <ul className="mt-4 flex flex-wrap gap-3">
@@ -130,5 +163,35 @@ export default function PublicContentPage({
         </section>
       </article>
     </main>
+  );
+}
+
+function FactTableView({ table }: { table: FactTable }) {
+  return (
+    <div className="mt-8 overflow-x-auto">
+      <table className="w-full min-w-[40rem] border-collapse text-right text-sm">
+        <caption className="mb-3 text-right text-base font-black text-[#35281F]">{table.caption}</caption>
+        <thead>
+          <tr>
+            {table.headers.map((header) => (
+              <th key={header} scope="col" className="border border-[#E6D2AA] bg-[#F7F1E8] px-3 py-3 font-black text-[#35281F]">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row) => (
+            <tr key={row[0]}>
+              {row.map((cell, index) => (
+                <td key={`${row[0]}-${index}`} className="border border-[#E6D2AA] px-3 py-3 leading-6 text-[#5C4A3A]">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

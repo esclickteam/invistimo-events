@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { analyticsAllowed } from "../../lib/seo/analytics";
+import { analyticsAllowed, contentGroup } from "../../lib/seo/analytics";
+import { PAGE_ANSWERS } from "../../lib/seo/answers";
+import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
+import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
 import { CORE_PUBLIC_ROUTES, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
@@ -215,4 +218,42 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
   assert.equal(GUIDES.length, 8);
   assert.equal(SERVICE_PAGES.length, 5);
+});
+
+test("each search query has one primary page and no invented volume", () => {
+  const queries = KEYWORD_MAP.map((row) => row.query);
+  assert.equal(new Set(queries).size, queries.length);
+  const known = new Set([
+    ...CORE_PUBLIC_ROUTES.map((route) => route.path),
+    ...GUIDES.map((guide) => guidePath(guide.slug)),
+  ]);
+  for (const row of KEYWORD_MAP) {
+    assert.equal(row.volume, null);
+    assert.equal(row.competition, null);
+    assert.ok(known.has(row.primaryPath), row.primaryPath);
+    for (const support of row.supportingPaths) assert.ok(known.has(support), support);
+  }
+  assert.ok(AI_MONITOR_QUESTIONS.length >= 6);
+});
+
+test("pillar clusters do not assign one URL to two topics", () => {
+  const paths = PILLARS.flatMap((pillar) => [pillar.path, ...pillar.clusters.map((item) => item.path)]);
+  assert.equal(new Set(paths).size, paths.length);
+  for (const guide of GUIDES) {
+    assert.ok(PAGE_ANSWERS[guidePath(guide.slug)], guide.slug);
+  }
+  for (const service of SERVICE_PAGES) {
+    assert.ok(PAGE_ANSWERS[service.path], service.path);
+  }
+  const page = read("components/marketing/PublicContentPage.tsx");
+  assert.match(page, /<h1/);
+  assert.match(page, /<h2/);
+  assert.match(page, /<h3/);
+  assert.match(page, /התשובה הקצרה/);
+  assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
+  assert.match(read("public/llms.txt"), /not a ranking factor/);
+  assert.equal(contentGroup("/rsvp/chatuna"), "rsvp_invitations");
+  assert.equal(contentGroup("/event-management"), "event_management");
+  assert.equal(contentGroup("/wedding-website/classic"), "wedding_website");
+  assert.equal(contentGroup("/invite/abc"), "other");
 });

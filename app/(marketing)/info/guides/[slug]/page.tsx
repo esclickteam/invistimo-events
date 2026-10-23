@@ -40,6 +40,7 @@ export default async function GuidePage({ params }: Props) {
         { name: "מדריכים", path: "/info/guides" },
         { name: guide.h1, path },
       ]}
+      path={path}
       related={[
         { href: "/info/guides", label: "כל המדריכים" },
         { href: "/pricing", label: "חבילות ומחירים" },

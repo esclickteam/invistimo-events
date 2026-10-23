@@ -1,5 +1,7 @@
 # Invistimo
 
+This file is a plain-language summary for people and for automated readers. It is not a ranking factor and it is not an official requirement of Google, Bing, or any AI search engine.
+
 Invistimo (אינויסטימו) is an Israeli web system for event RSVP, digital invitations, seating, and event follow-up.
 
 Official site: https://www.invistimo.com/
@@ -14,6 +16,14 @@ Official site: https://www.invistimo.com/
 - Prices depend on record count, package, and add-ons. The calculator is https://www.invistimo.com/pricing
 - Operator, as published in the terms: Invistimo, business number 316576578.
 - Support: support@invistimo.com and the WhatsApp number on the contact page.
+
+## Topic hubs
+
+- RSVP: https://www.invistimo.com/rsvp
+- Digital invitations: https://www.invistimo.com/invitations/chatuna
+- Seating: https://www.invistimo.com/seating-explained
+- Event management: https://www.invistimo.com/event-management
+- Guides: https://www.invistimo.com/info/guides
 
 ## Pages worth citing
 

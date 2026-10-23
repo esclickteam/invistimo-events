@@ -138,7 +138,7 @@ function ClickableVideo({ src, className, onOpen }) {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
         className={className}
       />
 

@@ -1,4 +1,4 @@
-import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo/site";
+import { absoluteUrl, CONTENT_UPDATED, SITE_NAME, SITE_URL } from "@/lib/seo/site";
 
 export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 
@@ -95,9 +95,16 @@ export function articleNode(input: {
     description: input.description,
     inLanguage: "he-IL",
     mainEntityOfPage: absoluteUrl(input.path),
-    datePublished: "2026-10-22",
-    dateModified: "2026-10-22",
+    datePublished: CONTENT_UPDATED.toISOString().slice(0, 10),
+    dateModified: CONTENT_UPDATED.toISOString().slice(0, 10),
     author: { "@id": ORGANIZATION_ID },
-    publisher: { "@id": ORGANIZATION_ID },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/invistimo-logo.png"),
+      },
+    },
   };
 }
