@@ -1,8 +1,12 @@
 import Link from "next/link";
+import FactTableView from "@/components/seo/FactTableView";
 import JsonLd from "@/components/seo/JsonLd";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { answerFor, tableFor, type FactTable } from "@/lib/seo/answers";
 import { clusterSiblings } from "@/lib/seo/clusters";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
+
+export type { FactTable };
 
 export type ContentSection = {
   heading: string;
@@ -13,8 +17,6 @@ export type ContentSection = {
 export type ContentFaq = { q: string; a: string };
 
 export type ContentLink = { href: string; label: string };
-
-export type { FactTable };
 
 const ctaClass =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white";
@@ -125,12 +127,12 @@ export default function PublicContentPage({
             המחיר נקבע לפי מספר הרשומות והחבילה במחשבון. אין כאן מחיר כללי לחתונה.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link href="/pricing" className={ctaClass}>
+            <TrackedCtaLink href="/pricing" className={ctaClass} location={`content_cta:${path}`}>
               לצפייה בחבילות
-            </Link>
-            <Link href="/contact" className={secondaryClass}>
+            </TrackedCtaLink>
+            <TrackedCtaLink href="/contact" className={secondaryClass} location={`content_cta:${path}`}>
               יצירת קשר
-            </Link>
+            </TrackedCtaLink>
           </div>
         </section>
 
@@ -166,32 +168,3 @@ export default function PublicContentPage({
   );
 }
 
-function FactTableView({ table }: { table: FactTable }) {
-  return (
-    <div className="mt-8 overflow-x-auto">
-      <table className="w-full min-w-[40rem] border-collapse text-right text-sm">
-        <caption className="mb-3 text-right text-base font-black text-[#35281F]">{table.caption}</caption>
-        <thead>
-          <tr>
-            {table.headers.map((header) => (
-              <th key={header} scope="col" className="border border-[#E6D2AA] bg-[#F7F1E8] px-3 py-3 font-black text-[#35281F]">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row) => (
-            <tr key={row[0]}>
-              {row.map((cell, index) => (
-                <td key={`${row[0]}-${index}`} className="border border-[#E6D2AA] px-3 py-3 leading-6 text-[#5C4A3A]">
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}

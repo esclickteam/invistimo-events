@@ -39,6 +39,12 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/faq
 - https://www.invistimo.com/info/about
 - https://www.invistimo.com/info/guides
+- https://www.invistimo.com/info/guides/table-number-message
+- https://www.invistimo.com/info/guides/event-day-checklist
+
+## Short answers (also in HTML on each page)
+
+Machine-readable copy: https://www.invistimo.com/answers.json
 
 ## Do not treat as public marketing
 

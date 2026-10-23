@@ -3,12 +3,27 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { analyticsAllowed, contentGroup } from "../../lib/seo/analytics";
-import { PAGE_ANSWERS } from "../../lib/seo/answers";
+import {
+  analyticsAllowed,
+  aiReferrerLabel,
+  aiTrafficLabel,
+  aiUtmLabel,
+  contentGroup,
+} from "../../lib/seo/analytics";
+import { PAGE_ANSWERS, tableFor } from "../../lib/seo/answers";
 import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
 import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
-import { CORE_PUBLIC_ROUTES, pageMetadata } from "../../lib/seo/site";
+import {
+  articleNode,
+  breadcrumbNode,
+  faqNode,
+  organizationNode,
+  serviceNode,
+  softwareNode,
+  websiteNode,
+} from "../../lib/seo/jsonld";
+import { CORE_PUBLIC_ROUTES, OG_IMAGE, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
 import sitemap from "../../app/sitemap";
@@ -98,6 +113,7 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
     rsvp.alternates && "canonical" in rsvp.alternates && rsvp.alternates.canonical
   );
   assert.equal(home.robots && typeof home.robots === "object" && "index" in home.robots && home.robots.index, true);
+  assert.match(String(OG_IMAGE.url), /^https:\/\/www\.invistimo\.com\/og-invistimo\.jpg$/);
 
   const titles = CORE_PUBLIC_ROUTES.map((route) => route.title);
   assert.equal(new Set(titles).size, titles.length);
@@ -113,6 +129,11 @@ test("sitemap lists public guides and omits private or auth URLs", () => {
   for (const guide of GUIDES) {
     assert.ok(urls.includes(`https://www.invistimo.com${guidePath(guide.slug)}`));
   }
+  assert.equal(
+    urls.some((url) => /\/wedding-website\/[^/]+$/.test(new URL(url).pathname)),
+    false,
+    "demo template URLs must stay out of the sitemap"
+  );
   const blocked = ["/login", "/register", "/dashboard", "/invite", "/w/", "/plans", "/admin", "/try"];
   for (const url of urls) {
     const pathname = new URL(url).pathname;
@@ -124,17 +145,24 @@ test("sitemap lists public guides and omits private or auth URLs", () => {
 
 test("robots.txt allows guest links and search crawlers, and blocks private apps", () => {
   const rules = robots();
-  const rule = Array.isArray(rules.rules) ? rules.rules[0] : rules.rules;
-  assert.equal(rule.userAgent, "*");
-  const disallow = Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow];
-  assert.ok(disallow.includes("/dashboard"));
-  assert.ok(disallow.includes("/admin"));
-  assert.equal(disallow.includes("/invite"), false);
-  assert.equal(disallow.includes("/w"), false);
-  assert.equal(disallow.includes("/e"), false);
-  assert.equal(disallow.includes("/live"), false);
-  assert.equal(disallow.some((item) => String(item).toLowerCase().includes("googlebot")), false);
-  assert.equal(disallow.some((item) => String(item).toLowerCase().includes("oai-searchbot")), false);
+  const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
+  assert.ok(list.length >= 1);
+  const agents = list.map((rule) => rule.userAgent);
+  assert.ok(agents.includes("*"));
+  assert.ok(agents.includes("Googlebot"));
+  assert.ok(agents.includes("Bingbot"));
+  assert.ok(agents.includes("OAI-SearchBot"));
+  for (const rule of list) {
+    const disallow = Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow];
+    assert.ok(disallow.includes("/dashboard"));
+    assert.ok(disallow.includes("/admin"));
+    assert.ok(disallow.includes("/login"));
+    assert.ok(disallow.includes("/register"));
+    assert.equal(disallow.includes("/invite"), false);
+    assert.equal(disallow.includes("/w"), false);
+    assert.equal(disallow.includes("/e"), false);
+    assert.equal(disallow.includes("/live"), false);
+  }
   assert.match(String(rules.sitemap), /\/sitemap\.xml$/);
 });
 
@@ -202,11 +230,27 @@ test("analytics stays off guest and account URLs and on public marketing URLs", 
   assert.equal(analyticsAllowed("/login"), false);
 });
 
+test("AI referral helpers recognize hosts and UTMs without inventing traffic", () => {
+  assert.equal(aiReferrerLabel("https://chatgpt.com/"), "chatgpt");
+  assert.equal(aiReferrerLabel("https://www.perplexity.ai/search"), "perplexity");
+  assert.equal(aiReferrerLabel("https://gemini.google.com/app"), "gemini");
+  assert.equal(aiReferrerLabel("https://copilot.microsoft.com/"), "copilot");
+  assert.equal(aiReferrerLabel("https://claude.ai/chat"), "claude");
+  assert.equal(aiReferrerLabel("https://www.google.com/"), "");
+  assert.equal(aiUtmLabel("?utm_source=chatgpt.com&utm_medium=ai"), "chatgpt");
+  assert.equal(aiUtmLabel("utm_source=perplexity"), "perplexity");
+  assert.equal(aiTrafficLabel("", "?utm_source=gemini"), "gemini");
+  assert.equal(aiTrafficLabel("https://chatgpt.com/", ""), "chatgpt");
+});
+
 test("marketing pages no longer point the RSVP call to action at a missing short link", () => {
   const rsvp = read("app/(marketing)/rsvp/RsvpMarketingPage.tsx");
   assert.doesNotMatch(rsvp, /\/create-invite/);
   assert.match(rsvp, /\/pricing/);
-  assert.match(read("app/layout.tsx"), /family=Heebo/);
+  assert.match(rsvp, /preload="none"/);
+  assert.match(read("app/layout.tsx"), /next\/font\/google/);
+  assert.match(read("app/layout.tsx"), /Heebo/);
+  assert.doesNotMatch(read("app/layout.tsx"), /fonts\.googleapis\.com\/css2/);
   assert.doesNotMatch(read("app/layout.tsx"), /maps\.googleapis/);
   assert.doesNotMatch(read("app/layout.tsx"), /serviceWorker\.register/);
   assert.match(read("app/components/LocationAutocomplete.tsx"), /selectedPlaceRef/);
@@ -214,10 +258,13 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.match(read("app/components/LocationAutocomplete.tsx"), /GoogleMapsPlacesScript/);
   assert.match(read("app/HomePageClient.tsx"), /homep1\.webp/);
   assert.ok(fs.existsSync(path.join(root, "public/llms.txt")));
+  assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 8);
+  assert.equal(GUIDES.length, 10);
   assert.equal(SERVICE_PAGES.length, 5);
+  assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
+  assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
 });
 
 test("each search query has one primary page and no invented volume", () => {
@@ -236,7 +283,7 @@ test("each search query has one primary page and no invented volume", () => {
   assert.ok(AI_MONITOR_QUESTIONS.length >= 6);
 });
 
-test("pillar clusters do not assign one URL to two topics", () => {
+test("pillar clusters do not assign one URL to two topics and answer-first covers hubs", () => {
   const paths = PILLARS.flatMap((pillar) => [pillar.path, ...pillar.clusters.map((item) => item.path)]);
   assert.equal(new Set(paths).size, paths.length);
   for (const guide of GUIDES) {
@@ -245,15 +292,81 @@ test("pillar clusters do not assign one URL to two topics", () => {
   for (const service of SERVICE_PAGES) {
     assert.ok(PAGE_ANSWERS[service.path], service.path);
   }
+  for (const pillar of PILLARS) {
+    assert.ok(PAGE_ANSWERS[pillar.path], pillar.path);
+  }
+  assert.ok(PAGE_ANSWERS["/"]);
+  assert.ok(PAGE_ANSWERS["/pricing"]);
+  assert.ok(PAGE_ANSWERS["/faq"]);
+  assert.ok(tableFor("/pricing"));
+  assert.ok(tableFor("/rsvp"));
   const page = read("components/marketing/PublicContentPage.tsx");
   assert.match(page, /<h1/);
   assert.match(page, /<h2/);
   assert.match(page, /<h3/);
   assert.match(page, /התשובה הקצרה/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
+  assert.match(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst/);
+  assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
+  assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
+  assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
+  assert.match(read("app/page.tsx"), /AnswerFirst/);
+  assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
   assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
   assert.match(read("public/llms.txt"), /not a ranking factor/);
   assert.equal(contentGroup("/rsvp/chatuna"), "rsvp_invitations");
   assert.equal(contentGroup("/event-management"), "event_management");
   assert.equal(contentGroup("/wedding-website/classic"), "wedding_website");
   assert.equal(contentGroup("/invite/abc"), "other");
+});
+
+test("FAQ accordion keeps answers in the HTML even when collapsed", () => {
+  const faq = read("app/components/FAQAccordion.jsx");
+  assert.doesNotMatch(faq, /isOpen\s*&&/);
+  assert.match(faq, /hidden/);
+  assert.match(faq, /item\.a/);
+});
+
+test("wedding demo templates are explicitly noindex", () => {
+  const source = read("app/wedding-website/[templateId]/page.tsx");
+  assert.match(source, /index:\s*false/);
+});
+
+test("structured data helpers expose required marketing types without fake ratings", () => {
+  const org = organizationNode();
+  assert.equal(org["@type"], "Organization");
+  assert.equal((org.logo as { "@type": string })["@type"], "ImageObject");
+  assert.ok(Array.isArray(org.contactPoint));
+  assert.equal(websiteNode()["@type"], "WebSite");
+  assert.equal(softwareNode("x", "/")["@type"], "SoftwareApplication");
+  assert.equal(serviceNode({ name: "a", description: "b", path: "/rsvp", serviceType: "c" })["@type"], "Service");
+  assert.equal(breadcrumbNode([{ name: "בית", path: "/" }])["@type"], "BreadcrumbList");
+  assert.equal(faqNode([{ q: "ש", a: "ת" }])["@type"], "FAQPage");
+  assert.equal(articleNode({ title: "t", description: "d", path: "/info/guides/x" })["@type"], "Article");
+  const json = JSON.stringify([org, websiteNode(), softwareNode("x"), serviceNode({ name: "a", description: "b", path: "/rsvp", serviceType: "c" })]);
+  assert.doesNotMatch(json, /AggregateRating|Review/);
+  assert.doesNotMatch(json, /"sameAs"/);
+});
+
+test("answers.json mirrors PAGE_ANSWERS for machine readers", () => {
+  const raw = JSON.parse(read("public/answers.json"));
+  assert.equal(raw.site, "https://www.invistimo.com");
+  for (const [pathKey, answer] of Object.entries(PAGE_ANSWERS)) {
+    assert.equal(raw.pageAnswers[pathKey], answer, pathKey);
+  }
+  assert.ok(Array.isArray(raw.aiMonitorQuestions));
+  assert.ok(raw.aiMonitorQuestions.length >= 6);
+});
+
+test("seo documentation deliverables exist", () => {
+  for (const rel of [
+    "docs/seo/keyword-map.md",
+    "docs/seo/analytics-dashboard.md",
+    "docs/seo/offpage-research.md",
+    "docs/seo/qa-report.md",
+    "docs/seo/plan-30-60-90.md",
+    "docs/seo/actions-requiring-approval.md",
+  ]) {
+    assert.ok(fs.existsSync(path.join(root, rel)), rel);
+  }
 });

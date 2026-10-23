@@ -1,7 +1,8 @@
 import FAQAccordion from "../components/FAQAccordion";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
 import JsonLd from "@/components/seo/JsonLd";
-import { faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
+import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
 import { allFaqItems } from "@/lib/seo/publicFaq";
 import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
 
@@ -17,7 +18,17 @@ export const metadata = pageMetadata({
 export default function FAQPage() {
   return (
     <>
-    <JsonLd data={graph([organizationNode(), faqNode(allFaqItems())])} />
+    <JsonLd
+      data={graph([
+        organizationNode(),
+        breadcrumbNode([
+          { name: "בית", path: "/" },
+          { name: "שאלות ותשובות", path: "/faq" },
+        ]),
+        faqNode(allFaqItems()),
+      ])}
+    />
+    <AnswerFirst path="/faq" />
     <div className="max-w-4xl mx-auto px-6 py-24">
       {/* כותרת ראשית */}
       <h1 className="text-4xl font-bold text-center mb-12">

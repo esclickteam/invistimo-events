@@ -52,14 +52,51 @@ export function analyticsAllowed(pathname: string) {
   );
 }
 
+const AI_HOST_MARKERS: { marker: string; label: string }[] = [
+  { marker: "chatgpt.com", label: "chatgpt" },
+  { marker: "chat.openai.com", label: "chatgpt" },
+  { marker: "perplexity.ai", label: "perplexity" },
+  { marker: "gemini.google.com", label: "gemini" },
+  { marker: "copilot.microsoft.com", label: "copilot" },
+  { marker: "claude.ai", label: "claude" },
+];
+
+const AI_UTM_MARKERS: { marker: string; label: string }[] = [
+  { marker: "chatgpt", label: "chatgpt" },
+  { marker: "openai", label: "chatgpt" },
+  { marker: "perplexity", label: "perplexity" },
+  { marker: "gemini", label: "gemini" },
+  { marker: "copilot", label: "copilot" },
+  { marker: "claude", label: "claude" },
+];
+
 export function aiReferrerLabel(referrer: string) {
   const value = referrer.toLowerCase();
-  if (value.includes("chatgpt.com") || value.includes("chat.openai.com")) return "chatgpt";
-  if (value.includes("perplexity.ai")) return "perplexity";
-  if (value.includes("gemini.google.com")) return "gemini";
-  if (value.includes("copilot.microsoft.com")) return "copilot";
-  if (value.includes("claude.ai")) return "claude";
+  for (const item of AI_HOST_MARKERS) {
+    if (value.includes(item.marker)) return item.label;
+  }
   return "";
+}
+
+/** Also catch AI traffic that arrives with empty referrer but tagged UTMs. */
+export function aiUtmLabel(search: string) {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const blob = [
+    params.get("utm_source") || "",
+    params.get("utm_medium") || "",
+    params.get("utm_campaign") || "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (!blob.trim()) return "";
+  for (const item of AI_UTM_MARKERS) {
+    if (blob.includes(item.marker)) return item.label;
+  }
+  return "";
+}
+
+export function aiTrafficLabel(referrer: string, search = "") {
+  return aiReferrerLabel(referrer) || aiUtmLabel(search);
 }
 
 declare global {

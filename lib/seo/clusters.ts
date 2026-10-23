@@ -45,14 +45,17 @@ export const PILLARS: ContentPillar[] = [
     name: "סידורי הושבה",
     path: "/seating-explained",
     summary: "סקיצת אולם, שיבוץ ידני או לפי קבוצות, והודעה עם מספר שולחן.",
-    clusters: [{ path: "/info/guides/seating-plan", label: "איך מכינים הושבה" }],
+    clusters: [
+      { path: "/info/guides/seating-plan", label: "איך מכינים הושבה" },
+      { path: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+    ],
   },
   {
     id: "events",
     name: "ניהול אירועים",
     path: "/event-management",
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
-    clusters: [],
+    clusters: [{ path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" }],
   },
 ];
 

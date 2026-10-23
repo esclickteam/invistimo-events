@@ -22,7 +22,7 @@
  body {
   background: var(--cream);
   color: var(--brown-dark);
-  font-family: "Heebo", sans-serif !important;
+  font-family: var(--font-heebo), "Heebo", sans-serif;
   direction: rtl;
   overflow-x: hidden;
 }

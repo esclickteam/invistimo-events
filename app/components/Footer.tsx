@@ -219,6 +219,12 @@ export default function Footer() {
             <Link href="/info/guides" className="transition hover:text-[#B8862D]">
               מדריכים
             </Link>
+            <Link href="/rsvp" className="transition hover:text-[#B8862D]">
+              אישורי הגעה
+            </Link>
+            <Link href="/pricing" className="transition hover:text-[#B8862D]">
+              חבילות ומחירים
+            </Link>
             <Link href="/rsvp/chatuna" className="transition hover:text-[#B8862D]">
               אישורי הגעה לחתונה
             </Link>

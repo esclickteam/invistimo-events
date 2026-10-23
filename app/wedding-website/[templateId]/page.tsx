@@ -32,11 +32,13 @@ export async function generateMetadata({ params }: Props) {
   }
 
   const path = `/wedding-website/${templateId}`;
+  // Demo templates are thin previews: keep usable, but do not index or sitemap.
   return {
     ...pageMetadata({
       title: `${template.name} | אתר חתונה — Invistimo`,
       description: template.description,
       path,
+      index: false,
     }),
     openGraph: {
       title: `${template.name} — ${template.tagline}`,

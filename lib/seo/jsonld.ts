@@ -9,11 +9,25 @@ export function organizationNode() {
     name: SITE_NAME,
     alternateName: "אינויסטימו",
     url: SITE_URL,
-    logo: absoluteUrl("/invistimo-logo.png"),
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/invistimo-logo.png"),
+    },
     email: "support@invistimo.com",
     telephone: "+972555039072",
     taxID: "316576578",
     areaServed: { "@type": "Country", name: "IL" },
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: "support@invistimo.com",
+        telephone: "+972555039072",
+        availableLanguage: ["Hebrew", "he"],
+        areaServed: "IL",
+      },
+    ],
+    // sameAs is omitted until official, verified public profiles exist.
   };
 }
 
@@ -25,6 +39,7 @@ export function websiteNode() {
     name: SITE_NAME,
     inLanguage: "he-IL",
     publisher: { "@id": ORGANIZATION_ID },
+    // SearchAction omitted: there is no public on-site search box.
   };
 }
 
@@ -106,5 +121,30 @@ export function articleNode(input: {
         url: absoluteUrl("/invistimo-logo.png"),
       },
     },
+  };
+}
+
+/**
+ * VideoObject only when a public poster and a known upload/publish date exist.
+ * Marketing autoplay clips without verified poster/date must not emit this type.
+ */
+export function videoNode(input: {
+  name: string;
+  description: string;
+  contentUrl: string;
+  posterUrl: string;
+  uploadDate: string;
+  path: string;
+}) {
+  return {
+    "@type": "VideoObject",
+    name: input.name,
+    description: input.description,
+    contentUrl: absoluteUrl(input.contentUrl),
+    thumbnailUrl: [absoluteUrl(input.posterUrl)],
+    uploadDate: input.uploadDate,
+    inLanguage: "he-IL",
+    publisher: { "@id": ORGANIZATION_ID },
+    mainEntityOfPage: absoluteUrl(input.path),
   };
 }

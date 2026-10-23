@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-22T21:00:00.000Z");
-
-export const OG_IMAGE = {
-  url: "/og-invistimo.jpg",
-  width: 1200,
-  height: 630,
-  alt: "Invistimo",
-} as const;
+export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
 
 export function absoluteUrl(path: string) {
   if (path === "/") return `${SITE_URL}/`;
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export const OG_IMAGE = {
+  url: absoluteUrl("/og-invistimo.jpg"),
+  width: 1200,
+  height: 630,
+  alt: "Invistimo",
+} as const;
 
 export function pageMetadata(input: {
   title: string;
