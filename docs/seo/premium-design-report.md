@@ -30,7 +30,7 @@
 | `/invitations/chatuna` | 503 | הזמנות דיגיטליות | full premium + eventTypes | PASS | PASS |
 | `/seating-explained` | 706 | סידורי הושבה | benefits, steps, **faq**, eventTypes, media | PASS | PASS |
 | `/event-management` | 858 | מערכת ניהול אירועים | benefits, **faq**, eventTypes, cta | PASS | PASS |
-| `/pricing` | 471 | חבילות אישורי הגעה | answer, cta (מחשבון קיים) | PASS | PASS |
+| `/pricing` | **1050** | חבילות אישורי הגעה | מחשבון ללא שינוי + benefits, steps, טבלת חבילות, eventTypes, FAQ, CTAs | PASS | PASS |
 | `/faq` | 381 | שאלות ותשובות | answer, faq accordion, eventTypes, cta | PASS | PASS |
 | `/info/about` | 354 | אודות | benefits, eventTypes, faq, cta | PASS | PASS |
 | `/info/guides` | 340 | מדריכים (hub) | hero, אשכולות, cta | PASS | PASS |

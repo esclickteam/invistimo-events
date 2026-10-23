@@ -1,4 +1,5 @@
 import AnswerFirst from "@/components/seo/AnswerFirst";
+import PricingMarketingExtras, { PRICING_PAGE_FAQS } from "@/components/marketing/PricingMarketingExtras";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbNode, faqNode, graph, organizationNode, serviceNode, softwareNode } from "@/lib/seo/jsonld";
 import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
@@ -10,21 +11,6 @@ export const metadata = pageMetadata({
   description: route.description,
   path: route.path,
 });
-
-const faqs = [
-  {
-    q: "למה אין מחיר אחד לכל חתונה?",
-    a: "הסכום תלוי במספר הרשומות, בסוג החבילה ובתוספות. המחשבון מציג את הסכום אחרי שבוחרים אותם.",
-  },
-  {
-    q: "מה כלול בחבילת ההודעות?",
-    a: "הזמנה דיגיטלית, שני סבבי וואטסאפ לאישור הגעה, תזכורת SMS עם מספר שולחן, והודעת תודה ב־SMS.",
-  },
-  {
-    q: "האם שיחות כלולות בחבילת ההודעות?",
-    a: "לא. שיחות מוקלטות, אנושיות או משולבות הן חבילות נפרדות שכוללות גם את בסיס ההודעות.",
-  },
-];
 
 const breadcrumbs = [
   { name: "בית", path: "/" },
@@ -45,11 +31,12 @@ export default function PricingLayout({ children }: { children: React.ReactNode 
             serviceType: "אישורי הגעה",
           }),
           softwareNode(route.description, "/pricing"),
-          faqNode(faqs),
+          faqNode(PRICING_PAGE_FAQS),
         ])}
       />
       <AnswerFirst path="/pricing" />
       {children}
+      <PricingMarketingExtras />
     </>
   );
 }

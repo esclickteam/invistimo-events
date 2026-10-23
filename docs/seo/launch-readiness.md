@@ -7,16 +7,18 @@
 
 ## Verdict
 
-**Ready to merge and deploy from an SEO/GEO acceptance perspective**, after fixing home canonical/sitemap slash consistency.
+**Ready for owner review and publish approval** from an SEO/GEO + premium marketing content perspective.  
+**Merge / Deploy still require explicit owner approval.**
 
 | Gate | Result |
 | --- | --- |
 | `npm run test:seo` | **17/17 PASS** |
-| Live marketing HTML acceptance (28 URLs) | **28/28 PASS** |
+| Live marketing HTML acceptance (28 URLs) | **28/28 PASS** (re-run 2026-10-23 afternoon) |
+| Premium viewport audit (22 pages × desktop+mobile) | **ALL PASS** — see `premium-design-inventory.json` |
+| `/pricing` enrichment (no calculator/price changes) | **DONE** (~1050 words + FAQ/benefits/CTAs) |
+| `npm run build` (with stub secrets in agent env) | **PASS** |
 | robots / sitemap / answers.json / llms.txt | **PASS** |
-| Internal link sample (5 hubs × ≤25 links) | **PASS** |
-| Desktop viewport `/rsvp`, `/pricing` | **PASS** (no horizontal overflow, RTL, answer-first) |
-| Mobile iPhone-13 viewport `/rsvp`, `/pricing`, `/faq`, cost guide | **PASS** |
+| Temporary Cloudflare preview tunnel | See `docs/seo/preview-links.md` |
 | Google Rich Results / CrUX on production | **NOT TESTED** (needs live deploy) |
 | GSC / GA4 / Bing live data | **NOT CONNECTED** (needs owner) |
 

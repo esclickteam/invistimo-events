@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T12:15:57.980Z",
+  "generatedAt": "2026-10-23T12:27:14.207Z",
   "base": "http://localhost:3010",
   "pages": [
     {
@@ -158,14 +158,14 @@
       "path": "/pricing",
       "title": "חבילות ומחירים לאישורי הגעה | Invistimo",
       "h1": "בחרו את החבילה שמתאימה לאירוע שלכם",
-      "wordCountApprox": 471,
+      "wordCountApprox": 1050,
       "sections": {
         "answer": true,
         "benefits": false,
-        "steps": false,
-        "eventTypes": false,
-        "faq": false,
-        "cta": false,
+        "steps": true,
+        "eventTypes": true,
+        "faq": true,
+        "cta": true,
         "media": false
       },
       "desktopScreenshot": "premium-audit/desktop-pricing.png",
@@ -604,19 +604,19 @@
       "http": 200,
       "title": "חבילות ומחירים לאישורי הגעה | Invistimo",
       "h1": "בחרו את החבילה שמתאימה לאירוע שלכם",
-      "wordCountApprox": 471,
+      "wordCountApprox": 1050,
       "dir": "rtl",
       "overflowX": false,
       "sections": {
         "answer": true,
         "benefits": false,
-        "steps": false,
-        "eventTypes": false,
-        "faq": false,
-        "cta": false,
+        "steps": true,
+        "eventTypes": true,
+        "faq": true,
+        "cta": true,
         "media": false
       },
-      "headingCount": 12,
+      "headingCount": 41,
       "screenshot": "premium-audit/desktop-pricing.png",
       "status": "PASS"
     },
@@ -1088,19 +1088,19 @@
       "http": 200,
       "title": "חבילות ומחירים לאישורי הגעה | Invistimo",
       "h1": "בחרו את החבילה שמתאימה לאירוע שלכם",
-      "wordCountApprox": 471,
+      "wordCountApprox": 1050,
       "dir": "rtl",
       "overflowX": false,
       "sections": {
         "answer": true,
         "benefits": false,
-        "steps": false,
-        "eventTypes": false,
-        "faq": false,
-        "cta": false,
+        "steps": true,
+        "eventTypes": true,
+        "faq": true,
+        "cta": true,
         "media": false
       },
-      "headingCount": 12,
+      "headingCount": 41,
       "screenshot": "premium-audit/mobile-pricing.png",
       "status": "PASS"
     },

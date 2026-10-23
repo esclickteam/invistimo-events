@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:3010",
-  "checkedAt": "2026-10-23T11:54:52.394Z",
+  "checkedAt": "2026-10-23T12:32:16.299Z",
   "pageCounts": {
     "total": 28,
     "pass": 28,
@@ -92,7 +92,7 @@
         "ogUrl": "https://www.invistimo.com",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 81106
+        "htmlBytes": 81113
       },
       "warnings": [],
       "failures": [],
@@ -130,7 +130,7 @@
         "ogUrl": "https://www.invistimo.com/rsvp",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 118073
+        "htmlBytes": 126690
       },
       "warnings": [],
       "failures": [],
@@ -168,7 +168,7 @@
         "ogUrl": "https://www.invistimo.com/rsvp/chatuna",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 95586
+        "htmlBytes": 148876
       },
       "warnings": [],
       "failures": [],
@@ -206,7 +206,7 @@
         "ogUrl": "https://www.invistimo.com/rsvp/whatsapp",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 110110
+        "htmlBytes": 157693
       },
       "warnings": [],
       "failures": [],
@@ -244,7 +244,7 @@
         "ogUrl": "https://www.invistimo.com/rsvp/save-the-date",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 86475
+        "htmlBytes": 141907
       },
       "warnings": [],
       "failures": [],
@@ -282,7 +282,7 @@
         "ogUrl": "https://www.invistimo.com/invitations/chatuna",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 94984
+        "htmlBytes": 140439
       },
       "warnings": [],
       "failures": [],
@@ -320,7 +320,7 @@
         "ogUrl": "https://www.invistimo.com/seating-explained",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 82160
+        "htmlBytes": 106541
       },
       "warnings": [],
       "failures": [],
@@ -359,7 +359,7 @@
         "ogUrl": "https://www.invistimo.com/event-management",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 110542
+        "htmlBytes": 135968
       },
       "warnings": [],
       "failures": [],
@@ -398,7 +398,7 @@
         "ogUrl": "https://www.invistimo.com/pricing",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 114611
+        "htmlBytes": 196911
       },
       "warnings": [],
       "failures": [],
@@ -435,7 +435,7 @@
         "ogUrl": "https://www.invistimo.com/faq",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 87194
+        "htmlBytes": 117466
       },
       "warnings": [],
       "failures": [],
@@ -473,7 +473,7 @@
         "ogUrl": "https://www.invistimo.com/info/about",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 85616
+        "htmlBytes": 114558
       },
       "warnings": [],
       "failures": [],
@@ -507,7 +507,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 92281
+        "htmlBytes": 116297
       },
       "warnings": [],
       "failures": [],
@@ -539,7 +539,7 @@
         "ogUrl": "https://www.invistimo.com/contact",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 54501
+        "htmlBytes": 54494
       },
       "warnings": [],
       "failures": [],
@@ -566,7 +566,7 @@
         "ogUrl": "https://www.invistimo.com/credit-gifts",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 48598
+        "htmlBytes": 48603
       },
       "warnings": [],
       "failures": [],
@@ -593,7 +593,7 @@
         "ogUrl": "https://www.invistimo.com/wedding-website",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 55048
+        "htmlBytes": 55042
       },
       "warnings": [],
       "failures": [],
@@ -620,7 +620,7 @@
         "ogUrl": "https://www.invistimo.com/terms",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 286532
+        "htmlBytes": 286535
       },
       "warnings": [],
       "failures": [],
@@ -647,7 +647,7 @@
         "ogUrl": "https://www.invistimo.com/privacy",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 69128
+        "htmlBytes": 69129
       },
       "warnings": [],
       "failures": [],
@@ -674,7 +674,7 @@
         "ogUrl": "https://www.invistimo.com/accessibility",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 67025
+        "htmlBytes": 67066
       },
       "warnings": [],
       "failures": [],
@@ -712,7 +712,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/cost-rsvp-wedding",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 118088
+        "htmlBytes": 165927
       },
       "warnings": [],
       "failures": [],
@@ -750,7 +750,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/when-to-send-rsvp",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 96211
+        "htmlBytes": 142599
       },
       "warnings": [],
       "failures": [],
@@ -788,7 +788,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/send-digital-invitation",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 89628
+        "htmlBytes": 137442
       },
       "warnings": [],
       "failures": [],
@@ -826,7 +826,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/seating-plan",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 90362
+        "htmlBytes": 139793
       },
       "warnings": [],
       "failures": [],
@@ -864,7 +864,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/save-the-date-vs-invitation",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 87923
+        "htmlBytes": 121995
       },
       "warnings": [],
       "failures": [],
@@ -902,7 +902,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/reduce-meal-waste",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 95732
+        "htmlBytes": 125860
       },
       "warnings": [],
       "failures": [],
@@ -940,7 +940,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/guest-list",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 94842
+        "htmlBytes": 140510
       },
       "warnings": [],
       "failures": [],
@@ -978,7 +978,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/guests-who-dont-reply",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 95709
+        "htmlBytes": 125623
       },
       "warnings": [],
       "failures": [],
@@ -1016,7 +1016,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/table-number-message",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 88259
+        "htmlBytes": 117982
       },
       "warnings": [],
       "failures": [],
@@ -1054,7 +1054,7 @@
         "ogUrl": "https://www.invistimo.com/info/guides/event-day-checklist",
         "rtl": true,
         "langHe": true,
-        "htmlBytes": 87395
+        "htmlBytes": 128977
       },
       "warnings": [],
       "failures": [],

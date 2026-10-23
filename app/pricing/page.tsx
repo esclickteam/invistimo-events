@@ -208,7 +208,7 @@ export default function PricingPage() {
             INVISTIMO
           </p>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-l from-transparent via-[#C9A46A] to-transparent" />
-          <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[#A07C52]">Smart Event Packages</p>
+          <p className="mt-4 text-xs font-bold tracking-[0.12em] text-[#A07C52]">חבילות ומחירים לאישורי הגעה</p>
 
           <h1
             data-testid="pricing-title"
@@ -219,11 +219,31 @@ export default function PricingPage() {
 
           <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#7B6754]">
             קודם בוחרים כמות רשומות ותוספות. המחיר מתעדכן בכל חבילה, ולחיצה על «אני רוצה את החבילה» פותחת וואטסאפ עם כל הפרטים.
+            אין מחיר אחיד לחתונה או לאירוע אחר — הסכום נקבע כאן לפי הבחירות שלכם.
           </p>
+
+          <div className="mx-auto mt-8 grid max-w-3xl gap-3 text-right sm:grid-cols-3">
+            {[
+              { title: "לפי רשומות", text: "הכמות שתשלחו אליה הודעות" },
+              { title: "לפי חבילה", text: "הודעות או אחת מחבילות השיחה" },
+              { title: "לפי תוספות", text: "הושבה, ניהול, עיצוב ועוד" },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-[22px] border border-[#E5D3B8] bg-[#FFFDF9]/90 px-4 py-4 shadow-[0_12px_30px_rgba(91,64,35,0.06)]"
+              >
+                <p className="text-sm font-black text-[#8A4E19]">{item.title}</p>
+                <p className="mt-1 text-sm leading-6 text-[#7B6754]">{item.text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-20 sm:px-8">
+      <div
+        id="pricing-calculator"
+        className="relative z-10 mx-auto flex w-full max-w-6xl scroll-mt-28 flex-col gap-6 px-4 pb-12 sm:px-8"
+      >
         <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
           <div className="mb-6 flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
