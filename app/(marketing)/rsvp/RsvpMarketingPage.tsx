@@ -24,11 +24,29 @@ const fadeIn = {
 
 const features = [
   "קישור אישי ייחודי לכל אורח",
-  "שליחה אוטומטית ב־WhatsApp או ב־SMS",
+  "שני סבבי וואטסאפ לאישור בחבילת ההודעות",
+  "תזכורת SMS והודעת תודה (לא במקום סבב האישור)",
   "אפשרות להוסיף קישור ל־PayBox או מתנות באשראי",
-  "בחירת מגיע / לא מגיע בצורה פשוטה",
-  "בחירת מספר מגיעים",
-  "הוספת הערות כמו כשרויות, אלרגיות והסעות",
+  "בחירת מגיע / לא מגיע ומספר מגיעים",
+  "הערות כמו כשרות, אלרגיות והסעות",
+];
+
+const rsvpRounds = [
+  {
+    title: "סבב ראשון בוואטסאפ",
+    text: "שולחים לכל הרשימה קישור אישי. האורח מסמן מגיע / לא מגיע וכמה מגיעים — בלי אפליקציה.",
+    href: "/rsvp/whatsapp",
+  },
+  {
+    title: "בודקים בדשבורד",
+    text: "רואים מי ענה, מי פתוח, ומתקנים מספרים לפני שממשיכים.",
+    href: "/info/demo",
+  },
+  {
+    title: "סבב שני למי שלא ענה",
+    text: "בחבילת ההודעות — בלי להעתיק שמות ידנית. שיחות למי שנשאר פתוח הן חבילה נפרדת.",
+    href: "/rsvp/calls",
+  },
 ];
 
 const dashboardFeatures = [
@@ -402,7 +420,55 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          <VideoFrame src="/videos/home1.mp4" />
+          <VideoFrame src="/videos/rsvp1.mp4" variant="phone" />
+        </div>
+      </section>
+
+      {/* ================= RSVP ROUNDS ================= */}
+      <section className="relative px-6 py-20 md:py-24">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
+        <div className="mx-auto max-w-6xl text-right">
+          <PremiumBadge>סבבי אישורי הגעה</PremiumBadge>
+          <h2 className="mt-6 text-4xl font-black text-[#35281F] md:text-5xl">
+            איך נראים שני הסבבים בפועל
+          </h2>
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#6D5B4A]">
+            לא «עוד הודעה בקבוצה». סבב ראשון לכל הרשימה, בדיקה בדשבורד, וסבב שני למי שעדיין פתוח —
+            ואז תזכורת SMS בנפרד לקראת האירוע.
+          </p>
+          <ol className="mt-12 grid gap-6 md:grid-cols-3">
+            {rsvpRounds.map((item, index) => (
+              <li
+                key={item.title}
+                className="border-b border-[#E6D2AA] pb-6 md:border-b-0 md:border-l md:border-[#E6D2AA] md:pb-0 md:pl-6"
+              >
+                <span className="text-3xl font-black text-[#C7A56B]">{String(index + 1).padStart(2, "0")}</span>
+                <h3 className="mt-3 text-xl font-black text-[#35281F]">{item.title}</h3>
+                <p className="mt-3 leading-7 text-[#5C4A3A]">{item.text}</p>
+                <Link
+                  href={item.href}
+                  className="mt-4 inline-block text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  להרחבה ←
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <TrackedCtaLink
+              href="/try"
+              location="rsvp_rounds_demo"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#2A211A] px-8 py-3 text-base font-black text-white"
+            >
+              לפתיחת הדמו האינטראקטיבי
+            </TrackedCtaLink>
+            <Link
+              href="/info/guides/how-many-rsvp-rounds"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
+            >
+              מדריך: כמה סבבים
+            </Link>
+          </div>
         </div>
       </section>
 

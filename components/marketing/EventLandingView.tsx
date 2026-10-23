@@ -4,15 +4,29 @@ import { serviceNode } from "@/lib/seo/jsonld";
 import type { EventLanding } from "@/lib/seo/eventLandings";
 
 export default function EventLandingView({ landing }: { landing: EventLanding }) {
+  const sections = landing.sections.map((section, index) => {
+    if (index !== 0 || section.imageSrc) return section;
+    return {
+      ...section,
+      imageSrc: landing.showcaseSrc,
+      imageAlt: landing.showcaseAlt,
+      imageDevice: landing.showcaseSrc.includes("mobile") ? ("phone" as const) : ("laptop" as const),
+    };
+  });
+
   return (
     <PublicContentPage
       eyebrow={landing.eyebrow}
       title={landing.h1}
       titleAccent={landing.titleAccent}
       lede={landing.lede}
-      sections={landing.sections}
+      sections={sections}
       faqs={landing.faqs}
-      related={landing.related}
+      related={[
+        { href: "/try", label: "דמו אינטראקטיבי" },
+        { href: "/info/demo", label: "מה תראו בדמו" },
+        ...landing.related,
+      ]}
       breadcrumbs={[
         { name: "ראשי", path: "/" },
         { name: "אישורי הגעה", path: "/rsvp" },

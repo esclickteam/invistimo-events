@@ -111,6 +111,14 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/guides/guests-who-dont-reply":
     case "/info/guides/guest-list":
     case "/info/guides/when-to-send-rsvp":
+    case "/info/guides/how-many-rsvp-rounds":
+    case "/info/guides/bar-mitzvah-rsvp-plan":
+    case "/info/guides/when-to-send-invitation":
+    case "/info/guides/when-to-send-save-the-date":
+    case "/info/guides/send-reminder-messages":
+    case "/info/guides/cost-rsvp-wedding":
+    case "/info/guides/reduce-meal-waste":
+    case "/info/guides/save-the-date-vs-invitation":
       return {
         heading: "מעקב אחרי מי ענה ומי עדיין פתוח",
         lede: "בדשבורד רואים סטטוסים ופעילות — בסיס לסבב השני ולשיחות אם נרכשו.",
@@ -118,6 +126,26 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         items: [
           { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד עם סטטוסי אורחים", device: "laptop" },
           { src: PRODUCT_SHOTS.dashboardMobile, alt: "מעקב בנייד", device: "phone" },
+        ],
+      };
+    case "/info/guides/build-wedding-website":
+      return {
+        heading: "תבניות אתר חתונה מהמוצר",
+        lede: "צילומים מתבניות חיות — נתוני דמו בלבד.",
+        layout: "phone-pair",
+        items: [
+          { src: PRODUCT_SHOTS.weddingEternalMobile, alt: "Eternal Gold בנייד", device: "phone" },
+          { src: PRODUCT_SHOTS.weddingGardenMobile, alt: "Garden Bloom בנייד", device: "phone" },
+        ],
+      };
+    case "/info/guides/manage-corporate-event":
+      return {
+        heading: "ניהול אירוע לצד הרשימה",
+        lede: "מסכי דמו — משימות ודשבורד.",
+        layout: "duo",
+        items: [
+          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע בדמו", device: "laptop" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אירוע", device: "laptop" },
         ],
       };
     default:

@@ -397,6 +397,47 @@ export default function SeatingExplainedPage() {
 
       <EventJourney activeId="guests-seating" compact />
 
+      <section className="px-5 py-14 md:px-8 md:py-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
+          <div className="text-right">
+            <GoldBadge>תפוסה ואורחים שלא שובצו</GoldBadge>
+            <h2 className="mt-5 text-3xl font-black text-[#2A211A] md:text-4xl">
+              רואים כמה מקומות נשארו — ומי עדיין בצד
+            </h2>
+            <p className="mt-4 leading-8 text-[#5C4A3A]">
+              במפת ההושבה ובסיכומי השולחנות רואים תפוסה מול קיבולת (למשל 8/10). אורחים שלא שובצו
+              נשארים ברשימה בצד עד שמציבים אותם — כך לא «נעלמים» בין גיליונות.
+            </p>
+            <ul className="mt-6 space-y-3 text-[#5C4A3A]">
+              <li className="flex gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C7A56B]" aria-hidden />
+                <span>שינוי שיבוץ: מעבירים אורח משולחן לשולחן והמפה מתעדכנת.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C7A56B]" aria-hidden />
+                <span>ביום האירוע אפשר לעדכן שיבוץ אם יש גישה לחשבון — לפי מה שנרכש.</span>
+              </li>
+            </ul>
+            <Link
+              href="/try/dashboard/seating"
+              className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-[#2f251d] px-8 py-3 text-base font-black text-white"
+            >
+              לפתיחת דמו ההושבה הפעיל
+            </Link>
+          </div>
+          <div>
+            <DeviceFrame
+              src={PRODUCT_SHOTS.seating}
+              alt="מפת הושבה בדמו עם שולחנות ותפוסה"
+              variant="laptop"
+            />
+            <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
+              צילום דמו — שולחנות, תפוסה ורשימת אורחים
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ================= SECTION 1 ================= */}
       <SectionBlock
         eyebrow="שלב 01 · סקיצת אולם"
