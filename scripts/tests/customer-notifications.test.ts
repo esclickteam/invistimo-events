@@ -411,6 +411,8 @@ test("notifications stay isolated by user and are not duplicated", async (t) => 
 
   process.env.VAPID_PUBLIC_KEY = "";
   process.env.VAPID_PRIVATE_KEY = "";
+  const previousCustomerNotifications = process.env.CUSTOMER_NOTIFICATIONS_ENABLED;
+  process.env.CUSTOMER_NOTIFICATIONS_ENABLED = "1";
   await mongoose.connect(mongod.getUri());
 
   try {
@@ -487,6 +489,11 @@ test("notifications stay isolated by user and are not duplicated", async (t) => 
   const after = await listActiveCustomerNotifications(userA);
   assert.equal(after[0].read, true);
   } finally {
+    if (previousCustomerNotifications === undefined) {
+      delete process.env.CUSTOMER_NOTIFICATIONS_ENABLED;
+    } else {
+      process.env.CUSTOMER_NOTIFICATIONS_ENABLED = previousCustomerNotifications;
+    }
     await mongoose.disconnect();
     await mongod.stop();
   }

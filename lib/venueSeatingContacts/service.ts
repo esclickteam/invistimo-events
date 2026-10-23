@@ -5,6 +5,7 @@ import HallSeatingContact from "@/models/HallSeatingContact";
 import HallSeatingReminderLog from "@/models/HallSeatingReminderLog";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { sendSmsDetailed } from "@/lib/sendSMS";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 import { shortenUrl } from "@/lib/shortenUrl";
 import {
   createCustomerNotification,
@@ -461,6 +462,7 @@ async function deliverCustomerSms(input: {
   startKey: string;
   now: Date;
 }) {
+  if (!customerNotificationsEnabled()) return "disabled" as const;
   const claim = await claimReminder({
     eventId: input.event._id,
     userId: input.user._id,
@@ -668,6 +670,9 @@ export async function processVenueSeatingRemindersForUser(
   userId: string,
   now = new Date()
 ) {
+  if (!customerNotificationsEnabled()) {
+    return { processed: 0, results: [] as Array<{ eventId: string; actions: string[] }>, disabled: true as const };
+  }
   const user = await loadCustomer(userId);
   if (!user || !hasActiveVenueSeatingUpsell(user)) {
     return { processed: 0, results: [] as Array<{ eventId: string; actions: string[] }> };
@@ -686,6 +691,9 @@ export async function processVenueSeatingRemindersForUser(
 }
 
 export async function processAllVenueSeatingReminders(now = new Date()) {
+  if (!customerNotificationsEnabled()) {
+    return { users: 0, processed: 0, results: [], disabled: true as const };
+  }
   const users = await User.find({
     $or: [
       { "salesUpsells.venueSeating.enabled": true },

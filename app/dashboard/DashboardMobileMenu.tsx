@@ -21,6 +21,7 @@ import {
   Bell,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
 import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
@@ -323,7 +324,7 @@ export default function DashboardMobileMenu({
       subtitle: "בחירת התראות Push וניהול המכשירים",
       icon: Bell,
       badge: "התראות",
-      hidden: isDemo,
+      hidden: isDemo || !customerNotificationsEnabled(),
       onClick: () => go("/dashboard/notifications"),
     },
   ];

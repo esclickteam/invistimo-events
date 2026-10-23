@@ -6,6 +6,7 @@ import {
   safeActionPath,
   shouldDeliverPush,
 } from "@/lib/customerNotifications/planners";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 
 export function getVapidConfig() {
   const publicKey = String(process.env.VAPID_PUBLIC_KEY || "").trim();
@@ -38,6 +39,13 @@ async function loadWebPush() {
 export async function deliverWebPushForNotification(notificationId: string) {
   const id = toObjectId(notificationId);
   if (!id) return { sent: 0, reason: "BAD_ID" as const };
+
+  if (!customerNotificationsEnabled()) {
+    const preview = await CustomerNotification.findById(id).select("audience").lean();
+    if (preview && preview.audience !== "admin") {
+      return { sent: 0, reason: "DISABLED" as const };
+    }
+  }
 
   const claimed = await CustomerNotification.findOneAndUpdate(
     { _id: id, pushClaimedAt: null },

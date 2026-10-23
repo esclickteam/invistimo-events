@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 import {
   countUnreadCustomerNotifications,
   listActiveCustomerNotifications,
@@ -16,6 +17,15 @@ export async function GET(request: Request) {
   const auth = await getUserIdFromRequest(request);
   if (!auth) {
     return NextResponse.json({ success: false }, { status: 401 });
+  }
+
+  if (!customerNotificationsEnabled()) {
+    return NextResponse.json({
+      success: true,
+      showBell: false,
+      unreadCount: 0,
+      notifications: [],
+    });
   }
 
   await dbConnect();
