@@ -2,7 +2,12 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import DemoVideo from "@/components/marketing/DemoVideo";
+import DeviceFrame from "@/components/marketing/DeviceFrame";
+import EventJourney from "@/components/marketing/EventJourney";
+import ProductShowcase from "@/components/marketing/ProductShowcase";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
+import { PRODUCT_SHOTS, showcaseForPath } from "@/lib/seo/productVisuals";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 42 },
@@ -169,8 +174,8 @@ export default function RSVPPage() {
       {/* ================= HERO ================= */}
       <section
         className="
-          relative isolate px-6 pb-24 pt-28 text-center
-          md:pb-32 md:pt-36
+          relative isolate px-6 pb-12 pt-16 text-center
+          md:pb-16 md:pt-24
         "
       >
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_34%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F6EBDD_100%)]" />
@@ -282,41 +287,53 @@ export default function RSVPPage() {
           initial="hidden"
           animate="visible"
           variants={fadeUp}
-          transition={{ delay: 0.48, duration: 0.75 }}
-          className="
-            mx-auto mt-16 grid max-w-4xl gap-4
-            sm:grid-cols-3
-          "
+          transition={{ delay: 0.4, duration: 0.75 }}
+          className="mx-auto mt-12 max-w-4xl"
         >
-          {[
-            ["100%", "שליטה בנתונים"],
-            ["Live", "עדכון בזמן אמת"],
-            ["Smart", "ניהול אורחים חכם"],
-          ].map(([title, text]) => (
-            <div
-              key={title}
-              className="
-                rounded-[28px]
-                border border-[#E3C990]
-                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
-                px-6 py-6
-                shadow-[0_20px_55px_rgba(151,108,49,0.12)]
-                backdrop-blur-xl
-              "
-            >
-              <div className="text-3xl font-black text-[#A77A38]">
-                {title}
-              </div>
-              <div className="mt-2 text-sm font-bold text-[#6D5B4A]">
-                {text}
-              </div>
-            </div>
-          ))}
+          <DeviceFrame
+            src={PRODUCT_SHOTS.dashboard}
+            alt="דשבורד דמו של Invistimo עם מעקב אישורי הגעה"
+            variant="laptop"
+            priority
+          />
+          <p className="mt-4 text-sm font-semibold text-[#7A6042]">
+            צילום ממסך הדמו — חתונה פיקטיבית. בלי נתוני לקוחות אמיתיים.
+          </p>
         </motion.div>
       </section>
 
+      {(() => {
+        const showcase = showcaseForPath("/rsvp");
+        return showcase ? (
+          <ProductShowcase
+            heading={showcase.heading}
+            lede={showcase.lede}
+            items={showcase.items}
+            layout={showcase.layout}
+          />
+        ) : null;
+      })()}
+
+      <EventJourney activeId="rsvp" />
+
+      <section className="px-5 py-12 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">הדגמה קצרה מהדשבורד</h2>
+          <p className="mt-3 leading-8 text-[#5C4A3A]">
+            הקלטת מסך ממסך הדמו — בלי שליחת הודעות אמיתיות ובלי נתוני לקוחות.
+          </p>
+          <div className="mt-8">
+            <DemoVideo
+              src="/marketing/videos/demo-try-dashboard.webm"
+              poster={PRODUCT_SHOTS.dashboard}
+              caption="דשבורד דמו של Invistimo"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* ================= BLOCK 1 ================= */}
-      <section className="relative bg-white px-6 py-24 md:py-32">
+      <section className="relative bg-white px-6 py-16 md:py-24">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
 
         <div className="mx-auto grid max-w-7xl items-center gap-16 md:grid-cols-2">

@@ -13,6 +13,7 @@ Official site: https://www.invistimo.com/
 - Optional call packages: recorded calls, a human call desk, or a mix. These are separate from the messages-only package.
 - Optional digital seating: hall sketch, tables, manual or group assignment, personal table message.
 - Save the Date is a separate one-time WhatsApp message when that option is enabled on the account. It does not collect RSVP.
+- Personal wedding website: template gallery and visual editor when the account entitlement is enabled. Complements the invitation and RSVP; does not replace WhatsApp RSVP rounds. Live demos: https://www.invistimo.com/wedding-website
 - Prices depend on record count, package, and add-ons. The calculator is https://www.invistimo.com/pricing
 - Operator, as published in the terms: Invistimo, business number 316576578.
 - Support: support@invistimo.com and the WhatsApp number on the contact page.
@@ -21,6 +22,7 @@ Official site: https://www.invistimo.com/
 
 - RSVP: https://www.invistimo.com/rsvp
 - Digital invitations: https://www.invistimo.com/invitations/chatuna
+- Personal wedding website: https://www.invistimo.com/wedding-website
 - Seating: https://www.invistimo.com/seating-explained
 - Event management: https://www.invistimo.com/event-management
 - Guides: https://www.invistimo.com/info/guides
@@ -32,6 +34,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/rsvp/chatuna
 - https://www.invistimo.com/rsvp/whatsapp
 - https://www.invistimo.com/invitations/chatuna
+- https://www.invistimo.com/wedding-website
 - https://www.invistimo.com/rsvp/save-the-date
 - https://www.invistimo.com/seating-explained
 - https://www.invistimo.com/event-management
@@ -41,6 +44,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/info/guides
 - https://www.invistimo.com/info/guides/table-number-message
 - https://www.invistimo.com/info/guides/event-day-checklist
+- https://www.invistimo.com/info/guides/guests-who-dont-reply
 
 ## Short answers (also in HTML on each page)
 

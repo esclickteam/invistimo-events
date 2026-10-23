@@ -319,7 +319,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     related: [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
-      { href: "/wedding-website", label: "תבניות אתר חתונה" },
+      { href: "/wedding-website", label: "אתר חתונה אישי" },
       { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
     ],
     breadcrumbs: [home, { name: "הזמנות דיגיטליות", path: "/invitations/chatuna" }],
@@ -421,6 +421,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     related: [
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית" },
+      { href: "/wedding-website", label: "אתר חתונה אישי" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
       { href: "/info/guides/save-the-date-vs-invitation", label: "ההבדל מההזמנה" },

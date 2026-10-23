@@ -35,9 +35,10 @@ export default function Header() {
   const navItems = [
     { label: "ראשי", href: "/" },
     { label: "אישורי הגעה", href: "/rsvp" },
+    { label: "הזמנות ואתר חתונה", href: "/wedding-website" },
     { label: "סידורי הושבה", href: "/seating-explained" },
     { label: "חבילות ומחירים", href: "/pricing" },
-    { label: "ניהול והפקת אירוע", href: "/event-management" },
+    { label: "ניהול אירוע", href: "/event-management" },
     { label: "צור קשר", href: "/contact" },
   ];
 
