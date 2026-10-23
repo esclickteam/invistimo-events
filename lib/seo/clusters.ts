@@ -31,6 +31,10 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { path: "/info/guides/guest-list", label: "מדריך רשימה" },
       { path: "/info/guides/reduce-meal-waste", label: "מספר מנות לאולם" },
+      { path: "/info/guides/bar-mitzvah-rsvp-plan", label: "תכנון לבר מצווה" },
+      { path: "/info/guides/send-reminder-messages", label: "איך שולחים תזכורת" },
+      { path: "/rsvp/reminders", label: "עמוד תזכורות" },
+      { path: "/rsvp/thank-you-messages", label: "הודעות תודה" },
     ],
   },
   {
@@ -62,7 +66,11 @@ export const PILLARS: ContentPillar[] = [
     name: "ניהול אירועים",
     path: "/event-management",
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
-    clusters: [{ path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" }],
+    clusters: [
+      { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { path: "/info/guides/manage-corporate-event", label: "אירוע עסקי" },
+      { path: "/info/demo", label: "דמו אינטראקטיבי" },
+    ],
   },
 ];
 

@@ -6,8 +6,8 @@ Research-only list. **Do not email, register, buy links, or post as Invistimo wi
 
 | Site | URL | Opportunity | Priority | Status (2026-10-23) |
 | --- | --- | --- | --- | --- |
-| **Mit4Mit** | https://www.mit4mit.co.il/ | Supplier profile + real reviews; categories under https://www.mit4mit.co.il/cats/ | High | **Registered by owner** — track publish, site link, brand mentions (see `directory-profiles-mit4mit-mazalday.md`) |
-| **MazalDay** | https://www.mazalday.co.il/ | Wedding / event directory profile + site link + brand mention | High | **Registered by owner** — same tracking checklist |
+| **Mit4Mit** | https://www.mit4mit.co.il/ | Supplier profile + real reviews; categories under https://www.mit4mit.co.il/cats/ | High | **Registered by owner**; public profile URL **not verified** in web search 2026-10-23 (see `directory-profiles-mit4mit-mazalday.md`) |
+| **MazalDay** | https://www.mazalday.co.il/ | Wedding / event directory profile + site link + brand mention | High | **Registered by owner**; public profile URL **not verified** 2026-10-23 |
 | Engaged / מאורסים | https://engaged.co.il/ | Supplier listing / deals ecosystem | High | Not started |
 | mit4mit blog | https://www.mit4mit.co.il/blog/ | Educational articles mentioning RSVP vendors | Medium | Optional after profile live |
 

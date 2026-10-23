@@ -107,7 +107,15 @@ export default function SeatingLayout({ children }: { children: React.ReactNode 
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {EVENT_TYPES.map((item) => (
               <li key={item.label} className="rounded-2xl border border-[#E6D2AA] bg-white px-4 py-4">
-                <h3 className="font-black text-[#35281F]">{item.label}</h3>
+                <h3 className="font-black text-[#35281F]">
+                  {item.href ? (
+                    <Link href={item.href} className="hover:text-[#A67C3D]">
+                      {item.label}
+                    </Link>
+                  ) : (
+                    item.label
+                  )}
+                </h3>
                 <p className="mt-2 text-sm leading-6 text-[#5C4A3A]">{item.blurb}</p>
               </li>
             ))}

@@ -523,16 +523,44 @@ export default function RSVPPage() {
                 viewport={{ once: true }}
                 className="rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 text-right shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
               >
-                <h3 className="text-xl font-black text-[#35281F]">{item.label}</h3>
+                <h3 className="text-xl font-black text-[#35281F]">
+                  {item.href ? (
+                    <Link href={item.href} className="hover:text-[#A67C3D]">
+                      {item.label}
+                    </Link>
+                  ) : (
+                    item.label
+                  )}
+                </h3>
                 <p className="mt-3 leading-7 text-[#5C4A3A]">{item.blurb}</p>
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className="mt-4 inline-block text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
+                  >
+                    לעמוד הייעודי ←
+                  </Link>
+                ) : null}
               </motion.li>
             ))}
           </ul>
 
           <p className="mt-8 text-center text-base font-semibold text-[#7A6042]">
-            לחתונה יש גם עמוד ייעודי:{" "}
-            <Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
-              אישורי הגעה לחתונה
+            גם עמודי ערוץ:{" "}
+            <Link href="/rsvp/whatsapp" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+              וואטסאפ
+            </Link>
+            {" · "}
+            <Link href="/rsvp/sms" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+              SMS
+            </Link>
+            {" · "}
+            <Link href="/rsvp/calls" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+              שיחות
+            </Link>
+            {" · "}
+            <Link href="/info/demo" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+              דמו
             </Link>
           </p>
         </div>

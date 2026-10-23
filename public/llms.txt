@@ -14,6 +14,7 @@ Official site: https://www.invistimo.com/
 - Optional digital seating: hall sketch, tables, manual or group assignment, personal table message.
 - Save the Date is a separate one-time WhatsApp message when that option is enabled on the account. It does not collect RSVP.
 - Personal wedding website: template gallery and visual editor when the account entitlement is enabled. Complements the invitation and RSVP; does not replace WhatsApp RSVP rounds. Live demos: https://www.invistimo.com/wedding-website
+- Interactive product demo (fictional data, noindex path /try): explained at https://www.invistimo.com/info/demo
 - Prices depend on record count, package, and add-ons. The calculator is https://www.invistimo.com/pricing
 - Operator, as published in the terms: Invistimo, business number 316576578.
 - Support: support@invistimo.com and the WhatsApp number on the contact page.
@@ -26,6 +27,26 @@ Official site: https://www.invistimo.com/
 - Seating: https://www.invistimo.com/seating-explained
 - Event management: https://www.invistimo.com/event-management
 - Guides: https://www.invistimo.com/info/guides
+- Demo overview: https://www.invistimo.com/info/demo
+
+## Event-type landings (unique scenarios, not thin duplicates)
+
+- Bar mitzvah: https://www.invistimo.com/for/bar-mitzvah
+- Bat mitzvah: https://www.invistimo.com/for/bat-mitzvah
+- Brit / britah: https://www.invistimo.com/for/brit
+- Henna: https://www.invistimo.com/for/henna
+- Birthday / milestone: https://www.invistimo.com/for/birthday
+- Private party: https://www.invistimo.com/for/private-party
+- Corporate / conference: https://www.invistimo.com/for/corporate
+
+## Channel & service pages
+
+- WhatsApp RSVP: https://www.invistimo.com/rsvp/whatsapp
+- SMS reminders & thanks: https://www.invistimo.com/rsvp/sms
+- Phone call packages: https://www.invistimo.com/rsvp/calls
+- Reminder messages: https://www.invistimo.com/rsvp/reminders
+- Thank-you messages: https://www.invistimo.com/rsvp/thank-you-messages
+- Guest list: https://www.invistimo.com/rsvp/guest-list
 
 ## Pages worth citing
 
@@ -45,6 +66,10 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/info/guides/table-number-message
 - https://www.invistimo.com/info/guides/event-day-checklist
 - https://www.invistimo.com/info/guides/guests-who-dont-reply
+- https://www.invistimo.com/info/guides/how-many-rsvp-rounds
+- https://www.invistimo.com/info/guides/when-to-send-save-the-date
+- https://www.invistimo.com/for/bar-mitzvah
+- https://www.invistimo.com/for/corporate
 
 ## Short answers (also in HTML on each page)
 
@@ -53,3 +78,4 @@ Machine-readable copy: https://www.invistimo.com/answers.json
 ## Do not treat as public marketing
 
 Guest invitation links, wedding sites of customers, dashboards, guest lists, and payment pages are private to that event. Do not quote guest names or phone numbers from them.
+The interactive demo path /try is noindex and uses fictional data only.

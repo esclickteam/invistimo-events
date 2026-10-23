@@ -1,31 +1,48 @@
-# קישורי Preview — לפני פרסום (PR #380)
+# קישורי Preview — שדרוג שיווק SEO (PR #382)
 
-**עודכן:** 2026-10-23 17:05 (Asia/Jerusalem)  
+**עודכן:** 2026-10-23 ~19:10 (Asia/Jerusalem)  
 **חשוב:** Tunnel זמני ל־`localhost:3010` של הסוכן — **לא** פרודקשן. עלול להשתנות אם ה־tunnel מתחדש.  
-**אין Deploy.**
+**אין Deploy / Merge בלי אישור.**
 
 ## בסיס Preview נוכחי
 
-`https://distinguished-character-trademarks-neighbors.trycloudflare.com`
+`https://booking-around-circulation-welding.trycloudflare.com`
 
-## עמודים מרכזיים
+## עמודים מרכזיים (דגלים)
 
 | עמוד | קישור |
 | --- | --- |
-| בית | https://distinguished-character-trademarks-neighbors.trycloudflare.com/ |
-| אישורי הגעה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp |
-| אישורי הגעה לחתונה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/chatuna |
-| אישורי הגעה בוואטסאפ | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/whatsapp |
-| Save the Date | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/save-the-date |
-| הזמנות דיגיטליות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/invitations/chatuna |
-| סידורי הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/seating-explained |
-| ניהול אירועים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/event-management |
-| חבילות ומחירים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/pricing |
-| שאלות ותשובות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/faq |
-| מדריכים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/info/guides |
-| יצירת קשר | https://distinguished-character-trademarks-neighbors.trycloudflare.com/contact |
-| הרשמה (UI בלבד) | https://distinguished-character-trademarks-neighbors.trycloudflare.com/register |
-| דמו דשבורד | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard |
-| דמו הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard/seating |
+| בית | https://booking-around-circulation-welding.trycloudflare.com/ |
+| אישורי הגעה | https://booking-around-circulation-welding.trycloudflare.com/rsvp |
+| סידורי הושבה | https://booking-around-circulation-welding.trycloudflare.com/seating-explained |
+| אתר חתונה אישי | https://booking-around-circulation-welding.trycloudflare.com/wedding-website |
+| דמו (הסבר) | https://booking-around-circulation-welding.trycloudflare.com/info/demo |
+| דמו אינטראקטיבי | https://booking-around-circulation-welding.trycloudflare.com/try/dashboard |
 
-PR: https://github.com/esclickteam/invistimo-events/pull/380
+## סוגי אירוע
+
+| עמוד | קישור |
+| --- | --- |
+| בר מצווה | https://booking-around-circulation-welding.trycloudflare.com/for/bar-mitzvah |
+| בת מצווה | https://booking-around-circulation-welding.trycloudflare.com/for/bat-mitzvah |
+| ברית / בריתה | https://booking-around-circulation-welding.trycloudflare.com/for/brit |
+| חינה | https://booking-around-circulation-welding.trycloudflare.com/for/henna |
+| יום הולדת | https://booking-around-circulation-welding.trycloudflare.com/for/birthday |
+| מסיבה פרטית | https://booking-around-circulation-welding.trycloudflare.com/for/private-party |
+| אירוע חברה | https://booking-around-circulation-welding.trycloudflare.com/for/corporate |
+
+## שירותים נוספים
+
+| עמוד | קישור |
+| --- | --- |
+| וואטסאפ | https://booking-around-circulation-welding.trycloudflare.com/rsvp/whatsapp |
+| SMS | https://booking-around-circulation-welding.trycloudflare.com/rsvp/sms |
+| שיחות | https://booking-around-circulation-welding.trycloudflare.com/rsvp/calls |
+| תזכורות | https://booking-around-circulation-welding.trycloudflare.com/rsvp/reminders |
+| הודעות תודה | https://booking-around-circulation-welding.trycloudflare.com/rsvp/thank-you-messages |
+| רשימת מוזמנים | https://booking-around-circulation-welding.trycloudflare.com/rsvp/guest-list |
+| מדריכים | https://booking-around-circulation-welding.trycloudflare.com/info/guides |
+| חבילות | https://booking-around-circulation-welding.trycloudflare.com/pricing |
+
+PR: https://github.com/esclickteam/invistimo-events/pull/382  
+דוח מסירה: `docs/seo/master-deliverable-report.md`
