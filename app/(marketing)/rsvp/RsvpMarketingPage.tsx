@@ -6,6 +6,9 @@ import DemoVideo from "@/components/marketing/DemoVideo";
 import DeviceFrame from "@/components/marketing/DeviceFrame";
 import EventJourney from "@/components/marketing/EventJourney";
 import ProductShowcase from "@/components/marketing/ProductShowcase";
+import FactTableView from "@/components/seo/FactTableView";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import { answerFor, tableFor } from "@/lib/seo/answers";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { PRODUCT_SHOTS, showcaseForPath } from "@/lib/seo/productVisuals";
 
@@ -243,8 +246,9 @@ export default function RSVPPage() {
             sm:flex-row
           "
         >
-          <Link
-            href="/pricing"
+          <TrackedCtaLink
+            href="/try"
+            location="hero_cta:/rsvp"
             className="
               group inline-flex items-center justify-center
               rounded-full
@@ -257,14 +261,15 @@ export default function RSVPPage() {
               hover:shadow-[0_30px_75px_rgba(58,43,34,0.42)]
             "
           >
-            התחילו לנהל אישורי הגעה
+            לצפייה בדמו
             <span className="mr-2 transition group-hover:-translate-x-1">
               ←
             </span>
-          </Link>
+          </TrackedCtaLink>
 
-          <Link
+          <TrackedCtaLink
             href="/pricing"
+            location="hero_cta:/rsvp"
             className="
               inline-flex items-center justify-center
               rounded-full
@@ -280,7 +285,7 @@ export default function RSVPPage() {
             "
           >
             צפייה בחבילות
-          </Link>
+          </TrackedCtaLink>
         </motion.div>
 
         <motion.div
@@ -302,6 +307,17 @@ export default function RSVPPage() {
         </motion.div>
       </section>
 
+      {answerFor("/rsvp") ? (
+        <section className="border-y border-[#E6D2AA]/70 bg-[#FFFDF8]/90 px-5 py-6 md:px-8">
+          <div className="mx-auto max-w-6xl text-right">
+            <h2 className="text-base font-black text-[#A67C3D]">התשובה הקצרה</h2>
+            <p className="mt-2 max-w-4xl text-base leading-8 text-[#3F3025] md:text-lg">
+              {answerFor("/rsvp")}
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       {(() => {
         const showcase = showcaseForPath("/rsvp");
         return showcase ? (
@@ -315,6 +331,14 @@ export default function RSVPPage() {
       })()}
 
       <EventJourney activeId="rsvp" />
+
+      {tableFor("/rsvp") ? (
+        <section className="px-5 py-10 md:px-8">
+          <div className="mx-auto max-w-4xl text-right">
+            <FactTableView table={tableFor("/rsvp")!} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">

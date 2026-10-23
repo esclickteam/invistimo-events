@@ -311,7 +311,7 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.match(page, /<h3/);
   assert.match(page, /התשובה הקצרה/);
   assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
-  assert.match(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst/);
+  assert.match(read("app/(marketing)/rsvp/RsvpMarketingPage.tsx"), /התשובה הקצרה/);
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
   assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
