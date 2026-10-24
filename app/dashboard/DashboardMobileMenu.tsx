@@ -167,6 +167,20 @@ export default function DashboardMobileMenu({
         );
       },
     },
+    {
+      title: "סטודיו הזמנות",
+      subtitle: "תבניות, עריכה ופרסום בקישור האישי",
+      icon: WandSparkles,
+      badge: "עיצוב",
+      hidden: gameOnly,
+      onClick: () => {
+        if (isDemo) {
+          demoBlock();
+          return;
+        }
+        go("/dashboard/invitation-studio");
+      },
+    },
 
     {
       title: "עריכת אתר חתונה",

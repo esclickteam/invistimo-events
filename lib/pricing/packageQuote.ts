@@ -117,11 +117,23 @@ export const PACKAGES: Record<PackageId, PackageDefinition> = {
 
 export const CALL_PACKAGES: PackageId[] = ["voice", "personal", "hybrid"];
 
-export type AddonKey = "credit" | "seating" | "system" | "design";
+export type AddonKey = "credit" | "seating" | "system" | "design" | "designedInvitation";
 
 export type SelectedAddons = Record<AddonKey, boolean>;
 
-export const ADDON_ORDER: AddonKey[] = ["credit", "seating", "system", "design"];
+export const ADDON_ORDER: AddonKey[] = [
+  "credit",
+  "seating",
+  "system",
+  "design",
+  "designedInvitation",
+];
+
+export const DESIGNED_INVITATION_DESCRIPTION =
+  "בחרו עיצוב מתוך מגוון תבניות יוקרתיות, התאימו את פרטי האירוע וצרו הזמנה אישית ומרשימה לאורחים שלכם.";
+
+/** Fallback until admin settings load. The charged amount is not taken from this constant when the package already includes a digital invitation. */
+export const DEFAULT_DESIGNED_INVITATION_PRICE_ILS = 150;
 
 /** Original addon names from the previous pricing page. */
 export const ADDON_LABELS: Record<AddonKey, string> = {
@@ -129,6 +141,7 @@ export const ADDON_LABELS: Record<AddonKey, string> = {
   seating: "הושבה דיגיטלית",
   system: "מערכת עצמאית לניהול ומעקב אירוע",
   design: "עיצוב הזמנה בהתאמה אישית",
+  designedInvitation: "הזמנה דיגיטלית מעוצבת",
 };
 
 export const EMPTY_ADDONS: SelectedAddons = {
@@ -136,6 +149,7 @@ export const EMPTY_ADDONS: SelectedAddons = {
   seating: false,
   system: false,
   design: false,
+  designedInvitation: false,
 };
 
 /**
@@ -143,12 +157,22 @@ export const EMPTY_ADDONS: SelectedAddons = {
  * Messages used plan1. Call packages used plan2.
  * Digital seating is 100 ₪ on every package.
  */
-const ADDON_PRICES: Record<"messages" | "calls", Record<Exclude<AddonKey, "seating">, number>> = {
+const ADDON_PRICES: Record<
+  "messages" | "calls",
+  Record<Exclude<AddonKey, "seating" | "designedInvitation">, number>
+> = {
   messages: { credit: 150, system: 200, design: 200 },
   calls: { credit: 100, system: 150, design: 150 },
 };
 
-export function addonPrice(packageId: PackageId, key: AddonKey): number {
+export function addonPrice(
+  packageId: PackageId,
+  key: AddonKey,
+  catalogPrice = DEFAULT_DESIGNED_INVITATION_PRICE_ILS
+): number {
+  if (key === "designedInvitation") {
+    return packageIncludesDigitalInvitation(packageId) ? 0 : catalogPrice;
+  }
   if (key === "seating") return SEATING_ADDON_ILS;
   const table = packageId === "messages" ? ADDON_PRICES.messages : ADDON_PRICES.calls;
   return table[key];
@@ -159,7 +183,13 @@ export type AddonLine = {
   label: string;
   selected: boolean;
   price: number;
+  includedInPackage?: boolean;
+  description?: string;
 };
+
+export function packageIncludesDigitalInvitation(packageId: PackageId) {
+  return PACKAGES[packageId].features.some((feature) => feature.includes("הזמנה דיגיטלית"));
+}
 
 export type PackageQuote = {
   packageId: PackageId;
@@ -231,18 +261,26 @@ export function calculateQuote(input: {
   packageId: PackageId;
   records: number;
   addons: SelectedAddons;
+  designedInvitationPrice?: number;
 }): PackageQuote {
   const records = clampRecords(input.records);
   const pkg = PACKAGES[input.packageId];
   const price = servicePrice(input.packageId, records);
+  const catalogPrice =
+    input.designedInvitationPrice ?? DEFAULT_DESIGNED_INVITATION_PRICE_ILS;
   const addons = ADDON_ORDER.map((key) => {
     const selected = Boolean(input.addons[key]);
-    const unit = addonPrice(pkg.id, key);
+    const includedInPackage =
+      key === "designedInvitation" && packageIncludesDigitalInvitation(pkg.id);
+    const unit = addonPrice(pkg.id, key, catalogPrice);
     return {
       key,
       label: ADDON_LABELS[key],
       selected,
       price: selected ? unit : 0,
+      includedInPackage,
+      description:
+        key === "designedInvitation" ? DESIGNED_INVITATION_DESCRIPTION : undefined,
     };
   });
   const addonTotal = addons.reduce((sum, addon) => sum + addon.price, 0);
@@ -285,13 +323,18 @@ export function buildWhatsappMessage(quote: PackageQuote): string {
   ];
 
   for (const addon of quote.addons) {
-    lines.push(`${addon.label}: ${addon.selected ? "כן" : "לא"}`);
+    const answer = !addon.selected
+      ? "לא"
+      : addon.includedInPackage
+        ? "כלול בחבילה"
+        : "כן";
+    lines.push(`${addon.label}: ${answer}`);
   }
 
   lines.push(`מחיר שירות: ${formatIls(quote.servicePrice)}`);
 
   for (const addon of quote.addons) {
-    if (!addon.selected) continue;
+    if (!addon.selected || addon.includedInPackage || addon.price === 0) continue;
     lines.push(
       addon.key === "seating"
         ? `תוספת הושבה: ${formatIls(addon.price)}`

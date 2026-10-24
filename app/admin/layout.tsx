@@ -113,6 +113,11 @@ const NAV_GROUPS: NavGroup[] = [
         icon: <CalendarDays className="h-4 w-4" />,
       },
       {
+        href: "/admin/invitation-studio",
+        label: "סטודיו הזמנות",
+        icon: <Sparkles className="h-4 w-4" />,
+      },
+      {
         href: "/admin/calls",
         label: "שירות שיחות",
         icon: <PhoneCall className="h-4 w-4" />,

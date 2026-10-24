@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Armchair,
   AudioLines,
@@ -21,9 +21,12 @@ import {
   ADDON_LABELS,
   ADDON_ORDER,
   CALL_PACKAGES,
+  DEFAULT_DESIGNED_INVITATION_PRICE_ILS,
+  DESIGNED_INVITATION_DESCRIPTION,
   EMPTY_ADDONS,
   PACKAGES,
   addonPrice,
+  packageIncludesDigitalInvitation,
   applyRecordDraft,
   buildWhatsappUrl,
   calculateQuote,
@@ -42,6 +45,7 @@ const ADDON_ICONS: Record<AddonKey, LucideIcon> = {
   seating: Armchair,
   system: MonitorCog,
   design: Palette,
+  designedInvitation: Sparkles,
 };
 
 const PACKAGE_ICONS: Record<PackageId, LucideIcon> = {
@@ -81,12 +85,19 @@ function PackageCard({
   pkg,
   records,
   addons,
+  catalogPrice,
 }: {
   pkg: PackageDefinition;
   records: number;
   addons: SelectedAddons;
+  catalogPrice: number;
 }) {
-  const quote = calculateQuote({ packageId: pkg.id, records, addons });
+  const quote = calculateQuote({
+    packageId: pkg.id,
+    records,
+    addons,
+    designedInvitationPrice: catalogPrice,
+  });
   const Icon = PACKAGE_ICONS[pkg.id];
   const href = quote.canOrder ? buildWhatsappUrl(quote) : "";
   const selectedAddons = quote.addons.filter((addon) => addon.selected);
@@ -164,6 +175,22 @@ export default function PricingPage() {
   const [records, setRecords] = useState(200);
   const [recordText, setRecordText] = useState("200");
   const [addons, setAddons] = useState<SelectedAddons>(EMPTY_ADDONS);
+  const [catalogPrice, setCatalogPrice] = useState(DEFAULT_DESIGNED_INVITATION_PRICE_ILS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/invitation-studio/settings", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && Number.isFinite(Number(data?.priceIls))) {
+          setCatalogPrice(Number(data.priceIls));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const packages = useMemo(
     () => [PACKAGES.messages, ...CALL_PACKAGES.map((id) => PACKAGES[id])],
@@ -314,8 +341,9 @@ export default function PricingPage() {
             {ADDON_ORDER.map((key) => {
               const selected = addons[key];
               const Icon = ADDON_ICONS[key];
-              const messagesPrice = addonPrice("messages", key);
-              const callsPrice = addonPrice("voice", key);
+              const included = key === "designedInvitation" && packageIncludesDigitalInvitation("messages");
+              const messagesPrice = addonPrice("messages", key, catalogPrice);
+              const callsPrice = addonPrice("voice", key, catalogPrice);
 
               return (
                 <button
@@ -344,10 +372,17 @@ export default function PricingPage() {
                       <span className="block text-sm font-semibold leading-5 text-[#5A3E25]">
                         {ADDON_LABELS[key]}
                       </span>
+                      {key === "designedInvitation" ? (
+                        <span className="mt-1 block text-xs leading-5 text-[#6d5844]">
+                          {DESIGNED_INVITATION_DESCRIPTION}
+                        </span>
+                      ) : null}
                       <span className="mt-1 block text-xs font-black leading-5 text-[#8A5A25] [overflow-wrap:anywhere]">
-                        {messagesPrice === callsPrice
-                          ? `+ ₪${messagesPrice}`
-                          : `הודעות ₪${messagesPrice} · שיחות ₪${callsPrice}`}
+                        {included
+                          ? `כלול בחבילה · מחיר עצמאי ₪${catalogPrice}`
+                          : messagesPrice === callsPrice
+                            ? `+ ₪${messagesPrice}`
+                            : `הודעות ₪${messagesPrice} · שיחות ₪${callsPrice}`}
                       </span>
                     </span>
                   </span>
@@ -380,7 +415,13 @@ export default function PricingPage() {
           ) : null}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             {packages.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} records={records} addons={addons} />
+              <PackageCard
+                key={pkg.id}
+                pkg={pkg}
+                records={records}
+                addons={addons}
+                catalogPrice={catalogPrice}
+              />
             ))}
           </div>
         </section>
